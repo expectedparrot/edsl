@@ -1,0 +1,13 @@
+#!/bin/sh
+
+# Navigate to your repository's root (optional if the hook is always invoked from root)
+cd "$(git rev-parse --show-toplevel)"
+
+# Invoke the 'backup' target from the Makefile
+make backup
+
+# If the script exits with non-zero, the push will be aborted
+if [ $? -ne 0 ]; then
+  echo "The push was aborted due to the script."
+  exit 1
+fi
