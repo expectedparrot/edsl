@@ -25,7 +25,7 @@ class Client:
     def url(self) -> str:
         return api_url[self.run_mode]
 
-    # JOBS METHODS
+    # JOBS METHODS edit
     @property
     def jobs(self) -> list:
         """Returns a list of all jobs on the server."""
