@@ -9,7 +9,7 @@ The Emeritus Domain-Specific Language (EDSL) package lets you conduct social sci
 ## 🔗 Links
 - PyPI: https://pypi.org/project/edsl/
 - Documentation: https://www.goemeritus.com/getting-started/
-- Discord: https://discord.gg/HQbBKYvb
+- Discord: https://discord.gg/FGN8B2Ax
 
 ## 💡 Contributing, Feature Asks, and Bugs
 Interested in contributing? Want us to add a new feature? Found a nasty bug that you would like us to squash? Please send us an email at info@goemeritus.com or message us at our discord server.
@@ -27,5 +27,3 @@ See https://www.goemeritus.com/getting-started/
 ## 🔧 Dependencies
 The main third-party package requirement is  `openai`.
 
-## 📖 Citation
-Reference to cite if you use EDSL in a paper: TBA
