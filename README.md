@@ -27,5 +27,3 @@ See https://www.goemeritus.com/getting-started/
 ## 🔧 Dependencies
 The main third-party package requirement is  `openai`.
 
-## 📖 Citation
-Reference to cite if you use EDSL in a paper: TBA
