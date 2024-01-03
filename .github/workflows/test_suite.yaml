@@ -1,0 +1,50 @@
+name: Test Suite
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.10", "3.9"]
+    env:
+      EDSL_RUN_MODE: development
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY_DEV }}
+      POETRY_VERSION: "1.7.1"
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: ${{ env.POETRY_VERSION }}
+
+      - name: Cache Poetry virtualenv
+        uses: actions/cache@v2
+        with:
+          path: ~/.cache/pypoetry/virtualenvs
+          key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-poetry-
+
+      - name: Install dependencies
+        shell: bash
+        run: poetry install --with dev
+
+      - name: Run edsl tests
+        shell: bash
+        run: poetry run make test
