@@ -60,6 +60,7 @@ class QuestionLinearScaleEnhanced(QuestionMultipleChoiceEnhanced):
 
         class QuestionLinearScaleAnswerDataModel(AnswerData):
             answer: int
+            comment: Optional[str] = None
 
             @field_validator("answer")
             def check_answer(cls, value):
