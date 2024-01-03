@@ -47,12 +47,12 @@ class Config:
         """
         Loads environment variables from the .env file
         - Creates a .env file if it does not exist
-        - .env variables do not override existing environment variables
+        - .env variables override existing environment variables
         """
         if not os.path.exists(DOTENV_PATH):
             with open(DOTENV_PATH, "w") as f:
                 f.write("")
-        load_dotenv(dotenv_path=DOTENV_PATH, override=False)
+        load_dotenv(dotenv_path=DOTENV_PATH, override=True)
 
     def _set_env_vars(self) -> None:
         """
