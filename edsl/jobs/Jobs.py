@@ -104,7 +104,7 @@ class Jobs:
         n: int = 1,
         debug: bool = False,
         verbose: bool = False,
-        progress_bar: bool = True,
+        progress_bar: bool = False,
     ) -> Union[Results, ResultsAPI]:
         """
         Runs the Job: conducts Interviews and returns their results.
