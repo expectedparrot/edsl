@@ -1,18 +1,29 @@
+# Data files
 *csv
 *db
 *gz
 *json
 *txt
 !edsl/utilities/data/*.json
-dist
+!.vscode/settings.json
+# Docs
 docs/_build/
-htmlcov
-.backups
-.coverage
-.DS_Store
+# Dotenv
 .env
+# Jupyter notebook files
 .ipynb_checkpoints/
+# MacOS files
+.DS_Store
+# Miscelannea
+.backups
+# MyPy files
 .mypy_cache
-.pytest_cache
-.venv
+# Packaging files
+dist
+# Testing files
 __pycache__
+.coverage
+.pytest_cache
+htmlcov
+# Virtual environment files
+.venv
