@@ -50,16 +50,16 @@ class ResultsExportMixin:
                 writer.writerow(header)
                 writer.writerows(rows)
 
-            if download_link:
-                import base64
-                from IPython.display import HTML, display
+                if download_link:
+                    import base64
+                    from IPython.display import HTML, display
 
-                csv_file = output.getvalue()
-                b64 = base64.b64encode(csv_file.encode()).decode()
-                download_link = f'<a href="data:file/csv;base64,{b64}" download="my_data.csv">Download CSV file</a>'
-                display(HTML(download_link))
-            else:
-                return output.getvalue()
+                    csv_file = output.getvalue()
+                    b64 = base64.b64encode(csv_file.encode()).decode()
+                    download_link = f'<a href="data:file/csv;base64,{b64}" download="my_data.csv">Download CSV file</a>'
+                    display(HTML(download_link))
+                else:
+                    return output.getvalue()
         else:
             return self.select().to_csv(
                 filename, remove_prefix=remove_prefix, download_link=download_link
