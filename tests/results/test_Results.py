@@ -11,6 +11,15 @@ class TestResults(unittest.TestCase):
     def test_instance(self):
         self.assertIsInstance(self.example_results, Results)
 
+    def test_csv_export(self):
+        # Just prints to screen
+        csv = self.example_results.to_csv()
+        self.assertIsInstance(csv, str)
+        self.assertIn("how_feeling", csv)
+        # Saves the file
+        csv = self.example_results.to_csv(filename="test.csv")
+        self.assertIsNone(csv)
+
     # def test_original_data_preserved(self):
     #     original_data = self.example_results.original_data
     #     self.example_results.append({"test": "data"})
