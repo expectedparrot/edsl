@@ -172,7 +172,7 @@ class LanguageModel(ABC):
             from edsl.language_models import LanguageModelOpenAIThreeFiveTurbo
 
             model_class = LanguageModelOpenAIThreeFiveTurbo
-        if data["model"] == "gpt-4":
+        if data["model"] == "gpt-4-1106-preview":
             from edsl.language_models import LanguageModelOpenAIFour
 
             model_class = LanguageModelOpenAIFour
