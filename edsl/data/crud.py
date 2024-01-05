@@ -1,6 +1,7 @@
 from sqlalchemy import desc
 from typing import Union
 from edsl.data import Database, database, LLMOutputDataDB
+from edsl.data.orm import StreamingResultDB
 
 
 class CRUDOperations:
@@ -55,6 +56,44 @@ class CRUDOperations:
         with self.database.get_db() as db:
             db.add(record)
             db.commit()
+
+    def write_StreamingResult(
+        self,
+        job_uuid: str,
+        result_uuid: str,
+        agent: str,
+        scenario: str,
+        model: str,
+        answer: str,
+    ) -> None:
+        """
+        Writes a StreamingResult record to the database. Arguments: job_uuid, result_uuid, agent, scenario, model, and answer - all in string format.
+        """
+        record = StreamingResultDB(
+            job_uuid=job_uuid,
+            result_uuid=result_uuid,
+            agent=agent,
+            scenario=scenario,
+            model=model,
+            answer=answer,
+        )
+
+        with self.database.get_db() as db:
+            db.add(record)
+            db.commit()
+
+    def read_StreamingResults(self, job_uuid: str) -> list[StreamingResultDB]:
+        """
+        Reads all StreamingResult records from the database. Arguments: job_uuid in string format.
+        """
+        with self.database.get_db() as db:
+            records = (
+                db.query(StreamingResultDB)
+                .filter_by(job_uuid=job_uuid)
+                .order_by(desc(StreamingResultDB.id))
+                .all()
+            )
+        return records
 
 
 CRUD = CRUDOperations(database)
