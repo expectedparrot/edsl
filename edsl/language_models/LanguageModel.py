@@ -168,11 +168,11 @@ class LanguageModel(ABC):
     @classmethod
     def from_dict(cls, data: dict) -> Type[LanguageModel]:
         """Converts dictionary to a LanguageModel child instance."""
-        if data["model"] == "gpt-3.5-turbo":
+        if "gpt-3.5" in data["model"]:
             from edsl.language_models import LanguageModelOpenAIThreeFiveTurbo
 
             model_class = LanguageModelOpenAIThreeFiveTurbo
-        if data["model"] == "gpt-4-1106-preview":
+        elif "gpt-4" in data["model"]:
             from edsl.language_models import LanguageModelOpenAIFour
 
             model_class = LanguageModelOpenAIFour
