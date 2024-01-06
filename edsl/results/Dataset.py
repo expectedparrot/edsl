@@ -1,5 +1,4 @@
 from collections import UserList
-
 import numpy as np
 
 from edsl.results.ResultsExportMixin import ResultsExportMixin
@@ -18,6 +17,14 @@ class Dataset(UserList, ResultsExportMixin):
                 return d[key]
         else:
             raise KeyError(f"Key '{key}' not found in any of the dictionaries.")
+
+    def first(self):
+        "Gets the first value of the first key in the first dictionary."
+
+        def get_values(d):
+            return list(d.values())[0]
+
+        return get_values(self.data[0])[0]
 
     def order_by(self, sort_key, reverse=False):
         def sort_indices(lst):
