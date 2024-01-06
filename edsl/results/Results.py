@@ -23,6 +23,18 @@ from edsl.utilities.utilities import is_gzipped, is_valid_variable_name
 from edsl.results.Dataset import Dataset
 
 
+class ColumnNotFoundError(Exception):
+    pass
+
+
+class BadMutationstringError(Exception):
+    pass
+
+
+class InvalidNameError(Exception):
+    pass
+
+
 class Results(
     UserList, ResultsFetchMixin, ResultsExportMixin, ResultsOutputMixin, RegressionMixin
 ):
@@ -166,7 +178,7 @@ class Results(
             try:
                 data_type, key = self._key_to_data_type[column], column
             except KeyError:
-                raise Exception(f"Column {column} not found in data")
+                raise ColumnNotFoundError(f"Column {column} not found in data")
 
         return data_type, key
 
@@ -188,14 +200,14 @@ class Results(
         [{'answer.how_feeling_x': ['Badx', 'Badx', 'Greatx', 'Greatx']}]
         """
         if "=" not in new_var_string:
-            raise Exception(
+            raise BadMutationstringError(
                 f"Mutate requires an '=' in the string, but '{new_var_string}' doesn't have one."
             )
         raw_var_name, expression = new_var_string.split("=", 1)
         var_name = raw_var_name.strip()
 
         if not is_valid_variable_name(var_name):
-            raise Exception(f"{var_name} is not a valid variable name.")
+            raise InvalidNameError(f"{var_name} is not a valid variable name.")
 
         if functions_dict is None:
             functions_dict = {}
