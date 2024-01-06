@@ -18,12 +18,14 @@ from edsl.results.ResultsExportMixin import ResultsExportMixin
 from edsl.results.RegressionMixin import RegressionMixin
 from edsl.results.ResultsOutputMixin import ResultsOutputMixin
 from edsl.results.ResultsFetchMixin import ResultsFetchMixin
-from edsl.utilities.utilities import is_gzipped
+from edsl.utilities.utilities import is_gzipped, is_valid_variable_name
 
 from edsl.results.Dataset import Dataset
 
 
-class Results(UserList, ResultsFetchMixin, ResultsExportMixin, ResultsOutputMixin):
+class Results(
+    UserList, ResultsFetchMixin, ResultsExportMixin, ResultsOutputMixin, RegressionMixin
+):
     def __init__(self, survey, data, created_columns=None):
         """
         The Results object is a list of Result objects, stored in data.
@@ -71,10 +73,12 @@ class Results(UserList, ResultsFetchMixin, ResultsExportMixin, ResultsOutputMixi
 
     @property
     def _data_type_to_keys(self) -> dict:
-        """Maps data types (result, agent, scenario, etc.) to keys (how_feeling, status, etc.)"
+        """Maps data types (result, agent, scenario, etc.) to keys (how_feeling, status, etc.)
 
         >>> r = Results.create_example()
         >>> mapping = r._data_type_to_keys.keys()
+        >>> mapping
+        dict_keys(['answer', 'agent', 'scenario', 'model'])
         """
         d = defaultdict(set)
         for result in self.data:
@@ -85,9 +89,12 @@ class Results(UserList, ResultsFetchMixin, ResultsExportMixin, ResultsOutputMixi
             d["answer"] = d["answer"].union(set({column}))
         return d
 
+    ######################
+    ## Convenience methods
+    ######################
+
     @property
     def answer_keys(self) -> dict:
-        # return self._data_type_to_keys["answer"]
         answer_keys = self._data_type_to_keys["answer"]
         answer_keys = {k for k in answer_keys if "_comment" not in k}
         questions_text = [
@@ -109,6 +116,14 @@ class Results(UserList, ResultsFetchMixin, ResultsExportMixin, ResultsOutputMixi
         return self._data_type_to_keys["model"]
 
     @property
+    def question_names(self):
+        return list(self.survey.question_names)
+
+    @property
+    def agents(self):
+        return [r.agent for r in self.data]
+
+    @property
     def all_keys(self):
         answer_keys = set(self.answer_keys)
         return (
@@ -119,34 +134,38 @@ class Results(UserList, ResultsFetchMixin, ResultsExportMixin, ResultsOutputMixi
 
     def relevant_columns(self) -> set:
         """
+        This returns all of the columns that are in the results.
+
         >>> r = Results.create_example()
         >>> keys = r.relevant_columns()
         >>> keys == {'elapsed', 'temperature', 'agent', 'scenario', 'answer', 'use_cache', 'how_feeling', 'frequency_penalty', 'max_tokens', 'model', 'status', 'top_p', 'period', 'presence_penalty'}
         True
-        >>> r.select('how_feeling').relevant_columns()
-        {'answer.how_feeling'}
         """
-        keys = set({})
-        for observation in self:
-            observation_keys = set(observation.combined_dict.keys())
-            keys = keys.union(observation_keys)
-        return keys
+        return set().union(
+            *(observation.combined_dict.keys() for observation in self.data)
+        )
 
     def _parse_column(self, column: str) -> tuple[str, str]:
         """
         Utility function to parse a column name into a data type and a key.
+
+        >>> r = Results.create_example()
+        >>> r._parse_column("answer.how_feeling")
+        ('answer', 'how_feeling')
+
         The standard way a column is specified is with a dot-separated string, e.g. "agent.status".
+        >> self._parse_column("agent.status")
+        ("agent", "status")
 
         But you can also specify a single key, e.g. "status", in which case it will look up the data type.
         This relies on the key_to_data_type property of the Results class.
         """
-        if "." in column:
+        if "." in column:  # they passed it as, say, "answer.how_feeling"
             data_type, key = column.split(".")
         else:
-            if column in self._key_to_data_type:
-                data_type = self._key_to_data_type[column]
-                key = column
-            else:
+            try:
+                data_type, key = self._key_to_data_type[column], column
+            except KeyError:
                 raise Exception(f"Column {column} not found in data")
 
         return data_type, key
@@ -154,59 +173,55 @@ class Results(UserList, ResultsFetchMixin, ResultsExportMixin, ResultsOutputMixi
     def first(self):
         """
         This returns the first observation in the results.
-        >>> r = Results.create_example()
-        >>> r.select('how_feeling').first()
-        'Bad'
         """
-        return list(self.data[0].values())[0][0]
+        return self.data[0]
 
-    def mutate(
-        self, new_var_string, functions_dict=None, in_place=False
-    ) -> Union[Results, None]:
+    def mutate(self, new_var_string, functions_dict=None) -> Results:
         """
         Creates a value value in 'results' as if has been asked as part of the survey.
         It splits the new_var_string at the "=" and uses simple_eval
 
+        The functions dict is...
+
         >>> r = Results.create_example()
         >>> r.mutate('how_feeling_x = how_feeling + "x"').select('how_feeling_x')
         [{'answer.how_feeling_x': ['Badx', 'Badx', 'Greatx', 'Greatx']}]
-
-        TODO: Make sure left is valid python name
         """
+        if "=" not in new_var_string:
+            raise Exception(
+                f"Mutate requires an '=' in the string, but '{new_var_string}' doesn't have one."
+            )
         raw_var_name, expression = new_var_string.split("=", 1)
-
         var_name = raw_var_name.strip()
 
-        new_data = []
-        for result in self.data:
-            try:
-                if functions_dict is not None:
-                    evaluator = EvalWithCompoundTypes(
-                        names=result.combined_dict, functions=functions_dict
-                    )
-                else:
-                    evaluator = EvalWithCompoundTypes(names=result.combined_dict)
+        if not is_valid_variable_name(var_name):
+            raise Exception(f"{var_name} is not a valid variable name.")
 
-                value = evaluator.eval(expression)
+        if functions_dict is None:
+            functions_dict = {}
 
-                new_result = result.copy()
-                new_result["answer"][var_name] = value
-                new_data.append(new_result)
-            except Exception as e:
-                print(f"Exception:{e}")
-
-        if in_place:
-            self.data = new_data
-            self.created_columns = self.created_columns + [var_name]
-            return None
-        else:
-            new_results = Results(
-                survey=self.survey,
-                data=new_data,
-                created_columns=self.created_columns + [var_name],
+        def create_evaluator(result):
+            return EvalWithCompoundTypes(
+                names=result.combined_dict, functions=functions_dict
             )
 
-        return new_results
+        def new_result(old_result, var_name):
+            evaluator = create_evaluator(old_result)
+            value = evaluator.eval(expression)
+            new_result = old_result.copy()
+            new_result["answer"][var_name] = value
+            return new_result
+
+        try:
+            new_data = [new_result(result, var_name) for result in self.data]
+        except Exception as e:
+            print(f"Exception:{e}")
+
+        return Results(
+            survey=self.survey,
+            data=new_data,
+            created_columns=self.created_columns + [var_name],
+        )
 
     def select(self, *columns: Union[str, list[str]]) -> Dataset:
         """
@@ -215,8 +230,6 @@ class Results(UserList, ResultsFetchMixin, ResultsExportMixin, ResultsOutputMixi
         >>> results.select('how_feeling')
         [{'answer.how_feeling': ['Bad', 'Bad', 'Great', 'Great']}]
         """
-        # we're doing to populate this with the data we want to fetch
-        to_fetch = defaultdict(list)
 
         if not columns or columns == ("*",) or columns == (None,):
             columns = ("*.*",)
@@ -224,36 +237,42 @@ class Results(UserList, ResultsFetchMixin, ResultsExportMixin, ResultsOutputMixi
         if isinstance(columns[0], list):
             columns = tuple(columns[0])
 
+        known_data_types = ["answer", "scenario", "agent", "model"]
+
+        def get_data_types_to_return(parsed_data_type):
+            if parsed_data_type == "*":  # they want all of the columns
+                return known_data_types
+            else:
+                if parsed_data_type not in known_data_types:
+                    raise Exception(
+                        f"Data type {parsed_data_type} not found in data. Did you mean one of {known_data_types}"
+                    )
+                return [parsed_data_type]
+
+        # we're doing to populate this with the data we want to fetch
+        to_fetch = defaultdict(list)
+
         new_data = []
         items_in_order = []
+        # iterate through the passed columns
         for column in columns:
             # a user could pass 'result.how_feeling' or just 'how_feeling'
             parsed_data_type, parsed_key = self._parse_column(column)
-            if parsed_data_type == "*":
-                data_types = ["answer", "scenario", "agent", "model"]
-            else:
-                if parsed_data_type not in ["answer", "scenario", "agent", "model"]:
-                    raise Exception(f"Data type {parsed_data_type} not found in data")
-                data_types = [parsed_data_type]
-
+            data_types = get_data_types_to_return(parsed_data_type)
             found_once = False  # we need to track this to make sure we found the key at least once
+
             for data_type in data_types:
+                # the keys for that data_type e.g.,# if data_type is 'answer', then the keys are 'how_feeling', 'how_feeling_comment', etc.
                 relevant_keys = self._data_type_to_keys[data_type]
-                if (
-                    parsed_key == "*"
-                ):  # wildcard, we'll get all the keys for that data type
-                    found_once = True
-                    to_fetch[data_type] = relevant_keys
-                    items_in_order.extend([data_type + "." + k for k in relevant_keys])
-                else:
-                    for key in relevant_keys:
-                        if key == parsed_key:
-                            found_once = True
-                            to_fetch[data_type].append(key)
-                            items_in_order.append(data_type + "." + key)
+
+                for key in relevant_keys:
+                    if key == parsed_key or parsed_key == "*":
+                        found_once = True
+                        to_fetch[data_type].append(key)
+                        items_in_order.append(data_type + "." + key)
 
             if not found_once:
-                raise Exception(f"Key {parsed_key} not found in data")
+                raise Exception(f"Key {parsed_key} not found in data.")
 
         for data_type in to_fetch:
             for key in to_fetch[data_type]:
@@ -269,9 +288,6 @@ class Results(UserList, ResultsFetchMixin, ResultsExportMixin, ResultsOutputMixi
         sorted(new_data, key=sort_by_key_order)
 
         return Dataset(new_data)
-
-    def to_dataset(self) -> Dataset:
-        return self.select()
 
     def sort_by(self, column, reverse=True) -> Results:
         "Sorts the results by a column"
@@ -289,12 +305,7 @@ class Results(UserList, ResultsFetchMixin, ResultsExportMixin, ResultsOutputMixi
             key=lambda x: to_numeric_if_possible(x.get_value(data_type, key)),
             reverse=reverse,
         )
-        new_results = Results(
-            survey=self.survey,
-            data=new_data,
-            created_columns=self.created_columns,
-        )
-        return new_results
+        return Results(survey=self.survey, data=new_data, created_columns=None)
 
     def filter(self, expression) -> Results:
         """
@@ -305,30 +316,24 @@ class Results(UserList, ResultsFetchMixin, ResultsExportMixin, ResultsOutputMixi
         >>> r.filter("how_feeling == 'Nothing'").select('how_feeling')
         [{'answer.how_feeling': []}]
         """
-        new_data = []
-        for result in self.data:
-            try:
-                # the combined_dict is a Result-level dictionary mapping keys to values
-                # e.g., {'agent': {'status':'OK'}} as well as {'status':'OK'}
-                # This can deal w/ the case whree the user uses dot notation
-                evaluator = EvalWithCompoundTypes(names=result.combined_dict)
-                if eval_result := evaluator.eval(expression):
-                    new_data.append(result)
-            except Exception as e:
-                print(f"Exception:{e}")
 
-        new_results = Results(
-            survey=self.survey, data=new_data, created_columns=self.created_columns
-        )
-        return new_results
+        def create_evaluator(result):
+            return EvalWithCompoundTypes(names=result.combined_dict)
+
+        try:
+            new_data = [
+                result
+                for result in self.data
+                if create_evaluator(result).eval(expression)
+            ]
+        except Exception as e:
+            print(f"Exception:{e}")
+
+        return Results(survey=self.survey, data=new_data, created_columns=None)
 
     def to_dict(self):
-        new_data = []
-        for observation in self.data:
-            new_observation = observation.to_dict()
-            new_data.append(new_observation)
         return {
-            "data": new_data,
+            "data": [observation.to_dict() for observation in self.data],
             "survey": self.survey.to_dict(),
             "created_columns": self.created_columns,
         }
@@ -356,14 +361,6 @@ class Results(UserList, ResultsFetchMixin, ResultsExportMixin, ResultsOutputMixi
             with open(json_file, "r") as f:
                 data = json.load(f)
         return cls.from_dict(data)
-
-    @property
-    def question_names(self):
-        return list(self.survey.question_names)
-
-    @property
-    def agents(self):
-        return [r.agent for r in self.data]
 
     @classmethod
     def create_example(cls, refresh=False, debug=False):

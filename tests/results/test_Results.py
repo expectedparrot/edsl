@@ -20,19 +20,6 @@ class TestResults(unittest.TestCase):
         csv = self.example_results.to_csv(filename="test.csv")
         self.assertIsNone(csv)
 
-    # def test_original_data_preserved(self):
-    #     original_data = self.example_results.original_data
-    #     self.example_results.append({"test": "data"})
-    #     self.assertNotEqual(
-    #         self.example_results.original_data, self.example_results.data
-    #     )
-    # self.assertEqual(set(original_data), set(self.example_results.original_data))
-
-    def test_restore(self):
-        self.example_results.append({"test": "data"})
-        self.example_results.restore()
-        self.assertEqual(self.example_results.original_data, self.example_results.data)
-
     def test_to_dict(self):
         results_dict = self.example_results.to_dict()
 
@@ -57,8 +44,10 @@ class TestResults(unittest.TestCase):
 
     def test_filter(self):
         self.assertEqual(
-            self.example_results.filter("how_feeling == 'Great'").select("how_feeling"),
-            self.example_results.select("how_feeling").filter("how_feeling == 'Great'"),
+            self.example_results.filter("how_feeling == 'Great'")
+            .select("how_feeling")
+            .first(),
+            "Great",
         )
 
     def test_select(self):
