@@ -1,29 +1,31 @@
 from collections import UserDict
+from typing import Type
+from edsl.agents import Agent
+from edsl.scenarios import Scenario
+from edsl.language_models import LanguageModel
 
 
 class Result(UserDict):
     """Represents the result of an interview: one survey, one agent, one scenario,
     one model, one iteration, and one result."""
 
-    def __init__(self, survey, agent, scenario, model, iteration, answer):
-        # instantiates the UserDict with the actual objects
+    def __init__(
+        self,
+        agent: Agent,
+        scenario: Scenario,
+        model: Type[LanguageModel],
+        iteration: int,
+        answer: str,
+    ):
         data = {
-            #            "survey": survey,
-            "survey": None,
             "agent": agent.agent_with_valid_trait_names(),
             "scenario": scenario,
             "model": model,
             "iteration": iteration,
             "answer": answer,
         }
-
         super().__init__(**data)
 
-        # Also assign the attributes to the class for convenience
-
-        # TODO: This actually isn't expensive in terms of memory
-        # for key, value in data.items():
-        #    setattr(self, key, value)
         self.agent = agent
         self.scenario = scenario
         self.model = model
@@ -59,8 +61,7 @@ class Result(UserDict):
         return d
 
     def __repr__(self):
-        survey = self.survey if hasattr(self, "survey") else None
-        return f"Result(survey={survey}, agent={self.agent}, scenario={self.scenario}, model={self.model}, iteration={self.iteration}, answer={self.answer})"
+        return f"Result(agent={self.agent}, scenario={self.scenario}, model={self.model}, iteration={self.iteration}, answer={self.answer})"
 
     def to_dict(self):
         return {
@@ -72,23 +73,14 @@ class Result(UserDict):
 
     @classmethod
     def from_dict(self, json_dict):
-        from edsl.agents import Agent
-        from edsl.scenarios import Scenario
-        from edsl.language_models import LanguageModel
-
-        return Result(
-            # survey=Survey.from_dict(json_dict["survey"]),
-            survey=None,
+        result = Result(
             agent=Agent.from_dict(json_dict["agent"]),
             scenario=Scenario.from_dict(json_dict["scenario"]),
             model=LanguageModel.from_dict(json_dict["model"]),
             iteration=json_dict["iteration"],
             answer=json_dict["answer"],
         )
-
-    @property
-    def agents(self):
-        return [r.agent for r in self]
+        return result
 
 
 if __name__ == "__main__":
