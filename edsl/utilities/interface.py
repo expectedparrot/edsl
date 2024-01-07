@@ -270,6 +270,22 @@ def print_list_of_dicts_as_html_table(data, filename=None, interactive=False):
         ipython_diplay(HTML(html))
 
 
+def print_public_methods_with_doc(obj):
+    console = Console()
+    public_methods_with_docstrings = [
+        (method, getattr(obj, method).__doc__)
+        for method in dir(obj)
+        if callable(getattr(obj, method))
+        and not method.startswith("_")
+        and method != "methods"
+    ]
+
+    for method, doc in public_methods_with_docstrings:
+        if doc:
+            console.print(f"[bold]{method}:[/bold]", style="green")
+            console.print(f"\t{doc.strip()}", style="yellow")
+
+
 def print_table_with_rich(data, filename=None):
     # Initialize a console object - expects a list of dictionaries
     console = Console(record=True)
