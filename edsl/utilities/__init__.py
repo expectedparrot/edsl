@@ -2,6 +2,7 @@ from edsl.utilities.interface import (
     print_dict_as_html_table,
     print_dict_with_rich,
     print_table_with_rich,
+    print_public_methods_with_doc,
 )
 
 from edsl.utilities.utilities import (

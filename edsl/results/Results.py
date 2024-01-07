@@ -1,7 +1,5 @@
 from __future__ import annotations
-import io
 import json
-import sys
 from collections import UserList, defaultdict
 from simpleeval import EvalWithCompoundTypes
 from typing import Type, Union
@@ -20,7 +18,12 @@ from edsl.results.ResultsOutputMixin import ResultsOutputMixin
 from edsl.results.ResultsFetchMixin import ResultsFetchMixin
 from edsl.scenarios import Scenario
 from edsl.surveys import Survey
-from edsl.utilities import is_gzipped, is_valid_variable_name, shorten_string
+from edsl.utilities import (
+    is_gzipped,
+    is_valid_variable_name,
+    print_public_methods_with_doc,
+    shorten_string,
+)
 
 
 class Results(
@@ -354,16 +357,14 @@ class Results(
         return cls.from_dict(data)
 
     def show_methods(self):
-        public_methods_with_docstrings = [
-            (method, getattr(self, method).__doc__)
-            for method in dir(self)
-            if callable(getattr(self, method)) and not method.startswith("_")
-        ]
-
-        return [x[0] for x in public_methods_with_docstrings]
+        print_public_methods_with_doc(self)
 
     @classmethod
     def example(cls, debug: bool = False) -> Results:
+        """
+        Returns an example Results object
+        - debug: if False, uses actual API calls
+        """
         from edsl.jobs import Jobs
 
         job = Jobs.example()
