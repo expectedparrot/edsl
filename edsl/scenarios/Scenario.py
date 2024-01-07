@@ -1,8 +1,10 @@
 import copy
 from collections import UserDict
 
+from edsl.Base import Base
 
-class Scenario(UserDict):
+
+class Scenario(UserDict, Base):
     """A Scenario is a dictionary of key/values that describe some situation."""
 
     def __add__(self, other_scenario):
@@ -88,6 +90,24 @@ class Scenario(UserDict):
         {'food': 'wood chips'}
         """
         return cls(d)
+
+    @classmethod
+    def example(cls):
+        """Returns an example scenario.
+        >>> Scenario.example()
+        {'scenario': 'example'}
+        """
+        return cls(
+            {
+                "persona": "A reseacher studying whether LLMs can be used to generate surveys."
+            }
+        )
+
+    def code(self):
+        """Returns the code for the scenario."""
+        lines = []
+        lines.append("from edsl.scenario import Scenario")
+        return f"Scenario({self.data})"
 
 
 if __name__ == "__main__":
