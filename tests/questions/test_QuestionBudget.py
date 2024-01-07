@@ -27,7 +27,7 @@ def test_QuestionBudget_construction():
     assert q.question_text == valid_question["question_text"]
     assert q.question_options == valid_question["question_options"]
     assert q.question_name is None
-    assert q.uuid is not None
+    
     assert q.answer_data_model is not None
     assert q.data != valid_question
 

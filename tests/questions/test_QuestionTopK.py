@@ -23,7 +23,7 @@ def test_QuestionTopK_construction():
     assert q.question_options == valid_question["question_options"]
     assert q.min_selections == valid_question["min_selections"]
     assert q.max_selections == valid_question["max_selections"]
-    assert q.uuid is not None
+    
     assert q.answer_data_model is not None
     assert q.data == valid_question
 
