@@ -1,8 +1,8 @@
 import pytest
 from edsl.agents import Agent
 from edsl.exceptions import AgentCombinationError, JobsRunError
-from edsl.jobs import Jobs
 from edsl.jobs.Interview import Interview
+from edsl.jobs.Jobs import Jobs, main
 from edsl.questions import QuestionMultipleChoice
 from edsl.scenarios import Scenario
 from edsl.surveys import Survey
@@ -164,5 +164,7 @@ def test_jobs_run(valid_job):
     assert len(results) == 1
     with pytest.raises(JobsRunError):
         valid_job.run(method="invalid_method")
-    # with pytest.raises(JobsRunError):
-    #     valid_job.run(n="x")
+
+
+def test_jobs_main():
+    main()
