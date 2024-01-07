@@ -15,6 +15,7 @@ def repair(bad_json, error_message=""):
         valid_dict = json.loads(results["choices"][0]["message"]["content"])
     except json.JSONDecodeError:
         success = False
+        valid_dict = {}
     return valid_dict, success
 
 
