@@ -1,3 +1,4 @@
+import os
 import unittest
 from contextlib import redirect_stdout
 from io import StringIO
@@ -6,12 +7,12 @@ from edsl.exceptions import (
     ResultsColumnNotFoundError,
     ResultsInvalidNameError,
 )
-from edsl.results.Results import Results, create_example_results
+from edsl.results import Results
 
 
 class TestResults(unittest.TestCase):
     def setUp(self):
-        self.example_results = create_example_results(debug=True)
+        self.example_results = Results.example(debug=True)
 
     def test_instance(self):
         self.assertIsInstance(self.example_results, Results)
@@ -45,9 +46,6 @@ class TestResults(unittest.TestCase):
         # Saves the file
         csv = self.example_results.to_csv(filename="test.csv")
         self.assertIsNone(csv)
-        # remove csv
-        import os
-
         os.remove("test.csv")
 
     def test_to_dict(self):
@@ -69,26 +67,26 @@ class TestResults(unittest.TestCase):
     def test_question_names(self):
         self.assertIsInstance(self.example_results.question_names, list)
         self.assertEqual(
-            self.example_results.question_names, ["how_feeling", "elapsed"]
+            self.example_results.question_names,
+            ["how_feeling", "how_feeling_yesterday"],
         )
 
     def test_filter(self):
+        first_answer = self.example_results.data[0].answer["how_feeling"]
         self.assertEqual(
-            self.example_results.filter("how_feeling == 'Great'")
+            self.example_results.filter(f"how_feeling == '{first_answer}'")
             .select("how_feeling")
             .first(),
-            "Great",
+            first_answer,
         )
 
     def test_relevant_columns(self):
-        # should return all - this is just checking one
         self.assertIn("how_feeling", self.example_results.relevant_columns())
 
     def test_answer_keys(self):
         self.assertIn("how_feeling", self.example_results.answer_keys.keys())
 
     def test_select(self):
-        # results = self.example_results.select('how_feeling').first()
         self.assertIn(
             self.example_results.select("how_feeling").first(),
             ["Great", "Good", "OK", "Bad"],
@@ -118,7 +116,7 @@ class TestResults(unittest.TestCase):
     def test_fetch_list(self):
         self.assertEqual(
             self.example_results.fetch_list("answer", "how_feeling"),
-            ["Bad", "Bad", "Great", "Great"],
+            [result.answer.get("how_feeling") for result in self.example_results.data],
         )
 
     def test_fetch_answer_data(self):
@@ -132,7 +130,7 @@ class TestResults(unittest.TestCase):
             self.example_results._fetch_answer_data(
                 "how_feeling", CategoricalData
             ).responses,
-            ["Bad", "Bad", "Great", "Great"],
+            [result.answer.get("how_feeling") for result in self.example_results.data],
         )
 
 
