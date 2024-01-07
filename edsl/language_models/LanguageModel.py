@@ -10,7 +10,7 @@ from edsl.exceptions import LanguageModelResponseNotJSONError
 from edsl.language_models.schemas import model_prices
 from edsl.trackers.TrackerAPI import TrackerAPI
 
-from edsl.utilities import repair_json
+# from edsl.utilities import repair_json
 
 from edsl.language_models.repair import repair
 
@@ -58,7 +58,9 @@ class LanguageModel(ABC):
         return response
 
     def get_raw_response(self, prompt: str, system_prompt: str = "") -> dict[str, Any]:
-        """Calls the LLM's API and returns the API response. If self.use_cache is True, then attempts to retrieve the response from the database; if not in the DB, calls the LLM and writes the response to the DB."""
+        """Calls the LLM's API and returns the API response.
+        If self.use_cache is True, then attempts to retrieve the response from the database;
+        if not in the DB, calls the LLM and writes the response to the DB."""
         start_time = time.time()
 
         if not self.use_cache:
@@ -151,14 +153,9 @@ class LanguageModel(ABC):
     @classmethod
     def from_dict(cls, data: dict) -> Type[LanguageModel]:
         """Converts dictionary to a LanguageModel child instance."""
-        if data["model"] == "gpt-3.5-turbo":
-            from edsl.language_models import LanguageModelOpenAIThreeFiveTurbo
+        from edsl.language_models.registry import get_model_class
 
-            model_class = LanguageModelOpenAIThreeFiveTurbo
-        if data["model"] == "gpt-4":
-            from edsl.language_models import LanguageModelOpenAIFour
-
-            model_class = LanguageModelOpenAIFour
+        model_class = get_model_class(data["model"])
         data["use_cache"] = True
         return model_class(**data)
 
