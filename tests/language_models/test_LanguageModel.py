@@ -88,8 +88,10 @@ class TestLanguageModel(unittest.TestCase):
 
         # call again with same prompt - should not write to db again
         m.get_response(prompt="Hello world", system_prompt="You are a helpful agent")
-        num_responses = len(cursor.execute("SELECT * FROM responses").fetchall())
+        new_responses = cursor.execute("SELECT * FROM responses").fetchall()
+        num_responses = len(new_responses)
         self.assertEqual(num_responses, 1)
+        self.assertEqual(new_responses[0], tuple(expected_response.values()))
 
 
 if __name__ == "__main__":
