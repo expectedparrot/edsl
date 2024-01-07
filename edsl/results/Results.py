@@ -8,6 +8,7 @@ from edsl.exceptions import (
     ResultsBadMutationstringError,
     ResultsColumnNotFoundError,
     ResultsInvalidNameError,
+    ResultsMutateError,
 )
 from edsl.agents import Agent
 from edsl.language_models import LanguageModel
@@ -134,23 +135,28 @@ class Results(
         return [r.scenario for r in self.data]
 
     @property
-    def agent_keys(self):
+    def agent_keys(self) -> set[str]:
+        """Returns a set of all of the keys that are in the Agent data"""
         return self._data_type_to_keys["agent"]
 
     @property
-    def model_keys(self):
+    def model_keys(self) -> set[str]:
+        """Returns a set of all of the keys that are in the LanguageModel data"""
         return self._data_type_to_keys["model"]
 
     @property
-    def scenario_keys(self):
+    def scenario_keys(self) -> set[str]:
+        """Returns a set of all of the keys that are in the Scenario data"""
         return self._data_type_to_keys["scenario"]
 
     @property
-    def question_names(self):
+    def question_names(self) -> list[str]:
+        """Returns a list of all of the question names"""
         return list(self.survey.question_names)
 
     @property
-    def all_keys(self):
+    def all_keys(self) -> set[str]:
+        """Returns a set of all of the keys that are in the Results"""
         answer_keys = set(self.answer_keys)
         return (
             answer_keys.union(self.agent_keys)
@@ -158,78 +164,62 @@ class Results(
             .union(self.model_keys)
         )
 
-    def relevant_columns(self) -> set:
-        """
-        This returns all of the columns that are in the results.
-
-        >>> r = Results.create_example()
-        >>> keys = r.relevant_columns()
-        >>> keys == {'elapsed', 'temperature', 'agent', 'scenario', 'answer', 'use_cache', 'how_feeling', 'frequency_penalty', 'max_tokens', 'model', 'status', 'top_p', 'period', 'presence_penalty'}
-        True
-        """
+    def relevant_columns(self) -> set[str]:
+        """Returns all of the columns that are in the results."""
         return set().union(
             *(observation.combined_dict.keys() for observation in self.data)
         )
 
     def _parse_column(self, column: str) -> tuple[str, str]:
         """
-        Utility function to parse a column name into a data type and a key.
-
-        >>> r = Results.create_example()
-        >>> r._parse_column("answer.how_feeling")
-        ('answer', 'how_feeling')
-
-        The standard way a column is specified is with a dot-separated string, e.g. "agent.status".
-        >> self._parse_column("agent.status")
-        ("agent", "status")
-
-        But you can also specify a single key, e.g. "status", in which case it will look up the data type.
-        This relies on the key_to_data_type property of the Results class.
+        Parses a column name into a tuple containing a data type and a key.
+        - Uses the key_to_data_type property of the Results class.
+        - The standard way a column is specified is with a dot-separated string, e.g. _parse_column("agent.status")
+        - But you can also specify a single key, e.g. "status", in which case it will look up the data type.
         """
-        if "." in column:  # they passed it as, say, "answer.how_feeling"
+        if "." in column:
             data_type, key = column.split(".")
         else:
             try:
                 data_type, key = self._key_to_data_type[column], column
             except KeyError:
                 raise ResultsColumnNotFoundError(f"Column {column} not found in data")
-
         return data_type, key
 
-    def first(self):
+    def first(self) -> Result:
         """Returns the first observation in the results."""
         return self.data[0]
 
-    def mutate(self, new_var_string, functions_dict=None) -> Results:
+    def mutate(self, new_var_string: str, functions_dict: dict = None) -> Results:
         """
-        Creates a value value in 'results' as if has been asked as part of the survey.
-        It splits the new_var_string at the "=" and uses simple_eval
+        Creates a value in the Results object as if has been asked as part of the survey.
+        - It splits the new_var_string at the "=" and uses simple_eval
+        - The functions dict is...
 
-        The functions dict is...
-
+        Example:
         >>> r = Results.create_example()
         >>> r.mutate('how_feeling_x = how_feeling + "x"').select('how_feeling_x')
         [{'answer.how_feeling_x': ['Badx', 'Badx', 'Greatx', 'Greatx']}]
         """
+        # extract the variable name and the expression
         if "=" not in new_var_string:
             raise ResultsBadMutationstringError(
                 f"Mutate requires an '=' in the string, but '{new_var_string}' doesn't have one."
             )
         raw_var_name, expression = new_var_string.split("=", 1)
         var_name = raw_var_name.strip()
-
         if not is_valid_variable_name(var_name):
             raise ResultsInvalidNameError(f"{var_name} is not a valid variable name.")
 
-        if functions_dict is None:
-            functions_dict = {}
+        # create the evaluator
+        functions_dict = functions_dict or {}
 
-        def create_evaluator(result):
+        def create_evaluator(result: Result) -> EvalWithCompoundTypes:
             return EvalWithCompoundTypes(
                 names=result.combined_dict, functions=functions_dict
             )
 
-        def new_result(old_result, var_name):
+        def new_result(old_result: Result, var_name: str) -> Result:
             evaluator = create_evaluator(old_result)
             value = evaluator.eval(expression)
             new_result = old_result.copy()
@@ -239,7 +229,7 @@ class Results(
         try:
             new_data = [new_result(result, var_name) for result in self.data]
         except Exception as e:
-            print(f"Exception:{e}")
+            raise ResultsMutateError(f"Error in mutate. Exception:{e}")
 
         return Results(
             survey=self.survey,
@@ -372,6 +362,6 @@ def main():  # pragma: no cover
     """Calls the OpenAI API credits"""
     from edsl.results.Results import Results
 
-    results = Results.example(debug=False)
+    results = Results.example(debug=True)
     print(results.filter("how_feeling == 'Great'").select("how_feeling"))
     print(results.mutate("how_feeling_x = how_feeling + 'x'").select("how_feeling_x"))

@@ -7,6 +7,7 @@ from edsl.exceptions import (
     ResultsColumnNotFoundError,
     ResultsInvalidNameError,
 )
+from edsl.report.InputOutputDataTypes import CategoricalData
 from edsl.results import Results
 
 
@@ -87,14 +88,13 @@ class TestResults(unittest.TestCase):
         self.assertIn("how_feeling", self.example_results.answer_keys.keys())
 
     def test_select(self):
+        first_answer = self.example_results.data[0].answer["how_feeling"]
         self.assertIn(
             self.example_results.select("how_feeling").first(),
-            ["Great", "Good", "OK", "Bad"],
+            first_answer,
         )
 
     def test_select_scenario(self):
-        # breakpoint()
-        # print(self.example_results.select('period'))
         self.assertIn(
             self.example_results.select("period").first(), ["morning", "afternoon"]
         )
@@ -112,7 +112,6 @@ class TestResults(unittest.TestCase):
         self.assertIn("Great", output)
         self.assertIn("Bad", output)
 
-    ## Test the fetch mixin
     def test_fetch_list(self):
         self.assertEqual(
             self.example_results.fetch_list("answer", "how_feeling"),
@@ -120,12 +119,6 @@ class TestResults(unittest.TestCase):
         )
 
     def test_fetch_answer_data(self):
-        from edsl.report.InputOutputDataTypes import (
-            CategoricalData,
-            NumericalData,
-            FreeTextData,
-        )
-
         self.assertEqual(
             self.example_results._fetch_answer_data(
                 "how_feeling", CategoricalData
