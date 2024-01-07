@@ -12,3 +12,7 @@ class ResultsColumnNotFoundError(ResultsErrors):
 
 class ResultsInvalidNameError(ResultsErrors):
     pass
+
+
+class ResultsMutateError(ResultsErrors):
+    pass
