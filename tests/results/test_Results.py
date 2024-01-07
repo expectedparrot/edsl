@@ -46,6 +46,10 @@ class TestResults(unittest.TestCase):
         # Saves the file
         csv = self.example_results.to_csv(filename="test.csv")
         self.assertIsNone(csv)
+        # remove csv
+        import os
+
+        os.remove("test.csv")
 
     def test_to_dict(self):
         results_dict = self.example_results.to_dict()
