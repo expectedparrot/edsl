@@ -9,18 +9,16 @@ from __future__ import annotations
 import io
 import json
 import sys
-from typing import Optional, Union
+from typing import Union
 from collections import UserList, defaultdict
 from simpleeval import EvalWithCompoundTypes
-from edsl.results.Result import Result
 from edsl.utilities.utilities import shorten_string
+from edsl.results.Dataset import Dataset
 from edsl.results.ResultsExportMixin import ResultsExportMixin
 from edsl.results.RegressionMixin import RegressionMixin
 from edsl.results.ResultsOutputMixin import ResultsOutputMixin
 from edsl.results.ResultsFetchMixin import ResultsFetchMixin
 from edsl.utilities.utilities import is_gzipped, is_valid_variable_name
-
-from edsl.results.Dataset import Dataset
 
 
 class ColumnNotFoundError(Exception):
