@@ -8,9 +8,9 @@ from __future__ import annotations
 import io
 import json
 import sys
-from typing import Union
 from collections import UserList, defaultdict
 from simpleeval import EvalWithCompoundTypes
+from typing import Union
 from edsl.exceptions import (
     ResultsBadMutationstringError,
     ResultsColumnNotFoundError,
@@ -21,8 +21,7 @@ from edsl.results.ResultsExportMixin import ResultsExportMixin
 from edsl.results.RegressionMixin import RegressionMixin
 from edsl.results.ResultsOutputMixin import ResultsOutputMixin
 from edsl.results.ResultsFetchMixin import ResultsFetchMixin
-from edsl.utilities.utilities import is_gzipped, is_valid_variable_name
-from edsl.utilities.utilities import shorten_string
+from edsl.utilities import is_gzipped, is_valid_variable_name, shorten_string
 
 
 class Results(
