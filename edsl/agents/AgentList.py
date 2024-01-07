@@ -1,11 +1,12 @@
 from __future__ import annotations
 from collections import UserList
-from docx import Document
 from typing import Optional, Union
 from edsl.agents import Agent
+from edsl.agents.AgentListExportMixin import AgentListExportMixin
+from edsl.Base import Base
 
 
-class AgentList(UserList):
+class AgentList(UserList, Base, AgentListExportMixin):
     def __init__(self, data: Optional[list] = None):
         if data is not None:
             super().__init__(data)
@@ -37,26 +38,17 @@ class AgentList(UserList):
         agents = [Agent.from_dict(agent_dict) for agent_dict in data["agent_list"]]
         return cls(agents)
 
-    def docx(self) -> Document:
-        "Generates a docx document for the survey"
-        doc = Document()
+    @classmethod
+    def example(cls):
+        return cls([Agent.example(), Agent.example()])
 
-        doc.add_heading("EDSL Auto-Generated Agent Description")
-
-        doc.add_paragraph(f"\n")
-
-        for index, agent in enumerate(self.data):
-            # Add question as a paragraph
-            h = doc.add_paragraph()
-            h.add_run(f"Agent {index + 1}").bold = True
-
-            p = doc.add_paragraph()
-            # p.add_run(agent.persona)
-            for key, value in agent.traits.items():
-                p.add_run(f"{key}: ").bold = True
-                p.add_run(f"{value}\n")
-
-        return doc
+    def code(self):
+        lines = [
+            "from edsl.agents.Agent import Agent",
+            "from edsl.agents.AgentList import AgentList",
+        ]
+        lines.append(f"agent_list = AgentList({self.data})")
+        return lines
 
 
 if __name__ == "__main__":
