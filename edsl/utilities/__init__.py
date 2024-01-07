@@ -9,5 +9,8 @@ from edsl.utilities.utilities import (
     dict_to_html,
     hash_value,
     HTMLSnippet,
+    is_gzipped,
+    is_valid_variable_name,
     repair_json,
+    shorten_string,
 )
