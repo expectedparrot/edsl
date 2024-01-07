@@ -2,6 +2,9 @@ from __future__ import annotations
 import copy
 import json
 from typing import Any, Callable, Optional, Union
+
+from edsl.Base import Base
+
 from edsl.exceptions import (
     AgentAttributeLookupCallbackError,
     AgentCombinationError,
@@ -22,7 +25,7 @@ DEFAULT_INSTRUCTION = (
 )
 
 
-class Agent:
+class Agent(Base):
     """An agent answers."""
 
     def __init__(
@@ -232,6 +235,15 @@ class Agent:
             return print_dict_as_html_table(self.traits, show)
         else:
             print_dict_with_rich(self.traits)
+
+    @classmethod
+    def example(cls) -> Agent:
+        """Returns an example agent."""
+        return cls(traits={"age": 22, "hair": "brown", "height": 5.5})
+
+    def code(self) -> str:
+        """Returns the code for the agent."""
+        return f"Agent(traits={self.traits})"
 
 
 def main():
