@@ -8,7 +8,7 @@ class TestSurvey(unittest.TestCase):
         q1 = QuestionMultipleChoice(
             question_text="Do you like school?",
             question_options=["yes", "no"],
-            question_name="like_schoool",
+            question_name="like_school",
         )
         q2 = QuestionMultipleChoice(
             question_text="What is your favorite subject?",
@@ -21,22 +21,23 @@ class TestSurvey(unittest.TestCase):
             question_name="manual",
         )
 
-        s = Survey(questions=[q1, q2, q3], question_names=["q1", "q2", "q3"])
+        s = Survey(questions=[q1, q2, q3])
         return s
 
     def test_default_sequence(self):
         s = self.gen_survey()
-        q1, q2, q3 = s._questions
-        self.assertEqual(q1, s.next_question())
-        self.assertEqual(q2, s.next_question("q1", {}))
-        self.assertEqual(q3, s.next_question("q2", {}))
+        self.assertEqual(s._questions[0], s.next_question())
+        self.assertEqual(s._questions[1], s.next_question("like_school", {}))
+        self.assertEqual(s._questions[2], s.next_question("favorite_subject", {}))
 
     def test_simple_skip(self):
         s = self.gen_survey()
         q1, q2, q3 = s._questions
-        s.add_rule(q1, "q1 == 'no'", q3)
-        self.assertEqual(q3, s.next_question("q1", {"q1": "no"}))
+        s.add_rule(q1, "like_school == 'no'", q3)
+        self.assertEqual(q3, s.next_question("like_school", {"like_school": "no"}))
 
 
 if __name__ == "__main__":
     unittest.main()
+
+    s = TestSurvey().gen_survey()

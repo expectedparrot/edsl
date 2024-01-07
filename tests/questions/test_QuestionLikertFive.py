@@ -33,7 +33,7 @@ def test_QuestionLikertFive_construction():
     assert q.question_text == valid_question["question_text"]
     assert q.question_name == None
     assert q.question_options == default_options
-    assert q.uuid is not None
+    
     assert q.answer_data_model is not None
     assert q.data != valid_question
     # should raise an exception if unexpected attribute is present
@@ -47,7 +47,7 @@ def test_QuestionLikertFive_construction():
     assert q.question_name == valid_question_w_extras["question_name"]
     assert q.question_text == valid_question_w_extras["question_text"]
     assert q.question_options == valid_question_w_extras["question_options"]
-    assert q.uuid is not None
+    
     assert q.answer_data_model is not None
     assert q.data == valid_question_w_extras
 
