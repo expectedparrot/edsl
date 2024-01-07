@@ -25,6 +25,10 @@ class Result(UserDict):
         # for key, value in data.items():
         #    setattr(self, key, value)
         self.agent = agent
+        self.scenario = scenario
+        self.model = model
+        self.iteration = iteration
+        self.answer = answer
 
         ## TODO: Dictionary representations
         self.sub_dicts = {
@@ -62,6 +66,9 @@ class Result(UserDict):
         return {
             k: v if not hasattr(v, "to_dict") else v.to_dict() for k, v in self.items()
         }
+
+    def copy(self):
+        return Result.from_dict(self.to_dict())
 
     @classmethod
     def from_dict(self, json_dict):

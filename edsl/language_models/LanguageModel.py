@@ -187,4 +187,8 @@ class LanguageModel(ABC):
 
     def __add__(self, other_model: Type[LanguageModel]) -> Type[LanguageModel]:
         """Combine two models into a single model (other_model takes precedence over self)"""
+        print(
+            f"""Warning: one model is replacing another. If you want to run both models, use a single `by` e.g., 
+              by(m1, m2, m3) not by(m1).by(m2).by(m3)."""
+        )
         return other_model or self

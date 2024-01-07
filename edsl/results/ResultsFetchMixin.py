@@ -22,7 +22,7 @@ class ResultsFetchMixin:
         ['Bad', 'Bad', 'Great', 'Great']
         """
         returned_list = []
-        for row in self.filtered_data:
+        for row in self.data:
             returned_list.append(row.sub_dicts[data_type].get(key, None))
 
         return returned_list
