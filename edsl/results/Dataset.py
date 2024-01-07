@@ -1,12 +1,12 @@
 from __future__ import annotations
 import numpy as np
 from collections import UserList
-from typing import Any, List, Dict
+from typing import Any
 from edsl.results.ResultsExportMixin import ResultsExportMixin
 
 
 class Dataset(UserList, ResultsExportMixin):
-    def __init__(self, data: List[Dict[str, Any]] = None):
+    def __init__(self, data: list[dict[str, Any]] = None):
         super().__init__(data)
 
     def relevant_columns(self) -> set:
@@ -21,7 +21,7 @@ class Dataset(UserList, ResultsExportMixin):
         else:
             raise KeyError(f"Key '{key}' not found in any of the dictionaries.")
 
-    def first(self) -> Dict[str, Any]:
+    def first(self) -> dict[str, Any]:
         """Gets the first value of the first key in the first dictionary."""
 
         def get_values(d):
@@ -30,7 +30,7 @@ class Dataset(UserList, ResultsExportMixin):
         return get_values(self.data[0])[0]
 
     def order_by(self, sort_key: str, reverse: bool = False) -> Dataset:
-        def sort_indices(lst: List[Any]) -> List[int]:
+        def sort_indices(lst: list[Any]) -> list[int]:
             """
             Returns the indices that would sort the list.
             :param lst: The list to be sorted.
