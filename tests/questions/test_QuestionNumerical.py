@@ -31,7 +31,7 @@ def test_QuestionNumerical_construction():
     assert q.question_text == valid_question["question_text"]
     assert q.min_value == valid_question["min_value"]
     assert q.max_value == valid_question["max_value"]
-    assert q.uuid is not None
+    
     assert q.answer_data_model is not None
     assert q.data == valid_question
 
@@ -41,7 +41,7 @@ def test_QuestionNumerical_construction():
     assert q.question_text == valid_question_wo_extras["question_text"]
     assert q.min_value == None
     assert q.max_value == None
-    assert q.uuid is not None
+    
     assert q.answer_data_model is not None
     assert q.data != valid_question_wo_extras
 

@@ -38,7 +38,7 @@ def test_QuestionList_construction():
     assert q.question_name == valid_question["question_name"]
     assert q.question_text == valid_question["question_text"]
     assert q.allow_nonresponse == valid_question["allow_nonresponse"]
-    assert q.uuid is not None
+    
     assert q.answer_data_model is not None
     assert q.data == valid_question
 
@@ -48,7 +48,7 @@ def test_QuestionList_construction():
     assert q.question_text == valid_question_wo_extras["question_text"]
     assert q.allow_nonresponse == False
     assert q.max_list_items == None
-    assert q.uuid is not None
+    
     assert q.answer_data_model is not None
     assert q.data != valid_question_wo_extras
     assert q.data == valid_question

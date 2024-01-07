@@ -1,7 +1,6 @@
 from __future__ import annotations
 import re
 import textwrap
-import uuid
 from abc import ABC, abstractmethod
 from jinja2 import Template, Environment, meta
 from pydantic import BaseModel, ValidationError
@@ -47,7 +46,6 @@ class Question(ABC):
         self.data = question.model_dump()
         # use QuestionData to construct the AnswerData pydantic model
         self.answer_data_model = self.construct_answer_data_model()
-        self.uuid = str(uuid.uuid4())
         self.sanity_checks()
 
     def to_dict(self) -> dict:
