@@ -1,8 +1,9 @@
 from __future__ import annotations
+import gzip
 import json
 from collections import UserList, defaultdict
 from simpleeval import EvalWithCompoundTypes
-from typing import Type, Union
+from typing import Any, Type, Union
 from edsl.exceptions import (
     ResultsBadMutationstringError,
     ResultsColumnNotFoundError,
@@ -46,6 +47,40 @@ class Results(
     def __repr__(self) -> str:
         return f"Results(data = {self.data}, survey = {self.survey}, created_columns = {self.created_columns})"
 
+    def to_dict(self) -> dict[str, Any]:
+        """Converts the Results object to a dictionary"""
+        return {
+            "data": [result.to_dict() for result in self.data],
+            "survey": self.survey.to_dict(),
+            "created_columns": self.created_columns,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Results:
+        """Converts a dictionary to a Results object"""
+        results = cls(
+            survey=Survey.from_dict(data["survey"]),
+            data=[Result.from_dict(r) for r in data["data"]],
+            created_columns=data.get("created_columns", None),
+        )
+        return results
+
+    @classmethod
+    def load(cls, json_file) -> Results:
+        """Converts a JSON file to a Results object."""
+        mode = "rb" if is_gzipped(json_file) else "r"
+        with open(json_file, mode) as f:
+            data = json.load(f)
+        return cls.from_dict(data)
+
+    def show_methods(self):
+        """Prints public methods of the Results class"""
+        print_public_methods_with_doc(self)
+
+    ######################
+    ## Convenience methods
+    ## & Report methods
+    ######################
     @property
     def _key_to_data_type(self) -> dict[str, str]:
         """
@@ -75,9 +110,6 @@ class Results(
             d["answer"] = d["answer"].union(set({column}))
         return d
 
-    ######################
-    ## Convenience methods
-    ######################
     @property
     def answer_keys(self) -> dict[str, str]:
         """Returns a mapping of answer keys to question text"""
@@ -165,9 +197,7 @@ class Results(
         return data_type, key
 
     def first(self):
-        """
-        This returns the first observation in the results.
-        """
+        """Returns the first observation in the results."""
         return self.data[0]
 
     def mutate(self, new_var_string, functions_dict=None) -> Results:
@@ -324,40 +354,6 @@ class Results(
             print(f"Exception:{e}")
 
         return Results(survey=self.survey, data=new_data, created_columns=None)
-
-    def to_dict(self):
-        return {
-            "data": [observation.to_dict() for observation in self.data],
-            "survey": self.survey.to_dict(),
-            "created_columns": self.created_columns,
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict):
-        from edsl.surveys.Survey import Survey
-        from edsl.results.Result import Result
-
-        survey = Survey.from_dict(data["survey"])
-        observations = [Result.from_dict(r) for r in data["data"]]
-        created_columns = data.get("created_columns", None)
-        new_cls = cls(survey=survey, data=observations, created_columns=created_columns)
-        return new_cls
-
-    @classmethod
-    def load(cls, json_file) -> Results:
-        "Froma stored JSON representation of the Results object, return the object"
-        if is_gzipped(json_file):
-            import gzip
-
-            with gzip.open(json_file, "rb") as f:
-                data = json.load(f)
-        else:
-            with open(json_file, "r") as f:
-                data = json.load(f)
-        return cls.from_dict(data)
-
-    def show_methods(self):
-        print_public_methods_with_doc(self)
 
     @classmethod
     def example(cls, debug: bool = False) -> Results:
