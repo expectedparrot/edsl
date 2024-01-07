@@ -1,0 +1,14 @@
+class ResultsErrors(Exception):
+    pass
+
+
+class ResultsBadMutationstringError(ResultsErrors):
+    pass
+
+
+class ResultsColumnNotFoundError(ResultsErrors):
+    pass
+
+
+class ResultsInvalidNameError(ResultsErrors):
+    pass

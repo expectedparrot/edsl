@@ -1,6 +1,11 @@
 import unittest
 from contextlib import redirect_stdout
 from io import StringIO
+from edsl.exceptions import (
+    ResultsBadMutationstringError,
+    ResultsColumnNotFoundError,
+    ResultsInvalidNameError,
+)
 from edsl.results.Results import Results, create_example_results
 
 
@@ -12,21 +17,15 @@ class TestResults(unittest.TestCase):
         self.assertIsInstance(self.example_results, Results)
 
     def test_parse_column_exception(self):
-        from edsl.results.Results import ColumnNotFoundError
-
-        with self.assertRaises(ColumnNotFoundError):
+        with self.assertRaises(ResultsColumnNotFoundError):
             self.example_results._parse_column("poop")
 
     def test_bad_mutate(self):
-        from edsl.results.Results import BadMutationstringError
-
-        with self.assertRaises(BadMutationstringError):
+        with self.assertRaises(ResultsBadMutationstringError):
             self.example_results.mutate('how_feeling_two -> how_feeling + "!!"')
 
     def test_invalid_name(self):
-        from edsl.results.Results import InvalidNameError
-
-        with self.assertRaises(InvalidNameError):
+        with self.assertRaises(ResultsInvalidNameError):
             self.example_results.mutate('class = how_feeling + "!!"')
 
     def test_mutate(self):

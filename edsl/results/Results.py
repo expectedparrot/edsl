@@ -4,7 +4,6 @@ It is instantiated with a survey and a list of observations.
 
 The Results object can then be manipulated in various ways with select, filter, mutate, etc. 
 """
-
 from __future__ import annotations
 import io
 import json
@@ -12,25 +11,18 @@ import sys
 from typing import Union
 from collections import UserList, defaultdict
 from simpleeval import EvalWithCompoundTypes
-from edsl.utilities.utilities import shorten_string
+from edsl.exceptions import (
+    ResultsBadMutationstringError,
+    ResultsColumnNotFoundError,
+    ResultsInvalidNameError,
+)
 from edsl.results.Dataset import Dataset
 from edsl.results.ResultsExportMixin import ResultsExportMixin
 from edsl.results.RegressionMixin import RegressionMixin
 from edsl.results.ResultsOutputMixin import ResultsOutputMixin
 from edsl.results.ResultsFetchMixin import ResultsFetchMixin
 from edsl.utilities.utilities import is_gzipped, is_valid_variable_name
-
-
-class ColumnNotFoundError(Exception):
-    pass
-
-
-class BadMutationstringError(Exception):
-    pass
-
-
-class InvalidNameError(Exception):
-    pass
+from edsl.utilities.utilities import shorten_string
 
 
 class Results(
@@ -176,7 +168,7 @@ class Results(
             try:
                 data_type, key = self._key_to_data_type[column], column
             except KeyError:
-                raise ColumnNotFoundError(f"Column {column} not found in data")
+                raise ResultsColumnNotFoundError(f"Column {column} not found in data")
 
         return data_type, key
 
@@ -198,14 +190,14 @@ class Results(
         [{'answer.how_feeling_x': ['Badx', 'Badx', 'Greatx', 'Greatx']}]
         """
         if "=" not in new_var_string:
-            raise BadMutationstringError(
+            raise ResultsBadMutationstringError(
                 f"Mutate requires an '=' in the string, but '{new_var_string}' doesn't have one."
             )
         raw_var_name, expression = new_var_string.split("=", 1)
         var_name = raw_var_name.strip()
 
         if not is_valid_variable_name(var_name):
-            raise InvalidNameError(f"{var_name} is not a valid variable name.")
+            raise ResultsInvalidNameError(f"{var_name} is not a valid variable name.")
 
         if functions_dict is None:
             functions_dict = {}
