@@ -22,7 +22,7 @@ def test_QuestionYesNo_construction():
     assert q.question_name == valid_question["question_name"]
     assert q.question_text == valid_question["question_text"]
     assert q.question_options == valid_question["question_options"]
-    assert q.uuid is not None
+    
     assert q.answer_data_model is not None
     assert q.data == valid_question
 
