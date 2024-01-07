@@ -1,91 +1,73 @@
-"""
-Results is a UserList of Result objects. 
-It is instantiated with a survey and a list of observations.
-
-The Results object can then be manipulated in various ways with select, filter, mutate, etc. 
-"""
 from __future__ import annotations
 import io
 import json
 import sys
 from collections import UserList, defaultdict
 from simpleeval import EvalWithCompoundTypes
-from typing import Union
+from typing import Type, Union
 from edsl.exceptions import (
     ResultsBadMutationstringError,
     ResultsColumnNotFoundError,
     ResultsInvalidNameError,
 )
+from edsl.agents import Agent
+from edsl.language_models import LanguageModel
 from edsl.results.Dataset import Dataset
+from edsl.results.Result import Result
 from edsl.results.ResultsExportMixin import ResultsExportMixin
 from edsl.results.RegressionMixin import RegressionMixin
 from edsl.results.ResultsOutputMixin import ResultsOutputMixin
 from edsl.results.ResultsFetchMixin import ResultsFetchMixin
+from edsl.scenarios import Scenario
+from edsl.surveys import Survey
 from edsl.utilities import is_gzipped, is_valid_variable_name, shorten_string
 
 
 class Results(
     UserList, ResultsFetchMixin, ResultsExportMixin, ResultsOutputMixin, RegressionMixin
 ):
-    def __init__(self, survey, data, created_columns=None):
-        """
-        The Results object is a list of Result objects, stored in data.
-        It is instantiated with a survey and a list of observations.
-        It also has a list of created_columns, which is a list of columns that have been created with `mutate`
-        """
+    """
+    This class is a UserList of Result objects.
+    - It is instantiated with a Survey and a list of Result objects (observations).
+    - It can be manipulated in various ways with select, filter, mutate, etc.
+    - It also has a list of created_columns, which is a list of columns that have been created with `mutate`
+    """
+
+    def __init__(
+        self, survey: Survey, data: list[Result], created_columns: list = None
+    ):
         super().__init__(data)
         self.survey = survey
-        if created_columns is None:
-            self.created_columns = []
-        else:
-            self.created_columns = created_columns
+        self.created_columns = created_columns or []
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"Results(data = {self.data}, survey = {self.survey}, created_columns = {self.created_columns})"
 
     @property
-    def _key_to_data_type(self):
-        """Maps keys (how_feeling, status, etc.) to data types (result, agent, scenario, etc.)"""
-        """E.g.,
-        {'temperature': 'model',
-        'max_tokens': 'model',
-        'top_p': 'model',
-        'frequency_penalty': 'model',
-        'presence_penalty': 'model',
-        'use_cache': 'model',
-        'model': 'model',
-        'baseline': 'result'}
-
-        >>> results = Results.create_example()
-        >>> d = results._key_to_data_type
-        >>> mapping = {'status': 'agent', 'period': 'scenario', 'temperature': 'model', 'max_tokens': 'model', 'top_p': 'model', 'frequency_penalty': 'model', 'presence_penalty': 'model', 'use_cache': 'model', 'model': 'model', 'how_feeling': 'answer', 'elapsed': 'answer'}
-        >>> d == mapping
-        True
+    def _key_to_data_type(self) -> dict[str, str]:
+        """
+        Returns a mapping of keys (how_feeling, status, etc.) to strings representing data types (objects such as Agent, Answer, Model, Scenario, etc.)
+        - Uses the key_to_data_type property of the Result class.
+        - Includes any columns that the user has created with `mutate`
         """
         d = {}
         for result in self.data:
             d.update(result.key_to_data_type)
-
-        # The user could have created columns using 'mutate'
         for column in self.created_columns:
             d[column] = "answer"
-
         return d
 
     @property
-    def _data_type_to_keys(self) -> dict:
-        """Maps data types (result, agent, scenario, etc.) to keys (how_feeling, status, etc.)
-
-        >>> r = Results.create_example()
-        >>> mapping = r._data_type_to_keys.keys()
-        >>> mapping
-        dict_keys(['answer', 'agent', 'scenario', 'model'])
+    def _data_type_to_keys(self) -> dict[str, str]:
+        """
+        Returns a mapping of strings representing data types (objects such as Agent, Answer, Model, Scenario, etc.) to keys (how_feeling, status, etc.)
+        - Uses the key_to_data_type property of the Result class.
+        - Includes any columns that the user has created with `mutate`
         """
         d = defaultdict(set)
         for result in self.data:
             for key, value in result.key_to_data_type.items():
                 d[value] = d[value].union(set({key}))
-
         for column in self.created_columns:
             d["answer"] = d["answer"].union(set({column}))
         return d
@@ -93,9 +75,9 @@ class Results(
     ######################
     ## Convenience methods
     ######################
-
     @property
-    def answer_keys(self) -> dict:
+    def answer_keys(self) -> dict[str, str]:
+        """Returns a mapping of answer keys to question text"""
         answer_keys = self._data_type_to_keys["answer"]
         answer_keys = {k for k in answer_keys if "_comment" not in k}
         questions_text = [
@@ -105,24 +87,32 @@ class Results(
         return dict(zip(answer_keys, short_question_text))
 
     @property
-    def agent_keys(self):
-        return self._data_type_to_keys["agent"]
+    def agents(self) -> list[Agent]:
+        return [r.agent for r in self.data]
 
     @property
-    def scenario_keys(self):
-        return self._data_type_to_keys["scenario"]
+    def models(self) -> list[Type[LanguageModel]]:
+        return [r.model for r in self.data]
+
+    @property
+    def scenarios(self) -> list[Scenario]:
+        return [r.scenario for r in self.data]
+
+    @property
+    def agent_keys(self):
+        return self._data_type_to_keys["agent"]
 
     @property
     def model_keys(self):
         return self._data_type_to_keys["model"]
 
     @property
-    def question_names(self):
-        return list(self.survey.question_names)
+    def scenario_keys(self):
+        return self._data_type_to_keys["scenario"]
 
     @property
-    def agents(self):
-        return [r.agent for r in self.data]
+    def question_names(self):
+        return list(self.survey.question_names)
 
     @property
     def all_keys(self):
@@ -363,38 +353,6 @@ class Results(
                 data = json.load(f)
         return cls.from_dict(data)
 
-    @classmethod
-    def create_example(cls, refresh=False, debug=False):
-        from edsl.utilities.data.Registry import EXAMPLE_RESULTS_PATH
-
-        file_path = EXAMPLE_RESULTS_PATH
-
-        if refresh:
-            from edsl.jobs.Jobs import create_example_jobs, Jobs
-
-            j = create_example_jobs()
-            r = j.run(n=1, debug=debug)
-            with open(file_path, "w") as file:
-                json.dump(
-                    r.to_dict(), file
-                )  # Assuming r has a to_dict method to serialize the results
-
-            return r
-
-        else:
-            original_stdout = (
-                sys.stdout
-            )  # Save a reference to the original standard output
-
-            with io.StringIO() as buffer:
-                sys.stdout = buffer  # Redirect stdout to buffer
-                results = cls.from_dict(json.load(open(file_path, "r")))
-                captured_output = buffer.getvalue()  # Get printed content from buffer
-
-            sys.stdout = original_stdout  # Restore original stdout
-
-            return results
-
     def show_methods(self):
         public_methods_with_docstrings = [
             (method, getattr(self, method).__doc__)
@@ -404,18 +362,19 @@ class Results(
 
         return [x[0] for x in public_methods_with_docstrings]
 
+    @classmethod
+    def example(cls, debug: bool = False) -> Results:
+        from edsl.jobs import Jobs
 
-def create_example_results(debug=False, refresh=False) -> Results:
-    print("Change to using class method directly")
-    return Results.create_example(refresh=refresh, debug=debug)
+        job = Jobs.example()
+        results = job.run(n=1, debug=debug)
+        return results
 
 
-if __name__ == "__main__":
-    results = Results.create_example(refresh=False)
+def main():  # pragma: no cover
+    """Calls the OpenAI API credits"""
+    from edsl.results.Results import Results
 
+    results = Results.example(debug=False)
     print(results.filter("how_feeling == 'Great'").select("how_feeling"))
-
     print(results.mutate("how_feeling_x = how_feeling + 'x'").select("how_feeling_x"))
-
-    # import doctest
-    # doctest.testmod()
