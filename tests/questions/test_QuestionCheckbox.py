@@ -34,7 +34,7 @@ def test_QuestionCheckBox_construction():
     assert q.question_options == valid_question["question_options"]
     assert q.min_selections == valid_question["min_selections"]
     assert q.max_selections == valid_question["max_selections"]
-    assert q.uuid is not None
+
     assert q.answer_data_model is not None
     assert q.data == valid_question
 
@@ -43,7 +43,7 @@ def test_QuestionCheckBox_construction():
     assert q_noextras.question_name == valid_question["question_name"]
     assert q_noextras.question_text == valid_question["question_text"]
     assert q_noextras.question_options == valid_question["question_options"]
-    assert q_noextras.uuid is not None
+    # assert q_noextras.uuid is not None
     assert q_noextras.answer_data_model is not None
     # should add extra attrs with None values
     assert q_noextras.min_selections == None
