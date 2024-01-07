@@ -1,6 +1,5 @@
 from __future__ import annotations
 import re
-import uuid
 from docx import Document
 from rich import print
 from typing import Any, Generator, Optional, Union
@@ -33,13 +32,10 @@ class Survey:
         name: str = None,
     ):
         """Creates a new survey."""
-        self.question_uuid_to_index: dict[str, int] = {}
-        self.question_name_to_uuid: dict[str, str] = {}
         self.question_name_to_index: dict[str, int] = {}
         self._questions: list[Question] = []
         self.rule_collection = RuleCollection()
         self.name = name
-        self.uuid = "survey_" + str(uuid.uuid4())
         question_names = question_names or []
         questions = questions or []
         if question_names:
@@ -70,7 +66,7 @@ class Survey:
     @property
     def question_names(self) -> list[str]:
         """Returns a list of question names in the survey"""
-        return list(self.question_name_to_uuid.keys())
+        return list(self.question_name_to_index.keys())
 
     def add_question(
         self, question: Question, question_name: Optional[str] = None
@@ -80,6 +76,10 @@ class Survey:
         - The question is appended at the end of the self.questions list
         - A default rule is created that the next index is the next question.
         """
+        if question_name in self.question_name_to_index:
+            raise SurveyCreationError(
+                "Question name already exists in survey. Please use a different name."
+            )
         if question_name is None:
             if hasattr(question, "question_name"):
                 question_name = question.question_name
@@ -89,11 +89,8 @@ class Survey:
         index = len(self._questions)
 
         # question name needs to be unique
-        assert question_name not in self.question_name_to_uuid
         self._questions.append(question)
-        self.question_name_to_uuid[question_name] = question.uuid
         self.question_name_to_index[question_name] = index
-        self.question_uuid_to_index[question.uuid] = index
 
         # using index + 1 presumes there is a next question
         self.rule_collection.add_rule(
@@ -122,11 +119,10 @@ class Survey:
         """
 
         # we let users refer to questions by name or pass the questions themselves.
-        # if they pass the questions themselves, we use the uuid of the question to get the index.
         if isinstance(question, str):
             question_index = self.question_name_to_index[question]
         else:
-            question_index = self.question_uuid_to_index[question.uuid]
+            question_index = self.question_name_to_index[question.question_name]
 
         if isinstance(next_question, str):
             next_question_index = self.question_name_to_index[next_question]
@@ -135,8 +131,9 @@ class Survey:
             if isinstance(next_question, EndOfSurvey):
                 next_question_index = EndOfSurvey()
             else:
-                next_question_index = self.question_uuid_to_index[next_question.uuid]
-
+                next_question_index = self.question_name_to_index[
+                    next_question.question_name
+                ]
         # finds the priorities of existing rules that apply to the question
         priorities = [
             rule.priority for rule in self.rule_collection.which_rules(question_index)
@@ -188,6 +185,7 @@ class Survey:
             return self._questions[0]
 
         answers = answers or {}
+        print(self.question_name_to_index)
         question_index = self.question_name_to_index[current_question_name]
         next_question_object = self.rule_collection.next_question(
             question_index, answers
@@ -222,8 +220,6 @@ class Survey:
             question = self.next_question(question.question_name, answers)
             if isinstance(question, EndOfSurvey):
                 break
-            index = self.question_uuid_to_index[question.uuid]
-            question.question_name = self.question_names[index]
             answers = yield question
             self.answers = answers
 
