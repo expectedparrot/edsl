@@ -23,8 +23,8 @@ class LLMOutputDataDB(Base):
     )
 
 
-class StreamingResultDB(Base):
-    __tablename__ = "streaming_results"
+class ResultDB(Base):
+    __tablename__ = "result"
 
     id = Column(Integer, primary_key=True)
     job_uuid = Column(String, nullable=False)

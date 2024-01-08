@@ -32,6 +32,7 @@ def test_simple_job_integration():
     ]
     job_no_cache = survey.by(agents).by(scenarios).by(models_no_cache)
     results_no_cache = job_no_cache.run()
+    # results_no_cache = job_no_cache.run(method="streaming")
     results_no_cache
     job_cache = survey.by(agents).by(scenarios).by(models_cache)
     results_cache = job_cache.run()

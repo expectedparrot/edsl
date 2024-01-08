@@ -11,6 +11,7 @@ from edsl.exceptions import (
     ResultsMutateError,
 )
 from edsl.agents import Agent
+from edsl.data import CRUD
 from edsl.language_models import LanguageModel
 from edsl.results.Dataset import Dataset
 from edsl.results.Result import Result
@@ -39,13 +40,40 @@ class Results(
     """
 
     def __init__(
-        self, survey: Survey, data: list[Result], created_columns: list = None
+        self,
+        survey: Survey,
+        data: list[Result],
+        created_columns: list = None,
+        job_uuid: str = None,
+        total_results: int = None,
     ):
         super().__init__(data)
         self.survey = survey
         self.created_columns = created_columns or []
+        self._job_uuid = job_uuid
+        self._total_results = total_results
+
+    ######################
+    # Streaming methods
+    ######################
+    def _update_results(self) -> None:
+        if self._job_uuid and len(self.data) < self._total_results:
+            results = [
+                Result(
+                    agent=Agent.from_dict(json.loads(r.agent)),
+                    scenario=Scenario.from_dict(json.loads(r.scenario)),
+                    model=LanguageModel.from_dict(json.loads(r.model)),
+                    iteration=1,
+                    answer=json.loads(r.answer),
+                )
+                for r in CRUD.read_results(self._job_uuid)
+            ]
+            self.data = results
 
     def __repr__(self) -> str:
+        self._update_results()
+        if self._job_uuid and len(self.data) < self._total_results:
+            print(f"Completeness: {len(self.data)}/{self._total_results}")
         return f"Results(data = {self.data}, survey = {self.survey}, created_columns = {self.created_columns})"
 
     def to_dict(self) -> dict[str, Any]:

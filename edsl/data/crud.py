@@ -1,7 +1,7 @@
 from sqlalchemy import desc
 from typing import Union
 from edsl.data import Database, database, LLMOutputDataDB
-from edsl.data.orm import StreamingResultDB
+from edsl.data.orm import ResultDB
 
 
 class CRUDOperations:
@@ -57,7 +57,7 @@ class CRUDOperations:
             db.add(record)
             db.commit()
 
-    def write_StreamingResult(
+    def write_result(
         self,
         job_uuid: str,
         result_uuid: str,
@@ -66,10 +66,8 @@ class CRUDOperations:
         model: str,
         answer: str,
     ) -> None:
-        """
-        Writes a StreamingResult record to the database. Arguments: job_uuid, result_uuid, agent, scenario, model, and answer - all in string format.
-        """
-        record = StreamingResultDB(
+        """Writes a Result record to the database."""
+        record = ResultDB(
             job_uuid=job_uuid,
             result_uuid=result_uuid,
             agent=agent,
@@ -82,15 +80,13 @@ class CRUDOperations:
             db.add(record)
             db.commit()
 
-    def read_StreamingResults(self, job_uuid: str) -> list[StreamingResultDB]:
-        """
-        Reads all StreamingResult records from the database. Arguments: job_uuid in string format.
-        """
+    def read_results(self, job_uuid: str) -> list[ResultDB]:
+        """Reads all Result records associated with job_uuid from the database."""
         with self.database.get_db() as db:
             records = (
-                db.query(StreamingResultDB)
+                db.query(ResultDB)
                 .filter_by(job_uuid=job_uuid)
-                .order_by(desc(StreamingResultDB.id))
+                .order_by(desc(ResultDB.id))
                 .all()
             )
         return records
