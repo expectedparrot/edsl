@@ -1,6 +1,5 @@
 from __future__ import annotations
 import re
-from docx import Document
 from rich import print
 from typing import Any, Generator, Optional, Union
 from edsl.exceptions import SurveyCreationError, SurveyHasNoRulesError
@@ -8,8 +7,11 @@ from edsl.questions.Question import Question
 from edsl.surveys.base import RulePriority, EndOfSurvey
 from edsl.surveys.Rule import Rule, RuleCollection
 
+from edsl.Base import Base
+from edsl.surveys.SurveyExportMixin import SurveyExportMixin
 
-class Survey:
+
+class Survey(Base, SurveyExportMixin):
     """
     A collection of questions that supports skip logic.
 
@@ -103,6 +105,33 @@ class Survey:
             )
         )
         return self
+
+    def code(self) -> list[str]:
+        "Creates the Python code representation of a survey"
+        header_lines = ["from edsl.surveys.Survey import Survey"]
+        header_lines.append(
+            "from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice"
+        )
+        header_lines.append(
+            "from edsl.questions.QuestionFreeText import QuestionFreeText"
+        )
+        header_lines.append(
+            "from edsl.questions.derived.QuestionLinearScale import QuestionLinearScale"
+        )
+        header_lines.append(
+            "from edsl.questions.QuestionNumerical import QuestionNumerical"
+        )
+        header_lines.append(
+            "from edsl.questions.QuestionCheckBox import QuestionCheckBox"
+        )
+        header_lines.append(
+            "from edsl.questions.derived.QuestionYesNo import QuestionYesNo"
+        )
+        lines = ["\n".join(header_lines)]
+        for question in self._questions:
+            lines.append(f"{question.question_name} = " + repr(question))
+        lines.append(f"survey = Survey(questions = [{', '.join(self.question_names)}])")
+        return lines
 
     def add_stop_rule(self, question: Question, expression: str) -> Survey:
         """Adds a rule that stops the survey."""
@@ -292,73 +321,37 @@ class Survey:
         for name, question in zip(self.question_names, self._questions):
             print(f"Question:{name},{question}")
 
-    def html(self) -> str:
-        "Generates the html for the survey"
-        html_text = []
-        for question in self._questions:
-            html_text.append(
-                f"<p><b>{question.question_name}</b> ({question.question_type}): {question.question_text}</p>"
-            )
-            html_text.append("<ul>")
-            for option in getattr(question, "question_options", []):
-                html_text.append(f"<li>{option}</li>")
-            html_text.append("</ul>")
-        return "\n".join(html_text)
-
-    def docx(self) -> Document:
-        "Generates a docx document for the survey"
-        doc = Document()
-        doc.add_heading("EDSL Auto-Generated Survey")
-        doc.add_paragraph(f"\n")
-        for index, question in enumerate(self._questions):
-            h = doc.add_paragraph()  # Add question as a paragraph
-            h.add_run(f"Question {index + 1} ({question.question_name})").bold = True
-            h.add_run(f"; {question.question_type}").italic = True
-            p = doc.add_paragraph()
-            p.add_run(question.question_text)
-            if question.question_type == "linear_scale":
-                for key, value in getattr(question, "option_labels", {}).items():
-                    doc.add_paragraph(str(key) + ": " + str(value), style="ListBullet")
-            else:
-                if hasattr(question, "question_options"):
-                    for option in getattr(question, "question_options", []):
-                        doc.add_paragraph(str(option), style="ListBullet")
-        return doc
-
-    def code(self) -> list[str]:
-        ## TODO: Refactor to only use the questions actually in the survey
-        "Creates the Python code representation of a survey"
-        header_lines = ["from edsl.surveys.Survey import Survey"]
-        header_lines.append(
-            "from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice"
-        )
-        header_lines.append(
-            "from edsl.questions.QuestionFreeText import QuestionFreeText"
-        )
-        header_lines.append(
-            "from edsl.questions.derived.QuestionLinearScale import QuestionLinearScale"
-        )
-        header_lines.append(
-            "from edsl.questions.QuestionNumerical import QuestionNumerical"
-        )
-        header_lines.append(
-            "from edsl.questions.QuestionCheckBox import QuestionCheckBox"
-        )
-        header_lines.append(
-            "from edsl.questions.derived.QuestionYesNo import QuestionYesNo"
-        )
-        lines = ["\n".join(header_lines)]
-        for question in self._questions:
-            lines.append(f"{question.question_name} = " + repr(question))
-        lines.append(f"survey = Survey(questions = [{', '.join(self.question_names)}])")
-        return lines
-
     def codebook(self) -> dict[str, str]:
         "Creates a codebook for the survey, mapping question names to question text"
         codebook = {}
         for question in self._questions:
             codebook[question.question_name] = question.question_text
         return codebook
+
+    @classmethod
+    def example(cls) -> Survey:
+        from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
+
+        # from edsl.surveys.Survey import Survey
+
+        q0 = QuestionMultipleChoice(
+            question_text="Do you like school?",
+            question_options=["yes", "no"],
+            question_name="q0",
+        )
+        q1 = QuestionMultipleChoice(
+            question_text="Why not?",
+            question_options=["killer bees in cafeteria", "other"],
+            question_name="q1",
+        )
+        q2 = QuestionMultipleChoice(
+            question_text="Why?",
+            question_options=["**lack*** of killer bees in cafeteria", "other"],
+            question_name="q2",
+        )
+        s = cls(questions=[q0, q1, q2])
+        s = s.add_rule(q0, "q0 == 'yes'", q2)
+        return s
 
 
 def main():
