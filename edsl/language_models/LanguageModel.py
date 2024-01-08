@@ -1,4 +1,5 @@
 from __future__ import annotations
+import asyncio
 import json
 import time
 from abc import ABC, abstractmethod
@@ -11,7 +12,11 @@ from edsl.language_models.schemas import model_prices
 from edsl.trackers.TrackerAPI import TrackerAPI
 
 
-from edsl.language_models.repair import repair
+# from edsl.language_models.repair import repair
+
+
+def repair(response, error):
+    return response, True
 
 
 class LanguageModel(ABC):
@@ -33,34 +38,34 @@ class LanguageModel(ABC):
     #######################
     # CORE METHODS
     #######################
-    @abstractmethod
-    def execute_model_call(
-        self, prompt: str, system_prompt: str = ""
-    ) -> dict[str, Any]:
-        """Calls the LLM's API and returns the API response.
-        This is an abstract method that needs to be implemented by the child class, on a
-        model (and API-provider basis).
+    # @abstractmethod
+    # def execute_model_call(
+    #     self, prompt: str, system_prompt: str = ""
+    # ) -> dict[str, Any]:
+    #     """Calls the LLM's API and returns the API response.
+    #     This is an abstract method that needs to be implemented by the child class, on a
+    #     model (and API-provider basis).
 
-        For example, the GPT-4 model (as or right now)
-        requires an API call that looks like this:
+    #     For example, the GPT-4 model (as or right now)
+    #     requires an API call that looks like this:
 
-            openai.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt},
-                ],
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
-                top_p=self.top_p,
-                frequency_penalty=self.frequency_penalty,
-                presence_penalty=self.presence_penalty,
-            ).model_dump()
+    #         openai.chat.completions.create(
+    #             model=self.model,
+    #             messages=[
+    #                 {"role": "system", "content": system_prompt},
+    #                 {"role": "user", "content": prompt},
+    #             ],
+    #             temperature=self.temperature,
+    #             max_tokens=self.max_tokens,
+    #             top_p=self.top_p,
+    #             frequency_penalty=self.frequency_penalty,
+    #             presence_penalty=self.presence_penalty,
+    #         ).model_dump()
 
-        It will then return JSON that needs to be parsed.
-        This is also model/API specific.
-        """
-        raise NotImplementedError
+    #     It will then return JSON that needs to be parsed.
+    #     This is also model/API specific.
+    #     """
+    #     raise NotImplementedError
 
     @abstractmethod
     def parse_response(raw_response: dict[str, Any]) -> str:
@@ -106,7 +111,9 @@ class LanguageModel(ABC):
             response["cached_response"] = cached_response
         return response
 
-    def _get_raw_response(self, prompt: str, system_prompt: str = "") -> dict[str, Any]:
+    async def _get_raw_response(
+        self, prompt: str, system_prompt: str = ""
+    ) -> dict[str, Any]:
         """This is some middle-ware that handles the caching of responses.
         If the cache isn't being used, it just returns a 'fresh' call to the LLM,
         but appends some tracking information to the response (using the _update_response_with_tracking method).
@@ -119,7 +126,7 @@ class LanguageModel(ABC):
         start_time = time.time()
 
         if not self.use_cache:
-            response = self.execute_model_call(prompt, system_prompt)
+            response = await self._execute_model_call(prompt, system_prompt)
             return self._update_response_with_tracking(response, start_time, False)
 
         cached_response = self.crud.get_LLMOutputData(
@@ -133,7 +140,7 @@ class LanguageModel(ABC):
             response = json.loads(cached_response)
             cache_used = True
         else:
-            response = self.execute_model_call(prompt, system_prompt)
+            response = await self._execute_model_call(prompt, system_prompt)
             self._save_response_to_db(prompt, system_prompt, response)
             cache_used = False
 
@@ -152,9 +159,9 @@ class LanguageModel(ABC):
             output=output,
         )
 
-    def get_response(self, prompt: str, system_prompt: str = ""):
+    async def get_response(self, prompt: str, system_prompt: str = ""):
         """Get response, parse, and return as string."""
-        raw_response = self._get_raw_response(prompt, system_prompt)
+        raw_response = await self._get_raw_response(prompt, system_prompt)
         response = self.parse_response(raw_response)
         try:
             dict_response = json.loads(response)
