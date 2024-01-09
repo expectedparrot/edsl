@@ -16,7 +16,7 @@ CLASS_REGISTRY = {
     ),
     "list": ("edsl.questions.QuestionList", "QuestionList"),
     "multiple_choice": (
-        "edsl.questions.QuestionMultipleChoice",
+        "edsl.questions.QuestionMultipleChoiceNew",
         "QuestionMultipleChoice",
     ),
     "numerical": ("edsl.questions.QuestionNumerical", "QuestionNumerical"),
