@@ -2,12 +2,12 @@ from edsl.utilities.utilities import is_valid_variable_name
 from edsl.questions.settings import Settings
 
 
-def number_or_none(value):
-    if value is None:
-        return True
-    if not (isinstance(value, int) or isinstance(value, float)):
-        return False
-    return True
+def is_number(value):
+    return isinstance(value, int) or isinstance(value, float)
+
+
+def is_number_or_none(value):
+    return value is None or is_number(value)
 
 
 class ValidatorMixin:
@@ -17,12 +17,12 @@ class ValidatorMixin:
         return value
 
     def validate_min_value(self, value):
-        if not number_or_none(value):
+        if not is_number_or_none(value):
             raise Exception("Min value must be a number!")
         return value
 
     def validate_max_value(self, value):
-        if not number_or_none(value):
+        if not is_number_or_none(value):
             raise Exception("Max value must be a number!")
         return value
 
@@ -71,4 +71,10 @@ class ValidatorMixin:
         "Validates the non response"
         if not isinstance(value, bool):
             raise Exception("Non response must be a boolean!")
+        return value
+
+    def validate_max_list_items(self, value):
+        "Validates the max list items"
+        if not is_number(value):
+            raise Exception("Max list items must be a number!")
         return value

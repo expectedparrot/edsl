@@ -20,37 +20,46 @@ from edsl.questions.ValidatorMixin import ValidatorMixin
 class Question(ABC, ValidatorMixin):
     """ """
 
-    @property
-    def question_name(self):
-        return self._question_name
+    def __init_subclass__(cls) -> None:
+        super().__init_subclass__()
+        cls.add_dynamic_properties()
 
-    @question_name.setter
-    def question_name(self, value):
-        self._question_name = self.validate_question_name(value)
+    @classmethod
+    def add_dynamic_properties(cls):
+        """Adds dynamic properties to the class
 
-    @property
-    def question_text(self):
-        return self._question_text
+        This is equivalent to the following code (but iterated over all the properties)):
 
-    @question_text.setter
-    def question_text(self, value):
-        self._question_text = self.validate_question_text(value)
+        @property
+        def question_name(self):
+            return self._question_name
 
-    @property
-    def short_names_dict(self):
-        return self._short_names_dict
+        @question_name.setter
+        def question_name(self, value):
+            self._question_name = self.validate_question_name(value)
+        """
 
-    @short_names_dict.setter
-    def short_names_dict(self, value):
-        self._short_names_dict = self.validate_short_names_dict(value)
+        def create_property(name):
+            private_name = "_" + name
 
-    @property
-    def instructions(self):
-        return self._instructions
+            def getter(self):
+                return getattr(self, private_name)
 
-    @instructions.setter
-    def instructions(self, value):
-        self._instructions = self.validate_instructions(value)
+            def setter(self, value):
+                validation_method = getattr(self, f"validate_{name}")
+                setattr(self, private_name, validation_method(value))
+
+            return property(getter, setter)
+
+        for name in [
+            "question_name",
+            "question_text",
+            "short_names_dict",
+            "instructions",
+            "allow_nonresponse",
+            "max_list_items",
+        ]:
+            setattr(cls, name, create_property(name))
 
     @property
     def data(self):
