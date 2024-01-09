@@ -17,6 +17,9 @@ class QuestionMultipleChoice(QuestionData):
         max_length=Settings.MAX_NUM_OPTIONS,
     )
 
+    def validate_answer(self, answer: dict[str, str]):
+        raise Exception("Nope!")
+
     # see QuestionFreeText for an explanation of how __new__ works
     def __new__(cls, *args, **kwargs) -> "QuestionMultipleChoiceEnhanced":
         instance = super(QuestionMultipleChoice, cls).__new__(cls)
