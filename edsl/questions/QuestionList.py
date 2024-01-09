@@ -43,23 +43,9 @@ class QuestionList(Question):
             self.instructions = self.default_instructions
         self.set_instructions = set_instructions
 
-        # non-response
-        if set_allow_nonresponse := (allow_nonresponse is not None):
-            self.allow_nonresponse = allow_nonresponse
-        else:
-            self.allow_nonresponse = False
-
-        # max_list_items
-        if set_max_list_items := (max_list_items is not None):
-            self.max_list_items = max_list_items
-        else:
-            self.max_list_items = None
-
-        # Short-names dictionary
-        if set_short_names_dict := (short_names_dict is not None):
-            self.short_names_dict = dict()
-        else:
-            self.short_names_dict = short_names_dict
+        self.allow_nonresponse = allow_nonresponse or False
+        self.max_list_items = max_list_items or 10
+        self.short_names_dict = short_names_dict or dict()
 
     #############
     ## Validators

@@ -58,6 +58,8 @@ class Question(ABC, ValidatorMixin):
             "instructions",
             "allow_nonresponse",
             "max_list_items",
+            "min_value",
+            "max_value",
         ]:
             setattr(cls, name, create_property(name))
 
