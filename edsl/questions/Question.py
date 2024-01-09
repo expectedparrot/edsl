@@ -21,13 +21,29 @@ class Question(ABC):
     @property
     def data(self):
         """ "Data is a dictionary of all the attributes of the question, except for the question_type"""
-        return {k.replace("_", "", 1): v for k, v in self.__dict__.items()}
+
+        # All question-specific attributes start with an underscore
+        candidate_data = {
+            k.replace("_", "", 1): v
+            for k, v in self.__dict__.items()
+            if k.startswith("_")
+        }
+        # These are for things that over-ride defaults
+        optional_attributes = {
+            "set_instructions": "instructions",
+        }
+        for boolean_flag, attribute in optional_attributes.items():
+            if hasattr(self, boolean_flag) and not getattr(self, boolean_flag):
+                candidate_data.pop(attribute, None)
+        return candidate_data
 
     def to_dict(self) -> dict:
         """Converts a dictionary and adds in the question type"""
-        data = self.data.copy()
-        data["question_type"] = self.question_type
-        return data
+        candidate_data = self.data.copy()
+
+        # question type is a special attribute
+        candidate_data["question_type"] = self.question_type
+        return candidate_data
 
     @classmethod
     def from_dict(cls, data: dict) -> Question:

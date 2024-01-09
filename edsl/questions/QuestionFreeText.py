@@ -1,90 +1,114 @@
 import textwrap
-from pydantic import BaseModel, Field, field_validator
-from typing import Optional, Type
-from edsl.exceptions import QuestionAnswerValidationError
-from edsl.questions import Question, QuestionData, AnswerData, Settings
 from edsl.utilities.utilities import random_string
+from typing import Optional
+from edsl.questions import Question
+from edsl.questions.ValidatorMixin import ValidatorMixin
+from edsl.exceptions import QuestionAnswerValidationError
 
 
-class QuestionFreeText(QuestionData):
-    """Pydantic data model for QuestionFreeText"""
-
-    allow_nonresponse: Optional[bool] = False
-
-    def __new__(cls, *args, **kwargs) -> "QuestionFreeTextEnhanced":
-        # runs before __init__
-        #   create an instance of QuestionFreeText using the __new__ method from QuestionData
-        instance = super(QuestionFreeText, cls).__new__(cls)
-        #   call QuestionFreeText's __init__
-        #   (Note: Python will not __init__ again after __new__)
-        instance.__init__(*args, **kwargs)
-        #   pass the validated QuestionFreeText to create a QuestionFreeTextEnhanced
-        return QuestionFreeTextEnhanced(instance)
-
-    def __init__(self, **data):
-        # call QuestionData's __init__ to run its validators
-        super().__init__(**data)
-
-
-class QuestionFreeTextEnhanced(Question):
-    question_type = "free_text"
-
-    def __init__(self, question: QuestionFreeText):
-        super().__init__(question)
-
-    @property
-    def instructions(self) -> str:
-        return textwrap.dedent(
-            """\
+class QuestionFreeText(Question, ValidatorMixin):
+    default_instructions = textwrap.dedent(
+        """\
         You are being asked the following question: {{question_text}}
         Return a valid JSON formatted like this: 
         {"answer": "<put free text answer here>"}
         """
-        )
+    )
+
+    question_type = "free_text"
+
+    def __init__(
+        self,
+        question_text: str,
+        question_name: str,
+        allow_nonresponse: Optional[bool] = None,
+        short_names_dict: Optional[dict[str, str]] = None,
+        instructions: Optional[str] = None,
+    ):
+        self.question_text = question_text
+        self.question_name = question_name
+
+        # custom instructions
+        if set_instructions := (instructions is not None):
+            self.instructions = self.instructions
+        else:
+            self.instructions = self.default_instructions
+        self.set_instructions = set_instructions
+
+        # non-response
+        if set_allow_nonresponse := (allow_nonresponse is not None):
+            self.allow_nonresponse = allow_nonresponse
+        else:
+            self.allow_nonresponse = False
+
+        # Short-names dictionary
+        if set_short_names_dict := (short_names_dict is not None):
+            self.short_names_dict = dict()
+        else:
+            self.short_names_dict = short_names_dict
+
+    @property
+    def question_name(self):
+        return self._question_name
+
+    @question_name.setter
+    def question_name(self, value):
+        self._question_name = self.validate_question_name(value)
+
+    @property
+    def question_text(self):
+        return self._question_text
+
+    @question_text.setter
+    def question_text(self, value):
+        self._question_text = self.validate_question_text(value)
+
+    @property
+    def allow_nonresponse(self):
+        return self._allow_nonresponse
+
+    @allow_nonresponse.setter
+    def allow_nonresponse(self, value):
+        self._allow_nonresponse = self.validate_allow_nonresponse(value)
+
+    @property
+    def short_names_dict(self):
+        return self._short_names_dict
+
+    @short_names_dict.setter
+    def short_names_dict(self, value):
+        self._short_names_dict = self.validate_short_names_dict(value)
+
+    @property
+    def instructions(self):
+        return self._instructions
+
+    @instructions.setter
+    def instructions(self, value):
+        self._instructions = self.validate_instructions(value)
+
+    def validate_answer(self, answer: dict[str, str]):
+        """Validates the answer"""
+        if "answer" not in answer:
+            raise QuestionAnswerValidationError("Answer must have an 'answer' key!")
+        return answer
 
     def translate_answer_code_to_answer(self, answer, scenario):
         """There is no answer code."""
         return answer
 
-    def construct_answer_data_model(self) -> Type[BaseModel]:
-        class QuestionFreeTextAnswerDataModel(AnswerData):
-            answer: str = Field(
-                ..., min_length=0, max_length=Settings.MAX_ANSWER_LENGTH
-            )
-
-            @field_validator("answer")
-            def check_answer(cls, value):
-                if (
-                    hasattr(self, "allow_nonresponse")
-                    and self.allow_nonresponse == False
-                    and (value == "" or value is None)
-                ):
-                    raise QuestionAnswerValidationError(
-                        "Empty answer to a `QuestionFreeText` question, but it was not allowed."
-                    )
-                return value
-
-        return QuestionFreeTextAnswerDataModel
-
-    ################
-    # Less important
-    ################
-
     def simulate_answer(self) -> dict[str, str]:
         return {"answer": random_string()}
 
-    def form_elements(self) -> str:
-        html_output = f"""
-        <label for="{self.question_name}">{self.question_text}</label>
-        <div id="{self.question_name}_div">
-            <input type="text" id="{self.question_name}" name="{self.question_text}">
-        </div>
-        """
-        return html_output
+    @classmethod
+    def example(cls):
+        return cls(
+            question_text="How are you?",
+            question_name="how_are_you",
+            short_names_dict={"good": "good", "bad": "bad"},
+            allow_nonresponse=True,
+        )
 
 
-# if __name__ == 'main':
-#     from edsl.questions import QuestionFreeText
-#     q = QuestionFreeText(question_text = "How old are you?", question_name = "age")
-#     result = q.run()
-#     print(result)
+if __name__ == "__main__":
+    q = QuestionFreeText.example()
