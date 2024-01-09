@@ -21,3 +21,17 @@ class LLMOutputDataDB(Base):
     idx_responses_fields = Index(
         "idx_responses_fields", "prompt", "system_prompt", "model", "parameters"
     )
+
+
+class ResultDB(Base):
+    __tablename__ = "result"
+
+    id = Column(Integer, primary_key=True)
+    job_uuid = Column(String, nullable=False)
+    result_uuid = Column(String, nullable=False)
+    agent = Column(Text, nullable=False)
+    scenario = Column(Text, nullable=False)
+    model = Column(Text, nullable=False)
+    answer = Column(Text, nullable=False)
+
+    idx_job_uuid = Index("idx_job_uuid", "job_uuid")
