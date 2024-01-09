@@ -5,7 +5,7 @@ from edsl.exceptions import (
     QuestionAnswerValidationError,
 )
 from edsl.questions import Settings, QuestionData, AnswerData
-from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoiceEnhanced
+from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
 
 class QuestionYesNo(QuestionData):
@@ -29,7 +29,7 @@ class QuestionYesNo(QuestionData):
         return value
 
 
-class QuestionYesNoEnhanced(QuestionMultipleChoiceEnhanced):
+class QuestionYesNoEnhanced(QuestionMultipleChoice):
     """Same as a QuestionCheckBox, but with question_options=["yes","no"]"""
 
     question_type = "yes_no"

@@ -3,7 +3,8 @@ import re
 import textwrap
 from abc import ABC, abstractmethod
 from jinja2 import Template, Environment, meta
-from pydantic import BaseModel, ValidationError
+
+# from pydantic import BaseModel, ValidationError
 from typing import Any, Type, Union
 from edsl.exceptions import (
     QuestionAnswerValidationError,
@@ -13,8 +14,9 @@ from edsl.exceptions import (
     QuestionScenarioRenderError,
 )
 from edsl.questions.question_registry import get_question_class
-from edsl.questions.utils import LLMResponse
-from edsl.utilities.utilities import HTMLSnippet
+
+# from edsl.questions.utils import LLMResponse
+# from edsl.utilities.utilities import HTMLSnippet
 
 
 class Question(ABC):
@@ -56,6 +58,14 @@ class Question(ABC):
     @abstractmethod
     def validate_answer(self, answer: dict[str, str]):
         pass
+
+    def validate_response(self, response):
+        """Validates the response from the LLM"""
+        if "answer" not in response:
+            raise QuestionResponseValidationError(
+                "Response from LLM does not have an answer"
+            )
+        return response
 
     # TODO: Throws an error that should be addressed at QuestionFunctional
     def __add__(self, other_question):

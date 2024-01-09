@@ -5,7 +5,7 @@ from edsl.exceptions import (
     QuestionCreationValidationError,
 )
 from edsl.questions import Settings, QuestionData, AnswerData
-from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoiceEnhanced
+from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
 
 class QuestionLinearScale(QuestionData):
@@ -41,7 +41,7 @@ class QuestionLinearScale(QuestionData):
         return self
 
 
-class QuestionLinearScaleEnhanced(QuestionMultipleChoiceEnhanced):
+class QuestionLinearScaleEnhanced(QuestionMultipleChoice):
     """
     Inherits from QuestionMultipleChoice, because the two are similar.
     - A difference is that the answers must have an ordering.

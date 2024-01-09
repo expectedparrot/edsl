@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import Type
 from edsl.questions import Settings, QuestionData
-from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoiceEnhanced
+from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
 
 class QuestionLikertFive(QuestionData):
@@ -24,7 +24,7 @@ class QuestionLikertFive(QuestionData):
         return QuestionLikertFiveEnhanced(instance)
 
 
-class QuestionLikertFiveEnhanced(QuestionMultipleChoiceEnhanced):
+class QuestionLikertFiveEnhanced(QuestionMultipleChoice):
     """
     Inherits from QuestionMultipleChoice, because the two are similar.
     - A difference is that the answers in QuestionLikertFive are fixed
