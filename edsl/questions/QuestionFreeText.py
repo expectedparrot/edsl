@@ -47,21 +47,9 @@ class QuestionFreeText(Question, ValidatorMixin):
         else:
             self.short_names_dict = short_names_dict
 
-    @property
-    def question_name(self):
-        return self._question_name
-
-    @question_name.setter
-    def question_name(self, value):
-        self._question_name = self.validate_question_name(value)
-
-    @property
-    def question_text(self):
-        return self._question_text
-
-    @question_text.setter
-    def question_text(self, value):
-        self._question_text = self.validate_question_text(value)
+    #############
+    ## Validators
+    #############
 
     @property
     def allow_nonresponse(self):
@@ -70,22 +58,6 @@ class QuestionFreeText(Question, ValidatorMixin):
     @allow_nonresponse.setter
     def allow_nonresponse(self, value):
         self._allow_nonresponse = self.validate_allow_nonresponse(value)
-
-    @property
-    def short_names_dict(self):
-        return self._short_names_dict
-
-    @short_names_dict.setter
-    def short_names_dict(self, value):
-        self._short_names_dict = self.validate_short_names_dict(value)
-
-    @property
-    def instructions(self):
-        return self._instructions
-
-    @instructions.setter
-    def instructions(self, value):
-        self._instructions = self.validate_instructions(value)
 
     def validate_answer(self, answer: dict[str, str]):
         """Validates the answer"""
