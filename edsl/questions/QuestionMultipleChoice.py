@@ -8,11 +8,12 @@ from edsl.exceptions import QuestionAnswerValidationError
 from edsl.utilities.utilities import random_string
 from edsl.utilities.utilities import is_valid_variable_name
 
-MAX_OPTIONS = 10
-MIN_OPTIONS = 2
+from edsl.questions.settings import Settings
+
+from edsl.questions.ValidatorMixin import ValidatorMixin
 
 
-class QuestionMultipleChoice(Question):
+class QuestionMultipleChoice(Question, ValidatorMixin):
     """QuestionMultipleChoice"""
 
     question_type = "multiple_choice"
@@ -30,6 +31,10 @@ class QuestionMultipleChoice(Question):
         return self._question_name
 
     @question_name.setter
+    def question_name(self, value):
+        self._question_name = self.validate_question_name(value)
+
+    @question_name.setter
     def question_name(self, new_question_name):
         "Validates the question name"
         if not is_valid_variable_name(new_question_name):
@@ -45,9 +50,9 @@ class QuestionMultipleChoice(Question):
         "Validates the question options"
         if not isinstance(new_question_options, list):
             raise Exception("Question options must be a list!")
-        if len(new_question_options) > MAX_OPTIONS:
+        if len(new_question_options) > Settings.MAX_NUM_OPTIONS:
             raise Exception("Question options are too long!")
-        if len(new_question_options) < MIN_OPTIONS:
+        if len(new_question_options) < Settings.MIN_NUM_OPTIONS:
             raise Exception("Question options are too short!")
         if not all(isinstance(x, str) for x in new_question_options):
             raise Exception("Question options must be strings!")
