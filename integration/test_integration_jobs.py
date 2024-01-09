@@ -30,9 +30,21 @@ def test_simple_job_integration():
         LanguageModelOpenAIThreeFiveTurbo(use_cache=True),
         LanguageModelOpenAIFour(use_cache=True),
     ]
+
+    # print("-------------------------")
+    # print("Uncomment to test streaming")
+    # job_no_cache = survey.by(agents).by(scenarios).by(models_no_cache)
+    # results_streaming = job_no_cache.run(method="streaming")
+    # results_streaming
+
+    print("-------------------------")
+    print("Running job without cache")
     job_no_cache = survey.by(agents).by(scenarios).by(models_no_cache)
     results_no_cache = job_no_cache.run()
     results_no_cache
+
+    print("-------------------------")
+    print("Running job with cache")
     job_cache = survey.by(agents).by(scenarios).by(models_cache)
     results_cache = job_cache.run()
     results_cache

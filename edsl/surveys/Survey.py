@@ -214,7 +214,7 @@ class Survey(Base, SurveyExportMixin):
             return self._questions[0]
 
         answers = answers or {}
-        print(self.question_name_to_index)
+        # print(self.question_name_to_index)
         question_index = self.question_name_to_index[current_question_name]
         next_question_object = self.rule_collection.next_question(
             question_index, answers
