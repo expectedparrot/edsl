@@ -4,7 +4,6 @@ import textwrap
 from abc import ABC, abstractmethod
 from jinja2 import Template, Environment, meta
 
-# from pydantic import BaseModel, ValidationError
 from typing import Any, Type, Union
 from edsl.exceptions import (
     QuestionAnswerValidationError,
@@ -14,9 +13,6 @@ from edsl.exceptions import (
     QuestionScenarioRenderError,
 )
 from edsl.questions.question_registry import get_question_class
-
-# from edsl.questions.utils import LLMResponse
-# from edsl.utilities.utilities import HTMLSnippet
 
 
 class Question(ABC):
@@ -47,7 +43,7 @@ class Question(ABC):
         return question_class(**local_data)
 
     def __repr__(self):
-        class_name = self.__class__.__name__.replace("Enhanced", "")
+        class_name = self.__class__.__name__
         items = [
             f"{k} = '{v}'" if isinstance(v, str) else f"{k} = {v}"
             for k, v in self.data.items()
@@ -190,9 +186,9 @@ class Question(ABC):
         prompt += self.get_prompt()
         return prompt, system_prompt
 
-    ################
+    ############################
     # Question -> Survey methods
-    ################
+    ############################
     def add_question(self, other):
         "Adds a question to this question by turning them into a survey with two questions"
         from edsl.surveys.Survey import Survey
