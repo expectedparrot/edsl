@@ -35,29 +35,12 @@ class QuestionFreeText(Question, ValidatorMixin):
             self.instructions = self.default_instructions
         self.set_instructions = set_instructions
 
-        # non-response
-        if set_allow_nonresponse := (allow_nonresponse is not None):
-            self.allow_nonresponse = allow_nonresponse
-        else:
-            self.allow_nonresponse = False
-
-        # Short-names dictionary
-        if set_short_names_dict := (short_names_dict is not None):
-            self.short_names_dict = dict()
-        else:
-            self.short_names_dict = short_names_dict
+        self.allow_nonresponse = allow_nonresponse or False
+        self.short_names_dict = short_names_dict or dict()
 
     #############
     ## Validators
     #############
-
-    @property
-    def allow_nonresponse(self):
-        return self._allow_nonresponse
-
-    @allow_nonresponse.setter
-    def allow_nonresponse(self, value):
-        self._allow_nonresponse = self.validate_allow_nonresponse(value)
 
     def validate_answer(self, answer: dict[str, str]):
         """Validates the answer"""

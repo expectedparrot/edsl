@@ -67,16 +67,13 @@ class QuestionNumerical(Question):
         self.min_value = min_value
         self.max_value = max_value
 
-        if short_names_dict is None:
-            short_names_dict = dict()
-        else:
-            self.short_names_dict = short_names_dict
-
         if set_instructions := (instructions is not None):
             self.instructions = instructions
         else:
             self.instructions = self.default_instructions
         self.set_instructions = set_instructions
+
+        self.short_names_dict = short_names_dict or dict()
 
     def validate_answer(self, answer: dict[str, str]):
         if "answer" not in answer:

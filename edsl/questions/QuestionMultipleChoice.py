@@ -40,18 +40,14 @@ class QuestionMultipleChoice(Question):
         self.question_options = question_options
         self.question_name = question_name
 
-        if short_names_dict is None:
-            short_names_dict = dict()
-        else:
-            self.short_names_dict = short_names_dict
-
         if instructions is None:
             self.instructions = self.default_instructions
-            # used to decide if instructions should be serialized
             self.set_instructions = False
         else:
             self.instructions = instructions
             self.set_instructions = True
+
+        self.short_names_dict = short_names_dict or dict()
 
     #############
     ## Validators
