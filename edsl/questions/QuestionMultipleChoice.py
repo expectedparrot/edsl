@@ -1,48 +1,105 @@
 import random
 import textwrap
 from jinja2 import Template
-from pydantic import BaseModel, Field, field_validator
+
 from typing import Optional, Type
-from edsl.questions import Question, QuestionData, AnswerData, Settings
+from edsl.questions import Question
 from edsl.exceptions import QuestionAnswerValidationError
 from edsl.utilities.utilities import random_string
+from edsl.utilities.utilities import is_valid_variable_name
+
+MAX_OPTIONS = 10
+MIN_OPTIONS = 2
 
 
-class QuestionMultipleChoice(QuestionData):
-    """Pydantic data model for QuestionMultipleChoice"""
+class QuestionMultipleChoice(Question):
+    """QuestionMultipleChoice"""
 
-    question_options: list[str] = Field(
-        ...,
-        min_length=Settings.MIN_NUM_OPTIONS,
-        max_length=Settings.MAX_NUM_OPTIONS,
-    )
-
-    def validate_answer(self, answer: dict[str, str]):
-        raise Exception("Nope!")
-
-    # see QuestionFreeText for an explanation of how __new__ works
-    def __new__(cls, *args, **kwargs) -> "QuestionMultipleChoiceEnhanced":
-        instance = super(QuestionMultipleChoice, cls).__new__(cls)
-        instance.__init__(*args, **kwargs)
-        return QuestionMultipleChoiceEnhanced(instance)
-
-    def __init__(self, **data):
-        super().__init__(**data)
-
-    @field_validator("question_options")
-    def check_unique(cls, value):
-        return cls.base_validator_check_unique(value)
-
-    @field_validator("question_options")
-    def check_option_string_lengths(cls, value):
-        return cls.base_validator_check_option_string_lengths(value)
-
-
-class QuestionMultipleChoiceEnhanced(Question):
     question_type = "multiple_choice"
 
-    def __init__(self, question: BaseModel):
-        super().__init__(question)
+    def __init__(
+        self, question_text, question_options, question_name, short_names_dict=None
+    ):
+        self.question_text = question_text
+        self.question_options = question_options
+        self.question_name = question_name
+        self.short_names_dict = short_names_dict or dict()
+
+    @property
+    def question_name(self):
+        return self._question_name
+
+    @question_name.setter
+    def question_name(self, new_question_name):
+        "Validates the question name"
+        if not is_valid_variable_name(new_question_name):
+            raise Exception("Question name is not a valid variable name!")
+        self._question_name = new_question_name
+
+    @property
+    def question_options(self):
+        return self._question_options
+
+    @question_options.setter
+    def question_options(self, new_question_options):
+        "Validates the question options"
+        if not isinstance(new_question_options, list):
+            raise Exception("Question options must be a list!")
+        if len(new_question_options) > MAX_OPTIONS:
+            raise Exception("Question options are too long!")
+        if len(new_question_options) < MIN_OPTIONS:
+            raise Exception("Question options are too short!")
+        if not all(isinstance(x, str) for x in new_question_options):
+            raise Exception("Question options must be strings!")
+        if len(new_question_options) != len(set(new_question_options)):
+            raise Exception("Question options must be unique!")
+        if not all([len(option) > 1 for option in new_question_options]):
+            raise Exception("All question options must be at least 2 characters long!")
+        self._question_options = new_question_options
+
+    @property
+    def question_text(self):
+        return self._question_text
+
+    @question_text.setter
+    def question_text(self, new_question_text):
+        "Validates the question text"
+        if len(new_question_text) > 1000:
+            raise Exception("Question is too long!")
+        if len(new_question_text) < 1:
+            raise Exception("Question is too short!")
+        if not isinstance(new_question_text, str):
+            raise Exception("Question must be a string!")
+        self._question_text = new_question_text
+
+    @property
+    def short_names_dict(self):
+        return self._short_names_dict
+
+    @short_names_dict.setter
+    def short_names_dict(self, new_short_names_dict):
+        "Validates the short names dictionary"
+        if not isinstance(new_short_names_dict, dict):
+            raise Exception("Short names dictionary must be a dictionary!")
+        if not all(isinstance(x, str) for x in new_short_names_dict.keys()):
+            raise Exception("Short names dictionary keys must be strings!")
+        if not all(isinstance(x, str) for x in new_short_names_dict.values()):
+            raise Exception("Short names dictionary values must be strings!")
+        self._short_names_dict = new_short_names_dict
+
+    def validate_answer(self, answer: dict[str, str]):
+        """Validates the answer"""
+        try:
+            answer_code = int(answer["answer"])
+        except:
+            raise QuestionAnswerValidationError(
+                f"Answer {answer} is not a valid option."
+            )
+        if int(answer["answer"]) not in range(len(self.question_options)):
+            raise QuestionAnswerValidationError(
+                f"Answer {answer} is not a valid option."
+            )
+        return answer
 
     @property
     def instructions(self) -> str:
@@ -58,25 +115,6 @@ class QuestionMultipleChoiceEnhanced(Question):
         Only 1 option may be selected.
         """
         )
-
-    def construct_answer_data_model(self) -> Type[BaseModel]:
-        "Constructs the answer data model for this question"
-        acceptable_values = range(len(self.question_options))
-
-        class QuestionMultipleChoiceAnswerDataModel(AnswerData):
-            answer: int
-            comment: Optional[str] = None
-
-            @field_validator("answer")
-            def check_answer(cls, value):
-                if value in acceptable_values:
-                    return value
-                else:
-                    raise QuestionAnswerValidationError(
-                        f"Answer {value} not in acceptable values {acceptable_values}"
-                    )
-
-        return QuestionMultipleChoiceAnswerDataModel
 
     ################
     # Less important
@@ -109,25 +147,21 @@ class QuestionMultipleChoiceEnhanced(Question):
             "comment": random_string(),
         }
 
-    def form_elements(self) -> str:
-        html_output = f"\n\n\n<label>{self.question_text}</label>\n"
-        for index, option in enumerate(self.question_options):
-            html_output += f"""
-            <div id = "{self.question_name}_div_{index}">
-                <input type="radio" id="{self.question_name}_{index}" name="{self.question_text}" value="{option}">
-                <label for="{self.question_name}_{index}">{option}</label>
-            </div>\n
-            """
-        return html_output
-
 
 if __name__ == "__main__":
-    from edsl.questions import QuestionMultipleChoice
-
     q = QuestionMultipleChoice(
-        question_text="Do you enjoying eating custard while skydiving?",
-        question_options=["yes, somtimes", "no", "only on Tuesdays"],
-        question_name="goose_fight",
+        question_text="How are you?",
+        question_options={"OK": "OK", "BAD": "BAD"},
+        question_name="how_feeling",
     )
-    results = q.run()
-    print(results)
+    # q = QuestionMultipleChoice(
+    #     question_text="Do you enjoying eating custard while skydiving?",
+    #     question_options=["yes, somtimes", "no", "only on Tuesdays"],
+    #     question_name="goose_fight",
+    # )
+    # results = q.run()
+    # results.select("goose_fight").print()
+
+    # q_dict = q.to_dict()
+    # print(f"Serialized dictionary:{q_dict}")
+    # new_q = Question.from_dict(q_dict)
