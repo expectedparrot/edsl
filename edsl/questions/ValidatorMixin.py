@@ -2,10 +2,28 @@ from edsl.utilities.utilities import is_valid_variable_name
 from edsl.questions.settings import Settings
 
 
+def number_or_none(value):
+    if value is None:
+        return True
+    if not (isinstance(value, int) or isinstance(value, float)):
+        return False
+    return True
+
+
 class ValidatorMixin:
     def validate_question_name(self, value):
         if not is_valid_variable_name(value):
             raise Exception("Question name is not a valid variable name!")
+        return value
+
+    def validate_min_value(self, value):
+        if not number_or_none(value):
+            raise Exception("Min value must be a number!")
+        return value
+
+    def validate_max_value(self, value):
+        if not number_or_none(value):
+            raise Exception("Max value must be a number!")
         return value
 
     def validate_instructions(self, value):

@@ -14,9 +14,43 @@ from edsl.exceptions import (
 )
 from edsl.questions.question_registry import get_question_class
 
+from edsl.questions.ValidatorMixin import ValidatorMixin
 
-class Question(ABC):
+
+class Question(ABC, ValidatorMixin):
     """ """
+
+    @property
+    def question_name(self):
+        return self._question_name
+
+    @question_name.setter
+    def question_name(self, value):
+        self._question_name = self.validate_question_name(value)
+
+    @property
+    def question_text(self):
+        return self._question_text
+
+    @question_text.setter
+    def question_text(self, value):
+        self._question_text = self.validate_question_text(value)
+
+    @property
+    def short_names_dict(self):
+        return self._short_names_dict
+
+    @short_names_dict.setter
+    def short_names_dict(self, value):
+        self._short_names_dict = self.validate_short_names_dict(value)
+
+    @property
+    def instructions(self):
+        return self._instructions
+
+    @instructions.setter
+    def instructions(self, value):
+        self._instructions = self.validate_instructions(value)
 
     @property
     def data(self):
@@ -95,23 +129,6 @@ class Question(ABC):
         from edsl.questions import compose_questions
 
         return compose_questions(self, other_question)
-
-    @property
-    @abstractmethod
-    def instructions(self) -> str:  # pragma: no cover
-        """
-        Instructions for each question.
-        - the values are question type-specific
-        - the templating standard is Jinja2.
-        - it is necessary to include both "answer" and "comment" as the only keys.
-        - Note: children should implement this method as a property.
-
-        An example for `QuestionFreeText`:
-         You are being asked the following question: {{question_text}}
-         Return a valid JSON formatted like this:
-         {"answer": "<your free text answer>", "comment": "<put explanation here>"}
-        """
-        pass
 
     @staticmethod
     def scenario_render(text: str, scenario_dict: dict) -> str:
