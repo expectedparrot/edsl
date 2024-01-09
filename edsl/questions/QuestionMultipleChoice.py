@@ -2,13 +2,10 @@ import random
 import textwrap
 from jinja2 import Template
 
-from typing import Optional, Type
+from typing import Optional, List, Dict
 from edsl.questions import Question
 from edsl.exceptions import QuestionAnswerValidationError
 from edsl.utilities.utilities import random_string
-from edsl.utilities.utilities import is_valid_variable_name
-
-from edsl.questions.settings import Settings
 
 from edsl.questions.ValidatorMixin import ValidatorMixin
 
@@ -18,13 +15,49 @@ class QuestionMultipleChoice(Question, ValidatorMixin):
 
     question_type = "multiple_choice"
 
+    default_instructions = textwrap.dedent(
+        """\
+        You are being asked the following question: {{question_text}}
+        The options are 
+        {% for option in question_options %}
+        {{ loop.index0 }}: {{option}}
+        {% endfor %}                       
+        Return a valid JSON formatted like this, selecting only the number of the option: 
+        {"answer": <put answer code here>, "comment": "<put explanation here>"}
+        Only 1 option may be selected.
+        """
+    )
+
     def __init__(
-        self, question_text, question_options, question_name, short_names_dict=None
+        self,
+        question_text: str,
+        question_options: List[str],
+        question_name: str,
+        short_names_dict: Optional[Dict[str, str]] = None,
+        instructions: Optional[str] = None,
     ):
         self.question_text = question_text
         self.question_options = question_options
         self.question_name = question_name
-        self.short_names_dict = short_names_dict or dict()
+
+        if short_names_dict is None:
+            short_names_dict = dict()
+            self.set_short_names_dict = False
+        else:
+            self.set_short_names_dict = True
+            self.short_names_dict = short_names_dict
+
+        if instructions is None:
+            self.instructions = self.default_instructions
+            # used to decide if instructions should be serialized
+            self.set_instructions = False
+        else:
+            self.instructions = instructions
+            self.set_instructions = True
+
+    #############
+    ## Validators
+    #############
 
     @property
     def question_name(self):
@@ -34,63 +67,37 @@ class QuestionMultipleChoice(Question, ValidatorMixin):
     def question_name(self, value):
         self._question_name = self.validate_question_name(value)
 
-    @question_name.setter
-    def question_name(self, new_question_name):
-        "Validates the question name"
-        if not is_valid_variable_name(new_question_name):
-            raise Exception("Question name is not a valid variable name!")
-        self._question_name = new_question_name
+    @property
+    def question_text(self):
+        return self._question_text
+
+    @question_text.setter
+    def question_text(self, value):
+        self._question_text = self.validate_question_text(value)
 
     @property
     def question_options(self):
         return self._question_options
 
     @question_options.setter
-    def question_options(self, new_question_options):
-        "Validates the question options"
-        if not isinstance(new_question_options, list):
-            raise Exception("Question options must be a list!")
-        if len(new_question_options) > Settings.MAX_NUM_OPTIONS:
-            raise Exception("Question options are too long!")
-        if len(new_question_options) < Settings.MIN_NUM_OPTIONS:
-            raise Exception("Question options are too short!")
-        if not all(isinstance(x, str) for x in new_question_options):
-            raise Exception("Question options must be strings!")
-        if len(new_question_options) != len(set(new_question_options)):
-            raise Exception("Question options must be unique!")
-        if not all([len(option) > 1 for option in new_question_options]):
-            raise Exception("All question options must be at least 2 characters long!")
-        self._question_options = new_question_options
-
-    @property
-    def question_text(self):
-        return self._question_text
-
-    @question_text.setter
-    def question_text(self, new_question_text):
-        "Validates the question text"
-        if len(new_question_text) > 1000:
-            raise Exception("Question is too long!")
-        if len(new_question_text) < 1:
-            raise Exception("Question is too short!")
-        if not isinstance(new_question_text, str):
-            raise Exception("Question must be a string!")
-        self._question_text = new_question_text
+    def question_options(self, value):
+        self._question_options = self.validate_question_options(value)
 
     @property
     def short_names_dict(self):
         return self._short_names_dict
 
     @short_names_dict.setter
-    def short_names_dict(self, new_short_names_dict):
-        "Validates the short names dictionary"
-        if not isinstance(new_short_names_dict, dict):
-            raise Exception("Short names dictionary must be a dictionary!")
-        if not all(isinstance(x, str) for x in new_short_names_dict.keys()):
-            raise Exception("Short names dictionary keys must be strings!")
-        if not all(isinstance(x, str) for x in new_short_names_dict.values()):
-            raise Exception("Short names dictionary values must be strings!")
-        self._short_names_dict = new_short_names_dict
+    def short_names_dict(self, value):
+        self._short_names_dict = self.validate_short_names_dict(value)
+
+    @property
+    def instructions(self):
+        return self._instructions
+
+    @instructions.setter
+    def instructions(self, value):
+        self._instructions = self.validate_instructions(value)
 
     def validate_answer(self, answer: dict[str, str]):
         """Validates the answer"""
@@ -105,21 +112,6 @@ class QuestionMultipleChoice(Question, ValidatorMixin):
                 f"Answer {answer} is not a valid option."
             )
         return answer
-
-    @property
-    def instructions(self) -> str:
-        return textwrap.dedent(
-            """\
-        You are being asked the following question: {{question_text}}
-        The options are 
-        {% for option in question_options %}
-        {{ loop.index0 }}: {{option}}
-        {% endfor %}                       
-        Return a valid JSON formatted like this, selecting only the number of the option: 
-        {"answer": <put answer code here>, "comment": "<put explanation here>"}
-        Only 1 option may be selected.
-        """
-        )
 
     ################
     # Less important
