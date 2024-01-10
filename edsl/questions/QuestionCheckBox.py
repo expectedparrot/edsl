@@ -1,22 +1,14 @@
 import random
 import textwrap
-from typing import Optional, Type
-
 from jinja2 import Template
-
-from edsl.questions import Question, Settings
-
-from edsl.exceptions import (
-    QuestionCreationValidationError,
-    QuestionAnswerValidationError,
-)
-from edsl.utilities.utilities import random_string
-
+from typing import Optional
+from edsl.exceptions import QuestionAnswerValidationError
+from edsl.questions import Question
 from edsl.questions.descriptors import (
     IntegerDescriptor,
-    NumSelectionsDescriptor,
     QuestionOptionsDescriptor,
 )
+from edsl.utilities import random_string
 
 
 class QuestionCheckBox(Question):
@@ -61,46 +53,16 @@ class QuestionCheckBox(Question):
     ):
         self.question_name = question_name
         self.question_text = question_text
-
         self.min_selections = min_selections
         self.max_selections = max_selections
-
         self.question_options = question_options
-
         self.short_names_dict = short_names_dict or dict()
-
         self.instructions = instructions or self.default_instructions
 
     def validate_answer(self, answer):
-        if "answer" not in answer:
-            raise QuestionAnswerValidationError("Answer must have an 'answer' key!")
-        value = answer["answer"]
-        if value is None:
-            raise QuestionAnswerValidationError("Answer must not be None!")
-        self.check_answers_valid(value)
-        self.check_answers_count(value)
-        return value
-
-    def check_answers_valid(self, value):
-        acceptable_values = list(range(len(self.question_options)))
-        for v in value:
-            if v not in acceptable_values:
-                raise QuestionAnswerValidationError(
-                    f"Answer {value} has elements not in {acceptable_values}, namely {v}"
-                )
-        return value
-
-    def check_answers_count(self, value):
-        # If min or max numbers of option selections are specified, check they are satisfied
-        if self.min_selections is not None and len(value) < self.min_selections:
-            raise QuestionAnswerValidationError(
-                f"Answer {value} has fewer than {self.min_selections} options selected."
-            )
-        if self.max_selections is not None and len(value) > self.max_selections:
-            raise QuestionAnswerValidationError(
-                f"Answer {value} has more than {self.max_selections} options selected."
-            )
-        return value
+        self.validate_answer_template_basic(answer)
+        self.validate_answer_checkbox(answer)
+        return answer
 
     ################
     # Less important
