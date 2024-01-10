@@ -230,6 +230,7 @@ def test_QuestionCheckBox_answers():
 
     # answer must be an list of ints
     q.validate_answer(llm_response_valid1)
+
     q.validate_answer(llm_response_valid2)
     # answer value required
     with pytest.raises(QuestionAnswerValidationError):
