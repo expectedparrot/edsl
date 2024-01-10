@@ -60,6 +60,9 @@ class Question(ABC, ValidatorMixin):
             "max_list_items",
             "min_value",
             "max_value",
+            "min_selections",
+            "max_selections",
+            "question_options",
         ]:
             setattr(cls, name, create_property(name))
 
