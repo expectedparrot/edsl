@@ -63,41 +63,24 @@ class QuestionCheckBox(Question):
         self.instructions = instructions or self.default_instructions
         self.set_instructions = instructions is not None
 
-    # def check_options_count(self):
-    #     if (
-    #         hasattr(self, "question_options")
-    #         and hasattr(self, "min_selections")
-    #         and self.min_selections != None
-    #     ):
-    #         if self.min_selections > len(self.question_options):
-    #             raise QuestionCreationValidationError(
-    #                 f"You asked for at least {self.min_selections} selections, but provided {len(self.question_options)} options."
-    #             )
-    #     if (
-    #         hasattr(self, "question_options")
-    #         and hasattr(self, "max_selections")
-    #         and self.max_selections != None
-    #     ):
-    #         if self.max_selections > len(self.question_options):
-    #             raise QuestionCreationValidationError(
-    #                 f"You asked for at most {self.max_selections} selections, but provided {len(self.question_options)} options."
-    #             )
-    #     return self
-
-    def validate_answer(self, value):
-        """Validates the answer"""
+    def validate_answer(self, answer):
+        if "answer" not in answer:
+            raise QuestionAnswerValidationError("Answer must have an 'answer' key!")
+        value = answer["answer"]
+        if value is None:
+            raise QuestionAnswerValidationError("Answer must not be None!")
         self.check_answers_valid(value)
         self.check_answers_count(value)
         return value
 
     def check_answers_valid(self, value):
         acceptable_values = list(range(len(self.question_options)))
-        if all([v in acceptable_values for v in value]):
-            return value
-        else:
-            raise QuestionAnswerValidationError(
-                f"Answer {value} has elements not in {acceptable_values}."
-            )
+        for v in value:
+            if v not in acceptable_values:
+                raise QuestionAnswerValidationError(
+                    f"Answer {value} has elements not in {acceptable_values}."
+                )
+        return value
 
     def check_answers_count(self, value):
         # If min or max numbers of option selections are specified, check they are satisfied
