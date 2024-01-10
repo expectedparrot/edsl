@@ -45,7 +45,7 @@ class QuestionMultipleChoice(Question):
         self, answer: dict[str, Union[str, int]]
     ) -> dict[str, Union[str, int]]:
         """Validates the answer"""
-        self.validate_answer_basic(answer)
+        self.validate_answer_template_basic(answer)
         self.validate_answer_multiple_choice(answer)
         return answer
 
