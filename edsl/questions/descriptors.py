@@ -35,6 +35,16 @@ class BaseDescriptor(ABC):
         self.name = "_" + name
 
 
+class AnswerTemplateDescriptor(BaseDescriptor):
+    def validate(self, value, instance):
+        if not isinstance(value, dict):
+            raise Exception("Answer template must be a dictionary!")
+        if not all(isinstance(x, str) for x in value.keys()):
+            raise Exception("Answer template keys must be strings!")
+        if not all(isinstance(x, str) for x in value.values()):
+            raise Exception("Answer template values must be strings!")
+
+
 class QuestionNameDescriptor(BaseDescriptor):
     def validate(self, value, instance):
         if not is_valid_variable_name(value):
@@ -75,6 +85,9 @@ class InstructionsDescriptor(BaseDescriptor):
 
 
 class QuestionOptionsDescriptor(BaseDescriptor):
+    def __init__(self, num_choices=None):
+        self.num_choices = num_choices
+
     def validate(self, value, instance):
         "Validates the question options"
         if not isinstance(value, list):
@@ -106,6 +119,11 @@ class QuestionOptionsDescriptor(BaseDescriptor):
             if instance.max_selections > len(value):
                 raise QuestionCreationValidationError(
                     f"You asked for at most {instance.max_selections} selections, but provided {len(value)} options."
+                )
+        if self.num_choices is not None:
+            if len(value) != self.num_choices:
+                raise QuestionCreationValidationError(
+                    f"You asked for {self.num_choices} selections, but provided {len(value)} options."
                 )
         return value
 
