@@ -15,10 +15,10 @@ from edsl.questions.descriptors import (
     ShortNamesDictDescriptor,
 )
 from edsl.questions.question_registry import get_question_class
-from edsl.questions.ValidatorMixin import ValidatorMixin
+from edsl.questions.AnswerValidatorMixin import AnswerValidatorMixin
 
 
-class Question(ABC, ValidatorMixin):
+class Question(ABC, AnswerValidatorMixin):
     """
     ABC for something.
     """

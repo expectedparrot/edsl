@@ -2,13 +2,10 @@ import re
 import textwrap
 from random import randint
 from typing import Optional
-
-from edsl.questions import Question
 from edsl.exceptions import QuestionAnswerValidationError
-from edsl.utilities.utilities import random_string
-
-
+from edsl.questions import Question
 from edsl.questions.descriptors import NumericalOrNoneDescriptor
+from edsl.utilities.utilities import random_string
 
 
 class QuestionNumerical(Question):
@@ -21,18 +18,13 @@ class QuestionNumerical(Question):
         """\
         You are being asked a question that requires a numerical response 
         in the form of an integer or decimal (e.g., -12, 0, 1, 2, 3.45, ...).
-        
         Your response must be in the following format:
         {"answer": "<your numerical answer here>", "comment": "<your explanation here"}
-
         You must only include an integer or decimal in the quoted "answer" part of your response. 
-
         Here is an example of a valid response:
         {"answer": "100", "comment": "This is my explanation..."}
-
         Here is an example of a response that is invalid because the "answer" includes words:
         {"answer": "I don't know.", "comment": "This is my explanation..."}
-
         If your response is equivalent to zero, your formatted response should look like this:
         {"answer": "0", "comment": "This is my explanation..."}
         
@@ -45,19 +37,6 @@ class QuestionNumerical(Question):
         {% endif %}
         """
     )
-    # """
-    # Simpler default prompt that works with GPT-4:
-
-    # You are being asked the following question: {{question_text}}
-    # {% if min_value is not none %}
-    # Minimum answer value: {{min_value}}
-    # {% endif %}
-    # {% if max_value is not none %}
-    # Maximum answer value: {{max_value}}
-    # {% endif %}
-    # Return a valid JSON formatted like this:
-    # {"answer": "<put integer or float answer here>", "comment": "<put explanation here>"}
-    # """
 
     def __init__(
         self,
@@ -72,7 +51,6 @@ class QuestionNumerical(Question):
         self.question_text = question_text
         self.min_value = min_value
         self.max_value = max_value
-
         self.instructions = instructions or self.default_instructions
         self.short_names_dict = short_names_dict or dict()
 
@@ -85,22 +63,6 @@ class QuestionNumerical(Question):
         value = self.check_answer_numeric(value)
         value = self.check_answer(value)
         return answer
-
-    # @property
-    # def min_value(self):
-    #     return self._min_value
-
-    # @min_value.setter
-    # def min_value(self, value):
-    #     self._min_value = self.validate_min_value(value)
-
-    # @property
-    # def max_value(self):
-    #     return self._max_value
-
-    # @max_value.setter
-    # def max_value(self, value):
-    #     self._max_value = self.validate_max_value(value)
 
     def check_answer_numeric(cls, value):
         if type(value) == str:

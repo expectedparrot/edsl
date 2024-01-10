@@ -108,6 +108,7 @@ def main():
         question_name="goose_fight",
         instructions="HEre are are some instructions",
     )
+    q3 = QuestionMultipleChoice.example()
 
     # q_dict = q.to_dict()
     # print(f"Serialized dictionary:{q_dict}")
