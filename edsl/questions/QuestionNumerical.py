@@ -8,8 +8,14 @@ from edsl.exceptions import QuestionAnswerValidationError
 from edsl.utilities.utilities import random_string
 
 
+from edsl.questions.descriptors import NumericalOrNoneDescriptor
+
+
 class QuestionNumerical(Question):
     question_type = "numerical"
+
+    min_value: Optional[float] = NumericalOrNoneDescriptor()
+    max_value: Optional[float] = NumericalOrNoneDescriptor()
 
     default_instructions = textwrap.dedent(
         """\
@@ -67,12 +73,7 @@ class QuestionNumerical(Question):
         self.min_value = min_value
         self.max_value = max_value
 
-        if set_instructions := (instructions is not None):
-            self.instructions = instructions
-        else:
-            self.instructions = self.default_instructions
-        self.set_instructions = set_instructions
-
+        self.instructions = instructions or self.default_instructions
         self.short_names_dict = short_names_dict or dict()
 
     def validate_answer(self, answer: dict[str, str]):
@@ -85,21 +86,21 @@ class QuestionNumerical(Question):
         value = self.check_answer(value)
         return answer
 
-    @property
-    def min_value(self):
-        return self._min_value
+    # @property
+    # def min_value(self):
+    #     return self._min_value
 
-    @min_value.setter
-    def min_value(self, value):
-        self._min_value = self.validate_min_value(value)
+    # @min_value.setter
+    # def min_value(self, value):
+    #     self._min_value = self.validate_min_value(value)
 
-    @property
-    def max_value(self):
-        return self._max_value
+    # @property
+    # def max_value(self):
+    #     return self._max_value
 
-    @max_value.setter
-    def max_value(self, value):
-        self._max_value = self.validate_max_value(value)
+    # @max_value.setter
+    # def max_value(self, value):
+    #     self._max_value = self.validate_max_value(value)
 
     def check_answer_numeric(cls, value):
         if type(value) == str:

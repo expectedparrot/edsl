@@ -5,6 +5,11 @@ from edsl.questions import Question
 from edsl.exceptions import QuestionAnswerValidationError
 from edsl.utilities.utilities import random_string
 
+from edsl.questions.descriptors import (
+    QuestionAllowNonresponseDescriptor,
+    IntegerOrNoneDescriptor,
+)
+
 
 class QuestionList(Question):
     default_instructions = textwrap.dedent(
@@ -23,6 +28,8 @@ class QuestionList(Question):
     )
 
     question_type = "list"
+    allow_nonresponse: bool = QuestionAllowNonresponseDescriptor()
+    max_list_items: Optional[int] = IntegerOrNoneDescriptor()
 
     def __init__(
         self,
@@ -35,15 +42,9 @@ class QuestionList(Question):
     ):
         self.question_text = question_text
         self.question_name = question_name
-
-        # custom instructions
-        if set_instructions := (instructions is not None):
-            self.instructions = self.instructions
-        else:
-            self.instructions = self.default_instructions
-        self.set_instructions = set_instructions
-
+        self.instructions = instructions or self.default_instructions
         self.allow_nonresponse = allow_nonresponse or False
+
         self.max_list_items = max_list_items
         self.short_names_dict = short_names_dict or dict()
 

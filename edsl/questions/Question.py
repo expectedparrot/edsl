@@ -16,55 +16,21 @@ from edsl.questions.question_registry import get_question_class
 
 from edsl.questions.ValidatorMixin import ValidatorMixin
 
+from edsl.questions.descriptors import (
+    QuestionNameDescriptor,
+    QuestionTextDescriptor,
+    ShortNamesDictDescriptor,
+    InstructionsDescriptor,
+)
+
 
 class Question(ABC, ValidatorMixin):
     """ """
 
-    def __init_subclass__(cls) -> None:
-        super().__init_subclass__()
-        cls.add_dynamic_properties()
-
-    @classmethod
-    def add_dynamic_properties(cls):
-        """Adds dynamic properties to the class
-
-        This is equivalent to the following code (but iterated over all the properties)):
-
-        @property
-        def question_name(self):
-            return self._question_name
-
-        @question_name.setter
-        def question_name(self, value):
-            self._question_name = self.validate_question_name(value)
-        """
-
-        def create_property(name):
-            private_name = "_" + name
-
-            def getter(self):
-                return getattr(self, private_name)
-
-            def setter(self, value):
-                validation_method = getattr(self, f"validate_{name}")
-                setattr(self, private_name, validation_method(value))
-
-            return property(getter, setter)
-
-        for name in [
-            "question_name",
-            "question_text",
-            "short_names_dict",
-            "instructions",
-            "allow_nonresponse",
-            "max_list_items",
-            "min_value",
-            "max_value",
-            "min_selections",
-            "max_selections",
-            "question_options",
-        ]:
-            setattr(cls, name, create_property(name))
+    question_name: str = QuestionNameDescriptor()
+    question_text: str = QuestionTextDescriptor()
+    short_names_dict: dict[str, str] = ShortNamesDictDescriptor()
+    instructions: str = InstructionsDescriptor()
 
     @property
     def data(self):
