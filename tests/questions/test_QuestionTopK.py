@@ -1,7 +1,7 @@
 import pytest
 import uuid
-from edsl.questions import Question, QuestionTopK, Settings
-from edsl.questions.derived.QuestionTopK import QuestionTopKEnhanced
+from edsl.questions import Question, Settings
+from edsl.questions.derived.QuestionTopK import QuestionTopK
 
 valid_question = {
     "question_text": "What are your 2 favorite foods in the list?",
@@ -17,14 +17,13 @@ def test_QuestionTopK_construction():
     """Test QuestionTopK construction."""
 
     q = QuestionTopK(**valid_question)
-    assert isinstance(q, QuestionTopKEnhanced)
+    assert isinstance(q, QuestionTopK)
     assert q.question_name == valid_question["question_name"]
     assert q.question_text == valid_question["question_text"]
     assert q.question_options == valid_question["question_options"]
     assert q.min_selections == valid_question["min_selections"]
     assert q.max_selections == valid_question["max_selections"]
-    
-    assert q.answer_data_model is not None
+
     assert q.data == valid_question
 
     # should raise an exception if question_options is a list
@@ -78,12 +77,12 @@ def test_QuestionTopK_serialization():
         "question_options": ["Pizza", "Ice cream", "Cake", "Cereal"],
         "min_selections": 2,
         "max_selections": 2,
-        "type": "top_k",
+        "question_type": "top_k",
         "short_names_dict": {},
     }
 
     # deserialization should return a QuestionTopKEnhanced object
     q_lazarus = Question.from_dict(q.to_dict())
-    assert isinstance(q_lazarus, QuestionTopKEnhanced)
+    assert isinstance(q_lazarus, QuestionTopK)
     assert type(q) == type(q_lazarus)
     assert repr(q) == repr(q_lazarus)

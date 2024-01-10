@@ -3,7 +3,7 @@ import re
 import textwrap
 from abc import ABC, abstractmethod
 from jinja2 import Template, Environment, meta
-from pydantic import BaseModel, ValidationError
+
 from typing import Any, Type, Union
 from edsl.exceptions import (
     QuestionAnswerValidationError,
@@ -13,72 +13,85 @@ from edsl.exceptions import (
     QuestionScenarioRenderError,
 )
 from edsl.questions.question_registry import get_question_class
-from edsl.questions.utils import LLMResponse
-from edsl.utilities.utilities import HTMLSnippet
+
+from edsl.questions.ValidatorMixin import ValidatorMixin
+
+from edsl.questions.descriptors import (
+    QuestionNameDescriptor,
+    QuestionTextDescriptor,
+    ShortNamesDictDescriptor,
+    InstructionsDescriptor,
+)
 
 
-class Question(ABC):
-    """
-    Methods and requirements for children-Questions.
+class Question(ABC, ValidatorMixin):
+    """ """
 
-    Children must implement constuctors for two Pydantic data models:
-    - `QuestionData` used to validate the data that creates a question
-    - `AnswerData` used to validate the answers, and can depend on `QuestionData`
+    question_name: str = QuestionNameDescriptor()
+    question_text: str = QuestionTextDescriptor()
+    short_names_dict: dict[str, str] = ShortNamesDictDescriptor()
+    instructions: str = InstructionsDescriptor()
 
-    Some notes on the attributes
-    - `question_type` registers the question type.
-    - `instructions` are directed towards agents to help construct prompts.
+    @property
+    def data(self):
+        """ "Data is a dictionary of all the attributes of the question, except for the question_type"""
 
-    There is a validation step for the LLM response:
-    - The LLM should always return valid JSON with two fields: "answer" and "comments"
-    - Use indices instead of the actual text of the option keys. The reason to use indices instead of
-      the actual text is that it will make type checking of LLM responses easier.
-    - The "answer" field should be valid for the question type.
-
-    Question responses are required by default but can be specified as required=False at construction.
-    """
-
-    def __init__(self, question: BaseModel):
-        # create class attributes for all fields of the QuestionData pydantic model
-        for key, value in question.model_dump().items():
-            setattr(self, key, value)
-        # store the dict representation of the QuestionData pydantic model
-        self.data = question.model_dump()
-        # use QuestionData to construct the AnswerData pydantic model
-        self.answer_data_model = self.construct_answer_data_model()
-        self.sanity_checks()
+        # All question-specific attributes start with an underscore
+        candidate_data = {
+            k.replace("_", "", 1): v
+            for k, v in self.__dict__.items()
+            if k.startswith("_")
+        }
+        # These are for things that over-ride defaults
+        optional_attributes = {
+            "set_instructions": "instructions",
+        }
+        for boolean_flag, attribute in optional_attributes.items():
+            if hasattr(self, boolean_flag) and not getattr(self, boolean_flag):
+                candidate_data.pop(attribute, None)
+        return candidate_data
 
     def to_dict(self) -> dict:
-        """Converts a Question to a dictionary"""
-        # TODO: This is a very specific dictionary, which should be a model
-        # TODO: having {type:str, data:dict}
-        data = self.data
-        data["type"] = self.question_type
-        return data
+        """Converts a dictionary and adds in the question type"""
+        candidate_data = self.data.copy()
+
+        # question type is a special attribute
+        candidate_data["question_type"] = self.question_type
+        return candidate_data
 
     @classmethod
     def from_dict(cls, data: dict) -> Question:
         """Constructs a Question from the dictionary created by the `to_dict` method"""
-        # do not alter the original data
         local_data = data.copy()
         try:
-            question_type = local_data.pop("type")
+            question_type = local_data.pop("question_type")
         except:
             raise QuestionSerializationError(
-                "Question data does not have a 'type' field"
+                "Question data does not have a 'question_type' field"
             )
-        # Use the get_question_class function to lazily load the class
         question_class = get_question_class(question_type)
         return question_class(**local_data)
 
     def __repr__(self):
-        class_name = self.__class__.__name__.replace("Enhanced", "")
+        class_name = self.__class__.__name__
         items = [
             f"{k} = '{v}'" if isinstance(v, str) else f"{k} = {v}"
             for k, v in self.data.items()
-            if k != "type"
+            if k != "question_type"
         ]
         return f"{class_name}({', '.join(items)})"
+
+    @abstractmethod
+    def validate_answer(self, answer: dict[str, str]):
+        pass
+
+    def validate_response(self, response):
+        """Validates the response from the LLM"""
+        if "answer" not in response:
+            raise QuestionResponseValidationError(
+                "Response from LLM does not have an answer"
+            )
+        return response
 
     # TODO: Throws an error that should be addressed at QuestionFunctional
     def __add__(self, other_question):
@@ -96,23 +109,6 @@ class Question(ABC):
         from edsl.questions import compose_questions
 
         return compose_questions(self, other_question)
-
-    @property
-    @abstractmethod
-    def instructions(self) -> str:  # pragma: no cover
-        """
-        Instructions for each question.
-        - the values are question type-specific
-        - the templating standard is Jinja2.
-        - it is necessary to include both "answer" and "comment" as the only keys.
-        - Note: children should implement this method as a property.
-
-        An example for `QuestionFreeText`:
-         You are being asked the following question: {{question_text}}
-         Return a valid JSON formatted like this:
-         {"answer": "<your free text answer>", "comment": "<put explanation here>"}
-        """
-        pass
 
     @staticmethod
     def scenario_render(text: str, scenario_dict: dict) -> str:
@@ -146,8 +142,7 @@ class Question(ABC):
             scenario = {}
 
         template = Template(self.instructions)
-        attributes = self.__dict__
-        template_with_attributes = template.render(attributes)
+        template_with_attributes = template.render(self.data)
 
         env = Environment()
         ast = env.parse(template_with_attributes)
@@ -166,29 +161,6 @@ class Question(ABC):
         pass
 
     @abstractmethod
-    def construct_answer_data_model(self) -> Type[BaseModel]:  # pragma: no cover
-        """Constructs the Pydantic data model for the answer"""
-        pass
-
-    def validate_response(self, response: dict) -> Union[dict, None]:
-        """Validates the LLM response."""
-        try:
-            _ = LLMResponse(**response)
-        except Exception as e:
-            print(e)
-            print(f"Offending response: {response}")
-            raise QuestionResponseValidationError("Invalid response")
-
-        return response
-
-    def validate_answer(self, answer: Any) -> Union[dict, None]:
-        """Validates the answer to the question using the constructed answer_data_model"""
-        try:
-            return self.answer_data_model(**answer).model_dump()
-        except ValidationError as e:
-            raise QuestionAnswerValidationError(f"Invalid answer {answer}/nError: {e}")
-
-    @abstractmethod
     def simulate_answer(self, human_readable=True) -> dict:  # pragma: no cover
         """Simulates a valid answer for debugging purposes (what the validator expects)"""
         pass
@@ -201,7 +173,6 @@ class Question(ABC):
         - The focal item and a description of what it is.
         """
         system_prompt = ""
-
         instruction_part = textwrap.dedent(
             """\
         You are answering questions as if you were a human. 
@@ -226,34 +197,11 @@ class Question(ABC):
             prompt += focal_item_prompt_fragment
 
         prompt += self.get_prompt()
-
         return prompt, system_prompt
 
-    def sanity_checks(self) -> None:
-        """Some sanity checks for a Question."""
-        SPECIAL = ["QuestionFunctionalEnhanced"]
-        expected_attributes = ["question_name", "question_text"]
-        if self.__class__.__name__ not in SPECIAL:
-            # Check if all expected attributes are present
-            for attribute in expected_attributes:
-                if attribute not in self.__dict__:
-                    raise QuestionAttributeMissing(
-                        f"Question {self.__class__} is missing attribute {attribute}"
-                    )
-            # Check for unescaped curly braces in `question_text`
-            matches_single_but_not_double = r"(?<!\\)(?<!{){(?!{)|(?<!\\)(?!})}(?!})"
-            if bool(re.search(matches_single_but_not_double, self.question_text)):
-                print("WARNING: unescaped curly braces in `question_text`.")
-                print("You probably meant to use **double** curly braces.")
-
-    @abstractmethod
-    def form_elements(self):  # pragma: no cover
-        """Returns the HTML that helps to put this question in a form"""
-        pass
-
-    ################
+    ############################
     # Question -> Survey methods
-    ################
+    ############################
     def add_question(self, other):
         "Adds a question to this question by turning them into a survey with two questions"
         from edsl.surveys.Survey import Survey
@@ -274,17 +222,3 @@ class Question(ABC):
 
         s = Survey([self], [self.question_name])
         return s.by(*args)
-
-    ################
-    # Less important
-    ################
-    def html(self, submit_url=None):
-        submit_button = f'<input type="submit" value="Submit">\n' if submit_url else ""
-        html_string = (
-            f'<form id="{self.question_name}" action="{submit_url if submit_url else ""}" method="post">'
-            f"<div>{self.form_elements()}</div>"
-            f'<input type="hidden" name="question_name" value="{self.question_name}">'
-            f"{submit_button}"
-            "</form>"
-        )
-        return HTMLSnippet(html_string)

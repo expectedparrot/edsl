@@ -1,50 +1,20 @@
 import random
 import textwrap
-from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Type, Union
-from edsl.questions import Question, QuestionData, AnswerData, Settings
+from edsl.questions import Question, Settings
 from edsl.exceptions import QuestionAnswerValidationError
 from edsl.utilities.utilities import random_string
 
-
-class QuestionBudget(QuestionData):
-    """Pydantic data model for QuestionBudget"""
-
-    question_options: list[str] = Field(
-        ...,
-        min_length=Settings.MIN_NUM_OPTIONS,
-        max_length=Settings.MAX_NUM_OPTIONS,
-    )
-    budget_sum: int
-
-    def __new__(cls, *args, **kwargs) -> "QuestionBudgetEnhanced":
-        # see QuestionFreeText for an explanation of how __new__ works
-        instance = super(QuestionBudget, cls).__new__(cls)
-        instance.__init__(*args, **kwargs)
-        return QuestionBudgetEnhanced(instance)
-
-    def __init__(self, **data):
-        super().__init__(**data)
-
-    @field_validator("question_options")
-    def check_unique(cls, value):
-        return cls.base_validator_check_unique(value)
-
-    @field_validator("question_options")
-    def check_option_string_lengths(cls, value):
-        return cls.base_validator_check_option_string_lengths(value)
+from edsl.questions.descriptors import IntegerDescriptor, QuestionOptionsDescriptor
 
 
-class QuestionBudgetEnhanced(Question):
+class QuestionBudget(Question):
+    """QuestionBudget"""
+
     question_type = "budget"
 
-    def __init__(self, question: BaseModel):
-        super().__init__(question)
-
-    @property
-    def instructions(self):
-        return textwrap.dedent(
-            """\
+    default_instructions = textwrap.dedent(
+        """\
         You are being asked the following question: {{question_text}}
         The options are 
         {% for option in question_options %}
@@ -60,40 +30,58 @@ class QuestionBudgetEnhanced(Question):
         "comment": "I allocated 25 to each option."}
         There must be an allocation listed for each item (including 0).
         """
-        )
+    )
 
-    def construct_answer_data_model(self) -> Type[BaseModel]:
+    budget_sum: int = IntegerDescriptor(none_allowed=False)
+    question_options: list[str] = QuestionOptionsDescriptor()
+
+    def __init__(
+        self,
+        question_name: str,
+        question_text: str,
+        question_options: list[str],
+        budget_sum: int,
+        short_names_dict: dict[str, str] = None,
+        instructions: str = None,
+    ):
+        self.question_name = question_name
+        self.question_text = question_text
+        self.question_options = question_options
+        self.budget_sum = budget_sum
+        self.short_names_dict = short_names_dict or dict({})
+        self.instructions = instructions or self.default_instructions
+
+    def validate_answer(self, answer_raw):
         budget_sum = self.budget_sum
         acceptable_answer_keys = set(range(len(self.question_options)))
 
-        class QuestionBudgetAnswerDataModel(AnswerData):
-            answer: dict[int, Union[int, float]]
-
-            @model_validator(mode="after")
-            def check_answer(self):
-                current_sum = sum(self.answer.values())
-                if not current_sum == budget_sum:
-                    raise QuestionAnswerValidationError(
-                        f"Budget sum must be {budget_sum}, but got {current_sum}."
-                    )
-                if any(v < 0 for v in self.answer.values()):
-                    raise QuestionAnswerValidationError(
-                        f"Budget values must be positive, but got {self.answer.keys()}."
-                    )
-                if any(
-                    [key not in acceptable_answer_keys for key in self.answer.keys()]
-                ):
-                    raise QuestionAnswerValidationError(
-                        f"Budget keys must be in {acceptable_answer_keys}, but got {self.answer.keys()}"
-                    )
-                if acceptable_answer_keys != set(self.answer.keys()):
-                    missing_keys = acceptable_answer_keys - set(self.answer.keys())
-                    raise QuestionAnswerValidationError(
-                        f"All but keys must be represented in the answer. Missing: {missing_keys}"
-                    )
-                return self
-
-        return QuestionBudgetAnswerDataModel
+        answer = answer_raw["answer"]
+        if answer is None:
+            raise QuestionAnswerValidationError("Answer cannot be None.")
+        if not isinstance(answer, dict):
+            raise QuestionAnswerValidationError(
+                f"Answer must be a dictionary, but got {type(answer)}."
+            )
+        answer_keys = set([int(k) for k in answer.keys()])
+        current_sum = sum(answer.values())
+        if not current_sum == budget_sum:
+            raise QuestionAnswerValidationError(
+                f"Budget sum must be {budget_sum}, but got {current_sum}."
+            )
+        if any(v < 0 for v in answer.values()):
+            raise QuestionAnswerValidationError(
+                f"Budget values must be positive, but got {answer_keys}."
+            )
+        if any([int(key) not in acceptable_answer_keys for key in answer.keys()]):
+            raise QuestionAnswerValidationError(
+                f"Budget keys must be in {acceptable_answer_keys}, but got {answer_keys}"
+            )
+        if acceptable_answer_keys != answer_keys:
+            missing_keys = acceptable_answer_keys - answer_keys
+            raise QuestionAnswerValidationError(
+                f"All but keys must be represented in the answer. Missing: {missing_keys}"
+            )
+        return answer_raw
 
     ################
     # Less important
@@ -127,35 +115,6 @@ class QuestionBudgetEnhanced(Question):
             "answer": answer,
             "comment": random_string(),
         }
-
-    def form_elements(self):
-        html_output = f"""
-        <label>{self.question_text}</label>
-        <p>Total Budget: {self.budget_sum}</p>\n"""
-        for index, option in enumerate(self.question_options):
-            html_output += f"""
-            <div id="{self.question_name}_div_{index}">
-                <label for="{self.question_name}_{index}">{option}</label>
-                <input type="number" id="{self.question_name}_{index}" 
-                    name="{self.question_name}_{index}" 
-                    min="0" max="{self.budget_sum}" 
-                    oninput="validateBudget(this, {self.budget_sum})">
-            </div>\n"""
-
-        html_output += f"""
-        <script>
-            function validateBudget(input, maxBudget) {{
-                let total = 0;
-                let inputs = document.querySelectorAll('input[type=number]');
-                inputs.forEach(el => total += Number(el.value));
-                if (total > maxBudget) {{
-                    alert('Total allocation exceeds the budget!');
-                    input.value = '';
-                }}
-            }}
-        </script>
-        """
-        return html_output
 
 
 # if __name__ == "__main__":

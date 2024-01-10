@@ -27,19 +27,3 @@ from edsl.questions.compose_questions import compose_questions
 
 # useful for typing
 from typing import Union
-
-QuestionEnhanced = Union[
-    QuestionBudget,
-    QuestionCheckBox,
-    QuestionExtract,
-    QuestionFreeText,
-    QuestionFunctional,
-    QuestionList,
-    QuestionMultipleChoice,
-    QuestionNumerical,
-    QuestionRank,
-    QuestionLikertFive,
-    QuestionLinearScale,
-    QuestionTopK,
-    QuestionYesNo,
-]

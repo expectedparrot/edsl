@@ -18,7 +18,7 @@ jobs:
         python-version: ["3.11", "3.10", "3.9"]
     env:
       EDSL_RUN_MODE: development
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY_DEV }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       POETRY_VERSION: "1.7.1"
     steps:
       - uses: actions/checkout@v3

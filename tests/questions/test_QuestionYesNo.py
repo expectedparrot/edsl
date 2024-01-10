@@ -4,7 +4,7 @@ from edsl.exceptions import (
     QuestionAnswerValidationError,
 )
 from edsl.questions import Question, QuestionYesNo
-from edsl.questions.derived.QuestionYesNo import QuestionYesNoEnhanced
+from edsl.questions.derived.QuestionYesNo import QuestionYesNo
 
 valid_question = {
     "question_text": "Do you like pizza?",
@@ -18,12 +18,11 @@ def test_QuestionYesNo_construction():
     """Test QuestionYesNo construction."""
 
     q = QuestionYesNo(**valid_question)
-    assert isinstance(q, QuestionYesNoEnhanced)
+    assert isinstance(q, QuestionYesNo)
     assert q.question_name == valid_question["question_name"]
     assert q.question_text == valid_question["question_text"]
     assert q.question_options == valid_question["question_options"]
-    
-    assert q.answer_data_model is not None
+
     assert q.data == valid_question
 
     no_yes = valid_question.copy()
@@ -51,13 +50,13 @@ def test_QuestionYesNo_serialization():
         "question_name": valid_question["question_name"],
         "question_text": valid_question["question_text"],
         "question_options": ["Yes", "No"],
-        "type": "yes_no",
+        "question_type": "yes_no",
         "short_names_dict": {},
     }
 
     # deserialization should return a QuestionYesNoEnhanced object
     q_lazarus = Question.from_dict(q.to_dict())
-    assert isinstance(q_lazarus, QuestionYesNoEnhanced)
+    assert isinstance(q_lazarus, QuestionYesNo)
     assert type(q) == type(q_lazarus)
     assert repr(q) == repr(q_lazarus)
 
