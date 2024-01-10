@@ -1,6 +1,11 @@
 from edsl.utilities.utilities import is_valid_variable_name
 from edsl.questions.settings import Settings
 
+from edsl.exceptions import (
+    QuestionCreationValidationError,
+    QuestionAnswerValidationError,
+)
+
 
 def is_number(value):
     return isinstance(value, int) or isinstance(value, float)
@@ -11,6 +16,29 @@ def is_number_or_none(value):
 
 
 class ValidatorMixin:
+    def check_options_count(self, value):
+        if hasattr(self, "min_selections") and self.min_selections != None:
+            if self.min_selections > len(value):
+                raise QuestionCreationValidationError(
+                    f"You asked for at least {self.min_selections} selections, but provided {len(value)} options."
+                )
+        if hasattr(self, "max_selections") and self.max_selections != None:
+            if self.max_selections > len(value):
+                raise QuestionCreationValidationError(
+                    f"You asked for at most {self.max_selections} selections, but provided {len(value)} options."
+                )
+        return value
+
+    def validate_min_selections(self, value):
+        if not is_number_or_none(value):
+            raise Exception("Min selections must be a number!")
+        return value
+
+    def validate_max_selections(self, value):
+        if not is_number_or_none(value):
+            raise Exception("Max selections must be a number!")
+        return value
+
     def validate_question_name(self, value):
         if not is_valid_variable_name(value):
             raise Exception("Question name is not a valid variable name!")
@@ -55,6 +83,7 @@ class ValidatorMixin:
             raise Exception("Question options must be unique!")
         if not all([len(option) > 1 for option in value]):
             raise Exception("All question options must be at least 2 characters long!")
+        self.check_options_count(value)
         return value
 
     def validate_short_names_dict(self, value):
