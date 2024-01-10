@@ -1,8 +1,8 @@
+from __future__ import annotations
 import random
 import textwrap
 from jinja2 import Template
-from typing import Optional, Type, Union
-from edsl.exceptions import QuestionAnswerValidationError
+from typing import Optional, Union
 from edsl.utilities import random_string
 from edsl.questions.descriptors import QuestionOptionsDescriptor
 from edsl.questions.Question import Question
@@ -52,7 +52,6 @@ class QuestionMultipleChoice(Question):
     ################
     # Less important
     ################
-
     def translate_answer_code_to_answer(self, answer_code, scenario=None):
         """
         Translates the answer code to the actual answer.
@@ -69,7 +68,9 @@ class QuestionMultipleChoice(Question):
         ]
         return translated_options[int(answer_code)]
 
-    def simulate_answer(self, human_readable=True) -> dict[str, str]:
+    def simulate_answer(
+        self, human_readable: bool = True
+    ) -> dict[str, Union[int, str]]:
         """Simulates a valid answer for debugging purposes"""
         if human_readable:
             answer = random.choice(self.question_options)
@@ -80,8 +81,20 @@ class QuestionMultipleChoice(Question):
             "comment": random_string(),
         }
 
+    ################
+    # Example
+    ################
+    @classmethod
+    def example(cls):
+        return cls(
+            question_text="How are you?",
+            question_options=["Good", "Great", "OK", "Bad"],
+            question_name="how_feeling",
+            short_names_dict={"Good": "g", "Great": "gr", "OK": "ok", "Bad": "b"},
+        )
 
-if __name__ == "__main__":
+
+def main():
     from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
     q1 = QuestionMultipleChoice(
