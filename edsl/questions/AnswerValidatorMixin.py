@@ -4,7 +4,7 @@ from edsl.exceptions import (
 )
 
 
-class ValidatorMixin:
+class AnswerValidatorMixin:
     def validate_answer_basic(self, answer: dict[str, Union[str, int]]) -> None:
         """Checks that the answer is a dictionary with an answer key"""
         if not isinstance(answer, dict):
