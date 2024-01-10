@@ -86,7 +86,9 @@ def test_agent_forward_methods():
     agent = Agent(traits={"age": 10})
     # to Question
     question = QuestionMultipleChoice(
-        question_text="How are you?", question_options=["Good", "Bad"]
+        question_text="How are you?",
+        question_options=["Good", "Bad"],
+        question_name="how_are_you",
     )
     job = agent.to(question)
     assert type(job) == Jobs
@@ -107,7 +109,9 @@ def test_agent_llm_construct_prompt():
     # prompt construction
     agent = Agent(traits={"age": 10})
     question = QuestionMultipleChoice(
-        question_text="How are you?", question_options=["Good", "Bad"]
+        question_text="How are you?",
+        question_options=["Good", "Bad"],
+        question_name="how_are_you",
     )
     prompt = agent.construct_system_prompt()
     assert "You are answering" in prompt
