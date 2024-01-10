@@ -1,6 +1,5 @@
-from typing import Optional, Type, Callable
-from edsl.questions import Question, QuestionData
-
+from typing import Optional, Callable
+from edsl.questions import Question
 from edsl.questions.descriptors import FunctionDescriptor
 
 

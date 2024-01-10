@@ -1,4 +1,4 @@
-from typing import Type, Optional
+from typing import Optional
 from edsl.exceptions import QuestionCreationValidationError
 from edsl.questions.QuestionCheckBox import QuestionCheckBox
 

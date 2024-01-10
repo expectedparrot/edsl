@@ -1,12 +1,7 @@
-from typing import Type, Optional
-from edsl.exceptions import (
-    QuestionAnswerValidationError,
-    QuestionCreationValidationError,
-)
-from edsl.questions import Settings, Question
-from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
-
+from typing import Optional
+from edsl.exceptions import QuestionAnswerValidationError
 from edsl.questions.descriptors import QuestionOptionsDescriptor, OptionLabelDescriptor
+from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
 
 class QuestionLinearScale(QuestionMultipleChoice):
