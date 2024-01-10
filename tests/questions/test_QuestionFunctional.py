@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import Mock, create_autospec
 from edsl.questions import QuestionFreeText, QuestionFunctional
-from edsl.questions.QuestionFreeText import QuestionFreeTextEnhanced
+from edsl.questions.QuestionFreeText import QuestionFreeText
 from edsl.questions.compose_questions import compose_questions
 from edsl.jobs.Jobs import Jobs
 from edsl.scenarios.Scenario import Scenario
@@ -22,14 +22,11 @@ def test_QuestionFunctional_construction_from_function():
     )
     assert q.question_name == "add_two_numbers"
     assert q.func == SillyFunction
-    assert "type" in q.to_dict()
-    assert "functional" in q.to_dict()["type"]
+    assert "question_type" in q.to_dict()
+    assert "functional" in q.to_dict()["question_type"]
     # unnecessary methods are not implemented
-    assert q.instructions is None
-    assert q.construct_answer_data_model() is None
+    assert q.instructions == ""
     assert q.translate_answer_code_to_answer(None, None) is None
-    with pytest.raises(NotImplementedError):
-        q.form_elements()
     with pytest.raises(NotImplementedError):
         q.simulate_answer()
     # answer_question_directly works well
@@ -84,8 +81,8 @@ def test_QuestionFunctional_construction_from_Questions():
     q3 = compose_questions(q1, q2)
     assert q3.question_name == "capital_population"
     assert q3.func.__name__ == "combo"
-    assert "type" in q3.to_dict()
-    assert "functional" in q3.to_dict()["type"]
+    assert "question_type" in q3.to_dict()
+    assert "functional" in q3.to_dict()["question_type"]
     # you can also use the __add__ method from Question
     assert q1 + q2
 
@@ -110,10 +107,10 @@ def mock_questions_factory():
     ):
         # Create mock Question objects with autospec
         q1 = create_autospec(
-            QuestionFreeTextEnhanced, instance=True, question_name=question_name1
+            QuestionFreeText, instance=True, question_name=question_name1
         )
         q2 = create_autospec(
-            QuestionFreeTextEnhanced, instance=True, question_name=question_name2
+            QuestionFreeText, instance=True, question_name=question_name2
         )
 
         # Manually set the question_text attribute

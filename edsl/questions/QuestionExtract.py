@@ -1,37 +1,18 @@
 import random
 import textwrap
-from pydantic import BaseModel, model_validator
 from typing import Any, Type
-from edsl.questions import Question, QuestionData, AnswerData
 from edsl.exceptions import QuestionAnswerValidationError
 from edsl.utilities.utilities import random_string
 
-
-class QuestionExtract(QuestionData):
-    """Pydantic data model for QuestionExtract"""
-
-    answer_template: dict[str, Any]
-
-    # see QuestionFreeText for an explanation of how __new__ works
-    def __new__(cls, *args, **kwargs) -> "QuestionExtractEnhanced":
-        instance = super(QuestionExtract, cls).__new__(cls)
-        instance.__init__(*args, **kwargs)
-        return QuestionExtractEnhanced(instance)
-
-    def __init__(self, **data):
-        super().__init__(**data)
+from edsl.questions.descriptors import AnswerTemplateDescriptor
+from edsl.questions import Question
 
 
-class QuestionExtractEnhanced(Question):
+class QuestionExtract(Question):
     question_type = "extract"
 
-    def __init__(self, question: BaseModel):
-        super().__init__(question)
-
-    @property
-    def instructions(self) -> str:
-        return textwrap.dedent(
-            """\
+    default_instructions = textwrap.dedent(
+        """\
         You are given the following input: "{{question_text}}".
         Create an ANSWER should be formatted like this {{ answer_template }},
         and it should have the same keys but values extracted from the input.
@@ -40,31 +21,39 @@ class QuestionExtractEnhanced(Question):
         {"answer": <put your ANSWER here>}
         ONLY RETURN THE JSON, AND NOTHING ELSE.
         """
-        )
+    )
 
-    def construct_answer_data_model(self) -> Type[BaseModel]:
-        "Constructs the answer data model for this question"
+    answer_template: dict[str, Any] = AnswerTemplateDescriptor()
+
+    def __init__(
+        self,
+        question_text: str,
+        answer_template: dict[str, Any],
+        question_name: str,
+        short_names_dict: dict[str, str] = None,
+        instructions: str = None,
+    ):
+        self.question_text = question_text
+        self.answer_template = answer_template
+        self.question_name = question_name
+        self.instructions = instructions or self.default_instructions
+        self.short_names_dict = short_names_dict or dict()
+
+    def check_answer(self, value, acceptable_answer_keys):
+        if any([key not in acceptable_answer_keys for key in value.keys()]):
+            raise QuestionAnswerValidationError(
+                f"Answer keys must be in {acceptable_answer_keys}, but got {value.keys()}"
+            )
+        if any([key not in value.keys() for key in acceptable_answer_keys]):
+            raise QuestionAnswerValidationError(
+                f"Answer must have all keys in {acceptable_answer_keys}, but got {value.keys()}"
+            )
+
+    def validate_answer(self, answer):
+        value = answer["answer"]
         acceptable_answer_keys = set(self.answer_template.keys())
-
-        class QuestionExtractAnswerDataModel(AnswerData):
-            answer: dict
-
-            @model_validator(mode="after")
-            def check_answer(self):
-                if any(
-                    [key not in acceptable_answer_keys for key in self.answer.keys()]
-                ):
-                    raise QuestionAnswerValidationError(
-                        f"Answer keys must be in {acceptable_answer_keys}, but got {self.answer.keys()}"
-                    )
-                if any(
-                    [key not in self.answer.keys() for key in acceptable_answer_keys]
-                ):
-                    raise QuestionAnswerValidationError(
-                        f"Answer must have all keys in {acceptable_answer_keys}, but got {self.answer.keys()}"
-                    )
-
-        return QuestionExtractAnswerDataModel
+        self.check_answer(value, acceptable_answer_keys)
+        return answer
 
     ################
     # Less important
@@ -83,10 +72,6 @@ class QuestionExtractEnhanced(Question):
             "answer": answer,
             "comment": random_string(),
         }
-
-    def form_elements(self) -> str:
-        html_output = f"\n\n\n<label>{self.question_text}</label>\n"
-        return html_output
 
 
 # main

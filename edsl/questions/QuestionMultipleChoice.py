@@ -1,50 +1,41 @@
 import random
 import textwrap
+from typing import Optional, List, Dict
+
 from jinja2 import Template
-from pydantic import BaseModel, Field, field_validator
-from typing import Optional, Type
-from edsl.questions import Question, QuestionData, AnswerData, Settings
+
+from edsl.questions import Question
 from edsl.exceptions import QuestionAnswerValidationError
 from edsl.utilities.utilities import random_string
+from edsl.questions.ValidatorMixin import ValidatorMixin
+
+from edsl.questions.descriptors import QuestionOptionsDescriptor
 
 
-class QuestionMultipleChoice(QuestionData):
-    """Pydantic data model for QuestionMultipleChoice"""
-
-    question_options: list[str] = Field(
-        ...,
-        min_length=Settings.MIN_NUM_OPTIONS,
-        max_length=Settings.MAX_NUM_OPTIONS,
-    )
-
-    # see QuestionFreeText for an explanation of how __new__ works
-    def __new__(cls, *args, **kwargs) -> "QuestionMultipleChoiceEnhanced":
-        instance = super(QuestionMultipleChoice, cls).__new__(cls)
-        instance.__init__(*args, **kwargs)
-        return QuestionMultipleChoiceEnhanced(instance)
-
-    def __init__(self, **data):
-        super().__init__(**data)
-
-    @field_validator("question_options")
-    def check_unique(cls, value):
-        return cls.base_validator_check_unique(value)
-
-    @field_validator("question_options")
-    def check_option_string_lengths(cls, value):
-        return cls.base_validator_check_option_string_lengths(value)
+def check_multiple_choice(answer_raw, instance: Question):
+    try:
+        answer_code = int(answer_raw["answer"])
+    except:
+        raise QuestionAnswerValidationError(
+            f"Answer {answer_raw} is not a valid option."
+        )
+    if int(answer_raw["answer"]) not in range(len(instance.question_options)):
+        raise QuestionAnswerValidationError(
+            f"Answer {answer_raw} is not a valid option."
+        )
+    return answer_raw
 
 
-class QuestionMultipleChoiceEnhanced(Question):
+class QuestionMultipleChoice(Question):
+    """QuestionMultipleChoice"""
+
     question_type = "multiple_choice"
 
-    def __init__(self, question: BaseModel):
-        super().__init__(question)
+    # Question-specific descriptors
+    question_options: List[str] = QuestionOptionsDescriptor()
 
-    @property
-    def instructions(self) -> str:
-        return textwrap.dedent(
-            """\
+    default_instructions = textwrap.dedent(
+        """\
         You are being asked the following question: {{question_text}}
         The options are 
         {% for option in question_options %}
@@ -54,26 +45,25 @@ class QuestionMultipleChoiceEnhanced(Question):
         {"answer": <put answer code here>, "comment": "<put explanation here>"}
         Only 1 option may be selected.
         """
-        )
+    )
 
-    def construct_answer_data_model(self) -> Type[BaseModel]:
-        "Constructs the answer data model for this question"
-        acceptable_values = range(len(self.question_options))
+    def __init__(
+        self,
+        question_text: str,
+        question_options: List[str],
+        question_name: str,
+        short_names_dict: Optional[Dict[str, str]] = None,
+        instructions: Optional[str] = None,
+    ):
+        self.question_text = question_text
+        self.question_options = question_options
+        self.question_name = question_name
+        self.instructions = instructions or self.default_instructions
+        self.short_names_dict = short_names_dict or dict()
 
-        class QuestionMultipleChoiceAnswerDataModel(AnswerData):
-            answer: int
-            comment: Optional[str] = None
-
-            @field_validator("answer")
-            def check_answer(cls, value):
-                if value in acceptable_values:
-                    return value
-                else:
-                    raise QuestionAnswerValidationError(
-                        f"Answer {value} not in acceptable values {acceptable_values}"
-                    )
-
-        return QuestionMultipleChoiceAnswerDataModel
+    def validate_answer(self, answer: dict[str, str]):
+        """Validates the answer"""
+        return check_multiple_choice(answer, self)
 
     ################
     # Less important
@@ -106,25 +96,28 @@ class QuestionMultipleChoiceEnhanced(Question):
             "comment": random_string(),
         }
 
-    def form_elements(self) -> str:
-        html_output = f"\n\n\n<label>{self.question_text}</label>\n"
-        for index, option in enumerate(self.question_options):
-            html_output += f"""
-            <div id = "{self.question_name}_div_{index}">
-                <input type="radio" id="{self.question_name}_{index}" name="{self.question_text}" value="{option}">
-                <label for="{self.question_name}_{index}">{option}</label>
-            </div>\n
-            """
-        return html_output
-
 
 if __name__ == "__main__":
-    from edsl.questions import QuestionMultipleChoice
-
-    q = QuestionMultipleChoice(
+    # q = QuestionMultipleChoice(
+    #     question_text="How are you?",
+    #     question_options=["OK": "OK", "BAD": "BAD"],
+    #     question_name="how_feeling",
+    # )
+    q1 = QuestionMultipleChoice(
         question_text="Do you enjoying eating custard while skydiving?",
         question_options=["yes, somtimes", "no", "only on Tuesdays"],
         question_name="goose_fight",
     )
-    results = q.run()
-    print(results)
+    # results = q.run()
+    # results.select("goose_fight").print()
+
+    q2 = QuestionMultipleChoice(
+        question_text="Do you enjoying eating custard while skydiving?",
+        question_options=["yes, somtimes", "no", "only on Tuesdays"],
+        question_name="goose_fight",
+        instructions="HEre are are some instructions",
+    )
+
+    # q_dict = q.to_dict()
+    # print(f"Serialized dictionary:{q_dict}")
+    # new_q = Question.from_dict(q_dict)

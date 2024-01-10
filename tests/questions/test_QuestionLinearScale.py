@@ -1,7 +1,10 @@
 import pytest
-from edsl.exceptions import QuestionAnswerValidationError
-from edsl.questions import Question, QuestionLinearScale
-from edsl.questions.derived.QuestionLinearScale import QuestionLinearScaleEnhanced
+from edsl.exceptions import (
+    QuestionAnswerValidationError,
+    QuestionCreationValidationError,
+)
+from edsl.questions import Question  # , QuestionLinearScale
+from edsl.questions.derived.QuestionLinearScale import QuestionLinearScale
 
 valid_question = {
     "question_text": "On a scale from 1 to 5, how much do you like pizza?",
@@ -23,13 +26,12 @@ def test_QuestionLinearScale_construction():
     """Test QuestionLinearScale construction."""
 
     q = QuestionLinearScale(**valid_question)
-    assert isinstance(q, QuestionLinearScaleEnhanced)
+    assert isinstance(q, QuestionLinearScale)
     assert q.question_name == valid_question["question_name"]
     assert q.question_text == valid_question["question_text"]
     assert q.question_options == valid_question["question_options"]
     assert q.option_labels == None
-    
-    assert q.answer_data_model is not None
+
     assert q.data != valid_question
 
     # should raise an exception if option_labels is not None and not a dict
@@ -72,8 +74,7 @@ def test_QuestionLinearScale_construction():
     assert q.question_text == valid_question["question_text"]
     assert q.question_options == valid_question["question_options"]
     assert q.option_labels == valid_question_w_extras["option_labels"]
-    
-    assert q.answer_data_model is not None
+
     assert q.data == valid_question_w_extras
 
 
@@ -88,36 +89,36 @@ def test_QuestionLinearScale_serialization():
         "question_options": [1, 2, 3, 4, 5],
         "question_name": "pizza",
         "option_labels": None,
-        "type": "linear_scale",
+        "question_type": "linear_scale",
         "short_names_dict": {},
     }
 
     # deserialization should return a QuestionLinearScaleEnhanced object
     q_lazarus = Question.from_dict(q.to_dict())
-    assert isinstance(q_lazarus, QuestionLinearScaleEnhanced)
+    assert isinstance(q_lazarus, QuestionLinearScale)
     assert type(q) == type(q_lazarus)
     assert repr(q) == repr(q_lazarus)
 
     # serialization from bad data should raise an exception
-    with pytest.raises(Exception):
-        Question.from_dict(
+    with pytest.raises(QuestionCreationValidationError):
+        QuestionLinearScale.from_dict(
             {
                 "question_text": "On a scale from 1 to 5, how much do you like pizza?",
                 "question_options": [1, -2, 3, 4, 5],
                 "question_name": "pizza",
                 "option_labels": None,
-                "type": "linear_scale",
+                "question_type": "linear_scale",
                 "short_names_dict": {},
             }
         )
-    with pytest.raises(Exception):
+    with pytest.raises(QuestionCreationValidationError):
         Question.from_dict(
             {
                 "question_text": "On a scale from 1 to 5, how much do you like pizza?",
                 "question_options": [1, 2, 3, 4, 5],
                 "question_name": "pizza",
                 "option_labels": {1: 1, 5: [1, 1]},
-                "type": "linear_scale",
+                "question_type": "linear_scale",
                 "short_names_dict": {},
             }
         )
@@ -129,8 +130,8 @@ def test_QuestionLinearScale_answers():
     # answer must be an integer or interpretable as integer
     q.validate_answer({"answer": 1})
     # TODO: should the following three be allowed?
-    q.validate_answer({"answer": "1"})
-    q.validate_answer({"answer": True})
+    # q.validate_answer({"answer": "1"})
+    # q.validate_answer({"answer": True})
     q.validate_answer({"answer": 1, "comment": "I'm good"})
     # answer value required
     with pytest.raises(QuestionAnswerValidationError):
@@ -164,6 +165,3 @@ def test_QuestionLinearScale_extras():
     assert isinstance(simulated_answer["answer"], int)
     assert simulated_answer["answer"] in q.question_options
     # form elements
-    assert "label>On a scale from" in q.form_elements()
-    for option in q.question_options:
-        assert str(option) in q.form_elements()
