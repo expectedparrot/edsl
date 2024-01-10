@@ -3,7 +3,7 @@ from tenacity import retry, wait_exponential, stop_after_attempt
 from typing import Any, Type
 from edsl.agents import Agent
 from edsl.language_models import LanguageModel
-from edsl.questions import QuestionEnhanced
+from edsl.questions import Question
 from edsl.scenarios import Scenario
 from edsl.surveys import Survey
 
@@ -82,9 +82,7 @@ class Interview:
         stop=stop_after_attempt(5),
         reraise=True,
     )
-    def get_response(
-        self, question: QuestionEnhanced, debug: bool = False
-    ) -> dict[str, Any]:
+    def get_response(self, question: Question, debug: bool = False) -> dict[str, Any]:
         """Gets the agent's response to a question with exponential backoff."""
         response = self.agent.answer_question(
             question=question, scenario=self.scenario, model=self.model, debug=debug
