@@ -1,25 +1,10 @@
-from pydantic import BaseModel
 from typing import Optional, Type, Callable
 from edsl.questions import Question, QuestionData
 
-
-class QuestionFunctional(QuestionData):
-    """Pydantic data model for QuestionFunctional"""
-
-    question_name: Optional[str] = None
-    func: Callable
-
-    # see QuestionFreeText for an explanation of how __new__ works
-    def __new__(cls, *args, **kwargs) -> "QuestionFunctionalEnhanced":
-        instance = super(QuestionFunctional, cls).__new__(cls)
-        instance.__init__(*args, **kwargs)
-        return QuestionFunctionalEnhanced(instance)
-
-    def __init__(self, **data):
-        super().__init__(**data)
+from edsl.questions.descriptors import FunctionDescriptor
 
 
-class QuestionFunctionalEnhanced(Question):
+class QuestionFunctional(Question):
     """
     A special type of question that's *not* answered by an LLM
     - Instead, it is "answered" by a function that is passed in, `func`.
@@ -41,15 +26,24 @@ class QuestionFunctionalEnhanced(Question):
     To see how it's used, see `tests/test_QuestionFunctional_construction_from_function`
     """
 
+    func: Callable = FunctionDescriptor()
     question_type = "functional"
+    default_instructions = ""
 
-    def __init__(self, question: BaseModel):
-        super().__init__(question)
+    def __init__(
+        self,
+        question_name: str,
+        func: Callable,
+        question_text: Optional[str] = "Functional question",
+    ):
+        self.question_name = question_name
+        self.func = func
+        self.question_text = question_text
+        self.instructions = self.default_instructions
 
-    @property
-    def instructions(self):
+    def validate_answer(self, answer: dict[str, str]):
         """Required by Question, but not used by QuestionFunctional"""
-        return None
+        raise NotImplementedError
 
     def answer_question_directly(self, scenario, agent_traits=None):
         return {"answer": self.func(scenario, agent_traits), "comment": None}
@@ -57,14 +51,6 @@ class QuestionFunctionalEnhanced(Question):
     def translate_answer_code_to_answer(self, answer, scenario):
         """Required by Question, but not used by QuestionFunctional"""
         return None
-
-    def construct_answer_data_model(self) -> Type[BaseModel]:
-        """Required by Question, but not used by QuestionFunctional"""
-        return None
-
-    def form_elements(self) -> str:
-        """Required by Question, but not used by QuestionFunctional"""
-        raise NotImplementedError
 
     def simulate_answer(self, human_readable=True) -> dict[str, str]:
         """Required by Question, but not used by QuestionFunctional"""
