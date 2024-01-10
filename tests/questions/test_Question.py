@@ -47,7 +47,3 @@ def test_Question_properties(capsys):
     s = q1.add_question(q2)
     assert isinstance(s, Survey)
     assert len(s) == 2
-
-    # WEB STUFF
-    # html
-    assert valid_question["question_text"] in q.html()

@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import re
 from edsl.utilities.utilities import is_valid_variable_name
 
 from edsl.questions.settings import Settings
@@ -7,6 +8,17 @@ from edsl.exceptions import (
     QuestionCreationValidationError,
     QuestionAnswerValidationError,
 )
+
+
+def contains_single_braced_substring(s):
+    # Regular expression to match a substring in single braces but not in double braces
+    pattern = r"(?<!\{)\{[^{}]+\}(?!\})"
+
+    # Search for the pattern in the string
+    match = re.search(pattern, s)
+
+    # Return True if the pattern is found, False otherwise
+    return bool(match)
 
 
 def is_number(value):
@@ -72,6 +84,11 @@ class QuestionTextDescriptor(BaseDescriptor):
             raise Exception("Question is too short!")
         if not isinstance(value, str):
             raise Exception("Question must be a string!")
+        if contains_single_braced_substring(value):
+            print(
+                """WARNING: Question text contains a single-braced substring: {value}. 
+                You probably mean to use a double-braced substring, e.g. {{variable}}."""
+            )
 
 
 class ShortNamesDictDescriptor(BaseDescriptor):
