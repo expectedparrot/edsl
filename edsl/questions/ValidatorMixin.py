@@ -75,6 +75,6 @@ class ValidatorMixin:
 
     def validate_max_list_items(self, value):
         "Validates the max list items"
-        if not is_number(value):
+        if not is_number_or_none(value):
             raise Exception("Max list items must be a number!")
         return value
