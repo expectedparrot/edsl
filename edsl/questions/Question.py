@@ -84,6 +84,11 @@ class Question(ABC, AnswerValidatorMixin):
         ]
         return f"{class_name}({', '.join(items)})"
 
+    def __eq__(self, other):
+        if not isinstance(other, Question):
+            return False
+        return self.to_dict() == other.to_dict()
+
     # TODO: Throws an error that should be addressed at QuestionFunctional
     def __add__(self, other_question):
         """

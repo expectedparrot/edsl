@@ -6,13 +6,13 @@ from typing import Optional, Union
 from edsl.utilities import random_string
 from edsl.questions.descriptors import QuestionOptionsDescriptor
 from edsl.questions.Question import Question
+from edsl.scenarios import Scenario
 
 
 class QuestionMultipleChoice(Question):
     """QuestionMultipleChoice"""
 
     question_type = "multiple_choice"
-    # Question-specific descriptors
     question_options: list[str] = QuestionOptionsDescriptor()
     default_instructions = textwrap.dedent(
         """\
@@ -52,7 +52,7 @@ class QuestionMultipleChoice(Question):
     ################
     # Less important
     ################
-    def translate_answer_code_to_answer(self, answer_code, scenario=None):
+    def translate_answer_code_to_answer(self, answer_code, scenario: Scenario = None):
         """
         Translates the answer code to the actual answer.
         For example, for question_options ["a", "b", "c"], the answer codes are 0, 1, and 2.
@@ -62,7 +62,7 @@ class QuestionMultipleChoice(Question):
         >>> q.translate_answer_code_to_answer(0, {})
         'Good'
         """
-        scenario = scenario or dict()
+        scenario = scenario or Scenario()
         translated_options = [
             Template(str(option)).render(scenario) for option in self.question_options
         ]
@@ -97,19 +97,19 @@ class QuestionMultipleChoice(Question):
 def main():
     from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
-    q1 = QuestionMultipleChoice(
-        question_text="Do you enjoying eating custard while skydiving?",
-        question_options=["yes, somtimes", "no", "only on Tuesdays"],
-        question_name="goose_fight",
-    )
-    q2 = QuestionMultipleChoice(
-        question_text="Do you enjoying eating custard while skydiving?",
-        question_options=["yes, somtimes", "no", "only on Tuesdays"],
-        question_name="goose_fight",
-        instructions="HEre are are some instructions",
-    )
-    q3 = QuestionMultipleChoice.example()
-
-    # q_dict = q.to_dict()
-    # print(f"Serialized dictionary:{q_dict}")
-    # new_q = Question.from_dict(q_dict)
+    q = QuestionMultipleChoice.example()
+    q.question_text
+    q.question_options
+    q.question_name
+    q.short_names_dict
+    q.instructions
+    # validate an answer
+    q.validate_answer({"answer": 0, "comment": "I like custard"})
+    # translate answer code
+    q.translate_answer_code_to_answer(0, {})
+    # simulate answer
+    q.simulate_answer()
+    q.simulate_answer(human_readable=False)
+    # serialization (inherits from Question)
+    q.to_dict()
+    q.from_dict(q.to_dict()) == q
