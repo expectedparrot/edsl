@@ -12,11 +12,20 @@ from edsl.exceptions import (
 )
 from edsl.utilities.utilities import random_string
 
+from edsl.questions.descriptors import (
+    IntegerDescriptor,
+    NumSelectionsDescriptor,
+    QuestionOptionsDescriptor,
+)
+
 
 class QuestionCheckBox(Question):
     """QuestionCheckBox"""
 
     question_type = "checkbox"
+    question_options: list[str] = QuestionOptionsDescriptor()
+    min_selections = IntegerDescriptor(none_allowed=True)
+    max_selections = IntegerDescriptor(none_allowed=True)
 
     default_instructions = textwrap.dedent(
         """\
@@ -61,7 +70,6 @@ class QuestionCheckBox(Question):
         self.short_names_dict = short_names_dict or dict()
 
         self.instructions = instructions or self.default_instructions
-        self.set_instructions = instructions is not None
 
     def validate_answer(self, answer):
         if "answer" not in answer:
@@ -78,7 +86,7 @@ class QuestionCheckBox(Question):
         for v in value:
             if v not in acceptable_values:
                 raise QuestionAnswerValidationError(
-                    f"Answer {value} has elements not in {acceptable_values}."
+                    f"Answer {value} has elements not in {acceptable_values}, namely {v}"
                 )
         return value
 

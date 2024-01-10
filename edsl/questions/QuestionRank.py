@@ -1,6 +1,6 @@
 import random
 import textwrap
-from typing import Type
+from typing import Type, Optional
 
 from jinja2 import Template
 
@@ -11,9 +11,18 @@ from edsl.exceptions import (
 )
 from edsl.utilities.utilities import random_string
 
+from edsl.questions.descriptors import (
+    QuestionOptionsDescriptor,
+    IntegerDescriptor,
+    NumSelectionsDescriptor,
+)
+
 
 class QuestionRank(Question):
     question_type = "rank"
+    question_options: list[str] = QuestionOptionsDescriptor()
+    # num_selections = IntegerDescriptor(none_allowed=False)
+    num_selections = NumSelectionsDescriptor()
 
     default_instructions = textwrap.dedent(
         """\
@@ -34,7 +43,7 @@ class QuestionRank(Question):
         question_name: str,
         question_text: str,
         question_options: list[str],
-        num_selections: int,
+        num_selections: Optional[int] = None,
         short_names_dict: dict[str, str] = None,
         instructions: str = None,
     ):
@@ -43,33 +52,52 @@ class QuestionRank(Question):
         self.question_options = question_options
         self.instructions = instructions or self.default_instructions
         self.short_names_dict = short_names_dict or dict()
-        self.num_selections = num_selections
 
-    num_selections: int = None
+        self.num_selections = num_selections or len(question_options)
 
     def validate_answer(self, answer):
+        if "answer" not in answer:
+            raise QuestionAnswerValidationError("Answer must have an 'answer' key!")
+        value = answer["answer"]
+        if not isinstance(value, list):
+            raise QuestionAnswerValidationError(f"Rank answer {value} is not a list.")
+        acceptable_values = list(range(len(self.question_options)))
+        self.check_answers_valid(value, acceptable_values)
+        self.check_answers_count(value)
         return answer
 
-    def set_default_num_selections(cls, values):
-        if "num_selections" not in values or values["num_selections"] is None:
-            if "question_options" in values:
-                values["num_selections"] = len(values["question_options"])
-        return values
+    @staticmethod
+    def check_answers_valid(value, acceptable_values):
+        for v in value:
+            try:
+                answer_code = int(v)
+            except ValueError:
+                raise QuestionAnswerValidationError(
+                    f"Rank answer {value} has elements that are not integers, namely {v}."
+                )
+            except TypeError:
+                raise QuestionAnswerValidationError(
+                    f"Rank answer {value} has elements that are not integers, namely {v}."
+                )
+            if answer_code not in acceptable_values:
+                raise QuestionAnswerValidationError(
+                    f"Answer {value} has elements not in {acceptable_values}, namely {v}."
+                )
 
-    def check_answers_valid(cls, value):
-        if all([v in acceptable_values for v in value]):
-            return value
-        else:
-            raise QuestionAnswerValidationError(
-                f"Rank answer {value} has elements not in {acceptable_values}."
-            )
+    # def check_answers_valid(self, value):
+    #     acceptable_values = list(range(len(self.question_options)))
+    #     for v in value:
+    #         answer_code = int(v)
+    #         if answer_code not in acceptable_values:
+    #             raise QuestionAnswerValidationError(
+    #                 f"Rank answer {value} has elements not in {acceptable_values}, namely {v}"
+    #             )
 
-    def check_answers_count(cls, value):
+    def check_answers_count(self, value):
         if len(value) != self.num_selections:
             raise QuestionAnswerValidationError(
                 f"Rank answer {value}, but exactly {self.num_selections} selections required."
             )
-        return value
 
     def translate_answer_code_to_answer(self, answer_codes, scenario):
         """Translates the answer code to the actual answer."""

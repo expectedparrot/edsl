@@ -89,11 +89,11 @@ def test_QuestionRank_serialization():
     # serialization should add a "type" attribute
     q = QuestionRank(**valid_question)
     valid_question_w_type = valid_question.copy()
-    valid_question_w_type.update({"type": "rank"})
+    valid_question_w_type.update({"question_type": "rank"})
     assert q.to_dict() == valid_question_w_type
     q = QuestionRank(**valid_question_wo_extras)
     valid_question_w_type = valid_question_wo_extras.copy()
-    valid_question_w_type.update({"type": "rank", "num_selections": 4})
+    valid_question_w_type.update({"question_type": "rank", "num_selections": 4})
     assert q.to_dict() == valid_question_w_type
 
     # deserialization should return a QuestionRankEnhanced object
