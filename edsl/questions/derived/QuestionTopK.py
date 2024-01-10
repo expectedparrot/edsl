@@ -14,7 +14,8 @@ class QuestionTopK(QuestionCheckBox):
         question_name: str,
         question_text: str,
         question_options: list[str],
-        k: int,
+        min_selections: int,
+        max_selections: int,
         short_names_dict: Optional[dict[str, str]] = None,
         instructions: Optional[str] = None,
     ):
@@ -22,9 +23,16 @@ class QuestionTopK(QuestionCheckBox):
             question_name=question_name,
             question_text=question_text,
             question_options=question_options,
-            short_names=short_names_dict,
-            min_selections=k,
-            max_selections=k,
+            short_names_dict=short_names_dict,
+            min_selections=min_selections,
+            max_selections=max_selections,
             instructions=instructions,
         )
-        self.k = k
+        if min_selections != max_selections:
+            raise QuestionCreationValidationError(
+                "TopK questions must have min_selections == max_selections"
+            )
+        if min_selections < 1:
+            raise QuestionCreationValidationError(
+                "TopK questions must have min_selections > 0"
+            )
