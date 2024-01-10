@@ -17,6 +17,13 @@ def is_number_or_none(value):
     return value is None or is_number(value)
 
 
+class FunctionDescriptor:
+    def validate(self, value, instance):
+        if not callable(value):
+            raise Exception("Must be a function!")
+        return value
+
+
 class BaseDescriptor(ABC):
     @abstractmethod
     def validate(self, value) -> None:
