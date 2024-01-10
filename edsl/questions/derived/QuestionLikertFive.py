@@ -1,5 +1,3 @@
-from typing import Type
-from edsl.questions import Settings
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
 

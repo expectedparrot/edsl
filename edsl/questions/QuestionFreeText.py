@@ -1,9 +1,8 @@
 import textwrap
 from edsl.utilities.utilities import random_string
 from typing import Optional
-from edsl.questions import Question
 from edsl.exceptions import QuestionAnswerValidationError
-
+from edsl.questions import Question
 from edsl.questions.descriptors import QuestionAllowNonresponseDescriptor
 
 

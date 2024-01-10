@@ -2,7 +2,6 @@ import random
 import textwrap
 from jinja2 import Template
 from typing import Optional
-from edsl.exceptions import QuestionAnswerValidationError
 from edsl.questions import Question
 from edsl.questions.descriptors import (
     IntegerDescriptor,
