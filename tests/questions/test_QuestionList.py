@@ -5,7 +5,6 @@ from edsl.exceptions import (
     QuestionResponseValidationError,
 )
 from edsl.questions import Question, QuestionList, Settings
-from edsl.questions.QuestionList import QuestionListEnhanced
 
 valid_question = {
     "question_text": "How do you change a car tire?",
@@ -34,12 +33,11 @@ def test_QuestionList_construction():
     """Test QuestionList construction."""
 
     q = QuestionList(**valid_question)
-    assert isinstance(q, QuestionListEnhanced)
+    assert isinstance(q, QuestionList)
     assert q.question_name == valid_question["question_name"]
     assert q.question_text == valid_question["question_text"]
     assert q.allow_nonresponse == valid_question["allow_nonresponse"]
-    
-    assert q.answer_data_model is not None
+
     assert q.data == valid_question
 
     # QuestionList should impute extra fields appropriately
@@ -48,8 +46,7 @@ def test_QuestionList_construction():
     assert q.question_text == valid_question_wo_extras["question_text"]
     assert q.allow_nonresponse == False
     assert q.max_list_items == None
-    
-    assert q.answer_data_model is not None
+
     assert q.data != valid_question_wo_extras
     assert q.data == valid_question
 
@@ -81,23 +78,23 @@ def test_QuestionList_serialization():
     # serialization should add a "type" attribute
     q = QuestionList(**valid_question)
     valid_question_w_type = valid_question.copy()
-    valid_question_w_type.update({"type": "list"})
+    valid_question_w_type.update({"question_type": "list"})
     assert q.to_dict() == valid_question_w_type
     q = QuestionList(**valid_question_w_extras)
     valid_question_w_type = valid_question_w_extras.copy()
-    valid_question_w_type.update({"type": "list"})
+    valid_question_w_type.update({"question_type": "list"})
     assert q.to_dict() == valid_question_w_type
     # and optional attributes if not present
     q = QuestionList(**valid_question_wo_extras)
     valid_question_w_type = valid_question_wo_extras.copy()
     valid_question_w_type.update(
-        {"type": "list", "allow_nonresponse": False, "max_list_items": None}
+        {"question_type": "list", "allow_nonresponse": False, "max_list_items": None}
     )
     assert q.to_dict() == valid_question_w_type
 
     # deserialization should return a QuestionListEnhanced object
     q_lazarus = Question.from_dict(q.to_dict())
-    assert isinstance(q_lazarus, QuestionListEnhanced)
+    assert isinstance(q_lazarus, QuestionList)
     assert type(q) == type(q_lazarus)
     assert repr(q) == repr(q_lazarus)
 
@@ -186,4 +183,3 @@ def test_test_QuestionList_extras():
     assert "answer" in simulated_answer
     assert isinstance(simulated_answer["answer"], list)
     # form elements
-    assert 'label for="tire_change"' in q.form_elements()

@@ -44,7 +44,7 @@ class QuestionList(Question):
         self.set_instructions = set_instructions
 
         self.allow_nonresponse = allow_nonresponse or False
-        self.max_list_items = max_list_items or 10
+        self.max_list_items = max_list_items
         self.short_names_dict = short_names_dict or dict()
 
     #############
@@ -55,7 +55,21 @@ class QuestionList(Question):
         """There is no answer code."""
         return answer
 
-    def check_answer_nonresponse(cls, value):
+    def validate_answer(self, answer: dict[str, str]):
+        """Validates the answer"""
+        if "answer" not in answer:
+            raise QuestionAnswerValidationError("Answer must have an 'answer' key!")
+        value = answer["answer"]
+        value = self.check_answer_nonresponse(value)
+        if value is not None and not isinstance(value, list):
+            raise QuestionAnswerValidationError(
+                f"Answer must be a list, but got {value}."
+            )
+        value = self.check_answer_length(value)
+        value = self.check_answer_check(value)
+        return answer
+
+    def check_answer_nonresponse(self, value):
         if (
             hasattr(self, "allow_nonresponse")
             and self.allow_nonresponse == False
@@ -65,7 +79,7 @@ class QuestionList(Question):
 
         return value
 
-    def check_answer_length(cls, value):
+    def check_answer_length(self, value):
         if (
             hasattr(self, "max_list_items")
             and self.max_list_items is not None
@@ -74,7 +88,7 @@ class QuestionList(Question):
             raise QuestionAnswerValidationError("Response has too many items.")
         return value
 
-    def check_answer_check(cls, value):
+    def check_answer_check(self, value):
         if any([item == "" for item in value]):
             raise QuestionAnswerValidationError(
                 f"Answer cannot contain empty strings, but got {value}."
@@ -84,12 +98,6 @@ class QuestionList(Question):
     def simulate_answer(self):
         "Simulates a valid answer for debugging purposes (what the validator expects)"
         return {"answer": [random_string(), random_string()]}
-
-    def validate_answer(self, answer: dict[str, str]):
-        """Validates the answer"""
-        if "answer" not in answer:
-            raise QuestionAnswerValidationError("Answer must have an 'answer' key!")
-        return answer
 
 
 def main():  # pragma: no cover
