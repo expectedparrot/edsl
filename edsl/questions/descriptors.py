@@ -92,8 +92,9 @@ class InstructionsDescriptor(BaseDescriptor):
 
 
 class QuestionOptionsDescriptor(BaseDescriptor):
-    def __init__(self, num_choices=None):
+    def __init__(self, num_choices=None, linear_scale=False):
         self.num_choices = num_choices
+        self.linear_scale = linear_scale
 
     def validate(self, value, instance):
         "Validates the question options"
@@ -103,19 +104,20 @@ class QuestionOptionsDescriptor(BaseDescriptor):
             raise Exception("Question options are too long!")
         if len(value) < Settings.MIN_NUM_OPTIONS:
             raise Exception("Question options are too short!")
-        if not all(isinstance(x, str) for x in value):
-            raise Exception("Question options must be strings!")
+        if not self.linear_scale:
+            if not all(isinstance(x, str) for x in value):
+                raise Exception("Question options must be strings!")
+            if not all(
+                [
+                    len(option) > 1 and len(option) < Settings.MAX_OPTION_LENGTH
+                    for option in value
+                ]
+            ):
+                raise Exception(
+                    f"All question options must be at least 2 characters long but less than {Settings.MAX_OPTION_LENGTH} characters long!"
+                )
         if len(value) != len(set(value)):
             raise Exception("Question options must be unique!")
-        if not all(
-            [
-                len(option) > 1 and len(option) < Settings.MAX_OPTION_LENGTH
-                for option in value
-            ]
-        ):
-            raise Exception(
-                f"All question options must be at least 2 characters long but less than {Settings.MAX_OPTION_LENGTH} characters long!"
-            )
 
         if hasattr(instance, "min_selections") and instance.min_selections != None:
             if instance.min_selections > len(value):
@@ -132,7 +134,31 @@ class QuestionOptionsDescriptor(BaseDescriptor):
                 raise QuestionCreationValidationError(
                     f"You asked for {self.num_choices} selections, but provided {len(value)} options."
                 )
-        return value
+
+        if self.linear_scale:
+            if sorted(value) != list(range(min(value), max(value) + 1)):
+                raise QuestionCreationValidationError(
+                    f"LinearScale.question_options must be a list of successive integers, e.g. [1, 2, 3]"
+                )
+
+
+#        return value
+
+
+class OptionLabelDescriptor(BaseDescriptor):
+    def validate(self, value, instance):
+        if value is not None:
+            if min(value.keys()) != min(instance.question_options):
+                raise QuestionCreationValidationError(f"First option needs a label")
+            if max(value.keys()) != max(instance.question_options):
+                raise QuestionCreationValidationError(f"Last option needs a label")
+            if not all(isinstance(x, str) for x in value.values()):
+                raise QuestionCreationValidationError("Option labels must be strings!")
+            for key in value.keys():
+                if key not in instance.question_options:
+                    raise QuestionCreationValidationError(
+                        f"Option label key {key} is not in question options {instance.question_options}"
+                    )
 
 
 class IntegerOrNoneDescriptor(BaseDescriptor):
