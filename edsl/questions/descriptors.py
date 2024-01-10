@@ -28,7 +28,8 @@ class BaseDescriptor(ABC):
     def __set__(self, instance, value):
         self.validate(value, instance)
         instance.__dict__[self.name] = value
-        instance.set_instructions = self.name == "_instructions"
+        if self.name == "_instructions":
+            instance.set_instructions = value != instance.default_instructions
 
     def __set_name__(self, owner, name):
         self.name = "_" + name
@@ -86,13 +87,20 @@ class QuestionOptionsDescriptor(BaseDescriptor):
             raise Exception("Question options must be strings!")
         if len(value) != len(set(value)):
             raise Exception("Question options must be unique!")
-        if not all([len(option) > 1 for option in value]):
-            raise Exception("All question options must be at least 2 characters long!")
+        if not all(
+            [
+                len(option) > 1 and len(option) < Settings.MAX_OPTION_LENGTH
+                for option in value
+            ]
+        ):
+            raise Exception(
+                f"All question options must be at least 2 characters long but less than {Settings.MAX_OPTION_LENGTH} characters long!"
+            )
 
         if hasattr(instance, "min_selections") and instance.min_selections != None:
-            if self.min_selections > len(value):
+            if instance.min_selections > len(value):
                 raise QuestionCreationValidationError(
-                    f"You asked for at least {self.min_selections} selections, but provided {len(value)} options."
+                    f"You asked for at least {instance.min_selections} selections, but provided {len(value)} options."
                 )
         if hasattr(instance, "max_selections") and instance.max_selections != None:
             if instance.max_selections > len(value):
@@ -106,6 +114,33 @@ class IntegerOrNoneDescriptor(BaseDescriptor):
     def validate(self, value, instance):
         if not (isinstance(value, int) or value is None):
             raise Exception("Value must be a number!")
+
+
+class NumSelectionsDescriptor(BaseDescriptor):
+    def validate(self, value, instance):
+        if not (isinstance(value, int)):
+            raise Exception("Value must be a number!")
+        if value is not None:
+            if value > len(instance.question_options):
+                # raise Exception("Value must be less than the number of options!")
+                raise QuestionAnswerValidationError(
+                    "Value must be less than the number of options!"
+                )
+            if value < 1:
+                raise Exception("Value must be greater than 0!")
+
+
+class IntegerDescriptor(BaseDescriptor):
+    def __init__(self, none_allowed=False):
+        self.none_allowed = none_allowed
+
+    def validate(self, value, instance):
+        if self.none_allowed:
+            if not (isinstance(value, int) or value is None):
+                raise Exception("Value must be a number!")
+        else:
+            if not isinstance(value, int):
+                raise Exception("Value must be a number!")
 
 
 class NumericalOrNoneDescriptor(BaseDescriptor):
