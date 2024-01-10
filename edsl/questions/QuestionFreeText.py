@@ -5,6 +5,8 @@ from edsl.questions import Question
 from edsl.questions.ValidatorMixin import ValidatorMixin
 from edsl.exceptions import QuestionAnswerValidationError
 
+from edsl.questions.descriptors import QuestionAllowNonresponseDescriptor
+
 
 class QuestionFreeText(Question, ValidatorMixin):
     default_instructions = textwrap.dedent(
@@ -16,6 +18,7 @@ class QuestionFreeText(Question, ValidatorMixin):
     )
 
     question_type = "free_text"
+    allow_nonresponse: bool = QuestionAllowNonresponseDescriptor()
 
     def __init__(
         self,
@@ -27,16 +30,10 @@ class QuestionFreeText(Question, ValidatorMixin):
     ):
         self.question_text = question_text
         self.question_name = question_name
-
-        # custom instructions
-        if set_instructions := (instructions is not None):
-            self.instructions = self.instructions
-        else:
-            self.instructions = self.default_instructions
-        self.set_instructions = set_instructions
+        self.instructions = instructions or self.default_instructions
+        self.short_names_dict = short_names_dict or dict()
 
         self.allow_nonresponse = allow_nonresponse or False
-        self.short_names_dict = short_names_dict or dict()
 
     #############
     ## Validators

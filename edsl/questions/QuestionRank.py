@@ -34,9 +34,9 @@ class QuestionRank(Question):
         question_name: str,
         question_text: str,
         question_options: list[str],
+        num_selections: int,
         short_names_dict: dict[str, str] = None,
         instructions: str = None,
-        num_selections: int = None,
     ):
         self.question_name = question_name
         self.question_text = question_text

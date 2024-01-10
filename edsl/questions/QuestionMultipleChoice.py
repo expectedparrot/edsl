@@ -9,11 +9,30 @@ from edsl.exceptions import QuestionAnswerValidationError
 from edsl.utilities.utilities import random_string
 from edsl.questions.ValidatorMixin import ValidatorMixin
 
+from edsl.questions.descriptors import QuestionOptionsDescriptor
+
+
+def check_multiple_choice(answer_raw, instance: Question):
+    try:
+        answer_code = int(answer_raw["answer"])
+    except:
+        raise QuestionAnswerValidationError(
+            f"Answer {answer_raw} is not a valid option."
+        )
+    if int(answer_raw["answer"]) not in range(len(instance.question_options)):
+        raise QuestionAnswerValidationError(
+            f"Answer {answer_raw} is not a valid option."
+        )
+    return answer_raw
+
 
 class QuestionMultipleChoice(Question):
     """QuestionMultipleChoice"""
 
     question_type = "multiple_choice"
+
+    # Question-specific descriptors
+    question_options: List[str] = QuestionOptionsDescriptor()
 
     default_instructions = textwrap.dedent(
         """\
@@ -39,42 +58,12 @@ class QuestionMultipleChoice(Question):
         self.question_text = question_text
         self.question_options = question_options
         self.question_name = question_name
-
-        if instructions is None:
-            self.instructions = self.default_instructions
-            self.set_instructions = False
-        else:
-            self.instructions = instructions
-            self.set_instructions = True
-
+        self.instructions = instructions or self.default_instructions
         self.short_names_dict = short_names_dict or dict()
-
-    #############
-    ## Validators
-    #############
-
-    # other validators are inherited from Question.py
-    @property
-    def question_options(self):
-        return self._question_options
-
-    @question_options.setter
-    def question_options(self, value):
-        self._question_options = self.validate_question_options(value)
 
     def validate_answer(self, answer: dict[str, str]):
         """Validates the answer"""
-        try:
-            answer_code = int(answer["answer"])
-        except:
-            raise QuestionAnswerValidationError(
-                f"Answer {answer} is not a valid option."
-            )
-        if int(answer["answer"]) not in range(len(self.question_options)):
-            raise QuestionAnswerValidationError(
-                f"Answer {answer} is not a valid option."
-            )
-        return answer
+        return check_multiple_choice(answer, self)
 
     ################
     # Less important
@@ -109,18 +98,25 @@ class QuestionMultipleChoice(Question):
 
 
 if __name__ == "__main__":
-    q = QuestionMultipleChoice(
-        question_text="How are you?",
-        question_options={"OK": "OK", "BAD": "BAD"},
-        question_name="how_feeling",
-    )
     # q = QuestionMultipleChoice(
-    #     question_text="Do you enjoying eating custard while skydiving?",
-    #     question_options=["yes, somtimes", "no", "only on Tuesdays"],
-    #     question_name="goose_fight",
+    #     question_text="How are you?",
+    #     question_options=["OK": "OK", "BAD": "BAD"],
+    #     question_name="how_feeling",
     # )
+    q1 = QuestionMultipleChoice(
+        question_text="Do you enjoying eating custard while skydiving?",
+        question_options=["yes, somtimes", "no", "only on Tuesdays"],
+        question_name="goose_fight",
+    )
     # results = q.run()
     # results.select("goose_fight").print()
+
+    q2 = QuestionMultipleChoice(
+        question_text="Do you enjoying eating custard while skydiving?",
+        question_options=["yes, somtimes", "no", "only on Tuesdays"],
+        question_name="goose_fight",
+        instructions="HEre are are some instructions",
+    )
 
     # q_dict = q.to_dict()
     # print(f"Serialized dictionary:{q_dict}")

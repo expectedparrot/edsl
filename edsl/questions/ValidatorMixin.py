@@ -1,3 +1,5 @@
+import weakref
+
 from edsl.utilities.utilities import is_valid_variable_name
 from edsl.questions.settings import Settings
 
@@ -5,6 +7,22 @@ from edsl.exceptions import (
     QuestionCreationValidationError,
     QuestionAnswerValidationError,
 )
+
+
+class QuestionNameDescriptor:
+    def __init__(self):
+        pass
+
+    def __get__(self, instance, owner):
+        return instance.__dict__[self.name]
+
+    def __set__(self, instance, value):
+        if not is_valid_variable_name(value):
+            raise Exception("Question name is not a valid variable name!")
+        instance.__dict__[self.name] = value
+
+    def __set_name__(self, owner, name):
+        self.name = "_" + name
 
 
 def is_number(value):
