@@ -12,6 +12,7 @@ from edsl.utilities.utilities import (
     HTMLSnippet,
     is_gzipped,
     is_valid_variable_name,
+    random_string,
     repair_json,
     shorten_string,
 )
