@@ -1,83 +1,88 @@
 from typing import Type, Optional
-from pydantic import BaseModel, Field, field_validator, model_validator
 from edsl.exceptions import (
     QuestionAnswerValidationError,
     QuestionCreationValidationError,
 )
-from edsl.questions import Settings, QuestionData, AnswerData
+from edsl.questions import Settings, Question
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
-
-class QuestionLinearScale(QuestionData):
-    """Pydantic data model for QuestionLinearScale"""
-
-    question_text: str = Field(
-        ..., min_length=1, max_length=Settings.MAX_QUESTION_LENGTH
-    )
-    question_options: list[int]
-    option_labels: Optional[dict[int, str]] = None
-
-    # see QuestionFreeText for an explanation of how __new__ works
-    def __new__(cls, *args, **kwargs) -> "QuestionLinearScaleEnhanced":
-        instance = super(QuestionLinearScale, cls).__new__(cls)
-        instance.__init__(*args, **kwargs)
-        return QuestionLinearScaleEnhanced(instance)
-
-    @field_validator("question_options")
-    def check_successive(cls, value):
-        if sorted(value) != list(range(min(value), max(value) + 1)):
-            raise QuestionCreationValidationError(
-                f"LinearScale.question_options must be a list of successive integers, e.g. [1, 2, 3]"
-            )
-        return value
-
-    @model_validator(mode="after")
-    def check_option_labels(self, value):
-        if self.option_labels is not None:
-            if min(self.option_labels.keys()) != min(self.question_options):
-                raise QuestionCreationValidationError(f"First option needs a label")
-            if max(self.option_labels.keys()) != max(self.question_options):
-                raise QuestionCreationValidationError(f"Last option needs a label")
-        return self
+from edsl.questions.descriptors import QuestionOptionsDescriptor, OptionLabelDescriptor
 
 
-class QuestionLinearScaleEnhanced(QuestionMultipleChoice):
-    """
+class QuestionLinearScale(QuestionMultipleChoice):
+    question_type = "linear_scale"
+    """QuestionLinearScale
+    
     Inherits from QuestionMultipleChoice, because the two are similar.
     - A difference is that the answers must have an ordering.
     - Not every option has to have a label.
     - But if option labels are provided, there have to be labels for the first and last options.
     """
 
-    question_type = "linear_scale"
+    option_labels: Optional[dict[int, str]] = OptionLabelDescriptor()
+    question_options = QuestionOptionsDescriptor(linear_scale=True)
 
-    def __init__(self, question: BaseModel):
-        super().__init__(question)
+    def __init__(
+        self,
+        question_text: str,
+        question_options: list[int],
+        question_name: str,
+        short_names_dict: Optional[dict[str, str]] = None,
+        instructions: Optional[str] = None,
+        option_labels: Optional[dict[int, str]] = None,
+    ):
+        super().__init__(
+            question_text=question_text,
+            question_options=question_options,
+            question_name=question_name,
+            short_names_dict=short_names_dict,
+            instructions=instructions,
+        )
+        # self.instructions = instructions or self.default_instructions
+        self.question_options = question_options  # note this uses the LinearScale descriptor, not the one from MC
+        self.option_labels = option_labels
 
-    def construct_answer_data_model(self) -> Type[BaseModel]:
-        "Constructs the answer data model for this question"
-        acceptable_values = self.question_options
+    def validate_answer(self, answer_raw):
+        value = answer_raw["answer"]
+        if value is None:
+            raise QuestionAnswerValidationError("Answer cannot be None.")
+        if type(value) != int:
+            raise QuestionAnswerValidationError(f"Answer {value} is not an integer.")
+        acceptable_values = set(range(len(self.question_options)))
+        if value not in acceptable_values:
+            raise QuestionAnswerValidationError(
+                f"Answer {value} is not in the acceptable values {acceptable_values}"
+            )
+        return answer_raw
 
-        class QuestionLinearScaleAnswerDataModel(AnswerData):
-            answer: int
-            comment: Optional[str] = None
+    @classmethod
+    def example(cls):
+        return cls(
+            question_text="How much do you like ice cream?",
+            question_options=[1, -2, 3, 4, 5],
+            question_name="ice_cream",
+            option_labels={1: "I hate it", 5: "I love it"},
+        )
 
-            @field_validator("answer")
-            def check_answer(cls, value):
-                if value in acceptable_values:
-                    return value
-                else:
-                    raise QuestionAnswerValidationError(
-                        f"Answer {value} is not in the acceptable values {acceptable_values}"
-                    )
 
-        return QuestionLinearScaleAnswerDataModel
+if __name__ == "__main__":
+    # q = QuestionLinearScale.example()
 
-    def form_elements(self) -> str:
-        html_output = f"\n\n\n<label>{self.question_text}</label>\n"
-        for index in range(1, 6):  # assuming the scale is from 1 to 5
-            html_output += f"""<div id = "{self.question_name}_div_{index}">
-            <input type="radio" id="{self.question_name}_{index}" name="{self.question_name}" value="{index}">
-            <label for="{self.question_name}_{index}">{index}</label>
-            </div>\n"""
-        return html_output
+    q = QuestionLinearScale.from_dict(
+        {
+            "question_text": "On a scale from 1 to 5, how much do you like pizza?",
+            "question_options": [1, -2, 3, 4, 5],
+            "question_name": "pizza",
+            "option_labels": None,
+            "question_type": "linear_scale",
+            "short_names_dict": {},
+        }
+    )
+
+    # class Dummy:
+    #     d = QuestionOptionsDescriptor(linear_scale=True)
+
+    #     def __init__(self):
+    #         self.d = [1, -2, 3]
+
+    # dummy = Dummy()
