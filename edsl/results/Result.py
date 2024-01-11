@@ -121,8 +121,7 @@ def main():
         "agent": {
             "traits": {
                 "status": "Unhappy"
-            },
-            "verbose": false
+            }
         },
         "scenario": {
             "period": "morning"

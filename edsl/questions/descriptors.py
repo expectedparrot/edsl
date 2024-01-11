@@ -6,7 +6,7 @@ from edsl.exceptions import (
     QuestionAnswerValidationError,
 )
 from edsl.questions.settings import Settings
-from edsl.utilities import is_valid_variable_name
+from edsl.utilities.utilities import is_valid_variable_name
 
 
 def contains_single_braced_substring(s: str) -> bool:
