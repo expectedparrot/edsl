@@ -7,6 +7,7 @@ from edsl.questions.descriptors import (
     IntegerDescriptor,
     QuestionOptionsDescriptor,
 )
+from edsl.scenarios import Scenario
 from edsl.utilities import random_string
 
 
@@ -67,33 +68,38 @@ class QuestionCheckBox(Question):
         self.validate_answer_checkbox(answer)
         return answer
 
-    def translate_answer_code_to_answer(self, answer_codes, scenario):
+    def translate_answer_code_to_answer(self, answer_codes, scenario: Scenario = None):
         """
         Translates the answer code to the actual answer.
         For example, for question options ["a", "b", "c"],the answer codes are 0, 1, and 2.
         The LLM will respond with [0,1] and this code will translate it to ["a","b"].
         """
-        if scenario is None:
-            scenario = dict()
+        scenario = scenario or Scenario()
         translated_options = [
             Template(option).render(scenario) for option in self.question_options
         ]
-
         translated_codes = []
         for answer_code in answer_codes:
             translated_codes.append(translated_options[int(answer_code)])
         return translated_codes
 
-    def simulate_answer(self, human_readable=True) -> dict[str, str]:
+    def simulate_answer(self, human_readable=True) -> dict[str, Union[int, str]]:
         """Simulates a valid answer for debugging purposes"""
+        num_selections = random.randint(self.min_selections, self.max_selections)
         if human_readable:
+            # Select a random number of options from self.question_options
+            selected_options = random.sample(self.question_options, num_selections)
             answer = {
-                "answer": [random.choice(self.question_options)],
+                "answer": selected_options,
                 "comment": random_string(),
             }
         else:
+            # Select a random number of indices from the range of self.question_options
+            selected_indices = random.sample(
+                range(len(self.question_options)), num_selections
+            )
             answer = {
-                "answer": [random.choice(range(len(self.question_options)))],
+                "answer": selected_indices,
                 "comment": random_string(),
             }
         return answer
@@ -104,13 +110,34 @@ class QuestionCheckBox(Question):
     @classmethod
     def example(cls):
         return cls(
-            question_name="example_question_name",
-            question_text="example_question_text",
-            question_options=["option1", "option2"],
-            min_selections=1,
-            max_selections=1,
+            question_name="never_eat",
+            question_text="Which of the following foods would you eat if you had to?",
+            question_options=[
+                "soggy meatpie",
+                "rare snails",
+                "mouldy bread",
+                "panda milk custard",
+                "McDonalds",
+            ],
+            min_selections=2,
+            max_selections=5,
         )
 
 
 if __name__ == "__main__":
+    from edsl.questions.QuestionCheckBox import QuestionCheckBox
+
     q = QuestionCheckBox.example()
+    q.question_text
+    q.question_options
+    q.question_name
+    q.short_names_dict
+    q.instructions
+    # validate an answer
+    q.validate_answer({"answer": [1, 2], "comment": "I like custard"})
+    # translate answer code
+    q.translate_answer_code_to_answer([1, 2])
+    # simulate answer
+    q.simulate_answer()
+    q.simulate_answer(human_readable=False)
+    q.validate_answer(q.simulate_answer(human_readable=False))
