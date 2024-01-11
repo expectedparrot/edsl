@@ -1,9 +1,11 @@
+from __future__ import annotations
 import random
 import textwrap
 from jinja2 import Template
-from typing import Optional
+from typing import Any, Optional, Union
 from edsl.questions import Question
 from edsl.exceptions import QuestionAnswerValidationError
+from edsl.scenarios import Scenario
 from edsl.utilities.utilities import random_string
 from edsl.questions.descriptors import (
     QuestionOptionsDescriptor,
@@ -61,59 +63,73 @@ class QuestionRank(Question):
         self.short_names_dict = short_names_dict or dict()
         self.num_selections = num_selections or len(question_options)
 
-    def validate_answer(self, answer):
+    ################
+    # Answer methods
+    ################
+    def validate_answer(self, answer: Any) -> dict[str, list[int]]:
         self.validate_answer_template_basic(answer)
         self.validate_answer_key_value(answer, "answer", list)
-        value = answer["answer"]
-        acceptable_values = list(range(len(self.question_options)))
-        self.check_answers_valid(value, acceptable_values)
-        self.check_answers_count(value)
+        self.validate_answer_rank(answer)
         return answer
 
-    @staticmethod
-    def check_answers_valid(value, acceptable_values):
-        for v in value:
-            try:
-                answer_code = int(v)
-            except ValueError:
-                raise QuestionAnswerValidationError(
-                    f"Rank answer {value} has elements that are not integers, namely {v}."
-                )
-            except TypeError:
-                raise QuestionAnswerValidationError(
-                    f"Rank answer {value} has elements that are not integers, namely {v}."
-                )
-            if answer_code not in acceptable_values:
-                raise QuestionAnswerValidationError(
-                    f"Answer {value} has elements not in {acceptable_values}, namely {v}."
-                )
-
-    def check_answers_count(self, value):
-        if len(value) != self.num_selections:
-            raise QuestionAnswerValidationError(
-                f"Rank answer {value}, but exactly {self.num_selections} selections required."
-            )
-
-    def translate_answer_code_to_answer(self, answer_codes, scenario):
+    def translate_answer_code_to_answer(
+        self, answer_codes, scenario: Scenario = None
+    ) -> list[str]:
         """Translates the answer code to the actual answer."""
-        if scenario is None:
-            scenario = dict()
+        scenario = scenario or Scenario()
         translated_options = [
             Template(option).render(scenario) for option in self.question_options
         ]
-
         translated_codes = []
         for answer_code in answer_codes:
             translated_codes.append(translated_options[int(answer_code)])
         return translated_codes
 
-    def simulate_answer(self, human_readable=True) -> dict[str, str]:
+    def simulate_answer(self, human_readable=True) -> dict[str, Union[int, str]]:
         """Simulates a valid answer for debugging purposes"""
         if human_readable:
-            answer = [random.choice(self.question_options)]
+            selected = random.sample(self.question_options, self.num_selections)
         else:
-            answer = [random.choice(range(len(self.question_options)))]
-        return {
-            "answer": answer,
+            selected = random.sample(
+                range(len(self.question_options)), self.num_selections
+            )
+        answer = {
+            "answer": selected,
             "comment": random_string(),
         }
+        return answer
+
+    ################
+    # Helpful methods
+    ################
+    @classmethod
+    def example(cls) -> QuestionRank:
+        return cls(
+            question_name="rank_foods",
+            question_text="Rank your favorite foods.",
+            question_options=["Pizza", "Pasta", "Salad", "Soup"],
+            num_selections=2,
+        )
+
+
+def main():
+    from edsl.questions.QuestionRank import QuestionRank
+
+    q = QuestionRank.example()
+    q.question_text
+    q.question_name
+    q.question_options
+    q.num_selections
+    q.instructions
+    # validate an answer
+    answer = {"answer": [0, 1], "comment": "I like pizza and pasta."}
+    q.validate_answer(answer)
+    # translate an answer code to an answer
+    q.translate_answer_code_to_answer([0, 1])
+    # simulate answer
+    q.simulate_answer()
+    q.simulate_answer(human_readable=False)
+    q.validate_answer(q.simulate_answer(human_readable=False))
+    # serialization (inherits from Question)
+    q.to_dict()
+    assert q.from_dict(q.to_dict()) == q

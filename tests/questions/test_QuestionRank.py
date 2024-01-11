@@ -3,8 +3,13 @@ from edsl.exceptions import (
     QuestionAnswerValidationError,
     QuestionResponseValidationError,
 )
-from edsl.questions import Question, QuestionRank, Settings
-from edsl.questions.QuestionRank import QuestionRank
+from edsl.questions import Question, Settings
+from edsl.questions.QuestionRank import QuestionRank, main
+
+
+def test_QuestionRank_main():
+    main()
+
 
 valid_question = {
     "question_text": "What are your 2 favorite foods in the list, ranked?",
