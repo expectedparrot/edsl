@@ -180,4 +180,4 @@ def test_test_QuestionNumerical_extras():
     simulated_answer = q.simulate_answer()
     assert isinstance(simulated_answer, dict)
     assert "answer" in simulated_answer
-    assert isinstance(simulated_answer["answer"], int)
+    assert isinstance(simulated_answer["answer"], float)

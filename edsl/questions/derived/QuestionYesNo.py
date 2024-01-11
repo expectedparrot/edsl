@@ -5,8 +5,10 @@ from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
 class QuestionYesNo(QuestionMultipleChoice):
     """
-    Inherits from QuestionMultipleChoice.
-    - It additionally reuires that question_options=["Yes","No"]
+    QuestionYesNo is a question the user is asked to answer with either "Yes" or "No".
+    - It additionally reuqires that question_options=["Yes","No"]
+
+    For an example, see `QuestionYesNo.example()`
     """
 
     question_type = "yes_no"
@@ -56,6 +58,7 @@ def main():
     q.translate_answer_code_to_answer(0, {})
     q.simulate_answer()
     q.simulate_answer(human_readable=False)
+    q.validate_answer(q.simulate_answer(human_readable=False))
     # serialization (inherits from Question)
     q.to_dict()
     q.from_dict(q.to_dict()) == q
