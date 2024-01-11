@@ -17,13 +17,11 @@ valid_question = {
     "question_name": "tire_change",
     "allow_nonresponse": False,
     "max_list_items": None,
-    "short_names_dict": {},
 }
 
 valid_question_wo_extras = {
     "question_text": "How do you change a car tire?",
     "question_name": "tire_change",
-    "short_names_dict": {},
 }
 
 valid_question_w_extras = {
@@ -31,7 +29,6 @@ valid_question_w_extras = {
     "question_name": "tire_change",
     "allow_nonresponse": True,
     "max_list_items": 5,
-    "short_names_dict": {},
 }
 
 
@@ -121,7 +118,6 @@ def test_QuestionList_serialization():
                 "type": "list",
                 "question_text": "",
                 "max_list_items": "yes",
-                "short_names_dict": {},
             }
         )
     with pytest.raises(Exception):
@@ -130,7 +126,6 @@ def test_QuestionList_serialization():
                 "type": "list",
                 "question_text": "How do you change a tire?",
                 "tires": 4,
-                "short_names_dict": {},
             }
         )
 

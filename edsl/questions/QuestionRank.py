@@ -12,10 +12,25 @@ from edsl.questions.descriptors import (
 
 
 class QuestionRank(Question):
+    """
+    This question asks the user to rank options from a list.
+
+    Arguments:
+    - `question_name` is the name of the question (string)
+    - `question_options` are the options the user should select from (list of strings)
+    - `question_text` is the text of the question (string)
+
+    Optional arguments:
+    - `num_selections` is the number of options that must be selected (positive integer)
+    - `instructions` are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionRank.default_instructions`
+    - `short_names_dict` maps question_options to short names (dictionary mapping strings to strings)
+
+    For an example, run `QuestionRank.example()`
+    """
+
     question_type = "rank"
     question_options: list[str] = QuestionOptionsDescriptor()
     num_selections = NumSelectionsDescriptor()
-
     default_instructions = textwrap.dedent(
         """\
         You are being asked the following question: {{question_text}}
@@ -36,23 +51,20 @@ class QuestionRank(Question):
         question_text: str,
         question_options: list[str],
         num_selections: Optional[int] = None,
-        short_names_dict: dict[str, str] = None,
-        instructions: str = None,
+        short_names_dict: Optional[dict[str, str]] = None,
+        instructions: Optional[str] = None,
     ):
         self.question_name = question_name
         self.question_text = question_text
         self.question_options = question_options
         self.instructions = instructions or self.default_instructions
         self.short_names_dict = short_names_dict or dict()
-
         self.num_selections = num_selections or len(question_options)
 
     def validate_answer(self, answer):
-        if "answer" not in answer:
-            raise QuestionAnswerValidationError("Answer must have an 'answer' key!")
+        self.validate_answer_template_basic(answer)
+        self.validate_answer_key_value(answer, "answer", list)
         value = answer["answer"]
-        if not isinstance(value, list):
-            raise QuestionAnswerValidationError(f"Rank answer {value} is not a list.")
         acceptable_values = list(range(len(self.question_options)))
         self.check_answers_valid(value, acceptable_values)
         self.check_answers_count(value)
@@ -75,15 +87,6 @@ class QuestionRank(Question):
                 raise QuestionAnswerValidationError(
                     f"Answer {value} has elements not in {acceptable_values}, namely {v}."
                 )
-
-    # def check_answers_valid(self, value):
-    #     acceptable_values = list(range(len(self.question_options)))
-    #     for v in value:
-    #         answer_code = int(v)
-    #         if answer_code not in acceptable_values:
-    #             raise QuestionAnswerValidationError(
-    #                 f"Rank answer {value} has elements not in {acceptable_values}, namely {v}"
-    #             )
 
     def check_answers_count(self, value):
         if len(value) != self.num_selections:

@@ -11,10 +11,17 @@ from edsl.utilities import random_string
 
 class QuestionNumerical(Question):
     """
-    QuestionNumerical is a question where the user is asked to provide a numerical answer.
-    - `question_text` is the question text
-    - `min_value` is the minimum value of the answer
-    - `max_value` is the maximum value of the answer
+    This question asks the user to answer with a numerical value.
+
+    Arguments:
+    - `question_name` is the name of the question (string)
+    - `question_text` is the text of the question (string)
+
+    Optional arguments:
+    - `min_value` is the minimum value of the answer (float)
+    - `max_value` is the maximum value of the answer (float)
+    - `instructions` are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionNumerical.default_instructions`
+
 
     For an example, run `QuestionNumerical.example()`
     """
@@ -52,7 +59,6 @@ class QuestionNumerical(Question):
         question_text: str,
         min_value: Optional[Union[int, float]] = None,
         max_value: Optional[Union[int, float]] = None,
-        short_names_dict: Optional[dict[str, str]] = None,
         instructions: Optional[str] = None,
     ):
         self.question_name = question_name
@@ -60,7 +66,6 @@ class QuestionNumerical(Question):
         self.min_value = min_value
         self.max_value = max_value
         self.instructions = instructions or self.default_instructions
-        self.short_names_dict = short_names_dict or dict()
 
     ################
     # Answer methods

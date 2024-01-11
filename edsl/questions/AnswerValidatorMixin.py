@@ -8,7 +8,7 @@ from edsl.exceptions import (
 class AnswerValidatorMixin:
     """
     Mixin with validators for LLM answers to questions
-    - Template validation: validators for the answer object format
+    - Template validation: validators for the entire answer object format
     - Value validation: validators for specific values
     - Question specific validation: validators for specific question types
     """
