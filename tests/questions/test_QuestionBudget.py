@@ -2,7 +2,12 @@ import pytest
 import uuid
 from edsl.exceptions import QuestionAnswerValidationError
 from edsl.questions import QuestionBudget, Settings
-from edsl.questions.QuestionBudget import QuestionBudget
+from edsl.questions.QuestionBudget import QuestionBudget, main
+
+
+def test_QuestionBudget_main():
+    main()
+
 
 valid_question = {
     "question_text": "How would you allocate $100?",

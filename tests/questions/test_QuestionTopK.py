@@ -1,7 +1,12 @@
 import pytest
 import uuid
 from edsl.questions import Question, Settings
-from edsl.questions.derived.QuestionTopK import QuestionTopK
+from edsl.questions.derived.QuestionTopK import QuestionTopK, main
+
+
+def test_QuestionTopK_main():
+    main()
+
 
 valid_question = {
     "question_text": "What are your 2 favorite foods in the list?",

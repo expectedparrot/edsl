@@ -13,16 +13,22 @@ from edsl.utilities import random_string
 
 class QuestionList(Question):
     """
-    QuestionList is a question where the user is asked to provide a list of comma-separated words or phrases.
-    - `question_text` is the question text
-    - `allow_nonresponse` is a boolean indicating whether the user can skip the question
-    - `max_list_items` is an integer indicating the maximum number of items in the list
+    This question asks the user to answer by providing a list of items as comma-separated strings.
+
+    Arguments:
+    - `question_name` is the name of the question (string)
+    - `question_text` is the text of the question (string)
+
+    Optional arguments:
+    - `max_list_items` is the maximum number of items that can be in the answer list (positive integer)
+    - `allow_nonresponse` is whether the user can skip the question (boolean). If not provided, the default is False.
+    - `instructions` are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionList.default_instructions`
 
     For an example, run `QuestionList.example()`
     """
 
     question_type = "list"
-    max_list_items: Optional[int] = IntegerOrNoneDescriptor()
+    max_list_items: int = IntegerOrNoneDescriptor()
     allow_nonresponse: bool = QuestionAllowNonresponseDescriptor()
     default_instructions = textwrap.dedent(
         """\
@@ -44,7 +50,6 @@ class QuestionList(Question):
         question_text: str,
         question_name: str,
         allow_nonresponse: Optional[bool] = None,
-        short_names_dict: Optional[dict[str, str]] = None,
         instructions: Optional[str] = None,
         max_list_items: Optional[int] = None,
     ):
@@ -53,7 +58,6 @@ class QuestionList(Question):
         self.instructions = instructions or self.default_instructions
         self.allow_nonresponse = allow_nonresponse or False
         self.max_list_items = max_list_items
-        self.short_names_dict = short_names_dict or dict()
 
     ################
     # Answer methods
@@ -106,4 +110,4 @@ def main():
     q.validate_answer(q.simulate_answer(human_readable=False))
     # serialization (inherits from Question)
     q.to_dict()
-    q.from_dict(q.to_dict()) == q
+    assert q.from_dict(q.to_dict()) == q

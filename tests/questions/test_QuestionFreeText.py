@@ -3,26 +3,29 @@ from edsl.exceptions import (
     QuestionAnswerValidationError,
     QuestionResponseValidationError,
 )
-from edsl.questions import Question, QuestionFreeText, Settings
+from edsl.questions import Question, Settings
+from edsl.questions.QuestionFreeText import QuestionFreeText, main
+
+
+def test_QuestionFreeText_main():
+    main()
+
 
 valid_question = {
     "question_text": "How are you?",
     "allow_nonresponse": False,
     "question_name": "how_are_you",
-    "short_names_dict": {},
 }
 
 valid_question_wo_nonresponse = {
     "question_text": "How are you buddy?",
     "question_name": "how_are_you",
-    "short_names_dict": {},
 }
 
 valid_question_allow_nonresponse = {
     "question_text": "How are you buddy?",
     "allow_nonresponse": True,
     "question_name": "how_are_you",
-    "short_names_dict": {},
 }
 
 
@@ -77,7 +80,6 @@ def test_QuestionFreeText_serialization():
         "question_text": "How are you?",
         "allow_nonresponse": False,
         "question_type": "free_text",
-        "short_names_dict": {},
     }
 
     # deserialization should return a QuestionFreeTextEnhanced object

@@ -1,17 +1,25 @@
 from __future__ import annotations
+from typing import Optional
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
 
 class QuestionLikertFive(QuestionMultipleChoice):
     """
-    QuestionLikertFive is a question the user is asked to answer on 5-point Likert scale.
-    - `question_options` is a list of strings ["Strongly disagree", "Disagree", "Neutral", "Agree", "Strongly agree"]
+    This question asks the user to respond to a statement on a 5-point Likert scale.
+
+    Arguments:
+    - `question_name` is the name of the question (string)
+    - `question_text` is the text of the question (string)
+
+    Optional arguments:
+    - `instructions` are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionLikertFive.default_instructions`
+    - `question_options` are the options the user should select from (list of strings). If not provided, the default likert options are used. To view them, run `QuestionLikertFive.likert_options`
+    - `short_names_dict` maps question_options to short names (dictionary mapping strings to strings)
 
     For an example, see `QuestionLikertFive.example()`
     """
 
     question_type = "likert_five"
-
     likert_options: list[str] = [
         "Strongly disagree",
         "Disagree",
@@ -24,9 +32,9 @@ class QuestionLikertFive(QuestionMultipleChoice):
         self,
         question_name: str,
         question_text: str,
-        question_options: list[str] = likert_options,
-        short_names_dict: dict[str, str] = None,
-        instructions: str = None,
+        question_options: Optional[list[str]] = likert_options,
+        short_names_dict: Optional[dict[str, str]] = None,
+        instructions: Optional[str] = None,
     ):
         super().__init__(
             question_name=question_name,
@@ -65,4 +73,4 @@ def main():
     q.validate_answer(q.simulate_answer(human_readable=False))
     # serialization (inherits from Question)
     q.to_dict()
-    q.from_dict(q.to_dict()) == q
+    assert q.from_dict(q.to_dict()) == q
