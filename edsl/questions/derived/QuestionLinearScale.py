@@ -1,5 +1,4 @@
-from typing import Optional, Union
-from edsl.exceptions import QuestionAnswerValidationError
+from typing import Optional
 from edsl.questions.descriptors import QuestionOptionsDescriptor, OptionLabelDescriptor
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 

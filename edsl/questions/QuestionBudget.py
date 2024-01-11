@@ -1,8 +1,9 @@
 import random
 import textwrap
-from edsl.exceptions import QuestionAnswerValidationError
+from typing import Any, Union
 from edsl.questions import Question
 from edsl.questions.descriptors import IntegerDescriptor, QuestionOptionsDescriptor
+from edsl.scenarios import Scenario
 from edsl.utilities import random_string
 
 
@@ -49,44 +50,17 @@ class QuestionBudget(Question):
         self.short_names_dict = short_names_dict or dict({})
         self.instructions = instructions or self.default_instructions
 
-    def validate_answer(self, answer_raw):
-        budget_sum = self.budget_sum
-        acceptable_answer_keys = set(range(len(self.question_options)))
-
-        answer = answer_raw["answer"]
-        if answer is None:
-            raise QuestionAnswerValidationError("Answer cannot be None.")
-        if not isinstance(answer, dict):
-            raise QuestionAnswerValidationError(
-                f"Answer must be a dictionary, but got {type(answer)}."
-            )
-        answer_keys = set([int(k) for k in answer.keys()])
-        current_sum = sum(answer.values())
-        if not current_sum == budget_sum:
-            raise QuestionAnswerValidationError(
-                f"Budget sum must be {budget_sum}, but got {current_sum}."
-            )
-        if any(v < 0 for v in answer.values()):
-            raise QuestionAnswerValidationError(
-                f"Budget values must be positive, but got {answer_keys}."
-            )
-        if any([int(key) not in acceptable_answer_keys for key in answer.keys()]):
-            raise QuestionAnswerValidationError(
-                f"Budget keys must be in {acceptable_answer_keys}, but got {answer_keys}"
-            )
-        if acceptable_answer_keys != answer_keys:
-            missing_keys = acceptable_answer_keys - answer_keys
-            raise QuestionAnswerValidationError(
-                f"All but keys must be represented in the answer. Missing: {missing_keys}"
-            )
-        return answer_raw
-
     ################
-    # Less important
+    # Answer methods
     ################
+    def validate_answer(self, answer: dict[str, Any]) -> dict[str, Union[int, str]]:
+        self.validate_answer_template_basic(answer)
+        self.validate_answer_key_value(answer, "answer", dict)
+        self.validate_answer_budget(answer)
+        return answer
 
     def translate_answer_code_to_answer(
-        self, answer_codes: dict[str, int], scenario=None
+        self, answer_codes: dict[str, int], scenario: Scenario = None
     ):
         """Translates the answer codes to the actual answers.
         For example, for a budget question with options ["a", "b", "c"],
@@ -114,20 +88,35 @@ class QuestionBudget(Question):
             "comment": random_string(),
         }
 
+    ################
+    # Helpful methods
+    ################
+    @classmethod
+    def example(cls):
+        return cls(
+            question_name="food_budget",
+            question_text="How would you allocate $100?",
+            question_options=["Pizza", "Ice Cream", "Burgers", "Salad"],
+            budget_sum=100,
+        )
 
-# if __name__ == "__main__":
-#     # for testing
-#     from edsl.questions import QuestionBudget
 
-#     q = QuestionBudget(
-#         question_text="How would you allocate $100?",
-#         question_options=["Pizza", "Ice Cream", "Burgers", "Salad"],
-#         budget_sum=100,
-#         question_name="food_budget",
-#     )
+def main():
+    from edsl.questions.QuestionBudget import QuestionBudget
 
-#     q.formulate_prompt()
-#     q.question_options
-#     q.simulate_answer()
-
-#     results = q.run()
+    q = QuestionBudget.example()
+    q.question_text
+    q.question_options
+    q.question_name
+    q.short_names_dict
+    q.instructions
+    # validate an answer
+    q.validate_answer(
+        {"answer": {0: 100, 1: 0, 2: 0, 3: 0}, "comment": "I like custard"}
+    )
+    # translate answer code
+    q.translate_answer_code_to_answer({0: 100, 1: 0, 2: 0, 3: 0})
+    # simulate answer
+    q.simulate_answer()
+    q.simulate_answer(human_readable=False)
+    q.validate_answer(q.simulate_answer(human_readable=False))

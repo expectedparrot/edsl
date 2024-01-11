@@ -1,7 +1,7 @@
 import random
 import textwrap
 from jinja2 import Template
-from typing import Optional
+from typing import Any, Optional, Union
 from edsl.questions import Question
 from edsl.questions.descriptors import (
     IntegerDescriptor,
@@ -58,14 +58,15 @@ class QuestionCheckBox(Question):
         self.short_names_dict = short_names_dict or dict()
         self.instructions = instructions or self.default_instructions
 
-    def validate_answer(self, answer):
+    ################
+    # Answer methods
+    ################
+    def validate_answer(self, answer: Any) -> dict[str, Union[int, str]]:
         self.validate_answer_template_basic(answer)
+        self.validate_answer_key_value(answer, "answer", list)
         self.validate_answer_checkbox(answer)
         return answer
 
-    ################
-    # Less important
-    ################
     def translate_answer_code_to_answer(self, answer_codes, scenario):
         """
         Translates the answer code to the actual answer.
@@ -97,6 +98,9 @@ class QuestionCheckBox(Question):
             }
         return answer
 
+    ################
+    # Helpful methods
+    ################
     @classmethod
     def example(cls):
         return cls(
