@@ -1,3 +1,4 @@
+from __future__ import annotations
 import random
 from typing import Optional
 from edsl.exceptions import QuestionCreationValidationError
@@ -58,8 +59,11 @@ class QuestionTopK(QuestionCheckBox):
             }
         return answer
 
+    ################
+    # Helpful
+    ################
     @classmethod
-    def example(cls):
+    def example(cls) -> QuestionTopK:
         return cls(
             question_name="two_fruits",
             question_text="Which of the following fruits do you prefer?",
