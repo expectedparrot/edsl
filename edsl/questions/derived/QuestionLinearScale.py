@@ -5,10 +5,10 @@ from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
 
 class QuestionLinearScale(QuestionMultipleChoice):
-    """Inherits from QuestionMultipleChoice, because the two are similar.
-    - A difference is that the answers must have an ordering.
-    - Not every option has to have a label.
-    - But if option labels are provided, there have to be labels for the first and last options.
+    """
+    Inherits from QuestionMultipleChoice.
+    - A difference is that the question options must have an ordering.
+    - If question option labels are provided, there have to be labels for the first and last options.
     """
 
     question_type = "linear_scale"

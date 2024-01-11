@@ -7,7 +7,10 @@ from edsl.utilities import random_string
 
 
 class QuestionTopK(QuestionCheckBox):
-    """QuestionTopK is similar to QuestionCheckBox, but requires that the user selects exactly K among the question options."""
+    """
+    Inherits from QuestionCheckBox.
+    - It additionally requires that the user selects exactly K among the question options.
+    """
 
     question_type = "top_k"
 
