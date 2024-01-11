@@ -1,3 +1,4 @@
+from __future__ import annotations
 from edsl.questions.descriptors import QuestionOptionsDescriptor
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
@@ -26,10 +27,10 @@ class QuestionYesNo(QuestionMultipleChoice):
         self.question_options = question_options
 
     ################
-    # Example
+    # Helpful
     ################
     @classmethod
-    def example(cls):
+    def example(cls) -> QuestionYesNo:
         return cls(
             question_name="is_it_raining",
             question_text="Is it raining?",
