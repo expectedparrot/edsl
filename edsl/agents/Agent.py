@@ -1,15 +1,20 @@
 from __future__ import annotations
 import copy
 import json
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Optional, Union, Dict
+from abc import ABC, abstractmethod
 
 from edsl.Base import Base
 
-from edsl.exceptions import (
-    AgentAttributeLookupCallbackError,
-    AgentCombinationError,
-    AgentRespondedWithBadJSONError,
+from edsl.exceptions import AgentCombinationError
+
+from edsl.agents.Invigilator import (
+    InvigilatorDebug,
+    InvigilatorHuman,
+    InvigilatorFunctional,
+    InvigilatorAI,
 )
+
 from edsl.language_models import LanguageModel, LanguageModelOpenAIThreeFiveTurbo
 from edsl.scenarios import Scenario
 from edsl.utilities import (
@@ -19,104 +24,40 @@ from edsl.utilities import (
     print_dict_with_rich,
 )
 
-
-DEFAULT_INSTRUCTION = (
-    """You are answering questions as if you were a human. Do not break character."""
+from edsl.agents.descriptors import (
+    TraitsDescriptor,
+    CodebookDescriptor,
+    InstructionDescriptor,
 )
 
 
 class Agent(Base):
-    """An agent answers."""
+    """An agent answers questions."""
+
+    default_instruction = """You are answering questions as if you were a human. Do not break character."""
+
+    traits = TraitsDescriptor()
+    codebook = CodebookDescriptor()
+    instruction = InstructionDescriptor()
 
     def __init__(
         self,
         traits: dict = None,
-        attribute_lookup_callback: Callable = None,
-        verbose: bool = False,
-        original_names_dict: dict = None,
+        codebook: dict = None,
         instruction: str = None,
     ):
-        self.attribute_lookup_callback = attribute_lookup_callback
-        self.instruction = instruction or DEFAULT_INSTRUCTION
-        self.verbose = verbose
-        self._original_names = original_names_dict or dict()
-        self._questions_to_traits = dict()
-        self._traits = traits or dict()
-
-    ################
-    # TRAITS METHODS
-    ################
-    @property
-    def traits(self) -> dict[str, Any]:
-        """Returns the traits of the agent."""
-        return self._traits
-
-    def update_traits(
-        self,
-        new_attributes: list[str],
-        attribute_lookup_callback: Callable = None,
-    ) -> None:
-        """Updates the Agent traits with new attributes. Allows an optional callback, defaulting to the instance's attribute_lookup_callback."""
-        attribute_lookup = attribute_lookup_callback or self.attribute_lookup_callback
-        if not attribute_lookup:
-            raise AgentAttributeLookupCallbackError("Missing callback.")
-
-        _traits = {}
-        for attribute in new_attributes:
-            try:
-                trait_name, value = attribute_lookup(attribute)
-                _traits[trait_name] = value
-            except Exception as e:
-                raise AgentAttributeLookupCallbackError(
-                    f"Error in attribute lookup callback: {e}"
-                    f"Attribute Lookup Callback: {attribute_lookup}"
-                    f"Attribute: {attribute}"
-                )
-        self._traits = _traits
-
-    def get_original_name(self, trait: str) -> str:
-        """Returns the original name of a trait, if any."""
-        return self._original_names.get(trait, trait)
+        self.traits = traits or dict()
+        self.codebook = codebook or dict()
+        self.instruction = instruction or self.default_instruction
 
     def agent_with_valid_trait_names(self) -> Agent:
         """
-        Returns a new agent with trait keys that are valid variable names.
-        Useful down the road; stores the original names.
+        DEPRECATED
         """
-        original_names_dict = {}
-        new_traits_dict = {}
-        for key, value in self._traits.items():
-            new_name = create_valid_var_name(key)
-            new_traits_dict[new_name] = value
-            original_names_dict[new_name] = key
-
-        return Agent(traits=new_traits_dict, original_names_dict=original_names_dict)
-
-    ################
-    # LLM METHODS
-    ################
-    def construct_system_prompt(self) -> str:
-        """Constructs the system prompt for the LLM call."""
-        instruction = self.instruction
-        traits = f"Your traits are: {self.traits}."
-        return f"{instruction} {traits}"
-
-    def get_response(
-        self, prompt: str, system_prompt: str, model: LanguageModel = None
-    ):
-        """Calls the LLM and gets a response. Used in the `answer_question` method."""
-        model = model or LanguageModelOpenAIThreeFiveTurbo(use_cache=True)
-
-        try:
-            response = model.get_response(prompt, system_prompt)
-        except json.JSONDecodeError as e:
-            raise AgentRespondedWithBadJSONError(
-                f"Returned bad JSON: {e}"
-                f"Prompt: {prompt}"
-                f"System Prompt: {system_prompt}"
-            )
-
-        return response
+        print(
+            "WARNING: This method is deprecated. We now enforce valid names on Agent creation"
+        )
+        return self
 
     def answer_question(
         self,
@@ -126,43 +67,30 @@ class Agent(Base):
         debug: bool = False,
     ):
         """
-        The main function that the agent calls to answer a question.
-        1) It first constructs the prompts, then calls the LLM.
-        2) It then validates the response and the answers.
-        The answer from the JSON can be in code, so it uses the
-        question-specific translation function to translate the code to the answer.
+        This is a function where an agent returns an answer to a particular question.
+        However, there are several different ways an agent can answer a question, so the
+        actual functionality is delegated to an Invigilator object.
         """
-        # simulated answers (w/o API call)
-        #  if debug mode
-        if debug:
-            return question.simulate_answer(human_readable=True)
-        #  if the question has this method
-        if hasattr(question, "answer_question_directly"):
-            return question.answer_question_directly(
-                scenario=scenario, agent_traits=self.traits
-            )
-        #  if the agent has this method
-        if hasattr(self, "answer_question_directly"):
-            answer = self.answer_question_directly(question.question_name)
-            response = {"answer": answer}
-            response = question.validate_response(response)
-            response["model"] = "human"
-            response["scenario"] = scenario
-            return response
-
-        # actual answers (w/ API call)
-        #  get answer
+        model = model or LanguageModelOpenAIThreeFiveTurbo(use_cache=True)
         scenario = scenario or Scenario()
-        system_prompt = self.construct_system_prompt()
-        prompt = question.get_prompt(scenario)
-        response = self.get_response(prompt, system_prompt, model)
-        #  validate answer
-        response = question.validate_response(response)
-        response = question.validate_answer(response)
-        answer_code = response["answer"]
-        response["answer"] = question.translate_answer_code_to_answer(
-            answer_code, scenario
-        )
+
+        if debug:
+            # use the question's simulate_answer method
+            invigilator_class = InvigilatorDebug
+        elif hasattr(question, "answer_question_directly"):
+            # it is a functional question and the answer only depends on the agent's traits & the scenario
+            invigilator_class = InvigilatorFunctional
+        elif hasattr(self, "answer_question_directly"):
+            # this of the case where the agent has a method that can answer the question directly
+            # this occurrs when 'answer_question_directly' has been monkey-patched onto the agent
+            # which happens when the agent is created from an existing survey
+            invigilator_class = InvigilatorHuman
+        else:
+            # this means an LLM agent will be used. This is the standard case.
+            invigilator_class = InvigilatorAI
+
+        invigilator = invigilator_class(self, question, scenario, model)
+        response = invigilator.answer_question()
         return response
 
     ################
@@ -186,11 +114,16 @@ class Agent(Base):
 
     def __eq__(self, other: Agent) -> bool:
         """Checks if two agents are equal. Only checks the traits."""
-        return self.traits == other.traits
+        return self.data == other.data
 
-    def __repr__(self) -> str:
-        """Returns the agent's representation."""
-        return f"Agent(traits = {self.traits})"
+    def __repr__(self):
+        class_name = self.__class__.__name__
+        items = [
+            f"{k} = '{v}'" if isinstance(v, str) else f"{k} = {v}"
+            for k, v in self.data.items()
+            if k != "question_type"
+        ]
+        return f"{class_name}({', '.join(items)})"
 
     ################
     # Forward methods
@@ -213,9 +146,23 @@ class Agent(Base):
     ################
     # SERIALIZATION METHODS
     ################
+    @property
+    def data(self):
+        raw_data = {
+            k.replace("_", "", 1): v
+            for k, v in self.__dict__.items()
+            if k.startswith("_")
+        }
+        if hasattr(self, "set_instructions"):
+            if not self.set_instructions:
+                raw_data.pop("instruction")
+        if self.codebook == {}:
+            raw_data.pop("codebook")
+        return raw_data
+
     def to_dict(self) -> dict[str, Union[dict, bool]]:
         """Serializes to a dictionary."""
-        return {"traits": self.traits, "verbose": self.verbose}
+        return self.data
 
     @classmethod
     def from_dict(cls, agent_dict: dict[str, Union[dict, bool]]) -> Agent:
@@ -269,3 +216,7 @@ def main():
     # run the job
     results = job.run()
     # results
+
+
+if __name__ == "__main__":
+    main()

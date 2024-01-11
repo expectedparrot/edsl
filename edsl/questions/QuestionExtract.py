@@ -1,11 +1,10 @@
 import random
 import textwrap
-from typing import Any, Type
+from typing import Any
 from edsl.exceptions import QuestionAnswerValidationError
-from edsl.utilities.utilities import random_string
-
-from edsl.questions.descriptors import AnswerTemplateDescriptor
 from edsl.questions import Question
+from edsl.questions.descriptors import AnswerTemplateDescriptor
+from edsl.utilities.utilities import random_string
 
 
 class QuestionExtract(Question):

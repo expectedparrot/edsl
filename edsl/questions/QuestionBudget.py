@@ -1,11 +1,9 @@
 import random
 import textwrap
-from typing import Type, Union
-from edsl.questions import Question, Settings
 from edsl.exceptions import QuestionAnswerValidationError
-from edsl.utilities.utilities import random_string
-
+from edsl.questions import Question
 from edsl.questions.descriptors import IntegerDescriptor, QuestionOptionsDescriptor
+from edsl.utilities import random_string
 
 
 class QuestionBudget(Question):

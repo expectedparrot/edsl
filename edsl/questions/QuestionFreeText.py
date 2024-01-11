@@ -1,14 +1,12 @@
 import textwrap
 from edsl.utilities.utilities import random_string
 from typing import Optional
-from edsl.questions import Question
-from edsl.questions.ValidatorMixin import ValidatorMixin
 from edsl.exceptions import QuestionAnswerValidationError
-
+from edsl.questions import Question
 from edsl.questions.descriptors import QuestionAllowNonresponseDescriptor
 
 
-class QuestionFreeText(Question, ValidatorMixin):
+class QuestionFreeText(Question):
     default_instructions = textwrap.dedent(
         """\
         You are being asked the following question: {{question_text}}
