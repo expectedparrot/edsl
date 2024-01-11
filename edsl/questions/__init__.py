@@ -1,5 +1,4 @@
 # Schemas
-from edsl.questions.schemas import QuestionData, AnswerData
 from edsl.questions.settings import Settings
 
 # Base Class
