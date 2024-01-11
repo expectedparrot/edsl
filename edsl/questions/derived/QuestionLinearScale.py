@@ -6,9 +6,17 @@ from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
 class QuestionLinearScale(QuestionMultipleChoice):
     """
-    QuestionLinearScale is a question where the user is asked to select a value from a linear scale.
-    - `question_options` is a list of successive positive integers
-    - `question_labels` are the labels associated with the question options. If provided, there have to be labels for the first and last options.
+    This question asks the user to respond to a statement on a linear scale.
+
+    Arguments:
+    - `question_name` is the name of the question (string)
+    - `question_text` is the text of the question (string)
+    - `question_options` are the options the user should select from (list of integers)
+
+    Optional arguments:
+    - `instructions` are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionLinearScale.default_instructions`
+    - `option_labels` maps question_options to labels (dictionary mapping integers to strings)
+    - `short_names_dict` maps question_options to short names (dictionary mapping strings to strings)
 
     For an example, see `QuestionLinearScale.example()`
     """

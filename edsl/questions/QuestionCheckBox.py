@@ -14,10 +14,18 @@ from edsl.utilities import random_string
 
 class QuestionCheckBox(Question):
     """
-    QuestionCheckBox is a question where the user is asked to select options from a list.
-    - `question_options` is a list of strings
-    - `min_selections` is the minimum number of options that must be selected
-    - `max_selections` is the maximum number of options that must be selected
+    This question asks the user to select options from a list.
+
+    Arguments:
+    - `question_name` is the name of the question (string)
+    - `question_options` are the options the user should select from (list of strings)
+    - `question_text` is the text of the question (string)
+
+    Optional arguments:
+    - `min_selections` is the minimum number of options that must be selected (positive integer)
+    - `max_selections` is the maximum number of options that must be selected (positive integer)
+    - `instructions` are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionCheckBox.default_instructions`
+    - `short_names_dict` maps question_options to short names (dictionary mapping strings to strings)
 
     For an example, run `QuestionCheckBox.example()`
     """
@@ -26,7 +34,6 @@ class QuestionCheckBox(Question):
     question_options: list[str] = QuestionOptionsDescriptor()
     min_selections = IntegerDescriptor(none_allowed=True)
     max_selections = IntegerDescriptor(none_allowed=True)
-
     default_instructions = textwrap.dedent(
         """\
         You are being asked the following question: {{question_text}}
@@ -54,9 +61,9 @@ class QuestionCheckBox(Question):
         question_name: str,
         question_text: str,
         question_options: list[str],
-        short_names_dict: Optional[dict[str, str]] = None,
         min_selections: Optional[int] = None,
         max_selections: Optional[int] = None,
+        short_names_dict: Optional[dict[str, str]] = None,
         instructions: Optional[str] = None,
     ):
         self.question_name = question_name

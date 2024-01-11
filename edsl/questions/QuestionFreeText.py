@@ -10,9 +10,15 @@ from edsl.utilities import random_string
 # TODO: should allow answer = {"answer": None} if allow_nonresponse is True
 class QuestionFreeText(Question):
     """
-    QuestionFreeText is a question where the user is asked to provide a free text answer.
-    - `question_text` is the question text
-    - `allow_nonresponse` is a boolean indicating whether the user can skip the question
+    This question asks the user to answer with free text.
+
+    Arguments:
+    - `question_name` is the name of the question (string)
+    - `question_text` is the text of the question (string)
+
+    Optional arguments:
+    - `allow_nonresponse` is whether the user can skip the question (boolean). If not provided, the default is False.
+    - `instructions` are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionFreeText.default_instructions`
 
     For an example, run `QuestionFreeText.example()`
     """
@@ -32,14 +38,12 @@ class QuestionFreeText(Question):
         question_text: str,
         question_name: str,
         allow_nonresponse: Optional[bool] = None,
-        short_names_dict: Optional[dict[str, str]] = None,
         instructions: Optional[str] = None,
     ):
         self.question_text = question_text
         self.question_name = question_name
         self.allow_nonresponse = allow_nonresponse or False
         self.instructions = instructions or self.default_instructions
-        self.short_names_dict = short_names_dict or dict()
 
     ################
     # Answer methods
@@ -71,7 +75,6 @@ def main():
     q = QuestionFreeText.example()
     q.question_text
     q.question_name
-    q.short_names_dict
     q.instructions
     # validate an answer
     q.validate_answer({"answer": "I like custard"})

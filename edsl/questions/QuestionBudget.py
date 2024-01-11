@@ -1,7 +1,7 @@
 from __future__ import annotations
 import random
 import textwrap
-from typing import Any, Union
+from typing import Any, Optional, Union
 from edsl.questions import Question
 from edsl.questions.descriptors import IntegerDescriptor, QuestionOptionsDescriptor
 from edsl.scenarios import Scenario
@@ -10,15 +10,24 @@ from edsl.utilities import random_string
 
 class QuestionBudget(Question):
     """
-    QuestionBudget is a question where the user is asked to allocate a budget among options.
-    - `budget_sum` is the total amount of the budget, and should be a positive integer.
-    - `question_options` is a list of strings
+    This question asks the respondent to allocate a budget among options.
 
-    For an example, run `QuestionBudget.example()`
+    Arguments:
+    - `budget_sum` is the total amount of the budget to be allocated (positive integer)
+    - `question_name` is the name of the question (string)
+    - `question_options` are the options the user should allocated the budget to (list of strings)
+    - `question_text` is the text of the question (string)
+
+    Optional arguments:
+    - `instructions` are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionBudget.default_instructions`
+    - `short_names_dict` maps question_options to short names (dictionary mapping strings to strings)
+
+    To generate an example, run `QuestionBudget.example()`
     """
 
     question_type = "budget"
-
+    budget_sum: int = IntegerDescriptor(none_allowed=False)
+    question_options: list[str] = QuestionOptionsDescriptor()
     default_instructions = textwrap.dedent(
         """\
         You are being asked the following question: {{question_text}}
@@ -38,23 +47,20 @@ class QuestionBudget(Question):
         """
     )
 
-    budget_sum: int = IntegerDescriptor(none_allowed=False)
-    question_options: list[str] = QuestionOptionsDescriptor()
-
     def __init__(
         self,
         question_name: str,
         question_text: str,
         question_options: list[str],
         budget_sum: int,
-        short_names_dict: dict[str, str] = None,
-        instructions: str = None,
+        short_names_dict: Optional[dict[str, str]] = None,
+        instructions: Optional[str] = None,
     ):
         self.question_name = question_name
         self.question_text = question_text
         self.question_options = question_options
         self.budget_sum = budget_sum
-        self.short_names_dict = short_names_dict or dict({})
+        self.short_names_dict = short_names_dict or {}
         self.instructions = instructions or self.default_instructions
 
     ################

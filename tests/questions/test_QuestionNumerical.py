@@ -17,13 +17,11 @@ valid_question = {
     "question_name": "num_planets",
     "min_value": 1,
     "max_value": 10,
-    "short_names_dict": {},
 }
 
 valid_question_wo_extras = {
     "question_text": "How many planets are there?",
     "question_name": "num_planets",
-    "short_names_dict": {},
 }
 
 
