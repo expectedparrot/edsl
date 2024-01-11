@@ -1,9 +1,7 @@
 from __future__ import annotations
-import random
 from typing import Optional
 from edsl.exceptions import QuestionCreationValidationError
 from edsl.questions.QuestionCheckBox import QuestionCheckBox
-from edsl.utilities import random_string
 
 
 class QuestionTopK(QuestionCheckBox):

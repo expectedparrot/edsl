@@ -1,3 +1,4 @@
+from __future__ import annotations
 import random
 import textwrap
 from typing import Any
@@ -64,7 +65,7 @@ class QuestionExtract(Question):
     # Helpful methods
     ################
     @classmethod
-    def example(cls):
+    def example(cls) -> QuestionExtract:
         return cls(
             question_name="extract_name",
             question_text="My name is Moby Dick. I have a PhD in astrology, but I'm actually a truck driver",

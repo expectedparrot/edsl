@@ -1,3 +1,4 @@
+from __future__ import annotations
 import random
 import textwrap
 from typing import Any, Union
@@ -98,7 +99,7 @@ class QuestionBudget(Question):
     # Helpful methods
     ################
     @classmethod
-    def example(cls):
+    def example(cls) -> QuestionBudget:
         return cls(
             question_name="food_budget",
             question_text="How would you allocate $100?",

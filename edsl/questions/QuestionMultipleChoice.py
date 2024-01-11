@@ -10,7 +10,12 @@ from edsl.scenarios import Scenario
 
 
 class QuestionMultipleChoice(Question):
-    """QuestionMultipleChoice"""
+    """
+    QuestionMultipleChoice is a question where the user is asked to select one option from a list.
+    - `question_options` is a list of strings
+
+    For an example, run `QuestionMultipleChoice.example()`
+    """
 
     question_type = "multiple_choice"
     question_options: list[str] = QuestionOptionsDescriptor()
@@ -41,6 +46,9 @@ class QuestionMultipleChoice(Question):
         self.short_names_dict = short_names_dict or dict()
         self.instructions = instructions or self.default_instructions
 
+    ################
+    # Answer methods
+    ################
     def validate_answer(
         self, answer: dict[str, Union[str, int]]
     ) -> dict[str, Union[str, int]]:
@@ -49,19 +57,8 @@ class QuestionMultipleChoice(Question):
         self.validate_answer_multiple_choice(answer)
         return answer
 
-    ################
-    # Less important
-    ################
     def translate_answer_code_to_answer(self, answer_code, scenario: Scenario = None):
-        """
-        Translates the answer code to the actual answer.
-        For example, for question_options ["a", "b", "c"], the answer codes are 0, 1, and 2.
-        The LLM will respond with 0, and this code will translate that to "a".
-        # TODO: REMOVE
-        >>> q = QuestionMultipleChoice(question_text = "How are you?", question_options = ["Good", "Great", "OK", "Bad"], question_name = "how_feeling")
-        >>> q.translate_answer_code_to_answer(0, {})
-        'Good'
-        """
+        """Translates the answer code to the actual answer."""
         scenario = scenario or Scenario()
         translated_options = [
             Template(str(option)).render(scenario) for option in self.question_options
@@ -85,7 +82,7 @@ class QuestionMultipleChoice(Question):
     # Example
     ################
     @classmethod
-    def example(cls):
+    def example(cls) -> QuestionMultipleChoice:
         return cls(
             question_text="How are you?",
             question_options=["Good", "Great", "OK", "Bad"],
