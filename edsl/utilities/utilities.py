@@ -93,7 +93,7 @@ class HTMLSnippet(str):
         webbrowser.open(f"file://{os.path.realpath(f.name)}")
 
 
-def random_string():
+def random_string() -> str:
     """Generate a random string of fixed length"""
     return "".join(random.choice(string.ascii_letters) for i in range(10))
 

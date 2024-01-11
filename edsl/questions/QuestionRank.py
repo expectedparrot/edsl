@@ -1,19 +1,12 @@
 import random
 import textwrap
-from typing import Type, Optional
-
 from jinja2 import Template
-
-from edsl.questions import Question, QuestionData, AnswerData, Settings
-from edsl.exceptions import (
-    QuestionAnswerValidationError,
-    QuestionCreationValidationError,
-)
+from typing import Optional
+from edsl.questions import Question
+from edsl.exceptions import QuestionAnswerValidationError
 from edsl.utilities.utilities import random_string
-
 from edsl.questions.descriptors import (
     QuestionOptionsDescriptor,
-    IntegerDescriptor,
     NumSelectionsDescriptor,
 )
 
@@ -21,7 +14,6 @@ from edsl.questions.descriptors import (
 class QuestionRank(Question):
     question_type = "rank"
     question_options: list[str] = QuestionOptionsDescriptor()
-    # num_selections = IntegerDescriptor(none_allowed=False)
     num_selections = NumSelectionsDescriptor()
 
     default_instructions = textwrap.dedent(

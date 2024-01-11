@@ -1,14 +1,12 @@
 import textwrap
-
-from typing import Optional, Type, Union
-from edsl.questions import Question
+from typing import Optional
 from edsl.exceptions import QuestionAnswerValidationError
-from edsl.utilities.utilities import random_string
-
+from edsl.questions import Question
 from edsl.questions.descriptors import (
     QuestionAllowNonresponseDescriptor,
     IntegerOrNoneDescriptor,
 )
+from edsl.utilities import random_string
 
 
 class QuestionList(Question):
