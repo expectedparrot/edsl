@@ -42,27 +42,6 @@ class QuestionTopK(QuestionCheckBox):
                 "TopK questions must have min_selections > 0"
             )
 
-    def simulate_answer(self, human_readable=True) -> dict[str, str]:
-        """Simulates a valid answer for debugging purposes"""
-        num_selections = random.randint(self.min_selections, self.max_selections)
-        if human_readable:
-            # Select a random number of options from self.question_options
-            selected_options = random.sample(self.question_options, num_selections)
-            answer = {
-                "answer": selected_options,
-                "comment": random_string(),
-            }
-        else:
-            # Select a random number of indices from the range of self.question_options
-            selected_indices = random.sample(
-                range(len(self.question_options)), num_selections
-            )
-            answer = {
-                "answer": selected_indices,
-                "comment": random_string(),
-            }
-        return answer
-
     ################
     # Helpful
     ################
@@ -93,6 +72,7 @@ def main():
     # simulate answer
     q.simulate_answer()
     q.simulate_answer(human_readable=False)
+    q.validate_answer(q.simulate_answer(human_readable=False))
     # serialization (inherits from Question)
     q.to_dict()
     q.from_dict(q.to_dict()) == q
