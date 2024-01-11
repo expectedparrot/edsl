@@ -167,18 +167,52 @@ class AnswerValidatorMixin:
     def validate_answer_multiple_choice(
         self, answer: dict[str, Union[str, int]]
     ) -> None:
-        """Checks that answer["answer"] is a valid answer code for a multiple choice question"""
+        """
+        QuestionMultipleChoice-specific answer validation. Checks that answer["answer"]:
+        - is a string, bytes-like object or real number
+        - is a non-negative integer
+        - is in the range of the number of options
+        """
         try:
-            answer_code = int(answer["answer"])
+            value = int(answer.get("answer"))
         except:
             raise QuestionAnswerValidationError(
-                f"Answer code must be a string, a bytes-like object or a real number (got {answer['answer']})."
+                f"Answer code must be a string, a bytes-like object or a real number (got {answer.get('answer')})."
             )
-        if not answer_code >= 0:
+        if not value >= 0:
             raise QuestionAnswerValidationError(
-                f"Answer code must be a non-negative integer (got {answer_code})."
+                f"Answer code must be a non-negative integer (got {value})."
             )
-        if int(answer_code) not in range(len(self.question_options)):
+        if int(value) not in range(len(self.question_options)):
             raise QuestionAnswerValidationError(
-                f"Answer code {answer_code} must be in {list(range(len(self.question_options)))}."
+                f"Answer code {value} must be in {list(range(len(self.question_options)))}."
+            )
+
+    def validate_answer_rank(self, answer: dict[str, Union[str, int]]) -> None:
+        """
+        QuestionRank-specific answer validation. Checks that answer["answer"]:
+        - contains only integers
+        - contains only integers in the range of the number of options
+        - has the correct number of elements
+        """
+        value = answer.get("answer")
+        acceptable_values = list(range(len(self.question_options)))
+        for v in value:
+            try:
+                answer_code = int(v)
+            except ValueError:
+                raise QuestionAnswerValidationError(
+                    f"Rank answer {value} has elements that are not integers, namely {v}."
+                )
+            except TypeError:
+                raise QuestionAnswerValidationError(
+                    f"Rank answer {value} has elements that are not integers, namely {v}."
+                )
+            if answer_code not in acceptable_values:
+                raise QuestionAnswerValidationError(
+                    f"Answer {value} has elements not in {acceptable_values}, namely {v}."
+                )
+        if len(value) != self.num_selections:
+            raise QuestionAnswerValidationError(
+                f"Rank answer {value}, but exactly {self.num_selections} selections required."
             )
