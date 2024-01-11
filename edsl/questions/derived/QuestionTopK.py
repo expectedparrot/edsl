@@ -44,20 +44,21 @@ class QuestionTopK(QuestionCheckBox):
 
     def simulate_answer(self, human_readable=True) -> dict[str, str]:
         """Simulates a valid answer for debugging purposes"""
+        num_selections = random.randint(self.min_selections, self.max_selections)
         if human_readable:
-            # Select exactly self.min_selections options from self.question_options
-            selected_options = random.sample(self.question_options, self.min_selections)
+            # Select a random number of options from self.question_options
+            selected_options = random.sample(self.question_options, num_selections)
             answer = {
                 "answer": selected_options,
                 "comment": random_string(),
             }
         else:
-            # Select exactly self.min_selections indexes from the range of self.question_options
-            selected_indexes = random.sample(
-                range(len(self.question_options)), self.min_selections
+            # Select a random number of indices from the range of self.question_options
+            selected_indices = random.sample(
+                range(len(self.question_options)), num_selections
             )
             answer = {
-                "answer": selected_indexes,
+                "answer": selected_indices,
                 "comment": random_string(),
             }
         return answer

@@ -120,3 +120,6 @@ def main():
     q.simulate_answer()
     q.simulate_answer(human_readable=False)
     q.validate_answer(q.simulate_answer(human_readable=False))
+    # serialization (inherits from Question)
+    q.to_dict()
+    q.from_dict(q.to_dict()) == q
