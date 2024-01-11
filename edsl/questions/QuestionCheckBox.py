@@ -12,7 +12,14 @@ from edsl.utilities import random_string
 
 
 class QuestionCheckBox(Question):
-    """QuestionCheckBox"""
+    """
+    QuestionCheckBox is a question where the user is asked to select options from a list.
+    - `question_options` is a list of strings
+    - `min_selections` is the minimum number of options that must be selected
+    - `max_selections` is the maximum number of options that must be selected
+
+    For an example, run `QuestionCheckBox.example()`
+    """
 
     question_type = "checkbox"
     question_options: list[str] = QuestionOptionsDescriptor()

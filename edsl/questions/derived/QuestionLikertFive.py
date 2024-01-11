@@ -4,8 +4,10 @@ from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
 class QuestionLikertFive(QuestionMultipleChoice):
     """
-    Inherits from QuestionMultipleChoice.
-    - A difference is that the question options are fixed to be the 5-point Likert scale.
+    QuestionLikertFive is a question the user is asked to answer on 5-point Likert scale.
+    - `question_options` is a list of strings ["Strongly disagree", "Disagree", "Neutral", "Agree", "Strongly agree"]
+
+    For an example, see `QuestionLikertFive.example()`
     """
 
     question_type = "likert_five"

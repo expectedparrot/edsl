@@ -5,9 +5,11 @@ from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
 class QuestionLinearScale(QuestionMultipleChoice):
     """
-    Inherits from QuestionMultipleChoice.
-    - A difference is that the question options must have an ordering.
-    - If question option labels are provided, there have to be labels for the first and last options.
+    QuestionLinearScale is a question where the user is asked to select a value from a linear scale.
+    - `question_options` is a list of successive positive integers
+    - `question_labels` are the labels associated with the question options. If provided, there have to be labels for the first and last options.
+
+    For an example, see `QuestionLinearScale.example()`
     """
 
     question_type = "linear_scale"

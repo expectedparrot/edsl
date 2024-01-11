@@ -1,12 +1,21 @@
 import textwrap
-from edsl.utilities.utilities import random_string
-from typing import Optional
-from edsl.exceptions import QuestionAnswerValidationError
+from typing import Any, Optional
 from edsl.questions import Question
 from edsl.questions.descriptors import QuestionAllowNonresponseDescriptor
+from edsl.scenarios import Scenario
+from edsl.utilities import random_string
 
 
+# TODO: should allow answer = {"answer": None} if allow_nonresponse is True
 class QuestionFreeText(Question):
+    """
+    QuestionFreeText is a question where the user is asked to provide a free text answer.
+    - `question_text` is the question text
+    - `allow_nonresponse` is a boolean indicating whether the user can skip the question
+    """
+
+    question_type = "free_text"
+    allow_nonresponse: bool = QuestionAllowNonresponseDescriptor()
     default_instructions = textwrap.dedent(
         """\
         You are being asked the following question: {{question_text}}
@@ -14,9 +23,6 @@ class QuestionFreeText(Question):
         {"answer": "<put free text answer here>"}
         """
     )
-
-    question_type = "free_text"
-    allow_nonresponse: bool = QuestionAllowNonresponseDescriptor()
 
     def __init__(
         self,
@@ -28,37 +34,50 @@ class QuestionFreeText(Question):
     ):
         self.question_text = question_text
         self.question_name = question_name
+        self.allow_nonresponse = allow_nonresponse or False
         self.instructions = instructions or self.default_instructions
         self.short_names_dict = short_names_dict or dict()
 
-        self.allow_nonresponse = allow_nonresponse or False
-
-    #############
-    ## Validators
-    #############
-
-    def validate_answer(self, answer: dict[str, str]):
-        """Validates the answer"""
-        if "answer" not in answer:
-            raise QuestionAnswerValidationError("Answer must have an 'answer' key!")
+    ################
+    # Answer methods
+    ################
+    def validate_answer(self, answer: Any) -> dict[str, str]:
+        self.validate_answer_template_basic(answer)
+        self.validate_answer_key_value(answer, "answer", str)
         return answer
 
-    def translate_answer_code_to_answer(self, answer, scenario):
-        """There is no answer code."""
+    def translate_answer_code_to_answer(self, answer, scenario: Scenario = None):
+        """Does nothing, because the answer is already in a human-readable format."""
         return answer
 
-    def simulate_answer(self) -> dict[str, str]:
+    def simulate_answer(self, human_readable: bool = True) -> dict[str, str]:
         return {"answer": random_string()}
 
     @classmethod
     def example(cls):
         return cls(
-            question_text="How are you?",
             question_name="how_are_you",
-            short_names_dict={"good": "good", "bad": "bad"},
+            question_text="How are you?",
             allow_nonresponse=True,
         )
 
 
-if __name__ == "__main__":
+def main():
+    from edsl.questions.QuestionFreeText import QuestionFreeText
+
     q = QuestionFreeText.example()
+    q.question_text
+    q.question_name
+    q.short_names_dict
+    q.instructions
+    # validate an answer
+    q.validate_answer({"answer": "I like custard"})
+    # translate answer code
+    q.translate_answer_code_to_answer({"answer"})
+    # simulate answer
+    q.simulate_answer()
+    q.simulate_answer(human_readable=False)
+    q.validate_answer(q.simulate_answer(human_readable=False))
+    # serialization (inherits from Question)
+    q.to_dict()
+    q.from_dict(q.to_dict()) == q

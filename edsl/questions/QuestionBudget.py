@@ -8,7 +8,13 @@ from edsl.utilities import random_string
 
 
 class QuestionBudget(Question):
-    """QuestionBudget"""
+    """
+    QuestionBudget is a question where the user is asked to allocate a budget among options.
+    - `budget_sum` is the total amount of the budget, and should be a positive integer.
+    - `question_options` is a list of strings
+
+    For an example, run `QuestionBudget.example()`
+    """
 
     question_type = "budget"
 

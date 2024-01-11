@@ -63,8 +63,6 @@ class AnswerTemplateDescriptor(BaseDescriptor):
             raise Exception("Answer template must be a dictionary!")
         if not all(isinstance(x, str) for x in value.keys()):
             raise Exception("Answer template keys must be strings!")
-        if not all(isinstance(x, str) for x in value.values()):
-            raise Exception("Answer template values must be strings!")
 
 
 class InstructionsDescriptor(BaseDescriptor):
