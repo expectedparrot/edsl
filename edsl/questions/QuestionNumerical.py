@@ -1,19 +1,27 @@
-import re
+from __future__ import annotations
 import textwrap
-from random import randint
-from typing import Optional
+from random import uniform
+from typing import Any, Optional, Union
 from edsl.exceptions import QuestionAnswerValidationError
 from edsl.questions import Question
 from edsl.questions.descriptors import NumericalOrNoneDescriptor
-from edsl.utilities.utilities import random_string
+from edsl.scenarios import Scenario
+from edsl.utilities import random_string
 
 
 class QuestionNumerical(Question):
-    question_type = "numerical"
+    """
+    QuestionNumerical is a question where the user is asked to provide a numerical answer.
+    - `question_text` is the question text
+    - `min_value` is the minimum value of the answer
+    - `max_value` is the maximum value of the answer
 
+    For an example, run `QuestionNumerical.example()`
+    """
+
+    question_type = "numerical"
     min_value: Optional[float] = NumericalOrNoneDescriptor()
     max_value: Optional[float] = NumericalOrNoneDescriptor()
-
     default_instructions = textwrap.dedent(
         """\
         You are being asked a question that requires a numerical response 
@@ -42,8 +50,8 @@ class QuestionNumerical(Question):
         self,
         question_name: str,
         question_text: str,
-        min_value=None,
-        max_value=None,
+        min_value: Optional[Union[int, float]] = None,
+        max_value: Optional[Union[int, float]] = None,
         short_names_dict: Optional[dict[str, str]] = None,
         instructions: Optional[str] = None,
     ):
@@ -54,75 +62,58 @@ class QuestionNumerical(Question):
         self.instructions = instructions or self.default_instructions
         self.short_names_dict = short_names_dict or dict()
 
-    def validate_answer(self, answer: dict[str, str]):
-        if "answer" not in answer:
-            raise QuestionAnswerValidationError("Answer must have an 'answer' key!")
-        value = answer["answer"]
-        # if value is None:
-        #    raise QuestionAnswerValidationError("Answer must have a value!")
-        value = self.check_answer_numeric(value)
-        value = self.check_answer(value)
+    ################
+    # Answer methods
+    ################
+    def validate_answer(
+        self, answer: dict[str, Any]
+    ) -> dict[str, Union[str, float, int]]:
+        """Validates the answer"""
+        self.validate_answer_template_basic(answer)
+        self.validate_answer_key_value_numeric(answer, "answer")
+        self.validate_answer_numerical(answer)
         return answer
 
-    def check_answer_numeric(cls, value):
-        if type(value) == str:
-            value = value.replace(",", "")
-            value = "".join(re.findall(r"[-+]?\d*\.\d+|\d+", value))
-            if value.isdigit():
-                value = int(value)
-            else:
-                try:
-                    float(value)
-                    value = float(value)
-                except ValueError:
-                    raise QuestionAnswerValidationError(
-                        f"Answer should be numerical (int or float)."
-                    )
-            return value
-        elif type(value) == int or type(value) == float:
-            return value
-        else:
-            raise QuestionAnswerValidationError(
-                f"Answer should be numerical (int or float)."
-            )
-
-    def check_answer(self, value):
-        if self.min_value is not None and value < self.min_value:
-            raise QuestionAnswerValidationError(
-                f"Value {value} is less than {self.min_value}"
-            )
-        if self.max_value is not None and value > self.max_value:
-            raise QuestionAnswerValidationError(
-                f"Value {value} is greater than {self.max_value}"
-            )
-        return value
-
-    def translate_answer_code_to_answer(self, answer, scenario=None):
+    def translate_answer_code_to_answer(self, answer, scenario: Scenario = None):
         """There is no answer code."""
         return answer
 
-    def simulate_answer(self, human_readable=True):
-        "Simulates a valid answer for debugging purposes"
-        return {"answer": randint(0, 100), "comment": random_string()}
+    def simulate_answer(self, human_readable: bool = True):
+        """Simulates a valid answer for debugging purposes"""
+        return {
+            "answer": uniform(self.min_value, self.max_value),
+            "comment": random_string(),
+        }
 
+    ################
+    # Helpful methods
+    ################
     @classmethod
-    def example(cls):
+    def example(cls) -> QuestionNumerical:
         return cls(
             question_name="age",
             question_text="How old are you in years?",
             min_value=0,
-            max_value=10,
+            max_value=86.7,
         )
 
 
-if __name__ == "__main__":
-    # from edsl.agents import Agent
+def main():
+    from edsl.questions.QuestionNumerical import QuestionNumerical
 
-    q = QuestionNumerical(
-        question_name="sadness_scale",
-        question_text="On a scale of 1-10 how often do you feel sad or down ?",
-        min_value=0,
-        max_value=10,
-    )
-    # results = sadness_scale.by(Agent(traits={"sadness": "Very, very low"})).run()
-    # print(results)
+    q = QuestionNumerical.example()
+    q.question_text
+    q.min_value
+    q.max_value
+    q.instructions
+    # validate an answer
+    q.validate_answer({"answer": 1, "comment": "I like custard"})
+    # translate answer code
+    q.translate_answer_code_to_answer(1)
+    # simulate answer
+    q.simulate_answer()
+    q.simulate_answer(human_readable=False)
+    q.validate_answer(q.simulate_answer(human_readable=False))
+    # serialization (inherits from Question)
+    q.to_dict()
+    q.from_dict(q.to_dict()) == q

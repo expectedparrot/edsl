@@ -1,14 +1,16 @@
-from typing import Optional, Union
-from edsl.exceptions import QuestionAnswerValidationError
+from __future__ import annotations
+from typing import Optional
 from edsl.questions.descriptors import QuestionOptionsDescriptor, OptionLabelDescriptor
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
 
 class QuestionLinearScale(QuestionMultipleChoice):
     """
-    Inherits from QuestionMultipleChoice.
-    - A difference is that the question options must have an ordering.
-    - If question option labels are provided, there have to be labels for the first and last options.
+    QuestionLinearScale is a question where the user is asked to select a value from a linear scale.
+    - `question_options` is a list of successive positive integers
+    - `question_labels` are the labels associated with the question options. If provided, there have to be labels for the first and last options.
+
+    For an example, see `QuestionLinearScale.example()`
     """
 
     question_type = "linear_scale"
@@ -38,7 +40,7 @@ class QuestionLinearScale(QuestionMultipleChoice):
     # Helpful
     ################
     @classmethod
-    def example(cls):
+    def example(cls) -> QuestionLinearScale:
         return cls(
             question_text="How much do you like ice cream?",
             question_options=[1, 2, 3, 4, 5],
@@ -63,6 +65,7 @@ def main():
     # simulate answer
     q.simulate_answer()
     q.simulate_answer(human_readable=False)
+    q.validate_answer(q.simulate_answer(human_readable=False))
     # serialization (inherits from Question)
     q.to_dict()
     q.from_dict(q.to_dict()) == q

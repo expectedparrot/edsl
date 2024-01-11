@@ -1,15 +1,16 @@
 from __future__ import annotations
-import random
 from typing import Optional
 from edsl.exceptions import QuestionCreationValidationError
 from edsl.questions.QuestionCheckBox import QuestionCheckBox
-from edsl.utilities import random_string
 
 
 class QuestionTopK(QuestionCheckBox):
     """
-    Inherits from QuestionCheckBox.
-    - It additionally requires that the user selects exactly K among the question options.
+    QuestionTopK is a question where the user is asked to select exactly K options from a list.
+    - `question_options` is a list of strings
+    - `min_selections` should be equal to `max_selections`
+
+    For an example, run `QuestionTopK.example()`
     """
 
     question_type = "top_k"
@@ -42,26 +43,6 @@ class QuestionTopK(QuestionCheckBox):
                 "TopK questions must have min_selections > 0"
             )
 
-    def simulate_answer(self, human_readable=True) -> dict[str, str]:
-        """Simulates a valid answer for debugging purposes"""
-        if human_readable:
-            # Select exactly self.min_selections options from self.question_options
-            selected_options = random.sample(self.question_options, self.min_selections)
-            answer = {
-                "answer": selected_options,
-                "comment": random_string(),
-            }
-        else:
-            # Select exactly self.min_selections indexes from the range of self.question_options
-            selected_indexes = random.sample(
-                range(len(self.question_options)), self.min_selections
-            )
-            answer = {
-                "answer": selected_indexes,
-                "comment": random_string(),
-            }
-        return answer
-
     ################
     # Helpful
     ################
@@ -92,6 +73,7 @@ def main():
     # simulate answer
     q.simulate_answer()
     q.simulate_answer(human_readable=False)
+    q.validate_answer(q.simulate_answer(human_readable=False))
     # serialization (inherits from Question)
     q.to_dict()
     q.from_dict(q.to_dict()) == q
