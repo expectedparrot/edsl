@@ -74,7 +74,7 @@ class QuestionExtract(Question):
 
 
 # main
-if __name__ == "__main__":
+def main():
     from edsl.questions.QuestionExtract import QuestionExtract
 
     q = QuestionExtract.example()

@@ -3,8 +3,13 @@ from edsl.exceptions import (
     QuestionAnswerValidationError,
     QuestionCreationValidationError,
 )
-from edsl.questions import Question  # , QuestionLinearScale
-from edsl.questions.derived.QuestionLinearScale import QuestionLinearScale
+from edsl.questions import Question
+from edsl.questions.derived.QuestionLinearScale import QuestionLinearScale, main
+
+
+def test_QuestionLinearScale_main():
+    main()
+
 
 valid_question = {
     "question_text": "On a scale from 1 to 5, how much do you like pizza?",

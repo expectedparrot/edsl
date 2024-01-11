@@ -4,7 +4,13 @@ from edsl.exceptions import (
     QuestionAnswerValidationError,
     QuestionResponseValidationError,
 )
-from edsl.questions import Question, QuestionCheckBox, Settings
+from edsl.questions import Question, Settings
+from edsl.questions.QuestionCheckBox import QuestionCheckBox, main
+
+
+def test_QuestionCheckBox_main():
+    main()
+
 
 valid_question = {
     "question_text": "Which weekdays do you like? Select 2 or 3.",

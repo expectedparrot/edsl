@@ -3,7 +3,13 @@ from edsl.exceptions import (
     QuestionAnswerValidationError,
     QuestionResponseValidationError,
 )
-from edsl.questions import Question, QuestionFreeText, Settings
+from edsl.questions import Question, Settings
+from edsl.questions.QuestionFreeText import QuestionFreeText, main
+
+
+def test_QuestionFreeText_main():
+    main()
+
 
 valid_question = {
     "question_text": "How are you?",

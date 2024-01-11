@@ -4,7 +4,13 @@ from edsl.exceptions import (
     QuestionAnswerValidationError,
     QuestionResponseValidationError,
 )
-from edsl.questions import Question, QuestionList, Settings
+from edsl.questions import Question, Settings
+from edsl.questions.QuestionList import QuestionList, main
+
+
+def test_QuestionList_main():
+    main()
+
 
 valid_question = {
     "question_text": "How do you change a car tire?",
