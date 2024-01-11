@@ -1,6 +1,11 @@
 import pytest
-from edsl.questions import QuestionLikertFive
 from edsl.questions import Question
+from edsl.questions.derived.QuestionLikertFive import QuestionLikertFive, main
+
+
+def test_QuestionLikertFive_main():
+    main()
+
 
 valid_question = {
     "question_text": "You like pizza. How strongly do you dis/agree?",

@@ -6,13 +6,21 @@ from edsl.exceptions import (
 
 
 class AnswerValidatorMixin:
-    """AnswerValidatorMixin"""
+    """
+    Mixin with validators for LLM answers to questions
+    - Template validation: validators for the answer object format
+    - Value validation: validators for specific values
+    - Question specific validation: validators for specific question types
+    """
 
     #####################
     # TEMPLATE VALIDATION
     #####################
     def validate_answer_template_basic(self, answer: Any) -> None:
-        """Checks that the answer (i) is a dictionary (ii) has an 'answer' key"""
+        """
+        Checks that the answer (i) is a dictionary (ii) has an 'answer' key
+        - E.g., both {'answer': 1} and {'answer': {'a': 1}, 'other_key'=[1,2,3]} are valid
+        """
         if not isinstance(answer, dict):
             raise QuestionAnswerValidationError(
                 f"Answer must be a dictionary (got {answer})."

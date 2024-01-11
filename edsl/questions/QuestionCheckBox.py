@@ -132,7 +132,7 @@ class QuestionCheckBox(Question):
         )
 
 
-if __name__ == "__main__":
+def main():
     from edsl.questions.QuestionCheckBox import QuestionCheckBox
 
     q = QuestionCheckBox.example()
@@ -151,4 +151,4 @@ if __name__ == "__main__":
     q.validate_answer(q.simulate_answer(human_readable=False))
     # serialization (inherits from Question)
     q.to_dict()
-    q.from_dict(q.to_dict()) == q
+    assert q.from_dict(q.to_dict()) == q

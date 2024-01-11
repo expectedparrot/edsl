@@ -109,4 +109,4 @@ def main():
     q.simulate_answer(human_readable=False)
     # serialization (inherits from Question)
     q.to_dict()
-    q.from_dict(q.to_dict()) == q
+    assert q.from_dict(q.to_dict()) == q

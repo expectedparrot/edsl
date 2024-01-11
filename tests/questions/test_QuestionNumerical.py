@@ -4,7 +4,13 @@ from edsl.exceptions import (
     QuestionAnswerValidationError,
     QuestionResponseValidationError,
 )
-from edsl.questions import Question, QuestionNumerical, Settings
+from edsl.questions import Question, Settings
+from edsl.questions.QuestionNumerical import QuestionNumerical, main
+
+
+def test_QuestionNumerical_main():
+    main()
+
 
 valid_question = {
     "question_text": "How many planets are there?",
