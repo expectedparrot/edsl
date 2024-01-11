@@ -1,3 +1,4 @@
+from __future__ import annotations
 import random
 import textwrap
 from jinja2 import Template
@@ -115,7 +116,7 @@ class QuestionCheckBox(Question):
     # Helpful methods
     ################
     @classmethod
-    def example(cls):
+    def example(cls) -> QuestionCheckBox:
         return cls(
             question_name="never_eat",
             question_text="Which of the following foods would you eat if you had to?",

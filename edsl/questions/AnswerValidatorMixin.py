@@ -1,3 +1,4 @@
+import re
 from typing import Any, Type, Union
 from edsl.exceptions import (
     QuestionAnswerValidationError,
@@ -31,6 +32,31 @@ class AnswerValidatorMixin:
         if not isinstance(answer.get(key), of_type):
             raise QuestionAnswerValidationError(
                 f"Answer key '{key}' must be of type {of_type.__name__} (got {answer.get(key)})."
+            )
+
+    def validate_answer_key_value_numeric(
+        self, answer: dict[str, Any], key: str
+    ) -> None:
+        value = answer.get(key)
+        if type(value) == str:
+            value = value.replace(",", "")
+            value = "".join(re.findall(r"[-+]?\d*\.\d+|\d+", value))
+            if value.isdigit():
+                value = int(value)
+            else:
+                try:
+                    float(value)
+                    value = float(value)
+                except ValueError:
+                    raise QuestionAnswerValidationError(
+                        f"Answer should be numerical (int or float)."
+                    )
+            return None
+        elif type(value) == int or type(value) == float:
+            return None
+        else:
+            raise QuestionAnswerValidationError(
+                f"Answer should be numerical (int or float)."
             )
 
     #####################
@@ -96,6 +122,39 @@ class AnswerValidatorMixin:
             raise QuestionAnswerValidationError(
                 f"Answer must have all keys in {acceptable_answer_keys}, but got {value.keys()}"
             )
+
+    def validate_answer_list(self, answer: dict[str, Union[list, str]]) -> None:
+        value = answer.get("answer")
+        if (
+            hasattr(self, "allow_nonresponse")
+            and self.allow_nonresponse == False
+            and (value == [] or value is None)
+        ):
+            raise QuestionAnswerValidationError("You must provide a response.")
+
+        if (
+            hasattr(self, "max_list_items")
+            and self.max_list_items is not None
+            and (len(value) > self.max_list_items)
+        ):
+            raise QuestionAnswerValidationError("Response has too many items.")
+
+        if any([item == "" for item in value]):
+            raise QuestionAnswerValidationError(
+                f"Answer cannot contain empty strings, but got {value}."
+            )
+
+    def validate_answer_numerical(self, answer: dict) -> None:
+        value = float(answer.get("answer"))
+        if self.min_value is not None and value < self.min_value:
+            raise QuestionAnswerValidationError(
+                f"Value {value} is less than {self.min_value}"
+            )
+        if self.max_value is not None and value > self.max_value:
+            raise QuestionAnswerValidationError(
+                f"Value {value} is greater than {self.max_value}"
+            )
+        return value
 
     def validate_answer_multiple_choice(
         self, answer: dict[str, Union[str, int]]

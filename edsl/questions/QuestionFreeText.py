@@ -1,3 +1,4 @@
+from __future__ import annotations
 import textwrap
 from typing import Any, Optional
 from edsl.questions import Question
@@ -12,6 +13,8 @@ class QuestionFreeText(Question):
     QuestionFreeText is a question where the user is asked to provide a free text answer.
     - `question_text` is the question text
     - `allow_nonresponse` is a boolean indicating whether the user can skip the question
+
+    For an example, run `QuestionFreeText.example()`
     """
 
     question_type = "free_text"
@@ -54,7 +57,7 @@ class QuestionFreeText(Question):
         return {"answer": random_string()}
 
     @classmethod
-    def example(cls):
+    def example(cls) -> QuestionFreeText:
         return cls(
             question_name="how_are_you",
             question_text="How are you?",

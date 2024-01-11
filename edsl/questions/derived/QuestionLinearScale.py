@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Optional
 from edsl.questions.descriptors import QuestionOptionsDescriptor, OptionLabelDescriptor
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
@@ -39,7 +40,7 @@ class QuestionLinearScale(QuestionMultipleChoice):
     # Helpful
     ################
     @classmethod
-    def example(cls):
+    def example(cls) -> QuestionLinearScale:
         return cls(
             question_text="How much do you like ice cream?",
             question_options=[1, 2, 3, 4, 5],
