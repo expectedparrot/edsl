@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Union
 from edsl.exceptions import QuestionAnswerValidationError
 from edsl.questions.descriptors import QuestionOptionsDescriptor, OptionLabelDescriptor
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
@@ -33,19 +33,6 @@ class QuestionLinearScale(QuestionMultipleChoice):
         )
         self.question_options = question_options
         self.option_labels = option_labels
-
-    def validate_answer(self, answer_raw):
-        value = answer_raw["answer"]
-        if value is None:
-            raise QuestionAnswerValidationError("Answer cannot be None.")
-        if type(value) != int:
-            raise QuestionAnswerValidationError(f"Answer {value} is not an integer.")
-        acceptable_values = set(range(len(self.question_options)))
-        if value not in acceptable_values:
-            raise QuestionAnswerValidationError(
-                f"Answer {value} is not in the acceptable values {acceptable_values}"
-            )
-        return answer_raw
 
     ################
     # Helpful
