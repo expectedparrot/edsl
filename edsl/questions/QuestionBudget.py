@@ -86,10 +86,18 @@ class QuestionBudget(Question):
             keys = self.question_options
         else:
             keys = range(len(self.question_options))
-        values = [random.randint(0, 100) for _ in range(len(self.question_options))]
-        current_sum = sum(values)
-        modified_values = [v * self.budget_sum / current_sum for v in values]
-        answer = dict(zip(keys, modified_values))
+        remaining_budget = self.budget_sum
+        values = []
+        for _ in range(len(self.question_options)):
+            if _ == len(self.question_options) - 1:
+                # Assign remaining budget to the last value
+                values.append(remaining_budget)
+            else:
+                # Generate a random value between 0 and remaining budget
+                value = random.randint(0, remaining_budget)
+                values.append(value)
+                remaining_budget -= value
+        answer = dict(zip(keys, values))
         return {
             "answer": answer,
             "comment": random_string(),
@@ -129,4 +137,4 @@ def main():
     q.validate_answer(q.simulate_answer(human_readable=False))
     # serialization (inherits from Question)
     q.to_dict()
-    q.from_dict(q.to_dict()) == q
+    assert q.from_dict(q.to_dict()) == q
