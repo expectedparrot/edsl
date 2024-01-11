@@ -4,9 +4,13 @@ from edsl.exceptions import (
     QuestionAnswerValidationError,
     QuestionResponseValidationError,
 )
-from edsl.questions import Question, QuestionMultipleChoice, Settings
+from edsl.questions import Question, Settings
+from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice, main
 
-from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
+
+def test_QuestionMultipleChoice_main():
+    main()
+
 
 valid_question = {
     "question_text": "How are you?",

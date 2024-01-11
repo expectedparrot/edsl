@@ -1,7 +1,7 @@
 from __future__ import annotations
 import random
 import textwrap
-from typing import Any
+from typing import Any, Optional
 from edsl.questions import Question
 from edsl.questions.descriptors import AnswerTemplateDescriptor
 from edsl.scenarios import Scenario
@@ -9,12 +9,26 @@ from edsl.utilities import random_string
 
 
 class QuestionExtract(Question):
+    """
+    This question asks the user to extract values from a string, and return them in a given template.
+
+    Arguments:
+    - `question_name` is the name of the question (string)
+    - `question_text` is the text of the question (string)
+    - `answer_template` is the template for the answer (dictionary mapping strings to strings)
+
+    Optional arguments:
+    - `instructions` are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionExtract.default_instructions`
+
+    For an example, run `QuestionExtract.example()`
+    """
+
     question_type = "extract"
     answer_template: dict[str, Any] = AnswerTemplateDescriptor()
     default_instructions = textwrap.dedent(
         """\
         You are given the following input: "{{question_text}}".
-        Create an ANSWER should be formatted like this {{ answer_template }},
+        Create an ANSWER should be formatted like this: "{{ answer_template }}",
         and it should have the same keys but values extracted from the input.
         If the value of a key is not present in the input, fill with "null".
         Return a valid JSON formatted like this: 
@@ -28,20 +42,19 @@ class QuestionExtract(Question):
         question_text: str,
         answer_template: dict[str, Any],
         question_name: str,
-        short_names_dict: dict[str, str] = None,
-        instructions: str = None,
+        instructions: Optional[str] = None,
     ):
+        self.question_name = question_name
         self.question_text = question_text
         self.answer_template = answer_template
-        self.question_name = question_name
         self.instructions = instructions or self.default_instructions
-        self.short_names_dict = short_names_dict or dict()
 
     ################
     # Answer methods
     ################
     def validate_answer(self, answer: Any) -> dict[str, Any]:
         self.validate_answer_template_basic(answer)
+        self.validate_answer_key_value(answer, "answer", dict)
         self.validate_answer_extract(answer)
         return answer
 
@@ -49,15 +62,10 @@ class QuestionExtract(Question):
         """Returns the answer in a human-readable format"""
         return answer
 
-    # TODO - ALL THE BELOW
-    def simulate_answer(self, human_readable=True) -> dict[str, str]:
+    def simulate_answer(self, human_readable: bool = True) -> dict[str, str]:
         """Simulates a valid answer for debugging purposes"""
-        if human_readable:
-            answer = random.choice(self.question_options)
-        else:
-            answer = random.choice(range(len(self.question_options)))
         return {
-            "answer": answer,
+            "answer": {key: random_string() for key in self.answer_template.keys()},
             "comment": random_string(),
         }
 
@@ -74,7 +82,24 @@ class QuestionExtract(Question):
 
 
 # main
-if __name__ == "__main__":
+def main():
     from edsl.questions.QuestionExtract import QuestionExtract
 
     q = QuestionExtract.example()
+    q.question_text
+    q.question_name
+    q.instructions
+    q.answer_template
+    # validate an answer
+    q.validate_answer({"answer": {"name": "Moby", "profession": "truck driver"}})
+    # translate answer code
+    q.translate_answer_code_to_answer(
+        {"answer": {"name": "Moby", "profession": "truck driver"}}
+    )
+    # simulate answer
+    q.simulate_answer()
+    q.simulate_answer(human_readable=False)
+    q.validate_answer(q.simulate_answer(human_readable=False))
+    # serialization (inherits from Question)
+    q.to_dict()
+    assert q.from_dict(q.to_dict()) == q

@@ -6,9 +6,18 @@ from edsl.questions.QuestionCheckBox import QuestionCheckBox
 
 class QuestionTopK(QuestionCheckBox):
     """
-    QuestionTopK is a question where the user is asked to select exactly K options from a list.
-    - `question_options` is a list of strings
-    - `min_selections` should be equal to `max_selections`
+    This question asks the user to select exactly K options from a list.
+
+    Arguments:
+    - `question_name` is the name of the question (string)
+    - `question_text` is the text of the question (string)
+    - `question_options` are the options the user should select from (list of strings)
+    - `min_selections` is the minimum number of options that must be selected (positive integer).
+    - `max_selections` is the maximum number of options that must be selected (positive integer). Must be equal to `min_selections`
+
+    Optional arguments:
+    - `instructions` are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionTopK.default_instructions`
+    - `short_names_dict` maps question_options to short names (dictionary mapping strings to strings)
 
     For an example, run `QuestionTopK.example()`
     """
@@ -76,4 +85,4 @@ def main():
     q.validate_answer(q.simulate_answer(human_readable=False))
     # serialization (inherits from Question)
     q.to_dict()
-    q.from_dict(q.to_dict()) == q
+    assert q.from_dict(q.to_dict()) == q

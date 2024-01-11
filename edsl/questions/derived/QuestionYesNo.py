@@ -5,8 +5,16 @@ from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
 class QuestionYesNo(QuestionMultipleChoice):
     """
-    QuestionYesNo is a question the user is asked to answer with either "Yes" or "No".
-    - It additionally reuqires that question_options=["Yes","No"]
+    This question asks the user to respond with "Yes" or "No".
+
+    Arguments:
+    - `question_name` is the name of the question (string)
+    - `question_text` is the text of the question (string)
+    - `question_options` are the options the user should select from (list of strings)
+
+    Optional arguments:
+    - `instructions` are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionYesNo.default_instructions`
+    - `short_names_dict` maps question_options to short names (dictionary mapping strings to strings)
 
     For an example, see `QuestionYesNo.example()`
     """
@@ -61,4 +69,4 @@ def main():
     q.validate_answer(q.simulate_answer(human_readable=False))
     # serialization (inherits from Question)
     q.to_dict()
-    q.from_dict(q.to_dict()) == q
+    assert q.from_dict(q.to_dict()) == q

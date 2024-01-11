@@ -11,8 +11,16 @@ from edsl.scenarios import Scenario
 
 class QuestionMultipleChoice(Question):
     """
-    QuestionMultipleChoice is a question where the user is asked to select one option from a list.
-    - `question_options` is a list of strings
+    This question asks the user to select one option from a list of options.
+
+    Arguments:
+    - `question_name` is the name of the question (string)
+    - `question_options` are the options the user should select from (list of strings)
+    - `question_text` is the text of the question (string)
+
+    Optional arguments:
+    - `instructions` are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionMultipleChoice.default_instructions`
+    - `short_names_dict` maps question_options to short names (dictionary mapping strings to strings)
 
     For an example, run `QuestionMultipleChoice.example()`
     """
@@ -109,4 +117,4 @@ def main():
     q.simulate_answer(human_readable=False)
     # serialization (inherits from Question)
     q.to_dict()
-    q.from_dict(q.to_dict()) == q
+    assert q.from_dict(q.to_dict()) == q

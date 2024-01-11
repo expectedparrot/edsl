@@ -3,8 +3,13 @@ from edsl.exceptions import (
     QuestionResponseValidationError,
     QuestionAnswerValidationError,
 )
-from edsl.questions import Question, QuestionYesNo
-from edsl.questions.derived.QuestionYesNo import QuestionYesNo
+from edsl.questions import Question
+from edsl.questions.derived.QuestionYesNo import QuestionYesNo, main
+
+
+def test_QuestionYesNo_main():
+    main()
+
 
 valid_question = {
     "question_text": "Do you like pizza?",

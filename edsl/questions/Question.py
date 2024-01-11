@@ -2,7 +2,7 @@ from __future__ import annotations
 import textwrap
 from abc import ABC, abstractmethod
 from jinja2 import Template, Environment, meta
-from typing import Type
+from typing import Any, Type
 from edsl.exceptions import (
     QuestionResponseValidationError,
     QuestionSerializationError,
@@ -51,23 +51,22 @@ class Question(ABC, AnswerValidatorMixin):
     ############################
     # Serialization methods
     ############################
-    def to_dict(self) -> dict:
-        """Converts a dictionary and adds in the question type"""
+    def to_dict(self) -> dict[str, Any]:
+        """Converts the question to a dictionary that includes the question type (useful for deserialization)."""
         candidate_data = self.data.copy()
-        # question type is a special attribute
         candidate_data["question_type"] = self.question_type
-
         return candidate_data
 
     @classmethod
     def from_dict(cls, data: dict) -> Type[Question]:
-        """Constructs a Question from the dictionary created by the `to_dict` method"""
+        """Constructs a question object from a dictionary created by that question's `to_dict` method."""
         local_data = data.copy()
         try:
             question_type = local_data.pop("question_type")
         except:
             raise QuestionSerializationError(
-                "Question data does not have a 'question_type' field"
+                f"Cannot deserialize question data because it does not have a 'question_type' field. "
+                f"Data: {data}"
             )
         question_class = get_question_class(question_type)
         return question_class(**local_data)
@@ -75,7 +74,8 @@ class Question(ABC, AnswerValidatorMixin):
     ############################
     # Dunder methods
     ############################
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """Returns a string representation of the question. Should be able to be used to reconstruct the question."""
         class_name = self.__class__.__name__
         items = [
             f"{k} = '{v}'" if isinstance(v, str) else f"{k} = {v}"
@@ -84,7 +84,8 @@ class Question(ABC, AnswerValidatorMixin):
         ]
         return f"{class_name}({', '.join(items)})"
 
-    def __eq__(self, other):
+    def __eq__(self, other: Type[Question]) -> bool:
+        """Checks if two questions are equal. Equality is defined as having the .to_dict()"""
         if not isinstance(other, Question):
             return False
         return self.to_dict() == other.to_dict()
@@ -110,7 +111,7 @@ class Question(ABC, AnswerValidatorMixin):
     # LLM methods
     ############################
     @staticmethod
-    def scenario_render(text: str, scenario_dict: dict) -> str:
+    def scenario_render(text: str, scenario_dict: dict[str, Any]) -> str:
         """
         Replaces the variables in the question text with the values from the scenario.
         - We allow nesting, and hence we may need to do this many times. There is a nesting limit of 100.
@@ -205,7 +206,7 @@ class Question(ABC, AnswerValidatorMixin):
         pass
 
     ############################
-    # Question -> Survey methods
+    # Forward methods
     ############################
     def add_question(self, other):
         "Adds a question to this question by turning them into a survey with two questions"
@@ -222,7 +223,7 @@ class Question(ABC, AnswerValidatorMixin):
         return s.run(*args, **kwargs)
 
     def by(self, *args):
-        "This turns a single question into a survey and runs it."
+        "Documentation missing."
         from edsl.surveys.Survey import Survey
 
         s = Survey([self], [self.question_name])
