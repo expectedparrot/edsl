@@ -85,6 +85,18 @@ class AnswerValidatorMixin:
                 f"Answer {answer_codes} has more than {self.max_selections} options selected."
             )
 
+    def validate_answer_extract(self, answer: dict[str, Any]) -> None:
+        value = answer.get("answer")
+        acceptable_answer_keys = set(self.answer_template.keys())
+        if any([key not in acceptable_answer_keys for key in value.keys()]):
+            raise QuestionAnswerValidationError(
+                f"Answer keys must be in {acceptable_answer_keys}, but got {value.keys()}"
+            )
+        if any([key not in value.keys() for key in acceptable_answer_keys]):
+            raise QuestionAnswerValidationError(
+                f"Answer must have all keys in {acceptable_answer_keys}, but got {value.keys()}"
+            )
+
     def validate_answer_multiple_choice(
         self, answer: dict[str, Union[str, int]]
     ) -> None:

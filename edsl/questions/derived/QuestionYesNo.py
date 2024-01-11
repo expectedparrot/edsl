@@ -5,8 +5,10 @@ from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
 class QuestionYesNo(QuestionMultipleChoice):
     """
-    Inherits from QuestionMultipleChoice.
-    - It additionally reuires that question_options=["Yes","No"]
+    QuestionYesNo is a question the user is asked to answer with either "Yes" or "No".
+    - It additionally reuqires that question_options=["Yes","No"]
+
+    For an example, see `QuestionYesNo.example()`
     """
 
     question_type = "yes_no"

@@ -8,8 +8,11 @@ from edsl.utilities import random_string
 
 class QuestionTopK(QuestionCheckBox):
     """
-    Inherits from QuestionCheckBox.
-    - It additionally requires that the user selects exactly K among the question options.
+    QuestionTopK is a question where the user is asked to select exactly K options from a list.
+    - `question_options` is a list of strings
+    - `min_selections` should be equal to `max_selections`
+
+    For an example, run `QuestionTopK.example()`
     """
 
     question_type = "top_k"
