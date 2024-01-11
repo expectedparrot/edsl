@@ -59,9 +59,9 @@ class InvigilatorAI(InvigilatorBase):
     def answer_question(self):
         # actual answers (w/ API call)
         #  get answer
-        system_prompt = self.agent.construct_system_prompt()
+        system_prompt = self.construct_system_prompt()
         prompt = self.question.get_prompt(self.scenario)
-        response = self.agent.get_response(prompt, system_prompt, self.model)
+        response = self.get_response(prompt, system_prompt)
         #  validate answer
         response = self.question.validate_response(response)
         response = self.question.validate_answer(response)
