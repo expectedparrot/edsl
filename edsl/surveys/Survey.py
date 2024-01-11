@@ -1,6 +1,8 @@
 from __future__ import annotations
 import re
 from rich import print
+from dataclasses import dataclass
+
 from typing import Any, Generator, Optional, Union
 from edsl.exceptions import SurveyCreationError, SurveyHasNoRulesError
 from edsl.questions.Question import Question
@@ -10,8 +12,23 @@ from edsl.surveys.Rule import Rule, RuleCollection
 from edsl.Base import Base
 from edsl.surveys.SurveyExportMixin import SurveyExportMixin
 
+## Proposed Steps
+# 1) Remove name; create a Survey meta-data class
+# 2) Remove question_names parameter, as we can always get the names from the questions
 
-class Survey(Base, SurveyExportMixin):
+from edsl.surveys.descriptors import QuestionsDescriptor
+
+
+@dataclass
+class SurveyMetaData:
+    name: str = None
+    description: str = None
+    version: str = None
+
+
+class Survey(SurveyExportMixin, Base):
+    questions = QuestionsDescriptor()
+
     """
     A collection of questions that supports skip logic.
 
@@ -32,31 +49,25 @@ class Survey(Base, SurveyExportMixin):
         questions: list[Question] = None,
         question_names: list[str] = None,
         name: str = None,
+        description: str = None,
+        version: str = None,
     ):
         """Creates a new survey."""
-        self.question_name_to_index: dict[str, int] = {}
-        self._questions: list[Question] = []
         self.rule_collection = RuleCollection()
-        self.name = name
-        question_names = question_names or []
-        questions = questions or []
-        if question_names:
-            if len(questions) != len(set(question_names)):
-                raise SurveyCreationError(
-                    "Question names must be unique and equal to the number of questions."
-                )
-        else:
-            for i, question in enumerate(questions):
-                question_name = question.question_name or f"q{i}"
-                if question_name in question_names:
-                    raise SurveyCreationError(
-                        "Failed to automatically create names for questions without names."
-                    )
-                question_names.append(question_name)
+        self.meta_data = SurveyMetaData(
+            name=name, description=description, version=version
+        )
+        self.questions = questions or []
 
-        # adds all questions to the survey
-        for question, question_name in zip(questions, question_names):
-            self.add_question(question, question_name)
+        if question_names is not None:
+            print(
+                "WARNING: Passing question_names is deprecated. Please use questions with names instead."
+            )
+
+    @property
+    def name(self):
+        print("WARNING: name is deprecated. Please use meta_data.name instead.")
+        return self.meta_data.name
 
     def get_question(self, question_name) -> Question:
         """Returns the question object given the question name"""
@@ -68,7 +79,13 @@ class Survey(Base, SurveyExportMixin):
     @property
     def question_names(self) -> list[str]:
         """Returns a list of question names in the survey"""
-        return list(self.question_name_to_index.keys())
+        # return list(self.question_name_to_index.keys())
+        return [q.question_name for q in self.questions]
+
+    @property
+    def question_name_to_index(self) -> dict[str, int]:
+        """Returns a dictionary mapping question names to question indices"""
+        return {q.question_name: i for i, q in enumerate(self.questions)}
 
     def add_question(
         self, question: Question, question_name: Optional[str] = None
@@ -78,21 +95,22 @@ class Survey(Base, SurveyExportMixin):
         - The question is appended at the end of the self.questions list
         - A default rule is created that the next index is the next question.
         """
-        if question_name in self.question_name_to_index:
-            raise SurveyCreationError(
-                "Question name already exists in survey. Please use a different name."
+        if question_name is not None:
+            print(
+                "Warning: question_name is deprecated. Please use question.question_name instead."
             )
-        if question_name is None:
-            if hasattr(question, "question_name"):
-                question_name = question.question_name
-            else:
-                question_name = "q" + str(len(self._questions))
 
-        index = len(self._questions)
-
-        # question name needs to be unique
+        if question.question_name in self.question_names:
+            raise SurveyCreationError(
+                f"""Question name already exists in survey. Please use a different name for the offensing question.
+                The problemetic question name is {question_name}.
+                """
+            )
+        index = len(self.questions)
+        # TODO: This is a bit ugly because the user
+        # doesn't "know" about _questions - it's generated by the
+        # descriptor.
         self._questions.append(question)
-        self.question_name_to_index[question_name] = index
 
         # using index + 1 presumes there is a next question
         self.rule_collection.add_rule(
@@ -105,33 +123,6 @@ class Survey(Base, SurveyExportMixin):
             )
         )
         return self
-
-    def code(self) -> list[str]:
-        "Creates the Python code representation of a survey"
-        header_lines = ["from edsl.surveys.Survey import Survey"]
-        header_lines.append(
-            "from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice"
-        )
-        header_lines.append(
-            "from edsl.questions.QuestionFreeText import QuestionFreeText"
-        )
-        header_lines.append(
-            "from edsl.questions.derived.QuestionLinearScale import QuestionLinearScale"
-        )
-        header_lines.append(
-            "from edsl.questions.QuestionNumerical import QuestionNumerical"
-        )
-        header_lines.append(
-            "from edsl.questions.QuestionCheckBox import QuestionCheckBox"
-        )
-        header_lines.append(
-            "from edsl.questions.derived.QuestionYesNo import QuestionYesNo"
-        )
-        lines = ["\n".join(header_lines)]
-        for question in self._questions:
-            lines.append(f"{question.question_name} = " + repr(question))
-        lines.append(f"survey = Survey(questions = [{', '.join(self.question_names)}])")
-        return lines
 
     def add_stop_rule(self, question: Question, expression: str) -> Survey:
         """Adds a rule that stops the survey."""
@@ -147,39 +138,41 @@ class Survey(Base, SurveyExportMixin):
         - If there are no rules, the rule added gets priority -1.
         """
 
-        # we let users refer to questions by name or pass the questions themselves.
-        if isinstance(question, str):
-            question_index = self.question_name_to_index[question]
-        else:
-            question_index = self.question_name_to_index[question.question_name]
-
-        if isinstance(next_question, str):
-            next_question_index = self.question_name_to_index[next_question]
-        else:
-            # we need to account for possibility that 'next_q' is actually an EndOfSurvey object
-            if isinstance(next_question, EndOfSurvey):
-                next_question_index = EndOfSurvey()
+        def get_question_index(q):
+            "Returns the index of the question or EndOfSurvey object"
+            if isinstance(q, str):
+                question_name = q
+                return self.question_name_to_index[question_name]
+            elif isinstance(q, Question):
+                return self.question_name_to_index[q.question_name]
+            elif isinstance(q, EndOfSurvey):
+                return EndOfSurvey()
             else:
-                next_question_index = self.question_name_to_index[
-                    next_question.question_name
-                ]
-        # finds the priorities of existing rules that apply to the question
-        priorities = [
-            rule.priority for rule in self.rule_collection.which_rules(question_index)
-        ]
+                raise ValueError(f"Invalid type for question: {type(q)}")
 
-        if len(priorities) == 0:
-            priority = RulePriority.DEFAULT.value
-        else:
-            priority = max(priorities) + 1  # newer rules take priority over older rules
+        question_index = get_question_index(question)
+        next_question_index = get_question_index(next_question)
+
+        def get_new_rule_priority(question_index):
+            priorities = [
+                rule.priority
+                for rule in self.rule_collection.which_rules(question_index)
+            ]
+            if len(priorities) == 0:
+                priority = RulePriority.DEFAULT.value
+            else:
+                priority = (
+                    max(priorities) + 1
+                )  # newer rules take priority over older rules
+            return priority
 
         self.rule_collection.add_rule(
             Rule(
-                question_index,
-                expression,
-                next_question_index,
-                self.question_name_to_index,
-                priority=priority,
+                current_q=question_index,
+                expression=expression,
+                next_q=next_question_index,
+                question_name_to_index=self.question_name_to_index,
+                priority=get_new_rule_priority(question_index),
             )
         )
 
