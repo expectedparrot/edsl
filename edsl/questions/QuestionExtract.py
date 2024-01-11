@@ -54,6 +54,7 @@ class QuestionExtract(Question):
     ################
     def validate_answer(self, answer: Any) -> dict[str, Any]:
         self.validate_answer_template_basic(answer)
+        self.validate_answer_key_value(answer, "answer", dict)
         self.validate_answer_extract(answer)
         return answer
 
@@ -61,15 +62,10 @@ class QuestionExtract(Question):
         """Returns the answer in a human-readable format"""
         return answer
 
-    # TODO - ALL THE BELOW
-    def simulate_answer(self, human_readable=True) -> dict[str, str]:
+    def simulate_answer(self, human_readable: bool = True) -> dict[str, str]:
         """Simulates a valid answer for debugging purposes"""
-        if human_readable:
-            answer = random.choice(self.question_options)
-        else:
-            answer = random.choice(range(len(self.question_options)))
         return {
-            "answer": answer,
+            "answer": {key: random_string() for key in self.answer_template.keys()},
             "comment": random_string(),
         }
 
@@ -90,3 +86,20 @@ def main():
     from edsl.questions.QuestionExtract import QuestionExtract
 
     q = QuestionExtract.example()
+    q.question_text
+    q.question_name
+    q.instructions
+    q.answer_template
+    # validate an answer
+    q.validate_answer({"answer": {"name": "Moby", "profession": "truck driver"}})
+    # translate answer code
+    q.translate_answer_code_to_answer(
+        {"answer": {"name": "Moby", "profession": "truck driver"}}
+    )
+    # simulate answer
+    q.simulate_answer()
+    q.simulate_answer(human_readable=False)
+    q.validate_answer(q.simulate_answer(human_readable=False))
+    # serialization (inherits from Question)
+    q.to_dict()
+    assert q.from_dict(q.to_dict()) == q
