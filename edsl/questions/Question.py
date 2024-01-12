@@ -17,7 +17,8 @@ from edsl.scenarios.Scenario import Scenario
 
 class Question(ABC, AnswerValidatorMixin):
     """
-    ABC for something.
+    ABC for Question classes.
+    - Attribute setting/getting is managed by descriptors. All class attributes are stored as private attributes in the question's __dict__.
     """
 
     question_name: str = QuestionNameDescriptor()
@@ -26,16 +27,17 @@ class Question(ABC, AnswerValidatorMixin):
     instructions: str = InstructionsDescriptor()
 
     @property
-    def data(self) -> dict:
-        """Returns a dictionary of question attributes **except** for question_type"""
+    def data(self) -> dict[str, Any]:
+        """Returns a dictionary of question attributes."""
+        # only keep the correct attributes ( i.e. those that start with "_" )
         candidate_data = {
             k.replace("_", "", 1): v
             for k, v in self.__dict__.items()
             if k.startswith("_")
         }
-        optional_attributes = {
-            "set_instructions": "instructions",
-        }
+        # Keep optional attributes only if they have changed from their default values
+        #   See `descriptors.BaseDescriptor.__set__` for implementation details
+        optional_attributes = {"set_instructions": "instructions"}
         for boolean_flag, attribute in optional_attributes.items():
             if hasattr(self, boolean_flag) and not getattr(self, boolean_flag):
                 candidate_data.pop(attribute, None)
@@ -46,21 +48,24 @@ class Question(ABC, AnswerValidatorMixin):
     # Serialization methods
     ############################
     def to_dict(self) -> dict[str, Any]:
-        """Converts the question to a dictionary that includes the question type (used in deserialization)."""
+        """
+        Converts the Question to a dictionary
+        - the dictionary includes the question type (used in deserialization)
+        """
         candidate_data = self.data.copy()
         candidate_data["question_type"] = self.question_type
         return candidate_data
 
     @classmethod
     def from_dict(cls, data: dict) -> Type[Question]:
-        """Constructs a question object from a dictionary created by that question's `to_dict` method."""
+        """
+        Constructs a question object from a dictionary created by that question's `to_dict` method.
+        """
         local_data = data.copy()
         try:
             question_type = local_data.pop("question_type")
         except:
-            raise QuestionSerializationError(
-                f"Data does not have a 'question_type' field (got {data})."
-            )
+            raise QuestionSerializationError(f"Missing 'question_type' (got {data}).")
         question_class = get_question_class(question_type)
         return question_class(**local_data)
 
@@ -68,7 +73,10 @@ class Question(ABC, AnswerValidatorMixin):
     # Dunder methods
     ############################
     def __repr__(self) -> str:
-        """Returns a string representation of the question. Should be able to be used to reconstruct the question."""
+        """
+        Returns a string representation of the question.
+        - Should be able to be used to reconstruct the question
+        """
         class_name = self.__class__.__name__
         items = [
             f"{k} = '{v}'" if isinstance(v, str) else f"{k} = {v}"
@@ -78,7 +86,10 @@ class Question(ABC, AnswerValidatorMixin):
         return f"{class_name}({', '.join(items)})"
 
     def __eq__(self, other: Type[Question]) -> bool:
-        """Checks if two questions are equal. Equality is defined as having the .to_dict()"""
+        """
+        Checks if two questions are equal.
+        - `q1 == q2` if `q1.to_dict() == q2.to_dict()`
+        """
         if not isinstance(other, Question):
             return False
         return self.to_dict() == other.to_dict()
@@ -104,7 +115,7 @@ class Question(ABC, AnswerValidatorMixin):
     # LLM methods
     ############################
     @staticmethod
-    def scenario_render(text: str, scenario_dict: dict[str, Any]) -> str:
+    def scenario_render(text: str, scenario: Scenario) -> str:
         """
         Replaces the variables in the question text with the values from the scenario.
         - We allow nesting, and hence we may need to do this many times. There is a nesting limit of 100.
@@ -114,7 +125,7 @@ class Question(ABC, AnswerValidatorMixin):
         counter = 0
         while True:
             counter += 1
-            new_t = Template(t).render(scenario_dict)
+            new_t = Template(t).render(scenario)
             if new_t == t:
                 break
             t = new_t

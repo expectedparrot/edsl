@@ -2,11 +2,11 @@ from abc import ABC, abstractmethod
 import re
 from typing import Any, Callable
 from edsl.exceptions import (
-    QuestionCreationValidationError,
     QuestionAnswerValidationError,
+    QuestionCreationValidationError,
 )
-from edsl.questions.settings import Settings
-from edsl.utilities.utilities import is_valid_variable_name
+from edsl.questions import Settings
+from edsl.utilities import is_valid_variable_name
 
 
 ################################
@@ -37,25 +37,43 @@ def is_number_or_none(value: Any) -> bool:
 
 
 class BaseDescriptor(ABC):
-    """ABC for something."""
+    """
+    ABC for Descriptors. Descriptors manage Question attribute setting, getting, and validation.
+    - `name` is the name of the attribute
+    - `owner` is the class to which the attribute belongs
+
+    Workflow:
+    - `__set_name__` is called when the descriptor is assigned to a class attribute.
+    - `__set__` is called when a value is assigned to the class attribute.
+    - `__get__` is called when the class attribute is accessed.
+    """
+
+    def __set_name__(self, owner, name: str) -> None:
+        """The attribute that the descriptor is managing is stored in the Question's __dict__ with a leading underscore."""
+        self.name = f"_{name}"
+
+    def __get__(self, instance, owner) -> Any:
+        """Gets the value of the attribute from the Question's__dict__ by respecting the leading underscore."""
+        return instance.__dict__[self.name]
 
     @abstractmethod
     def validate(self, value: Any) -> None:
-        """Validates the value. If it is invalid, raises an exception. If it is valid, does nothing."""
-        pass
-
-    def __get__(self, instance, owner):
-        """"""
-        return instance.__dict__[self.name]
+        """
+        Validates a value that's about to be set. Has to be implemented by children descriptors.
+        - If the value is valid, do nothing
+        - If the value is invalid, raise an exception
+        """
+        raise NotImplementedError
 
     def __set__(self, instance, value: Any) -> None:
+        """Sets the value of the attribute in the Question's __dict__ by respecting the leading underscore.
+        - Validates the value before setting it.
+        - For the `_instructions` attribute, also sets the `set_instructions` attribute to be True if the instructions are not the default instructions, else False.
+        """
         self.validate(value, instance)
         instance.__dict__[self.name] = value
         if self.name == "_instructions":
             instance.set_instructions = value != instance.default_instructions
-
-    def __set_name__(self, owner, name: str) -> None:
-        self.name = "_" + name
 
 
 ################################
@@ -64,6 +82,8 @@ class BaseDescriptor(ABC):
 
 
 class FunctionDescriptor(BaseDescriptor):
+    """Validates that the value is a function."""
+
     def validate(self, value: Any, instance) -> Callable:
         """Validates the value is a function, and if so, returns it."""
         if not callable(value):
