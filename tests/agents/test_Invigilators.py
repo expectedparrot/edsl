@@ -20,7 +20,7 @@ class TestInvigilatorHuman(unittest.TestCase):
         agent = Mock()
         agent.answer_question_directly.return_value = "Human Answer"
         question = Mock()
-        question.validate_response.side_effect = lambda x: x  # Just return the input
+        question.validate_answer.side_effect = lambda x: x  # Just return the input
         scenario = Mock()
         model = Mock()
 

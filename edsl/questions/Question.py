@@ -180,14 +180,6 @@ class Question(ABC, AnswerValidatorMixin):
         prompt = self.scenario_render(template_with_attributes, scenario)
         return prompt
 
-    def validate_response(self, response):
-        """Validates the response from the LLM"""
-        if "answer" not in response:
-            raise QuestionResponseValidationError(
-                "Response from LLM does not have an answer"
-            )
-        return response
-
     @abstractmethod
     def validate_answer(self, answer: dict[str, str]):
         raise NotImplementedError
