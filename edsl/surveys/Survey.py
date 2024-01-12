@@ -61,7 +61,9 @@ class Survey(SurveyExportMixin, Base):
             name=name, description=description, version=version
         )
         self.questions = questions or []
-        self.memory_plan = memory_plan or MemoryPlan(self.questions)
+        self.memory_plan = memory_plan or MemoryPlan(
+            survey_question_names=self.question_names, data={}
+        )
 
         if question_names is not None:
             print(
@@ -129,16 +131,27 @@ class Survey(SurveyExportMixin, Base):
         return self
 
     def add_targeted_memory(
-        self, focal_question: Question, prior_questions: list
+        self, focal_question: Question, prior_question: Question
     ) -> None:
         """This adds instructions to a survey than when answering focal_question,
         the agent should also remember the answers to prior_questions listed in prior_questions.
         """
-        self.memory_plan.add_memory_collection(
-            survey=self,
-            focal_question=focal_question.question_name,
-            prior_questions=prior_questions,
+        focal_question_name = self.question_names[
+            self._get_question_index(focal_question)
+        ]
+        prior_question_name = self.question_names[
+            self._get_question_index(prior_question)
+        ]
+
+        self.memory_plan.add_single_memory(
+            focal_question=focal_question_name,
+            prior_question=prior_question_name,
         )
+        # self.memory_plan.add_memory_collection(
+        #     survey=self,
+        #     focal_question=focal_question.question_name,
+        #     prior_questions=prior_questions,
+        # )
 
     def add_stop_rule(self, question: Question, expression: str) -> Survey:
         """Adds a rule that stops the survey."""
@@ -320,7 +333,7 @@ class Survey(SurveyExportMixin, Base):
         """Returns a string representation of the survey"""
         questions_string = ", ".join([repr(q) for q in self._questions])
         question_names_string = ", ".join([repr(name) for name in self.question_names])
-        return f"Survey(questions=[{questions_string}], question_names=[{question_names_string}], name={repr(self.name)})"
+        return f"Survey(questions=[{questions_string}], name={repr(self.name)})"
 
     def _repr_html_(self) -> str:
         return self.html()

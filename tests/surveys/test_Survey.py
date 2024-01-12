@@ -36,6 +36,16 @@ class TestSurvey(unittest.TestCase):
         s.add_rule(q1, "like_school == 'no'", q3)
         self.assertEqual(q3, s.next_question("like_school", {"like_school": "no"}))
 
+    def test_add_memory(self):
+        survey = self.gen_survey()
+        # breakpoint()
+        survey.add_targeted_memory("favorite_subject", "like_school")
+
+    def test_add_memory_wrong_order(self):
+        survey = self.gen_survey()
+        with self.assertRaises(ValueError):
+            survey.add_targeted_memory("like_school", "favorite_subject")
+
 
 if __name__ == "__main__":
     unittest.main()
