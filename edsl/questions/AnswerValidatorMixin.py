@@ -45,6 +45,7 @@ class AnswerValidatorMixin:
     def validate_answer_key_value_numeric(
         self, answer: dict[str, Any], key: str
     ) -> None:
+        """Checks that the value of a key is numeric (int or float)"""
         value = answer.get(key)
         if type(value) == str:
             value = value.replace(",", "")
@@ -71,7 +72,13 @@ class AnswerValidatorMixin:
     # QUESTION SPECIFIC VALIDATION
     #####################
     def validate_answer_budget(self, answer: dict[str, Any]) -> None:
-        """Checks that the 'answer' key value adheres to QuestioBudget-specific rules"""
+        """
+        QuestionBudget-specific answer validation. Checks that answer["answer"]:
+        - has keys that are in the range of the number of options
+        - has values that are non-negative integers
+        - has values that sum to `budget_sum`
+        - contains all keys in the range of the number of options
+        """
         answer = answer.get("answer")
         budget_sum = self.budget_sum
         acceptable_answer_keys = set(range(len(self.question_options)))
@@ -96,7 +103,13 @@ class AnswerValidatorMixin:
             )
 
     def validate_answer_checkbox(self, answer: dict[str, Union[str, int]]) -> None:
-        """Checks that the value of the 'answer' key is a list of valid answer codes for a checkbox question"""
+        """
+        QuestionCheckbox-specific answer validation. Checks that answer["answer"]:
+        - has elements that are strings, bytes-like objects or real numbers evaluating to integers
+        - has elements that are in the range of the number of options
+        - has at least `min_selections` elements, if provided
+        - has at most `max_selections` elements, if provided
+        """
         answer_codes = answer["answer"]
         try:
             answer_codes = [int(k) for k in answer["answer"]]
@@ -120,6 +133,11 @@ class AnswerValidatorMixin:
             )
 
     def validate_answer_extract(self, answer: dict[str, Any]) -> None:
+        """
+        QuestionExtract-specific answer validation. Checks that answer["answer"]:
+        - does not have keys that are not in the answer template
+        - has all keys that are in the answer template
+        """
         value = answer.get("answer")
         acceptable_answer_keys = set(self.answer_template.keys())
         if any([key not in acceptable_answer_keys for key in value.keys()]):
@@ -132,6 +150,12 @@ class AnswerValidatorMixin:
             )
 
     def validate_answer_list(self, answer: dict[str, Union[list, str]]) -> None:
+        """
+        QuestionList-specific answer validation. Checks that answer["answer"]:
+        - is not empty, if `allow_nonresponse` is False
+        - has no more than `max_list_items` elements
+        - has no empty strings
+        """
         value = answer.get("answer")
         if (
             hasattr(self, "allow_nonresponse")
@@ -153,6 +177,11 @@ class AnswerValidatorMixin:
             )
 
     def validate_answer_numerical(self, answer: dict) -> None:
+        """
+        QuestionNumerical-specific answer validation. Checks that answer["answer"]:
+        - is not less than `min_value`
+        - is not greater than `max_value`
+        """
         value = float(answer.get("answer"))
         if self.min_value is not None and value < self.min_value:
             raise QuestionAnswerValidationError(

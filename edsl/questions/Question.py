@@ -31,17 +31,14 @@ class Question(ABC, AnswerValidatorMixin):
     @property
     def data(self) -> dict:
         """Returns a dictionary of question attributes **except** for question_type"""
-        # question-specific attributes start with an underscore
         candidate_data = {
             k.replace("_", "", 1): v
             for k, v in self.__dict__.items()
             if k.startswith("_")
         }
-        # things (?) that over-ride defaults
         optional_attributes = {
             "set_instructions": "instructions",
         }
-        # ?
         for boolean_flag, attribute in optional_attributes.items():
             if hasattr(self, boolean_flag) and not getattr(self, boolean_flag):
                 candidate_data.pop(attribute, None)
@@ -52,7 +49,7 @@ class Question(ABC, AnswerValidatorMixin):
     # Serialization methods
     ############################
     def to_dict(self) -> dict[str, Any]:
-        """Converts the question to a dictionary that includes the question type (useful for deserialization)."""
+        """Converts the question to a dictionary that includes the question type (used in deserialization)."""
         candidate_data = self.data.copy()
         candidate_data["question_type"] = self.question_type
         return candidate_data
@@ -65,8 +62,7 @@ class Question(ABC, AnswerValidatorMixin):
             question_type = local_data.pop("question_type")
         except:
             raise QuestionSerializationError(
-                f"Cannot deserialize question data because it does not have a 'question_type' field. "
-                f"Data: {data}"
+                f"Data does not have a 'question_type' field (got {data})."
             )
         question_class = get_question_class(question_type)
         return question_class(**local_data)
