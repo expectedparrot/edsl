@@ -1,3 +1,4 @@
+# TODO: This is not working. Needs to be updated to use the Question implementation.
 import random
 import textwrap
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -152,7 +153,7 @@ if __name__ == "__main__":
     print(q.get_prompt())
     response = {"answer": [0, 1], "comment": "OK"}
     print(response)
-    q.validate_response(response)
+    q.validate_answer(response)
     response.pop("comment")
     q.validate_answer(response)
     print("This is a valid response.\n")
@@ -167,7 +168,7 @@ if __name__ == "__main__":
     print(q.get_prompt())
     response = {"answer": [None, 2], "comment": "OK"}
     print(response)
-    q.validate_response(response)
+    q.validate_answer(response)
     response.pop("comment")
     q.validate_answer(response)
     print("This is a valid response.\n")
@@ -183,7 +184,7 @@ if __name__ == "__main__":
     try:
         response = {"answer": [3, None], "comment": "OK"}
         print(response)
-        q.validate_response(response)
+        q.validate_answer(response)
         response.pop("comment")
         q.validate_answer(response)
     except QuestionAnswerValidationError:
@@ -193,7 +194,7 @@ if __name__ == "__main__":
     try:
         response = {"answer": [["Mon"], ["Wed"]], "comment": "OK"}
         print(response)
-        q.validate_response(response)
+        q.validate_answer(response)
         response.pop("comment")
         q.validate_answer(response)
     except QuestionAnswerValidationError:

@@ -1,9 +1,5 @@
 import pytest
-
-from edsl.exceptions import (
-    QuestionAnswerValidationError,
-    QuestionResponseValidationError,
-)
+from edsl.exceptions import QuestionAnswerValidationError
 from edsl.questions import Question, Settings
 from edsl.questions.QuestionNumerical import QuestionNumerical, main
 
@@ -133,12 +129,13 @@ def test_QuestionNumerical_answers():
     }
     response_terrible = {"you": "will never be able to do this!"}
 
-    # LLM responses are only required to have an "answer" key
-    q.validate_response(response_good)
-    with pytest.raises(QuestionResponseValidationError):
-        q.validate_response(response_terrible)
-    # but can have additional keys
-    q.validate_response(response_bad)
+    # LLM responses are required to have an "answer" key
+    q.validate_answer(response_good)
+    with pytest.raises(QuestionAnswerValidationError):
+        q.validate_answer(response_terrible)
+    # and a numerical value
+    with pytest.raises(QuestionAnswerValidationError):
+        q.validate_answer(response_bad)
 
     # answer validation
     q.validate_answer(response_good)

@@ -1,8 +1,5 @@
 import pytest
-from edsl.exceptions import (
-    QuestionAnswerValidationError,
-    QuestionResponseValidationError,
-)
+from edsl.exceptions import QuestionAnswerValidationError
 from edsl.questions import Question, Settings
 from edsl.questions.QuestionFreeText import QuestionFreeText, main
 
@@ -107,10 +104,10 @@ def test_QuestionFreeText_answers():
     response_terrible = {"you": "suck"}
 
     # LLM responses are only required to have an "answer" key
-    q.validate_response(response_good)
-    q.validate_response(response_bad)
-    with pytest.raises(QuestionResponseValidationError):
-        q.validate_response(response_terrible)
+    q.validate_answer(response_good)
+    q.validate_answer(response_bad)
+    with pytest.raises(QuestionAnswerValidationError):
+        q.validate_answer(response_terrible)
 
     # answer validation
     q.validate_answer(response_good)

@@ -1,8 +1,6 @@
 import re
 from typing import Any, Type, Union
-from edsl.exceptions import (
-    QuestionAnswerValidationError,
-)
+from edsl.exceptions import QuestionAnswerValidationError
 
 
 class AnswerValidatorMixin:
@@ -18,8 +16,14 @@ class AnswerValidatorMixin:
     #####################
     def validate_answer_template_basic(self, answer: Any) -> None:
         """
-        Checks that the answer (i) is a dictionary (ii) has an 'answer' key
-        - E.g., both {'answer': 1} and {'answer': {'a': 1}, 'other_key'=[1,2,3]} are valid
+        Validates that the LLM's answer follows the "basic" template
+        - is a dictionary
+        - has an 'answer' key
+
+        Valid Examples:
+        - `answer = {"answer": 1}`
+        - `answer = {"answer": 1, "comment": "I like custard"}`
+        - `answer = {"answer": {'a': 1}, "other_key"=[1,2,3]}`
         """
         if not isinstance(answer, dict):
             raise QuestionAnswerValidationError(
@@ -36,16 +40,16 @@ class AnswerValidatorMixin:
     def validate_answer_key_value(
         self, answer: dict[str, Any], key: str, of_type: Type
     ) -> None:
-        """Checks that the value of a key is of the specified type"""
+        """Validates that the value of a dictionary key "key" is of type "of_type."""
         if not isinstance(answer.get(key), of_type):
             raise QuestionAnswerValidationError(
-                f"Answer key '{key}' must be of type {of_type.__name__} (got {answer.get(key)})."
+                f"Answer key '{key}' must be of type '{of_type.__name__}' (got {answer.get(key)})."
             )
 
     def validate_answer_key_value_numeric(
         self, answer: dict[str, Any], key: str
     ) -> None:
-        """Checks that the value of a key is numeric (int or float)"""
+        """Validates that the value of a dictionary key "key" is numeric."""
         value = answer.get(key)
         if type(value) == str:
             value = value.replace(",", "")

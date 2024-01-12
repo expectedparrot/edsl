@@ -16,6 +16,7 @@ from edsl.questions.descriptors import (
 )
 from edsl.questions.question_registry import get_question_class
 from edsl.questions.AnswerValidatorMixin import AnswerValidatorMixin
+from edsl.scenarios.Scenario import Scenario
 
 
 class Question(ABC, AnswerValidatorMixin):
@@ -162,11 +163,11 @@ class Question(ABC, AnswerValidatorMixin):
         prompt += self.get_prompt()
         return prompt, system_prompt
 
-    def get_prompt(self, scenario=None) -> str:
+    def get_prompt(self, scenario: Scenario = None) -> str:
         """Shows which prompt should be used with the LLM for this question.
         It extracts the question attributes from the instantiated question data model.
         """
-        scenario = scenario or {}
+        scenario = scenario or Scenario()
         template = Template(self.instructions)
         template_with_attributes = template.render(self.data)
         env = Environment()
@@ -179,10 +180,6 @@ class Question(ABC, AnswerValidatorMixin):
         prompt = self.scenario_render(template_with_attributes, scenario)
         return prompt
 
-    @abstractmethod
-    def validate_answer(self, answer: dict[str, str]):
-        pass
-
     def validate_response(self, response):
         """Validates the response from the LLM"""
         if "answer" not in response:
@@ -192,34 +189,46 @@ class Question(ABC, AnswerValidatorMixin):
         return response
 
     @abstractmethod
+    def validate_answer(self, answer: dict[str, str]):
+        raise NotImplementedError
+
+    @abstractmethod
     def translate_answer_code_to_answer(self):  # pragma: no cover
-        """Translates the answer code to the actual answer. Behavior depends on the question type."""
-        pass
+        """
+        Translates the answer code to the actual answer.
+        - Children should implement this class
+        - Behavior depends on the question type.
+        """
+        raise NotImplementedError
 
     @abstractmethod
     def simulate_answer(self, human_readable=True) -> dict:  # pragma: no cover
-        """Simulates a valid answer for debugging purposes (what the validator expects)"""
-        pass
+        """
+        Simulates a valid answer for debugging purposes
+        - Children should implement this class
+        - Behavior depends on the question type.
+        """
+        raise NotImplementedError
 
     ############################
     # Forward methods
     ############################
-    def add_question(self, other):
-        "Adds a question to this question by turning them into a survey with two questions"
+    def add_question(self, other: Type[Question]) -> "Survey":
+        """Adds a Question to the current Question, by turning them into Survey(questions=[self,other])"""
         from edsl.surveys.Survey import Survey
 
         s = Survey([self, other], [self.question_name, other.question_name])
         return s
 
-    def run(self, *args, **kwargs):
-        "Turns a single question into a survey and runs it."
+    def run(self, *args, **kwargs) -> "Results":
+        """Turns a Question into Survey, runs it, and returns a Results object."""
         from edsl.surveys.Survey import Survey
 
         s = Survey([self], [self.question_name])
         return s.run(*args, **kwargs)
 
-    def by(self, *args):
-        "Documentation missing."
+    def by(self, *args) -> "Jobs":
+        """Turns a Question into a Jobs object, and calls its `by` method to add Agents, Scenarios and LanguageModels to it."""
         from edsl.surveys.Survey import Survey
 
         s = Survey([self], [self.question_name])

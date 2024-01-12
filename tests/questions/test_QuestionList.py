@@ -1,9 +1,6 @@
 import pytest
 import uuid
-from edsl.exceptions import (
-    QuestionAnswerValidationError,
-    QuestionResponseValidationError,
-)
+from edsl.exceptions import QuestionAnswerValidationError
 from edsl.questions import Question, Settings
 from edsl.questions.QuestionList import QuestionList, main
 
@@ -145,11 +142,11 @@ def test_QuestionList_answers():
     response_terrible = {"you": "will never be able to do this!"}
 
     # LLM responses are only required to have an "answer" key
-    q.validate_response(response_good)
-    with pytest.raises(QuestionResponseValidationError):
-        q.validate_response(response_terrible)
+    q.validate_answer(response_good)
+    with pytest.raises(QuestionAnswerValidationError):
+        q.validate_answer(response_terrible)
     # but can have additional keys
-    q.validate_response(response_bad)
+    q.validate_answer(response_bad)
 
     # answer validation
     q.validate_answer(response_good)

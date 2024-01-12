@@ -1,9 +1,6 @@
 import pytest
 import uuid
-from edsl.exceptions import (
-    QuestionAnswerValidationError,
-    QuestionResponseValidationError,
-)
+from edsl.exceptions import QuestionAnswerValidationError
 from edsl.questions import Question, Settings
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice, main
 
@@ -160,10 +157,10 @@ def test_QuestionMultipleChoice_answers():
     llm_response_invalid1 = {"comment": "I'm good"}
 
     # LLM response is required to have an answer key, but is flexible otherwise
-    q.validate_response(llm_response_valid1)
-    q.validate_response(llm_response_valid2)
-    with pytest.raises(QuestionResponseValidationError):
-        q.validate_response(llm_response_invalid1)
+    q.validate_answer(llm_response_valid1)
+    q.validate_answer(llm_response_valid2)
+    with pytest.raises(QuestionAnswerValidationError):
+        q.validate_answer(llm_response_invalid1)
 
     # answer must be an integer or interpretable as integer
     q.validate_answer({"answer": 0})

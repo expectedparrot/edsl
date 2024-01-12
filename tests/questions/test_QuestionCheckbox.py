@@ -2,7 +2,6 @@ import pytest
 import uuid
 from edsl.exceptions import (
     QuestionAnswerValidationError,
-    QuestionResponseValidationError,
 )
 from edsl.questions import Question, Settings
 from edsl.questions.QuestionCheckBox import QuestionCheckBox, main
@@ -229,10 +228,10 @@ def test_QuestionCheckBox_answers():
     llm_response_invalid1 = {"comment": "I like beginnings"}
 
     # LLM response is required to have an answer key, but is flexible otherwise
-    q.validate_response(llm_response_valid1)
-    q.validate_response(llm_response_valid2)
-    with pytest.raises(QuestionResponseValidationError):
-        q.validate_response(llm_response_invalid1)
+    q.validate_answer(llm_response_valid1)
+    q.validate_answer(llm_response_valid2)
+    with pytest.raises(QuestionAnswerValidationError):
+        q.validate_answer(llm_response_invalid1)
 
     # answer must be an list of ints
     q.validate_answer(llm_response_valid1)
