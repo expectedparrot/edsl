@@ -137,10 +137,7 @@ class QuestionMultipleChoiceGrid(Question):
 
 
 if __name__ == "__main__":
-    from edsl.exceptions import (
-        QuestionResponseValidationError,
-        QuestionAnswerValidationError,
-    )
+    from edsl.exceptions import QuestionAnswerValidationError
 
     print("Now validating multiple choice grid questions")
 

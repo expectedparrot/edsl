@@ -3,11 +3,7 @@ import textwrap
 from abc import ABC, abstractmethod
 from jinja2 import Template, Environment, meta
 from typing import Any, Type
-from edsl.exceptions import (
-    QuestionResponseValidationError,
-    QuestionSerializationError,
-    QuestionScenarioRenderError,
-)
+from edsl.exceptions import QuestionSerializationError, QuestionScenarioRenderError
 from edsl.questions.descriptors import (
     InstructionsDescriptor,
     QuestionNameDescriptor,

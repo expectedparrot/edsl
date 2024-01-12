@@ -25,9 +25,8 @@ from .questions import (
     QuestionAnswerValidationError,
     QuestionAttributeMissing,
     QuestionCreationValidationError,
-    QuestionResponseValidationError,
-    QuestionSerializationError,
     QuestionScenarioRenderError,
+    QuestionSerializationError,
 )
 from .results import (
     ResultsBadMutationstringError,
