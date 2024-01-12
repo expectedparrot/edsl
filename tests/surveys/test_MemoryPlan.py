@@ -1,7 +1,6 @@
 import unittest
 from unittest.mock import Mock
-from edsl.surveys.memory import MemoryPlan
-import textwrap
+from edsl.surveys.MemoryPlan import MemoryPlan
 
 
 class TestMemoryPlan(unittest.TestCase):
