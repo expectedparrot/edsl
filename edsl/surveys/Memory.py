@@ -2,6 +2,10 @@ from collections import UserList
 
 
 class Memory(UserList):
+    """This list holds the questions (stored as names) that we want the
+    the agent to have available when answering a question.
+    """
+
     def __init__(self, prior_questions: list[str] = None):
         super().__init__(prior_questions or [])
 
