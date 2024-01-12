@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import Mock
 from edsl.surveys.memory import MemoryPlan
+import textwrap
 
 
 class TestMemoryPlan(unittest.TestCase):
@@ -8,6 +9,10 @@ class TestMemoryPlan(unittest.TestCase):
     @property
     def question_texts(self):
         return ["How are you?", "What is your age?", "Where are you from?"]
+
+    @property
+    def answers_dict(self):
+        return {"q1": "Good!", "q2": "None of your business", "q3": "Outerspace"}
 
     @property
     def question_names(self):
@@ -67,6 +72,12 @@ class TestMemoryPlan(unittest.TestCase):
         }
         new_memory_plan = MemoryPlan.from_dict(data)
         self.assertIn("q1", new_memory_plan["q2"])
+
+    def test_prompt_fragment(self):
+        memory_plan = self.example()
+        memory_plan.add_single_memory("q2", "q1")
+        prompt = memory_plan.get_memory_prompt_fragment("q2", self.answers_dict)
+        self.assertIn("How are you?", prompt)
 
 
 if __name__ == "__main__":

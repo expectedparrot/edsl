@@ -33,9 +33,30 @@ class MemoryPlan(UserDict):
             self.question_texts = [q.question_text for q in survey.questions]
         super().__init__(data or {})
 
+    @property
+    def name_to_text(self):
+        "Returns a dictionary mapping question names to question texts"
+        return dict(zip(self.survey_question_names, self.question_texts))
+
     def check_valid_question_name(self, question_name):
+        "Make sure a passed question name is valid"
         if question_name not in self.survey_question_names:
             raise ValueError(f"{question_name} is not in the survey.")
+
+    def get_memory_prompt_fragment(self, focal_question, answers):
+        "Generates the prompt fragment"
+        self.check_valid_question_name(focal_question)
+
+        q_and_a_pairs = [
+            (self.name_to_text[question_name], answers[question_name])
+            for question_name in self[focal_question]
+        ]
+
+        def gen_line(question_text, answer):
+            return f"\tQuestion: {question_text}\n\tAnswer: {answer}\n"
+
+        lines = [gen_line(*pair) for pair in q_and_a_pairs]
+        return f"""Prior questions & answers:\n""" + "\n".join(lines)
 
     def check_order(self, focal_question, prior_question):
         focal_index = self.survey_question_names.index(focal_question)
