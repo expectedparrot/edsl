@@ -65,6 +65,8 @@ class Agent(Base):
         scenario: Optional[Scenario] = None,
         model: Optional[LanguageModel] = None,
         debug: bool = False,
+        memory_plan: Optional[MemoryPlan] = None,
+        current_answers: Optional[dict] = None,
     ):
         """
         This is a function where an agent returns an answer to a particular question.
@@ -73,6 +75,8 @@ class Agent(Base):
         """
         model = model or LanguageModelOpenAIThreeFiveTurbo(use_cache=True)
         scenario = scenario or Scenario()
+        # memory_plan = memory_plan
+        # current_answers = current_answers or dict()
 
         if debug:
             # use the question's simulate_answer method
@@ -89,7 +93,9 @@ class Agent(Base):
             # this means an LLM agent will be used. This is the standard case.
             invigilator_class = InvigilatorAI
 
-        invigilator = invigilator_class(self, question, scenario, model)
+        invigilator = invigilator_class(
+            self, question, scenario, model, memory_plan, current_answers
+        )
         response = invigilator.answer_question()
         return response
 
