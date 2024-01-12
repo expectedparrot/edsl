@@ -6,7 +6,10 @@ class Memory(UserList):
         super().__init__(prior_questions or [])
 
     def add_prior_question(self, prior_question):
-        self.append(prior_question)
+        if prior_question not in self:
+            self.append(prior_question)
+        else:
+            print("Warning: prior question already in memory.")
 
     def __repr__(self):
         return f"Memory(prior_questions={self.data})"
@@ -24,17 +27,24 @@ class MemoryPlan(UserDict):
     {focal_question: [prior_questions], focal_question: [prior_questions]}
     """
 
-    def __init__(self, survey_questions: list[str], data=None):
-        self.survey_questions = survey_questions
+    def __init__(self, survey_question_names: list[str], data=None):
         super().__init__(data or {})
+        self.survey_question_names = survey_question_names
 
     def check_valid_question_name(self, question_name):
-        if question_name not in self.survey_questions:
+        if question_name not in self.survey_question_names:
             raise ValueError(f"{question_name} is not in the survey.")
+
+    def check_order(self, focal_question, prior_question):
+        focal_index = self.survey_question_names.index(focal_question)
+        prior_index = self.survey_question_names.index(prior_question)
+        if focal_index <= prior_index:
+            raise ValueError(f"{prior_question} must come before {focal_question}.")
 
     def add_single_memory(self, focal_question: str, prior_question: str):
         self.check_valid_question_name(focal_question)
         self.check_valid_question_name(prior_question)
+        self.check_order(focal_question, prior_question)
 
         if focal_question not in self:
             memory = Memory()
@@ -49,13 +59,13 @@ class MemoryPlan(UserDict):
 
     def to_dict(self):
         return {
-            "survey_questions": self.survey_questions,
+            "survey_question_names": self.survey_question_names,
             "data": {k: v.to_dict() for k, v in self.items()},
         }
 
     @classmethod
     def from_dict(cls, data):
         return cls(
-            survey_questions=data["survey_questions"],
+            survey_question_names=data["survey_question_names"],
             data={k: Memory.from_dict(v) for k, v in data["data"].items()},
         )
