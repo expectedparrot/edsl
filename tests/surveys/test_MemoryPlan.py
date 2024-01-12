@@ -61,7 +61,7 @@ class TestMemoryPlan(unittest.TestCase):
         self.assertEqual(memory_plan.to_dict(), expected_dict)
 
     def test_from_dict(self):
-        from edsl.surveys.memory import Memory
+        from edsl.surveys.Memory import Memory
 
         data = {
             "survey_question_names": self.question_names,
