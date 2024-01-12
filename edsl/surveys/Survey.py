@@ -3,7 +3,7 @@ import re
 from rich import print
 from dataclasses import dataclass
 
-from typing import Any, Generator, Optional, Union
+from typing import Any, Generator, Optional, Union, List
 from edsl.exceptions import SurveyCreationError, SurveyHasNoRulesError
 from edsl.questions.Question import Question
 from edsl.surveys.base import RulePriority, EndOfSurvey
@@ -130,8 +130,16 @@ class Survey(SurveyExportMixin, Base):
         )
         return self
 
+    def set_full_memory_mode(self) -> None:
+        """This adds instructions to a survey that the agent should remember all of the answers to the questions in the survey."""
+        for i, _ in enumerate(self.question_names):
+            self.memory_plan.add_memory_collection(
+                focal_question=self.question_names[i],
+                prior_questions=self.question_names[:i],
+            )
+
     def add_targeted_memory(
-        self, focal_question: Question, prior_question: Question
+        self, focal_question: Union[Question, str], prior_question: Union[Question, str]
     ) -> None:
         """This adds instructions to a survey than when answering focal_question,
         the agent should also remember the answers to prior_questions listed in prior_questions.
@@ -147,11 +155,27 @@ class Survey(SurveyExportMixin, Base):
             focal_question=focal_question_name,
             prior_question=prior_question_name,
         )
-        # self.memory_plan.add_memory_collection(
-        #     survey=self,
-        #     focal_question=focal_question.question_name,
-        #     prior_questions=prior_questions,
-        # )
+
+    def add_memory_collection(
+        self,
+        focal_question: Union[Question, str],
+        prior_questions: List[Union[Question, str]],
+    ):
+        """This adds instructions to a survey than when answering focal_question,
+        the agent should also remember the answers to prior_questions listed in prior_questions.
+        """
+        focal_question_name = self.question_names[
+            self._get_question_index(focal_question)
+        ]
+
+        prior_question_names = [
+            self.question_names[self._get_question_index(prior_question)]
+            for prior_question in prior_questions
+        ]
+
+        self.memory_plan.add_memory_collection(
+            focal_question=focal_question_name, prior_questions=prior_question_names
+        )
 
     def add_stop_rule(self, question: Question, expression: str) -> Survey:
         """Adds a rule that stops the survey."""
@@ -161,15 +185,13 @@ class Survey(SurveyExportMixin, Base):
     def _get_question_index(self, q):
         """Returns the index of the question or EndOfSurvey object. It can handle it if the user
         passes in the question name, the question object, or the EndOfSurvey object."""
-        if isinstance(q, str):
-            question_name = q
-            return self.question_name_to_index[question_name]
-        elif isinstance(q, Question):
-            return self.question_name_to_index[q.question_name]
-        elif isinstance(q, EndOfSurvey):
+        if isinstance(q, EndOfSurvey):
             return EndOfSurvey()
         else:
-            raise ValueError(f"Invalid type for question: {type(q)}")
+            question_name = q if isinstance(q, str) else q.question_name
+            if question_name not in self.question_name_to_index:
+                raise ValueError(f"Question name {question_name} not found in survey.")
+            return self.question_name_to_index[question_name]
 
     def add_rule(
         self, question: Question, expression: str, next_question: Question

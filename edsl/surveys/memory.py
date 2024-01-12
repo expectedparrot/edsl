@@ -9,7 +9,7 @@ class Memory(UserList):
         if prior_question not in self:
             self.append(prior_question)
         else:
-            print("Warning: prior question already in memory.")
+            raise ValueError(f"{prior_question} is already in the memory.")
 
     def __repr__(self):
         return f"Memory(prior_questions={self.data})"
