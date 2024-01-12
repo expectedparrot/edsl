@@ -4,7 +4,6 @@ from edsl.surveys.MemoryPlan import MemoryPlan
 
 
 class TestMemoryPlan(unittest.TestCase):
-    ## TODO: Add make it so memory test takes a survey object
     @property
     def question_texts(self):
         return ["How are you?", "What is your age?", "Where are you from?"]

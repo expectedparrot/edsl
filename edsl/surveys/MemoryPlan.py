@@ -1,6 +1,8 @@
 from collections import UserDict
 from edsl.surveys.Memory import Memory
 
+from edsl.prompts.Prompt import Prompt
+
 
 class MemoryPlan(UserDict):
     """A survey has a memory plan that specifies what the agent should remember when answering a question.
@@ -23,16 +25,17 @@ class MemoryPlan(UserDict):
         if question_name not in self.survey_question_names:
             raise ValueError(f"{question_name} is not in the survey.")
 
-    def get_memory_prompt_fragment(self, focal_question, answers):
+    def get_memory_prompt_fragment(self, focal_question, answers) -> "Prompt":
         "Generates the prompt fragment"
         self.check_valid_question_name(focal_question)
 
         q_and_a_pairs = [
-            (self.name_to_text[question_name], answers[question_name])
+            (self.name_to_text[question_name], answers.get(question_name, None))
             for question_name in self[focal_question]
         ]
 
         def gen_line(question_text, answer):
+            "Returns a line of memory"
             return f"\tQuestion: {question_text}\n\tAnswer: {answer}\n"
 
         lines = [gen_line(*pair) for pair in q_and_a_pairs]
