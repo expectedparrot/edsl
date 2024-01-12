@@ -1,4 +1,5 @@
 from __future__ import annotations
+import textwrap
 from typing import Optional
 from edsl.questions.descriptors import QuestionOptionsDescriptor, OptionLabelDescriptor
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
@@ -24,6 +25,18 @@ class QuestionLinearScale(QuestionMultipleChoice):
     question_type = "linear_scale"
     option_labels: Optional[dict[int, str]] = OptionLabelDescriptor()
     question_options = QuestionOptionsDescriptor(linear_scale=True)
+    default_instructions = textwrap.dedent(
+        """\
+        You are being asked the following question: {{question_text}}
+        The options are 
+        {% for option in question_options %}
+        {{ loop.index0 }}: {{option}}
+        {% endfor %}                       
+        Return a valid JSON formatted like this, selecting only the code of the option (codes start at 0): 
+        {"answer": <put answer code here>, "comment": "<put explanation here>"}
+        Only 1 option may be selected.
+        """
+    )
 
     def __init__(
         self,

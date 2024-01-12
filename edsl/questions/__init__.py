@@ -23,6 +23,3 @@ from edsl.questions.derived.QuestionYesNo import QuestionYesNo
 
 # Compose Questions
 from edsl.questions.compose_questions import compose_questions
-
-# useful for typing
-from typing import Union
