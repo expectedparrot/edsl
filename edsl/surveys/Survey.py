@@ -12,7 +12,7 @@ from edsl.surveys.Rule import Rule, RuleCollection
 from edsl.Base import Base
 from edsl.surveys.SurveyExportMixin import SurveyExportMixin
 from edsl.surveys.descriptors import QuestionsDescriptor
-from edsl.surveys.memory import MemoryPlan
+from edsl.surveys.MemoryPlan import MemoryPlan
 
 
 @dataclass
