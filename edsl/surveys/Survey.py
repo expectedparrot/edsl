@@ -11,14 +11,8 @@ from edsl.surveys.Rule import Rule, RuleCollection
 
 from edsl.Base import Base
 from edsl.surveys.SurveyExportMixin import SurveyExportMixin
-
-## Proposed Steps
-# 1) Remove name; create a Survey meta-data class
-# 2) Remove question_names parameter, as we can always get the names from the questions
-
 from edsl.surveys.descriptors import QuestionsDescriptor
-
-from edsl.surveys.memory import MemoryPlan
+from edsl.surveys.MemoryPlan import MemoryPlan
 
 
 @dataclass
@@ -61,9 +55,7 @@ class Survey(SurveyExportMixin, Base):
             name=name, description=description, version=version
         )
         self.questions = questions or []
-        self.memory_plan = memory_plan or MemoryPlan(
-            survey_question_names=self.question_names, data={}
-        )
+        self.memory_plan = memory_plan or MemoryPlan(self)
 
         if question_names is not None:
             print(

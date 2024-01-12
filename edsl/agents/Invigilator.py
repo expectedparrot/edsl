@@ -4,15 +4,28 @@ from edsl.exceptions import AgentRespondedWithBadJSONError
 
 
 class InvigilatorBase(ABC):
-    def __init__(self, agent, question, scenario, model):
+    def __init__(self, agent, question, scenario, model, memory_plan, current_answers):
         self.agent = agent
         self.question = question
         self.scenario = scenario
         self.model = model
+        self.memory_plan = memory_plan
+        self.current_answers = current_answers
 
     @abstractmethod
     def answer_question(self):
         pass
+
+    def create_memory(self):
+        """Creates a memory for the agent.
+        TODO: Need to get the question text as well.
+        """
+        base_prompt = """
+        Before the question you are now answering, you already answering the following questions:
+        """
+        relevant_questions = self.memory_plan[self.question.question_name]
+        for question_name in relevant_questions:
+            new_entry = "The question was: {}"
 
 
 class InvigilatorDebug(InvigilatorBase):
