@@ -14,3 +14,6 @@ class EndOfSurvey:
 
     def __str__(self):
         return "EndOfSurvey"
+
+    def __bool__(self):
+        return False

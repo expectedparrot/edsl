@@ -194,8 +194,12 @@ class Survey(SurveyExportMixin, Base):
 
         return Jobs(survey=self).run(*args, **kwargs)
 
+    def first_question(self) -> Question:
+        "Returns the first question in the survey"
+        return self.questions[0]
+
     def next_question(
-        self, current_question_name: str = None, answers=None
+        self, current_question: "Question", answers: dict
     ) -> Union[Question, EndOfSurvey]:
         """
         Returns the next question in a survey.
@@ -203,12 +207,13 @@ class Survey(SurveyExportMixin, Base):
         - If no answers are provided for a question with a rule, the next question is returned. If answers are provided, the next question is determined by the rules and the answers.
         - If the next question is the last question in the survey, an EndOfSurvey object is returned.
         """
-        if current_question_name is None:
-            return self._questions[0]
+        if isinstance(current_question, str):
+            print(
+                "WARNING: current_question by string is deprecated. Please use a Question object."
+            )
+            current_question = self.get_question(current_question)
 
-        answers = answers or {}
-        # print(self.question_name_to_index)
-        question_index = self.question_name_to_index[current_question_name]
+        question_index = self.question_name_to_index[current_question.question_name]
         next_question_object = self.rule_collection.next_question(
             question_index, answers
         )
@@ -219,10 +224,10 @@ class Survey(SurveyExportMixin, Base):
         if isinstance(next_question_object.next_q, EndOfSurvey):
             return EndOfSurvey()
         else:
-            if next_question_object.next_q >= len(self._questions):
+            if next_question_object.next_q >= len(self.questions):
                 return EndOfSurvey()
             else:
-                return self._questions[next_question_object.next_q]
+                return self.questions[next_question_object.next_q]
 
     def gen_path_through_survey(self) -> Generator[Question, dict, None]:
         """
@@ -230,20 +235,16 @@ class Survey(SurveyExportMixin, Base):
         - The coroutine is a generator that yields a question and receives answers.
         - The coroutine starts with the first question in the survey.
         - The coroutine ends when an EndOfSurvey object is returned.
+
+        E.g., in Interview.py
+
+        path_through_survey = self.survey.gen_path_through_survey()
+        question = path_through_survey.send({question.question_name: answer})
         """
-        question = self.next_question()
-        question_name = self.question_names[0]
-        question.question_name = question_name
-        ## We send to the agent the first question and it's name --- say q1 and 'q1'
-        ## it sends back a response, which is answers = {'q1': "yes"}
-        answers = yield question
-        self.answers = answers
-        while True:
-            question = self.next_question(question.question_name, answers)
-            if isinstance(question, EndOfSurvey):
-                break
-            answers = yield question
-            self.answers = answers
+        question = self.first_question()
+        while not isinstance(question, EndOfSurvey):
+            self.answers = yield question
+            question = self.next_question(question, self.answers)
 
     @property
     def scenario_attributes(self) -> list[str]:
