@@ -24,7 +24,7 @@ class InvigilatorHuman(InvigilatorBase):
     def answer_question(self):
         answer = self.agent.answer_question_directly(self.question.question_name)
         response = {"answer": answer}
-        response = self.question.validate_response(response)
+        self.question.validate_answer(response)
         response["model"] = "human"
         response["scenario"] = self.scenario
         return response
@@ -63,8 +63,8 @@ class InvigilatorAI(InvigilatorBase):
         prompt = self.question.get_prompt(self.scenario)
         response = self.get_response(prompt, system_prompt)
         #  validate answer
-        response = self.question.validate_response(response)
-        response = self.question.validate_answer(response)
+        self.question.validate_answer(response)
+        self.question.validate_answer(response)
         answer_code = response["answer"]
         response["answer"] = self.question.translate_answer_code_to_answer(
             answer_code, self.scenario
