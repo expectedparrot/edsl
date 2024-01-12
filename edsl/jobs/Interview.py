@@ -89,15 +89,25 @@ class Interview:
 
         return self.answers
 
-    @retry(
-        wait=wait_exponential(multiplier=2, max=32),
-        stop=stop_after_attempt(5),
-        reraise=True,
-    )
+    # TODO: During testing, we should diable this, as it will 'retry' even if the reason
+    # is some exception.
+    # @retry(
+    #     wait=wait_exponential(multiplier=2, max=32),
+    #     stop=stop_after_attempt(5),
+    #     reraise=True,
+    # )
     def get_response(self, question: Question, debug: bool = False) -> dict[str, Any]:
-        """Gets the agent's response to a question with exponential backoff."""
+        """Gets the agent's response to a question with exponential backoff.
+
+        This calls the agent's `answer_question` method, which returns a response dictionary.
+        """
         response = self.agent.answer_question(
-            question=question, scenario=self.scenario, model=self.model, debug=debug
+            question=question,
+            scenario=self.scenario,
+            model=self.model,
+            debug=debug,
+            memory_plan=self.survey.memory_plan,
+            current_answers=self.answers,
         )
         return response
 

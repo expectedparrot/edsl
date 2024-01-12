@@ -1,25 +1,7 @@
-from collections import UserDict, UserList
+from collections import UserDict
+from edsl.surveys.Memory import Memory
 
-
-class Memory(UserList):
-    def __init__(self, prior_questions: list[str] = None):
-        super().__init__(prior_questions or [])
-
-    def add_prior_question(self, prior_question):
-        if prior_question not in self:
-            self.append(prior_question)
-        else:
-            raise ValueError(f"{prior_question} is already in the memory.")
-
-    def __repr__(self):
-        return f"Memory(prior_questions={self.data})"
-
-    def to_dict(self):
-        return {"prior_questions": self}
-
-    @classmethod
-    def from_dict(cls, data):
-        return cls(**data)
+from edsl.prompts.Prompt import Prompt
 
 
 class MemoryPlan(UserDict):
@@ -27,13 +9,37 @@ class MemoryPlan(UserDict):
     {focal_question: [prior_questions], focal_question: [prior_questions]}
     """
 
-    def __init__(self, survey_question_names: list[str], data=None):
+    def __init__(self, survey: "Survey" = None, data=None):
+        if survey is not None:
+            self.survey_question_names = [q.question_name for q in survey.questions]
+            self.question_texts = [q.question_text for q in survey.questions]
         super().__init__(data or {})
-        self.survey_question_names = survey_question_names
+
+    @property
+    def name_to_text(self):
+        "Returns a dictionary mapping question names to question texts"
+        return dict(zip(self.survey_question_names, self.question_texts))
 
     def check_valid_question_name(self, question_name):
+        "Make sure a passed question name is valid"
         if question_name not in self.survey_question_names:
             raise ValueError(f"{question_name} is not in the survey.")
+
+    def get_memory_prompt_fragment(self, focal_question, answers) -> "Prompt":
+        "Generates the prompt fragment"
+        self.check_valid_question_name(focal_question)
+
+        q_and_a_pairs = [
+            (self.name_to_text[question_name], answers.get(question_name, None))
+            for question_name in self[focal_question]
+        ]
+
+        def gen_line(question_text, answer):
+            "Returns a line of memory"
+            return f"\tQuestion: {question_text}\n\tAnswer: {answer}\n"
+
+        lines = [gen_line(*pair) for pair in q_and_a_pairs]
+        return f"""Prior questions & answers:\n""" + "\n".join(lines)
 
     def check_order(self, focal_question, prior_question):
         focal_index = self.survey_question_names.index(focal_question)
@@ -60,12 +66,15 @@ class MemoryPlan(UserDict):
     def to_dict(self):
         return {
             "survey_question_names": self.survey_question_names,
+            "survey_question_texts": self.question_texts,
             "data": {k: v.to_dict() for k, v in self.items()},
         }
 
     @classmethod
     def from_dict(cls, data):
-        return cls(
-            survey_question_names=data["survey_question_names"],
-            data={k: Memory.from_dict(v) for k, v in data["data"].items()},
-        )
+        # we avoid serializing the survey
+        memory_plan = cls(survey=None, data=data["data"])
+        memory_plan.survey_question_names = data["survey_question_names"]
+        memory_plan.question_texts = data["survey_question_texts"]
+        # memory_plan.data = data
+        return memory_plan

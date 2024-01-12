@@ -10,8 +10,12 @@ class TestInvigilatorDebug(unittest.TestCase):
         question.simulate_answer.return_value = "Mocked Answer"
         scenario = Mock()
         model = Mock()
+        memory_plan = Mock()
+        current_answers = Mock()
 
-        invigilator = InvigilatorDebug(agent, question, scenario, model)
+        invigilator = InvigilatorDebug(
+            agent, question, scenario, model, memory_plan, current_answers
+        )
         self.assertEqual(invigilator.answer_question(), "Mocked Answer")
 
 
@@ -23,8 +27,12 @@ class TestInvigilatorHuman(unittest.TestCase):
         question.validate_response.side_effect = lambda x: x  # Just return the input
         scenario = Mock()
         model = Mock()
+        memory_plan = Mock()
+        current_answers = Mock()
 
-        invigilator = InvigilatorHuman(agent, question, scenario, model)
+        invigilator = InvigilatorHuman(
+            agent, question, scenario, model, memory_plan, current_answers
+        )
         response = invigilator.answer_question()
         self.assertEqual(response["answer"], "Human Answer")
         self.assertEqual(response["model"], "human")
