@@ -27,9 +27,11 @@ class MemoryPlan(UserDict):
     {focal_question: [prior_questions], focal_question: [prior_questions]}
     """
 
-    def __init__(self, survey_question_names: list[str], data=None):
+    def __init__(self, survey: "Survey" = None, data=None):
+        if survey is not None:
+            self.survey_question_names = [q.question_name for q in survey.questions]
+            self.question_texts = [q.question_text for q in survey.questions]
         super().__init__(data or {})
-        self.survey_question_names = survey_question_names
 
     def check_valid_question_name(self, question_name):
         if question_name not in self.survey_question_names:
@@ -60,12 +62,15 @@ class MemoryPlan(UserDict):
     def to_dict(self):
         return {
             "survey_question_names": self.survey_question_names,
+            "survey_question_texts": self.question_texts,
             "data": {k: v.to_dict() for k, v in self.items()},
         }
 
     @classmethod
     def from_dict(cls, data):
-        return cls(
-            survey_question_names=data["survey_question_names"],
-            data={k: Memory.from_dict(v) for k, v in data["data"].items()},
-        )
+        # we avoid serializing the survey
+        memory_plan = cls(survey=None, data=data["data"])
+        memory_plan.survey_question_names = data["survey_question_names"]
+        memory_plan.question_texts = data["survey_question_texts"]
+        # memory_plan.data = data
+        return memory_plan
