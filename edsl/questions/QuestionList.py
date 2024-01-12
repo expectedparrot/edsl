@@ -4,7 +4,7 @@ import textwrap
 from typing import Any, Optional, Union
 from edsl.questions import Question
 from edsl.questions.descriptors import (
-    QuestionAllowNonresponseDescriptor,
+    AllowNonresponseDescriptor,
     IntegerOrNoneDescriptor,
 )
 from edsl.scenarios import Scenario
@@ -29,7 +29,7 @@ class QuestionList(Question):
 
     question_type = "list"
     max_list_items: int = IntegerOrNoneDescriptor()
-    allow_nonresponse: bool = QuestionAllowNonresponseDescriptor()
+    allow_nonresponse: bool = AllowNonresponseDescriptor()
     default_instructions = textwrap.dedent(
         """\
         {{question_text}}

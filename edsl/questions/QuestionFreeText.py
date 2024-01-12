@@ -2,7 +2,7 @@ from __future__ import annotations
 import textwrap
 from typing import Any, Optional
 from edsl.questions import Question
-from edsl.questions.descriptors import QuestionAllowNonresponseDescriptor
+from edsl.questions.descriptors import AllowNonresponseDescriptor
 from edsl.scenarios import Scenario
 from edsl.utilities import random_string
 
@@ -24,7 +24,7 @@ class QuestionFreeText(Question):
     """
 
     question_type = "free_text"
-    allow_nonresponse: bool = QuestionAllowNonresponseDescriptor()
+    allow_nonresponse: bool = AllowNonresponseDescriptor()
     default_instructions = textwrap.dedent(
         """\
         You are being asked the following question: {{question_text}}

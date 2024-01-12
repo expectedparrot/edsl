@@ -9,6 +9,11 @@ from edsl.questions.settings import Settings
 from edsl.utilities.utilities import is_valid_variable_name
 
 
+################################
+# Helper functions
+################################
+
+
 def contains_single_braced_substring(s: str) -> bool:
     """Checks if the string contains a substring in single braces."""
     pattern = r"(?<!\{)\{[^{}]+\}(?!\})"
@@ -26,12 +31,9 @@ def is_number_or_none(value: Any) -> bool:
     return value is None or is_number(value)
 
 
-class FunctionDescriptor:
-    def validate(self, value: Any, instance) -> Callable:
-        """Validates the value is a function, and if so, returns it."""
-        if not callable(value):
-            raise Exception("Must be a function!")
-        return value
+################################
+# Descriptor ABC
+################################
 
 
 class BaseDescriptor(ABC):
@@ -56,70 +58,196 @@ class BaseDescriptor(ABC):
         self.name = "_" + name
 
 
+################################
+# General descriptors
+################################
+
+
+class FunctionDescriptor(BaseDescriptor):
+    def validate(self, value: Any, instance) -> Callable:
+        """Validates the value is a function, and if so, returns it."""
+        if not callable(value):
+            raise QuestionCreationValidationError(
+                f"Expected a function (got {value}).)"
+            )
+        return value
+
+
+class IntegerDescriptor(BaseDescriptor):
+    """
+    Validates that a value is an integer.
+    - `none_allowed` is whether None is allowed as a value.
+    """
+
+    def __init__(self, none_allowed: bool = False):
+        self.none_allowed = none_allowed
+
+    def validate(self, value, instance):
+        if self.none_allowed:
+            if not (isinstance(value, int) or value is None):
+                raise QuestionAnswerValidationError(
+                    f"Expected an integer or None (got {value})."
+                )
+        else:
+            if not isinstance(value, int):
+                raise QuestionAnswerValidationError(
+                    f"Expected an integer (got {value})."
+                )
+
+
+class IntegerOrNoneDescriptor(BaseDescriptor):
+    def validate(self, value, instance):
+        if not (isinstance(value, int) or value is None):
+            raise QuestionCreationValidationError(
+                f"Expected an integer or None (got {value})."
+            )
+
+
+class NumericalOrNoneDescriptor(BaseDescriptor):
+    def validate(self, value, instance):
+        if not is_number_or_none(value):
+            raise QuestionAnswerValidationError(
+                f"Expected a number or None (got {value})."
+            )
+
+
+################################
+# Attribute-specific descriptors
+################################
+
+
+class AllowNonresponseDescriptor(BaseDescriptor):
+    """Validates that the `allow_nonresponse` attribute is a boolean."""
+
+    def validate(self, value, instance):
+        if not isinstance(value, bool):
+            raise QuestionCreationValidationError(
+                f"`allow_nonresponse` must be a boolean (got {value})."
+            )
+
+
 class AnswerTemplateDescriptor(BaseDescriptor):
+    """Validates that the answer template is a dictionary with string keys and string values."""
+
     def validate(self, value: Any, instance) -> None:
-        """Validates that the answer template is a dictionary with string keys and string values."""
         if not isinstance(value, dict):
-            raise Exception("Answer template must be a dictionary!")
+            raise QuestionCreationValidationError(
+                f"`answer_template` must be a dictionary (got {value}).)"
+            )
         if not all(isinstance(x, str) for x in value.keys()):
-            raise Exception("Answer template keys must be strings!")
+            raise QuestionCreationValidationError(
+                f"`answer_template` keys must be strings (got {value})."
+            )
 
 
 class InstructionsDescriptor(BaseDescriptor):
+    """Validates that the `instructions` attribute is a string."""
+
     def validate(self, value, instance):
         if not isinstance(value, str):
-            raise Exception("Instructions must be a string!")
+            raise QuestionCreationValidationError(
+                f"Question `instructions` must be a string (got {value})."
+            )
 
 
-class QuestionAllowNonresponseDescriptor(BaseDescriptor):
+class NumSelectionsDescriptor(BaseDescriptor):
+    """Validates that `num_selections` is an integer, is less than the number of options, and is positive."""
+
     def validate(self, value, instance):
-        if not isinstance(value, bool):
-            raise Exception("Allow nonresponse must be a boolean!")
+        if not (isinstance(value, int)):
+            raise QuestionCreationValidationError(
+                f"`num_selections` must be an integer (got {value})."
+            )
+        if value > len(instance.question_options):
+            raise QuestionAnswerValidationError(
+                f"`num_selections` must be less than the number of options (got {value})."
+            )
+        if value < 1:
+            raise QuestionAnswerValidationError(
+                f"`num_selections` must a positive integer (got {value})."
+            )
+
+
+class OptionLabelDescriptor(BaseDescriptor):
+    def validate(self, value, instance):
+        if value is not None:
+            if min(value.keys()) != min(instance.question_options):
+                raise QuestionCreationValidationError(
+                    f"First option needs a label (got {value})"
+                )
+            if max(value.keys()) != max(instance.question_options):
+                raise QuestionCreationValidationError(
+                    f"Last option needs a label (got {value})"
+                )
+            if not all(isinstance(x, str) for x in value.values()):
+                raise QuestionCreationValidationError(
+                    "Option labels must be strings (got {value})."
+                )
+            for key in value.keys():
+                if key not in instance.question_options:
+                    raise QuestionCreationValidationError(
+                        f"Option label key ({key}) is not in question options ({instance.question_options})."
+                    )
 
 
 class QuestionNameDescriptor(BaseDescriptor):
+    """Validates that the `question_name` attribute is a valid variable name."""
+
     def validate(self, value, instance):
         if not is_valid_variable_name(value):
-            raise Exception("Question name is not a valid variable name!")
+            raise QuestionCreationValidationError(
+                f"`question_name` is not a valid variable name (got {value})."
+            )
 
 
 class QuestionOptionsDescriptor(BaseDescriptor):
+    """Validates that `question_options` is a list, does not exceed the min/max lengths, and has unique items."""
+
     def __init__(self, num_choices: int = None, linear_scale: bool = False):
         self.num_choices = num_choices
         self.linear_scale = linear_scale
 
     def validate(self, value: Any, instance) -> None:
-        """Validates that question options is a list, does not exceed the min/max lengths, and has unique items."""
         if not isinstance(value, list):
-            raise Exception(f"Question options must be a list (got {type(value)}).")
+            raise QuestionCreationValidationError(
+                f"Question options must be a list (got {value})."
+            )
         if len(value) > Settings.MAX_NUM_OPTIONS:
-            raise Exception(f"Too many question options (got {len(value)}).")
+            raise QuestionCreationValidationError(
+                f"Too many question options (got {value})."
+            )
         if len(value) < Settings.MIN_NUM_OPTIONS:
-            raise Exception(f"Too few question options (got {len(value)}).")
+            raise QuestionCreationValidationError(
+                f"Too few question options (got {value})."
+            )
         if len(value) != len(set(value)):
-            raise Exception(f"Question options must be unique (got {value}).")
+            raise QuestionCreationValidationError(
+                f"Question options must be unique (got {value})."
+            )
         if not self.linear_scale:
             if not all(isinstance(x, str) for x in value):
-                raise Exception("Question options must be strings!")
+                raise QuestionCreationValidationError(
+                    "Question options must be strings (got {value}).)"
+                )
             if not all(
                 [
                     len(option) > 1 and len(option) < Settings.MAX_OPTION_LENGTH
                     for option in value
                 ]
             ):
-                raise Exception(
-                    f"All question options must be at least 2 characters long but less than {Settings.MAX_OPTION_LENGTH} characters long!"
+                raise QuestionCreationValidationError(
+                    f"All question options must be at least 2 characters long but less than {Settings.MAX_OPTION_LENGTH} characters long (got {value})."
                 )
 
         if hasattr(instance, "min_selections") and instance.min_selections != None:
             if instance.min_selections > len(value):
                 raise QuestionCreationValidationError(
-                    f"You asked for at least {instance.min_selections} selections, but provided {len(value)} options."
+                    f"You asked for at least {instance.min_selections} selections, but provided fewer options (got {value})."
                 )
         if hasattr(instance, "max_selections") and instance.max_selections != None:
             if instance.max_selections > len(value):
                 raise QuestionCreationValidationError(
-                    f"You asked for at most {instance.max_selections} selections, but provided {len(value)} options."
+                    f"You asked for at most {instance.max_selections} selections, but provided fewer options (got {value})."
                 )
         if self.num_choices is not None:
             if len(value) != self.num_choices:
@@ -129,7 +257,7 @@ class QuestionOptionsDescriptor(BaseDescriptor):
         if self.linear_scale:
             if sorted(value) != list(range(min(value), max(value) + 1)):
                 raise QuestionCreationValidationError(
-                    f"LinearScale.question_options must be a list of successive integers, e.g. [1, 2, 3]"
+                    f"LinearScale.question_options must be a list of successive integers, e.g. [1, 2, 3] (got {value})."
                 )
 
 
@@ -143,8 +271,7 @@ class QuestionTextDescriptor(BaseDescriptor):
             raise Exception("Question must be a string!")
         if contains_single_braced_substring(value):
             print(
-                """WARNING: Question text contains a single-braced substring: {value}. 
-                You probably mean to use a double-braced substring, e.g. {{variable}}."""
+                f"WARNING: Question text contains a single-braced substring: {value}.\nYou probably mean to use a double-braced substring, e.g. {{variable}}."
             )
 
 
@@ -152,63 +279,14 @@ class ShortNamesDictDescriptor(BaseDescriptor):
     def validate(self, value, instance):
         "Validates the short names dictionary"
         if not isinstance(value, dict):
-            raise Exception("Short names dictionary must be a dictionary!")
+            raise QuestionCreationValidationError(
+                f"Short names dictionary must be a dictionary (got {value})."
+            )
         if not all(isinstance(x, str) for x in value.keys()):
-            raise Exception("Short names dictionary keys must be strings!")
+            raise QuestionCreationValidationError(
+                f"Short names dictionary keys must be strings (got {value})."
+            )
         if not all(isinstance(x, str) for x in value.values()):
-            raise Exception("Short names dictionary values must be strings!")
-
-
-class OptionLabelDescriptor(BaseDescriptor):
-    def validate(self, value, instance):
-        if value is not None:
-            if min(value.keys()) != min(instance.question_options):
-                raise QuestionCreationValidationError(f"First option needs a label")
-            if max(value.keys()) != max(instance.question_options):
-                raise QuestionCreationValidationError(f"Last option needs a label")
-            if not all(isinstance(x, str) for x in value.values()):
-                raise QuestionCreationValidationError("Option labels must be strings!")
-            for key in value.keys():
-                if key not in instance.question_options:
-                    raise QuestionCreationValidationError(
-                        f"Option label key {key} is not in question options {instance.question_options}"
-                    )
-
-
-class IntegerOrNoneDescriptor(BaseDescriptor):
-    def validate(self, value, instance):
-        if not (isinstance(value, int) or value is None):
-            raise Exception("Value must be a number!")
-
-
-class NumSelectionsDescriptor(BaseDescriptor):
-    def validate(self, value, instance):
-        if not (isinstance(value, int)):
-            raise Exception("Value must be a number!")
-        if value is not None:
-            if value > len(instance.question_options):
-                # raise Exception("Value must be less than the number of options!")
-                raise QuestionAnswerValidationError(
-                    "Value must be less than the number of options!"
-                )
-            if value < 1:
-                raise Exception("Value must be greater than 0!")
-
-
-class IntegerDescriptor(BaseDescriptor):
-    def __init__(self, none_allowed=False):
-        self.none_allowed = none_allowed
-
-    def validate(self, value, instance):
-        if self.none_allowed:
-            if not (isinstance(value, int) or value is None):
-                raise Exception("Value must be a number!")
-        else:
-            if not isinstance(value, int):
-                raise Exception("Value must be a number!")
-
-
-class NumericalOrNoneDescriptor(BaseDescriptor):
-    def validate(self, value, instance):
-        if not is_number_or_none(value):
-            raise Exception("Value must be a number!")
+            raise QuestionCreationValidationError(
+                f"Short names dictionary values must be strings (got {value})."
+            )
