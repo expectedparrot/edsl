@@ -1,5 +1,5 @@
 import unittest
-from edsl.surveys.memory import Memory, MemoryPlan
+from edsl.surveys.Memory import Memory
 
 
 class TestMemory(unittest.TestCase):
