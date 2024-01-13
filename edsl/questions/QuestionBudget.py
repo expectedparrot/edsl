@@ -1,50 +1,35 @@
+from __future__ import annotations
 import random
 import textwrap
-from pydantic import BaseModel, Field, field_validator, model_validator
-from typing import Type, Union
-from edsl.questions import Question, QuestionData, AnswerData, Settings
-from edsl.exceptions import QuestionAnswerValidationError
-from edsl.utilities.utilities import random_string
+from typing import Any, Optional, Union
+from edsl.questions import Question
+from edsl.questions.descriptors import IntegerDescriptor, QuestionOptionsDescriptor
+from edsl.scenarios import Scenario
+from edsl.utilities import random_string
 
 
-class QuestionBudget(QuestionData):
-    """Pydantic data model for QuestionBudget"""
+class QuestionBudget(Question):
+    """
+    This question asks the respondent to allocate a budget among options.
 
-    question_options: list[str] = Field(
-        ...,
-        min_length=Settings.MIN_NUM_OPTIONS,
-        max_length=Settings.MAX_NUM_OPTIONS,
-    )
-    budget_sum: int
+    Arguments:
+    - `budget_sum` is the total amount of the budget to be allocated (positive integer)
+    - `question_name` is the name of the question (string)
+    - `question_options` are the options the user should allocated the budget to (list of strings)
+    - `question_text` is the text of the question (string)
 
-    def __new__(cls, *args, **kwargs) -> "QuestionBudgetEnhanced":
-        # see QuestionFreeText for an explanation of how __new__ works
-        instance = super(QuestionBudget, cls).__new__(cls)
-        instance.__init__(*args, **kwargs)
-        return QuestionBudgetEnhanced(instance)
+    Optional arguments:
+    - `instructions` are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionBudget.default_instructions`
+    - `short_names_dict` maps question_options to short names (dictionary mapping strings to strings)
 
-    def __init__(self, **data):
-        super().__init__(**data)
+    To generate an example, run `QuestionBudget.example()`
+    """
 
-    @field_validator("question_options")
-    def check_unique(cls, value):
-        return cls.base_validator_check_unique(value)
-
-    @field_validator("question_options")
-    def check_option_string_lengths(cls, value):
-        return cls.base_validator_check_option_string_lengths(value)
-
-
-class QuestionBudgetEnhanced(Question):
     question_type = "budget"
-
-    def __init__(self, question: BaseModel):
-        super().__init__(question)
-
-    @property
-    def instructions(self):
-        return textwrap.dedent(
-            """\
+    budget_sum: int = IntegerDescriptor(none_allowed=False)
+    question_options: list[str] = QuestionOptionsDescriptor()
+    default_instructions = textwrap.dedent(
+        """\
         You are being asked the following question: {{question_text}}
         The options are 
         {% for option in question_options %}
@@ -60,47 +45,35 @@ class QuestionBudgetEnhanced(Question):
         "comment": "I allocated 25 to each option."}
         There must be an allocation listed for each item (including 0).
         """
-        )
+    )
 
-    def construct_answer_data_model(self) -> Type[BaseModel]:
-        budget_sum = self.budget_sum
-        acceptable_answer_keys = set(range(len(self.question_options)))
-
-        class QuestionBudgetAnswerDataModel(AnswerData):
-            answer: dict[int, Union[int, float]]
-
-            @model_validator(mode="after")
-            def check_answer(self):
-                current_sum = sum(self.answer.values())
-                if not current_sum == budget_sum:
-                    raise QuestionAnswerValidationError(
-                        f"Budget sum must be {budget_sum}, but got {current_sum}."
-                    )
-                if any(v < 0 for v in self.answer.values()):
-                    raise QuestionAnswerValidationError(
-                        f"Budget values must be positive, but got {self.answer.keys()}."
-                    )
-                if any(
-                    [key not in acceptable_answer_keys for key in self.answer.keys()]
-                ):
-                    raise QuestionAnswerValidationError(
-                        f"Budget keys must be in {acceptable_answer_keys}, but got {self.answer.keys()}"
-                    )
-                if acceptable_answer_keys != set(self.answer.keys()):
-                    missing_keys = acceptable_answer_keys - set(self.answer.keys())
-                    raise QuestionAnswerValidationError(
-                        f"All but keys must be represented in the answer. Missing: {missing_keys}"
-                    )
-                return self
-
-        return QuestionBudgetAnswerDataModel
+    def __init__(
+        self,
+        question_name: str,
+        question_text: str,
+        question_options: list[str],
+        budget_sum: int,
+        short_names_dict: Optional[dict[str, str]] = None,
+        instructions: Optional[str] = None,
+    ):
+        self.question_name = question_name
+        self.question_text = question_text
+        self.question_options = question_options
+        self.budget_sum = budget_sum
+        self.short_names_dict = short_names_dict or {}
+        self.instructions = instructions or self.default_instructions
 
     ################
-    # Less important
+    # Answer methods
     ################
+    def validate_answer(self, answer: dict[str, Any]) -> dict[str, Union[int, str]]:
+        self.validate_answer_template_basic(answer)
+        self.validate_answer_key_value(answer, "answer", dict)
+        self.validate_answer_budget(answer)
+        return answer
 
     def translate_answer_code_to_answer(
-        self, answer_codes: dict[str, int], scenario=None
+        self, answer_codes: dict[str, int], scenario: Scenario = None
     ):
         """Translates the answer codes to the actual answers.
         For example, for a budget question with options ["a", "b", "c"],
@@ -119,58 +92,55 @@ class QuestionBudgetEnhanced(Question):
             keys = self.question_options
         else:
             keys = range(len(self.question_options))
-        values = [random.randint(0, 100) for _ in range(len(self.question_options))]
-        current_sum = sum(values)
-        modified_values = [v * self.budget_sum / current_sum for v in values]
-        answer = dict(zip(keys, modified_values))
+        remaining_budget = self.budget_sum
+        values = []
+        for _ in range(len(self.question_options)):
+            if _ == len(self.question_options) - 1:
+                # Assign remaining budget to the last value
+                values.append(remaining_budget)
+            else:
+                # Generate a random value between 0 and remaining budget
+                value = random.randint(0, remaining_budget)
+                values.append(value)
+                remaining_budget -= value
+        answer = dict(zip(keys, values))
         return {
             "answer": answer,
             "comment": random_string(),
         }
 
-    def form_elements(self):
-        html_output = f"""
-        <label>{self.question_text}</label>
-        <p>Total Budget: {self.budget_sum}</p>\n"""
-        for index, option in enumerate(self.question_options):
-            html_output += f"""
-            <div id="{self.question_name}_div_{index}">
-                <label for="{self.question_name}_{index}">{option}</label>
-                <input type="number" id="{self.question_name}_{index}" 
-                    name="{self.question_name}_{index}" 
-                    min="0" max="{self.budget_sum}" 
-                    oninput="validateBudget(this, {self.budget_sum})">
-            </div>\n"""
-
-        html_output += f"""
-        <script>
-            function validateBudget(input, maxBudget) {{
-                let total = 0;
-                let inputs = document.querySelectorAll('input[type=number]');
-                inputs.forEach(el => total += Number(el.value));
-                if (total > maxBudget) {{
-                    alert('Total allocation exceeds the budget!');
-                    input.value = '';
-                }}
-            }}
-        </script>
-        """
-        return html_output
+    ################
+    # Helpful methods
+    ################
+    @classmethod
+    def example(cls) -> QuestionBudget:
+        return cls(
+            question_name="food_budget",
+            question_text="How would you allocate $100?",
+            question_options=["Pizza", "Ice Cream", "Burgers", "Salad"],
+            budget_sum=100,
+        )
 
 
-# if __name__ == "__main__":
-#     # for testing
-#     from edsl.questions import QuestionBudget
+def main():
+    from edsl.questions.QuestionBudget import QuestionBudget
 
-#     q = QuestionBudget(
-#         question_text="How would you allocate $100?",
-#         question_options=["Pizza", "Ice Cream", "Burgers", "Salad"],
-#         budget_sum=100,
-#         question_name="food_budget",
-#     )
-
-#     q.formulate_prompt()
-#     q.question_options
-#     q.simulate_answer()
-
-#     results = q.run()
+    q = QuestionBudget.example()
+    q.question_text
+    q.question_options
+    q.question_name
+    q.short_names_dict
+    q.instructions
+    # validate an answer
+    q.validate_answer(
+        {"answer": {0: 100, 1: 0, 2: 0, 3: 0}, "comment": "I like custard"}
+    )
+    # translate answer code
+    q.translate_answer_code_to_answer({0: 100, 1: 0, 2: 0, 3: 0})
+    # simulate answer
+    q.simulate_answer()
+    q.simulate_answer(human_readable=False)
+    q.validate_answer(q.simulate_answer(human_readable=False))
+    # serialization (inherits from Question)
+    q.to_dict()
+    assert q.from_dict(q.to_dict()) == q

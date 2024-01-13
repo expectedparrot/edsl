@@ -25,7 +25,12 @@ clean: ## Cleans non-essential files and folders
 	find . -type d -name '.pytest_cache' -exec rm -rf {} +
 
 coverage: ## Run tests and get a coverage report
-	poetry run coverage run -m pytest tests && poetry run coverage html && firefox htmlcov/index.html
+	poetry run coverage run -m pytest tests && poetry run coverage html
+	@UNAME=`uname`; if [ "$$UNAME" = "Darwin" ]; then \
+		open htmlcov/index.html; \
+	else \
+		firefox htmlcov/index.html; \
+	fi
 
 format: ## Run code autoformatters (black).
 	pre-commit install

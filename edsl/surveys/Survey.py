@@ -1,7 +1,9 @@
 from __future__ import annotations
 import re
 from rich import print
-from typing import Any, Generator, Optional, Union
+from dataclasses import dataclass
+
+from typing import Any, Generator, Optional, Union, List
 from edsl.exceptions import SurveyCreationError, SurveyHasNoRulesError
 from edsl.questions.Question import Question
 from edsl.surveys.base import RulePriority, EndOfSurvey
@@ -9,9 +11,20 @@ from edsl.surveys.Rule import Rule, RuleCollection
 
 from edsl.Base import Base
 from edsl.surveys.SurveyExportMixin import SurveyExportMixin
+from edsl.surveys.descriptors import QuestionsDescriptor
+from edsl.surveys.MemoryPlan import MemoryPlan
 
 
-class Survey(Base, SurveyExportMixin):
+@dataclass
+class SurveyMetaData:
+    name: str = None
+    description: str = None
+    version: str = None
+
+
+class Survey(SurveyExportMixin, Base):
+    questions = QuestionsDescriptor()
+
     """
     A collection of questions that supports skip logic.
 
@@ -31,32 +44,28 @@ class Survey(Base, SurveyExportMixin):
         self,
         questions: list[Question] = None,
         question_names: list[str] = None,
+        memory_plan: MemoryPlan = None,
         name: str = None,
+        description: str = None,
+        version: str = None,
     ):
         """Creates a new survey."""
-        self.question_name_to_index: dict[str, int] = {}
-        self._questions: list[Question] = []
         self.rule_collection = RuleCollection()
-        self.name = name
-        question_names = question_names or []
-        questions = questions or []
-        if question_names:
-            if len(questions) != len(set(question_names)):
-                raise SurveyCreationError(
-                    "Question names must be unique and equal to the number of questions."
-                )
-        else:
-            for i, question in enumerate(questions):
-                question_name = question.question_name or f"q{i}"
-                if question_name in question_names:
-                    raise SurveyCreationError(
-                        "Failed to automatically create names for questions without names."
-                    )
-                question_names.append(question_name)
+        self.meta_data = SurveyMetaData(
+            name=name, description=description, version=version
+        )
+        self.questions = questions or []
+        self.memory_plan = memory_plan or MemoryPlan(self)
 
-        # adds all questions to the survey
-        for question, question_name in zip(questions, question_names):
-            self.add_question(question, question_name)
+        if question_names is not None:
+            print(
+                "WARNING: Passing question_names is deprecated. Please use questions with names instead."
+            )
+
+    @property
+    def name(self):
+        print("WARNING: name is deprecated. Please use meta_data.name instead.")
+        return self.meta_data.name
 
     def get_question(self, question_name) -> Question:
         """Returns the question object given the question name"""
@@ -68,7 +77,13 @@ class Survey(Base, SurveyExportMixin):
     @property
     def question_names(self) -> list[str]:
         """Returns a list of question names in the survey"""
-        return list(self.question_name_to_index.keys())
+        # return list(self.question_name_to_index.keys())
+        return [q.question_name for q in self.questions]
+
+    @property
+    def question_name_to_index(self) -> dict[str, int]:
+        """Returns a dictionary mapping question names to question indices"""
+        return {q.question_name: i for i, q in enumerate(self.questions)}
 
     def add_question(
         self, question: Question, question_name: Optional[str] = None
@@ -78,21 +93,22 @@ class Survey(Base, SurveyExportMixin):
         - The question is appended at the end of the self.questions list
         - A default rule is created that the next index is the next question.
         """
-        if question_name in self.question_name_to_index:
-            raise SurveyCreationError(
-                "Question name already exists in survey. Please use a different name."
+        if question_name is not None:
+            print(
+                "Warning: question_name is deprecated. Please use question.question_name instead."
             )
-        if question_name is None:
-            if hasattr(question, "question_name"):
-                question_name = question.question_name
-            else:
-                question_name = "q" + str(len(self._questions))
 
-        index = len(self._questions)
-
-        # question name needs to be unique
+        if question.question_name in self.question_names:
+            raise SurveyCreationError(
+                f"""Question name already exists in survey. Please use a different name for the offensing question.
+                The problemetic question name is {question_name}.
+                """
+            )
+        index = len(self.questions)
+        # TODO: This is a bit ugly because the user
+        # doesn't "know" about _questions - it's generated by the
+        # descriptor.
         self._questions.append(question)
-        self.question_name_to_index[question_name] = index
 
         # using index + 1 presumes there is a next question
         self.rule_collection.add_rule(
@@ -106,37 +122,68 @@ class Survey(Base, SurveyExportMixin):
         )
         return self
 
-    def code(self) -> list[str]:
-        "Creates the Python code representation of a survey"
-        header_lines = ["from edsl.surveys.Survey import Survey"]
-        header_lines.append(
-            "from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice"
+    def set_full_memory_mode(self) -> None:
+        """This adds instructions to a survey that the agent should remember all of the answers to the questions in the survey."""
+        for i, _ in enumerate(self.question_names):
+            self.memory_plan.add_memory_collection(
+                focal_question=self.question_names[i],
+                prior_questions=self.question_names[:i],
+            )
+
+    def add_targeted_memory(
+        self, focal_question: Union[Question, str], prior_question: Union[Question, str]
+    ) -> None:
+        """This adds instructions to a survey than when answering focal_question,
+        the agent should also remember the answers to prior_questions listed in prior_questions.
+        """
+        focal_question_name = self.question_names[
+            self._get_question_index(focal_question)
+        ]
+        prior_question_name = self.question_names[
+            self._get_question_index(prior_question)
+        ]
+
+        self.memory_plan.add_single_memory(
+            focal_question=focal_question_name,
+            prior_question=prior_question_name,
         )
-        header_lines.append(
-            "from edsl.questions.QuestionFreeText import QuestionFreeText"
+
+    def add_memory_collection(
+        self,
+        focal_question: Union[Question, str],
+        prior_questions: List[Union[Question, str]],
+    ):
+        """This adds instructions to a survey than when answering focal_question,
+        the agent should also remember the answers to prior_questions listed in prior_questions.
+        """
+        focal_question_name = self.question_names[
+            self._get_question_index(focal_question)
+        ]
+
+        prior_question_names = [
+            self.question_names[self._get_question_index(prior_question)]
+            for prior_question in prior_questions
+        ]
+
+        self.memory_plan.add_memory_collection(
+            focal_question=focal_question_name, prior_questions=prior_question_names
         )
-        header_lines.append(
-            "from edsl.questions.derived.QuestionLinearScale import QuestionLinearScale"
-        )
-        header_lines.append(
-            "from edsl.questions.QuestionNumerical import QuestionNumerical"
-        )
-        header_lines.append(
-            "from edsl.questions.QuestionCheckBox import QuestionCheckBox"
-        )
-        header_lines.append(
-            "from edsl.questions.derived.QuestionYesNo import QuestionYesNo"
-        )
-        lines = ["\n".join(header_lines)]
-        for question in self._questions:
-            lines.append(f"{question.question_name} = " + repr(question))
-        lines.append(f"survey = Survey(questions = [{', '.join(self.question_names)}])")
-        return lines
 
     def add_stop_rule(self, question: Question, expression: str) -> Survey:
         """Adds a rule that stops the survey."""
         self.add_rule(question, expression, EndOfSurvey())
         return self
+
+    def _get_question_index(self, q):
+        """Returns the index of the question or EndOfSurvey object. It can handle it if the user
+        passes in the question name, the question object, or the EndOfSurvey object."""
+        if isinstance(q, EndOfSurvey):
+            return EndOfSurvey()
+        else:
+            question_name = q if isinstance(q, str) else q.question_name
+            if question_name not in self.question_name_to_index:
+                raise ValueError(f"Question name {question_name} not found in survey.")
+            return self.question_name_to_index[question_name]
 
     def add_rule(
         self, question: Question, expression: str, next_question: Question
@@ -147,39 +194,29 @@ class Survey(Base, SurveyExportMixin):
         - If there are no rules, the rule added gets priority -1.
         """
 
-        # we let users refer to questions by name or pass the questions themselves.
-        if isinstance(question, str):
-            question_index = self.question_name_to_index[question]
-        else:
-            question_index = self.question_name_to_index[question.question_name]
+        question_index = self._get_question_index(question)
+        next_question_index = self._get_question_index(next_question)
 
-        if isinstance(next_question, str):
-            next_question_index = self.question_name_to_index[next_question]
-        else:
-            # we need to account for possibility that 'next_q' is actually an EndOfSurvey object
-            if isinstance(next_question, EndOfSurvey):
-                next_question_index = EndOfSurvey()
+        def get_new_rule_priority(question_index):
+            priorities = [
+                rule.priority
+                for rule in self.rule_collection.which_rules(question_index)
+            ]
+            if len(priorities) == 0:
+                priority = RulePriority.DEFAULT.value
             else:
-                next_question_index = self.question_name_to_index[
-                    next_question.question_name
-                ]
-        # finds the priorities of existing rules that apply to the question
-        priorities = [
-            rule.priority for rule in self.rule_collection.which_rules(question_index)
-        ]
-
-        if len(priorities) == 0:
-            priority = RulePriority.DEFAULT.value
-        else:
-            priority = max(priorities) + 1  # newer rules take priority over older rules
+                priority = (
+                    max(priorities) + 1
+                )  # newer rules take priority over older rules
+            return priority
 
         self.rule_collection.add_rule(
             Rule(
-                question_index,
-                expression,
-                next_question_index,
-                self.question_name_to_index,
-                priority=priority,
+                current_q=question_index,
+                expression=expression,
+                next_q=next_question_index,
+                question_name_to_index=self.question_name_to_index,
+                priority=get_new_rule_priority(question_index),
             )
         )
 
@@ -201,8 +238,16 @@ class Survey(Base, SurveyExportMixin):
 
         return Jobs(survey=self).run(*args, **kwargs)
 
+    ########################
+    ## Survey-Taking Methods
+    ########################
+
+    def first_question(self) -> Question:
+        "Returns the first question in the survey"
+        return self.questions[0]
+
     def next_question(
-        self, current_question_name: str = None, answers=None
+        self, current_question: "Question", answers: dict
     ) -> Union[Question, EndOfSurvey]:
         """
         Returns the next question in a survey.
@@ -210,12 +255,13 @@ class Survey(Base, SurveyExportMixin):
         - If no answers are provided for a question with a rule, the next question is returned. If answers are provided, the next question is determined by the rules and the answers.
         - If the next question is the last question in the survey, an EndOfSurvey object is returned.
         """
-        if current_question_name is None:
-            return self._questions[0]
+        if isinstance(current_question, str):
+            print(
+                "WARNING: current_question by string is deprecated. Please use a Question object."
+            )
+            current_question = self.get_question(current_question)
 
-        answers = answers or {}
-        print(self.question_name_to_index)
-        question_index = self.question_name_to_index[current_question_name]
+        question_index = self.question_name_to_index[current_question.question_name]
         next_question_object = self.rule_collection.next_question(
             question_index, answers
         )
@@ -226,10 +272,10 @@ class Survey(Base, SurveyExportMixin):
         if isinstance(next_question_object.next_q, EndOfSurvey):
             return EndOfSurvey()
         else:
-            if next_question_object.next_q >= len(self._questions):
+            if next_question_object.next_q >= len(self.questions):
                 return EndOfSurvey()
             else:
-                return self._questions[next_question_object.next_q]
+                return self.questions[next_question_object.next_q]
 
     def gen_path_through_survey(self) -> Generator[Question, dict, None]:
         """
@@ -237,26 +283,22 @@ class Survey(Base, SurveyExportMixin):
         - The coroutine is a generator that yields a question and receives answers.
         - The coroutine starts with the first question in the survey.
         - The coroutine ends when an EndOfSurvey object is returned.
+
+        E.g., in Interview.py
+
+        path_through_survey = self.survey.gen_path_through_survey()
+        question = path_through_survey.send({question.question_name: answer})
         """
-        question = self.next_question()
-        question_name = self.question_names[0]
-        question.question_name = question_name
-        ## We send to the agent the first question and it's name --- say q1 and 'q1'
-        ## it sends back a response, which is answers = {'q1': "yes"}
-        answers = yield question
-        self.answers = answers
-        while True:
-            question = self.next_question(question.question_name, answers)
-            if isinstance(question, EndOfSurvey):
-                break
-            answers = yield question
-            self.answers = answers
+        question = self.first_question()
+        while not isinstance(question, EndOfSurvey):
+            self.answers = yield question
+            question = self.next_question(question, self.answers)
 
     @property
     def scenario_attributes(self) -> list[str]:
         """Returns a list of attributes that admissible Scenarios should have"""
         temp = []
-        for question in self._questions:
+        for question in self.questions:
             question_text = question.question_text
             # extract the contents of all {{ }} in the question text using regex
             matches = re.findall(r"\{\{(.+?)\}\}", question_text)
@@ -285,6 +327,7 @@ class Survey(Base, SurveyExportMixin):
         return {
             "questions": [q.to_dict() for q in self._questions],
             "name": self.name,
+            "memory_plan": self.memory_plan.to_dict(),
             "rule_collection": self.rule_collection.to_dict(),
         }
 
@@ -292,7 +335,8 @@ class Survey(Base, SurveyExportMixin):
     def from_dict(cls, data: dict) -> Survey:
         """Deserializes the dictionary back to a Survey object."""
         questions = [Question.from_dict(q_dict) for q_dict in data["questions"]]
-        survey = cls(questions=questions, name=data["name"])
+        memory_plan = MemoryPlan.from_dict(data["memory_plan"])
+        survey = cls(questions=questions, name=data["name"], memory_plan=memory_plan)
         survey.rule_collection = RuleCollection.from_dict(data["rule_collection"])
         return survey
 
@@ -303,7 +347,7 @@ class Survey(Base, SurveyExportMixin):
         """Returns a string representation of the survey"""
         questions_string = ", ".join([repr(q) for q in self._questions])
         question_names_string = ", ".join([repr(name) for name in self.question_names])
-        return f"Survey(questions=[{questions_string}], question_names=[{question_names_string}], name={repr(self.name)})"
+        return f"Survey(questions=[{questions_string}], name={repr(self.name)})"
 
     def _repr_html_(self) -> str:
         return self.html()
@@ -355,6 +399,38 @@ class Survey(Base, SurveyExportMixin):
 
 
 def main():
+    def example_survey():
+        from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
+        from edsl.surveys.Survey import Survey
+
+        q0 = QuestionMultipleChoice(
+            question_text="Do you like school?",
+            question_options=["yes", "no"],
+            question_name="q0",
+        )
+        q1 = QuestionMultipleChoice(
+            question_text="Why not?",
+            question_options=["killer bees in cafeteria", "other"],
+            question_name="q1",
+        )
+        q2 = QuestionMultipleChoice(
+            question_text="Why?",
+            question_options=["**lack*** of killer bees in cafeteria", "other"],
+            question_name="q2",
+        )
+        s = Survey(questions=[q0, q1, q2])
+        s = s.add_rule(q0, "q0 == 'yes'", q2)
+        return s
+
+    s = example_survey()
+    survey_dict = s.to_dict()
+    s2 = Survey.from_dict(survey_dict)
+    results = s2.run()
+    print(results)
+
+
+if __name__ == "__main__":
+
     def example_survey():
         from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
         from edsl.surveys.Survey import Survey

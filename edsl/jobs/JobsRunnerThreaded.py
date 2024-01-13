@@ -7,7 +7,7 @@ from edsl.jobs import Jobs
 from edsl.jobs.Worker import Worker
 from edsl.trackers.TrackerAPI import TrackerAPI
 from edsl.trackers.TrackerTasks import TrackerTasks
-from edsl.results import Result, Results
+from edsl.results import Results
 from edsl.jobs.JobsRunner import JobsRunner
 
 """

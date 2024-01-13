@@ -1,67 +1,40 @@
+from __future__ import annotations
 import random
 import textwrap
 from jinja2 import Template
-from pydantic import BaseModel, Field, field_validator, model_validator, root_validator
-from typing import Type
-from edsl.questions import Question, QuestionData, AnswerData, Settings
-from edsl.exceptions import (
-    QuestionAnswerValidationError,
-    QuestionCreationValidationError,
-)
+from typing import Any, Optional, Union
+from edsl.questions import Question
+from edsl.exceptions import QuestionAnswerValidationError
+from edsl.scenarios import Scenario
 from edsl.utilities.utilities import random_string
+from edsl.questions.descriptors import (
+    QuestionOptionsDescriptor,
+    NumSelectionsDescriptor,
+)
 
 
-class QuestionRank(QuestionData):
-    """Pydantic data model for QuestionRank"""
+class QuestionRank(Question):
+    """
+    This question asks the user to rank options from a list.
 
-    question_options: list[str] = Field(
-        ...,
-        min_length=Settings.MIN_NUM_OPTIONS,
-        max_length=Settings.MAX_NUM_OPTIONS,
-    )
-    # default = len(question_options) through set_default_num_selections
-    num_selections: int = None
+    Arguments:
+    - `question_name` is the name of the question (string)
+    - `question_options` are the options the user should select from (list of strings)
+    - `question_text` is the text of the question (string)
 
-    def __new__(cls, *args, **kwargs) -> "QuestionRankEnhanced":
-        # see QuestionFreeText for an explanation of how __new__ works
-        instance = super(QuestionRank, cls).__new__(cls)
-        instance.__init__(*args, **kwargs)
-        return QuestionRankEnhanced(instance)
+    Optional arguments:
+    - `num_selections` is the number of options that must be selected (positive integer)
+    - `instructions` are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionRank.default_instructions`
+    - `short_names_dict` maps question_options to short names (dictionary mapping strings to strings)
 
-    @root_validator(pre=True)
-    def set_default_num_selections(cls, values):
-        if "num_selections" not in values or values["num_selections"] is None:
-            if "question_options" in values:
-                values["num_selections"] = len(values["question_options"])
-        return values
+    For an example, run `QuestionRank.example()`
+    """
 
-    @field_validator("question_options")
-    def check_unique(cls, value):
-        return cls.base_validator_check_unique(value)
-
-    @field_validator("question_options")
-    def check_option_string_lengths(cls, value):
-        return cls.base_validator_check_option_string_lengths(value)
-
-    @model_validator(mode="after")
-    def check_options_count(self):
-        if self.num_selections > len(self.question_options):
-            raise QuestionCreationValidationError(
-                f"Required selections = {self.num_selections}, but there are only {len(self.question_options)} options."
-            )
-        return self
-
-
-class QuestionRankEnhanced(Question):
     question_type = "rank"
-
-    def __init__(self, question: BaseModel):
-        super().__init__(question)
-
-    @property
-    def instructions(self) -> str:
-        return textwrap.dedent(
-            """\
+    question_options: list[str] = QuestionOptionsDescriptor()
+    num_selections = NumSelectionsDescriptor()
+    default_instructions = textwrap.dedent(
+        """\
         You are being asked the following question: {{question_text}}
         The options are 
         {% for option in question_options %}
@@ -72,67 +45,91 @@ class QuestionRankEnhanced(Question):
         {"answer": [<put comma-separated list of answer codes here>], "comment": "<put explanation here>"}
         Exactly {{num_selections}} options must be selected.
         """
-        )
+    )
 
-    def construct_answer_data_model(self) -> Type[BaseModel]:
-        acceptable_values = range(len(self.question_options))
+    def __init__(
+        self,
+        question_name: str,
+        question_text: str,
+        question_options: list[str],
+        num_selections: Optional[int] = None,
+        short_names_dict: Optional[dict[str, str]] = None,
+        instructions: Optional[str] = None,
+    ):
+        self.question_name = question_name
+        self.question_text = question_text
+        self.question_options = question_options
+        self.instructions = instructions or self.default_instructions
+        self.short_names_dict = short_names_dict or dict()
+        self.num_selections = num_selections or len(question_options)
 
-        class QuestionRankAnswerDataModel(AnswerData):
-            answer: list[int]
+    ################
+    # Answer methods
+    ################
+    def validate_answer(self, answer: Any) -> dict[str, list[int]]:
+        self.validate_answer_template_basic(answer)
+        self.validate_answer_key_value(answer, "answer", list)
+        self.validate_answer_rank(answer)
+        return answer
 
-            @field_validator("answer")
-            def check_answers_valid(cls, value):
-                if all([v in acceptable_values for v in value]):
-                    return value
-                else:
-                    raise QuestionAnswerValidationError(
-                        f"Rank answer {value} has elements not in {acceptable_values}."
-                    )
-
-            @field_validator("answer")
-            def check_answers_count(cls, value):
-                if len(value) != self.num_selections:
-                    raise QuestionAnswerValidationError(
-                        f"Rank answer {value}, but exactly {self.num_selections} selections required."
-                    )
-                return value
-
-        return QuestionRankAnswerDataModel
-
-    def translate_answer_code_to_answer(self, answer_codes, scenario):
+    def translate_answer_code_to_answer(
+        self, answer_codes, scenario: Scenario = None
+    ) -> list[str]:
         """Translates the answer code to the actual answer."""
-        if scenario is None:
-            scenario = dict()
+        scenario = scenario or Scenario()
         translated_options = [
             Template(option).render(scenario) for option in self.question_options
         ]
-
         translated_codes = []
         for answer_code in answer_codes:
             translated_codes.append(translated_options[int(answer_code)])
         return translated_codes
 
-    def simulate_answer(self, human_readable=True) -> dict[str, str]:
+    def simulate_answer(self, human_readable=True) -> dict[str, Union[int, str]]:
         """Simulates a valid answer for debugging purposes"""
         if human_readable:
-            answer = [random.choice(self.question_options)]
+            selected = random.sample(self.question_options, self.num_selections)
         else:
-            answer = [random.choice(range(len(self.question_options)))]
-        return {
-            "answer": answer,
+            selected = random.sample(
+                range(len(self.question_options)), self.num_selections
+            )
+        answer = {
+            "answer": selected,
             "comment": random_string(),
         }
+        return answer
 
-    def form_elements(self):
-        # TODO: revise this to not use dropdown? Need to collect selections
-        html_output = f"\n\n\n<label>{self.question_text}</label>\n"
-        for index, option in enumerate(self.question_options):
-            html_output += f"""<div id = "{self.question_name}_div_{index}">
-            <label for="{self.question_name}_{index}">{option}</label>
-            <select id="{self.question_name}_{index}" name="{self.question_name}_{index}">
-            """
-            for rank in range(1, self.num_selections + 1):
-                html_output += f'    <option value="{rank}">{rank}</option>\n'
-            html_output += "  </select>\n</div>\n"
+    ################
+    # Helpful methods
+    ################
+    @classmethod
+    def example(cls) -> QuestionRank:
+        return cls(
+            question_name="rank_foods",
+            question_text="Rank your favorite foods.",
+            question_options=["Pizza", "Pasta", "Salad", "Soup"],
+            num_selections=2,
+        )
 
-        return html_output
+
+def main():
+    from edsl.questions.QuestionRank import QuestionRank
+
+    q = QuestionRank.example()
+    q.question_text
+    q.question_name
+    q.question_options
+    q.num_selections
+    q.instructions
+    # validate an answer
+    answer = {"answer": [0, 1], "comment": "I like pizza and pasta."}
+    q.validate_answer(answer)
+    # translate an answer code to an answer
+    q.translate_answer_code_to_answer([0, 1])
+    # simulate answer
+    q.simulate_answer()
+    q.simulate_answer(human_readable=False)
+    q.validate_answer(q.simulate_answer(human_readable=False))
+    # serialization (inherits from Question)
+    q.to_dict()
+    assert q.from_dict(q.to_dict()) == q

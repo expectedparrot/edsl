@@ -62,7 +62,6 @@ class Worker:
                 event_queue.put(TrackerTasks.TaskStarted())
                 answer = interview.conduct_interview(debug=debug)
                 result = Result(
-                    survey=interview.survey,
                     agent=interview.agent,
                     scenario=interview.scenario,
                     model=interview.model,

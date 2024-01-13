@@ -2,12 +2,18 @@ import pytest
 import uuid
 from edsl.exceptions import QuestionAnswerValidationError
 from edsl.questions import QuestionBudget, Settings
-from edsl.questions.QuestionBudget import QuestionBudgetEnhanced
+from edsl.questions.QuestionBudget import QuestionBudget, main
+
+
+def test_QuestionBudget_main():
+    main()
+
 
 valid_question = {
     "question_text": "How would you allocate $100?",
     "question_options": ["Pizza", "Ice Cream", "Burgers", "Salad"],
     "budget_sum": 100,
+    "question_name": "food_budget",
 }
 
 valid_question_w_extras = {
@@ -23,16 +29,12 @@ def test_QuestionBudget_construction():
     """Test QuestionBudget construction."""
 
     q = QuestionBudget(**valid_question)
-    assert isinstance(q, QuestionBudgetEnhanced)
+    assert isinstance(q, QuestionBudget)
     assert q.question_text == valid_question["question_text"]
     assert q.question_options == valid_question["question_options"]
-    assert q.question_name is None
-    
-    assert q.answer_data_model is not None
-    assert q.data != valid_question
 
     q = QuestionBudget(**valid_question_w_extras)
-    assert isinstance(q, QuestionBudgetEnhanced)
+    assert isinstance(q, QuestionBudget)
     assert q.question_name == valid_question_w_extras["question_name"]
     assert q.data == valid_question_w_extras
 
@@ -161,4 +163,3 @@ def test_QuestionBudget_extras():
         range(len(q.question_options))
     )
     # form elements
-    assert q.question_text in q.form_elements()

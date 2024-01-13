@@ -29,6 +29,12 @@ from .questions import (
     QuestionSerializationError,
     QuestionScenarioRenderError,
 )
+from .results import (
+    ResultsBadMutationstringError,
+    ResultsColumnNotFoundError,
+    ResultsInvalidNameError,
+    ResultsMutateError,
+)
 from .surveys import (
     SurveyCreationError,
     SurveyHasNoRulesError,

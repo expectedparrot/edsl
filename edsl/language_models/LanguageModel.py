@@ -15,8 +15,8 @@ from edsl.trackers.TrackerAPI import TrackerAPI
 # from edsl.language_models.repair import repair
 
 
-def repair(response, error):
-    return response, True
+def repair(x):
+    return x
 
 
 class LanguageModel(ABC):
@@ -167,6 +167,7 @@ class LanguageModel(ABC):
             dict_response = json.loads(response)
         except json.JSONDecodeError as e:
             print("Could not load JSON. Trying to repair.")
+            print(response)
             dict_response, success = repair(response, str(e))
             if not success:
                 raise Exception("Even the repair failed.")

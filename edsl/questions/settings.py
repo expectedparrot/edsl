@@ -1,4 +1,6 @@
 class Settings:
+    """Settings for the questions module."""
+
     MAX_ANSWER_LENGTH = 2000
     MAX_EXPRESSION_CONSTRAINT_LENGTH = 1000
     MAX_NUM_OPTIONS = 20

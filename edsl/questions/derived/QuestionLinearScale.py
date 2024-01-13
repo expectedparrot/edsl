@@ -1,83 +1,92 @@
-from typing import Type, Optional
-from pydantic import BaseModel, Field, field_validator, model_validator
-from edsl.exceptions import (
-    QuestionAnswerValidationError,
-    QuestionCreationValidationError,
-)
-from edsl.questions import Settings, QuestionData, AnswerData
-from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoiceEnhanced
+from __future__ import annotations
+import textwrap
+from typing import Optional
+from edsl.questions.descriptors import QuestionOptionsDescriptor, OptionLabelDescriptor
+from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
 
-class QuestionLinearScale(QuestionData):
-    """Pydantic data model for QuestionLinearScale"""
-
-    question_text: str = Field(
-        ..., min_length=1, max_length=Settings.MAX_QUESTION_LENGTH
-    )
-    question_options: list[int]
-    option_labels: Optional[dict[int, str]] = None
-
-    # see QuestionFreeText for an explanation of how __new__ works
-    def __new__(cls, *args, **kwargs) -> "QuestionLinearScaleEnhanced":
-        instance = super(QuestionLinearScale, cls).__new__(cls)
-        instance.__init__(*args, **kwargs)
-        return QuestionLinearScaleEnhanced(instance)
-
-    @field_validator("question_options")
-    def check_successive(cls, value):
-        if sorted(value) != list(range(min(value), max(value) + 1)):
-            raise QuestionCreationValidationError(
-                f"LinearScale.question_options must be a list of successive integers, e.g. [1, 2, 3]"
-            )
-        return value
-
-    @model_validator(mode="after")
-    def check_option_labels(self, value):
-        if self.option_labels is not None:
-            if min(self.option_labels.keys()) != min(self.question_options):
-                raise QuestionCreationValidationError(f"First option needs a label")
-            if max(self.option_labels.keys()) != max(self.question_options):
-                raise QuestionCreationValidationError(f"Last option needs a label")
-        return self
-
-
-class QuestionLinearScaleEnhanced(QuestionMultipleChoiceEnhanced):
+class QuestionLinearScale(QuestionMultipleChoice):
     """
-    Inherits from QuestionMultipleChoice, because the two are similar.
-    - A difference is that the answers must have an ordering.
-    - Not every option has to have a label.
-    - But if option labels are provided, there have to be labels for the first and last options.
+    This question asks the user to respond to a statement on a linear scale.
+
+    Arguments:
+    - `question_name` is the name of the question (string)
+    - `question_text` is the text of the question (string)
+    - `question_options` are the options the user should select from (list of integers)
+
+    Optional arguments:
+    - `instructions` are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionLinearScale.default_instructions`
+    - `option_labels` maps question_options to labels (dictionary mapping integers to strings)
+    - `short_names_dict` maps question_options to short names (dictionary mapping strings to strings)
+
+    For an example, see `QuestionLinearScale.example()`
     """
 
     question_type = "linear_scale"
+    option_labels: Optional[dict[int, str]] = OptionLabelDescriptor()
+    question_options = QuestionOptionsDescriptor(linear_scale=True)
+    default_instructions = textwrap.dedent(
+        """\
+        You are being asked the following question: {{question_text}}
+        The options are 
+        {% for option in question_options %}
+        {{ loop.index0 }}: {{option}}
+        {% endfor %}                       
+        Return a valid JSON formatted like this, selecting only the code of the option (codes start at 0): 
+        {"answer": <put answer code here>, "comment": "<put explanation here>"}
+        Only 1 option may be selected.
+        """
+    )
 
-    def __init__(self, question: BaseModel):
-        super().__init__(question)
+    def __init__(
+        self,
+        question_text: str,
+        question_options: list[int],
+        question_name: str,
+        short_names_dict: Optional[dict[str, str]] = None,
+        instructions: Optional[str] = None,
+        option_labels: Optional[dict[int, str]] = None,
+    ):
+        super().__init__(
+            question_text=question_text,
+            question_options=question_options,
+            question_name=question_name,
+            short_names_dict=short_names_dict,
+            instructions=instructions,
+        )
+        self.question_options = question_options
+        self.option_labels = option_labels
 
-    def construct_answer_data_model(self) -> Type[BaseModel]:
-        "Constructs the answer data model for this question"
-        acceptable_values = self.question_options
+    ################
+    # Helpful
+    ################
+    @classmethod
+    def example(cls) -> QuestionLinearScale:
+        return cls(
+            question_text="How much do you like ice cream?",
+            question_options=[1, 2, 3, 4, 5],
+            question_name="ice_cream",
+            option_labels={1: "I hate it", 5: "I love it"},
+        )
 
-        class QuestionLinearScaleAnswerDataModel(AnswerData):
-            answer: int
-            comment: Optional[str] = None
 
-            @field_validator("answer")
-            def check_answer(cls, value):
-                if value in acceptable_values:
-                    return value
-                else:
-                    raise QuestionAnswerValidationError(
-                        f"Answer {value} is not in the acceptable values {acceptable_values}"
-                    )
+def main():
+    from edsl.questions.derived.QuestionLinearScale import QuestionLinearScale
 
-        return QuestionLinearScaleAnswerDataModel
-
-    def form_elements(self) -> str:
-        html_output = f"\n\n\n<label>{self.question_text}</label>\n"
-        for index in range(1, 6):  # assuming the scale is from 1 to 5
-            html_output += f"""<div id = "{self.question_name}_div_{index}">
-            <input type="radio" id="{self.question_name}_{index}" name="{self.question_name}" value="{index}">
-            <label for="{self.question_name}_{index}">{index}</label>
-            </div>\n"""
-        return html_output
+    q = QuestionLinearScale.example()
+    q.question_text
+    q.question_options
+    q.question_name
+    q.short_names_dict
+    q.instructions
+    # validate an answer
+    q.validate_answer({"answer": 3, "comment": "I like custard"})
+    # translate answer code
+    q.translate_answer_code_to_answer(3, {})
+    # simulate answer
+    q.simulate_answer()
+    q.simulate_answer(human_readable=False)
+    q.validate_answer(q.simulate_answer(human_readable=False))
+    # serialization (inherits from Question)
+    q.to_dict()
+    assert q.from_dict(q.to_dict()) == q
