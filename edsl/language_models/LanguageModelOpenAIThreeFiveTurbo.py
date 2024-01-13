@@ -5,6 +5,10 @@ from edsl.language_models import LanguageModel
 
 openai.api_key = CONFIG.get("OPENAI_API_KEY")
 
+from openai import AsyncOpenAI
+
+client = AsyncOpenAI()
+
 
 class LanguageModelOpenAIThreeFiveTurbo(LanguageModel):
     """
@@ -34,11 +38,11 @@ class LanguageModelOpenAIThreeFiveTurbo(LanguageModel):
                 kwargs[parameter] = default_value
         super().__init__(**kwargs)
 
-    def execute_model_call(
+    async def async_execute_model_call(
         self, prompt: str, system_prompt: str = ""
     ) -> dict[str, Any]:
         """Calls the OpenAI API and returns the API response."""
-        return openai.chat.completions.create(
+        response = await client.chat.completions.create(
             model=self.model,
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -49,7 +53,8 @@ class LanguageModelOpenAIThreeFiveTurbo(LanguageModel):
             top_p=self.top_p,
             frequency_penalty=self.frequency_penalty,
             presence_penalty=self.presence_penalty,
-        ).model_dump()
+        )
+        return response.model_dump()
 
     @staticmethod
     def parse_response(raw_response: dict[str, Any]) -> str:

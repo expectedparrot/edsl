@@ -100,7 +100,7 @@ class Jobs:
 
     def run(
         self,
-        method: str = "serial",
+        method: str = "asyncio",
         n: int = 1,
         debug: bool = False,
         verbose: bool = False,
