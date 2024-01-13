@@ -9,7 +9,7 @@ from edsl.language_models import LanguageModel, LanguageModelOpenAIThreeFiveTurb
 from edsl.results import Results
 from edsl.scenarios import Scenario
 from edsl.surveys import Survey
-from edsl.jobs.base import JobsRunnersRegistry
+from edsl.jobs.base import JobsRunnersRegistry, JobsRunnerDescriptor
 from edsl.jobs.Interview import Interview
 from edsl.api import JobRunnerAPI, ResultsAPI
 
@@ -24,6 +24,8 @@ class Jobs:
     - `run()`: runs a collection of interviews
 
     """
+
+    jobs_runner_name = JobsRunnerDescriptor()
 
     def __init__(
         self,
@@ -105,7 +107,7 @@ class Jobs:
         debug: bool = False,
         verbose: bool = False,
         progress_bar: bool = False,
-    ) -> Union[Results, ResultsAPI]:
+    ) -> Union[Results, ResultsAPI, None]:
         """
         Runs the Job: conducts Interviews and returns their results.
         - `method`: "serial" or "threaded", defaults to "serial"
@@ -114,14 +116,15 @@ class Jobs:
         - `verbose`: prints messages
         - `progress_bar`: shows a progress bar
         """
+        self.job_runner_name = method
         # local mode
         if CONFIG.get("EMERITUS_API_KEY") == "local":
-            if method not in JobsRunnersRegistry:
-                raise JobsRunError(
-                    f"Incorrect method '{method}' provided to .run(). "
-                    f"Valid methods are: {list(JobsRunnersRegistry.keys())}"
-                )
-            JobRunner = JobsRunnersRegistry.get(method)(jobs=self)
+            # if method not in JobsRunnersRegistry:
+            #     raise JobsRunError(
+            #         f"Incorrect method '{method}' provided to .run(). "
+            #         f"Valid methods are: {list(JobsRunnersRegistry.keys())}"
+            #     )
+            JobRunner = JobsRunnersRegistry[self.job_runner_name](jobs=self)
             try:
                 results = JobRunner.run(
                     n=n, verbose=verbose, debug=debug, progress_bar=progress_bar
