@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import json
 from edsl.exceptions import AgentRespondedWithBadJSONError
+from edsl.prompts.Prompt import Prompt
 
 
 class InvigilatorBase(ABC):
@@ -16,16 +17,11 @@ class InvigilatorBase(ABC):
     def answer_question(self):
         pass
 
-    def create_memory(self):
-        """Creates a memory for the agent.
-        TODO: Need to get the question text as well.
-        """
-        base_prompt = """
-        Before the question you are now answering, you already answering the following questions:
-        """
-        relevant_questions = self.memory_plan[self.question.question_name]
-        for question_name in relevant_questions:
-            new_entry = "The question was: {}"
+    def create_memory_prompt(self, question_name):
+        """Creates a memory for the agent."""
+        return self.memory_plan.get_memory_prompt_fragment(
+            question_name, self.current_answers
+        )
 
 
 class InvigilatorDebug(InvigilatorBase):
@@ -72,9 +68,11 @@ class InvigilatorAI(InvigilatorBase):
     async def answer_question(self):
         # actual answers (w/ API call)
         #  get answer
-        system_prompt = self.construct_system_prompt()
-        prompt = self.question.get_prompt(self.scenario)
-        response = self.get_response(prompt, system_prompt)
+        system_prompt = Prompt(self.construct_system_prompt())
+        prompt = Prompt(self.question.get_prompt(self.scenario))
+        if self.memory_plan is not None:
+            prompt += self.create_memory_prompt(self.question.question_name)
+        response = self.get_response(prompt.text, system_prompt.text)
         #  validate answer
         response = self.question.validate_response(response)
         response = self.question.validate_answer(response)

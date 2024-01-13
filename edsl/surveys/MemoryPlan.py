@@ -29,17 +29,29 @@ class MemoryPlan(UserDict):
         "Generates the prompt fragment"
         self.check_valid_question_name(focal_question)
 
+        if focal_question not in self:
+            return Prompt("")
+
         q_and_a_pairs = [
             (self.name_to_text[question_name], answers.get(question_name, None))
             for question_name in self[focal_question]
         ]
+
+        base_prompt = Prompt(
+            """
+        Before the question you are now answering, you already answering the following questions:
+        """
+        )
 
         def gen_line(question_text, answer):
             "Returns a line of memory"
             return f"\tQuestion: {question_text}\n\tAnswer: {answer}\n"
 
         lines = [gen_line(*pair) for pair in q_and_a_pairs]
-        return f"""Prior questions & answers:\n""" + "\n".join(lines)
+        if lines:
+            return Prompt(base_prompt + "\n Prior questions and answers:".join(lines))
+        else:
+            return Prompt("")
 
     def check_order(self, focal_question, prior_question):
         focal_index = self.survey_question_names.index(focal_question)
