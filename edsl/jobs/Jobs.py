@@ -100,6 +100,20 @@ class Jobs:
             interviews.append(interview)
         return interviews
 
+    def _run_local(self, *args, **kwargs):
+        """Runs the job locally."""
+        JobRunner = JobsRunnersRegistry[self.job_runner_name](jobs=self)
+        try:
+            results = JobRunner.run(*args, **kwargs)
+        except Exception as e:
+            raise JobsRunError(f"Error running job. Exception: {e}.")
+        return results
+
+    def _run_remote(self, *args, **kwargs):
+        """Runs the job remotely."""
+        results = JobRunnerAPI(*args, **kwargs)
+        return results
+
     def run(
         self,
         method: str = "asyncio",
@@ -117,27 +131,16 @@ class Jobs:
         - `progress_bar`: shows a progress bar
         """
         self.job_runner_name = method
-        # local mode
-        if CONFIG.get("EMERITUS_API_KEY") == "local":
-            # if method not in JobsRunnersRegistry:
-            #     raise JobsRunError(
-            #         f"Incorrect method '{method}' provided to .run(). "
-            #         f"Valid methods are: {list(JobsRunnersRegistry.keys())}"
-            #     )
-            JobRunner = JobsRunnersRegistry[self.job_runner_name](jobs=self)
-            try:
-                results = JobRunner.run(
-                    n=n, verbose=verbose, debug=debug, progress_bar=progress_bar
-                )
-            except Exception as e:
-                raise JobsRunError(f"Error running job. Exception: {e}.")
-            return results
-        # remote mode
-        else:
-            results = JobRunnerAPI(
-                api_key=CONFIG.get("EMERITUS_API_KEY"), job_dict=self.to_dict()
+        emeritus_api_key = CONFIG.get("EMERITUS_API_KEY")
+        if emeritus_api_key == "local":  # local mode
+            return self._run_local(
+                n=n, verbose=verbose, debug=debug, progress_bar=progress_bar
             )
-            return results
+        else:
+            results = self._run_remote(
+                api_key=emeritus_api_key, job_dict=self.to_dict()
+            )
+        return results
 
     #######################
     # Dunder methods
