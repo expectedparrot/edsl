@@ -17,7 +17,6 @@ class JobsRunnerAsyncio(JobsRunner):
         async def process_task(interview, i):
             answer = await interview.async_conduct_interview(debug=debug)
             result = Result(
-                #                survey=interview.survey,
                 agent=interview.agent,
                 scenario=interview.scenario,
                 model=interview.model,
