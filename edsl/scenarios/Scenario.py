@@ -51,7 +51,7 @@ class Scenario(UserDict, Base):
                 new_scenario[key] = value
         return new_scenario
 
-    def make_question(self, question_class: type) -> "Question":
+    def make_question(self, question_class: type):
         """Make a question from this scenario. Note it takes a QuestionClass (not a question)
         as an input.
 

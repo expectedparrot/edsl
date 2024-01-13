@@ -1,50 +1,34 @@
+from __future__ import annotations
 import random
 import textwrap
 from jinja2 import Template
-from pydantic import BaseModel, Field, field_validator
-from typing import Optional, Type
-from edsl.questions import Question, QuestionData, AnswerData, Settings
-from edsl.exceptions import QuestionAnswerValidationError
-from edsl.utilities.utilities import random_string
+from typing import Optional, Union
+from edsl.utilities import random_string
+from edsl.questions.descriptors import QuestionOptionsDescriptor
+from edsl.questions.Question import Question
+from edsl.scenarios import Scenario
 
 
-class QuestionMultipleChoice(QuestionData):
-    """Pydantic data model for QuestionMultipleChoice"""
+class QuestionMultipleChoice(Question):
+    """
+    This question asks the user to select one option from a list of options.
 
-    question_options: list[str] = Field(
-        ...,
-        min_length=Settings.MIN_NUM_OPTIONS,
-        max_length=Settings.MAX_NUM_OPTIONS,
-    )
+    Arguments:
+    - `question_name` is the name of the question (string)
+    - `question_options` are the options the user should select from (list of strings)
+    - `question_text` is the text of the question (string)
 
-    # see QuestionFreeText for an explanation of how __new__ works
-    def __new__(cls, *args, **kwargs) -> "QuestionMultipleChoiceEnhanced":
-        instance = super(QuestionMultipleChoice, cls).__new__(cls)
-        instance.__init__(*args, **kwargs)
-        return QuestionMultipleChoiceEnhanced(instance)
+    Optional arguments:
+    - `instructions` are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionMultipleChoice.default_instructions`
+    - `short_names_dict` maps question_options to short names (dictionary mapping strings to strings)
 
-    def __init__(self, **data):
-        super().__init__(**data)
+    For an example, run `QuestionMultipleChoice.example()`
+    """
 
-    @field_validator("question_options")
-    def check_unique(cls, value):
-        return cls.base_validator_check_unique(value)
-
-    @field_validator("question_options")
-    def check_option_string_lengths(cls, value):
-        return cls.base_validator_check_option_string_lengths(value)
-
-
-class QuestionMultipleChoiceEnhanced(Question):
     question_type = "multiple_choice"
-
-    def __init__(self, question: BaseModel):
-        super().__init__(question)
-
-    @property
-    def instructions(self) -> str:
-        return textwrap.dedent(
-            """\
+    question_options: list[str] = QuestionOptionsDescriptor()
+    default_instructions = textwrap.dedent(
+        """\
         You are being asked the following question: {{question_text}}
         The options are 
         {% for option in question_options %}
@@ -54,48 +38,44 @@ class QuestionMultipleChoiceEnhanced(Question):
         {"answer": <put answer code here>, "comment": "<put explanation here>"}
         Only 1 option may be selected.
         """
-        )
+    )
 
-    def construct_answer_data_model(self) -> Type[BaseModel]:
-        "Constructs the answer data model for this question"
-        acceptable_values = range(len(self.question_options))
-
-        class QuestionMultipleChoiceAnswerDataModel(AnswerData):
-            answer: int
-            comment: Optional[str] = None
-
-            @field_validator("answer")
-            def check_answer(cls, value):
-                if value in acceptable_values:
-                    return value
-                else:
-                    raise QuestionAnswerValidationError(
-                        f"Answer {value} not in acceptable values {acceptable_values}"
-                    )
-
-        return QuestionMultipleChoiceAnswerDataModel
+    def __init__(
+        self,
+        question_text: str,
+        question_options: list[str],
+        question_name: str,
+        short_names_dict: Optional[dict[str, str]] = None,
+        instructions: Optional[str] = None,
+    ):
+        self.question_text = question_text
+        self.question_options = question_options
+        self.question_name = question_name
+        self.short_names_dict = short_names_dict or dict()
+        self.instructions = instructions or self.default_instructions
 
     ################
-    # Less important
+    # Answer methods
     ################
+    def validate_answer(
+        self, answer: dict[str, Union[str, int]]
+    ) -> dict[str, Union[str, int]]:
+        """Validates the answer"""
+        self.validate_answer_template_basic(answer)
+        self.validate_answer_multiple_choice(answer)
+        return answer
 
-    def translate_answer_code_to_answer(self, answer_code, scenario=None):
-        """
-        Translates the answer code to the actual answer.
-        For example, for question_options ["a", "b", "c"], the answer codes are 0, 1, and 2.
-        The LLM will respond with 0, and this code will translate that to "a".
-        # TODO: REMOVE
-        >>> q = QuestionMultipleChoice(question_text = "How are you?", question_options = ["Good", "Great", "OK", "Bad"], question_name = "how_feeling")
-        >>> q.translate_answer_code_to_answer(0, {})
-        'Good'
-        """
-        scenario = scenario or dict()
+    def translate_answer_code_to_answer(self, answer_code, scenario: Scenario = None):
+        """Translates the answer code to the actual answer."""
+        scenario = scenario or Scenario()
         translated_options = [
             Template(str(option)).render(scenario) for option in self.question_options
         ]
         return translated_options[int(answer_code)]
 
-    def simulate_answer(self, human_readable=True) -> dict[str, str]:
+    def simulate_answer(
+        self, human_readable: bool = True
+    ) -> dict[str, Union[int, str]]:
         """Simulates a valid answer for debugging purposes"""
         if human_readable:
             answer = random.choice(self.question_options)
@@ -106,25 +86,35 @@ class QuestionMultipleChoiceEnhanced(Question):
             "comment": random_string(),
         }
 
-    def form_elements(self) -> str:
-        html_output = f"\n\n\n<label>{self.question_text}</label>\n"
-        for index, option in enumerate(self.question_options):
-            html_output += f"""
-            <div id = "{self.question_name}_div_{index}">
-                <input type="radio" id="{self.question_name}_{index}" name="{self.question_text}" value="{option}">
-                <label for="{self.question_name}_{index}">{option}</label>
-            </div>\n
-            """
-        return html_output
+    ################
+    # Example
+    ################
+    @classmethod
+    def example(cls) -> QuestionMultipleChoice:
+        return cls(
+            question_text="How are you?",
+            question_options=["Good", "Great", "OK", "Bad"],
+            question_name="how_feeling",
+            short_names_dict={"Good": "g", "Great": "gr", "OK": "ok", "Bad": "b"},
+        )
 
 
-if __name__ == "__main__":
-    from edsl.questions import QuestionMultipleChoice
+def main():
+    from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
-    q = QuestionMultipleChoice(
-        question_text="Do you enjoying eating custard while skydiving?",
-        question_options=["yes, somtimes", "no", "only on Tuesdays"],
-        question_name="goose_fight",
-    )
-    results = q.run()
-    print(results)
+    q = QuestionMultipleChoice.example()
+    q.question_text
+    q.question_options
+    q.question_name
+    q.short_names_dict
+    q.instructions
+    # validate an answer
+    q.validate_answer({"answer": 0, "comment": "I like custard"})
+    # translate answer code
+    q.translate_answer_code_to_answer(0, {})
+    # simulate answer
+    q.simulate_answer()
+    q.simulate_answer(human_readable=False)
+    # serialization (inherits from Question)
+    q.to_dict()
+    assert q.from_dict(q.to_dict()) == q

@@ -1,159 +1,160 @@
+from __future__ import annotations
 from collections import UserDict
+from typing import Any, Type
+from edsl.agents import Agent
+from edsl.language_models import LanguageModel
+from edsl.scenarios import Scenario
 
 
 class Result(UserDict):
-    """Represents the result of an interview: one survey, one agent, one scenario,
-    one model, one iteration, and one result."""
+    """
+    This class captures the result of one interview.
+    - Its main data is an Agent, a Scenario, a Model, an Iteration, and an Answer.
+    - These are stored both in the UserDict and as attributes.
+    """
 
-    def __init__(self, survey, agent, scenario, model, iteration, answer):
-        # instantiates the UserDict with the actual objects
+    def __init__(
+        self,
+        agent: Agent,
+        scenario: Scenario,
+        model: Type[LanguageModel],
+        iteration: int,
+        answer: str,
+    ):
+        # initialize the UserDict
         data = {
-            #            "survey": survey,
-            "survey": None,
             "agent": agent.agent_with_valid_trait_names(),
             "scenario": scenario,
             "model": model,
             "iteration": iteration,
             "answer": answer,
         }
-
         super().__init__(**data)
-
-        # Also assign the attributes to the class for convenience
-
-        # TODO: This actually isn't expensive in terms of memory
-        # for key, value in data.items():
-        #    setattr(self, key, value)
-        self.agent = agent
+        # but also store the data as attributes
+        self.agent = agent.agent_with_valid_trait_names()
         self.scenario = scenario
         self.model = model
         self.iteration = iteration
         self.answer = answer
 
-        ## TODO: Dictionary representations
-        self.sub_dicts = {
-            "answer": answer,
-            "scenario": scenario,
-            # "agent": agent.traits,
-            "agent": agent.agent_with_valid_trait_names().traits,
-            "model": model.parameters | {"model": model.model},
+    ###############
+    # Used in Results
+    ###############
+    @property
+    def sub_dicts(self) -> dict[str, dict]:
+        """Returns a dictionary where keys are strings for each of the main class attributes/objects (except for iteration) and values are dictionaries for the attributes and values for each of these objects."""
+        return {
+            "agent": self.agent.agent_with_valid_trait_names().traits,
+            "scenario": self.scenario,
+            "model": self.model.parameters | {"model": self.model.model},
+            "answer": self.answer,
         }
 
-        self.combined_dict = {}
-        for key in self.sub_dicts:
-            self.combined_dict.update(self.sub_dicts[key])
-            self.combined_dict.update({key: self.sub_dicts[key]})
+    @property
+    def combined_dict(self) -> dict[str, Any]:
+        """Returns a dictionary that includes all sub_dicts, but also puts the key-value pairs in each sub_dict as a key_value pair in the combined dictionary."""
+        combined = {}
+        for key, sub_dict in self.sub_dicts.items():
+            combined.update(sub_dict)
+            combined.update({key: sub_dict})
+        return combined
 
-    def get_value(self, data_type, key):
-        """Returns the value for a given key and data type e.g.,
+    def get_value(self, data_type: str, key: str) -> Any:
+        """Returns the value for a given data type and key
+        - data types can be "agent", "scenario", "model", or "answer"
+        - keys are relevant attributes of the Objects the data types represent
         results.get_value("answer", "how_feeling") will return "Good" or "Bad" or whatnot
         """
         return self.sub_dicts[data_type][key]
 
     @property
-    def key_to_data_type(self):
+    def key_to_data_type(self) -> dict[str, str]:
+        """Returns a dictionary where keys are object attributes and values are the data type (object) that the attribute is associated with."""
         d = {}
         for data_type in ["agent", "scenario", "model", "answer"]:
             for key in self.sub_dicts[data_type]:
                 d[key] = data_type
         return d
 
-    def __repr__(self):
-        survey = self.survey if hasattr(self, "survey") else None
-        return f"Result(survey={survey}, agent={self.agent}, scenario={self.scenario}, model={self.model}, iteration={self.iteration}, answer={self.answer})"
+    ###############
+    # Useful
+    ###############
+    def copy(self) -> Result:
+        """Returns a copy of the Result object."""
+        return Result.from_dict(self.to_dict())
 
-    def to_dict(self):
+    def __repr__(self):
+        return f"Result(agent={self.agent}, scenario={self.scenario}, model={self.model}, iteration={self.iteration}, answer={self.answer})"
+
+    def __eq__(self, other):
+        return self.to_dict() == other.to_dict()
+
+    ###############
+    # Serialization
+    ###############
+    def to_dict(self) -> dict[str, Any]:
+        """Returns a dictionary representation of the Result object."""
         return {
             k: v if not hasattr(v, "to_dict") else v.to_dict() for k, v in self.items()
         }
 
-    def copy(self):
-        return Result.from_dict(self.to_dict())
-
     @classmethod
-    def from_dict(self, json_dict):
-        from edsl.agents import Agent
-        from edsl.scenarios import Scenario
-        from edsl.language_models import LanguageModel
-
-        return Result(
-            # survey=Survey.from_dict(json_dict["survey"]),
-            survey=None,
+    def from_dict(self, json_dict: dict) -> Result:
+        """Returns a Result object from a dictionary representation."""
+        result = Result(
             agent=Agent.from_dict(json_dict["agent"]),
             scenario=Scenario.from_dict(json_dict["scenario"]),
             model=LanguageModel.from_dict(json_dict["model"]),
             iteration=json_dict["iteration"],
             answer=json_dict["answer"],
         )
-
-    @property
-    def agents(self):
-        return [r.agent for r in self]
+        return result
 
 
-if __name__ == "__main__":
+def main():
+    from edsl.results.Result import Result
     import json
 
     print("Being imported")
     json_string = """
     {
-    "survey": {
-        "questions": [
-            {
-                "question_name": "how_feeling",
-                "question_text": "How are you this {{ period }}?",
-                "question_options": [
-                    "Good",
-                    "Great",
-                    "OK",
-                    "Bad"
-                ],
-                "type": "multiple_choice"
+        "agent": {
+            "traits": {
+                "status": "Unhappy"
             }
-        ],
-        "name": null,
-        "rule_collection": [
-            {
-                "current_q": 0,
-                "expression": "True",
-                "next_q": 1,
-                "priority": -1,
-                "question_name_to_index": {
-                    "how_feeling": 0
-                }
+        },
+        "scenario": {
+            "period": "morning"
+        },
+        "model": {
+            "model": "gpt-3.5-turbo",
+            "parameters": {
+                "temperature": 0.5,
+                "max_tokens": 1000,
+                "top_p": 1,
+                "frequency_penalty": 0,
+                "presence_penalty": 0,
+                "use_cache": true
             }
-        ]
-    },
-    "agent": {
-        "traits": {
-            "status": "Unhappy"
         },
-        "verbose": false
-    },
-    "scenario": {
-        "period": "morning"
-    },
-    "model": {
-        "model": "gpt-3.5-turbo",
-        "parameters": {
-            "temperature": 0.5,
-            "max_tokens": 1000,
-            "top_p": 1,
-            "frequency_penalty": 0,
-            "presence_penalty": 0,
-            "use_cache": true
-        },
-    },
-    "iteration": 0,
-    "answer": {
-        "how_feeling": "Bad"
-    }
+        "iteration": 0,
+        "answer": {
+            "how_feeling": "Bad"
+        }
     }
     """
+
     result = Result.from_dict(json.loads(json_string))
 
-    # get combined dict working
+    result.sub_dicts
     assert result.combined_dict["how_feeling"] == "Bad"
+
+    result.combined_dict
     assert result.get_value("answer", "how_feeling") == "Bad"
 
-    # assert(result.get_value())
+    result.key_to_data_type
+    print(result)
+
+    assert result == result.copy()
+
+    result.to_dict()

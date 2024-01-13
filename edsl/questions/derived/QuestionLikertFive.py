@@ -1,16 +1,26 @@
-from pydantic import BaseModel, Field
-from typing import Type
-from edsl.questions import Settings, QuestionData
-from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoiceEnhanced
+from __future__ import annotations
+from typing import Optional
+from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
 
-class QuestionLikertFive(QuestionData):
-    """Pydantic data model for QuestionLikertFive"""
+class QuestionLikertFive(QuestionMultipleChoice):
+    """
+    This question asks the user to respond to a statement on a 5-point Likert scale.
 
-    question_text: str = Field(
-        ..., min_length=1, max_length=Settings.MAX_QUESTION_LENGTH
-    )
-    question_options: list[str] = [
+    Arguments:
+    - `question_name` is the name of the question (string)
+    - `question_text` is the text of the question (string)
+
+    Optional arguments:
+    - `instructions` are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionLikertFive.default_instructions`
+    - `question_options` are the options the user should select from (list of strings). If not provided, the default likert options are used. To view them, run `QuestionLikertFive.likert_options`
+    - `short_names_dict` maps question_options to short names (dictionary mapping strings to strings)
+
+    For an example, see `QuestionLikertFive.example()`
+    """
+
+    question_type = "likert_five"
+    likert_options: list[str] = [
         "Strongly disagree",
         "Disagree",
         "Neutral",
@@ -18,40 +28,49 @@ class QuestionLikertFive(QuestionData):
         "Strongly agree",
     ]
 
-    def __new__(cls, *args, **kwargs):
-        instance = super(QuestionLikertFive, cls).__new__(cls)
-        instance.__init__(*args, **kwargs)
-        return QuestionLikertFiveEnhanced(instance)
+    def __init__(
+        self,
+        question_name: str,
+        question_text: str,
+        question_options: Optional[list[str]] = likert_options,
+        short_names_dict: Optional[dict[str, str]] = None,
+        instructions: Optional[str] = None,
+    ):
+        super().__init__(
+            question_name=question_name,
+            question_text=question_text,
+            question_options=question_options,
+            short_names_dict=short_names_dict,
+            instructions=instructions,
+        )
+
+    ################
+    # Helpful
+    ################
+    @classmethod
+    def example(cls) -> QuestionLikertFive:
+        return cls(
+            question_name="happy_raining",
+            question_text="I'm only happy when it rains.",
+        )
 
 
-class QuestionLikertFiveEnhanced(QuestionMultipleChoiceEnhanced):
-    """
-    Inherits from QuestionMultipleChoice, because the two are similar.
-    - A difference is that the answers in QuestionLikertFive are fixed
-      and have a very specific order and labels
-    """
+def main():
+    from edsl.questions.derived.QuestionLikertFive import QuestionLikertFive
 
-    question_type = "likert_five"
-
-    def __init__(self, question: BaseModel):
-        super().__init__(question)
-
-    def construct_answer_data_model(self) -> Type[BaseModel]:
-        """Reuses the answer data model from QuestionMultipleChoiceEnhanced"""
-        return super().construct_answer_data_model()
-
-    # TODO: Seems that we need to have the label of each option?
-    def form_elements(self):
-        scale_values = ["1", "2", "3", "4", "5"]
-        html_output = f"""
-        <label>{self.question_text}</label>\n"""
-
-        for index, value in enumerate(scale_values):
-            html_output += f"""
-            <div id="{self.question_name}_div_{index}">
-                <input type="radio" id="{self.question_name}_{index}" 
-                    name="{self.question_name}" value="{value}">
-                <label for="{self.question_name}_{index}">{value}</label>
-            </div>\n"""
-
-        return html_output
+    q = QuestionLikertFive.example()
+    q.question_text
+    q.question_options
+    q.question_name
+    q.short_names_dict
+    q.instructions
+    # validate an answer
+    q.validate_answer({"answer": 0, "comment": "I like custard"})
+    # translate answer code
+    q.translate_answer_code_to_answer(0, {})
+    q.simulate_answer()
+    q.simulate_answer(human_readable=False)
+    q.validate_answer(q.simulate_answer(human_readable=False))
+    # serialization (inherits from Question)
+    q.to_dict()
+    assert q.from_dict(q.to_dict()) == q

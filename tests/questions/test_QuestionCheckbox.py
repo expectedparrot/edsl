@@ -4,8 +4,13 @@ from edsl.exceptions import (
     QuestionAnswerValidationError,
     QuestionResponseValidationError,
 )
-from edsl.questions import Question, QuestionCheckBox, Settings
-from edsl.questions.QuestionCheckBox import QuestionCheckBoxEnhanced
+from edsl.questions import Question, Settings
+from edsl.questions.QuestionCheckBox import QuestionCheckBox, main
+
+
+def test_QuestionCheckBox_main():
+    main()
+
 
 valid_question = {
     "question_text": "Which weekdays do you like? Select 2 or 3.",
@@ -28,23 +33,21 @@ def test_QuestionCheckBox_construction():
     """Test QuestionCheckBox construction."""
 
     q = QuestionCheckBox(**valid_question)
-    assert isinstance(q, QuestionCheckBoxEnhanced)
+    assert isinstance(q, QuestionCheckBox)
     assert q.question_name == valid_question["question_name"]
     assert q.question_text == valid_question["question_text"]
     assert q.question_options == valid_question["question_options"]
     assert q.min_selections == valid_question["min_selections"]
     assert q.max_selections == valid_question["max_selections"]
 
-    assert q.answer_data_model is not None
     assert q.data == valid_question
 
     q_noextras = QuestionCheckBox(**valid_question_wo_extras)
-    assert isinstance(q_noextras, QuestionCheckBoxEnhanced)
+    assert isinstance(q_noextras, QuestionCheckBox)
     assert q_noextras.question_name == valid_question["question_name"]
     assert q_noextras.question_text == valid_question["question_text"]
     assert q_noextras.question_options == valid_question["question_options"]
     # assert q_noextras.uuid is not None
-    assert q_noextras.answer_data_model is not None
     # should add extra attrs with None values
     assert q_noextras.min_selections == None
     assert q_noextras.max_selections == None
@@ -134,7 +137,7 @@ def test_QuestionCheckBox_serialization():
         "question_options": ["Mon", "Tue", "Wed", "Thu", "Fri"],
         "min_selections": 2,
         "max_selections": 3,
-        "type": "checkbox",
+        "question_type": "checkbox",
         "short_names_dict": {},
     }
     assert q_noextras.to_dict() == {
@@ -143,17 +146,17 @@ def test_QuestionCheckBox_serialization():
         "question_options": ["Mon", "Tue", "Wed", "Thu", "Fri"],
         "min_selections": None,
         "max_selections": None,
-        "type": "checkbox",
+        "question_type": "checkbox",
         "short_names_dict": {},
     }
 
     # deserialization should return a QuestionCheckBoxEnhanced object
     q_lazarus = Question.from_dict(q.to_dict())
-    assert isinstance(q_lazarus, QuestionCheckBoxEnhanced)
+    assert isinstance(q_lazarus, QuestionCheckBox)
     assert type(q) == type(q_lazarus)
     assert repr(q) == repr(q_lazarus)
     q_lazarus = Question.from_dict(q_noextras.to_dict())
-    assert isinstance(q_lazarus, QuestionCheckBoxEnhanced)
+    assert isinstance(q_lazarus, QuestionCheckBox)
     assert type(q_noextras) == type(q_lazarus)
     assert repr(q_noextras) == repr(q_lazarus)
     # serialization from bad data should raise an exception
@@ -233,6 +236,7 @@ def test_QuestionCheckBox_answers():
 
     # answer must be an list of ints
     q.validate_answer(llm_response_valid1)
+
     q.validate_answer(llm_response_valid2)
     # answer value required
     with pytest.raises(QuestionAnswerValidationError):
@@ -273,10 +277,3 @@ def test_QuestionCheckBox_extras():
     assert isinstance(simulated_answer["answer"], list)
     assert len(simulated_answer["answer"]) <= Settings.MAX_OPTION_LENGTH
     assert len(simulated_answer["answer"]) > 0
-    # form elements
-    form_elements = q.form_elements()
-    assert (
-        "<label>Which weekdays do you like? Select 2 or 3.</label>" in q.form_elements()
-    )
-    for option in q.question_options:
-        assert option in form_elements

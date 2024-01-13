@@ -3,8 +3,13 @@ from edsl.exceptions import (
     QuestionAnswerValidationError,
     QuestionResponseValidationError,
 )
-from edsl.questions import Question, QuestionRank, Settings
-from edsl.questions.QuestionRank import QuestionRankEnhanced
+from edsl.questions import Question, Settings
+from edsl.questions.QuestionRank import QuestionRank, main
+
+
+def test_QuestionRank_main():
+    main()
+
 
 valid_question = {
     "question_text": "What are your 2 favorite foods in the list, ranked?",
@@ -26,13 +31,12 @@ def test_QuestionRank_construction():
     """Test QuestionRank construction."""
 
     q = QuestionRank(**valid_question)
-    assert isinstance(q, QuestionRankEnhanced)
+    assert isinstance(q, QuestionRank)
     assert q.question_name == valid_question["question_name"]
     assert q.question_text == valid_question["question_text"]
     assert q.question_options == valid_question["question_options"]
     assert q.num_selections == valid_question["num_selections"]
-    
-    assert q.answer_data_model is not None
+
     assert q.data == valid_question
 
     # QuestionRank should impute extra fields appropriately
@@ -41,8 +45,7 @@ def test_QuestionRank_construction():
     assert q.question_text == valid_question["question_text"]
     assert q.question_options == valid_question["question_options"]
     assert q.num_selections == 4
-    
-    assert q.answer_data_model is not None
+
     assert q.data != valid_question_wo_extras
     assert q.data != valid_question
 
@@ -91,30 +94,30 @@ def test_QuestionRank_serialization():
     # serialization should add a "type" attribute
     q = QuestionRank(**valid_question)
     valid_question_w_type = valid_question.copy()
-    valid_question_w_type.update({"type": "rank"})
+    valid_question_w_type.update({"question_type": "rank"})
     assert q.to_dict() == valid_question_w_type
     q = QuestionRank(**valid_question_wo_extras)
     valid_question_w_type = valid_question_wo_extras.copy()
-    valid_question_w_type.update({"type": "rank", "num_selections": 4})
+    valid_question_w_type.update({"question_type": "rank", "num_selections": 4})
     assert q.to_dict() == valid_question_w_type
 
     # deserialization should return a QuestionRankEnhanced object
     q_lazarus = Question.from_dict(q.to_dict())
-    assert isinstance(q_lazarus, QuestionRankEnhanced)
+    assert isinstance(q_lazarus, QuestionRank)
     assert type(q) == type(q_lazarus)
     assert repr(q) == repr(q_lazarus)
 
     # serialization from bad data should raise an exception
     with pytest.raises(Exception):
-        Question.from_dict({"type": "rank"})
+        Question.from_dict({"question_type": "rank"})
     with pytest.raises(Exception):
-        Question.from_dict({"type": "rank", "question_text": 1})
+        Question.from_dict({"question_type": "rank", "question_text": 1})
     with pytest.raises(Exception):
-        Question.from_dict({"type": "rank", "question_text": ""})
+        Question.from_dict({"question_type": "rank", "question_text": ""})
     with pytest.raises(Exception):
         Question.from_dict(
             {
-                "type": "list",
+                "question_type": "list",
                 "question_text": "What are your 2 favorite foods in the list, ranked?",
                 "question_options": ["Pizza", "Ice cream", "Cake", "Cereal"],
                 "num_selections": 52,
@@ -124,7 +127,7 @@ def test_QuestionRank_serialization():
     with pytest.raises(Exception):
         Question.from_dict(
             {
-                "type": "list",
+                "question_type": "list",
                 "question_text": "What are your 2 favorite foods in the list, ranked?",
                 "question_options": ["Pizza", "Ice cream", "Cake", "Cereal"],
                 "num_selections": 3,
@@ -211,8 +214,3 @@ def test_QuestionRank_extras():
     assert len(simulated_answer["answer"]) > 0
     assert len(simulated_answer["answer"][0]) <= Settings.MAX_ANSWER_LENGTH
     assert simulated_answer["answer"][0] in q.question_options
-    # form elements
-    form_elements = q.form_elements()
-    assert "<label>What are your 2 favorite" in q.form_elements()
-    for option in q.question_options:
-        assert option in form_elements

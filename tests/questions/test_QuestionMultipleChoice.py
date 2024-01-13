@@ -4,8 +4,13 @@ from edsl.exceptions import (
     QuestionAnswerValidationError,
     QuestionResponseValidationError,
 )
-from edsl.questions import Question, QuestionMultipleChoice, Settings
-from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoiceEnhanced
+from edsl.questions import Question, Settings
+from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice, main
+
+
+def test_QuestionMultipleChoice_main():
+    main()
+
 
 valid_question = {
     "question_text": "How are you?",
@@ -19,12 +24,11 @@ def test_QuestionMultipleChoice_construction():
     """Test QuestionMultipleChoice construction."""
 
     q = QuestionMultipleChoice(**valid_question)
-    assert isinstance(q, QuestionMultipleChoiceEnhanced)
+    assert isinstance(q, QuestionMultipleChoice)
     assert q.question_name == valid_question["question_name"]
     assert q.question_text == valid_question["question_text"]
     assert q.question_options == valid_question["question_options"]
-    
-    assert q.answer_data_model is not None
+
     assert q.data == valid_question
 
     # should raise an exception if question_text is missing
@@ -84,6 +88,7 @@ def test_QuestionMultipleChoice_construction():
     invalid_question.update({"question_options": ["OK", ""]})
     with pytest.raises(Exception):
         QuestionMultipleChoice(**invalid_question)
+
     invalid_question.update({"question_options": {"OK": "OK", "BAD": "BAD"}})
     with pytest.raises(Exception):
         QuestionMultipleChoice(**invalid_question)
@@ -114,13 +119,13 @@ def test_QuestionMultipleChoice_serialization():
         "question_name": "how_are_you",
         "question_text": "How are you?",
         "question_options": ["OK", "Bad"],
-        "type": "multiple_choice",
+        "question_type": "multiple_choice",
         "short_names_dict": {},
     }
 
     # deserialization should return a QuestionMultipleChoiceEnhanced object
     q_lazarus = Question.from_dict(q.to_dict())
-    assert isinstance(q_lazarus, QuestionMultipleChoiceEnhanced)
+    assert isinstance(q_lazarus, QuestionMultipleChoice)
     assert type(q) == type(q_lazarus)
     assert repr(q) == repr(q_lazarus)
 
@@ -205,8 +210,3 @@ def test_QuestionMultipleChoice_extras():
     assert len(simulated_answer["answer"]) <= Settings.MAX_ANSWER_LENGTH
     assert len(simulated_answer["answer"]) > 0
     assert simulated_answer["answer"] in q.question_options
-    # form elements
-    form_elements = q.form_elements()
-    assert '<input type="radio"' in q.form_elements()
-    for option in q.question_options:
-        assert option in form_elements

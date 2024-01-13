@@ -31,7 +31,6 @@ class JobsRunnerSerial(JobsRunner):
             for interview in interviews:
                 answer = interview.conduct_interview(debug=debug)
                 result = Result(
-                    survey=interview.survey,
                     agent=interview.agent,
                     scenario=interview.scenario,
                     model=interview.model,

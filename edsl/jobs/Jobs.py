@@ -175,23 +175,37 @@ class Jobs:
             scenarios=[Scenario.from_dict(scenario) for scenario in data["scenarios"]],
         )
 
+    #######################
+    # Example methods
+    #######################
+    @classmethod
+    def example(cls) -> Jobs:
+        from edsl.questions import QuestionMultipleChoice
 
-def main():  # pragma: no cover
-    """Consumes API credits"""
-    from edsl.questions import QuestionMultipleChoice
-    from edsl.scenarios import Scenario
-    from edsl.surveys import Survey
+        q1 = QuestionMultipleChoice(
+            question_text="How are you this {{ period }}?",
+            question_options=["Good", "Great", "OK", "Terrible"],
+            question_name="how_feeling",
+        )
+        q2 = QuestionMultipleChoice(
+            question_text="How were you feeling yesterday {{ period }}?",
+            question_options=["Good", "Great", "OK", "Terrible"],
+            question_name="how_feeling_yesterday",
+        )
+        base_survey = Survey(questions=[q1, q2])
 
-    q = QuestionMultipleChoice(
-        question_text="How are you??",
-        question_options=["Good", "Great", "OK", "Bad"],
-        question_name="how_feeling",
-    )
-    survey = Survey(questions=[q])
-    job = survey.by(Scenario({"price": 100}), Scenario({"price": 200})).by(
-        Scenario({"color": "red"}), Scenario({"color": "blue"})
-    )
-    len(job) == 4
-    results = job.run()
-    len(results) == 4
+        job = base_survey.by(
+            Scenario({"period": "morning"}), Scenario({"period": "afternoon"})
+        ).by(Agent({"status": "Super duper unhappy"}), Agent({"status": "Joyful"}))
+
+        return job
+
+
+def main():
+    from edsl.jobs import Jobs
+
+    job = Jobs.example()
+    len(job) == 8
+    results = job.run(debug=True)
+    len(results) == 8
     results
