@@ -70,6 +70,27 @@ class TestSurvey(unittest.TestCase):
             },
         )
 
+    def test_dag(self):
+        survey = self.gen_survey()
+        survey.add_rule(
+            survey._questions[0], "like_school == 'no'", survey._questions[2]
+        )
+        survey.add_rule(
+            survey._questions[1], "favorite_subject == 'math'", survey._questions[2]
+        )
+        survey.add_rule(
+            survey._questions[1], "favorite_subject == 'science'", survey._questions[2]
+        )
+        survey.add_rule(
+            survey._questions[1], "favorite_subject == 'english'", survey._questions[2]
+        )
+        survey.add_rule(
+            survey._questions[1], "favorite_subject == 'history'", survey._questions[2]
+        )
+        survey.add_targeted_memory("favorite_subject", "like_school")
+        # breakpoint()
+        self.assertEqual(survey.dag(), {1: {0}, 2: {0, 1}})
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -90,3 +90,25 @@ class MemoryPlan(UserDict):
         memory_plan.question_texts = data["survey_question_texts"]
         # memory_plan.data = data
         return memory_plan
+
+    def _indexify(self, d):
+        new_d = {}
+        for k, v in d.items():
+            key = self.survey_question_names.index(k)
+            new_v = set({self.survey_question_names.index(q) for q in v})
+            new_d[key] = new_v
+        return new_d
+
+    @property
+    def dag(self):
+        d = {}
+        "Returns a directed acyclic graph of the memory plan"
+        for focal_question, memory in self.items():
+            for prior_question in memory:
+                if focal_question not in d:
+                    d[focal_question] = set({prior_question})
+                else:
+                    d[focal_question].add(prior_question)
+        # focal_index = self.survey_question_names.index(focal_question)
+        # prior_index = self.survey_question_names.index(prior_question)
+        return self._indexify(d)

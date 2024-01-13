@@ -31,6 +31,23 @@ class TestRuleCollection(unittest.TestCase):
         self.assertEqual(len(rules_that_apply), 1)
         self.assertEqual(rules_that_apply[0].priority, 1)
 
+    def test_dag(self):
+        rc = RuleCollection()
+
+        rule = Rule(
+            current_q=0,
+            expression="q1 == 'yes'",
+            next_q=1,
+            question_name_to_index={"q1": 0},
+            priority=1,
+        )
+
+        rc.add_rule(rule)
+        # print(rc.non_default_rules)
+
+        print(rc.dag)
+        # breakpoint()
+
 
 if __name__ == "__main__":
     unittest.main()
