@@ -51,7 +51,9 @@ class Survey(SurveyExportMixin, Base):
         version: str = None,
     ):
         """Creates a new survey."""
-        self.rule_collection = RuleCollection()
+        self.rule_collection = RuleCollection(
+            num_questions=len(questions) if questions else None
+        )
         self.meta_data = SurveyMetaData(
             name=name, description=description, version=version
         )
@@ -318,6 +320,16 @@ class Survey(SurveyExportMixin, Base):
             # add them to the temp list
             temp.extend(matches)
         return temp
+
+    def dag(self):
+        memory_dag = self.memory_plan.dag
+        rule_dag = self.rule_collection.dag
+        # return {"memory_dag": memory_dag, "rule_dag": rule_dag}
+        d = {}
+        combined_keys = set(memory_dag.keys()).union(set(rule_dag.keys()))
+        for key in combined_keys:
+            d[key] = memory_dag.get(key, set({})).union(rule_dag.get(key, set({})))
+        return d
 
     ###################
     # DUNDER METHODS

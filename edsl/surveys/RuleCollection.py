@@ -1,10 +1,12 @@
-from typing import List
+from typing import List, Union
 from edsl.exceptions import (
     SurveyRuleCannotEvaluateError,
     SurveyRuleCollectionHasNoRulesAtNodeError,
 )
 from edsl.utilities.interface import print_table_with_rich
 from edsl.surveys.Rule import Rule
+from edsl.surveys.base import EndOfSurvey
+
 
 from collections import namedtuple
 
@@ -12,16 +14,18 @@ NextQuestion = namedtuple(
     "NextQuestion", "next_q, num_rules_found, expressions_evaluating_to_true, priority"
 )
 
+## We're going to need the survey object itself
+## so we know how long the survey is, unless we move
+
 
 class RuleCollection:
     "A collection of rules for a particular survey"
 
-    def __init__(self, rules=None, verbose=False):
-        if rules is None:
-            self.rules = []
-        else:
-            self.rules = rules
-        self.verbose = verbose
+    def __init__(
+        self, num_questions: int = None, rules: List[Rule] = None, verbose=False
+    ):
+        self.rules = rules or []
+        self.num_questions = num_questions
 
     def __len__(self):
         return len(self.rules)
@@ -33,13 +37,20 @@ class RuleCollection:
         return f"RuleCollection(rules = {self.rules})"
 
     def to_dict(self):
-        return [rule.to_dict() for rule in self.rules]
+        return {
+            "rules": [rule.to_dict() for rule in self.rules],
+            "num_questions": self.num_questions,
+        }
 
     @classmethod
-    def from_dict(self, rule_collection_dict):
-        return RuleCollection(
-            rules=[Rule.from_dict(rule_dict) for rule_dict in rule_collection_dict]
-        )
+    def from_dict(cls, rule_collection_dict):
+        rules = [
+            Rule.from_dict(rule_dict) for rule_dict in rule_collection_dict["rules"]
+        ]
+        num_questions = rule_collection_dict["num_questions"]
+        new_rc = cls(rules=rules)
+        new_rc.num_questions = num_questions
+        return new_rc
 
     def add_rule(self, rule: Rule):
         """Adds a rule to a survey. If it's not, return human-readable complaints"""
@@ -98,6 +109,43 @@ class RuleCollection:
     def non_default_rules(self) -> List[Rule]:
         """Returns all rules that are not the default rule"""
         return [rule for rule in self.rules if rule.priority > -1]
+
+    @property
+    def dag(self) -> dict:
+        d = dict({})
+        ## Rules are desgined at the current question and then direct where
+        ## control goes next. As such, the destination nodes are the keys
+        ## and the current nodes are the values. Furthermore, all questions between
+        ## the current and destination nodes are also included as keys, as they will depend
+        ## on the answer to the focal node as well.
+
+        ## If we have a rule that says "if q1 == 'yes', go to q3",
+        ## Then q3 depends on q1, but so does q2
+        ## So the DAG would be {3: [1], 2: [1]}
+
+        def keys_between(start_q, end_q):
+            """Returns a list of all question indices between start_q and end_q"""
+            if isinstance(end_q, EndOfSurvey):
+                # If it's the end of the survey,
+                # all questions between the start_q and the end of the survey
+                # now depend on the start_q
+                if self.num_questions is None:
+                    raise ValueError(
+                        "Cannot determine DAG when EndOfSurvey and when num_questions is not known"
+                    )
+                end_q = self.num_questions
+            return list(range(start_q + 1, end_q))
+
+        non_default_rules = self.non_default_rules
+        for rule in non_default_rules:
+            current_q = rule.current_q
+            next_q = rule.next_q
+            for q in keys_between(current_q, next_q + 1):
+                if q in d:
+                    d[q].add(current_q)
+                else:
+                    d[q] = set({current_q})
+        return d
 
     def all_nodes_reachable(self) -> bool:
         """Are all nodes reachable, given rule set?
