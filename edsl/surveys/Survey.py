@@ -130,6 +130,16 @@ class Survey(SurveyExportMixin, Base):
                 prior_questions=self.question_names[:i],
             )
 
+    def set_lagged_memory(self, lags: int):
+        """This adds instructions to a survey that the agent should remember the answers to the questions in the survey.
+        The agent should remember the answers to the questions in the survey from the previous lags.
+        """
+        for i, _ in enumerate(self.question_names):
+            self.memory_plan.add_memory_collection(
+                focal_question=self.question_names[i],
+                prior_questions=self.question_names[max(0, i - lags) : i],
+            )
+
     def add_targeted_memory(
         self, focal_question: Union[Question, str], prior_question: Union[Question, str]
     ) -> None:
