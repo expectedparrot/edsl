@@ -59,7 +59,6 @@ class Interview:
         to_index = {
             name: index for index, name in enumerate(self.survey.question_names)
         }
-        # breakpoint()
 
         async def task(question):
             response = await self.async_get_response(question, debug=debug)
@@ -69,24 +68,23 @@ class Interview:
         def task_wrapper(question, dependencies=[]):
             async def run_task():
                 for dependency in dependencies:
-                    await dependency
-                return await task(question)
+                    await dependency  # awaits all the tasks (questions) this question depends on
+                return await task(
+                    question
+                )  # awaits the task (question) itself once dependencies are done
 
             return asyncio.create_task(run_task())
 
-        dag = self.survey.dag(textify=True)
-        # breakpoint()
+        dag = self.survey.dag(textify=True)  # gets the combined memory & skip logic DAG
         tasks = []
         for question in self.survey.questions:
             dependencies = [
                 tasks[to_index[question_name]]
                 for question_name in dag.get(question.question_name, [])
-            ]
+            ]  # Note: if a question has no dependencies, this will be an empty list, []
             tasks.append(task_wrapper(question, dependencies=dependencies))
 
-        # async def run_all_tasks(tasks):
         await asyncio.gather(*tasks)
-        # results = asyncio.run(run_all_tasks())
 
         if replace_missing:
             self.answers.replace_missing_answers_with_none(self.survey)
