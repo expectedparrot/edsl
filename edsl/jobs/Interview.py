@@ -1,11 +1,14 @@
 from __future__ import annotations
-from tenacity import retry, wait_exponential, stop_after_attempt
+import asyncio
+
+# from tenacity import retry, wait_exponential, stop_after_attempt
 from typing import Any, Type, Union
 from edsl.agents import Agent
 from edsl.language_models import LanguageModel
 from edsl.questions import Question
 from edsl.scenarios import Scenario
 from edsl.surveys import Survey
+from edsl.utilities.decorators import sync_wrapper
 
 from collections import UserDict
 
@@ -54,7 +57,7 @@ class Interview:
         self.verbose = verbose
         self.answers: dict[str, str] = Answers()
 
-    def conduct_interview(
+    async def async_conduct_interview(
         self, debug: bool = False, replace_missing: bool = True, threaded: bool = False
     ) -> "Answers":
         """
@@ -80,7 +83,7 @@ class Interview:
                 return None
 
         while question:
-            response = self.get_response(question, debug=debug)
+            response = await self.async_get_response(question, debug=debug)
             self.answers.add_answer(response, question)
             question = get_next_question(self.answers)
 
@@ -89,19 +92,16 @@ class Interview:
 
         return self.answers
 
-    # TODO: During testing, we should diable this, as it will 'retry' even if the reason
-    # is some exception.
-    # @retry(
-    #     wait=wait_exponential(multiplier=2, max=32),
-    #     stop=stop_after_attempt(5),
-    #     reraise=True,
-    # )
-    def get_response(self, question: Question, debug: bool = False) -> dict[str, Any]:
+    conduct_interview = sync_wrapper(async_conduct_interview)
+
+    async def async_get_response(
+        self, question: Question, debug: bool = False
+    ) -> dict[str, Any]:
         """Gets the agent's response to a question with exponential backoff.
 
         This calls the agent's `answer_question` method, which returns a response dictionary.
         """
-        response = self.agent.answer_question(
+        response = await self.agent.async_answer_question(
             question=question,
             scenario=self.scenario,
             model=self.model,
@@ -110,6 +110,8 @@ class Interview:
             current_answers=self.answers,
         )
         return response
+
+    get_response = sync_wrapper(async_get_response)
 
     #######################
     # Dunder methods

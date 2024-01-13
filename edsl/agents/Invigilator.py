@@ -1,6 +1,10 @@
 from abc import ABC, abstractmethod
+import asyncio
 import json
 from edsl.exceptions import AgentRespondedWithBadJSONError
+from edsl.prompts.Prompt import Prompt
+
+from edsl.utilities.decorators import sync_wrapper
 
 
 class InvigilatorBase(ABC):
@@ -13,28 +17,33 @@ class InvigilatorBase(ABC):
         self.current_answers = current_answers
 
     @abstractmethod
-    def answer_question(self):
+    async def async_answer_question(self):
+        "This is the async method that actually answers the question."
         pass
 
-    def create_memory(self):
-        """Creates a memory for the agent.
-        TODO: Need to get the question text as well.
-        """
-        base_prompt = """
-        Before the question you are now answering, you already answering the following questions:
-        """
-        relevant_questions = self.memory_plan[self.question.question_name]
-        for question_name in relevant_questions:
-            new_entry = "The question was: {}"
+    def answer_question(self):
+        """Blocking code to answer a question."""
+
+        async def main():
+            results = await asyncio.gather(self.async_answer_question())
+            return results[0]  # Since there's only one task, return its result
+
+        return asyncio.run(main())
+
+    def create_memory_prompt(self, question_name):
+        """Creates a memory for the agent."""
+        return self.memory_plan.get_memory_prompt_fragment(
+            question_name, self.current_answers
+        )
 
 
 class InvigilatorDebug(InvigilatorBase):
-    def answer_question(self):
+    async def async_answer_question(self):
         return self.question.simulate_answer(human_readable=True)
 
 
 class InvigilatorHuman(InvigilatorBase):
-    def answer_question(self):
+    async def async_answer_question(self):
         answer = self.agent.answer_question_directly(self.question.question_name)
         response = {"answer": answer}
         response = self.question.validate_response(response)
@@ -44,7 +53,7 @@ class InvigilatorHuman(InvigilatorBase):
 
 
 class InvigilatorFunctional(InvigilatorBase):
-    def answer_question(self):
+    async def async_answer_question(self):
         func = self.question.answer_question_directly
         return func(scenario=self.scenario, agent_traits=self.agent.traits)
 
@@ -56,10 +65,10 @@ class InvigilatorAI(InvigilatorBase):
         traits = f"Your traits are: {self.agent.traits}."
         return f"{instruction} {traits}"
 
-    def get_response(self, prompt: str, system_prompt):
+    async def async_get_response(self, prompt: str, system_prompt):
         """Calls the LLM and gets a response. Used in the `answer_question` method."""
         try:
-            response = self.model.get_response(prompt, system_prompt)
+            response = await self.model.async_get_response(prompt, system_prompt)
         except json.JSONDecodeError as e:
             raise AgentRespondedWithBadJSONError(
                 f"Returned bad JSON: {e}"
@@ -69,17 +78,19 @@ class InvigilatorAI(InvigilatorBase):
 
         return response
 
-    def answer_question(self):
-        # actual answers (w/ API call)
-        #  get answer
-        system_prompt = self.construct_system_prompt()
-        prompt = self.question.get_prompt(self.scenario)
-        response = self.get_response(prompt, system_prompt)
-        #  validate answer
-        response = self.question.validate_response(response)
+    get_response = sync_wrapper(async_get_response)
+
+    async def async_answer_question(self):
+        system_prompt = Prompt(self.construct_system_prompt())
+        prompt = Prompt(self.question.get_prompt(self.scenario))
+        if self.memory_plan is not None:
+            prompt += self.create_memory_prompt(self.question.question_name)
+        response = await self.async_get_response(prompt.text, system_prompt.text)
         response = self.question.validate_answer(response)
         answer_code = response["answer"]
         response["answer"] = self.question.translate_answer_code_to_answer(
             answer_code, self.scenario
         )
         return response
+
+    answer_question = sync_wrapper(async_answer_question)

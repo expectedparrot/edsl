@@ -9,7 +9,7 @@ from edsl.language_models import LanguageModel, LanguageModelOpenAIThreeFiveTurb
 from edsl.results import Results
 from edsl.scenarios import Scenario
 from edsl.surveys import Survey
-from edsl.jobs.base import JobsRunnersRegistry
+from edsl.jobs.base import JobsRunnersRegistry, JobsRunnerDescriptor
 from edsl.jobs.Interview import Interview
 from edsl.api import JobRunnerAPI, ResultsAPI
 
@@ -24,6 +24,8 @@ class Jobs:
     - `run()`: runs a collection of interviews
 
     """
+
+    jobs_runner_name = JobsRunnerDescriptor()
 
     def __init__(
         self,
@@ -59,26 +61,43 @@ class Jobs:
         - models: new models overwrite old models.
         """
         # if the first argument is a sequence, grab it and ignore other arguments
-        if len(args) == 1 and isinstance(args[0], Sequence):
-            args = args[0]
-        # turn the args tuple or the sequence into a list
-        args = list(args)
-        # grab the first object
-        first_object = args[0]
-        # use its `get_value` method to get current objects of this type in the Job instance
-        current_objects = first_object.get_value(self)
-        # if there are no current objects, just store the new objects
-        if not current_objects:
-            new_objects = args
-        # otherwise, combine the current objects with the new objects
+
+        def did_user_pass_a_sequence(args):
+            return len(args) == 1 and isinstance(args[0], Sequence)
+
+        def turn_args_to_list(args):
+            if did_user_pass_a_sequence(args):
+                return list(args[0])
+            else:
+                return list(args)
+
+        passed_objects = turn_args_to_list(args)
+        first_object = passed_objects[0]
+
+        if (first_object_type := first_object.__class__.__name__) == "Agent":
+            key = "agents"
+        elif first_object_type == "Scenario":
+            key = "scenarios"
+        elif "LanguageModel" in first_object_type:
+            # TODO: Refactor to use a registry for models
+            key = "models"
         else:
+            raise ValueError("Unknown object type")
+
+        current_objects = getattr(self, key, None)
+
+        if not current_objects:
+            new_objects = passed_objects
+        else:
+            # combine all the existing objects with the new objects
+            # For example, if the user passes in 3 agents,
+            # and there are 2 existing agents, this will create 6 new agents
             new_objects = []
             for current_object in current_objects:
-                for new_object in args:
-                    # use the __add__ method to combine the objects
+                for new_object in passed_objects:
                     new_objects.append(current_object + new_object)
-        # update the Job instance with the new objects
-        first_object.set_value(self, new_objects)
+
+        setattr(self, key, new_objects)  # update the job
         return self
 
     def interviews(self) -> list[Interview]:
@@ -98,14 +117,28 @@ class Jobs:
             interviews.append(interview)
         return interviews
 
+    def _run_local(self, *args, **kwargs):
+        """Runs the job locally."""
+        JobRunner = JobsRunnersRegistry[self.job_runner_name](jobs=self)
+        try:
+            results = JobRunner.run(*args, **kwargs)
+        except Exception as e:
+            raise JobsRunError(f"Error running job. Exception: {e}.")
+        return results
+
+    def _run_remote(self, *args, **kwargs):
+        """Runs the job remotely."""
+        results = JobRunnerAPI(*args, **kwargs)
+        return results
+
     def run(
         self,
-        method: str = "serial",
+        method: str = "asyncio",
         n: int = 1,
         debug: bool = False,
         verbose: bool = False,
         progress_bar: bool = False,
-    ) -> Union[Results, ResultsAPI]:
+    ) -> Union[Results, ResultsAPI, None]:
         """
         Runs the Job: conducts Interviews and returns their results.
         - `method`: "serial" or "threaded", defaults to "serial"
@@ -114,27 +147,17 @@ class Jobs:
         - `verbose`: prints messages
         - `progress_bar`: shows a progress bar
         """
-        # local mode
-        if CONFIG.get("EMERITUS_API_KEY") == "local":
-            if method not in JobsRunnersRegistry:
-                raise JobsRunError(
-                    f"Incorrect method '{method}' provided to .run(). "
-                    f"Valid methods are: {list(JobsRunnersRegistry.keys())}"
-                )
-            JobRunner = JobsRunnersRegistry.get(method)(jobs=self)
-            try:
-                results = JobRunner.run(
-                    n=n, verbose=verbose, debug=debug, progress_bar=progress_bar
-                )
-            except Exception as e:
-                raise JobsRunError(f"Error running job. Exception: {e}.")
-            return results
-        # remote mode
-        else:
-            results = JobRunnerAPI(
-                api_key=CONFIG.get("EMERITUS_API_KEY"), job_dict=self.to_dict()
+        self.job_runner_name = method
+        emeritus_api_key = CONFIG.get("EMERITUS_API_KEY")
+        if emeritus_api_key == "local":  # local mode
+            return self._run_local(
+                n=n, verbose=verbose, debug=debug, progress_bar=progress_bar
             )
-            return results
+        else:
+            results = self._run_remote(
+                api_key=emeritus_api_key, job_dict=self.to_dict()
+            )
+        return results
 
     #######################
     # Dunder methods
