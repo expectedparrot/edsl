@@ -1,4 +1,5 @@
 from __future__ import annotations
+import asyncio
 import copy
 import json
 from typing import Any, Callable, Optional, Union, Dict
@@ -30,6 +31,8 @@ from edsl.agents.descriptors import (
     InstructionDescriptor,
 )
 
+from edsl.utilities.decorators import sync_wrapper
+
 
 class Agent(Base):
     """An agent answers questions."""
@@ -59,7 +62,7 @@ class Agent(Base):
         )
         return self
 
-    def answer_question(
+    async def async_answer_question(
         self,
         question: Question,
         scenario: Optional[Scenario] = None,
@@ -75,8 +78,6 @@ class Agent(Base):
         """
         model = model or LanguageModelOpenAIThreeFiveTurbo(use_cache=True)
         scenario = scenario or Scenario()
-        # memory_plan = memory_plan
-        # current_answers = current_answers or dict()
 
         if debug:
             # use the question's simulate_answer method
@@ -96,8 +97,10 @@ class Agent(Base):
         invigilator = invigilator_class(
             self, question, scenario, model, memory_plan, current_answers
         )
-        response = invigilator.answer_question()
+        response = await invigilator.async_answer_question()
         return response
+
+    answer_question = sync_wrapper(async_answer_question)
 
     ################
     # Dunder Methods
@@ -140,14 +143,6 @@ class Agent(Base):
 
         a = AgentList([self])
         return a.to(question_or_survey)
-
-    def get_value(self, jobs: Jobs) -> list[Agent]:
-        """Get a list of agents from a Jobs object. Used in Jobs.by()"""
-        return jobs.agents
-
-    def set_value(self, jobs: Jobs, new_values: list[Agent]) -> None:
-        """Set the Jobs.agents attribute to the new values. Used in Jobs.by()"""
-        jobs.agents = new_values
 
     ################
     # SERIALIZATION METHODS

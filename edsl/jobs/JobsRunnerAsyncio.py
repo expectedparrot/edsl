@@ -5,7 +5,7 @@ from edsl.results import Results, Result
 from edsl.jobs.JobsRunner import JobsRunner
 
 
-class JobsRunnerMultiprocessing(JobsRunner):
+class JobsRunnerAsyncio(JobsRunner):
     def __init__(self, jobs: Jobs):
         super().__init__(jobs)
 
@@ -15,9 +15,8 @@ class JobsRunnerMultiprocessing(JobsRunner):
         """Runs a collection of interviews."""
 
         async def process_task(interview, i):
-            answer = await interview.conduct_interview(debug=debug)
+            answer = await interview.async_conduct_interview(debug=debug)
             result = Result(
-                survey=interview.survey,
                 agent=interview.agent,
                 scenario=interview.scenario,
                 model=interview.model,

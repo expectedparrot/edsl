@@ -28,6 +28,10 @@ class ScenarioList(UserList):
         return {"scenarios": [s.to_dict() for s in self]}
 
     @classmethod
+    def gen(cls, scenario_dicts_list):
+        return cls([Scenario(s) for s in scenario_dicts_list])
+
+    @classmethod
     def from_dict(cls, data):
         return cls([Scenario.from_dict(s) for s in data["scenarios"]])
 

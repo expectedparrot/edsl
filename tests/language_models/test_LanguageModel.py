@@ -1,5 +1,6 @@
 import unittest
 import os
+import asyncio
 from contextlib import redirect_stdout
 from io import StringIO
 
@@ -17,7 +18,8 @@ class TestLanguageModel(unittest.TestCase):
         class TestLanguageModelGood(LanguageModel):
             use_cache = False
 
-            def execute_model_call(self, prompt, system_prompt):
+            async def async_execute_model_call(self, prompt, system_prompt):
+                await asyncio.sleep(0.1)
                 return {"message": """{"answer": "Hello world"}"""}
 
             def parse_response(self, raw_response):
@@ -43,7 +45,7 @@ class TestLanguageModel(unittest.TestCase):
 
     def test_execute_model_call(self):
         m = self.good_class()
-        response = m._get_raw_response(
+        response = m.get_raw_response(
             prompt="Hello world", system_prompt="You are a helpful agent"
         )
         print(response)
