@@ -7,7 +7,8 @@ from typing import Any, Generator, Optional, Union, List
 from edsl.exceptions import SurveyCreationError, SurveyHasNoRulesError
 from edsl.questions.Question import Question
 from edsl.surveys.base import RulePriority, EndOfSurvey
-from edsl.surveys.Rule import Rule, RuleCollection
+from edsl.surveys.Rule import Rule
+from edsl.surveys.RuleCollection import RuleCollection
 
 from edsl.Base import Base
 from edsl.surveys.SurveyExportMixin import SurveyExportMixin
