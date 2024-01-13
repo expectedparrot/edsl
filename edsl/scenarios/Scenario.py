@@ -67,14 +67,6 @@ class Scenario(UserDict, Base):
         """
         return question_class(**self)
 
-    def get_value(self, jobs):
-        """Get the scenarios from an existing Jobs instance."""
-        return jobs.scenarios
-
-    def set_value(self, jobs, new_values):
-        """Set the scenarios from an existing Jobs instance."""
-        jobs.scenarios = new_values
-
     def to_dict(self):
         """Convert a scenario to a dictionary.
         >>> s = Scenario({"food": "wood chips"})
