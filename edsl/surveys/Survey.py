@@ -321,7 +321,15 @@ class Survey(SurveyExportMixin, Base):
             temp.extend(matches)
         return temp
 
-    def dag(self):
+    def textify(self, d):
+        new_d = dict({})
+        for key, value in d.items():
+            new_key = self.questions[key].question_name
+            new_value = set({self.questions[index].question_name for index in value})
+            new_d[new_key] = new_value
+        return new_d
+
+    def dag(self, textify=False):
         memory_dag = self.memory_plan.dag
         rule_dag = self.rule_collection.dag
         # return {"memory_dag": memory_dag, "rule_dag": rule_dag}
@@ -329,7 +337,10 @@ class Survey(SurveyExportMixin, Base):
         combined_keys = set(memory_dag.keys()).union(set(rule_dag.keys()))
         for key in combined_keys:
             d[key] = memory_dag.get(key, set({})).union(rule_dag.get(key, set({})))
-        return d
+        if textify:
+            return self.textify(d)
+        else:
+            return d
 
     ###################
     # DUNDER METHODS
