@@ -98,18 +98,6 @@ class TestScenario(unittest.TestCase):
         )
         self.assertIn(results[0]["answer"]["feelings"], q.question_options)
 
-    def test_get_value(self):
-        s = Scenario({"food": "wood chips"})
-        j = Jobs(survey=None, agents=[Agent(traits={"age": 10})], scenarios=[s])
-        self.assertEqual(s.get_value(j), [{"food": "wood chips"}])
-
-    def test_set_value(self):
-        s = Scenario({"food": "wood chips"})
-        j = Jobs(survey=None, agents=[Agent(traits={"age": 10})], scenarios=[s])
-        new_values = [{"food": "chocolate chips"}]
-        s.set_value(j, new_values)
-        self.assertEqual(j.scenarios, [{"food": "chocolate chips"}])
-
 
 if __name__ == "__main__":
     unittest.main()

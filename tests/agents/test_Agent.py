@@ -90,17 +90,14 @@ def test_agent_forward_methods():
     )
     job = agent.to(question)
     assert type(job) == Jobs
-    assert type(agent.get_value(job)) == list
-    assert agent.get_value(job)[0] == agent
     # to Survey
     survey = Survey(questions=[question])
     job = agent.to(survey)
     assert type(job) == Jobs
-    assert type(agent.get_value(job)) == list
-    assert agent.get_value(job)[0] == agent
     # set value
-    agent.set_value(job, [Agent(traits={"age": 20}), Agent(traits={"age": 30})])
-    assert job.agents == [Agent(traits={"age": 20}), Agent(traits={"age": 30})]
+    comparison = [Agent(traits={"age": 10})]
+    # breakpoint()
+    assert all([agent in comparison for agent in job.agents])
 
 
 # def test_agent_llm_construct_prompt():

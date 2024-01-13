@@ -213,17 +213,6 @@ class LanguageModel(ABC):
         return sum([prices.get(key, 0.0) * raw_response["usage"][key] for key in keys])
 
     #######################
-    # FORWARD METHODS
-    #######################
-    def get_value(self, jobs) -> list[Type[LanguageModel]]:
-        """Used by the Jobs class to get the value of the attribute."""
-        return jobs.models
-
-    def set_value(self, jobs, new_values: list[Type[LanguageModel]]) -> None:
-        """Used by the Jobs class to set the value of the attribute."""
-        jobs.models = new_values
-
-    #######################
     # SERIALIZATION METHODS
     #######################
     def to_dict(self) -> dict[str, Any]:

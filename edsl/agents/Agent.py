@@ -144,14 +144,6 @@ class Agent(Base):
         a = AgentList([self])
         return a.to(question_or_survey)
 
-    def get_value(self, jobs: Jobs) -> list[Agent]:
-        """Get a list of agents from a Jobs object. Used in Jobs.by()"""
-        return jobs.agents
-
-    def set_value(self, jobs: Jobs, new_values: list[Agent]) -> None:
-        """Set the Jobs.agents attribute to the new values. Used in Jobs.by()"""
-        jobs.agents = new_values
-
     ################
     # SERIALIZATION METHODS
     ################
