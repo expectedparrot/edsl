@@ -7,7 +7,8 @@ from typing import Any, Generator, Optional, Union, List
 from edsl.exceptions import SurveyCreationError, SurveyHasNoRulesError
 from edsl.questions.Question import Question
 from edsl.surveys.base import RulePriority, EndOfSurvey
-from edsl.surveys.Rule import Rule, RuleCollection
+from edsl.surveys.Rule import Rule
+from edsl.surveys.RuleCollection import RuleCollection
 
 from edsl.Base import Base
 from edsl.surveys.SurveyExportMixin import SurveyExportMixin
@@ -50,7 +51,9 @@ class Survey(SurveyExportMixin, Base):
         version: str = None,
     ):
         """Creates a new survey."""
-        self.rule_collection = RuleCollection()
+        self.rule_collection = RuleCollection(
+            num_questions=len(questions) if questions else None
+        )
         self.meta_data = SurveyMetaData(
             name=name, description=description, version=version
         )
@@ -317,6 +320,27 @@ class Survey(SurveyExportMixin, Base):
             # add them to the temp list
             temp.extend(matches)
         return temp
+
+    def textify(self, d):
+        new_d = dict({})
+        for key, value in d.items():
+            new_key = self.questions[key].question_name
+            new_value = set({self.questions[index].question_name for index in value})
+            new_d[new_key] = new_value
+        return new_d
+
+    def dag(self, textify=False):
+        memory_dag = self.memory_plan.dag
+        rule_dag = self.rule_collection.dag
+        # return {"memory_dag": memory_dag, "rule_dag": rule_dag}
+        d = {}
+        combined_keys = set(memory_dag.keys()).union(set(rule_dag.keys()))
+        for key in combined_keys:
+            d[key] = memory_dag.get(key, set({})).union(rule_dag.get(key, set({})))
+        if textify:
+            return self.textify(d)
+        else:
+            return d
 
     ###################
     # DUNDER METHODS
