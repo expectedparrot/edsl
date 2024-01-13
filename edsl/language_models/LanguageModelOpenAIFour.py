@@ -40,7 +40,7 @@ class LanguageModelOpenAIFour(LanguageModel):
                 kwargs[parameter] = default_value
         super().__init__(**kwargs)
 
-    async def _execute_model_call(
+    async def async_execute_model_call(
         self, prompt: str, system_prompt: str = ""
     ) -> dict[str, Any]:
         """Calls the OpenAI API and returns the API response."""

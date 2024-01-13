@@ -31,6 +31,8 @@ from edsl.agents.descriptors import (
     InstructionDescriptor,
 )
 
+from edsl.utilities.decorators import sync_wrapper
+
 
 class Agent(Base):
     """An agent answers questions."""
@@ -60,7 +62,7 @@ class Agent(Base):
         )
         return self
 
-    async def answer_question(
+    async def async_answer_question(
         self,
         question: Question,
         scenario: Optional[Scenario] = None,
@@ -76,8 +78,6 @@ class Agent(Base):
         """
         model = model or LanguageModelOpenAIThreeFiveTurbo(use_cache=True)
         scenario = scenario or Scenario()
-        # memory_plan = memory_plan
-        # current_answers = current_answers or dict()
 
         if debug:
             # use the question's simulate_answer method
@@ -97,8 +97,10 @@ class Agent(Base):
         invigilator = invigilator_class(
             self, question, scenario, model, memory_plan, current_answers
         )
-        response = await invigilator.answer_question()
+        response = await invigilator.async_answer_question()
         return response
+
+    answer_question = sync_wrapper(async_answer_question)
 
     ################
     # Dunder Methods

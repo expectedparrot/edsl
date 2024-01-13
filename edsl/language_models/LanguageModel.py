@@ -10,7 +10,7 @@ from edsl.data import CRUDOperations, CRUD
 from edsl.exceptions import LanguageModelResponseNotJSONError
 from edsl.language_models.schemas import model_prices
 from edsl.trackers.TrackerAPI import TrackerAPI
-
+from edsl.utilities.decorators import sync_wrapper
 
 # from edsl.language_models.repair import repair
 
@@ -34,6 +34,19 @@ class LanguageModel(ABC):
         self.lock = Lock()
         self.api_queue = Queue()
         self.crud = crud
+
+    @abstractmethod
+    async def async_execute_model_call():
+        pass
+
+    def execute_model_call(self, *args, **kwargs):
+        async def main():
+            results = await asyncio.gather(
+                self.async_execute_model_call(*args, **kwargs)
+            )
+            return results[0]  # Since there's only one task, return its result
+
+        return asyncio.run(main())
 
     #######################
     # CORE METHODS
@@ -111,7 +124,7 @@ class LanguageModel(ABC):
             response["cached_response"] = cached_response
         return response
 
-    async def _get_raw_response(
+    async def async_get_raw_response(
         self, prompt: str, system_prompt: str = ""
     ) -> dict[str, Any]:
         """This is some middle-ware that handles the caching of responses.
@@ -126,7 +139,7 @@ class LanguageModel(ABC):
         start_time = time.time()
 
         if not self.use_cache:
-            response = await self._execute_model_call(prompt, system_prompt)
+            response = await self.async_execute_model_call(prompt, system_prompt)
             return self._update_response_with_tracking(response, start_time, False)
 
         cached_response = self.crud.get_LLMOutputData(
@@ -140,11 +153,13 @@ class LanguageModel(ABC):
             response = json.loads(cached_response)
             cache_used = True
         else:
-            response = await self._execute_model_call(prompt, system_prompt)
+            response = await self.async_execute_model_call(prompt, system_prompt)
             self._save_response_to_db(prompt, system_prompt, response)
             cache_used = False
 
         return self._update_response_with_tracking(response, start_time, cache_used)
+
+    get_raw_response = sync_wrapper(async_get_raw_response)
 
     def _save_response_to_db(self, prompt, system_prompt, response):
         try:
@@ -159,9 +174,9 @@ class LanguageModel(ABC):
             output=output,
         )
 
-    async def get_response(self, prompt: str, system_prompt: str = ""):
+    async def async_get_response(self, prompt: str, system_prompt: str = ""):
         """Get response, parse, and return as string."""
-        raw_response = await self._get_raw_response(prompt, system_prompt)
+        raw_response = await self.async_get_raw_response(prompt, system_prompt)
         response = self.parse_response(raw_response)
         try:
             dict_response = json.loads(response)
@@ -172,6 +187,8 @@ class LanguageModel(ABC):
             if not success:
                 raise Exception("Even the repair failed.")
         return dict_response
+
+    get_response = sync_wrapper(async_get_response)
 
     #######################
     # USEFUL METHODS
