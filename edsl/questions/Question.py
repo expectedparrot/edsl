@@ -208,19 +208,19 @@ class Question(ABC, AnswerValidatorMixin):
         "Adds a question to this question by turning them into a survey with two questions"
         from edsl.surveys.Survey import Survey
 
-        s = Survey([self, other], [self.question_name, other.question_name])
+        s = Survey([self, other])
         return s
 
     def run(self, *args, **kwargs):
         "Turns a single question into a survey and runs it."
         from edsl.surveys.Survey import Survey
 
-        s = Survey([self], [self.question_name])
+        s = Survey([self])
         return s.run(*args, **kwargs)
 
     def by(self, *args):
         "Documentation missing."
         from edsl.surveys.Survey import Survey
 
-        s = Survey([self], [self.question_name])
+        s = Survey([self])
         return s.by(*args)
