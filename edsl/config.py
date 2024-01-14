@@ -33,6 +33,18 @@ CONFIG_MAP = {
         "allowed": None,
         "user_message": "Please provide your OpenAI API key (https://platform.openai.com/api-keys).",
     },
+    "OPENAI_API_KEY": {
+        "optional": False,
+        "default": None,
+        "allowed": None,
+        "user_message": "Please provide your OpenAI API key (https://platform.openai.com/api-keys).",
+    },
+    "API_CALL_TIMEOUT_SEC": {
+        "optional": False,
+        "default": "60",
+        "allowed": None,
+        "user_message": "What is the maximum number of seconds to wait for an API call to return?",
+    },
 }
 
 

@@ -12,6 +12,10 @@ from edsl.utilities.decorators import sync_wrapper
 
 from edsl.jobs.Answers import Answers
 
+from edsl.config import Config
+
+TIMEOUT = int(Config().API_CALL_TIMEOUT_SEC)
+
 
 def task_wrapper(name, delay, dependencies=[]):
     async def run_task():
@@ -21,6 +25,14 @@ def task_wrapper(name, delay, dependencies=[]):
 
     # Using create_task instead of ensure_future
     return asyncio.create_task(run_task())
+
+
+# async def task_with_timeout(task_number, duration, timeout):
+#     try:
+#         await asyncio.wait_for(asyncio.sleep(duration), timeout)
+#         print(f"Task {task_number} completed.")
+#     except asyncio.TimeoutError:
+#         print(f"Task {task_number} timed out after {timeout} seconds.")
 
 
 class Interview:
@@ -57,8 +69,18 @@ class Interview:
         }
 
         async def task(question):
-            response = await self.async_get_response(question, debug=debug)
-            self.answers.add_answer(response, question)
+            try:
+                response = await asyncio.wait_for(
+                    self.async_get_response(question, debug=debug), TIMEOUT
+                )
+                self.answers.add_answer(response, question)
+            except asyncio.TimeoutError:
+                print(
+                    f"Task {question.question_name} timed out after {TIMEOUT} seconds."
+                )
+                response = None
+            # response = await self.async_get_response(question, debug=debug)
+
             return response
 
         def task_wrapper(question, dependencies=[]):
