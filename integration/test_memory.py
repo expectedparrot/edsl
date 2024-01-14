@@ -11,6 +11,8 @@ m = LanguageModelOpenAIThreeFiveTurbo(use_cache=False)
 verbose = False
 random.seed("agents are cool")
 
+NUM_FLIPS = 10
+
 
 def flips(n):
     flip_results = [

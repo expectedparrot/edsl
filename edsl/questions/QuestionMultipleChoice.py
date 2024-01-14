@@ -26,6 +26,7 @@ class QuestionMultipleChoice(Question):
     """
 
     question_type = "multiple_choice"
+    purpose = "When options are known and limited"
     question_options: list[str] = QuestionOptionsDescriptor()
     default_instructions = textwrap.dedent(
         """\
