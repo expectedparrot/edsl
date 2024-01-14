@@ -12,10 +12,6 @@ from edsl.utilities.decorators import sync_wrapper
 
 from edsl.jobs.Answers import Answers
 
-## How does the with_survey_async version work?
-## 1. The tasks are all the questions
-## 2. Get the DAG for the survey
-
 
 def task_wrapper(name, delay, dependencies=[]):
     async def run_task():
@@ -120,8 +116,7 @@ class Interview:
         return f"Interview(agent = {self.agent}, survey = {self.survey}, scenario = {self.scenario}, model = {self.model})"
 
 
-# def main():
-if __name__ == "__main__":
+def main():
     from edsl.language_models import LanguageModelOpenAIThreeFiveTurbo
     from edsl.agents import Agent
     from edsl.surveys import Survey
