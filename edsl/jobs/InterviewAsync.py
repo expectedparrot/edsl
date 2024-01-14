@@ -110,6 +110,7 @@ class Interview:
 
         dag = self.survey.dag(textify=True)  # gets the combined memory & skip logic DAG
 
+        ## Not until 3.11
         # tasks = {}
         # async with asyncio.TaskGroup() as tg:
         #     for question in self.survey.questions:

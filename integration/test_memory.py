@@ -6,7 +6,6 @@ from edsl.language_models.LanguageModelOpenAIThreeFiveTurbo import (
     LanguageModelOpenAIThreeFiveTurbo,
 )
 
-NUM_FLIPS = 5
 m = LanguageModelOpenAIThreeFiveTurbo(use_cache=False)
 
 verbose = False
