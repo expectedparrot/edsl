@@ -37,7 +37,20 @@ format: ## Run code autoformatters (black).
 	pre-commit run black-jupyter --all-files --all
 
 integration: ## Run integration tests via pytest **consumes API credits**
-	pytest -v -s integration/
+	## pytest -v -s integration/
+	make integration-memory
+	make integration-jobs
+	make integration-runners
+
+integration-memory: ## Run integration tests via pytest **consumes API credits**
+	pytest -v integration/test_memory.py
+
+integration-jobs: ## Run integration tests via pytest **consumes API credits**
+	pytest -v integration/test_integration_jobs.py
+
+integration-runners: ## Run integration tests via pytest **consumes API credits**
+	pytest -v integration/test_runners.py
+
 
 lint: ## Run code linters (flake8, pylint, mypy).
 	mypy edsl
