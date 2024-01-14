@@ -10,7 +10,7 @@ from edsl.results import Results
 from edsl.scenarios import Scenario
 from edsl.surveys import Survey
 from edsl.jobs.base import JobsRunnersRegistry, JobsRunnerDescriptor
-from edsl.jobs.Interview import Interview
+from edsl.jobs.InterviewAsync import Interview
 from edsl.api import JobRunnerAPI, ResultsAPI
 
 
