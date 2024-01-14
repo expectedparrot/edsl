@@ -35,6 +35,17 @@ def task_wrapper(name, delay, dependencies=[]):
 #         print(f"Task {task_number} timed out after {timeout} seconds.")
 
 
+class ChaosMonkeyException(Exception):
+    pass
+
+
+def chaos_monkey(p):
+    import random
+
+    if random.random() < p:
+        raise ChaosMonkeyException("Chaos monkey!")
+
+
 class Interview:
     """
     A class that has an Agent answer Survey Questions with a particular Scenario and using a LanguageModel.
@@ -70,6 +81,7 @@ class Interview:
 
         async def task(question):
             try:
+                chaos_monkey(0.0)
                 response = await asyncio.wait_for(
                     self.async_get_response(question, debug=debug), TIMEOUT
                 )
@@ -78,6 +90,9 @@ class Interview:
                 print(
                     f"Task {question.question_name} timed out after {TIMEOUT} seconds."
                 )
+                response = None
+            except ChaosMonkeyException as e:
+                print(f"Task {question.question_name} failed with {e}")
                 response = None
             # response = await self.async_get_response(question, debug=debug)
 
@@ -94,6 +109,18 @@ class Interview:
             return asyncio.create_task(run_task())
 
         dag = self.survey.dag(textify=True)  # gets the combined memory & skip logic DAG
+
+        # tasks = {}
+        # async with asyncio.TaskGroup() as tg:
+        #     for question in self.survey.questions:
+        #         dependencies = [
+        #             tasks[question_name]
+        #             for question_name in dag.get(question.question_name, [])
+        #         ]
+        #         tasks[question.question_name] = tg.create_task(
+        #             task_wrapper(question, dependencies)
+        #         )
+
         tasks = []
         for question in self.survey.questions:
             dependencies = [
