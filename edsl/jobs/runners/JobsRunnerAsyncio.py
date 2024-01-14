@@ -6,6 +6,8 @@ from edsl.jobs.JobsRunner import JobsRunner
 
 
 class JobsRunnerAsyncio(JobsRunner):
+    runner_name = "asyncio"
+
     def __init__(self, jobs: Jobs):
         super().__init__(jobs)
 
