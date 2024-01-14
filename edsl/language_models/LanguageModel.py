@@ -2,24 +2,46 @@ from __future__ import annotations
 import asyncio
 import json
 import time
-from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod, ABCMeta
+from edsl.trackers.TrackerAPI import TrackerAPI
 from queue import Queue
 from threading import Lock
 from typing import Any, Callable, Type
 from edsl.data import CRUDOperations, CRUD
 from edsl.exceptions import LanguageModelResponseNotJSONError
 from edsl.language_models.schemas import model_prices
-from edsl.trackers.TrackerAPI import TrackerAPI
 from edsl.utilities.decorators import sync_wrapper
 
-# from edsl.language_models.repair import repair
+from edsl.language_models.repair import repair
 
 
-def repair(x):
-    return x
+class RegisterLanguageModelsMeta(ABCMeta):
+    "Metaclass to register output elements in a registry i.e., those that have a parent"
+    _registry = {}  # Initialize the registry as a dictionary
+
+    def __init__(cls, name, bases, dct):
+        super(RegisterLanguageModelsMeta, cls).__init__(name, bases, dct)
+        if name != "LanguageModel":
+            RegisterLanguageModelsMeta._registry[name] = cls
+
+    @classmethod
+    def get_registered_classes(cls):
+        return cls._registry
+
+    @classmethod
+    def model_names_to_classes(cls):
+        d = {}
+        for classname, cls in cls._registry.items():
+            if hasattr(cls, "_model_"):
+                d[cls._model_] = cls
+            else:
+                raise Exception(
+                    f"Class {classname} does not have a __model__ class attribute"
+                )
+        return d
 
 
-class LanguageModel(ABC):
+class LanguageModel(ABC, metaclass=RegisterLanguageModelsMeta):
     """ABC for LLM subclasses."""
 
     def __init__(self, crud: CRUDOperations = CRUD, **kwargs):
@@ -47,38 +69,6 @@ class LanguageModel(ABC):
             return results[0]  # Since there's only one task, return its result
 
         return asyncio.run(main())
-
-    #######################
-    # CORE METHODS
-    #######################
-    # @abstractmethod
-    # def execute_model_call(
-    #     self, prompt: str, system_prompt: str = ""
-    # ) -> dict[str, Any]:
-    #     """Calls the LLM's API and returns the API response.
-    #     This is an abstract method that needs to be implemented by the child class, on a
-    #     model (and API-provider basis).
-
-    #     For example, the GPT-4 model (as or right now)
-    #     requires an API call that looks like this:
-
-    #         openai.chat.completions.create(
-    #             model=self.model,
-    #             messages=[
-    #                 {"role": "system", "content": system_prompt},
-    #                 {"role": "user", "content": prompt},
-    #             ],
-    #             temperature=self.temperature,
-    #             max_tokens=self.max_tokens,
-    #             top_p=self.top_p,
-    #             frequency_penalty=self.frequency_penalty,
-    #             presence_penalty=self.presence_penalty,
-    #         ).model_dump()
-
-    #     It will then return JSON that needs to be parsed.
-    #     This is also model/API specific.
-    #     """
-    #     raise NotImplementedError
 
     @abstractmethod
     def parse_response(raw_response: dict[str, Any]) -> str:
