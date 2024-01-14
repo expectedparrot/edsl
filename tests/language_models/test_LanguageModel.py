@@ -11,12 +11,14 @@ from edsl.data.crud import CRUDOperations
 class TestLanguageModel(unittest.TestCase):
     def setUp(self):
         class TestLanguageModelBad(LanguageModel):
+            _model_ = "fake model"
             pass
 
         self.bad_class = TestLanguageModelBad
 
         class TestLanguageModelGood(LanguageModel):
             use_cache = False
+            _model_ = "fake model"
 
             async def async_execute_model_call(self, prompt, system_prompt):
                 await asyncio.sleep(0.1)

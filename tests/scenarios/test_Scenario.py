@@ -50,7 +50,6 @@ class TestScenario(unittest.TestCase):
                                 question_name="food_preference",
                             )
                         ],
-                        question_names=["food_preference"],
                         name=None,
                     ),
                     agents=[Agent(traits={})],

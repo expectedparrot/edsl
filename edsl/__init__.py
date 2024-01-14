@@ -14,3 +14,5 @@ from edsl.questions import (
 from edsl.scenarios.Scenario import Scenario
 from edsl.utilities.interface import print_dict_with_rich
 from edsl.surveys.Survey import Survey
+
+from edsl.language_models.registry import Model

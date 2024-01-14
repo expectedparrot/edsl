@@ -44,7 +44,6 @@ class Survey(SurveyExportMixin, Base):
     def __init__(
         self,
         questions: list[Question] = None,
-        question_names: list[str] = None,
         memory_plan: MemoryPlan = None,
         name: str = None,
         description: str = None,
@@ -59,11 +58,6 @@ class Survey(SurveyExportMixin, Base):
         )
         self.questions = questions or []
         self.memory_plan = memory_plan or MemoryPlan(self)
-
-        if question_names is not None:
-            print(
-                "WARNING: Passing question_names is deprecated. Please use questions with names instead."
-            )
 
     @property
     def name(self):

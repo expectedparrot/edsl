@@ -7,6 +7,8 @@ from edsl.results import Result, Results
 class JobsRunnerSerial(JobsRunner):
     """This JobRunner conducts interviews serially."""
 
+    runner_name = "serial"
+
     def run(
         self,
         n: int = 1,
