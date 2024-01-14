@@ -94,7 +94,6 @@ class Interview:
             except ChaosMonkeyException as e:
                 print(f"Task {question.question_name} failed with {e}")
                 response = None
-            # response = await self.async_get_response(question, debug=debug)
 
             return response
 
@@ -109,18 +108,6 @@ class Interview:
             return asyncio.create_task(run_task())
 
         dag = self.survey.dag(textify=True)  # gets the combined memory & skip logic DAG
-
-        ## Not until 3.11
-        # tasks = {}
-        # async with asyncio.TaskGroup() as tg:
-        #     for question in self.survey.questions:
-        #         dependencies = [
-        #             tasks[question_name]
-        #             for question_name in dag.get(question.question_name, [])
-        #         ]
-        #         tasks[question.question_name] = tg.create_task(
-        #             task_wrapper(question, dependencies)
-        #         )
 
         tasks = []
         for question in self.survey.questions:

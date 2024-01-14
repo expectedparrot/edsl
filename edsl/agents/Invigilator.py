@@ -1,10 +1,11 @@
 from abc import ABC, abstractmethod
 import asyncio
 import json
+from typing import Coroutine
 from edsl.exceptions import AgentRespondedWithBadJSONError
 from edsl.prompts.Prompt import Prompt
 
-from edsl.utilities.decorators import sync_wrapper
+from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
 
 
 class InvigilatorBase(ABC):
@@ -21,14 +22,13 @@ class InvigilatorBase(ABC):
         "This is the async method that actually answers the question."
         pass
 
-    def answer_question(self):
-        """Blocking code to answer a question."""
-
+    @jupyter_nb_handler
+    def answer_question(self) -> Coroutine:
         async def main():
             results = await asyncio.gather(self.async_answer_question())
             return results[0]  # Since there's only one task, return its result
 
-        return asyncio.run(main())
+        return main()
 
     def create_memory_prompt(self, question_name):
         """Creates a memory for the agent."""
