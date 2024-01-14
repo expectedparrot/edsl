@@ -23,7 +23,7 @@ class Result(UserDict):
     ):
         # initialize the UserDict
         data = {
-            "agent": agent.agent_with_valid_trait_names(),
+            "agent": agent,
             "scenario": scenario,
             "model": model,
             "iteration": iteration,
@@ -31,7 +31,7 @@ class Result(UserDict):
         }
         super().__init__(**data)
         # but also store the data as attributes
-        self.agent = agent.agent_with_valid_trait_names()
+        self.agent = agent
         self.scenario = scenario
         self.model = model
         self.iteration = iteration
@@ -44,7 +44,7 @@ class Result(UserDict):
     def sub_dicts(self) -> dict[str, dict]:
         """Returns a dictionary where keys are strings for each of the main class attributes/objects (except for iteration) and values are dictionaries for the attributes and values for each of these objects."""
         return {
-            "agent": self.agent.agent_with_valid_trait_names().traits,
+            "agent": self.agent.traits,
             "scenario": self.scenario,
             "model": self.model.parameters | {"model": self.model.model},
             "answer": self.answer,
