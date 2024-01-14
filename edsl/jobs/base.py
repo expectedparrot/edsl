@@ -1,7 +1,6 @@
 from collections import UserDict
 
 from edsl.jobs.JobsRunnerSerial import JobsRunnerSerial
-from edsl.jobs.JobsRunnerThreaded import JobsRunnerThreaded
 from edsl.jobs.JobsRunnerStreaming import JobsRunnerStreaming
 from edsl.jobs.JobsRunnerAsyncio import JobsRunnerAsyncio
 from edsl.jobs.JobsRunnerDryRun import JobsRunnerDryRun
@@ -20,7 +19,6 @@ class JobsRunnersRegistryDict(UserDict):
 registry_data = {
     "serial": JobsRunnerSerial,
     "streaming": JobsRunnerStreaming,
-    "threaded": JobsRunnerThreaded,
     "asyncio": JobsRunnerAsyncio,
     "dryrun": JobsRunnerDryRun,
 }
