@@ -1,6 +1,6 @@
 from __future__ import annotations
 import textwrap
-from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod, ABCMeta
 from jinja2 import Template, Environment, meta
 from typing import Any, Type
 from edsl.exceptions import (
@@ -14,11 +14,45 @@ from edsl.questions.descriptors import (
     QuestionTextDescriptor,
     ShortNamesDictDescriptor,
 )
-from edsl.questions.question_registry import get_question_class
+
+# from edsl.questions.question_registry import get_question_class
 from edsl.questions.AnswerValidatorMixin import AnswerValidatorMixin
 
 
-class Question(ABC, AnswerValidatorMixin):
+class RegisterQuestionsMeta(ABCMeta):
+    "Metaclass to register output elements in a registry i.e., those that have a parent"
+    _registry = {}  # Initialize the registry as a dictionary
+
+    def __init__(cls, name, bases, dct):
+        super(RegisterQuestionsMeta, cls).__init__(name, bases, dct)
+        if name != "Question":
+            RegisterQuestionsMeta._registry[name] = cls
+
+    @classmethod
+    def get_registered_classes(cls):
+        return cls._registry
+
+    @classmethod
+    def question_types_to_classes(
+        cls,
+    ):
+        d = {}
+        for classname, cls in cls._registry.items():
+            if hasattr(cls, "question_type"):
+                d[cls.question_type] = cls
+            else:
+                raise Exception(
+                    f"Class {classname} does not have a question_type class attribute"
+                )
+        return d
+
+
+# q2c = RegisterQuestionsMeta.question_names_to_classes()
+# get_question_class = lambda question_type: q2c.get(question_type)
+# from edsl.questions.question_registry import get_question_class
+
+
+class Question(ABC, AnswerValidatorMixin, metaclass=RegisterQuestionsMeta):
     """
     ABC for something.
     """
@@ -64,7 +98,14 @@ class Question(ABC, AnswerValidatorMixin):
             raise QuestionSerializationError(
                 f"Data does not have a 'question_type' field (got {data})."
             )
-        question_class = get_question_class(question_type)
+        from edsl.questions.question_registry import get_question_class
+
+        try:
+            question_class = get_question_class(question_type)
+        except ValueError:
+            raise QuestionSerializationError(
+                f"No question registered with question_type {question_type}"
+            )
         return question_class(**local_data)
 
     ############################
@@ -224,3 +265,7 @@ class Question(ABC, AnswerValidatorMixin):
 
         s = Survey([self])
         return s.by(*args)
+
+
+if __name__ == "__main__":
+    q = get_question_class("free_text")
