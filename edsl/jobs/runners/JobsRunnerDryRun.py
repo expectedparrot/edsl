@@ -6,6 +6,8 @@ from edsl.jobs.JobsRunner import JobsRunner
 
 
 class JobsRunnerDryRun(JobsRunner):
+    runner_name = "dryrun"
+
     def __init__(self, jobs: Jobs):
         super().__init__(jobs)
 

@@ -10,6 +10,8 @@ from edsl.results import Results
 class JobsRunnerStreaming(JobsRunner):
     """This JobRunner conducts interviews serially."""
 
+    runner_name = "streaming"
+
     def run(
         self,
         debug: bool = False,

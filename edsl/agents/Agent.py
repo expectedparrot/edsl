@@ -53,15 +53,6 @@ class Agent(Base):
         self.codebook = codebook or dict()
         self.instruction = instruction or self.default_instruction
 
-    def agent_with_valid_trait_names(self) -> Agent:
-        """
-        DEPRECATED
-        """
-        print(
-            "WARNING: This method is deprecated. We now enforce valid names on Agent creation"
-        )
-        return self
-
     async def async_answer_question(
         self,
         question: Question,

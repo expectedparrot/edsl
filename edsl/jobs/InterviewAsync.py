@@ -12,9 +12,9 @@ from edsl.utilities.decorators import sync_wrapper
 
 from edsl.jobs.Answers import Answers
 
-## How does the with_survey_async version work?
-## 1. The tasks are all the questions
-## 2. Get the DAG for the survey
+from edsl.config import Config
+
+TIMEOUT = int(Config().API_CALL_TIMEOUT_SEC)
 
 
 def task_wrapper(name, delay, dependencies=[]):
@@ -25,6 +25,25 @@ def task_wrapper(name, delay, dependencies=[]):
 
     # Using create_task instead of ensure_future
     return asyncio.create_task(run_task())
+
+
+# async def task_with_timeout(task_number, duration, timeout):
+#     try:
+#         await asyncio.wait_for(asyncio.sleep(duration), timeout)
+#         print(f"Task {task_number} completed.")
+#     except asyncio.TimeoutError:
+#         print(f"Task {task_number} timed out after {timeout} seconds.")
+
+
+class ChaosMonkeyException(Exception):
+    pass
+
+
+def chaos_monkey(p):
+    import random
+
+    if random.random() < p:
+        raise ChaosMonkeyException("Chaos monkey!")
 
 
 class Interview:
@@ -61,8 +80,22 @@ class Interview:
         }
 
         async def task(question):
-            response = await self.async_get_response(question, debug=debug)
-            self.answers.add_answer(response, question)
+            try:
+                chaos_monkey(0.0)
+                response = await asyncio.wait_for(
+                    self.async_get_response(question, debug=debug), TIMEOUT
+                )
+                self.answers.add_answer(response, question)
+            except asyncio.TimeoutError:
+                print(
+                    f"Task {question.question_name} timed out after {TIMEOUT} seconds."
+                )
+                response = None
+            except ChaosMonkeyException as e:
+                print(f"Task {question.question_name} failed with {e}")
+                response = None
+            # response = await self.async_get_response(question, debug=debug)
+
             return response
 
         def task_wrapper(question, dependencies=[]):
@@ -76,6 +109,19 @@ class Interview:
             return asyncio.create_task(run_task())
 
         dag = self.survey.dag(textify=True)  # gets the combined memory & skip logic DAG
+
+        ## Not until 3.11
+        # tasks = {}
+        # async with asyncio.TaskGroup() as tg:
+        #     for question in self.survey.questions:
+        #         dependencies = [
+        #             tasks[question_name]
+        #             for question_name in dag.get(question.question_name, [])
+        #         ]
+        #         tasks[question.question_name] = tg.create_task(
+        #             task_wrapper(question, dependencies)
+        #         )
+
         tasks = []
         for question in self.survey.questions:
             dependencies = [
@@ -120,8 +166,7 @@ class Interview:
         return f"Interview(agent = {self.agent}, survey = {self.survey}, scenario = {self.scenario}, model = {self.model})"
 
 
-# def main():
-if __name__ == "__main__":
+def main():
     from edsl.language_models import LanguageModelOpenAIThreeFiveTurbo
     from edsl.agents import Agent
     from edsl.surveys import Survey
