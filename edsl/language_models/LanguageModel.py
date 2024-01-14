@@ -2,6 +2,7 @@ from __future__ import annotations
 import asyncio
 import json
 import time
+from typing import Coroutine
 from abc import ABC, abstractmethod, ABCMeta
 from edsl.trackers.TrackerAPI import TrackerAPI
 from queue import Queue
@@ -10,7 +11,7 @@ from typing import Any, Callable, Type
 from edsl.data import CRUDOperations, CRUD
 from edsl.exceptions import LanguageModelResponseNotJSONError
 from edsl.language_models.schemas import model_prices
-from edsl.utilities.decorators import sync_wrapper
+from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
 
 from edsl.language_models.repair import repair
 
@@ -61,14 +62,30 @@ class LanguageModel(ABC, metaclass=RegisterLanguageModelsMeta):
     async def async_execute_model_call():
         pass
 
-    def execute_model_call(self, *args, **kwargs):
+    @jupyter_nb_handler
+    def execute_model_call(self, *args, **kwargs) -> Coroutine:
         async def main():
             results = await asyncio.gather(
                 self.async_execute_model_call(*args, **kwargs)
             )
             return results[0]  # Since there's only one task, return its result
 
-        return asyncio.run(main())
+        return main()
+
+        # # Check if an event loop is already running
+        # try:
+        #     loop = asyncio.get_running_loop()
+        # except RuntimeError:  # No running event loop
+        #     loop = None
+
+        # if loop and loop.is_running():
+        #     # If an event loop is running, schedule the coroutine to run and return a Future
+        #     return asyncio.ensure_future(main())
+        # else:
+        #     # If there's no running event loop, use asyncio.run()
+        #     return asyncio.run(main())
+
+        # return asyncio.run(main())
 
     @abstractmethod
     def parse_response(raw_response: dict[str, Any]) -> str:
