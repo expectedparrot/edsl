@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from edsl.jobs import Jobs
 from edsl.results import Results
