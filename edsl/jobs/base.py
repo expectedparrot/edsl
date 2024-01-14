@@ -1,11 +1,13 @@
 from collections import UserDict
+import importlib
 
-from edsl.jobs.JobsRunnerSerial import JobsRunnerSerial
-from edsl.jobs.JobsRunnerStreaming import JobsRunnerStreaming
-from edsl.jobs.JobsRunnerAsyncio import JobsRunnerAsyncio
-from edsl.jobs.JobsRunnerDryRun import JobsRunnerDryRun
+from edsl.jobs.runners.JobsRunnerSerial import JobsRunnerSerial
+from edsl.jobs.runners.JobsRunnerStreaming import JobsRunnerStreaming
+from edsl.jobs.runners.JobsRunnerAsyncio import JobsRunnerAsyncio
+from edsl.jobs.runners.JobsRunnerDryRun import JobsRunnerDryRun
 
 from edsl.exceptions import JobsRunError
+from edsl.jobs.JobsRunner import RegisterJobsRunnerMeta
 
 
 class JobsRunnersRegistryDict(UserDict):
@@ -16,13 +18,7 @@ class JobsRunnersRegistryDict(UserDict):
             raise JobsRunError(f"JobsRunner '{key}' not found in registry.")
 
 
-registry_data = {
-    "serial": JobsRunnerSerial,
-    "streaming": JobsRunnerStreaming,
-    "asyncio": JobsRunnerAsyncio,
-    "dryrun": JobsRunnerDryRun,
-}
-
+registry_data = RegisterJobsRunnerMeta.lookup()
 JobsRunnersRegistry = JobsRunnersRegistryDict(registry_data)
 
 
@@ -48,3 +44,7 @@ class JobsRunnerDescriptor:
 
     def __set_name__(self, owner, name: str) -> None:
         self.name = "_" + name
+
+
+if __name__ == "__main__":
+    pass
