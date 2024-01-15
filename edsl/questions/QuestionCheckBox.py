@@ -72,7 +72,7 @@ class QuestionCheckBox(Question):
         self.max_selections = max_selections
         self.question_options = question_options
         self.short_names_dict = short_names_dict or dict()
-        self.instructions = instructions or self.default_instructions
+        self.instructions = instructions
 
     ################
     # Answer methods

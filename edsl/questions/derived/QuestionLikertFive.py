@@ -27,6 +27,7 @@ class QuestionLikertFive(QuestionMultipleChoice):
         "Agree",
         "Strongly agree",
     ]
+    # default_instructions = QuestionMultipleChoice.default_instructions
 
     def __init__(
         self,

@@ -61,7 +61,7 @@ class QuestionBudget(Question):
         self.question_options = question_options
         self.budget_sum = budget_sum
         self.short_names_dict = short_names_dict or {}
-        self.instructions = instructions or self.default_instructions
+        self.instructions = instructions
 
     ################
     # Answer methods

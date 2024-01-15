@@ -35,6 +35,8 @@ def is_number_or_none(value: Any) -> bool:
 # Descriptor ABC
 ################################
 
+from edsl.prompts.Prompt import get_classes
+
 
 class BaseDescriptor(ABC):
     """ABC for something."""
@@ -52,7 +54,28 @@ class BaseDescriptor(ABC):
         self.validate(value, instance)
         instance.__dict__[self.name] = value
         if self.name == "_instructions":
-            instance.set_instructions = value != instance.default_instructions
+            instructions = value
+            if value is not None:
+                instance.__dict__[self.name] = instructions
+                instance.set_instructions = True
+            else:
+                potential_prompt_classes = get_classes(
+                    question_type=instance.question_type
+                )
+                if len(potential_prompt_classes) > 0:
+                    instructions = potential_prompt_classes[0]().text
+                    instance.__dict__[self.name] = instructions
+                    instance.set_instructions = False
+                else:
+                    if not hasattr(instance, "default_instructions"):
+                        raise Exception(
+                            "No default instructions found and no matching prompts!"
+                        )
+                    instructions = instance.default_instructions
+                    instance.__dict__[self.name] = instructions
+                    instance.set_instructions = False
+
+            # instance.set_instructions = value != instance.default_instructions
 
     def __set_name__(self, owner, name: str) -> None:
         self.name = "_" + name
@@ -144,10 +167,11 @@ class InstructionsDescriptor(BaseDescriptor):
     """Validates that the `instructions` attribute is a string."""
 
     def validate(self, value, instance):
-        if not isinstance(value, str):
-            raise QuestionCreationValidationError(
-                f"Question `instructions` must be a string (got {value})."
-            )
+        # if not isinstance(value, str):
+        #     raise QuestionCreationValidationError(
+        #         f"Question `instructions` must be a string (got {value})."
+        #     )
+        pass
 
 
 class NumSelectionsDescriptor(BaseDescriptor):

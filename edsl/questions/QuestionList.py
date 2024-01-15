@@ -55,7 +55,7 @@ class QuestionList(Question):
     ):
         self.question_text = question_text
         self.question_name = question_name
-        self.instructions = instructions or self.default_instructions
+        self.instructions = instructions
         self.allow_nonresponse = allow_nonresponse or False
         self.max_list_items = max_list_items
 
