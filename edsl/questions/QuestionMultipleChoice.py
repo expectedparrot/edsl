@@ -28,18 +28,6 @@ class QuestionMultipleChoice(Question):
     question_type = "multiple_choice"
     purpose = "When options are known and limited"
     question_options: list[str] = QuestionOptionsDescriptor()
-    # default_instructions = textwrap.dedent(
-    #     """\
-    #     You are being asked the following question: {{question_text}}
-    #     The options are
-    #     {% for option in question_options %}
-    #     {{ loop.index0 }}: {{option}}
-    #     {% endfor %}
-    #     Return a valid JSON formatted like this, selecting only the number of the option:
-    #     {"answer": <put answer code here>, "comment": "<put explanation here>"}
-    #     Only 1 option may be selected.
-    #     """
-    # )
 
     def __init__(
         self,
@@ -47,19 +35,11 @@ class QuestionMultipleChoice(Question):
         question_options: list[str],
         question_name: str,
         short_names_dict: Optional[dict[str, str]] = None,
-        instructions: Optional[str] = None,
     ):
         self.question_text = question_text
         self.question_options = question_options
         self.question_name = question_name
         self.short_names_dict = short_names_dict or dict()
-
-        ## Instruction priority:
-        ## 1) instructions passed in (will include in serialization)
-        ## 2) instructions from prompt_registry
-        ## 3) default instructions
-
-        self.instructions = instructions
 
     ################
     # Answer methods
@@ -114,7 +94,6 @@ def main():
     q.question_options
     q.question_name
     q.short_names_dict
-    q.instructions
     # validate an answer
     q.validate_answer({"answer": 0, "comment": "I like custard"})
     # translate answer code

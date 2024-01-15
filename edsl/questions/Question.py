@@ -57,7 +57,6 @@ class Question(ABC, AnswerValidatorMixin, metaclass=RegisterQuestionsMeta):
     question_name: str = QuestionNameDescriptor()
     question_text: str = QuestionTextDescriptor()
     short_names_dict: dict[str, str] = ShortNamesDictDescriptor()
-    instructions: str = InstructionsDescriptor()
 
     @property
     def data(self) -> dict:

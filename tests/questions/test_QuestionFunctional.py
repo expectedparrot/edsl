@@ -25,7 +25,6 @@ def test_QuestionFunctional_construction_from_function():
     assert "question_type" in q.to_dict()
     assert "functional" in q.to_dict()["question_type"]
     # unnecessary methods are not implemented
-    assert q.instructions == ""
     assert q.translate_answer_code_to_answer(None, None) is None
     with pytest.raises(NotImplementedError):
         q.simulate_answer()
