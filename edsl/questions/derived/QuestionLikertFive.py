@@ -35,14 +35,12 @@ class QuestionLikertFive(QuestionMultipleChoice):
         question_text: str,
         question_options: Optional[list[str]] = likert_options,
         short_names_dict: Optional[dict[str, str]] = None,
-        instructions: Optional[str] = None,
     ):
         super().__init__(
             question_name=question_name,
             question_text=question_text,
             question_options=question_options,
             short_names_dict=short_names_dict,
-            instructions=instructions,
         )
 
     ################
@@ -64,7 +62,6 @@ def main():
     q.question_options
     q.question_name
     q.short_names_dict
-    q.instructions
     # validate an answer
     q.validate_answer({"answer": 0, "comment": "I like custard"})
     # translate answer code

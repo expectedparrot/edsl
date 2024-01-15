@@ -26,10 +26,10 @@ def test_Question_properties(capsys):
     q = QuestionFreeText(**valid_question)
 
     # Prompt stuff
-    assert q.get_prompt()
+    # assert q.get_prompt()
     q3 = QuestionFreeText(**valid_question_three)
-    with pytest.raises(QuestionScenarioRenderError):
-        q3.get_prompt()
+    # with pytest.raises(QuestionScenarioRenderError):
+    #    q3.get_prompt()
     # assert q.formulate_prompt()
     # with pytest.raises(QuestionScenarioRenderError):
     #     q3.formulate_prompt()

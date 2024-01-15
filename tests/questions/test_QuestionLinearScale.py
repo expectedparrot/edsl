@@ -157,7 +157,6 @@ def test_QuestionLinearScale_extras():
     """Test QuestionFreeText extra functionalities."""
     q = QuestionLinearScale(**valid_question)
     # instructions
-    assert "You are being asked" in q.instructions
     # simulate_answer
     assert q.simulate_answer().keys() == q.simulate_answer(human_readable=True).keys()
     assert q.simulate_answer(human_readable=False)["answer"] in range(

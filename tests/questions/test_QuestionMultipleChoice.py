@@ -190,7 +190,6 @@ def test_QuestionMultipleChoice_extras():
     """Test QuestionFreeText extra functionalities."""
     q = QuestionMultipleChoice(**valid_question)
     # instructions
-    assert "You are being asked" in q.instructions
     # translate answer code to answer
     assert q.translate_answer_code_to_answer(0, scenario=None) == "OK"
     assert q.translate_answer_code_to_answer(1, scenario=None) == "Bad"

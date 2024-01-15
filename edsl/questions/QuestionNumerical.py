@@ -29,29 +29,6 @@ class QuestionNumerical(Question):
     question_type = "numerical"
     min_value: Optional[float] = NumericalOrNoneDescriptor()
     max_value: Optional[float] = NumericalOrNoneDescriptor()
-    default_instructions = textwrap.dedent(
-        """\
-        You are being asked a question that requires a numerical response 
-        in the form of an integer or decimal (e.g., -12, 0, 1, 2, 3.45, ...).
-        Your response must be in the following format:
-        {"answer": "<your numerical answer here>", "comment": "<your explanation here"}
-        You must only include an integer or decimal in the quoted "answer" part of your response. 
-        Here is an example of a valid response:
-        {"answer": "100", "comment": "This is my explanation..."}
-        Here is an example of a response that is invalid because the "answer" includes words:
-        {"answer": "I don't know.", "comment": "This is my explanation..."}
-        If your response is equivalent to zero, your formatted response should look like this:
-        {"answer": "0", "comment": "This is my explanation..."}
-        
-        You are being asked the following question: {{question_text}}
-        {% if min_value is not none %}
-        Minimum answer value: {{min_value}}
-        {% endif %}
-        {% if max_value is not none %}
-        Maximum answer value: {{max_value}}
-        {% endif %}
-        """
-    )
 
     def __init__(
         self,
@@ -59,13 +36,11 @@ class QuestionNumerical(Question):
         question_text: str,
         min_value: Optional[Union[int, float]] = None,
         max_value: Optional[Union[int, float]] = None,
-        instructions: Optional[str] = None,
     ):
         self.question_name = question_name
         self.question_text = question_text
         self.min_value = min_value
         self.max_value = max_value
-        self.instructions = instructions
 
     ################
     # Answer methods
@@ -110,7 +85,6 @@ def main():
     q.question_text
     q.min_value
     q.max_value
-    q.instructions
     # validate an answer
     q.validate_answer({"answer": 1, "comment": "I like custard"})
     # translate answer code
