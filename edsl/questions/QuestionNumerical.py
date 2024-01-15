@@ -65,7 +65,7 @@ class QuestionNumerical(Question):
         self.question_text = question_text
         self.min_value = min_value
         self.max_value = max_value
-        self.instructions = instructions or self.default_instructions
+        self.instructions = instructions
 
     ################
     # Answer methods

@@ -59,7 +59,7 @@ class QuestionRank(Question):
         self.question_name = question_name
         self.question_text = question_text
         self.question_options = question_options
-        self.instructions = instructions or self.default_instructions
+        self.instructions = instructions
         self.short_names_dict = short_names_dict or dict()
         self.num_selections = num_selections or len(question_options)
 

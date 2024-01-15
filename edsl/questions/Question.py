@@ -47,11 +47,6 @@ class RegisterQuestionsMeta(ABCMeta):
         return d
 
 
-# q2c = RegisterQuestionsMeta.question_names_to_classes()
-# get_question_class = lambda question_type: q2c.get(question_type)
-# from edsl.questions.question_registry import get_question_class
-
-
 class Question(ABC, AnswerValidatorMixin, metaclass=RegisterQuestionsMeta):
     """
     ABC for something.

@@ -28,18 +28,18 @@ class QuestionMultipleChoice(Question):
     question_type = "multiple_choice"
     purpose = "When options are known and limited"
     question_options: list[str] = QuestionOptionsDescriptor()
-    default_instructions = textwrap.dedent(
-        """\
-        You are being asked the following question: {{question_text}}
-        The options are 
-        {% for option in question_options %}
-        {{ loop.index0 }}: {{option}}
-        {% endfor %}                       
-        Return a valid JSON formatted like this, selecting only the number of the option: 
-        {"answer": <put answer code here>, "comment": "<put explanation here>"}
-        Only 1 option may be selected.
-        """
-    )
+    # default_instructions = textwrap.dedent(
+    #     """\
+    #     You are being asked the following question: {{question_text}}
+    #     The options are
+    #     {% for option in question_options %}
+    #     {{ loop.index0 }}: {{option}}
+    #     {% endfor %}
+    #     Return a valid JSON formatted like this, selecting only the number of the option:
+    #     {"answer": <put answer code here>, "comment": "<put explanation here>"}
+    #     Only 1 option may be selected.
+    #     """
+    # )
 
     def __init__(
         self,
@@ -53,7 +53,13 @@ class QuestionMultipleChoice(Question):
         self.question_options = question_options
         self.question_name = question_name
         self.short_names_dict = short_names_dict or dict()
-        self.instructions = instructions or self.default_instructions
+
+        ## Instruction priority:
+        ## 1) instructions passed in (will include in serialization)
+        ## 2) instructions from prompt_registry
+        ## 3) default instructions
+
+        self.instructions = instructions
 
     ################
     # Answer methods
