@@ -15,6 +15,8 @@ from edsl.questions.descriptors import (
     ShortNamesDictDescriptor,
 )
 
+from edsl.prompts.Prompt import Prompt
+
 # from edsl.questions.question_registry import get_question_class
 from edsl.questions.AnswerValidatorMixin import AnswerValidatorMixin
 
@@ -49,7 +51,7 @@ class RegisterQuestionsMeta(ABCMeta):
 
 class Question(ABC, AnswerValidatorMixin, metaclass=RegisterQuestionsMeta):
     """
-    ABC for something.
+    ABC for the Question class. All questions should inherit from this class.
     """
 
     question_name: str = QuestionNameDescriptor()
@@ -164,41 +166,7 @@ class Question(ABC, AnswerValidatorMixin, metaclass=RegisterQuestionsMeta):
 
         return new_t
 
-    def formulate_prompt(self, traits=None, focal_item=None):
-        """
-        Builds the prompt to send to the LLM. The system prompt contains:
-        - Context that might be helpful
-        - The traits of the agent
-        - The focal item and a description of what it is.
-        """
-        system_prompt = ""
-        instruction_part = textwrap.dedent(
-            """\
-        You are answering questions as if you were a human. 
-        Do not break character.  
-        """
-        )
-        system_prompt += instruction_part
-
-        if traits is not None:
-            relevant_trait = traits.relevant_traits(self)
-            traits_part = f"Your traits are: {relevant_trait}"
-            system_prompt += traits_part
-
-        prompt = ""
-        if focal_item is not None:
-            focal_item_prompt_fragment = textwrap.dedent(
-                f"""\
-            The question you will be asked will be about a {focal_item.meta_description}.
-            The particular one you are responding to is: {focal_item.content}.
-            """
-            )
-            prompt += focal_item_prompt_fragment
-
-        prompt += self.get_prompt()
-        return prompt, system_prompt
-
-    def get_prompt(self, scenario=None) -> str:
+    def get_prompt(self, scenario=None) -> Prompt:
         """Shows which prompt should be used with the LLM for this question.
         It extracts the question attributes from the instantiated question data model.
         """
@@ -213,7 +181,7 @@ class Question(ABC, AnswerValidatorMixin, metaclass=RegisterQuestionsMeta):
                 f"Scenario is missing variables: {undeclared_variables}"
             )
         prompt = self.scenario_render(template_with_attributes, scenario)
-        return prompt
+        return Prompt(prompt)
 
     @abstractmethod
     def validate_answer(self, answer: dict[str, str]):

@@ -1,11 +1,13 @@
 from abc import ABC, abstractmethod
 import asyncio
 import json
-from typing import Coroutine
+from typing import Coroutine, Dict
 from edsl.exceptions import AgentRespondedWithBadJSONError
 from edsl.prompts.Prompt import Prompt
 
 from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
+
+from collections import UserDict
 
 
 class InvigilatorBase(ABC):
@@ -65,10 +67,12 @@ class InvigilatorAI(InvigilatorBase):
         traits = f"Your traits are: {self.agent.traits}."
         return f"{instruction} {traits}"
 
-    async def async_get_response(self, prompt: str, system_prompt):
+    async def async_get_response(self, user_prompt: Prompt, system_prompt: Prompt):
         """Calls the LLM and gets a response. Used in the `answer_question` method."""
         try:
-            response = await self.model.async_get_response(prompt, system_prompt)
+            response = await self.model.async_get_response(
+                user_prompt.text, system_prompt.text
+            )
         except json.JSONDecodeError as e:
             raise AgentRespondedWithBadJSONError(
                 f"Returned bad JSON: {e}"
@@ -80,16 +84,34 @@ class InvigilatorAI(InvigilatorBase):
 
     get_response = sync_wrapper(async_get_response)
 
-    async def async_answer_question(self):
+    def get_prompts(self) -> Dict[str, Prompt]:
+        """Gets the prompts for the LLM call."""
         system_prompt = Prompt(self.construct_system_prompt())
-        prompt = Prompt(self.question.get_prompt(self.scenario))
+        user_prompt = Prompt(self.question.get_prompt(self.scenario))
         if self.memory_plan is not None:
-            prompt += self.create_memory_prompt(self.question.question_name)
-        response = await self.async_get_response(prompt.text, system_prompt.text)
-        response = self.question.validate_answer(response)
-        answer_code = response["answer"]
-        response["answer"] = self.question.translate_answer_code_to_answer(
-            answer_code, self.scenario
+            user_prompt += self.create_memory_prompt(self.question.question_name)
+        return {"user_prompt": user_prompt, "system_prompt": system_prompt}
+
+    class Response(UserDict):
+        def __init__(self, agent, question, scenario, raw_response):
+            response = question.validate_answer(raw_response)
+            comment = response.get("comment", "")
+            answer_code = response["answer"]
+            answer = question.translate_answer_code_to_answer(answer_code, scenario)
+            data = {
+                "answer": answer,
+                "comment": comment,
+                "prompts": agent.get_prompts(),
+            }
+            super().__init__(data)
+
+    async def async_answer_question(self):
+        raw_response = await self.async_get_response(**self.get_prompts())
+        response = self.Response(
+            agent=self,
+            question=self.question,
+            scenario=self.scenario,
+            raw_response=raw_response,
         )
         return response
 

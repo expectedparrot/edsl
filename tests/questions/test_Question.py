@@ -30,9 +30,9 @@ def test_Question_properties(capsys):
     q3 = QuestionFreeText(**valid_question_three)
     with pytest.raises(QuestionScenarioRenderError):
         q3.get_prompt()
-    assert q.formulate_prompt()
-    with pytest.raises(QuestionScenarioRenderError):
-        q3.formulate_prompt()
+    # assert q.formulate_prompt()
+    # with pytest.raises(QuestionScenarioRenderError):
+    #     q3.formulate_prompt()
     curly = valid_question.copy()
     curly["question_text"] = "What is the capital of {country}"
     # make sure that when you initialize curly, it outputs a string that contains "WARNING"
