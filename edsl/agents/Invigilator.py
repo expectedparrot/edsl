@@ -61,11 +61,6 @@ class InvigilatorFunctional(InvigilatorBase):
         return func(scenario=self.scenario, agent_traits=self.agent.traits)
 
 
-################################
-### This is the one that matters
-################################
-
-
 class InvigilatorAI(InvigilatorBase):
     def construct_system_prompt(self) -> Prompt:
         """Constructs the system prompt for the LLM call."""

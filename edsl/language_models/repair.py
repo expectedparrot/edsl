@@ -1,22 +1,72 @@
 import json
+import asyncio
+
+
+async def async_repair(bad_json, error_message=""):
+    from edsl.language_models.LanguageModelOpenAIFour import LanguageModelOpenAIFour
+
+    m = LanguageModelOpenAIFour()
+
+    prompt = f"Please repair this bad JSON: {bad_json}."
+    if error_message:
+        prompt += f" Parsing error message: {error_message}"
+
+    try:
+        results = await m.async_execute_model_call(
+            prompt,
+            system_prompt="You are a helpful agent. Only return the repaired JSON, nothing else.",
+        )
+    except Exception as e:
+        return {}, False
+
+    try:
+        valid_dict = json.loads(results["choices"][0]["message"]["content"])
+        success = True
+    except json.JSONDecodeError:
+        valid_dict = {}
+        success = False
+
+    return valid_dict, success
+
+
+def repair_wrapper(bad_json, error_message=""):
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # Add repair as a task to the running loop
+            task = loop.create_task(async_repair(bad_json, error_message))
+            return task
+        else:
+            # Run a new event loop for repair
+            return loop.run_until_complete(async_repair(bad_json, error_message))
+    except RuntimeError:
+        # Create a new event loop if one is not already available
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        return loop.run_until_complete(async_repair(bad_json, error_message))
 
 
 def repair(bad_json, error_message=""):
-    from edsl.language_models import LanguageModelOpenAIFour
+    return repair_wrapper(bad_json, error_message)
 
-    m = LanguageModelOpenAIFour()
-    results = m.execute_model_call(
-        f"""Please repair this bad JSON: {bad_json}."""
-        + (f"Parsing error message: {error_message}" if error_message else ""),
-        system_prompt="You are a helpful agent. Only return the repaired JSON, nothing else.",
-    )
-    success = True
-    try:
-        valid_dict = json.loads(results["choices"][0]["message"]["content"])
-    except json.JSONDecodeError:
-        success = False
-        valid_dict = {}
-    return valid_dict, success
+
+# Example usage:
+# result, success = repair_wrapper('{"name": "John Doe", "age": 30,}')  # example bad JSON
+
+
+# def repair_wrapper(bad_json, error_message=""):
+#     loop = asyncio.get_event_loop()
+#     if loop.is_running():
+#         # Add repair as a task to the running loop
+#         task = loop.create_task(repair(bad_json, error_message))
+#         return task
+#     else:
+#         # Run a new event loop for repair
+#         return loop.run_until_complete(repair(bad_json, error_message))
+
+
+# Example usage:
+# result, success = repair_wrapper('{"name": "John Doe", "age": 30,}')  # example bad JSON
 
 
 if __name__ == "__main__":
