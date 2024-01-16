@@ -54,3 +54,16 @@ class QuestionFunctional(Question):
     def simulate_answer(self, human_readable=True) -> dict[str, str]:
         """Required by Question, but not used by QuestionFunctional"""
         raise NotImplementedError
+
+    @classmethod
+    def example(cls):
+        """Required by Question, but not used by QuestionFunctional"""
+
+        silly_function = lambda scenario, agent_traits: scenario.get(
+            "a", 1
+        ) + scenario.get("b", 2)
+        return cls(
+            question_name="add_two_numbers",
+            question_text="functional",
+            func=silly_function,
+        )
