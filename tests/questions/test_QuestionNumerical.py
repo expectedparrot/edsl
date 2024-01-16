@@ -179,7 +179,6 @@ def test_test_QuestionNumerical_extras():
     """Test QuestionNumerical extra functionalities."""
     q = QuestionNumerical(**valid_question)
     # instructions
-    assert "You are being asked a question" in q.instructions
     # simulate_answer
     simulated_answer = q.simulate_answer()
     assert isinstance(simulated_answer, dict)

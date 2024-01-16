@@ -177,7 +177,6 @@ def test_test_QuestionList_extras():
     """Test QuestionList extra functionalities."""
     q = QuestionList(**valid_question)
     # instructions
-    assert "Your response" in q.instructions
     # simulate_answer
     simulated_answer = q.simulate_answer()
     assert isinstance(simulated_answer, dict)

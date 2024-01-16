@@ -25,18 +25,6 @@ class QuestionLinearScale(QuestionMultipleChoice):
     question_type = "linear_scale"
     option_labels: Optional[dict[int, str]] = OptionLabelDescriptor()
     question_options = QuestionOptionsDescriptor(linear_scale=True)
-    default_instructions = textwrap.dedent(
-        """\
-        You are being asked the following question: {{question_text}}
-        The options are 
-        {% for option in question_options %}
-        {{ loop.index0 }}: {{option}}
-        {% endfor %}                       
-        Return a valid JSON formatted like this, selecting only the code of the option (codes start at 0): 
-        {"answer": <put answer code here>, "comment": "<put explanation here>"}
-        Only 1 option may be selected.
-        """
-    )
 
     def __init__(
         self,
@@ -44,7 +32,6 @@ class QuestionLinearScale(QuestionMultipleChoice):
         question_options: list[int],
         question_name: str,
         short_names_dict: Optional[dict[str, str]] = None,
-        instructions: Optional[str] = None,
         option_labels: Optional[dict[int, str]] = None,
     ):
         super().__init__(
@@ -52,7 +39,6 @@ class QuestionLinearScale(QuestionMultipleChoice):
             question_options=question_options,
             question_name=question_name,
             short_names_dict=short_names_dict,
-            instructions=instructions,
         )
         self.question_options = question_options
         self.option_labels = option_labels
@@ -78,7 +64,6 @@ def main():
     q.question_options
     q.question_name
     q.short_names_dict
-    q.instructions
     # validate an answer
     q.validate_answer({"answer": 3, "comment": "I like custard"})
     # translate answer code

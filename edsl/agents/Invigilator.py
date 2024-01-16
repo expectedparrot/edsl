@@ -1,11 +1,14 @@
 from abc import ABC, abstractmethod
 import asyncio
 import json
-from typing import Coroutine
+from typing import Coroutine, Dict, Any
+from collections import UserDict
+
 from edsl.exceptions import AgentRespondedWithBadJSONError
 from edsl.prompts.Prompt import Prompt
-
 from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
+from edsl.prompts.Prompt import get_classes
+from edsl.exceptions import QuestionScenarioRenderError
 
 
 class InvigilatorBase(ABC):
@@ -59,20 +62,28 @@ class InvigilatorFunctional(InvigilatorBase):
 
 
 class InvigilatorAI(InvigilatorBase):
-    def construct_system_prompt(self) -> str:
+    def construct_system_prompt(self) -> Prompt:
         """Constructs the system prompt for the LLM call."""
-        instruction = self.agent.instruction
-        traits = f"Your traits are: {self.agent.traits}."
-        return f"{instruction} {traits}"
+        applicable_prompts = get_classes(
+            component_type="agent_instructions",
+        )
+        if len(applicable_prompts) == 0:
+            raise Exception("No applicable prompts found")
 
-    async def async_get_response(self, prompt: str, system_prompt):
+        agent_instructions = applicable_prompts[0]()
+        agent_instructions.render(self.agent.traits)
+        return agent_instructions
+
+    async def async_get_response(self, user_prompt: Prompt, system_prompt: Prompt):
         """Calls the LLM and gets a response. Used in the `answer_question` method."""
         try:
-            response = await self.model.async_get_response(prompt, system_prompt)
+            response = await self.model.async_get_response(
+                user_prompt.text, system_prompt.text
+            )
         except json.JSONDecodeError as e:
             raise AgentRespondedWithBadJSONError(
                 f"Returned bad JSON: {e}"
-                f"Prompt: {prompt}"
+                f"Prompt: {user_prompt}"
                 f"System Prompt: {system_prompt}"
             )
 
@@ -80,16 +91,51 @@ class InvigilatorAI(InvigilatorBase):
 
     get_response = sync_wrapper(async_get_response)
 
-    async def async_answer_question(self):
-        system_prompt = Prompt(self.construct_system_prompt())
-        prompt = Prompt(self.question.get_prompt(self.scenario))
+    def get_question_instructions(self) -> Prompt:
+        """Gets the instructions for the question."""
+        applicable_prompts = get_classes(
+            component_type="question_instructions",
+            question_type=self.question.question_type,
+        )
+        ## Get the question instructions and renders with the scenario & question.data
+        question_prompt = applicable_prompts[0]()
+
+        question_prompt.render(self.question.data | self.scenario)
+
+        if question_prompt.has_variables:
+            raise QuestionScenarioRenderError(
+                "Question instructions still has variables"
+            )
+        return question_prompt
+
+    def get_prompts(self) -> Dict[str, Prompt]:
+        """Gets the prompts for the LLM call."""
+        system_prompt = self.construct_system_prompt()
+        user_prompt = self.get_question_instructions()
         if self.memory_plan is not None:
-            prompt += self.create_memory_prompt(self.question.question_name)
-        response = await self.async_get_response(prompt.text, system_prompt.text)
-        response = self.question.validate_answer(response)
-        answer_code = response["answer"]
-        response["answer"] = self.question.translate_answer_code_to_answer(
-            answer_code, self.scenario
+            user_prompt += self.create_memory_prompt(self.question.question_name)
+        return {"user_prompt": user_prompt, "system_prompt": system_prompt}
+
+    class Response(UserDict):
+        def __init__(self, agent, question, scenario, raw_response):
+            response = question.validate_answer(raw_response)
+            comment = response.get("comment", "")
+            answer_code = response["answer"]
+            answer = question.translate_answer_code_to_answer(answer_code, scenario)
+            data = {
+                "answer": answer,
+                "comment": comment,
+                "prompts": agent.get_prompts(),
+            }
+            super().__init__(data)
+
+    async def async_answer_question(self):
+        raw_response = await self.async_get_response(**self.get_prompts())
+        response = self.Response(
+            agent=self,
+            question=self.question,
+            scenario=self.scenario,
+            raw_response=raw_response,
         )
         return response
 

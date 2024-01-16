@@ -15,6 +15,8 @@ from edsl.questions.descriptors import (
     ShortNamesDictDescriptor,
 )
 
+from edsl.prompts.Prompt import Prompt
+
 # from edsl.questions.question_registry import get_question_class
 from edsl.questions.AnswerValidatorMixin import AnswerValidatorMixin
 
@@ -47,20 +49,14 @@ class RegisterQuestionsMeta(ABCMeta):
         return d
 
 
-# q2c = RegisterQuestionsMeta.question_names_to_classes()
-# get_question_class = lambda question_type: q2c.get(question_type)
-# from edsl.questions.question_registry import get_question_class
-
-
 class Question(ABC, AnswerValidatorMixin, metaclass=RegisterQuestionsMeta):
     """
-    ABC for something.
+    ABC for the Question class. All questions should inherit from this class.
     """
 
     question_name: str = QuestionNameDescriptor()
     question_text: str = QuestionTextDescriptor()
     short_names_dict: dict[str, str] = ShortNamesDictDescriptor()
-    instructions: str = InstructionsDescriptor()
 
     @property
     def data(self) -> dict:
@@ -143,82 +139,6 @@ class Question(ABC, AnswerValidatorMixin, metaclass=RegisterQuestionsMeta):
         from edsl.questions import compose_questions
 
         return compose_questions(self, other_question)
-
-    ############################
-    # LLM methods
-    ############################
-    @staticmethod
-    def scenario_render(text: str, scenario_dict: dict[str, Any]) -> str:
-        """
-        Replaces the variables in the question text with the values from the scenario.
-        - We allow nesting, and hence we may need to do this many times. There is a nesting limit of 100.
-        """
-        t = text
-        MAX_NESTING = 100
-        counter = 0
-        while True:
-            counter += 1
-            new_t = Template(t).render(scenario_dict)
-            if new_t == t:
-                break
-            t = new_t
-            if counter > MAX_NESTING:
-                raise QuestionScenarioRenderError(
-                    "Too much nesting - you created an infnite loop here, pal"
-                )
-
-        return new_t
-
-    def formulate_prompt(self, traits=None, focal_item=None):
-        """
-        Builds the prompt to send to the LLM. The system prompt contains:
-        - Context that might be helpful
-        - The traits of the agent
-        - The focal item and a description of what it is.
-        """
-        system_prompt = ""
-        instruction_part = textwrap.dedent(
-            """\
-        You are answering questions as if you were a human. 
-        Do not break character.  
-        """
-        )
-        system_prompt += instruction_part
-
-        if traits is not None:
-            relevant_trait = traits.relevant_traits(self)
-            traits_part = f"Your traits are: {relevant_trait}"
-            system_prompt += traits_part
-
-        prompt = ""
-        if focal_item is not None:
-            focal_item_prompt_fragment = textwrap.dedent(
-                f"""\
-            The question you will be asked will be about a {focal_item.meta_description}.
-            The particular one you are responding to is: {focal_item.content}.
-            """
-            )
-            prompt += focal_item_prompt_fragment
-
-        prompt += self.get_prompt()
-        return prompt, system_prompt
-
-    def get_prompt(self, scenario=None) -> str:
-        """Shows which prompt should be used with the LLM for this question.
-        It extracts the question attributes from the instantiated question data model.
-        """
-        scenario = scenario or {}
-        template = Template(self.instructions)
-        template_with_attributes = template.render(self.data)
-        env = Environment()
-        ast = env.parse(template_with_attributes)
-        undeclared_variables = meta.find_undeclared_variables(ast)
-        if any([v not in scenario for v in undeclared_variables]):
-            raise QuestionScenarioRenderError(
-                f"Scenario is missing variables: {undeclared_variables}"
-            )
-        prompt = self.scenario_render(template_with_attributes, scenario)
-        return prompt
 
     @abstractmethod
     def validate_answer(self, answer: dict[str, str]):

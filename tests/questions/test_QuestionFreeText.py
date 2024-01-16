@@ -132,7 +132,6 @@ def test_test_QuestionFreeText_extras():
     """Test QuestionFreeText extra functionalities."""
     q = QuestionFreeText(**valid_question)
     # instructions
-    assert "You are being asked" in q.instructions
     # simulate_answer
     simulated_answer = q.simulate_answer()
     assert isinstance(simulated_answer, dict)

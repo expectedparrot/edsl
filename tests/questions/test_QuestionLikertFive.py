@@ -72,7 +72,4 @@ def test_QuestionLikertFive_extras():
     """Test QuestionFreeText extra functionalities."""
     q = QuestionLikertFive(**valid_question)
     # instructions
-    assert "You are being asked" in q.instructions
-    assert "{{question_text}}" in q.instructions
-    assert "for option in question_options" in q.instructions
     # form elements

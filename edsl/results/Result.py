@@ -20,6 +20,7 @@ class Result(UserDict):
         model: Type[LanguageModel],
         iteration: int,
         answer: str,
+        prompts: dict[str, str] = None,
     ):
         # initialize the UserDict
         data = {
@@ -28,6 +29,7 @@ class Result(UserDict):
             "model": model,
             "iteration": iteration,
             "answer": answer,
+            "prompts": prompts or {},
         }
         super().__init__(**data)
         # but also store the data as attributes
@@ -36,6 +38,7 @@ class Result(UserDict):
         self.model = model
         self.iteration = iteration
         self.answer = answer
+        self.prompts = prompts or {}
 
     ###############
     # Used in Results
@@ -48,6 +51,7 @@ class Result(UserDict):
             "scenario": self.scenario,
             "model": self.model.parameters | {"model": self.model.model},
             "answer": self.answer,
+            "prompts": self.prompts,
         }
 
     @property
@@ -140,7 +144,8 @@ def main():
         "iteration": 0,
         "answer": {
             "how_feeling": "Bad"
-        }
+        }, 
+        "prompts": {"user_prompt": "How are you feeling today?", "system_prompt": "Answer the question"}
     }
     """
 

@@ -34,27 +34,6 @@ class QuestionCheckBox(Question):
     question_options: list[str] = QuestionOptionsDescriptor()
     min_selections = IntegerDescriptor(none_allowed=True)
     max_selections = IntegerDescriptor(none_allowed=True)
-    default_instructions = textwrap.dedent(
-        """\
-        You are being asked the following question: {{question_text}}
-        The options are 
-        {% for option in question_options %}
-        {{ loop.index0 }}: {{option}}
-        {% endfor %}                       
-        Return a valid JSON formatted like this, selecting only the number of the option: 
-        {"answer": [<put comma-separated list of answer codes here>], "comment": "<put explanation here>"}
-        {% if min_selections != None and max_selections != None and min_selections == max_selections %}
-        You must select exactly {{min_selections}} options.
-        {% elif min_selections != None and max_selections != None %}
-        Minimum number of options that must be selected: {{min_selections}}.      
-        Maximum number of options that must be selected: {{max_selections}}.
-        {% elif min_selections != None %}
-        Minimum number of options that must be selected: {{min_selections}}.      
-        {% elif max_selections != None %}
-        Maximum number of options that must be selected: {{max_selections}}.      
-        {% endif %}        
-        """
-    )
 
     def __init__(
         self,
@@ -64,7 +43,6 @@ class QuestionCheckBox(Question):
         min_selections: Optional[int] = None,
         max_selections: Optional[int] = None,
         short_names_dict: Optional[dict[str, str]] = None,
-        instructions: Optional[str] = None,
     ):
         self.question_name = question_name
         self.question_text = question_text
@@ -72,7 +50,6 @@ class QuestionCheckBox(Question):
         self.max_selections = max_selections
         self.question_options = question_options
         self.short_names_dict = short_names_dict or dict()
-        self.instructions = instructions or self.default_instructions
 
     ################
     # Answer methods
@@ -147,7 +124,6 @@ def main():
     q.question_options
     q.question_name
     q.short_names_dict
-    q.instructions
     # validate an answer
     q.validate_answer({"answer": [1, 2], "comment": "I like custard"})
     # translate answer code
