@@ -25,29 +25,16 @@ class QuestionExtract(Question):
 
     question_type = "extract"
     answer_template: dict[str, Any] = AnswerTemplateDescriptor()
-    default_instructions = textwrap.dedent(
-        """\
-        You are given the following input: "{{question_text}}".
-        Create an ANSWER should be formatted like this: "{{ answer_template }}",
-        and it should have the same keys but values extracted from the input.
-        If the value of a key is not present in the input, fill with "null".
-        Return a valid JSON formatted like this: 
-        {"answer": <put your ANSWER here>}
-        ONLY RETURN THE JSON, AND NOTHING ELSE.
-        """
-    )
 
     def __init__(
         self,
         question_text: str,
         answer_template: dict[str, Any],
         question_name: str,
-        instructions: Optional[str] = None,
     ):
         self.question_name = question_name
         self.question_text = question_text
         self.answer_template = answer_template
-        self.instructions = instructions or self.default_instructions
 
     ################
     # Answer methods
@@ -88,11 +75,8 @@ def main():
     q = QuestionExtract.example()
     q.question_text
     q.question_name
-    q.instructions
     q.answer_template
-    # validate an answer
     q.validate_answer({"answer": {"name": "Moby", "profession": "truck driver"}})
-    # translate answer code
     q.translate_answer_code_to_answer(
         {"answer": {"name": "Moby", "profession": "truck driver"}}
     )

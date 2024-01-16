@@ -28,24 +28,6 @@ class QuestionBudget(Question):
     question_type = "budget"
     budget_sum: int = IntegerDescriptor(none_allowed=False)
     question_options: list[str] = QuestionOptionsDescriptor()
-    default_instructions = textwrap.dedent(
-        """\
-        You are being asked the following question: {{question_text}}
-        The options are 
-        {% for option in question_options %}
-        {{ loop.index0 }}: {{option}}
-        {% endfor %}                       
-        Return a valid JSON formatted as follows, with a dictionary for your "answer"
-        where the keys are the option numbers and the values are the amounts you want 
-        to allocate to the options, and the sum of the values is {{budget_sum}}:
-        {"answer": {<put dict of option numbers and allocation amounts here>},
-        "comment": "<put explanation here>"}
-        Example response for a budget of 100 and 4 options: 
-        {"answer": {"0": 25, "1": 25, "2": 25, "3": 25},
-        "comment": "I allocated 25 to each option."}
-        There must be an allocation listed for each item (including 0).
-        """
-    )
 
     def __init__(
         self,
@@ -54,14 +36,12 @@ class QuestionBudget(Question):
         question_options: list[str],
         budget_sum: int,
         short_names_dict: Optional[dict[str, str]] = None,
-        instructions: Optional[str] = None,
     ):
         self.question_name = question_name
         self.question_text = question_text
         self.question_options = question_options
         self.budget_sum = budget_sum
         self.short_names_dict = short_names_dict or {}
-        self.instructions = instructions
 
     ################
     # Answer methods
@@ -130,7 +110,6 @@ def main():
     q.question_options
     q.question_name
     q.short_names_dict
-    q.instructions
     # validate an answer
     q.validate_answer(
         {"answer": {0: 100, 1: 0, 2: 0, 3: 0}, "comment": "I like custard"}
