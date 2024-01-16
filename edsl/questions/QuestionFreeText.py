@@ -43,7 +43,7 @@ class QuestionFreeText(Question):
         self.question_text = question_text
         self.question_name = question_name
         self.allow_nonresponse = allow_nonresponse or False
-        self.instructions = instructions or self.default_instructions
+        self.instructions = instructions
 
     ################
     # Answer methods

@@ -32,7 +32,6 @@ class QuestionTopK(QuestionCheckBox):
         min_selections: int,
         max_selections: int,
         short_names_dict: Optional[dict[str, str]] = None,
-        instructions: Optional[str] = None,
     ):
         super().__init__(
             question_name=question_name,
@@ -41,7 +40,6 @@ class QuestionTopK(QuestionCheckBox):
             short_names_dict=short_names_dict,
             min_selections=min_selections,
             max_selections=max_selections,
-            instructions=instructions,
         )
         if min_selections != max_selections:
             raise QuestionCreationValidationError(
@@ -74,7 +72,6 @@ def main():
     q.question_options
     q.question_name
     q.short_names_dict
-    q.instructions
     # validate an answer
     q.validate_answer({"answer": [0, 3], "comment": "I like custard"})
     # translate answer code

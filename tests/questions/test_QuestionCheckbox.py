@@ -263,9 +263,7 @@ def test_QuestionCheckBox_extras():
     q = QuestionCheckBox(**valid_question)
     # translate_answer_code_to_answer
     assert q.translate_answer_code_to_answer([0, 1], None) == ["Mon", "Tue"]
-    # instructions
-    assert "You are being asked" in q.instructions
-    # simulate_answer
+
     assert q.simulate_answer().keys() == q.simulate_answer(human_readable=True).keys()
     assert q.simulate_answer(human_readable=False)["answer"][0] in range(
         len(q.question_options)

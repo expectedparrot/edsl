@@ -33,19 +33,6 @@ class QuestionRank(Question):
     question_type = "rank"
     question_options: list[str] = QuestionOptionsDescriptor()
     num_selections = NumSelectionsDescriptor()
-    default_instructions = textwrap.dedent(
-        """\
-        You are being asked the following question: {{question_text}}
-        The options are 
-        {% for option in question_options %}
-        {{ loop.index0 }}: {{option}}
-        {% endfor %}                       
-        Return a valid JSON formatted like this, selecting the numbers of the options in order of preference, 
-        with the most preferred option first, and the least preferred option last: 
-        {"answer": [<put comma-separated list of answer codes here>], "comment": "<put explanation here>"}
-        Exactly {{num_selections}} options must be selected.
-        """
-    )
 
     def __init__(
         self,
@@ -54,12 +41,10 @@ class QuestionRank(Question):
         question_options: list[str],
         num_selections: Optional[int] = None,
         short_names_dict: Optional[dict[str, str]] = None,
-        instructions: Optional[str] = None,
     ):
         self.question_name = question_name
         self.question_text = question_text
         self.question_options = question_options
-        self.instructions = instructions or self.default_instructions
         self.short_names_dict = short_names_dict or dict()
         self.num_selections = num_selections or len(question_options)
 
@@ -120,7 +105,6 @@ def main():
     q.question_name
     q.question_options
     q.num_selections
-    q.instructions
     # validate an answer
     answer = {"answer": [0, 1], "comment": "I like pizza and pasta."}
     q.validate_answer(answer)

@@ -139,7 +139,6 @@ def test_QuestionBudget_extras():
     """Test QuestionBudget's extra functionalities."""
     q = QuestionBudget(**valid_question)
     # instructions
-    assert "You are being asked" in q.instructions
     # translate
     assert q.translate_answer_code_to_answer({"0": 25, "1": 25, "2": 25, "3": 25}) == [
         {"Pizza": 25},
