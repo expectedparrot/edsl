@@ -78,7 +78,12 @@ class RegisterPromptsMeta(ABCMeta):
 
 class PromptBase(ABC, metaclass=RegisterPromptsMeta):
     def __init__(self, text=None):
-        self.text = text or ""
+        if text is None:
+            if hasattr(self, "default_instructions"):
+                text = self.default_instructions
+            else:
+                text = ""
+        self.text = text
 
     def __add__(self, other_prompt):
         """
@@ -138,13 +143,13 @@ class PromptBase(ABC, metaclass=RegisterPromptsMeta):
         return list(meta.find_undeclared_variables(ast))
 
     @property
-    def is_template(self) -> bool:
+    def has_variables(self) -> bool:
         """
         >>> p = Prompt("Hello, {{person}}")
-        >>> p.is_template
+        >>> p.has_variables
         True
         >>> p = Prompt("Hello, person")
-        >>> p.is_template
+        >>> p.has_variables
         False
         """
         return len(self.template_variables()) > 0
@@ -221,11 +226,6 @@ class AgentInstruction(PromptBase):
 
 class QuestionInstuctionsBase(PromptBase):
     component_type = "question_instructions"
-
-    def __init__(self, text=None):
-        if text is None:
-            text = self.default_instructions
-        super().__init__(text=text)
 
 
 class MultipleChoice(QuestionInstuctionsBase):
@@ -416,6 +416,10 @@ get_classes = RegisterPromptsMeta.get_classes
 
 if __name__ == "__main__":
     pass
+
+    p = AgentInstruction()
+    print(p)
+
     # q = QuestionInstuctions()
     # d = RegisterPromptsMeta._lookup
     # print(d)

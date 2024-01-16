@@ -2,57 +2,13 @@ from abc import ABC, abstractmethod
 import asyncio
 import json
 from typing import Coroutine, Dict, Any
-from edsl.exceptions import AgentRespondedWithBadJSONError
-from edsl.prompts.Prompt import Prompt
-
-from jinja2 import Template, Environment, meta
-
-from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
-
 from collections import UserDict
 
+from edsl.exceptions import AgentRespondedWithBadJSONError
+from edsl.prompts.Prompt import Prompt
+from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
 from edsl.prompts.Prompt import get_classes
 from edsl.exceptions import QuestionScenarioRenderError
-
-
-# ############################
-# # LLM methods
-# ############################
-def render(text: str, replacements: dict[str, Any]) -> str:
-    """
-    Replaces the variables in the question text with the values from the scenario.
-    - We allow nesting, and hence we may need to do this many times. There is a nesting limit of 100.
-    """
-    for _ in range(MAX_NESTING):
-        t = Template(text).render(replacements)
-        if t == text:
-            return t
-        text = t
-    raise QuestionScenarioRenderError(
-        "Too much nesting - you created an infnite loop here, pal"
-    )
-
-
-# def render(text: str, replacements: dict[str, Any]) -> str:
-#     """
-#     Replaces the variables in the question text with the values from the scenario.
-#     - We allow nesting, and hence we may need to do this many times. There is a nesting limit of 100.
-#     """
-#     t = text
-#     MAX_NESTING = 100
-#     counter = 0
-#     while True:
-#         counter += 1
-#         new_t = Template(t).render(replacements)
-#         if new_t == t:
-#             break
-#         t = new_t
-#         if counter > MAX_NESTING:
-#             raise QuestionScenarioRenderError(
-#                 "Too much nesting - you created an infnite loop here, pal"
-#             )
-
-#     return new_t
 
 
 class InvigilatorBase(ABC):
@@ -107,15 +63,21 @@ class InvigilatorFunctional(InvigilatorBase):
 
 ################################
 ### This is the one that matters
-############################
+################################
 
 
 class InvigilatorAI(InvigilatorBase):
-    def construct_system_prompt(self) -> str:
+    def construct_system_prompt(self) -> Prompt:
         """Constructs the system prompt for the LLM call."""
-        instruction = self.agent.instruction
-        traits = f"Your traits are: {self.agent.traits}."
-        return f"{instruction} {traits}"
+        applicable_prompts = get_classes(
+            component_type="agent_instructions",
+        )
+        if len(applicable_prompts) == 0:
+            raise Exception("No applicable prompts found")
+
+        agent_instructions = applicable_prompts[0]()
+        agent_instructions.render(self.agent.traits)
+        return agent_instructions
 
     async def async_get_response(self, user_prompt: Prompt, system_prompt: Prompt):
         """Calls the LLM and gets a response. Used in the `answer_question` method."""
@@ -126,7 +88,7 @@ class InvigilatorAI(InvigilatorBase):
         except json.JSONDecodeError as e:
             raise AgentRespondedWithBadJSONError(
                 f"Returned bad JSON: {e}"
-                f"Prompt: {prompt}"
+                f"Prompt: {user_prompt}"
                 f"System Prompt: {system_prompt}"
             )
 
@@ -134,34 +96,27 @@ class InvigilatorAI(InvigilatorBase):
 
     get_response = sync_wrapper(async_get_response)
 
-    def get_question_instructions(self):
+    def get_question_instructions(self) -> Prompt:
         """Gets the instructions for the question."""
         applicable_prompts = get_classes(
             component_type="question_instructions",
             question_type=self.question.question_type,
         )
-        ## Get the question instructions
-        template = applicable_prompts[0]().text
-        ## Populate with the question data
-        template_with_attributes = Template(template).render(self.question.data)
+        ## Get the question instructions and renders with the scenario & question.data
+        question_prompt = applicable_prompts[0]()
 
-        env = Environment()
-        ast = env.parse(template_with_attributes)
-        undeclared_variables = meta.find_undeclared_variables(ast)
-        if any([v not in self.scenario for v in undeclared_variables]):
+        question_prompt.render(self.question.data | self.scenario)
+
+        if question_prompt.has_variables:
             raise QuestionScenarioRenderError(
-                f"Scenario is missing variables: {undeclared_variables}"
+                "Question instructions still has variables"
             )
-        ## File in the scenario data
-        txt = render(template_with_attributes, self.scenario)
-        return txt
+        return question_prompt
 
     def get_prompts(self) -> Dict[str, Prompt]:
         """Gets the prompts for the LLM call."""
-        system_prompt = Prompt(self.construct_system_prompt())
-        user_prompt = Prompt(self.get_question_instructions())
-        # breakpoint()
-        # user_prompt = Prompt(self.question.get_prompt(self.scenario))
+        system_prompt = self.construct_system_prompt()
+        user_prompt = self.get_question_instructions()
         if self.memory_plan is not None:
             user_prompt += self.create_memory_prompt(self.question.question_name)
         return {"user_prompt": user_prompt, "system_prompt": system_prompt}
