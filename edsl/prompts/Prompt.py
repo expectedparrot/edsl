@@ -2,6 +2,15 @@ import textwrap
 from abc import ABCMeta, abstractmethod, ABC
 from collections import defaultdict
 
+from typing import Any
+
+from jinja2 import Template, Environment, meta
+
+
+class TemplateRenderError(Exception):
+    "TODO: Move to exceptions file"
+    pass
+
 
 class RegisterPromptsMeta(ABCMeta):
     "Metaclass to register prompts"
@@ -18,8 +27,20 @@ class RegisterPromptsMeta(ABCMeta):
     }
 
     def __init__(cls, name, bases, dct):
+        """
+        >>> class Prompt1(PromptBase):
+        ...     component_type = "test"
+
+        >>> class Prompt1(PromptBase):
+        ...     component_type = "test"
+        Traceback (most recent call last):
+        ...
+        Exception: We already have a Prompt class named Prompt1
+        """
         super(RegisterPromptsMeta, cls).__init__(name, bases, dct)
         if "Base" not in name and name != "Prompt":
+            if name in RegisterPromptsMeta._registry:
+                raise Exception(f"We already have a Prompt class named {name}")
             RegisterPromptsMeta._registry[name] = cls
             attributes = tuple(
                 ["component_type"]
@@ -60,23 +81,142 @@ class PromptBase(ABC, metaclass=RegisterPromptsMeta):
         self.text = text or ""
 
     def __add__(self, other_prompt):
+        """
+        >>> p = Prompt("Hello, {{person}}")
+        >>> p2 = Prompt("How are you?")
+        >>> p + p2
+        Prompt(text='Hello, {{person}}How are you?')
+        >>> p + "How are you?"
+        Prompt(text='Hello, {{person}}How are you?')
+        """
         if isinstance(other_prompt, str):
-            return self.text + other_prompt
+            return self.__class__(self.text + other_prompt)
         else:
             return self.__class__(text=self.text + other_prompt.text)
 
     def __str__(self):
+        """
+        >>> p = Prompt("Hello, {{person}}")
+        >>> str(p)
+        'Hello, {{person}}'
+        """
         return self.text
 
     def __contains__(self, text_to_check):
+        """
+        >>> p = Prompt("Hello, {{person}}")
+        >>> "person" in p
+        True
+        >>> "person2" in p
+        False
+        """
         return text_to_check in self.text
 
     def __repr__(self):
+        """
+        >>> p = Prompt("Hello, {{person}}")
+        >>> p
+        Prompt(text='Hello, {{person}}')
+        """
         return f"Prompt(text='{self.text}')"
+
+    def template_variables(
+        self,
+    ) -> list[str]:
+        """
+        >>> p = Prompt("Hello, {{person}}")
+        >>> p.template_variables()
+        ['person']
+        """
+        return self._template_variables(self.text)
+
+    @staticmethod
+    def _template_variables(template: str) -> list[str]:
+        """ """
+        env = Environment()
+        ast = env.parse(template)
+        return list(meta.find_undeclared_variables(ast))
+
+    @property
+    def is_template(self) -> bool:
+        """
+        >>> p = Prompt("Hello, {{person}}")
+        >>> p.is_template
+        True
+        >>> p = Prompt("Hello, person")
+        >>> p.is_template
+        False
+        """
+        return len(self.template_variables()) > 0
+
+    def render(self, replacements, max_nesting=100) -> None:
+        """Renders the prompt with the replacements
+
+        >>> p = Prompt("Hello, {{person}}")
+        >>> p.render({"person": "John"})
+        >>> p.text
+        'Hello, John'
+        >>> p = Prompt("Hello, {{person}}")
+        >>> p.render({"person": "Mr. {{last_name}}", "last_name": "Horton"})
+        >>> p.text
+        'Hello, Mr. Horton'
+        >>> p.render({"person": "Mr. {{last_name}}", "last_name": "Ho{{letter}}ton"}, max_nesting = 1)
+        >>> p.text
+        'Hello, Mr. Horton'
+        """
+        self.text = self._render(self.text, replacements, max_nesting)
+
+    @staticmethod
+    def _render(text, replacements: dict[str, Any], max_nesting) -> str:
+        """
+        Replaces the variables in the question text with the values from the scenario.
+        We allow nesting, and hence we may need to do this many times. There is a nesting limit of 100.
+        TODO: I'm not sure this is necessary, actually - I think jinja2 does this for us automatically.
+        When I was trying to get it to fail, I couldn't.
+        """
+        for _ in range(max_nesting):
+            t = Template(text).render(replacements)
+            if t == text:
+                return t
+            text = t
+        raise TemplateRenderError(
+            "Too much nesting - you created an infnite loop here, pal"
+        )
+
+    def to_dict(self):
+        """
+        >>> p = Prompt("Hello, {{person}}")
+        >>> p.to_dict()
+        {'text': 'Hello, {{person}}', 'class_name': 'Prompt'}
+        """
+        return {"text": self.text, "class_name": self.__class__.__name__}
+
+    @classmethod
+    def from_dict(cls, data):
+        """
+        >>> p = Prompt("Hello, {{person}}")
+        >>> p2 = Prompt.from_dict(p.to_dict())
+        >>> p2
+        Prompt(text='Hello, {{person}}')
+        """
+        class_name = data["class_name"]
+        cls = RegisterPromptsMeta._registry.get(class_name, Prompt)
+        return cls(text=data["text"])
 
 
 class Prompt(PromptBase):
+    component_type = ""
+
+
+class AgentInstruction(PromptBase):
     component_type = "agent_instructions"
+    default_instructions = textwrap.dedent(
+        """\
+    You are playing the role of a human answering survey questions.
+    Do not break character.
+    Your traits are: {{traits}}
+    """
+    )
 
 
 class QuestionInstuctionsBase(PromptBase):
@@ -275,7 +415,24 @@ get_classes = RegisterPromptsMeta.get_classes
 
 
 if __name__ == "__main__":
+    pass
     # q = QuestionInstuctions()
-    d = RegisterPromptsMeta._lookup
-    print(d)
-    get_classes(component_type="question_instructions")
+    # d = RegisterPromptsMeta._lookup
+    # print(d)
+    # get_classes(component_type="question_instructions")
+    # import doctest
+    # doctest.testmod()
+
+    # template = "This is the template {{person}}"
+    # env = Environment()
+    # ast = env.parse(Template(template))
+    # print(meta.find_undeclared_variables(ast))
+
+    # template = "This is the template {{person}}"
+    # env = Environment()
+    # ast = env.parse(template)
+    # print(meta.find_undeclared_variables(ast))
+
+    # Traceback (most recent call last):
+    # ...
+    # TemplateRenderError: Too much nesting - you created an infnite loop here, pal
