@@ -23,39 +23,36 @@ def render(text: str, replacements: dict[str, Any]) -> str:
     Replaces the variables in the question text with the values from the scenario.
     - We allow nesting, and hence we may need to do this many times. There is a nesting limit of 100.
     """
-    t = text
-    MAX_NESTING = 100
-    counter = 0
-    while True:
-        counter += 1
-        new_t = Template(t).render(replacements)
-        if new_t == t:
-            break
-        t = new_t
-        if counter > MAX_NESTING:
-            raise QuestionScenarioRenderError(
-                "Too much nesting - you created an infnite loop here, pal"
-            )
-
-    return new_t
+    for _ in range(MAX_NESTING):
+        t = Template(text).render(replacements)
+        if t == text:
+            return t
+        text = t
+    raise QuestionScenarioRenderError(
+        "Too much nesting - you created an infnite loop here, pal"
+    )
 
 
-# def get_prompt(self, scenario=None) -> Prompt:
-#     """Shows which prompt should be used with the LLM for this question.
-#     It extracts the question attributes from the instantiated question data model.
+# def render(text: str, replacements: dict[str, Any]) -> str:
 #     """
-#     scenario = scenario or {}
-#     template = Template(self.instructions)
-#     template_with_attributes = template.render(self.data)
-# env = Environment()
-# ast = env.parse(template_with_attributes)
-# undeclared_variables = meta.find_undeclared_variables(ast)
-# if any([v not in scenario for v in undeclared_variables]):
-#     raise QuestionScenarioRenderError(
-#         f"Scenario is missing variables: {undeclared_variables}"
-#     )
-#     prompt = self.scenario_render(template_with_attributes, scenario)
-#     return Prompt(prompt)
+#     Replaces the variables in the question text with the values from the scenario.
+#     - We allow nesting, and hence we may need to do this many times. There is a nesting limit of 100.
+#     """
+#     t = text
+#     MAX_NESTING = 100
+#     counter = 0
+#     while True:
+#         counter += 1
+#         new_t = Template(t).render(replacements)
+#         if new_t == t:
+#             break
+#         t = new_t
+#         if counter > MAX_NESTING:
+#             raise QuestionScenarioRenderError(
+#                 "Too much nesting - you created an infnite loop here, pal"
+#             )
+
+#     return new_t
 
 
 class InvigilatorBase(ABC):

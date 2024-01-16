@@ -30,32 +30,16 @@ class QuestionList(Question):
     question_type = "list"
     max_list_items: int = IntegerOrNoneDescriptor()
     allow_nonresponse: bool = AllowNonresponseDescriptor()
-    default_instructions = textwrap.dedent(
-        """\
-        {{question_text}}
-
-        Your response should be only a valid JSON of the following format:
-        {
-            "answer": <list of comma-separated words or phrases >, 
-            "comment": "<put comment here>"
-        }
-        {% if max_list_items is not none %}
-        The list must not contain more than {{ max_list_items }} items.
-        {% endif %}                                           
-    """
-    )
 
     def __init__(
         self,
         question_text: str,
         question_name: str,
         allow_nonresponse: Optional[bool] = None,
-        instructions: Optional[str] = None,
         max_list_items: Optional[int] = None,
     ):
         self.question_text = question_text
         self.question_name = question_name
-        self.instructions = instructions
         self.allow_nonresponse = allow_nonresponse or False
         self.max_list_items = max_list_items
 
@@ -99,7 +83,6 @@ def main():
     q.question_name
     q.allow_nonresponse
     q.max_list_items
-    q.instructions
     # validate an answer
     q.validate_answer({"answer": ["pasta", "garlic", "oil", "parmesan"]})
     # translate answer code

@@ -134,7 +134,7 @@ def mock_questions_factory():
         mock_results2.select.return_value = ["Large"]
 
         # Mock the get_prompt method for q2
-        q2.get_prompt.return_value = "What is the population of Paris"
+        # q2.get_prompt.return_value = "What is the population of Paris"
 
         return q1, q2
 
