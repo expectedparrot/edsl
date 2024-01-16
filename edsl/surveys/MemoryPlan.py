@@ -37,11 +37,9 @@ class MemoryPlan(UserDict):
             for question_name in self[focal_question]
         ]
 
-        base_prompt = Prompt(
-            """
+        base_prompt_text = """
         Before the question you are now answering, you already answering the following questions:
         """
-        )
 
         def gen_line(question_text, answer):
             "Returns a line of memory"
@@ -49,7 +47,9 @@ class MemoryPlan(UserDict):
 
         lines = [gen_line(*pair) for pair in q_and_a_pairs]
         if lines:
-            return Prompt(base_prompt + "\n Prior questions and answers:".join(lines))
+            return Prompt(
+                base_prompt_text + "\n Prior questions and answers:".join(lines)
+            )
         else:
             return Prompt("")
 

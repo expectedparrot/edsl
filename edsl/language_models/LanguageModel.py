@@ -13,7 +13,12 @@ from edsl.exceptions import LanguageModelResponseNotJSONError
 from edsl.language_models.schemas import model_prices
 from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
 
-from edsl.language_models.repair import repair
+# TODO: Need to fix this so it's in the event loop.
+# from edsl.language_models.repair import repair
+
+
+def repair(x):
+    return x
 
 
 class RegisterLanguageModelsMeta(ABCMeta):
