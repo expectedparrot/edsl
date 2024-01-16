@@ -43,13 +43,11 @@ class QuestionExtract(Question):
     def validate_answer(self, answer: Any) -> dict[str, Any]:
         self.validate_answer_template_basic(answer)
         self.validate_answer_key_value(answer, "answer", dict)
-        # self.validate_answer_key_value(answer, "answer", str)
         self.validate_answer_extract(answer)
         return answer
 
     def translate_answer_code_to_answer(self, answer, scenario: Scenario = None):
         """Returns the answer in a human-readable format"""
-        answer["answer"] = json.loads(answer["answer"])
         return answer
 
     def simulate_answer(self, human_readable: bool = True) -> dict[str, str]:
