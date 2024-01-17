@@ -20,7 +20,7 @@ class TestLanguageModel(unittest.TestCase):
             use_cache = False
             _model_ = "fake model"
 
-            async def async_execute_model_call(self, prompt, system_prompt):
+            async def async_execute_model_call(self, user_prompt, system_prompt):
                 await asyncio.sleep(0.1)
                 return {"message": """{"answer": "Hello world"}"""}
 
@@ -48,7 +48,7 @@ class TestLanguageModel(unittest.TestCase):
     def test_execute_model_call(self):
         m = self.good_class()
         response = m.get_raw_response(
-            prompt="Hello world", system_prompt="You are a helpful agent"
+            user_prompt="Hello world", system_prompt="You are a helpful agent"
         )
         print(response)
         self.assertEqual(response["message"], """{"answer": "Hello world"}""")
@@ -57,7 +57,7 @@ class TestLanguageModel(unittest.TestCase):
     def test_get_response(self):
         m = self.good_class()
         response = m.get_response(
-            prompt="Hello world", system_prompt="You are a helpful agent"
+            user_prompt="Hello world", system_prompt="You are a helpful agent"
         )
         self.assertEqual(response, {"answer": "Hello world"})
 
@@ -72,7 +72,9 @@ class TestLanguageModel(unittest.TestCase):
             model="fake model",
             parameters={"temperature": 0.5},
         )
-        m.get_response(prompt="Hello world", system_prompt="You are a helpful agent")
+        m.get_response(
+            user_prompt="Hello world", system_prompt="You are a helpful agent"
+        )
 
         import sqlite3
 
@@ -91,7 +93,9 @@ class TestLanguageModel(unittest.TestCase):
         self.assertEqual(response_from_db, tuple(expected_response.values()))
 
         # call again with same prompt - should not write to db again
-        m.get_response(prompt="Hello world", system_prompt="You are a helpful agent")
+        m.get_response(
+            user_prompt="Hello world", system_prompt="You are a helpful agent"
+        )
         new_responses = cursor.execute("SELECT * FROM responses").fetchall()
         num_responses = len(new_responses)
         self.assertEqual(num_responses, 1)

@@ -279,7 +279,7 @@ class Results(
         if isinstance(columns[0], list):
             columns = tuple(columns[0])
 
-        known_data_types = ["answer", "scenario", "agent", "model"]
+        known_data_types = ["answer", "scenario", "agent", "model", "prompt"]
 
         def get_data_types_to_return(parsed_data_type):
             if parsed_data_type == "*":  # they want all of the columns
