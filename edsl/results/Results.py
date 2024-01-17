@@ -16,9 +16,23 @@ from edsl.language_models import LanguageModel
 from edsl.results.Dataset import Dataset
 from edsl.results.Result import Result
 from edsl.results.ResultsExportMixin import ResultsExportMixin
-from edsl.results.RegressionMixin import RegressionMixin
-from edsl.results.ResultsOutputMixin import ResultsOutputMixin
-from edsl.results.ResultsFetchMixin import ResultsFetchMixin
+
+try:
+    from edsl.results_optional.RegressionMixin import RegressionMixin
+    from edsl.results_optional.ResultsOutputMixin import ResultsOutputMixin
+    from edsl.results_optional.ResultsFetchMixin import ResultsFetchMixin
+
+    class Mixins(
+        ResultsExportMixin, RegressionMixin, ResultsOutputMixin, ResultsFetchMixin
+    ):
+        pass
+
+except (ImportError, ModuleNotFoundError):
+
+    class Mixins(ResultsExportMixin):
+        pass
+
+
 from edsl.scenarios import Scenario
 from edsl.surveys import Survey
 from edsl.utilities import (
@@ -29,9 +43,7 @@ from edsl.utilities import (
 )
 
 
-class Results(
-    UserList, ResultsFetchMixin, ResultsExportMixin, ResultsOutputMixin, RegressionMixin
-):
+class Results(UserList, Mixins):
     """
     This class is a UserList of Result objects.
     - It is instantiated with a Survey and a list of Result objects (observations).
