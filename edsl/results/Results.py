@@ -11,7 +11,6 @@ from edsl.exceptions import (
 )
 from edsl.agents import Agent
 from edsl.data import CRUD
-from edsl.jobs import Jobs
 from edsl.language_models import LanguageModel
 from edsl.results.Dataset import Dataset
 from edsl.results.Result import Result
@@ -25,22 +24,33 @@ from edsl.utilities import (
     shorten_string,
 )
 
+
+class Mixins(ResultsExportMixin):
+    pass
+
+
 # These are only made available if the user has installed
-# our package from pip with the [extras] option
+# our package from pip with the [report] option
 try:
     from edsl.report.RegressionMixin import RegressionMixin
+
+    Mixins = type("Mixins", (RegressionMixin, Mixins), {})
+except (ImportError, ModuleNotFoundError):
+    pass
+
+try:
     from edsl.report.ResultsFetchMixin import ResultsFetchMixin
+
+    Mixins = type("Mixins", (ResultsFetchMixin, Mixins), {})
+except (ImportError, ModuleNotFoundError):
+    pass
+
+try:
     from edsl.report.ResultsOutputMixin import ResultsOutputMixin
 
-    class Mixins(
-        ResultsExportMixin, RegressionMixin, ResultsOutputMixin, ResultsFetchMixin
-    ):
-        pass
-
+    Mixins = type("Mixins", (ResultsOutputMixin, Mixins), {})
 except (ImportError, ModuleNotFoundError):
-
-    class Mixins(ResultsExportMixin):
-        pass
+    pass
 
 
 class Results(UserList, Mixins):
@@ -391,6 +401,7 @@ class Results(UserList, Mixins):
         Returns an example Results object
         - debug: if False, uses actual API calls
         """
+        from edsl.jobs import Jobs
 
         job = Jobs.example()
         results = job.run(n=1, debug=debug)
