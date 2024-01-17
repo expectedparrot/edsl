@@ -18,9 +18,9 @@ from edsl.results.Result import Result
 from edsl.results.ResultsExportMixin import ResultsExportMixin
 
 try:
-    from edsl.results_optional.RegressionMixin import RegressionMixin
-    from edsl.results_optional.ResultsOutputMixin import ResultsOutputMixin
-    from edsl.results_optional.ResultsFetchMixin import ResultsFetchMixin
+    from edsl.report.RegressionMixin import RegressionMixin
+    from edsl.report.ResultsOutputMixin import ResultsOutputMixin
+    from edsl.report.ResultsFetchMixin import ResultsFetchMixin
 
     class Mixins(
         ResultsExportMixin, RegressionMixin, ResultsOutputMixin, ResultsFetchMixin
