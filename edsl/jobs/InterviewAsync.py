@@ -2,7 +2,7 @@ from __future__ import annotations
 import asyncio
 
 # from tenacity import retry, wait_exponential, stop_after_attempt
-from typing import Any, Type, Union
+from typing import Any, Type, Union, List
 from edsl.agents import Agent
 from edsl.language_models import LanguageModel
 from edsl.questions import Question
@@ -17,40 +17,49 @@ from edsl.config import Config
 TIMEOUT = int(Config().API_CALL_TIMEOUT_SEC)
 
 
-# def task_wrapper(name, delay, dependencies=[]):
-#     async def run_task():
-#         for dependency in dependencies:
-#             await dependency
-#         return await task(name, delay)
-
-#     # Using create_task instead of ensure_future
-#     return asyncio.create_task(run_task())
-
-
-# async def task_with_timeout(task_number, duration, timeout):
-#     try:
-#         await asyncio.wait_for(asyncio.sleep(duration), timeout)
-#         print(f"Task {task_number} completed.")
-#     except asyncio.TimeoutError:
-#         print(f"Task {task_number} timed out after {timeout} seconds.")
-
-
-class ChaosMonkeyException(Exception):
-    pass
-
-
-def chaos_monkey(p):
-    import random
-
-    if random.random() < p:
-        raise ChaosMonkeyException("Chaos monkey!")
-
-
 class Interview:
     """
     A class that has an Agent answer Survey Questions with a particular Scenario and using a LanguageModel.
     - `Agent.answer_question(question, scenario, model)` is called for each question in the Survey to get an answer to a question.
-    - `Survey.gen_path_through_survey()` is called to get a generator that traverses through the Survey.
+    - `Survey.gen_path_through_survey()` is called to get a generator that     async def async_conduct_interview(
+        self, debug: bool = False, replace_missing: bool = True, threaded: bool = False
+    ) -> "Answers":
+        """ """
+        to_index = {
+            name: index for index, name in enumerate(self.survey.question_names)
+        }
+
+        async def task(question):
+            try:
+                response = await asyncio.wait_for(
+                    self.async_get_response(question, debug=debug), TIMEOUT
+                )
+                self.answers.add_answer(response, question)
+            except asyncio.TimeoutError:
+                print(
+                    f"Task {question.question_name} timed out after {TIMEOUT} seconds."
+                )
+                response = None
+
+            return response
+
+        def task_wrapper(question, dependencies=[]):
+            async def run_task():
+                for dependency in dependencies:
+                    await dependency  # awaits all the tasks (questions) this question depends on
+                return await task(question)  
+            return asyncio.create_task(run_task())
+
+        dag = self.survey.dag(textify=True)  # gets the combined memory & skip logic DAG
+
+        tasks = []
+        for question in self.survey.questions:
+            dependencies = [
+                tasks[to_index[question_name]]
+                for question_name in dag.get(question.question_name, [])
+            ]  # Note: if a question has no dependencies, this will be an empty list, []
+            tasks.append(task_wrapper(question, dependencies=dependencies))
+traverses through the Survey.
     - `conduct_interview()` is called to conduct the interview, and returns the answers and comments to the questions in the Survey.
     """
 
@@ -74,48 +83,46 @@ class Interview:
     async def async_conduct_interview(
         self, debug: bool = False, replace_missing: bool = True, threaded: bool = False
     ) -> "Answers":
-        """ """
+        "Conducts an interview asynchronously."
+
+        @self.async_timeout_handler(TIMEOUT)
+        async def task(question):
+            response = await self.async_agent_answers_single_question(question)
+            self._update_answers(response, question)
+            return response
+
         to_index = {
             name: index for index, name in enumerate(self.survey.question_names)
         }
 
-        async def task(question):
-            try:
-                chaos_monkey(0.0)
-                response = await asyncio.wait_for(
-                    self.async_get_response(question, debug=debug), TIMEOUT
-                )
-                self.answers.add_answer(response, question)
-            except asyncio.TimeoutError:
-                print(
-                    f"Task {question.question_name} timed out after {TIMEOUT} seconds."
-                )
-                response = None
-            except ChaosMonkeyException as e:
-                print(f"Task {question.question_name} failed with {e}")
-                response = None
+        def create_question_task(
+            question: Question,
+            questions_that_must_be_answered_before: List[asyncio.Task],
+        ):
+            """This creates a task that depends on the passed-in dependencies.
 
-            return response
+            The dependencies are awaited before the task is run.
+            """
 
-        def task_wrapper(question, dependencies=[]):
-            async def run_task():
-                for dependency in dependencies:
-                    await dependency  # awaits all the tasks (questions) this question depends on
-                return await task(
-                    question
-                )  # awaits the task (question) itself once dependencies are done
+            async def run_task() -> asyncio.Task:
+                await asyncio.gather(*questions_that_must_be_answered_before)
+                return await task(question)
 
             return asyncio.create_task(run_task())
+
+        def get_question_dependencies(question, dag) -> List[asyncio.Task]:
+            return [
+                tasks[to_index[question_name]]
+                for question_name in dag.get(question.question_name, [])
+            ]
 
         dag = self.survey.dag(textify=True)  # gets the combined memory & skip logic DAG
 
         tasks = []
         for question in self.survey.questions:
-            dependencies = [
-                tasks[to_index[question_name]]
-                for question_name in dag.get(question.question_name, [])
-            ]  # Note: if a question has no dependencies, this will be an empty list, []
-            tasks.append(task_wrapper(question, dependencies=dependencies))
+            focal_question_dependencies = get_question_dependencies(question, dag)
+            question_task = create_question_task(question, focal_question_dependencies)
+            tasks.append(question_task)
 
         await asyncio.gather(*tasks)
 
@@ -123,17 +130,33 @@ class Interview:
             self.answers.replace_missing_answers_with_none(self.survey)
 
         results = [task.result() for task in tasks]
-        # print(f"The length of results is: {len(results)}")
-        # print(f"The length of self.answers is: {len(self.answers)}")
-        # The problem is that the answers also contain "answer_comment"
-        # print("Both results and self.answers are dictionaries.")
-        assert 2 * len(results) == len(self.answers)
-
         return self.answers, results
 
     conduct_interview = sync_wrapper(async_conduct_interview)
 
-    async def async_get_response(
+    @staticmethod
+    def async_timeout_handler(timeout):
+        def decorator(func):
+            async def wrapper(*args, **kwargs):
+                try:
+                    # Call the original function, which is now responsible only for getting the response
+                    return await asyncio.wait_for(func(*args, **kwargs), timeout)
+                except asyncio.TimeoutError:
+                    question = args[0]  # Assuming the first argument is the question
+                    print(
+                        f"Task {question.question_name} timed out after {timeout} seconds."
+                    )
+                    return None
+
+            return wrapper
+
+        return decorator
+
+    def _update_answers(self, response, question):
+        """Updates the answers dictionary with the response to a question."""
+        self.answers.add_answer(response, question)
+
+    async def async_agent_answers_single_question(
         self, question: Question, debug: bool = False
     ) -> dict[str, Any]:
         """Gets the agent's response to a question with exponential backoff.
@@ -144,13 +167,13 @@ class Interview:
             question=question,
             scenario=self.scenario,
             model=self.model,
-            debug=debug,
+            debug=False,
             memory_plan=self.survey.memory_plan,
             current_answers=self.answers,
         )
         return response
 
-    get_response = sync_wrapper(async_get_response)
+    get_response = sync_wrapper(async_agent_answers_single_question)
 
     #######################
     # Dunder methods

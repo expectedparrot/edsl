@@ -15,6 +15,23 @@ class JobsRunnerAsyncio(JobsRunner):
     def __init__(self, jobs: Jobs):
         super().__init__(jobs)
 
+    def get_prompts(self, results, answer):
+        answer_names = [k for k in answer.keys() if not k.endswith("_comment")]
+        try:
+            user_prompts = [result["prompts"]["user_prompt"] for result in results]
+            system_prompts = [result["prompts"]["system_prompt"] for result in results]
+        except KeyError:
+            user_prompts = [None] * len(answer_names)
+            system_prompts = [None] * len(answer_names)
+
+        def append_type(prompts, prompt_type):
+            return {k + "_" + prompt_type: v for k, v in zip(answer_names, prompts)}
+
+        user_prompts = append_type(user_prompts, "user_prompt")
+        system_prompts = append_type(system_prompts, "system_prompt")
+
+        return user_prompts, system_prompts
+
     async def run_async(
         self, n=1, verbose=False, sleep=0, debug=False, progress_bar=False
     ) -> Results:
@@ -23,16 +40,7 @@ class JobsRunnerAsyncio(JobsRunner):
         async def process_task(interview, i):
             # Assuming async_conduct_interview and Result are defined and work asynchronously
             answer, results = await interview.async_conduct_interview(debug=debug)
-            user_prompts = [result["prompts"]["user_prompt"] for result in results]
-            system_prompts = [result["prompts"]["system_prompt"] for result in results]
-            # TODO: Hacky!
-            answer_names = [k for k in answer.keys() if not k.endswith("_comment")]
-            user_prompts = {
-                k + "_user_prompt": v for k, v in zip(answer_names, user_prompts)
-            }
-            system_prompts = {
-                k + "_system_prompt": v for k, v in zip(answer_names, system_prompts)
-            }
+            user_prompts, system_prompts = self.get_prompts(results, answer)
             result = Result(
                 agent=interview.agent,
                 scenario=interview.scenario,
