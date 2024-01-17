@@ -11,6 +11,7 @@ from edsl.exceptions import (
 )
 from edsl.agents import Agent
 from edsl.data import CRUD
+from edsl.jobs import Jobs
 from edsl.language_models import LanguageModel
 from edsl.results.Dataset import Dataset
 from edsl.results.Result import Result
@@ -390,7 +391,6 @@ class Results(UserList, Mixins):
         Returns an example Results object
         - debug: if False, uses actual API calls
         """
-        from edsl.jobs import Jobs
 
         job = Jobs.example()
         results = job.run(n=1, debug=debug)
