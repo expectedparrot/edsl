@@ -1,7 +1,6 @@
 import csv
 import io
-
-from edsl.utilities.interface import (
+from edsl.utilities import (
     print_list_of_dicts_with_rich,
     print_list_of_dicts_as_html_table,
 )
