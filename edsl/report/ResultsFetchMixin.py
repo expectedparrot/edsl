@@ -1,11 +1,10 @@
+from functools import partial
+from itertools import chain
 from edsl.report.InputOutputDataTypes import (
     CategoricalData,
     NumericalData,
     FreeTextData,
 )
-
-from functools import partial
-from itertools import chain
 
 
 class ResultsFetchMixin:

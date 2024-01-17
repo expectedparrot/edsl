@@ -1,23 +1,23 @@
+import copy
+import base64
+import functools
+import inspect
 import markdown2
 import math
 import matplotlib.pyplot as plt
 import numpy as np
 import os
 import pandas as pd
-import tempfile
-import warnings
-import webbrowser
 import seaborn as sns
 import string
+import tempfile
 import textwrap
-import inspect
-import base64
-import functools
-import copy
+import warnings
+import webbrowser
 from abc import ABC, abstractmethod, ABCMeta
-from io import BytesIO
 from collections import Counter
 from dataclasses import asdict
+from io import BytesIO
 from IPython.display import display, HTML
 from scipy import stats
 from scipy.stats import chisquare
@@ -35,7 +35,7 @@ from edsl.report.InputOutputDataTypes import (
     ChiSquareData,
     RegressionData,
 )
-from edsl.utilities.utilities import is_notebook
+from edsl.utilities import is_notebook
 
 warnings.filterwarnings(
     "ignore",

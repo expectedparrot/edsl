@@ -35,10 +35,19 @@ jupyter = "^1.0.0"
 pandas = "^2.1.4"
 tenacity = "^8.2.3"
 python-docx = "^1.1.0"
-seaborn = "^0.13.0"
-markdown2 = "^2.4.11"
-wordcloud = "^1.9.3"
-statsmodels = "0.13.5"
+pillow = "^10.2.0"
+markdown2 = {optional = true, version = "^2.4.11"}
+seaborn = {optional = true, version = "^0.13.0"}
+statsmodels = {optional = true, version = "^0.13.5"}
+wordcloud = {optional = true, version = "^1.9.3"}
+
+[tool.poetry.extras]
+report = [
+    "markdown2",
+    "seaborn",
+    "statsmodels",
+    "wordcloud",
+]
 
 [tool.poetry.group.dev.dependencies]
 black = {extras = ["jupyter"], version = "^23.12.0"}
