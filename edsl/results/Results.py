@@ -1,5 +1,4 @@
 from __future__ import annotations
-import gzip
 import json
 from collections import UserList, defaultdict
 from simpleeval import EvalWithCompoundTypes
@@ -16,11 +15,21 @@ from edsl.language_models import LanguageModel
 from edsl.results.Dataset import Dataset
 from edsl.results.Result import Result
 from edsl.results.ResultsExportMixin import ResultsExportMixin
+from edsl.scenarios import Scenario
+from edsl.surveys import Survey
+from edsl.utilities import (
+    is_gzipped,
+    is_valid_variable_name,
+    print_public_methods_with_doc,
+    shorten_string,
+)
 
+# These are only made available if the user has installed
+# our package from pip with the [extras] option
 try:
     from edsl.report.RegressionMixin import RegressionMixin
-    from edsl.report.ResultsOutputMixin import ResultsOutputMixin
     from edsl.report.ResultsFetchMixin import ResultsFetchMixin
+    from edsl.report.ResultsOutputMixin import ResultsOutputMixin
 
     class Mixins(
         ResultsExportMixin, RegressionMixin, ResultsOutputMixin, ResultsFetchMixin
@@ -31,16 +40,6 @@ except (ImportError, ModuleNotFoundError):
 
     class Mixins(ResultsExportMixin):
         pass
-
-
-from edsl.scenarios import Scenario
-from edsl.surveys import Survey
-from edsl.utilities import (
-    is_gzipped,
-    is_valid_variable_name,
-    print_public_methods_with_doc,
-    shorten_string,
-)
 
 
 class Results(UserList, Mixins):
