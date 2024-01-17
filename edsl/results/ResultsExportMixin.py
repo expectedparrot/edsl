@@ -1,5 +1,8 @@
+import base64
 import csv
 import io
+from IPython.display import HTML, display
+import pandas as pd
 from edsl.utilities import (
     print_list_of_dicts_with_rich,
     print_list_of_dicts_as_html_table,
@@ -87,9 +90,6 @@ class ResultsExportMixin:
             writer.writerows(rows)
 
             if download_link:
-                import base64
-                from IPython.display import HTML, display
-
                 csv_file = output.getvalue()
                 b64 = base64.b64encode(csv_file.encode()).decode()
                 download_link = f'<a href="data:file/csv;base64,{b64}" download="my_data.csv">Download CSV file</a>'
@@ -99,8 +99,6 @@ class ResultsExportMixin:
 
     @convert_decorator
     def to_pandas(self, remove_prefix=False):
-        import pandas as pd
-
         csv_string = self.to_csv(remove_prefix=remove_prefix)
         csv_buffer = io.StringIO(csv_string)
         df = pd.read_csv(csv_buffer)
@@ -108,8 +106,6 @@ class ResultsExportMixin:
 
     @convert_decorator
     def to_dicts(self, remove_prefix=False):
-        import pandas as pd
-
         df = self.to_pandas(remove_prefix=remove_prefix)
         df = df.convert_dtypes()
         list_of_dicts = df.to_dict(orient="records")
