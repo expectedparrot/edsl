@@ -17,14 +17,14 @@ from edsl.config import Config
 TIMEOUT = int(Config().API_CALL_TIMEOUT_SEC)
 
 
-def task_wrapper(name, delay, dependencies=[]):
-    async def run_task():
-        for dependency in dependencies:
-            await dependency
-        return await task(name, delay)
+# def task_wrapper(name, delay, dependencies=[]):
+#     async def run_task():
+#         for dependency in dependencies:
+#             await dependency
+#         return await task(name, delay)
 
-    # Using create_task instead of ensure_future
-    return asyncio.create_task(run_task())
+#     # Using create_task instead of ensure_future
+#     return asyncio.create_task(run_task())
 
 
 # async def task_with_timeout(task_number, duration, timeout):
@@ -122,7 +122,14 @@ class Interview:
         if replace_missing:
             self.answers.replace_missing_answers_with_none(self.survey)
 
-        return self.answers
+        results = [task.result() for task in tasks]
+        # print(f"The length of results is: {len(results)}")
+        # print(f"The length of self.answers is: {len(self.answers)}")
+        # The problem is that the answers also contain "answer_comment"
+        # print("Both results and self.answers are dictionaries.")
+        assert 2 * len(results) == len(self.answers)
+
+        return self.answers, results
 
     conduct_interview = sync_wrapper(async_conduct_interview)
 

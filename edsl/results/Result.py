@@ -20,7 +20,7 @@ class Result(UserDict):
         model: Type[LanguageModel],
         iteration: int,
         answer: str,
-        prompts: dict[str, str] = None,
+        prompt: dict[str, str] = None,
     ):
         # initialize the UserDict
         data = {
@@ -29,7 +29,7 @@ class Result(UserDict):
             "model": model,
             "iteration": iteration,
             "answer": answer,
-            "prompts": prompts or {},
+            "prompt": prompt or {},
         }
         super().__init__(**data)
         # but also store the data as attributes
@@ -38,7 +38,7 @@ class Result(UserDict):
         self.model = model
         self.iteration = iteration
         self.answer = answer
-        self.prompts = prompts or {}
+        self.prompt = prompt or {}
 
     ###############
     # Used in Results
@@ -51,7 +51,7 @@ class Result(UserDict):
             "scenario": self.scenario,
             "model": self.model.parameters | {"model": self.model.model},
             "answer": self.answer,
-            "prompts": self.prompts,
+            "prompt": self.prompt,
         }
 
     @property
@@ -75,7 +75,7 @@ class Result(UserDict):
     def key_to_data_type(self) -> dict[str, str]:
         """Returns a dictionary where keys are object attributes and values are the data type (object) that the attribute is associated with."""
         d = {}
-        for data_type in ["agent", "scenario", "model", "answer"]:
+        for data_type in ["agent", "scenario", "model", "answer", "prompt"]:
             for key in self.sub_dicts[data_type]:
                 d[key] = data_type
         return d
@@ -88,7 +88,7 @@ class Result(UserDict):
         return Result.from_dict(self.to_dict())
 
     def __repr__(self):
-        return f"Result(agent={self.agent}, scenario={self.scenario}, model={self.model}, iteration={self.iteration}, answer={self.answer})"
+        return f"Result(agent={self.agent}, scenario={self.scenario}, model={self.model}, iteration={self.iteration}, answer={self.answer}, prompt={self.prompt}"
 
     def __eq__(self, other):
         return self.to_dict() == other.to_dict()
@@ -111,6 +111,7 @@ class Result(UserDict):
             model=LanguageModel.from_dict(json_dict["model"]),
             iteration=json_dict["iteration"],
             answer=json_dict["answer"],
+            prompt=json_dict["prompt"],
         )
         return result
 
@@ -145,7 +146,7 @@ def main():
         "answer": {
             "how_feeling": "Bad"
         }, 
-        "prompts": {"user_prompt": "How are you feeling today?", "system_prompt": "Answer the question"}
+        "prompt": {"how_feeling_user_prompt": "How are you feeling today?", "how_feeling_system_prompt": "Answer the question"}
     }
     """
 
