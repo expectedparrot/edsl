@@ -7,11 +7,13 @@ from collections import UserDict
 from edsl.exceptions import AgentRespondedWithBadJSONError
 from edsl.prompts.Prompt import Prompt
 from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
-from edsl.prompts.Prompt import get_classes
+from edsl.prompts.registry import get_classes
 from edsl.exceptions import QuestionScenarioRenderError
 
 
 class InvigilatorBase(ABC):
+    """An invigiator is a class that is responsible for administering a question to an agent."""
+
     def __init__(self, agent, question, scenario, model, memory_plan, current_answers):
         self.agent = agent
         self.question = question
@@ -38,27 +40,6 @@ class InvigilatorBase(ABC):
         return self.memory_plan.get_memory_prompt_fragment(
             question_name, self.current_answers
         )
-
-
-class InvigilatorDebug(InvigilatorBase):
-    async def async_answer_question(self):
-        return self.question.simulate_answer(human_readable=True)
-
-
-class InvigilatorHuman(InvigilatorBase):
-    async def async_answer_question(self):
-        answer = self.agent.answer_question_directly(self.question.question_name)
-        response = {"answer": answer}
-        response = self.question.validate_response(response)
-        response["model"] = "human"
-        response["scenario"] = self.scenario
-        return response
-
-
-class InvigilatorFunctional(InvigilatorBase):
-    async def async_answer_question(self):
-        func = self.question.answer_question_directly
-        return func(scenario=self.scenario, agent_traits=self.agent.traits)
 
 
 class InvigilatorAI(InvigilatorBase):
@@ -140,3 +121,24 @@ class InvigilatorAI(InvigilatorBase):
         return response
 
     answer_question = sync_wrapper(async_answer_question)
+
+
+class InvigilatorDebug(InvigilatorBase):
+    async def async_answer_question(self):
+        return self.question.simulate_answer(human_readable=True)
+
+
+class InvigilatorHuman(InvigilatorBase):
+    async def async_answer_question(self):
+        answer = self.agent.answer_question_directly(self.question.question_name)
+        response = {"answer": answer}
+        response = self.question.validate_response(response)
+        response["model"] = "human"
+        response["scenario"] = self.scenario
+        return response
+
+
+class InvigilatorFunctional(InvigilatorBase):
+    async def async_answer_question(self):
+        func = self.question.answer_question_directly
+        return func(scenario=self.scenario, agent_traits=self.agent.traits)
