@@ -64,7 +64,11 @@ class Config:
         if not os.path.exists(DOTENV_PATH):
             with open(DOTENV_PATH, "w") as f:
                 f.write("")
-        load_dotenv(dotenv_path=DOTENV_PATH, override=True)
+        if os.getenv("TESTING"):
+            override = False
+        else:
+            override = True
+        load_dotenv(dotenv_path=DOTENV_PATH, override=override)
 
     def _set_env_vars(self) -> None:
         """
