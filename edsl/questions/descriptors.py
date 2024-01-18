@@ -8,6 +8,7 @@ from edsl.exceptions import (
 from edsl.questions.settings import Settings
 from edsl.utilities.utilities import is_valid_variable_name
 
+from edsl.prompts import get_classes
 
 ################################
 # Helper functions
@@ -34,8 +35,6 @@ def is_number_or_none(value: Any) -> bool:
 ################################
 # Descriptor ABC
 ################################
-
-from edsl.prompts.Prompt import get_classes
 
 
 class BaseDescriptor(ABC):

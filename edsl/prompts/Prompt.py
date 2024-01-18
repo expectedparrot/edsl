@@ -1,177 +1,17 @@
 import textwrap
-from collections import namedtuple, defaultdict
-from abc import ABCMeta, abstractmethod, ABC
+from abc import ABC
 from typing import Any, List
-from enum import Enum
 
 from jinja2 import Template, Environment, meta
 
-
-class TemplateRenderError(Exception):
-    "TODO: Move to exceptions file"
-    pass
-
-
-NEGATIVE_INFINITY = float("-inf")
-
-
-class AttributeTypes(Enum):
-    COMPONENT_TYPE = "component_type"
-    MODEL = "model"
-    QUESTION_TYPE = "question_type"
-
-
-class ComponentTypes(Enum):
-    """The types of attributes that a prompt can have"""
-
-    TEST = "test"
-    GENERIC = "generic"
-    QUESTION_DATA = "question_data"
-    QUESTION_INSTRUCTIONS = "question_instructions"
-    AGENT_INSTRUCTIONS = "agent_instructions"
-    AGENT_DATA = "agent_data"
-    SURVEY_INSTRUCTIONS = "survey_instructions"
-    SURVEY_DATA = "survey_data"
-
-
-names_to_component_types = {v.value: v for k, v in ComponentTypes.__members__.items()}
-
-C2A = {
-    ComponentTypes.QUESTION_INSTRUCTIONS: [
-        AttributeTypes.QUESTION_TYPE,
-        AttributeTypes.MODEL,
-    ]
-}
-
-PromptAttributeDefinition = namedtuple("PromptAttribute", ["name", "required"])
-
-
-class RegisterPromptsMeta(ABCMeta):
-    "Metaclass to register prompts"
-    _registry = defaultdict(list)  # Initialize the registry as a dictionary
-    _lookup = {}
-    _prompts_by_component_type = defaultdict(list)
-
-    def __init__(cls, name, bases, dct):
-        """
-        We can only have one prompt class per name.
-        Each prompt class must have a component type from the ComponentTypes enum.
-
-        >>> class Prompt1(PromptBase):
-        ...     component_type = ComponentTypes.TEST
-
-        >>> class Prompt1(PromptBase):
-        ...     component_type = ComponentTypes.TEST
-        Traceback (most recent call last):
-        ...
-        Exception: We already have a Prompt class named Prompt1.
-        """
-        super(RegisterPromptsMeta, cls).__init__(name, bases, dct)
-        if "Base" in name or name == "Prompt":
-            return None  # We don't want to register the base class
-
-        if name in RegisterPromptsMeta._registry:
-            raise Exception(f"We already have a Prompt class named {name}.")
-
-        RegisterPromptsMeta._registry[name] = cls
-
-        if (
-            component_type := getattr(cls, "component_type", None)
-        ) not in ComponentTypes:
-            raise Exception(f"Prompt {name} is not in the list of component types")
-
-        key = cls._create_prompt_class_key(dct, component_type)
-        cls.data = key
-        RegisterPromptsMeta._prompts_by_component_type[component_type].append(cls)
-
-    @classmethod
-    def _create_prompt_class_key(cls, dct, component_type) -> tuple[tuple[str, Any]]:
-        attributes = [attribute.value for attribute in C2A.get(component_type, [])]
-        cls_data = {key: value for key, value in dct.items() if key in attributes}
-        return tuple(cls_data.items())
-
-    @classmethod
-    def _get_classes_with_scores(cls, **kwargs) -> List[tuple[float, "PromptBase"]]:
-        """
-        This how we find matching prompts.
-        NB that _get_classes_with_scores returns a list of tuples.
-        The first element of the tuple is the score, and the second element is the prompt class.
-        There is a public-facing function called get_classes that returns only the prompt classes.
-
-        The kwargs are the attributes that we want to match on. E.g., supposed you
-        wanted a prompt with component_type = "question_instructions" and question_type = "multiple_choice".
-        You would run:
-
-        >>> get_classes(component_type="question_instructions", question_type="multiple_choice", model="gpt-4-1106-preview")
-        [<class '__main__.MultipleChoice'>, <class '__main__.MultipleChoiceTurbo'>]
-
-        In the above example, we have two prompts that match. Note that the order of the prompts is determined by the score and the regular MultipleChoice
-        is ranked higher because it matches on the model as well.
-
-        Scores are computed by the _score method. The score is the number of attributes that match, with their weights.
-        However, if a required attribute doesn't match, then the score is -inf and it can never be selected.
-
-        The function will throw an exception if you don't specify a component type that's in the ComponentTypes enum.
-
-        >>> get_classes(component_type="chicken_tenders", question_type="multiple_choice")
-        Traceback (most recent call last):
-        ...
-        Exception: You must specify a component type. It must be one of dict_keys([...])
-
-        >>> get_classes(component_type="generic")
-        []
-        """
-        component_type_string = kwargs.get("component_type", None)
-        component_type = names_to_component_types.get(component_type_string, None)
-
-        if component_type is None:
-            raise Exception(
-                f"You must specify a component type. It must be one of {names_to_component_types.keys()}"
-            )
-
-        try:
-            prompts = cls._prompts_by_component_type[component_type]
-        except KeyError:
-            raise Exception(f"No prompts for component type {component_type}")
-
-        with_scores = [(cls._score(kwargs, prompt), prompt) for prompt in prompts]
-        with_scores = sorted(with_scores, key=lambda x: -x[0])
-        # filter out the ones with -inf
-        matches_with_scores = cls._filter_out_non_matches(with_scores)
-        return matches_with_scores
-
-    @classmethod
-    def _filter_out_non_matches(cls, prompts_with_scores):
-        return [
-            (score, prompt)
-            for score, prompt in prompts_with_scores
-            if score > NEGATIVE_INFINITY
-        ]
-
-    @classmethod
-    def get_classes(cls, **kwargs):
-        "Public-facing function that returns only the prompt classes and not the scores."
-        with_scores = cls._get_classes_with_scores(**kwargs)
-        return [prompt for _, prompt in with_scores]
-
-    @classmethod
-    def _score(cls, kwargs, prompt):
-        required_list = ["question_type"]
-        score = 0
-        for key, value in kwargs.items():
-            if prompt_value := getattr(prompt, key, None) == value:
-                score += 1
-            else:
-                if key in required_list:
-                    score += NEGATIVE_INFINITY
-        return score
-
-    @classmethod
-    def get_registered_classes(cls):
-        return cls._registry
-
-
-get_classes = RegisterPromptsMeta.get_classes
+from edsl.exceptions.prompts import TemplateRenderError
+from edsl.prompts.prompt_config import (
+    C2A,
+    names_to_component_types,
+    ComponentTypes,
+    NEGATIVE_INFINITY,
+)
+from edsl.prompts.registry import RegisterPromptsMeta
 
 
 class PromptBase(ABC, metaclass=RegisterPromptsMeta):
@@ -313,250 +153,44 @@ class Prompt(PromptBase):
     component_type = ComponentTypes.GENERIC
 
 
-class AgentInstruction(PromptBase):
-    component_type = ComponentTypes.AGENT_INSTRUCTIONS
-    default_instructions = textwrap.dedent(
-        """\
-    You are playing the role of a human answering survey questions.
-    Do not break character.
-    Your traits are: {{traits}}
-    """
-    )
-
-
 class QuestionInstuctionsBase(PromptBase):
     component_type = ComponentTypes.QUESTION_INSTRUCTIONS
 
 
-class MultipleChoice(QuestionInstuctionsBase):
-    question_type = "multiple_choice"
-    model = "gpt-4-1106-preview"
-    default_instructions = textwrap.dedent(
-        """\
-        You are being asked the following question: {{question_text}}
-        The options are
-        {% for option in question_options %}
-        {{ loop.index0 }}: {{option}}
-        {% endfor %}
-        Return a valid JSON formatted like this, selecting only the number of the option:
-        {"answer": <put answer code here>, "comment": "<put explanation here>"}
-        Only 1 option may be selected.
-        """
-    )
-
-
-class MultipleChoiceTurbo(QuestionInstuctionsBase):
-    question_type = "multiple_choice"
-    model = "gpt-3.5-turbo"
-    default_instructions = textwrap.dedent(
-        """\
-        You are being asked the following question: {{question_text}}
-        The options are
-        {% for option in question_options %}
-        {{ loop.index0 }}: {{option}}
-        {% endfor %}
-        Return a valid JSON formatted like this, selecting only the number of the option:
-        {"answer": <put answer code here>, "comment": "<put explanation here>"}
-        Only 1 option may be selected.
-        """
-    )
-
-
-class CheckBox(QuestionInstuctionsBase):
-    question_type = "checkbox"
-    model = "gpt-4-1106-preview"
-    default_instructions = textwrap.dedent(
-        """\
-        You are being asked the following question: {{question_text}}
-        The options are 
-        {% for option in question_options %}
-        {{ loop.index0 }}: {{option}}
-        {% endfor %}                       
-        Return a valid JSON formatted like this, selecting only the number of the option: 
-        {"answer": [<put comma-separated list of answer codes here>], "comment": "<put explanation here>"}
-        {% if min_selections != None and max_selections != None and min_selections == max_selections %}
-        You must select exactly {{min_selections}} options.
-        {% elif min_selections != None and max_selections != None %}
-        Minimum number of options that must be selected: {{min_selections}}.      
-        Maximum number of options that must be selected: {{max_selections}}.
-        {% elif min_selections != None %}
-        Minimum number of options that must be selected: {{min_selections}}.      
-        {% elif max_selections != None %}
-        Maximum number of options that must be selected: {{max_selections}}.      
-        {% endif %}        
-        """
-    )
-
-
-class TopK(CheckBox):
-    question_type = "top_k"
-
-
-class LinearScale(QuestionInstuctionsBase):
-    question_type = "linear_scale"
-    model = "gpt-4-1106-preview"
-    default_instructions = textwrap.dedent(
-        """\
-        You are being asked the following question: {{question_text}}
-        The options are 
-        {% for option in question_options %}
-        {{ loop.index0 }}: {{option}}
-        {% endfor %}                       
-        Return a valid JSON formatted like this, selecting only the code of the option (codes start at 0): 
-        {"answer": <put answer code here>, "comment": "<put explanation here>"}
-        Only 1 option may be selected.
-        """
-    )
-
-
-class ListQuestion(QuestionInstuctionsBase):
-    question_type = "list"
-    model = "gpt-4-1106-preview"
-    default_instructions = textwrap.dedent(
-        """\
-        {{question_text}}
-
-        Your response should be only a valid JSON of the following format:
-        {
-            "answer": <list of comma-separated words or phrases >, 
-            "comment": "<put comment here>"
-        }
-        {% if max_list_items is not none %}
-        The list must not contain more than {{ max_list_items }} items.
-        {% endif %}                                           
-    """
-    )
-
-
-class Numerical(QuestionInstuctionsBase):
-    question_type = "numerical"
-    model = "gpt-4-1106-preview"
-    default_instructions = textwrap.dedent(
-        """\
-        You are being asked a question that requires a numerical response 
-        in the form of an integer or decimal (e.g., -12, 0, 1, 2, 3.45, ...).
-        Your response must be in the following format:
-        {"answer": "<your numerical answer here>", "comment": "<your explanation here"}
-        You must only include an integer or decimal in the quoted "answer" part of your response. 
-        Here is an example of a valid response:
-        {"answer": "100", "comment": "This is my explanation..."}
-        Here is an example of a response that is invalid because the "answer" includes words:
-        {"answer": "I don't know.", "comment": "This is my explanation..."}
-        If your response is equivalent to zero, your formatted response should look like this:
-        {"answer": "0", "comment": "This is my explanation..."}
-        
-        You are being asked the following question: {{question_text}}
-        {% if min_value is not none %}
-        Minimum answer value: {{min_value}}
-        {% endif %}
-        {% if max_value is not none %}
-        Maximum answer value: {{max_value}}
-        {% endif %}
-        """
-    )
-
-
-class Rank(QuestionInstuctionsBase):
-    question_type = "rank"
-    model = "gpt-4-1106-preview"
-    default_instructions = textwrap.dedent(
-        """\
-        You are being asked the following question: {{question_text}}
-        The options are 
-        {% for option in question_options %}
-        {{ loop.index0 }}: {{option}}
-        {% endfor %}                       
-        Return a valid JSON formatted like this, selecting the numbers of the options in order of preference, 
-        with the most preferred option first, and the least preferred option last: 
-        {"answer": [<put comma-separated list of answer codes here>], "comment": "<put explanation here>"}
-        Exactly {{num_selections}} options must be selected.
-        """
-    )
-
-
-class Extract(QuestionInstuctionsBase):
-    question_type = "extract"
-    model = "gpt-4-1106-preview"
-    default_instructions = textwrap.dedent(
-        """\
-        You are given the following input: "{{question_text}}".
-        Create an ANSWER should be formatted like this: "{{ answer_template }}",
-        and it should have the same keys but values extracted from the input.
-        If the value of a key is not present in the input, fill with "null".
-        Return a valid JSON formatted like this: 
-        {"answer": <put your ANSWER here>}
-        ONLY RETURN THE JSON, AND NOTHING ELSE.
-        """
-    )
-
-
-class Budget(QuestionInstuctionsBase):
-    question_type = "budget"
-    model = "gpt-4-1106-preview"
-    default_instructions = textwrap.dedent(
-        """\
-        You are being asked the following question: {{question_text}}
-        The options are
-        {% for option in question_options %}
-        {{ loop.index0 }}: {{option}}
-        {% endfor %}
-        Return a valid JSON formatted like this, selecting only the number of the option:
-        {"answer": <put answer code here>, "comment": "<put explanation here>"}
-        Only 1 option may be selected.
-        """
-    )
-
-
-# For now
-class LikertFive(MultipleChoice):
-    question_type = "likert_five"
-
-
-class YesNo(MultipleChoice):
-    question_type = "yes_no"
-
-
-class FreeText(QuestionInstuctionsBase):
-    question_type = "free_text"
-    model = "gpt-4-1106-preview"
-    default_instructions = textwrap.dedent(
-        """\
-        You are being asked the following question: {{question_text}}
-        Return a valid JSON formatted like this: 
-        {"answer": "<put free text answer here>"}
-        """
-    )
+from edsl.prompts.library.question_multiple_choice import *
+from edsl.prompts.library.agent_instructions import *
+from edsl.prompts.library.question_budget import *
+from edsl.prompts.library.question_checkbox import *
+from edsl.prompts.library.question_freetext import *
+from edsl.prompts.library.question_linear_scale import *
+from edsl.prompts.library.question_numerical import *
+from edsl.prompts.library.question_rank import *
+from edsl.prompts.library.question_extract import *
+from edsl.prompts.library.question_list import *
 
 
 if __name__ == "__main__":
     pass
 
-    import doctest
+    print(RegisterPromptsMeta._registry)
 
-    doctest.testmod(optionflags=doctest.ELLIPSIS)
+    matches = RegisterPromptsMeta.get_classes(component_type="agent_instructions")
 
-    # print(RegisterPromptsMeta._prompts_by_component_type)
+    # results = get_classes(
+    #     component_type="question_instructions",
+    #     question_type="multiple_choice",
+    #     model="gpt-4-1106-preview",
+    # )
+    # assert results == [MultipleChoice, MultipleChoiceTurbo]
 
-    relevant_prompts = get_classes(
-        component_type="question_instructions", question_type="multiple_choice"
-    )
-    print(relevant_prompts)
+    # results = get_classes(
+    #     component_type="question_instructions",
+    #     question_type="multiple_choice",
+    #     model="gpt-3.5-turbo",
+    # )
+    # assert results == [MultipleChoiceTurbo, MultipleChoice]
 
-    results = get_classes(
-        component_type="question_instructions",
-        question_type="multiple_choice",
-        model="gpt-4-1106-preview",
-    )
-    assert results == [MultipleChoice, MultipleChoiceTurbo]
-
-    results = get_classes(
-        component_type="question_instructions",
-        question_type="multiple_choice",
-        model="gpt-3.5-turbo",
-    )
-    assert results == [MultipleChoiceTurbo, MultipleChoice]
-
-    results = get_classes(
-        component_type="agent_instructions", optionflags=doctest.ELLIPSIS
-    )
-    assert results == [AgentInstruction]
+    # results = get_classes(
+    #     component_type="agent_instructions", optionflags=doctest.ELLIPSIS
+    # )
+    # assert results == [AgentInstruction]
