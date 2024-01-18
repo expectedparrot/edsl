@@ -11,7 +11,7 @@ from edsl.results import Results
 from edsl.scenarios import Scenario
 from edsl.surveys import Survey
 from edsl.jobs.base import JobsRunnersRegistry, JobsRunnerDescriptor
-from edsl.jobs.InterviewAsync import Interview
+from edsl.jobs.Interview import Interview
 from edsl.api import JobRunnerAPI, ResultsAPI
 
 
@@ -118,6 +118,43 @@ class Jobs:
             interviews.append(interview)
         return interviews
 
+    def run(
+        self,
+        n: int = 1,
+        debug: bool = False,
+        verbose: bool = False,
+        progress_bar: bool = False,
+        dry_run=False,
+        streaming=False,
+    ) -> Union[Results, ResultsAPI, None]:
+        """
+        Runs the Job: conducts Interviews and returns their results.
+        - `method`: "serial" or "threaded", defaults to "serial"
+        - `n`: how many times to run each interview
+        - `debug`: prints debug messages
+        - `verbose`: prints messages
+        - `progress_bar`: shows a progress bar
+        """
+        # self.job_runner_name = method
+        if dry_run:
+            self.job_runner_name = "dry_run"
+        elif streaming:
+            self.job_runner_name = "streaming"
+        else:
+            self.job_runner_name = "asyncio"
+
+        if (
+            emeritus_api_key := CONFIG.get("EMERITUS_API_KEY")
+        ) == "local":  # local mode
+            return self._run_local(
+                n=n, verbose=verbose, debug=debug, progress_bar=progress_bar
+            )
+        else:
+            results = self._run_remote(
+                api_key=emeritus_api_key, job_dict=self.to_dict()
+            )
+        return results
+
     def _run_local(self, *args, **kwargs):
         """Runs the job locally."""
         JobRunner = JobsRunnersRegistry[self.job_runner_name](jobs=self)
@@ -130,34 +167,6 @@ class Jobs:
     def _run_remote(self, *args, **kwargs):
         """Runs the job remotely."""
         results = JobRunnerAPI(*args, **kwargs)
-        return results
-
-    def run(
-        self,
-        method: str = "asyncio",
-        n: int = 1,
-        debug: bool = False,
-        verbose: bool = False,
-        progress_bar: bool = False,
-    ) -> Union[Results, ResultsAPI, None]:
-        """
-        Runs the Job: conducts Interviews and returns their results.
-        - `method`: "serial" or "threaded", defaults to "serial"
-        - `n`: how many times to run each interview
-        - `debug`: prints debug messages
-        - `verbose`: prints messages
-        - `progress_bar`: shows a progress bar
-        """
-        self.job_runner_name = method
-        emeritus_api_key = CONFIG.get("EMERITUS_API_KEY")
-        if emeritus_api_key == "local":  # local mode
-            return self._run_local(
-                n=n, verbose=verbose, debug=debug, progress_bar=progress_bar
-            )
-        else:
-            results = self._run_remote(
-                api_key=emeritus_api_key, job_dict=self.to_dict()
-            )
         return results
 
     #######################
