@@ -65,7 +65,7 @@ class Interview:
         # creates awaitable asyncio tasks for each question, with
         # dependencies on the questions that must be answered before
         # this one can be answered.
-        tasks = self._build_question_tasks(self.questions, self.dag)
+        tasks = self._build_question_tasks(self.questions, self.dag, debug)
         await asyncio.gather(*tasks)
 
         if replace_missing:
@@ -93,12 +93,12 @@ class Interview:
         """
         return self.survey.dag(textify=texify)
 
-    def _build_question_tasks(self, questions, dag) -> List[asyncio.Task]:
+    def _build_question_tasks(self, questions, dag, debug) -> List[asyncio.Task]:
         """Creates a task for each question, with dependencies on the questions that must be answered before this one can be answered."""
         tasks = []
         for question in questions:
             dependencies = self._get_question_dependencies(tasks, question, dag)
-            question_task = self._create_question_task(question, dependencies)
+            question_task = self._create_question_task(question, dependencies, debug)
             tasks.append(question_task)
         return tasks
 
@@ -115,6 +115,7 @@ class Interview:
         self,
         question: Question,
         questions_that_must_be_answered_before: List[asyncio.Task],
+        debug,
     ):
         """Creates a task that depends on the passed-in dependencies that are awaited before the task is run.
         The key awaitable is the `run_task` function, which is a wrapper around the `answer_question_and_record_task` method.
@@ -122,7 +123,7 @@ class Interview:
 
         async def run_task() -> asyncio.Task:
             await asyncio.gather(*questions_that_must_be_answered_before)
-            return await self.answer_question_and_record_task(question)
+            return await self.answer_question_and_record_task(question, debug)
 
         return asyncio.create_task(run_task())
 
@@ -131,7 +132,7 @@ class Interview:
         self.answers.add_answer(response, question)
 
     @async_timeout_handler(TIMEOUT)
-    async def answer_question_and_record_task(self, question):
+    async def answer_question_and_record_task(self, question, debug):
         """Answers a question and records the task.
         This in turn calls the the passed-in agent's async_answer_question method, which returns a response dictionary.
         """
@@ -141,7 +142,7 @@ class Interview:
             question=question,
             scenario=self.scenario,
             model=self.model,
-            debug=False,
+            debug=debug,
             memory_plan=self.survey.memory_plan,
             current_answers=self.answers,
         )

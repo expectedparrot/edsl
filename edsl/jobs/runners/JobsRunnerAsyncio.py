@@ -17,21 +17,21 @@ class JobsRunnerAsyncio(JobsRunner):
     ) -> Results:
         """Creates the tasks, runs them asynchronously, and returns the results as a Results object."""
 
-        tasks = self._create_all_interview_tasks(self.interviews)
+        tasks = self._create_all_interview_tasks(self.interviews, debug)
         data = await asyncio.gather(*tasks)
         return Results(survey=self.jobs.survey, data=data)
 
-    def _create_all_interview_tasks(self, interviews) -> List[asyncio.Task]:
+    def _create_all_interview_tasks(self, interviews, debug) -> List[asyncio.Task]:
         """Creates an awaitable task for each interview"""
         tasks = []
         for i, interview in enumerate(interviews):
-            interviewing_task = self._interview_task(interview, i)
+            interviewing_task = self._interview_task(interview, i, debug)
             tasks.append(asyncio.create_task(interviewing_task))
         return tasks
 
-    async def _interview_task(self, interview, i):
+    async def _interview_task(self, interview, i, debug):
         # Assuming async_conduct_interview and Result are defined and work asynchronously
-        answer, prompt_data = await interview.async_conduct_interview(debug=False)
+        answer, prompt_data = await interview.async_conduct_interview(debug=debug)
         user_prompts, system_prompts = self._get_prompts(answer, prompt_data)
 
         result = Result(
