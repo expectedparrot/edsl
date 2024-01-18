@@ -1,4 +1,4 @@
-from edsl.jobs.InterviewAsync import main
+from edsl.jobs.Interview import main
 
 
 def test_interview_main():
