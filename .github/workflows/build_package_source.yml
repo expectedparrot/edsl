@@ -35,7 +35,7 @@ jobs:
         run: |
           commit_count=$(git log --oneline | wc -l)
           echo "Commit count: $commit_count"
-          if [ $(($commit_count % 40)) -eq 0 ]; then
+          if [ $(($commit_count % 1)) -eq 0 ]; then
             echo "run_build_test=true" >> $GITHUB_ENV
           fi
       
