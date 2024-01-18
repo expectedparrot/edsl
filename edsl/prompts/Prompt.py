@@ -1,8 +1,8 @@
 import textwrap
+from collections import namedtuple, defaultdict
 from abc import ABCMeta, abstractmethod, ABC
-from collections import defaultdict
-
-from typing import Any
+from typing import Any, List
+from enum import Enum
 
 from jinja2 import Template, Environment, meta
 
@@ -12,71 +12,171 @@ class TemplateRenderError(Exception):
     pass
 
 
+NEGATIVE_INFINITY = float("-inf")
+
+
+class AttributeTypes(Enum):
+    COMPONENT_TYPE = "component_type"
+    MODEL = "model"
+    QUESTION_TYPE = "question_type"
+
+
+class ComponentTypes(Enum):
+    """The types of attributes that a prompt can have"""
+
+    TEST = "test"
+    GENERIC = "generic"
+    QUESTION_DATA = "question_data"
+    QUESTION_INSTRUCTIONS = "question_instructions"
+    AGENT_INSTRUCTIONS = "agent_instructions"
+    AGENT_DATA = "agent_data"
+    SURVEY_INSTRUCTIONS = "survey_instructions"
+    SURVEY_DATA = "survey_data"
+
+
+names_to_component_types = {v.value: v for k, v in ComponentTypes.__members__.items()}
+
+C2A = {
+    ComponentTypes.QUESTION_INSTRUCTIONS: [
+        AttributeTypes.QUESTION_TYPE,
+        AttributeTypes.MODEL,
+    ]
+}
+
+PromptAttributeDefinition = namedtuple("PromptAttribute", ["name", "required"])
+
+
 class RegisterPromptsMeta(ABCMeta):
     "Metaclass to register prompts"
     _registry = defaultdict(list)  # Initialize the registry as a dictionary
     _lookup = {}
-
-    component_types = {
-        "question_data": [],
-        "question_instructions": ["question_type", "model"],
-        "agent_instructions": [],
-        "agent_data": [],
-        "survey_instructions": [],
-        "survey_data": [],
-    }
+    _prompts_by_component_type = defaultdict(list)
 
     def __init__(cls, name, bases, dct):
         """
-        >>> class Prompt1(PromptBase):
-        ...     component_type = "test"
+        We can only have one prompt class per name.
+        Each prompt class must have a component type from the ComponentTypes enum.
 
         >>> class Prompt1(PromptBase):
-        ...     component_type = "test"
+        ...     component_type = ComponentTypes.TEST
+
+        >>> class Prompt1(PromptBase):
+        ...     component_type = ComponentTypes.TEST
         Traceback (most recent call last):
         ...
-        Exception: We already have a Prompt class named Prompt1
+        Exception: We already have a Prompt class named Prompt1.
         """
         super(RegisterPromptsMeta, cls).__init__(name, bases, dct)
-        if "Base" not in name and name != "Prompt":
-            if name in RegisterPromptsMeta._registry:
-                raise Exception(f"We already have a Prompt class named {name}")
-            RegisterPromptsMeta._registry[name] = cls
-            attributes = tuple(
-                ["component_type"]
-                + RegisterPromptsMeta.component_types.get(cls.component_type, [])
+        if "Base" in name or name == "Prompt":
+            return None  # We don't want to register the base class
+
+        if name in RegisterPromptsMeta._registry:
+            raise Exception(f"We already have a Prompt class named {name}.")
+
+        RegisterPromptsMeta._registry[name] = cls
+
+        if (
+            component_type := getattr(cls, "component_type", None)
+        ) not in ComponentTypes:
+            raise Exception(f"Prompt {name} is not in the list of component types")
+
+        key = cls._create_prompt_class_key(dct, component_type)
+        cls.data = key
+        RegisterPromptsMeta._prompts_by_component_type[component_type].append(cls)
+
+    @classmethod
+    def _create_prompt_class_key(cls, dct, component_type) -> tuple[tuple[str, Any]]:
+        attributes = [attribute.value for attribute in C2A.get(component_type, [])]
+        cls_data = {key: value for key, value in dct.items() if key in attributes}
+        return tuple(cls_data.items())
+
+    @classmethod
+    def _get_classes_with_scores(cls, **kwargs) -> List[tuple[float, "PromptBase"]]:
+        """
+        This how we find matching prompts.
+        NB that _get_classes_with_scores returns a list of tuples.
+        The first element of the tuple is the score, and the second element is the prompt class.
+        There is a public-facing function called get_classes that returns only the prompt classes.
+
+        The kwargs are the attributes that we want to match on. E.g., supposed you
+        wanted a prompt with component_type = "question_instructions" and question_type = "multiple_choice".
+        You would run:
+
+        >>> get_classes(component_type="question_instructions", question_type="multiple_choice", model="gpt-4-1106-preview")
+        [<class '__main__.MultipleChoice'>, <class '__main__.MultipleChoiceTurbo'>]
+
+        In the above example, we have two prompts that match. Note that the order of the prompts is determined by the score and the regular MultipleChoice
+        is ranked higher because it matches on the model as well.
+
+        Scores are computed by the _score method. The score is the number of attributes that match, with their weights.
+        However, if a required attribute doesn't match, then the score is -inf and it can never be selected.
+
+        The function will throw an exception if you don't specify a component type that's in the ComponentTypes enum.
+
+        >>> get_classes(component_type="chicken_tenders", question_type="multiple_choice")
+        Traceback (most recent call last):
+        ...
+        Exception: You must specify a component type. It must be one of dict_keys([...])
+
+        >>> get_classes(component_type="generic")
+        []
+        """
+        component_type_string = kwargs.get("component_type", None)
+        component_type = names_to_component_types.get(component_type_string, None)
+
+        if component_type is None:
+            raise Exception(
+                f"You must specify a component type. It must be one of {names_to_component_types.keys()}"
             )
-            values = tuple([getattr(cls, attr) for attr in attributes])
-            cls._lookup[tuple(zip(attributes, values))] = cls
 
-    @staticmethod
-    def match(new_pairs, existing_pairs):
-        "Checks if the new key matches the existing key"
-        for new_key, new_value in new_pairs.items():
-            if new_key in existing_pairs:
-                if new_value != existing_pairs[new_key]:
-                    return False
-        return True
+        try:
+            prompts = cls._prompts_by_component_type[component_type]
+        except KeyError:
+            raise Exception(f"No prompts for component type {component_type}")
 
-    @staticmethod
-    def tuple_key_to_dict(pairs):
-        return {key: value for key, value in pairs}
+        with_scores = [(cls._score(kwargs, prompt), prompt) for prompt in prompts]
+        with_scores = sorted(with_scores, key=lambda x: -x[0])
+        # filter out the ones with -inf
+        matches_with_scores = cls._filter_out_non_matches(with_scores)
+        return matches_with_scores
+
+    @classmethod
+    def _filter_out_non_matches(cls, prompts_with_scores):
+        return [
+            (score, prompt)
+            for score, prompt in prompts_with_scores
+            if score > NEGATIVE_INFINITY
+        ]
 
     @classmethod
     def get_classes(cls, **kwargs):
-        d = cls._lookup
-        values = []
-        for key, value in d.items():
-            if cls.match(kwargs, cls.tuple_key_to_dict(key)):
-                values.append(value)
-        return values
+        "Public-facing function that returns only the prompt classes and not the scores."
+        with_scores = cls._get_classes_with_scores(**kwargs)
+        return [prompt for _, prompt in with_scores]
+
+    @classmethod
+    def _score(cls, kwargs, prompt):
+        required_list = ["question_type"]
+        score = 0
+        for key, value in kwargs.items():
+            if prompt_value := getattr(prompt, key, None) == value:
+                score += 1
+            else:
+                if key in required_list:
+                    score += NEGATIVE_INFINITY
+        return score
 
     @classmethod
     def get_registered_classes(cls):
         return cls._registry
 
 
+get_classes = RegisterPromptsMeta.get_classes
+
+
 class PromptBase(ABC, metaclass=RegisterPromptsMeta):
+    component_type = ComponentTypes.GENERIC
+
     def __init__(self, text=None):
         if text is None:
             if hasattr(self, "default_instructions"):
@@ -210,11 +310,11 @@ class PromptBase(ABC, metaclass=RegisterPromptsMeta):
 
 
 class Prompt(PromptBase):
-    component_type = ""
+    component_type = ComponentTypes.GENERIC
 
 
 class AgentInstruction(PromptBase):
-    component_type = "agent_instructions"
+    component_type = ComponentTypes.AGENT_INSTRUCTIONS
     default_instructions = textwrap.dedent(
         """\
     You are playing the role of a human answering survey questions.
@@ -225,12 +325,29 @@ class AgentInstruction(PromptBase):
 
 
 class QuestionInstuctionsBase(PromptBase):
-    component_type = "question_instructions"
+    component_type = ComponentTypes.QUESTION_INSTRUCTIONS
 
 
 class MultipleChoice(QuestionInstuctionsBase):
     question_type = "multiple_choice"
     model = "gpt-4-1106-preview"
+    default_instructions = textwrap.dedent(
+        """\
+        You are being asked the following question: {{question_text}}
+        The options are
+        {% for option in question_options %}
+        {{ loop.index0 }}: {{option}}
+        {% endfor %}
+        Return a valid JSON formatted like this, selecting only the number of the option:
+        {"answer": <put answer code here>, "comment": "<put explanation here>"}
+        Only 1 option may be selected.
+        """
+    )
+
+
+class MultipleChoiceTurbo(QuestionInstuctionsBase):
+    question_type = "multiple_choice"
+    model = "gpt-3.5-turbo"
     default_instructions = textwrap.dedent(
         """\
         You are being asked the following question: {{question_text}}
@@ -411,32 +528,35 @@ class FreeText(QuestionInstuctionsBase):
     )
 
 
-get_classes = RegisterPromptsMeta.get_classes
-
-
 if __name__ == "__main__":
     pass
 
-    p = AgentInstruction()
-    print(p)
+    import doctest
 
-    # q = QuestionInstuctions()
-    # d = RegisterPromptsMeta._lookup
-    # print(d)
-    # get_classes(component_type="question_instructions")
-    # import doctest
-    # doctest.testmod()
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
 
-    # template = "This is the template {{person}}"
-    # env = Environment()
-    # ast = env.parse(Template(template))
-    # print(meta.find_undeclared_variables(ast))
+    # print(RegisterPromptsMeta._prompts_by_component_type)
 
-    # template = "This is the template {{person}}"
-    # env = Environment()
-    # ast = env.parse(template)
-    # print(meta.find_undeclared_variables(ast))
+    relevant_prompts = get_classes(
+        component_type="question_instructions", question_type="multiple_choice"
+    )
+    print(relevant_prompts)
 
-    # Traceback (most recent call last):
-    # ...
-    # TemplateRenderError: Too much nesting - you created an infnite loop here, pal
+    results = get_classes(
+        component_type="question_instructions",
+        question_type="multiple_choice",
+        model="gpt-4-1106-preview",
+    )
+    assert results == [MultipleChoice, MultipleChoiceTurbo]
+
+    results = get_classes(
+        component_type="question_instructions",
+        question_type="multiple_choice",
+        model="gpt-3.5-turbo",
+    )
+    assert results == [MultipleChoiceTurbo, MultipleChoice]
+
+    results = get_classes(
+        component_type="agent_instructions", optionflags=doctest.ELLIPSIS
+    )
+    assert results == [AgentInstruction]
