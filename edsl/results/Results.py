@@ -1,5 +1,4 @@
 from __future__ import annotations
-import gzip
 import json
 from collections import UserList, defaultdict
 from simpleeval import EvalWithCompoundTypes
@@ -16,9 +15,6 @@ from edsl.language_models import LanguageModel
 from edsl.results.Dataset import Dataset
 from edsl.results.Result import Result
 from edsl.results.ResultsExportMixin import ResultsExportMixin
-from edsl.results.RegressionMixin import RegressionMixin
-from edsl.results.ResultsOutputMixin import ResultsOutputMixin
-from edsl.results.ResultsFetchMixin import ResultsFetchMixin
 from edsl.scenarios import Scenario
 from edsl.surveys import Survey
 from edsl.utilities import (
@@ -29,9 +25,35 @@ from edsl.utilities import (
 )
 
 
-class Results(
-    UserList, ResultsFetchMixin, ResultsExportMixin, ResultsOutputMixin, RegressionMixin
-):
+class Mixins(ResultsExportMixin):
+    pass
+
+
+# These are only made available if the user has installed
+# our package from pip with the [report] option
+try:
+    from edsl.report.RegressionMixin import RegressionMixin
+
+    Mixins = type("Mixins", (RegressionMixin, Mixins), {})
+except (ImportError, ModuleNotFoundError):
+    pass
+
+try:
+    from edsl.report.ResultsFetchMixin import ResultsFetchMixin
+
+    Mixins = type("Mixins", (ResultsFetchMixin, Mixins), {})
+except (ImportError, ModuleNotFoundError):
+    pass
+
+try:
+    from edsl.report.ResultsOutputMixin import ResultsOutputMixin
+
+    Mixins = type("Mixins", (ResultsOutputMixin, Mixins), {})
+except (ImportError, ModuleNotFoundError):
+    pass
+
+
+class Results(UserList, Mixins):
     """
     This class is a UserList of Result objects.
     - It is instantiated with a Survey and a list of Result objects (observations).

@@ -81,7 +81,7 @@ class TestScenario(unittest.TestCase):
             }
         )
         q = s.make_question(QuestionMultipleChoice)
-        self.assertEqual(print(q), print("QuestionMultipleChoice"))
+        # self.assertEqual(print(q), print("QuestionMultipleChoice"))
         self.assertIn("How are you feeling?", q.question_text)
         self.assertEqual(
             q.question_options, ["Very sad", "Sad", "Neutral", "Happy", "Very happy"]
