@@ -1,8 +1,6 @@
 from collections import UserDict
 import importlib
 
-from edsl.jobs.runners.JobsRunnerSerial import JobsRunnerSerial
-from edsl.jobs.runners.JobsRunnerStreaming import JobsRunnerStreaming
 from edsl.jobs.runners.JobsRunnerAsyncio import JobsRunnerAsyncio
 from edsl.jobs.runners.JobsRunnerDryRun import JobsRunnerDryRun
 
@@ -36,10 +34,6 @@ class JobsRunnerDescriptor:
 
     def __set__(self, instance, value: str) -> None:
         self.validate(value, instance)
-        if value == "serial":
-            print("Warning: This is slow. Consider using a different JobsRunner.")
-        if value == "threaded":
-            print("Warning: This is deprecated. Consider using 'asyncio' as the method")
         instance.__dict__[self.name] = value
 
     def __set_name__(self, owner, name: str) -> None:
