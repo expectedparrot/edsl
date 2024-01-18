@@ -132,7 +132,7 @@ class LanguageModel(ABC, metaclass=RegisterLanguageModelsMeta):
         return response
 
     async def async_get_raw_response(
-        self, prompt: str, system_prompt: str = ""
+        self, user_prompt: str, system_prompt: str = ""
     ) -> dict[str, Any]:
         """This is some middle-ware that handles the caching of responses.
         If the cache isn't being used, it just returns a 'fresh' call to the LLM,
@@ -146,22 +146,22 @@ class LanguageModel(ABC, metaclass=RegisterLanguageModelsMeta):
         start_time = time.time()
 
         if not self.use_cache:
-            response = await self.async_execute_model_call(prompt, system_prompt)
+            response = await self.async_execute_model_call(user_prompt, system_prompt)
             return self._update_response_with_tracking(response, start_time, False)
 
         cached_response = self.crud.get_LLMOutputData(
             model=str(self.model),
             parameters=str(self.parameters),
             system_prompt=system_prompt,
-            prompt=prompt,
+            prompt=user_prompt,
         )
 
         if cached_response:
             response = json.loads(cached_response)
             cache_used = True
         else:
-            response = await self.async_execute_model_call(prompt, system_prompt)
-            self._save_response_to_db(prompt, system_prompt, response)
+            response = await self.async_execute_model_call(user_prompt, system_prompt)
+            self._save_response_to_db(user_prompt, system_prompt, response)
             cache_used = False
 
         return self._update_response_with_tracking(response, start_time, cache_used)
@@ -181,9 +181,9 @@ class LanguageModel(ABC, metaclass=RegisterLanguageModelsMeta):
             output=output,
         )
 
-    async def async_get_response(self, prompt: str, system_prompt: str = ""):
+    async def async_get_response(self, user_prompt: str, system_prompt: str = ""):
         """Get response, parse, and return as string."""
-        raw_response = await self.async_get_raw_response(prompt, system_prompt)
+        raw_response = await self.async_get_raw_response(user_prompt, system_prompt)
         response = self.parse_response(raw_response)
         try:
             dict_response = json.loads(response)
