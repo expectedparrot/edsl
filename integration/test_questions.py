@@ -6,13 +6,20 @@ class TestAllQuestions:
     pass
 
 
+to_exclude = []
+
+
 def create_test_function(question_type):
-    def test_func(self):
+    @staticmethod
+    def test_func():
         print(f"Now running: {question_type}")
         cls = get_question_class(question_type)
         try:
-            results = cls.example().run()
-            assert results is not None  # or any other assertion as needed
+            if cls.question_type in to_exclude:
+                pass
+            else:
+                results = cls.example().run()
+                assert results is not None  # or any other assertion as needed
         except Exception as e:
             pytest.fail(f"Error running {question_type}: {e}")
 
