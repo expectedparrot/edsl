@@ -1,11 +1,7 @@
 import asyncio
-
 from typing import Coroutine, List
-
-from edsl.jobs import Jobs
 from edsl.results import Results, Result
 from edsl.jobs.JobsRunner import JobsRunner
-
 from edsl.utilities.decorators import jupyter_nb_handler
 
 
