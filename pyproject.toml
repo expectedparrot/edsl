@@ -37,6 +37,7 @@ pandas = "^2.1.4"
 tenacity = "^8.2.3"
 python-docx = "^1.1.0"
 pillow = ">=9.4.0"
+nest-asyncio = "^1.5.9"
 markdown2 = {optional = true, version = "^2.4.11"}
 seaborn = {optional = true, version = "^0.13.0"}
 statsmodels = {optional = true, version = "^0.13.5"}
