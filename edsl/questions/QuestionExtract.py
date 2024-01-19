@@ -1,9 +1,7 @@
 from __future__ import annotations
 import re
 import json
-import random
-import textwrap
-from typing import Any, Optional
+from typing import Any
 from edsl.questions import Question
 from edsl.questions.descriptors import AnswerTemplateDescriptor
 from edsl.scenarios import Scenario
@@ -43,9 +41,9 @@ class QuestionExtract(Question):
     ################
     def validate_answer(self, answer: Any) -> dict[str, Any]:
         """Validates the answer"""
-        raw_json = answer["answer"]
-        fixed_json_data = re.sub(r"\'", '"', raw_json)
-        answer["answer"] = json.loads(fixed_json_data)
+        # raw_json = answer["answer"]
+        # fixed_json_data = re.sub(r"\'", '"', raw_json)
+        # answer["answer"] = json.loads(fixed_json_data)
         self.validate_answer_template_basic(answer)
         # self.validate_answer_key_value(answer, "answer", dict)
 
