@@ -153,10 +153,6 @@ class Prompt(PromptBase):
     component_type = ComponentTypes.GENERIC
 
 
-class QuestionInstuctionsBase(PromptBase):
-    component_type = ComponentTypes.QUESTION_INSTRUCTIONS
-
-
 from edsl.prompts.library.question_multiple_choice import *
 from edsl.prompts.library.agent_instructions import *
 from edsl.prompts.library.question_budget import *
