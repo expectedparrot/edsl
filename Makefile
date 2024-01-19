@@ -41,7 +41,8 @@ integration: ## Run integration tests via pytest **consumes API credits**
 	make integration-memory
 	make integration-jobs
 	make integration-runners
-
+	make integration-questions
+	
 integration-memory: ## Run integration tests via pytest **consumes API credits**
 	pytest -v integration/test_memory.py
 
