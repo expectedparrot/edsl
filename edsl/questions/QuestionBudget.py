@@ -123,3 +123,8 @@ def main():
     # serialization (inherits from Question)
     q.to_dict()
     assert q.from_dict(q.to_dict()) == q
+
+
+if __name__ == "__main__":
+    q = QuestionBudget.example()
+    results = q.run()
