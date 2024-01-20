@@ -4,9 +4,7 @@ from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 from edsl.jobs.Jobs import Jobs
 from edsl.agents.Agent import Agent
 from edsl.surveys.Survey import Survey
-from edsl.language_models.LanguageModelOpenAIThreeFiveTurbo import (
-    LanguageModelOpenAIThreeFiveTurbo,
-)
+from edsl.language_models import LanguageModelOpenAIThreeFiveTurbo
 
 
 class TestScenario(unittest.TestCase):
