@@ -83,6 +83,7 @@ class Jobs:
             # TODO: Refactor to use a registry for models
             key = "models"
         else:
+            breakpoint()
             raise ValueError("Unknown object type")
 
         current_objects = getattr(self, key, None)

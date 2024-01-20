@@ -3,6 +3,7 @@ import os
 import asyncio
 from contextlib import redirect_stdout
 from io import StringIO
+from typing import Any
 
 from edsl.language_models.LanguageModel import LanguageModel
 from edsl.data.crud import CRUDOperations
@@ -12,19 +13,32 @@ class TestLanguageModel(unittest.TestCase):
     def setUp(self):
         class TestLanguageModelBad(LanguageModel):
             _model_ = "fake model"
+            _parameters_ = {"temperature": 0.5}
             pass
+
+            async def async_execute_model_call(
+                self, user_prompt: str, system_prompt: str
+            ) -> dict[str, Any]:
+                await asyncio.sleep(0.1)
+                return {"message": """{"answer": "Hello world"}"""}
+
+            def parse_response(self, raw_response: dict[str, Any]) -> str:
+                return raw_response["message"]
 
         self.bad_class = TestLanguageModelBad
 
         class TestLanguageModelGood(LanguageModel):
             use_cache = False
             _model_ = "fake model"
+            _parameters_ = {"temperature": 0.5}
 
-            async def async_execute_model_call(self, user_prompt, system_prompt):
+            async def async_execute_model_call(
+                self, user_prompt: str, system_prompt: str
+            ) -> dict[str, Any]:
                 await asyncio.sleep(0.1)
                 return {"message": """{"answer": "Hello world"}"""}
 
-            def parse_response(self, raw_response):
+            def parse_response(self, raw_response: dict[str, Any]) -> str:
                 return raw_response["message"]
 
         self.good_class = TestLanguageModelGood
@@ -41,9 +55,32 @@ class TestLanguageModel(unittest.TestCase):
     def tearDown(self) -> None:
         os.remove(self.database_file_path)
 
-    def test_abstract_methods_missing(self):
-        with self.assertRaises(TypeError):
-            m = self.bad_class()
+    def test_params_passed_to_parent(self):
+        m = self.good_class(use_cache=True)
+        self.assertEqual(m.use_cache, True)
+
+    def test_missing_class_attributes(self):
+        with self.assertRaises(Exception):
+            # This should fail because the class is missing the _parameters_ attribute
+            class TestLanguageModelGood(LanguageModel):
+                _model_ = "fake model"
+
+                async def async_execute_model_call(self, user_prompt, system_prompt):
+                    await asyncio.sleep(0.1)
+                    return {"message": """{"answer": "Hello world"}"""}
+
+                def parse_response(self, raw_response: dict[str, Any]):
+                    return raw_response["message"]
+
+            TestLanguageModelGood()
+
+    # With the use of the meta class, it is no longer possible to
+    # to event *define* a class without the required attributes
+
+    # def test_abstract_methods_missing(self):
+    #     with self.assertRaises(TypeError):
+    #         del m.async_execute_model_call
+    #         m = self.bad_class()
 
     def test_execute_model_call(self):
         m = self.good_class()
