@@ -47,6 +47,7 @@ class InvigilatorAI(InvigilatorBase):
         """Constructs the system prompt for the LLM call."""
         applicable_prompts = get_classes(
             component_type="agent_instructions",
+            model=self.model.model,
         )
         if len(applicable_prompts) == 0:
             raise Exception("No applicable prompts found")

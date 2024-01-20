@@ -14,3 +14,15 @@ class AgentInstruction(PromptBase):
     Your traits are: {{traits}}
     """
     )
+
+
+class AgentInstructionLlama(PromptBase):
+    model = "llama-2-70b-chat"
+    component_type = ComponentTypes.AGENT_INSTRUCTIONS
+    default_instructions = textwrap.dedent(
+        """\
+    You are playing the role of a human answering questions.
+    Do not break character.
+    Only respond in JSON, with one answer formatted as specified.
+    """
+    )
