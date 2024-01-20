@@ -42,6 +42,7 @@ markdown2 = {optional = true, version = "^2.4.11"}
 seaborn = {optional = true, version = "^0.13.0"}
 statsmodels = {optional = true, version = "^0.13.5"}
 wordcloud = {optional = true, version = "^1.9.3"}
+aiohttp = "^3.9.1"
 
 [tool.poetry.extras]
 report = [
