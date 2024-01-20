@@ -33,11 +33,11 @@ CONFIG_MAP = {
         "allowed": None,
         "user_message": "Please provide your OpenAI API key (https://platform.openai.com/api-keys).",
     },
-    "OPENAI_API_KEY": {
-        "optional": False,
+    "GOOGLE_API_KEY": {
+        "optional": True,
         "default": None,
         "allowed": None,
-        "user_message": "Please provide your OpenAI API key (https://platform.openai.com/api-keys).",
+        "user_message": "Please provide your Google API key (https://console.cloud.google.com/apis/credentials).",
     },
     "API_CALL_TIMEOUT_SEC": {
         "optional": False,
