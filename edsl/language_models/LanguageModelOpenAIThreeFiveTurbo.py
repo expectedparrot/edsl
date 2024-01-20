@@ -26,27 +26,15 @@ class LanguageModelOpenAIThreeFiveTurbo(LanguageModel):
         "use_cache": True,
     }
 
-    def __init__(self, **kwargs):
-        self.model = self._model_
-        # set parameters, with kwargs taking precedence over defaults
-        self.parameters = dict({})
-        for parameter, default_value in self._parameters_.items():
-            if parameter in kwargs:
-                self.parameters[parameter] = kwargs[parameter]
-            else:
-                self.parameters[parameter] = default_value
-                kwargs[parameter] = default_value
-        super().__init__(**kwargs)
-
     async def async_execute_model_call(
-        self, prompt: str, system_prompt: str = ""
+        self, user_prompt: str, system_prompt: str = ""
     ) -> dict[str, Any]:
         """Calls the OpenAI API and returns the API response."""
         response = await client.chat.completions.create(
             model=self.model,
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": prompt},
+                {"role": "user", "content": user_prompt},
             ],
             temperature=self.temperature,
             max_tokens=self.max_tokens,

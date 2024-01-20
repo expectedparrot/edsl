@@ -2,32 +2,170 @@ from __future__ import annotations
 import asyncio
 import json
 import time
+import inspect
 from typing import Coroutine
 from abc import ABC, abstractmethod, ABCMeta
 from edsl.trackers.TrackerAPI import TrackerAPI
 from queue import Queue
 from threading import Lock
-from typing import Any, Callable, Type
+from typing import Any, Callable, Type, List
 from edsl.data import CRUDOperations, CRUD
 from edsl.exceptions import LanguageModelResponseNotJSONError
 from edsl.language_models.schemas import model_prices
 from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
 
 from edsl.language_models.repair import repair
+from typing import get_type_hints
 
 
 class RegisterLanguageModelsMeta(ABCMeta):
     "Metaclass to register output elements in a registry i.e., those that have a parent"
     _registry = {}  # Initialize the registry as a dictionary
+    REQUIRED_CLASS_ATTRIBUTES = ["_model_", "_parameters_"]
 
     def __init__(cls, name, bases, dct):
         super(RegisterLanguageModelsMeta, cls).__init__(name, bases, dct)
         if name != "LanguageModel":
+            RegisterLanguageModelsMeta.check_required_class_variables(
+                cls, RegisterLanguageModelsMeta.REQUIRED_CLASS_ATTRIBUTES
+            )
+
+            # LanguageModel children have to implement the async_execute_model_call method
+            RegisterLanguageModelsMeta.verify_method(
+                candidate_class=cls,
+                method_name="async_execute_model_call",
+                expected_return_type=dict[str, Any],
+                required_parameters=[("user_prompt", str), ("system_prompt", str)],
+                must_be_async=True,
+            )
+            # LanguageModel children have to implement the parse_response method
+            RegisterLanguageModelsMeta.verify_method(
+                candidate_class=cls,
+                method_name="parse_response",
+                expected_return_type=str,
+                required_parameters=[("raw_response", dict[str, Any])],
+                must_be_async=False,
+            )
+
             RegisterLanguageModelsMeta._registry[name] = cls
 
     @classmethod
     def get_registered_classes(cls):
         return cls._registry
+
+    @staticmethod
+    def check_required_class_variables(
+        candidate_class, required_attributes: List[str] = None
+    ):
+        """Checks if a class has the required attributes
+        >>> class M:
+        ...     _model_ = "m"
+        ...     _parameters_ = {}
+        >>> RegisterLanguageModelsMeta.check_required_class_variables(M, ["_model_", "_parameters_"])
+        >>> class M2:
+        ...     _model_ = "m"
+        >>> RegisterLanguageModelsMeta.check_required_class_variables(M2, ["_model_", "_parameters_"])
+        Traceback (most recent call last):
+        ...
+        Exception: Class M2 does not have required attribute _parameters_
+        """
+        required_attributes = required_attributes or []
+        for attribute in required_attributes:
+            if not hasattr(candidate_class, attribute):
+                raise Exception(
+                    f"Class {candidate_class.__name__} does not have required attribute {attribute}"
+                )
+
+    @staticmethod
+    def verify_method(
+        candidate_class,
+        method_name,
+        expected_return_type,
+        required_parameters=None,
+        must_be_async=False,
+    ):
+        RegisterLanguageModelsMeta._check_method_defined(candidate_class, method_name)
+
+        required_parameters = required_parameters or []
+        method = getattr(candidate_class, method_name)
+        signature = inspect.signature(method)
+
+        RegisterLanguageModelsMeta._check_return_type(method, expected_return_type)
+
+        if must_be_async:
+            RegisterLanguageModelsMeta._check_is_coroutine(method)
+
+        # Check the parameters
+        params = signature.parameters
+        for param_name, param_type in required_parameters:
+            RegisterLanguageModelsMeta._verify_parameter(
+                params, param_name, param_type, method_name
+            )
+
+    @staticmethod
+    def _check_method_defined(cls, method_name):
+        """Checks if a method is defined in a class
+        >>> class M:
+        ...     def f(self): pass
+        >>> RegisterLanguageModelsMeta._check_method_defined(M, "f")
+        >>> RegisterLanguageModelsMeta._check_method_defined(M, "g")
+        Traceback (most recent call last):
+        ...
+        NotImplementedError: g method must be implemented
+        """
+        if not hasattr(cls, method_name):
+            raise NotImplementedError(f"{method_name} method must be implemented")
+
+    @staticmethod
+    def _check_is_coroutine(func: Callable):
+        """
+        Checks to make sure it's a coroutine function
+        >>> def f(): pass
+        >>> RegisterLanguageModelsMeta._check_is_coroutine(f)
+        Traceback (most recent call last):
+        ...
+        TypeError: A LangugeModel class with method f must be an asynchronous method
+        """
+        if not inspect.iscoroutinefunction(func):
+            raise TypeError(
+                f"A LangugeModel class with method {func.__name__} must be an asynchronous method"
+            )
+
+    @staticmethod
+    def _verify_parameter(params, param_name, param_type, method_name):
+        if param_name not in params:
+            raise TypeError(
+                f"""Parameter "{param_name}" of method "{method_name}" must be defined.
+                """
+            )
+        if params[param_name].annotation != param_type:
+            raise TypeError(
+                f"""Parameter "{param_name}" of method "{method_name}" must be of type {param_type.__name__}.
+                Got {params[param_name].annotation} instead.
+                """
+            )
+
+    @staticmethod
+    def _check_return_type(method, expected_return_type):
+        """
+        Checks if the return type of a method is as expected
+        >>> class M:
+        ...     async def f(self) -> str: pass
+        >>> RegisterLanguageModelsMeta._check_return_type(M.f, str)
+        >>> class N:
+        ...     async def f(self) -> int: pass
+        >>> RegisterLanguageModelsMeta._check_return_type(N.f, str)
+        Traceback (most recent call last):
+        ...
+        TypeError: Return type of f must be <class 'str'>. Got <class 'int'>
+        """
+        if inspect.isroutine(method):
+            # return_type = inspect.signature(method).return_annotation
+            return_type = get_type_hints(method)["return"]
+            if return_type != expected_return_type:
+                raise TypeError(
+                    f"Return type of {method.__name__} must be {expected_return_type}. Got {return_type}."
+                )
 
     @classmethod
     def model_names_to_classes(cls):
@@ -37,7 +175,7 @@ class RegisterLanguageModelsMeta(ABCMeta):
                 d[cls._model_] = cls
             else:
                 raise Exception(
-                    f"Class {classname} does not have a __model__ class attribute"
+                    f"Class {classname} does not have a _model_ class attribute"
                 )
         return d
 
@@ -52,11 +190,39 @@ class LanguageModel(ABC, metaclass=RegisterLanguageModelsMeta):
         - lock: lock for this model to ensure TODO
         - api_queue: queue that records messages about API calls the model makes. Used by `InterviewManager` to update details about state of model.
         """
-        for key, value in kwargs.items():
+        self.model = getattr(self, "_model_", None)
+        default_parameters = getattr(self, "_parameters_", None)
+        parameters = self._overide_default_parameters(kwargs, default_parameters)
+        self.parameters = parameters
+
+        for key, value in parameters.items():
             setattr(self, key, value)
-        self.lock = Lock()
+
+        for key, value in kwargs.items():
+            if key not in parameters:
+                setattr(self, key, value)
+
+        # for key, value in kwargs.items():
+        # setattr(self, key, value)
         self.api_queue = Queue()
         self.crud = crud
+
+    @staticmethod
+    def _overide_default_parameters(passed_parameter_dict, default_parameter_dict):
+        """Returns a dictionary of parameters, with passed parameters taking precedence over defaults.
+
+        >>> LanguageModel._overide_default_parameters(passed_parameter_dict={"temperature": 0.5}, default_parameter_dict={"temperature":0.9})
+        {'temperature': 0.5}
+        >>> LanguageModel._overide_default_parameters(passed_parameter_dict={"temperature": 0.5}, default_parameter_dict={"temperature":0.9, "max_tokens": 1000})
+        {'temperature': 0.5, 'max_tokens': 1000}
+        """
+        parameters = dict({})
+        for parameter, default_value in default_parameter_dict.items():
+            if parameter in passed_parameter_dict:
+                parameters[parameter] = passed_parameter_dict[parameter]
+            else:
+                parameters[parameter] = default_value
+        return parameters
 
     @abstractmethod
     async def async_execute_model_call():
@@ -71,21 +237,6 @@ class LanguageModel(ABC, metaclass=RegisterLanguageModelsMeta):
             return results[0]  # Since there's only one task, return its result
 
         return main()
-
-        # # Check if an event loop is already running
-        # try:
-        #     loop = asyncio.get_running_loop()
-        # except RuntimeError:  # No running event loop
-        #     loop = None
-
-        # if loop and loop.is_running():
-        #     # If an event loop is running, schedule the coroutine to run and return a Future
-        #     return asyncio.ensure_future(main())
-        # else:
-        #     # If there's no running event loop, use asyncio.run()
-        #     return asyncio.run(main())
-
-        # return asyncio.run(main())
 
     @abstractmethod
     def parse_response(raw_response: dict[str, Any]) -> str:
@@ -127,8 +278,7 @@ class LanguageModel(ABC, metaclass=RegisterLanguageModelsMeta):
         response["elapsed_time"] = end_time - start_time
         response["timestamp"] = end_time
         self._post_tracker_event(response)
-        with self.lock:
-            response["cached_response"] = cached_response
+        response["cached_response"] = cached_response
         return response
 
     async def async_get_raw_response(
@@ -248,3 +398,9 @@ class LanguageModel(ABC, metaclass=RegisterLanguageModelsMeta):
               by(m1, m2, m3) not by(m1).by(m2).by(m3)."""
         )
         return other_model or self
+
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod()

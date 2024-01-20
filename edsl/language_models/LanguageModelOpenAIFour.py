@@ -18,7 +18,6 @@ class LanguageModelOpenAIFour(LanguageModel):
     """
 
     _model_ = "gpt-4-1106-preview"
-    # _model_ = "gpt-4"
     _parameters_ = {
         "temperature": 0.5,
         "max_tokens": 1000,
@@ -28,27 +27,15 @@ class LanguageModelOpenAIFour(LanguageModel):
         "use_cache": True,
     }
 
-    def __init__(self, **kwargs):
-        self.model = self._model_
-        # set parameters, with kwargs taking precedence over defaults
-        self.parameters = dict({})
-        for parameter, default_value in self._parameters_.items():
-            if parameter in kwargs:
-                self.parameters[parameter] = kwargs[parameter]
-            else:
-                self.parameters[parameter] = default_value
-                kwargs[parameter] = default_value
-        super().__init__(**kwargs)
-
     async def async_execute_model_call(
-        self, prompt: str, system_prompt: str = ""
+        self, user_prompt: str, system_prompt: str = ""
     ) -> dict[str, Any]:
         """Calls the OpenAI API and returns the API response."""
         response = await client.chat.completions.create(
             model=self.model,
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": prompt},
+                {"role": "user", "content": user_prompt},
             ],
             temperature=self.temperature,
             max_tokens=self.max_tokens,
@@ -57,13 +44,6 @@ class LanguageModelOpenAIFour(LanguageModel):
             presence_penalty=self.presence_penalty,
         )
         return response.model_dump()
-
-    # def execute_model_call(
-    #     self, prompt: str, system_prompt: str = ""
-    # ) -> dict[str, Any]:
-    #     return asyncio.run(
-    #         self._execute_model_call(prompt=prompt, system_prompt=system_prompt)
-    #     )
 
     @staticmethod
     def parse_response(raw_response: dict[str, Any]) -> str:
