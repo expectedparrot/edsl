@@ -7,7 +7,6 @@ from typing import Coroutine
 from abc import ABC, abstractmethod, ABCMeta
 from edsl.trackers.TrackerAPI import TrackerAPI
 from queue import Queue
-from threading import Lock
 from typing import Any, Callable, Type, List
 from edsl.data import CRUDOperations, CRUD
 from edsl.exceptions import LanguageModelResponseNotJSONError
@@ -55,7 +54,7 @@ class RegisterLanguageModelsMeta(ABCMeta):
 
     @staticmethod
     def check_required_class_variables(
-        candidate_class, required_attributes: List[str] = None
+        candidate_class: LanguageModel, required_attributes: List[str] = None
     ):
         """Checks if a class has the required attributes
         >>> class M:
@@ -78,11 +77,11 @@ class RegisterLanguageModelsMeta(ABCMeta):
 
     @staticmethod
     def verify_method(
-        candidate_class,
-        method_name,
-        expected_return_type,
-        required_parameters=None,
-        must_be_async=False,
+        candidate_class: LanguageModel,
+        method_name: str,
+        expected_return_type: Any,
+        required_parameters: List[tuple[str, Any]] = None,
+        must_be_async: bool = False,
     ):
         RegisterLanguageModelsMeta._check_method_defined(candidate_class, method_name)
 

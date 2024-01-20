@@ -7,6 +7,8 @@ from edsl import CONFIG
 from edsl.agents import Agent
 from edsl.exceptions import JobsRunError
 from edsl.language_models import LanguageModel, LanguageModelOpenAIThreeFiveTurbo
+from edsl.language_models import GeminiPro
+
 from edsl.results import Results
 from edsl.scenarios import Scenario
 from edsl.surveys import Survey
@@ -63,44 +65,70 @@ class Jobs:
         """
         # if the first argument is a sequence, grab it and ignore other arguments
 
-        def did_user_pass_a_sequence(args):
-            return len(args) == 1 and isinstance(args[0], Sequence)
+        passed_objects = self._turn_args_to_list(args)
 
-        def turn_args_to_list(args):
-            if did_user_pass_a_sequence(args):
-                return list(args[0])
-            else:
-                return list(args)
-
-        passed_objects = turn_args_to_list(args)
-        first_object = passed_objects[0]
-
-        if (first_object_type := first_object.__class__.__name__) == "Agent":
-            key = "agents"
-        elif first_object_type == "Scenario":
-            key = "scenarios"
-        elif "LanguageModel" in first_object_type:
-            # TODO: Refactor to use a registry for models
-            key = "models"
-        else:
-            breakpoint()
-            raise ValueError("Unknown object type")
-
-        current_objects = getattr(self, key, None)
+        current_objects, objects_key = self._get_current_objects_of_this_type(
+            passed_objects[0]
+        )
 
         if not current_objects:
             new_objects = passed_objects
         else:
-            # combine all the existing objects with the new objects
-            # For example, if the user passes in 3 agents,
-            # and there are 2 existing agents, this will create 6 new agents
-            new_objects = []
-            for current_object in current_objects:
-                for new_object in passed_objects:
-                    new_objects.append(current_object + new_object)
+            new_objects = self._merge_objects(passed_objects, current_objects)
 
-        setattr(self, key, new_objects)  # update the job
+        setattr(self, objects_key, new_objects)  # update the job
         return self
+
+    @staticmethod
+    def _turn_args_to_list(args):
+        def did_user_pass_a_sequence(args):
+            """
+            >>> did_user_pass_a_sequence([1,2,3])
+            True
+            >>> did_user_pass_a_sequence(1)
+            False
+            """
+            return len(args) == 1 and isinstance(args[0], Sequence)
+
+        if did_user_pass_a_sequence(args):
+            return list(args[0])
+        else:
+            return list(args)
+
+    def _get_current_objects_of_this_type(self, object):
+        class_to_key = {
+            Agent: "agents",
+            Scenario: "scenarios",
+            LanguageModel: "models",
+        }
+        for class_type in class_to_key:
+            if isinstance(object, class_type) or issubclass(
+                object.__class__, class_type
+            ):
+                key = class_to_key[class_type]
+                break
+        else:
+            raise ValueError(
+                f"First argument must be an Agent, Scenario, or LanguageModel, not {object}"
+            )
+        current_objects = getattr(self, key, None)
+        return current_objects, key
+
+    @staticmethod
+    def _merge_objects(passed_objects, current_objects):
+        """
+        Combines all the existing objects with the new objects
+        For example, if the user passes in 3 agents,
+        and there are 2 existing agents, this will create 6 new agents
+
+        >>> Jobs(survey = [])._merge_objects([1,2,3], [4,5,6])
+        [5, 6, 7, 6, 7, 8, 7, 8, 9]
+        """
+        new_objects = []
+        for current_object in current_objects:
+            for new_object in passed_objects:
+                new_objects.append(current_object + new_object)
+        return new_objects
 
     def interviews(self) -> list[Interview]:
         """
@@ -243,3 +271,9 @@ def main():
     results = job.run(debug=True)
     len(results) == 8
     results
+
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod()

@@ -3,11 +3,14 @@ import textwrap
 DEFAULT_MODEL_CLASS = "edsl.language_models.LanguageModelOpenAIFour"
 
 ## All models must be imported here
-from edsl.language_models.LanguageModelOpenAIThreeFiveTurbo import (
+from edsl.language_models.model_interfaces.LanguageModelOpenAIThreeFiveTurbo import (
     LanguageModelOpenAIThreeFiveTurbo,
 )
-from edsl.language_models.LanguageModelOpenAIFour import LanguageModelOpenAIFour
+from edsl.language_models.model_interfaces.LanguageModelOpenAIFour import (
+    LanguageModelOpenAIFour,
+)
 from edsl.language_models.LanguageModel import RegisterLanguageModelsMeta
+from edsl.language_models.model_interfaces.GeminiPro import GeminiPro
 
 meta_class_registry = RegisterLanguageModelsMeta.get_registered_classes()
 
@@ -66,5 +69,5 @@ class Model(metaclass=Meta):
 if __name__ == "__main__":
     available = Model.available()
     m = Model("gpt-4-1106-preview")
-    results = model.execute_model_call("Hello world")
+    results = m.execute_model_call("Hello world")
     print(results)
