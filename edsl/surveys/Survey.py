@@ -61,7 +61,7 @@ class Survey(SurveyExportMixin, Base):
 
     @property
     def name(self):
-        print("WARNING: name is deprecated. Please use meta_data.name instead.")
+        # print("WARNING: name is deprecated. Please use meta_data.name instead.")
         return self.meta_data.name
 
     def get_question(self, question_name) -> Question:
