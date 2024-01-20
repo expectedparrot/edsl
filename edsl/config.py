@@ -33,6 +33,12 @@ CONFIG_MAP = {
         "allowed": None,
         "user_message": "Please provide your OpenAI API key (https://platform.openai.com/api-keys).",
     },
+    "DEEP_INFRA_API_KEY": {
+        "optional": True,
+        "default": None,
+        "allowed": None,
+        "user_message": "Please provide your DeepInfra API key (https://deepinfra.com/).",
+    },
     "GOOGLE_API_KEY": {
         "optional": True,
         "default": None,
