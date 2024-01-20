@@ -1,20 +1,22 @@
-import asyncio
 import aiohttp
 import json
 from typing import Any
 
 from edsl.language_models.LanguageModel import LanguageModel
 
+from edsl import CONFIG
+
+google_key = CONFIG.get("GOOGLE_API_KEY")
+
 
 class GeminiPro(LanguageModel):
     _model_ = "gemini-pro"
-    model = _model_
     _parameters_ = {
         "temperature": 0.5,
-        "max_tokens": 1000,
-        "top_p": 1,
-        "frequency_penalty": 0,
-        "presence_penalty": 0,
+        "topP": 1,
+        "topK": 1,
+        "maxOutputTokens": 2048,
+        "stopSequences": [],
         "use_cache": True,
     }
     parameters = _parameters_
@@ -23,16 +25,16 @@ class GeminiPro(LanguageModel):
         self, user_prompt: str, system_prompt: str = ""
     ) -> dict[str, Any]:
         combined_prompt = user_prompt + system_prompt
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={google_key}"
         headers = {"Content-Type": "application/json"}
         data = {
             "contents": [{"parts": [{"text": combined_prompt}]}],
             "generationConfig": {
                 "temperature": self.temperature,
-                "topK": 1,
-                "topP": 1,
-                "maxOutputTokens": 2048,
-                "stopSequences": [],
+                "topK": self.topK,
+                "topP": self.topP,
+                "maxOutputTokens": self.maxOutputTokens,
+                "stopSequences": self.stopSequences,
             },
         }
 

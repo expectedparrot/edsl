@@ -1,14 +1,14 @@
-import asyncio
 import openai
 import re
 from typing import Any
+
 from edsl import CONFIG
 from edsl.language_models import LanguageModel
 
 openai.api_key = CONFIG.get("OPENAI_API_KEY")
 from openai import AsyncOpenAI
 
-client = AsyncOpenAI()
+# client = AsyncOpenAI()
 
 
 class LanguageModelOpenAIFour(LanguageModel):
