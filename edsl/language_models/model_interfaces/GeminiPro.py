@@ -19,7 +19,6 @@ class GeminiPro(LanguageModel):
         "stopSequences": [],
         "use_cache": True,
     }
-    parameters = _parameters_
 
     async def async_execute_model_call(
         self, user_prompt: str, system_prompt: str = ""
