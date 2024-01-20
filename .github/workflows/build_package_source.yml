@@ -14,6 +14,7 @@ on:
 env:
   EDSL_RUN_MODE: development
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+  GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
   POETRY_VERSION: "1.7.1"
 
 jobs:
