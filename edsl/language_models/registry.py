@@ -2,12 +2,24 @@ import textwrap
 
 DEFAULT_MODEL_CLASS = "edsl.language_models.LanguageModelOpenAIFour"
 
-## All models must be imported here
-from edsl.language_models.LanguageModelOpenAIThreeFiveTurbo import (
-    LanguageModelOpenAIThreeFiveTurbo,
-)
-from edsl.language_models.LanguageModelOpenAIFour import LanguageModelOpenAIFour
 from edsl.language_models.LanguageModel import RegisterLanguageModelsMeta
+import pkgutil
+import importlib
+import edsl.language_models.model_interfaces as model_interfaces
+
+# Dynamically import all modules in the model_interfaces package
+for loader, module_name, is_pkg in pkgutil.iter_modules(model_interfaces.__path__):
+    full_module_name = f"{model_interfaces.__name__}.{module_name}"
+    if not is_pkg:
+        module = importlib.import_module(full_module_name)
+        globals().update(
+            {
+                name: getattr(module, name)
+                for name in dir(module)
+                if not name.startswith("_")
+            }
+        )
+
 
 meta_class_registry = RegisterLanguageModelsMeta.get_registered_classes()
 
@@ -66,5 +78,5 @@ class Model(metaclass=Meta):
 if __name__ == "__main__":
     available = Model.available()
     m = Model("gpt-4-1106-preview")
-    results = model.execute_model_call("Hello world")
+    results = m.execute_model_call("Hello world")
     print(results)

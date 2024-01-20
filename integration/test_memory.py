@@ -2,9 +2,7 @@ import random
 from edsl.surveys import Survey
 from edsl.questions import QuestionMultipleChoice
 from edsl.scenarios.ScenarioList import ScenarioList
-from edsl.language_models.LanguageModelOpenAIThreeFiveTurbo import (
-    LanguageModelOpenAIThreeFiveTurbo,
-)
+from edsl.language_models import LanguageModelOpenAIThreeFiveTurbo
 
 NUM_FLIPS = 20
 m = LanguageModelOpenAIThreeFiveTurbo(use_cache=False)
