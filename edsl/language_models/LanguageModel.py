@@ -339,7 +339,7 @@ class LanguageModel(ABC, metaclass=RegisterLanguageModelsMeta):
         except json.JSONDecodeError as e:
             print("Could not load JSON. Trying to repair.")
             print(response)
-            dict_response, success = repair(response, str(e))
+            dict_response, success = await repair(response, str(e))
             if not success:
                 raise Exception("Even the repair failed.")
         return dict_response
