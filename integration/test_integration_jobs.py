@@ -1,6 +1,7 @@
 from edsl.language_models import (
     LanguageModelOpenAIThreeFiveTurbo,
     LanguageModelOpenAIFour,
+    GeminiPro,
 )
 from edsl.agents import Agent
 from edsl.questions import QuestionMultipleChoice
@@ -25,10 +26,12 @@ def test_simple_job_integration():
     models_no_cache = [
         LanguageModelOpenAIThreeFiveTurbo(use_cache=False),
         LanguageModelOpenAIFour(use_cache=False),
+        GeminiPro(use_cache=False),
     ]
     models_cache = [
         LanguageModelOpenAIThreeFiveTurbo(use_cache=True),
         LanguageModelOpenAIFour(use_cache=True),
+        GeminiPro(use_cache=True),
     ]
 
     # print("-------------------------")
