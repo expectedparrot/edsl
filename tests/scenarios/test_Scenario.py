@@ -6,6 +6,13 @@ from edsl.agents.Agent import Agent
 from edsl.surveys.Survey import Survey
 from edsl.language_models import LanguageModelOpenAIThreeFiveTurbo
 
+import doctest
+import edsl.scenarios
+
+
+def test_doctests():
+    doctest.testmod(edsl.scenarios)
+
 
 class TestScenario(unittest.TestCase):
     def setUp(self):
