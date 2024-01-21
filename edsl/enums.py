@@ -35,8 +35,9 @@ class LanguageModelType(EnumWithChecks):
     MIXTRAL_8x7B_INSTRUCT = "mixtral-8x7B-instruct-v0.1"
 
 
-class InferenceService(EnumWithChecks):
+class InferenceServiceType(EnumWithChecks):
     BEDROCK = "bedrock"
     DEEP_INFRA = "deep_infra"
     REPLICATE = "replicate"
     OPENAI = "openai"
+    GOOGLE = "google"

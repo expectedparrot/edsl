@@ -30,7 +30,9 @@ def create_test_function(model):
     return test_func
 
 
-to_exclude = ["Llama-2-13b-chat-hf"]
+from edsl.enums import LanguageModelType
+
+to_exclude = [LanguageModelType.LLAMA_2_13B_CHAT_HF.value]
 
 # Dynamically adding test methods for each question type
 for model in (model for model in Model.available() if model not in to_exclude):
