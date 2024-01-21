@@ -68,7 +68,11 @@ class RegisterPromptsMeta(ABCMeta):
             raise Exception(f"Prompt {name} is not in the list of component types")
 
         ## Make sure that the prompt has a question_type class attribute & it's valid
-        if hasattr(cls, "question_type"):
+        if component_type == ComponentTypes.QUESTION_INSTRUCTIONS:
+            if not hasattr(cls, "question_type"):
+                raise PromptBadQuestionTypeError(
+                    "A Prompt's question_type must be one of QuestionType values"
+                )
             if not QuestionType.is_value_valid(cls.question_type):
                 acceptable_values = [item.value for item in QuestionType]
                 raise PromptBadQuestionTypeError(
