@@ -17,7 +17,7 @@ class AgentInstruction(PromptBase):
 
 
 class AgentInstructionLlama(PromptBase):
-    model = "llama-2-70b-chat"
+    model = "llama-2-70b-chat-hf"
     component_type = ComponentTypes.AGENT_INSTRUCTIONS
     default_instructions = textwrap.dedent(
         """\
