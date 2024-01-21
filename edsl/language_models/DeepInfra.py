@@ -9,7 +9,7 @@ from edsl import CONFIG
 api_key = CONFIG.get("DEEP_INFRA_API_KEY")
 
 
-def create_deep_infra_model(model_name, url) -> LanguageModel:
+def create_deep_infra_model(model_name, url, model_class_name) -> LanguageModel:
     class LLM(LanguageModel):
         _model_ = model_name
         _parameters_ = {
@@ -51,6 +51,8 @@ def create_deep_infra_model(model_name, url) -> LanguageModel:
 
         def parse_response(self, raw_response: dict[str, Any]) -> str:
             return raw_response["results"][0]["generated_text"]
+
+    LLM.__name__ = model_class_name
 
     return LLM
 
