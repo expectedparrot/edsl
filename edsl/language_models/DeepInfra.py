@@ -20,7 +20,7 @@ def create_deep_infra_model(model_name, url, model_class_name) -> LanguageModel:
         )
 
     class LLM(LanguageModel):
-        _inference_service_ = InferenceServiceType.DEEP_INFRA
+        _inference_service_ = InferenceServiceType.DEEP_INFRA.value
         _model_ = model_name
         _parameters_ = {
             "temperature": 0.5,

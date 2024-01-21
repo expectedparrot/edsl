@@ -71,7 +71,7 @@ class RegisterPromptsMeta(ABCMeta):
         if component_type == ComponentTypes.QUESTION_INSTRUCTIONS:
             if not hasattr(cls, "question_type"):
                 raise PromptBadQuestionTypeError(
-                    "A Prompt's question_type must be one of QuestionType values"
+                    "A QuestionInstructions prompt must has a question_type value"
                 )
             if not QuestionType.is_value_valid(cls.question_type):
                 acceptable_values = [item.value for item in QuestionType]
