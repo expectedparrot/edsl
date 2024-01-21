@@ -8,8 +8,18 @@ from edsl import CONFIG
 
 api_key = CONFIG.get("DEEP_INFRA_API_KEY")
 
+from edsl.enums import LanguageModelType
+
 
 def create_deep_infra_model(model_name, url, model_class_name) -> LanguageModel:
+    if not LanguageModelType.is_value_valid(model_name):
+        acceptable_values = [item.value for item in LanguageModelType]
+        raise Exception(
+            f"""
+        A Prompt's model must be one of {LanguageModelType} values, which are 
+        currently {acceptable_values}. You passed {model_name}."""
+        )
+
     class LLM(LanguageModel):
         _model_ = model_name
         _parameters_ = {
