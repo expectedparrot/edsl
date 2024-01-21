@@ -17,8 +17,12 @@ from edsl.questions.descriptors import (
 
 from edsl.prompts.Prompt import Prompt
 
+from edsl.enums import QuestionType
+
 # from edsl.questions.question_registry import get_question_class
 from edsl.questions.AnswerValidatorMixin import AnswerValidatorMixin
+
+from edsl.exceptions.questions import QuestionMissingTypeError, QuestionBadTypeError
 
 
 class RegisterQuestionsMeta(ABCMeta):
@@ -28,6 +32,21 @@ class RegisterQuestionsMeta(ABCMeta):
     def __init__(cls, name, bases, dct):
         super(RegisterQuestionsMeta, cls).__init__(name, bases, dct)
         if name != "Question":
+            ## Enforce that all questions have a question_type class attribute
+            ## and it comes from our enum of valid question types.
+            if not hasattr(cls, "question_type"):
+                raise QuestionMissingTypeError(
+                    "Question must have a question_type class attribute"
+                )
+
+            if not QuestionType.is_value_valid(cls.question_type):
+                acceptable_values = [item.value for item in QuestionType]
+                raise QuestionBadTypeError(
+                    f"""question_type must be one of {QuestionType} values, which are 
+                                currently {acceptable_values}"""
+                    ""
+                )
+
             RegisterQuestionsMeta._registry[name] = cls
 
     @classmethod
