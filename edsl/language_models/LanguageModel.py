@@ -24,7 +24,8 @@ class RegisterLanguageModelsMeta(ABCMeta):
 
     def __init__(cls, name, bases, dct):
         super(RegisterLanguageModelsMeta, cls).__init__(name, bases, dct)
-        if name != "LanguageModel":
+        # if name != "LanguageModel":
+        if (model_name := getattr(cls, "_model_", None)) is not None:
             RegisterLanguageModelsMeta.check_required_class_variables(
                 cls, RegisterLanguageModelsMeta.REQUIRED_CLASS_ATTRIBUTES
             )
@@ -45,8 +46,9 @@ class RegisterLanguageModelsMeta(ABCMeta):
                 required_parameters=[("raw_response", dict[str, Any])],
                 must_be_async=False,
             )
-
-            RegisterLanguageModelsMeta._registry[name] = cls
+            # breakpoint()
+            # RegisterLanguageModelsMeta._registry[name] = cls
+            RegisterLanguageModelsMeta._registry[model_name] = cls
 
     @classmethod
     def get_registered_classes(cls):
@@ -181,6 +183,8 @@ class RegisterLanguageModelsMeta(ABCMeta):
 
 class LanguageModel(ABC, metaclass=RegisterLanguageModelsMeta):
     """ABC for LLM subclasses."""
+
+    _model_ = None
 
     def __init__(self, crud: CRUDOperations = CRUD, **kwargs):
         """
