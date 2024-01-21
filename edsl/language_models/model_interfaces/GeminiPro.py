@@ -8,9 +8,12 @@ from edsl import CONFIG
 
 google_key = CONFIG.get("GOOGLE_API_KEY")
 
+from edsl.enums import LanguageModelType, InferenceServiceType
+
 
 class GeminiPro(LanguageModel):
-    _model_ = "gemini-pro"
+    _inference_service_ = InferenceServiceType.GOOGLE.value
+    _model_ = LanguageModelType.GEMINI_PRO.value
     _parameters_ = {
         "temperature": 0.5,
         "topP": 1,

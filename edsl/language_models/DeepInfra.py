@@ -5,10 +5,9 @@ from typing import Any
 from edsl.language_models.LanguageModel import LanguageModel
 
 from edsl import CONFIG
+from edsl.enums import LanguageModelType, InferenceServiceType
 
 api_key = CONFIG.get("DEEP_INFRA_API_KEY")
-
-from edsl.enums import LanguageModelType
 
 
 def create_deep_infra_model(model_name, url, model_class_name) -> LanguageModel:
@@ -21,6 +20,7 @@ def create_deep_infra_model(model_name, url, model_class_name) -> LanguageModel:
         )
 
     class LLM(LanguageModel):
+        _inference_service_ = InferenceServiceType.DEEP_INFRA
         _model_ = model_name
         _parameters_ = {
             "temperature": 0.5,
