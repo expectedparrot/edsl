@@ -1,19 +1,24 @@
 import unittest
 import os
+import pytest
 import asyncio
 from contextlib import redirect_stdout
 from io import StringIO
 from typing import Any
 
+from edsl.exceptions.language_models import LanguageModelAttributeTypeError
 from edsl.language_models.LanguageModel import LanguageModel
 from edsl.data.crud import CRUDOperations
+
+from edsl.enums import LanguageModelType, InferenceServiceType
 
 
 class TestLanguageModel(unittest.TestCase):
     def setUp(self):
         class TestLanguageModelBad(LanguageModel):
-            _model_ = "fake model"
+            _model_ = LanguageModelType.TEST.value
             _parameters_ = {"temperature": 0.5}
+            _inference_service_ = InferenceServiceType.TEST.value
             pass
 
             async def async_execute_model_call(
@@ -29,8 +34,9 @@ class TestLanguageModel(unittest.TestCase):
 
         class TestLanguageModelGood(LanguageModel):
             use_cache = False
-            _model_ = "fake model"
+            _model_ = LanguageModelType.TEST.value
             _parameters_ = {"temperature": 0.5}
+            _inference_service_ = InferenceServiceType.TEST.value
 
             async def async_execute_model_call(
                 self, user_prompt: str, system_prompt: str
@@ -51,6 +57,24 @@ class TestLanguageModel(unittest.TestCase):
         test_path = f"sqlite:///{self.database_file_path}"
         d = Database(config={"EDSL_DATABASE_PATH": test_path})
         self.crud = CRUDOperations(d)
+
+    def test_instantiation(self):
+        class Mixin:
+            async def async_execute_model_call(
+                self, user_prompt: str, system_prompt: str
+            ) -> dict[str, Any]:
+                await asyncio.sleep(0.1)
+                return {"message": """{"answer": "Hello world"}"""}
+
+            def parse_response(self, raw_response: dict[str, Any]) -> str:
+                return raw_response["message"]
+
+        with pytest.raises(LanguageModelAttributeTypeError):
+
+            class TestLanguageModelGood(Mixin, LanguageModel):
+                _model_ = "fake model"
+                _parameters_ = {"temperature": 0.5}
+                _inference_service_ = InferenceServiceType.TEST.value
 
     def tearDown(self) -> None:
         os.remove(self.database_file_path)

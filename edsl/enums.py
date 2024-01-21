@@ -33,6 +33,7 @@ class LanguageModelType(EnumWithChecks):
     LLAMA_2_13B_CHAT_HF = "llama-2-13b-chat-hf"
     GEMINI_PRO = "gemini_pro"
     MIXTRAL_8x7B_INSTRUCT = "mixtral-8x7B-instruct-v0.1"
+    TEST = "test"
 
 
 class InferenceServiceType(EnumWithChecks):
@@ -41,3 +42,4 @@ class InferenceServiceType(EnumWithChecks):
     REPLICATE = "replicate"
     OPENAI = "openai"
     GOOGLE = "google"
+    TEST = "test"
