@@ -27,11 +27,11 @@ class QuestionType(EnumWithChecks):
 
 
 class LanguageModelType(EnumWithChecks):
-    GPT4 = "gpt-4-1106-preview"
+    GPT_4 = "gpt-4-1106-preview"
     LLAMA_2_70B_CHAT_HF = "llama-2-70b-chat-hf"
     GEMINI_PRO = "gemini_pro"
     MIXTRAL = "mixtral"
-    GPT35Turbo = "gpt-3.5-turbo"
+    GPT_3_5_Turbo = "gpt-3.5-turbo"
 
 
 class InferenceService(EnumWithChecks):
