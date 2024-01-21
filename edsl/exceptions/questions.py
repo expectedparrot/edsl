@@ -24,3 +24,11 @@ class QuestionSerializationError(QuestionErrors):
 
 class QuestionScenarioRenderError(QuestionErrors):
     pass
+
+
+class QuestionMissingTypeError(QuestionErrors):
+    pass
+
+
+class QuestionBadTypeError(QuestionErrors):
+    pass
