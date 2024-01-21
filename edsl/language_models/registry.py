@@ -10,11 +10,8 @@ import edsl.language_models.model_interfaces as model_interfaces
 # Dynamically import all modules in the model_interfaces package
 for loader, module_name, is_pkg in pkgutil.iter_modules(model_interfaces.__path__):
     full_module_name = f"{model_interfaces.__name__}.{module_name}"
-    print(full_module_name)
-    ## TODO: Don't relay on the LLM think in the create model
     if not is_pkg:
         module = importlib.import_module(full_module_name)
-        print(module)
         globals().update(
             {
                 name: getattr(module, name)

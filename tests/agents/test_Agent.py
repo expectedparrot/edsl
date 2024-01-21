@@ -1,7 +1,7 @@
 import json
 import pytest
 from unittest.mock import patch
-from edsl.agents import Agent
+from edsl.agents.Agent import Agent
 from edsl.exceptions import (
     AgentCombinationError,
     AgentRespondedWithBadJSONError,
@@ -10,6 +10,17 @@ from edsl.jobs import Jobs
 from edsl.language_models import LanguageModelOpenAIThreeFiveTurbo
 from edsl.questions import QuestionMultipleChoice
 from edsl.surveys import Survey
+
+import doctest
+
+# import edsl.agents.Agent
+
+
+# def test_doctests():
+#     doctest.testmod(edsl.agents.Agent)
+
+
+from edsl.agents.Agent import Agent as Agent
 
 
 def test_agent_creation_valid():
