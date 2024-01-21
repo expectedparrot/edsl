@@ -26,15 +26,15 @@ class QuestionType(EnumWithChecks):
 # https://huggingface.co/meta-llama/Llama-2-70b-chat-hf
 
 
-class LanguageModel(Enum):
-    GPT4 = "gpt4"
+class LanguageModelType(EnumWithChecks):
+    GPT4 = "gpt-4-1106-preview"
     LLAMA_2_70B_CHAT_HF = "llama-2-70b-chat-hf"
     GEMINI_PRO = "gemini_pro"
     MIXTRAL = "mixtral"
-    GPT35Turbo = "gpt35turbo"
+    GPT35Turbo = "gpt-3.5-turbo"
 
 
-class InferenceService(Enum):
+class InferenceService(EnumWithChecks):
     BEDROCK = "bedrock"
     DEEP_INFRA = "deep_infra"
     REPLICATE = "replicate"

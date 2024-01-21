@@ -166,27 +166,6 @@ from edsl.prompts.library.question_list import *
 
 
 if __name__ == "__main__":
-    pass
+    import doctest
 
-    print(RegisterPromptsMeta._registry)
-
-    matches = RegisterPromptsMeta.get_classes(component_type="agent_instructions")
-
-    # results = get_classes(
-    #     component_type="question_instructions",
-    #     question_type="multiple_choice",
-    #     model="gpt-4-1106-preview",
-    # )
-    # assert results == [MultipleChoice, MultipleChoiceTurbo]
-
-    # results = get_classes(
-    #     component_type="question_instructions",
-    #     question_type="multiple_choice",
-    #     model="gpt-3.5-turbo",
-    # )
-    # assert results == [MultipleChoiceTurbo, MultipleChoice]
-
-    # results = get_classes(
-    #     component_type="agent_instructions", optionflags=doctest.ELLIPSIS
-    # )
-    # assert results == [AgentInstruction]
+    doctest.testmod()
