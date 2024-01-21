@@ -1,7 +1,20 @@
-from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod, ABCMeta
 
 
-class Base(ABC):
+class RegisterSubclassesMeta(ABCMeta):
+    _registry = {}
+
+    def __init__(cls, name, bases, nmspc):
+        super(RegisterSubclassesMeta, cls).__init__(name, bases, nmspc)
+        if cls.__name__ != "Base":
+            RegisterSubclassesMeta._registry[cls.__name__] = cls
+
+    @staticmethod
+    def get_registry():
+        return dict(RegisterSubclassesMeta._registry)
+
+
+class Base(ABC, metaclass=RegisterSubclassesMeta):
     @abstractmethod
     def example(self):
         pass
