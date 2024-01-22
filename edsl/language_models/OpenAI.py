@@ -25,14 +25,17 @@ def create_openai_model(model_name, model_class_name) -> LanguageModel:
             "presence_penalty": 0,
             "use_cache": True,
         }
-
-        client = AsyncOpenAI()
+        client = None
 
         async def async_execute_model_call(
             self, user_prompt: str, system_prompt: str = ""
         ) -> dict[str, Any]:
             """Calls the OpenAI API and returns the API response."""
-            openai.api_key = CONFIG.get("OPENAI_API_KEY")
+            # if client is not set, set it to AsyncOpenAI()
+            if not self.client:
+                openai.api_key = CONFIG.get("OPENAI_API_KEY")
+                self.client = AsyncOpenAI()
+
             response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=[
