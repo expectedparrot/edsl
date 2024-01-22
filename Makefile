@@ -42,6 +42,7 @@ integration: ## Run integration tests via pytest **consumes API credits**
 	make integration-jobs
 	make integration-runners
 	make integration-questions
+	make integration-models
 	
 integration-memory: ## Run integration tests via pytest **consumes API credits**
 	pytest -v integration/test_memory.py
@@ -54,6 +55,9 @@ integration-runners: ## Run integration tests via pytest **consumes API credits*
 
 integration-questions: 
 	pytest -v integration/test_questions.py
+
+integration-models: 
+	pytest -v integration/test_models.py
 
 lint: ## Run code linters (flake8, pylint, mypy).
 	mypy edsl

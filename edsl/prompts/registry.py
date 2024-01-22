@@ -11,6 +11,13 @@ from edsl.prompts.prompt_config import (
     NEGATIVE_INFINITY,
 )
 
+from edsl.enums import QuestionType, LanguageModelType
+
+from edsl.exceptions.prompts import (
+    PromptBadQuestionTypeError,
+    PromptBadLanguageModelTypeError,
+)
+
 
 class RegisterPromptsMeta(ABCMeta):
     "Metaclass to register prompts"
@@ -60,9 +67,32 @@ class RegisterPromptsMeta(ABCMeta):
         ) not in ComponentTypes:
             raise Exception(f"Prompt {name} is not in the list of component types")
 
+        ## Make sure that the prompt has a question_type class attribute & it's valid
+        if component_type == ComponentTypes.QUESTION_INSTRUCTIONS:
+            if not hasattr(cls, "question_type"):
+                raise PromptBadQuestionTypeError(
+                    "A QuestionInstructions prompt must has a question_type value"
+                )
+            if not QuestionType.is_value_valid(cls.question_type):
+                acceptable_values = [item.value for item in QuestionType]
+                raise PromptBadQuestionTypeError(
+                    f"""
+                A Prompt's question_type must be one of {QuestionType} values, which are 
+                currently {acceptable_values}. You passed {cls.question_type}."""
+                )
+
+        ## Make sure that if the prompt has a model class attribute, it's valid
+        if hasattr(cls, "model"):
+            if not LanguageModelType.is_value_valid(cls.model):
+                acceptable_values = [item.value for item in LanguageModelType]
+                raise PromptBadLanguageModelTypeError(
+                    f"""
+                A Prompt's model must be one of {LanguageModelType} values, which are 
+                currently {acceptable_values}. You passed {cls.model}."""
+                )
+
         key = cls._create_prompt_class_key(dct, component_type)
         cls.data = key
-        # print(f"Key is {key} for {name}")
         RegisterPromptsMeta._prompts_by_component_type[component_type].append(cls)
 
     @classmethod

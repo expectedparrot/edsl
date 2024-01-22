@@ -3,6 +3,8 @@ from edsl.exceptions import QuestionScenarioRenderError
 from edsl.questions import QuestionFreeText
 from edsl.surveys import Survey
 
+from edsl.exceptions.questions import QuestionMissingTypeError, QuestionBadTypeError
+
 valid_question = {
     "question_text": "How are you?",
     "allow_nonresponse": False,
@@ -19,6 +21,33 @@ valid_question_three = {
     "question_text": "What is the capital of {{country}}",
     "question_name": "capital",
 }
+
+
+def test_meta():
+    from edsl.questions import Question
+
+    class ABCMixins:
+        def validate_answer(self, answer: dict[str, str]):
+            pass
+
+        def validate_response(self, response):
+            pass
+
+        def translate_answer_code_to_answer(self):
+            pass
+
+        def simulate_answer(self, human_readable=True) -> dict:
+            pass
+
+    with pytest.raises(QuestionMissingTypeError):
+
+        class BadQuestion(ABCMixins, Question):
+            pass
+
+    with pytest.raises(QuestionBadTypeError):
+
+        class BadQuestion(ABCMixins, Question):
+            question_type = "poop"
 
 
 def test_Question_properties(capsys):

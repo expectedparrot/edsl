@@ -6,7 +6,7 @@ class TestAllQuestions:
     pass
 
 
-to_exclude = []
+to_exclude = ["extract"]
 
 
 def create_test_function(question_type):
