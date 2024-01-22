@@ -1,9 +1,7 @@
 from edsl.language_models.DeepInfra import create_deep_infra_model
-
 from edsl.enums import LanguageModelType
 
 model_name = LanguageModelType.LLAMA_2_70B_CHAT_HF.value
-
 url = "https://api.deepinfra.com/v1/inference/meta-llama/Llama-2-70b-chat-hf"
 
 LlamaTwo70B = create_deep_infra_model(
