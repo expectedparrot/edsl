@@ -1,8 +1,4 @@
-import pytest
-from edsl.questions.question_registry import get_question_class, QuestionBase
 from edsl import Model
-from edsl.questions import QuestionMultipleChoice
-
 from edsl.questions import QuestionMultipleChoice
 
 q = QuestionMultipleChoice(
@@ -18,16 +14,12 @@ class TestAllModels:
 
 def create_test_function(model):
     @staticmethod
-    def test_func():
-        print(f"Now running: {model}")
+    def model_test_func():
         m = Model(model, use_cache=False)
-        try:
-            results = q.by(m).run()
-            results.select("answer.*", "model.model").print()
-        except Exception as e:
-            pytest.fail(f"Error running {model}: {e}")
+        results = q.by(m).run()
+        results.select("answer.*", "model.model").print()
 
-    return test_func
+    return model_test_func
 
 
 from edsl.enums import LanguageModelType
@@ -36,10 +28,6 @@ to_exclude = [LanguageModelType.LLAMA_2_13B_CHAT_HF.value]
 
 # Dynamically adding test methods for each question type
 for model in (model for model in Model.available() if model not in to_exclude):
-    test_method_name = f"test_{model}"
-    test_method = create_test_function(model)
-    setattr(TestAllModels, test_method_name, test_method)
-
-# for model in Model.available():
-#     m = Model(model)
-#     results = q.by(m).run()
+    model_test_method_name = f"test_model_{model}"
+    model_test_method = create_test_function(model)
+    setattr(TestAllModels, model_test_method_name, model_test_method)

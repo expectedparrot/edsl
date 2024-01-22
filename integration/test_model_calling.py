@@ -1,12 +1,8 @@
 import random
 import time
-
 from edsl import Model
-
-from edsl.surveys import Survey
 from edsl.questions import QuestionMultipleChoice
 from edsl.scenarios.ScenarioList import ScenarioList
-from edsl.language_models import LanguageModelOpenAIThreeFiveTurbo
 
 async_time = 1000
 verbose = False
@@ -37,7 +33,7 @@ def test_async():
     global async_time
     job = get_job()
     start = time.time()
-    results = job.run(method="asyncio")
+    results = job.run()
     end = time.time()
     async_time = end - start
     if verbose:
