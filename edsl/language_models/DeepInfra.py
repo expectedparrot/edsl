@@ -1,13 +1,9 @@
 import aiohttp
 import json
 from typing import Any
-
-from edsl.language_models.LanguageModel import LanguageModel
-
 from edsl import CONFIG
 from edsl.enums import LanguageModelType, InferenceServiceType
-
-api_key = CONFIG.get("DEEP_INFRA_API_KEY")
+from edsl.language_models.LanguageModel import LanguageModel
 
 
 def create_deep_infra_model(model_name, url, model_class_name) -> LanguageModel:
@@ -35,7 +31,7 @@ def create_deep_infra_model(model_name, url, model_class_name) -> LanguageModel:
             self, user_prompt: str, system_prompt: str = ""
         ) -> dict[str, Any]:
             self.url = url
-            self.api_token = api_key
+            self.api_token = CONFIG.get("DEEP_INFRA_API_KEY")
             headers = {
                 "Content-Type": "application/json",
                 "Authorization": f"Token {self.api_token}",

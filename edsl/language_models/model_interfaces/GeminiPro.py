@@ -1,13 +1,8 @@
 import aiohttp
 import json
 from typing import Any
-
-from edsl.language_models.LanguageModel import LanguageModel
-
 from edsl import CONFIG
-
-google_key = CONFIG.get("GOOGLE_API_KEY")
-
+from edsl.language_models.LanguageModel import LanguageModel
 from edsl.enums import LanguageModelType, InferenceServiceType
 
 
@@ -26,6 +21,7 @@ class GeminiPro(LanguageModel):
     async def async_execute_model_call(
         self, user_prompt: str, system_prompt: str = ""
     ) -> dict[str, Any]:
+        google_key = CONFIG.get("GOOGLE_API_KEY")
         combined_prompt = user_prompt + system_prompt
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={google_key}"
         headers = {"Content-Type": "application/json"}
