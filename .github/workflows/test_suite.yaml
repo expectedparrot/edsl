@@ -18,8 +18,9 @@ jobs:
         python-version: ["3.11", "3.10", "3.9"]
     env:
       EDSL_RUN_MODE: development
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.FAKE_API_KEY }}
+      GOOGLE_API_KEY: ${{ secrets.FAKE_API_KEY }}
+      DEEP_INFRA_API_KEY: ${{ secrets.FAKE_API_KEY }}
       POETRY_VERSION: "1.7.1"
     steps:
       - uses: actions/checkout@v3

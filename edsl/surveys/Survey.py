@@ -347,6 +347,12 @@ class Survey(SurveyExportMixin, Base):
         """Returns the question object given the question index"""
         return self._questions[index]
 
+    def __eq__(self, other):
+        """Returns True if the two surveys have the same to_dict."""
+        if not isinstance(other, Survey):
+            return False
+        return self.to_dict() == other.to_dict()
+
     ###################
     # SERIALIZATION METHODS
     ###################

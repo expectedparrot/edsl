@@ -16,18 +16,40 @@ from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
 from edsl.language_models.repair import repair
 from typing import get_type_hints
 
+from edsl.exceptions.language_models import LanguageModelAttributeTypeError
+
+from edsl.enums import LanguageModelType, InferenceServiceType
+
 
 class RegisterLanguageModelsMeta(ABCMeta):
     "Metaclass to register output elements in a registry i.e., those that have a parent"
     _registry = {}  # Initialize the registry as a dictionary
-    REQUIRED_CLASS_ATTRIBUTES = ["_model_", "_parameters_"]
+    REQUIRED_CLASS_ATTRIBUTES = ["_model_", "_parameters_", "_inference_service_"]
 
     def __init__(cls, name, bases, dct):
         super(RegisterLanguageModelsMeta, cls).__init__(name, bases, dct)
-        if name != "LanguageModel":
+        # if name != "LanguageModel":
+        if (model_name := getattr(cls, "_model_", None)) is not None:
             RegisterLanguageModelsMeta.check_required_class_variables(
                 cls, RegisterLanguageModelsMeta.REQUIRED_CLASS_ATTRIBUTES
             )
+
+            ## Check that model name is valid
+            if not LanguageModelType.is_value_valid(model_name):
+                acceptable_values = [item.value for item in LanguageModelType]
+                raise LanguageModelAttributeTypeError(
+                    f"""A LanguageModel's model must be one of {LanguageModelType} values, which are
+                    {acceptable_values}. You passed {model_name}."""
+                )
+
+            if not InferenceServiceType.is_value_valid(
+                inference_service := getattr(cls, "_inference_service_", None)
+            ):
+                acceptable_values = [item.value for item in InferenceServiceType]
+                raise LanguageModelAttributeTypeError(
+                    f"""A LanguageModel's model must have an _inference_service_ value from 
+                    {acceptable_values}. You passed {inference_service}."""
+                )
 
             # LanguageModel children have to implement the async_execute_model_call method
             RegisterLanguageModelsMeta.verify_method(
@@ -45,8 +67,9 @@ class RegisterLanguageModelsMeta(ABCMeta):
                 required_parameters=[("raw_response", dict[str, Any])],
                 must_be_async=False,
             )
-
-            RegisterLanguageModelsMeta._registry[name] = cls
+            # breakpoint()
+            # RegisterLanguageModelsMeta._registry[name] = cls
+            RegisterLanguageModelsMeta._registry[model_name] = cls
 
     @classmethod
     def get_registered_classes(cls):
@@ -181,6 +204,8 @@ class RegisterLanguageModelsMeta(ABCMeta):
 
 class LanguageModel(ABC, metaclass=RegisterLanguageModelsMeta):
     """ABC for LLM subclasses."""
+
+    _model_ = None
 
     def __init__(self, crud: CRUDOperations = CRUD, **kwargs):
         """
@@ -339,7 +364,7 @@ class LanguageModel(ABC, metaclass=RegisterLanguageModelsMeta):
         except json.JSONDecodeError as e:
             print("Could not load JSON. Trying to repair.")
             print(response)
-            dict_response, success = repair(response, str(e))
+            dict_response, success = await repair(response, str(e))
             if not success:
                 raise Exception("Even the repair failed.")
         return dict_response
