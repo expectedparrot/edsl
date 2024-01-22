@@ -1,14 +1,10 @@
 import openai
 import re
 from typing import Any
-
 from edsl import CONFIG
-from edsl.language_models import LanguageModel
-
-from edsl.enums import LanguageModelType, InferenceServiceType
-
-openai.api_key = CONFIG.get("OPENAI_API_KEY")
 from openai import AsyncOpenAI
+from edsl.enums import LanguageModelType, InferenceServiceType
+from edsl.language_models import LanguageModel
 
 LanguageModelType.GPT_4.value
 
@@ -36,6 +32,7 @@ def create_openai_model(model_name, model_class_name) -> LanguageModel:
             self, user_prompt: str, system_prompt: str = ""
         ) -> dict[str, Any]:
             """Calls the OpenAI API and returns the API response."""
+            openai.api_key = CONFIG.get("OPENAI_API_KEY")
             response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=[
