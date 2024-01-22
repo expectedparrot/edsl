@@ -1,5 +1,6 @@
 import os
 from dotenv import load_dotenv, find_dotenv
+from getpass import getpass
 from typing import Any
 from edsl import BASE_DIR
 from edsl.exceptions import (
@@ -78,11 +79,15 @@ class Config:
             print(f"1. Set it as a regular environment variable")
             print(f"2. Create a .env file and add `{env_var}=...` to it")
             print(f"3. Enter the value below and press enter: ")
-            value = input()
+            value = getpass()
             value = value.strip()
             setattr(self, env_var, value)
             os.environ[env_var] = value
-            print(f"Environment variable {env_var} set successfully to {value}.")
+            if len(value) <= 4:
+                masked_value = value
+            else:
+                masked_value = value[:2] + "*" * (len(value) - 4) + value[-2:]
+            print(f"Environment variable {env_var} set successfully to {masked_value}.")
 
     def _validate_attributes(self):
         """Validates that all attributes are allowed values."""
