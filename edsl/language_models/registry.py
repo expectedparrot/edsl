@@ -20,7 +20,6 @@ for loader, module_name, is_pkg in pkgutil.iter_modules(model_interfaces.__path_
             }
         )
 
-
 meta_class_registry = RegisterLanguageModelsMeta.get_registered_classes()
 
 # For compatibility with older versions of EDSL
