@@ -74,8 +74,10 @@ class Config:
         if self.EDSL_RUN_MODE == "development":
             raise MissingEnvironmentVariableError(f"Missing env var {env_var}.")
         else:
+            print("=" * 50)
             print(config.get("user_message"))
-            print(f"There are three ways you can do this:")
+            print(f"If you would like to skip this step, press enter.")
+            print(f"If you would like to provide your key, do one of the following:")
             print(f"1. Set it as a regular environment variable")
             print(f"2. Create a .env file and add `{env_var}=...` to it")
             print(f"3. Enter the value below and press enter: ")
@@ -83,11 +85,18 @@ class Config:
             value = value.strip()
             setattr(self, env_var, value)
             os.environ[env_var] = value
-            if len(value) <= 4:
-                masked_value = value
+            if value:
+                if len(value) <= 4:
+                    masked_value = value
+                else:
+                    masked_value = value[:2] + "*" * (len(value) - 4) + value[-2:]
+                print(
+                    f"Environment variable {env_var} set successfully to {masked_value}."
+                )
             else:
-                masked_value = value[:2] + "*" * (len(value) - 4) + value[-2:]
-            print(f"Environment variable {env_var} set successfully to {masked_value}.")
+                print(f"Skipping setting environment variable {env_var}.")
+            print("=" * 50)
+            print("\n")
 
     def _validate_attributes(self):
         """Validates that all attributes are allowed values."""
