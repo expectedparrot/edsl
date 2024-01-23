@@ -26,12 +26,12 @@ def create_deep_infra_model(model_name, url, model_class_name) -> LanguageModel:
             "stopSequences": [],
             "use_cache": True,
         }
+        api_token = CONFIG.get("DEEP_INFRA_API_KEY")
 
         async def async_execute_model_call(
             self, user_prompt: str, system_prompt: str = ""
         ) -> dict[str, Any]:
             self.url = url
-            self.api_token = CONFIG.get("DEEP_INFRA_API_KEY")
             headers = {
                 "Content-Type": "application/json",
                 "Authorization": f"Token {self.api_token}",
