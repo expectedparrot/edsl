@@ -54,9 +54,14 @@ class Config:
         self._validate_attributes()
 
     def _load_dotenv(self) -> None:
-        """Loads environment variables from the .env file. If the env var TESTING is not set, the dotenv variables will override any existing environment variables."""
-        override = not bool(os.getenv("TESTING"))
-        _ = load_dotenv(dotenv_path=find_dotenv(), override=override)
+        """
+        Loads environment variables from the .env file.
+        Overrides existing env vars, unless the env var EDSL_TESTING="True".
+        """
+        override = True
+        if os.getenv("EDSL_TESTING") == "True":
+            override = False
+        _ = load_dotenv(dotenv_path=find_dotenv(usecwd=True), override=override)
 
     def _set_env_vars(self) -> None:
         """Sets env vars as Config class attributes. If an env var is not set and has a default value in the CONFIG_MAP, sets it to the default value."""
@@ -81,7 +86,11 @@ class Config:
             print(f"1. Set it as a regular environment variable")
             print(f"2. Create a .env file and add `{env_var}=...` to it")
             print(f"3. Enter the value below and press enter: ")
-            value = getpass()
+            try:
+                value = getpass()
+            # in environments where getpass() is not supported, like Colab use input()
+            except Exception as e:
+                value = input()
             value = value.strip()
             setattr(self, env_var, value)
             os.environ[env_var] = value
