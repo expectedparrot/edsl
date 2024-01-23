@@ -27,3 +27,4 @@ __pycache__
 htmlcov
 # Virtual environment files
 .venv
+venv

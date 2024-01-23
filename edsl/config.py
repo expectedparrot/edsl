@@ -86,7 +86,11 @@ class Config:
             print(f"1. Set it as a regular environment variable")
             print(f"2. Create a .env file and add `{env_var}=...` to it")
             print(f"3. Enter the value below and press enter: ")
-            value = getpass()
+            try:
+                value = getpass()
+            # in environments where getpass() is not supported, like Colab use input()
+            except Exception as e:
+                value = input()
             value = value.strip()
             setattr(self, env_var, value)
             os.environ[env_var] = value
