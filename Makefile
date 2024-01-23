@@ -20,7 +20,7 @@ clean: ## Cleans non-essential files and folders
 	[ ! -d .venv ] || rm -rf .venv
 	[ ! -d htmlcov ] || rm -rf htmlcov
 	[ ! -d dist ] || rm -rf dist
-	[ ! -f edsl/data/database.db ] || rm edsl/data/database.db
+	[ ! -f edsl/edsl_cache.db ] || rm edsl/edsl_cache.db
 	find . -type d -name '__pycache__' -exec rm -rf {} +
 	find . -type d -name '.pytest_cache' -exec rm -rf {} +
 
