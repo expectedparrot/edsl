@@ -1,8 +1,8 @@
 import os
+import sys
 from dotenv import load_dotenv, find_dotenv
 from getpass import getpass
 from typing import Any
-from edsl import BASE_DIR
 from edsl.exceptions import (
     InvalidEnvironmentVariableError,
     MissingEnvironmentVariableError,
@@ -86,10 +86,16 @@ class Config:
             print(f"1. Set it as a regular environment variable")
             print(f"2. Create a .env file and add `{env_var}=...` to it")
             print(f"3. Enter the value below and press enter: ")
-            try:
-                value = getpass()
-            # in environments where getpass() is not supported, like Colab use input()
-            except Exception as e:
+            # if the script is running in a terminal
+            if sys.stdout.isatty():
+                # try to use get_pass to mask the input
+                try:
+                    value = getpass()
+                # if you fail, use input instead
+                except Exception as e:
+                    value = input()
+            # otherwise use input
+            else:
                 value = input()
             value = value.strip()
             setattr(self, env_var, value)
