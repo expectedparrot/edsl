@@ -1,5 +1,6 @@
 import os
 from dotenv import load_dotenv, find_dotenv
+from getpass import getpass
 from typing import Any
 from edsl import BASE_DIR
 from edsl.exceptions import (
@@ -14,7 +15,7 @@ CONFIG_MAP = {
         "user_message": None,
     },
     "EDSL_DATABASE_PATH": {
-        "default": f"sqlite:///{os.path.join(BASE_DIR, 'data/database.db')}",
+        "default": f"sqlite:///{os.path.join(os.getcwd(), 'edsl_cache.db')}",
         "allowed": None,
         "user_message": None,
     },
@@ -73,16 +74,29 @@ class Config:
         if self.EDSL_RUN_MODE == "development":
             raise MissingEnvironmentVariableError(f"Missing env var {env_var}.")
         else:
+            print("=" * 50)
             print(config.get("user_message"))
-            print(f"There are three ways you can do this:")
+            print(f"If you would like to skip this step, press enter.")
+            print(f"If you would like to provide your key, do one of the following:")
             print(f"1. Set it as a regular environment variable")
             print(f"2. Create a .env file and add `{env_var}=...` to it")
             print(f"3. Enter the value below and press enter: ")
-            value = input()
+            value = getpass()
             value = value.strip()
             setattr(self, env_var, value)
             os.environ[env_var] = value
-            print(f"Environment variable {env_var} set successfully to {value}.")
+            if value:
+                if len(value) <= 4:
+                    masked_value = value
+                else:
+                    masked_value = value[:2] + "*" * (len(value) - 4) + value[-2:]
+                print(
+                    f"Environment variable {env_var} set successfully to {masked_value}."
+                )
+            else:
+                print(f"Skipping setting environment variable {env_var}.")
+            print("=" * 50)
+            print("\n")
 
     def _validate_attributes(self):
         """Validates that all attributes are allowed values."""

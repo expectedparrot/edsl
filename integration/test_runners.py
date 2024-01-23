@@ -1,13 +1,11 @@
 import random
 import time
-
+from edsl.language_models import LanguageModelOpenAIThreeFiveTurbo
 from edsl.questions import QuestionMultipleChoice
 from edsl.scenarios.ScenarioList import ScenarioList
-from edsl.language_models import LanguageModelOpenAIThreeFiveTurbo
 
 serial_time = 1000
 async_time = 1000
-
 verbose = False
 
 

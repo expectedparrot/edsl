@@ -11,23 +11,19 @@ to_exclude = ["extract"]
 
 def create_test_function(question_type):
     @staticmethod
-    def test_func():
-        print(f"Now running: {question_type}")
+    def question_test_func():
         cls = get_question_class(question_type)
-        try:
-            if cls.question_type in to_exclude:
-                pass
-            else:
-                results = cls.example().run()
-                assert results is not None  # or any other assertion as needed
-        except Exception as e:
-            pytest.fail(f"Error running {question_type}: {e}")
+        if cls.question_type in to_exclude:
+            pass
+        else:
+            results = cls.example().run()
+            assert results is not None
 
-    return test_func
+    return question_test_func
 
 
 # Dynamically adding test methods for each question type
 for question_type in QuestionBase.available():
-    test_method_name = f"test_{question_type}"
-    test_method = create_test_function(question_type)
-    setattr(TestAllQuestions, test_method_name, test_method)
+    question_test_method_name = f"test_question_{question_type}"
+    question_test_method = create_test_function(question_type)
+    setattr(TestAllQuestions, question_test_method_name, question_test_method)
