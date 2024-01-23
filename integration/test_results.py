@@ -1,4 +1,4 @@
-from edsl.language_models.LanguageModelOpenAIFour import LanguageModelOpenAIFour
+from edsl.language_models import LanguageModelOpenAIFour
 from edsl.questions import QuestionMultipleChoice, QuestionList
 from edsl.surveys import Survey
 

@@ -17,13 +17,13 @@ class GeminiPro(LanguageModel):
         "stopSequences": [],
         "use_cache": True,
     }
+    api_token = CONFIG.get("GOOGLE_API_KEY")
 
     async def async_execute_model_call(
         self, user_prompt: str, system_prompt: str = ""
     ) -> dict[str, Any]:
-        google_key = CONFIG.get("GOOGLE_API_KEY")
         combined_prompt = user_prompt + system_prompt
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={google_key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={self.api_token}"
         headers = {"Content-Type": "application/json"}
         data = {
             "contents": [{"parts": [{"text": combined_prompt}]}],

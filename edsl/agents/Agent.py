@@ -1,9 +1,6 @@
 from __future__ import annotations
-import asyncio
 import copy
-import json
 from typing import Any, Callable, Optional, Union, Dict
-from abc import ABC, abstractmethod
 
 from edsl.Base import Base
 
@@ -98,8 +95,15 @@ class Agent(Base):
     ################
     def __add__(self, other_agent: Agent = None) -> Agent:
         """
-        Combines two agents by joining their traits
-        - The agents must not have overlapping traits.
+        Combines two agents by joining their traits.The agents must not have overlapping traits.
+        >>> a1 = Agent(traits = {"age": 10})
+        >>> a2 = Agent(traits = {"height": 5.5})
+        >>> a1 + a2
+        Agent(traits = {'age': 10, 'height': 5.5})
+        >>> a1 + a1
+        Traceback (most recent call last):
+        ...
+        edsl.exceptions.agents.AgentCombinationError: The agents have overlapping traits: {'age'}.
         """
         if other_agent is None:
             return self
@@ -113,7 +117,15 @@ class Agent(Base):
             return new_agent
 
     def __eq__(self, other: Agent) -> bool:
-        """Checks if two agents are equal. Only checks the traits."""
+        """Checks if two agents are equal. Only checks the traits.
+        >>> a1 = Agent(traits = {"age": 10})
+        >>> a2 = Agent(traits = {"age": 10})
+        >>> a1 == a2
+        True
+        >>> a3 = Agent(traits = {"age": 11})
+        >>> a1 == a3
+        False
+        """
         return self.data == other.data
 
     def __repr__(self):
@@ -177,7 +189,11 @@ class Agent(Base):
 
     @classmethod
     def example(cls) -> Agent:
-        """Returns an example agent."""
+        """Returns an example agent.
+
+        >>> Agent.example()
+        Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})
+        """
         return cls(traits={"age": 22, "hair": "brown", "height": 5.5})
 
     def code(self) -> str:
@@ -211,4 +227,6 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import doctest
+
+    doctest.testmod()
