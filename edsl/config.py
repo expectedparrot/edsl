@@ -15,7 +15,7 @@ CONFIG_MAP = {
         "user_message": None,
     },
     "EDSL_DATABASE_PATH": {
-        "default": f"sqlite:///{os.path.join(BASE_DIR, 'data/database.db')}",
+        "default": f"sqlite:///{os.path.join(os.getcwd(), 'edsl_cache.db')}",
         "allowed": None,
         "user_message": None,
     },
