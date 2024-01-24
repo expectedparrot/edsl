@@ -251,4 +251,8 @@ if __name__ == "__main__":
     from edsl.questions import QuestionMultipleChoice as q
 
     i = agent._create_invigilator(question=q.example())
-    print(i.construct_system_prompt())
+    system_prompt = i.construct_system_prompt()
+    assert True == all([key in system_prompt for key in agent.traits.keys()])
+
+    user_prompt = i.construct_user_prompt()
+    assert q.example().question_text in user_prompt
