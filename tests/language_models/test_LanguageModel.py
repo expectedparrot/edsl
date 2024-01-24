@@ -50,7 +50,7 @@ class TestLanguageModel(unittest.TestCase):
         self.good_class = TestLanguageModelGood
 
         import os
-        from edsl.config import BASE_DIR
+        from edsl import BASE_DIR
         from edsl.data.crud import Database
 
         self.database_file_path = os.path.join(BASE_DIR, "data/test_database.db")

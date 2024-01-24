@@ -27,3 +27,8 @@ repos:
     hooks:
       - id: toml-sort-fix
         exclude: poetry.lock
+  - repo: https://github.com/srstevenson/nb-clean
+    rev: 3.1.0
+    hooks:
+      - id: nb-clean
+        args: [--preserve-cell-outputs, --remove-empty-cells]
