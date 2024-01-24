@@ -256,3 +256,15 @@ if __name__ == "__main__":
 
     user_prompt = i.construct_user_prompt()
     assert q.example().question_text in user_prompt
+
+    # Now with a scenario
+
+    from edsl.questions import QuestionFreeText
+
+    q = QuestionFreeText(
+        question_text="How are you today {{name}}?", question_name="name"
+    )
+    s = Scenario(name="Peter")
+    i = agent._create_invigilator(question=q, scenario=s)
+    user_prompt = i.construct_user_prompt()
+    assert "Peter" in user_prompt
