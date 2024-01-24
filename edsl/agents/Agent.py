@@ -66,6 +66,25 @@ class Agent(Base):
         """
         model = model or LanguageModelOpenAIThreeFiveTurbo(use_cache=True)
         scenario = scenario or Scenario()
+        invigilator = self._create_invigilator(
+            question, scenario, model, debug, memory_plan, current_answers
+        )
+        response = await invigilator.async_answer_question()
+        return response
+
+    answer_question = sync_wrapper(async_answer_question)
+
+    def _create_invigilator(
+        self,
+        question: Question,
+        scenario: Optional[Scenario] = None,
+        model: Optional[LanguageModel] = None,
+        debug: bool = False,
+        memory_plan: Optional[MemoryPlan] = None,
+        current_answers: Optional[dict] = None,
+    ):
+        model = model or LanguageModelOpenAIThreeFiveTurbo(use_cache=True)
+        scenario = scenario or Scenario()
 
         if debug:
             # use the question's simulate_answer method
@@ -85,10 +104,7 @@ class Agent(Base):
         invigilator = invigilator_class(
             self, question, scenario, model, memory_plan, current_answers
         )
-        response = await invigilator.async_answer_question()
-        return response
-
-    answer_question = sync_wrapper(async_answer_question)
+        return invigilator
 
     ################
     # Dunder Methods
@@ -230,3 +246,13 @@ if __name__ == "__main__":
     import doctest
 
     doctest.testmod()
+
+    agent = Agent(traits={"age": 10, "hair": "brown", "height": 5.5})
+    from edsl.questions import QuestionMultipleChoice as q
+
+    i = agent._create_invigilator(question=q.example())
+    system_prompt = i.construct_system_prompt()
+    assert True == all([key in system_prompt for key in agent.traits.keys()])
+
+    user_prompt = i.construct_user_prompt()
+    assert q.example().question_text in user_prompt

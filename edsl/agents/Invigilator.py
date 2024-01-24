@@ -53,8 +53,16 @@ class InvigilatorAI(InvigilatorBase):
             raise Exception("No applicable prompts found")
 
         agent_instructions = applicable_prompts[0]()
-        agent_instructions.render(self.agent.traits)
-        return agent_instructions
+        # print(f"Agent instructions are: {agent_instructions}")
+
+        ## agent_persona
+        applicable_prompts = get_classes(
+            component_type="agent_persona",
+            model=self.model.model,
+        )
+        persona_prompt = applicable_prompts[0]()
+        persona_prompt.render({"traits": self.agent.traits})
+        return agent_instructions + persona_prompt
 
     async def async_get_response(self, user_prompt: Prompt, system_prompt: Prompt):
         """Calls the LLM and gets a response. Used in the `answer_question` method."""
@@ -90,12 +98,17 @@ class InvigilatorAI(InvigilatorBase):
             )
         return question_prompt
 
-    def get_prompts(self) -> Dict[str, Prompt]:
-        """Gets the prompts for the LLM call."""
-        system_prompt = self.construct_system_prompt()
+    def construct_user_prompt(self) -> Prompt:
+        """Gets the user prompt for the LLM call."""
         user_prompt = self.get_question_instructions()
         if self.memory_plan is not None:
             user_prompt += self.create_memory_prompt(self.question.question_name)
+        return user_prompt
+
+    def get_prompts(self) -> Dict[str, Prompt]:
+        """Gets the prompts for the LLM call."""
+        system_prompt = self.construct_system_prompt()
+        user_prompt = self.construct_user_prompt()
         return {"user_prompt": user_prompt, "system_prompt": system_prompt}
 
     class Response(UserDict):

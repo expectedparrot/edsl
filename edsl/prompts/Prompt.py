@@ -155,6 +155,8 @@ class Prompt(PromptBase):
 
 from edsl.prompts.library.question_multiple_choice import *
 from edsl.prompts.library.agent_instructions import *
+from edsl.prompts.library.agent_persona import *
+
 from edsl.prompts.library.question_budget import *
 from edsl.prompts.library.question_checkbox import *
 from edsl.prompts.library.question_freetext import *
