@@ -17,7 +17,7 @@ class ComponentTypes(Enum):
     QUESTION_DATA = "question_data"
     QUESTION_INSTRUCTIONS = "question_instructions"
     AGENT_INSTRUCTIONS = "agent_instructions"
-    AGENT_DATA = "agent_data"
+    AGENT_PERSONA = "agent_persona"
     SURVEY_INSTRUCTIONS = "survey_instructions"
     SURVEY_DATA = "survey_data"
 

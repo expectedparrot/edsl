@@ -53,8 +53,16 @@ class InvigilatorAI(InvigilatorBase):
             raise Exception("No applicable prompts found")
 
         agent_instructions = applicable_prompts[0]()
-        agent_instructions.render(self.agent.traits)
-        return agent_instructions
+        # print(f"Agent instructions are: {agent_instructions}")
+
+        ## agent_persona
+        applicable_prompts = get_classes(
+            component_type="agent_persona",
+            model=self.model.model,
+        )
+        persona_prompt = applicable_prompts[0]()
+        persona_prompt.render({"traits": self.agent.traits})
+        return agent_instructions + persona_prompt
 
     async def async_get_response(self, user_prompt: Prompt, system_prompt: Prompt):
         """Calls the LLM and gets a response. Used in the `answer_question` method."""
