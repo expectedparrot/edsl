@@ -32,4 +32,3 @@ repos:
     hooks:
       - id: nbstripout
         name: nbstripout
-        files: examples/.*\.ipynb$
