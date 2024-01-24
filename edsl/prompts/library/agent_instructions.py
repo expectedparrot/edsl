@@ -13,7 +13,6 @@ class AgentInstruction(PromptBase):
         """\
     You are playing the role of a human answering survey questions.
     Do not break character.
-    Your traits are: {{traits}}
     """
     )
 
