@@ -32,4 +32,4 @@ repos:
     hooks:
       - id: nbstripout
         name: nbstripout
-        files: experimental/.*\.ipynb$
+        files: examples/.*\.ipynb$
