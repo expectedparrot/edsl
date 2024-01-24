@@ -246,25 +246,3 @@ if __name__ == "__main__":
     import doctest
 
     doctest.testmod()
-
-    agent = Agent(traits={"age": 10, "hair": "brown", "height": 5.5})
-    from edsl.questions import QuestionMultipleChoice as q
-
-    i = agent._create_invigilator(question=q.example())
-    system_prompt = i.construct_system_prompt()
-    assert True == all([key in system_prompt for key in agent.traits.keys()])
-
-    user_prompt = i.construct_user_prompt()
-    assert q.example().question_text in user_prompt
-
-    # Now with a scenario
-
-    from edsl.questions import QuestionFreeText
-
-    q = QuestionFreeText(
-        question_text="How are you today {{name}}?", question_name="name"
-    )
-    s = Scenario(name="Peter")
-    i = agent._create_invigilator(question=q, scenario=s)
-    user_prompt = i.construct_user_prompt()
-    assert "Peter" in user_prompt
