@@ -27,3 +27,9 @@ repos:
     hooks:
       - id: toml-sort-fix
         exclude: poetry.lock
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.6.1
+    hooks:
+      - id: nbstripout
+        name: nbstripout
+        files: experimental/.*\.ipynb$
