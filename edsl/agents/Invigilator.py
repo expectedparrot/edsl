@@ -86,6 +86,7 @@ class InvigilatorAI(InvigilatorBase):
         applicable_prompts = get_classes(
             component_type="question_instructions",
             question_type=self.question.question_type,
+            model=self.model.model,
         )
         ## Get the question instructions and renders with the scenario & question.data
         question_prompt = applicable_prompts[0]()
