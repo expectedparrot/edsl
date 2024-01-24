@@ -98,12 +98,17 @@ class InvigilatorAI(InvigilatorBase):
             )
         return question_prompt
 
-    def get_prompts(self) -> Dict[str, Prompt]:
-        """Gets the prompts for the LLM call."""
-        system_prompt = self.construct_system_prompt()
+    def construct_user_prompt(self) -> Prompt:
+        """Gets the user prompt for the LLM call."""
         user_prompt = self.get_question_instructions()
         if self.memory_plan is not None:
             user_prompt += self.create_memory_prompt(self.question.question_name)
+        return user_prompt
+
+    def get_prompts(self) -> Dict[str, Prompt]:
+        """Gets the prompts for the LLM call."""
+        system_prompt = self.construct_system_prompt()
+        user_prompt = self.construct_user_prompt()
         return {"user_prompt": user_prompt, "system_prompt": system_prompt}
 
     class Response(UserDict):
