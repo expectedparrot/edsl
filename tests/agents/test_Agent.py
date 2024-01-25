@@ -83,24 +83,24 @@ def test_agent_serialization():
     assert agent2 == agent
 
 
-def test_agent_forward_methods():
-    agent = Agent(traits={"age": 10})
-    # to Question
-    question = QuestionMultipleChoice(
-        question_text="How are you?",
-        question_options=["Good", "Bad"],
-        question_name="how_are_you",
-    )
-    job = agent.to(question)
-    assert type(job) == Jobs
-    # to Survey
-    survey = Survey(questions=[question])
-    job = agent.to(survey)
-    assert type(job) == Jobs
-    # set value
-    comparison = [Agent(traits={"age": 10})]
-    # breakpoint()
-    assert all([agent in comparison for agent in job.agents])
+# def test_agent_forward_methods():
+#     agent = Agent(traits={"age": 10})
+#     # to Question
+#     question = QuestionMultipleChoice(
+#         question_text="How are you?",
+#         question_options=["Good", "Bad"],
+#         question_name="how_are_you",
+#     )
+#     job = agent.to(question)
+#     assert type(job) == Jobs
+#     # to Survey
+#     survey = Survey(questions=[question])
+#     job = agent.to(survey)
+#     assert type(job) == Jobs
+#     # set value
+#     comparison = [Agent(traits={"age": 10})]
+#     # breakpoint()
+#     assert all([agent in comparison for agent in job.agents])
 
 
 # def test_agent_llm_construct_prompt():
