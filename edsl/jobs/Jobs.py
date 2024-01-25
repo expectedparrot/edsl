@@ -187,10 +187,7 @@ class Jobs:
     def _run_local(self, *args, **kwargs):
         """Runs the job locally."""
         JobRunner = JobsRunnersRegistry[self.job_runner_name](jobs=self)
-        try:
-            results = JobRunner.run(*args, **kwargs)
-        except Exception as e:
-            raise JobsRunError(f"Error running job. Exception: {e}.")
+        results = JobRunner.run(*args, **kwargs)
         return results
 
     def _run_remote(self, *args, **kwargs):

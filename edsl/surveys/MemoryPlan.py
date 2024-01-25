@@ -11,6 +11,7 @@ class MemoryPlan(UserDict):
 
     def __init__(self, survey: "Survey" = None, data=None):
         if survey is not None:
+            self.survey = survey
             self.survey_question_names = [q.question_name for q in survey.questions]
             self.question_texts = [q.question_text for q in survey.questions]
         super().__init__(data or {})
@@ -20,10 +21,16 @@ class MemoryPlan(UserDict):
         "Returns a dictionary mapping question names to question texts"
         return dict(zip(self.survey_question_names, self.question_texts))
 
+    def add_question(self, question):
+        self.survey_question_names.append(question.question_name)
+        self.question_texts.append(question.question_text)
+
     def check_valid_question_name(self, question_name):
         "Make sure a passed question name is valid"
         if question_name not in self.survey_question_names:
-            raise ValueError(f"{question_name} is not in the survey.")
+            raise ValueError(
+                f"{question_name} is not in the survey. Current names are {self.survey_question_names}"
+            )
 
     def get_memory_prompt_fragment(self, focal_question, answers) -> "Prompt":
         "Generates the prompt fragment"

@@ -1,6 +1,7 @@
 import unittest
 import os
 import pytest
+import typing
 import asyncio
 from contextlib import redirect_stdout
 from io import StringIO
@@ -98,14 +99,6 @@ class TestLanguageModel(unittest.TestCase):
 
             TestLanguageModelGood()
 
-    # With the use of the meta class, it is no longer possible to
-    # to event *define* a class without the required attributes
-
-    # def test_abstract_methods_missing(self):
-    #     with self.assertRaises(TypeError):
-    #         del m.async_execute_model_call
-    #         m = self.bad_class()
-
     def test_execute_model_call(self):
         m = self.good_class()
         response = m.get_raw_response(
@@ -161,6 +154,27 @@ class TestLanguageModel(unittest.TestCase):
         num_responses = len(new_responses)
         self.assertEqual(num_responses, 1)
         self.assertEqual(new_responses[0], tuple(expected_response.values()))
+
+    def test_parser_exception(self):
+        class TestLanguageModelGood(LanguageModel):
+            _model_ = LanguageModelType.TEST.value
+            _parameters_ = {"temperature": 0.5}
+            _inference_service_ = InferenceServiceType.TEST.value
+
+            async def async_execute_model_call(
+                self, user_prompt: str, system_prompt: str
+            ) -> dict[str, Any]:
+                await asyncio.sleep(0.1)
+                return {"message": """{"answer": "Hello world"}"""}
+
+            def parse_response(self, raw_response: dict[str, Any]) -> str:
+                return raw_response["message"]
+
+        m = TestLanguageModelGood()
+        results = m.parse_response(raw_response={"message": "Hello world"})
+
+        with pytest.raises(KeyError):
+            m.parse_response(raw_response={"messPOOPage": "Hello world"})
 
 
 if __name__ == "__main__":
