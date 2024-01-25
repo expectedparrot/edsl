@@ -59,6 +59,10 @@ integration-questions:
 integration-models: 
 	pytest -v integration/test_models.py
 
+integration-job-running:
+	pytest -v --log-cli-level=INFO integration/test_job_running.py
+
+	#pytest --log-cli-level=INFO tests/test_JobRunning.p
 lint: ## Run code linters (flake8, pylint, mypy).
 	mypy edsl
 
