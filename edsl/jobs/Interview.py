@@ -1,5 +1,8 @@
 from __future__ import annotations
 import asyncio
+import logging
+
+from dataclasses import dataclass, asdict
 
 # from tenacity import retry, wait_exponential, stop_after_attempt
 from typing import Any, Type, Union, List
@@ -15,6 +18,18 @@ from edsl.jobs.Answers import Answers
 from edsl.config import Config
 
 TIMEOUT = int(Config().API_CALL_TIMEOUT_SEC)
+
+logging.basicConfig(
+    level=logging.INFO,  # Set the logging level
+    format="%(asctime)s - %(name)s - %(levelname)s - %(module)s:%(lineno)d - %(funcName)s - %(message)s",
+    filename="interview.log",
+)
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)  # Default level
+
+
+logger.info("Interview.py loaded")
 
 
 def async_timeout_handler(timeout):
@@ -57,6 +72,9 @@ class Interview:
         self.verbose = verbose
         self.answers: dict[str, str] = Answers()
 
+        print("Interview instantiated")
+        logger.info(f"Interview instantiated")
+
     async def async_conduct_interview(
         self, debug: bool = False, replace_missing: bool = True, threaded: bool = False
     ) -> tuple["Answers", List[dict[str, Any]]]:
@@ -95,9 +113,12 @@ class Interview:
 
     def _build_question_tasks(self, questions, dag, debug) -> List[asyncio.Task]:
         """Creates a task for each question, with dependencies on the questions that must be answered before this one can be answered."""
+        logger.info("Creating tasks for each question")
         tasks = []
         for question in questions:
+            logger.info(f"Now working on: {question.question_name}")
             dependencies = self._get_question_dependencies(tasks, question, dag)
+            logger.info(f"Dependencies for {question.question_name}: {dependencies}")
             question_task = self._create_question_task(question, dependencies, debug)
             tasks.append(question_task)
         return tasks
@@ -122,7 +143,9 @@ class Interview:
         """
 
         async def run_task() -> asyncio.Task:
+            logger.info(f"Running task for {question.question_name}")
             await asyncio.gather(*questions_that_must_be_answered_before)
+            logger.info(f"Tasks for {question.question_name} completed")
             return await self.answer_question_and_record_task(question, debug)
 
         return asyncio.create_task(run_task())
@@ -136,9 +159,9 @@ class Interview:
         """Answers a question and records the task.
         This in turn calls the the passed-in agent's async_answer_question method, which returns a response dictionary.
         """
-        # response = await self.async_agent_answers_single_question(question)
+        from edsl.agents.Invigilator import AgentResponseDict
 
-        response = await self.agent.async_answer_question(
+        response: AgentResponseDict = await self.agent.async_answer_question(
             question=question,
             scenario=self.scenario,
             model=self.model,
@@ -191,11 +214,15 @@ def main():
     m = LanguageModelOpenAIThreeFiveTurbo(use_cache=True)
     I = Interview(agent=a, survey=s, scenario=scenario, model=m)
 
-    # conduct five interviews
-    for _ in range(5):
-        I.conduct_interview(debug=True)
+    # # conduct five interviews
+    # for _ in range(5):
+    #     I.conduct_interview(debug=True)
 
-    # replace missing answers
-    I
-    repr(I)
-    eval(repr(I))
+    # # replace missing answers
+    # I
+    # repr(I)
+    # eval(repr(I))
+
+
+if __name__ == "__main__":
+    main()
