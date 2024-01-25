@@ -35,18 +35,40 @@ def test_handle_model_exception():
 
         return TestLanguageModelGood()
 
-    survey = Survey()
-    for i in range(20):
-        q = QuestionFreeText(
-            question_text=f"How are you?", question_name=f"question_{i}"
-        )
-        survey.add_question(q)
-        if i > 0:
-            survey.add_targeted_memory(f"question_{i}", f"question_{i-1}")
+    def create_survey(num_questions: int, chained: bool = True):
+        survey = Survey()
+        for i in range(num_questions):
+            q = QuestionFreeText(
+                question_text=f"How are you?", question_name=f"question_{i}"
+            )
+            survey.add_question(q)
+            if i > 0 and chained:
+                survey.add_targeted_memory(f"question_{i}", f"question_{i-1}")
+        return survey
 
+    ### Tasks are Not Chained
+    FAIL_AT_NUMBER = 6
     target_exception = ConnectionNotAvailable
-    model = create_exception_throwing_model(target_exception, fail_at_number=6)
-    # So right now, these just fails.
-    # What would we want to happen?
-    with pytest.raises(target_exception):
-        results = survey.by(model).run()
+    model = create_exception_throwing_model(
+        target_exception, fail_at_number=FAIL_AT_NUMBER
+    )
+    survey = create_survey(num_questions=20, chained=False)
+    results = survey.by(model).run()
+    assert results.select(f"answer.question_{FAIL_AT_NUMBER -1}").first() is None
+    assert results.select(f"answer.question_{FAIL_AT_NUMBER + 1}").first() == "SPAM!"
+
+    ### Tasks are Chained
+    ### If there is a failure, it should cascade to all follow-on tasks
+    FAIL_AT_NUMBER = 6
+    target_exception = ConnectionNotAvailable
+    model = create_exception_throwing_model(
+        target_exception, fail_at_number=FAIL_AT_NUMBER
+    )
+    # survey = create_survey(num_questions=20, chained=False)
+    # results = survey.by(model).run()
+    # assert results.select(f"answer.question_{FAIL_AT_NUMBER -1}").first() is None
+    # assert results.select(f"answer.question_{FAIL_AT_NUMBER + 1}").first() is None
+
+
+if __name__ == "__main__":
+    test_handle_model_exception()

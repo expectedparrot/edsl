@@ -29,3 +29,19 @@
 ### Removed
 - Unused files
 - Unused package dependencies
+
+## [0.1.5] - 2023-01-23
+
+### Fixed
+- Improvements in async survey running
+
+## [0.1.6] - 2023-01-24
+
+### Fixed
+- Improvements in async survey running
+
+## [0.1.7] - 2023-01-25
+
+### Fixed
+- Improvements in async survey running
+- Added logging
