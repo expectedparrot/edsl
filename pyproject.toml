@@ -18,7 +18,7 @@ documentation = "https://www.goemeritus.com/getting-started/"
 homepage = "https://www.goemeritus.com/"
 keywords = ["LLM", "social science", "surveys", "user research"]
 license = "MIT"
-name = "edsltest"
+name = "edsl"
 packages = [{include = "edsl"}]
 readme = "README.md"
 version = "0.1.7"
