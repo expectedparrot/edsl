@@ -16,7 +16,6 @@ from edsl.agents.Invigilator import (
 from edsl.language_models import LanguageModel, LanguageModelOpenAIThreeFiveTurbo
 from edsl.scenarios import Scenario
 from edsl.utilities import (
-    create_valid_var_name,
     dict_to_html,
     print_dict_as_html_table,
     print_dict_with_rich,
@@ -29,6 +28,8 @@ from edsl.agents.descriptors import (
 )
 
 from edsl.utilities.decorators import sync_wrapper
+
+from edsl.data_transfer_models import AgentResponseDict
 
 
 class Agent(Base):
@@ -69,7 +70,7 @@ class Agent(Base):
         invigilator = self._create_invigilator(
             question, scenario, model, debug, memory_plan, current_answers
         )
-        response = await invigilator.async_answer_question()
+        response: AgentResponseDict = await invigilator.async_answer_question()
         return response
 
     answer_question = sync_wrapper(async_answer_question)
@@ -185,6 +186,10 @@ class Agent(Base):
     def dict_to_html(self) -> str:
         """Returns the agent's traits as an HTML table."""
         return dict_to_html(self.traits)
+
+    def __str__(self) -> str:
+        """Returns the agent's traits as a string."""
+        return str(self.traits)
 
     def print(self, html: bool = False, show: bool = False) -> Optional[str]:
         """Prints the agent's traits as a table."""
