@@ -117,6 +117,12 @@ class Survey(SurveyExportMixin, Base):
                 priority=RulePriority.DEFAULT.value,
             )
         )
+
+        # a question might be added before the memory plan is created
+        # it's ok because the memory plan will be updated when it is created
+        if hasattr(self, "memory_plan"):
+            self.memory_plan.add_question(question)
+
         return self
 
     def set_full_memory_mode(self) -> None:
@@ -189,7 +195,9 @@ class Survey(SurveyExportMixin, Base):
         else:
             question_name = q if isinstance(q, str) else q.question_name
             if question_name not in self.question_name_to_index:
-                raise ValueError(f"Question name {question_name} not found in survey.")
+                raise ValueError(
+                    f"""Question name {question_name} not found in survey. The current question names are {self.question_name_to_index}."""
+                )
             return self.question_name_to_index[question_name]
 
     def add_rule(

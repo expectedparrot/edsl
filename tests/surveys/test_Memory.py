@@ -26,3 +26,45 @@ class TestMemory(unittest.TestCase):
     def test_from_dict(self):
         memory = Memory.from_dict({"prior_questions": ["question1"]})
         self.assertEqual(memory, ["question1"])
+
+    def test_adding_memories(self):
+        import random
+        from edsl.language_models.LanguageModel import LanguageModel
+        from edsl.enums import LanguageModelType, InferenceServiceType
+        import asyncio
+        from typing import Any
+        from edsl import Scenario, Survey
+
+        from httpcore import ConnectionNotAvailable
+        from edsl.questions import QuestionFreeText
+
+        def create_exception_throwing_model(exception: Exception, probability: float):
+            class TestLanguageModelGood(LanguageModel):
+                _model_ = LanguageModelType.TEST.value
+                _parameters_ = {"temperature": 0.5, "use_cache": False}
+                _inference_service_ = InferenceServiceType.TEST.value
+
+                async def async_execute_model_call(
+                    self, user_prompt: str, system_prompt: str
+                ) -> dict[str, Any]:
+                    await asyncio.sleep(0.1)
+                    if random.random() < probability:
+                        raise exception
+                    return {"message": """{"answer": "SPAM!"}"""}
+
+                def parse_response(self, raw_response: dict[str, Any]) -> str:
+                    return raw_response["message"]
+
+            return TestLanguageModelGood()
+
+        survey = Survey()
+        for i in range(10):
+            q = QuestionFreeText(
+                question_text=f"How are you?", question_name=f"question_{i}"
+            )
+            survey.add_question(q)
+            if i > 0:
+                try:
+                    survey.add_targeted_memory(f"question_{i}", f"question_{i-1}")
+                except ValueError:
+                    raise
