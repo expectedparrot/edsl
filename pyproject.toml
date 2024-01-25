@@ -18,10 +18,10 @@ documentation = "https://www.goemeritus.com/getting-started/"
 homepage = "https://www.goemeritus.com/"
 keywords = ["LLM", "social science", "surveys", "user research"]
 license = "MIT"
-name = "edsl"
+name = "edsltest"
 packages = [{include = "edsl"}]
 readme = "README.md"
-version = "0.1.6"
+version = "0.1.7"
 
 [tool.poetry.dependencies]
 python = "^3.9.1"
