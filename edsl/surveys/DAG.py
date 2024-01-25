@@ -7,6 +7,13 @@ class DAG(UserDict):
         self.reverse_mapping = self._create_reverse_mapping()
 
     def _create_reverse_mapping(self):
+        """
+        Creates a reverse mapping of the DAG, where the keys are the children and the values are the parents.
+        >>> data = {"a": ["b", "c"], "b": ["d"], "c": [], "d": []}
+        >>> dag = DAG(data)
+        >>> dag._create_reverse_mapping()
+        {'b': {'a'}, 'c': {'a'}, 'd': {'b'}}
+        """
         rev_map = {}
         for key, values in self.data.items():
             for value in values:
@@ -24,3 +31,9 @@ class DAG(UserDict):
 
         dfs(key)
         return children
+
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod()
