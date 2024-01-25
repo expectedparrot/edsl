@@ -84,12 +84,20 @@ class Interview:
         # dependencies on the questions that must be answered before
         # this one can be answered.
         tasks = self._build_question_tasks(self.questions, self.dag, debug)
-        await asyncio.gather(*tasks)
+        await asyncio.gather(*tasks, return_exceptions=True)
 
         if replace_missing:
             self.answers.replace_missing_answers_with_none(self.survey)
 
         results = [task.result() for task in tasks]
+
+        for i, result in enumerate(results):
+            if "exception" in result.keys():
+                exception = result["exception"]
+                print(
+                    f"Task {i} out of {len(results)} failed with exception {repr(exception)}"
+                )
+
         return self.answers, results
 
     conduct_interview = sync_wrapper(async_conduct_interview)
@@ -184,8 +192,21 @@ class Interview:
             ## We do *not* raise the exception here, because we want to continue with the interview
             ## even if one question fails.But we should cancel all tasks that depend on this one.
             logger.exception("Error in answer_question_and_record_task")
-            response = None
-            # raise e
+
+            from collections import UserDict
+
+            class FailedTask(UserDict):
+                def __init__(self):
+                    data = {
+                        "answer": "Failure",
+                        "comment": "Failure",
+                        "prompts": {"user_prompt": "", "sytem_prompt": ""},
+                        "exception": e,
+                    }
+                    super().__init__(data)
+
+            response = FailedTask()
+
         return response
 
     #######################
