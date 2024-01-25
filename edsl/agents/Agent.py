@@ -154,16 +154,6 @@ class Agent(Base):
         return f"{class_name}({', '.join(items)})"
 
     ################
-    # Forward methods
-    ################
-    def to(self, question_or_survey) -> Jobs:
-        """Sends an agent to a question or survey."""
-        from edsl.agents.AgentList import AgentList
-
-        a = AgentList([self])
-        return a.to(question_or_survey)
-
-    ################
     # SERIALIZATION METHODS
     ################
     @property
