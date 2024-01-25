@@ -132,6 +132,14 @@ class Interview:
             for question_name in dag.get(question.question_name, [])
         ]
 
+    def _get_question_dependent_children(
+        self, tasks, question, dag
+    ) -> List[asyncio.Task]:
+        """Returns the tasks that must be completed before the given question can be answered.
+        If a question has no dependencies, this will be an empty list, [].
+        """
+        pass
+
     def _create_question_task(
         self,
         question: Question,
@@ -150,25 +158,34 @@ class Interview:
 
         return asyncio.create_task(run_task())
 
-    def _update_answers(self, response, question):
+    def _update_answers(self, response, question) -> None:
         """Updates the answers dictionary with the response to a question."""
         self.answers.add_answer(response, question)
 
     @async_timeout_handler(TIMEOUT)
-    async def answer_question_and_record_task(self, question, debug):
+    async def answer_question_and_record_task(
+        self, question, debug
+    ) -> AgentResponseDict:
         """Answers a question and records the task.
         This in turn calls the the passed-in agent's async_answer_question method, which returns a response dictionary.
         """
-
-        response: AgentResponseDict = await self.agent.async_answer_question(
-            question=question,
-            scenario=self.scenario,
-            model=self.model,
-            debug=debug,
-            memory_plan=self.survey.memory_plan,
-            current_answers=self.answers,
-        )
-        self._update_answers(response, question)
+        try:
+            response: AgentResponseDict = await self.agent.async_answer_question(
+                question=question,
+                scenario=self.scenario,
+                model=self.model,
+                debug=debug,
+                memory_plan=self.survey.memory_plan,
+                current_answers=self.answers,
+            )
+            self._update_answers(response, question)
+        except Exception as e:
+            # logger.error(f"Error in answer_question_and_record_task: {e}")
+            ## We do *not* raise the exception here, because we want to continue with the interview
+            ## even if one question fails.But we should cancel all tasks that depend on this one.
+            logger.exception("Error in answer_question_and_record_task")
+            response = None
+            # raise e
         return response
 
     #######################

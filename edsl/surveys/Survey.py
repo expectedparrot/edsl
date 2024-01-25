@@ -2,6 +2,7 @@ from __future__ import annotations
 import re
 from rich import print
 from dataclasses import dataclass
+from collections import UserDict
 
 from typing import Any, Generator, Optional, Union, List
 from edsl.exceptions import SurveyCreationError, SurveyHasNoRulesError
@@ -14,6 +15,8 @@ from edsl.Base import Base
 from edsl.surveys.SurveyExportMixin import SurveyExportMixin
 from edsl.surveys.descriptors import QuestionsDescriptor
 from edsl.surveys.MemoryPlan import MemoryPlan
+
+from edsl.surveys.DAG import DAG
 
 
 @dataclass
@@ -331,7 +334,7 @@ class Survey(SurveyExportMixin, Base):
             new_d[new_key] = new_value
         return new_d
 
-    def dag(self, textify=False):
+    def dag(self, textify=False) -> DAG:
         memory_dag = self.memory_plan.dag
         rule_dag = self.rule_collection.dag
         # return {"memory_dag": memory_dag, "rule_dag": rule_dag}
@@ -340,9 +343,9 @@ class Survey(SurveyExportMixin, Base):
         for key in combined_keys:
             d[key] = memory_dag.get(key, set({})).union(rule_dag.get(key, set({})))
         if textify:
-            return self.textify(d)
+            return DAG(self.textify(d))
         else:
-            return d
+            return DAG(d)
 
     ###################
     # DUNDER METHODS

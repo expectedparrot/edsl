@@ -159,7 +159,9 @@ class InvigilatorAI(InvigilatorBase):
         user_prompt = self.construct_user_prompt()
         return {"user_prompt": user_prompt, "system_prompt": system_prompt}
 
-    def _format_raw_response(self, agent, question, scenario, raw_response):
+    def _format_raw_response(
+        self, agent, question, scenario, raw_response
+    ) -> AgentResponseDict:
         response = question.validate_answer(raw_response)
         comment = response.get("comment", "")
         answer_code = response["answer"]
@@ -171,7 +173,7 @@ class InvigilatorAI(InvigilatorBase):
         }
         return data
 
-    async def async_answer_question(self):
+    async def async_answer_question(self) -> AgentResponseDict:
         raw_response = await self.async_get_response(**self.get_prompts())
         response = self._format_raw_response(
             agent=self,
@@ -179,7 +181,7 @@ class InvigilatorAI(InvigilatorBase):
             scenario=self.scenario,
             raw_response=raw_response,
         )
-        return response
+        return AgentResponseDict(**response)
 
     answer_question = sync_wrapper(async_answer_question)
 

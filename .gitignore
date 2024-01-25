@@ -28,3 +28,4 @@ htmlcov
 # Virtual environment files
 .venv
 venv
+*log
