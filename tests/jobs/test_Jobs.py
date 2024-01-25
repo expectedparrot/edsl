@@ -166,5 +166,80 @@ def test_jobs_run(valid_job):
     #    valid_job.run(method="invalid_method")
 
 
+def test_normal_run():
+    from edsl.language_models.LanguageModel import LanguageModel
+    from edsl.enums import LanguageModelType, InferenceServiceType
+    import asyncio
+    from typing import Any
+
+    class TestLanguageModelGood(LanguageModel):
+        _model_ = LanguageModelType.TEST.value
+        _parameters_ = {"temperature": 0.5, "use_cache": False}
+        _inference_service_ = InferenceServiceType.TEST.value
+
+        async def async_execute_model_call(
+            self, user_prompt: str, system_prompt: str
+        ) -> dict[str, Any]:
+            await asyncio.sleep(0.0)
+            return {"message": """{"answer": "SPAM!"}"""}
+
+        def parse_response(self, raw_response: dict[str, Any]) -> str:
+            return raw_response["message"]
+
+    model = TestLanguageModelGood()
+    from edsl.questions import QuestionFreeText
+
+    q = QuestionFreeText(question_text="What is your name?", question_name="name")
+    results = q.by(model).run()
+    assert results[0]["answer"] == {"name": "SPAM!"}
+
+
+def test_handle_model_exception():
+    import random
+    from edsl.language_models.LanguageModel import LanguageModel
+    from edsl.enums import LanguageModelType, InferenceServiceType
+    import asyncio
+    from typing import Any
+    from edsl import Scenario
+
+    from httpcore import ConnectionNotAvailable
+    from edsl.questions import QuestionFreeText
+
+    def create_exception_throwing_model(exception: Exception, probability: float):
+        class TestLanguageModelGood(LanguageModel):
+            _model_ = LanguageModelType.TEST.value
+            _parameters_ = {"temperature": 0.5, "use_cache": False}
+            _inference_service_ = InferenceServiceType.TEST.value
+
+            async def async_execute_model_call(
+                self, user_prompt: str, system_prompt: str
+            ) -> dict[str, Any]:
+                await asyncio.sleep(0.1)
+                if random.random() < probability:
+                    raise exception
+                return {"message": """{"answer": "SPAM!"}"""}
+
+            def parse_response(self, raw_response: dict[str, Any]) -> str:
+                return raw_response["message"]
+
+        return TestLanguageModelGood()
+
+    survey = Survey()
+    for i in range(20):
+        q = QuestionFreeText(
+            question_text=f"How are you?", question_name=f"question_{i}"
+        )
+        survey.add_question(q)
+        if i > 0:
+            survey.add_targeted_memory(f"question_{i}", f"question_{i-1}")
+
+    target_exception = ConnectionNotAvailable
+    model = create_exception_throwing_model(target_exception, 0.1)
+    # So right now, these just fails.
+    # What would we want to happen?
+    with pytest.raises(target_exception):
+        results = survey.by(model).run()
+
+
 def test_jobs_main():
     main()

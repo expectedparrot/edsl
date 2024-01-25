@@ -1,4 +1,5 @@
 from __future__ import annotations
+from functools import wraps
 import asyncio
 import json
 import time
@@ -19,6 +20,20 @@ from typing import get_type_hints
 from edsl.exceptions.language_models import LanguageModelAttributeTypeError
 
 from edsl.enums import LanguageModelType, InferenceServiceType
+
+
+def handle_key_error(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+            assert True == False
+        except KeyError as e:
+            # Handle the KeyError exception
+            return f"""KeyError occurred: {e}. This is most likely because the model you are using 
+            returned a JSON object we were not expecting."""
+
+    return wrapper
 
 
 class RegisterLanguageModelsMeta(ABCMeta):
@@ -422,6 +437,26 @@ class LanguageModel(ABC, metaclass=RegisterLanguageModelsMeta):
               by(m1, m2, m3) not by(m1).by(m2).by(m3)."""
         )
         return other_model or self
+
+    @classmethod
+    def example(cls):
+        "Returns a default instance of the class"
+
+        class TestLanguageModelGood(cls):
+            _model_ = LanguageModelType.TEST.value
+            _parameters_ = {"temperature": 0.5}
+            _inference_service_ = InferenceServiceType.TEST.value
+
+            async def async_execute_model_call(
+                self, user_prompt: str, system_prompt: str
+            ) -> dict[str, Any]:
+                await asyncio.sleep(0.1)
+                return {"message": """{"answer": "SPAM!"}"""}
+
+            def parse_response(self, raw_response: dict[str, Any]) -> str:
+                return raw_response["message"]
+
+        return TestLanguageModelGood
 
 
 if __name__ == "__main__":
