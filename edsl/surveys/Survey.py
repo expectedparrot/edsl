@@ -2,6 +2,7 @@ from __future__ import annotations
 import re
 from rich import print
 from dataclasses import dataclass
+from collections import UserDict
 
 from typing import Any, Generator, Optional, Union, List
 from edsl.exceptions import SurveyCreationError, SurveyHasNoRulesError
@@ -14,6 +15,8 @@ from edsl.Base import Base
 from edsl.surveys.SurveyExportMixin import SurveyExportMixin
 from edsl.surveys.descriptors import QuestionsDescriptor
 from edsl.surveys.MemoryPlan import MemoryPlan
+
+from edsl.surveys.DAG import DAG
 
 
 @dataclass
@@ -117,6 +120,12 @@ class Survey(SurveyExportMixin, Base):
                 priority=RulePriority.DEFAULT.value,
             )
         )
+
+        # a question might be added before the memory plan is created
+        # it's ok because the memory plan will be updated when it is created
+        if hasattr(self, "memory_plan"):
+            self.memory_plan.add_question(question)
+
         return self
 
     def set_full_memory_mode(self) -> None:
@@ -189,7 +198,9 @@ class Survey(SurveyExportMixin, Base):
         else:
             question_name = q if isinstance(q, str) else q.question_name
             if question_name not in self.question_name_to_index:
-                raise ValueError(f"Question name {question_name} not found in survey.")
+                raise ValueError(
+                    f"""Question name {question_name} not found in survey. The current question names are {self.question_name_to_index}."""
+                )
             return self.question_name_to_index[question_name]
 
     def add_rule(
@@ -323,7 +334,7 @@ class Survey(SurveyExportMixin, Base):
             new_d[new_key] = new_value
         return new_d
 
-    def dag(self, textify=False):
+    def dag(self, textify=False) -> DAG:
         memory_dag = self.memory_plan.dag
         rule_dag = self.rule_collection.dag
         # return {"memory_dag": memory_dag, "rule_dag": rule_dag}
@@ -332,9 +343,9 @@ class Survey(SurveyExportMixin, Base):
         for key in combined_keys:
             d[key] = memory_dag.get(key, set({})).union(rule_dag.get(key, set({})))
         if textify:
-            return self.textify(d)
+            return DAG(self.textify(d))
         else:
-            return d
+            return DAG(d)
 
     ###################
     # DUNDER METHODS

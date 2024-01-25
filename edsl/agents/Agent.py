@@ -16,7 +16,6 @@ from edsl.agents.Invigilator import (
 from edsl.language_models import LanguageModel, LanguageModelOpenAIThreeFiveTurbo
 from edsl.scenarios import Scenario
 from edsl.utilities import (
-    create_valid_var_name,
     dict_to_html,
     print_dict_as_html_table,
     print_dict_with_rich,
@@ -29,6 +28,8 @@ from edsl.agents.descriptors import (
 )
 
 from edsl.utilities.decorators import sync_wrapper
+
+from edsl.data_transfer_models import AgentResponseDict
 
 
 class Agent(Base):
@@ -69,7 +70,7 @@ class Agent(Base):
         invigilator = self._create_invigilator(
             question, scenario, model, debug, memory_plan, current_answers
         )
-        response = await invigilator.async_answer_question()
+        response: AgentResponseDict = await invigilator.async_answer_question()
         return response
 
     answer_question = sync_wrapper(async_answer_question)
@@ -154,16 +155,6 @@ class Agent(Base):
         return f"{class_name}({', '.join(items)})"
 
     ################
-    # Forward methods
-    ################
-    def to(self, question_or_survey) -> Jobs:
-        """Sends an agent to a question or survey."""
-        from edsl.agents.AgentList import AgentList
-
-        a = AgentList([self])
-        return a.to(question_or_survey)
-
-    ################
     # SERIALIZATION METHODS
     ################
     @property
@@ -195,6 +186,10 @@ class Agent(Base):
     def dict_to_html(self) -> str:
         """Returns the agent's traits as an HTML table."""
         return dict_to_html(self.traits)
+
+    def __str__(self) -> str:
+        """Returns the agent's traits as a string."""
+        return str(self.traits)
 
     def print(self, html: bool = False, show: bool = False) -> Optional[str]:
         """Prints the agent's traits as a table."""
@@ -246,13 +241,3 @@ if __name__ == "__main__":
     import doctest
 
     doctest.testmod()
-
-    agent = Agent(traits={"age": 10, "hair": "brown", "height": 5.5})
-    from edsl.questions import QuestionMultipleChoice as q
-
-    i = agent._create_invigilator(question=q.example())
-    system_prompt = i.construct_system_prompt()
-    assert True == all([key in system_prompt for key in agent.traits.keys()])
-
-    user_prompt = i.construct_user_prompt()
-    assert q.example().question_text in user_prompt

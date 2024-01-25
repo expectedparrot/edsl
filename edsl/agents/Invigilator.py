@@ -10,6 +10,8 @@ from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
 from edsl.prompts.registry import get_classes
 from edsl.exceptions import QuestionScenarioRenderError
 
+from edsl.data_transfer_models import AgentResponseDict
+
 
 class InvigilatorBase(ABC):
     """An invigiator is a class that is responsible for administering a question to an agent."""
@@ -22,9 +24,54 @@ class InvigilatorBase(ABC):
         self.memory_plan = memory_plan
         self.current_answers = current_answers
 
+    @classmethod
+    def example(cls):
+        """Returns an example invigilator."""
+        from edsl.agents.Agent import Agent
+        from edsl.questions import QuestionMultipleChoice
+        from edsl.scenarios.Scenario import Scenario
+        from edsl.language_models import LanguageModel
+
+        from edsl.enums import LanguageModelType, InferenceServiceType
+
+        class TestLanguageModelGood(LanguageModel):
+            _model_ = LanguageModelType.TEST.value
+            _parameters_ = {"temperature": 0.5}
+            _inference_service_ = InferenceServiceType.TEST.value
+
+            async def async_execute_model_call(
+                self, user_prompt: str, system_prompt: str
+            ) -> dict[str, Any]:
+                await asyncio.sleep(0.1)
+                return {"message": """{"answer": "SPAM!"}"""}
+
+            def parse_response(self, raw_response: dict[str, Any]) -> str:
+                return raw_response["message"]
+
+        model = TestLanguageModelGood()
+        agent = Agent.example()
+        question = QuestionMultipleChoice.example()
+        scenario = Scenario.example()
+        #        model = LanguageModel.example()
+        memory_plan = None
+        current_answers = None
+        return cls(
+            agent=agent,
+            question=question,
+            scenario=scenario,
+            model=model,
+            memory_plan=memory_plan,
+            current_answers=current_answers,
+        )
+
     @abstractmethod
     async def async_answer_question(self):
         "This is the async method that actually answers the question."
+        pass
+
+    @abstractmethod
+    def get_prompts(self) -> Dict[str, Prompt]:
+        """Gets the prompts for the LLM call."""
         pass
 
     @jupyter_nb_handler
@@ -86,6 +133,7 @@ class InvigilatorAI(InvigilatorBase):
         applicable_prompts = get_classes(
             component_type="question_instructions",
             question_type=self.question.question_type,
+            model=self.model.model,
         )
         ## Get the question instructions and renders with the scenario & question.data
         question_prompt = applicable_prompts[0]()
@@ -111,48 +159,62 @@ class InvigilatorAI(InvigilatorBase):
         user_prompt = self.construct_user_prompt()
         return {"user_prompt": user_prompt, "system_prompt": system_prompt}
 
-    class Response(UserDict):
-        def __init__(self, agent, question, scenario, raw_response):
-            response = question.validate_answer(raw_response)
-            comment = response.get("comment", "")
-            answer_code = response["answer"]
-            answer = question.translate_answer_code_to_answer(answer_code, scenario)
-            data = {
-                "answer": answer,
-                "comment": comment,
-                "prompts": agent.get_prompts(),
-            }
-            super().__init__(data)
+    def _format_raw_response(
+        self, agent, question, scenario, raw_response
+    ) -> AgentResponseDict:
+        response = question.validate_answer(raw_response)
+        comment = response.get("comment", "")
+        answer_code = response["answer"]
+        answer = question.translate_answer_code_to_answer(answer_code, scenario)
+        data = {
+            "answer": answer,
+            "comment": comment,
+            "prompts": agent.get_prompts(),
+        }
+        return data
 
-    async def async_answer_question(self):
+    async def async_answer_question(self) -> AgentResponseDict:
         raw_response = await self.async_get_response(**self.get_prompts())
-        response = self.Response(
+        response = self._format_raw_response(
             agent=self,
             question=self.question,
             scenario=self.scenario,
             raw_response=raw_response,
         )
-        return response
+        return AgentResponseDict(**response)
 
     answer_question = sync_wrapper(async_answer_question)
 
 
 class InvigilatorDebug(InvigilatorBase):
-    async def async_answer_question(self):
-        return self.question.simulate_answer(human_readable=True)
+    async def async_answer_question(self) -> AgentResponseDict:
+        results = self.question.simulate_answer(human_readable=True)
+        results["prompts"] = self.get_prompts()
+        return AgentResponseDict(**results)
+
+    def get_prompts(self) -> Dict[str, Prompt]:
+        return {"user_prompt": Prompt("NA"), "system_prompt": Prompt("NA")}
 
 
 class InvigilatorHuman(InvigilatorBase):
-    async def async_answer_question(self):
+    async def async_answer_question(self) -> AgentResponseDict:
         answer = self.agent.answer_question_directly(self.question.question_name)
         response = {"answer": answer}
         response = self.question.validate_response(response)
-        response["model"] = "human"
-        response["scenario"] = self.scenario
-        return response
+        response["comment"] = "This is a real survey response from a human."
+        response["prompts"] = self.get_prompts()
+        return AgentResponseDict(**response)
+
+    def get_prompts(self) -> Dict[str, Prompt]:
+        return {"user_prompt": Prompt("NA"), "system_prompt": Prompt("NA")}
 
 
 class InvigilatorFunctional(InvigilatorBase):
-    async def async_answer_question(self):
+    async def async_answer_question(self) -> AgentResponseDict:
         func = self.question.answer_question_directly
-        return func(scenario=self.scenario, agent_traits=self.agent.traits)
+        response = func(scenario=self.scenario, agent_traits=self.agent.traits)
+        response["prompts"] = self.get_prompts()
+        return AgentResponseDict(**response)
+
+    def get_prompts(self) -> Dict[str, Prompt]:
+        return {"user_prompt": Prompt("NA"), "system_prompt": Prompt("NA")}

@@ -11,16 +11,8 @@ from edsl.language_models import LanguageModelOpenAIThreeFiveTurbo
 from edsl.questions import QuestionMultipleChoice
 from edsl.surveys import Survey
 
-import doctest
 
-# import edsl.agents.Agent
-
-
-# def test_doctests():
-#     doctest.testmod(edsl.agents.Agent)
-
-
-from edsl.agents.Agent import Agent as Agent
+# from edsl.agents.Agent import Agent as Agent
 
 
 def test_agent_creation_valid():
@@ -91,24 +83,24 @@ def test_agent_serialization():
     assert agent2 == agent
 
 
-def test_agent_forward_methods():
-    agent = Agent(traits={"age": 10})
-    # to Question
-    question = QuestionMultipleChoice(
-        question_text="How are you?",
-        question_options=["Good", "Bad"],
-        question_name="how_are_you",
-    )
-    job = agent.to(question)
-    assert type(job) == Jobs
-    # to Survey
-    survey = Survey(questions=[question])
-    job = agent.to(survey)
-    assert type(job) == Jobs
-    # set value
-    comparison = [Agent(traits={"age": 10})]
-    # breakpoint()
-    assert all([agent in comparison for agent in job.agents])
+# def test_agent_forward_methods():
+#     agent = Agent(traits={"age": 10})
+#     # to Question
+#     question = QuestionMultipleChoice(
+#         question_text="How are you?",
+#         question_options=["Good", "Bad"],
+#         question_name="how_are_you",
+#     )
+#     job = agent.to(question)
+#     assert type(job) == Jobs
+#     # to Survey
+#     survey = Survey(questions=[question])
+#     job = agent.to(survey)
+#     assert type(job) == Jobs
+#     # set value
+#     comparison = [Agent(traits={"age": 10})]
+#     # breakpoint()
+#     assert all([agent in comparison for agent in job.agents])
 
 
 # def test_agent_llm_construct_prompt():
@@ -154,6 +146,24 @@ def test_agent_forward_methods():
 #     assert "answer" in answer
 #     assert "comment" in answer
 #     assert "I am a comment" in answer.get("comment")
+
+
+def test_invigilator_creation():
+    from edsl.questions import QuestionMultipleChoice as qmc
+
+    q = qmc.example()
+    q.answer_question_directly = lambda x: x
+    a = Agent(traits={"age": 10, "hair": "brown", "height": 5.5})
+    i = a._create_invigilator(question=q)
+    assert i.__class__.__name__ == "InvigilatorFunctional"
+
+    from edsl.questions import QuestionMultipleChoice as qmc
+
+    q = qmc.example()
+    a = Agent(traits={"age": 10, "hair": "brown", "height": 5.5})
+    a.answer_question_directly = lambda x: x
+    i = a._create_invigilator(question=q)
+    assert i.__class__.__name__ == "InvigilatorHuman"
 
 
 def test_agent_display_methods():
