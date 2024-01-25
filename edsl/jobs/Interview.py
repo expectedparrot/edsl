@@ -2,8 +2,6 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from dataclasses import dataclass, asdict
-
 # from tenacity import retry, wait_exponential, stop_after_attempt
 from typing import Any, Type, Union, List
 from edsl.agents import Agent
@@ -12,6 +10,8 @@ from edsl.questions import Question
 from edsl.scenarios import Scenario
 from edsl.surveys import Survey
 from edsl.utilities.decorators import sync_wrapper
+
+from edsl.data_transfer_models import AgentResponseDict
 
 from edsl.jobs.Answers import Answers
 
@@ -43,6 +43,7 @@ def async_timeout_handler(timeout):
                 print(
                     f"Task {question.question_name} timed out after {timeout} seconds."
                 )
+                logger.error(f"Task {question.question_name }timed out")
                 return None
 
         return wrapper
@@ -72,7 +73,6 @@ class Interview:
         self.verbose = verbose
         self.answers: dict[str, str] = Answers()
 
-        print("Interview instantiated")
         logger.info(f"Interview instantiated")
 
     async def async_conduct_interview(
@@ -159,7 +159,6 @@ class Interview:
         """Answers a question and records the task.
         This in turn calls the the passed-in agent's async_answer_question method, which returns a response dictionary.
         """
-        from edsl.agents.Invigilator import AgentResponseDict
 
         response: AgentResponseDict = await self.agent.async_answer_question(
             question=question,

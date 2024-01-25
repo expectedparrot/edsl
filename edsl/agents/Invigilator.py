@@ -24,6 +24,46 @@ class InvigilatorBase(ABC):
         self.memory_plan = memory_plan
         self.current_answers = current_answers
 
+    @classmethod
+    def example(cls):
+        """Returns an example invigilator."""
+        from edsl.agents.Agent import Agent
+        from edsl.questions import QuestionMultipleChoice
+        from edsl.scenarios.Scenario import Scenario
+        from edsl.language_models import LanguageModel
+
+        from edsl.enums import LanguageModelType, InferenceServiceType
+
+        class TestLanguageModelGood(LanguageModel):
+            _model_ = LanguageModelType.TEST.value
+            _parameters_ = {"temperature": 0.5}
+            _inference_service_ = InferenceServiceType.TEST.value
+
+            async def async_execute_model_call(
+                self, user_prompt: str, system_prompt: str
+            ) -> dict[str, Any]:
+                await asyncio.sleep(0.1)
+                return {"message": """{"answer": "SPAM!"}"""}
+
+            def parse_response(self, raw_response: dict[str, Any]) -> str:
+                return raw_response["message"]
+
+        model = TestLanguageModelGood()
+        agent = Agent.example()
+        question = QuestionMultipleChoice.example()
+        scenario = Scenario.example()
+        #        model = LanguageModel.example()
+        memory_plan = None
+        current_answers = None
+        return cls(
+            agent=agent,
+            question=question,
+            scenario=scenario,
+            model=model,
+            memory_plan=memory_plan,
+            current_answers=current_answers,
+        )
+
     @abstractmethod
     async def async_answer_question(self):
         "This is the async method that actually answers the question."
