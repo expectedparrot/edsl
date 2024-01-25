@@ -438,25 +438,27 @@ class LanguageModel(ABC, metaclass=RegisterLanguageModelsMeta):
         )
         return other_model or self
 
-    @classmethod
-    def example(cls):
-        "Returns a default instance of the class"
+    # @classmethod
+    # def example(cls):
+    #     "Returns a default instance of the class"
 
-        class TestLanguageModelGood(cls):
-            _model_ = LanguageModelType.TEST.value
-            _parameters_ = {"temperature": 0.5}
-            _inference_service_ = InferenceServiceType.TEST.value
+    #     class TestLanguageModelGood(LanguageModel):
+    #         _model_ = LanguageModelType.TEST.value
+    #         _parameters_ = {"temperature": 0.5}
+    #         _inference_service_ = InferenceServiceType.TEST.value
 
-            async def async_execute_model_call(
-                self, user_prompt: str, system_prompt: str
-            ) -> dict[str, Any]:
-                await asyncio.sleep(0.1)
-                return {"message": """{"answer": "SPAM!"}"""}
+    #         async def async_execute_model_call(
+    #             self, user_prompt: str, system_prompt: str
+    #         ) -> dict[str, Any]:
+    #             await asyncio.sleep(0.1)
+    #             return {"message": """{"answer": "SPAM!"}"""}
 
-            def parse_response(self, raw_response: dict[str, Any]) -> str:
-                return raw_response["message"]
+    #         def parse_response(self, raw_response: dict[str, Any]) -> str:
+    #             return raw_response["message"]
 
-        return TestLanguageModelGood
+    #     example = TestLanguageModelGood()
+    #     return example
+    #     return TestLanguageModelGood
 
 
 if __name__ == "__main__":

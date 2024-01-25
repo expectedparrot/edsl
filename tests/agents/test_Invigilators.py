@@ -1,6 +1,13 @@
+import pytest
 import unittest
 from unittest.mock import Mock
 from edsl.agents.Invigilator import InvigilatorDebug, InvigilatorHuman
+
+
+def test_instantiation():
+    i = InvigilatorDebug.example()
+
+    assert i is not None
 
 
 class TestInvigilatorDebug(unittest.TestCase):

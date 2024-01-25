@@ -64,7 +64,4 @@ class TestMemory(unittest.TestCase):
             )
             survey.add_question(q)
             if i > 0:
-                try:
-                    survey.add_targeted_memory(f"question_{i}", f"question_{i-1}")
-                except ValueError:
-                    raise
+                survey.add_targeted_memory(f"question_{i}", f"question_{i-1}")
