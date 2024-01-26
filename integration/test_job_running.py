@@ -70,7 +70,7 @@ def test_handle_model_exception():
     assert results[0]["answer"]["question_5"] is None
 
     ## TODO: This should fail. Need to re-factor Interview to handle this.
-    ##assert results[0]["answer"]["question_6"] is None
+    assert results[0]["answer"]["question_6"] is None
     # assert results.select(f"answer.question_{FAIL_AT_NUMBER + 1}").first() is None
     # breakpoint()
 

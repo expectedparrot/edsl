@@ -12,6 +12,8 @@ from edsl.config import Config
 from edsl.data_transfer_models import AgentResponseDict
 from edsl.jobs.Answers import Answers
 
+from typing import Dict, List
+
 
 TIMEOUT = int(Config().API_CALL_TIMEOUT_SEC)
 
@@ -52,6 +54,80 @@ def async_timeout_handler(timeout):
     return decorator
 
 
+from collections import UserDict
+
+
+class FailedTask(UserDict):
+    def __init__(self, e: Exception = None):
+        data = {
+            "answer": "Failure",
+            "comment": "Failure",
+            "prompts": {"user_prompt": "", "sytem_prompt": ""},
+            "exception": e,
+        }
+        super().__init__(data)
+
+
+class TaskManager:
+    def __init__(self):
+        # Dictionary to store children tasks. Key: id of parent task, Value: list of children tasks.
+        self.task_children: Dict[int, List[asyncio.Task]] = {}
+
+    def add_child(self, parent: asyncio.Task, child: asyncio.Task):
+        """Add a child task to a parent task."""
+        parent_id = id(parent)
+        if parent_id not in self.task_children:
+            self.task_children[parent_id] = []
+        self.task_children[parent_id].append(child)
+
+    def cancel_children(self, parent: asyncio.Task):
+        """Cancel all children of the given parent task."""
+        parent_id = id(parent)
+        children = self.task_children.get(parent_id, [])
+        for child in children:
+            if not child.done():
+                child.cancel()
+
+    def remove_task(self, task: asyncio.Task):
+        """Remove a task (and its children if it's a parent) from the manager."""
+        task_id = id(task)
+        # Remove the task as a parent
+        if task_id in self.task_children:
+            del self.task_children[task_id]
+        # Remove the task as a child
+        for children in self.task_children.values():
+            if task in children:
+                children.remove(task)
+
+
+class QuestionTaskCreator:
+    def __init__(self, func, failure_callback=None):
+        self.tasks_that_must_be_completed_before = []
+        self.func = func
+        self.task = None
+        self.failure_callback = failure_callback
+
+    def add_dependency(self, task: asyncio.Task):
+        """Add a task to the list of tasks that must be completed before the main task."""
+        self.tasks_that_must_be_completed_before.append(task)
+
+    async def _run_task(self, question, debug) -> asyncio.Task:
+        logger.info(f"Running task for {question.question_name}")
+        await asyncio.gather(*self.tasks_that_must_be_completed_before)
+        logger.info(f"Tasks for {question.question_name} completed")
+        results = await self.func(question, debug)
+        if isinstance(results, FailedTask):
+            if self.failure_callback:
+                self.failure_callback(self.task)
+        return results
+
+    def __call__(self, question, debug):
+        """Creates a task that depends on the passed-in dependencies."""
+        self.task = asyncio.create_task(self._run_task(question, debug))
+        self.task.edsl_name = question.question_name
+        return self.task
+
+
 class Interview:
     """
     A class that has an Agent answer Survey Questions with a particular Scenario and using a LanguageModel.
@@ -76,6 +152,8 @@ class Interview:
 
         logger.info(f"Interview instantiated")
 
+        self.task_manager = TaskManager()
+
     async def async_conduct_interview(
         self, debug: bool = False, replace_missing: bool = True, threaded: bool = False
     ) -> tuple["Answers", List[dict[str, Any]]]:
@@ -90,13 +168,18 @@ class Interview:
         if replace_missing:
             self.answers.replace_missing_answers_with_none(self.survey)
 
-        results = [task.result() for task in tasks]
+        results = [task.result() for task in tasks if not task.cancelled()]
 
-        for i, result in enumerate(results):
-            if "exception" in result.keys():
-                exception = result["exception"]
+        for task in tasks:
+            if not task.cancelled() and "exception" in task.result().keys():
                 print(
-                    f"Task {i} out of {len(results)} failed with exception {repr(exception)}"
+                    f"Task {task.edsl_name} failed with exception {str(task.result()['exception'])}"
+                )
+
+        for task in tasks:
+            if task.cancelled():
+                print(
+                    f"Task {task.edsl_name} was cancelled, as it depended on a failed task."
                 )
 
         return self.answers, results
@@ -130,6 +213,8 @@ class Interview:
             logger.info(f"Dependencies for {question.question_name}: {dependencies}")
             question_task = self._create_question_task(question, dependencies, debug)
             tasks.append(question_task)
+            for dependency in dependencies:
+                self.task_manager.add_child(dependency, question_task)
         return tasks
 
     def _get_question_dependencies(self, tasks, question, dag) -> List[asyncio.Task]:
@@ -152,20 +237,22 @@ class Interview:
     def _create_question_task(
         self,
         question: Question,
-        questions_that_must_be_answered_before: List[asyncio.Task],
+        tasks_that_must_be_completed_before: List[asyncio.Task],
         debug,
     ):
         """Creates a task that depends on the passed-in dependencies that are awaited before the task is run.
         The key awaitable is the `run_task` function, which is a wrapper around the `answer_question_and_record_task` method.
         """
 
-        async def run_task() -> asyncio.Task:
-            logger.info(f"Running task for {question.question_name}")
-            await asyncio.gather(*questions_that_must_be_answered_before)
-            logger.info(f"Tasks for {question.question_name} completed")
-            return await self.answer_question_and_record_task(question, debug)
+        def cancel_children(task):
+            self.task_manager.cancel_children(task)
 
-        return asyncio.create_task(run_task())
+        task = QuestionTaskCreator(
+            self.answer_question_and_record_task, failure_callback=cancel_children
+        )
+        for dependency in tasks_that_must_be_completed_before:
+            task.add_dependency(dependency)
+        return task(question, debug)
 
     def _update_answers(self, response, question) -> None:
         """Updates the answers dictionary with the response to a question."""
@@ -194,19 +281,7 @@ class Interview:
             ## even if one question fails.But we should cancel all tasks that depend on this one.
             logger.exception("Error in answer_question_and_record_task")
 
-            from collections import UserDict
-
-            class FailedTask(UserDict):
-                def __init__(self):
-                    data = {
-                        "answer": "Failure",
-                        "comment": "Failure",
-                        "prompts": {"user_prompt": "", "sytem_prompt": ""},
-                        "exception": e,
-                    }
-                    super().__init__(data)
-
-            response = FailedTask()
+            response = FailedTask(str(e))
 
         return response
 
