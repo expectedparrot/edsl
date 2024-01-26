@@ -24,10 +24,10 @@ class TestRuleCollection(unittest.TestCase):
         rc.add_rule(rule)
 
         # Assert that no rules apply for an irrelevant question index
-        self.assertEqual(rc.which_rules(4), [])
+        self.assertEqual(rc.applicable_rules(4), [])
 
         # Assert that rules do apply for the relevant question index
-        rules_that_apply = rc.which_rules(0)
+        rules_that_apply = rc.applicable_rules(0)
         self.assertEqual(len(rules_that_apply), 1)
         self.assertEqual(rules_that_apply[0].priority, 1)
 
