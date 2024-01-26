@@ -1,5 +1,5 @@
 from typing import List, Union
-from collections import defaultdict
+from collections import defaultdict, UserList
 
 from edsl.exceptions import (
     SurveyRuleCannotEvaluateError,
@@ -20,25 +20,24 @@ NextQuestion = namedtuple(
 ## so we know how long the survey is, unless we move
 
 
-class RuleCollection:
+class RuleCollection(UserList):
     "A collection of rules for a particular survey"
 
     def __init__(self, num_questions: int = None, rules: List[Rule] = None):
-        self.rules = rules or []
+        super().__init__(rules or [])
         self.num_questions = num_questions
 
-    def __len__(self):
-        return len(self.rules)
-
-    def __getitem__(self, index):
-        return self.rules[index]
-
     def __repr__(self):
-        return f"RuleCollection(rules = {self.rules})"
+        """
+        >>> rule_collection = RuleCollection.example()
+        >>> rule_collection == eval(repr(rule_collection))
+        True
+        """
+        return f"RuleCollection(rules={self.data}, num_questions={self.num_questions})"
 
     def to_dict(self):
         return {
-            "rules": [rule.to_dict() for rule in self.rules],
+            "rules": [rule.to_dict() for rule in self],
             "num_questions": self.num_questions,
         }
 
@@ -54,12 +53,12 @@ class RuleCollection:
 
     def add_rule(self, rule: Rule):
         """Adds a rule to a survey. If it's not, return human-readable complaints"""
-        self.rules.append(rule)
+        self.append(rule)
 
     def show_rules(self) -> None:
         keys = ["current_q", "expression", "next_q", "priority"]
         rule_list = []
-        for rule in sorted(self.rules, key=lambda r: r.current_q):
+        for rule in sorted(self, key=lambda r: r.current_q):
             rule_list.append({k: getattr(rule, k) for k in keys})
 
         print_table_with_rich(rule_list)
@@ -69,7 +68,7 @@ class RuleCollection:
 
         >>> rule_collection = RuleCollection.example()
         >>> rule_collection.applicable_rules(1)
-        [Rule(current_q=1, expression="q1 == 'yes'", next_q=3, priority=1, question_name_to_index={'q1': 1}), Rule(current_q=1, expression="q1 == 'no'", next_q=2, priority=1, question_name_to_index={'q1': 1})]
+        [Rule(current_q=1, expression="q1 == 'yes'", next_q=3, priority=1, question_name_to_index={'q1': 1, 'q2': 2, 'q3': 3, 'q4': 4}), Rule(current_q=1, expression="q1 == 'no'", next_q=2, priority=1, question_name_to_index={'q1': 1, 'q2': 2, 'q3': 3, 'q4': 4})]
 
         More than one rule can apply. E.g., suppose we are at node 1.
         We could have three rules:
@@ -77,10 +76,10 @@ class RuleCollection:
         2. "q1 == 'b' ==> 4
         3. "q1 == 'c' ==> 5
         """
-        return [rule for rule in self.rules if rule.current_q == q_now]
+        return [rule for rule in self if rule.current_q == q_now]
 
-    def next_question(self, q_now, answers) -> int:
-        "Find the next question by index, given the rule collection"
+    def next_question(self, q_now, answers) -> NextQuestion:
+        """Find the next question by index, given the rule collection"""
         # what rules apply at the current node?
 
         # tracking
@@ -116,7 +115,7 @@ class RuleCollection:
         >>> len(rule_collection.non_default_rules)
         2
         """
-        return [rule for rule in self.rules if rule.priority > -1]
+        return [rule for rule in self if rule.priority > -1]
 
     def keys_between(self, start_q, end_q, right_inclusive=True):
         """Returns a list of all question indices between start_q and end_q
@@ -129,10 +128,9 @@ class RuleCollection:
         [2, 3, 4]
         """
 
+        # If it's the end of the survey, all questions between the start_q and the end of the survey
+        # now depend on the start_q
         if end_q == EndOfSurvey:
-            # If it's the end of the survey,
-            # all questions between the start_q and the end of the survey
-            # now depend on the start_q
             if self.num_questions is None:
                 raise ValueError(
                     "Cannot determine DAG when EndOfSurvey and when num_questions is not known"
@@ -146,8 +144,18 @@ class RuleCollection:
     @property
     def dag(self) -> dict:
         """
-        Finds the DAG of the survey based on the skip logic.
-        They key is parent node, the value is a set of child nodes.
+        Finds the DAG of the survey, based on the skip logic.
+        Keys are parent nodes, the value is a set of child nodes.
+
+        Rules are designated at the current question and then direct where
+        control goes next. As such, the destination nodes are the keys
+        and the current nodes are the values. Furthermore, all questions between
+        the current and destination nodes are also included as keys, as they will depend
+        on the answer to the focal node as well.
+
+        ## If we have a rule that says "if q1 == 'yes', go to q3",
+        ## Then q3 depends on q1, but so does q2
+        ## So the DAG would be {3: [1], 2: [1]}
 
         >>> rule_collection = RuleCollection(num_questions=5)
         >>> qn2i = {'q1': 1, 'q2': 2, 'q3': 3, 'q4': 4}
@@ -157,16 +165,6 @@ class RuleCollection:
         {2: {1}, 3: {1}}
         """
         parent_to_children = defaultdict(set)
-        ## Rules are desgined at the current question and then direct where
-        ## control goes next. As such, the destination nodes are the keys
-        ## and the current nodes are the values. Furthermore, all questions between
-        ## the current and destination nodes are also included as keys, as they will depend
-        ## on the answer to the focal node as well.
-
-        ## If we have a rule that says "if q1 == 'yes', go to q3",
-        ## Then q3 depends on q1, but so does q2
-        ## So the DAG would be {3: [1], 2: [1]}
-
         # we are only interested in non-default rules. Default rules are those
         # that just go to the next question, so they don't add any dependencies
         for rule in self.non_default_rules:
@@ -200,6 +198,7 @@ class RuleCollection:
 
 
 if __name__ == "__main__":
+    # pass
     import doctest
 
     doctest.testmod()
