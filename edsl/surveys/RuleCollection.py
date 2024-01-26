@@ -147,7 +147,7 @@ class RuleCollection(UserList):
     def dag(self) -> dict:
         """
         Finds the DAG of the survey, based on the skip logic.
-        Keys are parent nodes, the value is a set of child nodes.
+        Keys are children questions; the list of values are nodes that must be answered first
 
         Rules are designated at the current question and then direct where
         control goes next. As such, the destination nodes are the keys
@@ -166,14 +166,14 @@ class RuleCollection(UserList):
         >>> rule_collection.dag
         {2: {1}, 3: {1}}
         """
-        parent_to_children = defaultdict(set)
+        children_to_parents = defaultdict(set)
         # we are only interested in non-default rules. Default rules are those
         # that just go to the next question, so they don't add any dependencies
         for rule in self.non_default_rules:
             current_q, next_q = rule.current_q, rule.next_q
             for q in self.keys_between(current_q, next_q):
-                parent_to_children[q].add(current_q)
-        return DAG(dict(sorted(parent_to_children.items())))
+                children_to_parents[q].add(current_q)
+        return DAG(dict(sorted(children_to_parents.items())))
 
     @classmethod
     def example(cls):
