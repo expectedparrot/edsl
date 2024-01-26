@@ -6,6 +6,7 @@ import pandas as pd
 from edsl.utilities import (
     print_list_of_dicts_with_rich,
     print_list_of_dicts_as_html_table,
+    print_dict_with_rich,
 )
 
 
@@ -43,6 +44,15 @@ class ResultsExportMixin:
             rows.append(row)
         return header, rows
 
+    def print_long(self):
+        """ """
+        for result in self:
+            if hasattr(result, "combined_dict"):
+                d = result.combined_dict
+            else:
+                d = result
+            print_dict_with_rich(d)
+
     @convert_decorator
     def print(
         self,
@@ -55,19 +65,20 @@ class ResultsExportMixin:
         if pretty_labels is None:
             pretty_labels = {}
 
-        new_data = []
-        for entry in self:
-            key, list_of_values = list(entry.items())[0]
-            new_data.append({pretty_labels.get(key, key): list_of_values})
         else:
-            if not html:
-                print_list_of_dicts_with_rich(
-                    new_data, filename=filename, split_at_dot=split_at_dot
-                )
+            new_data = []
+            for entry in self:
+                key, list_of_values = list(entry.items())[0]
+                new_data.append({pretty_labels.get(key, key): list_of_values})
             else:
-                print_list_of_dicts_as_html_table(
-                    new_data, filename=None, interactive=interactive
-                )
+                if not html:
+                    print_list_of_dicts_with_rich(
+                        new_data, filename=filename, split_at_dot=split_at_dot
+                    )
+                else:
+                    print_list_of_dicts_as_html_table(
+                        new_data, filename=None, interactive=interactive
+                    )
 
     @convert_decorator
     def to_csv(self, filename: str = None, remove_prefix=False, download_link=False):
@@ -122,3 +133,9 @@ class ResultsExportMixin:
             return list(self[0].values())[0]
         else:
             return tuple([list(x.values())[0] for x in self])
+
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod()

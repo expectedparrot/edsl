@@ -167,6 +167,16 @@ def display(console, table, filename):
 
 
 def print_dict_with_rich(d, key_name="Key", value_name="Value", filename=None):
+    """
+    >>> print_dict_with_rich({"a": 1, "b": 2, "c": 3})
+    ┏━━━━━┳━━━━━━━┓
+    ┃ Key ┃ Value ┃
+    ┡━━━━━╇━━━━━━━┩
+    │ a   │ 1     │
+    │ b   │ 2     │
+    │ c   │ 3     │
+    └─────┴───────┘
+    """
     console = Console(record=True)
     table = Table(show_header=True, header_style="bold magenta")
     table.add_column(key_name, style="dim")
@@ -179,6 +189,7 @@ def print_dict_with_rich(d, key_name="Key", value_name="Value", filename=None):
 def print_dict_as_html_table(
     d, show=False, key_name="Key", value_name="Value", filename=None
 ):
+    """ """
     # Start the HTML table
     html_table = f'<table border="1">\n<tr><th>{escape(key_name)}</th><th>{escape(value_name)}</th></tr>\n'
 
@@ -207,6 +218,19 @@ def print_dict_as_html_table(
 
 def print_list_of_dicts_with_rich(data, filename=None, split_at_dot=True):
     # Initialize console object
+    """
+    >>> data = [{"a": [1, 2, 3], "b": [4, 5, 6]}]
+    >>> print_list_of_dicts_with_rich(data)
+    ┏━━━┳━━━┓
+    ┃ a ┃ b ┃
+    ┡━━━╇━━━┩
+    │ 1 │ 4 │
+    ├───┼───┤
+    │ 2 │ 5 │
+    ├───┼───┤
+    │ 3 │ 6 │
+    └───┴───┘
+    """
     console = Console(record=True)
 
     # Create a table object
@@ -233,6 +257,10 @@ def print_list_of_dicts_with_rich(data, filename=None, split_at_dot=True):
 def print_list_of_dicts_as_html_table(data, filename=None, interactive=False):
     # Start the HTML table
 
+    """This prints a list of dictionaries as an HTML table.
+    The columns are the keys.
+    The rows are the values.
+    """
     html_table = '<table id="myTable" class="display">\n'
     html_table += "  <thead>\n"
     # Add the header row
@@ -287,6 +315,23 @@ def print_public_methods_with_doc(obj):
 
 
 def print_table_with_rich(data, filename=None):
+    """
+    >>> data = [{"a": 1, "b": 2, "c": 3}]
+    >>> print_table_with_rich(data)
+    ┏━━━┳━━━┳━━━┓
+    ┃ a ┃ b ┃ c ┃
+    ┡━━━╇━━━╇━━━┩
+    │ 1 │ 2 │ 3 │
+    └───┴───┴───┘
+    >>> data = [{"a": 1, "b": 2, "c": 3},{"a": 2, "b": 9, "c": 8}]
+    >>> print_table_with_rich(data)
+    ┏━━━┳━━━┳━━━┓
+    ┃ a ┃ b ┃ c ┃
+    ┡━━━╇━━━╇━━━┩
+    │ 1 │ 2 │ 3 │
+    │ 2 │ 9 │ 8 │
+    └───┴───┴───┘
+    """
     # Initialize a console object - expects a list of dictionaries
     console = Console(record=True)
 
@@ -307,3 +352,26 @@ def print_table_with_rich(data, filename=None):
         table.add_row(*[str(value) for value in row.values()])
 
     display(console, table, filename)
+
+
+if __name__ == "__main__":
+    # print_dict_as_html_table({"a": 1, "b": 2, "c": 3})
+    import doctest
+
+    doctest.testmod()
+    # print_list_of_dicts_with_rich([{"a": [1, 2, 3], "b": [4, 5, 6]}])
+    # print_dict_as_html_table({"a": 1, "b": 2, "c": 3}, filename="test.html")
+    # print_dict_as_html_table({"a": 1, "b": 2, "c": 3}, show=True)
+    # print_dict_as_html_table({"a": 1, "b": 2, "c": 3}, filename="test.html", show=True)
+    # print_dict_as_html_table({"a": 1, "b": 2, "c": 3}, filename="test.html", show=False)
+    # print_dict_as_html_table({"a": 1, "b": 2, "c": 3}, filename="test.html", show=True)
+    # print_dict_as_html_table({"a": 1, "b": 2, "c": 3}, filename="test.html", show=False)
+    # print_dict_as_html_table({"a": 1, "b": 2, "c": 3}, filename="test.html", show=True)
+    # print_dict_as_html_table({"a": 1, "b": 2, "c": 3}, filename="test.html", show=False)
+    # print_dict_as_html_table({"a": 1, "b": 2, "c": 3}, filename="test.html", show=True)
+    # print_dict_as_html_table({"a": 1, "b": 2, "c": 3}, filename="test.html", show=False)
+    # print_dict_as_html_table({"a": 1, "b": 2, "c": 3}, filename="test.html", show=True)
+    # print_dict_as_html_table({"a": 1, "b": 2, "c": 3}, filename="test.html", show=False)
+    # print_dict_as_html_table({"a": 1, "b": 2, "c": 3}, filename="test.html", show=True)
+    # print_dict_as_html_table({"a": 1, "b": 2, "c": 3}, filename="test.html", show=False)
+    # print_dict_as_html_table({"a": 1, "b": 2, "c
