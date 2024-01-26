@@ -1,5 +1,7 @@
 from collections import UserDict
 
+from graphlib import TopologicalSorter
+
 
 class DAG(UserDict):
     def __init__(self, data: dict):
@@ -31,6 +33,16 @@ class DAG(UserDict):
 
         dfs(key)
         return children
+
+    def node_order(self):
+        """
+        Returns a sequence of the DAG.
+        >>> data = {"a": ["b", "c"], "b": ["d"], "c": [], "d": []}
+        >>> dag = DAG(data)
+        >>> dag.sequence()
+        ['a', 'b', 'c', 'd']
+        """
+        return list(TopologicalSorter(self.data).static_order())
 
 
 if __name__ == "__main__":

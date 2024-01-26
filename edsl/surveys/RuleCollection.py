@@ -8,7 +8,9 @@ from edsl.exceptions import (
 from edsl.utilities.interface import print_table_with_rich
 from edsl.surveys.Rule import Rule
 from edsl.surveys.base import EndOfSurvey
+from edsl.surveys.DAG import DAG
 
+from graphlib import TopologicalSorter
 
 from collections import namedtuple
 
@@ -171,7 +173,7 @@ class RuleCollection(UserList):
             current_q, next_q = rule.current_q, rule.next_q
             for q in self.keys_between(current_q, next_q):
                 parent_to_children[q].add(current_q)
-        return dict(sorted(parent_to_children.items()))
+        return DAG(dict(sorted(parent_to_children.items())))
 
     @classmethod
     def example(cls):
