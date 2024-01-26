@@ -64,12 +64,15 @@ def test_handle_model_exception():
     model = create_exception_throwing_model(
         target_exception, fail_at_number=FAIL_AT_NUMBER
     )
-    survey = create_survey(num_questions=20, chained=False)
+    survey = create_survey(num_questions=20, chained=True)
     results = survey.by(model).run()
     results.print_long()
-    # breakpoint()
     assert results[0]["answer"]["question_5"] is None
+
+    ## TODO: This should fail. Need to re-factor Interview to handle this.
+    ##assert results[0]["answer"]["question_6"] is None
     # assert results.select(f"answer.question_{FAIL_AT_NUMBER + 1}").first() is None
+    # breakpoint()
 
 
 if __name__ == "__main__":
