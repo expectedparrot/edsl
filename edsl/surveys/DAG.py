@@ -34,12 +34,12 @@ class DAG(UserDict):
         dfs(key)
         return children
 
-    def node_order(self):
+    def topologically_sorted_nodes(self):
         """
         Returns a sequence of the DAG.
         >>> data = {"a": ["b", "c"], "b": ["d"], "c": [], "d": []}
         >>> dag = DAG(data)
-        >>> dag.node_order() == ['c', 'd', 'b', 'a']
+        >>> dag.topologically_sorted_nodes() == ['c', 'd', 'b', 'a']
         True
         """
         return list(TopologicalSorter(self).static_order())
