@@ -326,26 +326,22 @@ class Survey(SurveyExportMixin, Base):
             temp.extend(matches)
         return temp
 
-    def textify(self, d):
-        new_d = dict({})
-        for key, value in d.items():
-            new_key = self.questions[key].question_name
-            new_value = set({self.questions[index].question_name for index in value})
-            new_d[new_key] = new_value
-        return new_d
+    def textify(self, d: DAG) -> DAG:
+        return {
+            self.questions[key].question_name: {
+                self.questions[index].question_name for index in value
+            }
+            for key, value in d.items()
+        }
 
     def dag(self, textify=False) -> DAG:
+        """Returns the DAG of the survey, which reflects both skip-logic and memory."""
         memory_dag = self.memory_plan.dag
         rule_dag = self.rule_collection.dag
-        # return {"memory_dag": memory_dag, "rule_dag": rule_dag}
-        d = {}
-        combined_keys = set(memory_dag.keys()).union(set(rule_dag.keys()))
-        for key in combined_keys:
-            d[key] = memory_dag.get(key, set({})).union(rule_dag.get(key, set({})))
         if textify:
-            return DAG(self.textify(d))
-        else:
-            return DAG(d)
+            memory_dag = DAG(self.textify(memory_dag))
+            rule_dag = DAG(self.textify(rule_dag))
+        return memory_dag + rule_dag
 
     ###################
     # DUNDER METHODS

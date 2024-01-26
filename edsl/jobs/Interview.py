@@ -42,10 +42,9 @@ def async_timeout_handler(timeout):
                 return await asyncio.wait_for(func(*args, **kwargs), timeout)
             except asyncio.TimeoutError:
                 question = args[0]  # Assuming the first argument is the question
-                print(
-                    f"Task {question.question_name} timed out after {timeout} seconds."
-                )
-                logger.error(f"Task {question.question_name }timed out")
+                task_name = getattr(question, "question_name", "unknown")
+                print(f"Task {task_name} timed out after {timeout} seconds.")
+                logger.error(f"Task {task_name} timed out")
                 return None
 
         return wrapper

@@ -1,7 +1,8 @@
-from collections import UserDict
+from collections import UserDict, defaultdict
 from edsl.surveys.Memory import Memory
 
 from edsl.prompts.Prompt import Prompt
+from edsl.surveys.DAG import DAG
 
 
 class MemoryPlan(UserDict):
@@ -108,14 +109,15 @@ class MemoryPlan(UserDict):
 
     @property
     def dag(self):
-        d = {}
+        d = defaultdict(set)
         "Returns a directed acyclic graph of the memory plan"
         for focal_question, memory in self.items():
             for prior_question in memory:
-                if focal_question not in d:
-                    d[focal_question] = set({prior_question})
-                else:
-                    d[focal_question].add(prior_question)
+                d[focal_question].add(prior_question)
+                # if focal_question not in d:
+                #     d[focal_question] = set({prior_question})
+                # else:
+                #     d[focal_question].add(prior_question)
         # focal_index = self.survey_question_names.index(focal_question)
         # prior_index = self.survey_question_names.index(prior_question)
-        return self._indexify(d)
+        return DAG(self._indexify(d))
