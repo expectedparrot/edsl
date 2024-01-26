@@ -1,4 +1,6 @@
 from typing import List, Union
+from collections import defaultdict
+
 from edsl.exceptions import (
     SurveyRuleCannotEvaluateError,
     SurveyRuleCollectionHasNoRulesAtNodeError,
@@ -21,9 +23,7 @@ NextQuestion = namedtuple(
 class RuleCollection:
     "A collection of rules for a particular survey"
 
-    def __init__(
-        self, num_questions: int = None, rules: List[Rule] = None, verbose=False
-    ):
+    def __init__(self, num_questions: int = None, rules: List[Rule] = None):
         self.rules = rules or []
         self.num_questions = num_questions
 
@@ -57,13 +57,12 @@ class RuleCollection:
         self.rules.append(rule)
 
     def show_rules(self) -> None:
-        if self.verbose:
-            keys = ["current_q", "expression", "next_q", "priority"]
-            rule_list = []
-            for rule in sorted(self.rules, key=lambda r: r.current_q):
-                rule_list.append({k: getattr(rule, k) for k in keys})
+        keys = ["current_q", "expression", "next_q", "priority"]
+        rule_list = []
+        for rule in sorted(self.rules, key=lambda r: r.current_q):
+            rule_list.append({k: getattr(rule, k) for k in keys})
 
-            print_table_with_rich(rule_list)
+        print_table_with_rich(rule_list)
 
     def which_rules(self, q_now) -> list:
         """Which rules apply at the current node?
@@ -110,9 +109,45 @@ class RuleCollection:
         """Returns all rules that are not the default rule"""
         return [rule for rule in self.rules if rule.priority > -1]
 
+    def keys_between(self, start_q, end_q, right_inclusive=True):
+        """Returns a list of all question indices between start_q and end_q
+        >>> rule_collection = RuleCollection(num_questions=5)
+        >>> rule_collection.keys_between(1, 3)
+        [2, 3]
+        >>> rule_collection.keys_between(1, 4)
+        [2, 3, 4]
+        >>> rule_collection.keys_between(1, EndOfSurvey, right_inclusive=False)
+        [2, 3, 4]
+        """
+
+        if end_q == EndOfSurvey:
+            # If it's the end of the survey,
+            # all questions between the start_q and the end of the survey
+            # now depend on the start_q
+            if self.num_questions is None:
+                raise ValueError(
+                    "Cannot determine DAG when EndOfSurvey and when num_questions is not known"
+                )
+            end_q = self.num_questions
+
+        question_range = list(range(start_q + 1, end_q + int(right_inclusive)))
+
+        return question_range
+
     @property
     def dag(self) -> dict:
-        d = dict({})
+        """
+        Finds the DAG of the survey based on the skip logic.
+        They key is parent node, the value is a set of child nodes.
+
+        >>> rule_collection = RuleCollection(num_questions=5)
+        >>> qn2i = {'q1': 1, 'q2': 2, 'q3': 3, 'q4': 4}
+        >>> rule_collection.add_rule(Rule(current_q=1, expression="q1 == 'yes'", next_q=3, priority=1,  question_name_to_index = qn2i))
+        >>> rule_collection.add_rule(Rule(current_q=1, expression="q1 == 'no'", next_q=2, priority=1, question_name_to_index = qn2i))
+        >>> rule_collection.dag
+        {2: {1}, 3: {1}}
+        """
+        parent_to_children = defaultdict(set)
         ## Rules are desgined at the current question and then direct where
         ## control goes next. As such, the destination nodes are the keys
         ## and the current nodes are the values. Furthermore, all questions between
@@ -123,47 +158,16 @@ class RuleCollection:
         ## Then q3 depends on q1, but so does q2
         ## So the DAG would be {3: [1], 2: [1]}
 
-        def keys_between(start_q, end_q):
-            """Returns a list of all question indices between start_q and end_q"""
-            if isinstance(end_q, EndOfSurvey):
-                # If it's the end of the survey,
-                # all questions between the start_q and the end of the survey
-                # now depend on the start_q
-                if self.num_questions is None:
-                    raise ValueError(
-                        "Cannot determine DAG when EndOfSurvey and when num_questions is not known"
-                    )
-                end_q = self.num_questions
-            return list(range(start_q + 1, end_q))
+        # we are only interested in non-default rules. Default rules are those
+        # that just go to the next question, so they don't add any dependencies
+        for rule in self.non_default_rules:
+            current_q, next_q = rule.current_q, rule.next_q
+            for q in self.keys_between(current_q, next_q):
+                parent_to_children[q].add(current_q)
+        return dict(sorted(parent_to_children.items()))
 
-        non_default_rules = self.non_default_rules
-        for rule in non_default_rules:
-            current_q = rule.current_q
-            next_q = rule.next_q
-            for q in keys_between(current_q, next_q + 1):
-                if q in d:
-                    d[q].add(current_q)
-                else:
-                    d[q] = set({current_q})
-        return d
 
-    def all_nodes_reachable(self) -> bool:
-        """Are all nodes reachable, given rule set?
-        To do the tree traversal, you'd have to instantiate answers to check.
-        What would you do for continuous measures? Probably fork at above/below threshold?
+if __name__ == "__main__":
+    import doctest
 
-        You could use the rules to help you draw the tree, no?
-        Like you start linear
-        Then take a rule, given it's conditions - figure out what options you need to track
-        to build the tree e.g., if it mentions q1.answer, you need to add leafs at that node
-        """
-        raise NotImplementedError
-
-    def no_cycles(self, rules: list[Rule]) -> bool:
-        """Ensures there are not cycles in the rule set, which would create an infinite loop
-        Probably also put a check in the Exam class to make sure they
-        don't see the same question more than once - though
-        that could be OK if their prompt text has changed.
-        Python 3.10 has a topological sort, so
-        """
-        raise NotImplemented
+    doctest.testmod()
