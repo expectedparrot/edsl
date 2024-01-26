@@ -76,13 +76,21 @@ class Survey(SurveyExportMixin, Base):
 
     @property
     def question_names(self) -> list[str]:
-        """Returns a list of question names in the survey"""
+        """Returns a list of question names in the survey
+        >>> s = Survey.example()
+        >>> s.question_names
+        ['q0', 'q1', 'q2']
+        """
         # return list(self.question_name_to_index.keys())
         return [q.question_name for q in self.questions]
 
     @property
     def question_name_to_index(self) -> dict[str, int]:
-        """Returns a dictionary mapping question names to question indices"""
+        """Returns a dictionary mapping question names to question indices
+        >>> s = Survey.example()
+        >>> s.question_name_to_index
+        {'q0': 0, 'q1': 1, 'q2': 2}
+        """
         return {q.question_name: i for i, q in enumerate(self.questions)}
 
     def add_question(
@@ -130,20 +138,20 @@ class Survey(SurveyExportMixin, Base):
 
     def set_full_memory_mode(self) -> None:
         """This adds instructions to a survey that the agent should remember all of the answers to the questions in the survey."""
-        for i, _ in enumerate(self.question_names):
-            self.memory_plan.add_memory_collection(
-                focal_question=self.question_names[i],
-                prior_questions=self.question_names[:i],
-            )
+        self._set_memory_plan(lambda i: self.question_names[:i])
 
     def set_lagged_memory(self, lags: int):
         """This adds instructions to a survey that the agent should remember the answers to the questions in the survey.
         The agent should remember the answers to the questions in the survey from the previous lags.
         """
-        for i, _ in enumerate(self.question_names):
+        self._set_memory_plan(lambda i: self.question_names[max(0, i - lags) : i])
+
+    def _set_memory_plan(self, prior_questions_func):
+        """Helper method to set memory plan based on a provided function determining prior questions."""
+        for i, question_name in enumerate(self.question_names):
             self.memory_plan.add_memory_collection(
-                focal_question=self.question_names[i],
-                prior_questions=self.question_names[max(0, i - lags) : i],
+                focal_question=question_name,
+                prior_questions=prior_questions_func(i),
             )
 
     def add_targeted_memory(
@@ -216,17 +224,18 @@ class Survey(SurveyExportMixin, Base):
         next_question_index = self._get_question_index(next_question)
 
         def get_new_rule_priority(question_index):
-            priorities = [
+            current_priorities = [
                 rule.priority
-                for rule in self.rule_collection.which_rules(question_index)
+                for rule in self.rule_collection.applicable_rules(question_index)
             ]
-            if len(priorities) == 0:
-                priority = RulePriority.DEFAULT.value
-            else:
-                priority = (
-                    max(priorities) + 1
-                )  # newer rules take priority over older rules
-            return priority
+            max_priority = max(current_priorities)
+            # newer rules take priority over older rules
+            new_priority = (
+                RulePriority.DEFAULT.value
+                if len(current_priorities) == 0
+                else max_priority + 1
+            )
+            return new_priority
 
         self.rule_collection.add_rule(
             Rule(
@@ -326,26 +335,22 @@ class Survey(SurveyExportMixin, Base):
             temp.extend(matches)
         return temp
 
-    def textify(self, d):
-        new_d = dict({})
-        for key, value in d.items():
-            new_key = self.questions[key].question_name
-            new_value = set({self.questions[index].question_name for index in value})
-            new_d[new_key] = new_value
-        return new_d
+    def textify(self, d: DAG) -> DAG:
+        return {
+            self.questions[key].question_name: {
+                self.questions[index].question_name for index in value
+            }
+            for key, value in d.items()
+        }
 
     def dag(self, textify=False) -> DAG:
+        """Returns the DAG of the survey, which reflects both skip-logic and memory."""
         memory_dag = self.memory_plan.dag
         rule_dag = self.rule_collection.dag
-        # return {"memory_dag": memory_dag, "rule_dag": rule_dag}
-        d = {}
-        combined_keys = set(memory_dag.keys()).union(set(rule_dag.keys()))
-        for key in combined_keys:
-            d[key] = memory_dag.get(key, set({})).union(rule_dag.get(key, set({})))
         if textify:
-            return DAG(self.textify(d))
-        else:
-            return DAG(d)
+            memory_dag = DAG(self.textify(memory_dag))
+            rule_dag = DAG(self.textify(rule_dag))
+        return memory_dag + rule_dag
 
     ###################
     # DUNDER METHODS
@@ -499,8 +504,12 @@ if __name__ == "__main__":
         s = s.add_rule(q0, "q0 == 'yes'", q2)
         return s
 
-    s = example_survey()
-    survey_dict = s.to_dict()
-    s2 = Survey.from_dict(survey_dict)
-    results = s2.run()
-    print(results)
+    # s = example_survey()
+    # survey_dict = s.to_dict()
+    # s2 = Survey.from_dict(survey_dict)
+    # results = s2.run()
+    # print(results)
+
+    import doctest
+
+    doctest.testmod()
