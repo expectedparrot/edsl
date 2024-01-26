@@ -128,7 +128,7 @@ class Rule:
         )
 
     def __repr__(self):
-        return f'Rule(current_q = {self.current_q}, expression = "{self.expression}", next_q = {self.next_q}, priority = {self.priority})'
+        return f'Rule(current_q={self.current_q}, expression="{self.expression}", next_q={self.next_q}, priority={self.priority}, question_name_to_index={self.question_name_to_index})'
 
     def __str__(self):
         return self.__repr__()
