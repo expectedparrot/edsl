@@ -218,7 +218,7 @@ class Survey(SurveyExportMixin, Base):
         def get_new_rule_priority(question_index):
             priorities = [
                 rule.priority
-                for rule in self.rule_collection.which_rules(question_index)
+                for rule in self.rule_collection.applicable_rules(question_index)
             ]
             if len(priorities) == 0:
                 priority = RulePriority.DEFAULT.value

@@ -64,24 +64,24 @@ class RuleCollection:
 
         print_table_with_rich(rule_list)
 
-    def which_rules(self, q_now) -> list:
+    def applicable_rules(self, q_now) -> list:
         """Which rules apply at the current node?
+
+        >>> rule_collection = RuleCollection.example()
+        >>> rule_collection.applicable_rules(1)
+        [Rule(current_q=1, expression="q1 == 'yes'", next_q=3, priority=1, question_name_to_index={'q1': 1}), Rule(current_q=1, expression="q1 == 'no'", next_q=2, priority=1, question_name_to_index={'q1': 1})]
+
         More than one rule can apply. E.g., suppose we are at node 1.
         We could have three rules:
         1. "q1 == 'a' ==> 3
         2. "q1 == 'b' ==> 4
         3. "q1 == 'c' ==> 5
         """
-        applicable_rules = [rule for rule in self.rules if rule.current_q == q_now]
-        return applicable_rules
+        return [rule for rule in self.rules if rule.current_q == q_now]
 
     def next_question(self, q_now, answers) -> int:
         "Find the next question by index, given the rule collection"
         # what rules apply at the current node?
-        applicable_rules = self.which_rules(q_now)
-        # Every node should have a rule - if it doesn't, there's a problem
-        if not applicable_rules:
-            raise SurveyRuleCollectionHasNoRulesAtNodeError
 
         # tracking
         expressions_evaluating_to_true = 0
@@ -89,7 +89,7 @@ class RuleCollection:
         highest_priority = -2  # start with -2 to 'pick up' the default rule added
         num_rules_found = 0
 
-        for rule in applicable_rules:
+        for rule in self.applicable_rules(q_now):
             num_rules_found += 1
             try:
                 if rule.evaluate(answers):  # evaluates to True
@@ -98,7 +98,12 @@ class RuleCollection:
                         # we have a new champ!
                         next_q, highest_priority = rule.next_q, rule.priority
             except SurveyRuleCannotEvaluateError:
-                pass
+                raise
+
+        if num_rules_found == 0:
+            raise SurveyRuleCollectionHasNoRulesAtNodeError(
+                f"No rules found for question {q_now}"
+            )
 
         return NextQuestion(
             next_q, num_rules_found, expressions_evaluating_to_true, highest_priority
@@ -106,7 +111,11 @@ class RuleCollection:
 
     @property
     def non_default_rules(self) -> List[Rule]:
-        """Returns all rules that are not the default rule"""
+        """Returns all rules that are not the default rule"
+        >>> rule_collection = RuleCollection.example()
+        >>> len(rule_collection.non_default_rules)
+        2
+        """
         return [rule for rule in self.rules if rule.priority > -1]
 
     def keys_between(self, start_q, end_q, right_inclusive=True):
@@ -165,6 +174,29 @@ class RuleCollection:
             for q in self.keys_between(current_q, next_q):
                 parent_to_children[q].add(current_q)
         return dict(sorted(parent_to_children.items()))
+
+    @classmethod
+    def example(cls):
+        qn2i = {"q1": 1, "q2": 2, "q3": 3, "q4": 4}
+        return cls(
+            num_questions=5,
+            rules=[
+                Rule(
+                    current_q=1,
+                    expression="q1 == 'yes'",
+                    next_q=3,
+                    priority=1,
+                    question_name_to_index=qn2i,
+                ),
+                Rule(
+                    current_q=1,
+                    expression="q1 == 'no'",
+                    next_q=2,
+                    priority=1,
+                    question_name_to_index=qn2i,
+                ),
+            ],
+        )
 
 
 if __name__ == "__main__":
