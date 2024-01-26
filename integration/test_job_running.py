@@ -64,9 +64,11 @@ def test_handle_model_exception():
     model = create_exception_throwing_model(
         target_exception, fail_at_number=FAIL_AT_NUMBER
     )
-    # survey = create_survey(num_questions=20, chained=False)
-    # results = survey.by(model).run()
-    # assert results.select(f"answer.question_{FAIL_AT_NUMBER -1}").first() is None
+    survey = create_survey(num_questions=20, chained=False)
+    results = survey.by(model).run()
+    results.print_long()
+    # breakpoint()
+    assert results[0]["answer"]["question_5"] is None
     # assert results.select(f"answer.question_{FAIL_AT_NUMBER + 1}").first() is None
 
 
