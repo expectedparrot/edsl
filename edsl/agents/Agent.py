@@ -1,5 +1,6 @@
 from __future__ import annotations
 import copy
+import inspect
 from typing import Any, Callable, Optional, Union, Dict
 
 from edsl.Base import Base
@@ -13,7 +14,8 @@ from edsl.agents.Invigilator import (
     InvigilatorAI,
 )
 
-from edsl.language_models import LanguageModel, LanguageModelOpenAIThreeFiveTurbo
+# from edsl.language_models import LanguageModel, LanguageModelOpenAIThreeFiveTurbo
+from edsl.language_models.registry import Model
 from edsl.scenarios import Scenario
 from edsl.utilities import (
     dict_to_html,
@@ -33,7 +35,18 @@ from edsl.data_transfer_models import AgentResponseDict
 
 
 class Agent(Base):
-    """An agent answers questions."""
+    """An agent that can answer questions.
+
+    Parameters
+    ----------
+    traits : dict, optional - A dictionary of traits that the agent has. The keys need to be
+    valid python variable names. The values can be any python object that has a valid __str__ method.
+    codebook : dict, optional - A codebook mapping trait keys to trait descriptions.
+    instruction : str, optional - Instructions for the agent.
+
+    dynamic_traits_function : Callable, optional - A function that returns a dictionary of traits.
+
+    """
 
     default_instruction = """You are answering questions as if you were a human. Do not break character."""
 
@@ -46,10 +59,34 @@ class Agent(Base):
         traits: dict = None,
         codebook: dict = None,
         instruction: str = None,
+        dynamic_traits_function: Callable = None,
     ):
-        self.traits = traits or dict()
+        self._traits = traits or dict()
         self.codebook = codebook or dict()
         self.instruction = instruction or self.default_instruction
+        self.dynamic_traits_function = dynamic_traits_function
+
+        self.current_question = None
+
+    @property
+    def traits(self):
+        if self.dynamic_traits_function:
+            sig = inspect.signature(self.dynamic_traits_function)
+            if "question" in sig.parameters:
+                if len(sig.parameters) > 1:
+                    raise ValueError(
+                        f"The dynamic traits function {self.dynamic_traits_function} has too many parameters. It should only have one parameter: 'question'."
+                    )
+                return self.dynamic_traits_function(question=self.current_question)
+            else:
+                if len(sig.parameters) > 0:
+                    raise ValueError(
+                        f"""The dynamic traits function {self.dynamic_traits_function} has too many parameters. It should have no parameters or 
+                        just a single parameter: 'question'."""
+                    )
+                return self.dynamic_traits_function()
+        else:
+            return self._traits
 
     async def async_answer_question(
         self,
@@ -65,7 +102,9 @@ class Agent(Base):
         However, there are several different ways an agent can answer a question, so the
         actual functionality is delegated to an Invigilator object.
         """
-        model = model or LanguageModelOpenAIThreeFiveTurbo(use_cache=True)
+        self.current_question = question
+        # model = model or LanguageModelOpenAIThreeFiveTurbo(use_cache=True)
+        model = model or Model("gpt-3.5-turbo", use_cache=True)
         scenario = scenario or Scenario()
         invigilator = self._create_invigilator(
             question, scenario, model, debug, memory_plan, current_answers
@@ -84,7 +123,7 @@ class Agent(Base):
         memory_plan: Optional[MemoryPlan] = None,
         current_answers: Optional[dict] = None,
     ):
-        model = model or LanguageModelOpenAIThreeFiveTurbo(use_cache=True)
+        model = model or Model("gpt-3.5-turbo", use_cache=True)
         scenario = scenario or Scenario()
 
         if debug:
