@@ -50,10 +50,10 @@ def test_config_store_and_load(test_config):
     assert test_config.OPENAI_API_KEY == MOCK_ENV_VARS["OPENAI_API_KEY"]
     assert os.getenv("OPENAI_API_KEY") == test_config.OPENAI_API_KEY
     # both in the object and in the env for vars that are not given but have default
-    assert test_config.API_CALL_TIMEOUT_SEC == CONFIG_MAP.get(
-        "API_CALL_TIMEOUT_SEC"
-    ).get("default")
-    assert os.getenv("API_CALL_TIMEOUT_SEC") == test_config.API_CALL_TIMEOUT_SEC
+    assert test_config.EMERITUS_API_KEY == CONFIG_MAP.get("EMERITUS_API_KEY").get(
+        "default"
+    )
+    assert os.getenv("EMERITUS_API_KEY") == test_config.EMERITUS_API_KEY
 
 
 def test_config_invalid_var(mock_env):
