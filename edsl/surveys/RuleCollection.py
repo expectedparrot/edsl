@@ -137,7 +137,7 @@ class RuleCollection(UserList):
                 raise ValueError(
                     "Cannot determine DAG when EndOfSurvey and when num_questions is not known"
                 )
-            end_q = self.num_questions
+            end_q = self.num_questions - 1
 
         question_range = list(range(start_q + 1, end_q + int(right_inclusive)))
 
