@@ -5,7 +5,7 @@ class RulePriority(Enum):
     DEFAULT = -1
 
 
-class EndOfSurvey:
+class EndOfSurveyParent:
     "A named object that represents the end of the survey."
     pass
 
@@ -17,3 +17,21 @@ class EndOfSurvey:
 
     def __bool__(self):
         return False
+
+    def __add__(self, other):
+        """
+        >>> e = EndOfSurveyParent()
+        >>> e + 1
+        EndOfSurvey
+        """
+        return self
+
+    def __radd__(self, other):
+        """
+        >>> 1 + EndOfSurveyParent()
+        EndOfSurvey
+        """
+        return self
+
+
+EndOfSurvey = EndOfSurveyParent()

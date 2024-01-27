@@ -51,3 +51,15 @@
 ### Fixed
 - Better handling of async failures
 - Fixed bug in survey logic
+
+## [0.1.9] - 2023-01-27
+
+### Added
+- Report functionalities are now part of the main package.
+
+### Fixed
+- Fixed a bug in the Results.print() function
+
+### Removed
+- The package no longer supports a report extras option.
+- Fixed a bug in EndofSurvey

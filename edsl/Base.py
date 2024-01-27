@@ -19,24 +19,28 @@ class RegisterSubclassesMeta(ABCMeta):
 
 class Base(ABC, metaclass=RegisterSubclassesMeta):
     @abstractmethod
-    def example(self):
-        pass
+    def example():
+        """This method should be implemented by subclasses."""
+        raise NotImplementedError("This method is not implemented yet.")
 
     @abstractmethod
     def to_dict():
-        pass
+        """This method should be implemented by subclasses."""
+        raise NotImplementedError("This method is not implemented yet.")
 
     @abstractmethod
     def from_dict():
-        pass
+        """This method should be implemented by subclasses."""
+        raise NotImplementedError("This method is not implemented yet.")
 
     @abstractmethod
     def code():
-        pass
+        """This method should be implemented by subclasses."""
+        raise NotImplementedError("This method is not implemented yet.")
 
     def save(self, filename):
         with gzip.open(filename, "wb") as f:
-            f.write(json.dumps(self.to_dict())).encode("utf-8")
+            f.write(json.dumps(self.to_dict()).encode("utf-8"))
 
     @classmethod
     def load(cls, filename):
