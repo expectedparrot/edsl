@@ -65,20 +65,19 @@ class ResultsExportMixin:
         if pretty_labels is None:
             pretty_labels = {}
 
+        new_data = []
+        for entry in self:
+            key, list_of_values = list(entry.items())[0]
+            new_data.append({pretty_labels.get(key, key): list_of_values})
         else:
-            new_data = []
-            for entry in self:
-                key, list_of_values = list(entry.items())[0]
-                new_data.append({pretty_labels.get(key, key): list_of_values})
+            if not html:
+                print_list_of_dicts_with_rich(
+                    new_data, filename=filename, split_at_dot=split_at_dot
+                )
             else:
-                if not html:
-                    print_list_of_dicts_with_rich(
-                        new_data, filename=filename, split_at_dot=split_at_dot
-                    )
-                else:
-                    print_list_of_dicts_as_html_table(
-                        new_data, filename=None, interactive=interactive
-                    )
+                print_list_of_dicts_as_html_table(
+                    new_data, filename=None, interactive=interactive
+                )
 
     @convert_decorator
     def to_csv(self, filename: str = None, remove_prefix=False, download_link=False):
