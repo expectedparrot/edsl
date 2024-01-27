@@ -132,16 +132,18 @@ class TestResults(unittest.TestCase):
 
         from edsl import Agent
 
-        class DummyAgent(Agent):
-            def answer_question_directly(self, question):
-                return "Never"
+        def answer_question_directly(self, question, scenario):
+            return "Never"
+
+        agent = Agent()
+        agent.add_direct_question_answering_method(answer_question_directly)
 
         q = QuestionMultipleChoice(
             question_name="exercise",
             question_text="How often do you typically exercise each week?",
             question_options=["Never", "Sometimes", "Often"],
         )
-        results = q.by(DummyAgent()).run()
+        results = q.by(agent).run()
 
         with StringIO() as buf, redirect_stdout(buf):
             results.select("answer.*").print()

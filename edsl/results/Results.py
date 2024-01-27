@@ -416,7 +416,7 @@ class Results(UserList, Mixins):
         from edsl.jobs import Jobs
 
         job = Jobs.example()
-        results = job.run(n=1, debug=debug)
+        results = job.run()
         return results
 
 

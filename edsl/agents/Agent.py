@@ -1,11 +1,12 @@
 from __future__ import annotations
 import copy
 import inspect
+import types
 from typing import Any, Callable, Optional, Union, Dict
 
 from edsl.Base import Base
 
-from edsl.exceptions import AgentCombinationError
+from edsl.exceptions.agents import AgentCombinationError, AgentDirectAnswerFunctionError
 
 from edsl.agents.Invigilator import (
     InvigilatorDebug,
@@ -87,6 +88,20 @@ class Agent(Base):
                 return self.dynamic_traits_function()
         else:
             return self._traits
+
+    def add_direct_question_answering_method(self, method: Callable):
+        """Adds a method to the agent that can answer a particular question type."""
+        if hasattr(self, "answer_question_directly"):
+            print("Warning: overwriting existing answer_question_directly method")
+
+        signature = inspect.signature(method)
+        for argument in ["question", "scenario", "self"]:
+            if argument not in signature.parameters:
+                raise AgentDirectAnswerFunctionError(
+                    f"The method {method} does not have a '{argument}' parameter."
+                )
+        bound_method = types.MethodType(method, self)
+        setattr(self, "answer_question_directly", bound_method)
 
     async def async_answer_question(
         self,

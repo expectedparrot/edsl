@@ -198,7 +198,7 @@ class InvigilatorDebug(InvigilatorBase):
 
 class InvigilatorHuman(InvigilatorBase):
     async def async_answer_question(self) -> AgentResponseDict:
-        answer = self.agent.answer_question_directly(self.question.question_name)
+        answer = self.agent.answer_question_directly(self.question, self.scenario)
         response = {"answer": answer}
         response = self.question.validate_response(response)
         response["comment"] = "This is a real survey response from a human."

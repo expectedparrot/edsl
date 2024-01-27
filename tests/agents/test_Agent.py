@@ -2,9 +2,10 @@ import json
 import pytest
 from unittest.mock import patch
 from edsl.agents.Agent import Agent
-from edsl.exceptions import (
+from edsl.exceptions.agents import (
     AgentCombinationError,
     AgentRespondedWithBadJSONError,
+    AgentDirectAnswerFunctionError,
 )
 from edsl.jobs import Jobs
 from edsl.language_models import LanguageModelOpenAIThreeFiveTurbo
@@ -146,6 +147,31 @@ def test_agent_serialization():
 #     assert "answer" in answer
 #     assert "comment" in answer
 #     assert "I am a comment" in answer.get("comment")
+
+
+def test_adding_direct_question_answering_method():
+    def answer_question_directly(self, question, scenario):
+        return self.traits["age"]
+
+    agents = [Agent(traits={"age": i}) for i in range(10, 90)]
+    for agent in agents:
+        agent.add_direct_question_answering_method(answer_question_directly)
+
+    assert agents[0].answer_question_directly(None, None) == 10
+
+    agent = Agent()
+
+    def bad_answer_question_directly(self, question):
+        pass
+
+    with pytest.raises(AgentDirectAnswerFunctionError):
+        agent.add_direct_question_answering_method(bad_answer_question_directly)
+
+    def bad_answer_question_directly(question, scenario):
+        pass
+
+    with pytest.raises(AgentDirectAnswerFunctionError):
+        agent.add_direct_question_answering_method(bad_answer_question_directly)
 
 
 def test_invigilator_creation():
