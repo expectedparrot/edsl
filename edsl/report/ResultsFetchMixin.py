@@ -33,9 +33,14 @@ class ResultsFetchMixin:
         options = getattr(question, "question_options", None)
         responses = self._fetch_list("answer", key)
 
+        if hasattr(question, "short_names_dict"):
+            short_names_dict = getattr(question, "short_names_dict", {})
+        else:
+            short_names_dict = {}
+
         data = {
             "text": question.question_text,
-            "short_names_dict": question.short_names_dict,
+            "short_names_dict": short_names_dict,
         }
 
         if element_data_class == CategoricalData:
