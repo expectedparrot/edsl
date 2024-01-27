@@ -2,6 +2,10 @@ class AgentErrors(Exception):
     pass
 
 
+class AgentDynamicTraitsFunctionError(AgentErrors):
+    pass
+
+
 class AgentDirectAnswerFunctionError(AgentErrors):
     pass
 

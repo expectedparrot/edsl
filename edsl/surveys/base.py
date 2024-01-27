@@ -20,14 +20,15 @@ class EndOfSurveyParent:
 
     def __add__(self, other):
         """
-        >>> e EndOfSurvey() + 1
+        >>> e = EndOfSurveyParent()
+        >>> e + 1
         EndOfSurvey
         """
         return self
 
     def __radd__(self, other):
         """
-        >>> 1 + EndOfSurvey()
+        >>> 1 + EndOfSurveyParent()
         EndOfSurvey
         """
         return self

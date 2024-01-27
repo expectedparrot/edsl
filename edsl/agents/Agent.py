@@ -6,7 +6,11 @@ from typing import Any, Callable, Optional, Union, Dict
 
 from edsl.Base import Base
 
-from edsl.exceptions.agents import AgentCombinationError, AgentDirectAnswerFunctionError
+from edsl.exceptions.agents import (
+    AgentCombinationError,
+    AgentDirectAnswerFunctionError,
+    AgentDynamicTraitsFunctionError,
+)
 
 from edsl.agents.Invigilator import (
     InvigilatorDebug,
@@ -66,25 +70,31 @@ class Agent(Base):
         self.codebook = codebook or dict()
         self.instruction = instruction or self.default_instruction
         self.dynamic_traits_function = dynamic_traits_function
-
+        self._check_dynamic_traits_function()
         self.current_question = None
+
+    def _check_dynamic_traits_function(self):
+        if self.dynamic_traits_function:
+            sig = inspect.signature(self.dynamic_traits_function)
+            if "question" in sig.parameters:
+                if len(sig.parameters) > 1:
+                    raise AgentDynamicTraitsFunctionError(
+                        f"The dynamic traits function {self.dynamic_traits_function} has too many parameters. It should only have one parameter: 'question'."
+                    )
+            else:
+                if len(sig.parameters) > 0:
+                    raise AgentDynamicTraitsFunctionError(
+                        f"""The dynamic traits function {self.dynamic_traits_function} has too many parameters. It should have no parameters or 
+                        just a single parameter: 'question'."""
+                    )
 
     @property
     def traits(self):
         if self.dynamic_traits_function:
             sig = inspect.signature(self.dynamic_traits_function)
             if "question" in sig.parameters:
-                if len(sig.parameters) > 1:
-                    raise ValueError(
-                        f"The dynamic traits function {self.dynamic_traits_function} has too many parameters. It should only have one parameter: 'question'."
-                    )
                 return self.dynamic_traits_function(question=self.current_question)
             else:
-                if len(sig.parameters) > 0:
-                    raise ValueError(
-                        f"""The dynamic traits function {self.dynamic_traits_function} has too many parameters. It should have no parameters or 
-                        just a single parameter: 'question'."""
-                    )
                 return self.dynamic_traits_function()
         else:
             return self._traits
