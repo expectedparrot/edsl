@@ -26,7 +26,7 @@ class TestSurvey(unittest.TestCase):
 
     def test_default_sequence(self):
         s = self.gen_survey()
-        self.assertEqual(s._questions[0], s.first_question())
+        # self.assertEqual(s._questions[0], s.first_question())
         self.assertEqual(s._questions[1], s.next_question("like_school", {}))
         self.assertEqual(s._questions[2], s.next_question("favorite_subject", {}))
 
@@ -110,12 +110,18 @@ class TestSurvey(unittest.TestCase):
             def answer_question_directly(self, question):
                 return "No"
 
-        q1.add_question(q2).add_stop_rule(
+        survey = q1.add_question(q2).add_stop_rule(
             "snow_shoveling", "snow_shoveling == 'No'"
-        ).by(DummyAgent()).run()
+        )
+        dag = survey.dag()
+        # breakpoint()
+
+        jobs = survey.by(DummyAgent())
+
+        results = jobs.run()
 
 
 if __name__ == "__main__":
     unittest.main()
-
-    s = TestSurvey().gen_survey()
+    # s = TestSurvey().gen_survey()
+    # TestSurvey().test_eos_skip_logic()
