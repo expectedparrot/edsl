@@ -2,7 +2,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import textwrap
-import traceback
 from collections import UserDict
 from collections import defaultdict
 
@@ -13,7 +12,6 @@ from edsl.questions import Question
 from edsl.scenarios import Scenario
 from edsl.surveys import Survey
 from edsl.utilities.decorators import sync_wrapper
-from edsl.config import Config
 from edsl.data_transfer_models import AgentResponseDict
 from edsl.jobs.Answers import Answers
 from collections import UserList
@@ -37,8 +35,6 @@ class InterviewTimeoutError(InterviewError):
     pass
 
 
-TIMEOUT = int(Config().API_CALL_TIMEOUT_SEC)
-
 # create logger
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -57,6 +53,10 @@ logger.addHandler(fh)
 # start loggin'
 logger.info("Interview.py loaded")
 
+from edsl.config import Config
+
+TIMEOUT = int(Config().API_CALL_TIMEOUT_SEC)
+
 
 class FailedTask(UserDict):
     def __init__(self, e: Exception = None):
@@ -67,24 +67,6 @@ class FailedTask(UserDict):
             "exception": e,
         }
         super().__init__(data)
-
-
-def async_timeout_handler(timeout):
-    def decorator(func):
-        async def wrapper(*args, **kwargs):
-            try:
-                return await asyncio.wait_for(func(*args, **kwargs), timeout)
-            except asyncio.TimeoutError:
-                raise InterviewTimeoutError(f"Task timed out after {timeout} seconds.")
-                # question = args[1]  # Assuming the first argument is the question
-                # task_name = getattr(question, "question_name", "unknown")
-                # print(f"Task {task_name} timed out after {timeout} seconds.")
-                # logger.error(f"Task {task_name} timed out")
-                # return None
-
-        return wrapper
-
-    return decorator
 
 
 class QuestionTaskCreator(UserList):
@@ -169,8 +151,8 @@ class Interview:
 
         valid_results = list(self._extract_valid_results(tasks))
 
-        print(f"Total of tasks requested:\t {len(tasks)}")
-        print(f"Number of valid results:\t {len(valid_results)}")
+        logger.info(f"Total of tasks requested:\t {len(tasks)}")
+        logger.info(f"Number of valid results:\t {len(valid_results)}")
         return self.answers, valid_results
 
     conduct_interview = sync_wrapper(async_conduct_interview)
@@ -236,6 +218,25 @@ class Interview:
         for dependency in tasks_that_must_be_completed_before:
             create_task.append(dependency)
         return create_task(question, debug)
+
+    def async_timeout_handler(timeout):
+        def decorator(func):
+            async def wrapper(*args, **kwargs):
+                try:
+                    return await asyncio.wait_for(func(*args, **kwargs), timeout)
+                except asyncio.TimeoutError:
+                    raise InterviewTimeoutError(
+                        f"Task timed out after {timeout} seconds."
+                    )
+                    # question = args[1]  # Assuming the first argument is the question
+                    # task_name = getattr(question, "question_name", "unknown")
+                    # print(f"Task {task_name} timed out after {timeout} seconds.")
+                    # logger.error(f"Task {task_name} timed out")
+                    # return None
+
+            return wrapper
+
+        return decorator
 
     @async_timeout_handler(TIMEOUT)
     async def _answer_question_and_record_task(

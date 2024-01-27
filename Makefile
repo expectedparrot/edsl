@@ -72,5 +72,11 @@ lint: ## Run code linters (flake8, pylint, mypy).
 test: ## Run tests via pytest
 	pytest -x tests
 
+testpypi: ## Upload package to test pypi
+	[ ! -d dist ] || rm -rf dist
+	poetry build
+	poetry publish -r test-pypi 
+	[ ! -d dist ] || rm -rf dist
+
 watch-docs: ## Build and watch documentation.
 	sphinx-autobuild docs/ docs/_build/html --open-browser --watch $(GIT_ROOT)/edsl/
