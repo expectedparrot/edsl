@@ -151,8 +151,8 @@ class Interview:
 
         valid_results = list(self._extract_valid_results(tasks))
 
-        print(f"Total of tasks requested:\t {len(tasks)}")
-        print(f"Number of valid results:\t {len(valid_results)}")
+        logger.info(f"Total of tasks requested:\t {len(tasks)}")
+        logger.info(f"Number of valid results:\t {len(valid_results)}")
         return self.answers, valid_results
 
     conduct_interview = sync_wrapper(async_conduct_interview)
