@@ -75,9 +75,21 @@ class Results(UserList, Mixins):
         self._job_uuid = job_uuid
         self._total_results = total_results
 
+        if hasattr(self, "add_output_functions"):
+            self.add_output_functions()
+
     ######################
     # Streaming methods
     ######################
+
+    def __getitem__(self, i):
+        if isinstance(i, slice):
+            # Return a sliced view of the list
+            return self.__class__(survey=self.survey, data=self.data[i])
+        else:
+            # Return a single item
+            return self.data[i]
+
     def _update_results(self) -> None:
         if self._job_uuid and len(self.data) < self._total_results:
             results = [
