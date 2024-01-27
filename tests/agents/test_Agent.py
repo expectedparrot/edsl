@@ -2,9 +2,11 @@ import json
 import pytest
 from unittest.mock import patch
 from edsl.agents.Agent import Agent
-from edsl.exceptions import (
+from edsl.exceptions.agents import (
     AgentCombinationError,
     AgentRespondedWithBadJSONError,
+    AgentDirectAnswerFunctionError,
+    AgentDynamicTraitsFunctionError,
 )
 from edsl.jobs import Jobs
 from edsl.language_models import LanguageModelOpenAIThreeFiveTurbo
@@ -148,6 +150,31 @@ def test_agent_serialization():
 #     assert "I am a comment" in answer.get("comment")
 
 
+def test_adding_direct_question_answering_method():
+    def answer_question_directly(self, question, scenario):
+        return self.traits["age"]
+
+    agents = [Agent(traits={"age": i}) for i in range(10, 90)]
+    for agent in agents:
+        agent.add_direct_question_answering_method(answer_question_directly)
+
+    assert agents[0].answer_question_directly(None, None) == 10
+
+    agent = Agent()
+
+    def bad_answer_question_directly(self, question):
+        pass
+
+    with pytest.raises(AgentDirectAnswerFunctionError):
+        agent.add_direct_question_answering_method(bad_answer_question_directly)
+
+    def bad_answer_question_directly(question, scenario):
+        pass
+
+    with pytest.raises(AgentDirectAnswerFunctionError):
+        agent.add_direct_question_answering_method(bad_answer_question_directly)
+
+
 def test_invigilator_creation():
     from edsl.questions import QuestionMultipleChoice as qmc
 
@@ -176,3 +203,22 @@ def test_agent_display_methods():
         agent.print(html=True)
         == '<table border="1">\n<tr><th>Key</th><th>Value</th></tr>\n<tr><td>age</td><td>10</td></tr>\n</table>'
     )
+
+
+def test_agent_dyanmic_traits():
+    with pytest.raises(AgentDynamicTraitsFunctionError):
+
+        def foo(x):
+            return x
+
+        a = Agent(dynamic_traits_function=foo)
+
+    with pytest.raises(AgentDynamicTraitsFunctionError):
+
+        def foo(question, x):
+            return x
+
+        a = Agent(dynamic_traits_function=foo)
+
+    a = Agent(dynamic_traits_function=lambda question: {"age": 30})
+    assert a.traits == {"age": 30}

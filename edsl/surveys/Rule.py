@@ -60,7 +60,7 @@ class Rule:
         self,
         current_q: int,
         expression: str,
-        next_q: Union[int, EndOfSurvey],
+        next_q: Union[int, EndOfSurvey.__class__],
         question_name_to_index: dict[str, int],
         priority: int,
     ):
@@ -72,7 +72,7 @@ class Rule:
         self.priority = priority
         self.question_name_to_index = question_name_to_index
 
-        if not isinstance(next_q, EndOfSurvey) and current_q > next_q:
+        if not next_q == EndOfSurvey and current_q > next_q:
             raise SurveyRuleSendsYouBackwardsError
 
         # get the AST for the expression - used to extract
@@ -107,9 +107,7 @@ class Rule:
         return {
             "current_q": self.current_q,
             "expression": self.expression,
-            "next_q": "EndOfSurvey"
-            if isinstance(self.next_q, EndOfSurvey)
-            else self.next_q,
+            "next_q": "EndOfSurvey" if self.next_q == EndOfSurvey else self.next_q,
             "priority": self.priority,
             "question_name_to_index": self.question_name_to_index,
         }
@@ -117,7 +115,7 @@ class Rule:
     @classmethod
     def from_dict(self, rule_dict):
         if rule_dict["next_q"] == "EndOfSurvey":
-            rule_dict["next_q"] = EndOfSurvey()
+            rule_dict["next_q"] = EndOfSurvey
 
         return Rule(
             current_q=rule_dict["current_q"],

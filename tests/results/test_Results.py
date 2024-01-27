@@ -105,12 +105,13 @@ class TestResults(unittest.TestCase):
             ["Great", "Great", "Good", "OK", "Bad", "Bad"],
         )
 
-    def print(self):
+    def test_print(self):
         with StringIO() as buf, redirect_stdout(buf):
-            self.example_results.print()
+            self.example_results.select("how_feeling").print()
             output = buf.getvalue()
+        # raise Exception("Just to see if working")
         self.assertIn("Great", output)
-        self.assertIn("Bad", output)
+        self.assertIn("Terrible", output)
 
     def test_fetch_list(self):
         self.assertEqual(
@@ -126,6 +127,35 @@ class TestResults(unittest.TestCase):
             [result.answer.get("how_feeling") for result in self.example_results.data],
         )
 
+    def test_print_long(self):
+        from edsl.questions import QuestionLinearScale, QuestionMultipleChoice
+
+        from edsl import Agent
+
+        def answer_question_directly(self, question, scenario):
+            return "Never"
+
+        agent = Agent()
+        agent.add_direct_question_answering_method(answer_question_directly)
+
+        q = QuestionMultipleChoice(
+            question_name="exercise",
+            question_text="How often do you typically exercise each week?",
+            question_options=["Never", "Sometimes", "Often"],
+        )
+        results = q.by(agent).run()
+
+        with StringIO() as buf, redirect_stdout(buf):
+            results.select("answer.*").print()
+            output = buf.getvalue()
+        self.assertIn("Never", output)
+
+        with StringIO() as buf, redirect_stdout(buf):
+            results.select("answer.*").print_long()
+            output = buf.getvalue()
+        self.assertIn("Never", output)
+
 
 if __name__ == "__main__":
     unittest.main()
+    TestResults().test_print_latest()

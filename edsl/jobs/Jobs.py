@@ -241,6 +241,31 @@ class Jobs:
     def example(cls) -> Jobs:
         from edsl.questions import QuestionMultipleChoice
 
+        from edsl import Agent
+
+        # (status, question, period)
+        agent_answers = {
+            ("Joyful", "how_feeling", "morning"): "OK",
+            ("Joyful", "how_feeling", "afternoon"): "Great",
+            ("Joyful", "how_feeling_yesterday", "morning"): "Great",
+            ("Joyful", "how_feeling_yesterday", "afternoon"): "Good",
+            ("Sad", "how_feeling", "morning"): "Terrible",
+            ("Sad", "how_feeling", "afternoon"): "OK",
+            ("Sad", "how_feeling_yesterday", "morning"): "OK",
+            ("Sad", "how_feeling_yesterday", "afternoon"): "Terrible",
+        }
+
+        def answer_question_directly(self, question, scenario):
+            return agent_answers[
+                (self.traits["status"], question.question_name, scenario["period"])
+            ]
+
+        sad_agent = Agent({"status": "Sad"})
+        joy_agent = Agent({"status": "Joyful"})
+
+        sad_agent.add_direct_question_answering_method(answer_question_directly)
+        joy_agent.add_direct_question_answering_method(answer_question_directly)
+
         q1 = QuestionMultipleChoice(
             question_text="How are you this {{ period }}?",
             question_options=["Good", "Great", "OK", "Terrible"],
@@ -255,7 +280,7 @@ class Jobs:
 
         job = base_survey.by(
             Scenario({"period": "morning"}), Scenario({"period": "afternoon"})
-        ).by(Agent({"status": "Super duper unhappy"}), Agent({"status": "Joyful"}))
+        ).by(joy_agent, sad_agent)
 
         return job
 
