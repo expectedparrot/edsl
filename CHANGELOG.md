@@ -45,3 +45,9 @@
 ### Fixed
 - Improvements in async survey running
 - Added logging
+
+## [0.1.8] - 2023-01-26
+
+### Fixed
+- Better handling of async failures
+- Fixed bug in survey logic
