@@ -21,7 +21,7 @@ license = "MIT"
 name = "edsl"
 packages = [{include = "edsl"}]
 readme = "README.md"
-version = "0.1.8"
+version = "0.1.9"
 
 [tool.poetry.dependencies]
 python = "^3.9.1"
