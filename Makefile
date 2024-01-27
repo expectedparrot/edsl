@@ -75,7 +75,7 @@ test: ## Run tests via pytest
 testpypi: ## Upload package to test pypi
 	[ ! -d dist ] || rm -rf dist
 	poetry build
-	poetry publish -r testpypi
+	poetry publish -r test-pypi 
 	[ ! -d dist ] || rm -rf dist
 
 watch-docs: ## Build and watch documentation.
