@@ -91,6 +91,29 @@ class TestSurvey(unittest.TestCase):
         # breakpoint()
         self.assertEqual(survey.dag(), {1: {0}, 2: {0, 1}})
 
+    def test_eos_skip_logic(self):
+        from edsl.questions import QuestionMultipleChoice, QuestionYesNo
+
+        q1 = QuestionMultipleChoice(
+            question_name="snow_shoveling",
+            question_text="Do you enjoy snow shoveling?",
+            question_options=["Yes", "No", "I do not know"],
+        )
+
+        q2 = QuestionYesNo(
+            question_name="own_shovel", question_text="Do you own a shovel?"
+        )
+
+        from edsl import Agent
+
+        class DummyAgent(Agent):
+            def answer_question_directly(self, question):
+                return "No"
+
+        q1.add_question(q2).add_stop_rule(
+            "snow_shoveling", "snow_shoveling == 'No'"
+        ).by(DummyAgent()).run()
+
 
 if __name__ == "__main__":
     unittest.main()

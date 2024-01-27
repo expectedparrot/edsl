@@ -125,7 +125,7 @@ class RuleCollection:
 
         def keys_between(start_q, end_q):
             """Returns a list of all question indices between start_q and end_q"""
-            if isinstance(end_q, EndOfSurvey):
+            if end_q == EndOfSurvey:
                 # If it's the end of the survey,
                 # all questions between the start_q and the end of the survey
                 # now depend on the start_q
