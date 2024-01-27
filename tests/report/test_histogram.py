@@ -20,14 +20,3 @@ class TestPlots(unittest.TestCase):
         # results.select("answer.age").print()
         results.histogram_plot("age")
         mock_open.assert_called_once()
-
-
-class AgentKnowsAge(Agent):
-    def answer_question_directly(self, question: QuestionNumerical) -> int:
-        return self.traits["age"]
-
-
-agents = [AgentKnowsAge(traits={"age": i}) for i in range(10, 90)]
-
-q = QuestionNumerical.example()
-results = q.by(agents).run()

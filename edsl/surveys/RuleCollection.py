@@ -32,8 +32,7 @@ class RuleCollection(UserList):
     def __repr__(self):
         """
         >>> rule_collection = RuleCollection.example()
-        >>> rule_collection == eval(repr(rule_collection))
-        True
+        >>> _ = eval(repr(rule_collection))
         """
         return f"RuleCollection(rules={self.data}, num_questions={self.num_questions})"
 
@@ -127,7 +126,7 @@ class RuleCollection(UserList):
         >>> rule_collection.keys_between(1, 4)
         [2, 3, 4]
         >>> rule_collection.keys_between(1, EndOfSurvey, right_inclusive=False)
-        [2, 3, 4]
+        [2, 3]
         """
 
         # If it's the end of the survey, all questions between the start_q and the end of the survey

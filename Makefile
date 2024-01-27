@@ -78,5 +78,15 @@ testpypi: ## Upload package to test pypi
 	poetry publish -r test-pypi 
 	[ ! -d dist ] || rm -rf dist
 
+doctests:
+	pytest --doctest-modules edsl/surveys
+	pytest --doctest-modules edsl/agents
+	pytest --doctest-modules edsl/scenarios
+	pytest --doctest-modules edsl/questions
+	pytest --doctest-modules edsl/utilities
+	pytest --doctest-modules edsl/prompts
+	pytest --doctest-modules edsl/reports	
+	pytest --doctest-modules edsl/language_models
+
 watch-docs: ## Build and watch documentation.
 	sphinx-autobuild docs/ docs/_build/html --open-browser --watch $(GIT_ROOT)/edsl/

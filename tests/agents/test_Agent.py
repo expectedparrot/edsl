@@ -6,6 +6,7 @@ from edsl.exceptions.agents import (
     AgentCombinationError,
     AgentRespondedWithBadJSONError,
     AgentDirectAnswerFunctionError,
+    AgentDynamicTraitsFunctionError,
 )
 from edsl.jobs import Jobs
 from edsl.language_models import LanguageModelOpenAIThreeFiveTurbo
@@ -202,3 +203,22 @@ def test_agent_display_methods():
         agent.print(html=True)
         == '<table border="1">\n<tr><th>Key</th><th>Value</th></tr>\n<tr><td>age</td><td>10</td></tr>\n</table>'
     )
+
+
+def test_agent_dyanmic_traits():
+    with pytest.raises(AgentDynamicTraitsFunctionError):
+
+        def foo(x):
+            return x
+
+        a = Agent(dynamic_traits_function=foo)
+
+    with pytest.raises(AgentDynamicTraitsFunctionError):
+
+        def foo(question, x):
+            return x
+
+        a = Agent(dynamic_traits_function=foo)
+
+    a = Agent(dynamic_traits_function=lambda question: {"age": 30})
+    assert a.traits == {"age": 30}

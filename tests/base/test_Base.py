@@ -1,16 +1,33 @@
 import pytest
-from edsl.Base import RegisterSubclassesMeta
+from edsl.Base import RegisterSubclassesMeta, Base
 from edsl.questions import QuestionMultipleChoice
 
 
 class TestBaseModels:
-    pass
+    def test_register_subclasses_meta(self):
+        assert RegisterSubclassesMeta.get_registry().keys() == {
+            "Survey",
+            "Agent",
+            "AgentList",
+            "Scenario",
+        }
+        methods = [
+            "example",
+            "to_dict",
+            "from_dict",
+            "code",
+        ]
+        for method in methods:
+            with pytest.raises(NotImplementedError):
+                getattr(Base, method)()
 
 
 def create_test_function(child_class):
     @staticmethod
     def base_test_func():
         e = child_class()
+        e.show_methods()
+        e.show_methods(show_docstrings=False)
         assert hasattr(e, "example")
         assert hasattr(e, "to_dict")
         d = {
@@ -30,8 +47,8 @@ def create_file_operations_test(child_class):
         e = child_class()
         file = tempfile.NamedTemporaryFile().name
         e.save(file)
-        # new_w = child_class.load(file)
-        # assert new_w == e
+        new_w = child_class.load(file)
+        assert new_w == e
 
     return test_file_operations_func
 
