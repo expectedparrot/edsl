@@ -36,7 +36,7 @@ class Base(ABC, metaclass=RegisterSubclassesMeta):
 
     def save(self, filename):
         with gzip.open(filename, "wb") as f:
-            f.write(json.dumps(self.to_dict())).encode("utf-8")
+            f.write(json.dumps(self.to_dict()).encode("utf-8"))
 
     @classmethod
     def load(cls, filename):

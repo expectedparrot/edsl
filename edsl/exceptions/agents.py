@@ -2,6 +2,10 @@ class AgentErrors(Exception):
     pass
 
 
+class AgentDirectAnswerFunctionError(AgentErrors):
+    pass
+
+
 class AgentAttributeLookupCallbackError(AgentErrors):
     pass
 
