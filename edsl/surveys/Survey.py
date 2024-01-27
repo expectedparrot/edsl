@@ -187,14 +187,14 @@ class Survey(SurveyExportMixin, Base):
 
     def add_stop_rule(self, question: Question, expression: str) -> Survey:
         """Adds a rule that stops the survey."""
-        self.add_rule(question, expression, EndOfSurvey())
+        self.add_rule(question, expression, EndOfSurvey)
         return self
 
     def _get_question_index(self, q):
         """Returns the index of the question or EndOfSurvey object. It can handle it if the user
         passes in the question name, the question object, or the EndOfSurvey object."""
-        if isinstance(q, EndOfSurvey):
-            return EndOfSurvey()
+        if q == EndOfSurvey:
+            return EndOfSurvey
         else:
             question_name = q if isinstance(q, str) else q.question_name
             if question_name not in self.question_name_to_index:
@@ -266,7 +266,7 @@ class Survey(SurveyExportMixin, Base):
 
     def next_question(
         self, current_question: "Question", answers: dict
-    ) -> Union[Question, EndOfSurvey]:
+    ) -> Union[Question, EndOfSurvey.__class__]:
         """
         Returns the next question in a survey.
         - If called with no arguments, it returns the first question in the survey.
@@ -287,11 +287,11 @@ class Survey(SurveyExportMixin, Base):
         if next_question_object.num_rules_found == 0:
             raise SurveyHasNoRulesError
 
-        if isinstance(next_question_object.next_q, EndOfSurvey):
-            return EndOfSurvey()
+        if next_question_object.next_q == EndOfSurvey:
+            return EndOfSurvey
         else:
             if next_question_object.next_q >= len(self.questions):
-                return EndOfSurvey()
+                return EndOfSurvey
             else:
                 return self.questions[next_question_object.next_q]
 
@@ -308,7 +308,7 @@ class Survey(SurveyExportMixin, Base):
         question = path_through_survey.send({question.question_name: answer})
         """
         question = self.first_question()
-        while not isinstance(question, EndOfSurvey):
+        while not question == EndOfSurvey:
             self.answers = yield question
             question = self.next_question(question, self.answers)
 
