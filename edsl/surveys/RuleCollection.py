@@ -1,4 +1,6 @@
 from typing import List, Union
+from collections import defaultdict, UserList
+
 from edsl.exceptions import (
     SurveyRuleCannotEvaluateError,
     SurveyRuleCollectionHasNoRulesAtNodeError,
@@ -6,7 +8,9 @@ from edsl.exceptions import (
 from edsl.utilities.interface import print_table_with_rich
 from edsl.surveys.Rule import Rule
 from edsl.surveys.base import EndOfSurvey
+from edsl.surveys.DAG import DAG
 
+from graphlib import TopologicalSorter
 
 from collections import namedtuple
 
@@ -18,27 +22,24 @@ NextQuestion = namedtuple(
 ## so we know how long the survey is, unless we move
 
 
-class RuleCollection:
+class RuleCollection(UserList):
     "A collection of rules for a particular survey"
 
-    def __init__(
-        self, num_questions: int = None, rules: List[Rule] = None, verbose=False
-    ):
-        self.rules = rules or []
+    def __init__(self, num_questions: int = None, rules: List[Rule] = None):
+        super().__init__(rules or [])
         self.num_questions = num_questions
 
-    def __len__(self):
-        return len(self.rules)
-
-    def __getitem__(self, index):
-        return self.rules[index]
-
     def __repr__(self):
-        return f"RuleCollection(rules = {self.rules})"
+        """
+        >>> rule_collection = RuleCollection.example()
+        >>> rule_collection == eval(repr(rule_collection))
+        True
+        """
+        return f"RuleCollection(rules={self.data}, num_questions={self.num_questions})"
 
     def to_dict(self):
         return {
-            "rules": [rule.to_dict() for rule in self.rules],
+            "rules": [rule.to_dict() for rule in self],
             "num_questions": self.num_questions,
         }
 
@@ -54,35 +55,34 @@ class RuleCollection:
 
     def add_rule(self, rule: Rule):
         """Adds a rule to a survey. If it's not, return human-readable complaints"""
-        self.rules.append(rule)
+        self.append(rule)
 
     def show_rules(self) -> None:
-        if self.verbose:
-            keys = ["current_q", "expression", "next_q", "priority"]
-            rule_list = []
-            for rule in sorted(self.rules, key=lambda r: r.current_q):
-                rule_list.append({k: getattr(rule, k) for k in keys})
+        keys = ["current_q", "expression", "next_q", "priority"]
+        rule_list = []
+        for rule in sorted(self, key=lambda r: r.current_q):
+            rule_list.append({k: getattr(rule, k) for k in keys})
 
-            print_table_with_rich(rule_list)
+        print_table_with_rich(rule_list)
 
-    def which_rules(self, q_now) -> list:
+    def applicable_rules(self, q_now) -> list:
         """Which rules apply at the current node?
+
+        >>> rule_collection = RuleCollection.example()
+        >>> rule_collection.applicable_rules(1)
+        [Rule(current_q=1, expression="q1 == 'yes'", next_q=3, priority=1, question_name_to_index={'q1': 1, 'q2': 2, 'q3': 3, 'q4': 4}), Rule(current_q=1, expression="q1 == 'no'", next_q=2, priority=1, question_name_to_index={'q1': 1, 'q2': 2, 'q3': 3, 'q4': 4})]
+
         More than one rule can apply. E.g., suppose we are at node 1.
         We could have three rules:
         1. "q1 == 'a' ==> 3
         2. "q1 == 'b' ==> 4
         3. "q1 == 'c' ==> 5
         """
-        applicable_rules = [rule for rule in self.rules if rule.current_q == q_now]
-        return applicable_rules
+        return [rule for rule in self if rule.current_q == q_now]
 
-    def next_question(self, q_now, answers) -> int:
-        "Find the next question by index, given the rule collection"
+    def next_question(self, q_now, answers) -> NextQuestion:
+        """Find the next question by index, given the rule collection"""
         # what rules apply at the current node?
-        applicable_rules = self.which_rules(q_now)
-        # Every node should have a rule - if it doesn't, there's a problem
-        if not applicable_rules:
-            raise SurveyRuleCollectionHasNoRulesAtNodeError
 
         # tracking
         expressions_evaluating_to_true = 0
@@ -90,7 +90,7 @@ class RuleCollection:
         highest_priority = -2  # start with -2 to 'pick up' the default rule added
         num_rules_found = 0
 
-        for rule in applicable_rules:
+        for rule in self.applicable_rules(q_now):
             num_rules_found += 1
             try:
                 if rule.evaluate(answers):  # evaluates to True
@@ -99,7 +99,12 @@ class RuleCollection:
                         # we have a new champ!
                         next_q, highest_priority = rule.next_q, rule.priority
             except SurveyRuleCannotEvaluateError:
-                pass
+                raise
+
+        if num_rules_found == 0:
+            raise SurveyRuleCollectionHasNoRulesAtNodeError(
+                f"No rules found for question {q_now}"
+            )
 
         return NextQuestion(
             next_q, num_rules_found, expressions_evaluating_to_true, highest_priority
@@ -107,63 +112,95 @@ class RuleCollection:
 
     @property
     def non_default_rules(self) -> List[Rule]:
-        """Returns all rules that are not the default rule"""
-        return [rule for rule in self.rules if rule.priority > -1]
+        """Returns all rules that are not the default rule"
+        >>> rule_collection = RuleCollection.example()
+        >>> len(rule_collection.non_default_rules)
+        2
+        """
+        return [rule for rule in self if rule.priority > -1]
+
+    def keys_between(self, start_q, end_q, right_inclusive=True):
+        """Returns a list of all question indices between start_q and end_q
+        >>> rule_collection = RuleCollection(num_questions=5)
+        >>> rule_collection.keys_between(1, 3)
+        [2, 3]
+        >>> rule_collection.keys_between(1, 4)
+        [2, 3, 4]
+        >>> rule_collection.keys_between(1, EndOfSurvey, right_inclusive=False)
+        [2, 3, 4]
+        """
+
+        # If it's the end of the survey, all questions between the start_q and the end of the survey
+        # now depend on the start_q
+        if end_q == EndOfSurvey:
+            if self.num_questions is None:
+                raise ValueError(
+                    "Cannot determine DAG when EndOfSurvey and when num_questions is not known"
+                )
+            end_q = self.num_questions - 1
+
+        question_range = list(range(start_q + 1, end_q + int(right_inclusive)))
+
+        return question_range
 
     @property
     def dag(self) -> dict:
-        d = dict({})
-        ## Rules are desgined at the current question and then direct where
-        ## control goes next. As such, the destination nodes are the keys
-        ## and the current nodes are the values. Furthermore, all questions between
-        ## the current and destination nodes are also included as keys, as they will depend
-        ## on the answer to the focal node as well.
+        """
+        Finds the DAG of the survey, based on the skip logic.
+        Keys are children questions; the list of values are nodes that must be answered first
+
+        Rules are designated at the current question and then direct where
+        control goes next. As such, the destination nodes are the keys
+        and the current nodes are the values. Furthermore, all questions between
+        the current and destination nodes are also included as keys, as they will depend
+        on the answer to the focal node as well.
 
         ## If we have a rule that says "if q1 == 'yes', go to q3",
         ## Then q3 depends on q1, but so does q2
         ## So the DAG would be {3: [1], 2: [1]}
 
-        def keys_between(start_q, end_q):
-            """Returns a list of all question indices between start_q and end_q"""
-            if end_q == EndOfSurvey:
-                # If it's the end of the survey,
-                # all questions between the start_q and the end of the survey
-                # now depend on the start_q
-                if self.num_questions is None:
-                    raise ValueError(
-                        "Cannot determine DAG when EndOfSurvey and when num_questions is not known"
-                    )
-                end_q = self.num_questions
-            return list(range(start_q + 1, end_q))
-
-        non_default_rules = self.non_default_rules
-        for rule in non_default_rules:
-            current_q = rule.current_q
-            next_q = rule.next_q
-            for q in keys_between(current_q, next_q + 1):
-                if q in d:
-                    d[q].add(current_q)
-                else:
-                    d[q] = set({current_q})
-        return d
-
-    def all_nodes_reachable(self) -> bool:
-        """Are all nodes reachable, given rule set?
-        To do the tree traversal, you'd have to instantiate answers to check.
-        What would you do for continuous measures? Probably fork at above/below threshold?
-
-        You could use the rules to help you draw the tree, no?
-        Like you start linear
-        Then take a rule, given it's conditions - figure out what options you need to track
-        to build the tree e.g., if it mentions q1.answer, you need to add leafs at that node
+        >>> rule_collection = RuleCollection(num_questions=5)
+        >>> qn2i = {'q1': 1, 'q2': 2, 'q3': 3, 'q4': 4}
+        >>> rule_collection.add_rule(Rule(current_q=1, expression="q1 == 'yes'", next_q=3, priority=1,  question_name_to_index = qn2i))
+        >>> rule_collection.add_rule(Rule(current_q=1, expression="q1 == 'no'", next_q=2, priority=1, question_name_to_index = qn2i))
+        >>> rule_collection.dag
+        {2: {1}, 3: {1}}
         """
-        raise NotImplementedError
+        children_to_parents = defaultdict(set)
+        # we are only interested in non-default rules. Default rules are those
+        # that just go to the next question, so they don't add any dependencies
+        for rule in self.non_default_rules:
+            current_q, next_q = rule.current_q, rule.next_q
+            for q in self.keys_between(current_q, next_q):
+                children_to_parents[q].add(current_q)
+        return DAG(dict(sorted(children_to_parents.items())))
 
-    def no_cycles(self, rules: list[Rule]) -> bool:
-        """Ensures there are not cycles in the rule set, which would create an infinite loop
-        Probably also put a check in the Exam class to make sure they
-        don't see the same question more than once - though
-        that could be OK if their prompt text has changed.
-        Python 3.10 has a topological sort, so
-        """
-        raise NotImplemented
+    @classmethod
+    def example(cls):
+        qn2i = {"q1": 1, "q2": 2, "q3": 3, "q4": 4}
+        return cls(
+            num_questions=5,
+            rules=[
+                Rule(
+                    current_q=1,
+                    expression="q1 == 'yes'",
+                    next_q=3,
+                    priority=1,
+                    question_name_to_index=qn2i,
+                ),
+                Rule(
+                    current_q=1,
+                    expression="q1 == 'no'",
+                    next_q=2,
+                    priority=1,
+                    question_name_to_index=qn2i,
+                ),
+            ],
+        )
+
+
+if __name__ == "__main__":
+    # pass
+    import doctest
+
+    doctest.testmod()
