@@ -1,7 +1,51 @@
 from abc import ABC, abstractmethod, ABCMeta
-
+import io
 import gzip
 import json
+
+from rich.console import Console
+from rich.table import Table
+from IPython.display import display
+
+from edsl.utilities import is_notebook
+
+
+class RichPrintingMixin:
+    def for_console(self):
+        with io.StringIO() as buf:
+            console = Console(file=buf, record=True)
+            table = self.rich_print()
+            console.print(table)
+            return console.export_text()
+
+    def __str__(self):
+        return self.for_console()
+
+    def print(self):
+        if is_notebook():
+            display(self.rich_print())
+        else:
+            from rich.console import Console
+
+            console = Console()
+            console.print(self.rich_print())
+
+
+class PersistenceMixin:
+    def save(self, filename):
+        with gzip.open(filename, "wb") as f:
+            f.write(json.dumps(self.to_dict()).encode("utf-8"))
+
+    @classmethod
+    def load(cls, filename):
+        with gzip.open(filename, "rb") as f:
+            d = json.loads(f.read().decode("utf-8"))
+        return cls.from_dict(d)
+
+    def post(self):
+        from edsl.utilities.pastebin import post
+
+        post(self)
 
 
 class RegisterSubclassesMeta(ABCMeta):
@@ -17,9 +61,14 @@ class RegisterSubclassesMeta(ABCMeta):
         return dict(RegisterSubclassesMeta._registry)
 
 
-class Base(ABC, metaclass=RegisterSubclassesMeta):
+class Base(RichPrintingMixin, PersistenceMixin, ABC, metaclass=RegisterSubclassesMeta):
     @abstractmethod
     def example():
+        """This method should be implemented by subclasses."""
+        raise NotImplementedError("This method is not implemented yet.")
+
+    @abstractmethod
+    def rich_print():
         """This method should be implemented by subclasses."""
         raise NotImplementedError("This method is not implemented yet.")
 
@@ -37,16 +86,6 @@ class Base(ABC, metaclass=RegisterSubclassesMeta):
     def code():
         """This method should be implemented by subclasses."""
         raise NotImplementedError("This method is not implemented yet.")
-
-    def save(self, filename):
-        with gzip.open(filename, "wb") as f:
-            f.write(json.dumps(self.to_dict()).encode("utf-8"))
-
-    @classmethod
-    def load(cls, filename):
-        with gzip.open(filename, "rb") as f:
-            d = json.loads(f.read().decode("utf-8"))
-        return cls.from_dict(d)
 
     def show_methods(self, show_docstrings=True):
         public_methods_with_docstrings = [

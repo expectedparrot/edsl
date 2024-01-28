@@ -200,7 +200,7 @@ class Jobs:
     #######################
     def __repr__(self) -> str:
         """Returns an eval-able string representation of the Jobs instance."""
-        return f"Jobs(survey={self.survey}, agents={self.agents}, models={self.models}, scenarios={self.scenarios})"
+        return f"Jobs(survey={repr(self.survey)}, agents={repr(self.agents)}, models={repr(self.models)}, scenarios={repr(self.scenarios)})"
 
     def __len__(self) -> int:
         """Returns the number of questions that will be asked while running this job."""

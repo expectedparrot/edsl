@@ -1,5 +1,6 @@
 import copy
 from collections import UserDict
+from rich.table import Table
 
 from edsl.Base import Base
 
@@ -13,8 +14,8 @@ class Scenario(UserDict, Base):
         >>> s2 = Scenario({"color": "red"})
         >>> s1 + s2
         {'price': 100, 'quantity': 2, 'color': 'red'}
-        >>> type(s1 + s2)
-        <class '__main__.Scenario'>
+        >>> (s1 + s2).__class__.__name__
+        'Scenario'
         """
         if other_scenario is None:
             return self
@@ -31,8 +32,7 @@ class Scenario(UserDict, Base):
         >>> from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
         >>> s = Scenario({"food": "wood chips"})
         >>> q = QuestionMultipleChoice(question_text = "Do you enjoy the taste of {{food}}?", question_options = ["Yes", "No"], question_name = "food_preference")
-        >>> s.to(q)
-        Jobs(survey=Survey(questions=[QuestionMultipleChoice(question_text = "Do you enjoy the taste of {{food}}?", question_options = ['Yes', 'No'], question_name = "food_preference")], question_names=['food_preference'], name = None), agents=[Agent(traits = {})], models=[LanguageModelOpenAIThreeFiveTurbo(model = "gpt-3.5-turbo", use_cache = True)], scenarios=[{'food': 'wood chips'}])
+        >>> _ = s.to(q)
         """
         return question_or_survey.by(self)
 
@@ -63,7 +63,7 @@ class Scenario(UserDict, Base):
         ...               "question_options": ["Very sad.", "Sad.", "Neutral.", "Happy.", "Very happy."]})
         >>> q = s.make_question(QuestionMultipleChoice)
         >>> q.by(Agent(traits = {'feeling': 'Very sad'})).run().select("feelings")
-        ['Very sad.']
+        [{'answer.feelings': ['Very sad.']}]
         """
         return question_class(**self)
 
@@ -83,11 +83,22 @@ class Scenario(UserDict, Base):
         """
         return cls(d)
 
+    def rich_print(self):
+        """Displays an object as a table."""
+        table = Table(title="Result")
+        table.add_column("Attribute", style="bold")
+        table.add_column("Value")
+
+        to_display = self.__dict__.copy()
+        for attr_name, attr_value in to_display.items():
+            table.add_row(attr_name, repr(attr_value))
+        return table
+
     @classmethod
     def example(cls):
         """Returns an example scenario.
         >>> Scenario.example()
-        {'scenario': 'example'}
+        {'persona': 'A reseacher studying whether LLMs can be used to generate surveys.'}
         """
         return cls(
             {

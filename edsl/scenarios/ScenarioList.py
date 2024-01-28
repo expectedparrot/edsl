@@ -1,10 +1,14 @@
 from __future__ import annotations
 from collections import UserList
 from typing import Optional, Union
+
+from rich.table import Table
+
 from edsl.scenarios.Scenario import Scenario
+from edsl.Base import Base
 
 
-class ScenarioList(UserList):
+class ScenarioList(Base, UserList):
     def __init__(self, data: Optional[list] = None):
         if data is not None:
             super().__init__(data)
@@ -49,6 +53,19 @@ class ScenarioList(UserList):
             names.append(f"scenario_{index}")
         lines.append(f"scenarios = ScenarioList([{', '.join(names)}])")
         return lines
+
+    @classmethod
+    def example(cls):
+        return cls([Scenario.example(), Scenario.example()])
+
+    def rich_print(self):
+        """Displays an object as a table."""
+        table = Table(title="ScenarioList")
+        table.add_column("Index", style="bold")
+        table.add_column("Scenario")
+        for i, s in enumerate(self):
+            table.add_row(str(i), repr(s))
+        return table
 
 
 if __name__ == "__main__":
