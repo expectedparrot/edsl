@@ -26,6 +26,7 @@ from edsl.utilities import (
     is_valid_variable_name,
     print_public_methods_with_doc,
     shorten_string,
+    is_notebook,
 )
 
 
@@ -118,7 +119,10 @@ class Results(UserList, Mixins, Base):
         if self._job_uuid and len(self.data) < self._total_results:
             print(f"Completeness: {len(self.data)}/{self._total_results}")
         data = [repr(result) for result in self.data]
-        return f"Results(data = {data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
+        if is_notebook():
+            return self.rich_print()
+        else:
+            return f"Results(data = {data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
 
     def to_dict(self) -> dict[str, Any]:
         """Converts the Results object to a dictionary"""

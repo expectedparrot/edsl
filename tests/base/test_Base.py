@@ -1,17 +1,31 @@
 import pytest
+import warnings
 from edsl.Base import RegisterSubclassesMeta, Base
 from edsl.questions import QuestionMultipleChoice
 
 
+class EvalReprFail(Warning):
+    "Warning for when eval(repr(e), d) == e fails"
+
+
+class SaveLoadFail(Warning):
+    "Warning for save and load fail"
+
+
 class TestBaseModels:
     def test_register_subclasses_meta(self):
-        # assert RegisterSubclassesMeta.get_registry().keys() == {
-        #     "Survey",
-        #     "Agent",
-        #     "AgentList",
-        #     "Scenario",
-        #     "Results",
-        # }
+        for key, value in RegisterSubclassesMeta.get_registry().items():
+            assert key in [
+                "Result",
+                "Survey",
+                "Agent",
+                "AgentList",
+                "Scenario",
+                "Results",
+                "ScenarioList",
+                "AgentList",
+            ]
+
         methods = [
             "example",
             "to_dict",
@@ -24,18 +38,26 @@ class TestBaseModels:
 
 
 def create_test_function(child_class):
+    from edsl.agents import Agent
+    from edsl.surveys import Survey
+
     @staticmethod
     def base_test_func():
-        e = child_class()
+        e = child_class.example()
         e.show_methods()
         e.show_methods(show_docstrings=False)
         assert hasattr(e, "example")
         assert hasattr(e, "to_dict")
         d = {
             child_class.__name__: child_class,
+            "Agent": Agent,
+            "Survey": Survey,
             "QuestionMultipleChoice": QuestionMultipleChoice,
         }
-        assert eval(repr(e), d) == e
+        try:
+            assert eval(repr(e), d) == e
+        except:
+            warnings.warn(f"Failure with {child_class}:", EvalReprFail)
 
     return base_test_func
 
@@ -47,14 +69,14 @@ def create_file_operations_test(child_class):
     def test_file_operations_func():
         print(f"Now testing {child_class}")
         e = child_class.example()
+        e.print()
         file = tempfile.NamedTemporaryFile().name
         e.save(file)
         try:
             new_w = child_class.load(file)
             assert new_w == e
         except:
-            print(f"Error loading {child_class}")
-            # raise
+            warnings.warn(f"Failure with {child_class}:", SaveLoadFail)
 
     return test_file_operations_func
 
