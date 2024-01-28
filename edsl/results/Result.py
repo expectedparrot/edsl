@@ -1,9 +1,17 @@
 from __future__ import annotations
 from collections import UserDict
 from typing import Any, Type
+
+import io
+from rich.console import Console
+from rich.table import Table
+
+
 from edsl.agents import Agent
 from edsl.language_models import LanguageModel
 from edsl.scenarios import Scenario
+
+# from edsl.Base import Base
 
 
 class Result(UserDict):
@@ -88,7 +96,7 @@ class Result(UserDict):
         return Result.from_dict(self.to_dict())
 
     def __repr__(self):
-        return f"Result(agent={self.agent}, scenario={self.scenario}, model={self.model}, iteration={self.iteration}, answer={self.answer}, prompt={self.prompt}"
+        return f"Result(agent={repr(self.agent)}, scenario={repr(self.scenario)}, model={repr(self.model)}, iteration={self.iteration}, answer={repr(self.answer)}, prompt={repr(self.prompt)}"
 
     def __eq__(self, other):
         return self.to_dict() == other.to_dict()
@@ -114,6 +122,33 @@ class Result(UserDict):
             prompt=json_dict["prompt"],
         )
         return result
+
+    def rich_print(self):
+        """Displays an object as a table."""
+        with io.StringIO() as buf:
+            console = Console(file=buf, record=True)
+            table = Table(title="Result")
+            table.add_column("Attribute", style="bold")
+            table.add_column("Value")
+
+            to_display = self.__dict__.copy()
+            data = to_display.pop("data", None)
+            for attr_name, attr_value in to_display.items():
+                table.add_row(attr_name, repr(attr_value))
+
+            # We can, in in theory, add more data here
+            # console.print(self.agent.rich_print())
+            console.print(table)
+            return console.export_text()
+
+    def __str__(self):
+        return self.rich_print()
+
+    @classmethod
+    def example(cls):
+        from edsl.results import Results
+
+        return Results.example()[0]
 
 
 def main():
@@ -164,3 +199,7 @@ def main():
     assert result == result.copy()
 
     result.to_dict()
+
+
+if __name__ == "__main__":
+    print(Result.example())

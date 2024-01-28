@@ -16,3 +16,4 @@ from edsl.utilities.interface import print_dict_with_rich
 from edsl.surveys.Survey import Survey
 
 from edsl.language_models.registry import Model
+from edsl.utilities.pastebin import post, get

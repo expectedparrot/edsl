@@ -2,7 +2,12 @@ from __future__ import annotations
 import copy
 import inspect
 import types
+import io
 from typing import Any, Callable, Optional, Union, Dict
+
+
+from rich.console import Console
+from rich.table import Table
 
 from edsl.Base import Base
 
@@ -251,9 +256,22 @@ class Agent(Base):
         """Returns the agent's traits as an HTML table."""
         return dict_to_html(self.traits)
 
-    def __str__(self) -> str:
-        """Returns the agent's traits as a string."""
-        return str(self.traits)
+    def rich_print(self):
+        """Displays an object as a table."""
+        with io.StringIO() as buf:
+            console = Console(file=buf, record=True)
+            table = Table(title="Agent Attributes")
+            table.add_column("Attribute", style="bold")
+            table.add_column("Value")
+
+            for attr_name, attr_value in self.__dict__.items():
+                table.add_row(attr_name, repr(attr_value))
+
+            console.print(table)
+            return console.export_text()
+
+    def __str__(self):
+        return self.rich_print()
 
     def print(self, html: bool = False, show: bool = False) -> Optional[str]:
         """Prints the agent's traits as a table."""

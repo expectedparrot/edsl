@@ -1,11 +1,16 @@
 from __future__ import annotations
 from functools import wraps
+import io
 import asyncio
 import json
 import time
 import inspect
 from typing import Coroutine
 from abc import ABC, abstractmethod, ABCMeta
+from rich.console import Console
+from rich.table import Table
+
+
 from edsl.trackers.TrackerAPI import TrackerAPI
 from queue import Queue
 from typing import Any, Callable, Type, List
@@ -438,30 +443,36 @@ class LanguageModel(ABC, metaclass=RegisterLanguageModelsMeta):
         )
         return other_model or self
 
-    # @classmethod
-    # def example(cls):
-    #     "Returns a default instance of the class"
+    def rich_print(self):
+        """Displays an object as a table."""
+        with io.StringIO() as buf:
+            console = Console(file=buf, record=True)
+            table = Table(title="Language Model")
+            table.add_column("Attribute", style="bold")
+            table.add_column("Value")
 
-    #     class TestLanguageModelGood(LanguageModel):
-    #         _model_ = LanguageModelType.TEST.value
-    #         _parameters_ = {"temperature": 0.5}
-    #         _inference_service_ = InferenceServiceType.TEST.value
+            to_display = self.__dict__.copy()
+            data = to_display.pop("data", None)
+            for attr_name, attr_value in to_display.items():
+                table.add_row(attr_name, repr(attr_value))
 
-    #         async def async_execute_model_call(
-    #             self, user_prompt: str, system_prompt: str
-    #         ) -> dict[str, Any]:
-    #             await asyncio.sleep(0.1)
-    #             return {"message": """{"answer": "SPAM!"}"""}
+            console.print(table)
+            return console.export_text()
 
-    #         def parse_response(self, raw_response: dict[str, Any]) -> str:
-    #             return raw_response["message"]
+    def __str__(self):
+        return self.rich_print()
 
-    #     example = TestLanguageModelGood()
-    #     return example
-    #     return TestLanguageModelGood
+    @classmethod
+    def example(cls):
+        "Returns a default instance of the class"
+        from edsl import Model
+
+        return Model(Model.available()[0])
 
 
 if __name__ == "__main__":
-    import doctest
+    # import doctest
+    # doctest.testmod()
+    from edsl.language_models import LanguageModel
 
-    doctest.testmod()
+    print(LanguageModel.example())

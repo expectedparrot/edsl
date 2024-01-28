@@ -4,6 +4,23 @@ import gzip
 import json
 
 
+class PersistenceMixin:
+    def save(self, filename):
+        with gzip.open(filename, "wb") as f:
+            f.write(json.dumps(self.to_dict()).encode("utf-8"))
+
+    @classmethod
+    def load(cls, filename):
+        with gzip.open(filename, "rb") as f:
+            d = json.loads(f.read().decode("utf-8"))
+        return cls.from_dict(d)
+
+    def post(self):
+        from edsl.utilities.pastebin import post
+
+        post(self)
+
+
 class RegisterSubclassesMeta(ABCMeta):
     _registry = {}
 
@@ -17,7 +34,7 @@ class RegisterSubclassesMeta(ABCMeta):
         return dict(RegisterSubclassesMeta._registry)
 
 
-class Base(ABC, metaclass=RegisterSubclassesMeta):
+class Base(PersistenceMixin, ABC, metaclass=RegisterSubclassesMeta):
     @abstractmethod
     def example():
         """This method should be implemented by subclasses."""
@@ -37,16 +54,6 @@ class Base(ABC, metaclass=RegisterSubclassesMeta):
     def code():
         """This method should be implemented by subclasses."""
         raise NotImplementedError("This method is not implemented yet.")
-
-    def save(self, filename):
-        with gzip.open(filename, "wb") as f:
-            f.write(json.dumps(self.to_dict()).encode("utf-8"))
-
-    @classmethod
-    def load(cls, filename):
-        with gzip.open(filename, "rb") as f:
-            d = json.loads(f.read().decode("utf-8"))
-        return cls.from_dict(d)
 
     def show_methods(self, show_docstrings=True):
         public_methods_with_docstrings = [
