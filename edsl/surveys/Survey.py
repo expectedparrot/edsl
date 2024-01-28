@@ -418,41 +418,18 @@ class Survey(SurveyExportMixin, Base):
         question_names_string = ", ".join([repr(name) for name in self.question_names])
         return f"Survey(questions=[{questions_string}], name={repr(self.name)})"
 
-    def _repr_html_(self) -> str:
-        return self.html()
-
     def show_rules(self) -> None:
         "Prints out the rules in the survey"
         self.rule_collection.show_rules()
 
     def rich_print(self):
-        with io.StringIO() as buf:
-            console = Console(file=buf, record=True)
-            table = Table(show_header=True, header_style="bold magenta")
-            table.add_column("Question Name", style="dim")
-            table.add_column("Question Type")
-            table.add_column("Question Text")
-            table.add_column("Options")
+        table = Table(show_header=True, header_style="bold magenta")
+        table.add_column("Questions", style="dim")
 
-            for question in self.questions:
-                if question.question_options:
-                    options = ", ".join(question.question_options)
-                    table.add_row(
-                        question.question_name,
-                        question.question_type,
-                        question.question_text,
-                        options,
-                    )
+        for question in self._questions:
+            table.add_row(question.rich_print())
 
-            console.print(table)
-            return console.export_text()
-
-    def __str__(self):
-        return self.rich_print()
-
-    def print(self) -> None:
-        "Prints out the survey"
-        self.show_questions()
+        return table
 
     def show_questions(self):
         "Prints out the questions in the survey"

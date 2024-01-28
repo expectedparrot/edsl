@@ -17,10 +17,12 @@ from edsl.prompts.prompt_config import (
 )
 from edsl.prompts.registry import RegisterPromptsMeta
 
-from edsl.Base import PersistenceMixin
+from edsl.Base import PersistenceMixin, RichPrintingMixin
 
 
-class PromptBase(PersistenceMixin, ABC, metaclass=RegisterPromptsMeta):
+class PromptBase(
+    PersistenceMixin, RichPrintingMixin, ABC, metaclass=RegisterPromptsMeta
+):
     component_type = ComponentTypes.GENERIC
 
     def __init__(self, text=None):
@@ -156,26 +158,20 @@ class PromptBase(PersistenceMixin, ABC, metaclass=RegisterPromptsMeta):
 
     def rich_print(self):
         """Displays an object as a table."""
-        with io.StringIO() as buf:
-            console = Console(file=buf, record=True)
-            table = Table(title="Prompt")
-            table.add_column("Attribute", style="bold")
-            table.add_column("Value")
+        table = Table(title="Prompt")
+        table.add_column("Attribute", style="bold")
+        table.add_column("Value")
 
-            to_display = self.__dict__.copy()
-            data = to_display.pop("data", None)
-            for attr_name, attr_value in to_display.items():
-                table.add_row(attr_name, repr(attr_value))
-
-            console.print(table)
-            return console.export_text()
-
-    def __str__(self):
-        return self.rich_print()
+        to_display = self.__dict__.copy()
+        for attr_name, attr_value in to_display.items():
+            table.add_row(attr_name, repr(attr_value))
+        table.add_row("Component type", str(self.component_type))
+        table.add_row("Model", str(getattr(self, "model", "Not specified")))
+        return table
 
     @classmethod
     def example(cls):
-        return cls("Hello, {{person}}")
+        return cls(cls.default_instructions)
 
 
 class Prompt(PromptBase):

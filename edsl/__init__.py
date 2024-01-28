@@ -5,6 +5,7 @@ ROOT_DIR = os.path.dirname(BASE_DIR)
 
 from edsl.config import Config, CONFIG
 from edsl.agents.Agent import Agent
+from edsl.agents.AgentList import AgentList
 from edsl.questions import (
     QuestionFreeText,
     QuestionMultipleChoice,
@@ -12,6 +13,8 @@ from edsl.questions import (
     QuestionCheckBox,
 )
 from edsl.scenarios.Scenario import Scenario
+from edsl.scenarios.ScenarioList import ScenarioList
+
 from edsl.utilities.interface import print_dict_with_rich
 from edsl.surveys.Survey import Survey
 

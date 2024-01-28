@@ -44,22 +44,11 @@ class AgentList(UserList, Base, AgentListExportMixin):
 
     def rich_print(self):
         """Displays an object as a table."""
-        with io.StringIO() as buf:
-            console = Console(file=buf, record=True)
-            for agent in self.data:
-                console.print(agent.rich_print())
-            # table = Table(title="Agent Attributes")
-            # table.add_column("Attribute", style="bold")
-            # table.add_column("Value")
-
-            # for attr_name, attr_value in self.__dict__.items():
-            #     table.add_row(attr_name, str(attr_value))
-
-            #            console.print(table)
-            return console.export_text()
-
-    def __str__(self):
-        return self.rich_print()
+        table = Table(title="AgentList")
+        table.add_column("Agents", style="bold")
+        for agent in self.data:
+            table.add_row(agent.rich_print())
+        return table
 
 
 if __name__ == "__main__":

@@ -252,33 +252,17 @@ class Agent(Base):
     ################
     # DISPLAY Methods
     ################
-    def dict_to_html(self) -> str:
-        """Returns the agent's traits as an HTML table."""
-        return dict_to_html(self.traits)
 
     def rich_print(self):
         """Displays an object as a table."""
-        with io.StringIO() as buf:
-            console = Console(file=buf, record=True)
-            table = Table(title="Agent Attributes")
-            table.add_column("Attribute", style="bold")
-            table.add_column("Value")
+        table = Table(title="Agent Attributes")
+        table.add_column("Attribute", style="bold")
+        table.add_column("Value")
 
-            for attr_name, attr_value in self.__dict__.items():
-                table.add_row(attr_name, repr(attr_value))
+        for attr_name, attr_value in self.__dict__.items():
+            table.add_row(attr_name, repr(attr_value))
 
-            console.print(table)
-            return console.export_text()
-
-    def __str__(self):
-        return self.rich_print()
-
-    def print(self, html: bool = False, show: bool = False) -> Optional[str]:
-        """Prints the agent's traits as a table."""
-        if html:
-            return print_dict_as_html_table(self.traits, show)
-        else:
-            print_dict_with_rich(self.traits)
+        return table
 
     @classmethod
     def example(cls) -> Agent:

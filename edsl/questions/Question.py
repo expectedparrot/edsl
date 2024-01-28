@@ -223,8 +223,10 @@ class Question(
         table.add_column("Options")
 
         question = self
-        if question.question_options:
-            options = ", ".join(question.question_options)
+        if hasattr(question, "question_options"):
+            options = ", ".join([str(o) for o in question.question_options])
+        else:
+            options = "None"
         table.add_row(
             question.question_name,
             question.question_type,
