@@ -23,8 +23,9 @@ from edsl.language_models.repair import repair
 from typing import get_type_hints
 
 from edsl.exceptions.language_models import LanguageModelAttributeTypeError
-
 from edsl.enums import LanguageModelType, InferenceServiceType
+
+from edsl.Base import RichPrintingMixin, PersistenceMixin
 
 
 def handle_key_error(func):
@@ -222,7 +223,9 @@ class RegisterLanguageModelsMeta(ABCMeta):
         return d
 
 
-class LanguageModel(ABC, metaclass=RegisterLanguageModelsMeta):
+class LanguageModel(
+    RichPrintingMixin, PersistenceMixin, ABC, metaclass=RegisterLanguageModelsMeta
+):
     """ABC for LLM subclasses."""
 
     _model_ = None
@@ -445,22 +448,15 @@ class LanguageModel(ABC, metaclass=RegisterLanguageModelsMeta):
 
     def rich_print(self):
         """Displays an object as a table."""
-        with io.StringIO() as buf:
-            console = Console(file=buf, record=True)
-            table = Table(title="Language Model")
-            table.add_column("Attribute", style="bold")
-            table.add_column("Value")
+        table = Table(title="Language Model")
+        table.add_column("Attribute", style="bold")
+        table.add_column("Value")
 
-            to_display = self.__dict__.copy()
-            data = to_display.pop("data", None)
-            for attr_name, attr_value in to_display.items():
-                table.add_row(attr_name, repr(attr_value))
+        to_display = self.__dict__.copy()
+        for attr_name, attr_value in to_display.items():
+            table.add_row(attr_name, repr(attr_value))
 
-            console.print(table)
-            return console.export_text()
-
-    def __str__(self):
-        return self.rich_print()
+        return table
 
     @classmethod
     def example(cls):

@@ -1,13 +1,13 @@
 from abc import ABC, abstractmethod, ABCMeta
 import io
+import gzip
+import json
+
 from rich.console import Console
 from rich.table import Table
 from IPython.display import display
 
 from edsl.utilities import is_notebook
-
-import gzip
-import json
 
 
 class RichPrintingMixin:
