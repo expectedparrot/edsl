@@ -6,15 +6,19 @@ import io
 from rich.console import Console
 from rich.table import Table
 
+from IPython.display import display
 
 from edsl.agents import Agent
 from edsl.language_models import LanguageModel
 from edsl.scenarios import Scenario
 
 # from edsl.Base import Base
+from edsl.utilities import is_notebook
+
+from edsl.Base import Base
 
 
-class Result(UserDict):
+class Result(Base, UserDict):
     """
     This class captures the result of one interview.
     - Its main data is an Agent, a Scenario, a Model, an Iteration, and an Answer.
@@ -62,6 +66,9 @@ class Result(UserDict):
             "prompt": self.prompt,
         }
 
+    def code(self):
+        raise NotImplementedError
+
     @property
     def combined_dict(self) -> dict[str, Any]:
         """Returns a dictionary that includes all sub_dicts, but also puts the key-value pairs in each sub_dict as a key_value pair in the combined dictionary."""
@@ -95,9 +102,6 @@ class Result(UserDict):
         """Returns a copy of the Result object."""
         return Result.from_dict(self.to_dict())
 
-    def __repr__(self):
-        return f"Result(agent={repr(self.agent)}, scenario={repr(self.scenario)}, model={repr(self.model)}, iteration={self.iteration}, answer={repr(self.answer)}, prompt={repr(self.prompt)}"
-
     def __eq__(self, other):
         return self.to_dict() == other.to_dict()
 
@@ -125,24 +129,18 @@ class Result(UserDict):
 
     def rich_print(self):
         """Displays an object as a table."""
-        with io.StringIO() as buf:
-            console = Console(file=buf, record=True)
-            table = Table(title="Result")
-            table.add_column("Attribute", style="bold")
-            table.add_column("Value")
+        table = Table(title="Result")
+        table.add_column("Attribute", style="bold")
+        table.add_column("Value")
 
-            to_display = self.__dict__.copy()
-            data = to_display.pop("data", None)
-            for attr_name, attr_value in to_display.items():
-                table.add_row(attr_name, repr(attr_value))
+        to_display = self.__dict__.copy()
+        data = to_display.pop("data", None)
+        for attr_name, attr_value in to_display.items():
+            table.add_row(attr_name, repr(attr_value))
+        return table
 
-            # We can, in in theory, add more data here
-            # console.print(self.agent.rich_print())
-            console.print(table)
-            return console.export_text()
-
-    def __str__(self):
-        return self.rich_print()
+    def __repr__(self):
+        return f"Result(agent={repr(self.agent)}, scenario={repr(self.scenario)}, model={repr(self.model)}, iteration={self.iteration}, answer={repr(self.answer)}, prompt={repr(self.prompt)}"
 
     @classmethod
     def example(cls):

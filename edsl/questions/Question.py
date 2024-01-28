@@ -71,7 +71,16 @@ class RegisterQuestionsMeta(ABCMeta):
         return d
 
 
-class Question(ABC, AnswerValidatorMixin, metaclass=RegisterQuestionsMeta):
+from edsl.Base import PersistenceMixin, RichPrintingMixin
+
+
+class Question(
+    PersistenceMixin,
+    RichPrintingMixin,
+    ABC,
+    AnswerValidatorMixin,
+    metaclass=RegisterQuestionsMeta,
+):
     """
     ABC for the Question class. All questions should inherit from this class.
     """
@@ -207,29 +216,22 @@ class Question(ABC, AnswerValidatorMixin, metaclass=RegisterQuestionsMeta):
         return s.by(*args)
 
     def rich_print(self):
-        with io.StringIO() as buf:
-            console = Console(file=buf, record=True)
-            table = Table(show_header=True, header_style="bold magenta")
-            table.add_column("Question Name", style="dim")
-            table.add_column("Question Type")
-            table.add_column("Question Text")
-            table.add_column("Options")
+        table = Table(show_header=True, header_style="bold magenta")
+        table.add_column("Question Name", style="dim")
+        table.add_column("Question Type")
+        table.add_column("Question Text")
+        table.add_column("Options")
 
-            question = self
-            if question.question_options:
-                options = ", ".join(question.question_options)
-            table.add_row(
-                question.question_name,
-                question.question_type,
-                question.question_text,
-                options,
-            )
-
-            console.print(table)
-            return console.export_text()
-
-    def __str__(self):
-        return self.rich_print()
+        question = self
+        if question.question_options:
+            options = ", ".join(question.question_options)
+        table.add_row(
+            question.question_name,
+            question.question_type,
+            question.question_text,
+            options,
+        )
+        return table
 
 
 if __name__ == "__main__":

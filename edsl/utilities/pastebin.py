@@ -63,7 +63,7 @@ def post(
         >>> object = get('{key}')
         
         To view all community objects, go to {SERVER_URL}.
-        To view this object, go to {SERVER_URL}/retrieve/{key}.
+        To view this object, go to {SERVER_URL}/view/{key}.
         WARNING: This object is stored on a public server and can be accessed by anyone with the key.
         """
             )

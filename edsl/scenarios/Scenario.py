@@ -1,5 +1,6 @@
 import copy
 from collections import UserDict
+from rich.table import Table
 
 from edsl.Base import Base
 
@@ -81,6 +82,17 @@ class Scenario(UserDict, Base):
         {'food': 'wood chips'}
         """
         return cls(d)
+
+    def rich_print(self):
+        """Displays an object as a table."""
+        table = Table(title="Result")
+        table.add_column("Attribute", style="bold")
+        table.add_column("Value")
+
+        to_display = self.__dict__.copy()
+        for attr_name, attr_value in to_display.items():
+            table.add_row(attr_name, repr(attr_value))
+        return table
 
     @classmethod
     def example(cls):

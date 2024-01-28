@@ -1,7 +1,34 @@
 from abc import ABC, abstractmethod, ABCMeta
+import io
+from rich.console import Console
+from rich.table import Table
+from IPython.display import display
+
+from edsl.utilities import is_notebook
 
 import gzip
 import json
+
+
+class RichPrintingMixin:
+    def for_console(self):
+        with io.StringIO() as buf:
+            console = Console(file=buf, record=True)
+            table = self.rich_print()
+            console.print(table)
+            return console.export_text()
+
+    def __str__(self):
+        return self.for_console()
+
+    def print(self):
+        if is_notebook():
+            display(self.rich_print())
+        else:
+            from rich.console import Console
+
+            console = Console()
+            console.print(self.rich_print())
 
 
 class PersistenceMixin:
@@ -34,9 +61,14 @@ class RegisterSubclassesMeta(ABCMeta):
         return dict(RegisterSubclassesMeta._registry)
 
 
-class Base(PersistenceMixin, ABC, metaclass=RegisterSubclassesMeta):
+class Base(RichPrintingMixin, PersistenceMixin, ABC, metaclass=RegisterSubclassesMeta):
     @abstractmethod
     def example():
+        """This method should be implemented by subclasses."""
+        raise NotImplementedError("This method is not implemented yet.")
+
+    @abstractmethod
+    def rich_print():
         """This method should be implemented by subclasses."""
         raise NotImplementedError("This method is not implemented yet.")
 
