@@ -1,6 +1,10 @@
 from __future__ import annotations
 import re
 from rich import print
+from rich.table import Table
+from rich.console import Console
+import io
+
 from dataclasses import dataclass
 from collections import UserDict
 
@@ -420,6 +424,31 @@ class Survey(SurveyExportMixin, Base):
     def show_rules(self) -> None:
         "Prints out the rules in the survey"
         self.rule_collection.show_rules()
+
+    def rich_print(self):
+        with io.StringIO() as buf:
+            console = Console(file=buf, record=True)
+            table = Table(show_header=True, header_style="bold magenta")
+            table.add_column("Question Name", style="dim")
+            table.add_column("Question Type")
+            table.add_column("Question Text")
+            table.add_column("Options")
+
+            for question in self.questions:
+                if question.question_options:
+                    options = ", ".join(question.question_options)
+                    table.add_row(
+                        question.question_name,
+                        question.question_type,
+                        question.question_text,
+                        options,
+                    )
+
+            console.print(table)
+            return console.export_text()
+
+    def __str__(self):
+        return self.rich_print()
 
     def print(self) -> None:
         "Prints out the survey"

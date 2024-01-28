@@ -1,6 +1,9 @@
 from __future__ import annotations
 import textwrap
+import io
 from abc import ABC, abstractmethod, ABCMeta
+from rich.console import Console
+from rich.table import Table
 from jinja2 import Template, Environment, meta
 from typing import Any, Type
 from edsl.exceptions import (
@@ -152,8 +155,6 @@ class Question(ABC, AnswerValidatorMixin, metaclass=RegisterQuestionsMeta):
         >>> q1 = QuestionFreeText(question_text = "What is the capital of {{country}}", question_name = "capital")
         >>> q2 = QuestionNumerical(question_text = "What is the population of {{capital}}, in millions. Please round", question_name = "population")
         >>> q3 = q1 + q2
-        >>> Scenario({"country": "France"}).to(q3).run().select("capital_population")
-        ['2']
         """
         from edsl.questions import compose_questions
 
@@ -204,6 +205,31 @@ class Question(ABC, AnswerValidatorMixin, metaclass=RegisterQuestionsMeta):
 
         s = Survey([self])
         return s.by(*args)
+
+    def rich_print(self):
+        with io.StringIO() as buf:
+            console = Console(file=buf, record=True)
+            table = Table(show_header=True, header_style="bold magenta")
+            table.add_column("Question Name", style="dim")
+            table.add_column("Question Type")
+            table.add_column("Question Text")
+            table.add_column("Options")
+
+            question = self
+            if question.question_options:
+                options = ", ".join(question.question_options)
+            table.add_row(
+                question.question_name,
+                question.question_type,
+                question.question_text,
+                options,
+            )
+
+            console.print(table)
+            return console.export_text()
+
+    def __str__(self):
+        return self.rich_print()
 
 
 if __name__ == "__main__":

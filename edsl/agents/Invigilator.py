@@ -157,7 +157,10 @@ class InvigilatorAI(InvigilatorBase):
         """Gets the prompts for the LLM call."""
         system_prompt = self.construct_system_prompt()
         user_prompt = self.construct_user_prompt()
-        return {"user_prompt": user_prompt, "system_prompt": system_prompt}
+        return {
+            "user_prompt": user_prompt,
+            "system_prompt": system_prompt,
+        }
 
     def _format_raw_response(
         self, agent, question, scenario, raw_response
@@ -169,7 +172,7 @@ class InvigilatorAI(InvigilatorBase):
         data = {
             "answer": answer,
             "comment": comment,
-            "prompts": agent.get_prompts(),
+            "prompts": {k: v.to_dict() for k, v in agent.get_prompts().items()},
         }
         return data
 
@@ -193,7 +196,10 @@ class InvigilatorDebug(InvigilatorBase):
         return AgentResponseDict(**results)
 
     def get_prompts(self) -> Dict[str, Prompt]:
-        return {"user_prompt": Prompt("NA"), "system_prompt": Prompt("NA")}
+        return {
+            "user_prompt": Prompt("NA").text,
+            "system_prompt": Prompt("NA").text,
+        }
 
 
 class InvigilatorHuman(InvigilatorBase):
@@ -206,7 +212,10 @@ class InvigilatorHuman(InvigilatorBase):
         return AgentResponseDict(**response)
 
     def get_prompts(self) -> Dict[str, Prompt]:
-        return {"user_prompt": Prompt("NA"), "system_prompt": Prompt("NA")}
+        return {
+            "user_prompt": Prompt("NA").text,
+            "system_prompt": Prompt("NA").text,
+        }
 
 
 class InvigilatorFunctional(InvigilatorBase):
@@ -217,4 +226,7 @@ class InvigilatorFunctional(InvigilatorBase):
         return AgentResponseDict(**response)
 
     def get_prompts(self) -> Dict[str, Prompt]:
-        return {"user_prompt": Prompt("NA"), "system_prompt": Prompt("NA")}
+        return {
+            "user_prompt": Prompt("NA").text,
+            "system_prompt": Prompt("NA").text,
+        }
