@@ -1,6 +1,10 @@
 from __future__ import annotations
 import re
 from rich import print
+from rich.table import Table
+from rich.console import Console
+import io
+
 from dataclasses import dataclass
 from collections import UserDict
 
@@ -414,16 +418,18 @@ class Survey(SurveyExportMixin, Base):
         question_names_string = ", ".join([repr(name) for name in self.question_names])
         return f"Survey(questions=[{questions_string}], name={repr(self.name)})"
 
-    def _repr_html_(self) -> str:
-        return self.html()
-
     def show_rules(self) -> None:
         "Prints out the rules in the survey"
         self.rule_collection.show_rules()
 
-    def print(self) -> None:
-        "Prints out the survey"
-        self.show_questions()
+    def rich_print(self):
+        table = Table(show_header=True, header_style="bold magenta")
+        table.add_column("Questions", style="dim")
+
+        for question in self._questions:
+            table.add_row(question.rich_print())
+
+        return table
 
     def show_questions(self):
         "Prints out the questions in the survey"

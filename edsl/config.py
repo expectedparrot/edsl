@@ -14,6 +14,11 @@ CONFIG_MAP = {
         "allowed": ["development", "production"],
         "user_message": None,
     },
+    "EDSL_PASTEBIN_URL": {
+        "default": "http://127.0.0.1:5000",
+        "allowed": None,
+        "user_message": None,
+    },
     "EDSL_DATABASE_PATH": {
         "default": f"sqlite:///{os.path.join(os.getcwd(), 'edsl_cache.db')}",
         "allowed": None,

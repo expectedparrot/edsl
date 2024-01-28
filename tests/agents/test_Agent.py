@@ -193,18 +193,6 @@ def test_invigilator_creation():
     assert i.__class__.__name__ == "InvigilatorHuman"
 
 
-def test_agent_display_methods():
-    agent = Agent(traits={"age": 10})
-    assert (
-        agent.dict_to_html()
-        == '<table border="1">\n<tr><th>Key</th><th>Value</th></tr>\n<tr><td>age</td><td>10</td></tr>\n</table>'
-    )
-    assert (
-        agent.print(html=True)
-        == '<table border="1">\n<tr><th>Key</th><th>Value</th></tr>\n<tr><td>age</td><td>10</td></tr>\n</table>'
-    )
-
-
 def test_agent_dyanmic_traits():
     with pytest.raises(AgentDynamicTraitsFunctionError):
 

@@ -1,6 +1,10 @@
 import textwrap
 from abc import ABC
 from typing import Any, List
+import io
+
+from rich.console import Console
+from rich.table import Table
 
 from jinja2 import Template, Environment, meta
 
@@ -13,8 +17,12 @@ from edsl.prompts.prompt_config import (
 )
 from edsl.prompts.registry import RegisterPromptsMeta
 
+from edsl.Base import PersistenceMixin, RichPrintingMixin
 
-class PromptBase(ABC, metaclass=RegisterPromptsMeta):
+
+class PromptBase(
+    PersistenceMixin, RichPrintingMixin, ABC, metaclass=RegisterPromptsMeta
+):
     component_type = ComponentTypes.GENERIC
 
     def __init__(self, text=None):
@@ -147,6 +155,23 @@ class PromptBase(ABC, metaclass=RegisterPromptsMeta):
         class_name = data["class_name"]
         cls = RegisterPromptsMeta._registry.get(class_name, Prompt)
         return cls(text=data["text"])
+
+    def rich_print(self):
+        """Displays an object as a table."""
+        table = Table(title="Prompt")
+        table.add_column("Attribute", style="bold")
+        table.add_column("Value")
+
+        to_display = self.__dict__.copy()
+        for attr_name, attr_value in to_display.items():
+            table.add_row(attr_name, repr(attr_value))
+        table.add_row("Component type", str(self.component_type))
+        table.add_row("Model", str(getattr(self, "model", "Not specified")))
+        return table
+
+    @classmethod
+    def example(cls):
+        return cls(cls.default_instructions)
 
 
 class Prompt(PromptBase):

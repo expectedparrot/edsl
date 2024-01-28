@@ -29,7 +29,7 @@ class JobsRunnerAsyncio(JobsRunner):
         # Assuming async_conduct_interview and Result are defined and work asynchronously
         answer, prompt_data = await interview.async_conduct_interview(debug=debug)
         user_prompts, system_prompts = self._get_prompts(answer, prompt_data)
-
+        # breakpoint()
         result = Result(
             agent=interview.agent,
             scenario=interview.scenario,

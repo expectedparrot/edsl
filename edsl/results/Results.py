@@ -1,6 +1,10 @@
 from __future__ import annotations
 import json
+import io
 from collections import UserList, defaultdict
+
+from rich.console import Console
+
 from simpleeval import EvalWithCompoundTypes
 from typing import Any, Type, Union
 from edsl.exceptions import (
@@ -22,6 +26,7 @@ from edsl.utilities import (
     is_valid_variable_name,
     print_public_methods_with_doc,
     shorten_string,
+    is_notebook,
 )
 
 
@@ -52,8 +57,10 @@ try:
 except (ImportError, ModuleNotFoundError):
     pass
 
+from edsl.Base import Base
 
-class Results(UserList, Mixins):
+
+class Results(UserList, Mixins, Base):
     """
     This class is a UserList of Result objects.
     - It is instantiated with a Survey and a list of Result objects (observations).
@@ -63,8 +70,8 @@ class Results(UserList, Mixins):
 
     def __init__(
         self,
-        survey: Survey,
-        data: list[Result],
+        survey: Survey = None,
+        data: list[Result] = None,
         created_columns: list = None,
         job_uuid: str = None,
         total_results: int = None,
@@ -81,6 +88,9 @@ class Results(UserList, Mixins):
     ######################
     # Streaming methods
     ######################
+
+    def code(self):
+        raise NotImplementedError
 
     def __getitem__(self, i):
         if isinstance(i, slice):
@@ -108,7 +118,11 @@ class Results(UserList, Mixins):
         self._update_results()
         if self._job_uuid and len(self.data) < self._total_results:
             print(f"Completeness: {len(self.data)}/{self._total_results}")
-        return f"Results(data = {self.data}, survey = {self.survey}, created_columns = {self.created_columns})"
+        data = [repr(result) for result in self.data]
+        if is_notebook():
+            return self.rich_print()
+        else:
+            return f"Results(data = {data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
 
     def to_dict(self) -> dict[str, Any]:
         """Converts the Results object to a dictionary"""
@@ -136,7 +150,7 @@ class Results(UserList, Mixins):
             data = json.load(f)
         return cls.from_dict(data)
 
-    def show_methods(self):
+    def show_methods(self, show_docstrings: bool = True):
         """Prints public methods of the Results class"""
         print_public_methods_with_doc(self)
 
@@ -214,6 +228,8 @@ class Results(UserList, Mixins):
     @property
     def question_names(self) -> list[str]:
         """Returns a list of all of the question names"""
+        if self.survey is None:
+            return []
         return list(self.survey.question_names)
 
     @property
@@ -419,6 +435,20 @@ class Results(UserList, Mixins):
         results = job.run()
         return results
 
+    def rich_print(self):
+        """Displays an object as a table."""
+        with io.StringIO() as buf:
+            console = Console(file=buf, record=True)
+
+            for index, result in enumerate(self):
+                console.print(f"Result {index}")
+                console.print(result.rich_print())
+
+            return console.export_text()
+
+    def __str__(self):
+        return self.rich_print()
+
 
 def main():  # pragma: no cover
     """Calls the OpenAI API credits"""
@@ -427,3 +457,7 @@ def main():  # pragma: no cover
     results = Results.example(debug=True)
     print(results.filter("how_feeling == 'Great'").select("how_feeling"))
     print(results.mutate("how_feeling_x = how_feeling + 'x'").select("how_feeling_x"))
+
+
+if __name__ == "__main__":
+    print(Results.example())

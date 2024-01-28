@@ -43,6 +43,7 @@ integration: ## Run integration tests via pytest **consumes API credits**
 	make integration-runners
 	make integration-questions
 	make integration-models
+	make integration-visuals
 	
 integration-memory: ## Run integration tests via pytest **consumes API credits**
 	pytest -v integration/test_memory.py
@@ -64,6 +65,9 @@ integration-job-running:
 
 integration-tricky-questions:
 	pytest -v --log-cli-level=INFO integration/test_tricky_questions.py
+
+integration-visuals:
+	cd tests && python check_printing.py
 
 	#pytest --log-cli-level=INFO tests/test_JobRunning.p
 lint: ## Run code linters (flake8, pylint, mypy).
@@ -87,6 +91,7 @@ doctests:
 	pytest --doctest-modules edsl/prompts
 	pytest --doctest-modules edsl/reports	
 	pytest --doctest-modules edsl/language_models
+
 
 watch-docs: ## Build and watch documentation.
 	sphinx-autobuild docs/ docs/_build/html --open-browser --watch $(GIT_ROOT)/edsl/

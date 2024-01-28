@@ -18,3 +18,12 @@ class Answers(UserDict):
         for question_name in survey.question_names:
             if question_name not in self:
                 self[question_name] = None
+
+    def to_dict(self):
+        "Returns a dictionary of the answers"
+        return self.data
+
+    @classmethod
+    def from_dict(cls, d):
+        "Returns an Answers object from a dictionary"
+        return cls(d)

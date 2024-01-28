@@ -1,6 +1,11 @@
 from __future__ import annotations
+import io
 from collections import UserList
 from typing import Optional, Union
+
+from rich.console import Console
+from rich.table import Table
+
 from edsl.agents import Agent
 from edsl.agents.AgentListExportMixin import AgentListExportMixin
 from edsl.Base import Base
@@ -15,10 +20,6 @@ class AgentList(UserList, Base, AgentListExportMixin):
 
     def to(self, question_or_survey: Union["Question", "Survey"]):
         return question_or_survey.by(*self)
-
-    # def update_traits(self, new_attributes: list):
-    #     for agent in self.data:
-    #         agent.update_traits(new_attributes)
 
     def to_dict(self):
         return {"agent_list": [agent.to_dict() for agent in self.data]}
@@ -40,6 +41,14 @@ class AgentList(UserList, Base, AgentListExportMixin):
         ]
         lines.append(f"agent_list = AgentList({self.data})")
         return lines
+
+    def rich_print(self):
+        """Displays an object as a table."""
+        table = Table(title="AgentList")
+        table.add_column("Agents", style="bold")
+        for agent in self.data:
+            table.add_row(agent.rich_print())
+        return table
 
 
 if __name__ == "__main__":
