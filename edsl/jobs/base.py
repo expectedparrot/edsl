@@ -30,7 +30,10 @@ class JobsRunnerDescriptor:
 
     def __get__(self, instance, owner):
         """"""
-        return instance.__dict__[self.name]
+        if self.name not in instance.__dict__:
+            return None
+        else:
+            return instance.__dict__[self.name]
 
     def __set__(self, instance, value: str) -> None:
         self.validate(value, instance)

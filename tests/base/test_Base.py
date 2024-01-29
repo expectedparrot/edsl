@@ -17,13 +17,14 @@ class TestBaseModels:
         for key, value in RegisterSubclassesMeta.get_registry().items():
             assert key in [
                 "Result",
+                "Results",
                 "Survey",
                 "Agent",
                 "AgentList",
                 "Scenario",
-                "Results",
                 "ScenarioList",
                 "AgentList",
+                "Jobs",
             ]
 
         methods = [
@@ -58,6 +59,11 @@ def create_test_function(child_class):
             assert eval(repr(e), d) == e
         except:
             warnings.warn(f"Failure with {child_class}:", EvalReprFail)
+
+        # can serialize to json
+        import json
+
+        _ = json.dumps(e.to_dict())
 
     return base_test_func
 

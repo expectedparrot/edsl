@@ -13,20 +13,25 @@ from edsl.utilities.SystemInfo import SystemInfo
 
 def post(
     object,
+    *,
     username: str = None,
     description: str = None,
     system_info: str = None,
     public=True,
+    ask=True,
 ):
     """Uploads an object to the server with additional metadata."""
 
     info = SystemInfo("edsl")
-    print(f"OK to send the folloing info to community server (info will be public)?")
-    print(info)
-    inp = input("Enter y/n: ")
-    if inp != "y":
-        print("Canceled posting")
-        return
+    if ask:
+        print(
+            f"OK to send the folloing info to community server (info will be public)?"
+        )
+        print(info)
+        inp = input("Enter y/n: ")
+        if inp != "y":
+            print("Canceled posting")
+            return
     object_type = object.__class__.__name__
     object_data = json.dumps(object.to_dict()).encode("utf-8")
     # Prepare the metadata for the POST request
