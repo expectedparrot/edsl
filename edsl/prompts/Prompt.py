@@ -6,7 +6,7 @@ import io
 from rich.console import Console
 from rich.table import Table
 
-from jinja2 import Template, Environment, meta
+from jinja2 import Template, Environment, meta, TemplateSyntaxError
 
 from edsl.exceptions.prompts import TemplateRenderError
 from edsl.prompts.prompt_config import (
@@ -18,6 +18,8 @@ from edsl.prompts.prompt_config import (
 from edsl.prompts.registry import RegisterPromptsMeta
 
 from edsl.Base import PersistenceMixin, RichPrintingMixin
+
+MAX_NESTING = 100
 
 
 class PromptBase(
@@ -31,7 +33,11 @@ class PromptBase(
                 text = self.default_instructions
             else:
                 text = ""
-        self.text = text
+        self._text = text
+
+    @property
+    def text(self):
+        return self._text
 
     def __add__(self, other_prompt):
         """
@@ -90,6 +96,12 @@ class PromptBase(
         ast = env.parse(template)
         return list(meta.find_undeclared_variables(ast))
 
+    def undefined_template_variables(self, replcement_dict):
+        return [var for var in self.template_variables() if var not in replcement_dict]
+
+    def unused_traits(self, traits: dict):
+        return [trait for trait in traits if trait not in self.template_variables()]
+
     @property
     def has_variables(self) -> bool:
         """
@@ -102,39 +114,52 @@ class PromptBase(
         """
         return len(self.template_variables()) > 0
 
-    def render(self, replacements, max_nesting=100) -> None:
+    def render(self, primary_replacement: dict, **additional_replacements) -> str:
         """Renders the prompt with the replacements
 
         >>> p = Prompt("Hello, {{person}}")
         >>> p.render({"person": "John"})
-        >>> p.text
         'Hello, John'
-        >>> p = Prompt("Hello, {{person}}")
         >>> p.render({"person": "Mr. {{last_name}}", "last_name": "Horton"})
-        >>> p.text
         'Hello, Mr. Horton'
         >>> p.render({"person": "Mr. {{last_name}}", "last_name": "Ho{{letter}}ton"}, max_nesting = 1)
-        >>> p.text
         'Hello, Mr. Horton'
         """
-        self.text = self._render(self.text, replacements, max_nesting)
+        new_text = self._render(
+            self.text, primary_replacement, **additional_replacements
+        )
+        return self.__class__(text=new_text)
 
     @staticmethod
-    def _render(text, replacements: dict[str, Any], max_nesting) -> str:
+    def _render(text, primary_replacement, **additional_replacements) -> "PromptBase":
         """
-        Replaces the variables in the question text with the values from the scenario.
-        We allow nesting, and hence we may need to do this many times. There is a nesting limit of 100.
-        TODO: I'm not sure this is necessary, actually - I think jinja2 does this for us automatically.
-        When I was trying to get it to fail, I couldn't.
+            Renders the template text with variables replaced from the provided named dictionaries.
+            Allows for nested variable resolution up to a specified maximum nesting depth.
+
+        >>> codebook = {"age": "Age"}
+        >>> p = Prompt("You are an agent named {{ name }}. {{ codebook['age']}}: {{ age }}")
+        >>> p.render({"name": "John", "age": 44}, codebook=codebook)
+        'You are an agent named John. Age: 44'
+
         """
-        for _ in range(max_nesting):
-            t = Template(text).render(replacements)
-            if t == text:
-                return t
-            text = t
-        raise TemplateRenderError(
-            "Too much nesting - you created an infnite loop here, pal"
-        )
+        try:
+            previous_text = None
+            for _ in range(MAX_NESTING):
+                rendered_text = Template(text).render(
+                    primary_replacement, **additional_replacements
+                )
+                if rendered_text == previous_text:
+                    # No more changes, so return the rendered text
+                    return rendered_text
+                previous_text = text
+                text = rendered_text
+
+            # If the loop exits without returning, it indicates too much nesting
+            raise TemplateRenderError(
+                "Too much nesting - you created an infinite loop here, pal"
+            )
+        except TemplateSyntaxError as e:
+            raise TemplateRenderError(f"Template syntax error: {e}")
 
     def to_dict(self):
         """

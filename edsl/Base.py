@@ -39,7 +39,10 @@ class PersistenceMixin:
     @classmethod
     def load(cls, filename):
         with gzip.open(filename, "rb") as f:
-            d = json.loads(f.read().decode("utf-8"))
+            file_contents = f.read()
+            file_contents_decoded = file_contents.decode("utf-8")
+            d = json.loads(file_contents_decoded)
+            # d = json.loads(f.read().decode("utf-8"))
         return cls.from_dict(d)
 
     def post(self):
