@@ -5,7 +5,7 @@ from rich.table import Table
 from edsl.Base import Base
 
 
-class Scenario(UserDict, Base):
+class Scenario(Base, UserDict):
     """A Scenario is a dictionary of key/values that describe some situation."""
 
     def __add__(self, other_scenario):
@@ -83,15 +83,25 @@ class Scenario(UserDict, Base):
         """
         return cls(d)
 
-    def rich_print(self):
-        """Displays an object as a table."""
-        table = Table(title="Result")
-        table.add_column("Attribute", style="bold")
-        table.add_column("Value")
+    def _table(self) -> tuple[dict, list]:
+        """Prepare generic table data."""
+        table_data = []
+        for attr_name, attr_value in self.__dict__.items():
+            table_data.append({"Attribute": attr_name, "Value": repr(attr_value)})
+        column_names = ["Attribute", "Value"]
+        return table_data, column_names
 
-        to_display = self.__dict__.copy()
-        for attr_name, attr_value in to_display.items():
-            table.add_row(attr_name, repr(attr_value))
+    def rich_print(self):
+        """Displays an object as a rich table."""
+        table_data, column_names = self._table()
+        table = Table(title=f"{self.__class__.__name__} Attributes")
+        for column in column_names:
+            table.add_column(column, style="bold")
+
+        for row in table_data:
+            row_data = [row[column] for column in column_names]
+            table.add_row(*row_data)
+
         return table
 
     @classmethod

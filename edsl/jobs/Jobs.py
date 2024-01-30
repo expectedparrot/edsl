@@ -16,8 +16,10 @@ from edsl.jobs.base import JobsRunnersRegistry, JobsRunnerDescriptor
 from edsl.jobs.Interview import Interview
 from edsl.api import JobRunnerAPI, ResultsAPI
 
+from edsl.Base import Base
 
-class Jobs:
+
+class Jobs(Base):
     """
     The Jobs class is a collection of agents, scenarios and models and one survey.
 
@@ -283,6 +285,18 @@ class Jobs:
         ).by(joy_agent, sad_agent)
 
         return job
+
+    def rich_print(self):
+        """Prints a rich representation of the Jobs instance."""
+        from rich.table import Table
+
+        table = Table(title="Jobs")
+        table.add_column("Jobs")
+        table.add_row(self.survey.rich_print())
+        return table
+
+    def code(self):
+        raise NotImplementedError
 
 
 def main():

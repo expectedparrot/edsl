@@ -64,7 +64,7 @@ class ScenarioList(Base, UserList):
         table.add_column("Index", style="bold")
         table.add_column("Scenario")
         for i, s in enumerate(self):
-            table.add_row(str(i), repr(s))
+            table.add_row(str(i), s.rich_print())
         return table
 
 

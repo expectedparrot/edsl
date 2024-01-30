@@ -5,6 +5,7 @@ import types
 import io
 from typing import Any, Callable, Optional, Union, Dict
 
+from jinja2 import Template
 
 from rich.console import Console
 from rich.table import Table
@@ -43,6 +44,8 @@ from edsl.utilities.decorators import sync_wrapper
 
 from edsl.data_transfer_models import AgentResponseDict
 
+from edsl.prompts.library.agent_persona import AgentPersona
+
 
 class Agent(Base):
     """An agent that can answer questions.
@@ -69,6 +72,7 @@ class Agent(Base):
         traits: dict = None,
         codebook: dict = None,
         instruction: str = None,
+        trait_presentation_template: str = None,
         dynamic_traits_function: Callable = None,
     ):
         self._traits = traits or dict()
@@ -77,6 +81,10 @@ class Agent(Base):
         self.dynamic_traits_function = dynamic_traits_function
         self._check_dynamic_traits_function()
         self.current_question = None
+
+        if trait_presentation_template is not None:
+            self.trait_presentation_template = trait_presentation_template
+            self.agent_persona = AgentPersona(text=self.trait_presentation_template)
 
     def _check_dynamic_traits_function(self):
         if self.dynamic_traits_function:
@@ -253,14 +261,24 @@ class Agent(Base):
     # DISPLAY Methods
     ################
 
-    def rich_print(self):
-        """Displays an object as a table."""
-        table = Table(title="Agent Attributes")
-        table.add_column("Attribute", style="bold")
-        table.add_column("Value")
-
+    def _table(self) -> tuple[dict, list]:
+        """Prepare generic table data."""
+        table_data = []
         for attr_name, attr_value in self.__dict__.items():
-            table.add_row(attr_name, repr(attr_value))
+            table_data.append({"Attribute": attr_name, "Value": repr(attr_value)})
+        column_names = ["Attribute", "Value"]
+        return table_data, column_names
+
+    def rich_print(self):
+        """Displays an object as a rich table."""
+        table_data, column_names = self._table()
+        table = Table(title=f"{self.__class__.__name__} Attributes")
+        for column in column_names:
+            table.add_column(column, style="bold")
+
+        for row in table_data:
+            row_data = [row[column] for column in column_names]
+            table.add_row(*row_data)
 
         return table
 

@@ -142,14 +142,6 @@ class Results(UserList, Mixins, Base):
         )
         return results
 
-    @classmethod
-    def load(cls, json_file) -> Results:
-        """Converts a JSON file to a Results object."""
-        mode = "rb" if is_gzipped(json_file) else "r"
-        with open(json_file, mode) as f:
-            data = json.load(f)
-        return cls.from_dict(data)
-
     def show_methods(self, show_docstrings: bool = True):
         """Prints public methods of the Results class"""
         print_public_methods_with_doc(self)

@@ -99,17 +99,45 @@ class InvigilatorAI(InvigilatorBase):
         if len(applicable_prompts) == 0:
             raise Exception("No applicable prompts found")
 
-        agent_instructions = applicable_prompts[0]()
+        agent_instructions = applicable_prompts[0](text=self.agent.instruction)
         # print(f"Agent instructions are: {agent_instructions}")
 
         ## agent_persona
-        applicable_prompts = get_classes(
-            component_type="agent_persona",
-            model=self.model.model,
+        if not hasattr(self.agent, "agent_persona"):
+            applicable_prompts = get_classes(
+                component_type="agent_persona",
+                model=self.model.model,
+            )
+            persona_prompt_template = applicable_prompts[0]()
+        else:
+            persona_prompt_template = self.agent.agent_persona
+
+        if undefined := persona_prompt_template.undefined_template_variables(
+            self.agent.traits
+            | {"traits": self.agent.traits}
+            | {"codebook": self.agent.codebook}
+            | {"traits": self.agent.traits}
+        ):
+            raise QuestionScenarioRenderError(
+                f"Agent persona still has variables that were not rendered: {undefined}"
+            )
+
+        persona_prompt = persona_prompt_template.render(
+            self.agent.traits | {"traits": self.agent.traits},
+            codebook=self.agent.codebook,
+            traits=self.agent.traits,
         )
-        persona_prompt = applicable_prompts[0]()
-        persona_prompt.render({"traits": self.agent.traits})
-        return agent_instructions + persona_prompt
+
+        if persona_prompt.has_variables:
+            raise QuestionScenarioRenderError(
+                "Agent persona still has variables that were not rendered."
+            )
+
+        return (
+            agent_instructions
+            + " " * int(len(persona_prompt.text) > 0)
+            + persona_prompt
+        )
 
     async def async_get_response(self, user_prompt: Prompt, system_prompt: Prompt):
         """Calls the LLM and gets a response. Used in the `answer_question` method."""
@@ -138,13 +166,18 @@ class InvigilatorAI(InvigilatorBase):
         ## Get the question instructions and renders with the scenario & question.data
         question_prompt = applicable_prompts[0]()
 
-        question_prompt.render(self.question.data | self.scenario)
-
-        if question_prompt.has_variables:
+        undefined_template_variables = question_prompt.undefined_template_variables(
+            self.question.data | self.scenario
+        )
+        if undefined_template_variables:
+            print(undefined_template_variables)
             raise QuestionScenarioRenderError(
                 "Question instructions still has variables"
             )
-        return question_prompt
+
+        return question_prompt.render(self.question.data | self.scenario)
+
+        # return question_prompt
 
     def construct_user_prompt(self) -> Prompt:
         """Gets the user prompt for the LLM call."""
@@ -230,3 +263,101 @@ class InvigilatorFunctional(InvigilatorBase):
             "user_prompt": Prompt("NA").text,
             "system_prompt": Prompt("NA").text,
         }
+
+
+if __name__ == "__main__":
+    from edsl.enums import LanguageModelType
+
+    from edsl.agents.Agent import Agent
+
+    a = Agent(
+        instruction="You are a happy-go lucky agent.",
+        traits={"feeling": "happy", "age": "Young at heart"},
+        codebook={"feeling": "Feelings right now", "age": "Age in years"},
+        trait_presentation_template="",
+    )
+
+    class MockModel:
+        model = LanguageModelType.GPT_4.value
+
+    class MockQuestion:
+        question_type = "free_text"
+        question_text = "How are you feeling?"
+        question_name = "feelings_question"
+        data = {
+            "question_name": "feelings",
+            "question_text": "How are you feeling?",
+            "question_type": "feelings_question",
+        }
+
+    i = InvigilatorAI(
+        agent=a,
+        question=MockQuestion(),
+        scenario={},
+        model=MockModel(),
+        memory_plan=None,
+        current_answers=None,
+    )
+    print(i.get_prompts()["system_prompt"])
+    assert i.get_prompts()["system_prompt"].text == "You are a happy-go lucky agent."
+
+    ###############
+    ## Render one
+    ###############
+
+    a = Agent(
+        instruction="You are a happy-go lucky agent.",
+        traits={"feeling": "happy", "age": "Young at heart"},
+        codebook={"feeling": "Feelings right now", "age": "Age in years"},
+        trait_presentation_template="You are feeling {{ feeling }}.",
+    )
+
+    i = InvigilatorAI(
+        agent=a,
+        question=MockQuestion(),
+        scenario={},
+        model=MockModel(),
+        memory_plan=None,
+        current_answers=None,
+    )
+    print(i.get_prompts()["system_prompt"])
+
+    assert (
+        i.get_prompts()["system_prompt"].text
+        == "You are a happy-go lucky agent. You are feeling happy."
+    )
+    try:
+        assert i.get_prompts()["system_prompt"].unused_traits(a.traits) == ["age"]
+    except AssertionError:
+        unused_traits = i.get_prompts()["system_prompt"].unused_traits(a.traits)
+        print(f"System prompt: {i.get_prompts()['system_prompt']}")
+        print(f"Agent traits: {a.traits}")
+        print(f"Unused_traits: {unused_traits}")
+        # breakpoint()
+
+    ###############
+    ## Render one
+    ###############
+
+    a = Agent(
+        instruction="You are a happy-go lucky agent.",
+        traits={"feeling": "happy", "age": "Young at heart"},
+        codebook={"feeling": "Feelings right now", "age": "Age in years"},
+        trait_presentation_template="You are feeling {{ feeling }}. You eat lots of {{ food }}.",
+    )
+
+    i = InvigilatorAI(
+        agent=a,
+        question=MockQuestion(),
+        scenario={},
+        model=MockModel(),
+        memory_plan=None,
+        current_answers=None,
+    )
+    print(i.get_prompts()["system_prompt"])
+
+    ## Should raise a QuestionScenarioRenderError
+    assert (
+        i.get_prompts()["system_prompt"].text
+        == "You are a happy-go lucky agent. You are feeling happy."
+    )

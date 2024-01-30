@@ -3,6 +3,9 @@ import warnings
 from edsl.Base import RegisterSubclassesMeta, Base
 from edsl.questions import QuestionMultipleChoice
 
+from edsl.data.Cache import Cache
+import json
+
 
 class EvalReprFail(Warning):
     "Warning for when eval(repr(e), d) == e fails"
@@ -17,13 +20,15 @@ class TestBaseModels:
         for key, value in RegisterSubclassesMeta.get_registry().items():
             assert key in [
                 "Result",
+                "Results",
                 "Survey",
                 "Agent",
                 "AgentList",
                 "Scenario",
-                "Results",
                 "ScenarioList",
                 "AgentList",
+                "Jobs",
+                "Cache",
             ]
 
         methods = [
@@ -59,6 +64,10 @@ def create_test_function(child_class):
         except:
             warnings.warn(f"Failure with {child_class}:", EvalReprFail)
 
+        # can serialize to json
+
+        _ = json.dumps(e.to_dict())
+
     return base_test_func
 
 
@@ -70,13 +79,28 @@ def create_file_operations_test(child_class):
         print(f"Now testing {child_class}")
         e = child_class.example()
         e.print()
+        try:
+            _ = json.dumps(e.to_dict())
+        except:
+            warnings.warn(f"JSON failure with {child_class}:", EvalReprFail)
+
         file = tempfile.NamedTemporaryFile().name
         e.save(file)
         try:
             new_w = child_class.load(file)
-            assert new_w == e
         except:
-            warnings.warn(f"Failure with {child_class}:", SaveLoadFail)
+            print(f"Failure at {file}")
+            warnings.warn(f"Load failure with {child_class}:", SaveLoadFail)
+            raise
+        try:
+            # Check to see if they are equal by comparing their dictionaries
+            assert new_w.to_dict() == e.to_dict()
+        except:
+            warnings.warn(
+                f"Equality failure with (new_w != e) {child_class}:", EvalReprFail
+            )
+            breakpoint()
+            raise
 
     return test_file_operations_func
 
