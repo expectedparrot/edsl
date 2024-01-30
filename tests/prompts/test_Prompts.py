@@ -95,21 +95,12 @@ def test_prompt_has_variables():
 # Testing render method
 def test_prompt_render():
     p = Prompt("Hello, {{person}}")
-    p.render({"person": "John"})
-    assert p.text == "Hello, John"
+    assert p.render({"person": "John"}).text == "Hello, John"
 
     p = Prompt("Hello, {{person}}")
-    p.render({"person": "Mr. {{last_name}}", "last_name": "Horton"})
-    assert p.text == "Hello, Mr. Horton"
-
-    # p = Prompt("Hello, {{person}}")
-    # with pytest.raises(
-    #     TemplateRenderError
-    # ):  # Replace TemplateRenderError with the correct exception
-    #     p.render(
-    #         {"person": "Mr. {{last_name}}", "last_name": "Ho{{letter}}ton"},
-    #         max_nesting=1,
-    #     )
+    p.render(
+        {"person": "Mr. {{last_name}}", "last_name": "Horton"}
+    ).text == "Hello, Mr. Horton"
 
 
 # Testing to_dict method

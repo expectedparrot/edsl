@@ -3,6 +3,8 @@ import warnings
 from edsl.Base import RegisterSubclassesMeta, Base
 from edsl.questions import QuestionMultipleChoice
 
+from edsl.data.Cache import Cache
+
 
 class EvalReprFail(Warning):
     "Warning for when eval(repr(e), d) == e fails"
@@ -25,6 +27,7 @@ class TestBaseModels:
                 "ScenarioList",
                 "AgentList",
                 "Jobs",
+                "Cache",
             ]
 
         methods = [

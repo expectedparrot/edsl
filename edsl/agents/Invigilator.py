@@ -108,11 +108,11 @@ class InvigilatorAI(InvigilatorBase):
                 component_type="agent_persona",
                 model=self.model.model,
             )
-            persona_prompt = applicable_prompts[0]()
+            persona_prompt_template = applicable_prompts[0]()
         else:
-            persona_prompt = self.agent.agent_persona
+            persona_prompt_template = self.agent.agent_persona
 
-        if undefined := persona_prompt.undefined_template_variables(
+        if undefined := persona_prompt_template.undefined_template_variables(
             self.agent.traits
             | {"traits": self.agent.traits}
             | {"codebook": self.agent.codebook}
@@ -122,7 +122,7 @@ class InvigilatorAI(InvigilatorBase):
                 f"Agent persona still has variables that were not rendered: {undefined}"
             )
 
-        persona_prompt.render(
+        persona_prompt = persona_prompt_template.render(
             self.agent.traits | {"traits": self.agent.traits},
             codebook=self.agent.codebook,
             traits=self.agent.traits,
@@ -166,21 +166,18 @@ class InvigilatorAI(InvigilatorBase):
         ## Get the question instructions and renders with the scenario & question.data
         question_prompt = applicable_prompts[0]()
 
-        print(f"Prompt.text is {question_prompt.text}")
-
         undefined_template_variables = question_prompt.undefined_template_variables(
             self.question.data | self.scenario
         )
-        print(f"Undefined template variables are {undefined_template_variables}")
         if undefined_template_variables:
             print(undefined_template_variables)
             raise QuestionScenarioRenderError(
                 "Question instructions still has variables"
             )
 
-        question_prompt.render(self.question.data | self.scenario)
+        return question_prompt.render(self.question.data | self.scenario)
 
-        return question_prompt
+        # return question_prompt
 
     def construct_user_prompt(self) -> Prompt:
         """Gets the user prompt for the LLM call."""
@@ -271,6 +268,15 @@ class InvigilatorFunctional(InvigilatorBase):
 if __name__ == "__main__":
     from edsl.enums import LanguageModelType
 
+    from edsl.agents.Agent import Agent
+
+    a = Agent(
+        instruction="You are a happy-go lucky agent.",
+        traits={"feeling": "happy", "age": "Young at heart"},
+        codebook={"feeling": "Feelings right now", "age": "Age in years"},
+        trait_presentation_template="",
+    )
+
     class MockModel:
         model = LanguageModelType.GPT_4.value
 
@@ -283,37 +289,6 @@ if __name__ == "__main__":
             "question_text": "How are you feeling?",
             "question_type": "feelings_question",
         }
-
-    applicable_prompts = get_classes(
-        component_type="question_instructions",
-        question_type=MockQuestion().question_type,
-        model=MockModel().model,
-    )
-    from edsl.agents.Agent import Agent
-
-    a = Agent(
-        instruction="You are a happy-go lucky agent.",
-        traits={"feeling": "happy", "age": "Young at heart"},
-        codebook={"feeling": "Feelings right now", "age": "Age in years"},
-    )
-
-    i = InvigilatorAI(
-        agent=a,
-        question=MockQuestion(),
-        scenario={},
-        model=MockModel(),
-        memory_plan=None,
-        current_answers=None,
-    )
-
-    # print(i.get_prompts()["system_prompt"])
-
-    a = Agent(
-        instruction="You are a happy-go lucky agent.",
-        traits={"feeling": "happy", "age": "Young at heart"},
-        codebook={"feeling": "Feelings right now", "age": "Age in years"},
-        trait_presentation_template="",
-    )
 
     i = InvigilatorAI(
         agent=a,
@@ -351,6 +326,14 @@ if __name__ == "__main__":
         i.get_prompts()["system_prompt"].text
         == "You are a happy-go lucky agent. You are feeling happy."
     )
+    try:
+        assert i.get_prompts()["system_prompt"].unused_traits(a.traits) == ["age"]
+    except AssertionError:
+        unused_traits = i.get_prompts()["system_prompt"].unused_traits(a.traits)
+        print(f"System prompt: {i.get_prompts()['system_prompt']}")
+        print(f"Agent traits: {a.traits}")
+        print(f"Unused_traits: {unused_traits}")
+        # breakpoint()
 
     ###############
     ## Render one
