@@ -33,7 +33,11 @@ class PromptBase(
                 text = self.default_instructions
             else:
                 text = ""
-        self.text = text
+        self._text = text
+
+    @property
+    def text(self):
+        return self._text
 
     def __add__(self, other_prompt):
         """
@@ -95,6 +99,9 @@ class PromptBase(
     def undefined_template_variables(self, replcement_dict):
         return [var for var in self.template_variables() if var not in replcement_dict]
 
+    def unused_traits(self, traits: dict):
+        return [trait for trait in traits if trait not in self.template_variables()]
+
     @property
     def has_variables(self) -> bool:
         """
@@ -107,27 +114,24 @@ class PromptBase(
         """
         return len(self.template_variables()) > 0
 
-    def render(self, primary_replacement: dict, **additional_replacements) -> None:
+    def render(self, primary_replacement: dict, **additional_replacements) -> str:
         """Renders the prompt with the replacements
 
         >>> p = Prompt("Hello, {{person}}")
         >>> p.render({"person": "John"})
-        >>> p.text
         'Hello, John'
-        >>> p = Prompt("Hello, {{person}}")
         >>> p.render({"person": "Mr. {{last_name}}", "last_name": "Horton"})
-        >>> p.text
         'Hello, Mr. Horton'
         >>> p.render({"person": "Mr. {{last_name}}", "last_name": "Ho{{letter}}ton"}, max_nesting = 1)
-        >>> p.text
         'Hello, Mr. Horton'
         """
-        self.text = self._render(
+        new_text = self._render(
             self.text, primary_replacement, **additional_replacements
         )
+        return self.__class__(text=new_text)
 
     @staticmethod
-    def _render(text, primary_replacement, **additional_replacements) -> str:
+    def _render(text, primary_replacement, **additional_replacements) -> "PromptBase":
         """
             Renders the template text with variables replaced from the provided named dictionaries.
             Allows for nested variable resolution up to a specified maximum nesting depth.
@@ -135,7 +139,6 @@ class PromptBase(
         >>> codebook = {"age": "Age"}
         >>> p = Prompt("You are an agent named {{ name }}. {{ codebook['age']}}: {{ age }}")
         >>> p.render({"name": "John", "age": 44}, codebook=codebook)
-        >>> p.text
         'You are an agent named John. Age: 44'
 
         """
