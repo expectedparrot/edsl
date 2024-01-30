@@ -15,7 +15,9 @@ class Cache(Base, UserList):
         self.table_name = "responses"
 
         if data is None or schema is None:
-            self.data, self.schema = self.load_data()
+            result = self.load_data()
+            self.data = result["data"]
+            self.schema = result["schema"]
         else:
             self.data = data
             self.schema = schema
@@ -29,9 +31,12 @@ class Cache(Base, UserList):
             cur.execute(f"PRAGMA table_info({self.table_name})")
             schema = cur.fetchall()
             cur.execute(f"SELECT * FROM {self.table_name}")
-            return [
-                dict(zip([col[1] for col in schema], row)) for row in cur.fetchall()
-            ], schema
+            return {
+                "data": [
+                    dict(zip([col[1] for col in schema], row)) for row in cur.fetchall()
+                ],
+                "schema": schema,
+            }
 
     def save_data_to_new_db(self, new_db_path):
         with self._connect(new_db_path) as new_conn:
@@ -76,6 +81,9 @@ class Cache(Base, UserList):
         ]
         return cls(data=[eval(data0)], schema=schema)
 
+    def __repr__(self):
+        return f"Cache(data={self.data}, schema={self.schema})"
+
     def code():
         pass
 
@@ -89,7 +97,9 @@ class Cache(Base, UserList):
 
     @classmethod
     def from_dict(cls, data):
-        cache = cls(data=data["schema"], schema=data["schema"])
+        raw_schema = data["schema"]
+        schema = [tuple(col) for col in raw_schema]  # Convert to tuples
+        cache = cls(data=data["data"], schema=schema)
         return cache
 
 
