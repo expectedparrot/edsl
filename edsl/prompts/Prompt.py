@@ -92,6 +92,9 @@ class PromptBase(
         ast = env.parse(template)
         return list(meta.find_undeclared_variables(ast))
 
+    def undefined_template_variables(self, replcement_dict):
+        return [var for var in self.template_variables() if var not in replcement_dict]
+
     @property
     def has_variables(self) -> bool:
         """
