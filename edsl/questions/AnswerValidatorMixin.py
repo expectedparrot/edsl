@@ -39,7 +39,7 @@ class AnswerValidatorMixin:
         """Checks that the value of a key is of the specified type"""
         if not isinstance(answer.get(key), of_type):
             raise QuestionAnswerValidationError(
-                f"""Answer key '{key}' must be of type {of_type.__name__}; 
+                f"""Answer key '{key}' must be of type {of_type.__name__};
                 (got {answer.get(key)}) which is of type {type(answer.get(key))}."""
             )
 
