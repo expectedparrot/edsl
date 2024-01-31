@@ -126,7 +126,7 @@ class Agent(Base):
         bound_method = types.MethodType(method, self)
         setattr(self, "answer_question_directly", bound_method)
 
-    async def async_answer_question(
+    def create_invigilator(
         self,
         question: Question,
         scenario: Optional[Scenario] = None,
@@ -135,17 +135,36 @@ class Agent(Base):
         memory_plan: Optional[MemoryPlan] = None,
         current_answers: Optional[dict] = None,
     ):
-        """
-        This is a function where an agent returns an answer to a particular question.
-        However, there are several different ways an agent can answer a question, so the
-        actual functionality is delegated to an Invigilator object.
-        """
         self.current_question = question
         # model = model or LanguageModelOpenAIThreeFiveTurbo(use_cache=True)
         model = model or Model("gpt-3.5-turbo", use_cache=True)
         scenario = scenario or Scenario()
         invigilator = self._create_invigilator(
             question, scenario, model, debug, memory_plan, current_answers
+        )
+        return invigilator
+
+    async def async_answer_question(
+        self,
+        question: Question,
+        scenario: Optional[Scenario] = None,
+        model: Optional[LanguageModel] = None,
+        debug: bool = False,
+        memory_plan: Optional[MemoryPlan] = None,
+        current_answers: Optional[dict] = None,
+    ) -> AgentResponseDict:
+        """
+        This is a function where an agent returns an answer to a particular question.
+        However, there are several different ways an agent can answer a question, so the
+        actual functionality is delegated to an Invigilator object.
+        """
+        invigilator = self.create_invigilator(
+            question=question,
+            scenario=scenario,
+            model=model,
+            debug=debug,
+            memory_plan=memory_plan,
+            current_answers=current_answers,
         )
         response: AgentResponseDict = await invigilator.async_answer_question()
         return response

@@ -13,6 +13,9 @@ from edsl.exceptions import QuestionScenarioRenderError
 from edsl.data_transfer_models import AgentResponseDict
 
 
+from edsl.exceptions.agents import FailedTaskException
+
+
 class InvigilatorBase(ABC):
     """An invigiator is a class that is responsible for administering a question to an agent."""
 
@@ -23,6 +26,20 @@ class InvigilatorBase(ABC):
         self.model = model
         self.memory_plan = memory_plan
         self.current_answers = current_answers
+
+    def get_failed_task_result(self):
+        return AgentResponseDict(
+            answer=None,
+            comment="Failed to get response",
+            question_name=self.question.question_name,
+            prompts=self.get_prompts(),
+        )
+
+    def get_prompts(self) -> Dict[str, Prompt]:
+        return {
+            "user_prompt": Prompt("NA").text,
+            "system_prompt": Prompt("NA").text,
+        }
 
     @classmethod
     def example(cls):
@@ -69,11 +86,6 @@ class InvigilatorBase(ABC):
         "This is the async method that actually answers the question."
         pass
 
-    @abstractmethod
-    def get_prompts(self) -> Dict[str, Prompt]:
-        """Gets the prompts for the LLM call."""
-        pass
-
     @jupyter_nb_handler
     def answer_question(self) -> Coroutine:
         async def main():
@@ -90,6 +102,48 @@ class InvigilatorBase(ABC):
 
 
 class InvigilatorAI(InvigilatorBase):
+    async def async_answer_question(self, failed=False) -> AgentResponseDict:
+        data = {
+            "agent": self.agent,
+            "question": self.question,
+            "scenario": self.scenario,
+        }
+        raw_response = await self.async_get_response(**self.get_prompts())
+        response = self._format_raw_response(**(data | {"raw_response": raw_response}))
+        return response
+
+    async def async_get_response(self, user_prompt: Prompt, system_prompt: Prompt):
+        """Calls the LLM and gets a response. Used in the `answer_question` method."""
+        try:
+            response = await self.model.async_get_response(
+                user_prompt.text, system_prompt.text
+            )
+        except json.JSONDecodeError as e:
+            raise AgentRespondedWithBadJSONError(
+                f"Returned bad JSON: {e}"
+                f"Prompt: {user_prompt}"
+                f"System Prompt: {system_prompt}"
+            )
+
+        return response
+
+    def _format_raw_response(
+        self, agent, question, scenario, raw_response
+    ) -> AgentResponseDict:
+        response = question.validate_answer(raw_response)
+        comment = response.get("comment", "")
+        answer_code = response["answer"]
+        answer = question.translate_answer_code_to_answer(answer_code, scenario)
+        data = {
+            "answer": answer,
+            "comment": comment,
+            "question_name": question.question_name,
+            "prompts": {k: v.to_dict() for k, v in self.get_prompts().items()},
+        }
+        return data
+
+    get_response = sync_wrapper(async_get_response)
+
     def construct_system_prompt(self) -> Prompt:
         """Constructs the system prompt for the LLM call."""
         applicable_prompts = get_classes(
@@ -100,9 +154,7 @@ class InvigilatorAI(InvigilatorBase):
             raise Exception("No applicable prompts found")
 
         agent_instructions = applicable_prompts[0](text=self.agent.instruction)
-        # print(f"Agent instructions are: {agent_instructions}")
 
-        ## agent_persona
         if not hasattr(self.agent, "agent_persona"):
             applicable_prompts = get_classes(
                 component_type="agent_persona",
@@ -139,23 +191,6 @@ class InvigilatorAI(InvigilatorBase):
             + persona_prompt
         )
 
-    async def async_get_response(self, user_prompt: Prompt, system_prompt: Prompt):
-        """Calls the LLM and gets a response. Used in the `answer_question` method."""
-        try:
-            response = await self.model.async_get_response(
-                user_prompt.text, system_prompt.text
-            )
-        except json.JSONDecodeError as e:
-            raise AgentRespondedWithBadJSONError(
-                f"Returned bad JSON: {e}"
-                f"Prompt: {user_prompt}"
-                f"System Prompt: {system_prompt}"
-            )
-
-        return response
-
-    get_response = sync_wrapper(async_get_response)
-
     def get_question_instructions(self) -> Prompt:
         """Gets the instructions for the question."""
         applicable_prompts = get_classes(
@@ -177,8 +212,6 @@ class InvigilatorAI(InvigilatorBase):
 
         return question_prompt.render(self.question.data | self.scenario)
 
-        # return question_prompt
-
     def construct_user_prompt(self) -> Prompt:
         """Gets the user prompt for the LLM call."""
         user_prompt = self.get_question_instructions()
@@ -195,30 +228,6 @@ class InvigilatorAI(InvigilatorBase):
             "system_prompt": system_prompt,
         }
 
-    def _format_raw_response(
-        self, agent, question, scenario, raw_response
-    ) -> AgentResponseDict:
-        response = question.validate_answer(raw_response)
-        comment = response.get("comment", "")
-        answer_code = response["answer"]
-        answer = question.translate_answer_code_to_answer(answer_code, scenario)
-        data = {
-            "answer": answer,
-            "comment": comment,
-            "prompts": {k: v.to_dict() for k, v in agent.get_prompts().items()},
-        }
-        return data
-
-    async def async_answer_question(self) -> AgentResponseDict:
-        raw_response = await self.async_get_response(**self.get_prompts())
-        response = self._format_raw_response(
-            agent=self,
-            question=self.question,
-            scenario=self.scenario,
-            raw_response=raw_response,
-        )
-        return AgentResponseDict(**response)
-
     answer_question = sync_wrapper(async_answer_question)
 
 
@@ -226,6 +235,7 @@ class InvigilatorDebug(InvigilatorBase):
     async def async_answer_question(self) -> AgentResponseDict:
         results = self.question.simulate_answer(human_readable=True)
         results["prompts"] = self.get_prompts()
+        results["question_name"] = self.question.question_name
         return AgentResponseDict(**results)
 
     def get_prompts(self) -> Dict[str, Prompt]:
@@ -237,26 +247,42 @@ class InvigilatorDebug(InvigilatorBase):
 
 class InvigilatorHuman(InvigilatorBase):
     async def async_answer_question(self) -> AgentResponseDict:
-        answer = self.agent.answer_question_directly(self.question, self.scenario)
-        response = {"answer": answer}
-        response = self.question.validate_response(response)
-        response["comment"] = "This is a real survey response from a human."
-        response["prompts"] = self.get_prompts()
-        return AgentResponseDict(**response)
-
-    def get_prompts(self) -> Dict[str, Prompt]:
-        return {
-            "user_prompt": Prompt("NA").text,
-            "system_prompt": Prompt("NA").text,
+        data = {
+            "comment": "This is a real survey response from a human.",
+            "answer": None,
+            "prompts": self.get_prompts(),
+            "question_name": self.question.question_name,
         }
+        try:
+            answer = self.agent.answer_question_directly(self.question, self.scenario)
+            return AgentResponseDict(**(data | {"answer": answer}))
+        except Exception as e:
+            agent_response_dict = AgentResponseDict(
+                **(data | {"answer": None, "comment": str(e)})
+            )
+            raise FailedTaskException(
+                "Failed to get response", agent_response_dict
+            ) from e
 
 
 class InvigilatorFunctional(InvigilatorBase):
     async def async_answer_question(self) -> AgentResponseDict:
         func = self.question.answer_question_directly
-        response = func(scenario=self.scenario, agent_traits=self.agent.traits)
-        response["prompts"] = self.get_prompts()
-        return AgentResponseDict(**response)
+        data = {
+            "comment": "Functional.",
+            "prompts": self.get_prompts(),
+            "question_name": self.question.question_name,
+        }
+        try:
+            answer = func(scenario=self.scenario, agent_traits=self.agent.traits)
+            return AgentResponseDict(**(data | {"answer": answer}))
+        except Exception as e:
+            agent_response_dict = AgentResponseDict(
+                **(data | {"answer": None, "comment": str(e)})
+            )
+            raise FailedTaskException(
+                "Failed to get response", agent_response_dict
+            ) from e
 
     def get_prompts(self) -> Dict[str, Prompt]:
         return {
