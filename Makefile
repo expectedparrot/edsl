@@ -67,7 +67,7 @@ integration-tricky-questions:
 	pytest -v --log-cli-level=INFO integration/test_tricky_questions.py
 
 integration-visuals:
-	cd tests && python check_printing.py
+	cd tests/printing && python check_printing.py
 
 	#pytest --log-cli-level=INFO tests/test_JobRunning.p
 lint: ## Run code linters (flake8, pylint, mypy).
