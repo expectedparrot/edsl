@@ -69,7 +69,6 @@ def test_handle_model_exceptions(create_survey, fail_at_number, chained):
     else:
         assert results[0]["answer"][f"question_{fail_at_number - 1}"] is None
         assert results[0]["answer"][f"question_{fail_at_number}"] is None
-        # Additional assertions can be added here as needed
 
 
 def test_handle_timeout_exception(create_survey, capsys):

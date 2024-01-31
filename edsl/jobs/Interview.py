@@ -18,6 +18,8 @@ from collections import UserList
 
 from typing import Dict, List
 
+from edsl.exceptions.agents import FailedTaskException
+
 
 class InterviewError(Exception):
     """Base class for exceptions in this module."""
@@ -73,22 +75,29 @@ class QuestionTaskCreator(UserList):
     """Class to create and manage question tasks with dependencies."""
 
     def __init__(self, func: Callable):
-        self.func = func  # the function to be called to actually run the task
+        # self.func = func  # the function to be called to actually run the task
         super().__init__([])
+        self.func = func
 
     async def _run_task_async(self, question, debug) -> asyncio.Task:
         """Runs the task asynchronously, awaiting the tasks that must be completed before this one can be run."""
         logger.info(f"Running task for {question.question_name}")
         try:
+            # This is waiting for the tasks that must be completed before this one can be run.
+            # This does *not* use the return_exceptions = True flag, so if any of the tasks fail,
+            # it throws the exception immediately, which is what we want.
             await asyncio.gather(*self)
         except Exception as e:
             logger.error(f"Required tasks for {question.question_name} failed: {e}")
             # turns the parent exception into a custom exception
+            # So the task gets canceled but this InterviewErrorPriorTaskCanceled exception
+            # So we never get the question details we need.
             raise InterviewErrorPriorTaskCanceled(
                 f"Required tasks failed for {question.question_name}"
             ) from e
         else:
             logger.info(f"Tasks for {question.question_name} completed")
+            # This is the actual task that we want to run.
             results = await self.func(question, debug)
             return results
 
@@ -119,9 +128,11 @@ class Interview:
         self.model = model
         self.debug = debug
         self.verbose = verbose
-        self.answers: dict[str, str] = Answers()
+        self.answers: dict[str, str] = Answers()  # will get filled in
 
-        self.dag = self.survey.dag(textify=True)
+        self.dag = self.survey.dag(
+            textify=True
+        )  # the DAG tells us what questions depend on what other questions
         self.to_index = {
             name: index for index, name in enumerate(self.survey.question_names)
         }
@@ -132,7 +143,11 @@ class Interview:
         self, debug: bool = False, replace_missing: bool = True
     ) -> tuple["Answers", List[dict[str, Any]]]:
         """
-        Conducts an 'interview' asynchronously.
+        Conducts an 'interview' asynchronously. An interview is:
+        - one agent
+        - one survey (so multiple questions)
+        - one model
+        - one scenario
 
         Args:
             debug (bool): Enable debugging mode.
@@ -143,13 +158,17 @@ class Interview:
             Tuple[Answers, List[Dict[str, Any]]]: The answers and a list of valid results.
         """
 
-        tasks = self._build_question_tasks(debug)
+        # Each question ===> 1 task; this creates a list of tasks
+        # the same length as the number of questions in the survey
+        tasks, invigilators = self._build_question_tasks(debug)
+        # when return_exceptions=False, it will just raise the exception
+        # and break the loop; otherwise it returns.
         await asyncio.gather(*tasks, return_exceptions=True)
 
         if replace_missing:
             self.answers.replace_missing_answers_with_none(self.survey)
 
-        valid_results = list(self._extract_valid_results(tasks))
+        valid_results = list(self._extract_valid_results(tasks, invigilators))
 
         logger.info(f"Total of tasks requested:\t {len(tasks)}")
         logger.info(f"Number of valid results:\t {len(valid_results)}")
@@ -157,7 +176,9 @@ class Interview:
 
     conduct_interview = sync_wrapper(async_conduct_interview)
 
-    def _extract_valid_results(self, tasks) -> Generator["Answers", None, None]:
+    def _extract_valid_results(
+        self, tasks, invigialtors
+    ) -> Generator["Answers", None, None]:
         """Extracts the valid results from the list of results."""
 
         warning_header = textwrap.dedent(
@@ -165,24 +186,29 @@ class Interview:
             WARNING: At least one question in the survey was not answered.
             """
         )
+        assert len(tasks) == len(invigialtors)
         warning_printed = False
-        for task in tasks:
-            try:
-                result = task.result()
-            except Exception as e:
-                if not warning_printed:
-                    warning_printed = True
-                    print(warning_header)
-                print(
-                    f"""Task `{task.edsl_name}` failed with `{e.__class__.__name__}`:`{e}`."""
-                )
-            else:
+
+        for task, invigilator in zip(tasks, invigialtors):
+            if task.done():
+                if (exception := task.exception()) is not None:
+                    if not warning_printed:
+                        warning_printed = True
+                        print(warning_header)
+                    print(
+                        f"""Task `{task.edsl_name}` failed with `{exception.__class__.__name__}`:`{exception}`."""
+                    )
+                    # if task failed, we use the invigilator to get the failed task result
+                    result = invigilator.get_failed_task_result()
+                else:
+                    result = task.result()
                 yield result
 
-    def _build_question_tasks(self, debug) -> Generator[asyncio.Task, None, None]:
+    def _build_question_tasks(self, debug) -> List[asyncio.Task]:
         """Creates a task for each question, with dependencies on the questions that must be answered before this one can be answered."""
         logger.info("Creating tasks for each question")
         tasks = []
+        invigilators = []
         for question in self.survey.questions:
             tasks_that_must_be_completed_before = (
                 self._get_tasks_that_must_be_completed_before(tasks, question)
@@ -191,7 +217,8 @@ class Interview:
                 question, tasks_that_must_be_completed_before, debug
             )
             tasks.append(question_task)
-        return tasks
+            invigilators.append(self.get_invigilator(question, debug))
+        return tasks, invigilators
 
     def _get_tasks_that_must_be_completed_before(
         self, tasks, question
@@ -214,6 +241,7 @@ class Interview:
         """Creates a task that depends on the passed-in dependencies that are awaited before the task is run.
         The key awaitable is the `run_task` function, which is a wrapper around the `answer_question_and_record_task` method.
         """
+        # creates the *function* that creates the task
         create_task = QuestionTaskCreator(func=self._answer_question_and_record_task)
         for dependency in tasks_that_must_be_completed_before:
             create_task.append(dependency)
@@ -228,24 +256,13 @@ class Interview:
                     raise InterviewTimeoutError(
                         f"Task timed out after {timeout} seconds."
                     )
-                    # question = args[1]  # Assuming the first argument is the question
-                    # task_name = getattr(question, "question_name", "unknown")
-                    # print(f"Task {task_name} timed out after {timeout} seconds.")
-                    # logger.error(f"Task {task_name} timed out")
-                    # return None
 
             return wrapper
 
         return decorator
 
-    @async_timeout_handler(TIMEOUT)
-    async def _answer_question_and_record_task(
-        self, question, debug
-    ) -> AgentResponseDict:
-        """Answers a question and records the task.
-        This in turn calls the the passed-in agent's async_answer_question method, which returns a response dictionary.
-        """
-        response: AgentResponseDict = await self.agent.async_answer_question(
+    def get_invigilator(self, question, debug):
+        invigilator = self.agent.create_invigilator(
             question=question,
             scenario=self.scenario,
             model=self.model,
@@ -253,6 +270,20 @@ class Interview:
             memory_plan=self.survey.memory_plan,
             current_answers=self.answers,
         )
+        return invigilator
+
+    @async_timeout_handler(TIMEOUT)
+    async def _answer_question_and_record_task(
+        self,
+        question,
+        debug,
+    ) -> AgentResponseDict:
+        """Answers a question and records the task.
+        This in turn calls the the passed-in agent's async_answer_question method, which returns a response dictionary.
+        """
+        invigilator = self.get_invigilator(question, debug=debug)
+        response: AgentResponseDict = await invigilator.async_answer_question()
+        response["question_name"] = question.question_name
         self.answers.add_answer(response, question)
         return response
 

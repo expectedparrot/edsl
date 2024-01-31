@@ -63,3 +63,15 @@
 ### Removed
 - The package no longer supports a report extras option.
 - Fixed a bug in EndofSurvey
+
+## [0.1.11] - 2023-02-xx
+
+### Added
+- 
+
+### Fixed
+- Question options can now be 1 character long or more (down from 2 characters)
+- Fixed a bug where prompts displayed were incorrect (prompts sent were correct)
+
+### Removed
+- 
