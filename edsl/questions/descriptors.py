@@ -256,12 +256,12 @@ class QuestionOptionsDescriptor(BaseDescriptor):
                 )
             if not all(
                 [
-                    len(option) > 1 and len(option) < Settings.MAX_OPTION_LENGTH
+                    len(option) >= 1 and len(option) < Settings.MAX_OPTION_LENGTH
                     for option in value
                 ]
             ):
                 raise QuestionCreationValidationError(
-                    f"All question options must be at least 2 characters long but less than {Settings.MAX_OPTION_LENGTH} characters long (got {value})."
+                    f"All question options must be at least 1 character long but less than {Settings.MAX_OPTION_LENGTH} characters long (got {value})."
                 )
 
         if hasattr(instance, "min_selections") and instance.min_selections != None:
