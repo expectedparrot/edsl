@@ -2,7 +2,7 @@ import os
 import shutil
 from contextlib import contextmanager
 from sqlalchemy import create_engine, event
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError, DatabaseError
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.sql import text
 from edsl.config import Config, CONFIG
@@ -30,6 +30,23 @@ class Database:
             with self.engine.connect() as _:
                 pass
             Base.metadata.create_all(bind=self.engine)
+        except DatabaseError as e:
+            if "malformed" in str(e):
+                file_path, temp_path = self.paths
+                if temp_path and os.path.exists(temp_path):
+                    raise DatabaseIntegrityError(
+                        f"Your database is malformed. "
+                        f"Try replacing your main database file with the temp copy.\n"
+                        f"Database file: {file_path}\n"
+                        f"Temp file: {temp_path}"
+                    )
+                else:
+                    raise DatabaseIntegrityError(
+                        f"Your database is malformed. "
+                        f"Please delete your database file.\n"
+                        f"Database file: {file_path}\n"
+                    )
+
         except SQLAlchemyError as e:
             raise DatabaseConnectionError(str(e)) from None
         self.SessionLocal = scoped_session(
