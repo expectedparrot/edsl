@@ -1,6 +1,9 @@
 # Data files
+*_temp
 *csv
 *db
+*db-shm
+*db-wal
 *gz
 *json
 *txt

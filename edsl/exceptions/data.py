@@ -8,3 +8,7 @@ class DatabaseConnectionError(DatabaseErrors):
 
 class DatabaseCRUDError(DatabaseErrors):
     pass
+
+
+class DatabaseIntegrityError(DatabaseErrors):
+    pass

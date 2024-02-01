@@ -11,6 +11,7 @@ from .configuration import (
 from .data import (
     DatabaseConnectionError,
     DatabaseCRUDError,
+    DatabaseIntegrityError,
 )
 
 from .jobs import JobsRunError
