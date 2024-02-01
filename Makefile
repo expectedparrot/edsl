@@ -75,6 +75,7 @@ lint: ## Run code linters (flake8, pylint, mypy).
 
 test: ## Run tests via pytest
 	[ ! -f tests/edsl_cache_test.db ] || rm tests/edsl_cache_test.db
+	[ ! -f tests/edsl_cache_test.db_temp ] || rm tests/edsl_cache_test.db_temp
 	[ ! -f tests/interview.log ] || rm tests/interview.log
 	pytest -x tests
 
