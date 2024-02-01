@@ -1,22 +1,18 @@
 from __future__ import annotations
-import asyncio
 from collections.abc import Sequence
 from itertools import product
 from typing import Union
 from edsl import CONFIG
 from edsl.agents import Agent
-from edsl.exceptions import JobsRunError
+from edsl.Base import Base
+from edsl.data import Database, database
 from edsl.language_models import LanguageModel, LanguageModelOpenAIThreeFiveTurbo
-from edsl.language_models import GeminiPro
-
 from edsl.results import Results
 from edsl.scenarios import Scenario
 from edsl.surveys import Survey
 from edsl.jobs.base import JobsRunnersRegistry, JobsRunnerDescriptor
 from edsl.jobs.Interview import Interview
 from edsl.api import JobRunnerAPI, ResultsAPI
-
-from edsl.Base import Base
 
 
 class Jobs(Base):
@@ -155,8 +151,9 @@ class Jobs(Base):
         debug: bool = False,
         verbose: bool = False,
         progress_bar: bool = False,
-        dry_run=False,
-        streaming=False,
+        dry_run: bool = False,
+        streaming: bool = False,
+        db: Database = database,
     ) -> Union[Results, ResultsAPI, None]:
         """
         Runs the Job: conducts Interviews and returns their results.
@@ -174,11 +171,9 @@ class Jobs(Base):
         else:
             self.job_runner_name = "asyncio"
 
-        if (
-            emeritus_api_key := CONFIG.get("EMERITUS_API_KEY")
-        ) == "local":  # local mode
+        if (emeritus_api_key := CONFIG.get("EMERITUS_API_KEY")) == "local":
             return self._run_local(
-                n=n, verbose=verbose, debug=debug, progress_bar=progress_bar
+                n=n, verbose=verbose, debug=debug, progress_bar=progress_bar, db=db
             )
         else:
             results = self._run_remote(
@@ -186,10 +181,12 @@ class Jobs(Base):
             )
         return results
 
-    def _run_local(self, *args, **kwargs):
+    def _run_local(self, *args, db: Database = database, **kwargs):
         """Runs the job locally."""
+        db._health_check_pre_run()
         JobRunner = JobsRunnersRegistry[self.job_runner_name](jobs=self)
         results = JobRunner.run(*args, **kwargs)
+        db._health_check_post_run()
         return results
 
     def _run_remote(self, *args, **kwargs):

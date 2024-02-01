@@ -1,7 +1,5 @@
-import subprocess
-import sys
 import nbformat
-from nbconvert import PDFExporter, HTMLExporter
+from nbconvert import HTMLExporter
 from nbconvert.preprocessors import ExecutePreprocessor
 
 
@@ -30,5 +28,8 @@ def convert_notebook_to_pdf(notebook_path):
 
 
 if __name__ == "__main__":
-    notebook_path = "notebooks/check_printing.ipynb"
+    import os
+    from edsl import ROOT_DIR
+
+    notebook_path = os.path.join(ROOT_DIR, "tests/notebooks/check_printing.ipynb")
     convert_notebook_to_pdf(notebook_path)
