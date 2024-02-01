@@ -1,4 +1,5 @@
 # Data files
+*_temp
 *csv
 *db
 *db-shm
