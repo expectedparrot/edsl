@@ -67,13 +67,15 @@ integration-tricky-questions:
 	pytest -v --log-cli-level=INFO integration/test_tricky_questions.py
 
 integration-visuals:
-	cd tests/printing && python check_printing.py
+	cd integration/printing && python check_printing.py
 
 	#pytest --log-cli-level=INFO tests/test_JobRunning.p
 lint: ## Run code linters (flake8, pylint, mypy).
 	mypy edsl
 
 test: ## Run tests via pytest
+	[ ! -f tests/edsl_cache_test.db ] || rm tests/edsl_cache_test.db
+	[ ! -f tests/interview.log ] || rm tests/interview.log
 	pytest -x tests
 
 testpypi: ## Upload package to test pypi
