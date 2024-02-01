@@ -1,5 +1,5 @@
 from contextlib import contextmanager
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker, scoped_session
 from edsl.config import Config, CONFIG
@@ -15,6 +15,15 @@ class Database:
         database_path = config.get("EDSL_DATABASE_PATH")
         try:
             self.engine = create_engine(database_path)
+
+            # listener sets WAL mode on connect
+            # @event.listens_for(self.engine, "connect")
+            # def set_wal_mode(dbapi_connection, connection_record):
+            #     cursor = dbapi_connection.cursor()
+            #     cursor.execute("PRAGMA journal_mode=WAL;")
+            #     cursor.close()
+
+            # test connection
             with self.engine.connect() as _:
                 pass
             Base.metadata.create_all(bind=self.engine)

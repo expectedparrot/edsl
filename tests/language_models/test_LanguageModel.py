@@ -1,17 +1,13 @@
-import unittest
+import asyncio
 import os
 import pytest
-import typing
-import asyncio
-from contextlib import redirect_stdout
-from io import StringIO
+import unittest
 from typing import Any
-
+from edsl import ROOT_DIR
+from edsl.data.crud import CRUDOperations, Database
 from edsl.exceptions.language_models import LanguageModelAttributeTypeError
-from edsl.language_models.LanguageModel import LanguageModel
-from edsl.data.crud import CRUDOperations
-
 from edsl.enums import LanguageModelType, InferenceServiceType
+from edsl.language_models.LanguageModel import LanguageModel
 
 
 class TestLanguageModel(unittest.TestCase):
@@ -49,14 +45,10 @@ class TestLanguageModel(unittest.TestCase):
                 return raw_response["message"]
 
         self.good_class = TestLanguageModelGood
-
-        import os
-        from edsl import BASE_DIR
-        from edsl.data.crud import Database
-
-        self.database_file_path = os.path.join(BASE_DIR, "data/test_database.db")
-        test_path = f"sqlite:///{self.database_file_path}"
-        d = Database(config={"EDSL_DATABASE_PATH": test_path})
+        self.database_file_path = os.path.join(ROOT_DIR, "tests/test_database.db")
+        d = Database(
+            config={"EDSL_DATABASE_PATH": f"sqlite:///{self.database_file_path}"}
+        )
         self.crud = CRUDOperations(d)
 
     def test_instantiation(self):
