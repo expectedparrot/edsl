@@ -24,6 +24,16 @@ CONFIG_MAP = {
         "allowed": None,
         "user_message": None,
     },
+    "EDSL_LOGGING_PATH": {
+        "default": f"interview.log",
+        "allowed": None,
+        "user_message": None,
+    },
+    "API_CALL_TIMEOUT_SEC": {
+        "default": "60",
+        "allowed": None,
+        "user_message": "What is the maximum number of seconds to wait for an API call to return?",
+    },
     "EMERITUS_API_KEY": {
         "default": "local",
         "allowed": None,
@@ -43,11 +53,6 @@ CONFIG_MAP = {
         "default": None,
         "allowed": None,
         "user_message": "Please provide your Google API key (https://console.cloud.google.com/apis/credentials).",
-    },
-    "API_CALL_TIMEOUT_SEC": {
-        "default": "60",
-        "allowed": None,
-        "user_message": "What is the maximum number of seconds to wait for an API call to return?",
     },
 }
 
