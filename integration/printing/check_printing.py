@@ -31,5 +31,5 @@ if __name__ == "__main__":
     import os
     from edsl import ROOT_DIR
 
-    notebook_path = os.path.join(ROOT_DIR, "tests/notebooks/check_printing.ipynb")
+    notebook_path = os.path.join(ROOT_DIR, "integration/notebooks/check_printing.ipynb")
     convert_notebook_to_pdf(notebook_path)

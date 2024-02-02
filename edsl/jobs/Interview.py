@@ -3,9 +3,8 @@ import asyncio
 import logging
 import textwrap
 from collections import UserDict
-from collections import defaultdict
-
-from typing import Any, Type, List, Generator, Callable
+from typing import Any, Type, List, Generator, Callable, List
+from edsl import CONFIG
 from edsl.agents import Agent
 from edsl.language_models import LanguageModel
 from edsl.questions import Question
@@ -15,10 +14,6 @@ from edsl.utilities.decorators import sync_wrapper
 from edsl.data_transfer_models import AgentResponseDict
 from edsl.jobs.Answers import Answers
 from collections import UserList
-
-from typing import Dict, List
-
-from edsl.exceptions.agents import FailedTaskException
 
 
 class InterviewError(Exception):
@@ -42,7 +37,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 logger.propagate = False
 # create  file handler
-fh = logging.FileHandler("interview.log")
+fh = logging.FileHandler(CONFIG.get("EDSL_LOGGING_PATH"))
 fh.setLevel(logging.INFO)
 # add formatter to the handlers
 formatter = logging.Formatter(
