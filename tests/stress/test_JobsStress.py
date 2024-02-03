@@ -6,9 +6,11 @@ from edsl.scenarios import Scenario
 from edsl.surveys import Survey
 
 
-def test_jobs_stress(test_language_model_good_fixture):
+def test_jobs_stress(model_with_cache_fixture):
+    NUM_AGENTS = 100
+    NUM_SCENARIOS = 100
     CRUD.clear_LLMOutputData()
-    m = test_language_model_good_fixture(
+    m = model_with_cache_fixture(
         crud=CRUD,
         use_cache=True,
         model="fake model",
@@ -20,11 +22,11 @@ def test_jobs_stress(test_language_model_good_fixture):
     )
     job = Jobs(
         survey=Survey(name="Test Survey", questions=[q]),
-        agents=[Agent(traits={"trait1": f"value{x}"}) for x in range(10)],
+        agents=[Agent(traits={"trait1": f"value{x}"}) for x in range(NUM_AGENTS)],
         models=[m],
-        scenarios=[Scenario({"price": x, "quantity": 2}) for x in range(10)],
+        scenarios=[Scenario({"price": x, "quantity": 2}) for x in range(NUM_SCENARIOS)],
     )
     results = job.run()
     cached_results = CRUD.get_all_LLMOutputData()
-    assert len(cached_results) == 100
-    assert len(results) == 100
+    assert len(cached_results) == NUM_AGENTS * NUM_SCENARIOS
+    assert len(results) == NUM_AGENTS * NUM_SCENARIOS

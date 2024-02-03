@@ -1,13 +1,10 @@
-import pytest
 import asyncio
+import pytest
 from typing import Any
-import os
-
-from edsl.language_models.LanguageModel import LanguageModel
-from edsl.enums import LanguageModelType, InferenceServiceType
 from edsl import Survey
+from edsl.enums import LanguageModelType, InferenceServiceType
+from edsl.language_models.LanguageModel import LanguageModel
 from edsl.questions import QuestionFreeText
-from httpcore import ConnectionNotAvailable
 
 
 def create_language_model(

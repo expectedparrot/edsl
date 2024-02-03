@@ -2,7 +2,8 @@ import pytest
 
 
 @pytest.fixture(scope="function")
-def test_language_model_good_fixture():
+def model_with_cache_fixture():
+    """Returns a model that uses the cache."""
     import asyncio
     import random
     import uuid
@@ -18,7 +19,7 @@ def test_language_model_good_fixture():
         async def async_execute_model_call(
             self, user_prompt: str, system_prompt: str
         ) -> dict[str, Any]:
-            await asyncio.sleep(random.uniform(0.0, 0.5))
+            await asyncio.sleep(random.uniform(0.0, 10.0))
             my_answer = str(uuid.uuid4())
             return {"message": '{"answer": "' + my_answer + '"}'}
 

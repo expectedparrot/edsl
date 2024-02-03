@@ -14,7 +14,7 @@ from .data import (
     DatabaseIntegrityError,
 )
 
-from .jobs import JobsRunError
+from .jobs import JobsRunError, InterviewErrorPriorTaskCanceled, InterviewTimeoutError
 
 from .language_models import (
     LanguageModelResponseNotJSONError,
