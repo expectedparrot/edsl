@@ -36,7 +36,7 @@ def longer_api_timeout_fixture(monkeypatch):
     from edsl import CONFIG
 
     original_get = CONFIG.get
-    new_timeout = "100"
+    new_timeout = "200"
 
     def custom_get(env_var):
         if env_var == "API_CALL_TIMEOUT_SEC":

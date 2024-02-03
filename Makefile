@@ -18,8 +18,9 @@ clean: ## Cleans non-essential files and folders
 	[ ! -f .coverage ] || rm .coverage
 	[ ! -d .mypy_cache ] || rm -rf .mypy_cache
 	[ ! -d .venv ] || rm -rf .venv
-	[ ! -d htmlcov ] || rm -rf htmlcov
 	[ ! -d dist ] || rm -rf dist
+	[ ! -d htmlcov ] || rm -rf htmlcov
+	[ ! -d prof ] || rm -rf prof
 	[ ! -f edsl_cache.db ] || rm edsl_cache.db
 	find . -type d -name '__pycache__' -exec rm -rf {} +
 	find . -type d -name '.pytest_cache' -exec rm -rf {} +
@@ -70,6 +71,9 @@ lint: ## Run code linters (flake8, pylint, mypy).
 # TESTING
 ############
 testclean:
+	[ ! -d dist ] || rm -rf dist
+	[ ! -d htmlcov ] || rm -rf htmlcov
+	[ ! -d prof ] || rm -rf prof
 	[ ! -f tests/edsl_cache_test.db ] || rm tests/edsl_cache_test.db
 	[ ! -f tests/edsl_cache_test.db_temp ] || rm tests/edsl_cache_test.db_temp
 	[ ! -f tests/interview.log ] || rm tests/interview.log
@@ -79,6 +83,7 @@ test: ## Run regular tests (no stress testing)
 	pytest -x tests --ignore=tests/stress
 
 test-coverage: ## Run regular tests and get a coverage report
+	make testclean
 	poetry run coverage run -m pytest tests && poetry run coverage html
 	@UNAME=`uname`; if [ "$$UNAME" = "Darwin" ]; then \
 		open htmlcov/index.html; \
@@ -88,15 +93,16 @@ test-coverage: ## Run regular tests and get a coverage report
 
 test-stress: ## Run stress tests
 	make testclean
-	pytest -x tests/stress
+	pytest -x tests/stress --profile-svg
 
 test-pypi: ## Build and upload package to test.pypi.com
-	[ ! -d dist ] || rm -rf dist
+	make testclean
 	poetry build
 	poetry publish -r test-pypi 
 	[ ! -d dist ] || rm -rf dist
 
 test-doctests: ## Run doctests
+	make testclean
 	pytest --doctest-modules edsl/surveys
 	pytest --doctest-modules edsl/agents
 	pytest --doctest-modules edsl/scenarios

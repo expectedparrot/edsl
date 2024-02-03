@@ -25,6 +25,7 @@ docs/_build/
 dist
 # Testing files
 __pycache__
+prof
 .coverage
 .pytest_cache
 htmlcov
