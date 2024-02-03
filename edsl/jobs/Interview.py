@@ -6,6 +6,7 @@ from collections import UserDict
 from typing import Any, Type, List, Generator, Callable, List
 from edsl import CONFIG
 from edsl.agents import Agent
+from edsl.exceptions import InterviewErrorPriorTaskCanceled, InterviewTimeoutError
 from edsl.language_models import LanguageModel
 from edsl.questions import Question
 from edsl.scenarios import Scenario
@@ -14,22 +15,6 @@ from edsl.utilities.decorators import sync_wrapper
 from edsl.data_transfer_models import AgentResponseDict
 from edsl.jobs.Answers import Answers
 from collections import UserList
-
-
-class InterviewError(Exception):
-    """Base class for exceptions in this module."""
-
-    pass
-
-
-class InterviewErrorPriorTaskCanceled(InterviewError):
-    """Raised when a prior task was canceled."""
-
-    pass
-
-
-class InterviewTimeoutError(InterviewError):
-    pass
 
 
 # create logger
@@ -50,9 +35,8 @@ logger.addHandler(fh)
 # start loggin'
 logger.info("Interview.py loaded")
 
-from edsl.config import Config
 
-TIMEOUT = int(Config().API_CALL_TIMEOUT_SEC)
+TIMEOUT = float(CONFIG.API_CALL_TIMEOUT_SEC)
 
 
 class FailedTask(UserDict):

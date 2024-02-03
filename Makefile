@@ -70,16 +70,27 @@ integration-visuals:
 	cd integration/printing && python check_printing.py
 
 	#pytest --log-cli-level=INFO tests/test_JobRunning.p
+
 lint: ## Run code linters (flake8, pylint, mypy).
 	mypy edsl
 
-test: ## Run tests via pytest
+############
+# TESTING
+############
+testclean: ## Clean the test folder
 	[ ! -f tests/edsl_cache_test.db ] || rm tests/edsl_cache_test.db
 	[ ! -f tests/edsl_cache_test.db_temp ] || rm tests/edsl_cache_test.db_temp
 	[ ! -f tests/interview.log ] || rm tests/interview.log
-	pytest -x tests
 
-testpypi: ## Upload package to test pypi
+test: ## Run regular tests 
+	make testclean
+	pytest -x tests --ignore=tests/stress
+
+teststress: ## Run stress tests
+	make testclean
+	pytest -x tests/stress
+
+testpypiupload: ## Upload package to test pypi
 	[ ! -d dist ] || rm -rf dist
 	poetry build
 	poetry publish -r test-pypi 
@@ -94,7 +105,3 @@ doctests:
 	pytest --doctest-modules edsl/prompts
 	pytest --doctest-modules edsl/reports	
 	pytest --doctest-modules edsl/language_models
-
-
-watch-docs: ## Build and watch documentation.
-	sphinx-autobuild docs/ docs/_build/html --open-browser --watch $(GIT_ROOT)/edsl/
