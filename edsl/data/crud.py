@@ -57,6 +57,32 @@ class CRUDOperations:
             db.add(record)
             db.commit()
 
+    def clear_LLMOutputData(self) -> None:
+        """
+        Clears all LLM output data from the database.
+        """
+        with self.database.get_db() as db:
+            db.query(LLMOutputDataDB).delete()
+            db.commit()
+
+    def get_all_LLMOutputData(self) -> list:
+        """
+        Retrieves all LLM output data from the database and returns them as a list of dictionaries.
+        """
+        with self.database.get_db() as db:
+            records = db.query(LLMOutputDataDB).all()
+            return [
+                {
+                    "id": record.id,
+                    "model": record.model,
+                    "parameters": record.parameters,
+                    "system_prompt": record.system_prompt,
+                    "prompt": record.prompt,
+                    "output": record.output,
+                }
+                for record in records
+            ]
+
     def write_result(
         self,
         job_uuid: str,

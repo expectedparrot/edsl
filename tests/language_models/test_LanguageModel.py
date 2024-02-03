@@ -1,10 +1,8 @@
 import asyncio
-import os
 import pytest
 import unittest
 from typing import Any
-from edsl import ROOT_DIR
-from edsl.data.crud import CRUDOperations, Database
+from edsl.data import CRUD
 from edsl.exceptions.language_models import LanguageModelAttributeTypeError
 from edsl.enums import LanguageModelType, InferenceServiceType
 from edsl.language_models.LanguageModel import LanguageModel
@@ -45,11 +43,7 @@ class TestLanguageModel(unittest.TestCase):
                 return raw_response["message"]
 
         self.good_class = TestLanguageModelGood
-        self.database_file_path = os.path.join(ROOT_DIR, "tests/test_database.db")
-        d = Database(
-            config={"EDSL_DATABASE_PATH": f"sqlite:///{self.database_file_path}"}
-        )
-        self.crud = CRUDOperations(d)
+        self.crud = CRUD
 
     def test_instantiation(self):
         class Mixin:
@@ -68,9 +62,6 @@ class TestLanguageModel(unittest.TestCase):
                 _model_ = "fake model"
                 _parameters_ = {"temperature": 0.5}
                 _inference_service_ = InferenceServiceType.TEST.value
-
-    def tearDown(self) -> None:
-        os.remove(self.database_file_path)
 
     def test_params_passed_to_parent(self):
         m = self.good_class(use_cache=True)
@@ -108,10 +99,7 @@ class TestLanguageModel(unittest.TestCase):
         self.assertEqual(response, {"answer": "Hello world"})
 
     def test_cache_write_and_read(self):
-        #########################################
-        ## Set up a database for testing purposes
-        #########################################
-
+        self.crud.clear_LLMOutputData()
         m = self.good_class(
             crud=self.crud,
             use_cache=True,
@@ -122,8 +110,6 @@ class TestLanguageModel(unittest.TestCase):
             user_prompt="Hello world", system_prompt="You are a helpful agent"
         )
 
-        import sqlite3
-
         expected_response = {
             "id": 1,
             "model": "fake model",
@@ -133,19 +119,15 @@ class TestLanguageModel(unittest.TestCase):
             "output": '{"message": "{\\"answer\\": \\"Hello world\\"}"}',
         }
 
-        connect = sqlite3.connect(self.database_file_path)
-        cursor = connect.cursor()
-        response_from_db = cursor.execute("SELECT * FROM responses").fetchall()[0]
-        self.assertEqual(response_from_db, tuple(expected_response.values()))
+        self.assertEqual(self.crud.get_all_LLMOutputData(), [expected_response])
 
         # call again with same prompt - should not write to db again
         m.get_response(
             user_prompt="Hello world", system_prompt="You are a helpful agent"
         )
-        new_responses = cursor.execute("SELECT * FROM responses").fetchall()
-        num_responses = len(new_responses)
-        self.assertEqual(num_responses, 1)
-        self.assertEqual(new_responses[0], tuple(expected_response.values()))
+        responses = self.crud.get_all_LLMOutputData()
+        self.assertEqual(len(responses), 1)
+        self.assertEqual(responses, [expected_response])
 
     def test_parser_exception(self):
         class TestLanguageModelGood(LanguageModel):
