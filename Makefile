@@ -24,14 +24,6 @@ clean: ## Cleans non-essential files and folders
 	find . -type d -name '__pycache__' -exec rm -rf {} +
 	find . -type d -name '.pytest_cache' -exec rm -rf {} +
 
-coverage: ## Run tests and get a coverage report
-	poetry run coverage run -m pytest tests && poetry run coverage html
-	@UNAME=`uname`; if [ "$$UNAME" = "Darwin" ]; then \
-		open htmlcov/index.html; \
-	else \
-		firefox htmlcov/index.html; \
-	fi
-
 format: ## Run code autoformatters (black).
 	pre-commit install
 	pre-commit run black-jupyter --all-files --all
@@ -77,26 +69,34 @@ lint: ## Run code linters (flake8, pylint, mypy).
 ############
 # TESTING
 ############
-testclean: ## Clean the test folder
+testclean:
 	[ ! -f tests/edsl_cache_test.db ] || rm tests/edsl_cache_test.db
 	[ ! -f tests/edsl_cache_test.db_temp ] || rm tests/edsl_cache_test.db_temp
 	[ ! -f tests/interview.log ] || rm tests/interview.log
 
-test: ## Run regular tests 
+test: ## Run regular tests (no stress testing) 
 	make testclean
 	pytest -x tests --ignore=tests/stress
 
-teststress: ## Run stress tests
+test-coverage: ## Run regular tests and get a coverage report
+	poetry run coverage run -m pytest tests && poetry run coverage html
+	@UNAME=`uname`; if [ "$$UNAME" = "Darwin" ]; then \
+		open htmlcov/index.html; \
+	else \
+		firefox htmlcov/index.html; \
+	fi
+
+test-stress: ## Run stress tests
 	make testclean
 	pytest -x tests/stress
 
-testpypiupload: ## Upload package to test pypi
+test-pypi: ## Build and upload package to test.pypi.com
 	[ ! -d dist ] || rm -rf dist
 	poetry build
 	poetry publish -r test-pypi 
 	[ ! -d dist ] || rm -rf dist
 
-doctests:
+test-doctests: ## Run doctests
 	pytest --doctest-modules edsl/surveys
 	pytest --doctest-modules edsl/agents
 	pytest --doctest-modules edsl/scenarios

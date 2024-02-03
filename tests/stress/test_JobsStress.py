@@ -1,14 +1,13 @@
-from edsl.agents import Agent
-from edsl.data import CRUD
-from edsl.jobs import Jobs
-from edsl.questions import QuestionFreeText
-from edsl.scenarios import Scenario
-from edsl.surveys import Survey
+def test_jobs_stress(model_with_cache_fixture, longer_api_timeout_fixture):
+    from edsl.agents import Agent
+    from edsl.data import CRUD
+    from edsl.questions import QuestionFreeText
+    from edsl.scenarios import Scenario
+    from edsl.surveys import Survey
+    from edsl.jobs import Jobs
 
-
-def test_jobs_stress(model_with_cache_fixture):
-    NUM_AGENTS = 100
-    NUM_SCENARIOS = 100
+    NUM_AGENTS = 200
+    NUM_SCENARIOS = 250
     CRUD.clear_LLMOutputData()
     m = model_with_cache_fixture(
         crud=CRUD,
