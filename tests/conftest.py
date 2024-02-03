@@ -3,7 +3,7 @@ import pytest
 
 @pytest.fixture(scope="function")
 def model_with_cache_fixture():
-    """Returns a model that uses the cache."""
+    """A fixture that returns a fake model that uses the cache."""
     import asyncio
     import random
     import uuid
@@ -28,3 +28,21 @@ def model_with_cache_fixture():
 
     model = TestLanguageModelGood
     return model
+
+
+@pytest.fixture(scope="function")
+def longer_api_timeout_fixture(monkeypatch):
+    """A fixture that sets a longer timeout for API calls."""
+    from edsl import CONFIG
+
+    original_get = CONFIG.get
+    new_timeout = "100"
+
+    def custom_get(env_var):
+        if env_var == "API_CALL_TIMEOUT_SEC":
+            return new_timeout
+        return original_get(env_var)
+
+    monkeypatch.setattr(CONFIG, "get", custom_get)
+    yield
+    monkeypatch.setattr(CONFIG, "get", original_get)
