@@ -12,7 +12,7 @@ from edsl.scenarios import Scenario
 from edsl.surveys import Survey
 from edsl.jobs.base import JobsRunnersRegistry, JobsRunnerDescriptor
 from edsl.jobs.Interview import Interview
-from edsl.api import JobRunnerAPI, ResultsAPI
+from edsl.coop.old import JobRunnerAPI, ResultsAPI
 
 
 class Jobs(Base):
