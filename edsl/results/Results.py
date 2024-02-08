@@ -29,8 +29,10 @@ from edsl.utilities import (
     is_notebook,
 )
 
+from edsl.results.ResultsDBMixin import ResultsDBMixin
 
-class Mixins(ResultsExportMixin):
+
+class Mixins(ResultsExportMixin, ResultsDBMixin):
     pass
 
 
@@ -453,3 +455,7 @@ def main():  # pragma: no cover
 
 if __name__ == "__main__":
     print(Results.example())
+
+    r = Results.example()
+    # db_row = list(r[0].rows(1))
+    db_rows = list(r.rows())
