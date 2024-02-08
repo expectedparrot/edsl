@@ -82,6 +82,8 @@ class Coop:
 if __name__ == "__main__":
     from edsl.coop import Coop
     from edsl.questions import QuestionMultipleChoice
+    from edsl.questions import QuestionCheckBox
+    from edsl.questions import QuestionFreeText
 
     API_KEY = "mYdEgE3BFA4DG_ZH_UvFhUehgAEFgdZHEztCV3h_9bU"
     RUN_MODE = "development"
@@ -100,6 +102,8 @@ if __name__ == "__main__":
 
     # now post a Question
     coop.post_question(QuestionMultipleChoice.example())
+    coop.post_question(QuestionCheckBox.example())
+    coop.post_question(QuestionFreeText.example())
 
     # check all questions
     coop.questions
