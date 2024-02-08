@@ -95,6 +95,11 @@ class Result(Base, UserDict):
                 d[key] = data_type
         return d
 
+    def rows(self, index):
+        for data_type, subdict in self.sub_dicts.items():
+            for key, value in subdict.items():
+                yield (index, data_type, key, value)
+
     ###############
     # Useful
     ###############
