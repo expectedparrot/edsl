@@ -90,7 +90,7 @@ class CustomFunctionWrapper:
         return self._func(*args, **kwargs)
 
     def __repr__(self):
-        return f"Method: {self.name}\nDescription: {self.doc or 'No description available'}"
+        return f"Method: `{self.name}`\nDescription: {self.doc or 'No description available'}"
 
     def _repr_html_(self):
         html = markdown2.markdown(
@@ -553,7 +553,16 @@ class BarChart(PlotMixin, Element):
         sns.set(style="whitegrid")
         plt.figure(figsize=(width, height))
         # sns.barplot(x="Counts", y="Keys", data=data_df, palette="Blues_d")
-        ax = sns.barplot(x="Counts", y="Keys", data=data_df, palette="Blues_d")
+        # ax = sns.barplot(x="Counts", y="Keys", data=data_df, palette="Blues_d")
+        ax = sns.barplot(
+            x="Counts",
+            y="Keys",
+            data=data_df,
+            palette="Blues_d",
+            hue="Keys",
+            legend=False,
+        )
+
         # Adjust layout and add footer if necessary
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
@@ -997,6 +1006,14 @@ class FacetedBarChart(PlotMixin, Element):
             sharey=sharey,
             height=height,
         )
+        # ax = sns.barplot(
+        #     x="Counts",
+        #     y="Keys",
+        #     data=data_df,
+        #     palette="Blues_d",
+        #     hue="Keys",
+        #     legend=False,
+        # )
         # Adding bar plots to the FacetGrid
         g = g.map(
             sns.barplot,
@@ -1004,6 +1021,8 @@ class FacetedBarChart(PlotMixin, Element):
             "Count",
             order=df_long[left_option_name].unique(),
             palette="viridis",
+            hue=df_long[left_option_name].unique(),
+            legend=False,
         )
         # Rotating x-axis labels for better readability
         for ax in g.axes.ravel():
@@ -1109,3 +1128,11 @@ class OrderedLogit(Element):
         report_html.append(model_outcome)
         report_html.append("</div>")
         return "\n".join(report_html)
+
+
+if __name__ == "__main__":
+    from edsl.results import Results
+
+    example = Results.example()
+
+    example.word_cloud_plot("how_feeling")

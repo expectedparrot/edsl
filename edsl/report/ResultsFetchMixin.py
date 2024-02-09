@@ -66,10 +66,11 @@ class ResultsFetchMixin:
         if element_data_class == CategoricalData:
             responses = self._fetch_list(data_type, key)
             options = list(set(responses))
-            if data_type == "agent":
-                text = "Agent attributes:" + self[0].agent.get_original_name(key)
-            else:
-                text = data_type + "." + key
+            # if data_type == "agent":
+            #     text = "Agent attributes:" + self[0].agent.get_original_name(key)
+            # else:
+            #     text = data_type + "." + key
+            text = data_type + "." + key
             return CategoricalData(
                 responses=[str(r) for r in responses],
                 options=[str(o) for o in options],
