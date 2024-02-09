@@ -2,7 +2,9 @@ import json
 import requests
 from typing import Type
 from edsl import CONFIG
+from edsl.exceptions import InvalidApiKeyError
 from edsl.questions import Question
+
 
 api_url = {
     "development": "http://127.0.0.1:8000",
@@ -26,12 +28,21 @@ class Coop:
     def url(self) -> str:
         return api_url[self.run_mode]
 
+    def _is_valid_api_key(self, response: dict):
+        """Checks if the API key is invalid and raises an error if so."""
+        if (
+            isinstance(response, dict)
+            and response.get("detail") == "The api key you provided is invalid"
+        ):
+            raise InvalidApiKeyError()
+
     # QUESTIONS METHODS
     @property
     def questions(self) -> list[Type[Question]]:
         """Returns all questions the user has sent to the coop."""
         url = f"{self.url}/api/v0/questions/"
         response = requests.get(url, headers=self.headers).json()
+        self._is_valid_api_key(response)
         questions = [
             Question.from_dict(json.loads(q.get("json_string"))) for q in response
         ]
@@ -41,6 +52,7 @@ class Coop:
         """Returns a question from the coop."""
         url = f"{self.url}/api/v0/questions/{question_id}"
         response = requests.get(url, headers=self.headers).json()
+        self._is_valid_api_key(response)
         if response.get("detail") == "Object not found":
             return None
         else:
@@ -51,12 +63,14 @@ class Coop:
         url = f"{self.url}/api/v0/questions"
         payload = {"json_string": json.dumps(question.to_dict())}
         response = requests.post(url, json=payload, headers=self.headers)
+        self._is_valid_api_key(response)
         return response.json()
 
     def delete_question(self, question_id: int) -> dict:
         """Deletes a question from the coop."""
         url = f"{self.url}/api/v0/questions/{question_id}"
         response = requests.delete(url, headers=self.headers)
+        self._is_valid_api_key(response)
         return response.json()
 
     # def send_job(self, job: Jobs) -> dict:
@@ -85,7 +99,7 @@ if __name__ == "__main__":
     from edsl.questions import QuestionCheckBox
     from edsl.questions import QuestionFreeText
 
-    API_KEY = "mYdEgE3BFA4DG_ZH_UvFhUehgAEFgdZHEztCV3h_9bU"
+    API_KEY = "5wS10EvIXe_A-7UScILox2xbg6hwaZcJFf8zOhy0nCY"
     RUN_MODE = "development"
     coop = Coop(api_key=API_KEY, run_mode=RUN_MODE)
 

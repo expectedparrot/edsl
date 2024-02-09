@@ -8,6 +8,7 @@ from .configuration import (
     InvalidEnvironmentVariableError,
     MissingEnvironmentVariableError,
 )
+from .coop import InvalidApiKeyError
 from .data import (
     DatabaseConnectionError,
     DatabaseCRUDError,
