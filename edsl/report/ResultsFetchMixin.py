@@ -28,10 +28,18 @@ class ResultsFetchMixin:
 
     def _fetch_answer_data(self, key, element_data_class):
         """Extracts data from a results object and returns in in the corresponding element_data_class."""
-        question = self.survey.get_question(key)
-        question_type = question.question_type
-        options = getattr(question, "question_options", None)
-        responses = self._fetch_list("answer", key)
+        short_names_dict = {}
+        if key.endswith("_comment"):
+            responses = self._fetch_list("answer", key)
+            question = self.survey.get_question(key[:-8])
+            text = "Comment on question text: " + question.question_text
+        else:
+            question = self.survey.get_question(key)
+            question_type = question.question_type
+            # if the question has options, we use them to create the element_data_class
+            options = getattr(question, "question_options", None)
+            responses = self._fetch_list("answer", key)
+            text = question.question_text
 
         if hasattr(question, "short_names_dict"):
             short_names_dict = getattr(question, "short_names_dict", {})
@@ -39,7 +47,7 @@ class ResultsFetchMixin:
             short_names_dict = {}
 
         data = {
-            "text": question.question_text,
+            "text": text,
             "short_names_dict": short_names_dict,
         }
 
@@ -89,3 +97,9 @@ class ResultsFetchMixin:
             "scenario": partial(self._fetch_other_data, "scenario"),
         }
         return data_types_to_functions[data_type](key, element_data_class)
+
+
+if __name__ == "__main__":
+    from edsl.results import Results 
+    r = Results.example()
+    r.word_cloud_plot("how_feeling_comment")
