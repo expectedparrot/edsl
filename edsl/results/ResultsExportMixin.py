@@ -25,10 +25,10 @@ class ResultsExportMixin:
         return wrapper
 
     @convert_decorator
-    def _make_tabular(self, remove_prefix):
+    def _make_tabular(self, remove_prefix) -> tuple[list, list]:
         "Helper function that turns the results into a tabular format."
         d = {}
-        full_header = list(self.relevant_columns())
+        full_header = sorted(list(self.relevant_columns()))
         for entry in self.data:
             key, list_of_values = list(entry.items())[0]
             d[key] = list_of_values
@@ -112,7 +112,9 @@ class ResultsExportMixin:
         csv_string = self.to_csv(remove_prefix=remove_prefix)
         csv_buffer = io.StringIO(csv_string)
         df = pd.read_csv(csv_buffer)
-        return df
+        df_sorted = df.sort_index(axis=1)  # Sort columns alphabetically
+        return df_sorted
+        #return df
 
     @convert_decorator
     def to_dicts(self, remove_prefix=False):
