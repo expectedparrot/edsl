@@ -98,7 +98,7 @@ class Result(Base, UserDict):
     def rows(self, index):
         for data_type, subdict in self.sub_dicts.items():
             for key, value in subdict.items():
-                yield (index, data_type, key, value)
+                yield (index, data_type, key, str(value))
 
     ###############
     # Useful

@@ -58,14 +58,31 @@ class ResultsDBMixin:
         conn.commit()
         return conn
 
-    def sql(self, query, transpose=False, csv=False):
+    def sql(
+        self,
+        query: str,
+        transpose: bool = None,
+        transpose_by: str = None,
+        csv: bool = False,
+    ):
+        """Execute a SQL query and return the results as a DataFrame.
+        :param query: The SQL query to execute
+        :param transpose: Transpose the DataFrame if True
+        :param transpose_by: Column to use as the index when transposing, otherwise the first column
+        :param csv: Return the DataFrame as a CSV string if True
+        """
         import pandas as pd
 
         conn = self.db()
         df = pd.read_sql_query(query, conn)
 
         # Transpose the DataFrame if transpose is True
-        if transpose:
+        if transpose or transpose_by:
+            df = pd.DataFrame(df)
+            if transpose_by:
+                df = df.set_index(transpose_by)
+            else:
+                df = df.set_index(df.columns[0])
             df = df.transpose()
 
         # Return as CSV if output is "csv"
@@ -93,3 +110,16 @@ class ResultsDBMixin:
             schema_info += f"Type: {row[0]}, Name: {row[1]}, SQL: {row[2]}\n"
 
         return schema_info
+
+
+if __name__ == "__main__":
+    from edsl.results import Results
+
+    r = Results.example()
+    df = r.sql("select data_type, key, value from self where data_type = 'answer'")
+    print(df)
+    df = r.sql(
+        "select data_type, key, value from self where data_type = 'answer'",
+        transpose=True,
+    )
+    print(df)
