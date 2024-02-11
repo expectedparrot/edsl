@@ -25,19 +25,21 @@ from edsl.agents.Invigilator import (
     InvigilatorAI,
 )
 
-# from edsl.language_models import LanguageModel, LanguageModelOpenAIThreeFiveTurbo
 from edsl.language_models.registry import Model
 from edsl.scenarios import Scenario
-from edsl.utilities import (
-    dict_to_html,
-    print_dict_as_html_table,
-    print_dict_with_rich,
-)
+from edsl.enums import LanguageModelType
+
+# from edsl.utilities import (
+#     dict_to_html,
+#     print_dict_as_html_table,
+#     print_dict_with_rich,
+# )
 
 from edsl.agents.descriptors import (
     TraitsDescriptor,
     CodebookDescriptor,
     InstructionDescriptor,
+    NameDescriptor
 )
 
 from edsl.utilities.decorators import sync_wrapper
@@ -66,15 +68,18 @@ class Agent(Base):
     traits = TraitsDescriptor()
     codebook = CodebookDescriptor()
     instruction = InstructionDescriptor()
+    name = NameDescriptor()
 
     def __init__(
         self,
+        name: str = None,
         traits: dict = None,
         codebook: dict = None,
         instruction: str = None,
         trait_presentation_template: str = None,
         dynamic_traits_function: Callable = None,
     ):
+        self.name = name
         self._traits = traits or dict()
         self.codebook = codebook or dict()
         self.instruction = instruction or self.default_instruction
@@ -102,7 +107,23 @@ class Agent(Base):
                     )
 
     @property
-    def traits(self):
+    def traits(self) -> dict[str, str]:
+        """A agent's traits, which is a dictionary.
+
+        >> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
+        >> a.traits
+        {'age': 10, 'hair': 'brown', 'height': 5.5}
+
+        >> a = Agent()
+        >> a.add_direct_question_answering_method(lambda question, scenario, self: {"age": 10, "hair": "brown", "height": 5.5})
+        >> a.traits
+        {'age': 10, 'hair': 'brown', 'height': 5.5}
+
+        The agent could have a a dynamic traits function (dynamic_traits_function) that returns a dictionary of traits
+        when called. This function can also take a question as an argument.  
+        If so, the dynamic traits function is called and the result is returned.
+        Otherwise, the traits are returned.
+        """
         if self.dynamic_traits_function:
             sig = inspect.signature(self.dynamic_traits_function)
             if "question" in sig.parameters:
@@ -134,10 +155,13 @@ class Agent(Base):
         debug: bool = False,
         memory_plan: Optional[MemoryPlan] = None,
         current_answers: Optional[dict] = None,
-    ):
+    ) -> 'Invigilator':
+        """
+        An invigator is an object that is responsible administering a question to an agent and
+        recording the responses.
+        """
         self.current_question = question
-        # model = model or LanguageModelOpenAIThreeFiveTurbo(use_cache=True)
-        model = model or Model("gpt-3.5-turbo", use_cache=True)
+        model = model or Model(LanguageModelType.GPT_4.value, use_cache=True)
         scenario = scenario or Scenario()
         invigilator = self._create_invigilator(
             question, scenario, model, debug, memory_plan, current_answers
@@ -180,7 +204,7 @@ class Agent(Base):
         memory_plan: Optional[MemoryPlan] = None,
         current_answers: Optional[dict] = None,
     ):
-        model = model or Model("gpt-3.5-turbo", use_cache=True)
+        model = model or Model(LanguageModelType.GPT_4.value, use_cache=True)
         scenario = scenario or Scenario()
 
         if debug:
@@ -265,6 +289,8 @@ class Agent(Base):
                 raw_data.pop("instruction")
         if self.codebook == {}:
             raw_data.pop("codebook")
+        if self.name == None:
+            raw_data.pop("name")
         return raw_data
 
     def to_dict(self) -> dict[str, Union[dict, bool]]:
