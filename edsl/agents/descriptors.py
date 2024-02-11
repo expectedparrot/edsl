@@ -1,6 +1,18 @@
 from typing import Dict
 from edsl.utilities.utilities import is_valid_variable_name
 
+class NameDescriptor:
+    """ABC for something."""
+
+    def __get__(self, instance, owner):
+        """"""
+        return instance.__dict__[self.name]
+
+    def __set__(self, instance, name: str) -> None:
+        instance.__dict__[self.name] = name
+
+    def __set_name__(self, owner, name: str) -> None:
+        self.name = "_" + name
 
 class TraitsDescriptor:
     """ABC for something."""
