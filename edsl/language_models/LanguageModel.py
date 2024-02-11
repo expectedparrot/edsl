@@ -222,7 +222,27 @@ class RegisterLanguageModelsMeta(ABCMeta):
                 )
         return d
 
+def synonym_properties(synonym_dict):
+    def decorator(cls):
+        for real_name, aliases in synonym_dict.items():
+            for alias in aliases:
+                setattr(cls, alias, property(
+                    lambda self, real_name=real_name: getattr(self, real_name),
+                    lambda self, value, real_name=real_name: setattr(self, real_name, value)
+                ))
+        return cls
+    return decorator
 
+@synonym_properties({
+    '_top_k': ['top_k', 'topK'],
+    '_top_p': ['top_p', 'topP'],
+    "_max_tokens": ["max_tokens", "max_new_tokens", "maxTokens", "maxOutputTokens"],
+    "_temperature": ["temperature"],
+    "_stop_sequences": ["stop_sequences", "stopSequences"],
+    "_temperature": ["temperature"],
+    "_frequency_penalty": ["frequency_penalty"],
+    "_presence_penalty": ["presence_penalty"],
+})
 class LanguageModel(
     RichPrintingMixin, PersistenceMixin, ABC, metaclass=RegisterLanguageModelsMeta
 ):

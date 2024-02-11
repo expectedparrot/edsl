@@ -43,3 +43,4 @@ class InferenceServiceType(EnumWithChecks):
     OPENAI = "openai"
     GOOGLE = "google"
     TEST = "test"
+    EXPECTED_PARROT = "expected_parrot"
