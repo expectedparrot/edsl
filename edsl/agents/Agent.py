@@ -72,8 +72,9 @@ class Agent(Base):
 
     def __init__(
         self,
-        name: str = None,
+        *,
         traits: dict = None,
+        name: str = None,
         codebook: dict = None,
         instruction: str = None,
         trait_presentation_template: str = None,
