@@ -142,7 +142,16 @@ class Interview:
         tasks, invigilators = self._build_question_tasks(debug)
         # when return_exceptions=False, it will just raise the exception
         # and break the loop; otherwise it returns.
-        await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # TODO: When debugging, we want to see the exception when they happen
+        # rather than just let them accumulate.
+        debug = False 
+        if debug:
+            # If in debug mode, we want to see the exception when they happen
+            await asyncio.gather(*tasks, return_exceptions=False)
+        else:
+            await asyncio.gather(*tasks, return_exceptions=True)
+            
 
         if replace_missing:
             self.answers.replace_missing_answers_with_none(self.survey)
