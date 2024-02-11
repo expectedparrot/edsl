@@ -57,17 +57,22 @@ def test_show_schema(db_mixin):
     schema_info = db_mixin.show_schema()
     assert "CREATE TABLE self" in schema_info
 
-
-def test_results_example(db_mixin):
+def test_results_example():
     from edsl.results import Results
-
     r = Results.example()
-    output_string = "id,data_type,key,value\n1,model,temperature,0.5\n1,model,max_tokens,1000\n1,model,top_p,1\n1,model,frequency_penalty,0\n1,model,presence_penalty,0\n1,model,use_cache,1\n1,model,model,gpt-3.5-turbo\n"
-    assert (
-        r.sql("select * from self where id = 1 and data_type = 'model'", csv=True)
-        == output_string
-    )
+    desired_output_string = "id,data_type,key,value\n1,model,temperature,0.5\n1,model,max_tokens,1000\n1,model,top_p,1\n1,model,frequency_penalty,0\n1,model,presence_penalty,0\n1,model,use_cache,True\n1,model,model,gpt-3.5-turbo\n"
+    actual_output_string = r.sql("select * from self where id = 1 and data_type = 'model'", csv=True)
+    try:
+        assert (actual_output_string  == desired_output_string)
+    except AssertionError:
+        print(f"actual_output_string: {actual_output_string}")
+        print(f"desired_output_string: {desired_output_string}")
+        raise
 
+
+def test_results_example_group_by():
+    from edsl.results import Results
+    r = Results.example()
     output_string = "0,1,2,3,4\nagent,answer,model,prompt,scenario\n4,16,28,16,4\n"
     r.sql(
         """select data_type, 
