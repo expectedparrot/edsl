@@ -261,7 +261,7 @@ class InvigilatorHuman(InvigilatorBase):
                 **(data | {"answer": None, "comment": str(e)})
             )
             raise FailedTaskException(
-                "Failed to get response", agent_response_dict
+                f"Failed to get response. The exception is {str(e)}", agent_response_dict
             ) from e
 
 
@@ -277,13 +277,14 @@ class InvigilatorFunctional(InvigilatorBase):
             answer = func(scenario=self.scenario, agent_traits=self.agent.traits)
             return AgentResponseDict(**(data | {"answer": answer}))
         except Exception as e:
+            raise e
             agent_response_dict = AgentResponseDict(
                 **(data | {"answer": None, "comment": str(e)})
             )
             raise FailedTaskException(
-                "Failed to get response", agent_response_dict
+                f"Failed to get response. The exception is {str(e)}", agent_response_dict
             ) from e
-
+            
     def get_prompts(self) -> Dict[str, Prompt]:
         return {
             "user_prompt": Prompt("NA").text,
