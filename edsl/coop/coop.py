@@ -73,25 +73,6 @@ class Coop:
         self._is_valid_api_key(response)
         return response.json()
 
-    # def send_job(self, job: Jobs) -> dict:
-    #     """Sends a job to the server."""
-    #     url = f"{self.url}/api/v0/jobs"
-    #     payload = {"json_string": json.dumps(job.to_dict())}
-    #     response = requests.post(url, json=payload, headers=self.headers)
-    #     return response.json()
-
-    # def run_job(self, job_id: str) -> dict:
-    #     """Runs a job on the server."""
-    #     url = f"{self.url}/api/v0/jobs/{job_id}/run"
-    #     response = requests.post(url, headers=self.headers)
-    #     return response.json()
-
-    # def get_results(self, results_id: str) -> dict:
-    #     """Returns the results of a job on the server."""
-    #     url = f"{self.url}/api/v0/results/{results_id}"
-    #     response = requests.get(url, headers=self.headers)
-    #     return response.json()
-
 
 if __name__ == "__main__":
     from edsl.coop import Coop
@@ -99,7 +80,7 @@ if __name__ == "__main__":
     from edsl.questions import QuestionCheckBox
     from edsl.questions import QuestionFreeText
 
-    API_KEY = "5wS10EvIXe_A-7UScILox2xbg6hwaZcJFf8zOhy0nCY"
+    API_KEY = "_j6wrtj6CB6iIPvoFJaYM4RbZRm0XQvfPJyO68s8FcI"
     RUN_MODE = "development"
     coop = Coop(api_key=API_KEY, run_mode=RUN_MODE)
 
