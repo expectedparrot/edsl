@@ -1,8 +1,7 @@
 import json
 import requests
-from typing import Type
+from typing import Any, Optional, Type, Union
 from edsl import CONFIG
-from edsl.exceptions import InvalidApiKeyError
 from edsl.questions import Question
 
 
@@ -28,49 +27,69 @@ class Coop:
     def url(self) -> str:
         return api_url[self.run_mode]
 
-    def _is_valid_api_key(self, response: dict):
-        """Checks if the API key is invalid and raises an error if so."""
-        if (
-            isinstance(response, dict)
-            and response.get("detail") == "The api key you provided is invalid"
-        ):
-            raise InvalidApiKeyError()
+    def _send_server_request(
+        self,
+        uri: str,
+        method: str,
+        payload: Optional[dict[str, Any]] = None,
+        params: Optional[dict[str, Any]] = None,
+    ) -> requests.Response:
+        """Sends a request to the server and returns the response."""
+        url = f"{self.url}/{uri}"
+
+        if method.upper() in ["GET", "DELETE"]:
+            response = requests.request(
+                method, url, params=params, headers=self.headers
+            )
+        else:
+            response = requests.request(method, url, json=payload, headers=self.headers)
+
+        return response
+
+    def _resolve_server_response(self, response: requests.Response) -> None:
+        """Checks the response from the server and raises appropriate errors."""
+        if response.status_code >= 400:
+            raise Exception(response.json().get("detail"))
 
     # QUESTIONS METHODS
+    def create_question(self, question: Type[Question]) -> dict:
+        """Creates a Question object."""
+        response = self._send_server_request(
+            uri="api/v0/questions",
+            method="POST",
+            payload={"json_string": json.dumps(question.to_dict())},
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def get_question(self, question_id: int) -> Type[Question]:
+        """Retrieves a Question object by id."""
+        response = self._send_server_request(
+            uri=f"api/v0/questions/{question_id}", method="GET"
+        )
+        self._resolve_server_response(response)
+        return Question.from_dict(json.loads(response.json().get("json_string")))
+
     @property
-    def questions(self) -> list[Type[Question]]:
-        """Returns all questions the user has sent to the coop."""
-        url = f"{self.url}/api/v0/questions/"
-        response = requests.get(url, headers=self.headers).json()
-        self._is_valid_api_key(response)
+    def questions(self) -> list[dict[str, Union[int, Question]]]:
+        """Retrieves all Questions."""
+        response = self._send_server_request(uri="api/v0/questions", method="GET")
+        self._resolve_server_response(response)
         questions = [
-            Question.from_dict(json.loads(q.get("json_string"))) for q in response
+            {
+                "id": q.get("id"),
+                "question": Question.from_dict(json.loads(q.get("json_string"))),
+            }
+            for q in response.json()
         ]
         return questions
 
-    def get_question(self, question_id: int) -> Type[Question]:
-        """Returns a question from the coop."""
-        url = f"{self.url}/api/v0/questions/{question_id}"
-        response = requests.get(url, headers=self.headers).json()
-        self._is_valid_api_key(response)
-        if response.get("detail") == "Object not found":
-            return None
-        else:
-            return Question.from_dict(json.loads(response.get("json_string")))
-
-    def post_question(self, question: Type[Question]) -> dict:
-        """Sends a question to the coop."""
-        url = f"{self.url}/api/v0/questions"
-        payload = {"json_string": json.dumps(question.to_dict())}
-        response = requests.post(url, json=payload, headers=self.headers)
-        self._is_valid_api_key(response)
-        return response.json()
-
     def delete_question(self, question_id: int) -> dict:
         """Deletes a question from the coop."""
-        url = f"{self.url}/api/v0/questions/{question_id}"
-        response = requests.delete(url, headers=self.headers)
-        self._is_valid_api_key(response)
+        response = self._send_server_request(
+            uri=f"api/v0/questions/{question_id}", method="DELETE"
+        )
+        self._resolve_server_response(response)
         return response.json()
 
 
@@ -80,7 +99,7 @@ if __name__ == "__main__":
     from edsl.questions import QuestionCheckBox
     from edsl.questions import QuestionFreeText
 
-    API_KEY = "_j6wrtj6CB6iIPvoFJaYM4RbZRm0XQvfPJyO68s8FcI"
+    API_KEY = "Dn7KDOoSfGR3KdDe85Oz-1Y7a5fzb5zwkGSZO2i-pf4"
     RUN_MODE = "development"
     coop = Coop(api_key=API_KEY, run_mode=RUN_MODE)
 
@@ -96,9 +115,9 @@ if __name__ == "__main__":
     coop.get_question(question_id=1)
 
     # now post a Question
-    coop.post_question(QuestionMultipleChoice.example())
-    coop.post_question(QuestionCheckBox.example())
-    coop.post_question(QuestionFreeText.example())
+    coop.create_question(QuestionMultipleChoice.example())
+    coop.create_question(QuestionCheckBox.example())
+    coop.create_question(QuestionFreeText.example())
 
     # check all questions
     coop.questions
@@ -107,7 +126,7 @@ if __name__ == "__main__":
     coop.get_question(question_id=1)
 
     # delete the question
-    coop.delete_question(question_id=1)
+    coop.delete_question(question_id=25)
 
     # check all questions (should be an empty list)
     coop.questions
