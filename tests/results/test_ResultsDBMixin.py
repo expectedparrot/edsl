@@ -62,7 +62,7 @@ def test_results_example(db_mixin):
     from edsl.results import Results
 
     r = Results.example()
-    output_string = "id,data_type,key,value\n1,model,temperature,0.5\n1,model,max_tokens,1000\n1,model,top_p,1\n1,model,frequency_penalty,0\n1,model,presence_penalty,0\n1,model,use_cache,1\n1,model,model,gpt-3.5-turbo\n"
+    output_string = "id,data_type,key,value\n1,model,temperature,0.5\n1,model,max_tokens,1000\n1,model,top_p,1\n1,model,frequency_penalty,0\n1,model,presence_penalty,0\n1,model,use_cache,True\n1,model,model,gpt-3.5-turbo\n"
     assert (
         r.sql("select * from self where id = 1 and data_type = 'model'", csv=True)
         == output_string
