@@ -33,3 +33,4 @@ htmlcov
 .venv
 venv
 *log
+visualization_test_outputs
