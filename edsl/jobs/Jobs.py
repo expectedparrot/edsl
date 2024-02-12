@@ -259,8 +259,8 @@ class Jobs(Base):
                 (self.traits["status"], question.question_name, scenario["period"])
             ]
 
-        sad_agent = Agent({"status": "Sad"})
-        joy_agent = Agent({"status": "Joyful"})
+        sad_agent = Agent(traits = {"status": "Sad"})
+        joy_agent = Agent(traits = {"status": "Joyful"})
 
         sad_agent.add_direct_question_answering_method(answer_question_directly)
         joy_agent.add_direct_question_answering_method(answer_question_directly)

@@ -182,6 +182,13 @@ class Results(UserList, Mixins, Base):
         return d
 
     @property
+    def columns(self) -> list[str]:
+        """Returns a list of all of the columns that are in the Results"""
+        #return list(self.all_keys)
+        column_names = [f'{v}.{k}' for k, v in self._key_to_data_type.items()] 
+        return sorted(column_names)
+
+    @property
     def answer_keys(self) -> dict[str, str]:
         """Returns a mapping of answer keys to question text"""
         answer_keys = self._data_type_to_keys["answer"]
@@ -459,3 +466,5 @@ if __name__ == "__main__":
     r = Results.example()
     # db_row = list(r[0].rows(1))
     db_rows = list(r.rows())
+
+    print(r.columns)
