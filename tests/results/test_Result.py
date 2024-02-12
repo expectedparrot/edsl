@@ -32,7 +32,8 @@ def test_constructor():
 
 
 def test_constructor():
-    result = Result(agent = Agent(name = "Arsenio Billingham"), 
+    traits = Agent.example().traits
+    result = Result(agent = Agent(name = "Arsenio Billingham", traits = traits), 
                scenario = Scenario.example(), 
                model = LanguageModel.example(), 
                iteration = 1, 
@@ -47,5 +48,4 @@ def test_constructor():
     except:
         print(result.sub_dicts['agent'])
         print(agent_traits)
-        breakpoint()
-
+        raise
