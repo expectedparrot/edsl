@@ -99,7 +99,7 @@ if __name__ == "__main__":
     from edsl.questions import QuestionCheckBox
     from edsl.questions import QuestionFreeText
 
-    API_KEY = "Dn7KDOoSfGR3KdDe85Oz-1Y7a5fzb5zwkGSZO2i-pf4"
+    API_KEY = "nX2KUONQkBTXV0ZzzjFcYdY9b6JvxOoXw6fjEdOBUVI"
     RUN_MODE = "development"
     coop = Coop(api_key=API_KEY, run_mode=RUN_MODE)
 
@@ -112,7 +112,7 @@ if __name__ == "__main__":
     coop.questions
 
     # get a question that does not exist (should return None)
-    coop.get_question(question_id=1)
+    coop.get_question(question_id=2)
 
     # now post a Question
     coop.create_question(QuestionMultipleChoice.example())
