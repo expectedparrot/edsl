@@ -32,20 +32,11 @@ def test_constructor():
 
 
 def test_constructor():
-    traits = Agent.example().traits
-    result = Result(agent = Agent(name = "Arsenio Billingham", traits = traits), 
+    result = Result(agent = Agent(name = "Arsenio Billingham", traits = {'show_status': 'off the air'}), 
                scenario = Scenario.example(), 
                model = LanguageModel.example(), 
                iteration = 1, 
                answer = "answer", 
                prompt = {"key": "value"})
-    
-    agent_traits = Agent.example().traits
-    agent_traits["agent_name"] = "Arsenio Billingham"
-    
-    try:
-        assert result.sub_dicts['agent'] == agent_traits
-    except:
-        print(result.sub_dicts['agent'])
-        print(agent_traits)
-        raise
+        
+    assert result.sub_dicts['agent'] == {'agent_name': 'Arsenio Billingham', 'show_status': 'off the air'}    
