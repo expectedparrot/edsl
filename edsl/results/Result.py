@@ -16,6 +16,7 @@ from edsl.utilities import is_notebook
 
 from edsl.Base import Base
 
+
 def agent_namer_closure():
     """Returns a function that can be used to name an agent."""
     agent_dict = {}
@@ -28,10 +29,31 @@ def agent_namer_closure():
         else:
             agent_dict[id(agent)] = f"Agent_{agent_count}"
             return agent_dict[id(agent)]
- 
+
     return agent_namer
 
+
 agent_namer = agent_namer_closure()
+
+
+def agent_namer_closure():
+    """Returns a function that can be used to name an agent."""
+    agent_dict = {}
+
+    def agent_namer(agent):
+        nonlocal agent_dict
+        agent_count = len(agent_dict)
+        if id(agent) in agent_dict:
+            return agent_dict[id(agent)]
+        else:
+            agent_dict[id(agent)] = f"Agent_{agent_count}"
+            return agent_dict[id(agent)]
+
+    return agent_namer
+
+
+agent_namer = agent_namer_closure()
+
 
 class Result(Base, UserDict):
     """
@@ -73,7 +95,7 @@ class Result(Base, UserDict):
     @property
     def sub_dicts(self) -> dict[str, dict]:
         """Returns a dictionary where keys are strings for each of the main class attributes/objects (except for iteration) and values are dictionaries for the attributes and values for each of these objects."""
-        
+
         if self.agent.name is None:
             agent_name = agent_namer(self.agent)
         else:
