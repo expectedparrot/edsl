@@ -142,7 +142,7 @@ class Coop:
 if __name__ == "__main__":
     from edsl.coop import Coop
 
-    API_KEY = "p-llmNVgNM8pnzCWZQ6-sDCdlMgRgithISctb_9yzqU"
+    API_KEY = "7dxTf5x1N3NWiewX2bw5F1J_KU-B9AYS0UIhaWmrZJo"
     RUN_MODE = "development"
     coop = Coop(api_key=API_KEY, run_mode=RUN_MODE)
 
@@ -200,6 +200,7 @@ if __name__ == "__main__":
     coop.create_survey(Survey.example())
     coop.create_survey(Survey.example(), public=False)
     coop.create_survey(Survey.example(), public=True)
+    coop.create_survey(Survey(), public=True)
 
     # check all surveys
     coop.surveys
