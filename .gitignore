@@ -29,6 +29,7 @@ prof
 .coverage
 .pytest_cache
 htmlcov
+visualization_test_outputs
 # Virtual environment files
 .venv
 venv
