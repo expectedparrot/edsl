@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import List, Union, Any
 from collections import defaultdict, UserList
 
 from edsl.exceptions import (
@@ -64,7 +64,7 @@ class RuleCollection(UserList):
 
         print_table_with_rich(rule_list)
 
-    def applicable_rules(self, q_now) -> list:
+    def applicable_rules(self, q_now:int) -> list:
         """Which rules apply at the current node?
 
         >>> rule_collection = RuleCollection.example()
@@ -79,7 +79,7 @@ class RuleCollection(UserList):
         """
         return [rule for rule in self if rule.current_q == q_now]
 
-    def next_question(self, q_now, answers) -> NextQuestion:
+    def next_question(self, q_now:int, answers: dict[str, Any]) -> NextQuestion:
         """Find the next question by index, given the rule collection"""
         # what rules apply at the current node?
 

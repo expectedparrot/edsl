@@ -1,4 +1,5 @@
 import pydot
+import tempfile
 from IPython.display import Image
 from edsl.utilities import is_notebook
 from edsl.surveys.base import RulePriority, EndOfSurvey
@@ -38,19 +39,24 @@ class SurveyFlowVisualizationMixin:
             target_node = f'Q{rule.next_q}' if rule.next_q != EndOfSurvey else 'EndOfSurvey'
             edge = pydot.Edge(source_node, target_node, label=edge_label, color=color, fontcolor = color)           
             graph.add_edge(edge)
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as tmp_file:
+            try:
+                graph.write_png(tmp_file.name)
+            except FileNotFoundError:
+                print("""File not found. Most likely it's because you don't have graphviz installed. Please install it and try again.
+                        It's 
+                        $ sudo apt-get install graphviz 
+                        on Ubuntu.
+                    """)
                 
-        # Save and display the graph
-        try:
-            graph.write_png('survey_flowchart_with_skip_logic.png')
-        except FileNotFoundError:
-            print("""File not found. Most likely it's because you don't have graphviz installed. Please install it and try again.
-                  It's 
-                  sudo apt-get install graphviz 
-                  on Ubuntu.
-                  """)
-        if is_notebook():
-            Image('survey_flowchart_with_skip_logic.png')
-        else:
-            import os
-            os.system('open survey_flowchart_with_skip_logic.png')
-    
+            if is_notebook():
+                display(Image(tmp_file.name))
+            else:
+                import os
+                import sys
+                if os.name == 'nt':  # Windows
+                    os.system(f'start {tmp_file.name}')
+                elif os.name == 'posix':  # macOS, Linux, Unix, etc.
+                    os.system(f'open {tmp_file.name}' if sys.platform == 'darwin' else f'xdg-open {tmp_file.name}')
+                
