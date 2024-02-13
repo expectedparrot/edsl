@@ -21,7 +21,7 @@ def test_simple_job_integration():
         question_name="how_feeling_yesterday",
     )
     survey = Survey(questions=[q1, q2])
-    agents = [Agent({"state": value}) for value in {"sad", "happy"}]
+    agents = [Agent(traits = {"state": value}) for value in {"sad", "happy"}]
     scenarios = [Scenario({"greeting": key}) for key in ["mate", "friendo"]]
     models_no_cache = [
         LanguageModelOpenAIThreeFiveTurbo(use_cache=False),

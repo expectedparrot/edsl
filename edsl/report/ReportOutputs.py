@@ -1,3 +1,7 @@
+import platform
+import subprocess
+import tempfile
+
 import copy
 import base64
 import functools
@@ -37,6 +41,19 @@ from edsl.report.InputOutputDataTypes import (
 )
 from edsl.utilities import is_notebook
 
+
+def save_figure(filename):
+    base, ext = os.path.splitext(filename)
+    if ext.lower() == '.png':
+        plt.savefig(filename, format='png')
+    elif ext.lower() == '.jpg' or ext.lower() == '.jpeg':
+        plt.savefig(filename, format='jpeg')
+    elif ext.lower() == '.svg':
+        plt.savefig(filename, format='svg')
+    else:
+        print("Unsupported file extension. Saving as PNG by default.")
+        plt.savefig(base + '.png', format='png')
+
 warnings.filterwarnings(
     "ignore",
     category=FutureWarning,
@@ -47,6 +64,23 @@ warnings.filterwarnings("ignore", category=RuntimeWarning, module="statsmodels.*
 warnings.filterwarnings("ignore", category=RuntimeWarning, module="scipy.optimize.*")
 warnings.filterwarnings("ignore", category=HessianInversionWarning)
 warnings.filterwarnings("ignore", category=ConvergenceWarning)
+
+def open_temp_file(file_path):
+    system = platform.system()
+    if system == 'Linux':
+        subprocess.run(["xdg-open", file_path])
+    elif system == 'Windows':
+        os.startfile(file_path)
+    elif system == 'Darwin':  # macOS
+        subprocess.run(["open", file_path])
+    else:
+        print("Unsupported operating system")
+
+def convert_svg_to_png_in_memory(svg_bytes):
+    # Create a temporary SVG file
+    with tempfile.NamedTemporaryFile(suffix=".svg", delete=False) as temp_svg:
+        temp_svg.write(svg_bytes)
+        open_temp_file(temp_svg.name)
 
 
 class RegisterElementMeta(ABCMeta):
@@ -90,7 +124,7 @@ class CustomFunctionWrapper:
         return self._func(*args, **kwargs)
 
     def __repr__(self):
-        return f"Method: {self.name}\nDescription: {self.doc or 'No description available'}"
+        return f"Method: `{self.name}`\nDescription: {self.doc or 'No description available'}"
 
     def _repr_html_(self):
         html = markdown2.markdown(
@@ -105,10 +139,10 @@ def html_decorator(func: Callable) -> Callable:
     "A decorator that displays the output of a function as HTML."
 
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args, **kwargs):        
         obj = func(*args, **kwargs)
-        html = obj.html()
         if is_notebook():  # if in a jupyter notebook
+            html = obj.html()
             return display(HTML(html))
         else:
             return obj.view()  # otherwise open in a browser
@@ -137,6 +171,7 @@ class Element(ABC, metaclass=RegisterElementMeta):
         self.right_parent = right_parent
         self.left_data = getattr(left_parent, "output_data", None)
         self.right_data = getattr(right_parent, "output_data", None)
+        self.filename = None
 
         for key, value in kwargs.items():
             setattr(self, key, value)
@@ -214,6 +249,11 @@ class Element(ABC, metaclass=RegisterElementMeta):
             raise Exception("Should not be called on a root element")
         else:
             raise Exception("Unknown element type")
+        
+        if output_data is None:
+            self.filename = kwargs.get("filename", None)
+            return None        
+
         return self.OutputDataType(**output_data)
 
     @classmethod
@@ -235,10 +275,17 @@ class Element(ABC, metaclass=RegisterElementMeta):
         return self._html(**asdict(self.output_data))
 
     def view(self, **kwargs):
-        temporary_directory = tempfile.mkdtemp()
-        with open(os.path.join(temporary_directory, "temp.html"), "w") as f:
-            f.write(self.html(**kwargs))
-        webbrowser.open(os.path.join(temporary_directory, "temp.html"))
+        if hasattr(self.output_data, "buffer"):     
+            svg_bytes = self.output_data.buffer.getvalue()
+            convert_svg_to_png_in_memory(svg_bytes)
+        else:
+            if self.filename:
+                print(f"Output was written to file: {self.filename}")
+            else:
+                temporary_directory = tempfile.mkdtemp()
+                with open(os.path.join(temporary_directory, "temp.html"), "w") as f:
+                    f.write(self.html(**kwargs))
+                webbrowser.open(os.path.join(temporary_directory, "temp.html"))
 
     @classmethod
     def parameters(cls):
@@ -246,7 +293,23 @@ class Element(ABC, metaclass=RegisterElementMeta):
 
     @classmethod
     def create_external_function(cls, results) -> Callable:
-        """Adds a function to the Results class that creates an output element."""
+        """Adds a function to the Results class that creates an output element.
+
+
+        In ResultsOutputMixin, there is this function that iterates through the registered 
+        classes and adds a function to the Results class for each one.
+
+            def add_output_functions(self) -> None:
+                output_classes = registery.get_registered_classes().values()
+                self.analysis_options = []
+                for output_class in output_classes:
+                    new_function_name = output_class.function_name
+                    new_function = output_class.create_external_function(self)
+                    self.__dict__[new_function_name] = new_function
+
+                    self.analysis_options.append({new_function_name: output_class.__doc__})
+
+        """
 
         def create_parent(data_type, key, input_type):
             RootElement = create_root_element(input_type)
@@ -507,6 +570,7 @@ class BarChart(PlotMixin, Element):
         use_code=None,
         width_pct=100,
         show_percentage=True,
+        filename=None,
     ) -> dict:
         """
         Generates a bar chart from the provided categorical data object.
@@ -553,7 +617,16 @@ class BarChart(PlotMixin, Element):
         sns.set(style="whitegrid")
         plt.figure(figsize=(width, height))
         # sns.barplot(x="Counts", y="Keys", data=data_df, palette="Blues_d")
-        ax = sns.barplot(x="Counts", y="Keys", data=data_df, palette="Blues_d")
+        # ax = sns.barplot(x="Counts", y="Keys", data=data_df, palette="Blues_d")
+        ax = sns.barplot(
+            x="Counts",
+            y="Keys",
+            data=data_df,
+            palette="Blues_d",
+            hue="Keys",
+            legend=False,
+        )
+
         # Adjust layout and add footer if necessary
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
@@ -567,6 +640,10 @@ class BarChart(PlotMixin, Element):
                 ax.text(x, y, percentage, ha="center", va="center")
 
         plt.tight_layout()
+
+        if filename:
+            save_figure(filename)
+            return None
 
         return {
             "buffer": self.plt_to_buf(plt),
@@ -594,6 +671,7 @@ class HistogramPlot(PlotMixin, Element):
         title=None,
         max_title_length=40,
         width_pct=100,
+        filename=None,
     ):
         """
         Generates a histogram plot from a NumericalDataObject.
@@ -629,6 +707,11 @@ class HistogramPlot(PlotMixin, Element):
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
         plt.tight_layout()
+
+        if filename is not None:
+            save_figure(filename)
+            return None
+
         return {
             "buffer": self.plt_to_buf(plt),
             "title": text,
@@ -651,6 +734,7 @@ class ScatterPlot(PlotMixin, Element):
         x_text=None,
         y_text=None,
         width_pct=100,
+        filename = None, 
     ):
         """
         Generates a scatter plot using numerical data from two provided data objects.
@@ -708,6 +792,11 @@ class ScatterPlot(PlotMixin, Element):
             )
 
         plt.tight_layout()
+
+        if filename is not None:
+            save_figure(filename)
+            return None
+        
         return {
             "buffer": self.plt_to_buf(plt),
             "title": "",
@@ -726,7 +815,8 @@ class WordCloudPlot(PlotMixin, Element):
         width=800,
         height=400,
         background_color="white",
-        width_pct=100,
+        width_pct=100, 
+        filename = None
     ):
         """Creates a word cloud plot for free text data.
 
@@ -751,6 +841,15 @@ class WordCloudPlot(PlotMixin, Element):
         plt.imshow(wordcloud, interpolation="bilinear")
         plt.axis("off")
         plt.title(f"{text}")
+
+        if filename is not None:
+            save_figure(filename)
+            return None
+
+        #
+        #with open(filename, "w") as f:
+        #    f.write(wordcloud)
+
         return {
             "buffer": self.plt_to_buf(plt),
             "title": "",
@@ -893,6 +992,7 @@ class FacetedBarChart(PlotMixin, Element):
         use_code_right=None,
         sharey=True,
         width_pct=100,
+        filename = None,
     ):
         """ "
             Generates a set of bar plots as a FacetGrid to compare two categorical data sets.
@@ -997,6 +1097,14 @@ class FacetedBarChart(PlotMixin, Element):
             sharey=sharey,
             height=height,
         )
+        # ax = sns.barplot(
+        #     x="Counts",
+        #     y="Keys",
+        #     data=data_df,
+        #     palette="Blues_d",
+        #     hue="Keys",
+        #     legend=False,
+        # )
         # Adding bar plots to the FacetGrid
         g = g.map(
             sns.barplot,
@@ -1004,6 +1112,8 @@ class FacetedBarChart(PlotMixin, Element):
             "Count",
             order=df_long[left_option_name].unique(),
             palette="viridis",
+            hue=df_long[left_option_name].unique(),
+            legend=False,
         )
         # Rotating x-axis labels for better readability
         for ax in g.axes.ravel():
@@ -1016,6 +1126,11 @@ class FacetedBarChart(PlotMixin, Element):
         g.fig.subplots_adjust(top=0.9)  # you can adjust the value as needed
 
         plt.tight_layout()
+
+        if filename is not None:
+            save_figure(filename)
+            return None
+        
         return {
             "buffer": self.plt_to_buf(plt),
             "title": "",
@@ -1102,10 +1217,12 @@ class OrderedLogit(Element):
 
     def _html(self, model_outcome: str, outcome_description: str):
         report_html = [
-            "<h1>Ordered logit</h1>",
+            "<h1>Ordered logit</h1>"
             "<div>",
             f"<p>Outcome: {outcome_description}</p>",
         ]
         report_html.append(model_outcome)
         report_html.append("</div>")
         return "\n".join(report_html)
+
+
