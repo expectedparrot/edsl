@@ -52,12 +52,16 @@ class Coop:
             raise Exception(response.json().get("detail"))
 
     # QUESTIONS METHODS
-    def create_question(self, question: Type[Question]) -> dict:
-        """Creates a Question object."""
+    def create_question(self, question: Type[Question], public: bool = False) -> dict:
+        """
+        Creates a Question object.
+        - `question`: the EDSL Question to be sent.
+        - `public`: whether the question should be public (defaults to False)
+        """
         response = self._send_server_request(
             uri="api/v0/questions",
             method="POST",
-            payload={"json_string": json.dumps(question.to_dict())},
+            payload={"json_string": json.dumps(question.to_dict()), "public": public},
         )
         self._resolve_server_response(response)
         return response.json()
@@ -99,7 +103,7 @@ if __name__ == "__main__":
     from edsl.questions import QuestionCheckBox
     from edsl.questions import QuestionFreeText
 
-    API_KEY = "nX2KUONQkBTXV0ZzzjFcYdY9b6JvxOoXw6fjEdOBUVI"
+    API_KEY = "X27Nqvl4oPxd_5Dt6oJbF9r2Myh_44Pit_851Ap7V7w"
     RUN_MODE = "development"
     coop = Coop(api_key=API_KEY, run_mode=RUN_MODE)
 
@@ -110,14 +114,16 @@ if __name__ == "__main__":
 
     # check jobs on server (should be an empty list)
     coop.questions
+    for question in coop.questions:
+        coop.delete_question(question.get("id"))
 
     # get a question that does not exist (should return None)
-    coop.get_question(question_id=2)
+    coop.get_question(question_id=1)
 
     # now post a Question
     coop.create_question(QuestionMultipleChoice.example())
-    coop.create_question(QuestionCheckBox.example())
-    coop.create_question(QuestionFreeText.example())
+    coop.create_question(QuestionCheckBox.example(), public=False)
+    coop.create_question(QuestionFreeText.example(), public=True)
 
     # check all questions
     coop.questions
@@ -126,7 +132,7 @@ if __name__ == "__main__":
     coop.get_question(question_id=1)
 
     # delete the question
-    coop.delete_question(question_id=25)
+    coop.delete_question(question_id=2)
 
     # check all questions (should be an empty list)
     coop.questions
