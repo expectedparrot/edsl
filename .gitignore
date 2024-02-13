@@ -34,3 +34,4 @@ visualization_test_outputs
 .venv
 venv
 *log
+visualization_test_outputs

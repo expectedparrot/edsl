@@ -12,10 +12,47 @@ from edsl.agents import Agent
 from edsl.language_models import LanguageModel
 from edsl.scenarios import Scenario
 
-# from edsl.Base import Base
 from edsl.utilities import is_notebook
 
 from edsl.Base import Base
+
+
+def agent_namer_closure():
+    """Returns a function that can be used to name an agent."""
+    agent_dict = {}
+
+    def agent_namer(agent):
+        nonlocal agent_dict
+        agent_count = len(agent_dict)
+        if id(agent) in agent_dict:
+            return agent_dict[id(agent)]
+        else:
+            agent_dict[id(agent)] = f"Agent_{agent_count}"
+            return agent_dict[id(agent)]
+
+    return agent_namer
+
+
+agent_namer = agent_namer_closure()
+
+
+def agent_namer_closure():
+    """Returns a function that can be used to name an agent."""
+    agent_dict = {}
+
+    def agent_namer(agent):
+        nonlocal agent_dict
+        agent_count = len(agent_dict)
+        if id(agent) in agent_dict:
+            return agent_dict[id(agent)]
+        else:
+            agent_dict[id(agent)] = f"Agent_{agent_count}"
+            return agent_dict[id(agent)]
+
+    return agent_namer
+
+
+agent_namer = agent_namer_closure()
 
 
 class Result(Base, UserDict):
@@ -58,8 +95,14 @@ class Result(Base, UserDict):
     @property
     def sub_dicts(self) -> dict[str, dict]:
         """Returns a dictionary where keys are strings for each of the main class attributes/objects (except for iteration) and values are dictionaries for the attributes and values for each of these objects."""
+
+        if self.agent.name is None:
+            agent_name = agent_namer(self.agent)
+        else:
+            agent_name = self.agent.name
+
         return {
-            "agent": self.agent.traits,
+            "agent": self.agent.traits | {"agent_name": agent_name},
             "scenario": self.scenario,
             "model": self.model.parameters | {"model": self.model.model},
             "answer": self.answer,
@@ -98,7 +141,7 @@ class Result(Base, UserDict):
     def rows(self, index):
         for data_type, subdict in self.sub_dicts.items():
             for key, value in subdict.items():
-                yield (index, data_type, key, value)
+                yield (index, data_type, key, str(value))
 
     ###############
     # Useful
