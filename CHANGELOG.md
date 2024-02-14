@@ -87,3 +87,13 @@
 - Fixed various issues with visualizations. They should now work better.
 
 ### Removed
+
+## [0.1.13] - 2024-02-xx
+
+### Added
+- The `answer` component of the `Results` object is printed in a nicer format.
+
+### Fixed
+- `trait_name` descriptor was not working; it is now fixed.
+
+### Removed

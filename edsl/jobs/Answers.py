@@ -1,4 +1,5 @@
 from collections import UserDict
+from rich.table import Table
 
 
 class Answers(UserDict):
@@ -27,3 +28,17 @@ class Answers(UserDict):
     def from_dict(cls, d):
         "Returns an Answers object from a dictionary"
         return cls(d)
+    
+    def rich_print(self):
+        """Displays an object as a table."""
+        table = Table(title = "Answers")
+        table.add_column("Attribute", style="bold")
+        table.add_column("Value")
+
+        to_display = self
+        for attr_name, attr_value in to_display.items():
+            table.add_row(attr_name, repr(attr_value))
+
+        return table
+
+

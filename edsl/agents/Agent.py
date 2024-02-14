@@ -65,7 +65,7 @@ class Agent(Base):
 
     default_instruction = """You are answering questions as if you were a human. Do not break character."""
 
-    traits = TraitsDescriptor()
+    _traits = TraitsDescriptor()
     codebook = CodebookDescriptor()
     instruction = InstructionDescriptor()
     name = NameDescriptor()

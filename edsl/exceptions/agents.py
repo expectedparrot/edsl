@@ -25,6 +25,8 @@ class AgentLacksLLMError(AgentErrors):
 class AgentRespondedWithBadJSONError(AgentErrors):
     pass
 
+class AgentNameError(AgentErrors):
+    pass
 
 class FailedTaskException(Exception):
     def __init__(self, message, agent_response_dict):
