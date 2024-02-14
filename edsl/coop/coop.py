@@ -4,6 +4,7 @@ from typing import Any, Optional, Type, Union
 from edsl import CONFIG
 from edsl.agents import Agent, AgentList
 from edsl.questions import Question
+from edsl.results import Results
 from edsl.surveys import Survey
 
 
@@ -187,11 +188,54 @@ class Coop:
         self._resolve_server_response(response)
         return response.json()
 
+    # RESULTS METHODS
+    def create_results(self, results: Results, public: bool = False) -> dict:
+        """
+        Creates a Results object.
+        - `results`: the EDSL Results to be sent.
+        - `public`: whether the Results should be public (defaults to False)
+        """
+        response = self._send_server_request(
+            uri="api/v0/results",
+            method="POST",
+            payload={"json_string": json.dumps(results.to_dict()), "public": public},
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def get_results(self, id: int) -> Results:
+        """Retrieves a Results object by id."""
+        response = self._send_server_request(uri=f"api/v0/results/{id}", method="GET")
+        self._resolve_server_response(response)
+        return Results.from_dict(json.loads(response.json().get("json_string")))
+
+    @property
+    def results(self) -> list[dict[str, Union[int, Results]]]:
+        """Retrieves all Results."""
+        response = self._send_server_request(uri="api/v0/results", method="GET")
+        self._resolve_server_response(response)
+        results = [
+            {
+                "id": r.get("id"),
+                "survey": Results.from_dict(json.loads(r.get("json_string"))),
+            }
+            for r in response.json()
+        ]
+        return results
+
+    def delete_results(self, id: int) -> dict:
+        """Deletes a Results object from the coop."""
+        response = self._send_server_request(
+            uri=f"api/v0/results/{id}", method="DELETE"
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
 
 if __name__ == "__main__":
     from edsl.coop import Coop
 
-    API_KEY = "DRVxi-hD2jnKaWalw6zCav14M-V_a2AJrcEtYvuJYWs"
+    API_KEY = "UAGPXj-yENT6Pg-aNhE9-f-Mt4CIrEc9jjkfUaeTCqk"
     RUN_MODE = "development"
     coop = Coop(api_key=API_KEY, run_mode=RUN_MODE)
 
@@ -298,3 +342,33 @@ if __name__ == "__main__":
 
     # check all agents
     coop.agents
+
+    ##############
+    # D. Results
+    ##############
+    from edsl.results import Results
+
+    # check results on server (should be an empty list)
+    coop.results
+    for results in coop.results:
+        coop.delete_results(results.get("id"))
+
+    # get a result that does not exist (should return None)
+    coop.get_results(id=2)
+
+    # now post a Results
+    coop.create_results(Results.example())
+    coop.create_results(Results.example(), public=False)
+    coop.create_results(Results.example(), public=True)
+
+    # check all results
+    coop.results
+
+    # or get results by id
+    coop.get_results(id=1)
+
+    # delete the results
+    coop.delete_results(id=1)
+
+    # check all results
+    coop.results
