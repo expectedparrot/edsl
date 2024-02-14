@@ -38,16 +38,15 @@ logger.info("Interview.py loaded")
 
 TIMEOUT = float(CONFIG.get("API_CALL_TIMEOUT_SEC"))
 
-
-class FailedTask(UserDict):
-    def __init__(self, e: Exception = None):
-        data = {
-            "answer": "Failure",
-            "comment": "Failure",
-            "prompts": {"user_prompt": "", "sytem_prompt": ""},
-            "exception": e,
-        }
-        super().__init__(data)
+# class FailedTask(UserDict):
+#     def __init__(self, e: Exception = None):
+#         data = {
+#             "answer": "Failure",
+#             "comment": "Failure",
+#             "prompts": {"user_prompt": "", "sytem_prompt": ""},
+#             "exception": e,
+#         }
+#         super().__init__(data)
 
 
 class QuestionTaskCreator(UserList):
@@ -66,6 +65,9 @@ class QuestionTaskCreator(UserList):
             # This does *not* use the return_exceptions = True flag, so if any of the tasks fail,
             # it throws the exception immediately, which is what we want.
             await asyncio.gather(*self)
+        except asyncio.CancelledError:
+            logger.error(f"Task for {question.question_name} was cancelled, most likely because it was skipped")
+            #raise
         except Exception as e:
             logger.error(f"Required tasks for {question.question_name} failed: {e}")
             # turns the parent exception into a custom exception
@@ -117,6 +119,7 @@ class Interview:
         }
 
         logger.info(f"Interview instantiated")
+    
 
     async def async_conduct_interview(
         self, debug: bool = False, replace_missing: bool = True
@@ -137,15 +140,18 @@ class Interview:
             Tuple[Answers, List[Dict[str, Any]]]: The answers and a list of valid results.
         """
 
-        # Each question ===> 1 task; this creates a list of tasks
+        # Each question is 1 task; this creates a list of tasks
         # the same length as the number of questions in the survey
+        
         tasks, invigilators = self._build_question_tasks(debug)
+        self.tasks = tasks
+        self.invigilators = invigilators
         # when return_exceptions=False, it will just raise the exception
         # and break the loop; otherwise it returns.
         
         # TODO: When debugging, we want to see the exception when they happen
         # rather than just let them accumulate.
-        debug = False 
+        debug = False
         if debug:
             # If in debug mode, we want to see the exception when they happen
             await asyncio.gather(*tasks, return_exceptions=False)
@@ -174,6 +180,7 @@ class Interview:
             WARNING: At least one question in the survey was not answered.
             """
         )
+        # there should be one one invigilator for each task
         assert len(tasks) == len(invigialtors)
         warning_printed = False
 
@@ -272,8 +279,26 @@ class Interview:
         invigilator = self.get_invigilator(question, debug=debug)
         response: AgentResponseDict = await invigilator.async_answer_question()
         response["question_name"] = question.question_name
+
         self.answers.add_answer(response, question)
+
+        self._cancel_skipped_questions(question)
+
         return response
+    
+
+    def _cancel_skipped_questions(self, current_question):
+        """Cancels the tasks for questions that are skipped."""
+        current_question_index = self.to_index[current_question.question_name]
+        next_question = self.survey.rule_collection.next_question(q_now=current_question_index, answers=self.answers)
+        next_question_index = next_question.next_q
+        if next_question_index > current_question_index + 1:
+            # print("We've got tasks to cancel!")
+            for i in range(current_question_index + 1, next_question_index):
+                self.tasks[i].cancel()
+                skipped_question_name = self.survey.question_names[i]
+                print(f"{skipped_question_name} skipped.")
+       
 
     #######################
     # Dunder methods
@@ -283,7 +308,57 @@ class Interview:
         return f"Interview(agent = {self.agent}, survey = {self.survey}, scenario = {self.scenario}, model = {self.model})"
 
 
-def main():
+# def main():
+#     from edsl.language_models import LanguageModelOpenAIThreeFiveTurbo
+#     from edsl.agents import Agent
+#     from edsl.surveys import Survey
+#     from edsl.scenarios import Scenario
+#     from edsl.questions import QuestionMultipleChoice
+
+#     # from edsl.jobs.Interview import Interview
+
+#     #  a survey with skip logic
+#     q0 = QuestionMultipleChoice(
+#         question_text="Do you like school?",
+#         question_options=["yes", "no"],
+#         question_name="q0",
+#     )
+#     q1 = QuestionMultipleChoice(
+#         question_text="Why not?",
+#         question_options=["killer bees in cafeteria", "other"],
+#         question_name="q1",
+#     )
+#     q2 = QuestionMultipleChoice(
+#         question_text="Why?",
+#         question_options=["**lack*** of killer bees in cafeteria", "other"],
+#         question_name="q2",
+#     )
+#     s = Survey(questions=[q0, q1, q2])
+#     s = s.add_rule(q0, "q0 == 'yes'", q2)
+
+#     # create an interview
+#     a = Agent(traits=None)
+
+#     def direct_question_answering_method(self, question, scenario):
+#         return "yes"
+
+#     a.add_direct_question_answering_method(direct_question_answering_method)
+#     scenario = Scenario()
+#     m = LanguageModelOpenAIThreeFiveTurbo(use_cache=False)
+#     I = Interview(agent=a, survey=s, scenario=scenario, model=m)
+
+#     I.conduct_interview()
+#     # # conduct five interviews
+#     # for _ in range(5):
+#     #     I.conduct_interview(debug=True)
+
+#     # # replace missing answers
+#     # I
+#     # repr(I)
+#     # eval(repr(I))
+
+
+if __name__ == "__main__":
     from edsl.language_models import LanguageModelOpenAIThreeFiveTurbo
     from edsl.agents import Agent
     from edsl.surveys import Survey
@@ -313,10 +388,16 @@ def main():
 
     # create an interview
     a = Agent(traits=None)
+
+    def direct_question_answering_method(self, question, scenario):
+        return "yes"
+
+    a.add_direct_question_answering_method(direct_question_answering_method)
     scenario = Scenario()
-    m = LanguageModelOpenAIThreeFiveTurbo(use_cache=True)
+    m = LanguageModelOpenAIThreeFiveTurbo(use_cache=False)
     I = Interview(agent=a, survey=s, scenario=scenario, model=m)
 
+    I.conduct_interview()
     # # conduct five interviews
     # for _ in range(5):
     #     I.conduct_interview(debug=True)
@@ -325,7 +406,3 @@ def main():
     # I
     # repr(I)
     # eval(repr(I))
-
-
-if __name__ == "__main__":
-    main()

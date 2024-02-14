@@ -106,19 +106,23 @@ class TestSurvey(unittest.TestCase):
 
         from edsl import Agent
 
-        class DummyAgent(Agent):
-            def answer_question_directly(self, question):
+        d = Agent()
+        def answer_question_directly(self, question, scenario):
                 return "No"
+        
+        d.add_direct_question_answering_method(answer_question_directly)
 
         survey = q1.add_question(q2).add_stop_rule(
             "snow_shoveling", "snow_shoveling == 'No'"
         )
         dag = survey.dag()
         # breakpoint()
-
-        jobs = survey.by(DummyAgent())
+        
+        jobs = survey.by(d)
 
         results = jobs.run()
+        # with this skip logic, the second question should not be answered
+        assert results[0].answer['own_shovel'] == None
 
 
 if __name__ == "__main__":
