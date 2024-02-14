@@ -60,8 +60,8 @@ def test_agent_creation_valid():
 
 def test_agent_dunder_methods():
     agent1 = Agent(traits={"age": 10})
-    agent2 = Agent(traits={"name": "Peter"})
-    agent3 = Agent(traits={"age": 10, "name": "Peter"})
+    agent2 = Agent(traits={"first_name": "Peter"})
+    agent3 = Agent(traits={"age": 10, "first_name": "Peter"})
     # __add__
     assert isinstance(agent1 + None, Agent)
     assert (agent1 + None) is agent1
@@ -84,6 +84,12 @@ def test_agent_serialization():
     assert agent2.traits == {"age": 10}
     assert agent2 == agent
 
+
+from edsl.exceptions.agents import AgentNameError
+
+def test_agent_forbidden_name():
+    with pytest.raises(AgentNameError):
+        Agent(traits={"age": 10, "name": "Peter"})
 
 def test_agent_serialization_with_name():
     agent = Agent(traits={"age": 10}, name="Peter")

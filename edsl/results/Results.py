@@ -184,8 +184,8 @@ class Results(UserList, Mixins, Base):
     @property
     def columns(self) -> list[str]:
         """Returns a list of all of the columns that are in the Results"""
-        #return list(self.all_keys)
-        column_names = [f'{v}.{k}' for k, v in self._key_to_data_type.items()] 
+        # return list(self.all_keys)
+        column_names = [f"{v}.{k}" for k, v in self._key_to_data_type.items()]
         return sorted(column_names)
 
     @property

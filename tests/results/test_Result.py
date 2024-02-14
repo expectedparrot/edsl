@@ -38,5 +38,5 @@ def test_constructor():
                iteration = 1, 
                answer = "answer", 
                prompt = {"key": "value"})
-    
+        
     assert result.sub_dicts['agent'] == {'agent_name': 'Arsenio Billingham', 'show_status': 'off the air'}    

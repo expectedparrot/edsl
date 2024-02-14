@@ -2,8 +2,6 @@ from __future__ import annotations
 from collections import UserDict
 from typing import Any, Type
 
-import io
-from rich.console import Console
 from rich.table import Table
 
 from IPython.display import display
@@ -15,6 +13,23 @@ from edsl.scenarios import Scenario
 from edsl.utilities import is_notebook
 
 from edsl.Base import Base
+
+from collections import UserDict 
+
+class PromptDict(UserDict):
+
+    def rich_print(self):
+        """Displays an object as a table."""
+        table = Table(title = "")
+        table.add_column("Attribute", style="bold")
+        table.add_column("Value")
+
+        to_display = self
+        for attr_name, attr_value in to_display.items():
+            table.add_row(attr_name, repr(attr_value))
+
+        return table
+
 
 def agent_namer_closure():
     """Returns a function that can be used to name an agent."""
@@ -28,10 +43,12 @@ def agent_namer_closure():
         else:
             agent_dict[id(agent)] = f"Agent_{agent_count}"
             return agent_dict[id(agent)]
- 
+
     return agent_namer
 
+
 agent_namer = agent_namer_closure()
+
 
 class Result(Base, UserDict):
     """
@@ -73,7 +90,7 @@ class Result(Base, UserDict):
     @property
     def sub_dicts(self) -> dict[str, dict]:
         """Returns a dictionary where keys are strings for each of the main class attributes/objects (except for iteration) and values are dictionaries for the attributes and values for each of these objects."""
-        
+
         if self.agent.name is None:
             agent_name = agent_namer(self.agent)
         else:
@@ -155,6 +172,8 @@ class Result(Base, UserDict):
 
     def rich_print(self):
         """Displays an object as a table."""
+        #from edsl.utilities import print_dict_with_rich
+        from rich import print
         table = Table(title="Result")
         table.add_column("Attribute", style="bold")
         table.add_column("Value")
@@ -162,7 +181,13 @@ class Result(Base, UserDict):
         to_display = self.__dict__.copy()
         data = to_display.pop("data", None)
         for attr_name, attr_value in to_display.items():
-            table.add_row(attr_name, repr(attr_value))
+            if hasattr(attr_value, "rich_print"):
+                table.add_row(attr_name, attr_value.rich_print())
+            elif isinstance(attr_value, dict):
+                a = PromptDict(attr_value)
+                table.add_row(attr_name, a.rich_print())
+            else:
+                table.add_row(attr_name, repr(attr_value))
         return table
 
     def __repr__(self):

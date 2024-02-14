@@ -163,9 +163,8 @@ class Rule:
             return expression
 
         try:
-            return EvalWithCompoundTypes().eval(
-                substitute_in_answers(self.expression, answers)
-            )
+            to_evaluate = substitute_in_answers(self.expression, answers)
+            return EvalWithCompoundTypes().eval(to_evaluate)
         except Exception as e:
             print(f"Exception in evaluation: {e}")
             raise SurveyRuleCannotEvaluateError
