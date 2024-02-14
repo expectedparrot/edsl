@@ -2,6 +2,7 @@ import json
 import requests
 from typing import Any, Optional, Type, Union
 from edsl import CONFIG
+from edsl.agents import Agent, AgentList
 from edsl.questions import Question
 from edsl.surveys import Survey
 
@@ -138,11 +139,59 @@ class Coop:
         self._resolve_server_response(response)
         return response.json()
 
+    # AGENT METHODS
+    def create_agent(
+        self, agent: Union[Agent, AgentList], public: bool = False
+    ) -> dict:
+        """
+        Creates an Agent or AgentList object.
+        - `agent`: the EDSL Agent or AgentList to be sent.
+        - `public`: whether the agent should be public (defaults to False)
+        """
+        response = self._send_server_request(
+            uri="api/v0/agents",
+            method="POST",
+            payload={"json_string": json.dumps(agent.to_dict()), "public": public},
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def get_agent(self, id: int) -> Union[Agent, AgentList]:
+        """Retrieves an Agent or AgentList object by id."""
+        response = self._send_server_request(uri=f"api/v0/agents/{id}", method="GET")
+        self._resolve_server_response(response)
+        agent_dict = json.loads(response.json().get("json_string"))
+        if "agent_list" in agent_dict:
+            return AgentList.from_dict(agent_dict)
+        else:
+            return Agent.from_dict(agent_dict)
+
+    @property
+    def agents(self) -> list[dict[str, Union[int, Agent, AgentList]]]:
+        """Retrieves all Agents and AgentLists."""
+        response = self._send_server_request(uri="api/v0/agents", method="GET")
+        self._resolve_server_response(response)
+        agents = []
+        for q in response.json():
+            agent_dict = json.loads(q.get("json_string"))
+            if "agent_list" in agent_dict:
+                agent = AgentList.from_dict(agent_dict)
+            else:
+                agent = Agent.from_dict(agent_dict)
+            agents.append({"id": q.get("id"), "agent": agent})
+        return agents
+
+    def delete_agent(self, id: int) -> dict:
+        """Deletes an Agent or AgentList from the coop."""
+        response = self._send_server_request(uri=f"api/v0/agents/{id}", method="DELETE")
+        self._resolve_server_response(response)
+        return response.json()
+
 
 if __name__ == "__main__":
     from edsl.coop import Coop
 
-    API_KEY = "7dxTf5x1N3NWiewX2bw5F1J_KU-B9AYS0UIhaWmrZJo"
+    API_KEY = "DRVxi-hD2jnKaWalw6zCav14M-V_a2AJrcEtYvuJYWs"
     RUN_MODE = "development"
     coop = Coop(api_key=API_KEY, run_mode=RUN_MODE)
 
@@ -213,3 +262,39 @@ if __name__ == "__main__":
 
     # check all surveys
     coop.surveys
+
+    ##############
+    # C. Agents and AgentLists
+    ##############
+    from edsl.agents import Agent, AgentList
+
+    # check agents on server (should be an empty list)
+    coop.agents
+    for agent in coop.agents:
+        coop.delete_agent(agent.get("id"))
+
+    # get an agent that does not exist (should return None)
+    coop.get_agent(id=2)
+
+    # now post an Agent
+    coop.create_agent(Agent.example())
+    coop.create_agent(Agent.example(), public=False)
+    coop.create_agent(Agent.example(), public=True)
+    coop.create_agent(
+        Agent(traits={"hair_type": "curly", "skil_color": "white"}), public=True
+    )
+    coop.create_agent(AgentList.example())
+    coop.create_agent(AgentList.example(), public=False)
+    coop.create_agent(AgentList.example(), public=True)
+
+    # check all agents
+    coop.agents
+
+    # or get agent by id
+    coop.get_agent(id=1)
+
+    # delete the agent
+    coop.delete_agent(id=1)
+
+    # check all agents
+    coop.agents
