@@ -1,0 +1,2 @@
+class CoopErrors(Exception):
+    pass
