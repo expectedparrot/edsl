@@ -3,9 +3,11 @@ import sqlite3
 from sqlalchemy import create_engine
 from enum import Enum
 
+
 class SQLDataShape(Enum):
-    WIDE = 'wide'
-    LONG = 'long'
+    WIDE = "wide"
+    LONG = "long"
+
 
 class ResultsDBMixin:
     def rows(self):
@@ -14,7 +16,7 @@ class ResultsDBMixin:
 
     def export_sql_dump(self, shape, filename):
         shape_enum = self._get_shape_enum(shape)
-        conn = self.db(shape = shape_enum)
+        conn = self.db(shape=shape_enum)
 
         # Open file to write SQL dump
         with open(filename, "w") as f:
@@ -27,7 +29,7 @@ class ResultsDBMixin:
     def backup_db_to_file(self, shape, filename):
         shape_enum = self._get_shape_enum(shape)
         # Source database connection (in-memory)
-        source_conn = self.db(shape = shape_enum)
+        source_conn = self.db(shape=shape_enum)
 
         # Destination database connection (file)
         dest_conn = sqlite3.connect(filename)
@@ -40,8 +42,7 @@ class ResultsDBMixin:
         source_conn.close()
         dest_conn.close()
 
-    def db(self, shape: SQLDataShape, remove_prefix = False):
-
+    def db(self, shape: SQLDataShape, remove_prefix=False):
         if shape == SQLDataShape.LONG:
             # Step 2: Create a SQLite Database in Memory
             conn = sqlite3.connect(":memory:")
@@ -65,21 +66,21 @@ class ResultsDBMixin:
             conn.commit()
             return conn
         elif shape == SQLDataShape.WIDE:
-            db_uri = 'sqlite:///:memory:'
+            db_uri = "sqlite:///:memory:"
 
             # Create SQLAlchemy engine with the in-memory database connection string
             engine = create_engine(db_uri)
 
             # Convert DataFrame to SQLite in-memory database
             df = self.to_pandas(remove_prefix=remove_prefix)
-            df.to_sql('self', engine, index=False, if_exists='replace')
+            df.to_sql("self", engine, index=False, if_exists="replace")
 
             # Create a connection to the SQLite database
             conn = engine.connect()
             return conn
         else:
             raise Exception("Invalid SQLDataShape")
-        
+
     def _get_shape_enum(self, shape: str):
         if shape is None:
             raise Exception("Must select either 'wide' or 'long' format")
@@ -107,7 +108,7 @@ class ResultsDBMixin:
         """
         shape_enum = self._get_shape_enum(shape)
 
-        conn = self.db(shape = shape_enum, remove_prefix = remove_prefix)
+        conn = self.db(shape=shape_enum, remove_prefix=remove_prefix)
         df = pd.read_sql_query(query, conn)
 
         # Transpose the DataFrame if transpose is True
@@ -127,10 +128,9 @@ class ResultsDBMixin:
 
     def show_schema(self, shape: str, remove_prefix: bool = False):
         shape_enum = self._get_shape_enum(shape)
-        conn = self.db(shape = shape_enum, remove_prefix = remove_prefix)
+        conn = self.db(shape=shape_enum, remove_prefix=remove_prefix)
 
         if shape_enum == SQLDataShape.LONG:
-
             # Query to get the schema of all tables
             query = "SELECT type, name, sql FROM sqlite_master WHERE type='table'"
 
@@ -157,28 +157,28 @@ if __name__ == "__main__":
     from edsl.results import Results
 
     r = Results.example()
-    
-    df = r.sql("select data_type, key, value from self where data_type = 'answer'", shape = "long")
+
+    df = r.sql(
+        "select data_type, key, value from self where data_type = 'answer'",
+        shape="long",
+    )
     print(df)
-    
+
     df = r.sql(
         "select * from self",
-        shape = "wide",
+        shape="wide",
     )
 
     df = r.sql(
         "select * from self",
-        shape = "wide",
+        shape="wide",
     )
 
-    r.show_schema(shape = "long")
+    r.show_schema(shape="long")
 
     df = r.sql(
         "select * from self",
-        shape = "wide",
+        shape="wide",
     )
-
-
-
 
     print(df)
