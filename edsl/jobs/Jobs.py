@@ -1,5 +1,6 @@
 from __future__ import annotations
 from collections.abc import Sequence
+from collections import UserDict
 from itertools import product
 from typing import Union
 from edsl import CONFIG
@@ -14,6 +15,7 @@ from edsl.jobs.base import JobsRunnersRegistry, JobsRunnerDescriptor
 from edsl.jobs.Interview import Interview
 from edsl.coop.old import JobRunnerAPI, ResultsAPI
 
+from edsl.jobs.ModelBuckets import ModelBuckets, BucketCollection
 
 class Jobs(Base):
     """
@@ -39,6 +41,8 @@ class Jobs(Base):
         self.agents = agents or []
         self.models = models or []
         self.scenarios = scenarios or []
+
+        self.__bucket_collection = None
 
     def by(
         self,
@@ -144,6 +148,21 @@ class Jobs(Base):
             )
             interviews.append(interview)
         return interviews
+    
+    def create_bucket_collection(self):
+        """
+        Creates a collection of buckets for each model.
+        """
+        bucket_collection = BucketCollection()
+        for model in self.models:
+            bucket_collection.add_model(model)
+        return bucket_collection
+
+    @property
+    def bucket_collection(self):
+        if self.__bucket_collection is None:
+            self.__bucket_collection = self.create_bucket_collection()
+        return self.__bucket_collection
 
     def run(
         self,
@@ -172,13 +191,13 @@ class Jobs(Base):
             self.job_runner_name = "asyncio"
 
         if (emeritus_api_key := CONFIG.get("EMERITUS_API_KEY")) == "local":
-            return self._run_local(
-                n=n, verbose=verbose, debug=debug, progress_bar=progress_bar, db=db
-            )
+            results = self._run_local(
+                n=n, verbose=verbose, debug=debug, progress_bar=progress_bar, db=db)
         else:
             results = self._run_remote(
                 api_key=emeritus_api_key, job_dict=self.to_dict()
             )
+            
         return results
 
     def _run_local(self, *args, db: Database = database, **kwargs):
@@ -310,3 +329,10 @@ if __name__ == "__main__":
     import doctest
 
     doctest.testmod()
+
+    from edsl.jobs import Jobs
+    job = Jobs.example()
+    len(job) == 8
+    results, info = job.run(debug=True)
+    len(results) == 8
+    results

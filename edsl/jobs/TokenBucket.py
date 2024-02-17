@@ -15,6 +15,8 @@ class TokenBucket:
         self.refill_rate = refill_rate  # Rate at which tokens are refilled
         self.last_refill = time.monotonic()  # Last refill time
 
+        self.log = []
+
     def __add__(self, other):
         return TokenBucket(capacity = min(self.capacity, other.capacity), 
                            refil_rate = min(self.refill_rate, other.refill_rate)
@@ -29,6 +31,8 @@ class TokenBucket:
         #print(f"Refill amount: {refill_amount}")
         self.tokens = min(self.capacity, self.tokens + refill_amount)
         self.last_refill = now
+
+        self.log.append((now, self.tokens))
 
     def wait_time(self, requested_tokens):
         """Calculate the time to wait for the requested number of tokens."""
@@ -47,6 +51,25 @@ class TokenBucket:
             await asyncio.sleep(0.1)  # Sleep briefly to prevent busy waiting
         self.tokens -= amount
 
+        now = time.monotonic()
+        self.log.append((now, self.tokens))
+
+    def get_log(self):
+        return self.log
+    
+
+    def visualize(self):
+        from matplotlib import pyplot as plt
+        times, tokens = zip(*self.get_log())
+        start_time = times[0]
+        times = [t - start_time for t in times]  # Normalize time to start from 0
+
+        # Plotting
+        plt.plot(times, tokens)
+        plt.xlabel('Time (seconds)')
+        plt.ylabel('Tokens Available')
+        plt.title('Token Bucket Usage Over Time')
+        plt.show()
 
 # async def my_task(task_id, token_amount, bucket):
 #     await bucket.get_tokens(token_amount)  # Request specified number of tokens from the bucket
