@@ -30,7 +30,7 @@ def get_survey(memory):
 
     q2 = QuestionMultipleChoice(
         question_text="""In the previous question, what was the result of the coin flip? 
-        If you do have a memory of the previous question, choose 'I don't know.'""",
+        If you do not have a memory of the previous question, choose 'I don't know.'""",
         question_name="q2",
         question_options=["heads", "tails", "I don't know"],
     )
