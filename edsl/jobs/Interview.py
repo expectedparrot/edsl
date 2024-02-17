@@ -2,7 +2,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import textwrap
-from collections import UserDict
+from collections import UserList
 from typing import Any, Type, List, Generator, Callable, List
 from edsl import CONFIG
 from edsl.agents import Agent
@@ -14,7 +14,10 @@ from edsl.surveys import Survey
 from edsl.utilities.decorators import sync_wrapper
 from edsl.data_transfer_models import AgentResponseDict
 from edsl.jobs.Answers import Answers
-from collections import UserList
+
+#from edsl.jobs.TokenBucket import TokenBucket
+from edsl.jobs.ModelBuckets import ModelBuckets
+
 
 ## Ideas: 
 ## https://github.com/openai/openai-cookbook/blob/main/examples/api_request_parallel_processor.py
@@ -54,10 +57,7 @@ logger.addHandler(fh)
 # start loggin'
 logger.info("Interview.py loaded")
 
-from edsl.jobs.TokenBucket import TokenBucket
-
 TIMEOUT = float(CONFIG.get("API_CALL_TIMEOUT_SEC"))
-
 
 class QuestionTaskCreator(UserList):
     """Class to create and manage question tasks with dependencies.
@@ -143,8 +143,6 @@ class QuestionTaskCreator(UserList):
             #return results
             return await self._run_focal_task(debug)
 
-
-from edsl.jobs.JobsRunner import ModelBuckets
 
 class Interview:
     """

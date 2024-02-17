@@ -33,36 +33,6 @@ class RegisterJobsRunnerMeta(ABCMeta):
         return d
 
 
-class ModelBuckets:
-    def __init__(self, requests_bucket: TokenBucket, tokens_bucket: TokenBucket):
-        self.requests_bucket = requests_bucket
-        self.tokens_bucket = tokens_bucket
-
-    def __add__(self, other):
-        return ModelBuckets(requests_bucket = self.requests_bucket + other.requests_bucket,
-                            tokens_bucket = self.tokens_bucket + other.tokens_bucket
-        )  
-
-class BucketCollection(UserDict):
-    """When passed a model, will look up the associated buckets.
-    The keys are models, the value is a ModelBuckets 
-    """
-    def __init__(self):
-        super().__init__()
-
-    def add_model(self, model):
-        # compute the TPS and RPS from the model
-        TPS = model.TPM() / 60.0
-        RPS = model.RPM() / 60.0    
-        # create the buckets
-        requests_bucket = TokenBucket(capacity=2 * RPS, refill_rate=RPS)
-        tokens_bucket = TokenBucket(capacity=2 * TPS, refill_rate=TPS)
-        model_buckets = ModelBuckets(requests_bucket, tokens_bucket)
-        if model in self:
-            # it if already exists, combine the buckets
-            self[model] += model_buckets
-        else:          
-            self[model] = model_buckets
 
 class JobsRunner(ABC, metaclass=RegisterJobsRunnerMeta):
     """ABC for JobRunners, which take in a job, conduct interviews, and return their results."""
@@ -71,10 +41,10 @@ class JobsRunner(ABC, metaclass=RegisterJobsRunnerMeta):
         self.jobs = jobs
         # create the interviews here so children can use them
         self.interviews = jobs.interviews()
-        self.bucket_collection = BucketCollection()
-
-        for model in self.jobs.models:
-            self.bucket_collection.add_model(model)        
+        self.bucket_collection = jobs.bucket_collection
+        #self.bucket_collection = self.jobs.bucket_collection
+        #for model in self.jobs.models:
+        #    self.bucket_collection.add_model(model)        
 
     @abstractmethod
     def run(
