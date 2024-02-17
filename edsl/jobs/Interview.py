@@ -65,11 +65,11 @@ class QuestionTaskCreator(UserList):
     When called, it returns an asyncio.Task that depends on the tasks that must be completed before it can be run.
     """
 
-    def __init__(self, *, question: Question, func: Callable, bucket: TokenBucket = None):
+    def __init__(self, *, question: Question, func: Callable, model_buckets: ModelBuckets):
         super().__init__([])
         self.func = func
         self.question = question
-        self.bucket = bucket
+        self.model_buckets = model_buckets
 
     def add_dependency(self, task):
         """Adds a dependency to the list of dependencies."""
@@ -91,13 +91,22 @@ class QuestionTaskCreator(UserList):
         """Runs the focal task i.e., the question that we are interested in answering.
         It is only called after all the dependency tasks are completed. 
         """
-        if self.bucket:
-            print(f"Current bucket tokens balance: {self.bucket.tokens}")
-            requested_tokens = self.estimated_tokens()
-            print(f"Requesting {requested_tokens} tokens for {self.question.question_name}")
-            print(f"Estimated time until tokens are available: {self.bucket.wait_time(requested_tokens)}")
-            await self.bucket.get_tokens(requested_tokens)
-            print("Tokens acquired!")
+        self.requests_bucket = self.model_buckets.requests_bucket
+        self.tokens_bucket = self.model_buckets.tokens_bucket
+
+        # TODO: This isn't quite right because while you are waiting for the 
+        # requests token, the tokens bucket might get exhaused - though actually that's fine because
+        # you already reserved them. 
+        logger.info(f"Current bucket tokens balance: {self.tokens_bucket.tokens}")
+        requested_tokens = self.estimated_tokens()
+        logger.info(f"Requesting {requested_tokens} tokens for {self.question.question_name}")
+        logger.info(f"Estimated time until tokens are available: {self.tokens_bucket.wait_time(requested_tokens)}")
+        await self.tokens_bucket.get_tokens(requested_tokens)
+        logger.info("Token funds acquired!")
+
+        logger.info(f"Request bucket balance: {self.requests_bucket.tokens}")
+        await self.requests_bucket.get_tokens(1)
+        logger.info(f"Requests funds acquired!")
 
         results = await self.func(self.question, debug)
         return results
@@ -129,6 +138,7 @@ class QuestionTaskCreator(UserList):
             return await self._run_focal_task(debug)
 
 
+from edsl.jobs.JobsRunner import ModelBuckets
 
 class Interview:
     """
@@ -141,7 +151,6 @@ class Interview:
         survey: Survey,
         scenario: Scenario,
         model: Type[LanguageModel],
-        bucket: TokenBucket = None,
         verbose: bool = False,
         debug: bool = False,
     ):
@@ -162,13 +171,15 @@ class Interview:
 
         # Make huge-ass bucket for testing purposes so it goes quickly
         # TODO: Check config if in testing mode and use giant bucket
-        self.bucket = bucket or TokenBucket(capacity=2000000000000,refill_rate=1000000000000)
+        #self.bucket = bucket or TokenBucket(capacity=2000000000000,refill_rate=1000000000000)
 
         logger.info(f"Interview instantiated")
     
 
     async def async_conduct_interview(
-        self, debug: bool = False, replace_missing: bool = True
+        self, 
+        model_buckets: ModelBuckets, 
+        debug: bool = False, replace_missing: bool = True
     ) -> tuple["Answers", List[dict[str, Any]]]:
         """
         Conducts an 'interview' asynchronously. An interview is:
@@ -186,7 +197,9 @@ class Interview:
             Tuple[Answers, List[Dict[str, Any]]]: The answers and a list of valid results.
         """
 
-        self.tasks, self.invigilators = self._build_question_tasks(debug)
+        #self.model_buckets = model_buckets
+
+        self.tasks, self.invigilators = self._build_question_tasks(debug = debug, model_buckets = model_buckets)
         
         self.tasks.status()
 
@@ -246,7 +259,7 @@ class Interview:
     
                 yield result
     
-    def _build_question_tasks(self, debug) -> List[asyncio.Task]:
+    def _build_question_tasks(self, debug, model_buckets) -> List[asyncio.Task]:
         """Creates a task for each question, with dependencies on the questions that must be answered before this one can be answered."""
         logger.info("Creating tasks for each question")
         tasks = []
@@ -258,7 +271,10 @@ class Interview:
             )
             # creates the task for that question
             question_task = self._create_question_task(
-                question, tasks_that_must_be_completed_before, debug
+                question = question, 
+                tasks_that_must_be_completed_before = tasks_that_must_be_completed_before, 
+                model_buckets = model_buckets,
+                debug = debug
             )
             # adds the task to the list of tasks
             tasks.append(question_task)
@@ -281,11 +297,15 @@ class Interview:
         self,
         question: Question,
         tasks_that_must_be_completed_before: List[asyncio.Task],
+        model_buckets: ModelBuckets,
         debug,
     ):
         """Creates a task that depends on the passed-in dependencies that are awaited before the task is run.
         """
-        task_creator = QuestionTaskCreator(question = question, func=self._answer_question_and_record_task, bucket=self.bucket)
+        task_creator = QuestionTaskCreator(question = question, 
+                                           func=self._answer_question_and_record_task, 
+                                           model_buckets = model_buckets
+                                           )
         [task_creator.add_dependency(x) for x in tasks_that_must_be_completed_before]
         return task_creator.generate_task(debug)
 

@@ -4,6 +4,9 @@ import time
 ## TPM: Tokens-per-minute
 ## RPM: Requests-per-minute 
 
+## TPM: 2,000,000
+## RPM:    10,000
+
 class TokenBucket:
     
     def __init__(self, capacity, refill_rate):
@@ -11,6 +14,11 @@ class TokenBucket:
         self.tokens = capacity  # Current number of available tokens
         self.refill_rate = refill_rate  # Rate at which tokens are refilled
         self.last_refill = time.monotonic()  # Last refill time
+
+    def __add__(self, other):
+        return TokenBucket(capacity = min(self.capacity, other.capacity), 
+                           refil_rate = min(self.refill_rate, other.refill_rate)
+        )
 
     def refill(self):
         """Refill the bucket with new tokens based on elapsed time."""

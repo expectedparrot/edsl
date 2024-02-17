@@ -261,11 +261,11 @@ class LanguageModel(
         return self.model == other.model and self.parameters == other.parameters
 
     def RPM(self):
-        print("Need to implement this method")
+        #print("Need to implement this method")
         return 10_000
     
     def TPM(self):
-        print("Need to implement this method")
+        #print("Need to implement this method")
         return 2_000_000
 
     @staticmethod

@@ -8,6 +8,7 @@ from edsl.utilities.decorators import jupyter_nb_handler
 class JobsRunnerAsyncio(JobsRunner):
     runner_name = "asyncio"
 
+
     async def run_async(
         self, n=1, verbose=False, sleep=0, debug=False, progress_bar=False
     ) -> Results:
@@ -27,7 +28,8 @@ class JobsRunnerAsyncio(JobsRunner):
 
     async def _interview_task(self, interview, i, debug):
         # Assuming async_conduct_interview and Result are defined and work asynchronously
-        answer, valid_results = await interview.async_conduct_interview(debug=debug)
+        model_buckets = self.bucket_collection[interview.model]
+        answer, valid_results = await interview.async_conduct_interview(debug=debug, model_buckets = model_buckets)
 
         answer_key_names = {k for k in set(answer.keys()) if not k.endswith("_comment")}
 
