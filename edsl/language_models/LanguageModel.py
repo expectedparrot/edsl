@@ -262,12 +262,15 @@ class LanguageModel(
 
     def RPM(self):
         #print("Need to implement this method")
-        return 10_000
+        #return 10_000
+        #return 5
+        return 65
     
     def TPM(self):
         #print("Need to implement this method")
-        return 2_000_000
-
+        #return 2_000_000
+        return 5000 * 60
+    
     @staticmethod
     def _overide_default_parameters(passed_parameter_dict, default_parameter_dict):
         """Returns a dictionary of parameters, with passed parameters taking precedence over defaults.
