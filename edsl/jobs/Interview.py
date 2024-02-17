@@ -99,12 +99,18 @@ class QuestionTaskCreator(UserList):
         # you already reserved them. 
         logger.info(f"Current bucket tokens balance: {self.tokens_bucket.tokens}")
         requested_tokens = self.estimated_tokens()
-        logger.info(f"Requesting {requested_tokens} tokens for {self.question.question_name}")
-        logger.info(f"Estimated time until tokens are available: {self.tokens_bucket.wait_time(requested_tokens)}")
+        logger.info(f"Requesting {requested_tokens} tokens for {self.question.question_name}") 
+        if (estimated_wait_time := self.tokens_bucket.wait_time(requested_tokens)) > 0:
+            logger.info(f"Estimated time until tokens are available: {estimated_wait_time}")
+            print(f"Pausing {self.question.question_name} for {estimated_wait_time} seconds to stay under TPM limit")
         await self.tokens_bucket.get_tokens(requested_tokens)
         logger.info("Token funds acquired!")
 
+
+        ## Requests per minute check
         logger.info(f"Request bucket balance: {self.requests_bucket.tokens}")
+        if (estimated_wait_time := self.requests_bucket.wait_time(1)) > 0:
+            print(f"Pausing {self.question.question_name} for {estimated_wait_time} seconds to stay under RPM limit")
         await self.requests_bucket.get_tokens(1)
         logger.info(f"Requests funds acquired!")
 

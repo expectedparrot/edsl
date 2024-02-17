@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections import UserDict
+
 from abc import ABC, ABCMeta, abstractmethod
 from edsl.jobs import Jobs
 from edsl.results import Results
@@ -30,14 +32,6 @@ class RegisterJobsRunnerMeta(ABCMeta):
                 )
         return d
 
-from dataclasses import dataclass
-
-@dataclass
-class BucketParameters:
-    TPS: float
-    RPS: float
-
-from collections import UserDict
 
 class ModelBuckets:
     def __init__(self, requests_bucket: TokenBucket, tokens_bucket: TokenBucket):
@@ -50,11 +44,8 @@ class ModelBuckets:
         )  
 
 class BucketCollection(UserDict):
-    """When passed a model, will look up the associated bucket.
-    bc['gpt-4-turbo-preview'].requests_bucket 
-    bc['gpt-4-turbo-preview'].tokens_bucket
-    
-    The keys are models, the value is a TokenBucket 
+    """When passed a model, will look up the associated buckets.
+    The keys are models, the value is a ModelBuckets 
     """
     def __init__(self):
         super().__init__()

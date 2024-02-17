@@ -41,10 +41,9 @@ class TokenBucket:
     async def get_tokens(self, amount=1):
         """Wait for the specified number of tokens to become available."""
         if amount > self.capacity:
-            raise ValueError("Requested tokens exceed bucket capacity")
+            raise ValueError(f"Requested tokens exceed bucket capacity. Bucket capacity: {self.capacity}, requested amount: {amount}")
         while self.tokens < amount:
             self.refill()
-            #print(f"Refilling tokens; current balance is {self.tokens}")
             await asyncio.sleep(0.1)  # Sleep briefly to prevent busy waiting
         self.tokens -= amount
 
