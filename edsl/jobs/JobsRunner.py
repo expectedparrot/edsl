@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, ABCMeta, abstractmethod
 from edsl.jobs import Jobs
 from edsl.results import Results
-
+from edsl.jobs.TokenBucket import TokenBucket
 
 class RegisterJobsRunnerMeta(ABCMeta):
     "Metaclass to register output elements in a registry i.e., those that have a parent"
@@ -30,6 +30,42 @@ class RegisterJobsRunnerMeta(ABCMeta):
                 )
         return d
 
+from dataclasses import dataclass
+
+@dataclass
+class BucketParameters:
+    TPS: float
+    RPS: float
+
+from collections import UserDict
+
+class ModelBuckets:
+    def __init__(self, model_name: str, requests_bucket: TokenBucket, tokens_bucket: TokenBucket):
+        self.model_name = model_name
+        self.requests_bucket = requests_bucket
+        self.tokens_bucket = tokens_bucket
+
+class BucketCollection(UserDict):
+    """When passed a model, will look up the associated bucket.
+    bc['gpt-4-turbo-preview'].requests_bucket 
+    bc['gpt-4-turbo-preview'].tokens_bucket
+    
+    The keys are models, the value is a TokenBucket 
+    """
+    def __init__(self):
+        super().__init__()
+
+    def add_model(self, model):
+        TPS = model.TPM() / 60.0
+        RPS = model.RPM() / 60.0    
+        if model in self:
+            self[model].TPS = min(self[model].TPS, TPS)
+            self[model].RPS = min(self[model].RPS, RPS)
+        else:
+            requests_bucket = TokenBucket(capacity=2 * RPS, refill_rate=RPS)
+            tokens_bucket = TokenBucket(capacity=2 * TPS, refill_rate=TPS)
+            self[model] = ModelBuckets(model, requests_bucket, tokens_bucket)
+
 
 class JobsRunner(ABC, metaclass=RegisterJobsRunnerMeta):
     """ABC for JobRunners, which take in a job, conduct interviews, and return their results."""
@@ -38,6 +74,10 @@ class JobsRunner(ABC, metaclass=RegisterJobsRunnerMeta):
         self.jobs = jobs
         # create the interviews here so children can use them
         self.interviews = jobs.interviews()
+        self.bucket_collection = BucketCollection()
+
+        for model in self.jobs.models:
+            self.bucket_collection.add_model(model)        
 
     @abstractmethod
     def run(
