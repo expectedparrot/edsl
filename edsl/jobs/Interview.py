@@ -16,6 +16,25 @@ from edsl.data_transfer_models import AgentResponseDict
 from edsl.jobs.Answers import Answers
 from collections import UserList
 
+## Ideas: 
+## https://github.com/openai/openai-cookbook/blob/main/examples/api_request_parallel_processor.py
+
+class TasksList(UserList):
+
+    def status(self, debug=False):
+        if debug:
+            for task in self:
+                print(f"Task {task.edsl_name}")
+                print(f"\t DEPENDS ON: {task.depends_on}")
+                print(f"\t DONE: {task.done()}")
+                print(f"\t CANCELLED: {task.cancelled()}")
+                if not task.cancelled():
+                    if task.done():
+                        print(f"\t RESULT: {task.result()}")
+                    else:
+                        print(f"\t RESULT: None - Not done yet")  
+
+            print("---------------------")
 
 # create logger
 logger = logging.getLogger(__name__)
@@ -35,58 +54,80 @@ logger.addHandler(fh)
 # start loggin'
 logger.info("Interview.py loaded")
 
+from edsl.jobs.TokenBucket import TokenBucket
 
 TIMEOUT = float(CONFIG.get("API_CALL_TIMEOUT_SEC"))
 
-# class FailedTask(UserDict):
-#     def __init__(self, e: Exception = None):
-#         data = {
-#             "answer": "Failure",
-#             "comment": "Failure",
-#             "prompts": {"user_prompt": "", "sytem_prompt": ""},
-#             "exception": e,
-#         }
-#         super().__init__(data)
-
 
 class QuestionTaskCreator(UserList):
-    """Class to create and manage question tasks with dependencies."""
+    """Class to create and manage question tasks with dependencies.
+    It is a UserList with all the tasks that must be completed before the focal task can be run.
+    When called, it returns an asyncio.Task that depends on the tasks that must be completed before it can be run.
+    """
 
-    def __init__(self, func: Callable):
-        # self.func = func  # the function to be called to actually run the task
+    def __init__(self, *, question: Question, func: Callable, bucket: TokenBucket = None):
         super().__init__([])
         self.func = func
+        self.question = question
+        self.bucket = bucket
 
-    async def _run_task_async(self, question, debug) -> asyncio.Task:
+    def add_dependency(self, task):
+        """Adds a dependency to the list of dependencies."""
+        self.append(task)
+
+    def generate_task(self, debug) -> asyncio.Task:
+        """Creates a task that depends on the passed-in dependencies."""
+        task = asyncio.create_task(self._run_task_async(debug))
+        task.edsl_name = self.question.question_name
+        task.depends_on = [x.edsl_name for x in self] 
+        return task
+    
+    def estimated_tokens(self):
+        """Estimates the number of tokens that will be required to run the focal task."""
+        # TODO: Um, actually compute this.
+        return 2000
+
+    async def _run_focal_task(self, debug) -> 'Answers':
+        """Runs the focal task i.e., the question that we are interested in answering.
+        It is only called after all the dependency tasks are completed. 
+        """
+        if self.bucket:
+            print(f"Current bucket tokens balance: {self.bucket.tokens}")
+            requested_tokens = self.estimated_tokens()
+            print(f"Requesting {requested_tokens} tokens for {self.question.question_name}")
+            print(f"Estimated time until tokens are available: {self.bucket.wait_time(requested_tokens)}")
+            await self.bucket.get_tokens(requested_tokens)
+            print("Tokens acquired!")
+
+        results = await self.func(self.question, debug)
+        return results
+
+    async def _run_task_async(self, debug) -> 'Answers':
         """Runs the task asynchronously, awaiting the tasks that must be completed before this one can be run."""
-        logger.info(f"Running task for {question.question_name}")
+        logger.info(f"Running task for {self.question.question_name}")
         try:
             # This is waiting for the tasks that must be completed before this one can be run.
             # This does *not* use the return_exceptions = True flag, so if any of the tasks fail,
             # it throws the exception immediately, which is what we want.
             await asyncio.gather(*self)
         except asyncio.CancelledError:
-            logger.error(f"Task for {question.question_name} was cancelled, most likely because it was skipped")
-            #raise
+            logger.info(f"Task for {self.question.question_name} was cancelled, most likely because it was skipped.")
+            raise
         except Exception as e:
-            logger.error(f"Required tasks for {question.question_name} failed: {e}")
+            logger.error(f"Required tasks for {self.question.question_name} failed: {e}")
             # turns the parent exception into a custom exception
             # So the task gets canceled but this InterviewErrorPriorTaskCanceled exception
             # So we never get the question details we need.
             raise InterviewErrorPriorTaskCanceled(
-                f"Required tasks failed for {question.question_name}"
+                f"Required tasks failed for {self.question.question_name}"
             ) from e
         else:
-            logger.info(f"Tasks for {question.question_name} completed")
+            logger.info(f"Tasks for {self.question.question_name} completed")
             # This is the actual task that we want to run.
-            results = await self.func(question, debug)
-            return results
+            #results = await self.func(question, debug)
+            #return results
+            return await self._run_focal_task(debug)
 
-    def __call__(self, question, debug):
-        """Creates a task that depends on the passed-in dependencies."""
-        task = asyncio.create_task(self._run_task_async(question, debug))
-        task.edsl_name = question.question_name
-        return task
 
 
 class Interview:
@@ -100,6 +141,7 @@ class Interview:
         survey: Survey,
         scenario: Scenario,
         model: Type[LanguageModel],
+        bucket: TokenBucket = None,
         verbose: bool = False,
         debug: bool = False,
     ):
@@ -117,6 +159,10 @@ class Interview:
         self.to_index = {
             name: index for index, name in enumerate(self.survey.question_names)
         }
+
+        # Make huge-ass bucket for testing purposes so it goes quickly
+        # TODO: Check config if in testing mode and use giant bucket
+        self.bucket = bucket or TokenBucket(capacity=2000000000000,refill_rate=1000000000000)
 
         logger.info(f"Interview instantiated")
     
@@ -140,39 +186,29 @@ class Interview:
             Tuple[Answers, List[Dict[str, Any]]]: The answers and a list of valid results.
         """
 
-        # Each question is 1 task; this creates a list of tasks
-        # the same length as the number of questions in the survey
+        self.tasks, self.invigilators = self._build_question_tasks(debug)
         
-        tasks, invigilators = self._build_question_tasks(debug)
-        self.tasks = tasks
-        self.invigilators = invigilators
-        # when return_exceptions=False, it will just raise the exception
-        # and break the loop; otherwise it returns.
-        
-        # TODO: When debugging, we want to see the exception when they happen
-        # rather than just let them accumulate.
-        debug = False
-        if debug:
-            # If in debug mode, we want to see the exception when they happen
-            await asyncio.gather(*tasks, return_exceptions=False)
-        else:
-            await asyncio.gather(*tasks, return_exceptions=True)
-            
+        self.tasks.status()
 
+        # when return_exceptions=False, it will just raise the exception
+        # and break the loop; otherwise it returns.                
+        debug = False
+        return_exceptions = not debug 
+        
+        await asyncio.gather(*self.tasks, return_exceptions=return_exceptions)
+            
         if replace_missing:
             self.answers.replace_missing_answers_with_none(self.survey)
 
-        valid_results = list(self._extract_valid_results(tasks, invigilators))
+        valid_results = list(self._extract_valid_results(self.tasks, self.invigilators))
 
-        logger.info(f"Total of tasks requested:\t {len(tasks)}")
+        logger.info(f"Total of tasks requested:\t {len(self.tasks)}")
         logger.info(f"Number of valid results:\t {len(valid_results)}")
         return self.answers, valid_results
 
-    conduct_interview = sync_wrapper(async_conduct_interview)
+    #conduct_interview = sync_wrapper(async_conduct_interview)
 
-    def _extract_valid_results(
-        self, tasks, invigialtors
-    ) -> Generator["Answers", None, None]:
+    def _extract_valid_results(self, tasks, invigialtors) -> Generator["Answers", None, None]:
         """Extracts the valid results from the list of results."""
 
         warning_header = textwrap.dedent(
@@ -181,39 +217,53 @@ class Interview:
             """
         )
         # there should be one one invigilator for each task
-        assert len(tasks) == len(invigialtors)
+        assert len(self.tasks) == len(self.invigilators)
         warning_printed = False
 
-        for task, invigilator in zip(tasks, invigialtors):
+        self.tasks.status()
+
+        for task, invigilator in zip(self.tasks, self.invigilators):
+            logger.info(f"Iterating through task: {task}")
             if task.done():
-                if (exception := task.exception()) is not None:
+                try:
+                    result = task.result()
+                except asyncio.CancelledError:
+                    logger.info(f"Task `{task.edsl_name}` was cancelled.")
+                    result = invigilator.get_failed_task_result()
+                except Exception as exception:
                     if not warning_printed:
                         warning_printed = True
                         print(warning_header)
-                    print(
-                        f"""Task `{task.edsl_name}` failed with `{exception.__class__.__name__}`:`{exception}`."""
-                    )
+                    
+                    error_message = f"Task `{task.edsl_name}` failed with `{exception.__class__.__name__}`:`{exception}`."
+                    logger.error(error_message)
+                    print(error_message)
                     # if task failed, we use the invigilator to get the failed task result
                     result = invigilator.get_failed_task_result()
                 else:
-                    result = task.result()
+                    # No exception means the task completed successfully
+                    pass
+    
                 yield result
-
+    
     def _build_question_tasks(self, debug) -> List[asyncio.Task]:
         """Creates a task for each question, with dependencies on the questions that must be answered before this one can be answered."""
         logger.info("Creating tasks for each question")
         tasks = []
         invigilators = []
         for question in self.survey.questions:
+            # finds dependency tasks for that question
             tasks_that_must_be_completed_before = (
                 self._get_tasks_that_must_be_completed_before(tasks, question)
             )
+            # creates the task for that question
             question_task = self._create_question_task(
                 question, tasks_that_must_be_completed_before, debug
             )
+            # adds the task to the list of tasks
             tasks.append(question_task)
             invigilators.append(self.get_invigilator(question, debug))
-        return tasks, invigilators
+        return TasksList(tasks), invigilators
 
     def _get_tasks_that_must_be_completed_before(
         self, tasks, question
@@ -221,7 +271,7 @@ class Interview:
         """Returns the tasks that must be completed before the given question can be answered.
         If a question has no dependencies, this will be an empty list, [].
         """
-        parents_of_focal_question = self.dag.get(question.question_name, [])
+        parents_of_focal_question: List[str] = self.dag.get(question.question_name, [])
         return [
             tasks[self.to_index[parent_question_name]]
             for parent_question_name in parents_of_focal_question
@@ -234,13 +284,10 @@ class Interview:
         debug,
     ):
         """Creates a task that depends on the passed-in dependencies that are awaited before the task is run.
-        The key awaitable is the `run_task` function, which is a wrapper around the `answer_question_and_record_task` method.
         """
-        # creates the *function* that creates the task
-        create_task = QuestionTaskCreator(func=self._answer_question_and_record_task)
-        for dependency in tasks_that_must_be_completed_before:
-            create_task.append(dependency)
-        return create_task(question, debug)
+        task_creator = QuestionTaskCreator(question = question, func=self._answer_question_and_record_task, bucket=self.bucket)
+        [task_creator.add_dependency(x) for x in tasks_that_must_be_completed_before]
+        return task_creator.generate_task(debug)
 
     def async_timeout_handler(timeout):
         def decorator(func):
@@ -282,24 +329,29 @@ class Interview:
 
         self.answers.add_answer(response, question)
 
-        self._cancel_skipped_questions(question)
+        _ = self._cancel_skipped_questions(question)
 
         return response
     
 
     def _cancel_skipped_questions(self, current_question):
         """Cancels the tasks for questions that are skipped."""
+        logger.info(f"Current question is {current_question.question_name}")
+        self.tasks.status()
         current_question_index = self.to_index[current_question.question_name]
         next_question = self.survey.rule_collection.next_question(q_now=current_question_index, answers=self.answers)
         next_question_index = next_question.next_q
-        if next_question_index > current_question_index + 1:
-            # print("We've got tasks to cancel!")
+        if next_question_index > (current_question_index + 1):
+            logger.info("We've got tasks to cancel!")
             for i in range(current_question_index + 1, next_question_index):
+                logger.info(f"Cancelling task for question {i}; {self.tasks[i].edsl_name}")
                 self.tasks[i].cancel()
                 skipped_question_name = self.survey.question_names[i]
-                print(f"{skipped_question_name} skipped.")
-       
-
+                logger.info(f"{skipped_question_name} skipped.")
+        
+        self.tasks.status()
+    
+     
     #######################
     # Dunder methods
     #######################

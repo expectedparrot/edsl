@@ -50,11 +50,6 @@ class JobsRunnerAsyncio(JobsRunner):
                 answer_key_name + "_system_prompt"
             ] = question_name_to_prompts[answer_key_name]["system_prompt"]
 
-        # breakpoint()
-        #        user_prompt = [for key in answer_key_names]
-        # user_prompts, system_prompts = self._get_prompts(answer, prompt_data)
-        # breakpoint()
-
         result = Result(
             agent=interview.agent,
             scenario=interview.scenario,

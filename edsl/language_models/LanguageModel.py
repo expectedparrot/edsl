@@ -254,6 +254,20 @@ class LanguageModel(
         self.api_queue = Queue()
         self.crud = crud
 
+    def __hash__(self):
+        return hash(self.model + str(self.parameters))
+    
+    def __eq__(self, other):
+        return self.model == other.model and self.parameters == other.parameters
+
+    def RPM(self):
+        print("Need to implement this method")
+        return 10_000
+    
+    def TPM(self):
+        print("Need to implement this method")
+        return 2_000_000
+
     @staticmethod
     def _overide_default_parameters(passed_parameter_dict, default_parameter_dict):
         """Returns a dictionary of parameters, with passed parameters taking precedence over defaults.
