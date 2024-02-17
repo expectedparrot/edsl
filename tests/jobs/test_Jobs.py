@@ -241,5 +241,13 @@ def test_handle_model_exception():
     #    results = survey.by(model).run()
 
 
+def test_jobs_bucket_creator(valid_job):
+    from edsl.jobs.base import JobsRunnersRegistry
+    JobRunner = JobsRunnersRegistry["asyncio"](jobs=valid_job)
+    bc = JobRunner.bucket_collection
+    assert bc[valid_job.models[0]].requests_bucket.tokens > 10
+    assert bc[valid_job.models[0]].tokens_bucket.tokens > 10
+        
+
 def test_jobs_main():
     main()

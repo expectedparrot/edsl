@@ -40,10 +40,14 @@ class BucketParameters:
 from collections import UserDict
 
 class ModelBuckets:
-    def __init__(self, model_name: str, requests_bucket: TokenBucket, tokens_bucket: TokenBucket):
-        self.model_name = model_name
+    def __init__(self, requests_bucket: TokenBucket, tokens_bucket: TokenBucket):
         self.requests_bucket = requests_bucket
         self.tokens_bucket = tokens_bucket
+
+    def __add__(self, other):
+        return ModelBuckets(requests_bucket = self.requests_bucket + other.requests_bucket,
+                            tokens_bucket = self.tokens_bucket + other.tokens_bucket
+        )  
 
 class BucketCollection(UserDict):
     """When passed a model, will look up the associated bucket.
@@ -56,16 +60,18 @@ class BucketCollection(UserDict):
         super().__init__()
 
     def add_model(self, model):
+        # compute the TPS and RPS from the model
         TPS = model.TPM() / 60.0
         RPS = model.RPM() / 60.0    
+        # create the buckets
+        requests_bucket = TokenBucket(capacity=2 * RPS, refill_rate=RPS)
+        tokens_bucket = TokenBucket(capacity=2 * TPS, refill_rate=TPS)
+        model_buckets = ModelBuckets(requests_bucket, tokens_bucket)
         if model in self:
-            self[model].TPS = min(self[model].TPS, TPS)
-            self[model].RPS = min(self[model].RPS, RPS)
-        else:
-            requests_bucket = TokenBucket(capacity=2 * RPS, refill_rate=RPS)
-            tokens_bucket = TokenBucket(capacity=2 * TPS, refill_rate=TPS)
-            self[model] = ModelBuckets(model, requests_bucket, tokens_bucket)
-
+            # it if already exists, combine the buckets
+            self[model] += model_buckets
+        else:          
+            self[model] = model_buckets
 
 class JobsRunner(ABC, metaclass=RegisterJobsRunnerMeta):
     """ABC for JobRunners, which take in a job, conduct interviews, and return their results."""
