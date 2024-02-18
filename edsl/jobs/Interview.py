@@ -118,8 +118,12 @@ class QuestionTaskCreator(UserList):
 
         results = await self.func(self.question, debug)
 
-        ## If the result was cached, you can put the tokens back
-        ## Find out if the result was cached
+        # If the result was cached, we don't need to use any tokens
+        if 'cached_response' in results:
+            if results['cached_response']:
+                logger.info(f"Result for {self.question.question_name} was cached.")
+                self.tokens_bucket.add_tokens(requested_tokens)
+                self.requests_bucket.add_tokens(1)
 
         return results
 
