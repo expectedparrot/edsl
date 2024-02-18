@@ -69,12 +69,13 @@ class JobsRunnerAsyncio(JobsRunner):
     def _print_status(self, *, verbose, data, elapsed_time, flush = False):
         """Prints the status of the interviews"""
         if verbose:
+            currently_waiting = sum([getattr(interview, "num_tasks_waiting", 0) for interview in self.interviews])
             pct_complete = len(data) / len(self.interviews) * 100
             if len(data) > 0:
                 average_time = elapsed_time / len(data)
             else:
                 average_time = 0
-            print(f"Total {len(self.interviews)}; completed {len(data)}; {pct_complete:.2f}% complete; Avg. time (s) {average_time:.2f}", end="\r")
+            print(f"Total {len(self.interviews)}; completed {len(data)}; {pct_complete:.2f}% complete; Avg. time (s) {average_time:.2f}; Waiting: {currently_waiting}", end="\r")
             if flush:
                 print(" " * 100, end='\r')
 

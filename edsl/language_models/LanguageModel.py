@@ -262,14 +262,16 @@ class LanguageModel(
 
     def RPM(self):
         #print("Need to implement this method")
-        return 10_000
+        stated_limit = 10_000
+        return 0.8 * stated_limit
         #return 5
         #return 65
     
     def TPM(self):
         #print("Need to implement this method")
-        return 2_000_000
-        #return 1000 * 60
+        #return 2_000_000
+        stated_limit = 2_000_000
+        return 0.8 * stated_limit
     
     @staticmethod
     def _overide_default_parameters(passed_parameter_dict, default_parameter_dict):
