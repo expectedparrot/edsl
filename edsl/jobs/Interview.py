@@ -67,13 +67,14 @@ class QuestionTaskCreator(UserList):
     When called, it returns an asyncio.Task that depends on the tasks that must be completed before it can be run.
     """
 
-    def __init__(self, *, question: Question, func: Callable, model_buckets: ModelBuckets):
+    def __init__(self, *, question: Question, func: Callable, model_buckets: ModelBuckets, token_estimator: Callable = None):
         super().__init__([])
         self.func = func
         self.question = question
         self.model_buckets = model_buckets
         self.waiting = False
         self.from_cache = False
+        self.token_estimator = token_estimator
 
     def add_dependency(self, task):
         """Adds a dependency to the list of dependencies."""
@@ -89,7 +90,9 @@ class QuestionTaskCreator(UserList):
     def estimated_tokens(self):
         """Estimates the number of tokens that will be required to run the focal task."""
         # TODO: Um, actually compute this.
-        return 2000
+        token_estimate = self.token_estimator(self.question)
+        #breakpoint()
+        return token_estimate
 
     async def _run_focal_task(self, debug) -> 'Answers':
         """Runs the focal task i.e., the question that we are interested in answering.
@@ -332,6 +335,7 @@ class Interview:
         """
         task_creator = QuestionTaskCreator(question = question, 
                                            func=self._answer_question_and_record_task, 
+                                            token_estimator=self._get_estimated_request_tokens,
                                            model_buckets = model_buckets
                                            )
         [task_creator.add_dependency(x) for x in tasks_that_must_be_completed_before]
@@ -362,6 +366,20 @@ class Interview:
             current_answers=self.answers,
         )
         return invigilator
+
+    def _get_estimated_request_tokens(self, question):
+        """Estimates the number of tokens that will be required to run the focal task."""
+        invigilator = self.get_invigilator(question, debug=False)
+        #breakpoint()
+        combined_text = ""
+        for prompt in invigilator.get_prompts().values():
+            if hasattr(prompt, "text"):
+                combined_text += prompt.text
+            elif isinstance(prompt, str):
+                combined_text += prompt
+            else:
+                raise ValueError(f"Prompt is of type {type(prompt)}")
+        return len(combined_text)/4.0
 
     @async_timeout_handler(TIMEOUT)
     async def _answer_question_and_record_task(
