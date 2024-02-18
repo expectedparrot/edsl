@@ -109,6 +109,7 @@ class InvigilatorAI(InvigilatorBase):
             "scenario": self.scenario,
         }
         raw_response = await self.async_get_response(**self.get_prompts())
+        #breakpoint()
         response = self._format_raw_response(**(data | {"raw_response": raw_response}))
         return response
 
@@ -118,6 +119,8 @@ class InvigilatorAI(InvigilatorBase):
             response = await self.model.async_get_response(
                 user_prompt.text, system_prompt.text
             )
+            #print("At the end of async_get_response in InvigilatorAI")
+            #breakpoint()
         except json.JSONDecodeError as e:
             raise AgentRespondedWithBadJSONError(
                 f"Returned bad JSON: {e}"
@@ -139,6 +142,7 @@ class InvigilatorAI(InvigilatorBase):
             "comment": comment,
             "question_name": question.question_name,
             "prompts": {k: v.to_dict() for k, v in self.get_prompts().items()},
+            "cached_response": raw_response['cached_response']
         }
         return data
 
@@ -236,6 +240,7 @@ class InvigilatorDebug(InvigilatorBase):
         results = self.question.simulate_answer(human_readable=True)
         results["prompts"] = self.get_prompts()
         results["question_name"] = self.question.question_name
+        results["comment"] = "Debug comment"
         return AgentResponseDict(**results)
 
     def get_prompts(self) -> Dict[str, Prompt]:
@@ -277,7 +282,6 @@ class InvigilatorFunctional(InvigilatorBase):
             answer = func(scenario=self.scenario, agent_traits=self.agent.traits)
             return AgentResponseDict(**(data | {"answer": answer}))
         except Exception as e:
-            raise e
             agent_response_dict = AgentResponseDict(
                 **(data | {"answer": None, "comment": str(e)})
             )

@@ -15,6 +15,8 @@ from edsl.utilities.decorators import sync_wrapper
 from edsl.data_transfer_models import AgentResponseDict
 from edsl.jobs.Answers import Answers
 
+from edsl.surveys.base import EndOfSurvey
+
 #from edsl.jobs.TokenBucket import TokenBucket
 from edsl.jobs.ModelBuckets import ModelBuckets
 
@@ -102,7 +104,7 @@ class QuestionTaskCreator(UserList):
         logger.info(f"Requesting {requested_tokens} tokens for {self.question.question_name}") 
         if (estimated_wait_time := self.tokens_bucket.wait_time(requested_tokens)) > 0:
             logger.info(f"Estimated time until tokens are available: {estimated_wait_time}")
-            print(f"Pausing {self.question.question_name} for {estimated_wait_time} seconds to stay under TPM limit")
+            #print(f"Pausing {self.question.question_name} for {estimated_wait_time} seconds to stay under TPM limit")
         await self.tokens_bucket.get_tokens(requested_tokens)
         logger.info("Token funds acquired!")
 
@@ -110,11 +112,15 @@ class QuestionTaskCreator(UserList):
         ## Requests per minute check
         logger.info(f"Request bucket balance: {self.requests_bucket.tokens}")
         if (estimated_wait_time := self.requests_bucket.wait_time(1)) > 0:
-            print(f"Pausing {self.question.question_name} for {estimated_wait_time} seconds to stay under RPM limit")
+            logger.info(f"Pausing {self.question.question_name} for {estimated_wait_time} seconds to stay under RPM limit")
         await self.requests_bucket.get_tokens(1)
         logger.info(f"Requests funds acquired!")
 
         results = await self.func(self.question, debug)
+
+        ## If the result was cached, you can put the tokens back
+        ## Find out if the result was cached
+
         return results
 
     async def _run_task_async(self, debug) -> 'Answers':
@@ -209,7 +215,7 @@ class Interview:
 
         # when return_exceptions=False, it will just raise the exception
         # and break the loop; otherwise it returns.                
-        debug = False
+        # debug = False
         return_exceptions = not debug 
         
         await asyncio.gather(*self.tasks, return_exceptions=return_exceptions)
@@ -365,13 +371,20 @@ class Interview:
         current_question_index = self.to_index[current_question.question_name]
         next_question = self.survey.rule_collection.next_question(q_now=current_question_index, answers=self.answers)
         next_question_index = next_question.next_q
-        if next_question_index > (current_question_index + 1):
-            logger.info("We've got tasks to cancel!")
-            for i in range(current_question_index + 1, next_question_index):
+
+        def cancel_between(start, end):
+            for i in range(start, end):
                 logger.info(f"Cancelling task for question {i}; {self.tasks[i].edsl_name}")
                 self.tasks[i].cancel()
                 skipped_question_name = self.survey.question_names[i]
                 logger.info(f"{skipped_question_name} skipped.")
+
+        if next_question_index == EndOfSurvey:
+            cancel_between(current_question_index + 1, len(self.survey.questions))
+            return
+        
+        if next_question_index > (current_question_index + 1):
+            cancel_between(current_question_index + 1, next_question_index)
         
         self.tasks.status()
     
