@@ -171,7 +171,7 @@ class Jobs(Base):
         n: int = 1,
         debug: bool = False,
         verbose: bool = False,
-        progress_bar: bool = False,
+        progress_bar: bool = True,
         dry_run: bool = False,
         streaming: bool = False,
         db: Database = database,
