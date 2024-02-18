@@ -72,6 +72,7 @@ class QuestionTaskCreator(UserList):
         self.func = func
         self.question = question
         self.model_buckets = model_buckets
+        self.waiting = False
 
     def add_dependency(self, task):
         """Adds a dependency to the list of dependencies."""
@@ -103,9 +104,11 @@ class QuestionTaskCreator(UserList):
         requested_tokens = self.estimated_tokens()
         logger.info(f"Requesting {requested_tokens} tokens for {self.question.question_name}") 
         if (estimated_wait_time := self.tokens_bucket.wait_time(requested_tokens)) > 0:
+            #print("Pausing for TPM")
             logger.info(f"Estimated time until tokens are available: {estimated_wait_time}")
-            #print(f"Pausing {self.question.question_name} for {estimated_wait_time} seconds to stay under TPM limit")
+            self.waiting = True
         await self.tokens_bucket.get_tokens(requested_tokens)
+        self.waiting = False
         logger.info("Token funds acquired!")
 
 
@@ -113,7 +116,10 @@ class QuestionTaskCreator(UserList):
         logger.info(f"Request bucket balance: {self.requests_bucket.tokens}")
         if (estimated_wait_time := self.requests_bucket.wait_time(1)) > 0:
             logger.info(f"Pausing {self.question.question_name} for {estimated_wait_time} seconds to stay under RPM limit")
+            #print("Pausing for RPM")
+            self.waiting = True
         await self.requests_bucket.get_tokens(1)
+        self.waiting = False
         logger.info(f"Requests funds acquired!")
 
         results = await self.func(self.question, debug)
@@ -182,13 +188,16 @@ class Interview:
         self.to_index = {
             name: index for index, name in enumerate(self.survey.question_names)
         }
-
         # Make huge-ass bucket for testing purposes so it goes quickly
         # TODO: Check config if in testing mode and use giant bucket
         #self.bucket = bucket or TokenBucket(capacity=2000000000000,refill_rate=1000000000000)
 
         logger.info(f"Interview instantiated")
-    
+        self.task_creators = {}
+
+    @property
+    def num_tasks_waiting(self):
+        return sum([task_creator.waiting for task_creator in self.task_creators.values()])
 
     async def async_conduct_interview(
         self, 
@@ -210,8 +219,6 @@ class Interview:
         Returns:
             Tuple[Answers, List[Dict[str, Any]]]: The answers and a list of valid results.
         """
-
-        #self.model_buckets = model_buckets
 
         self.tasks, self.invigilators = self._build_question_tasks(debug = debug, model_buckets = model_buckets)
         
@@ -321,6 +328,7 @@ class Interview:
                                            model_buckets = model_buckets
                                            )
         [task_creator.add_dependency(x) for x in tasks_that_must_be_completed_before]
+        self.task_creators[question.question_name] = task_creator
         return task_creator.generate_task(debug)
 
     def async_timeout_handler(timeout):
