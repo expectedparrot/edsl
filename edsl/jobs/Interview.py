@@ -18,8 +18,8 @@ from edsl.jobs.Answers import Answers
 from edsl.surveys.base import EndOfSurvey
 
 #from edsl.jobs.TokenBucket import TokenBucket
-from edsl.jobs.ModelBuckets import ModelBuckets
-
+#from edsl.jobs.ModelBuckets import ModelBuckets
+from edsl.jobs.buckets import ModelBuckets
 
 ## Ideas: 
 ## https://github.com/openai/openai-cookbook/blob/main/examples/api_request_parallel_processor.py
