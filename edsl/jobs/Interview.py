@@ -73,6 +73,7 @@ class QuestionTaskCreator(UserList):
         self.question = question
         self.model_buckets = model_buckets
         self.waiting = False
+        self.from_cache = False
 
     def add_dependency(self, task):
         """Adds a dependency to the list of dependencies."""
@@ -128,8 +129,10 @@ class QuestionTaskCreator(UserList):
         if 'cached_response' in results:
             if results['cached_response']:
                 logger.info(f"Result for {self.question.question_name} was cached.")
+                # put the tokens back; didn't need them
                 self.tokens_bucket.add_tokens(requested_tokens)
                 self.requests_bucket.add_tokens(1)
+                self.from_cache = 1
 
         return results
 
@@ -198,6 +201,10 @@ class Interview:
     @property
     def num_tasks_waiting(self):
         return sum([task_creator.waiting for task_creator in self.task_creators.values()])
+    
+    @property
+    def num_from_cache(self):
+        return sum([task_creator.from_cache for task_creator in self.task_creators.values()])
 
     async def async_conduct_interview(
         self, 
