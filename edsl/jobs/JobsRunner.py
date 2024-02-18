@@ -5,7 +5,6 @@ from collections import UserDict
 from abc import ABC, ABCMeta, abstractmethod
 from edsl.jobs import Jobs
 from edsl.results import Results
-from edsl.jobs.TokenBucket import TokenBucket
 
 class RegisterJobsRunnerMeta(ABCMeta):
     "Metaclass to register output elements in a registry i.e., those that have a parent"

@@ -1,7 +1,8 @@
 import pytest
 import asyncio
 import time
-from edsl.jobs.TokenBucket import TokenBucket  # Replace with your actual module name
+from edsl.jobs.buckets import TokenBucket
+
 
 @pytest.mark.asyncio
 async def test_initial_tokens():

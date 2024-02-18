@@ -27,6 +27,7 @@ class InvigilatorBase(ABC):
         self.memory_plan = memory_plan
         self.current_answers = current_answers
 
+
     def get_failed_task_result(self):
         return AgentResponseDict(
             answer=None,
@@ -109,7 +110,6 @@ class InvigilatorAI(InvigilatorBase):
             "scenario": self.scenario,
         }
         raw_response = await self.async_get_response(**self.get_prompts())
-        #breakpoint()
         response = self._format_raw_response(**(data | {"raw_response": raw_response}))
         return response
 
@@ -119,8 +119,6 @@ class InvigilatorAI(InvigilatorBase):
             response = await self.model.async_get_response(
                 user_prompt.text, system_prompt.text
             )
-            #print("At the end of async_get_response in InvigilatorAI")
-            #breakpoint()
         except json.JSONDecodeError as e:
             raise AgentRespondedWithBadJSONError(
                 f"Returned bad JSON: {e}"
