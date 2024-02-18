@@ -161,6 +161,8 @@ def test_jobs_interviews(valid_job):
 
 def test_jobs_run(valid_job):
     results = valid_job.run(debug=True)
+    #breakpoint()
+
     assert len(results) == 1
     # with pytest.raises(JobsRunError):
     #    valid_job.run(method="invalid_method")
@@ -251,3 +253,27 @@ def test_jobs_bucket_creator(valid_job):
 
 def test_jobs_main():
     main()
+
+
+if __name__ == "__main__":
+
+    def valid_job():
+        q = QuestionMultipleChoice(
+            question_text="How are you?",
+            question_options=["Good", "Great", "OK", "Bad"],
+            question_name="how_feeling",
+        )
+        survey = Survey(name="Test Survey", questions=[q])
+        agent = Agent(traits={"trait1": "value1"})
+        model = LanguageModelOpenAIThreeFiveTurbo(use_cache=True)
+        scenario = Scenario({"price": 100, "quantity": 2})
+        valid_job = Jobs(
+            survey=survey,
+            agents=[agent],
+            models=[model],
+            scenarios=[scenario],
+        )
+        return valid_job
+
+
+    test_jobs_run(valid_job())    

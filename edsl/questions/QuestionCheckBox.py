@@ -77,7 +77,10 @@ class QuestionCheckBox(Question):
 
     def simulate_answer(self, human_readable=True) -> dict[str, Union[int, str]]:
         """Simulates a valid answer for debugging purposes"""
-        num_selections = random.randint(self.min_selections, self.max_selections)
+        
+        min_selections = self.min_selections or 1
+        max_selections = self.max_selections or len(self.question_options)
+        num_selections = random.randint(min_selections, max_selections)
         if human_readable:
             # Select a random number of options from self.question_options
             selected_options = random.sample(self.question_options, num_selections)

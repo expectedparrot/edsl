@@ -21,6 +21,10 @@ class TokenBucket:
         return TokenBucket(capacity = min(self.capacity, other.capacity), 
                            refil_rate = min(self.refill_rate, other.refill_rate)
         )
+    
+    def add_tokens(self, tokens):
+        self.tokens = min(self.capacity, self.tokens + tokens)
+        self.log.append((time.monotonic(), self.tokens))
 
     def refill(self):
         """Refill the bucket with new tokens based on elapsed time."""
