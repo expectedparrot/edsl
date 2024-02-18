@@ -1,6 +1,10 @@
 import time
 import asyncio
 from typing import Coroutine, List
+from rich.table import Table
+from rich.live import Live
+from rich.console import Console
+
 from edsl.results import Results, Result
 from edsl.jobs.JobsRunner import JobsRunner
 from edsl.utilities.decorators import jupyter_nb_handler
@@ -11,16 +15,13 @@ class JobsRunnerAsyncio(JobsRunner):
 
 
     async def run_async(
-        self, n=1, verbose=False, sleep=0, debug=False, progress_bar=False
-    ) -> Results:
+        self, n=1, verbose=False, sleep=0, debug=False, progress_bar=False):
         """Creates the tasks, runs them asynchronously, and returns the results as a Results object."""
 
         tasks = self._create_all_interview_tasks(self.interviews, debug)
         for task in asyncio.as_completed(tasks):
             result = await task
             yield result
-        #data = await asyncio.gather(*tasks)
-        #return Results(survey=self.jobs.survey, data=data)
 
     def _create_all_interview_tasks(self, interviews, debug) -> List[asyncio.Task]:
         """Creates an awaitable task for each interview"""
@@ -66,18 +67,31 @@ class JobsRunnerAsyncio(JobsRunner):
         )
         return result
     
-    def _print_status(self, *, verbose, data, elapsed_time, flush = False):
-        """Prints the status of the interviews"""
-        if verbose:
-            currently_waiting = sum([getattr(interview, "num_tasks_waiting", 0) for interview in self.interviews])
-            pct_complete = len(data) / len(self.interviews) * 100
-            if len(data) > 0:
-                average_time = elapsed_time / len(data)
-            else:
-                average_time = 0
-            print(f"Total {len(self.interviews)}; completed {len(data)}; {pct_complete:.2f}% complete; Avg. time (s) {average_time:.2f}; Waiting: {currently_waiting}", end="\r")
-            if flush:
-                print(" " * 100, end='\r')
+    def _generate_status_table(self, data, elapsed_time):
+        currently_waiting = sum([getattr(interview, "num_tasks_waiting", 0) for interview in self.interviews])
+        pct_complete = len(data) / len(self.interviews) * 100
+        average_time = elapsed_time / len(data) if len(data) > 0 else 0
+
+        table = Table(show_header=True, header_style="bold magenta")
+        table.add_column("Total", justify="right")
+        table.add_column("Completed", justify="right")
+        table.add_column("Percent Complete", justify="right")
+        table.add_column("Average Time (s)", justify="right")
+        table.add_column("Waiting", justify="right")
+
+        # Iterate through services to show how many are waiting for that service 
+        # Show fixed info like prices 
+        # Make it disappear when over?
+
+        table.add_row(
+            str(len(self.interviews)),
+            str(len(data)),
+            f"{pct_complete:.2f}%",
+            f"{average_time:.3f}",
+            str(currently_waiting)
+        )
+
+        return table
 
     @jupyter_nb_handler
     async def run(
@@ -85,14 +99,20 @@ class JobsRunnerAsyncio(JobsRunner):
     ) -> Coroutine:
         """Runs a collection of interviews, handling both async and sync contexts."""
         verbose = True
+        console = Console()
         data = []
-        self._print_status(verbose = verbose, data=data, elapsed_time=0)
         start_time = time.monotonic()
-        async for result in self.run_async(n, verbose, sleep, debug, progress_bar):
+
+        with Live(self._generate_status_table(data, 0), console=console, refresh_per_second=10) as live:
+            async for result in self.run_async(n, verbose, sleep, debug, progress_bar):
                 end_time = time.monotonic()
                 elapsed_time = end_time - start_time
                 data.append(result)
-                self._print_status(verbose=verbose, data=data, elapsed_time=elapsed_time)
+                live.update(self._generate_status_table(data, elapsed_time))
+            
+            live.update(self._generate_status_table(data, elapsed_time))
 
-        self._print_status(verbose=verbose, data=data, elapsed_time=elapsed_time, flush=True)     
+            # short delay to show the final status
+            await asyncio.sleep(0.5)
+
         return Results(survey=self.jobs.survey, data=data)
