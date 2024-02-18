@@ -111,8 +111,8 @@ class BucketCollection(UserDict):
 
     def add_model(self, model):
         # compute the TPS and RPS from the model
-        TPS = model.TPM() / 60.0
-        RPS = model.RPM() / 60.0    
+        TPS = model.TPM / 60.0
+        RPS = model.RPM / 60.0    
         # create the buckets
         requests_bucket = TokenBucket(bucket_name = model.model, 
                                       bucket_type = "requests",

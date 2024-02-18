@@ -1,20 +1,18 @@
 import time
 import asyncio
 from typing import Coroutine, List
-from rich.table import Table
+
 from rich.live import Live
 from rich.console import Console
-from rich.text import Text
-from rich.box import SIMPLE
 
 from edsl.results import Results, Result
 from edsl.jobs.JobsRunner import JobsRunner
 from edsl.utilities.decorators import jupyter_nb_handler
 
-                   
-class JobsRunnerAsyncio(JobsRunner):
-    runner_name = "asyncio"
+from edsl.jobs.JobsRunnerStatusMixin import JobsRunnerStatusMixin
 
+class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
+    runner_name = "asyncio"
 
     async def run_async(
         self, n=1, verbose=False, sleep=0, debug=False, progress_bar=False):
@@ -69,35 +67,6 @@ class JobsRunnerAsyncio(JobsRunner):
         )
         return result
     
-
-    def _generate_status_table(self, data, elapsed_time):
-        currently_waiting = sum([getattr(interview, "num_tasks_waiting", 0) for interview in self.interviews])
-        pct_complete = len(data) / len(self.interviews) * 100
-        average_time = elapsed_time / len(data) if len(data) > 0 else 0
-
-        table = Table(show_header=True, header_style="bold magenta", box=SIMPLE)
-        table.add_column("Key", style="dim", no_wrap=True)
-        table.add_column("Value")
-
-        # Add rows for each key-value pair
-        table.add_row(Text("Task status", style = "bold red"), "")
-        table.add_row("Total interviews requested", str(len(self.interviews)))
-        table.add_row("Completed interviews", str(len(data)))
-        table.add_row("Percent complete", f"{pct_complete:.2f}%")
-        table.add_row("", "")
-        table.add_row(Text("Timing", style = "bold red"), "")
-        table.add_row("Elapsed time (seconds)", f"{elapsed_time:.3f}")
-        table.add_row("Average time/interview (seconds)", f"{average_time:.3f}")
-        table.add_row("", "")
-        table.add_row(Text("Queues", style = "bold red"), "")
-        table.add_row("Tasks currently waiting", str(currently_waiting))
-        table.add_row("", "")
-        table.add_row(Text("Usage", style = "bold red"), "")
-        table.add_row("Total request tokens","Not implemented")
-        table.add_row("Total recevied tokens","Not implemented")
-        table.add_row("Total used tokens","Not implemented")
-        table.add_row("Total cost", "Not implemented")
-        return table
     
     @jupyter_nb_handler
     async def run(
@@ -109,16 +78,34 @@ class JobsRunnerAsyncio(JobsRunner):
         data = []
         start_time = time.monotonic()
 
-        with Live(self._generate_status_table(data, 0), console=console, refresh_per_second=10) as live:
-            async for result in self.run_async(n, verbose, sleep, debug, progress_bar):
-                end_time = time.monotonic()
-                elapsed_time = end_time - start_time
-                data.append(result)
-                live.update(self._generate_status_table(data, elapsed_time))
-            
-            live.update(self._generate_status_table(data, elapsed_time))
+        live = None
+        if progress_bar:
+            live = Live(self._generate_status_table(data, 0), console=console, refresh_per_second=10)
+            live.__enter__()  # Manually enter the Live context
 
-            # short delay to show the final status
-            await asyncio.sleep(0.5)
+        async for result in self.run_async(n, verbose, sleep, debug, progress_bar):
+            end_time = time.monotonic()
+            elapsed_time = end_time - start_time
+            data.append(result)
+
+            if progress_bar:
+                live.update(self._generate_status_table(data, elapsed_time))
+
+        if progress_bar:
+            live.update(self._generate_status_table(data, elapsed_time))
+            await asyncio.sleep(0.5)  # short delay to show the final status
+            live.__exit__(None, None, None)  # Manually exit the Live context
+
+        # with Live(self._generate_status_table(data, 0), console=console, refresh_per_second=10) as live:
+        #     async for result in self.run_async(n, verbose, sleep, debug, progress_bar):
+        #         end_time = time.monotonic()
+        #         elapsed_time = end_time - start_time
+        #         data.append(result)
+        #         live.update(self._generate_status_table(data, elapsed_time))
+            
+        #     live.update(self._generate_status_table(data, elapsed_time))
+
+        #     # short delay to show the final status
+        #     await asyncio.sleep(0.5)
 
         return Results(survey=self.jobs.survey, data=data)
