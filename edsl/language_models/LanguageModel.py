@@ -230,6 +230,11 @@ class LanguageModel(
 
     _model_ = None
 
+    __rate_limits = None
+    # TODO: Use the OpenAI Teir 1 rate limits
+    __default_rate_limits = {'rpm': 10_000, 'tpm': 2_000_000}
+    _safety_factor = 0.8
+
     def __init__(self, crud: CRUDOperations = CRUD, **kwargs):
         """
         Attributes:
@@ -260,18 +265,22 @@ class LanguageModel(
     def __eq__(self, other):
         return self.model == other.model and self.parameters == other.parameters
 
+    def _set_rate_limits(self) -> None:
+        if self.__rate_limits is None:
+            if hasattr(self, "get_rate_limits"):
+                self.__rate_limits = self.get_rate_limits()
+            else:
+                self.__rate_limits = self.__default_rate_limits
+
+    @property    
     def RPM(self):
-        #print("Need to implement this method")
-        stated_limit = 10_000
-        return 0.8 * stated_limit
-        #return 5
-        #return 65
+        self._set_rate_limits()
+        return self._safety_factor * self.__rate_limits['rpm']
     
+    @property
     def TPM(self):
-        #print("Need to implement this method")
-        #return 2_000_000
-        stated_limit = 2_000_000
-        return 0.8 * stated_limit
+        self._set_rate_limits()
+        return self._safety_factor * self.__rate_limits['tpm']
     
     @staticmethod
     def _overide_default_parameters(passed_parameter_dict, default_parameter_dict):
