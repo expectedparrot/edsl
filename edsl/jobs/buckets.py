@@ -5,7 +5,9 @@ from matplotlib import pyplot as plt
 
 class TokenBucket:
     
-    def __init__(self, capacity, refill_rate):
+    def __init__(self, *, bucket_name, bucket_type, capacity, refill_rate):
+        self.bucket_name = bucket_name
+        self.bucket_type = bucket_type
         self.capacity = capacity  # Maximum number of tokens
         self.tokens = capacity  # Current number of available tokens
         self.refill_rate = refill_rate  # Rate at which tokens are refilled
@@ -14,8 +16,11 @@ class TokenBucket:
         self.log = []
 
     def __add__(self, other):
-        return TokenBucket(capacity = min(self.capacity, other.capacity), 
-                           refil_rate = min(self.refill_rate, other.refill_rate)
+        return TokenBucket(
+            bucket_name = self.bucket_name,
+            bucket_type = self.bucket_type,
+            capacity = min(self.capacity, other.capacity), 
+            refil_rate = min(self.refill_rate, other.refill_rate)
         )
     
     def add_tokens(self, tokens):
@@ -57,19 +62,30 @@ class TokenBucket:
     def get_log(self):
         return self.log
     
-
     def visualize(self):
         times, tokens = zip(*self.get_log())
         start_time = times[0]
         times = [t - start_time for t in times]  # Normalize time to start from 0
 
         # Plotting
-        plt.plot(times, tokens)
-        plt.xlabel('Time (seconds)')
-        plt.ylabel('Tokens Available')
-        plt.title('Token Bucket Usage Over Time')
-        plt.show()
+        plt.figure(figsize=(10, 6))
+        plt.plot(times, tokens, label='Tokens Available')
+        plt.xlabel('Time (seconds)', fontsize=12)
+        plt.ylabel('Number of Tokens', fontsize=12)
+        details = f'{self.bucket_name} ({self.bucket_type}) Bucket Usage Over Time\nCapacity: {self.capacity:.1f}, Refill Rate: {self.refill_rate:.1f}/second'
+        plt.title(details, fontsize=14)
 
+        # Display bucket information
+        # plt.text(0.95, 0.01, 
+        #         details,
+        #         verticalalignment='bottom', horizontalalignment='right',
+        #         transform=plt.gca().transAxes,
+        #         color='green', fontsize=10)
+
+        plt.legend()
+        plt.grid(True)
+        plt.tight_layout()
+        plt.show()
 
 class ModelBuckets:
     def __init__(self, requests_bucket: TokenBucket, tokens_bucket: TokenBucket):
@@ -98,8 +114,14 @@ class BucketCollection(UserDict):
         TPS = model.TPM() / 60.0
         RPS = model.RPM() / 60.0    
         # create the buckets
-        requests_bucket = TokenBucket(capacity=2 * RPS, refill_rate=RPS)
-        tokens_bucket = TokenBucket(capacity=2 * TPS, refill_rate=TPS)
+        requests_bucket = TokenBucket(bucket_name = model.model, 
+                                      bucket_type = "requests",
+                                      capacity=RPS, 
+                                      refill_rate=RPS)
+        tokens_bucket = TokenBucket(bucket_name = model.model, 
+                                    bucket_type = "tokens",
+                                    capacity=TPS, 
+                                    refill_rate=TPS)
         model_buckets = ModelBuckets(requests_bucket, tokens_bucket)
         if model in self:
             # it if already exists, combine the buckets
