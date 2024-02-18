@@ -1,14 +1,13 @@
-# Emeritus Domain-Specific Language 
+# Expected Parrot Domain-Specific Language 
 <p align="center">
-  <img src="https://github.com/goemeritus/edsl-public/blob/main/static/logo.png?raw=true" alt="edsl.png" width="100"/>
+  <img src="logo.png" alt="edsl.png" width="100"/>
 </p>
 
-The Emeritus Domain-Specific Language (EDSL) package lets you conduct social science and market research with AI. Use it to design surveys and experiments, simulate responses with LLMs, and analyze results. 
-
+The E[🦜] Domain-Specific Language (EDSL) package lets you conduct social science and market research with AI. Use it to design surveys and experiments, simulate responses with LLMs, and analyze results. 
 
 ## 🔗 Links
 - PyPI: https://pypi.org/project/edsl/
-- Documentation: https://www.goemeritus.com/getting-started/
+- Documentation: https://www.expectedparrot.com/getting-started/
 - Discord: https://discord.com/invite/mxAYkjfy9m
 
 ## 💡 Contributing, Feature Asks, and Bugs
@@ -21,7 +20,7 @@ Our package is compatible with Python 3.9 - 3.11.
 pip install edsl
 ```
 
-See https://www.goemeritus.com/getting-started/
+See https://www.expectedparrot.com/getting-started/
  for examples and tutorials.
 
 ## 🔧 Dependencies
