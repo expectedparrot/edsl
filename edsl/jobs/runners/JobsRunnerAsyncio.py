@@ -4,6 +4,8 @@ from typing import Coroutine, List
 from rich.table import Table
 from rich.live import Live
 from rich.console import Console
+from rich.text import Text
+from rich.box import SIMPLE
 
 from edsl.results import Results, Result
 from edsl.jobs.JobsRunner import JobsRunner
@@ -67,32 +69,36 @@ class JobsRunnerAsyncio(JobsRunner):
         )
         return result
     
+
     def _generate_status_table(self, data, elapsed_time):
         currently_waiting = sum([getattr(interview, "num_tasks_waiting", 0) for interview in self.interviews])
         pct_complete = len(data) / len(self.interviews) * 100
         average_time = elapsed_time / len(data) if len(data) > 0 else 0
 
-        table = Table(show_header=True, header_style="bold magenta")
-        table.add_column("Total", justify="right")
-        table.add_column("Completed", justify="right")
-        table.add_column("Percent Complete", justify="right")
-        table.add_column("Average Time (s)", justify="right")
-        table.add_column("Waiting", justify="right")
+        table = Table(show_header=True, header_style="bold magenta", box=SIMPLE)
+        table.add_column("Key", style="dim", no_wrap=True)
+        table.add_column("Value")
 
-        # Iterate through services to show how many are waiting for that service 
-        # Show fixed info like prices 
-        # Make it disappear when over?
-
-        table.add_row(
-            str(len(self.interviews)),
-            str(len(data)),
-            f"{pct_complete:.2f}%",
-            f"{average_time:.3f}",
-            str(currently_waiting)
-        )
-
+        # Add rows for each key-value pair
+        table.add_row(Text("Task status", style = "bold red"), "")
+        table.add_row("Total interviews requested", str(len(self.interviews)))
+        table.add_row("Completed interviews", str(len(data)))
+        table.add_row("Percent complete", f"{pct_complete:.2f}%")
+        table.add_row("", "")
+        table.add_row(Text("Timing", style = "bold red"), "")
+        table.add_row("Elapsed time (seconds)", f"{elapsed_time:.3f}")
+        table.add_row("Average time/interview (seconds)", f"{average_time:.3f}")
+        table.add_row("", "")
+        table.add_row(Text("Queues", style = "bold red"), "")
+        table.add_row("Tasks currently waiting", str(currently_waiting))
+        table.add_row("", "")
+        table.add_row(Text("Usage", style = "bold red"), "")
+        table.add_row("Total request tokens","Not implemented")
+        table.add_row("Total recevied tokens","Not implemented")
+        table.add_row("Total used tokens","Not implemented")
+        table.add_row("Total cost", "Not implemented")
         return table
-
+    
     @jupyter_nb_handler
     async def run(
         self, n=1, verbose=True, sleep=0, debug=False, progress_bar=False
