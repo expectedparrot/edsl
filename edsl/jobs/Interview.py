@@ -17,9 +17,8 @@ from edsl.jobs.Answers import Answers
 
 from edsl.surveys.base import EndOfSurvey
 
-#from edsl.jobs.TokenBucket import TokenBucket
-#from edsl.jobs.ModelBuckets import ModelBuckets
 from edsl.jobs.buckets import ModelBuckets
+from edsl.jobs.token_tracking import TokenUsage, InterviewTokenUsage
 
 ## Ideas: 
 ## https://github.com/openai/openai-cookbook/blob/main/examples/api_request_parallel_processor.py
@@ -76,8 +75,8 @@ class QuestionTaskCreator(UserList):
         self.from_cache = False
         self.token_estimator = token_estimator
 
-        self.prompt_tokens = 0
-        self.completion_tokens = 0
+        self.cached_token_usage = TokenUsage(from_cache = True)
+        self.new_token_usage = TokenUsage(from_cache = False)
 
     def add_dependency(self, task):
         """Adds a dependency to the list of dependencies."""
@@ -90,12 +89,16 @@ class QuestionTaskCreator(UserList):
         task.depends_on = [x.edsl_name for x in self] 
         return task
     
-    def estimated_tokens(self):
+    def estimated_tokens(self) -> int:
         """Estimates the number of tokens that will be required to run the focal task."""
         # TODO: Um, actually compute this.
         token_estimate = self.token_estimator(self.question)
         #breakpoint()
         return token_estimate
+    
+    def token_usage(self) -> dict:
+        """Returns the token usage for the task."""
+        return {'cached_tokens': self.cached_token_usage, 'new_tokens': self.new_token_usage}
 
     async def _run_focal_task(self, debug) -> 'Answers':
         """Runs the focal task i.e., the question that we are interested in answering.
@@ -131,9 +134,6 @@ class QuestionTaskCreator(UserList):
 
         results = await self.func(self.question, debug)
 
-        self.prompt_tokens = results['usage'].get("prompt_tokens", 0)
-        self.completion_tokens = results['usage'].get("completion_tokens", 0)
-
         # If the result was cached, we don't need to use any tokens
         if 'cached_response' in results:
             if results['cached_response']:
@@ -142,6 +142,14 @@ class QuestionTaskCreator(UserList):
                 self.tokens_bucket.add_tokens(requested_tokens)
                 self.requests_bucket.add_tokens(1)
                 self.from_cache = 1
+
+        # Track token usage
+                
+        tracker = self.cached_token_usage if self.from_cache else self.new_token_usage
+        usage = results.get('usage', {'prompt_tokens': 0, 'completion_tokens': 0})
+        prompt_tokens = usage.get("prompt_tokens", 0)
+        completion_tokens = usage.get("completion_tokens", 0)
+        tracker.add_tokens(prompt_tokens = prompt_tokens, completion_tokens = completion_tokens)
 
         return results
 
@@ -207,17 +215,17 @@ class Interview:
         logger.info(f"Interview instantiated")
         self.task_creators = {}
 
+    
 
     @property
-    def num_tokens(self):
-        prompt_tokens = 0
-        completion_tokens = 0
+    def token_usage(self) -> dict:
+        cached_tokens = InterviewTokenUsage(from_cache = True)
+        new_tokens = InterviewTokenUsage(from_cache = False)
         for task_creator in self.task_creators.values():
-            prompt_tokens += task_creator.prompt_tokens
-            completion_tokens += task_creator.completion_tokens
-        return {'prompt_tokens': prompt_tokens, 'completion_tokens': completion_tokens}
-
-
+            token_usage = task_creator.token_usage()
+            cached_tokens += token_usage["cached_tokens"]
+            new_tokens += token_usage["new_tokens"]
+        return InterviewTokenUsage(new_token_usage=new_tokens, cached_token_usage=cached_tokens)
 
     @property
     def num_tasks_waiting(self):

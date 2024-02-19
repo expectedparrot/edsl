@@ -2,26 +2,26 @@ from rich.table import Table
 from rich.text import Text
 from rich.box import SIMPLE
 
+from collections import defaultdict
 
 class JobsRunnerStatusMixin:
 
     def _generate_status_table(self, data, elapsed_time):
-        prompt_tokens = 0
-        completion_tokens = 0
+        models_to_tokens = defaultdict
         num_from_cache = 0
         waiting_dict = {}
         for interview in self.interviews:
-            tokens_dict = interview.num_tokens
-            prompt_tokens += tokens_dict["prompt_tokens"]
-            completion_tokens += tokens_dict["completion_tokens"]
-            num_from_cache += interview.num_from_cache
             model = interview.model
+            if model not in models_to_tokens:
+                models_to_tokens[model] = interview.token_usage
+            else:
+                models_to_tokens[model] += interview.token_usage
+
+            num_from_cache += interview.num_from_cache
             if model not in waiting_dict:
                 waiting_dict[model] = 0
             waiting_dict[model] += getattr(interview, "num_tasks_waiting", 0)
-        
-        #currently_waiting = sum([getattr(interview, "num_tasks_waiting", 0) for interview in self.interviews])
-        
+                
         pct_complete = len(data) / len(self.interviews) * 100
         average_time = elapsed_time / len(data) if len(data) > 0 else 0
 
@@ -48,14 +48,15 @@ class JobsRunnerStatusMixin:
             table.add_row(f"-TPM limit (k)", str(model.TPM/1000))
             table.add_row(f"-RPM limit (k)", str(model.RPM/1000))
             table.add_row(f"-Num tasks waiting", str(num_waiting))
+            #table.add_row(f"-Tokens", str(models_to_tokens[model].prompt_tokens))
             table.add_row("", "")
 
         #table.add_row("Tasks currently waiting", str(currently_waiting))
 
 
-        table.add_row(Text("Usage", style = "bold red"), "")
-        table.add_row("Total request tokens", str(prompt_tokens))
-        table.add_row("Total recevied tokens", str(completion_tokens))
-        table.add_row("Total used tokens","Not implemented")
-        table.add_row("Total cost", "Not implemented")
-        return table
+        # table.add_row(Text("Usage", style = "bold red"), "")
+        # table.add_row("Total request tokens", str(prompt_tokens))
+        # table.add_row("Total recevied tokens", str(completion_tokens))
+        # table.add_row("Total used tokens","Not implemented")
+        # table.add_row("Total cost", "Not implemented")
+        # return table
