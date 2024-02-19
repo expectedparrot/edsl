@@ -27,7 +27,7 @@ class TokenUsage:
         if self.from_cache != other.from_cache:
             raise ValueError(f"Can't add token usages from different sources")
         return TokenUsage(
-            use_cache = self.from_cache,
+            from_cache = self.from_cache,
             prompt_tokens = self.prompt_tokens + other.prompt_tokens,
             completion_tokens = self.completion_tokens + other.completion_tokens
         )
