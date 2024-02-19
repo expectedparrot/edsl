@@ -11,8 +11,6 @@ from edsl.prompts.registry import get_classes
 from edsl.exceptions import QuestionScenarioRenderError
 
 from edsl.data_transfer_models import AgentResponseDict
-
-
 from edsl.exceptions.agents import FailedTaskException
 
 
@@ -140,7 +138,8 @@ class InvigilatorAI(InvigilatorBase):
             "comment": comment,
             "question_name": question.question_name,
             "prompts": {k: v.to_dict() for k, v in self.get_prompts().items()},
-            "cached_response": raw_response['cached_response']
+            "cached_response": raw_response['cached_response'],
+            "usage": raw_response.get('usage', {})
         }
         return data
 

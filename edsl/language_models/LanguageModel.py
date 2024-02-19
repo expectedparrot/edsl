@@ -409,6 +409,7 @@ class LanguageModel(
     async def async_get_response(self, user_prompt: str, system_prompt: str = ""):
         """Get response, parse, and return as string."""
         raw_response = await self.async_get_raw_response(user_prompt, system_prompt)
+        #breakpoint()
         # raw_response has a 'cached_response': True field
         response = self.parse_response(raw_response)
         #breakpoint()
@@ -424,6 +425,7 @@ class LanguageModel(
                 raise Exception("Even the repair failed.")
         
         dict_response['cached_response'] = raw_response['cached_response']
+        dict_response['usage'] = raw_response.get('usage', {})
         return dict_response
 
     get_response = sync_wrapper(async_get_response)
