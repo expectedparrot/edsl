@@ -57,6 +57,7 @@ def test_handle_model_exceptions(create_survey, fail_at_number, chained):
     model = create_language_model(ValueError, fail_at_number)()
     survey = create_survey(num_questions=20, chained=chained)
     results = survey.by(model).run()
+    #breakpoint()
 
     if not chained:
         assert results.select(f"answer.question_{fail_at_number - 1}").first() is None

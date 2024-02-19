@@ -236,7 +236,8 @@ class Interview:
 
         # when return_exceptions=False, it will just raise the exception
         # and break the loop; otherwise it returns.                
-        # debug = False
+        
+        #debug = True
         return_exceptions = not debug 
         
         await asyncio.gather(*self.tasks, return_exceptions=return_exceptions)
