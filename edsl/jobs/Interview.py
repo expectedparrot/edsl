@@ -76,6 +76,9 @@ class QuestionTaskCreator(UserList):
         self.from_cache = False
         self.token_estimator = token_estimator
 
+        self.prompt_tokens = 0
+        self.completion_tokens = 0
+
     def add_dependency(self, task):
         """Adds a dependency to the list of dependencies."""
         self.append(task)
@@ -127,6 +130,9 @@ class QuestionTaskCreator(UserList):
         logger.info(f"Requests funds acquired!")
 
         results = await self.func(self.question, debug)
+
+        self.prompt_tokens = results['usage'].get("prompt_tokens", 0)
+        self.completion_tokens = results['usage'].get("completion_tokens", 0)
 
         # If the result was cached, we don't need to use any tokens
         if 'cached_response' in results:
@@ -200,6 +206,18 @@ class Interview:
 
         logger.info(f"Interview instantiated")
         self.task_creators = {}
+
+
+    @property
+    def num_tokens(self):
+        prompt_tokens = 0
+        completion_tokens = 0
+        for task_creator in self.task_creators.values():
+            prompt_tokens += task_creator.prompt_tokens
+            completion_tokens += task_creator.completion_tokens
+        return {'prompt_tokens': prompt_tokens, 'completion_tokens': completion_tokens}
+
+
 
     @property
     def num_tasks_waiting(self):
@@ -393,6 +411,7 @@ class Interview:
         """
         invigilator = self.get_invigilator(question, debug=debug)
         response: AgentResponseDict = await invigilator.async_answer_question()
+        #breakpoint()
         response["question_name"] = question.question_name
 
         self.answers.add_answer(response, question)
