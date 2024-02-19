@@ -219,8 +219,8 @@ class Interview:
 
     @property
     def token_usage(self) -> dict:
-        cached_tokens = InterviewTokenUsage(from_cache = True)
-        new_tokens = InterviewTokenUsage(from_cache = False)
+        cached_tokens = TokenUsage(from_cache = True)
+        new_tokens = TokenUsage(from_cache = False)
         for task_creator in self.task_creators.values():
             token_usage = task_creator.token_usage()
             cached_tokens += token_usage["cached_tokens"]

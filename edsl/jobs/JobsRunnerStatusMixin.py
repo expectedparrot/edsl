@@ -7,7 +7,7 @@ from collections import defaultdict
 class JobsRunnerStatusMixin:
 
     def _generate_status_table(self, data, elapsed_time):
-        models_to_tokens = defaultdict
+        models_to_tokens = {}
         num_from_cache = 0
         waiting_dict = {}
         for interview in self.interviews:
@@ -48,15 +48,12 @@ class JobsRunnerStatusMixin:
             table.add_row(f"-TPM limit (k)", str(model.TPM/1000))
             table.add_row(f"-RPM limit (k)", str(model.RPM/1000))
             table.add_row(f"-Num tasks waiting", str(num_waiting))
-            #table.add_row(f"-Tokens", str(models_to_tokens[model].prompt_tokens))
-            table.add_row("", "")
+            token_usage = models_to_tokens[model]
+            for cache_status in ['new_token_usage', 'cached_token_usage']:
+                table.add_row(Text(f"{cache_status}", style="bold"), "")
+                token_usage = getattr(models_to_tokens[model], cache_status)
+                for token_type in ["prompt_tokens", "completion_tokens"]:
+                    tokens = getattr(token_usage, token_type)
+                    table.add_row(f"-{token_type}", str(tokens))
 
-        #table.add_row("Tasks currently waiting", str(currently_waiting))
-
-
-        # table.add_row(Text("Usage", style = "bold red"), "")
-        # table.add_row("Total request tokens", str(prompt_tokens))
-        # table.add_row("Total recevied tokens", str(completion_tokens))
-        # table.add_row("Total used tokens","Not implemented")
-        # table.add_row("Total cost", "Not implemented")
-        # return table
+        return table
