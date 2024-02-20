@@ -1,6 +1,6 @@
 
 class TokenPricing:
-    def __init__(self, model_name, prompt_token_price_per_k:float, completion_token_price_per_k:float):
+    def __init__(self, *, model_name, prompt_token_price_per_k:float, completion_token_price_per_k:float):
         self.model_name = model_name
         self.prompt_token_price = prompt_token_price_per_k / 1_000.0
         self.completion_token_price = completion_token_price_per_k / 1_000.0
@@ -37,9 +37,9 @@ class TokenUsage:
     
 
 class InterviewTokenUsage:
-    def __init__(self, new_token_usage, cached_token_usage):
-        self.new_token_usage = new_token_usage
-        self.cached_token_usage = cached_token_usage
+    def __init__(self, new_token_usage: None, cached_token_usage: None):
+        self.new_token_usage = new_token_usage or TokenUsage(from_cache = False)
+        self.cached_token_usage = cached_token_usage or TokenUsage(from_cache = True)
 
     def __add__(self, other):
         if not isinstance(other, InterviewTokenUsage):

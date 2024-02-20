@@ -96,16 +96,4 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
             await asyncio.sleep(0.5)  # short delay to show the final status
             live.__exit__(None, None, None)  # Manually exit the Live context
 
-        # with Live(self._generate_status_table(data, 0), console=console, refresh_per_second=10) as live:
-        #     async for result in self.run_async(n, verbose, sleep, debug, progress_bar):
-        #         end_time = time.monotonic()
-        #         elapsed_time = end_time - start_time
-        #         data.append(result)
-        #         live.update(self._generate_status_table(data, elapsed_time))
-            
-        #     live.update(self._generate_status_table(data, elapsed_time))
-
-        #     # short delay to show the final status
-        #     await asyncio.sleep(0.5)
-
         return Results(survey=self.jobs.survey, data=data)
