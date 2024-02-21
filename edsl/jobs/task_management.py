@@ -21,7 +21,7 @@ class TaskStatus(enum.Enum):
     TOKEN_CAPACITY_ACQUIRED = enum.auto()
     API_CALL_IN_PROGRESS = enum.auto()
     API_CALL_COMPLETE = enum.auto()
-
+        
 class InterviewStatusDictionary(UserDict):
     def __init__(self, data = None):
         if data:
@@ -42,13 +42,33 @@ class InterviewStatusDictionary(UserDict):
             new_dict[key] = self[key] + other[key]
         return InterviewStatusDictionary(new_dict)
 
+import logging
 
+# Configure logging
+#logging.basicConfig(level=logging.INFO)
+
+class TaskStatusDescriptor:
+    def __init__(self):
+        self._task_status = None
+
+    def __get__(self, instance, owner):
+        return self._task_status
+
+    def __set__(self, instance, value):
+        if not isinstance(value, TaskStatus):
+            raise ValueError("Value must be an instance of TaskStatus enum")
+        #logging.info(f"TaskStatus changed for {instance} from {self._task_status} to {value}")
+        self._task_status = value
+
+    def __delete__(self, instance):
+        self._task_status = None
 
 class QuestionTaskCreator(UserList):
     """Class to create and manage question tasks with dependencies.
     It is a UserList with all the tasks that must be completed before the focal task can be run.
     When called, it returns an asyncio.Task that depends on the tasks that must be completed before it can be run.
     """
+    task_status = TaskStatusDescriptor()
 
     def __init__(self, *, question: Question, func: Callable, model_buckets: ModelBuckets, token_estimator: Callable = None):
         super().__init__([])
@@ -70,6 +90,9 @@ class QuestionTaskCreator(UserList):
     def add_dependency(self, task) -> None:
         """Adds a task dependency to the list of dependencies."""
         self.append(task)
+    
+    def __repr__(self): 
+        return f"QuestionTaskCreator for {self.question.question_name}"
 
     def generate_task(self, debug) -> asyncio.Task:
         """Creates a task that depends on the passed-in dependencies."""

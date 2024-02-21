@@ -37,7 +37,7 @@ class TokenUsage:
     
 
 class InterviewTokenUsage:
-    def __init__(self, new_token_usage: None, cached_token_usage: None):
+    def __init__(self, new_token_usage: TokenUsage = None, cached_token_usage: TokenUsage = None):
         self.new_token_usage = new_token_usage or TokenUsage(from_cache = False)
         self.cached_token_usage = cached_token_usage or TokenUsage(from_cache = True)
 

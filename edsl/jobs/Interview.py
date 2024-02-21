@@ -78,7 +78,7 @@ class Interview:
 
 
     @property
-    def token_usage(self) -> dict:
+    def token_usage(self) -> InterviewTokenUsage:
         cached_tokens = TokenUsage(from_cache = True)
         new_tokens = TokenUsage(from_cache = False)
         for task_creator in self.task_creators.values():
@@ -103,27 +103,12 @@ class Interview:
         debug: bool = False, replace_missing: bool = True
     ) -> tuple["Answers", List[dict[str, Any]]]:
         """
-        Conducts an 'interview' asynchronously. An interview is:
-        - one agent
-        - one survey (so multiple questions)
-        - one model
-        - one scenario
-
-        Args:
-            debug (bool): Enable debugging mode.
-            replace_missing (bool): Replace missing answers with None.
-            threaded (bool): Flag to use threading if required.
-
-        Returns:
-            Tuple[Answers, List[Dict[str, Any]]]: The answers and a list of valid results.
+        Conducts an 'interview' asynchronously.
         """
 
-        self.tasks, self.invigilators = self._build_question_tasks(debug = debug, model_buckets = model_buckets)
+        self.tasks, self.invigilators = self._build_question_tasks(debug=debug, model_buckets=model_buckets)
                 
-        #debug = True
-        return_exceptions = not debug 
-        
-        await asyncio.gather(*self.tasks, return_exceptions=return_exceptions)
+        await asyncio.gather(*self.tasks, return_exceptions=not debug)
             
         if replace_missing:
             self.answers.replace_missing_answers_with_none(self.survey)
@@ -131,8 +116,6 @@ class Interview:
         valid_results = list(self._extract_valid_results(self.tasks, self.invigilators))
 
         return self.answers, valid_results
-
-    #conduct_interview = sync_wrapper(async_conduct_interview)
 
     def _extract_valid_results(self, tasks, invigialtors) -> Generator["Answers", None, None]:
         """Extracts the valid results from the list of results."""
