@@ -10,6 +10,7 @@ from edsl.questions import Question
 from edsl.exceptions import InterviewErrorPriorTaskCanceled
 
 class TaskStatus(enum.Enum):
+    "These are the possible statuses for a task."
     NOT_STARTED = enum.auto()
     WAITING_ON_DEPENDENCIES = enum.auto()
     CANCELLED = enum.auto()
@@ -34,7 +35,7 @@ class InterviewStatusDictionary(UserDict):
             d['number_from_cache'] = 0
             super().__init__(d) 
 
-    def __add__(self, other):
+    def __add__(self, other: 'InterviewStatusDictionary') -> 'InterviewStatusDictionary':
         if not isinstance(other, InterviewStatusDictionary):
             raise ValueError(f"Can't add {type(other)} to InterviewStatusDictionary")
         new_dict = {}
@@ -52,9 +53,9 @@ class QuestionTaskCreator(UserList):
     When called, it returns an asyncio.Task that depends on the tasks that must be completed before it can be run.
     """
 
-    def __init__(self, *, question: Question, func: Callable, model_buckets: ModelBuckets, token_estimator: Callable = None):
+    def __init__(self, *, question: Question, answer_question_func: Callable, model_buckets: ModelBuckets, token_estimator: Callable = None):
         super().__init__([])
-        self.func = func
+        self.answer_question_func = answer_question_func
         self.question = question
 
         self.model_buckets = model_buckets
@@ -109,7 +110,7 @@ class QuestionTaskCreator(UserList):
         self.task_status = TaskStatus.REQUEST_CAPACITY_ACQUIRED
 
         self.task_status = TaskStatus.API_CALL_IN_PROGRESS
-        results = await self.func(self.question, debug)
+        results = await self.answer_question_func(self.question, debug)
         self.task_status = TaskStatus.API_CALL_COMPLETE
 
         if 'cached_response' in results:
@@ -119,6 +120,9 @@ class QuestionTaskCreator(UserList):
                 self.from_cache = True
                 
         tracker = self.cached_token_usage if self.from_cache else self.new_token_usage
+
+        # TODO: This is hacky. The 'func' call should return an object that definitely has a 'usage' key.
+
         usage = results.get('usage', {'prompt_tokens': 0, 'completion_tokens': 0})
         prompt_tokens = usage.get("prompt_tokens", 0)
         completion_tokens = usage.get("completion_tokens", 0)

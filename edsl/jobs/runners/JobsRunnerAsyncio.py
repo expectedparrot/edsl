@@ -17,15 +17,17 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
 
     async def run_async(
         self, n=1, verbose=False, sleep=0, debug=False, progress_bar=False) -> AsyncGenerator[Result, None]:
-        """Creates the tasks, runs them asynchronously, and returns the results as a Results object."""
-
+        """Creates the tasks, runs them asynchronously, and returns the results as a Results object.
+        Completed tasks are yielded as they are completed.
+        """
         tasks = self._create_all_interview_tasks(self.interviews, debug)
         for task in asyncio.as_completed(tasks):
             result = await task
             yield result
 
     def _create_all_interview_tasks(self, interviews, debug) -> List[asyncio.Task]:
-        """Creates an awaitable task for each interview"""
+        """Creates an awaitable task for each interview.
+        """
         tasks = []
         for i, interview in enumerate(interviews):
             interviewing_task = self._interview_task(interview, i, debug)
@@ -33,7 +35,8 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
         return tasks
 
     async def _interview_task(self, interview: Interview, i: int, debug: bool) -> Result:
-        # Assuming async_conduct_interview and Result are defined and work asynchronously
+        """Conducts an interview and returns the result.
+        """
         model_buckets = self.bucket_collection[interview.model]
         answer, valid_results = await interview.async_conduct_interview(debug=debug, model_buckets = model_buckets)
 
