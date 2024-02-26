@@ -41,7 +41,9 @@ class InterviewStatusDictionary(UserDict):
         for key in self.keys():
             new_dict[key] = self[key] + other[key]
         return InterviewStatusDictionary(new_dict)
-
+    
+    def __repr__(self):
+        return f"InterviewStatusDictionary({self.data})"
 
 
 class QuestionTaskCreator(UserList):

@@ -32,6 +32,9 @@ class TokenUsage:
             completion_tokens = self.completion_tokens + other.completion_tokens
         )
     
+    def __repr__(self):
+        return f"TokenUsage(from_cache={self.from_cache}, prompt_tokens={self.prompt_tokens}, completion_tokens={self.completion_tokens})"
+    
     def cost(self, prices: TokenPricing):
         return self.prompt_tokens * prices.prompt_token_price + self.completion_tokens * prices.completion_token_price
     
@@ -48,6 +51,9 @@ class InterviewTokenUsage:
             new_token_usage = self.new_token_usage + other.new_token_usage,
             cached_token_usage = self.cached_token_usage + other.cached_token_usage
         )
+    
+    def __repr__(self):
+        return f"InterviewTokenUsage(new_token_usage={self.new_token_usage}, cached_token_usage={self.cached_token_usage})"
     
     def cost(self, prices: TokenPricing):
         return self.new_token_usage.cost(prices) 
