@@ -79,6 +79,7 @@ class Interview:
 
     @property
     def token_usage(self) -> InterviewTokenUsage:
+        "Determins how many tokens were used for the interview."
         cached_tokens = TokenUsage(from_cache = True)
         new_tokens = TokenUsage(from_cache = False)
         for task_creator in self.task_creators.values():
@@ -197,7 +198,7 @@ class Interview:
         """Creates a task that depends on the passed-in dependencies that are awaited before the task is run.
         """
         task_creator = QuestionTaskCreator(question = question, 
-                                            func=self._answer_question_and_record_task, 
+                                            answer_question_func=self._answer_question_and_record_task, 
                                             token_estimator=self._get_estimated_request_tokens,
                                             model_buckets = model_buckets
                                            )
@@ -219,7 +220,7 @@ class Interview:
 
         return decorator
 
-    def get_invigilator(self, question, debug):
+    def get_invigilator(self, question, debug) -> 'Invigilator':
         invigilator = self.agent.create_invigilator(
             question=question,
             scenario=self.scenario,
@@ -230,7 +231,7 @@ class Interview:
         )
         return invigilator
 
-    def _get_estimated_request_tokens(self, question):
+    def _get_estimated_request_tokens(self, question) -> float:
         """Estimates the number of tokens that will be required to run the focal task."""
         invigilator = self.get_invigilator(question, debug=False)
         # TODO: There should be a way to get a more accurate estimate.
@@ -262,10 +263,11 @@ class Interview:
 
         self._cancel_skipped_questions(question)
 
+        # TODO: This should be forced to be a data-exchange model to cement attributes.
         return response
     
 
-    def _cancel_skipped_questions(self, current_question):
+    def _cancel_skipped_questions(self, current_question) -> None:
         """Cancels the tasks for questions that are skipped."""
         logger.info(f"Current question is {current_question.question_name}")
         current_question_index = self.to_index[current_question.question_name]
