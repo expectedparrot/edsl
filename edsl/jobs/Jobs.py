@@ -3,6 +3,7 @@ from collections.abc import Sequence
 from collections import UserDict
 from itertools import product
 from typing import Union
+
 from edsl import CONFIG
 from edsl.agents import Agent
 from edsl.Base import Base
