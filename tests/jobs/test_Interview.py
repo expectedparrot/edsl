@@ -82,7 +82,16 @@ def test_task_management(create_survey):
     # interview_status[list(interview_status.keys())[0]]
     #breakpoint()
 
+def test_bucket_collection(create_survey):
+    model = create_language_model(ValueError, 100)()
+    survey = create_survey(num_questions=5, chained=False)
+    jobs = survey.by(model)
+    results = jobs.run()
 
+    bc = jobs.bucket_collection
+    bucket_list = list(bc.values())
+
+    bucket_list[0].requests_bucket.bucket_type == "requests"
 
 @pytest.mark.parametrize("fail_at_number, chained", [(6, False), (10, True)])
 def test_handle_model_exceptions(create_survey, fail_at_number, chained):

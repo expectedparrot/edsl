@@ -23,6 +23,9 @@ class TokenBucket:
             refil_rate = min(self.refill_rate, other.refill_rate)
         )
     
+    def __repr__(self):
+        return f"TokenBucket(bucket_name={self.bucket_name}, bucket_type='{self.bucket_type}', capacity={self.capacity}, refill_rate={self.refill_rate})"
+    
     def add_tokens(self, tokens):
         self.tokens = min(self.capacity, self.tokens + tokens)
         self.log.append((time.monotonic(), self.tokens))
@@ -101,6 +104,9 @@ class ModelBuckets:
         plot1 = self.requests_bucket.visualize()
         plot2 = self.tokens_bucket.visualize()
         return plot1, plot2
+    
+    def __repr__(self):
+        return f"ModelBuckets(requests_bucket={self.requests_bucket}, tokens_bucket={self.tokens_bucket})"
 
 class BucketCollection(UserDict):
     """When passed a model, will look up the associated buckets.
@@ -109,7 +115,10 @@ class BucketCollection(UserDict):
     def __init__(self):
         super().__init__()
 
-    def add_model(self, model):
+    def __repr__(self):
+        return f"BucketCollection({self.data})"
+
+    def add_model(self, model) -> None:
         # compute the TPS and RPS from the model
         TPS = model.TPM / 60.0
         RPS = model.RPM / 60.0    
@@ -129,7 +138,7 @@ class BucketCollection(UserDict):
         else:          
             self[model] = model_buckets
 
-    def visualize(self):
+    def visualize(self) -> dict:
         plots = {}
         for model in self:
             plots[model] = self[model].visualize()
