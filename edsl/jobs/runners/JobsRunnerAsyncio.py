@@ -1,12 +1,13 @@
 import time
 import asyncio
-from typing import Coroutine, List
+from typing import Coroutine, List, AsyncGenerator
 
 from rich.live import Live
 from rich.console import Console
 
 from edsl.results import Results, Result
 from edsl.jobs.JobsRunner import JobsRunner
+from edsl.jobs.Interview import Interview
 from edsl.utilities.decorators import jupyter_nb_handler
 
 from edsl.jobs.JobsRunnerStatusMixin import JobsRunnerStatusMixin
@@ -15,24 +16,27 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
     runner_name = "asyncio"
 
     async def run_async(
-        self, n=1, verbose=False, sleep=0, debug=False, progress_bar=False):
-        """Creates the tasks, runs them asynchronously, and returns the results as a Results object."""
-
+        self, n=1, verbose=False, sleep=0, debug=False, progress_bar=False) -> AsyncGenerator[Result, None]:
+        """Creates the tasks, runs them asynchronously, and returns the results as a Results object.
+        Completed tasks are yielded as they are completed.
+        """
         tasks = self._create_all_interview_tasks(self.interviews, debug)
         for task in asyncio.as_completed(tasks):
             result = await task
             yield result
 
     def _create_all_interview_tasks(self, interviews, debug) -> List[asyncio.Task]:
-        """Creates an awaitable task for each interview"""
+        """Creates an awaitable task for each interview.
+        """
         tasks = []
         for i, interview in enumerate(interviews):
             interviewing_task = self._interview_task(interview, i, debug)
             tasks.append(asyncio.create_task(interviewing_task))
         return tasks
 
-    async def _interview_task(self, interview, i, debug):
-        # Assuming async_conduct_interview and Result are defined and work asynchronously
+    async def _interview_task(self, interview: Interview, i: int, debug: bool) -> Result:
+        """Conducts an interview and returns the result.
+        """
         model_buckets = self.bucket_collection[interview.model]
         answer, valid_results = await interview.async_conduct_interview(debug=debug, model_buckets = model_buckets)
 
