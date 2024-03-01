@@ -22,7 +22,7 @@ Our package is compatible with Python 3.9 - 3.11.
 pip install edsl
 ```
 
-See https://www.goemeritus.com/getting-started/ for examples and tutorials.
+See https://www.expectedparrot.com/getting-started/ for examples and tutorials.
 
 ## 🔧 Dependencies
 API keys for LLMs that you want to use.
