@@ -44,15 +44,16 @@ from edsl.utilities import is_notebook
 
 def save_figure(filename):
     base, ext = os.path.splitext(filename)
-    if ext.lower() == '.png':
-        plt.savefig(filename, format='png')
-    elif ext.lower() == '.jpg' or ext.lower() == '.jpeg':
-        plt.savefig(filename, format='jpeg')
-    elif ext.lower() == '.svg':
-        plt.savefig(filename, format='svg')
+    if ext.lower() == ".png":
+        plt.savefig(filename, format="png")
+    elif ext.lower() == ".jpg" or ext.lower() == ".jpeg":
+        plt.savefig(filename, format="jpeg")
+    elif ext.lower() == ".svg":
+        plt.savefig(filename, format="svg")
     else:
         print("Unsupported file extension. Saving as PNG by default.")
-        plt.savefig(base + '.png', format='png')
+        plt.savefig(base + ".png", format="png")
+
 
 warnings.filterwarnings(
     "ignore",
@@ -65,16 +66,18 @@ warnings.filterwarnings("ignore", category=RuntimeWarning, module="scipy.optimiz
 warnings.filterwarnings("ignore", category=HessianInversionWarning)
 warnings.filterwarnings("ignore", category=ConvergenceWarning)
 
+
 def open_temp_file(file_path):
     system = platform.system()
-    if system == 'Linux':
+    if system == "Linux":
         subprocess.run(["xdg-open", file_path])
-    elif system == 'Windows':
+    elif system == "Windows":
         os.startfile(file_path)
-    elif system == 'Darwin':  # macOS
+    elif system == "Darwin":  # macOS
         subprocess.run(["open", file_path])
     else:
         print("Unsupported operating system")
+
 
 def convert_svg_to_png_in_memory(svg_bytes):
     # Create a temporary SVG file
@@ -139,7 +142,7 @@ def html_decorator(func: Callable) -> Callable:
     "A decorator that displays the output of a function as HTML."
 
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):        
+    def wrapper(*args, **kwargs):
         obj = func(*args, **kwargs)
         if is_notebook():  # if in a jupyter notebook
             html = obj.html()
@@ -249,10 +252,10 @@ class Element(ABC, metaclass=RegisterElementMeta):
             raise Exception("Should not be called on a root element")
         else:
             raise Exception("Unknown element type")
-        
+
         if output_data is None:
             self.filename = kwargs.get("filename", None)
-            return None        
+            return None
 
         return self.OutputDataType(**output_data)
 
@@ -275,7 +278,7 @@ class Element(ABC, metaclass=RegisterElementMeta):
         return self._html(**asdict(self.output_data))
 
     def view(self, **kwargs):
-        if hasattr(self.output_data, "buffer"):     
+        if hasattr(self.output_data, "buffer"):
             svg_bytes = self.output_data.buffer.getvalue()
             convert_svg_to_png_in_memory(svg_bytes)
         else:
@@ -296,7 +299,7 @@ class Element(ABC, metaclass=RegisterElementMeta):
         """Adds a function to the Results class that creates an output element.
 
 
-        In ResultsOutputMixin, there is this function that iterates through the registered 
+        In ResultsOutputMixin, there is this function that iterates through the registered
         classes and adds a function to the Results class for each one.
 
             def add_output_functions(self) -> None:
@@ -734,7 +737,7 @@ class ScatterPlot(PlotMixin, Element):
         x_text=None,
         y_text=None,
         width_pct=100,
-        filename = None, 
+        filename=None,
     ):
         """
         Generates a scatter plot using numerical data from two provided data objects.
@@ -796,7 +799,7 @@ class ScatterPlot(PlotMixin, Element):
         if filename is not None:
             save_figure(filename)
             return None
-        
+
         return {
             "buffer": self.plt_to_buf(plt),
             "title": "",
@@ -815,8 +818,8 @@ class WordCloudPlot(PlotMixin, Element):
         width=800,
         height=400,
         background_color="white",
-        width_pct=100, 
-        filename = None
+        width_pct=100,
+        filename=None,
     ):
         """Creates a word cloud plot for free text data.
 
@@ -847,7 +850,7 @@ class WordCloudPlot(PlotMixin, Element):
             return None
 
         #
-        #with open(filename, "w") as f:
+        # with open(filename, "w") as f:
         #    f.write(wordcloud)
 
         return {
@@ -992,7 +995,7 @@ class FacetedBarChart(PlotMixin, Element):
         use_code_right=None,
         sharey=True,
         width_pct=100,
-        filename = None,
+        filename=None,
     ):
         """ "
             Generates a set of bar plots as a FacetGrid to compare two categorical data sets.
@@ -1130,7 +1133,7 @@ class FacetedBarChart(PlotMixin, Element):
         if filename is not None:
             save_figure(filename)
             return None
-        
+
         return {
             "buffer": self.plt_to_buf(plt),
             "title": "",
@@ -1217,12 +1220,9 @@ class OrderedLogit(Element):
 
     def _html(self, model_outcome: str, outcome_description: str):
         report_html = [
-            "<h1>Ordered logit</h1>"
-            "<div>",
+            "<h1>Ordered logit</h1>" "<div>",
             f"<p>Outcome: {outcome_description}</p>",
         ]
         report_html.append(model_outcome)
         report_html.append("</div>")
         return "\n".join(report_html)
-
-

@@ -29,7 +29,9 @@ class SurveyMetaData:
     description: str = None
     version: str = None
 
+
 from edsl.surveys.SurveyFlowVisualizationMixin import SurveyFlowVisualizationMixin
+
 
 class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     questions = QuestionsDescriptor()
@@ -523,7 +525,9 @@ if __name__ == "__main__":
             question_name="why",
         )
         s = Survey(questions=[q0, q1, q2])
-        s = s.add_rule(q0, "like_school == 'yes'", q2).add_stop_rule(q1, "why_not == 'other'")
+        s = s.add_rule(q0, "like_school == 'yes'", q2).add_stop_rule(
+            q1, "why_not == 'other'"
+        )
         return s
 
     # s = example_survey()
@@ -535,7 +539,6 @@ if __name__ == "__main__":
     import doctest
 
     doctest.testmod()
-
 
     s = example_survey()
     s.show_flow()

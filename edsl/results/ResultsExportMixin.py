@@ -114,7 +114,7 @@ class ResultsExportMixin:
         df = pd.read_csv(csv_buffer)
         df_sorted = df.sort_index(axis=1)  # Sort columns alphabetically
         return df_sorted
-        #return df
+        # return df
 
     @convert_decorator
     def to_dicts(self, remove_prefix=False):
