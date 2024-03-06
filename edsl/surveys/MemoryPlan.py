@@ -46,7 +46,7 @@ class MemoryPlan(UserDict):
         ]
 
         base_prompt_text = """
-        Before the question you are now answering, you already answering the following questions:
+        Before the question you are now answering, you already answered the following question(s):
         """
 
         def gen_line(question_text, answer):
