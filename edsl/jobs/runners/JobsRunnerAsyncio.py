@@ -68,6 +68,7 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
             iteration=i,
             answer=answer,
             prompt=prompt_dictionary,
+            raw_model_response = {}
         )
         return result
     

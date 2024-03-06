@@ -24,6 +24,7 @@ from edsl.jobs.token_tracking import TokenUsage, InterviewTokenUsage
 
 from edsl.jobs.task_management import InterviewStatusDictionary, QuestionTaskCreator, TasksList
 
+import traceback
 
 # create logger
 logger = logging.getLogger(__name__)
@@ -107,6 +108,10 @@ class Interview:
         Conducts an 'interview' asynchronously.
         """
 
+        # we create both tasks and invigilators lists. 
+        # this is because it's easier to extract info 
+        # we need from the invigilators list when a task fails. 
+        # it's challenging to get info from failed asyncio tasks.
         self.tasks, self.invigilators = self._build_question_tasks(debug=debug, model_buckets=model_buckets)
                 
         await asyncio.gather(*self.tasks, return_exceptions=not debug)
@@ -121,6 +126,8 @@ class Interview:
     def _extract_valid_results(self, tasks, invigialtors) -> Generator["Answers", None, None]:
         """Extracts the valid results from the list of results."""
 
+        # we only need to print the warning once if a task failed.
+        warning_printed = False
         warning_header = textwrap.dedent(
             """\
             WARNING: At least one question in the survey was not answered.
@@ -128,7 +135,6 @@ class Interview:
         )
         # there should be one one invigilator for each task
         assert len(self.tasks) == len(self.invigilators)
-        warning_printed = False
 
         for task, invigilator in zip(self.tasks, self.invigilators):
             logger.info(f"Iterating through task: {task}")
@@ -146,6 +152,7 @@ class Interview:
                     error_message = f"Task `{task.edsl_name}` failed with `{exception.__class__.__name__}`:`{exception}`."
                     logger.error(error_message)
                     print(error_message)
+                    traceback.print_exc()
                     # if task failed, we use the invigilator to get the failed task result
                     result = invigilator.get_failed_task_result()
                 else:
