@@ -95,6 +95,7 @@
 
 ### Fixed
 - `trait_name` descriptor was not working; it is now fixed.
+- `QuestionList` is now working properly again
 
 ### Removed
 

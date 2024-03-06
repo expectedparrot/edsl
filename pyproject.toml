@@ -4,9 +4,9 @@ requires = ["poetry-core"]
 
 [tool.poetry]
 authors = [
-    "Apostolos Filippas <apostolos@goemeritus.com>",
-    "John Horton <john@goemeritus.com>",
-    "Robin Horton <robin@goemeritus.com>",
+    "Apostolos Filippas <apostolos@expectedparrot.com>",
+    "John Horton <john@expectedparrot.com>",
+    "Robin Horton <robin@expectedparrot.com>",
 ]
 classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
@@ -14,14 +14,14 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 description = "Create and analyze LLM-based surveys"
-documentation = "https://www.goemeritus.com/getting-started/"
-homepage = "https://www.goemeritus.com/"
+documentation = "https://www.expectedparrot.com/getting-started/"
+homepage = "https://www.expectedparrot.com/"
 keywords = ["LLM", "social science", "surveys", "user research"]
 license = "MIT"
 name = "edsl"
 packages = [{include = "edsl"}]
 readme = "README.md"
-version = "0.1.12"
+version = "0.1.14"
 
 [tool.poetry.dependencies]
 python = "^3.9.1"
