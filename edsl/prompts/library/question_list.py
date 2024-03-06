@@ -10,9 +10,9 @@ class ListQuestion(QuestionInstuctionsBase):
         """\
         {{question_text}}
 
-        Your response should be only a valid JSON of the following format:
+        Your response should be only a valid JSON in the following format:
         {
-            "answer": <list of comma-separated words or phrases >,
+            "answer": [<comma-separated list of responsive words or phrases as independent strings>],
             "comment": "<put comment here>"
         }
         {% if max_list_items is not none %}
