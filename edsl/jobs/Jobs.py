@@ -16,9 +16,10 @@ from edsl.jobs.base import JobsRunnersRegistry, JobsRunnerDescriptor
 from edsl.jobs.Interview import Interview
 from edsl.coop.old import JobRunnerAPI, ResultsAPI
 
-#from edsl.jobs.ModelBuckets import ModelBuckets, BucketCollection
+# from edsl.jobs.ModelBuckets import ModelBuckets, BucketCollection
 
 from edsl.jobs.buckets import BucketCollection
+
 
 class Jobs(Base):
     """
@@ -151,7 +152,7 @@ class Jobs(Base):
             )
             interviews.append(interview)
         return interviews
-    
+
     def create_bucket_collection(self):
         """
         Creates a collection of buckets for each model.
@@ -195,12 +196,13 @@ class Jobs(Base):
 
         if (emeritus_api_key := CONFIG.get("EMERITUS_API_KEY")) == "local":
             results = self._run_local(
-                n=n, verbose=verbose, debug=debug, progress_bar=progress_bar, db=db)
+                n=n, verbose=verbose, debug=debug, progress_bar=progress_bar, db=db
+            )
         else:
             results = self._run_remote(
                 api_key=emeritus_api_key, job_dict=self.to_dict()
             )
-            
+
         return results
 
     def _run_local(self, *args, db: Database = database, **kwargs):
@@ -281,8 +283,8 @@ class Jobs(Base):
                 (self.traits["status"], question.question_name, scenario["period"])
             ]
 
-        sad_agent = Agent(traits = {"status": "Sad"})
-        joy_agent = Agent(traits = {"status": "Joyful"})
+        sad_agent = Agent(traits={"status": "Sad"})
+        joy_agent = Agent(traits={"status": "Joyful"})
 
         sad_agent.add_direct_question_answering_method(answer_question_directly)
         joy_agent.add_direct_question_answering_method(answer_question_directly)
@@ -334,6 +336,7 @@ if __name__ == "__main__":
     doctest.testmod()
 
     from edsl.jobs import Jobs
+
     job = Jobs.example()
     len(job) == 8
     results, info = job.run(debug=True)

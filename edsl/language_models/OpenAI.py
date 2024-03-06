@@ -31,16 +31,19 @@ def create_openai_model(model_name, model_class_name) -> LanguageModel:
 
         def get_headers(self) -> dict[str, Any]:
             from openai import OpenAI
+
             client = OpenAI()
             response = client.chat.completions.with_raw_response.create(
-                messages=[{
-                    "role": "user",
-                    "content": "Say this is a test",
-                }],
+                messages=[
+                    {
+                        "role": "user",
+                        "content": "Say this is a test",
+                    }
+                ],
                 model=self.model,
             )
             return dict(response.headers)
-        
+
         def get_rate_limits(self) -> dict[str, Any]:
             try:
                 headers = self.get_headers()
@@ -54,7 +57,6 @@ def create_openai_model(model_name, model_class_name) -> LanguageModel:
                     "rpm": int(headers["x-ratelimit-limit-requests"]),
                     "tpm": int(headers["x-ratelimit-limit-tokens"]),
                 }
-
 
         async def async_execute_model_call(
             self, user_prompt: str, system_prompt: str = ""

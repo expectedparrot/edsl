@@ -17,14 +17,15 @@ from edsl.exceptions.agents import FailedTaskException
 class InvigilatorBase(ABC):
     """An invigiator (someone who administers an exam) is a class that is responsible for administering a question to an agent."""
 
-    def __init__(self, agent, question, scenario, model, memory_plan, current_answers: dict):
+    def __init__(
+        self, agent, question, scenario, model, memory_plan, current_answers: dict
+    ):
         self.agent = agent
         self.question = question
         self.scenario = scenario
         self.model = model
         self.memory_plan = memory_plan
         self.current_answers = current_answers
-
 
     def get_failed_task_result(self):
         return AgentResponseDict(
@@ -113,8 +114,15 @@ class InvigilatorAI(InvigilatorBase):
         # The raw response is a dictionary.
         raw_response = await self.async_get_response(**self.get_prompts())
         assert "raw_model_response" in raw_response
-        response = self._format_raw_response(**(data | {"raw_response": raw_response, 
-                                                        "raw_model_response": raw_response["raw_model_response"]}))
+        response = self._format_raw_response(
+            **(
+                data
+                | {
+                    "raw_response": raw_response,
+                    "raw_model_response": raw_response["raw_model_response"],
+                }
+            )
+        )
         return response
 
     async def async_get_response(self, user_prompt: Prompt, system_prompt: Prompt):
@@ -145,9 +153,9 @@ class InvigilatorAI(InvigilatorBase):
             "comment": comment,
             "question_name": question.question_name,
             "prompts": {k: v.to_dict() for k, v in self.get_prompts().items()},
-            "cached_response": raw_response['cached_response'],
-            "usage": raw_response.get('usage', {}),
-            "raw_model_response": raw_model_response
+            "cached_response": raw_response["cached_response"],
+            "usage": raw_response.get("usage", {}),
+            "raw_model_response": raw_model_response,
         }
         return AgentResponseDict(**data)
 
@@ -271,7 +279,8 @@ class InvigilatorHuman(InvigilatorBase):
                 **(data | {"answer": None, "comment": str(e)})
             )
             raise FailedTaskException(
-                f"Failed to get response. The exception is {str(e)}", agent_response_dict
+                f"Failed to get response. The exception is {str(e)}",
+                agent_response_dict,
             ) from e
 
 
@@ -291,9 +300,10 @@ class InvigilatorFunctional(InvigilatorBase):
                 **(data | {"answer": None, "comment": str(e)})
             )
             raise FailedTaskException(
-                f"Failed to get response. The exception is {str(e)}", agent_response_dict
+                f"Failed to get response. The exception is {str(e)}",
+                agent_response_dict,
             ) from e
-            
+
     def get_prompts(self) -> Dict[str, Prompt]:
         return {
             "user_prompt": Prompt("NA").text,

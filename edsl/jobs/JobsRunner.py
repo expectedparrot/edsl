@@ -6,6 +6,7 @@ from abc import ABC, ABCMeta, abstractmethod
 from edsl.jobs import Jobs
 from edsl.results import Results
 
+
 class RegisterJobsRunnerMeta(ABCMeta):
     "Metaclass to register output elements in a registry i.e., those that have a parent"
     _registry = {}  # Initialize the registry as a dictionary
@@ -32,7 +33,6 @@ class RegisterJobsRunnerMeta(ABCMeta):
         return d
 
 
-
 class JobsRunner(ABC, metaclass=RegisterJobsRunnerMeta):
     """ABC for JobRunners, which take in a job, conduct interviews, and return their results."""
 
@@ -41,9 +41,9 @@ class JobsRunner(ABC, metaclass=RegisterJobsRunnerMeta):
         # create the interviews here so children can use them
         self.interviews = jobs.interviews()
         self.bucket_collection = jobs.bucket_collection
-        #self.bucket_collection = self.jobs.bucket_collection
-        #for model in self.jobs.models:
-        #    self.bucket_collection.add_model(model)        
+        # self.bucket_collection = self.jobs.bucket_collection
+        # for model in self.jobs.models:
+        #    self.bucket_collection.add_model(model)
 
     @abstractmethod
     def run(
