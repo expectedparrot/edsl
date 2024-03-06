@@ -420,7 +420,7 @@ class LanguageModel(
         
         dict_response['cached_response'] = raw_response['cached_response']
         dict_response['usage'] = raw_response.get('usage', {})
-        dict_response['raw_resonse'] = raw_response
+        dict_response['raw_model_response'] = raw_response
         return dict_response
 
     get_response = sync_wrapper(async_get_response)
