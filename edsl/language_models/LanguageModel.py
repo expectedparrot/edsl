@@ -88,8 +88,6 @@ class RegisterLanguageModelsMeta(ABCMeta):
                 required_parameters=[("raw_response", dict[str, Any])],
                 must_be_async=False,
             )
-            # breakpoint()
-            # RegisterLanguageModelsMeta._registry[name] = cls
             RegisterLanguageModelsMeta._registry[model_name] = cls
 
     @classmethod
@@ -254,12 +252,12 @@ class LanguageModel(
             if key not in parameters:
                 setattr(self, key, value)
 
-        # for key, value in kwargs.items():
-        # setattr(self, key, value)
+        # TODO: This can very likely be removed
         self.api_queue = Queue()
         self.crud = crud
 
     def __hash__(self):
+        "Allows the model to be used as a key in a dictionary"
         return hash(self.model + str(self.parameters))
     
     def __eq__(self, other):
@@ -274,11 +272,13 @@ class LanguageModel(
 
     @property    
     def RPM(self):
+        "Model's requests-per-minute limit"
         self._set_rate_limits()
         return self._safety_factor * self.__rate_limits['rpm']
     
     @property
     def TPM(self):
+        "Model's tokens-per-minute limit"
         self._set_rate_limits()
         return self._safety_factor * self.__rate_limits['tpm']
     
@@ -409,23 +409,18 @@ class LanguageModel(
     async def async_get_response(self, user_prompt: str, system_prompt: str = ""):
         """Get response, parse, and return as string."""
         raw_response = await self.async_get_raw_response(user_prompt, system_prompt)
-        #breakpoint()
-        # raw_response has a 'cached_response': True field
         response = self.parse_response(raw_response)
-        #breakpoint()
-        #response['cached_response'] = raw_response['cached_response']
         try:
             dict_response = json.loads(response)
         except json.JSONDecodeError as e:
-            # TODO: Turn into logs
-            #print("Could not load JSON. Trying to repair.")
-            #print(response)
+            # TODO: Turn into logs to generate issues
             dict_response, success = await repair(response, str(e))
             if not success:
                 raise Exception("Even the repair failed.")
         
         dict_response['cached_response'] = raw_response['cached_response']
         dict_response['usage'] = raw_response.get('usage', {})
+        dict_response['raw_resonse'] = raw_response
         return dict_response
 
     get_response = sync_wrapper(async_get_response)
