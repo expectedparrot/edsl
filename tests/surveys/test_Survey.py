@@ -120,7 +120,7 @@ class TestSurvey(unittest.TestCase):
         
         jobs = survey.by(d)
 
-        results = jobs.run()
+        results = jobs.run(verbose = True)
         # with this skip logic, the second question should not be answered
         assert results[0].answer['own_shovel'] == None
 

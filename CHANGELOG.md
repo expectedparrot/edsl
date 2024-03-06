@@ -98,3 +98,15 @@
 - `QuestionList` is now working properly again
 
 ### Removed
+
+## [0.1.14] - 2024-03-x
+
+### Added
+- The raw model response is now available in the `Results` object, accessed via "raw_model_response" keyword. 
+There is one for each question. The key is the question_name + `_raw_response_model`
+- The `.run(progress_bar = True)` returns a much more informative real-time view of job progress.
+
+### Fixed
+
+### Removed
+

@@ -20,7 +20,7 @@ class TestLanguageModel(unittest.TestCase):
                 self, user_prompt: str, system_prompt: str
             ) -> dict[str, Any]:
                 await asyncio.sleep(0.1)
-                return {"message": """{"answer": "Hello world"}"""}
+                return {"message": """{"answer": "Hello world", 'cached_response': False, 'usage': {}}"""}
 
             def parse_response(self, raw_response: dict[str, Any]) -> str:
                 return raw_response["message"]
@@ -96,7 +96,9 @@ class TestLanguageModel(unittest.TestCase):
         response = m.get_response(
             user_prompt="Hello world", system_prompt="You are a helpful agent"
         )
-        self.assertEqual(response, {"answer": "Hello world"})
+        expected_response = {"answer": "Hello world", 'cached_response': False, 'usage': {}}
+        for key, value in expected_response.items():
+            self.assertEqual(response[key], value)
 
     def test_cache_write_and_read(self):
         self.crud.clear_LLMOutputData()
@@ -139,7 +141,7 @@ class TestLanguageModel(unittest.TestCase):
                 self, user_prompt: str, system_prompt: str
             ) -> dict[str, Any]:
                 await asyncio.sleep(0.1)
-                return {"message": """{"answer": "Hello world"}"""}
+                return {"message": """{"answer": "Hello world", 'cached_response': False}"""}
 
             def parse_response(self, raw_response: dict[str, Any]) -> str:
                 return raw_response["message"]

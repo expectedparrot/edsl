@@ -1,36 +1,55 @@
+import time
 import asyncio
-from typing import Coroutine, List
+from typing import Coroutine, List, AsyncGenerator
+
+from rich.live import Live
+from rich.console import Console
+
 from edsl.results import Results, Result
 from edsl.jobs.JobsRunner import JobsRunner
+from edsl.jobs.Interview import Interview
 from edsl.utilities.decorators import jupyter_nb_handler
 
+from edsl.jobs.JobsRunnerStatusMixin import JobsRunnerStatusMixin
 
-class JobsRunnerAsyncio(JobsRunner):
+
+class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
     runner_name = "asyncio"
 
     async def run_async(
         self, n=1, verbose=False, sleep=0, debug=False, progress_bar=False
-    ) -> Results:
-        """Creates the tasks, runs them asynchronously, and returns the results as a Results object."""
-
+    ) -> AsyncGenerator[Result, None]:
+        """Creates the tasks, runs them asynchronously, and returns the results as a Results object.
+        Completed tasks are yielded as they are completed.
+        """
         tasks = self._create_all_interview_tasks(self.interviews, debug)
-        data = await asyncio.gather(*tasks)
-        return Results(survey=self.jobs.survey, data=data)
+        for task in asyncio.as_completed(tasks):
+            result = await task
+            yield result
 
     def _create_all_interview_tasks(self, interviews, debug) -> List[asyncio.Task]:
-        """Creates an awaitable task for each interview"""
+        """Creates an awaitable task for each interview."""
         tasks = []
         for i, interview in enumerate(interviews):
             interviewing_task = self._interview_task(interview, i, debug)
             tasks.append(asyncio.create_task(interviewing_task))
         return tasks
 
-    async def _interview_task(self, interview, i, debug):
-        # Assuming async_conduct_interview and Result are defined and work asynchronously
-        answer, valid_results = await interview.async_conduct_interview(debug=debug)
+    async def _interview_task(
+        self, interview: Interview, i: int, debug: bool
+    ) -> Result:
+        """Conducts an interview and returns the result."""
+        # the model buckets are used to track usage rates
+        model_buckets = self.bucket_collection[interview.model]
 
+        # get the results of the interview
+        answer, valid_results = await interview.async_conduct_interview(
+            debug=debug, model_buckets=model_buckets
+        )
+        # breakpoint()
+
+        # we should have a valid result for each question
         answer_key_names = {k for k in set(answer.keys()) if not k.endswith("_comment")}
-
         assert len(valid_results) == len(answer_key_names)
 
         question_name_to_prompts = dict({})
@@ -50,10 +69,12 @@ class JobsRunnerAsyncio(JobsRunner):
                 answer_key_name + "_system_prompt"
             ] = question_name_to_prompts[answer_key_name]["system_prompt"]
 
-        # breakpoint()
-        #        user_prompt = [for key in answer_key_names]
-        # user_prompts, system_prompts = self._get_prompts(answer, prompt_data)
-        # breakpoint()
+        raw_model_results_dictionary = {}
+        for result in valid_results:
+            question_name = result["question_name"]
+            raw_model_results_dictionary[
+                question_name + "_raw_model_response"
+            ] = result["raw_model_response"]
 
         result = Result(
             agent=interview.agent,
@@ -62,12 +83,40 @@ class JobsRunnerAsyncio(JobsRunner):
             iteration=i,
             answer=answer,
             prompt=prompt_dictionary,
+            raw_model_response=raw_model_results_dictionary,
         )
         return result
 
     @jupyter_nb_handler
-    def run(
-        self, n=1, verbose=False, sleep=0, debug=False, progress_bar=False
+    async def run(
+        self, n=1, verbose=True, sleep=0, debug=False, progress_bar=False
     ) -> Coroutine:
         """Runs a collection of interviews, handling both async and sync contexts."""
-        return self.run_async(n, verbose, sleep, debug, progress_bar)
+        verbose = True
+        console = Console()
+        data = []
+        start_time = time.monotonic()
+
+        live = None
+        if progress_bar:
+            live = Live(
+                self._generate_status_table(data, 0),
+                console=console,
+                refresh_per_second=10,
+            )
+            live.__enter__()  # Manually enter the Live context
+
+        async for result in self.run_async(n, verbose, sleep, debug, progress_bar):
+            end_time = time.monotonic()
+            elapsed_time = end_time - start_time
+            data.append(result)
+
+            if progress_bar:
+                live.update(self._generate_status_table(data, elapsed_time))
+
+        if progress_bar:
+            live.update(self._generate_status_table(data, elapsed_time))
+            await asyncio.sleep(0.5)  # short delay to show the final status
+            live.__exit__(None, None, None)  # Manually exit the Live context
+
+        return Results(survey=self.jobs.survey, data=data)

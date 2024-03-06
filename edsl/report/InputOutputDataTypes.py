@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Any
 
+
 @dataclass
 class BaseDataClass:
     example_data: dict = field(default_factory=dict)
