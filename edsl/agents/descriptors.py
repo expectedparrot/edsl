@@ -2,6 +2,7 @@ from typing import Dict
 from edsl.utilities.utilities import is_valid_variable_name
 from edsl.exceptions.agents import AgentNameError
 
+
 class NameDescriptor:
     """ABC for something."""
 
@@ -15,6 +16,7 @@ class NameDescriptor:
     def __set_name__(self, owner, name: str) -> None:
         self.name = "_" + name
 
+
 class TraitsDescriptor:
     """ABC for something."""
 
@@ -27,9 +29,11 @@ class TraitsDescriptor:
             if not is_valid_variable_name(key):
                 raise AgentNameError("Trait keys must be a valid variable name!")
             if key == "name":
-                raise AgentNameError("""Trait keys cannot be 'name'!. Instead, use the 'name' attribute directly e.g., 
+                raise AgentNameError(
+                    """Trait keys cannot be 'name'!. Instead, use the 'name' attribute directly e.g., 
                                 >>> Agent(name="my_agent", traits={"trait1": "value1", "trait2": "value2"})
-                                """)
+                                """
+                )
         instance.__dict__[self.name] = traits_dict
 
     def __set_name__(self, owner, name: str) -> None:

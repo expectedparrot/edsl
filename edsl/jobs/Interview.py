@@ -4,7 +4,7 @@ import logging
 import textwrap
 from collections import UserList
 from typing import Any, Type, List, Generator, Callable, List
-from collections import defaultdict 
+from collections import defaultdict
 
 from edsl import CONFIG
 from edsl.agents import Agent
@@ -22,7 +22,11 @@ from edsl.surveys.base import EndOfSurvey
 from edsl.jobs.buckets import ModelBuckets
 from edsl.jobs.token_tracking import TokenUsage, InterviewTokenUsage
 
-from edsl.jobs.task_management import InterviewStatusDictionary, QuestionTaskCreator, TasksList
+from edsl.jobs.task_management import (
+    InterviewStatusDictionary,
+    QuestionTaskCreator,
+    TasksList,
+)
 
 import traceback
 
@@ -69,7 +73,7 @@ class Interview:
         self.verbose = verbose
         self.answers: dict[str, str] = Answers()  # will get filled in
 
-        self.dag = self.survey.dag(textify=True)  
+        self.dag = self.survey.dag(textify=True)
         self.to_index = {
             name: index for index, name in enumerate(self.survey.question_names)
         }
@@ -77,18 +81,18 @@ class Interview:
         logger.info(f"Interview instantiated")
         self.task_creators = {}
 
-
     @property
     def token_usage(self) -> InterviewTokenUsage:
         "Determins how many tokens were used for the interview."
-        cached_tokens = TokenUsage(from_cache = True)
-        new_tokens = TokenUsage(from_cache = False)
+        cached_tokens = TokenUsage(from_cache=True)
+        new_tokens = TokenUsage(from_cache=False)
         for task_creator in self.task_creators.values():
             token_usage = task_creator.token_usage()
             cached_tokens += token_usage["cached_tokens"]
             new_tokens += token_usage["new_tokens"]
-        return InterviewTokenUsage(new_token_usage=new_tokens, cached_token_usage=cached_tokens)
-
+        return InterviewTokenUsage(
+            new_token_usage=new_tokens, cached_token_usage=cached_tokens
+        )
 
     @property
     def interview_status(self) -> InterviewStatusDictionary:
@@ -96,26 +100,29 @@ class Interview:
         status_dict = InterviewStatusDictionary()
         for task_creator in self.task_creators.values():
             status_dict[task_creator.task_status] += 1
-            status_dict['number_from_cache'] += task_creator.from_cache
+            status_dict["number_from_cache"] += task_creator.from_cache
         return status_dict
-    
+
     async def async_conduct_interview(
-        self, 
-        model_buckets: ModelBuckets, 
-        debug: bool = False, replace_missing: bool = True
+        self,
+        model_buckets: ModelBuckets,
+        debug: bool = False,
+        replace_missing: bool = True,
     ) -> tuple["Answers", List[dict[str, Any]]]:
         """
         Conducts an 'interview' asynchronously.
         """
 
-        # we create both tasks and invigilators lists. 
-        # this is because it's easier to extract info 
-        # we need from the invigilators list when a task fails. 
+        # we create both tasks and invigilators lists.
+        # this is because it's easier to extract info
+        # we need from the invigilators list when a task fails.
         # it's challenging to get info from failed asyncio tasks.
-        self.tasks, self.invigilators = self._build_question_tasks(debug=debug, model_buckets=model_buckets)
-                
+        self.tasks, self.invigilators = self._build_question_tasks(
+            debug=debug, model_buckets=model_buckets
+        )
+
         await asyncio.gather(*self.tasks, return_exceptions=not debug)
-            
+
         if replace_missing:
             self.answers.replace_missing_answers_with_none(self.survey)
 
@@ -123,7 +130,9 @@ class Interview:
 
         return self.answers, valid_results
 
-    def _extract_valid_results(self, tasks, invigialtors) -> Generator["Answers", None, None]:
+    def _extract_valid_results(
+        self, tasks, invigialtors
+    ) -> Generator["Answers", None, None]:
         """Extracts the valid results from the list of results."""
 
         # we only need to print the warning once if a task failed.
@@ -148,7 +157,7 @@ class Interview:
                     if not warning_printed:
                         warning_printed = True
                         print(warning_header)
-                    
+
                     error_message = f"Task `{task.edsl_name}` failed with `{exception.__class__.__name__}`:`{exception}`."
                     logger.error(error_message)
                     print(error_message)
@@ -158,9 +167,9 @@ class Interview:
                 else:
                     # No exception means the task completed successfully
                     pass
-    
+
                 yield result
-    
+
     def _build_question_tasks(self, debug, model_buckets) -> List[asyncio.Task]:
         """Creates a task for each question, with dependencies on the questions that must be answered before this one can be answered."""
         logger.info("Creating tasks for each question")
@@ -173,10 +182,10 @@ class Interview:
             )
             # creates the task for that question
             question_task = self._create_question_task(
-                question = question, 
-                tasks_that_must_be_completed_before = tasks_that_must_be_completed_before, 
-                model_buckets = model_buckets,
-                debug = debug
+                question=question,
+                tasks_that_must_be_completed_before=tasks_that_must_be_completed_before,
+                model_buckets=model_buckets,
+                debug=debug,
             )
             # adds the task to the list of tasks
             tasks.append(question_task)
@@ -202,13 +211,13 @@ class Interview:
         model_buckets: ModelBuckets,
         debug,
     ):
-        """Creates a task that depends on the passed-in dependencies that are awaited before the task is run.
-        """
-        task_creator = QuestionTaskCreator(question = question, 
-                                            answer_question_func=self._answer_question_and_record_task, 
-                                            token_estimator=self._get_estimated_request_tokens,
-                                            model_buckets = model_buckets
-                                           )
+        """Creates a task that depends on the passed-in dependencies that are awaited before the task is run."""
+        task_creator = QuestionTaskCreator(
+            question=question,
+            answer_question_func=self._answer_question_and_record_task,
+            token_estimator=self._get_estimated_request_tokens,
+            model_buckets=model_buckets,
+        )
         [task_creator.add_dependency(x) for x in tasks_that_must_be_completed_before]
         self.task_creators[question.question_name] = task_creator
         return task_creator.generate_task(debug)
@@ -227,7 +236,7 @@ class Interview:
 
         return decorator
 
-    def get_invigilator(self, question, debug) -> 'Invigilator':
+    def get_invigilator(self, question, debug) -> "Invigilator":
         invigilator = self.agent.create_invigilator(
             question=question,
             scenario=self.scenario,
@@ -250,7 +259,7 @@ class Interview:
                 combined_text += prompt
             else:
                 raise ValueError(f"Prompt is of type {type(prompt)}")
-        return len(combined_text)/4.0
+        return len(combined_text) / 4.0
 
     @async_timeout_handler(TIMEOUT)
     async def _answer_question_and_record_task(
@@ -272,18 +281,21 @@ class Interview:
 
         # TODO: This should be forced to be a data-exchange model to cement attributes.
         return response
-    
 
     def _cancel_skipped_questions(self, current_question) -> None:
         """Cancels the tasks for questions that are skipped."""
         logger.info(f"Current question is {current_question.question_name}")
         current_question_index = self.to_index[current_question.question_name]
-        next_question = self.survey.rule_collection.next_question(q_now=current_question_index, answers=self.answers)
+        next_question = self.survey.rule_collection.next_question(
+            q_now=current_question_index, answers=self.answers
+        )
         next_question_index = next_question.next_q
 
         def cancel_between(start, end):
             for i in range(start, end):
-                logger.info(f"Cancelling task for question {i}; {self.tasks[i].edsl_name}")
+                logger.info(
+                    f"Cancelling task for question {i}; {self.tasks[i].edsl_name}"
+                )
                 self.tasks[i].cancel()
                 skipped_question_name = self.survey.question_names[i]
                 logger.info(f"{skipped_question_name} skipped.")
@@ -291,13 +303,12 @@ class Interview:
         if next_question_index == EndOfSurvey:
             cancel_between(current_question_index + 1, len(self.survey.questions))
             return
-        
+
         if next_question_index > (current_question_index + 1):
             cancel_between(current_question_index + 1, next_question_index)
-        
+
         self.tasks.status()
-    
-     
+
     #######################
     # Dunder methods
     #######################

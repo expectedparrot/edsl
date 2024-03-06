@@ -39,7 +39,7 @@ from edsl.agents.descriptors import (
     TraitsDescriptor,
     CodebookDescriptor,
     InstructionDescriptor,
-    NameDescriptor
+    NameDescriptor,
 )
 
 from edsl.utilities.decorators import sync_wrapper
@@ -121,7 +121,7 @@ class Agent(Base):
         {'age': 10, 'hair': 'brown', 'height': 5.5}
 
         The agent could have a a dynamic traits function (dynamic_traits_function) that returns a dictionary of traits
-        when called. This function can also take a question as an argument.  
+        when called. This function can also take a question as an argument.
         If so, the dynamic traits function is called and the result is returned.
         Otherwise, the traits are returned.
         """
@@ -156,7 +156,7 @@ class Agent(Base):
         debug: bool = False,
         memory_plan: Optional[MemoryPlan] = None,
         current_answers: Optional[dict] = None,
-    ) -> 'Invigilator':
+    ) -> "Invigilator":
         """
         An invigator is an object that is responsible administering a question to an agent and
         recording the responses.

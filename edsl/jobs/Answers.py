@@ -28,10 +28,10 @@ class Answers(UserDict):
     def from_dict(cls, d):
         "Returns an Answers object from a dictionary"
         return cls(d)
-    
+
     def rich_print(self):
         """Displays an object as a table."""
-        table = Table(title = "Answers")
+        table = Table(title="Answers")
         table.add_column("Attribute", style="bold")
         table.add_column("Value")
 
@@ -40,5 +40,3 @@ class Answers(UserDict):
             table.add_row(attr_name, repr(attr_value))
 
         return table
-
-

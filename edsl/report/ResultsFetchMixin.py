@@ -100,6 +100,7 @@ class ResultsFetchMixin:
 
 
 if __name__ == "__main__":
-    from edsl.results import Results 
+    from edsl.results import Results
+
     r = Results.example()
     r.word_cloud_plot("how_feeling_comment")

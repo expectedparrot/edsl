@@ -230,7 +230,7 @@ class LanguageModel(
 
     __rate_limits = None
     # TODO: Use the OpenAI Teir 1 rate limits
-    __default_rate_limits = {'rpm': 10_000, 'tpm': 2_000_000}
+    __default_rate_limits = {"rpm": 10_000, "tpm": 2_000_000}
     _safety_factor = 0.8
 
     def __init__(self, crud: CRUDOperations = CRUD, **kwargs):
@@ -259,7 +259,7 @@ class LanguageModel(
     def __hash__(self):
         "Allows the model to be used as a key in a dictionary"
         return hash(self.model + str(self.parameters))
-    
+
     def __eq__(self, other):
         return self.model == other.model and self.parameters == other.parameters
 
@@ -270,18 +270,18 @@ class LanguageModel(
             else:
                 self.__rate_limits = self.__default_rate_limits
 
-    @property    
+    @property
     def RPM(self):
         "Model's requests-per-minute limit"
         self._set_rate_limits()
-        return self._safety_factor * self.__rate_limits['rpm']
-    
+        return self._safety_factor * self.__rate_limits["rpm"]
+
     @property
     def TPM(self):
         "Model's tokens-per-minute limit"
         self._set_rate_limits()
-        return self._safety_factor * self.__rate_limits['tpm']
-    
+        return self._safety_factor * self.__rate_limits["tpm"]
+
     @staticmethod
     def _overide_default_parameters(passed_parameter_dict, default_parameter_dict):
         """Returns a dictionary of parameters, with passed parameters taking precedence over defaults.
@@ -417,10 +417,10 @@ class LanguageModel(
             dict_response, success = await repair(response, str(e))
             if not success:
                 raise Exception("Even the repair failed.")
-        
-        dict_response['cached_response'] = raw_response['cached_response']
-        dict_response['usage'] = raw_response.get('usage', {})
-        dict_response['raw_model_response'] = raw_response
+
+        dict_response["cached_response"] = raw_response["cached_response"]
+        dict_response["usage"] = raw_response.get("usage", {})
+        dict_response["raw_model_response"] = raw_response
         return dict_response
 
     get_response = sync_wrapper(async_get_response)

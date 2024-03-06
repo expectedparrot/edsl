@@ -12,11 +12,13 @@ from edsl.utilities.decorators import jupyter_nb_handler
 
 from edsl.jobs.JobsRunnerStatusMixin import JobsRunnerStatusMixin
 
+
 class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
     runner_name = "asyncio"
 
     async def run_async(
-        self, n=1, verbose=False, sleep=0, debug=False, progress_bar=False) -> AsyncGenerator[Result, None]:
+        self, n=1, verbose=False, sleep=0, debug=False, progress_bar=False
+    ) -> AsyncGenerator[Result, None]:
         """Creates the tasks, runs them asynchronously, and returns the results as a Results object.
         Completed tasks are yielded as they are completed.
         """
@@ -26,23 +28,25 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
             yield result
 
     def _create_all_interview_tasks(self, interviews, debug) -> List[asyncio.Task]:
-        """Creates an awaitable task for each interview.
-        """
+        """Creates an awaitable task for each interview."""
         tasks = []
         for i, interview in enumerate(interviews):
             interviewing_task = self._interview_task(interview, i, debug)
             tasks.append(asyncio.create_task(interviewing_task))
         return tasks
 
-    async def _interview_task(self, interview: Interview, i: int, debug: bool) -> Result:
-        """Conducts an interview and returns the result.
-        """
+    async def _interview_task(
+        self, interview: Interview, i: int, debug: bool
+    ) -> Result:
+        """Conducts an interview and returns the result."""
         # the model buckets are used to track usage rates
         model_buckets = self.bucket_collection[interview.model]
 
         # get the results of the interview
-        answer, valid_results = await interview.async_conduct_interview(debug=debug, model_buckets = model_buckets)
-        #breakpoint()
+        answer, valid_results = await interview.async_conduct_interview(
+            debug=debug, model_buckets=model_buckets
+        )
+        # breakpoint()
 
         # we should have a valid result for each question
         answer_key_names = {k for k in set(answer.keys()) if not k.endswith("_comment")}
@@ -68,7 +72,9 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
         raw_model_results_dictionary = {}
         for result in valid_results:
             question_name = result["question_name"]
-            raw_model_results_dictionary[question_name + "_raw_model_response"] = result['raw_model_response']
+            raw_model_results_dictionary[
+                question_name + "_raw_model_response"
+            ] = result["raw_model_response"]
 
         result = Result(
             agent=interview.agent,
@@ -77,11 +83,10 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
             iteration=i,
             answer=answer,
             prompt=prompt_dictionary,
-            raw_model_response = raw_model_results_dictionary
+            raw_model_response=raw_model_results_dictionary,
         )
         return result
-    
-    
+
     @jupyter_nb_handler
     async def run(
         self, n=1, verbose=True, sleep=0, debug=False, progress_bar=False
@@ -94,7 +99,11 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
 
         live = None
         if progress_bar:
-            live = Live(self._generate_status_table(data, 0), console=console, refresh_per_second=10)
+            live = Live(
+                self._generate_status_table(data, 0),
+                console=console,
+                refresh_per_second=10,
+            )
             live.__enter__()  # Manually enter the Live context
 
         async for result in self.run_async(n, verbose, sleep, debug, progress_bar):

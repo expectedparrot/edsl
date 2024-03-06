@@ -14,13 +14,13 @@ from edsl.utilities import is_notebook
 
 from edsl.Base import Base
 
-from collections import UserDict 
+from collections import UserDict
+
 
 class PromptDict(UserDict):
-
     def rich_print(self):
         """Displays an object as a table."""
-        table = Table(title = "")
+        table = Table(title="")
         table.add_column("Attribute", style="bold")
         table.add_column("Value")
 
@@ -65,7 +65,7 @@ class Result(Base, UserDict):
         iteration: int,
         answer: str,
         prompt: dict[str, str] = None,
-        raw_model_response = None,
+        raw_model_response=None,
     ):
         # initialize the UserDict
         data = {
@@ -75,7 +75,7 @@ class Result(Base, UserDict):
             "iteration": iteration,
             "answer": answer,
             "prompt": prompt or {},
-            "raw_model_response": raw_model_response or {}
+            "raw_model_response": raw_model_response or {},
         }
         super().__init__(**data)
         # but also store the data as attributes
@@ -105,7 +105,7 @@ class Result(Base, UserDict):
             "model": self.model.parameters | {"model": self.model.model},
             "answer": self.answer,
             "prompt": self.prompt,
-            "raw_model_response": self.raw_model_response
+            "raw_model_response": self.raw_model_response,
         }
 
     def code(self):
@@ -132,7 +132,14 @@ class Result(Base, UserDict):
     def key_to_data_type(self) -> dict[str, str]:
         """Returns a dictionary where keys are object attributes and values are the data type (object) that the attribute is associated with."""
         d = {}
-        for data_type in ["agent", "scenario", "model", "answer", "prompt", "raw_model_response"]:
+        for data_type in [
+            "agent",
+            "scenario",
+            "model",
+            "answer",
+            "prompt",
+            "raw_model_response",
+        ]:
             for key in self.sub_dicts[data_type]:
                 d[key] = data_type
         return d
@@ -171,14 +178,17 @@ class Result(Base, UserDict):
             iteration=json_dict["iteration"],
             answer=json_dict["answer"],
             prompt=json_dict["prompt"],
-            raw_model_response = json_dict.get("raw_model_response", {'raw_model_response': "No raw model response"})
+            raw_model_response=json_dict.get(
+                "raw_model_response", {"raw_model_response": "No raw model response"}
+            ),
         )
         return result
 
     def rich_print(self):
         """Displays an object as a table."""
-        #from edsl.utilities import print_dict_with_rich
+        # from edsl.utilities import print_dict_with_rich
         from rich import print
+
         table = Table(title="Result")
         table.add_column("Attribute", style="bold")
         table.add_column("Value")
