@@ -37,11 +37,15 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
     async def _interview_task(self, interview: Interview, i: int, debug: bool) -> Result:
         """Conducts an interview and returns the result.
         """
+        # the model buckets are used to track usage rates
         model_buckets = self.bucket_collection[interview.model]
+
+        # get the results of the interview
         answer, valid_results = await interview.async_conduct_interview(debug=debug, model_buckets = model_buckets)
+        #breakpoint()
 
+        # we should have a valid result for each question
         answer_key_names = {k for k in set(answer.keys()) if not k.endswith("_comment")}
-
         assert len(valid_results) == len(answer_key_names)
 
         question_name_to_prompts = dict({})
@@ -61,6 +65,11 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
                 answer_key_name + "_system_prompt"
             ] = question_name_to_prompts[answer_key_name]["system_prompt"]
 
+        raw_model_results_dictionary = {}
+        for result in valid_results:
+            question_name = result["question_name"]
+            raw_model_results_dictionary[question_name + "_raw_model_response"] = result['raw_model_response']
+
         result = Result(
             agent=interview.agent,
             scenario=interview.scenario,
@@ -68,7 +77,7 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
             iteration=i,
             answer=answer,
             prompt=prompt_dictionary,
-            raw_model_response = {}
+            raw_model_response = raw_model_results_dictionary
         )
         return result
     

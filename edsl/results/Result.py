@@ -105,7 +105,7 @@ class Result(Base, UserDict):
             "model": self.model.parameters | {"model": self.model.model},
             "answer": self.answer,
             "prompt": self.prompt,
-            "raw_model_response": {'raw_model_response': self.raw_model_response}
+            "raw_model_response": self.raw_model_response
         }
 
     def code(self):
