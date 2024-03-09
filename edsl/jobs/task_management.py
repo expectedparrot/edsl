@@ -110,12 +110,12 @@ class QuestionTaskCreator(UserList):
 
         self.task_status = TaskStatus.NOT_STARTED
 
-    def add_dependency(self, task) -> None:
+    def add_dependency(self, task: asyncio.Task) -> None:
         """Adds a task dependency to the list of dependencies."""
         self.append(task)
 
     def __repr__(self):
-        return f"QuestionTaskCreator for {self.question.question_name}"
+        return f"QuestionTaskCreator(question = {repr(self.question)})"
 
     def generate_task(self, debug) -> asyncio.Task:
         """Creates a task that depends on the passed-in dependencies."""
@@ -188,6 +188,7 @@ class QuestionTaskCreator(UserList):
             # This does *not* use the return_exceptions = True flag, so if any of the tasks fail,
             # it throws the exception immediately, which is what we want.
             self.task_status = TaskStatus.WAITING_ON_DEPENDENCIES
+            # The 'self' here is a list of tasks that must be completed before this one can be run.
             await asyncio.gather(*self)
         except asyncio.CancelledError:
             self.status = TaskStatus.CANCELLED
