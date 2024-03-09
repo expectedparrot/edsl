@@ -3,7 +3,7 @@ from edsl import Model
 
 
 def test_failure():
-    # https://github.com/goemeritus/edsl/issues/78
+    # https://github.com/expectedparrot/edsl/issues/78
     m35 = Model("gpt-3.5-turbo")
     m4 = Model("gpt-4-1106-preview")
 
