@@ -23,14 +23,18 @@ class TaskStatus(enum.Enum):
     TOKEN_CAPACITY_ACQUIRED = enum.auto()
     API_CALL_IN_PROGRESS = enum.auto()
     API_CALL_COMPLETE = enum.auto()
+    FINISHED = enum.auto()
 
 
 class InterviewStatusDictionary(UserDict):
+    "A dictionary that keeps track of the status of all the tasks in an interview."
     def __init__(self, data=None):
         if data:
+            # checks to make sure every task status is in the enum
             assert all([task_status in data for task_status in TaskStatus])
             super().__init__(data)
         else:
+            # sets all the task statuses to 0
             d = {}
             for task_status in TaskStatus:
                 d[task_status] = 0
@@ -53,6 +57,7 @@ class InterviewStatusDictionary(UserDict):
 
 
 class TaskStatusDescriptor:
+    "The descriptor ensures that the task status is always an instance of the TaskStatus enum."
     def __init__(self):
         self._task_status = None
 
@@ -62,7 +67,6 @@ class TaskStatusDescriptor:
     def __set__(self, instance, value):
         if not isinstance(value, TaskStatus):
             raise ValueError("Value must be an instance of TaskStatus enum")
-        # logging.info(f"TaskStatus changed for {instance} from {self._task_status} to {value}")
         self._task_status = value
 
     def __delete__(self, instance):
@@ -92,7 +96,11 @@ class QuestionTaskCreator(UserList):
         self.model_buckets = model_buckets
         self.requests_bucket = self.model_buckets.requests_bucket
         self.tokens_bucket = self.model_buckets.tokens_bucket
-        self.token_estimator = token_estimator
+        
+        def fake_token_estimator(question):
+            return 1
+        
+        self.token_estimator = token_estimator or fake_token_estimator
 
         self.from_cache = False
 
@@ -152,6 +160,7 @@ class QuestionTaskCreator(UserList):
 
         if "cached_response" in results:
             if results["cached_response"]:
+                # Gives back the tokens b/c the API was not called.
                 self.tokens_bucket.add_tokens(requested_tokens)
                 self.requests_bucket.add_tokens(1)
                 self.from_cache = True
@@ -166,6 +175,7 @@ class QuestionTaskCreator(UserList):
         tracker.add_tokens(
             prompt_tokens=prompt_tokens, completion_tokens=completion_tokens
         )
+        self.task_status = TaskStatus.FINISHED
 
         return results
 
