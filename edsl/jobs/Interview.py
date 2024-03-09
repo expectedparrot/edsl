@@ -7,8 +7,14 @@ from collections import UserList
 from typing import Any, Type, List, Generator, Callable, List, Tuple
 from collections import defaultdict
 
-#from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type, AsyncRetrying, before_sleep
-from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type, before_sleep
+# from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type, AsyncRetrying, before_sleep
+from tenacity import (
+    retry,
+    wait_exponential,
+    stop_after_attempt,
+    retry_if_exception_type,
+    before_sleep,
+)
 
 
 from edsl import CONFIG
@@ -53,31 +59,38 @@ logger.addHandler(fh)
 logger.info("Interview.py loaded")
 
 TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
-BACKOFF_START_SEC = float(CONFIG.get("BACKOFF_START_SEC"))
-MAX_BACKOFF_SEC = float(CONFIG.get("MAX_BACKOFF_SEC"))
-MAX_ATTEMPTS = int(CONFIG.get("MAX_ATTEMPTS"))
+EDSL_BACKOFF_START_SEC = float(CONFIG.get("EDSL_BACKOFF_START_SEC"))
+EDSL_MAX_BACKOFF_SEC = float(CONFIG.get("EDSL_MAX_BACKOFF_SEC"))
+EDSL_MAX_ATTEMPTS = int(CONFIG.get("EDSL_MAX_ATTEMPTS"))
+
 
 def print_retry(retry_state):
     "Prints details on tenacity retries"
     attempt_number = retry_state.attempt_number
     exception = retry_state.outcome.exception()
     wait_time = retry_state.next_action.sleep
-    print(f"Attempt {attempt_number} failed with exception: {exception}; "
-          f"now waiting {wait_time:.2f} seconds before retrying.")
+    print(
+        f"Attempt {attempt_number} failed with exception: {exception}; "
+        f"now waiting {wait_time:.2f} seconds before retrying."
+    )
 
 
 retry_strategy = retry(
-    wait=wait_exponential(multiplier=BACKOFF_START_SEC, max=MAX_BACKOFF_SEC),  # Exponential back-off starting at 1s, doubling, maxing out at 60s
-    stop=stop_after_attempt(MAX_ATTEMPTS),  # Stop after 5 attempts
-    #retry=retry_if_exception_type(Exception),  # Customize this as per your specific retry-able exception
-    before_sleep=print_retry  # Use custom print function for retries
+    wait=wait_exponential(
+        multiplier=EDSL_BACKOFF_START_SEC, max=EDSL_MAX_BACKOFF_SEC
+    ),  # Exponential back-off starting at 1s, doubling, maxing out at 60s
+    stop=stop_after_attempt(EDSL_MAX_ATTEMPTS),  # Stop after 5 attempts
+    # retry=retry_if_exception_type(Exception),  # Customize this as per your specific retry-able exception
+    before_sleep=print_retry,  # Use custom print function for retries
 )
 
 retry_strategy = retry(
-    wait=wait_exponential(multiplier=1, max=60),  # Exponential back-off starting at 1s, doubling, maxing out at 60s
+    wait=wait_exponential(
+        multiplier=1, max=60
+    ),  # Exponential back-off starting at 1s, doubling, maxing out at 60s
     stop=stop_after_attempt(5),  # Stop after 5 attempts
-    #retry=retry_if_exception_type(Exception),  # Customize this as per your specific retry-able exception
-    before_sleep=print_retry  # Use custom print function for retries
+    # retry=retry_if_exception_type(Exception),  # Customize this as per your specific retry-able exception
+    before_sleep=print_retry,  # Use custom print function for retries
 )
 
 
@@ -85,6 +98,7 @@ class Interview:
     """
     An 'interview' is one agent answering one survey, with one language model, for a given scenario.
     """
+
     def __init__(
         self,
         agent: Agent,
@@ -113,7 +127,7 @@ class Interview:
         logger.info(f"Interview instantiated")
         # task creators is a dictionary that maps question names to their task creators.
         # this is used to track the status of each task for real-time reporting on status of a job
-        # being executed. 
+        # being executed.
         # 1 task = 1 question.
         self.task_creators = {}
 
@@ -172,7 +186,9 @@ class Interview:
 
         return self.answers, valid_results
 
-    def _extract_valid_results(self, print_traceback = False) -> Generator["Answers", None, None]:
+    def _extract_valid_results(
+        self, print_traceback=False
+    ) -> Generator["Answers", None, None]:
         """Extracts the valid results from the list of results."""
 
         # we only need to print the warning once if a task failed.
@@ -189,10 +205,10 @@ class Interview:
             logger.info(f"Iterating through task: {task}")
             if task.done():
                 try:
-                    # it worked! 
+                    # it worked!
                     result = task.result()
                 except asyncio.CancelledError:
-                    # task was cancelled 
+                    # task was cancelled
                     logger.info(f"Task `{task.edsl_name}` was cancelled.")
                     result = invigilator.get_failed_task_result()
                 except Exception as exception:
@@ -213,9 +229,9 @@ class Interview:
 
                 yield result
 
-    def _build_question_tasks(self, 
-            debug:bool, 
-            model_buckets: ModelBuckets) -> Tuple[List[asyncio.Task], List['Invigilators']]:
+    def _build_question_tasks(
+        self, debug: bool, model_buckets: ModelBuckets
+    ) -> Tuple[List[asyncio.Task], List["Invigilators"]]:
         """Creates a task for each question, with dependencies on the questions that must be answered before this one can be answered."""
         logger.info("Creating tasks for each question")
         tasks = []
@@ -333,7 +349,6 @@ class Interview:
         # TODO: This should be forced to be a data-exchange model to cement attributes.
         return response
 
-
     def _cancel_skipped_questions(self, current_question) -> None:
         """Cancels the tasks for questions that are skipped."""
         logger.info(f"Current question is {current_question.question_name}")
@@ -402,7 +417,7 @@ if __name__ == "__main__":
 
     def direct_question_answering_method(self, question, scenario):
         raise Exception("Fuck you!")
-        #return "yes"
+        # return "yes"
 
     a.add_direct_question_answering_method(direct_question_answering_method)
     scenario = Scenario()
