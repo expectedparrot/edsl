@@ -51,9 +51,6 @@ class InterviewStatusDictionary(UserDict):
         return f"InterviewStatusDictionary({self.data})"
 
 
-# Configure logging
-# logging.basicConfig(level=logging.INFO)
-
 
 class TaskStatusDescriptor:
     def __init__(self):
