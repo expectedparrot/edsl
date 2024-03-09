@@ -194,13 +194,15 @@ class Jobs(Base):
         else:
             self.job_runner_name = "asyncio"
 
-        if (emeritus_api_key := CONFIG.get("EMERITUS_API_KEY")) == "local":
+        if (
+            expected_parrot_api_key := CONFIG.get("EXPECTED_PARROT_API_KEY")
+        ) == "local":
             results = self._run_local(
                 n=n, verbose=verbose, debug=debug, progress_bar=progress_bar, db=db
             )
         else:
             results = self._run_remote(
-                api_key=emeritus_api_key, job_dict=self.to_dict()
+                api_key=expected_parrot_api_key, job_dict=self.to_dict()
             )
 
         return results
