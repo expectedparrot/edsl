@@ -34,10 +34,10 @@ CONFIG_MAP = {
         "allowed": None,
         "user_message": "What is the maximum number of seconds to wait for an API call to return?",
     },
-    "EMERITUS_API_KEY": {
+    "EXPECTED_PARROT_API_KEY": {
         "default": "local",
         "allowed": None,
-        "user_message": "Please provide your Emeritus API key (https://emeritus.org/).",
+        "user_message": "Please provide your Expected Parrot API key (https://www.expectedparrot.com/).",
     },
     "OPENAI_API_KEY": {
         "default": None,

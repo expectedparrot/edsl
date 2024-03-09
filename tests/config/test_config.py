@@ -50,19 +50,19 @@ def test_config_store_and_load(test_config):
     assert test_config.OPENAI_API_KEY == MOCK_ENV_VARS["OPENAI_API_KEY"]
     assert os.getenv("OPENAI_API_KEY") == test_config.OPENAI_API_KEY
     # both in the object and in the env for vars that are not given but have default
-    assert test_config.EMERITUS_API_KEY == CONFIG_MAP.get("EMERITUS_API_KEY").get(
-        "default"
-    )
-    assert os.getenv("EMERITUS_API_KEY") == test_config.EMERITUS_API_KEY
+    assert test_config.EXPECTED_PARROT_API_KEY == CONFIG_MAP.get(
+        "EXPECTED_PARROT_API_KEY"
+    ).get("default")
+    assert os.getenv("EXPECTED_PARROT_API_KEY") == test_config.EXPECTED_PARROT_API_KEY
 
 
 def test_config_invalid_var(mock_env):
     """Test that Config() raises an error if a var value is not allowed."""
     with patch(
         "os.getenv",
-        lambda var_name, default=None: "invalid"
-        if var_name == "EDSL_RUN_MODE"
-        else mock_getenv(var_name),
+        lambda var_name, default=None: (
+            "invalid" if var_name == "EDSL_RUN_MODE" else mock_getenv(var_name)
+        ),
     ):
         with pytest.raises(InvalidEnvironmentVariableError):
             Config()
