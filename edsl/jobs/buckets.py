@@ -116,6 +116,18 @@ class ModelBuckets:
             tokens_bucket=self.tokens_bucket + other.tokens_bucket,
         )
 
+    @classmethod
+    def infinity_bucket(cls, model_name: str = "not_specified") -> "ModelBuckets":
+        """Create a bucket with infinite capacity and refill rate."""
+        return cls(
+            requests_bucket=TokenBucket(
+                bucket_name=model_name, bucket_type="requests", capacity=float("inf"), refill_rate=float("inf")
+            ),
+            tokens_bucket=TokenBucket(
+                bucket_name=model_name, bucket_type="tokens", capacity=float("inf"), refill_rate=float("inf")
+            ),
+        )
+
     def visualize(self):
         plot1 = self.requests_bucket.visualize()
         plot2 = self.tokens_bucket.visualize()

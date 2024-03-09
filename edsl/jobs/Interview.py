@@ -1,10 +1,21 @@
 from __future__ import annotations
+import traceback
 import asyncio
 import logging
 import textwrap
 from collections import UserList
-from typing import Any, Type, List, Generator, Callable, List
+from typing import Any, Type, List, Generator, Callable, List, Tuple
 from collections import defaultdict
+
+# from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type, AsyncRetrying, before_sleep
+from tenacity import (
+    retry,
+    wait_exponential,
+    stop_after_attempt,
+    retry_if_exception_type,
+    before_sleep,
+)
+
 
 from edsl import CONFIG
 from edsl.agents import Agent
@@ -28,7 +39,6 @@ from edsl.jobs.task_management import (
     TasksList,
 )
 
-import traceback
 
 # create logger
 logger = logging.getLogger(__name__)
@@ -49,11 +59,44 @@ logger.addHandler(fh)
 logger.info("Interview.py loaded")
 
 TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
+EDSL_BACKOFF_START_SEC = float(CONFIG.get("EDSL_BACKOFF_START_SEC"))
+EDSL_MAX_BACKOFF_SEC = float(CONFIG.get("EDSL_MAX_BACKOFF_SEC"))
+EDSL_MAX_ATTEMPTS = int(CONFIG.get("EDSL_MAX_ATTEMPTS"))
+
+
+def print_retry(retry_state):
+    "Prints details on tenacity retries"
+    attempt_number = retry_state.attempt_number
+    exception = retry_state.outcome.exception()
+    wait_time = retry_state.next_action.sleep
+    print(
+        f"Attempt {attempt_number} failed with exception: {exception}; "
+        f"now waiting {wait_time:.2f} seconds before retrying."
+    )
+
+
+retry_strategy = retry(
+    wait=wait_exponential(
+        multiplier=EDSL_BACKOFF_START_SEC, max=EDSL_MAX_BACKOFF_SEC
+    ),  # Exponential back-off starting at 1s, doubling, maxing out at 60s
+    stop=stop_after_attempt(EDSL_MAX_ATTEMPTS),  # Stop after 5 attempts
+    # retry=retry_if_exception_type(Exception),  # Customize this as per your specific retry-able exception
+    before_sleep=print_retry,  # Use custom print function for retries
+)
+
+retry_strategy = retry(
+    wait=wait_exponential(
+        multiplier=1, max=60
+    ),  # Exponential back-off starting at 1s, doubling, maxing out at 60s
+    stop=stop_after_attempt(5),  # Stop after 5 attempts
+    # retry=retry_if_exception_type(Exception),  # Customize this as per your specific retry-able exception
+    before_sleep=print_retry,  # Use custom print function for retries
+)
 
 
 class Interview:
     """
-    A class that has an Agent answer Survey Questions with a particular Scenario and using a LanguageModel.
+    An 'interview' is one agent answering one survey, with one language model, for a given scenario.
     """
 
     def __init__(
@@ -73,12 +116,19 @@ class Interview:
         self.verbose = verbose
         self.answers: dict[str, str] = Answers()  # will get filled in
 
+        # The DAG, or directed acyclic graph, is a dictionary that maps question names to their dependencies.
+        # It is used to determine the order in which questions should be answered.
+        # This reflects both agent 'memory' considerations and 'skip' logic.
         self.dag = self.survey.dag(textify=True)
         self.to_index = {
             name: index for index, name in enumerate(self.survey.question_names)
         }
 
         logger.info(f"Interview instantiated")
+        # task creators is a dictionary that maps question names to their task creators.
+        # this is used to track the status of each task for real-time reporting on status of a job
+        # being executed.
+        # 1 task = 1 question.
         self.task_creators = {}
 
     @property
@@ -105,13 +155,19 @@ class Interview:
 
     async def async_conduct_interview(
         self,
-        model_buckets: ModelBuckets,
+        model_buckets: ModelBuckets = None,
         debug: bool = False,
         replace_missing: bool = True,
     ) -> tuple["Answers", List[dict[str, Any]]]:
         """
-        Conducts an 'interview' asynchronously.
+        Conducts an interview asynchronously.
+        params
+        - `model_buckets`: a dictionary of token buckets for the model
+        - `debug`: prints debug messages
+        - `replace_missing`: if True, replaces missing answers with None
         """
+        # if no model bucket is passed, create an 'infinity' bucket with no rate limits
+        model_buckets = model_buckets or ModelBuckets.infinity_bucket()
 
         # we create both tasks and invigilators lists.
         # this is because it's easier to extract info
@@ -126,12 +182,12 @@ class Interview:
         if replace_missing:
             self.answers.replace_missing_answers_with_none(self.survey)
 
-        valid_results = list(self._extract_valid_results(self.tasks, self.invigilators))
+        valid_results = list(self._extract_valid_results())
 
         return self.answers, valid_results
 
     def _extract_valid_results(
-        self, tasks, invigialtors
+        self, print_traceback=False
     ) -> Generator["Answers", None, None]:
         """Extracts the valid results from the list of results."""
 
@@ -149,11 +205,14 @@ class Interview:
             logger.info(f"Iterating through task: {task}")
             if task.done():
                 try:
+                    # it worked!
                     result = task.result()
                 except asyncio.CancelledError:
+                    # task was cancelled
                     logger.info(f"Task `{task.edsl_name}` was cancelled.")
                     result = invigilator.get_failed_task_result()
                 except Exception as exception:
+                    # any other kind of exception in the task
                     if not warning_printed:
                         warning_printed = True
                         print(warning_header)
@@ -161,8 +220,8 @@ class Interview:
                     error_message = f"Task `{task.edsl_name}` failed with `{exception.__class__.__name__}`:`{exception}`."
                     logger.error(error_message)
                     print(error_message)
-                    traceback.print_exc()
-                    # if task failed, we use the invigilator to get the failed task result
+                    if print_traceback:
+                        traceback.print_exc()
                     result = invigilator.get_failed_task_result()
                 else:
                     # No exception means the task completed successfully
@@ -170,7 +229,9 @@ class Interview:
 
                 yield result
 
-    def _build_question_tasks(self, debug, model_buckets) -> List[asyncio.Task]:
+    def _build_question_tasks(
+        self, debug: bool, model_buckets: ModelBuckets
+    ) -> Tuple[List[asyncio.Task], List["Invigilators"]]:
         """Creates a task for each question, with dependencies on the questions that must be answered before this one can be answered."""
         logger.info("Creating tasks for each question")
         tasks = []
@@ -264,14 +325,20 @@ class Interview:
     @async_timeout_handler(TIMEOUT)
     async def _answer_question_and_record_task(
         self,
-        question,
-        debug,
+        question: Question,
+        debug: bool,
     ) -> AgentResponseDict:
         """Answers a question and records the task.
         This in turn calls the the passed-in agent's async_answer_question method, which returns a response dictionary.
         """
         invigilator = self.get_invigilator(question, debug=debug)
-        response: AgentResponseDict = await invigilator.async_answer_question()
+
+        @retry_strategy
+        async def attempt_to_answer_question():
+            return await invigilator.async_answer_question()
+
+        response: AgentResponseDict = await attempt_to_answer_question()
+
         # TODO: Move this back into actual agent response dict and enforce it.
         response["question_name"] = question.question_name
 
@@ -317,56 +384,6 @@ class Interview:
         return f"Interview(agent = {self.agent}, survey = {self.survey}, scenario = {self.scenario}, model = {self.model})"
 
 
-# def main():
-#     from edsl.language_models import LanguageModelOpenAIThreeFiveTurbo
-#     from edsl.agents import Agent
-#     from edsl.surveys import Survey
-#     from edsl.scenarios import Scenario
-#     from edsl.questions import QuestionMultipleChoice
-
-#     # from edsl.jobs.Interview import Interview
-
-#     #  a survey with skip logic
-#     q0 = QuestionMultipleChoice(
-#         question_text="Do you like school?",
-#         question_options=["yes", "no"],
-#         question_name="q0",
-#     )
-#     q1 = QuestionMultipleChoice(
-#         question_text="Why not?",
-#         question_options=["killer bees in cafeteria", "other"],
-#         question_name="q1",
-#     )
-#     q2 = QuestionMultipleChoice(
-#         question_text="Why?",
-#         question_options=["**lack*** of killer bees in cafeteria", "other"],
-#         question_name="q2",
-#     )
-#     s = Survey(questions=[q0, q1, q2])
-#     s = s.add_rule(q0, "q0 == 'yes'", q2)
-
-#     # create an interview
-#     a = Agent(traits=None)
-
-#     def direct_question_answering_method(self, question, scenario):
-#         return "yes"
-
-#     a.add_direct_question_answering_method(direct_question_answering_method)
-#     scenario = Scenario()
-#     m = LanguageModelOpenAIThreeFiveTurbo(use_cache=False)
-#     I = Interview(agent=a, survey=s, scenario=scenario, model=m)
-
-#     I.conduct_interview()
-#     # # conduct five interviews
-#     # for _ in range(5):
-#     #     I.conduct_interview(debug=True)
-
-#     # # replace missing answers
-#     # I
-#     # repr(I)
-#     # eval(repr(I))
-
-
 if __name__ == "__main__":
     from edsl.language_models import LanguageModelOpenAIThreeFiveTurbo
     from edsl.agents import Agent
@@ -399,14 +416,15 @@ if __name__ == "__main__":
     a = Agent(traits=None)
 
     def direct_question_answering_method(self, question, scenario):
-        return "yes"
+        raise Exception("Fuck you!")
+        # return "yes"
 
     a.add_direct_question_answering_method(direct_question_answering_method)
     scenario = Scenario()
     m = LanguageModelOpenAIThreeFiveTurbo(use_cache=False)
     I = Interview(agent=a, survey=s, scenario=scenario, model=m)
 
-    I.conduct_interview()
+    result = asyncio.run(I.async_conduct_interview())
     # # conduct five interviews
     # for _ in range(5):
     #     I.conduct_interview(debug=True)

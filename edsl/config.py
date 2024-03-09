@@ -34,6 +34,21 @@ CONFIG_MAP = {
         "allowed": None,
         "user_message": "What is the maximum number of seconds to wait for an API call to return?",
     },
+    "EDSL_BACKOFF_START_SEC": {
+        "default": "1",
+        "allowed": None,
+        "user_message": "What is the number of seconds to wait before retrying a failed API call?",
+    },
+    "EDSL_MAX_BACKOFF_SEC": {
+        "default": "60",
+        "allowed": None,
+        "user_message": "What is the maximum number of seconds to wait before retrying a failed API call?",
+    },
+    "EDSL_MAX_ATTEMPTS": {
+        "default": "5",
+        "allowed": None,
+        "user_message": "What is the maximum number of times to retry a failed API call?",
+    },
     "EXPECTED_PARROT_API_KEY": {
         "default": "local",
         "allowed": None,
