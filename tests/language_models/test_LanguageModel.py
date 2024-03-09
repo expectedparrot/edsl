@@ -113,6 +113,7 @@ class TestLanguageModel(unittest.TestCase):
             use_cache=True,
             model="fake model",
             parameters={"temperature": 0.5},
+            iteration = 1
         )
         m.get_response(
             user_prompt="Hello world", system_prompt="You are a helpful agent"
@@ -125,6 +126,7 @@ class TestLanguageModel(unittest.TestCase):
             "system_prompt": "You are a helpful agent",
             "prompt": "Hello world",
             "output": '{"message": "{\\"answer\\": \\"Hello world\\"}"}',
+            "iteration": 1,
         }
 
         self.assertEqual(self.crud.get_all_LLMOutputData(), [expected_response])
