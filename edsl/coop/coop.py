@@ -8,13 +8,13 @@ from edsl.surveys import Survey
 
 api_url = {
     "development": "http://127.0.0.1:8000",
-    "production": "https://api.goemeritus.com",
+    "production": "https://www.expectedparrot.com",
 }
 
 
 class Coop:
     def __init__(self, api_key: str = None, run_mode: str = None) -> None:
-        self.api_key = api_key or CONFIG.EMERITUS_API_KEY
+        self.api_key = api_key or CONFIG.EXPECTED_PARROT_API_KEY
         self.run_mode = run_mode or CONFIG.EDSL_RUN_MODE
 
     def __repr__(self):
