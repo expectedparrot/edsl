@@ -54,6 +54,21 @@ CONFIG_MAP = {
         "allowed": None,
         "user_message": "Please provide your Google API key (https://console.cloud.google.com/apis/credentials).",
     },
+    "BACKOFF_START_SEC": {
+        "default": "1",
+        "allowed": None,
+        "user_message": "What is the number of seconds to wait before retrying a failed API call?",
+    },
+    "MAX_BACKOFF_SEC": {
+        "default": "60",
+        "allowed": None,
+        "user_message": "What is the maximum number of seconds to wait before retrying a failed API call?",
+    },
+    "MAX_ATTEMPTS": {
+        "default": "5",
+        "allowed": None,
+        "user_message": "What is the maximum number of times to retry a failed API call?",
+    },
 }
 
 

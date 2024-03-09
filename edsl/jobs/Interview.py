@@ -53,7 +53,9 @@ logger.addHandler(fh)
 logger.info("Interview.py loaded")
 
 TIMEOUT = float(CONFIG.get("API_CALL_TIMEOUT_SEC"))
-
+BACKOFF_START_SEC = float(CONFIG.get("BACKOFF_START_SEC"))
+MAX_BACKOFF_SEC = float(CONFIG.get("MAX_BACKOFF_SEC"))
+MAX_ATTEMPTS = int(CONFIG.get("MAX_ATTEMPTS"))
 
 def print_retry(retry_state):
     "Prints details on tenacity retries"
@@ -63,6 +65,13 @@ def print_retry(retry_state):
     print(f"Attempt {attempt_number} failed with exception: {exception}; "
           f"now waiting {wait_time:.2f} seconds before retrying.")
 
+
+retry_strategy = retry(
+    wait=wait_exponential(multiplier=BACKOFF_START_SEC, max=MAX_BACKOFF_SEC),  # Exponential back-off starting at 1s, doubling, maxing out at 60s
+    stop=stop_after_attempt(MAX_ATTEMPTS),  # Stop after 5 attempts
+    #retry=retry_if_exception_type(Exception),  # Customize this as per your specific retry-able exception
+    before_sleep=print_retry  # Use custom print function for retries
+)
 
 retry_strategy = retry(
     wait=wait_exponential(multiplier=1, max=60),  # Exponential back-off starting at 1s, doubling, maxing out at 60s
@@ -314,23 +323,6 @@ class Interview:
 
         response: AgentResponseDict = await attempt_to_answer_question()
 
-        # retry_strategy = AsyncRetrying(
-        #    wait=wait_exponential(multiplier=1, max=60),  # Start with 1s, double each retry, but do not exceed 60s
-        #     stop=stop_after_attempt(5),  # Stop after 5 attempts
-        #     #retry=retry_if_exception_type(YourSpecificExceptionType),  # Retry only for specific exceptions
-        #     reraise=True  # Reraise the last exception if all retries fail
-        # )
-
-        retries = 0 
-        async for attempt in retry_strategy:
-            retries += 1
-            if retries > 1:
-                print(f"This is re-try number...{retries}")
-            with attempt:
-                response: AgentResponseDict = await invigilator.async_answer_question()
-                break  # Exit the loop on success
-            
-        #response: AgentResponseDict = await invigilator.async_answer_question()
         # TODO: Move this back into actual agent response dict and enforce it.
         response["question_name"] = question.question_name
 
