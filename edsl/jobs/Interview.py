@@ -48,7 +48,7 @@ logger.addHandler(fh)
 # start loggin'
 logger.info("Interview.py loaded")
 
-TIMEOUT = float(CONFIG.get("API_CALL_TIMEOUT_SEC"))
+TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
 
 
 class Interview:

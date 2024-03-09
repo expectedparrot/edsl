@@ -39,7 +39,7 @@ def longer_api_timeout_fixture(monkeypatch):
     new_timeout = "200"
 
     def custom_get(env_var):
-        if env_var == "API_CALL_TIMEOUT_SEC":
+        if env_var == "EDSL_API_TIMEOUT":
             return new_timeout
         return original_get(env_var)
 
