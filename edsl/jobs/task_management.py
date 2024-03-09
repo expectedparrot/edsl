@@ -28,6 +28,7 @@ class TaskStatus(enum.Enum):
 
 class InterviewStatusDictionary(UserDict):
     "A dictionary that keeps track of the status of all the tasks in an interview."
+
     def __init__(self, data=None):
         if data:
             # checks to make sure every task status is in the enum
@@ -55,9 +56,9 @@ class InterviewStatusDictionary(UserDict):
         return f"InterviewStatusDictionary({self.data})"
 
 
-
 class TaskStatusDescriptor:
     "The descriptor ensures that the task status is always an instance of the TaskStatus enum."
+
     def __init__(self):
         self._task_status = None
 
@@ -96,10 +97,10 @@ class QuestionTaskCreator(UserList):
         self.model_buckets = model_buckets
         self.requests_bucket = self.model_buckets.requests_bucket
         self.tokens_bucket = self.model_buckets.tokens_bucket
-        
+
         def fake_token_estimator(question):
             return 1
-        
+
         self.token_estimator = token_estimator or fake_token_estimator
 
         self.from_cache = False

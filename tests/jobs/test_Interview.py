@@ -59,15 +59,16 @@ def test_token_usage(create_survey):
     results = jobs.run()
     token_usage = jobs.interviews()[0].token_usage
 
-
     from edsl.jobs.token_tracking import TokenUsage, TokenPricing, InterviewTokenUsage
-    #comparison = InterviewTokenUsage(new_token_usage=TokenUsage(from_cache=False, prompt_tokens=0, completion_tokens=0), cached_token_usage=TokenUsage(from_cache=True, prompt_tokens=0, completion_tokens=0))
-    #breakpoint()
+
+    # comparison = InterviewTokenUsage(new_token_usage=TokenUsage(from_cache=False, prompt_tokens=0, completion_tokens=0), cached_token_usage=TokenUsage(from_cache=True, prompt_tokens=0, completion_tokens=0))
+    # breakpoint()
     ## It is not defining tokens when used this way.
-    assert token_usage.new_token_usage.prompt_tokens  == 0
-    assert token_usage.new_token_usage.completion_tokens  == 0
-    assert token_usage.cached_token_usage.completion_tokens  == 0
-    assert token_usage.cached_token_usage.prompt_tokens  == 0
+    assert token_usage.new_token_usage.prompt_tokens == 0
+    assert token_usage.new_token_usage.completion_tokens == 0
+    assert token_usage.cached_token_usage.completion_tokens == 0
+    assert token_usage.cached_token_usage.prompt_tokens == 0
+
 
 def test_task_management(create_survey):
     model = create_language_model(ValueError, 100)()
@@ -76,11 +77,13 @@ def test_task_management(create_survey):
     results = jobs.run()
 
     from edsl.jobs.task_management import InterviewStatusDictionary
+
     interview_status = jobs.interviews()[0].interview_status
     assert isinstance(interview_status, InterviewStatusDictionary)
     assert list(interview_status.values())[0] == 0
     # interview_status[list(interview_status.keys())[0]]
-    #breakpoint()
+    # breakpoint()
+
 
 def test_bucket_collection(create_survey):
     model = create_language_model(ValueError, 100)()
@@ -93,12 +96,13 @@ def test_bucket_collection(create_survey):
 
     bucket_list[0].requests_bucket.bucket_type == "requests"
 
+
 @pytest.mark.parametrize("fail_at_number, chained", [(6, False), (10, True)])
 def test_handle_model_exceptions(create_survey, fail_at_number, chained):
     model = create_language_model(ValueError, fail_at_number)()
     survey = create_survey(num_questions=20, chained=chained)
     results = survey.by(model).run()
-    #breakpoint()
+    # breakpoint()
 
     if not chained:
         assert results.select(f"answer.question_{fail_at_number - 1}").first() is None
