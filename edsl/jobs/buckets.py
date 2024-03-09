@@ -121,10 +121,16 @@ class ModelBuckets:
         """Create a bucket with infinite capacity and refill rate."""
         return cls(
             requests_bucket=TokenBucket(
-                bucket_name=model_name, bucket_type="requests", capacity=float("inf"), refill_rate=float("inf")
+                bucket_name=model_name,
+                bucket_type="requests",
+                capacity=float("inf"),
+                refill_rate=float("inf"),
             ),
             tokens_bucket=TokenBucket(
-                bucket_name=model_name, bucket_type="tokens", capacity=float("inf"), refill_rate=float("inf")
+                bucket_name=model_name,
+                bucket_type="tokens",
+                capacity=float("inf"),
+                refill_rate=float("inf"),
             ),
         )
 
