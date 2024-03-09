@@ -35,3 +35,35 @@ async def test_task_creation():
     assert results == {"answer": 42}
 
     assert creator.task_status == TaskStatus.FINISHED
+
+
+@pytest.mark.asyncio
+async def test_task_add_dependency():
+
+    async def answer_question_func(question, debug):
+        await asyncio.sleep(1)
+        return {"answer": 42}
+
+    creator_1 = QuestionTaskCreator(
+        question=QuestionFreeText.example(),
+        answer_question_func=answer_question_func,
+        model_buckets=ModelBuckets.infinity_bucket(),
+    )
+
+    creator_2 = QuestionTaskCreator(
+        question=QuestionFreeText.example(),
+        answer_question_func=answer_question_func,
+        model_buckets=ModelBuckets.infinity_bucket(),
+    )
+
+    creator_2.add_dependency(creator_1.generate_task(debug=False))
+
+    assert creator_2.generate_task(debug=False).depends_on == [QuestionFreeText.example().question_name]
+
+    asyncio.run(creator_2._run_task_async(debug=False))
+    #breakpoint()
+
+    #results = await creator._run_focal_task(debug=False)
+    #assert results == {"answer": 42}
+
+    #assert creator.task_status == TaskStatus.FINISHED
