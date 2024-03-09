@@ -52,7 +52,7 @@ logger.addHandler(fh)
 # start loggin'
 logger.info("Interview.py loaded")
 
-TIMEOUT = float(CONFIG.get("API_CALL_TIMEOUT_SEC"))
+TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
 BACKOFF_START_SEC = float(CONFIG.get("BACKOFF_START_SEC"))
 MAX_BACKOFF_SEC = float(CONFIG.get("MAX_BACKOFF_SEC"))
 MAX_ATTEMPTS = int(CONFIG.get("MAX_ATTEMPTS"))
