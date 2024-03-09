@@ -84,7 +84,7 @@ test: ## Run regular tests (no stress testing)
 
 test-coverage: ## Run regular tests and get a coverage report
 	make testclean
-	poetry run coverage run -m pytest tests && poetry run coverage html
+	poetry run coverage run -m pytest tests --ignore=tests/stress && poetry run coverage html
 	@UNAME=`uname`; if [ "$$UNAME" = "Darwin" ]; then \
 		open htmlcov/index.html; \
 	else \
