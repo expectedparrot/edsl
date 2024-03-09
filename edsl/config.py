@@ -29,7 +29,7 @@ CONFIG_MAP = {
         "allowed": None,
         "user_message": None,
     },
-    "API_CALL_TIMEOUT_SEC": {
+    "EDSL_API_TIMEOUT": {
         "default": "60",
         "allowed": None,
         "user_message": "What is the maximum number of seconds to wait for an API call to return?",
