@@ -357,7 +357,7 @@ class LanguageModel(
         return response
 
     async def async_get_raw_response(
-        self, user_prompt: str, system_prompt: str = ""
+        self, user_prompt: str, system_prompt: str = "", iteration = 1
     ) -> dict[str, Any]:
         """This is some middle-ware that handles the caching of responses.
         If the cache isn't being used, it just returns a 'fresh' call to the LLM,
@@ -379,6 +379,7 @@ class LanguageModel(
             parameters=str(self.parameters),
             system_prompt=system_prompt,
             prompt=user_prompt,
+            iteration=iteration,
         )
 
         if cached_response:
@@ -386,14 +387,14 @@ class LanguageModel(
             cache_used = True
         else:
             response = await self.async_execute_model_call(user_prompt, system_prompt)
-            self._save_response_to_db(user_prompt, system_prompt, response)
+            self._save_response_to_db(user_prompt=user_prompt, system_prompt=system_prompt, response=response, iteration=iteration)
             cache_used = False
 
         return self._update_response_with_tracking(response, start_time, cache_used)
 
     get_raw_response = sync_wrapper(async_get_raw_response)
 
-    def _save_response_to_db(self, prompt, system_prompt, response):
+    def _save_response_to_db(self, user_prompt, system_prompt, response, iteration):
         try:
             output = json.dumps(response)
         except json.JSONDecodeError:
@@ -402,8 +403,9 @@ class LanguageModel(
             model=str(self.model),
             parameters=str(self.parameters),
             system_prompt=system_prompt,
-            prompt=prompt,
+            prompt=user_prompt,
             output=output,
+            iteration=iteration
         )
 
     async def async_get_response(self, user_prompt: str, system_prompt: str = ""):
