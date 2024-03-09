@@ -68,6 +68,8 @@ class TaskStatusDescriptor:
     def __set__(self, instance, value):
         if not isinstance(value, TaskStatus):
             raise ValueError("Value must be an instance of TaskStatus enum")
+        #if value != self._task_status:
+        #    print(f"Status changed from {self._task_status} to {value}")
         self._task_status = value
 
     def __delete__(self, instance):
@@ -103,6 +105,8 @@ class QuestionTaskCreator(UserList):
 
         self.token_estimator = token_estimator or fake_token_estimator
 
+        # Assume that the task is *not* from the cache until we know otherwise.
+        # the _run_focal_task might flip this bit later.
         self.from_cache = False
 
         self.cached_token_usage = TokenUsage(from_cache=True)
