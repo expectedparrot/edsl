@@ -3,9 +3,10 @@ from edsl.surveys import Survey
 from edsl.questions import QuestionMultipleChoice
 from edsl.scenarios.ScenarioList import ScenarioList
 from edsl.language_models import LanguageModelOpenAIThreeFiveTurbo
-
+from edsl import Model
 NUM_FLIPS = 20
 m = LanguageModelOpenAIThreeFiveTurbo(use_cache=False)
+#m = Model(Model.available()[0], use_cache=False)
 verbose = False
 random.seed("agents are cool")
 
@@ -53,6 +54,9 @@ def test_with_memory():
     s = get_survey(memory=True)
     flip_scenarios = flips(NUM_FLIPS)
     results = s.by(flip_scenarios).by(m).run().mutate("match = q1 == q2")
+    #breakpoint()
     if verbose:
         results.select("q1", "q2", "match").print()
-    assert all([result == True for result in results.select("match").to_list()])
+    matches = [result == True for result in results.select("match").to_list()]
+    num_matches = sum(matches)
+    assert len(matches) == num_matches
