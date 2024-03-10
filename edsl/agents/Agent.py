@@ -40,6 +40,7 @@ from edsl.utilities.decorators import sync_wrapper
 from edsl.data_transfer_models import AgentResponseDict
 from edsl.prompts.library.agent_persona import AgentPersona
 
+
 class Agent(Base):
     """An agent that can answer questions.
 
@@ -138,9 +139,7 @@ class Agent(Base):
         signature = inspect.signature(method)
         for argument in ["question", "scenario", "self"]:
             if argument not in signature.parameters:
-                raise (
-                    f"The method {method} does not have a '{argument}' parameter."
-                )
+                raise AgentDirectAnswerFunctionError(f"The method {method} does not have a '{argument}' parameter.")
         bound_method = types.MethodType(method, self)
         setattr(self, "answer_question_directly", bound_method)
 
@@ -250,9 +249,9 @@ class Agent(Base):
     def __add__(self, other_agent: Agent = None) -> Agent:
         """
         Combine two agents by joining their traits.
-        
+
         The agents must not have overlapping traits.
-    
+
         >>> a1 = Agent(traits = {"age": 10})
         >>> a2 = Agent(traits = {"height": 5.5})
         >>> a1 + a2
@@ -275,7 +274,7 @@ class Agent(Base):
 
     def __eq__(self, other: Agent) -> bool:
         """Check if two agents are equal.
-        
+
         This only checks the traits.
         >>> a1 = Agent(traits = {"age": 10})
         >>> a2 = Agent(traits = {"age": 10})
