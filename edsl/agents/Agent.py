@@ -156,6 +156,7 @@ class Agent(Base):
         debug: bool = False,
         memory_plan: Optional[MemoryPlan] = None,
         current_answers: Optional[dict] = None,
+        iteration: int = 1
     ) -> "Invigilator":
         """
         An invigator is an object that is responsible administering a question to an agent and
@@ -165,7 +166,12 @@ class Agent(Base):
         model = model or Model(LanguageModelType.GPT_4.value, use_cache=True)
         scenario = scenario or Scenario()
         invigilator = self._create_invigilator(
-            question, scenario, model, debug, memory_plan, current_answers
+            question = question, 
+            scenario = scenario, 
+            model = model, 
+            debug = debug, 
+            memory_plan = memory_plan, 
+            current_answers = current_answers
         )
         return invigilator
 
@@ -177,6 +183,7 @@ class Agent(Base):
         debug: bool = False,
         memory_plan: Optional[MemoryPlan] = None,
         current_answers: Optional[dict] = None,
+        iteration: int = 1
     ) -> AgentResponseDict:
         """
         This is a function where an agent returns an answer to a particular question.
@@ -190,6 +197,7 @@ class Agent(Base):
             debug=debug,
             memory_plan=memory_plan,
             current_answers=current_answers,
+            iteration = iteration
         )
         response: AgentResponseDict = await invigilator.async_answer_question()
         return response
@@ -204,6 +212,7 @@ class Agent(Base):
         debug: bool = False,
         memory_plan: Optional[MemoryPlan] = None,
         current_answers: Optional[dict] = None,
+        iteration:int = 1
     ):
         model = model or Model(LanguageModelType.GPT_4.value, use_cache=True)
         scenario = scenario or Scenario()
@@ -224,7 +233,13 @@ class Agent(Base):
             invigilator_class = InvigilatorAI
 
         invigilator = invigilator_class(
-            self, question, scenario, model, memory_plan, current_answers
+            self, 
+            question = question, 
+            scenario = scenario, 
+            model = model, 
+            memory_plan = memory_plan, 
+            current_answers = current_answers,
+            iteration = iteration
         )
         return invigilator
 

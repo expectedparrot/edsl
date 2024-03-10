@@ -157,6 +157,7 @@ class Interview:
         self,
         model_buckets: ModelBuckets = None,
         debug: bool = False,
+        iteration: int = 1,
         replace_missing: bool = True,
     ) -> tuple["Answers", List[dict[str, Any]]]:
         """
@@ -174,7 +175,7 @@ class Interview:
         # we need from the invigilators list when a task fails.
         # it's challenging to get info from failed asyncio tasks.
         self.tasks, self.invigilators = self._build_question_tasks(
-            debug=debug, model_buckets=model_buckets
+            debug=debug, model_buckets=model_buckets, iteration=iteration
         )
 
         await asyncio.gather(*self.tasks, return_exceptions=not debug)
@@ -230,7 +231,7 @@ class Interview:
                 yield result
 
     def _build_question_tasks(
-        self, debug: bool, model_buckets: ModelBuckets
+        self, debug: bool, model_buckets: ModelBuckets, iteration: int = 1
     ) -> Tuple[List[asyncio.Task], List["Invigilators"]]:
         """Creates a task for each question, with dependencies on the questions that must be answered before this one can be answered."""
         logger.info("Creating tasks for each question")
@@ -250,7 +251,7 @@ class Interview:
             )
             # adds the task to the list of tasks
             tasks.append(question_task)
-            invigilators.append(self.get_invigilator(question, debug))
+            invigilators.append(self.get_invigilator(question=question, debug=debug, iteration=iteration))
         return TasksList(tasks), invigilators
 
     def _get_tasks_that_must_be_completed_before(
@@ -297,7 +298,7 @@ class Interview:
 
         return decorator
 
-    def get_invigilator(self, question, debug) -> "Invigilator":
+    def get_invigilator(self, question: Question, debug: bool, iteration:int = 1) -> "Invigilator":
         invigilator = self.agent.create_invigilator(
             question=question,
             scenario=self.scenario,
@@ -305,6 +306,7 @@ class Interview:
             debug=debug,
             memory_plan=self.survey.memory_plan,
             current_answers=self.answers,
+            iteration = iteration
         )
         return invigilator
 
@@ -336,7 +338,7 @@ class Interview:
 
         @retry_strategy
         async def attempt_to_answer_question():
-            return await invigilator.async_answer_question(iteration = iteration)
+            return await invigilator.async_answer_question()
 
         response: AgentResponseDict = await attempt_to_answer_question()
 

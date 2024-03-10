@@ -32,7 +32,7 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
     def _create_all_interview_tasks(self, *, interviews, debug, iteration) -> List[asyncio.Task]:
         """Creates an awaitable task for each interview."""
         tasks = []
-        for i, interview in enumerate(interviews):
+        for interview in interviews:
             interviewing_task = self._interview_task(interview=interview, iteration=iteration, debug=debug)
             tasks.append(asyncio.create_task(interviewing_task))
         return tasks
@@ -46,7 +46,7 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
 
         # get the results of the interview
         answer, valid_results = await interview.async_conduct_interview(
-            debug=debug, model_buckets=model_buckets
+            debug=debug, model_buckets=model_buckets, iteration = iteration
         )
 
         # we should have a valid result for each question

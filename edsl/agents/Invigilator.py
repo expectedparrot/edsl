@@ -18,7 +18,7 @@ class InvigilatorBase(ABC):
     """An invigiator (someone who administers an exam) is a class that is responsible for administering a question to an agent."""
 
     def __init__(
-        self, agent, question, scenario, model, memory_plan, current_answers: dict
+        self, agent, question, scenario, model, memory_plan, current_answers: dict, iteration: int = 1
     ):
         self.agent = agent
         self.question = question
@@ -26,6 +26,7 @@ class InvigilatorBase(ABC):
         self.model = model
         self.memory_plan = memory_plan
         self.current_answers = current_answers
+        self.iteration = iteration
 
     def get_failed_task_result(self):
         return AgentResponseDict(
@@ -104,7 +105,7 @@ class InvigilatorBase(ABC):
 class InvigilatorAI(InvigilatorBase):
     """An invigilator that uses an AI model to answer questions."""
 
-    async def async_answer_question(self, iteration = 1, failed=False) -> AgentResponseDict:
+    async def async_answer_question(self, failed=False) -> AgentResponseDict:
         data = {
             "agent": self.agent,
             "question": self.question,
@@ -112,7 +113,7 @@ class InvigilatorAI(InvigilatorBase):
         }
         # This calls the self.async_get_response method w/ the prompts
         # The raw response is a dictionary.
-        raw_response = await self.async_get_response(**(self.get_prompts() | {'iteration': iteration}))
+        raw_response = await self.async_get_response(**(self.get_prompts() | {'iteration': self.iteration}))
         assert "raw_model_response" in raw_response
         response = self._format_raw_response(
             **(
