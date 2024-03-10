@@ -3,12 +3,21 @@ import enum
 from typing import Callable
 from collections import UserDict, UserList
 
+from edsl import CONFIG
 from edsl.jobs.buckets import ModelBuckets
 from edsl.jobs.token_tracking import TokenUsage
 from edsl.questions import Question
-
 from edsl.exceptions import InterviewErrorPriorTaskCanceled
+from edsl.jobs.token_tracking import TokenUsage, InterviewTokenUsage
 
+# from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type, AsyncRetrying, before_sleep
+from tenacity import (
+    retry,
+    wait_exponential,
+    stop_after_attempt,
+    retry_if_exception_type,
+    before_sleep,
+)
 
 class TaskStatus(enum.Enum):
     "These are the possible statuses for a task."
@@ -215,6 +224,36 @@ class QuestionTaskCreator(UserList):
             self.task_status = TaskStatus.DEPENDENCIES_COMPLETE
             return await self._run_focal_task(debug)
 
+class TaskCreators(UserDict):
+    "A dictionary of task creators"
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    @property
+    def token_usage(self) -> InterviewTokenUsage:
+        "Determins how many tokens were used for the interview."
+        cached_tokens = TokenUsage(from_cache=True)
+        new_tokens = TokenUsage(from_cache=False)
+        for task_creator in self.values():
+            token_usage = task_creator.token_usage()
+            cached_tokens += token_usage["cached_tokens"]
+            new_tokens += token_usage["new_tokens"]
+        return InterviewTokenUsage(
+            new_token_usage=new_tokens, 
+            cached_token_usage=cached_tokens
+        )
+
+    @property
+    def interview_status(self) -> InterviewStatusDictionary:
+        """Returns a dictionary mapping task status codes to counts"""
+        status_dict = InterviewStatusDictionary()
+        for task_creator in self.values():
+            status_dict[task_creator.task_status] += 1
+            status_dict["number_from_cache"] += task_creator.from_cache
+        return status_dict
+
+
+
 
 class TasksList(UserList):
     def status(self, debug=False):
@@ -231,3 +270,28 @@ class TasksList(UserList):
                         print(f"\t RESULT: None - Not done yet")
 
             print("---------------------")
+
+from edsl.config import Config
+
+EDSL_BACKOFF_START_SEC = float(CONFIG.get("EDSL_BACKOFF_START_SEC"))
+EDSL_MAX_BACKOFF_SEC = float(CONFIG.get("EDSL_MAX_BACKOFF_SEC"))
+EDSL_MAX_ATTEMPTS = int(CONFIG.get("EDSL_MAX_ATTEMPTS"))
+
+def print_retry(retry_state):
+    "Prints details on tenacity retries"
+    attempt_number = retry_state.attempt_number
+    exception = retry_state.outcome.exception()
+    wait_time = retry_state.next_action.sleep
+    print(
+        f"Attempt {attempt_number} failed with exception: {exception}; "
+        f"now waiting {wait_time:.2f} seconds before retrying."
+    )
+
+retry_strategy = retry(
+    wait=wait_exponential(
+        multiplier=EDSL_BACKOFF_START_SEC, max=EDSL_MAX_BACKOFF_SEC
+    ),  # Exponential back-off starting at 1s, doubling, maxing out at 60s
+    stop=stop_after_attempt(EDSL_MAX_ATTEMPTS),  # Stop after 5 attempts
+    # retry=retry_if_exception_type(Exception),  # Customize this as per your specific retry-able exception
+    before_sleep=print_retry,  # Use custom print function for retries
+)
