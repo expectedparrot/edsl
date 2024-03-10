@@ -84,7 +84,6 @@ retry_strategy = retry(
     before_sleep=print_retry,  # Use custom print function for retries
 )
 
-
 class Interview:
     """
     An 'interview' is one agent answering one survey, with one language model, for a given scenario.
@@ -110,14 +109,6 @@ class Interview:
 
         self.answers: dict[str, str] = Answers()  # will get filled in
 
-        # The DAG, or directed acyclic graph, is a dictionary that maps question names to their dependencies.
-        # It is used to determine the order in which questions should be answered.
-        # This reflects both agent 'memory' considerations and 'skip' logic.
-        self.dag = self.survey.dag(textify=True)
-        self.to_index = {
-            name: index for index, name in enumerate(self.survey.question_names)
-        }
-
         logger.info(f"Interview instantiated")
         # task creators is a dictionary that maps question names to their task creators.
         # this is used to track the status of each task for real-time reporting on status of a job
@@ -125,6 +116,22 @@ class Interview:
         # 1 task = 1 question.
         self.task_creators = {}
 
+    @property
+    def dag(self):
+        """Returns the directed acyclic graph for the survey.
+    
+        The DAG, or directed acyclic graph, is a dictionary that maps question names to their dependencies.
+        It is used to determine the order in which questions should be answered.
+        This reflects both agent 'memory' considerations and 'skip' logic.
+        The 'textify' parameter is set to True, so that the question names are returned as strings rather than integer indices.
+        """
+        return self.survey.dag(textify=True)
+
+    @property
+    def to_index(self) -> dict:
+        "Returns a dictionary mapping question names to their index in the survey."
+        return { question_name: index for index, question_name in enumerate(self.survey.question_names)}
+    
     @property
     def token_usage(self) -> InterviewTokenUsage:
         "Determins how many tokens were used for the interview."
@@ -135,7 +142,8 @@ class Interview:
             cached_tokens += token_usage["cached_tokens"]
             new_tokens += token_usage["new_tokens"]
         return InterviewTokenUsage(
-            new_token_usage=new_tokens, cached_token_usage=cached_tokens
+            new_token_usage=new_tokens, 
+            cached_token_usage=cached_tokens
         )
 
     @property
@@ -336,6 +344,7 @@ class Interview:
     ) -> AgentResponseDict:
         """Answers a question and records the task.
         This in turn calls the the passed-in agent's async_answer_question method, which returns a response dictionary.
+        Note that is updates answers with the response.
         """
         invigilator = self.get_invigilator(question, debug=debug)
 
@@ -353,7 +362,7 @@ class Interview:
         self._cancel_skipped_questions(question)
 
         # TODO: This should be forced to be a data-exchange model to cement attributes.
-        return response
+        return AgentResponseDict(**response)
 
     def _cancel_skipped_questions(self, current_question) -> None:
         """Cancels the tasks for questions that are skipped."""
