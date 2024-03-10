@@ -1,3 +1,5 @@
+"""A module for creating agents that can answer questions."""
+
 from __future__ import annotations
 import copy
 import inspect
@@ -35,11 +37,8 @@ from edsl.agents.descriptors import (
 )
 
 from edsl.utilities.decorators import sync_wrapper
-
 from edsl.data_transfer_models import AgentResponseDict
-
 from edsl.prompts.library.agent_persona import AgentPersona
-
 
 class Agent(Base):
     """An agent that can answer questions.
@@ -72,6 +71,7 @@ class Agent(Base):
         trait_presentation_template: str = None,
         dynamic_traits_function: Callable = None,
     ):
+        """Initialize a new instance of Agent."""
         self.name = name
         self._traits = traits or dict()
         self.codebook = codebook or dict()
@@ -85,8 +85,10 @@ class Agent(Base):
             self.agent_persona = AgentPersona(text=self.trait_presentation_template)
 
     def _check_dynamic_traits_function(self) -> None:
-        """A agent can have a dynamic traits function that returns a dictionary of traits, optionally conditioned on a question.
-        This checks whether the dynamic traits function is valid."""
+        """Check whether dynamic trait function is valid.
+
+        This checks whether the dynamic traits function is valid.
+        """
         if self.dynamic_traits_function:
             sig = inspect.signature(self.dynamic_traits_function)
             if "question" in sig.parameters:
@@ -103,7 +105,7 @@ class Agent(Base):
 
     @property
     def traits(self) -> dict[str, str]:
-        """A agent's traits, which is a dictionary.
+        """An agent's traits, which is a dictionary.
 
         >> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
         >> a.traits
@@ -129,14 +131,14 @@ class Agent(Base):
             return self._traits
 
     def add_direct_question_answering_method(self, method: Callable):
-        """Adds a method to the agent that can answer a particular question type."""
+        """Add a method to the agent that can answer a particular question type."""
         if hasattr(self, "answer_question_directly"):
             print("Warning: overwriting existing answer_question_directly method")
 
         signature = inspect.signature(method)
         for argument in ["question", "scenario", "self"]:
             if argument not in signature.parameters:
-                raise AgentDirectAnswerFunctionError(
+                raise (
                     f"The method {method} does not have a '{argument}' parameter."
                 )
         bound_method = types.MethodType(method, self)
@@ -152,7 +154,8 @@ class Agent(Base):
         current_answers: Optional[dict] = None,
         iteration: int = 1,
     ) -> "Invigilator":
-        """
+        """Create an Invigilator.
+
         An invigator is an object that is responsible administering a question to an agent and
         recording the responses.
         """
@@ -181,6 +184,8 @@ class Agent(Base):
         iteration: int = 0,
     ) -> AgentResponseDict:
         """
+        Answer a posed question.
+
         This is a function where an agent returns an answer to a particular question.
         However, there are several different ways an agent can answer a question, so the
         actual functionality is delegated to an Invigilator object.
@@ -244,7 +249,10 @@ class Agent(Base):
     ################
     def __add__(self, other_agent: Agent = None) -> Agent:
         """
-        Combines two agents by joining their traits.The agents must not have overlapping traits.
+        Combine two agents by joining their traits.
+        
+        The agents must not have overlapping traits.
+    
         >>> a1 = Agent(traits = {"age": 10})
         >>> a2 = Agent(traits = {"height": 5.5})
         >>> a1 + a2
@@ -266,7 +274,9 @@ class Agent(Base):
             return new_agent
 
     def __eq__(self, other: Agent) -> bool:
-        """Checks if two agents are equal. Only checks the traits.
+        """Check if two agents are equal.
+        
+        This only checks the traits.
         >>> a1 = Agent(traits = {"age": 10})
         >>> a2 = Agent(traits = {"age": 10})
         >>> a1 == a2
@@ -278,6 +288,7 @@ class Agent(Base):
         return self.data == other.data
 
     def __repr__(self):
+        """Return representation of Agent."""
         class_name = self.__class__.__name__
         items = [
             f"{k} = '{v}'" if isinstance(v, str) else f"{k} = {v}"
@@ -291,6 +302,7 @@ class Agent(Base):
     ################
     @property
     def data(self):
+        """Format the data for serialization."""
         raw_data = {
             k.replace("_", "", 1): v
             for k, v in self.__dict__.items()
@@ -306,12 +318,12 @@ class Agent(Base):
         return raw_data
 
     def to_dict(self) -> dict[str, Union[dict, bool]]:
-        """Serializes to a dictionary."""
+        """Serialize to a dictionary."""
         return self.data
 
     @classmethod
     def from_dict(cls, agent_dict: dict[str, Union[dict, bool]]) -> Agent:
-        """Deserializes from a dictionary."""
+        """Deserialize from a dictionary."""
         return cls(**agent_dict)
 
     ################
@@ -327,7 +339,7 @@ class Agent(Base):
         return table_data, column_names
 
     def rich_print(self):
-        """Displays an object as a rich table."""
+        """Display an object as a rich table."""
         table_data, column_names = self._table()
         table = Table(title=f"{self.__class__.__name__} Attributes")
         for column in column_names:
@@ -341,7 +353,7 @@ class Agent(Base):
 
     @classmethod
     def example(cls) -> Agent:
-        """Returns an example agent.
+        """Return an example agent.
 
         >>> Agent.example()
         Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})
@@ -349,12 +361,16 @@ class Agent(Base):
         return cls(traits={"age": 22, "hair": "brown", "height": 5.5})
 
     def code(self) -> str:
-        """Returns the code for the agent."""
+        """Return the code for the agent."""
         return f"Agent(traits={self.traits})"
 
 
 def main():
-    """Consumes API credits"""
+    """
+    Give an example of usage.
+
+    WARNING: Consume API credits
+    """
     from edsl.agents import Agent
     from edsl.questions import QuestionMultipleChoice
 
