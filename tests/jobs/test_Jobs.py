@@ -155,7 +155,7 @@ def test_jobs_interviews(valid_job):
     assert interviews[0].survey == survey
     assert interviews[0].scenario == Scenario()
     assert interviews[0].agent == Agent()
-    assert interviews[0].model.model == "gpt-3.5-turbo"
+    assert interviews[0].model.model == "gpt-4-1106-preview"
     assert interviews[0].model.use_cache == True
 
 
