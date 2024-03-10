@@ -20,7 +20,12 @@ class CRUDOperations:
         self.database = database
 
     def get_LLMOutputData(
-        self, model: str, parameters: str, system_prompt: str, prompt: str, iteration: int
+        self,
+        model: str,
+        parameters: str,
+        system_prompt: str,
+        prompt: str,
+        iteration: int,
     ) -> Union[str, None]:
         """
         Retrieves a cached LLM output from the database. Arguments: in string format, the model, parameters, system_prompt, and prompt used to generate the output. Returns the output (json string) if it exists, otherwise None.
@@ -41,7 +46,13 @@ class CRUDOperations:
         return record.output if record else None
 
     def write_LLMOutputData(
-        self, model: str, parameters: str, system_prompt: str, prompt: str, output: str, iteration: int
+        self,
+        model: str,
+        parameters: str,
+        system_prompt: str,
+        prompt: str,
+        output: str,
+        iteration: int,
     ) -> None:
         """
         Writes an LLM output to the database. Arguments: in string format, the model, parameters, system_prompt, prompt, and the generated output.

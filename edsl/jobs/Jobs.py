@@ -8,7 +8,7 @@ from edsl import CONFIG
 from edsl.agents import Agent
 from edsl.Base import Base
 from edsl.data import Database, database
-from edsl.language_models import LanguageModel #, LanguageModelOpenAIThreeFiveTurbo
+from edsl.language_models import LanguageModel  # , LanguageModelOpenAIThreeFiveTurbo
 from edsl.enums import LanguageModelType
 from edsl import Model
 from edsl.results import Results
@@ -32,7 +32,7 @@ class Jobs(Base):
     - `interviews()`: creates a collection of interviews
     - `run()`: runs a collection of interviews
 
-    Actually running of a job is done by a JobsRunner, which is a subclass of JobsRunner. 
+    Actually running of a job is done by a JobsRunner, which is a subclass of JobsRunner.
     The JobsRunner is chosen by the user, and is stored in the `jobs_runner_name` attribute.
     """
 
@@ -64,7 +64,7 @@ class Jobs(Base):
         """
         Adds Agents, Scenarios and LanguageModels to a job. If no objects of this type exist in the Jobs instance, it stores the new objects as a list in the corresponding attribute. Otherwise, it combines the new objects with existing objects using the object's `__add__` method.
         This 'by' is intended to create a fluent interface.
-        
+
         Arguments:
         - objects or a sequence (list, tuple, ...) of objects of the same type
 
@@ -139,7 +139,7 @@ class Jobs(Base):
             for new_object in passed_objects:
                 new_objects.append(current_object + new_object)
         return new_objects
-    
+
     def interviews(self) -> list[Interview]:
         """
         Returns a list of Interviews, that will eventually be used by the JobRunner.
@@ -154,13 +154,15 @@ class Jobs(Base):
         Note that this sets the agents, model and scenarios if they have not been set. This is a side effect of the method.
         """
         self.agents = self.agents or [Agent()]
-        self.models = self.models or [Model(LanguageModelType.GPT_4.value ,use_cache=True)]
+        self.models = self.models or [
+            Model(LanguageModelType.GPT_4.value, use_cache=True)
+        ]
         self.scenarios = self.scenarios or [Scenario()]
         for agent, scenario, model in product(self.agents, self.scenarios, self.models):
             yield Interview(
                 survey=self.survey, agent=agent, scenario=scenario, model=model
             )
-   
+
     def create_bucket_collection(self) -> BucketCollection:
         """
         Creates a collection of buckets for each model.

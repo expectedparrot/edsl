@@ -9,7 +9,7 @@ class AgentResponseDict(UserDict):
         answer,
         prompts,
         usage=None,
-        comment = None,
+        comment=None,
         cached_response=None,
         raw_model_response=None
     ):

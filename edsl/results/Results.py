@@ -80,7 +80,6 @@ class Results(UserList, Mixins, Base):
         "iteration",
     ]
 
-
     def __init__(
         self,
         survey: Survey = None,
@@ -340,7 +339,6 @@ class Results(UserList, Mixins, Base):
 
         if isinstance(columns[0], list):
             columns = tuple(columns[0])
-
 
         def get_data_types_to_return(parsed_data_type):
             if parsed_data_type == "*":  # they want all of the columns

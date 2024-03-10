@@ -19,6 +19,7 @@ from tenacity import (
     before_sleep,
 )
 
+
 class TaskStatus(enum.Enum):
     "These are the possible statuses for a task."
     NOT_STARTED = enum.auto()
@@ -77,7 +78,7 @@ class TaskStatusDescriptor:
     def __set__(self, instance, value):
         if not isinstance(value, TaskStatus):
             raise ValueError("Value must be an instance of TaskStatus enum")
-        #if value != self._task_status:
+        # if value != self._task_status:
         #    print(f"Status changed from {self._task_status} to {value}")
         self._task_status = value
 
@@ -106,7 +107,7 @@ class QuestionTaskCreator(UserList):
         self.answer_question_func = answer_question_func
         self.question = question
         self.iteration = iteration
-        
+
         self.model_buckets = model_buckets
         self.requests_bucket = self.model_buckets.requests_bucket
         self.tokens_bucket = self.model_buckets.tokens_bucket
@@ -224,8 +225,10 @@ class QuestionTaskCreator(UserList):
             self.task_status = TaskStatus.DEPENDENCIES_COMPLETE
             return await self._run_focal_task(debug)
 
+
 class TaskCreators(UserDict):
     "A dictionary of task creators"
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -239,8 +242,7 @@ class TaskCreators(UserDict):
             cached_tokens += token_usage["cached_tokens"]
             new_tokens += token_usage["new_tokens"]
         return InterviewTokenUsage(
-            new_token_usage=new_tokens, 
-            cached_token_usage=cached_tokens
+            new_token_usage=new_tokens, cached_token_usage=cached_tokens
         )
 
     @property
@@ -251,8 +253,6 @@ class TaskCreators(UserDict):
             status_dict[task_creator.task_status] += 1
             status_dict["number_from_cache"] += task_creator.from_cache
         return status_dict
-
-
 
 
 class TasksList(UserList):
@@ -271,11 +271,13 @@ class TasksList(UserList):
 
             print("---------------------")
 
+
 from edsl.config import Config
 
 EDSL_BACKOFF_START_SEC = float(CONFIG.get("EDSL_BACKOFF_START_SEC"))
 EDSL_MAX_BACKOFF_SEC = float(CONFIG.get("EDSL_MAX_BACKOFF_SEC"))
 EDSL_MAX_ATTEMPTS = int(CONFIG.get("EDSL_MAX_ATTEMPTS"))
+
 
 def print_retry(retry_state):
     "Prints details on tenacity retries"
@@ -286,6 +288,7 @@ def print_retry(retry_state):
         f"Attempt {attempt_number} failed with exception: {exception}; "
         f"now waiting {wait_time:.2f} seconds before retrying."
     )
+
 
 retry_strategy = retry(
     wait=wait_exponential(
