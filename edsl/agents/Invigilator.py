@@ -113,6 +113,7 @@ class InvigilatorAI(InvigilatorBase):
         }
         # This calls the self.async_get_response method w/ the prompts
         # The raw response is a dictionary.
+        #breakpoint()
         raw_response = await self.async_get_response(**(self.get_prompts() | {'iteration': self.iteration}))
         assert "raw_model_response" in raw_response
         response = self._format_raw_response(

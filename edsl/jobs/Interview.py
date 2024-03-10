@@ -84,15 +84,6 @@ retry_strategy = retry(
     before_sleep=print_retry,  # Use custom print function for retries
 )
 
-retry_strategy = retry(
-    wait=wait_exponential(
-        multiplier=1, max=60
-    ),  # Exponential back-off starting at 1s, doubling, maxing out at 60s
-    stop=stop_after_attempt(5),  # Stop after 5 attempts
-    # retry=retry_if_exception_type(Exception),  # Customize this as per your specific retry-able exception
-    before_sleep=print_retry,  # Use custom print function for retries
-)
-
 
 class Interview:
     """
@@ -107,6 +98,7 @@ class Interview:
         model: Type[LanguageModel],
         verbose: bool = False,
         debug: bool = False,
+        iteration:int = 0
     ):
         self.agent = agent
         self.survey = survey
@@ -114,6 +106,8 @@ class Interview:
         self.model = model
         self.debug = debug
         self.verbose = verbose
+        self.iteration = iteration
+
         self.answers: dict[str, str] = Answers()  # will get filled in
 
         # The DAG, or directed acyclic graph, is a dictionary that maps question names to their dependencies.
@@ -155,9 +149,9 @@ class Interview:
 
     async def async_conduct_interview(
         self,
+        *,
         model_buckets: ModelBuckets = None,
         debug: bool = False,
-        iteration: int = 1,
         replace_missing: bool = True,
     ) -> tuple["Answers", List[dict[str, Any]]]:
         """
@@ -174,8 +168,10 @@ class Interview:
         # this is because it's easier to extract info
         # we need from the invigilators list when a task fails.
         # it's challenging to get info from failed asyncio tasks.
+
         self.tasks, self.invigilators = self._build_question_tasks(
-            debug=debug, model_buckets=model_buckets, iteration=iteration
+            debug=debug, 
+            model_buckets=model_buckets, 
         )
 
         await asyncio.gather(*self.tasks, return_exceptions=not debug)
@@ -229,9 +225,14 @@ class Interview:
                     pass
 
                 yield result
+            else:
+                raise ValueError(f"Task {task.edsl_name} is not done.")
+                
 
     def _build_question_tasks(
-        self, debug: bool, model_buckets: ModelBuckets, iteration: int = 1
+        self, 
+        debug: bool, 
+        model_buckets: ModelBuckets, 
     ) -> Tuple[List[asyncio.Task], List["Invigilators"]]:
         """Creates a task for each question, with dependencies on the questions that must be answered before this one can be answered."""
         logger.info("Creating tasks for each question")
@@ -248,10 +249,11 @@ class Interview:
                 tasks_that_must_be_completed_before=tasks_that_must_be_completed_before,
                 model_buckets=model_buckets,
                 debug=debug,
+                iteration=self.iteration
             )
             # adds the task to the list of tasks
             tasks.append(question_task)
-            invigilators.append(self.get_invigilator(question=question, debug=debug, iteration=iteration))
+            invigilators.append(self.get_invigilator(question=question, debug=debug))
         return TasksList(tasks), invigilators
 
     def _get_tasks_that_must_be_completed_before(
@@ -271,7 +273,8 @@ class Interview:
         question: Question,
         tasks_that_must_be_completed_before: List[asyncio.Task],
         model_buckets: ModelBuckets,
-        debug,
+        debug: bool,
+        iteration:int = 0
     ):
         """Creates a task that depends on the passed-in dependencies that are awaited before the task is run."""
         task_creator = QuestionTaskCreator(
@@ -279,6 +282,7 @@ class Interview:
             answer_question_func=self._answer_question_and_record_task,
             token_estimator=self._get_estimated_request_tokens,
             model_buckets=model_buckets,
+            iteration = iteration
         )
         [task_creator.add_dependency(x) for x in tasks_that_must_be_completed_before]
         self.task_creators[question.question_name] = task_creator
@@ -298,7 +302,7 @@ class Interview:
 
         return decorator
 
-    def get_invigilator(self, question: Question, debug: bool, iteration:int = 1) -> "Invigilator":
+    def get_invigilator(self, question: Question, debug: bool) -> "Invigilator":
         invigilator = self.agent.create_invigilator(
             question=question,
             scenario=self.scenario,
@@ -306,7 +310,7 @@ class Interview:
             debug=debug,
             memory_plan=self.survey.memory_plan,
             current_answers=self.answers,
-            iteration = iteration
+            iteration = self.iteration
         )
         return invigilator
 
@@ -329,7 +333,6 @@ class Interview:
         self,
         question: Question,
         debug: bool,
-        iteration: int = 1,
     ) -> AgentResponseDict:
         """Answers a question and records the task.
         This in turn calls the the passed-in agent's async_answer_question method, which returns a response dictionary.
