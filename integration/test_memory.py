@@ -2,11 +2,12 @@ import random
 from edsl.surveys import Survey
 from edsl.questions import QuestionMultipleChoice
 from edsl.scenarios.ScenarioList import ScenarioList
-from edsl.language_models import LanguageModelOpenAIThreeFiveTurbo
+from edsl.language_models import LanguageModelOpenAIThreeFiveTurbo, LanguageModelOpenAIFour
 from edsl import Model
 NUM_FLIPS = 20
-m = LanguageModelOpenAIThreeFiveTurbo(use_cache=False)
+#m = LanguageModelOpenAIThreeFiveTurbo(use_cache=False)
 #m = Model(Model.available()[0], use_cache=False)
+m = LanguageModelOpenAIFour(use_cache=False)
 verbose = False
 random.seed("agents are cool")
 
