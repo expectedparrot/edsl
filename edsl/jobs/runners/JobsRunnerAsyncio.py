@@ -12,7 +12,6 @@ from edsl.utilities.decorators import jupyter_nb_handler
 
 from edsl.jobs.JobsRunnerStatusMixin import JobsRunnerStatusMixin
 
-
 class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
     runner_name = "asyncio"
 
@@ -21,24 +20,33 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
         """Creates the tasks, runs them asynchronously, and returns the results as a Results object.
         Completed tasks are yielded as they are completed.
         """
-        tasks =[]
-        for iteration in range(n):
-            tasks += self._create_all_interview_tasks(interviews = self.interviews, debug = debug, iteration = iteration)
-        #self._create_all_interview_tasks(interviews = self.interviews, debug = debug)
+        tasks = []
+        total_interviews = []
+        for interview in self.interviews:
+            for iteration in range(n):
+                if iteration > 0:
+                    new_interview = Interview(
+                        agent=interview.agent, 
+                        survey=interview.survey,
+                        scenario = interview.scenario,
+                        model = interview.model,
+                        debug=interview.debug,
+                        verbose=interview.verbose,
+                        iteration=iteration)                    
+                    total_interviews.append(new_interview)
+                else:
+                    total_interviews.append(interview)
+
+        for interview in total_interviews:
+            interviewing_task = self._interview_task(interview=interview, debug=debug)
+            tasks.append(asyncio.create_task(interviewing_task))
+
         for task in asyncio.as_completed(tasks):
             result = await task
             yield result
 
-    def _create_all_interview_tasks(self, *, interviews, debug, iteration) -> List[asyncio.Task]:
-        """Creates an awaitable task for each interview."""
-        tasks = []
-        for interview in interviews:
-            interviewing_task = self._interview_task(interview=interview, iteration=iteration, debug=debug)
-            tasks.append(asyncio.create_task(interviewing_task))
-        return tasks
-
     async def _interview_task(
-        self, *, interview: Interview, iteration: int, debug: bool
+        self, *, interview: Interview, debug: bool
     ) -> Result:
         """Conducts an interview and returns the result."""
         # the model buckets are used to track usage rates
@@ -46,17 +54,16 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
 
         # get the results of the interview
         answer, valid_results = await interview.async_conduct_interview(
-            debug=debug, model_buckets=model_buckets, iteration = iteration
+            debug=debug, 
+            model_buckets=model_buckets, 
         )
 
         # we should have a valid result for each question
         answer_key_names = {k for k in set(answer.keys()) if not k.endswith("_comment")}
-        #try:
+        
+        # TODO: Commenting out for now         
         assert len(valid_results) == len(answer_key_names)
-        #except AssertionError:
-        #    print("Path")
-        #    breakpoint()
-
+        
         question_name_to_prompts = dict({})
         for result in valid_results:
             question_name = result["question_name"]
@@ -85,7 +92,7 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
             agent=interview.agent,
             scenario=interview.scenario,
             model=interview.model,
-            iteration=iteration,
+            iteration=interview.iteration,
             answer=answer,
             prompt=prompt_dictionary,
             raw_model_response=raw_model_results_dictionary,

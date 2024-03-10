@@ -2,11 +2,9 @@ from __future__ import annotations
 import copy
 import inspect
 import types
-import io
 from typing import Any, Callable, Optional, Union, Dict
 
 from jinja2 import Template
-
 from rich.console import Console
 from rich.table import Table
 
@@ -28,12 +26,6 @@ from edsl.agents.Invigilator import (
 from edsl.language_models.registry import Model
 from edsl.scenarios import Scenario
 from edsl.enums import LanguageModelType
-
-# from edsl.utilities import (
-#     dict_to_html,
-#     print_dict_as_html_table,
-#     print_dict_with_rich,
-# )
 
 from edsl.agents.descriptors import (
     TraitsDescriptor,
@@ -92,7 +84,9 @@ class Agent(Base):
             self.trait_presentation_template = trait_presentation_template
             self.agent_persona = AgentPersona(text=self.trait_presentation_template)
 
-    def _check_dynamic_traits_function(self):
+    def _check_dynamic_traits_function(self) -> None:
+        """A agent can have a dynamic traits function that returns a dictionary of traits, optionally conditioned on a question.
+        This checks whether the dynamic traits function is valid."""
         if self.dynamic_traits_function:
             sig = inspect.signature(self.dynamic_traits_function)
             if "question" in sig.parameters:
@@ -171,7 +165,8 @@ class Agent(Base):
             model = model, 
             debug = debug, 
             memory_plan = memory_plan, 
-            current_answers = current_answers
+            current_answers = current_answers,
+            iteration = iteration
         )
         return invigilator
 

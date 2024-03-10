@@ -91,11 +91,13 @@ class QuestionTaskCreator(UserList):
         answer_question_func: Callable,
         model_buckets: ModelBuckets,
         token_estimator: Callable = None,
+        iteration: int = 0,
     ):
         super().__init__([])
         self.answer_question_func = answer_question_func
         self.question = question
-
+        self.iteration = iteration
+        
         self.model_buckets = model_buckets
         self.requests_bucket = self.model_buckets.requests_bucket
         self.tokens_bucket = self.model_buckets.tokens_bucket
