@@ -8,7 +8,9 @@ from edsl import CONFIG
 from edsl.agents import Agent
 from edsl.Base import Base
 from edsl.data import Database, database
-from edsl.language_models import LanguageModel, LanguageModelOpenAIThreeFiveTurbo
+from edsl.language_models import LanguageModel #, LanguageModelOpenAIThreeFiveTurbo
+from edsl.enums import LanguageModelType
+from edsl import Model
 from edsl.results import Results
 from edsl.scenarios import Scenario
 from edsl.surveys import Survey
@@ -143,7 +145,7 @@ class Jobs(Base):
         - If any of Agents, Scenarios, or LanguageModels are missing, fills in with defaults. Note that this will change the corresponding class attributes.
         """
         self.agents = self.agents or [Agent()]
-        self.models = self.models or [LanguageModelOpenAIThreeFiveTurbo(use_cache=True)]
+        self.models = self.models or [Model(LanguageModelType.GPT_4.value ,use_cache=True)]
         self.scenarios = self.scenarios or [Scenario()]
         interviews = []
         for agent, scenario, model in product(self.agents, self.scenarios, self.models):
