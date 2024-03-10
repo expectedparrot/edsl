@@ -111,3 +111,6 @@ test-doctests: ## Run doctests
 	pytest --doctest-modules edsl/prompts
 	pytest --doctest-modules edsl/reports	
 	pytest --doctest-modules edsl/language_models
+
+docstrings: 
+	pydocstyle edsl
