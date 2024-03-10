@@ -70,6 +70,17 @@ class Results(UserList, Mixins, Base):
     - It also has a list of created_columns, which is a list of columns that have been created with `mutate`
     """
 
+    known_data_types = [
+        "answer",
+        "scenario",
+        "agent",
+        "model",
+        "prompt",
+        "raw_model_response",
+        "iteration",
+    ]
+
+
     def __init__(
         self,
         survey: Survey = None,
@@ -330,22 +341,14 @@ class Results(UserList, Mixins, Base):
         if isinstance(columns[0], list):
             columns = tuple(columns[0])
 
-        known_data_types = [
-            "answer",
-            "scenario",
-            "agent",
-            "model",
-            "prompt",
-            "raw_model_response",
-        ]
 
         def get_data_types_to_return(parsed_data_type):
             if parsed_data_type == "*":  # they want all of the columns
-                return known_data_types
+                return self.known_data_types
             else:
-                if parsed_data_type not in known_data_types:
+                if parsed_data_type not in self.known_data_types:
                     raise Exception(
-                        f"Data type {parsed_data_type} not found in data. Did you mean one of {known_data_types}"
+                        f"Data type {parsed_data_type} not found in data. Did you mean one of {self.known_data_types}"
                     )
                 return [parsed_data_type]
 
