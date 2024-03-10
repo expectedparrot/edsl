@@ -104,7 +104,7 @@ class InvigilatorBase(ABC):
 class InvigilatorAI(InvigilatorBase):
     """An invigilator that uses an AI model to answer questions."""
 
-    async def async_answer_question(self, failed=False) -> AgentResponseDict:
+    async def async_answer_question(self, iteration = 1, failed=False) -> AgentResponseDict:
         data = {
             "agent": self.agent,
             "question": self.question,
@@ -112,7 +112,7 @@ class InvigilatorAI(InvigilatorBase):
         }
         # This calls the self.async_get_response method w/ the prompts
         # The raw response is a dictionary.
-        raw_response = await self.async_get_response(**self.get_prompts())
+        raw_response = await self.async_get_response(**(self.get_prompts() | {'iteration': iteration}))
         assert "raw_model_response" in raw_response
         response = self._format_raw_response(
             **(
@@ -125,11 +125,13 @@ class InvigilatorAI(InvigilatorBase):
         )
         return response
 
-    async def async_get_response(self, user_prompt: Prompt, system_prompt: Prompt):
+    async def async_get_response(self, user_prompt: Prompt, system_prompt: Prompt, iteration:int = 1):
         """Calls the LLM and gets a response. Used in the `answer_question` method."""
         try:
             response = await self.model.async_get_response(
-                user_prompt.text, system_prompt.text
+                user_prompt = user_prompt.text, 
+                system_prompt = system_prompt.text, 
+                iteration = iteration
             )
         except json.JSONDecodeError as e:
             raise AgentRespondedWithBadJSONError(
@@ -249,7 +251,7 @@ class InvigilatorAI(InvigilatorBase):
 
 
 class InvigilatorDebug(InvigilatorBase):
-    async def async_answer_question(self) -> AgentResponseDict:
+    async def async_answer_question(self, iteration:int = 1) -> AgentResponseDict:
         results = self.question.simulate_answer(human_readable=True)
         results["prompts"] = self.get_prompts()
         results["question_name"] = self.question.question_name
@@ -264,7 +266,7 @@ class InvigilatorDebug(InvigilatorBase):
 
 
 class InvigilatorHuman(InvigilatorBase):
-    async def async_answer_question(self) -> AgentResponseDict:
+    async def async_answer_question(self, iteration:int = 1) -> AgentResponseDict:
         data = {
             "comment": "This is a real survey response from a human.",
             "answer": None,
@@ -285,7 +287,7 @@ class InvigilatorHuman(InvigilatorBase):
 
 
 class InvigilatorFunctional(InvigilatorBase):
-    async def async_answer_question(self) -> AgentResponseDict:
+    async def async_answer_question(self, iteration:int = 1) -> AgentResponseDict:
         func = self.question.answer_question_directly
         data = {
             "comment": "Functional.",

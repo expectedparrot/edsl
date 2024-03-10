@@ -327,6 +327,7 @@ class Interview:
         self,
         question: Question,
         debug: bool,
+        iteration: int = 1,
     ) -> AgentResponseDict:
         """Answers a question and records the task.
         This in turn calls the the passed-in agent's async_answer_question method, which returns a response dictionary.
@@ -335,7 +336,7 @@ class Interview:
 
         @retry_strategy
         async def attempt_to_answer_question():
-            return await invigilator.async_answer_question()
+            return await invigilator.async_answer_question(iteration = iteration)
 
         response: AgentResponseDict = await attempt_to_answer_question()
 
