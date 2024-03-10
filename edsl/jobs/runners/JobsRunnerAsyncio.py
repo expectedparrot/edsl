@@ -51,7 +51,11 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
 
         # we should have a valid result for each question
         answer_key_names = {k for k in set(answer.keys()) if not k.endswith("_comment")}
+        #try:
         assert len(valid_results) == len(answer_key_names)
+        #except AssertionError:
+        #    print("Path")
+        #    breakpoint()
 
         question_name_to_prompts = dict({})
         for result in valid_results:
