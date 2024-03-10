@@ -106,7 +106,7 @@ class Result(Base, UserDict):
             "answer": self.answer,
             "prompt": self.prompt,
             "raw_model_response": self.raw_model_response,
-            "iteration": {'iteration': self.iteration},
+            "iteration": {"iteration": self.iteration},
         }
 
     def code(self):

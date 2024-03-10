@@ -357,7 +357,8 @@ class LanguageModel(
         return response
 
     async def async_get_raw_response(
-        self, user_prompt: str, system_prompt: str, iteration: int = 1) -> dict[str, Any]:
+        self, user_prompt: str, system_prompt: str, iteration: int = 1
+    ) -> dict[str, Any]:
         """This is some middle-ware that handles the caching of responses.
         If the cache isn't being used, it just returns a 'fresh' call to the LLM,
         but appends some tracking information to the response (using the _update_response_with_tracking method).
@@ -386,7 +387,12 @@ class LanguageModel(
             cache_used = True
         else:
             response = await self.async_execute_model_call(user_prompt, system_prompt)
-            self._save_response_to_db(user_prompt=user_prompt, system_prompt=system_prompt, response=response, iteration=iteration)
+            self._save_response_to_db(
+                user_prompt=user_prompt,
+                system_prompt=system_prompt,
+                response=response,
+                iteration=iteration,
+            )
             cache_used = False
 
         return self._update_response_with_tracking(response, start_time, cache_used)
@@ -404,15 +410,16 @@ class LanguageModel(
             system_prompt=system_prompt,
             prompt=user_prompt,
             output=output,
-            iteration=iteration
+            iteration=iteration,
         )
 
-    async def async_get_response(self, user_prompt: str, system_prompt: str, iteration: int = 1):
+    async def async_get_response(
+        self, user_prompt: str, system_prompt: str, iteration: int = 1
+    ):
         """Get response, parse, and return as string."""
         raw_response = await self.async_get_raw_response(
-            user_prompt = user_prompt, 
-            system_prompt = system_prompt, 
-            iteration = iteration)
+            user_prompt=user_prompt, system_prompt=system_prompt, iteration=iteration
+        )
         response = self.parse_response(raw_response)
         try:
             dict_response = json.loads(response)

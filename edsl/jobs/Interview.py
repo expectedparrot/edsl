@@ -28,6 +28,7 @@ from edsl.jobs.task_management import (
 
 TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
 
+
 class Interview:
     """
     An 'interview' is one agent answering one survey, with one language model, for a given scenario.
@@ -43,7 +44,7 @@ class Interview:
         model: Type[LanguageModel],
         verbose: bool = False,
         debug: bool = False,
-        iteration:int = 0
+        iteration: int = 0,
     ):
         self.agent = agent
         self.survey = survey
@@ -53,13 +54,15 @@ class Interview:
         self.verbose = verbose
         self.iteration = iteration
 
-        self.answers: dict[str, str] = Answers()  # will get filled in as interview progresses
-        self.task_creators = TaskCreators() # tracks the task creators
+        self.answers: dict[
+            str, str
+        ] = Answers()  # will get filled in as interview progresses
+        self.task_creators = TaskCreators()  # tracks the task creators
 
     @property
     def dag(self):
         """Returns the directed acyclic graph for the survey.
-    
+
         The DAG, or directed acyclic graph, is a dictionary that maps question names to their dependencies.
         It is used to determine the order in which questions should be answered.
         This reflects both agent 'memory' considerations and 'skip' logic.
@@ -80,8 +83,10 @@ class Interview:
     @property
     def to_index(self) -> dict:
         "Returns a dictionary mapping question names to their index in the survey."
-        return {question_name: index for index, question_name in enumerate(self.survey.question_names)}
-    
+        return {
+            question_name: index
+            for index, question_name in enumerate(self.survey.question_names)
+        }
 
     async def async_conduct_interview(
         self,
@@ -99,8 +104,8 @@ class Interview:
         """
         # if no model bucket is passed, create an 'infinity' bucket with no rate limits
         self.tasks = self._build_question_tasks(
-            debug=debug, 
-            model_buckets=model_buckets or ModelBuckets.infinity_bucket())
+            debug=debug, model_buckets=model_buckets or ModelBuckets.infinity_bucket()
+        )
 
         self.invigilators = list(self._build_invigilators(debug=debug))
 
@@ -130,11 +135,13 @@ class Interview:
 
         for task, invigilator in zip(self.tasks, self.invigilators):
             if task.done():
-                try: # task worked
+                try:  # task worked
                     result = task.result()
-                except asyncio.CancelledError: # task was cancelled
+                except asyncio.CancelledError:  # task was cancelled
                     result = invigilator.get_failed_task_result()
-                except Exception as exception: # any other kind of exception in the task
+                except (
+                    Exception
+                ) as exception:  # any other kind of exception in the task
                     if not warning_printed:
                         warning_printed = True
                         print(warning_header)
@@ -155,31 +162,30 @@ class Interview:
             yield self.get_invigilator(question=question, debug=debug)
 
     def _build_question_tasks(
-        self, 
-        debug: bool, 
-        model_buckets: ModelBuckets, 
+        self,
+        debug: bool,
+        model_buckets: ModelBuckets,
     ) -> List[asyncio.Task]:
         """Creates a task for each question, with dependencies on the questions that must be answered before this one can be answered."""
         tasks = []
         for question in self.survey.questions:
             tasks_that_must_be_completed_before = list(
-                self._get_tasks_that_must_be_completed_before(tasks = tasks, question = question)
+                self._get_tasks_that_must_be_completed_before(
+                    tasks=tasks, question=question
+                )
             )
             question_task = self._create_question_task(
                 question=question,
                 tasks_that_must_be_completed_before=tasks_that_must_be_completed_before,
                 model_buckets=model_buckets,
                 debug=debug,
-                iteration=self.iteration
+                iteration=self.iteration,
             )
             tasks.append(question_task)
-        return TasksList(tasks) #, invigilators
+        return TasksList(tasks)  # , invigilators
 
     def _get_tasks_that_must_be_completed_before(
-        self, 
-        *,
-        tasks: List[asyncio.Task], 
-        question: Question
+        self, *, tasks: List[asyncio.Task], question: Question
     ) -> Generator[asyncio.Task, None, None]:
         """Returns the tasks that must be completed before the given question can be answered.
 
@@ -198,10 +204,10 @@ class Interview:
         tasks_that_must_be_completed_before: List[asyncio.Task],
         model_buckets: ModelBuckets,
         debug: bool,
-        iteration:int = 0
+        iteration: int = 0,
     ) -> asyncio.Task:
         """Creates a task that depends on the passed-in dependencies that are awaited before the task is run.
-        
+
         The task is created by a QuestionTaskCreator, which is responsible for creating the task and managing its dependencies.
         It is passed a reference to the function that will be called to answer the question.
         It is passed a list "tasks_that_must_be_completed_before" that are awaited before the task is run.
@@ -212,12 +218,14 @@ class Interview:
             answer_question_func=self._answer_question_and_record_task,
             token_estimator=self._get_estimated_request_tokens,
             model_buckets=model_buckets,
-            iteration = iteration
+            iteration=iteration,
         )
         for task in tasks_that_must_be_completed_before:
             task_creator.add_dependency(task)
 
-        self.task_creators.update({question.question_name:task_creator}) # track this task creator
+        self.task_creators.update(
+            {question.question_name: task_creator}
+        )  # track this task creator
         return task_creator.generate_task(debug)
 
     def async_timeout_handler(timeout):
@@ -242,7 +250,7 @@ class Interview:
             debug=debug,
             memory_plan=self.survey.memory_plan,
             current_answers=self.answers,
-            iteration = self.iteration
+            iteration=self.iteration,
         )
         return invigilator
 
@@ -285,22 +293,21 @@ class Interview:
 
     def _cancel_skipped_questions(self, current_question: Question) -> None:
         """Cancels the tasks for questions that are skipped.
-        
-        It first determines the next question, given the current question and the current answers. 
+
+        It first determines the next question, given the current question and the current answers.
         If the next question is the end of the survey, it cancels all remaining tasks.
         If the next question is after the current question, it cancels all tasks between the current question and the next question.
         """
         current_question_index = self.to_index[current_question.question_name]
         next_question = self.survey.rule_collection.next_question(
-            q_now=current_question_index, 
-            answers=self.answers
+            q_now=current_question_index, answers=self.answers
         )
         next_question_index = next_question.next_q
 
         def cancel_between(start, end):
             for i in range(start, end):
                 self.tasks[i].cancel()
-     
+
         if next_question_index == EndOfSurvey:
             cancel_between(current_question_index + 1, len(self.survey.questions))
             return

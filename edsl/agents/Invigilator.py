@@ -18,7 +18,14 @@ class InvigilatorBase(ABC):
     """An invigiator (someone who administers an exam) is a class that is responsible for administering a question to an agent."""
 
     def __init__(
-        self, agent, question, scenario, model, memory_plan, current_answers: dict, iteration: int = 1
+        self,
+        agent,
+        question,
+        scenario,
+        model,
+        memory_plan,
+        current_answers: dict,
+        iteration: int = 1,
     ):
         self.agent = agent
         self.question = question
@@ -113,8 +120,10 @@ class InvigilatorAI(InvigilatorBase):
         }
         # This calls the self.async_get_response method w/ the prompts
         # The raw response is a dictionary.
-        #breakpoint()
-        raw_response = await self.async_get_response(**(self.get_prompts() | {'iteration': self.iteration}))
+        # breakpoint()
+        raw_response = await self.async_get_response(
+            **(self.get_prompts() | {"iteration": self.iteration})
+        )
         assert "raw_model_response" in raw_response
         response = self._format_raw_response(
             **(
@@ -127,13 +136,15 @@ class InvigilatorAI(InvigilatorBase):
         )
         return response
 
-    async def async_get_response(self, user_prompt: Prompt, system_prompt: Prompt, iteration:int = 1):
+    async def async_get_response(
+        self, user_prompt: Prompt, system_prompt: Prompt, iteration: int = 1
+    ):
         """Calls the LLM and gets a response. Used in the `answer_question` method."""
         try:
             response = await self.model.async_get_response(
-                user_prompt = user_prompt.text, 
-                system_prompt = system_prompt.text, 
-                iteration = iteration
+                user_prompt=user_prompt.text,
+                system_prompt=system_prompt.text,
+                iteration=iteration,
             )
         except json.JSONDecodeError as e:
             raise AgentRespondedWithBadJSONError(
@@ -253,7 +264,7 @@ class InvigilatorAI(InvigilatorBase):
 
 
 class InvigilatorDebug(InvigilatorBase):
-    async def async_answer_question(self, iteration:int = 1) -> AgentResponseDict:
+    async def async_answer_question(self, iteration: int = 1) -> AgentResponseDict:
         results = self.question.simulate_answer(human_readable=True)
         results["prompts"] = self.get_prompts()
         results["question_name"] = self.question.question_name
@@ -268,7 +279,7 @@ class InvigilatorDebug(InvigilatorBase):
 
 
 class InvigilatorHuman(InvigilatorBase):
-    async def async_answer_question(self, iteration:int = 1) -> AgentResponseDict:
+    async def async_answer_question(self, iteration: int = 1) -> AgentResponseDict:
         data = {
             "comment": "This is a real survey response from a human.",
             "answer": None,
@@ -289,7 +300,7 @@ class InvigilatorHuman(InvigilatorBase):
 
 
 class InvigilatorFunctional(InvigilatorBase):
-    async def async_answer_question(self, iteration:int = 1) -> AgentResponseDict:
+    async def async_answer_question(self, iteration: int = 1) -> AgentResponseDict:
         func = self.question.answer_question_directly
         data = {
             "comment": "Functional.",
