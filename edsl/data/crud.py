@@ -20,7 +20,12 @@ class CRUDOperations:
         self.database = database
 
     def get_LLMOutputData(
-        self, model: str, parameters: str, system_prompt: str, prompt: str
+        self,
+        model: str,
+        parameters: str,
+        system_prompt: str,
+        prompt: str,
+        iteration: int,
     ) -> Union[str, None]:
         """
         Retrieves a cached LLM output from the database. Arguments: in string format, the model, parameters, system_prompt, and prompt used to generate the output. Returns the output (json string) if it exists, otherwise None.
@@ -33,6 +38,7 @@ class CRUDOperations:
                     system_prompt=system_prompt,
                     model=model,
                     parameters=parameters,
+                    iteration=iteration,
                 )
                 .order_by(desc(LLMOutputDataDB.id))
                 .first()
@@ -40,7 +46,13 @@ class CRUDOperations:
         return record.output if record else None
 
     def write_LLMOutputData(
-        self, model: str, parameters: str, system_prompt: str, prompt: str, output: str
+        self,
+        model: str,
+        parameters: str,
+        system_prompt: str,
+        prompt: str,
+        output: str,
+        iteration: int,
     ) -> None:
         """
         Writes an LLM output to the database. Arguments: in string format, the model, parameters, system_prompt, prompt, and the generated output.
@@ -51,6 +63,7 @@ class CRUDOperations:
             system_prompt=system_prompt,
             prompt=prompt,
             output=output,
+            iteration=iteration,
         )
 
         with self.database.get_db() as db:
@@ -79,6 +92,7 @@ class CRUDOperations:
                     "system_prompt": record.system_prompt,
                     "prompt": record.prompt,
                     "output": record.output,
+                    "iteration": record.iteration,
                 }
                 for record in records
             ]
@@ -91,6 +105,7 @@ class CRUDOperations:
         scenario: str,
         model: str,
         answer: str,
+        iteration: int,
     ) -> None:
         """Writes a Result record to the database."""
         record = ResultDB(
@@ -100,6 +115,7 @@ class CRUDOperations:
             scenario=scenario,
             model=model,
             answer=answer,
+            iteration=iteration,
         )
 
         with self.database.get_db() as db:

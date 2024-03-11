@@ -2,13 +2,15 @@ from __future__ import annotations
 from collections.abc import Sequence
 from collections import UserDict
 from itertools import product
-from typing import Union
+from typing import Union, Generator
 
 from edsl import CONFIG
 from edsl.agents import Agent
 from edsl.Base import Base
 from edsl.data import Database, database
-from edsl.language_models import LanguageModel, LanguageModelOpenAIThreeFiveTurbo
+from edsl.language_models import LanguageModel  # , LanguageModelOpenAIThreeFiveTurbo
+from edsl.enums import LanguageModelType
+from edsl import Model
 from edsl.results import Results
 from edsl.scenarios import Scenario
 from edsl.surveys import Survey
@@ -30,6 +32,8 @@ class Jobs(Base):
     - `interviews()`: creates a collection of interviews
     - `run()`: runs a collection of interviews
 
+    Actually running of a job is done by a JobsRunner, which is a subclass of JobsRunner.
+    The JobsRunner is chosen by the user, and is stored in the `jobs_runner_name` attribute.
     """
 
     jobs_runner_name = JobsRunnerDescriptor()
@@ -59,6 +63,7 @@ class Jobs(Base):
     ) -> Jobs:
         """
         Adds Agents, Scenarios and LanguageModels to a job. If no objects of this type exist in the Jobs instance, it stores the new objects as a list in the corresponding attribute. Otherwise, it combines the new objects with existing objects using the object's `__add__` method.
+        This 'by' is intended to create a fluent interface.
 
         Arguments:
         - objects or a sequence (list, tuple, ...) of objects of the same type
@@ -69,7 +74,6 @@ class Jobs(Base):
         - scenarios: traits of new scenarios are combined with traits of old existing. New scenarios will overwrite overlapping traits, and do not increase the number of scenarios in the instance
         - models: new models overwrite old models.
         """
-        # if the first argument is a sequence, grab it and ignore other arguments
 
         passed_objects = self._turn_args_to_list(args)
 
@@ -121,7 +125,7 @@ class Jobs(Base):
         return current_objects, key
 
     @staticmethod
-    def _merge_objects(passed_objects, current_objects):
+    def _merge_objects(passed_objects, current_objects) -> list:
         """
         Combines all the existing objects with the new objects
         For example, if the user passes in 3 agents,
@@ -142,20 +146,27 @@ class Jobs(Base):
         - Returns one Interview for each combination of Agent, Scenario, and LanguageModel.
         - If any of Agents, Scenarios, or LanguageModels are missing, fills in with defaults. Note that this will change the corresponding class attributes.
         """
+        return list(self._create_interviews())
+
+    def _create_interviews(self) -> Generator[Interview, None, None]:
+        """
+        A generator that yields interviews.
+        Note that this sets the agents, model and scenarios if they have not been set. This is a side effect of the method.
+        """
         self.agents = self.agents or [Agent()]
-        self.models = self.models or [LanguageModelOpenAIThreeFiveTurbo(use_cache=True)]
+        self.models = self.models or [
+            Model(LanguageModelType.GPT_4.value, use_cache=True)
+        ]
         self.scenarios = self.scenarios or [Scenario()]
-        interviews = []
         for agent, scenario, model in product(self.agents, self.scenarios, self.models):
-            interview = Interview(
+            yield Interview(
                 survey=self.survey, agent=agent, scenario=scenario, model=model
             )
-            interviews.append(interview)
-        return interviews
 
-    def create_bucket_collection(self):
+    def create_bucket_collection(self) -> BucketCollection:
         """
         Creates a collection of buckets for each model.
+        These buckets are used to track API calls and tokeen usage.
         """
         bucket_collection = BucketCollection()
         for model in self.models:
@@ -163,7 +174,7 @@ class Jobs(Base):
         return bucket_collection
 
     @property
-    def bucket_collection(self):
+    def bucket_collection(self) -> BucketCollection:
         if self.__bucket_collection is None:
             self.__bucket_collection = self.create_bucket_collection()
         return self.__bucket_collection

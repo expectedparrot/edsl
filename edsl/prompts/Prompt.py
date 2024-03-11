@@ -37,10 +37,13 @@ class PromptBase(
 
     @property
     def text(self):
+        """Return the `Prompt` text"""
         return self._text
 
     def __add__(self, other_prompt):
         """
+
+        Example:
         >>> p = Prompt("Hello, {{person}}")
         >>> p2 = Prompt("How are you?")
         >>> p + p2
@@ -79,10 +82,12 @@ class PromptBase(
         """
         return f"Prompt(text='{self.text}')"
 
-    def template_variables(
-        self,
-    ) -> list[str]:
+    def template_variables(self) -> list[str]:
         """
+        Return the the variables in the template.
+
+        Example:
+
         >>> p = Prompt("Hello, {{person}}")
         >>> p.template_variables()
         ['person']
@@ -91,13 +96,26 @@ class PromptBase(
 
     @staticmethod
     def _template_variables(template: str) -> list[str]:
-        """ """
+        """Find and return the template variables."""
         env = Environment()
         ast = env.parse(template)
         return list(meta.find_undeclared_variables(ast))
 
-    def undefined_template_variables(self, replcement_dict):
-        return [var for var in self.template_variables() if var not in replcement_dict]
+    def undefined_template_variables(self, replacement_dict: dict):
+        """Return the variables in the template that are not in the replacement_dict.
+
+        :param replacement_dict: A dictionary of replacements to populate the template.
+
+        Example:
+
+        >>> p = Prompt("Hello, {{person}}")
+        >>> p.undefined_template_variables({"person": "John"})
+        []
+        >>> p = Prompt("Hello, {{title}} {{person}}")
+        >>> p.undefined_template_variables({"person": "John"})
+        ['title']
+        """
+        return [var for var in self.template_variables() if var not in replacement_dict]
 
     def unused_traits(self, traits: dict):
         return [trait for trait in traits if trait not in self.template_variables()]

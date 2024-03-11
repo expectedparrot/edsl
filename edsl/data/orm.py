@@ -16,6 +16,7 @@ class LLMOutputDataDB(Base):
     system_prompt = Column(Text, nullable=False)
     prompt = Column(Text, nullable=False)
     output = Column(Text, nullable=False)
+    iteration = Column(Integer, nullable=False)
 
     # Index for faster queries
     idx_responses_fields = Index(
@@ -33,5 +34,6 @@ class ResultDB(Base):
     scenario = Column(Text, nullable=False)
     model = Column(Text, nullable=False)
     answer = Column(Text, nullable=False)
+    iteration = Column(Integer, nullable=False)
 
     idx_job_uuid = Index("idx_job_uuid", "job_uuid")
