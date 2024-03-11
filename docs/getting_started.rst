@@ -75,6 +75,7 @@ Community
 Join our Discord: https://discord.com/invite/mxAYkjfy9m
 
 Follow us on X: https://twitter.com/expectedparrot
+
 Follow us on LinkedIn: https://www.linkedin.com/company/expectedparrot 
 
 Send us an email: info@expectedparrot.com 
