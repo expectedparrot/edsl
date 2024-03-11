@@ -1,3 +1,4 @@
+"""A survey has a memory plan that specifies what the agent should remember when answering a question."""
 from collections import UserDict, defaultdict
 from edsl.surveys.Memory import Memory
 
@@ -68,7 +69,7 @@ class MemoryPlan(UserDict):
         """
 
         def gen_line(question_text, answer):
-            "Returns a line of memory"
+            """Return a line of memory."""
             return f"\tQuestion: {question_text}\n\tAnswer: {answer}\n"
 
         lines = [gen_line(*pair) for pair in q_and_a_pairs]
@@ -115,7 +116,7 @@ class MemoryPlan(UserDict):
             self.add_single_memory(focal_question, question)
 
     def to_dict(self) -> dict:
-        "Serialize the memory plan to a dictionary."
+        """Serialize the memory plan to a dictionary."""
         return {
             "survey_question_names": self.survey_question_names,
             "survey_question_texts": self.question_texts,
@@ -131,7 +132,7 @@ class MemoryPlan(UserDict):
         return memory_plan
 
     def _indexify(self, d: dict):
-        """Converts a dictionary of question names to a dictionary of question indices.
+        """Convert a dictionary of question names to a dictionary of question indices.
 
         :param d: A dictionary of question names to indices.
         """
@@ -144,7 +145,7 @@ class MemoryPlan(UserDict):
 
     @property
     def dag(self) -> DAG:
-        """Returns a directed acyclic graph of the memory plan"""
+        """Return a directed acyclic graph of the memory plan."""
         d = defaultdict(set)
         for focal_question, memory in self.items():
             for prior_question in memory:
