@@ -1,3 +1,4 @@
+"""Mixin class for ggplot2 plotting."""
 import subprocess
 import pandas as pd
 import tempfile
@@ -6,7 +7,10 @@ import matplotlib.image as mpimg
 
 
 class ResultsGGMixin:
+    """Mixin class for ggplot2 plotting."""
+
     def ggplot2(self, ggplot_code: str, filename=None, shape="wide"):
+        """Create a ggplot2 plot from a DataFrame."""
         # Fetching DataFrame based on shape
         if shape == "long":
             df = self.sql("select * from self", shape="long")
@@ -47,6 +51,7 @@ class ResultsGGMixin:
             self._display_plot(filename)
 
     def _display_plot(self, filename):
+        """Display the plot in the notebook."""
         img = mpimg.imread(filename)
         plt.imshow(img)
         plt.axis("off")

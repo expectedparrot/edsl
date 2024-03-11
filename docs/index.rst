@@ -17,13 +17,15 @@ This is the documentation for the edsl package.
    scenarios
    surveys
    agents
+   prompts
    language_models
    jobs
    results
-   prompts
    base
    data
    reports
+   trackers
+   utlities
 
    
 Indices and tables
