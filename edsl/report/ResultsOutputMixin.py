@@ -1,9 +1,12 @@
+"""This module contains the ResultsOutputMixin class, which is used to add output functions to the Results class."""
 from edsl.report.ReportOutputs import RegisterElementMeta as registery
 
 
 class ResultsOutputMixin:
+    """Mixin class for adding output functions to the Results class."""
+    
     def add_output_functions(self) -> None:
-        """Iterates through all output classes and adds a function to the Results class for each one."""
+        """Iterate through all output classes and add a function to the Results class for each one."""
         output_classes = registery.get_registered_classes().values()
         self.analysis_options = []
         for output_class in output_classes:
