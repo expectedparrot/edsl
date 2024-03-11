@@ -111,8 +111,6 @@ class Agent(Base):
         Otherwise, the traits are returned.
 
         Example:
-        --------
-
         >>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
         >>> a.traits
         {'age': 10, 'hair': 'brown', 'height': 5.5}

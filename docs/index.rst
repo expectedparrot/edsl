@@ -13,14 +13,17 @@ This is the documentation for the edsl package.
    :caption: Contents:
 
    getting_started
-   agents
-   surveys
    questions
+   scenarios
+   surveys
+   agents
+   language_models
+   jobs
    results
    prompts
    base
-   language_models
-   scenarios
+   data
+   reports
 
    
 Indices and tables

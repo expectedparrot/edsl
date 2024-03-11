@@ -1,5 +1,5 @@
-Questions
-=========
+Creating Questions
+==================
 
 Question class
 --------------
@@ -17,6 +17,14 @@ QuestionMultipleChoice class
    :undoc-members:
    :show-inheritance:
 
+QuestionCheckBox class
+-----------------------------
+
+.. automodule:: edsl.questions.QuestionCheckBox
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 QuestionFreeText class
 ----------------------
 
@@ -25,10 +33,34 @@ QuestionFreeText class
    :undoc-members:
    :show-inheritance:
 
+QuestionLinearScale class
+-----------------------------
+
+.. automodule:: edsl.questions.QuestionLinearScale
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 QuestionList class
 ------------------
 
 .. automodule:: edsl.questions.QuestionList
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+QuestionBudget class
+-----------------------------
+
+.. automodule:: edsl.questions.QuestionBudget
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+QuestionYesNo class
+-----------------------------
+
+.. automodule:: edsl.questions.QuestionYesNo
    :members:
    :undoc-members:
    :show-inheritance:

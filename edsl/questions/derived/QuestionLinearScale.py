@@ -1,3 +1,4 @@
+"""This module contains the QuestionLinearScale class. It is a subclass of the QuestionMultipleChoice class and is used to create linear scale questions."""
 from __future__ import annotations
 import textwrap
 from typing import Optional
@@ -34,6 +35,7 @@ class QuestionLinearScale(QuestionMultipleChoice):
         short_names_dict: Optional[dict[str, str]] = None,
         option_labels: Optional[dict[int, str]] = None,
     ):
+        """Instantiate a new QuestionLinearScale."""
         super().__init__(
             question_text=question_text,
             question_options=question_options,
@@ -48,6 +50,7 @@ class QuestionLinearScale(QuestionMultipleChoice):
     ################
     @classmethod
     def example(cls) -> QuestionLinearScale:
+        """Return an example of a linear scale question."""
         return cls(
             question_text="How much do you like ice cream?",
             question_options=[1, 2, 3, 4, 5],
@@ -57,6 +60,7 @@ class QuestionLinearScale(QuestionMultipleChoice):
 
 
 def main():
+    """Create an example of a linear scale question and demonstrate its functionality."""
     from edsl.questions.derived.QuestionLinearScale import QuestionLinearScale
 
     q = QuestionLinearScale.example()

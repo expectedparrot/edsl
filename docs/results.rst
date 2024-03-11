@@ -1,5 +1,5 @@
-Results
-=======
+Working with Survey Results
+===========================
 
 Result class
 ------------
@@ -9,7 +9,7 @@ Result class
    :undoc-members:
    :show-inheritance:
 
-Result class
+Results class
 ------------
 
 .. automodule:: edsl.results.Results

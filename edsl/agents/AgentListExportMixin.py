@@ -1,9 +1,11 @@
+"""Mixin for exporting agent list to docx."""
 from docx import Document
 
-
 class AgentListExportMixin:
+    """Mixin for exporting agent list to docx."""
+    
     def docx(self) -> "Document":
-        "Generates a docx document for the survey"
+        """Generate a docx document for the survey."""
         doc = Document()
 
         doc.add_heading("EDSL Auto-Generated Agent Description")

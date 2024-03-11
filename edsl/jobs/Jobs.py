@@ -1,3 +1,4 @@
+"""The Jobs class is a collection of agents, scenarios and models and one survey."""
 from __future__ import annotations
 from collections.abc import Sequence
 from collections import UserDict
@@ -45,6 +46,7 @@ class Jobs(Base):
         models: list[LanguageModel] = None,
         scenarios: list[Scenario] = None,
     ):
+        """Initialize a Jobs instance."""
         self.survey = survey
         self.agents = agents or []
         self.models = models or []
@@ -62,9 +64,10 @@ class Jobs(Base):
         ],
     ) -> Jobs:
         """
-        Adds Agents, Scenarios and LanguageModels to a job. If no objects of this type exist in the Jobs instance, it stores the new objects as a list in the corresponding attribute. Otherwise, it combines the new objects with existing objects using the object's `__add__` method.
-        This 'by' is intended to create a fluent interface.
+        Add Agents, Scenarios and LanguageModels to a job. If no objects of this type exist in the Jobs instance, it stores the new objects as a list in the corresponding attribute. Otherwise, it combines the new objects with existing objects using the object's `__add__` method.
 
+        This 'by' is intended to create a fluent interface.
+        
         Arguments:
         - objects or a sequence (list, tuple, ...) of objects of the same type
 
@@ -74,7 +77,6 @@ class Jobs(Base):
         - scenarios: traits of new scenarios are combined with traits of old existing. New scenarios will overwrite overlapping traits, and do not increase the number of scenarios in the instance
         - models: new models overwrite old models.
         """
-
         passed_objects = self._turn_args_to_list(args)
 
         current_objects, objects_key = self._get_current_objects_of_this_type(
@@ -91,8 +93,11 @@ class Jobs(Base):
 
     @staticmethod
     def _turn_args_to_list(args):
+        """Return a list of the first argument if it is a sequence, otherwise returns a list of all the arguments."""
         def did_user_pass_a_sequence(args):
-            """
+            """Return True if the user passed a sequence, False otherwise.
+
+            Example:
             >>> did_user_pass_a_sequence([1,2,3])
             True
             >>> did_user_pass_a_sequence(1)
@@ -106,6 +111,7 @@ class Jobs(Base):
             return list(args)
 
     def _get_current_objects_of_this_type(self, object):
+        """Return the current objects of the same type as the first argument."""
         class_to_key = {
             Agent: "agents",
             Scenario: "scenarios",
@@ -127,7 +133,8 @@ class Jobs(Base):
     @staticmethod
     def _merge_objects(passed_objects, current_objects) -> list:
         """
-        Combines all the existing objects with the new objects
+        Combine all the existing objects with the new objects.
+
         For example, if the user passes in 3 agents,
         and there are 2 existing agents, this will create 6 new agents
 
@@ -142,7 +149,8 @@ class Jobs(Base):
 
     def interviews(self) -> list[Interview]:
         """
-        Returns a list of Interviews, that will eventually be used by the JobRunner.
+        Return a list of Interviews, that will eventually be used by the JobRunner.
+        
         - Returns one Interview for each combination of Agent, Scenario, and LanguageModel.
         - If any of Agents, Scenarios, or LanguageModels are missing, fills in with defaults. Note that this will change the corresponding class attributes.
         """
@@ -150,7 +158,8 @@ class Jobs(Base):
 
     def _create_interviews(self) -> Generator[Interview, None, None]:
         """
-        A generator that yields interviews.
+        Generate interviews.
+
         Note that this sets the agents, model and scenarios if they have not been set. This is a side effect of the method.
         """
         self.agents = self.agents or [Agent()]
@@ -165,7 +174,8 @@ class Jobs(Base):
 
     def create_bucket_collection(self) -> BucketCollection:
         """
-        Creates a collection of buckets for each model.
+        Create a collection of buckets for each model.
+
         These buckets are used to track API calls and tokeen usage.
         """
         bucket_collection = BucketCollection()
@@ -175,6 +185,7 @@ class Jobs(Base):
 
     @property
     def bucket_collection(self) -> BucketCollection:
+        """Return the bucket collection. If it does not exist, create it."""
         if self.__bucket_collection is None:
             self.__bucket_collection = self.create_bucket_collection()
         return self.__bucket_collection
@@ -223,7 +234,7 @@ class Jobs(Base):
         return results
 
     def _run_local(self, *args, db: Database = database, **kwargs):
-        """Runs the job locally."""
+        """Run the job locally."""
         db._health_check_pre_run()
         JobRunner = JobsRunnersRegistry[self.job_runner_name](jobs=self)
         results = JobRunner.run(*args, **kwargs)
@@ -231,7 +242,7 @@ class Jobs(Base):
         return results
 
     def _run_remote(self, *args, **kwargs):
-        """Runs the job remotely."""
+        """Run the job remotely."""
         results = JobRunnerAPI(*args, **kwargs)
         return results
 
@@ -239,11 +250,11 @@ class Jobs(Base):
     # Dunder methods
     #######################
     def __repr__(self) -> str:
-        """Returns an eval-able string representation of the Jobs instance."""
+        """Return an eval-able string representation of the Jobs instance."""
         return f"Jobs(survey={repr(self.survey)}, agents={repr(self.agents)}, models={repr(self.models)}, scenarios={repr(self.scenarios)})"
 
     def __len__(self) -> int:
-        """Returns the number of questions that will be asked while running this job."""
+        """Return the number of questions that will be asked while running this job."""
         number_of_questions = (
             len(self.agents or [1])
             * len(self.scenarios or [1])
@@ -256,7 +267,7 @@ class Jobs(Base):
     # Serialization methods
     #######################
     def to_dict(self) -> dict:
-        """Converts the Jobs instance to a dictionary."""
+        """Convert the Jobs instance to a dictionary."""
         return {
             "survey": self.survey.to_dict(),
             "agents": [agent.to_dict() for agent in self.agents],
@@ -279,8 +290,8 @@ class Jobs(Base):
     #######################
     @classmethod
     def example(cls) -> Jobs:
+        """Return an example Jobs instance."""
         from edsl.questions import QuestionMultipleChoice
-
         from edsl import Agent
 
         # (status, question, period)
@@ -296,6 +307,7 @@ class Jobs(Base):
         }
 
         def answer_question_directly(self, question, scenario):
+            """Return the answer to a question. This is a method that can be added to an agent."""
             return agent_answers[
                 (self.traits["status"], question.question_name, scenario["period"])
             ]
@@ -325,7 +337,7 @@ class Jobs(Base):
         return job
 
     def rich_print(self):
-        """Prints a rich representation of the Jobs instance."""
+        """Print a rich representation of the Jobs instance."""
         from rich.table import Table
 
         table = Table(title="Jobs")
@@ -334,10 +346,12 @@ class Jobs(Base):
         return table
 
     def code(self):
+        """Return the code to create this instance."""
         raise NotImplementedError
 
 
 def main():
+    """Run the module's doctests."""
     from edsl.jobs import Jobs
 
     job = Jobs.example()
@@ -348,6 +362,7 @@ def main():
 
 
 if __name__ == "__main__":
+    """Run the module's doctests."""
     import doctest
 
     doctest.testmod()
