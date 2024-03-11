@@ -117,11 +117,6 @@ class Agent(Base):
         >>> a.traits
         {'age': 10, 'hair': 'brown', 'height': 5.5}
 
-        >>> a = Agent()
-        >>> a.add_direct_question_answering_method(lambda question, scenario, self: {"age": 10, "hair": "brown", "height": 5.5})
-        >>> a.traits
-        {'age': 10, 'hair': 'brown', 'height': 5.5}
-
         """
         if self.dynamic_traits_function:
             sig = inspect.signature(self.dynamic_traits_function)
@@ -140,8 +135,8 @@ class Agent(Base):
         Example usage:
 
         >>> a = Agent()
-        >>> method = lambda question, scenario, self: "I am a direct answer."
-        >>> a.add_direct_question_answering_method(method)
+        >>> def f(self, question, scenario): return "I am a direct answer."
+        >>> a.add_direct_question_answering_method(f)
         >>> a.answer_question_directly(question = None, scenario = None)
         'I am a direct answer.'
         """

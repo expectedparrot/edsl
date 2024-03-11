@@ -1,3 +1,5 @@
+"""A Scenario is a dictionary of key/values that describe some situation."""
+
 import copy
 from collections import UserDict
 from rich.table import Table
@@ -8,8 +10,13 @@ from edsl.Base import Base
 class Scenario(Base, UserDict):
     """A Scenario is a dictionary of key/values that describe some situation."""
 
-    def __add__(self, other_scenario):
+    def __add__(self, other_scenario: "Scenario"):
         """Combine two scenarios. If the other scenario is None, then just return self.
+
+        :param other_scenario: The other scenario to combine with.
+        
+        Examples:
+
         >>> s1 = Scenario({"price": 100, "quantity": 2})
         >>> s2 = Scenario({"color": "red"})
         >>> s1 + s2
@@ -27,7 +34,11 @@ class Scenario(Base, UserDict):
 
     def to(self, question_or_survey) -> "Jobs":
         """Run a question/survey with this particular scenario.
+        
+        :param question_or_survey: A question or survey to run.
         Useful if you want to reverse the typical chain of operations.
+
+        Examples:
 
         >>> from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
         >>> s = Scenario({"food": "wood chips"})
@@ -37,7 +48,11 @@ class Scenario(Base, UserDict):
         return question_or_survey.by(self)
 
     def rename(self, replacement_dict: dict) -> "Scenario":
-        """Rename the keys of a scenario. Useful for changing the names of keys.
+        """Rename the keys of a scenario.
+
+        :param replacement_dict: A dictionary of old keys to new keys.
+
+        Examples:
 
         >>> s = Scenario({"food": "wood chips"})
         >>> s.rename({"food": "food_preference"})
@@ -51,9 +66,13 @@ class Scenario(Base, UserDict):
                 new_scenario[key] = value
         return new_scenario
 
-    def make_question(self, question_class: type):
-        """Make a question from this scenario. Note it takes a QuestionClass (not a question)
-        as an input.
+    def make_question(self, question_class: type) -> 'Question':
+        """Make a question from a scenario.
+
+        :param question_class: The question class to use.        
+        Note it takes a QuestionClass (not a question) as an input.
+
+        Examples:
 
         >>> from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
         >>> from edsl.agents.Agent import Agent
@@ -67,8 +86,9 @@ class Scenario(Base, UserDict):
         """
         return question_class(**self)
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         """Convert a scenario to a dictionary.
+
         >>> s = Scenario({"food": "wood chips"})
         >>> s.to_dict()
         {'food': 'wood chips'}
@@ -76,8 +96,9 @@ class Scenario(Base, UserDict):
         return self.data
 
     @classmethod
-    def from_dict(cls, d):
+    def from_dict(cls, d) -> "Scenario":
         """Convert a dictionary to a scenario.
+
         >>> Scenario.from_dict({"food": "wood chips"})
         {'food': 'wood chips'}
         """
@@ -107,6 +128,7 @@ class Scenario(Base, UserDict):
     @classmethod
     def example(cls):
         """Returns an example scenario.
+
         >>> Scenario.example()
         {'persona': 'A reseacher studying whether LLMs can be used to generate surveys.'}
         """
@@ -125,5 +147,4 @@ class Scenario(Base, UserDict):
 
 if __name__ == "__main__":
     import doctest
-
     doctest.testmod()

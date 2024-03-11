@@ -18,6 +18,9 @@ This is the first page of documentation.
    results
    prompts
    base
+   language_models
+   scenarios
+
    
 Indices and tables
 ==================

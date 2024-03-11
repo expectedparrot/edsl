@@ -7,10 +7,12 @@ from edsl.surveys.DAG import DAG
 
 class MemoryPlan(UserDict):
     """A survey has a memory plan that specifies what the agent should remember when answering a question.
+
     {focal_question: [prior_questions], focal_question: [prior_questions]}
     """
 
     def __init__(self, survey: "Survey" = None, data=None):
+        """Initialize a memory plan."""
         if survey is not None:
             self.survey = survey
             self.survey_question_names = [q.question_name for q in survey.questions]
@@ -19,23 +21,37 @@ class MemoryPlan(UserDict):
 
     @property
     def name_to_text(self):
-        "Returns a dictionary mapping question names to question texts"
+        """Return a dictionary mapping question names to question texts."""
         return dict(zip(self.survey_question_names, self.question_texts))
 
-    def add_question(self, question):
+    def add_question(self, question: 'Question') -> None:
+        """Add a question to the survey.
+        
+        :param question: A question to add to the survey
+        
+        """
         self.survey_question_names.append(question.question_name)
         self.question_texts.append(question.question_text)
 
-    def check_valid_question_name(self, question_name):
-        "Make sure a passed question name is valid"
+    def _check_valid_question_name(self, question_name: str) -> None:
+        """Ensure a passed question name is valid.
+        
+        :param question_name: The name of the question to check.
+
+        """
         if question_name not in self.survey_question_names:
             raise ValueError(
                 f"{question_name} is not in the survey. Current names are {self.survey_question_names}"
             )
 
-    def get_memory_prompt_fragment(self, focal_question, answers) -> "Prompt":
-        "Generates the prompt fragment"
-        self.check_valid_question_name(focal_question)
+    def get_memory_prompt_fragment(self, focal_question: str, answers: dict) -> "Prompt":
+        """Generate the prompt fragment descripting that past question and answer.
+        
+        :param focal_question: The current question being answered.
+        :param answers: A dictionary of question names to answers.
+
+        """
+        self._check_valid_question_name(focal_question)
 
         if focal_question not in self:
             return Prompt("")
@@ -61,16 +77,22 @@ class MemoryPlan(UserDict):
         else:
             return Prompt("")
 
-    def check_order(self, focal_question, prior_question):
+    def _check_order(self, focal_question: str, prior_question: str) -> None:
+        """Ensure the prior question comes before the focal question."""
         focal_index = self.survey_question_names.index(focal_question)
         prior_index = self.survey_question_names.index(prior_question)
         if focal_index <= prior_index:
             raise ValueError(f"{prior_question} must come before {focal_question}.")
 
-    def add_single_memory(self, focal_question: str, prior_question: str):
-        self.check_valid_question_name(focal_question)
-        self.check_valid_question_name(prior_question)
-        self.check_order(focal_question, prior_question)
+    def add_single_memory(self, focal_question: str, prior_question: str) -> None:
+        """Add a single memory to the memory plan.
+        
+        :param focal_question: The current question being answered.
+        :param prior_question: The question that was answered before the focal question that should be remembered.
+        """
+        self._check_valid_question_name(focal_question)
+        self._check_valid_question_name(prior_question)
+        self._check_order(focal_question, prior_question)
 
         if focal_question not in self:
             memory = Memory()
@@ -79,11 +101,17 @@ class MemoryPlan(UserDict):
         else:
             self[focal_question].add_prior_question(prior_question)
 
-    def add_memory_collection(self, focal_question, prior_questions: list[str]):
+    def add_memory_collection(self, focal_question: str, prior_questions: list[str]) -> None:
+        """Add a collection of prior questions to the memory plan.
+        
+        :param focal_question: The current question being answered.
+        :param prior_questions: A list of questions that were answered before the focal question that should be remembered.
+        """
         for question in prior_questions:
             self.add_single_memory(focal_question, question)
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
+        "Serialize the memory plan to a dictionary."
         return {
             "survey_question_names": self.survey_question_names,
             "survey_question_texts": self.question_texts,
@@ -91,15 +119,18 @@ class MemoryPlan(UserDict):
         }
 
     @classmethod
-    def from_dict(cls, data):
-        # we avoid serializing the survey
+    def from_dict(cls, data) -> "MemoryPlan":
+        """Deserialize a memory plan from a dictionary."""
         memory_plan = cls(survey=None, data=data["data"])
         memory_plan.survey_question_names = data["survey_question_names"]
         memory_plan.question_texts = data["survey_question_texts"]
-        # memory_plan.data = data
         return memory_plan
 
-    def _indexify(self, d):
+    def _indexify(self, d: dict):
+        """Converts a dictionary of question names to a dictionary of question indices.
+        
+        :param d: A dictionary of question names to indices.
+        """
         new_d = {}
         for k, v in d.items():
             key = self.survey_question_names.index(k)
@@ -108,16 +139,10 @@ class MemoryPlan(UserDict):
         return new_d
 
     @property
-    def dag(self):
+    def dag(self) -> DAG:
+        """Returns a directed acyclic graph of the memory plan"""
         d = defaultdict(set)
-        "Returns a directed acyclic graph of the memory plan"
         for focal_question, memory in self.items():
             for prior_question in memory:
                 d[focal_question].add(prior_question)
-                # if focal_question not in d:
-                #     d[focal_question] = set({prior_question})
-                # else:
-                #     d[focal_question].add(prior_question)
-        # focal_index = self.survey_question_names.index(focal_question)
-        # prior_index = self.survey_question_names.index(prior_question)
         return DAG(self._indexify(d))
