@@ -106,6 +106,7 @@ class Result(Base, UserDict):
             "answer": self.answer,
             "prompt": self.prompt,
             "raw_model_response": self.raw_model_response,
+            "iteration": {"iteration": self.iteration},
         }
 
     def code(self):
@@ -139,6 +140,7 @@ class Result(Base, UserDict):
             "answer",
             "prompt",
             "raw_model_response",
+            "iteration",
         ]:
             for key in self.sub_dicts[data_type]:
                 d[key] = data_type

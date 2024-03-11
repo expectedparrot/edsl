@@ -87,9 +87,11 @@ def test_agent_serialization():
 
 from edsl.exceptions.agents import AgentNameError
 
+
 def test_agent_forbidden_name():
     with pytest.raises(AgentNameError):
         Agent(traits={"age": 10, "name": "Peter"})
+
 
 def test_agent_serialization_with_name():
     agent = Agent(traits={"age": 10}, name="Peter")
@@ -99,6 +101,7 @@ def test_agent_serialization_with_name():
     assert agent2.traits == {"age": 10}
     assert agent2.name == "Peter"
     assert agent2 == agent
+
 
 # def test_agent_forward_methods():
 #     agent = Agent(traits={"age": 10})

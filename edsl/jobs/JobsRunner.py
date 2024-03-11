@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from collections import UserDict
-
 from abc import ABC, ABCMeta, abstractmethod
 from edsl.jobs import Jobs
 from edsl.results import Results
@@ -38,12 +36,8 @@ class JobsRunner(ABC, metaclass=RegisterJobsRunnerMeta):
 
     def __init__(self, jobs: Jobs):
         self.jobs = jobs
-        # create the interviews here so children can use them
         self.interviews = jobs.interviews()
         self.bucket_collection = jobs.bucket_collection
-        # self.bucket_collection = self.jobs.bucket_collection
-        # for model in self.jobs.models:
-        #    self.bucket_collection.add_model(model)
 
     @abstractmethod
     def run(

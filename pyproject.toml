@@ -60,6 +60,8 @@ pytest-profiling = "^1.7.0"
 pytest-xdist = "^3.5.0"
 toml = "^0.10.2"
 toml-sort = "^0.23.1"
+pydocstyle = "^6.3.0"
+sphinx = "^7.2.6"
 
 [tool.tomlsort]
 all = true

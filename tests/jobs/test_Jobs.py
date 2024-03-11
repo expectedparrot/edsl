@@ -155,13 +155,13 @@ def test_jobs_interviews(valid_job):
     assert interviews[0].survey == survey
     assert interviews[0].scenario == Scenario()
     assert interviews[0].agent == Agent()
-    assert interviews[0].model.model == "gpt-3.5-turbo"
+    assert interviews[0].model.model == "gpt-4-1106-preview"
     assert interviews[0].model.use_cache == True
 
 
 def test_jobs_run(valid_job):
     results = valid_job.run(debug=True)
-    #breakpoint()
+    # breakpoint()
 
     assert len(results) == 1
     # with pytest.raises(JobsRunError):
@@ -245,11 +245,12 @@ def test_handle_model_exception():
 
 def test_jobs_bucket_creator(valid_job):
     from edsl.jobs.base import JobsRunnersRegistry
+
     JobRunner = JobsRunnersRegistry["asyncio"](jobs=valid_job)
     bc = JobRunner.bucket_collection
     assert bc[valid_job.models[0]].requests_bucket.tokens > 10
     assert bc[valid_job.models[0]].tokens_bucket.tokens > 10
-        
+
 
 def test_jobs_main():
     main()
@@ -275,5 +276,4 @@ if __name__ == "__main__":
         )
         return valid_job
 
-
-    test_jobs_run(valid_job())    
+    test_jobs_run(valid_job())
