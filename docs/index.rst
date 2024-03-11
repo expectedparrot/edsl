@@ -22,6 +22,8 @@ This is the documentation for the edsl package.
    results
    prompts
    base
+   data
+   reports
 
    
 Indices and tables

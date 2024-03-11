@@ -1,5 +1,5 @@
-Constructing and Administering Questions
-=========
+Creating Questions
+==================
 
 Question class
 --------------
