@@ -1,3 +1,4 @@
+"""Module to store system information."""
 from dataclasses import dataclass
 import getpass
 import platform
@@ -6,6 +7,8 @@ import pkg_resources
 
 @dataclass
 class SystemInfo:
+    """Dataclass to store system information."""
+
     username: str
     system_info: str
     release_info: str
@@ -13,6 +16,7 @@ class SystemInfo:
     package_version: str
 
     def __init__(self, package_name: str):
+        """Initialize the dataclass with system."""
         self.username = getpass.getuser()
         self.system_info = platform.system()
         self.release_info = platform.release()

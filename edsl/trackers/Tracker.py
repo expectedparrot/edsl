@@ -1,5 +1,5 @@
 """
-This an ABC for a tracker that monitors a Python queue. 
+This an ABC for a tracker that monitors a Python queue.
 
 Contained within the namespace is a class called TrackerEvent, which is also an ABC. 
 This is the kind of event that will be placed in the queue the tracker is monitoring.
@@ -9,7 +9,6 @@ Each child has to implement a tracked_values method which tells what values the
 tracker is tracking - this is so it can pretty-print them. 
 
 All child classes have to implement an allowed_events class variable. 
-
 """
 import time
 from abc import ABC, abstractmethod
@@ -18,16 +17,18 @@ from edsl.utilities.interface import print_dict_with_rich
 
 
 class Tracker(ABC):
-    "Meant to be single-threaded"
+    """Meant to be single-threaded."""
 
     class TrackerEvent(ABC):
-        "Each child event needs to know how to update the state of the tracker."
+        """Each child event needs to know how to update the state of the tracker."""
 
         @abstractmethod
         def apply(self, tracker):
+            """Update the state of the tracker."""
             pass
 
     def __init__(self, event_queue, verbose=False):
+        """Initialize the tracker with an event queue."""
         self.event_queue = event_queue
         self.observed_events = []
         self.verbose = verbose
@@ -36,16 +37,17 @@ class Tracker(ABC):
 
     @abstractmethod
     def allowed_events(self) -> set:
-        "What events (classes) are allowed to be placed in the queue?"
+        """What events (classes) are allowed to be placed in the queue?"""
         pass
 
     @abstractmethod
     def tracked_values(self) -> dict:
-        "What values are tracked by this tracker (should be flat dictionary)?"
+        """What values are tracked by this tracker (should be flat dictionary)?"""
         pass
 
     def get_from_queue(self):
-        """Gets events from the queue and stores them in a list.
+        """Get events from the queue and stores them in a list.
+        
         It runs until the event_queue is empty.
         """
         while True:
@@ -61,6 +63,7 @@ class Tracker(ABC):
                 self.event_queue.task_done()
 
     def __call__(self, all_done, interval=1):
+        """Run the tracker until all_done is set."""
         if self.verbose:
             print("Tracking thread is starting.")
         while not all_done.is_set():
@@ -71,8 +74,7 @@ class Tracker(ABC):
         self.get_from_queue()
 
     def process_event(self, event):
-        """Processes an event from the event queue."""
-
+        """Process an event from the event queue."""
         ## diabling this for now as two error-prone:
         # https://chat.openai.com/share/6e0e2ae2-30d7-4281-982a-a69a218c4e76
 
@@ -86,6 +88,6 @@ class Tracker(ABC):
             self.show_status()
 
     def show_status(self):
-        """Prints the status of the interview manager."""
+        """Print the status of the interview manager."""
         data = self.tracked_values()
         print_dict_with_rich(data)
