@@ -1,3 +1,4 @@
+"""This module contains the QuestionCheckBox class. It is a subclass of the Question class and is used to create checkbox questions."""
 from __future__ import annotations
 import random
 import textwrap
@@ -44,6 +45,7 @@ class QuestionCheckBox(Question):
         max_selections: Optional[int] = None,
         short_names_dict: Optional[dict[str, str]] = None,
     ):
+        """Instantiate a new QuestionCheckBox."""
         self.question_name = question_name
         self.question_text = question_text
         self.min_selections = min_selections
@@ -55,6 +57,7 @@ class QuestionCheckBox(Question):
     # Answer methods
     ################
     def validate_answer(self, answer: Any) -> dict[str, Union[int, str]]:
+        """Validate the answer."""
         self.validate_answer_template_basic(answer)
         self.validate_answer_key_value(answer, "answer", list)
         self.validate_answer_checkbox(answer)
@@ -62,7 +65,8 @@ class QuestionCheckBox(Question):
 
     def translate_answer_code_to_answer(self, answer_codes, scenario: Scenario = None):
         """
-        Translates the answer code to the actual answer.
+        Translate the answer code to the actual answer.
+
         For example, for question options ["a", "b", "c"],the answer codes are 0, 1, and 2.
         The LLM will respond with [0,1] and this code will translate it to ["a","b"].
         """
@@ -76,8 +80,7 @@ class QuestionCheckBox(Question):
         return translated_codes
 
     def simulate_answer(self, human_readable=True) -> dict[str, Union[int, str]]:
-        """Simulates a valid answer for debugging purposes"""
-
+        """Simulate a valid answer for debugging purposes."""
         min_selections = self.min_selections or 1
         max_selections = self.max_selections or len(self.question_options)
         num_selections = random.randint(min_selections, max_selections)
@@ -104,6 +107,7 @@ class QuestionCheckBox(Question):
     ################
     @classmethod
     def example(cls) -> QuestionCheckBox:
+        """Return an example checkbox question."""
         return cls(
             question_name="never_eat",
             question_text="Which of the following foods would you eat if you had to?",
@@ -120,6 +124,7 @@ class QuestionCheckBox(Question):
 
 
 def main():
+    """Create an example QuestionCheckBox and test its methods."""
     from edsl.questions.QuestionCheckBox import QuestionCheckBox
 
     q = QuestionCheckBox.example()

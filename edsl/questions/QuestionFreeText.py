@@ -1,3 +1,4 @@
+"""This module contains the QuestionFreeText class. It is a subclass of the Question class and is used to create free text questions."""
 from __future__ import annotations
 import textwrap
 from typing import Any, Optional
@@ -40,6 +41,7 @@ class QuestionFreeText(Question):
         allow_nonresponse: Optional[bool] = None,
         instructions: Optional[str] = None,
     ):
+        """Instantiate a new QuestionFreeText."""
         self.question_text = question_text
         self.question_name = question_name
         self.allow_nonresponse = allow_nonresponse or False
@@ -49,27 +51,30 @@ class QuestionFreeText(Question):
     # Answer methods
     ################
     def validate_answer(self, answer: Any) -> dict[str, str]:
+        """Validate the answer."""
         self.validate_answer_template_basic(answer)
         self.validate_answer_key_value(answer, "answer", str)
         return answer
 
     def translate_answer_code_to_answer(self, answer, scenario: Scenario = None):
-        """Does nothing, because the answer is already in a human-readable format."""
+        """Do nothing, because the answer is already in a human-readable format."""
         return answer
 
     def simulate_answer(self, human_readable: bool = True) -> dict[str, str]:
+        """Simulate a valid answer for debugging purposes."""
         return {"answer": random_string()}
 
     @classmethod
     def example(cls) -> QuestionFreeText:
+        """Return an example instance of a free text question."""
         return cls(
             question_name="how_are_you",
             question_text="How are you?",
             allow_nonresponse=True,
         )
 
-
 def main():
+    """Create an example question and demonstrate its functionality."""
     from edsl.questions.QuestionFreeText import QuestionFreeText
 
     q = QuestionFreeText.example()

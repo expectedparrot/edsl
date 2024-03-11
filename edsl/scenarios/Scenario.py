@@ -11,11 +11,14 @@ class Scenario(Base, UserDict):
     """A Scenario is a dictionary of key/values that describe some situation."""
 
     def __add__(self, other_scenario: "Scenario"):
-        """Combine two scenarios. If the other scenario is None, then just return self.
+        """Combine two scenarios.
+        
+        If the other scenario is None, then just return self.
 
         :param other_scenario: The other scenario to combine with.
 
-        Examples:
+        Example:
+        Here are some examples of usage.
 
         >>> s1 = Scenario({"price": 100, "quantity": 2})
         >>> s2 = Scenario({"color": "red"})
@@ -39,6 +42,7 @@ class Scenario(Base, UserDict):
         Useful if you want to reverse the typical chain of operations.
 
         Examples:
+        This creates a scenario and then runs it with question with scenarios.
 
         >>> from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
         >>> s = Scenario({"food": "wood chips"})
@@ -53,6 +57,7 @@ class Scenario(Base, UserDict):
         :param replacement_dict: A dictionary of old keys to new keys.
 
         Examples:
+        This renames a key in a scenario.
 
         >>> s = Scenario({"food": "wood chips"})
         >>> s.rename({"food": "food_preference"})
@@ -73,6 +78,7 @@ class Scenario(Base, UserDict):
         Note it takes a QuestionClass (not a question) as an input.
 
         Examples:
+        These do some stuff.
 
         >>> from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
         >>> from edsl.agents.Agent import Agent
@@ -113,7 +119,7 @@ class Scenario(Base, UserDict):
         return table_data, column_names
 
     def rich_print(self):
-        """Displays an object as a rich table."""
+        """Display an object as a rich table."""
         table_data, column_names = self._table()
         table = Table(title=f"{self.__class__.__name__} Attributes")
         for column in column_names:
@@ -127,7 +133,7 @@ class Scenario(Base, UserDict):
 
     @classmethod
     def example(cls):
-        """Returns an example scenario.
+        """Return an example scenario.
 
         >>> Scenario.example()
         {'persona': 'A reseacher studying whether LLMs can be used to generate surveys.'}
@@ -139,7 +145,7 @@ class Scenario(Base, UserDict):
         )
 
     def code(self):
-        """Returns the code for the scenario."""
+        """Return the code for the scenario."""
         lines = []
         lines.append("from edsl.scenario import Scenario")
         return f"Scenario({self.data})"
