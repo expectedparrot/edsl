@@ -1,3 +1,4 @@
+"""This module contains the QuestionMultipleChoice class. It is a subclass of the Question class and is used to create multiple choice questions."""
 from __future__ import annotations
 from typing import Optional, Union
 import random
@@ -31,7 +32,7 @@ class QuestionMultipleChoice(Question):
         question_name: str,
         short_names_dict: Optional[dict[str, str]] = None,
     ):
-        "Instantiate a new QuestionMultipleChoice."
+        """Instantiate a new QuestionMultipleChoice."""
         self.question_text = question_text
         self.question_options = question_options
         self.question_name = question_name
@@ -49,7 +50,7 @@ class QuestionMultipleChoice(Question):
         return answer
 
     def translate_answer_code_to_answer(self, answer_code, scenario: Scenario = None):
-        """Translates the answer code to the actual answer."""
+        """Translate the answer code to the actual answer."""
         scenario = scenario or Scenario()
         translated_options = [
             Template(str(option)).render(scenario) for option in self.question_options
@@ -59,7 +60,7 @@ class QuestionMultipleChoice(Question):
     def simulate_answer(
         self, human_readable: bool = True
     ) -> dict[str, Union[int, str]]:
-        """Simulates a valid answer for debugging purposes."""
+        """Simulate a valid answer for debugging purposes."""
         if human_readable:
             answer = random.choice(self.question_options)
         else:
@@ -74,6 +75,7 @@ class QuestionMultipleChoice(Question):
     ################
     @classmethod
     def example(cls) -> QuestionMultipleChoice:
+        """Return an example instance."""
         return cls(
             question_text="How are you?",
             question_options=["Good", "Great", "OK", "Bad"],
@@ -83,6 +85,7 @@ class QuestionMultipleChoice(Question):
 
 
 def main():
+    """Create an example QuestionMultipleChoice and test its methods."""
     from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
     q = QuestionMultipleChoice.example()

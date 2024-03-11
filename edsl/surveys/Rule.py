@@ -1,3 +1,4 @@
+"""The Rule class defines a rule for what question an agent should be presented next."""
 import ast
 from collections import namedtuple
 from rich import print
@@ -64,8 +65,10 @@ class Rule:
         question_name_to_index: dict[str, int],
         priority: int,
     ):
-        """Questions are represented by int indices."""
+        """Represent a rule for what question an agent should be presented next.
 
+        Questions are represented by int indices.
+        """
         self.current_q = current_q
         self.expression = expression
         self.next_q = next_q
@@ -104,6 +107,7 @@ class Rule:
                 raise SurveyRuleRefersToFutureStateError
 
     def to_dict(self):
+        """Convert the rule to a dictionary for serialization."""
         return {
             "current_q": self.current_q,
             "expression": self.expression,
@@ -114,6 +118,7 @@ class Rule:
 
     @classmethod
     def from_dict(self, rule_dict):
+        """Create a rule from a dictionary."""
         if rule_dict["next_q"] == "EndOfSurvey":
             rule_dict["next_q"] = EndOfSurvey
 
@@ -126,18 +131,20 @@ class Rule:
         )
 
     def __repr__(self):
+        """Pretty-print the rule."""
         return f'Rule(current_q={self.current_q}, expression="{self.expression}", next_q={self.next_q}, priority={self.priority}, question_name_to_index={self.question_name_to_index})'
 
     def __str__(self):
+        """Return a string representation of the rule."""
         return self.__repr__()
 
     @property
     def question_index_to_name(self):
-        """Reverses the dictionary do we can look up questions by name"""
+        """Reverse the dictionary do we can look up questions by name."""
         return {v: k for k, v in self.question_name_to_index.items()}
 
     def show_ast_tree(self):
-        """Pretty-prints the AST tree to the terminal"""
+        """Pretty-print the AST tree to the terminal."""
         print(
             ast.dump(
                 self.ast_tree, annotate_fields=True, indent=4, include_attributes=True
@@ -145,13 +152,12 @@ class Rule:
         )
 
     def evaluate(self, answers: dict[int, Any]):
-        """
-        Computes the value of the expression, given a dictionary of known questions answers.
+        """Compute the value of the expression, given a dictionary of known questions answers.
+
         If the expression cannot be evaluated, it raises a CannotEvaluate exception.
         """
-
         def substitute_in_answers(expression, answers):
-            "Take the dictionary of answers and substitute them into the expression"
+            """Take the dictionary of answers and substitute them into the expression."""
             for var, value in answers.items():
                 # If it's a string, add quotes; otherwise, just convert to string
                 if isinstance(value, str):

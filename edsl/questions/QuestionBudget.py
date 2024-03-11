@@ -1,3 +1,4 @@
+"""This module contains the QuestionBudget class. It is a subclass of the Question class and is used to create budget questions."""
 from __future__ import annotations
 import random
 import textwrap
@@ -37,6 +38,7 @@ class QuestionBudget(Question):
         budget_sum: int,
         short_names_dict: Optional[dict[str, str]] = None,
     ):
+        """Instantiate a new QuestionBudget."""
         self.question_name = question_name
         self.question_text = question_text
         self.question_options = question_options
@@ -47,6 +49,7 @@ class QuestionBudget(Question):
     # Answer methods
     ################
     def validate_answer(self, answer: dict[str, Any]) -> dict[str, Union[int, str]]:
+        """Validate the answer."""
         self.validate_answer_template_basic(answer)
         self.validate_answer_key_value(answer, "answer", dict)
         self.validate_answer_budget(answer)
@@ -55,7 +58,9 @@ class QuestionBudget(Question):
     def translate_answer_code_to_answer(
         self, answer_codes: dict[str, int], scenario: Scenario = None
     ):
-        """Translates the answer codes to the actual answers.
+        """
+        Translate the answer codes to the actual answers.
+        
         For example, for a budget question with options ["a", "b", "c"],
         the answer codes are 0, 1, and 2. The LLM will respond with 0.
         This code will translate that to "a".
@@ -67,7 +72,7 @@ class QuestionBudget(Question):
         return translated_codes
 
     def simulate_answer(self, human_readable=True):
-        "Simulates a valid answer for debugging purposes (what the validator expects)"
+        """Simulate a valid answer for debugging purposes (what the validator expects)."""
         if human_readable:
             keys = self.question_options
         else:
@@ -94,6 +99,7 @@ class QuestionBudget(Question):
     ################
     @classmethod
     def example(cls) -> QuestionBudget:
+        """Return an example of a budget question."""
         return cls(
             question_name="food_budget",
             question_text="How would you allocate $100?",
@@ -103,6 +109,7 @@ class QuestionBudget(Question):
 
 
 def main():
+    """Create an example of a budget question and demonstrate its functionality."""
     from edsl.questions.QuestionBudget import QuestionBudget
 
     q = QuestionBudget.example()

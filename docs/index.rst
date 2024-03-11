@@ -1,26 +1,31 @@
-.. edsl documentation master file, created by
-   sphinx-quickstart on Sun Mar 10 16:57:33 2024.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+E[🦜]: User Documentation
+=========================
 
-E[🦜]: Welcome to edsl's documentation!
-=======================================
+| This page contains user documentation for the edsl package. 
+| Get the latest version: https://pypi.org/project/edsl/
 
-This is the documentation for the edsl package. 
+| Please let us know if you cannot find what you are looking for! 
+| Post a question at our Discord: https://discord.com/invite/mxAYkjfy9m 
+| Send us an email: info@expectedparrot.com 
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
    getting_started
-   agents
-   surveys
    questions
-   results
-   prompts
-   base
-   language_models
    scenarios
+   surveys
+   agents
+   prompts
+   language_models
+   jobs
+   results
+   base
+   data
+   reports
+   trackers
+   utlities
 
    
 Indices and tables

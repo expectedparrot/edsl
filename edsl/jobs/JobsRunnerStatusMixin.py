@@ -1,3 +1,4 @@
+"""Mixin for JobsRunner to generate status table."""
 from typing import List
 import asyncio
 
@@ -47,7 +48,10 @@ pricing = {
 
 
 class ModelStatus:
+    """Hold the status of a model."""
+
     def __init__(self, model, TPM, RPM):
+        """Initialize the model status."""
         self.model = model
         self.TPM = TPM
         self.RPM = RPM
@@ -60,7 +64,10 @@ from collections import defaultdict
 
 
 class JobsRunnerStatusMixin:
+    """Mixin for JobsRunner to generate status table."""
+    
     def _generate_status_table(self, data: List[asyncio.Task], elapsed_time):
+        """Generate a status table for the job runner."""
         models_to_tokens = defaultdict(InterviewTokenUsage)
         model_to_status = defaultdict(InterviewStatusDictionary)
 
