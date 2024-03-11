@@ -23,6 +23,7 @@ from edsl.agents.Invigilator import (
     InvigilatorHuman,
     InvigilatorFunctional,
     InvigilatorAI,
+    InvigilatorBase,
 )
 
 from edsl.language_models.registry import Model
@@ -42,18 +43,7 @@ from edsl.prompts.library.agent_persona import AgentPersona
 
 
 class Agent(Base):
-    """An agent that can answer questions.
-
-    Parameters
-    ----------
-    traits : dict, optional - A dictionary of traits that the agent has. The keys need to be
-    valid python variable names. The values can be any python object that has a valid __str__ method.
-    codebook : dict, optional - A codebook mapping trait keys to trait descriptions.
-    instruction : str, optional - Instructions for the agent.
-
-    dynamic_traits_function : Callable, optional - A function that returns a dictionary of traits.
-
-    """
+    """An Agent that can answer questions."""
 
     default_instruction = """You are answering questions as if you were a human. Do not break character."""
 
@@ -72,7 +62,14 @@ class Agent(Base):
         trait_presentation_template: str = None,
         dynamic_traits_function: Callable = None,
     ):
-        """Initialize a new instance of Agent."""
+        """Initialize a new instance of Agent.
+
+        :param traits: A dictionary of traits that the agent has. The keys need to be
+        :param name: A name for the agent
+        :param codebook: A codebook mapping trait keys to trait descriptions.
+        :param instruction: Instructions for the agent in how to answer questions.
+        :param dynamic_traits_function: A function that returns a dictionary of traits.
+        """
         self.name = name
         self._traits = traits or dict()
         self.codebook = codebook or dict()
@@ -108,19 +105,23 @@ class Agent(Base):
     def traits(self) -> dict[str, str]:
         """An agent's traits, which is a dictionary.
 
-        >> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
-        >> a.traits
-        {'age': 10, 'hair': 'brown', 'height': 5.5}
-
-        >> a = Agent()
-        >> a.add_direct_question_answering_method(lambda question, scenario, self: {"age": 10, "hair": "brown", "height": 5.5})
-        >> a.traits
-        {'age': 10, 'hair': 'brown', 'height': 5.5}
-
-        The agent could have a a dynamic traits function (dynamic_traits_function) that returns a dictionary of traits
-        when called. This function can also take a question as an argument.
+        The agent could have a a dynamic traits function (`dynamic_traits_function`) that returns a dictionary of traits
+        when called. This function can also take a `question` as an argument.
         If so, the dynamic traits function is called and the result is returned.
         Otherwise, the traits are returned.
+
+        Example:
+        --------
+
+        >>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
+        >>> a.traits
+        {'age': 10, 'hair': 'brown', 'height': 5.5}
+
+        >>> a = Agent()
+        >>> a.add_direct_question_answering_method(lambda question, scenario, self: {"age": 10, "hair": "brown", "height": 5.5})
+        >>> a.traits
+        {'age': 10, 'hair': 'brown', 'height': 5.5}
+
         """
         if self.dynamic_traits_function:
             sig = inspect.signature(self.dynamic_traits_function)
@@ -132,14 +133,27 @@ class Agent(Base):
             return self._traits
 
     def add_direct_question_answering_method(self, method: Callable):
-        """Add a method to the agent that can answer a particular question type."""
+        """Add a method to the agent that can answer a particular question type.
+
+        :param method: A method that can answer a question directly.
+
+        Example usage:
+
+        >>> a = Agent()
+        >>> method = lambda question, scenario, self: "I am a direct answer."
+        >>> a.add_direct_question_answering_method(method)
+        >>> a.answer_question_directly(question = None, scenario = None)
+        'I am a direct answer.'
+        """
         if hasattr(self, "answer_question_directly"):
             print("Warning: overwriting existing answer_question_directly method")
 
         signature = inspect.signature(method)
         for argument in ["question", "scenario", "self"]:
             if argument not in signature.parameters:
-                raise AgentDirectAnswerFunctionError(f"The method {method} does not have a '{argument}' parameter.")
+                raise AgentDirectAnswerFunctionError(
+                    f"The method {method} does not have a '{argument}' parameter."
+                )
         bound_method = types.MethodType(method, self)
         setattr(self, "answer_question_directly", bound_method)
 
@@ -152,7 +166,7 @@ class Agent(Base):
         memory_plan: Optional[MemoryPlan] = None,
         current_answers: Optional[dict] = None,
         iteration: int = 1,
-    ) -> "Invigilator":
+    ) -> InvigilatorBase:
         """Create an Invigilator.
 
         An invigator is an object that is responsible administering a question to an agent and

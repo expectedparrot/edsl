@@ -12,6 +12,7 @@ from edsl.exceptions import QuestionScenarioRenderError
 from edsl.data_transfer_models import AgentResponseDict
 from edsl.exceptions.agents import FailedTaskException
 
+
 class InvigilatorBase(ABC):
     """An invigiator (someone who administers an exam) is a class that is responsible for administering a question to an agent."""
 
@@ -98,6 +99,7 @@ class InvigilatorBase(ABC):
     @jupyter_nb_handler
     def answer_question(self) -> Coroutine:
         """Return a function that gets the answers to the question."""
+
         async def main():
             results = await asyncio.gather(self.async_answer_question())
             return results[0]  # Since there's only one task, return its result
@@ -157,16 +159,10 @@ class InvigilatorAI(InvigilatorBase):
         return response
 
     def _format_raw_response(
-        self, 
-        *, 
-        agent,
-        question, 
-        scenario, 
-        raw_response, 
-        raw_model_response
+        self, *, agent, question, scenario, raw_response, raw_model_response
     ) -> AgentResponseDict:
         """Return formatted raw response.
-        
+
         This cleans up the raw response to make it suitable to pass to AgentResponseDict.
         """
         response = question.validate_answer(raw_response)
@@ -188,10 +184,7 @@ class InvigilatorAI(InvigilatorBase):
     get_response = sync_wrapper(async_get_response)
 
     def construct_system_prompt(self) -> Prompt:
-        """Construct the system prompt for the LLM call.
-        
-
-        """
+        """Construct the system prompt for the LLM call."""
         # TODO: Rename the terribly named 'get_classes'
         applicable_prompts = get_classes(
             component_type="agent_instructions",
@@ -294,6 +287,7 @@ class InvigilatorDebug(InvigilatorBase):
             "system_prompt": Prompt("NA").text,
         }
 
+
 class InvigilatorHuman(InvigilatorBase):
     async def async_answer_question(self, iteration: int = 0) -> AgentResponseDict:
         data = {
@@ -316,10 +310,8 @@ class InvigilatorHuman(InvigilatorBase):
 
 
 class InvigilatorFunctional(InvigilatorBase):
-    """A Invigilator for when the question has a answer_question_directly function.
-    
-    
-    """
+    """A Invigilator for when the question has a answer_question_directly function."""
+
     async def async_answer_question(self, iteration: int = 0) -> AgentResponseDict:
         func = self.question.answer_question_directly
         data = {
