@@ -15,13 +15,7 @@ from edsl.jobs.JobsRunnerStatusMixin import JobsRunnerStatusMixin
 class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
     runner_name = "asyncio"
 
-    async def run_async(
-        self, n=1, verbose=False, sleep=0, debug=False
-    ) -> AsyncGenerator[Result, None]:
-        """Creates the tasks, runs them asynchronously, and returns the results as a Results object.
-        Completed tasks are yielded as they are completed.
-        """
-        tasks = []
+    def populate_total_interviews(self, n = 1):
         self.total_interviews = []
         for interview in self.interviews:
             for iteration in range(n):
@@ -38,6 +32,15 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
                     self.total_interviews.append(new_interview)
                 else:
                     self.total_interviews.append(interview)
+
+    async def run_async(
+        self, n=1, verbose=False, sleep=0, debug=False
+    ) -> AsyncGenerator[Result, None]:
+        """Creates the tasks, runs them asynchronously, and returns the results as a Results object.
+        Completed tasks are yielded as they are completed.
+        """
+        tasks = []
+        self.populate_total_interviews(n=n)  # Populate self.total_interviews before creating tasks
 
         for interview in self.total_interviews:
             interviewing_task = self._interview_task(interview=interview, debug=debug)
