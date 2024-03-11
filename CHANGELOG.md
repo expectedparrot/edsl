@@ -99,7 +99,7 @@
 
 ### Removed
 
-## [0.1.14] - 2024-03-x
+## [0.1.14] - 2024-03-06
 
 ### Added
 - The raw model response is now available in the `Results` object, accessed via "raw_model_response" keyword. 
@@ -110,3 +110,24 @@ There is one for each question. The key is the question_name + `_raw_response_mo
 
 ### Removed
 
+## [0.1.15] - 2024-03-09
+
+### Added
+
+### Fixed
+- Various fixes and small improvements
+
+### Removed
+
+
+## [0.1.16] - 2024-03-11
+
+### Added
+- Better docstrings
+- Making progress towards documentation
+
+### Fixed
+- `.run(n = ...)` now works and will run each interview as many times as needed
+- 
+
+### Removed

@@ -65,3 +65,9 @@ Steps to create a question, administer it to an LLM, and inspect the result:
     q.run() 
 
 Which will return:
+
+.. code-block:: python
+
+    {'capital_of_france': {'Paris': 0.9999, 'London': 0.0001, 'Berlin': 0.0001, 'Madrid': 0.0001}}  
+
+
