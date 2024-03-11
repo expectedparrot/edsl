@@ -98,7 +98,8 @@ class RegisterLanguageModelsMeta(ABCMeta):
     def check_required_class_variables(
         candidate_class: LanguageModel, required_attributes: List[str] = None
     ):
-        """Checks if a class has the required attributes
+        """Check if a class has the required attributes.
+
         >>> class M:
         ...     _model_ = "m"
         ...     _parameters_ = {}
@@ -316,33 +317,12 @@ class LanguageModel(
     @abstractmethod
     def parse_response(raw_response: dict[str, Any]) -> str:
         """Parses the API response and returns the response text.
+
         What is returned by the API is model-specific and often includes meta-data that we do not need.
         For example, here is the results from a call to GPT-4:
 
-        {
-            "id": "chatcmpl-8eORaeuVb4po9WQRjKEFY6w7v6cTm",
-            "choices": [
-                {
-                    "finish_reason": "stop",
-                    "index": 0,
-                    "logprobs": None,
-                    "message": {
-                        "content": "Hello! How can I assist you today? If you have any questions or need information on a particular topic, feel free to ask.",
-                        "role": "assistant",
-                        "function_call": None,
-                        "tool_calls": None,
-                    },
-                }
-            ],
-            "created": 1704637774,
-            "model": "gpt-4-1106-preview",
-            "object": "chat.completion",
-            "system_fingerprint": "fp_168383a679",
-            "usage": {"completion_tokens": 27, "prompt_tokens": 13, "total_tokens": 40},
-        }
-
-        To actually tract the response, we need to grab
-            data["choices[0]"]["message"]["content"].
+        To actually tract the response, we need to grab            
+        data["choices[0]"]["message"]["content"].
         """
         raise NotImplementedError
 
