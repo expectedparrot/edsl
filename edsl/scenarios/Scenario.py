@@ -14,7 +14,7 @@ class Scenario(Base, UserDict):
         """Combine two scenarios. If the other scenario is None, then just return self.
 
         :param other_scenario: The other scenario to combine with.
-        
+
         Examples:
 
         >>> s1 = Scenario({"price": 100, "quantity": 2})
@@ -34,7 +34,7 @@ class Scenario(Base, UserDict):
 
     def to(self, question_or_survey) -> "Jobs":
         """Run a question/survey with this particular scenario.
-        
+
         :param question_or_survey: A question or survey to run.
         Useful if you want to reverse the typical chain of operations.
 
@@ -66,10 +66,10 @@ class Scenario(Base, UserDict):
                 new_scenario[key] = value
         return new_scenario
 
-    def make_question(self, question_class: type) -> 'Question':
+    def make_question(self, question_class: type) -> "Question":
         """Make a question from a scenario.
 
-        :param question_class: The question class to use.        
+        :param question_class: The question class to use.
         Note it takes a QuestionClass (not a question) as an input.
 
         Examples:
@@ -147,4 +147,5 @@ class Scenario(Base, UserDict):
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod()

@@ -24,18 +24,18 @@ class MemoryPlan(UserDict):
         """Return a dictionary mapping question names to question texts."""
         return dict(zip(self.survey_question_names, self.question_texts))
 
-    def add_question(self, question: 'Question') -> None:
+    def add_question(self, question: "Question") -> None:
         """Add a question to the survey.
-        
+
         :param question: A question to add to the survey
-        
+
         """
         self.survey_question_names.append(question.question_name)
         self.question_texts.append(question.question_text)
 
     def _check_valid_question_name(self, question_name: str) -> None:
         """Ensure a passed question name is valid.
-        
+
         :param question_name: The name of the question to check.
 
         """
@@ -44,9 +44,11 @@ class MemoryPlan(UserDict):
                 f"{question_name} is not in the survey. Current names are {self.survey_question_names}"
             )
 
-    def get_memory_prompt_fragment(self, focal_question: str, answers: dict) -> "Prompt":
+    def get_memory_prompt_fragment(
+        self, focal_question: str, answers: dict
+    ) -> "Prompt":
         """Generate the prompt fragment descripting that past question and answer.
-        
+
         :param focal_question: The current question being answered.
         :param answers: A dictionary of question names to answers.
 
@@ -86,7 +88,7 @@ class MemoryPlan(UserDict):
 
     def add_single_memory(self, focal_question: str, prior_question: str) -> None:
         """Add a single memory to the memory plan.
-        
+
         :param focal_question: The current question being answered.
         :param prior_question: The question that was answered before the focal question that should be remembered.
         """
@@ -101,9 +103,11 @@ class MemoryPlan(UserDict):
         else:
             self[focal_question].add_prior_question(prior_question)
 
-    def add_memory_collection(self, focal_question: str, prior_questions: list[str]) -> None:
+    def add_memory_collection(
+        self, focal_question: str, prior_questions: list[str]
+    ) -> None:
         """Add a collection of prior questions to the memory plan.
-        
+
         :param focal_question: The current question being answered.
         :param prior_questions: A list of questions that were answered before the focal question that should be remembered.
         """
@@ -128,7 +132,7 @@ class MemoryPlan(UserDict):
 
     def _indexify(self, d: dict):
         """Converts a dictionary of question names to a dictionary of question indices.
-        
+
         :param d: A dictionary of question names to indices.
         """
         new_d = {}

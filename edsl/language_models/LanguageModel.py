@@ -321,7 +321,7 @@ class LanguageModel(
         What is returned by the API is model-specific and often includes meta-data that we do not need.
         For example, here is the results from a call to GPT-4:
 
-        To actually tract the response, we need to grab            
+        To actually tract the response, we need to grab
         data["choices[0]"]["message"]["content"].
         """
         raise NotImplementedError
