@@ -1,14 +1,21 @@
-"""A module for lists of agents."""
+"""A list of edsl Agents.
+
+This module contains the ``AgentList`` class, which is a list of Agents.
+It can be passed a list of agents, each of which is an instance of the ``Agent`` class.
+
+>>> al = AgentList([Agent.example(), Agent.example()])
+>>> len(al)
+2
+"""
 from __future__ import annotations
 from collections import UserList
 from typing import Optional, Union
 
 from rich.table import Table
 
+from edsl.Base import Base
 from edsl.agents import Agent
 from edsl.agents.AgentListExportMixin import AgentListExportMixin
-from edsl.Base import Base
-
 
 class AgentList(UserList, Base, AgentListExportMixin):
     """A list of Agents.
@@ -16,14 +23,18 @@ class AgentList(UserList, Base, AgentListExportMixin):
     This is a list of Agents.
     """
 
-    def __init__(self, data: Optional[list] = None):
-        """Initialize a new AgentList."""
+    def __init__(self, data: Optional[list[Agent]] = None):
+        """Initialize a new AgentList.
+
+        :param data: A list of Agents.
+        
+        """
         if data is not None:
             super().__init__(data)
         else:
             super().__init__()
 
-    def to(self, question_or_survey: Union["Question", "Survey"]) -> "Jobs":
+    def to(self, question_or_survey: Union['Question', 'Survey']) -> "Jobs":
         """Return a Job with a question or survey taken by the agent."""
         return question_or_survey.by(*self)
 
@@ -32,17 +43,20 @@ class AgentList(UserList, Base, AgentListExportMixin):
         return {"agent_list": [agent.to_dict() for agent in self.data]}
 
     @classmethod
-    def from_dict(cls, data: dict) -> "AgentList":
-        """Deserialize the dictionary back to an AgentList object."""
+    def from_dict(cls, data: dict) -> 'AgentList':
+        """Deserialize the dictionary back to an AgentList object.
+        
+        :param: data: A dictionary representing an AgentList.
+        """
         agents = [Agent.from_dict(agent_dict) for agent_dict in data["agent_list"]]
         return cls(agents)
 
     @classmethod
-    def example(cls):
+    def example(cls) -> 'AgentList':
         """Return an example AgentList."""
         return cls([Agent.example(), Agent.example()])
 
-    def code(self):
+    def code(self) -> list[str]:
         """Return code to construct an AgentList."""
         lines = [
             "from edsl.agents.Agent import Agent",
@@ -51,7 +65,7 @@ class AgentList(UserList, Base, AgentListExportMixin):
         lines.append(f"agent_list = AgentList({self.data})")
         return lines
 
-    def rich_print(self):
+    def rich_print(self) -> Table:
         """Display an object as a rich table."""
         table = Table(title="AgentList")
         table.add_column("Agents", style="bold")
