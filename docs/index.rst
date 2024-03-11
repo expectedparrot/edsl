@@ -18,6 +18,7 @@ This is the documentation for the edsl package.
    surveys
    agents
    language_models
+   jobs
    results
    prompts
    base
