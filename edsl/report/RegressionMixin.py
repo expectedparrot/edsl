@@ -1,3 +1,4 @@
+"""Mixin for running regressions."""
 import re
 import statsmodels.api as sm
 from typing import List
@@ -5,7 +6,8 @@ from typing import List
 
 def extract_variable_names(formula: str) -> List[str]:
     """
-    Extracts the variable names from a formula
+    Extract the variable names from a formula.
+
     TODO: improve the way we handle the case if there is a variable named 'C'
     """
     variable_names = re.findall(r"\b\w+\b", formula)
@@ -13,10 +15,12 @@ def extract_variable_names(formula: str) -> List[str]:
 
 
 class RegressionMixin:
+    """Mixin for running regressions."""
+
     def regression(
         self, formula: str
     ) -> sm.regression.linear_model.RegressionResultsWrapper:
-        """Runs a linear regression"""
+        """Run a linear regression."""
         variable_names = extract_variable_names(formula)
         df = self.select(*variable_names).to_pandas()
         # get rid of the headers
