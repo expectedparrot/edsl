@@ -1,3 +1,4 @@
+"""This module contains the Interview class, which is responsible for conducting an interview asynchronously."""
 from __future__ import annotations
 import traceback
 import asyncio
@@ -46,6 +47,7 @@ class Interview:
         debug: bool = False,
         iteration: int = 0,
     ):
+        """Initialize the Interview instance."""
         self.agent = agent
         self.survey = survey
         self.scenario = scenario
@@ -61,7 +63,7 @@ class Interview:
 
     @property
     def dag(self):
-        """Returns the directed acyclic graph for the survey.
+        """Return the directed acyclic graph for the survey.
 
         The DAG, or directed acyclic graph, is a dictionary that maps question names to their dependencies.
         It is used to determine the order in which questions should be answered.
@@ -72,17 +74,17 @@ class Interview:
 
     @property
     def token_usage(self) -> InterviewTokenUsage:
-        "Determins how many tokens were used for the interview."
+        """Determine how many tokens were used for the interview."""
         return self.task_creators.token_usage
 
     @property
     def interview_status(self) -> InterviewStatusDictionary:
-        """Returns a dictionary mapping task status codes to counts"""
+        """Return a dictionary mapping task status codes to counts."""
         return self.task_creators.interview_status
 
     @property
     def to_index(self) -> dict:
-        "Returns a dictionary mapping question names to their index in the survey."
+        """Return a dictionary mapping question names to their index in the survey."""
         return {
             question_name: index
             for index, question_name in enumerate(self.survey.question_names)
@@ -96,7 +98,8 @@ class Interview:
         replace_missing: bool = True,
     ) -> tuple["Answers", List[dict[str, Any]]]:
         """
-        Conducts an interview asynchronously.
+        Conduct an interview asynchronously.
+
         params
         - `model_buckets`: a dictionary of token buckets for the model
         - `debug`: prints debug messages
@@ -121,8 +124,7 @@ class Interview:
     def _extract_valid_results(
         self, print_traceback=False
     ) -> Generator["Answers", None, None]:
-        """Extracts the valid results from the list of results."""
-
+        """Extract the valid results from the list of results."""
         # we only need to print the warning once if a task failed.
         warning_printed = False
         warning_header = textwrap.dedent(
@@ -157,7 +159,7 @@ class Interview:
                 raise ValueError(f"Task {task.edsl_name} is not done.")
 
     def _build_invigilators(self, debug: bool) -> Generator["Invigilator", None, None]:
-        """Creates an invigilator for each question."""
+        """Create an invigilator for each question."""
         for question in self.survey.questions:
             yield self.get_invigilator(question=question, debug=debug)
 
@@ -166,7 +168,7 @@ class Interview:
         debug: bool,
         model_buckets: ModelBuckets,
     ) -> List[asyncio.Task]:
-        """Creates a task for each question, with dependencies on the questions that must be answered before this one can be answered."""
+        """Create a task for each question, with dependencies on the questions that must be answered before this one can be answered."""
         tasks = []
         for question in self.survey.questions:
             tasks_that_must_be_completed_before = list(
@@ -187,7 +189,7 @@ class Interview:
     def _get_tasks_that_must_be_completed_before(
         self, *, tasks: List[asyncio.Task], question: Question
     ) -> Generator[asyncio.Task, None, None]:
-        """Returns the tasks that must be completed before the given question can be answered.
+        """Return the tasks that must be completed before the given question can be answered.
 
         If a question has no dependencies, this will be an empty list, [].
         """
@@ -206,7 +208,7 @@ class Interview:
         debug: bool,
         iteration: int = 0,
     ) -> asyncio.Task:
-        """Creates a task that depends on the passed-in dependencies that are awaited before the task is run.
+        """Create a task that depends on the passed-in dependencies that are awaited before the task is run.
 
         The task is created by a QuestionTaskCreator, which is responsible for creating the task and managing its dependencies.
         It is passed a reference to the function that will be called to answer the question.
@@ -229,6 +231,7 @@ class Interview:
         return task_creator.generate_task(debug)
 
     def async_timeout_handler(timeout):
+        """Handle timeouts for async functions."""
         def decorator(func):
             async def wrapper(*args, **kwargs):
                 try:
@@ -243,6 +246,7 @@ class Interview:
         return decorator
 
     def get_invigilator(self, question: Question, debug: bool) -> "Invigilator":
+        """Return an invigilator for the given question."""
         invigilator = self.agent.create_invigilator(
             question=question,
             scenario=self.scenario,
@@ -252,10 +256,11 @@ class Interview:
             current_answers=self.answers,
             iteration=self.iteration,
         )
+        """Return an invigilator for the given question."""
         return invigilator
 
     def _get_estimated_request_tokens(self, question) -> float:
-        """Estimates the number of tokens that will be required to run the focal task."""
+        """Estimate the number of tokens that will be required to run the focal task."""
         invigilator = self.get_invigilator(question, debug=False)
         # TODO: There should be a way to get a more accurate estimate.
         combined_text = ""
@@ -274,7 +279,8 @@ class Interview:
         question: Question,
         debug: bool,
     ) -> AgentResponseDict:
-        """Answers a question and records the task.
+        """Answer a question and records the task.
+        
         This in turn calls the the passed-in agent's async_answer_question method, which returns a response dictionary.
         Note that is updates answers with the response.
         """
@@ -292,7 +298,7 @@ class Interview:
         return AgentResponseDict(**response)
 
     def _cancel_skipped_questions(self, current_question: Question) -> None:
-        """Cancels the tasks for questions that are skipped.
+        """Cancel the tasks for questions that are skipped.
 
         It first determines the next question, given the current question and the current answers.
         If the next question is the end of the survey, it cancels all remaining tasks.
@@ -305,6 +311,7 @@ class Interview:
         next_question_index = next_question.next_q
 
         def cancel_between(start, end):
+            """Cancel the tasks between the start and end indices."""
             for i in range(start, end):
                 self.tasks[i].cancel()
 
@@ -319,11 +326,12 @@ class Interview:
     # Dunder methods
     #######################
     def __repr__(self) -> str:
-        """Returns a string representation of the Interview instance."""
+        """Return a string representation of the Interview instance."""
         return f"Interview(agent = {self.agent}, survey = {self.survey}, scenario = {self.scenario}, model = {self.model})"
 
 
 if __name__ == "__main__":
+    """Test the Interview class."""
     from edsl.language_models import LanguageModelOpenAIThreeFiveTurbo
     from edsl.agents import Agent
     from edsl.surveys import Survey
@@ -355,7 +363,8 @@ if __name__ == "__main__":
     a = Agent(traits=None)
 
     def direct_question_answering_method(self, question, scenario):
-        raise Exception("Fuck you!")
+        """Answer a question directly."""
+        raise Exception("Error!")
         # return "yes"
 
     a.add_direct_question_answering_method(direct_question_answering_method)

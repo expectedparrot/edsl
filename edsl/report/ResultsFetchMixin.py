@@ -1,3 +1,4 @@
+"""Mixin for fetching data from results."""
 from functools import partial
 from itertools import chain
 from edsl.report.InputOutputDataTypes import (
@@ -8,14 +9,20 @@ from edsl.report.InputOutputDataTypes import (
 
 
 class ResultsFetchMixin:
+    """Mixin for fetching data from results."""
+
     def fetch_list(self, data_type, key) -> list:
+        """Return a list of values from the data for a given data type and key."""
         print("Change to using _fetch_list here")
         return self._fetch_list(data_type, key)
 
     def _fetch_list(self, data_type, key) -> list:
         """
-        For a given data type and key, return a list of values from the data.
-        It uses the filtered data, not the original data.
+        Return a list of values from the data for a given data type and key.
+
+        Uses the filtered data, not the original data.
+
+        Example:
         >>> r = Results.create_example()
         >>> r._fetch_list('answer', 'how_feeling')
         ['Bad', 'Bad', 'Great', 'Great']
@@ -27,7 +34,7 @@ class ResultsFetchMixin:
         return returned_list
 
     def _fetch_answer_data(self, key, element_data_class):
-        """Extracts data from a results object and returns in in the corresponding element_data_class."""
+        """Extract data from a results object and return it in the corresponding element_data_class."""
         short_names_dict = {}
         if key.endswith("_comment"):
             responses = self._fetch_list("answer", key)
@@ -71,6 +78,7 @@ class ResultsFetchMixin:
         return element_data_class(**data)
 
     def _fetch_other_data(self, data_type, key, element_data_class):
+        """Extract data from a results object and return it in the corresponding element_data_class."""
         if element_data_class == CategoricalData:
             responses = self._fetch_list(data_type, key)
             options = list(set(responses))
@@ -88,7 +96,7 @@ class ResultsFetchMixin:
             raise Exception(f"Not yet implemented")
 
     def _fetch_element(self, data_type, key, element_data_class):
-        """Extracts data from a results object and returns in in the corresponding element_data_class."""
+        """Extract data from a results object and return it in the corresponding element_data_class."""
         data_types_to_functions = {
             "answer": self._fetch_answer_data,
             "agent": partial(self._fetch_other_data, "agent"),

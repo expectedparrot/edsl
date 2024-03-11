@@ -1,3 +1,4 @@
+"""This module contains the QuestionYesNo class. It is a subclass of the QuestionMultipleChoice class and is used to create yes/no questions."""
 from __future__ import annotations
 from edsl.questions.descriptors import QuestionOptionsDescriptor
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
@@ -29,6 +30,7 @@ class QuestionYesNo(QuestionMultipleChoice):
         short_names_dict: dict[str, str] = None,
         question_options: list[str] = ["Yes", "No"],
     ):
+        """Instantiate a new QuestionYesNo."""
         super().__init__(
             question_name=question_name,
             question_text=question_text,
@@ -42,6 +44,7 @@ class QuestionYesNo(QuestionMultipleChoice):
     ################
     @classmethod
     def example(cls) -> QuestionYesNo:
+        """Return an example of a yes/no question."""
         return cls(
             question_name="is_it_raining",
             question_text="Is it raining?",
@@ -50,6 +53,7 @@ class QuestionYesNo(QuestionMultipleChoice):
 
 
 def main():
+    """Create an example of a yes/no question and demonstrate its functionality."""
     from edsl.questions.derived.QuestionYesNo import QuestionYesNo
 
     q = QuestionYesNo.example()

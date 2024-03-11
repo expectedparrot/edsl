@@ -52,7 +52,10 @@ pricing = {
 }
 
 class ModelStatus:
+    """Hold the status of a model."""
+
     def __init__(self, model, TPM, RPM):
+        """Initialize the model status."""
         self.model = model
         self.TPM = TPM
         self.RPM = RPM
@@ -61,7 +64,7 @@ class JobsRunnerStatusData:
 
     pricing = pricing
 
-    def generate_status_summary(self, completed_tasks: List, elapsed_time: float, interviews) -> Dict:
+    def generate_status_summary(self, completed_tasks: List[Type[asyncio.Task]], elapsed_time: float, interviews: List[Type['Interview']]) -> Dict:
         models_to_tokens = defaultdict(InterviewTokenUsage)
         model_to_status = defaultdict(InterviewStatusDictionary)
 
