@@ -62,6 +62,10 @@ class InterviewStatusDictionary(UserDict):
             new_dict[key] = self[key] + other[key]
         return InterviewStatusDictionary(new_dict)
 
+    @property 
+    def waiting(self):
+        return (self[TaskStatus.WAITING_FOR_REQUEST_CAPCITY] + self[TaskStatus.WAITING_FOR_TOKEN_CAPCITY] + self[TaskStatus.WAITING_ON_DEPENDENCIES])
+
     def __repr__(self):
         return f"InterviewStatusDictionary({self.data})"
 

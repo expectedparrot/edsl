@@ -191,11 +191,15 @@ class Jobs(Base):
     ) -> Union[Results, ResultsAPI, None]:
         """
         Runs the Job: conducts Interviews and returns their results.
-        - `method`: "serial" or "threaded", defaults to "serial"
-        - `n`: how many times to run each interview
-        - `debug`: prints debug messages
-        - `verbose`: prints messages
-        - `progress_bar`: shows a progress bar
+
+        :param n: how many times to run each interview
+        :param debug: prints debug messages
+        :param verbose: prints messages
+        :param progress_bar: shows a progress bar
+        :param dry_run: does not actually run the job
+        :param streaming: uses the streaming API
+        :param db: the database to use
+
         """
         # self.job_runner_name = method
         if dry_run:
@@ -262,7 +266,7 @@ class Jobs(Base):
 
     @classmethod
     def from_dict(cls, data: dict) -> Jobs:
-        """Creates a Jobs instance from a JSON string."""
+        """Creates a Jobs instance from a dictionary."""
         return cls(
             survey=Survey.from_dict(data["survey"]),
             agents=[Agent.from_dict(agent) for agent in data["agents"]],
