@@ -9,12 +9,13 @@ from edsl.agents import Agent
 from edsl.agents.AgentListExportMixin import AgentListExportMixin
 from edsl.Base import Base
 
+
 class AgentList(UserList, Base, AgentListExportMixin):
     """A list of Agents.
-    
+
     This is a list of Agents.
     """
-    
+
     def __init__(self, data: Optional[list] = None):
         """Initialize a new AgentList."""
         if data is not None:
@@ -22,7 +23,7 @@ class AgentList(UserList, Base, AgentListExportMixin):
         else:
             super().__init__()
 
-    def to(self, question_or_survey: Union["Question", "Survey"]) -> 'Jobs':
+    def to(self, question_or_survey: Union["Question", "Survey"]) -> "Jobs":
         """Return a Job with a question or survey taken by the agent."""
         return question_or_survey.by(*self)
 

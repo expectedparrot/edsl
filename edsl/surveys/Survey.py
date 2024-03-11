@@ -184,8 +184,19 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         focal_question: Union[Question, str],
         prior_questions: List[Union[Question, str]],
     ):
-        """This adds instructions to a survey than when answering focal_question,
-        the agent should also remember the answers to prior_questions listed in prior_questions.
+        """Add prior questions and responses so the agent has them when answering.
+
+        This adds instructions to a survey than when answering focal_question, the agent should also remember the answers to prior_questions listed in prior_questions.
+
+        :param focal_question: The question that the agent is answering.
+        :param prior_questions: The questions that the agent should remember when answering the focal question.
+
+        Example:
+
+        >>> s = Survey.example()
+        >>> s.add_memory_collection("q2", ["q0", "q1"])
+
+
         """
         focal_question_name = self.question_names[
             self._get_question_index(focal_question)

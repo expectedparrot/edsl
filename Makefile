@@ -14,6 +14,18 @@ backup: ## Backup the code to `edsl/.backups/`
 	mv $${BACKUP_NAME} "./.backups";\
 	echo "Backup created: $${BACKUP_NAME}"
 
+.PHONY: docs 
+
+docs:
+	sphinx-build -b html docs _build
+
+docs-view:
+	@UNAME=`uname`; if [ "$$UNAME" = "Darwin" ]; then \
+		open _build/index.html; \
+	else \
+		firefox _build/index.html; \
+	fi
+	
 clean: ## Cleans non-essential files and folders
 	[ ! -f .coverage ] || rm .coverage
 	[ ! -d .mypy_cache ] || rm -rf .mypy_cache
@@ -111,6 +123,8 @@ test-doctests: ## Run doctests
 	pytest --doctest-modules edsl/prompts
 	pytest --doctest-modules edsl/reports	
 	pytest --doctest-modules edsl/language_models
+
+.PHONY: docstrings
 
 docstrings: 
 	pydocstyle edsl
