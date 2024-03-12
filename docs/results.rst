@@ -1,4 +1,4 @@
-Working with Survey Results
+Results
 ===========================
 
 Result class
