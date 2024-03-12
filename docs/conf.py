@@ -12,14 +12,18 @@ project = 'edsl'
 copyright = '2024 Expected Parrot, Inc.'
 author = 'Expected Parrot, Inc.'
 
+print("Current working directory:")
 print(os.getcwd())
 
+print("System path:")
 print(sys.path)
 
 #sys.path.insert(0, os.path.abspath('..'))
 #sys.path.insert(0, os.path.abspath('../..'))
-sys.path.insert(0, os.path.abspath('..'))
- 
+sys.path.insert(0, os.path.abspath('../../../'))
+print("System path after insert:")
+print(sys.path)
+
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
