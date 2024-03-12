@@ -1,4 +1,4 @@
-E[🦜]: Getting started
+Getting started
 ======================
 
 Requirements
