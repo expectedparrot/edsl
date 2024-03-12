@@ -5,21 +5,16 @@
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
-import sys
-import os
 
 project = 'edsl'
 copyright = '2024 Expected Parrot, Inc.'
 author = 'Expected Parrot, Inc.'
 
-print(os.getcwd())
-
-print(sys.path)
-
+import sys
+import os
 #sys.path.insert(0, os.path.abspath('..'))
 #sys.path.insert(0, os.path.abspath('../..'))
-sys.path.insert(0, os.path.abspath('..'))
- 
+sys.path.insert(0, os.path.abspath('../../edsl')) 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
