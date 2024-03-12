@@ -1,3 +1,4 @@
+"""This question asks the user to answer with a numerical value."""
 from __future__ import annotations
 import textwrap
 from random import uniform
@@ -22,7 +23,6 @@ class QuestionNumerical(Question):
     - `max_value` is the maximum value of the answer (float)
     - `instructions` are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionNumerical.default_instructions`
 
-
     For an example, run `QuestionNumerical.example()`
     """
 
@@ -37,6 +37,7 @@ class QuestionNumerical(Question):
         min_value: Optional[Union[int, float]] = None,
         max_value: Optional[Union[int, float]] = None,
     ):
+        """Initialize the question."""
         self.question_name = question_name
         self.question_text = question_text
         self.min_value = min_value
@@ -48,7 +49,7 @@ class QuestionNumerical(Question):
     def validate_answer(
         self, answer: dict[str, Any]
     ) -> dict[str, Union[str, float, int]]:
-        """Validates the answer"""
+        """Validate the answer."""
         self.validate_answer_template_basic(answer)
         self.validate_answer_key_value_numeric(answer, "answer")
         self.validate_answer_numerical(answer)
@@ -59,7 +60,7 @@ class QuestionNumerical(Question):
         return answer
 
     def simulate_answer(self, human_readable: bool = True):
-        """Simulates a valid answer for debugging purposes"""
+        """Simulate a valid answer for debugging purposes."""
         return {
             "answer": uniform(self.min_value, self.max_value),
             "comment": random_string(),
@@ -70,6 +71,7 @@ class QuestionNumerical(Question):
     ################
     @classmethod
     def example(cls) -> QuestionNumerical:
+        """Return an example question."""
         return cls(
             question_name="age",
             question_text="How old are you in years?",
@@ -79,6 +81,7 @@ class QuestionNumerical(Question):
 
 
 def main():
+    """Show example usage."""
     from edsl.questions.QuestionNumerical import QuestionNumerical
 
     q = QuestionNumerical.example()

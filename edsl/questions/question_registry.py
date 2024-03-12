@@ -1,3 +1,4 @@
+"""This module provides a factory class for creating question objects."""
 import textwrap
 
 from edsl.exceptions import QuestionSerializationError
@@ -10,7 +11,10 @@ from edsl.questions.Question import RegisterQuestionsMeta
 
 
 class Meta(type):
+    """Metaclass for QuestionBase that provides a __repr__ method that lists all available questions."""
+
     def __repr__(cls):
+        """Return a string that lists all available questions."""
         lines = "\n".join(cls.available())
         return textwrap.dedent(
             f"""\
@@ -21,7 +25,10 @@ class Meta(type):
 
 
 class QuestionBase(metaclass=Meta):
+    """Factory class for creating question objects."""
+
     def __new__(cls, question_type, *args, **kwargs):
+        """Create a new question object."""
         get_question_classes = RegisterQuestionsMeta.question_types_to_classes()
 
         subclass = get_question_classes.get(question_type, None)
@@ -37,10 +44,12 @@ class QuestionBase(metaclass=Meta):
 
     @classmethod
     def available(cls):
+        """Return a list of available question types."""
         return list(RegisterQuestionsMeta.question_types_to_classes().keys())
 
 
 def get_question_class(question_type):
+    """Return the class for the given question type."""
     q2c = RegisterQuestionsMeta.question_types_to_classes()
     if question_type not in q2c:
         raise ValueError(

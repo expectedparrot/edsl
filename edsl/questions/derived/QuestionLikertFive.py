@@ -1,3 +1,4 @@
+"""This question asks the user to respond to a statement on a 5-point Likert scale."""
 from __future__ import annotations
 from typing import Optional
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
@@ -36,6 +37,7 @@ class QuestionLikertFive(QuestionMultipleChoice):
         question_options: Optional[list[str]] = likert_options,
         short_names_dict: Optional[dict[str, str]] = None,
     ):
+        """Initialize the question."""
         super().__init__(
             question_name=question_name,
             question_text=question_text,
@@ -48,6 +50,7 @@ class QuestionLikertFive(QuestionMultipleChoice):
     ################
     @classmethod
     def example(cls) -> QuestionLikertFive:
+        """Return an example question."""
         return cls(
             question_name="happy_raining",
             question_text="I'm only happy when it rains.",
@@ -55,6 +58,7 @@ class QuestionLikertFive(QuestionMultipleChoice):
 
 
 def main():
+    """Test QuestionLikertFive."""
     from edsl.questions.derived.QuestionLikertFive import QuestionLikertFive
 
     q = QuestionLikertFive.example()
