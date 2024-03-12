@@ -1,5 +1,5 @@
-E[🦜]: Getting started with edsl
-================================
+E[🦜]: Getting started
+======================
 
 Requirements
 ------------
@@ -63,11 +63,19 @@ Create a question, administer it to an AI agent, and inspect the results:
     results = q.by(a).by(m).run() 
 
 Tutorials, demo notebooks & FAQ
---------------
+-------------------------------
 
 Access a broad range of tutorials on getting started, examples, demos and FAQ at our main page: https://www.expectedparrot.com/getting-started
 
 Reach out to us if you need any help getting started! We're happy to build a notebook for you.
+
+Tutorials for getting started:
+
+| * `Quickstart <https://edsl.readthedocs.io/en/latest/quickstart_tutorial.html>`__
+| * `Starter Tutorial <https://www.expectedparrot.com/getting-started#edsl-tutorial>`__
+| * `Building Your Research <https://www.expectedparrot.com/getting-started#edsl-building-your-research>`__
+| * `Exploring Your Results <https://www.expectedparrot.com/getting-started#edsl-exploring-your-results>`__
+| * `FAQ <https://www.expectedparrot.com/getting-started#edsl-faq>`__
 
 Community 
 ---------

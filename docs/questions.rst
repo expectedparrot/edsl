@@ -1,4 +1,4 @@
-Creating Questions
+Questions
 ==================
 
 Question class

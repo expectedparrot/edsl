@@ -48,7 +48,7 @@ print_directory_tree(os.getcwd())
 
 #extensions = []
 extensions = [
-    'sphinx.ext.autodoc',
+    'sphinx.ext.autodoc', 'sphinx_copybutton'
     # other extensions...
 ]
 
