@@ -1,3 +1,4 @@
+"""A special type of question that is *not* answered by an LLM."""
 from typing import Optional, Callable
 from edsl.questions import Question
 from edsl.questions.descriptors import FunctionDescriptor
@@ -5,7 +6,8 @@ from edsl.questions.descriptors import FunctionDescriptor
 
 class QuestionFunctional(Question):
     """
-    A special type of question that's *not* answered by an LLM
+    A special type of question that is *not* answered by an LLM.
+    
     - Instead, it is "answered" by a function that is passed in, `func`.
     - Useful for questions that require some kind of computation first
       or are the result of a multi-step process.
@@ -35,30 +37,31 @@ class QuestionFunctional(Question):
         func: Callable,
         question_text: Optional[str] = "Functional question",
     ):
+        """Initialize the question."""
         self.question_name = question_name
         self.func = func
         self.question_text = question_text
         self.instructions = self.default_instructions
 
     def validate_answer(self, answer: dict[str, str]):
-        """Required by Question, but not used by QuestionFunctional"""
+        """Required by Question, but not used by QuestionFunctional."""
         raise NotImplementedError
 
     def answer_question_directly(self, scenario, agent_traits=None):
+        """Return the answer to the question."""
         return {"answer": self.func(scenario, agent_traits), "comment": None}
 
     def translate_answer_code_to_answer(self, answer, scenario):
-        """Required by Question, but not used by QuestionFunctional"""
+        """Required by Question, but not used by QuestionFunctional."""
         return None
 
     def simulate_answer(self, human_readable=True) -> dict[str, str]:
-        """Required by Question, but not used by QuestionFunctional"""
+        """Required by Question, but not used by QuestionFunctional."""
         raise NotImplementedError
 
     @classmethod
     def example(cls):
-        """Required by Question, but not used by QuestionFunctional"""
-
+        """Required by Question, but not used by QuestionFunctional."""
         silly_function = lambda scenario, agent_traits: scenario.get(
             "a", 1
         ) + scenario.get("b", 2)
