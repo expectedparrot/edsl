@@ -4,11 +4,27 @@ Quickstart tutorial
 This page shows some quickstart examples for constructing questions and surveys and administering
 them to AI agents.
 
-| Skip to section:
-| `Creating questions`_
-| `Parameterizing questions`_
-| `Administering questions & surveys`_
-| `Adding AI agents`_
+See our getting started tutorial notebooks for more detailed examples and explanations:
+
+| `Starter Tutorial <https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Tutorial%20-%20Starter%20Tutorial-e080f5883d764931960d3920782baf34>`__
+| `Building Your Research <https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Tutorial%20-%20Building%20Your%20Research-444f68e01bb24974a796058f55e670c7>`__
+| `Exploring Your Results <https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Tutorial%20-%20Exploring%20Your%20Results-bb273d63fed340efab082accce308219>`__
+
+and a variety of other notebooks exploring use cases and features `here <https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Docs%20-%20Questions-17430978a5634fc4ada3127b6b9bcd66>`__.
+
+Skip to sections of this quickstart tutorial:
+
+| * `Creating questions`_
+| * `Parameterizing questions`_
+| * `Administering questions & surveys`_
+| * `Adding AI agents`_
+
+Results for quickstart code can be viewed notebooks:
+`Questions <https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Docs%20-%20Questions-17430978a5634fc4ada3127b6b9bcd66>`__
+- `Surveys <https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Docs%20-%20Surveys-e6a1c6b358e4473289d97fa377002cd6>`__
+- `Agents <https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Docs%20-%20Agents-7b70a3e973754f18b791250db5bd7933>`__
+- `Models <https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Docs%20-%20Models-cf5f11d7b5074908a40fda9c81b18f93>`__
+
 
 
 .. _creating_questions:
@@ -61,8 +77,8 @@ You can optionally specify the minimum and maximum number of options that can be
             "Convenience",
             "Other"
         ],
-        min_selection = 1, # This is optional
-        max_selection = 3  # This is optional
+        min_selections = 1, # This is optional
+        max_selections = 3  # This is optional
     )
 
 .. _freetext:
