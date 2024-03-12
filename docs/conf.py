@@ -24,6 +24,21 @@ sys.path.insert(0, os.path.abspath('../../../'))
 print("System path after insert:")
 print(sys.path)
 
+
+import os
+
+def print_directory_tree(startpath):
+    for root, dirs, files in os.walk(startpath):
+        level = root.replace(startpath, '').count(os.sep)
+        indent = ' ' * 4 * (level)
+        print(f'{indent}{os.path.basename(root)}/')
+        subindent = ' ' * 4 * (level + 1)
+        for f in files:
+            print(f'{subindent}{f}')
+
+# Example usage:
+print_directory_tree(os.getcwd())
+
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
