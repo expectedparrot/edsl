@@ -6,20 +6,17 @@ Requirements
 
 - Python 3.9 - 3.11
 
-- For now API key for OpenAI, Google and/or DeepInfra — Stay tuned, the edsl API is coming soon!
+- For now, API keys for OpenAI, Google and/or DeepInfra — Stay tuned, the edsl API is coming soon!
 
 Installation
 ------------
 
-Check for the latest version of edsl on PyPI: 
+Check for the latest version of edsl on PyPI: https://pypi.org/project/edsl/
 
-.. _pypi: https://pypi.org/project/edsl/
+View the source code on GitHub: https://github.com/expectedparrot/edsl/
 
-.. _GitHub: https://github.com/expectedparrot/edsl/
-
-.. _Discord: https://discord.com/invite/mxAYkjfy9m
-
-See examples, demo notebooks, and FAQ below.
+Installing the latest version
+-----------------------------
 
 .. code-block:: shell
 
@@ -50,24 +47,35 @@ Note: The edsl API is coming soon! It will allow you to access all of the availa
 A quick example
 ---------------
 
-Steps to create a question, administer it to an LLM, and inspect the result:
+Create a question, administer it to an AI agent, and inspect the results:
 
 .. code-block:: python
 
     from edsl import QuestionMultipleChoice
-    from edsl import Model 
+    from edsl import Agent, Model 
+    a = Agent(traits={"persona": "You are an expert hydrologist."})
     m = Model("gpt-3.5-turbo")
     q = QuestionMultipleChoice(
-        question_text = "What is the capital of France?", 
-        question_options = ["Paris", "London", "Berlin", "Madrid"],
-        question_name = "capital_of_france"
+        question_name = "water",
+        question_text = "What is H2O?", 
+        question_options = ["Gold", "Water", "Air", "Fire"]
     )
-    q.run() 
+    results = q.by(a).by(m).run() 
 
-Which will return:
+Tutorials, demo notebooks & FAQ
+--------------
 
-.. code-block:: python
+Access a broad range of tutorials on getting started, examples, demos and FAQ at our main page: https://www.expectedparrot.com/getting-started
 
-    {'capital_of_france': {'Paris': 0.9999, 'London': 0.0001, 'Berlin': 0.0001, 'Madrid': 0.0001}}  
+Reach out to us if you need any help getting started! We're happy to build a notebook for you.
 
+Community 
+---------
 
+Join our Discord: https://discord.com/invite/mxAYkjfy9m
+
+Follow us on X: https://twitter.com/expectedparrot
+
+Follow us on LinkedIn: https://www.linkedin.com/company/expectedparrot 
+
+Send us an email: info@expectedparrot.com 
