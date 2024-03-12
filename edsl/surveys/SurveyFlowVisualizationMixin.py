@@ -1,3 +1,4 @@
+"""A mixin for visualizing the flow of a survey."""
 import pydot
 import tempfile
 from IPython.display import Image
@@ -6,8 +7,10 @@ from edsl.surveys.base import RulePriority, EndOfSurvey
 
 
 class SurveyFlowVisualizationMixin:
+    """A mixin for visualizing the flow of a survey."""
+
     def show_flow(self):
-        "Creates an image showing the flow of users through the survey."
+        """Create an image showing the flow of users through the survey."""
         # Create a graph object
         graph = pydot.Dot(graph_type="digraph")
 
