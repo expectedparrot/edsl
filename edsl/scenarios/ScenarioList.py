@@ -1,3 +1,4 @@
+"""This module contains the `ScenarioList` class, which is used to create a list of scenarios to be used in a survey."""
 from __future__ import annotations
 from collections import UserList
 from typing import Optional, Union
@@ -9,15 +10,20 @@ from edsl.Base import Base
 
 
 class ScenarioList(Base, UserList):
+    """Class for creating a list of scenarios to be used in a survey."""
+
     def __init__(self, data: Optional[list] = None):
+        """Initialize the ScenarioList class."""
         if data is not None:
             super().__init__(data)
 
     def to(self, question_or_survey: Union["Question", "Survey"]):
+        """Create a survey from a list of scenarios."""
         return question_or_survey.by(*self)
 
     @classmethod
     def from_csv(cls, filename):
+        """Create a ScenarioList from a CSV file."""
         import csv
 
         observations = []
@@ -29,19 +35,22 @@ class ScenarioList(Base, UserList):
         return cls(observations)
 
     def to_dict(self):
+        """Return the `ScenarioList` as a dictionary."""
         return {"scenarios": [s.to_dict() for s in self]}
 
     @classmethod
     def gen(cls, scenario_dicts_list):
+        """Create a `ScenarioList` from a list of dictionaries."""
         return cls([Scenario(s) for s in scenario_dicts_list])
 
     @classmethod
     def from_dict(cls, data):
+        """Create a `ScenarioList` from a dictionary."""
         return cls([Scenario.from_dict(s) for s in data["scenarios"]])
 
     def code(self):
         ## TODO: Refactor to only use the questions actually in the survey
-        "Creates the Python code representation of a survey"
+        """Create the Python code representation of a survey."""
         header_lines = [
             "from edsl.scenarios.Scenario import Scenario",
             "from edsl.scenarios.ScenarioList import ScenarioList",
@@ -56,10 +65,11 @@ class ScenarioList(Base, UserList):
 
     @classmethod
     def example(cls):
+        """Return an example of the `ScenarioList`."""
         return cls([Scenario.example(), Scenario.example()])
 
     def rich_print(self):
-        """Displays an object as a table."""
+        """Display an object as a table."""
         table = Table(title="ScenarioList")
         table.add_column("Index", style="bold")
         table.add_column("Scenario")

@@ -14,7 +14,7 @@ Scenario class
 
 
 ScenarioList class
--------------------
+------------------
 
 .. automodule:: edsl.scenarios.ScenarioList
    :members:

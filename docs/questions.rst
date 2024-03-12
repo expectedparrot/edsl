@@ -10,7 +10,7 @@ Question class
    :show-inheritance:
 
 QuestionMultipleChoice class
------------------------------
+----------------------------
 
 .. automodule:: edsl.questions.QuestionMultipleChoice
    :members:
@@ -18,7 +18,7 @@ QuestionMultipleChoice class
    :show-inheritance:
 
 QuestionCheckBox class
------------------------------
+----------------------
 
 .. automodule:: edsl.questions.QuestionCheckBox
    :members:
@@ -34,7 +34,7 @@ QuestionFreeText class
    :show-inheritance:
 
 QuestionLinearScale class
------------------------------
+-------------------------
 
 .. automodule:: edsl.questions.QuestionLinearScale
    :members:
@@ -50,7 +50,7 @@ QuestionList class
    :show-inheritance:
 
 QuestionBudget class
------------------------------
+--------------------
 
 .. automodule:: edsl.questions.QuestionBudget
    :members:
@@ -58,7 +58,7 @@ QuestionBudget class
    :show-inheritance:
 
 QuestionYesNo class
------------------------------
+-------------------
 
 .. automodule:: edsl.questions.QuestionYesNo
    :members:
