@@ -18,9 +18,12 @@ print(os.getcwd())
 print("System path:")
 print(sys.path)
 
+sys.path.insert(0, os.path.abspath(os.path.join("..", "..", "edsl")))
+sys.path.insert(0, os.path.abspath(os.path.join("..", "..")))
+
 #sys.path.insert(0, os.path.abspath('..'))
 #sys.path.insert(0, os.path.abspath('../..'))
-sys.path.insert(0, os.path.abspath('../../../'))
+#sys.path.insert(0, os.path.abspath('../../../'))
 print("System path after insert:")
 print(sys.path)
 
