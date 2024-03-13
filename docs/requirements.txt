@@ -1,0 +1,1 @@
+sphinx_copybutton>=0.4
