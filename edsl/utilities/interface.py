@@ -187,9 +187,17 @@ def print_dict_with_rich(d, key_name="Key", value_name="Value", filename=None):
 
 
 def print_dict_as_html_table(
-    d, show=False, key_name="Key", value_name="Value", filename=None
+    d, show=False, key_name="Key", value_name="Value", filename=None,
 ):
-    """ """
+    """ 
+    Print a dictionary as an HTML table.
+
+    :param d: The dictionary to print.
+    :param show: Whether to display the HTML table in the browser.
+    :param key_name: The name of the key column.
+    :param value_name: The name of the value column.
+    :param filename: The name of the file to save the HTML table to.
+    """
     # Start the HTML table
     html_table = f'<table border="1">\n<tr><th>{escape(key_name)}</th><th>{escape(value_name)}</th></tr>\n'
 
@@ -219,6 +227,11 @@ def print_dict_as_html_table(
 def print_list_of_dicts_with_rich(data, filename=None, split_at_dot=True):
     # Initialize console object
     """
+    TODO: This is weirdly named. It's not a list of dictionaries.
+    It's a a dictionary. 
+    The list seems superfluous.
+    This prints a list of dictionaries as a table using the rich library.
+
     >>> data = [{"a": [1, 2, 3], "b": [4, 5, 6]}]
     >>> print_list_of_dicts_with_rich(data)
     ┏━━━┳━━━┓
@@ -254,12 +267,14 @@ def print_list_of_dicts_with_rich(data, filename=None, split_at_dot=True):
     display(console, table, filename)
 
 
-def print_list_of_dicts_as_html_table(data, filename=None, interactive=False):
+def print_list_of_dicts_as_html_table(data, filename=None, interactive=False, notebook = False):
     # Start the HTML table
 
     """This prints a list of dictionaries as an HTML table.
-    The columns are the keys.
-    The rows are the values.
+
+    :param data: The list of dictionaries to print.
+    :param filename: The name of the file to save the HTML table to.
+    :param interactive: Whether to make the table interactive using DataTables.
     """
     html_table = '<table id="myTable" class="display">\n'
     html_table += "  <thead>\n"
@@ -295,7 +310,39 @@ def print_list_of_dicts_as_html_table(data, filename=None, interactive=False):
             f.write(html)
     else:
         # view_html(html)
-        ipython_diplay(HTML(html))
+        if notebook:
+            ipython_diplay(HTML(html))
+        else:
+            print(html)
+
+def print_list_of_dicts_as_markdown_table(data, filename=None):
+    """This prints a list of dictionaries as a Markdown table.
+
+    :param data: The list of dictionaries to print.
+    :param filename: The name of the file to save the Markdown table to.
+    """
+    if not data:
+        print("No data provided")
+        return
+
+    # Gather all unique headers
+    headers = list({key for d in data for key in d.keys()})
+    markdown_table = "| " + " | ".join(headers) + " |\n"
+    markdown_table += "|-" + "-|-".join(["" for _ in headers]) + "-|\n"
+
+    num_rows = len(next(iter(data[0].values())))
+    for i in range(num_rows):
+        row = [str(d[key][i]) for d in data for key in d.keys()]
+        #table.add_row(*row)
+        markdown_table += "| " + " | ".join(row) + " |\n"
+
+
+    # Output or save to file
+    if filename:
+        with open(filename, "w") as f:
+            f.write(markdown_table)
+    else:
+        print(markdown_table)
 
 
 def print_public_methods_with_doc(obj):
