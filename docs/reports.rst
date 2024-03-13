@@ -1,5 +1,5 @@
-Generating Reports
-==================
+Reports
+=======
 
 
 ReportOutputs class
