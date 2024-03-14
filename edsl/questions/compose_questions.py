@@ -1,3 +1,4 @@
+"""Compose two questions where the answer to q1 is used as an input to q2."""
 from edsl.questions import Question, QuestionFunctional
 from edsl.agents import Agent
 from edsl.scenarios.Scenario import Scenario
@@ -7,11 +8,12 @@ def compose_questions(
     q1: Question, q2: Question, question_name: str = None
 ) -> QuestionFunctional:
     """
-    Composes two questions. The answer to q1 is used as the input to q2.
+    Compose two questions where the answer to q1 is used as an input to q2.
+    
     The resulting question is a question that can be used like other questions.
-    Note:
-    - One way the same result can be achieved is through q1+q2.
-      Please see the __add__ method in Question.
+    Note that the same result can also be achieved in other ways:
+    - Using the `add_targeted_memory(q2, q1)` method in Survey
+    - Using the __add__ method in Question
     """
     if question_name is None:
         question_name = f"{q1.question_name}_{q2.question_name}"
@@ -24,6 +26,7 @@ def compose_questions(
     def combo(
         scenario: Scenario, agent_traits: dict[str, str] = None
     ) -> QuestionFunctional:
+        """Return the answer to the second question given the answer to the first question."""
         # get the answer to the first question
         first_answer = (
             q1.by(scenario)
@@ -45,7 +48,6 @@ def compose_questions(
     return QuestionFunctional(
         question_name=question_name, question_text="functional", func=combo
     )
-
 
 # UNCOMMENT BELOW TO SEE HOW THIS WORKS
 

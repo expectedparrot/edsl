@@ -1,3 +1,4 @@
+"""Mixin with validators for LLM answers to questions."""
 import re
 from typing import Any, Type, Union
 from edsl.exceptions import (
@@ -7,7 +8,8 @@ from edsl.exceptions import (
 
 class AnswerValidatorMixin:
     """
-    Mixin with validators for LLM answers to questions
+    Mixin with validators for LLM answers to questions.
+
     - Template validation: validators for the entire answer object format
     - Value validation: validators for specific values
     - Question specific validation: validators for specific question types
@@ -18,7 +20,8 @@ class AnswerValidatorMixin:
     #####################
     def validate_answer_template_basic(self, answer: Any) -> None:
         """
-        Checks that the answer (i) is a dictionary (ii) has an 'answer' key
+        Check that the answer (i) is a dictionary (ii) has an 'answer' key.
+
         - E.g., both {'answer': 1} and {'answer': {'a': 1}, 'other_key'=[1,2,3]} are valid
         """
         if not isinstance(answer, dict):
@@ -36,7 +39,7 @@ class AnswerValidatorMixin:
     def validate_answer_key_value(
         self, answer: dict[str, Any], key: str, of_type: Type
     ) -> None:
-        """Checks that the value of a key is of the specified type"""
+        """Check that the value of a key is of the specified type."""
         if not isinstance(answer.get(key), of_type):
             raise QuestionAnswerValidationError(
                 f"""Answer key '{key}' must be of type {of_type.__name__};
@@ -46,7 +49,7 @@ class AnswerValidatorMixin:
     def validate_answer_key_value_numeric(
         self, answer: dict[str, Any], key: str
     ) -> None:
-        """Checks that the value of a key is numeric (int or float)"""
+        """Check that the value of a key is numeric (int or float)."""
         value = answer.get(key)
         if type(value) == str:
             value = value.replace(",", "")
@@ -95,12 +98,12 @@ class AnswerValidatorMixin:
             )
         if any([int(key) not in acceptable_answer_keys for key in answer.keys()]):
             raise QuestionAnswerValidationError(
-                f"Budget keys must be in {acceptable_answer_keys}, but got {answer_keys}"
+                f"Budget keys must be in {acceptable_answer_keys}, but got {answer_keys}."
             )
         if acceptable_answer_keys != answer_keys:
             missing_keys = acceptable_answer_keys - answer_keys
             raise QuestionAnswerValidationError(
-                f"All but keys must be represented in the answer. Missing: {missing_keys}"
+                f"All but keys must be represented in the answer. Missing: {missing_keys}."
             )
 
     def validate_answer_checkbox(self, answer: dict[str, Union[str, int]]) -> None:
@@ -143,11 +146,11 @@ class AnswerValidatorMixin:
         acceptable_answer_keys = set(self.answer_template.keys())
         if any([key not in acceptable_answer_keys for key in value.keys()]):
             raise QuestionAnswerValidationError(
-                f"Answer keys must be in {acceptable_answer_keys}, but got {value.keys()}"
+                f"Answer keys must be in {acceptable_answer_keys}, but got {value.keys()}."
             )
         if any([key not in value.keys() for key in acceptable_answer_keys]):
             raise QuestionAnswerValidationError(
-                f"Answer must have all keys in {acceptable_answer_keys}, but got {value.keys()}"
+                f"Answer must have all keys in {acceptable_answer_keys}, but got {value.keys()}."
             )
 
     def validate_answer_list(self, answer: dict[str, Union[list, str]]) -> None:
