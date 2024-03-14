@@ -5,6 +5,7 @@ from edsl.utilities.interface import (
     print_list_of_dicts_with_rich,
     print_table_with_rich,
     print_public_methods_with_doc,
+    print_list_of_dicts_as_markdown_table
 )
 
 from edsl.utilities.utilities import (
