@@ -2,12 +2,18 @@
 import base64
 import csv
 import io
+
+from typing import Literal
+
+from edsl.utilities.utilities import is_notebook
+
 from IPython.display import HTML, display
 import pandas as pd
 from edsl.utilities import (
     print_list_of_dicts_with_rich,
     print_list_of_dicts_as_html_table,
     print_dict_with_rich,
+    print_list_of_dicts_as_markdown_table,
 )
 
 
@@ -63,7 +69,7 @@ class ResultsExportMixin:
         self,
         pretty_labels=None,
         filename=None,
-        html=False,
+        format: Literal["rich", "html", "markdown"] = "rich",
         interactive=False,
         split_at_dot=True,
     ):
@@ -71,25 +77,35 @@ class ResultsExportMixin:
         if pretty_labels is None:
             pretty_labels = {}
 
+        if format not in ["rich", "html", "markdown"]:
+            raise ValueError(
+                "format must be one of 'rich', 'html', or 'markdown'."
+            )
+
         new_data = []
         for entry in self:
             key, list_of_values = list(entry.items())[0]
             new_data.append({pretty_labels.get(key, key): list_of_values})
-        else:
-            if not html:
-                print_list_of_dicts_with_rich(
-                    new_data, filename=filename, split_at_dot=split_at_dot
-                )
-            else:
-                print_list_of_dicts_as_html_table(
-                    new_data, filename=None, interactive=interactive
-                )
+        
+        if format == "rich":
+            print_list_of_dicts_with_rich(
+                new_data, filename=filename, split_at_dot=split_at_dot
+            )
+        elif format == "html":
+            notebook = is_notebook()
+            print_list_of_dicts_as_html_table(
+                new_data, filename=None, interactive=interactive, notebook = notebook
+            )
+        elif format == "markdown":
+            print_list_of_dicts_as_markdown_table(new_data, filename=filename)
+
 
     @convert_decorator
     def to_csv(self, filename: str = None, remove_prefix=False, download_link=False):
         r"""Export the results to a CSV file.
 
         Example:
+
         >>> r = create_example_results()
         >>> r.select('how_feeling').to_csv()
         'result.how_feeling\\r\\nBad\\r\\nBad\\r\\nGreat\\r\\nGreat\\r\\n'

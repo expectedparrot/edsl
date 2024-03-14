@@ -38,7 +38,8 @@ class JobsRunner(ABC, metaclass=RegisterJobsRunnerMeta):
         self.jobs = jobs
         self.interviews = jobs.interviews()
         self.bucket_collection = jobs.bucket_collection
-
+        self.total_interviews = []
+        
     @abstractmethod
     def run(
         self,

@@ -12,18 +12,11 @@ from edsl.utilities.decorators import jupyter_nb_handler
 
 from edsl.jobs.JobsRunnerStatusMixin import JobsRunnerStatusMixin
 
-
 class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
     runner_name = "asyncio"
 
-    async def run_async(
-        self, n=1, verbose=False, sleep=0, debug=False
-    ) -> AsyncGenerator[Result, None]:
-        """Creates the tasks, runs them asynchronously, and returns the results as a Results object.
-        Completed tasks are yielded as they are completed.
-        """
-        tasks = []
-        total_interviews = []
+    def populate_total_interviews(self, n = 1):
+        self.total_interviews = []
         for interview in self.interviews:
             for iteration in range(n):
                 if iteration > 0:
@@ -36,11 +29,20 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
                         verbose=interview.verbose,
                         iteration=iteration,
                     )
-                    total_interviews.append(new_interview)
+                    self.total_interviews.append(new_interview)
                 else:
-                    total_interviews.append(interview)
+                    self.total_interviews.append(interview)
 
-        for interview in total_interviews:
+    async def run_async(
+        self, n=1, verbose=False, sleep=0, debug=False
+    ) -> AsyncGenerator[Result, None]:
+        """Creates the tasks, runs them asynchronously, and returns the results as a Results object.
+        Completed tasks are yielded as they are completed.
+        """
+        tasks = []
+        self.populate_total_interviews(n=n)  # Populate self.total_interviews before creating tasks
+
+        for interview in self.total_interviews:
             interviewing_task = self._interview_task(interview=interview, debug=debug)
             tasks.append(asyncio.create_task(interviewing_task))
 
@@ -113,7 +115,7 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
         live = None
         if progress_bar:
             live = Live(
-                self._generate_status_table(data, 0),
+                self.status_table(data, 0),
                 console=console,
                 refresh_per_second=10,
             )
@@ -125,10 +127,10 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
             data.append(result)
 
             if progress_bar:
-                live.update(self._generate_status_table(data, elapsed_time))
+                live.update(self.status_table(data, elapsed_time))
 
         if progress_bar:
-            live.update(self._generate_status_table(data, elapsed_time))
+            live.update(self.status_table(data, elapsed_time))
             await asyncio.sleep(0.5)  # short delay to show the final status
             live.__exit__(None, None, None)  # Manually exit the Live context
 
