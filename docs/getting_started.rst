@@ -1,5 +1,5 @@
 Getting started
-======================
+===============
 
 Requirements
 ------------
@@ -15,22 +15,19 @@ Check for the latest version of edsl on PyPI: https://pypi.org/project/edsl/
 
 View the source code on GitHub: https://github.com/expectedparrot/edsl/
 
-Installing the latest version
------------------------------
+Installing the latest version:
 
 .. code-block:: shell
 
     pip install edsl
 
-Updating your version
----------------------
+Updating your version:
 
 .. code-block:: shell
 
     pip install --upgrade edsl
 
-Checking your version
----------------------
+Checking your version:
 
 .. code-block:: shell
 
@@ -44,37 +41,21 @@ API keys are not required to construct surveys using edsl; however, you will nee
 
 Note: The edsl API is coming soon! It will allow you to access all of the available LLMs with a single key managed by Expected Parrot.
 
-A quick example
----------------
-
-Create a question, administer it to an AI agent, and inspect the results:
-
-.. code-block:: python
-
-    from edsl import QuestionMultipleChoice
-    from edsl import Agent, Model 
-    a = Agent(traits={"persona": "You are an expert hydrologist."})
-    m = Model("gpt-3.5-turbo")
-    q = QuestionMultipleChoice(
-        question_name = "water",
-        question_text = "What is H2O?", 
-        question_options = ["Gold", "Water", "Air", "Fire"]
-    )
-    results = q.by(a).by(m).run() 
-
-Tutorials, demo notebooks & FAQ
--------------------------------
-
-Access a broad range of tutorials on getting started, examples, demos and FAQ at our main page: https://www.expectedparrot.com/getting-started
-
-Reach out to us if you need any help getting started! We're happy to build a notebook for you.
+Tutorials
+---------
 
 Tutorials for getting started:
 
-| * `Quickstart <https://edsl.readthedocs.io/en/latest/quickstart_tutorial.html>`__
-| * `Starter Tutorial <https://www.expectedparrot.com/getting-started#edsl-tutorial>`__
-| * `Building Your Research <https://www.expectedparrot.com/getting-started#edsl-building-your-research>`__
-| * `Exploring Your Results <https://www.expectedparrot.com/getting-started#edsl-exploring-your-results>`__
+`Quickstart <https://expected-parrot-edsl.readthedocs-hosted.com/en/latest/quickstart_tutorial>`__
+
+`Starter Tutorial <https://expected-parrot-edsl.readthedocs-hosted.com/en/latest/starter_tutorial>`__
+
+`Building Your Research <https://expected-parrot-edsl.readthedocs-hosted.com/en/latest/building_your_research>`__
+
+`Exploring Your Results <https://expected-parrot-edsl.readthedocs-hosted.com/en/latest/exploring_your_results>`__
+
+FAQ
+^^^
 | * `FAQ <https://www.expectedparrot.com/getting-started#edsl-faq>`__
 
 Community 
