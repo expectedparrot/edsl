@@ -56,7 +56,7 @@ Tutorials for getting started:
 
 FAQ
 ^^^
-| * `FAQ <https://www.expectedparrot.com/getting-started#edsl-faq>`__
+`FAQ <https://expected-parrot-edsl.readthedocs-hosted.com/en/latest/faq>`__
 
 Community 
 ---------
