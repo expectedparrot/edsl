@@ -4,7 +4,7 @@ EDSL Docs
 | This page contains documentation for the EDSL package. 
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
    :caption: Contents:
 
    getting_started
