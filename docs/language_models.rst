@@ -1,4 +1,4 @@
-Selecting Language Models
+Language Models
 ======================
 
 This is how we select language models and model parameters for simulating survey results. 

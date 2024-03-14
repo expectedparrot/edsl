@@ -1,3 +1,4 @@
+"""This module contains the QuestionTopK class."""
 from __future__ import annotations
 from typing import Optional
 from edsl.exceptions import QuestionCreationValidationError
@@ -33,6 +34,7 @@ class QuestionTopK(QuestionCheckBox):
         max_selections: int,
         short_names_dict: Optional[dict[str, str]] = None,
     ):
+        """Initialize the question."""
         super().__init__(
             question_name=question_name,
             question_text=question_text,
@@ -55,6 +57,7 @@ class QuestionTopK(QuestionCheckBox):
     ################
     @classmethod
     def example(cls) -> QuestionTopK:
+        """Return an example question."""
         return cls(
             question_name="two_fruits",
             question_text="Which of the following fruits do you prefer?",
@@ -65,6 +68,7 @@ class QuestionTopK(QuestionCheckBox):
 
 
 def main():
+    """Test QuestionTopK."""
     from edsl.questions.derived.QuestionTopK import QuestionTopK
 
     q = QuestionTopK.example()

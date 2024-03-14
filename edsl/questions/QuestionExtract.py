@@ -1,3 +1,4 @@
+"""This module contains the QuestionExtract class. It is used to create questions that ask the user to extract values from a string, and return them in a given template."""
 from __future__ import annotations
 import re
 import json
@@ -32,6 +33,7 @@ class QuestionExtract(Question):
         answer_template: dict[str, Any],
         question_name: str,
     ):
+        """Initialize the question."""
         self.question_name = question_name
         self.question_text = question_text
         self.answer_template = answer_template
@@ -40,7 +42,7 @@ class QuestionExtract(Question):
     # Answer methods
     ################
     def validate_answer(self, answer: Any) -> dict[str, Any]:
-        """Validates the answer"""
+        """Validate the answer."""
         # raw_json = answer["answer"]
         # fixed_json_data = re.sub(r"\'", '"', raw_json)
         # answer["answer"] = json.loads(fixed_json_data)
@@ -51,11 +53,11 @@ class QuestionExtract(Question):
         return answer
 
     def translate_answer_code_to_answer(self, answer, scenario: Scenario = None):
-        """Returns the answer in a human-readable format"""
+        """Return the answer in a human-readable format."""
         return answer
 
     def simulate_answer(self, human_readable: bool = True) -> dict[str, str]:
-        """Simulates a valid answer for debugging purposes"""
+        """Simulate a valid answer for debugging purposes."""
         return {
             "answer": {key: random_string() for key in self.answer_template.keys()},
             "comment": random_string(),
@@ -66,6 +68,7 @@ class QuestionExtract(Question):
     ################
     @classmethod
     def example(cls) -> QuestionExtract:
+        """Return an example question."""
         return cls(
             question_name="extract_name",
             question_text="My name is Moby Dick. I have a PhD in astrology, but I'm actually a truck driver",
@@ -73,8 +76,8 @@ class QuestionExtract(Question):
         )
 
 
-# main
 def main():
+    """Administer a question and validate the answer."""
     from edsl.questions.QuestionExtract import QuestionExtract
 
     q = QuestionExtract.example()
@@ -85,7 +88,6 @@ def main():
     q.translate_answer_code_to_answer(
         {"answer": {"name": "Moby", "profession": "truck driver"}}
     )
-    # simulate answer
     q.simulate_answer()
     q.simulate_answer(human_readable=False)
     q.validate_answer(q.simulate_answer(human_readable=False))
