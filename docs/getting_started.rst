@@ -6,7 +6,9 @@ Requirements
 
 - Python 3.9 - 3.11
 
-- For now, API keys for OpenAI, Google and/or DeepInfra — Stay tuned, the edsl API is coming soon!
+- Expected Parrot API key or your own API keys for OpenAI, Google and/or DeepInfra
+
+Get the Expected Parrot API key by creating an account at https://www.expectedparrot.com/signup
 
 Installation
 ------------
@@ -42,7 +44,7 @@ You can skip this step by pressing return/enter at any of the (3) prompts.
 Hosted inference
 ----------------
 The Expected Parrot API key allows you to access all available models with hosting for your survey results.
-Get access to the Expected Parrot API key by signing up at https://expectedparrot.com/coop
+Get access to the Expected Parrot API key by signing up at https://www.expectedparrot.com/signup
 
 Tutorials
 ---------
@@ -52,8 +54,11 @@ administer them to AI agents and explore results with built-in analytical method
 
 Reseach
 -------
-`Showcase <https://www.expectedparrot.com/getting-started#showcase>`__ 
-features a variety of demo notebooks for use cases and examples of ways to conduct research with the EDSL package.
+.. `Showcase <https://www.expectedparrot.com/getting-started#showcase>`__ 
+
+.. raw:: html
+
+   <a href="https://www.expectedparrot.com/getting-started#showcase" target="_blank">Showcase</a> features a variety of demo notebooks for use cases and examples of ways to conduct research with the EDSL package.
 
 FAQ
 ---
