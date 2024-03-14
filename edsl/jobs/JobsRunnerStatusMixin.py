@@ -1,15 +1,16 @@
 from __future__ import annotations
-from collections import defaultdict
-from typing import List, Dict, Type
+from collections import defaultdict, UserDict
+from typing import List, Dict, Type, Any, Literal, DefaultDict
 import asyncio
 
-from rich.table import Table
 from rich.text import Text
 from rich.box import SIMPLE
-
+from rich.table import Table
 
 from edsl.jobs.token_tracking import TokenPricing, InterviewTokenUsage
 from edsl.jobs.task_management import InterviewStatusDictionary
+
+InterviewTokenUsageMapping = DefaultDict[str, InterviewTokenUsage]
 
 
 # TODO: Move this to a more appropriate location
@@ -51,6 +52,7 @@ pricing = {
     ),
 }
 
+
 class ModelStatus:
     """Hold the status of a model."""
 
@@ -60,94 +62,184 @@ class ModelStatus:
         self.TPM = TPM
         self.RPM = RPM
 
-class JobsRunnerStatusData:
 
+
+class InterviewStatistic(UserDict):
+    @staticmethod
+    def _format_number(number, digits=0, units=""):
+        """Format a number."""
+        if type(number) == str:
+            return number
+        else:
+            return f"{number:,.{digits}f}" + " " + units
+
+    @property
+    def _pretty_name(self):
+        return self.name.replace("_", " ").capitalize()
+
+    def __init__(self, name: str, value: float, digits:int =0, units: str="", pretty_name: str = None):
+        self.name = name
+        self.value = value
+        self.digits = digits
+        self.units = units
+        self.pretty_name = pretty_name or self._pretty_name
+
+        super().__init__(
+            {self.pretty_name: self._format_number(self.value, self.digits, self.units)}
+        )
+
+
+class InterviewStatisticsCollection(UserDict):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def add_stat(self, statistic: InterviewStatistic):
+        self.update(statistic)
+
+class JobsRunnerStatusData:
     pricing = pricing
 
-    def generate_status_summary(self, completed_tasks: List[Type[asyncio.Task]], elapsed_time: float, interviews: List[Type['Interview']]) -> Dict:
+    def generate_status_summary(
+        self,
+        completed_tasks: List[Type[asyncio.Task]],
+        elapsed_time: float,
+        interviews: List[Type["Interview"]],
+    ) -> InterviewStatisticsCollection:
+        """Generate a summary of the status of the job runner.
+
+        :param completed_tasks: list of completed tasks
+        :param elapsed_time: time elapsed since the start of the job
+        :param interviews: list of interviews to be conducted
+        """
+
         models_to_tokens = defaultdict(InterviewTokenUsage)
         model_to_status = defaultdict(InterviewStatusDictionary)
 
         waiting_dict = defaultdict(int)
 
-        #interviews = self.total_interviews
+        interview_statistics = InterviewStatisticsCollection()
 
-        # TODO: I'm not sure this is right anymore, given the n > 1 possibility...
-        # Change to "total_intervviews"
         for interview in interviews:
             model = interview.model
             models_to_tokens[model] += interview.token_usage
             model_to_status[model] += interview.interview_status
             waiting_dict[model] += interview.interview_status.waiting
 
-        pct_complete = len(completed_tasks) / len(interviews) * 100 if len(interviews) > 0 else 0
-        average_time = elapsed_time / len(completed_tasks) if completed_tasks else 0
-
-        task_remaining = len(interviews) - len(completed_tasks)
-        estimated_time_remaining = task_remaining * average_time if average_time else 0
-
+        interview_statistics.add_stat(
+            InterviewStatistic("elapsed_time", value=elapsed_time, digits=1, units="sec.")
+        )
+        interview_statistics.add_stat(
+            InterviewStatistic("total_interviews_requested", value=len(interviews), units="")
+        )
+        interview_statistics.add_stat(
+            InterviewStatistic("completed_interviews", value=len(completed_tasks), units="")
+        )
+        interview_statistics.add_stat(
+            InterviewStatistic(
+                "percent_complete",
+                value = len(completed_tasks) / len(interviews) * 100
+                if len(interviews) > 0
+                else "NA",
+                digits=0,
+                units="%",
+            )
+        )
+        interview_statistics.add_stat(
+            InterviewStatistic(
+                "average_time_per_interview",
+                value = elapsed_time / len(completed_tasks) if completed_tasks else "NA",
+                digits=1,
+                units="sec.",
+            )
+        )
+        interview_statistics.add_stat(
+            InterviewStatistic(
+                "task_remaining", value=len(interviews) - len(completed_tasks), units=""
+            )
+        )
+        interview_statistics.add_stat(
+            InterviewStatistic(
+                "estimated_time_remaining",
+                value = (len(interviews) - len(completed_tasks))
+                * (elapsed_time / len(completed_tasks) if completed_tasks else "NA"),
+                digits=1,
+                units="sec.",
+            )
+        )
         model_queues_info = []
         for model, num_waiting in waiting_dict.items():
-            if model.model not in self.pricing:
-                raise ValueError(f"Model {model.model} not found in pricing")
-            prices = self.pricing[model.model]
-            token_usage = models_to_tokens[model]
-
-            model_info = {
-                "model_name": model.model,
-                "TPM_limit_k": model.TPM / 1000,
-                "RPM_limit_k": model.RPM / 1000,
-                "num_tasks_waiting": num_waiting,
-                "token_usage_info": [],
-            }
-
-            for cache_status in ['new_token_usage', 'cached_token_usage']:
-                cache_info = {"cache_status": cache_status, "details": []}
-                token_usage = getattr(models_to_tokens[model], cache_status)
-                for token_type in ["prompt_tokens", "completion_tokens"]:
-                    tokens = getattr(token_usage, token_type)
-                    cache_info["details"].append({
-                        "type": token_type,
-                        "tokens": tokens,
-                        "cost": f"${token_usage.cost(prices):.5f}"
-                    })
-                model_info["token_usage_info"].append(cache_info)
-
+            model_info = self._get_model_info(model, num_waiting, models_to_tokens)
             model_queues_info.append(model_info)
 
-        
-        status_summary = {
-            "elapsed_time": f"{elapsed_time:.2f} seconds",
-            "estimated_time_remaining": f"{estimated_time_remaining:.2f} seconds",
-            "total_interviews_requested": len(interviews),
-            "completed_interviews": len(completed_tasks),
-            "percent_complete": pct_complete,
-            "average_time_per_interview": f"{average_time:.2f} seconds",
-            "model_queues": model_queues_info,
-            # Include other status details as needed
+        interview_statistics["model_queues"] = model_queues_info
+
+        return interview_statistics
+
+    def _get_model_info(
+        self,
+        model: str,
+        num_waiting: int,
+        models_to_tokens: InterviewTokenUsageMapping,
+    ):
+        """Get the status of a model."""
+        if model.model not in self.pricing:
+            raise ValueError(f"Model {model.model} not found in pricing")
+
+        prices = self.pricing[model.model]
+
+        model_info = {
+            "model_name": model.model,
+            "TPM_limit_k": model.TPM / 1000,
+            "RPM_limit_k": model.RPM / 1000,
+            "num_tasks_waiting": num_waiting,
+            "token_usage_info": [],
         }
 
-        return status_summary
-        
-class JobsRunnerStatusPresentation:
+        token_usage_types = ["new_token_usage", "cached_token_usage"]
+        for token_usage_type in token_usage_types:
+            cache_info = self._get_token_usage_info(
+                token_usage_type, models_to_tokens, model, prices
+            )
+            model_info["token_usage_info"].append(cache_info)
 
+        return model_info
+
+    def _get_token_usage_info(
+        self,
+        cache_status: Literal["new_token_usage", "cached_token_usage"],
+        models_to_tokens: InterviewTokenUsageMapping,
+        model: str,
+        prices: TokenPricing,
+    ):
+        cache_info = {"cache_status": cache_status, "details": []}
+        token_usage = getattr(models_to_tokens[model], cache_status)
+        for token_type in ["prompt_tokens", "completion_tokens"]:
+            tokens = getattr(token_usage, token_type)
+            cache_info["details"].append(
+                {
+                    "type": token_type,
+                    "tokens": tokens,
+                    "cost": f"${token_usage.cost(prices):.5f}",
+                }
+            )
+        return cache_info
+
+
+class JobsRunnerStatusPresentation:
     @staticmethod
     def display_status_table(status_summary):
-
         table = Table(
             title="Job Status",
             show_header=True,
             header_style="bold magenta",
             box=SIMPLE,
         )
-        table.add_column("Key", style="dim", no_wrap=True)
+        table.add_column("Statistic", style="dim", no_wrap=True)
         table.add_column("Value")
 
         for key, value in status_summary.items():
-            # Format keys for display (replace underscores with spaces, capitalize)
             if key != "model_queues":
-                display_key = key.replace("_", " ").capitalize()
-                table.add_row(display_key, str(value))
+                table.add_row(key, value)
 
         if "model_queues" in status_summary:
             table.add_row(Text("Model Queues", style="bold red"), "")
@@ -158,7 +250,10 @@ class JobsRunnerStatusPresentation:
                 # Basic model queue info
                 table.add_row("TPM limit (k)", str(model_info["TPM_limit_k"]))
                 table.add_row("RPM limit (k)", str(model_info["RPM_limit_k"]))
-                table.add_row("Num tasks waiting", str(model_info["num_tasks_waiting"]))
+                table.add_row(
+                    "Number question tasks waiting for capacity",
+                    str(model_info["num_tasks_waiting"]),
+                )
 
                 # Token usage and cost info
                 for cache_info in model_info["token_usage_info"]:
@@ -168,16 +263,24 @@ class JobsRunnerStatusPresentation:
                         token_type = detail["type"]
                         tokens = detail["tokens"]
                         cost = detail["cost"]
-                        table.add_row(f"-{token_type}", str(tokens))
-                        table.add_row("Cost", cost)
+                        table.add_row(f"{token_type}", f"{tokens:,}")
+                        table.add_row("cost", cost)
 
         return table
 
 
 class JobsRunnerStatusMixin(JobsRunnerStatusData, JobsRunnerStatusPresentation):
-
-    def status_table(self, completed_tasks: List[asyncio.Task], elapsed_time: float):
-        summary_data = self.generate_status_summary(completed_tasks = completed_tasks, 
-                                                    elapsed_time = elapsed_time, interviews = self.total_interviews)
-        return self.display_status_table(summary_data)
     
+    def status_data(self, completed_tasks: List[asyncio.Task], elapsed_time: float):
+        return self.generate_status_summary(
+            completed_tasks=completed_tasks,
+            elapsed_time=elapsed_time,
+            interviews=self.total_interviews)
+    
+    def status_table(self, completed_tasks: List[asyncio.Task], elapsed_time: float):
+        summary_data = self.generate_status_summary(
+            completed_tasks=completed_tasks,
+            elapsed_time=elapsed_time,
+            interviews=self.total_interviews,
+        )
+        return self.display_status_table(summary_data)

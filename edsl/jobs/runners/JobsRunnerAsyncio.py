@@ -1,6 +1,9 @@
 import time
 import asyncio
+import json
+from contextlib import asynccontextmanager
 from typing import Coroutine, List, AsyncGenerator
+from collections import UserList
 
 from rich.live import Live
 from rich.console import Console
@@ -12,10 +15,46 @@ from edsl.utilities.decorators import jupyter_nb_handler
 
 from edsl.jobs.JobsRunnerStatusMixin import JobsRunnerStatusMixin
 
+class JobsRunHistory(UserList):
+    
+    def to_json(self, json_file):
+        with open(json_file, "w") as file:
+            json.dump(self.data, file)
+
+    @classmethod
+    def from_json(cls, json_file):
+        with open(json_file, "r") as file:
+            data = json.load(file)
+        return cls(data)
+
+
+@asynccontextmanager
+async def debug_logger(debug: bool):
+    debug_data = JobsRunHistory()
+
+    try:
+        # Provide a way to record debug data if debug is True
+        yield debug_data.append if debug else lambda *args, **kwargs: None
+    finally:
+        if debug:
+            file_name = "debug_data.json"
+            debug_data.to_json(file_name)
+            #print(f"""Debug data saved to debug_data.json.
+            #To use:
+            #>>> from edsl.jobs.JobsRunnerAsyncio import JobsRunHistory
+            #>>> debug_data = JobsRunHistory.from_json(debug_data.json)  
+            #""")
+            # Here, you could save debug_data to a file, print it, or make it available in another way
+            #print("Debug Data:", debug_data)
+
 class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
     runner_name = "asyncio"
 
-    def populate_total_interviews(self, n = 1):
+    def populate_total_interviews(self, n = 1) -> None:
+        """Populates self.total_interviews with n copies of each interview.
+        
+        :param n: how many times to run each interview.
+        """
         self.total_interviews = []
         for interview in self.interviews:
             for iteration in range(n):
@@ -37,7 +76,13 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
         self, n=1, verbose=False, sleep=0, debug=False
     ) -> AsyncGenerator[Result, None]:
         """Creates the tasks, runs them asynchronously, and returns the results as a Results object.
+
         Completed tasks are yielded as they are completed.
+
+        :param n: how many times to run each interview
+        :param verbose: prints messages
+        :param sleep: how long to sleep between interviews
+        :param debug: prints debug messages
         """
         tasks = []
         self.populate_total_interviews(n=n)  # Populate self.total_interviews before creating tasks
@@ -51,7 +96,11 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
             yield result
 
     async def _interview_task(self, *, interview: Interview, debug: bool) -> Result:
-        """Conducts an interview and returns the result."""
+        """Conducts an interview and returns the result.
+        
+        :param interview: the interview to conduct
+        :param debug: prints debug messages
+        """
         # the model buckets are used to track usage rates
         model_buckets = self.bucket_collection[interview.model]
 
@@ -106,7 +155,13 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
     async def run(
         self, n=1, verbose=True, sleep=0, debug=False, progress_bar=False
     ) -> Coroutine:
-        """Runs a collection of interviews, handling both async and sync contexts."""
+        """Runs a collection of interviews, handling both async and sync contexts.
+        
+        :param n: how many times to run each interview
+        :param verbose: prints messages
+        :param sleep: how long to sleep between interviews
+        :param debug: prints debug messages
+        """
         verbose = True
         console = Console()
         data = []
@@ -115,23 +170,33 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
         live = None
         if progress_bar:
             live = Live(
-                self.status_table(data, 0),
+                self.status_table(data, elapsed_time = 0),
                 console=console,
                 refresh_per_second=10,
             )
             live.__enter__()  # Manually enter the Live context
 
-        async for result in self.run_async(n, verbose, sleep, debug):
-            end_time = time.monotonic()
-            elapsed_time = end_time - start_time
-            data.append(result)
+        ## TODO: 
+        ## - factor out the debug in run_async
+        ## - Add a "break on error" option
+        ## - Put JobsRunHistory in a separate file and add helper methods e.g., visualization
 
-            if progress_bar:
-                live.update(self.status_table(data, elapsed_time))
+        async with debug_logger(debug) as debug_record:
+            async for result in self.run_async(n, verbose, sleep, debug = False):
+                elapsed_time = time.monotonic()- start_time
+                status_data = self.status_data(data, elapsed_time)
+                debug_record(f"data: {status_data}, Time: {elapsed_time}")
+                data.append(result)
+
+                if progress_bar:
+                    live.update(self.status_table(data, elapsed_time))
 
         if progress_bar:
             live.update(self.status_table(data, elapsed_time))
             await asyncio.sleep(0.5)  # short delay to show the final status
             live.__exit__(None, None, None)  # Manually exit the Live context
+
+        if debug:
+            print("Debug data saved to debug_data.json.")
 
         return Results(survey=self.jobs.survey, data=data)
