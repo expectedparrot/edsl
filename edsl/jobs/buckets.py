@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, List, Any
 import asyncio
 import time
 from collections import UserDict
@@ -11,7 +11,7 @@ class TokenBucket:
     def __init__(
         self,
         *,
-        bucket_name,
+        bucket_name: str,
         bucket_type: str,
         capacity: Union[int, float],
         refill_rate: Union[int, float],
@@ -23,7 +23,7 @@ class TokenBucket:
         self.refill_rate = refill_rate  # Rate at which tokens are refilled
         self.last_refill = time.monotonic()  # Last refill time
 
-        self.log = []
+        self.log: List[Any] = []
 
     def __add__(self, other) -> "TokenBucket":
         """Combine two token buckets. The resulting bucket has the minimum capacity and refill rate of the two buckets.
@@ -33,7 +33,7 @@ class TokenBucket:
             bucket_name=self.bucket_name,
             bucket_type=self.bucket_type,
             capacity=min(self.capacity, other.capacity),
-            refil_rate=min(self.refill_rate, other.refill_rate),
+            refill_rate=min(self.refill_rate, other.refill_rate),
         )
 
     def __repr__(self):
@@ -54,7 +54,7 @@ class TokenBucket:
 
         self.log.append((now, self.tokens))
 
-    def wait_time(self, requested_tokens) -> float:
+    def wait_time(self, requested_tokens: Union[float, int]) -> float:
         """Calculate the time to wait for the requested number of tokens."""
         now = time.monotonic()
         elapsed = now - self.last_refill
@@ -62,7 +62,7 @@ class TokenBucket:
         available_tokens = min(self.capacity, self.tokens + refill_amount)
         return max(0, requested_tokens - available_tokens) / self.refill_rate
 
-    async def get_tokens(self, amount=1) -> None:
+    async def get_tokens(self, amount: Union[int, float]=1) -> None:
         """Wait for the specified number of tokens to become available.
         Note that this method is a coroutine.
         """
@@ -102,15 +102,23 @@ class TokenBucket:
 
 class ModelBuckets:
     """A class to represent the token and request buckets for a model.
+
     Most LLM model services have limits both on requests-per-minute (RPM) and tokens-per-minute (TPM).
     A request is one call to the service. The number of tokens required for a request depends on parameters.
     """
 
     def __init__(self, requests_bucket: TokenBucket, tokens_bucket: TokenBucket):
+        """Initialize the model buckets.
+        
+        The requests bucket captures requests per unit of time.
+        The tokens bucket captures the number of language model tokens.
+        
+        """
         self.requests_bucket = requests_bucket
         self.tokens_bucket = tokens_bucket
 
-    def __add__(self, other):
+    def __add__(self, other: "ModelBuckets"):
+        """Combine two model buckets."""
         return ModelBuckets(
             requests_bucket=self.requests_bucket + other.requests_bucket,
             tokens_bucket=self.tokens_bucket + other.tokens_bucket,
@@ -135,6 +143,7 @@ class ModelBuckets:
         )
 
     def visualize(self):
+        """Visualize the token and request buckets."""
         plot1 = self.requests_bucket.visualize()
         plot2 = self.tokens_bucket.visualize()
         return plot1, plot2
@@ -144,7 +153,8 @@ class ModelBuckets:
 
 
 class BucketCollection(UserDict):
-    """A jobs object will have a whole collection of model buckets, as multiple models could be used.
+    """A Jobs object will have a whole collection of model buckets, as multiple models could be used.
+
     The keys here are the models, and the values are the ModelBuckets objects.
     Models themselves are hashable, so this works.
     """
@@ -155,8 +165,10 @@ class BucketCollection(UserDict):
     def __repr__(self):
         return f"BucketCollection({self.data})"
 
-    def add_model(self, model) -> None:
-        """Adds a model to the bucket collection. This will create the token and request buckets for the model."""
+    def add_model(self, model: 'LanguageModel') -> None:
+        """Adds a model to the bucket collection. 
+        
+        This will create the token and request buckets for the model."""
         # compute the TPS and RPS from the model
         TPS = model.TPM / 60.0
         RPS = model.RPM / 60.0
@@ -178,6 +190,7 @@ class BucketCollection(UserDict):
             self[model] = model_buckets
 
     def visualize(self) -> dict:
+        """Visualize the token and request buckets for each model."""
         plots = {}
         for model in self:
             plots[model] = self[model].visualize()
