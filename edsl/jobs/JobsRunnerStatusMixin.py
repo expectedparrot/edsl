@@ -1,27 +1,15 @@
 from __future__ import annotations
-from collections import defaultdict, UserDict
-from typing import List, Dict, Type, Any, Literal, DefaultDict
+from typing import List, DefaultDict
 import asyncio
 
 from rich.text import Text
 from rich.box import SIMPLE
 from rich.table import Table
 
-from edsl.jobs.token_tracking import TokenPricing, InterviewTokenUsage
-from edsl.jobs.task_management import InterviewStatusDictionary
-
-#from edsl.jobs.pricing import pricing
+from edsl.jobs.token_tracking import InterviewTokenUsage
+from edsl.jobs.jobs_run_history import JobsRunnerStatusData
 
 InterviewTokenUsageMapping = DefaultDict[str, InterviewTokenUsage]
-
-# class ModelStatus:
-#     """Hold the status of a model."""
-
-#     def __init__(self, model, TPM, RPM):
-#         """Initialize the model status."""
-#         self.model = model
-#         self.TPM = TPM
-#         self.RPM = RPM
 
 class JobsRunnerStatusPresentation:
     @staticmethod
@@ -66,7 +54,6 @@ class JobsRunnerStatusPresentation:
 
         return table
 
-from edsl.jobs.jobs_run_history import JobsRunnerStatusData
 
 class JobsRunnerStatusMixin(JobsRunnerStatusData, JobsRunnerStatusPresentation):
     

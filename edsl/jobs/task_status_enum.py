@@ -2,7 +2,7 @@ from __future__ import annotations
 import enum
 
 class TaskStatus(enum.Enum):
-    "These are the possible statuses for a task."
+    "These are the possible states a task can be in."
     NOT_STARTED = enum.auto()
     WAITING_ON_DEPENDENCIES = enum.auto()
     CANCELLED = enum.auto()
@@ -18,7 +18,7 @@ class TaskStatus(enum.Enum):
     FAILED = enum.auto()
 
 def get_enum_from_string(str_key):
-    # Parse the string to extract the enum member name
+    """Parse the string to extract the enum member name."""
     try:
         _, member_name = str_key.split('.')
         enum_member = getattr(TaskStatus, member_name)
