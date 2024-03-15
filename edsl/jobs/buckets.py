@@ -26,7 +26,9 @@ class TokenBucket:
         self.log: List[Any] = []
 
     def __add__(self, other) -> "TokenBucket":
-        """Combine two token buckets. The resulting bucket has the minimum capacity and refill rate of the two buckets.
+        """Combine two token buckets. 
+        
+        The resulting bucket has the minimum capacity and refill rate of the two buckets.
         This is useful, for example, if we have two calls to the same model on the same service but have different temperatures.
         """
         return TokenBucket(
