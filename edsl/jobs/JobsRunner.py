@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+from typing import List
 from abc import ABC, ABCMeta, abstractmethod
-from edsl.jobs import Jobs
+from edsl.jobs.Jobs import Jobs
 from edsl.results import Results
 
+# used for typing
+from edsl.jobs.buckets import BucketCollection
+from edsl.jobs.Interview import Interview
 
 class RegisterJobsRunnerMeta(ABCMeta):
-    "Metaclass to register output elements in a registry i.e., those that have a parent"
-    _registry = {}  # Initialize the registry as a dictionary
+    """Registers JobRunner classes."""
+    _registry: dict[str, JobsRunner] = {}  # Initialize the registry as a dictionary
 
     def __init__(cls, name, bases, dct):
         super(RegisterJobsRunnerMeta, cls).__init__(name, bases, dct)
@@ -15,7 +19,8 @@ class RegisterJobsRunnerMeta(ABCMeta):
             RegisterJobsRunnerMeta._registry[name] = cls
 
     @classmethod
-    def get_registered_classes(cls):
+    def get_registered_classes(cls) -> dict[str, JobsRunner]:
+        """Return the JobsRunner registry."""
         return cls._registry
 
     @classmethod
@@ -26,7 +31,7 @@ class RegisterJobsRunnerMeta(ABCMeta):
                 d[cls.runner_name] = cls
             else:
                 raise Exception(
-                    f"Class {classname} does not have a runner_name attribute"
+                    f"Class {classname} does not have a runner_name attribute."
                 )
         return d
 
@@ -36,9 +41,9 @@ class JobsRunner(ABC, metaclass=RegisterJobsRunnerMeta):
 
     def __init__(self, jobs: Jobs):
         self.jobs = jobs
-        self.interviews = jobs.interviews()
-        self.bucket_collection = jobs.bucket_collection
-        self.total_interviews = []
+        self.interviews: List['Interview'] = jobs.interviews()
+        self.bucket_collection: 'BucketCollection' = jobs.bucket_collection
+        self.total_interviews: List['Interview'] = []
         
     @abstractmethod
     def run(
@@ -50,6 +55,7 @@ class JobsRunner(ABC, metaclass=RegisterJobsRunnerMeta):
     ) -> Results:  # pragma: no cover
         """
         Runs the job: conducts Interviews and returns their results.
+
         - `n`: how many times to run each interview
         - `debug`: prints debug messages
         - `verbose`: prints messages
