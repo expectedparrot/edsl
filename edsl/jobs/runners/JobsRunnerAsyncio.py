@@ -15,25 +15,17 @@ from edsl.utilities.decorators import jupyter_nb_handler
 
 from edsl.jobs.JobsRunnerStatusMixin import JobsRunnerStatusMixin
 
-class JobsRunHistory(UserList):
-    
-    def to_json(self, json_file):
-        with open(json_file, "w") as file:
-            json.dump(self.data, file)
-
-    @classmethod
-    def from_json(cls, json_file):
-        with open(json_file, "r") as file:
-            data = json.load(file)
-        return cls(data)
-
+from edsl.jobs.jobs_run_history import JobsRunHistory
 
 @asynccontextmanager
 async def debug_logger(debug: bool):
+    """A context manager to record debug data if debug is True."""
     debug_data = JobsRunHistory()
 
     try:
         # Provide a way to record debug data if debug is True
+        # This is yielding a function that appends to the debug_data list
+        # but if debug = False, it just returns a function that returns nothing
         yield debug_data.append if debug else lambda *args, **kwargs: None
     finally:
         if debug:
@@ -113,7 +105,6 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
         # we should have a valid result for each question
         answer_key_names = {k for k in set(answer.keys()) if not k.endswith("_comment")}
 
-        # TODO: Commenting out for now
         assert len(valid_results) == len(answer_key_names)
 
         question_name_to_prompts = dict({})
@@ -182,10 +173,11 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
         ## - Put JobsRunHistory in a separate file and add helper methods e.g., visualization
 
         async with debug_logger(debug) as debug_record:
-            async for result in self.run_async(n, verbose, sleep, debug = False):
+            async for result in self.run_async(n, verbose, sleep, debug = debug):
                 elapsed_time = time.monotonic()- start_time
                 status_data = self.status_data(data, elapsed_time)
-                debug_record(f"data: {status_data}, Time: {elapsed_time}")
+                # debug_record is a function that appends to the debug_data list, or does nothing if debug = False
+                debug_record(status_data)
                 data.append(result)
 
                 if progress_bar:
