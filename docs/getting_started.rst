@@ -34,14 +34,12 @@ Check your version:
 
     pip show edsl 
 
+We recommend using a virtual environment to access the package. 
+See instructions `here <https://www.expectedparrot.com/getting-started#edsl-getting-started>`__.
+
 .. raw:: html
 
-   We recommend using a virtual environment to access the package. See <a href="https://www.expectedparrot.com/getting-started#edsl-getting-started" target="_blank">instructions</a>.
-
-<br>
-.. raw:: html
-
-   You can also view source code on <a href="https://github.com/expectedparrot/edsl/" target="_blank">GitHub</a>.
+   You can also view source code for EDSL on <a href="https://github.com/expectedparrot/edsl/" target="_blank">GitHub</a>.
 
 
 API keys
@@ -57,21 +55,19 @@ Get access to the Expected Parrot API key by signing up at https://www.expectedp
 
 Tutorials
 ---------
-`Getting Started <https://expected-parrot-edsl.readthedocs-hosted.com/en/latest/tutorial_getting_started.html>`__ 
-provides an overview of the EDSL package with short examples of how to create questions and surveys, 
+The `Getting Started <https://expected-parrot-edsl.readthedocs-hosted.com/en/latest/tutorial_getting_started.html>`__ 
+tutorial provides an overview of the EDSL package with short examples of how to create questions and surveys, 
 administer them to AI agents and explore results with built-in analytical methods and visualizations.
 
-Reseach
--------
-.. `Showcase <https://www.expectedparrot.com/getting-started#showcase>`__ 
-
-.. raw:: html
-
-   <a href="https://www.expectedparrot.com/getting-started#showcase" target="_blank">Showcase</a> features a variety of demo notebooks for use cases and examples of ways to conduct research with the EDSL package.
+Research
+--------
+Once you've learned the basics, explore our
+`Showcase <https://www.expectedparrot.com/getting-started#showcase>`__ collection of notebooks and templates for a 
+broad variety of use cases and ideas for conducting research using EDSL.
 
 FAQ
 ---
-Please let us know any questions to add to the `FAQ <https://expected-parrot-edsl.readthedocs-hosted.com/en/latest/faq>`__!
+Please let us know of any questions to add to the `FAQ <https://expected-parrot-edsl.readthedocs-hosted.com/en/latest/faq.html>`__!
 
 Community 
 ---------
