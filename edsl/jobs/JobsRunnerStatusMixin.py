@@ -65,6 +65,7 @@ class ModelStatus:
 
 
 class InterviewStatistic(UserDict):
+
     @staticmethod
     def _format_number(number, digits=0, units=""):
         """Format a number."""
@@ -77,7 +78,12 @@ class InterviewStatistic(UserDict):
     def _pretty_name(self):
         return self.name.replace("_", " ").capitalize()
 
-    def __init__(self, name: str, value: float, digits:int =0, units: str="", pretty_name: str = None):
+    def __init__(self, 
+                 name: str, 
+                 value: float, 
+                 digits:int =0, 
+                 units: str="", 
+                 pretty_name: str = None):
         self.name = name
         self.value = value
         self.digits = digits
@@ -88,16 +94,35 @@ class InterviewStatistic(UserDict):
             {self.pretty_name: self._format_number(self.value, self.digits, self.units)}
         )
 
+        self.raw = {self.name: self.value}
+
 
 class InterviewStatisticsCollection(UserDict):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.raw = {}
 
     def add_stat(self, statistic: InterviewStatistic):
+        """Add a statistic to the collection.
+        
+        Each statistic is a dictionary with a single key-value pair.
+        """
         self.update(statistic)
+        self.raw.update(statistic.raw)
 
 class JobsRunnerStatusData:
     pricing = pricing
+
+    def full_status(self, interviews):
+
+        model_to_status = defaultdict(InterviewStatusDictionary)
+
+        for interview in interviews:
+            model = interview.model
+            model_to_status[model] += interview.interview_status
+
+        #breakpoint()
+        return list(model_to_status.values())        
 
     def generate_status_summary(
         self,
@@ -161,7 +186,7 @@ class JobsRunnerStatusData:
             InterviewStatistic(
                 "estimated_time_remaining",
                 value = (len(interviews) - len(completed_tasks))
-                * (elapsed_time / len(completed_tasks) if completed_tasks else "NA"),
+                * (elapsed_time / len(completed_tasks) if len(completed_tasks) > 0 else "NA"),
                 digits=1,
                 units="sec.",
             )
@@ -272,11 +297,12 @@ class JobsRunnerStatusPresentation:
 class JobsRunnerStatusMixin(JobsRunnerStatusData, JobsRunnerStatusPresentation):
     
     def status_data(self, completed_tasks: List[asyncio.Task], elapsed_time: float):
-        return self.generate_status_summary(
-            completed_tasks=completed_tasks,
-            elapsed_time=elapsed_time,
-            interviews=self.total_interviews)
-    
+        # return self.generate_status_summary(
+        #     completed_tasks=completed_tasks,
+        #     elapsed_time=elapsed_time,
+        #     interviews=self.total_interviews).raw
+        return self.full_status(self.total_interviews)
+      
     def status_table(self, completed_tasks: List[asyncio.Task], elapsed_time: float):
         summary_data = self.generate_status_summary(
             completed_tasks=completed_tasks,
