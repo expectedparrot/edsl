@@ -30,7 +30,10 @@ async def debug_logger(debug: bool):
     finally:
         if debug:
             file_name = "debug_data.json"
-            debug_data.to_json(file_name)
+
+            ## TODO: Get serialization working
+            #debug_data.to_json(file_name)
+            
             #print(f"""Debug data saved to debug_data.json.
             #To use:
             #>>> from edsl.jobs.JobsRunnerAsyncio import JobsRunHistory

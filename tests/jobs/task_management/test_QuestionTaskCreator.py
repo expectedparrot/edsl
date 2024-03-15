@@ -1,8 +1,8 @@
 import asyncio
 import pytest
 
-from edsl.jobs.task_management import TaskStatus
-from edsl.jobs.task_management import QuestionTaskCreator
+from edsl.jobs.task_status_enum import TaskStatus
+from edsl.jobs.question_task_creator import QuestionTaskCreator
 from edsl import QuestionFreeText
 from edsl.jobs.buckets import ModelBuckets
 

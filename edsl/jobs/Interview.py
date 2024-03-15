@@ -21,14 +21,14 @@ from edsl.jobs.token_tracking import InterviewTokenUsage
 
 from edsl.jobs.task_management import (
     InterviewStatusDictionary,
-    QuestionTaskCreator,
     TasksList,
-    TaskCreators,
-    retry_strategy,
+#    retry_strategy,
 )
+from edsl.jobs.retry_management import retry_strategy
+
+from edsl.jobs.question_task_creator import QuestionTaskCreator, TaskCreators
 
 TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
-
 
 class Interview:
     """
