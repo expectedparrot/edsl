@@ -1,16 +1,16 @@
 """A Scenario is a dictionary of key/values that describe some situation."""
 
 import copy
-from collections import UserDict
+from collections import UserDict 
 from rich.table import Table
-
+from typing import Union, List
 from edsl.Base import Base
 
 
 class Scenario(Base, UserDict):
     """A Scenario is a dictionary of key/values that describe some situation."""
 
-    def __add__(self, other_scenario: "Scenario"):
+    def __add__(self, other_scenario: "Scenario") -> 'Scenario':
         """Combine two scenarios.
         
         If the other scenario is None, then just return self.
@@ -35,8 +35,8 @@ class Scenario(Base, UserDict):
             new_scenario.update(copy.deepcopy(other_scenario))
             return Scenario(new_scenario)
 
-    def to(self, question_or_survey) -> "Jobs":
-        """Run a question/survey with this particular scenario.
+    def to(self, question_or_survey: Union['Question', 'Survey']) -> 'Jobs':
+        """Create a job from this question/survey and the scenario.
 
         :param question_or_survey: A question or survey to run.
         Useful if you want to reverse the typical chain of operations.
@@ -51,7 +51,7 @@ class Scenario(Base, UserDict):
         """
         return question_or_survey.by(self)
 
-    def rename(self, replacement_dict: dict) -> "Scenario":
+    def rename(self, replacement_dict: dict) -> 'Scenario':
         """Rename the keys of a scenario.
 
         :param replacement_dict: A dictionary of old keys to new keys.
@@ -71,26 +71,26 @@ class Scenario(Base, UserDict):
                 new_scenario[key] = value
         return new_scenario
 
-    def make_question(self, question_class: type) -> "Question":
-        """Make a question from a scenario.
+    # def make_question(self, question_class: type) -> "Question":
+    #     """Make a question from a scenario.
 
-        :param question_class: The question class to use.
-        Note it takes a QuestionClass (not a question) as an input.
+    #     :param question_class: The question class to use.
+    #     Note it takes a QuestionClass (not a question) as an input.
 
-        Examples:
-        These do some stuff.
+    #     Examples:
+    #     These do some stuff.
 
-        >>> from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
-        >>> from edsl.agents.Agent import Agent
+    #     >>> from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
+    #     >>> from edsl.agents.Agent import Agent
 
-        >>> s = Scenario({"question_name": "feelings",
-        ...               "question_text": "How are you feeling?",
-        ...               "question_options": ["Very sad.", "Sad.", "Neutral.", "Happy.", "Very happy."]})
-        >>> q = s.make_question(QuestionMultipleChoice)
-        >>> q.by(Agent(traits = {'feeling': 'Very sad'})).run().select("feelings")
-        [{'answer.feelings': ['Very sad.']}]
-        """
-        return question_class(**self)
+    #     >>> s = Scenario({"question_name": "feelings",
+    #     ...               "question_text": "How are you feeling?",
+    #     ...               "question_options": ["Very sad.", "Sad.", "Neutral.", "Happy.", "Very happy."]})
+    #     >>> q = s.make_question(QuestionMultipleChoice)
+    #     >>> q.by(Agent(traits = {'feeling': 'Very sad'})).run().select("feelings")
+    #     [{'answer.feelings': ['Very sad.']}]
+    #     """
+    #     return question_class(**self)
 
     def to_dict(self) -> dict:
         """Convert a scenario to a dictionary.
@@ -102,7 +102,7 @@ class Scenario(Base, UserDict):
         return self.data
 
     @classmethod
-    def from_dict(cls, d) -> "Scenario":
+    def from_dict(cls, d: dict) -> 'Scenario':
         """Convert a dictionary to a scenario.
 
         >>> Scenario.from_dict({"food": "wood chips"})
@@ -118,7 +118,7 @@ class Scenario(Base, UserDict):
         column_names = ["Attribute", "Value"]
         return table_data, column_names
 
-    def rich_print(self):
+    def rich_print(self) -> 'Table':
         """Display an object as a rich table."""
         table_data, column_names = self._table()
         table = Table(title=f"{self.__class__.__name__} Attributes")
@@ -132,7 +132,7 @@ class Scenario(Base, UserDict):
         return table
 
     @classmethod
-    def example(cls):
+    def example(cls) -> 'Scenario':
         """Return an example scenario.
 
         >>> Scenario.example()
@@ -144,11 +144,13 @@ class Scenario(Base, UserDict):
             }
         )
 
-    def code(self):
+    def code(self) -> List[str]:
         """Return the code for the scenario."""
         lines = []
         lines.append("from edsl.scenario import Scenario")
-        return f"Scenario({self.data})"
+        lines.append(f"s = Scenario({self.data})")
+        #return f"Scenario({self.data})"
+        return lines
 
 
 if __name__ == "__main__":
