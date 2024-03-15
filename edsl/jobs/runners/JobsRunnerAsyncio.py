@@ -14,11 +14,11 @@ from edsl.jobs.Interview import Interview
 from edsl.utilities.decorators import jupyter_nb_handler
 
 from edsl.jobs.JobsRunnerStatusMixin import JobsRunnerStatusMixin
-
 from edsl.jobs.jobs_run_history import JobsRunHistory
 
 @asynccontextmanager
-async def debug_logger(debug: bool):
+async def job_logger():
+    debug = True
     """A context manager to record debug data if debug is True."""
     debug_data = JobsRunHistory()
 
@@ -175,7 +175,7 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
         ## - Add a "break on error" option
         ## - Put JobsRunHistory in a separate file and add helper methods e.g., visualization
 
-        async with debug_logger(debug) as debug_record:
+        async with job_logger() as debug_record:
             async for result in self.run_async(n, verbose, sleep, debug = debug):
                 elapsed_time = time.monotonic()- start_time
                 status_data = self.status_data(data, elapsed_time)
