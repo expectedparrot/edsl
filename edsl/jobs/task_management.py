@@ -1,6 +1,6 @@
 import asyncio
 import enum
-from typing import Callable
+from typing import Callable, Union, List
 from collections import UserDict, UserList
 
 from edsl import CONFIG
@@ -19,6 +19,11 @@ from tenacity import (
     before_sleep,
 )
 
+class TokensUsed(UserDict):
+    """"Container for tokens used by a task."""
+    def __init__(self, cached_tokens, new_tokens):
+        d = {'cached_tokens': cached_tokens, 'new_tokens': new_tokens}
+        super().__init__(d)
 
 class TaskStatus(enum.Enum):
     "These are the possible statuses for a task."
@@ -37,9 +42,9 @@ class TaskStatus(enum.Enum):
 
 
 class InterviewStatusDictionary(UserDict):
-    "A dictionary that keeps track of the status of all the tasks in an interview."
+    """A dictionary that keeps track of the status of all the tasks in an interview."""
 
-    def __init__(self, data=None):
+    def __init__(self, data: Union[List[TaskStatus], None] = None):
         if data:
             # checks to make sure every task status is in the enum
             assert all([task_status in data for task_status in TaskStatus])
@@ -53,8 +58,10 @@ class InterviewStatusDictionary(UserDict):
             super().__init__(d)
 
     def __add__(
-        self, other: "InterviewStatusDictionary"
+        self, 
+        other: "InterviewStatusDictionary"
     ) -> "InterviewStatusDictionary":
+        """Adds two InterviewStatusDictionaries together."""
         if not isinstance(other, InterviewStatusDictionary):
             raise ValueError(f"Can't add {type(other)} to InterviewStatusDictionary")
         new_dict = {}
@@ -63,9 +70,16 @@ class InterviewStatusDictionary(UserDict):
         return InterviewStatusDictionary(new_dict)
 
     @property 
-    def waiting(self):
-        return (self[TaskStatus.WAITING_FOR_REQUEST_CAPCITY] + self[TaskStatus.WAITING_FOR_TOKEN_CAPCITY] + self[TaskStatus.WAITING_ON_DEPENDENCIES])
-
+    def waiting(self) -> int:
+        """Return the number of tasks that are in a waiting status of some kind."""
+    
+        waiting_status_list = [
+            TaskStatus.WAITING_FOR_REQUEST_CAPCITY, 
+            TaskStatus.WAITING_FOR_TOKEN_CAPCITY,
+            TaskStatus.WAITING_ON_DEPENDENCIES]
+        
+        return sum([self[status] for status in waiting_status_list])
+    
     def __repr__(self):
         return f"InterviewStatusDictionary({self.data})"
 
@@ -80,10 +94,9 @@ class TaskStatusDescriptor:
         return self._task_status
 
     def __set__(self, instance, value):
+        """Ensure that the value is an instance of TaskStatus."""
         if not isinstance(value, TaskStatus):
             raise ValueError("Value must be an instance of TaskStatus enum")
-        # if value != self._task_status:
-        #    print(f"Status changed from {self._task_status} to {value}")
         self._task_status = value
 
     def __delete__(self, instance):
@@ -92,6 +105,7 @@ class TaskStatusDescriptor:
 
 class QuestionTaskCreator(UserList):
     """Class to create and manage question tasks with dependencies.
+
     It is a UserList with all the tasks that must be completed before the focal task can be run.
     When called, it returns an asyncio.Task that depends on the tasks that must be completed before it can be run.
     """
@@ -104,7 +118,7 @@ class QuestionTaskCreator(UserList):
         question: Question,
         answer_question_func: Callable,
         model_buckets: ModelBuckets,
-        token_estimator: Callable = None,
+        token_estimator: Union[Callable, None] = None,
         iteration: int = 0,
     ):
         super().__init__([])
@@ -140,21 +154,20 @@ class QuestionTaskCreator(UserList):
     def generate_task(self, debug) -> asyncio.Task:
         """Creates a task that depends on the passed-in dependencies."""
         task = asyncio.create_task(self._run_task_async(debug))
+        # TODO: This is a bit hacky. 
         task.edsl_name = self.question.question_name
         task.depends_on = [x.edsl_name for x in self]
         return task
 
     def estimated_tokens(self) -> int:
         """Estimates the number of tokens that will be required to run the focal task."""
-        token_estimate = self.token_estimator(self.question)
-        return token_estimate
+        return self.token_estimator(self.question)
 
-    def token_usage(self) -> dict:
+    def token_usage(self) -> TokensUsed:
         """Returns the token usage for the task."""
-        return {
-            "cached_tokens": self.cached_token_usage,
-            "new_tokens": self.new_token_usage,
-        }
+        #return {'cached_tokens': self.cached_token_usage, 'new_tokens': self.new_token_usage}
+        return TokensUsed(cached_tokens = self.cached_token_usage, 
+                          new_tokens = self.new_token_usage)
 
     async def _run_focal_task(self, debug) -> "Answers":
         """Runs the focal task i.e., the question that we are interested in answering.
@@ -201,7 +214,9 @@ class QuestionTaskCreator(UserList):
         return results
 
     async def _run_task_async(self, debug) -> None:
-        """Runs the task asynchronously, awaiting the tasks that must be completed before this one can be run."""
+        """Runs the task asynchronously, awaiting the tasks that must be completed before this one can be run.
+                
+        """
         # logger.info(f"Running task for {self.question.question_name}")
         try:
             # This is waiting for the tasks that must be completed before this one can be run.
@@ -238,7 +253,7 @@ class TaskCreators(UserDict):
 
     @property
     def token_usage(self) -> InterviewTokenUsage:
-        "Determins how many tokens were used for the interview."
+        """Determins how many tokens were used for the interview."""
         cached_tokens = TokenUsage(from_cache=True)
         new_tokens = TokenUsage(from_cache=False)
         for task_creator in self.values():
@@ -251,7 +266,7 @@ class TaskCreators(UserDict):
 
     @property
     def interview_status(self) -> InterviewStatusDictionary:
-        """Returns a dictionary mapping task status codes to counts"""
+        """Returns a dictionary, InterviewStatusDictionary, mapping task status codes to counts of tasks in that state."""
         status_dict = InterviewStatusDictionary()
         for task_creator in self.values():
             status_dict[task_creator.task_status] += 1
@@ -276,7 +291,7 @@ class TasksList(UserList):
             print("---------------------")
 
 
-from edsl.config import Config
+#from edsl.config import Config
 
 EDSL_BACKOFF_START_SEC = float(CONFIG.get("EDSL_BACKOFF_START_SEC"))
 EDSL_MAX_BACKOFF_SEC = float(CONFIG.get("EDSL_MAX_BACKOFF_SEC"))
@@ -284,7 +299,7 @@ EDSL_MAX_ATTEMPTS = int(CONFIG.get("EDSL_MAX_ATTEMPTS"))
 
 
 def print_retry(retry_state):
-    "Prints details on tenacity retries"
+    "Prints details on tenacity retries."
     attempt_number = retry_state.attempt_number
     exception = retry_state.outcome.exception()
     wait_time = retry_state.next_action.sleep
