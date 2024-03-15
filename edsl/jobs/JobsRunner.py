@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from typing import List
 from abc import ABC, ABCMeta, abstractmethod
-from edsl.jobs.Jobs import Jobs
 from edsl.results import Results
 
-# used for typing
-from edsl.jobs.buckets import BucketCollection
-from edsl.jobs.Interview import Interview
+
+
+# TODO: Currently cannot include because these created circular imports.
+#from edsl.jobs.Jobs import Jobs
+#from edsl.jobs.buckets import BucketCollection
+#from edsl.jobs.Interview import Interview
 
 class RegisterJobsRunnerMeta(ABCMeta):
     """Registers JobRunner classes."""
