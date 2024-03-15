@@ -12,10 +12,9 @@ Get the Expected Parrot API key by creating an account at https://www.expectedpa
 
 Installation
 ------------
+.. raw:: html
 
-Check for the latest version of edsl on PyPI: https://pypi.org/project/edsl/
-
-View the source code on GitHub: https://github.com/expectedparrot/edsl/
+   The EDSL package is available on PyPI <a href="https://pypi.org/project/edsl" target="_blank">https://pypi.org/project/edsl</a>.
 
 Install the latest version:
 
@@ -33,7 +32,17 @@ Check your version:
 
 .. code-block:: shell
 
-    pip show edsl
+    pip show edsl 
+
+.. raw:: html
+
+   We recommend using a virtual environment to access the package. See <a href="https://www.expectedparrot.com/getting-started#edsl-getting-started" target="_blank">instructions</a>.
+
+<br>
+.. raw:: html
+
+   You can also view source code on <a href="https://github.com/expectedparrot/edsl/" target="_blank">GitHub</a>.
+
 
 API keys
 --------
