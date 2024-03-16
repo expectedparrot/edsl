@@ -62,6 +62,7 @@ pytest-xdist = "^3.5.0"
 sphinx = "^7.2.6"
 toml = "^0.10.2"
 toml-sort = "^0.23.1"
+pylint = "^3.1.0"
 
 [tool.tomlsort]
 all = true
