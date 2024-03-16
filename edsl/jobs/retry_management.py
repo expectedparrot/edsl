@@ -18,9 +18,11 @@ def print_retry(retry_state):
     attempt_number = retry_state.attempt_number
     exception = retry_state.outcome.exception()
     wait_time = retry_state.next_action.sleep
+    #breakpoint()
     print(
-        f"Attempt {attempt_number} failed with exception: {exception}; "
+        f"Attempt {attempt_number} failed with exception: {repr(exception)}; "
         f"now waiting {wait_time:.2f} seconds before retrying."
+        f" Parameters: start={EDSL_BACKOFF_START_SEC}, max={EDSL_MAX_BACKOFF_SEC}, max_attempts={EDSL_MAX_ATTEMPTS}."
     )
 
 retry_strategy = retry(

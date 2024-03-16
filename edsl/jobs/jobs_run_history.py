@@ -6,8 +6,8 @@ from collections import UserDict, defaultdict
 
 from edsl.jobs.task_management import InterviewStatusDictionary
 from edsl.jobs.token_tracking import InterviewTokenUsage
-
 from edsl.jobs.pricing import pricing, TokenPricing
+from edsl.jobs.task_status_enum import TaskStatus
 
 InterviewTokenUsageMapping = DefaultDict[str, InterviewTokenUsage]
 
@@ -60,7 +60,17 @@ class InterviewStatisticsCollection(UserDict):
 class JobsRunnerStatusData:
     pricing = pricing
 
-    def full_status(self, interviews):
+    def status_dict(self, interviews):
+ 
+        status = []
+        for interview in interviews:
+            #model = interview.model
+            status.append(interview.interview_status)
+
+        return status
+        #return model_to_status
+
+    def status_counts(self, interviews):
 
         model_to_status = defaultdict(InterviewStatusDictionary)
 
@@ -216,24 +226,52 @@ class JobsRunHistory:
 
     """
 
-    def __init__(self, interview_status_updates = None, completed_interview_updates = None):
-        self.interview_status_updates = interview_status_updates or []
-        self.completed_interview_updates = completed_interview_updates or []    
+    def __init__(self, data = None):
+        self.data = data or {}
+        #self.interview_status_updates = interview_status_updates or []
+        #self.completed_interview_updates = completed_interview_updates or []    
 
-    def append(self, 
-               #observation_type: Literal["interview_status_updates", "completed_interview_updates"], 
-               observation: dict):
-        """Add an observation to the history."""
-        #
-        #if observation_type == "interview_status_updates":
-        #    self.interview_status_updates.append(observation)
-        #elif observation_type == "completed_interview_updates":
-        self.completed_interview_updates.append(observation)
+        self.status_functions = {
+            "status_dic": self.status_dict, 
+            "status_counts": self.status_counts, 
+            "time": self.log_time
+            }
+
+    def log(self, JobRunner, completed_tasks, elapsed_time):
+        """Log the status of the job runner."""
+
+        for name, f in self.status_functions.items():
+            entry = f(JobRunner, completed_tasks, elapsed_time)
+            if name not in self.data:
+                self.data[name] = []
+            self.data[name].append(entry)
+
+    def log_time(self, JobRunner, completed_tasks, elapsed_time):
+        return elapsed_time
+
+    def status_dict(self, JobRunner, completed_tasks, elapsed_time):
+        status = []
+        for interview in JobRunner.total_interviews:
+            status.append(interview.interview_status)
+        return status
+
+    def status_counts(self, JobRunner, completed_tasks, elapsed_time):
+        model_to_status = defaultdict(InterviewStatusDictionary)
+        for interview in JobRunner.total_interviews:
+            model = interview.model
+            model_to_status[model] += interview.interview_status
+        return model_to_status
+    
 
     def to_dict(self):
         #breakpoint()
-        return {"interview_status_updates": [t.to_dict() for t in self.interview_status_updates],
-                "completed_interview_updates":[t.to_dict() for t in self.completed_interview_updates]}
+        d = {}
+        for key, value in self.data.items():
+            d[key] = [t for t in value]
+        return d
+
+        # return {"interview_status_updates": [t.to_dict() for t in self.interview_status_updates],
+        #         "completed_interview_updates":[t.to_dict() for t in self.completed_interview_updates]}
     
     def to_json(self, json_file):
         with open(json_file, "w") as file:
@@ -249,17 +287,47 @@ class JobsRunHistory:
     def plot_completion_times(self):
         """Plot the completion times."""
         from matplotlib import pyplot as plt
-        x = [item['elapsed_time'] for item in self.completed_interview_updates]
-        y = [item['completed_interviews'] for item in self.completed_interview_updates]
+        x = [item for item in self.data['time']]
+
+        status_counts = [list(d.values())[0] for d in self.data['status_counts']]
+        #breakpoint()
+        
+        #y = [item[TaskStatus.NOT_STARTED] for item in status_counts]
+        #breakpoint()
+        #plt.figure(figsize=(10, 6))
+        
+        rows = int(len(TaskStatus) ** 0.5) + 1
+        cols = (len(TaskStatus) + rows - 1) // rows  # Ensure all plots fit
+
+        plt.figure(figsize=(15, 10))  # Adjust the figure size as needed
+
+        for i, status in enumerate(TaskStatus, start=1):
+            plt.subplot(rows, cols, i)
+            y = [item.get(status, 0) for item in status_counts]  # Use .get() to handle missing keys safely
+            plt.plot(x, y, marker='o', linestyle='-')
+            plt.title(status.name)
+            plt.xlabel('Elapsed Time')
+            plt.ylabel('Count')
+            plt.grid(True)
+        
+        plt.tight_layout()
+        plt.show()
+        # for status in TaskStatus:
+        #     # Generate y-values for the current status
+        #     y = [item.get(status, 0) for item in status_counts]
+        #     print(status.name)
+        #     # Plot the line for the current status
+        #     plt.plot(x, y, marker='o', linestyle='-', label=status.name)
 
         # Creating the plot
-        plt.figure(figsize=(10, 6))
-        plt.plot(x, y, marker='o', linestyle='-', color='blue')
-        plt.title('Completed Interviews Over Time')
-        plt.xlabel('Elapsed Time')
-        plt.ylabel('Completed Interviews')
-        plt.grid(True)
-        plt.show()
+        #plt.figure(figsize=(10, 6))
+        #plt.plot(x, y, marker='o', linestyle='-', color='blue')
+        # plt.title('Completed Interviews Over Time')
+        # plt.xlabel('Elapsed Time')
+        # plt.ylabel('Completed Interviews')
+        # plt.grid(True)
+        # plt.legend()
+        # plt.show()
 
 
 if __name__ == "__main__":
