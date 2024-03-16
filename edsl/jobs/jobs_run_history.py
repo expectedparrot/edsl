@@ -230,15 +230,19 @@ class JobsRunHistory:
         self.data = data or {}
         #self.interview_status_updates = interview_status_updates or []
         #self.completed_interview_updates = completed_interview_updates or []    
-
+    
+        self.entries = 0 
         self.status_functions = {
             "status_dic": self.status_dict, 
             "status_counts": self.status_counts, 
-            "time": self.log_time
+            "time": self.log_time,
+            "exceptions": self.exceptions_dict,
             }
 
     def log(self, JobRunner, completed_tasks, elapsed_time):
         """Log the status of the job runner."""
+
+        self.entries += 1
 
         for name, f in self.status_functions.items():
             entry = f(JobRunner, completed_tasks, elapsed_time)
@@ -251,16 +255,23 @@ class JobsRunHistory:
 
     def status_dict(self, JobRunner, completed_tasks, elapsed_time):
         status = []
-        for interview in JobRunner.total_interviews:
+        for index, interview in enumerate(JobRunner.total_interviews):
             status.append(interview.interview_status)
-        return status
+        return (elapsed_time, index, status)
+    
+    def exceptions_dict(self, JobRunner, completed_tasks, elapsed_time):
+        exceptions = []
+        for index, interview in enumerate(JobRunner.total_interviews):
+            if interview.has_exceptions:
+                exceptions.append(interview.exceptions)
+        return (elapsed_time, index, exceptions)
 
     def status_counts(self, JobRunner, completed_tasks, elapsed_time):
         model_to_status = defaultdict(InterviewStatusDictionary)
-        for interview in JobRunner.total_interviews:
+        for index, interview in enumerate(JobRunner.total_interviews):
             model = interview.model
             model_to_status[model] += interview.interview_status
-        return model_to_status
+        return (elapsed_time, index, model_to_status)
     
 
     def to_dict(self):
@@ -289,7 +300,8 @@ class JobsRunHistory:
         from matplotlib import pyplot as plt
         x = [item for item in self.data['time']]
 
-        status_counts = [list(d.values())[0] for d in self.data['status_counts']]
+        status_counts = [(time, list(d.values())[0]) for time, d in self.data['status_counts']]
+        status_counts.sort(key=lambda x: x[0])
         #breakpoint()
         
         #y = [item[TaskStatus.NOT_STARTED] for item in status_counts]
@@ -303,7 +315,8 @@ class JobsRunHistory:
 
         for i, status in enumerate(TaskStatus, start=1):
             plt.subplot(rows, cols, i)
-            y = [item.get(status, 0) for item in status_counts]  # Use .get() to handle missing keys safely
+            x = [item[0] for item in status_counts]
+            y = [item[1].get(status, 0) for item in status_counts]  # Use .get() to handle missing keys safely
             plt.plot(x, y, marker='o', linestyle='-')
             plt.title(status.name)
             plt.xlabel('Elapsed Time')

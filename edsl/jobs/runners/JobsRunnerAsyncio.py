@@ -16,55 +16,19 @@ from edsl.utilities.decorators import jupyter_nb_handler
 from edsl.jobs.JobsRunnerStatusMixin import JobsRunnerStatusMixin
 from edsl.jobs.jobs_run_history import JobsRunHistory
 
-#job_history_tracker = JobsRunHistory()
-
-
-@asynccontextmanager
-async def job_logger():
-    debug = True
-    """A context manager to record debug data if debug is True."""
-    global job_history_tracker# = JobsRunHistory()
-
-    try:
-        # Provide a way to record debug data if debug is True
-        # This is yielding a function that appends to the debug_data list
-        # but if debug = False, it just returns a function that returns nothing
-        #yield debug_data.append if debug else lambda *args, **kwargs: None
-        yield job_history_tracker
-    finally:
-        if debug:
-            file_name = "debug_data.json"
-
-            job_history_tracker.to_dict()
-            job_history_tracker.plot_completion_times()
-            #job_history_tracker.plot_completion_times()
-            #breakpoint()
-            #breakpoint()
-            ## TODO: Get serialization working
-            #debug_data.to_json(file_name)
-            
-            #print(f"""Debug data saved to debug_data.json.
-            #To use:
-            #>>> from edsl.jobs.JobsRunnerAsyncio import JobsRunHistory
-            #>>> debug_data = JobsRunHistory.from_json(debug_data.json)  
-            #""")
-            # Here, you could save debug_data to a file, print it, or make it available in another way
-            #print("Debug Data:", debug_data)
 
 class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
     runner_name = "asyncio"
     job_history_tracker = JobsRunHistory()
 
     async def periodic_logger(self, period=1):
-        """
-        Logs every 'period' seconds.
+        """Logs every 'period' seconds.
         """
         self.job_history_tracker.log(self, self.results, self.elapsed_time)
         while True:
             await asyncio.sleep(period)  # Sleep for the specified period
             self.job_history_tracker.log(self, self.results, self.elapsed_time)
-            # You might want to include a condition to break out of this loop.
-
+   
     def populate_total_interviews(self, n = 1) -> None:
         """Populates self.total_interviews with n copies of each interview.
         
@@ -165,6 +129,10 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
         )
         return result
 
+    @property
+    def elapsed_time(self):
+        return time.monotonic() - self.start_time
+
     @jupyter_nb_handler
     async def run(
         self, n=1, verbose=True, sleep=0, debug=False, progress_bar=False
@@ -179,8 +147,11 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
         verbose = True
         console = Console()
         self.results = []
-        start_time = time.monotonic()
-        self.elapsed_time = 0
+        self.start_time = time.monotonic()
+   
+        ## TODO: 
+        ## - factor out the debug in run_async
+        ## - Add a "break on error" option
 
         live = None
         if progress_bar:
@@ -191,20 +162,10 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
             )
             live.__enter__()  # Manually enter the Live context
 
-        ## TODO: 
-        ## - factor out the debug in run_async
-        ## - Add a "break on error" option
-        ## - Put JobsRunHistory in a separate file and add helper methods e.g., visualization
-        #job_history_tracker = JobsRunHistory()
         logger_task = asyncio.create_task(self.periodic_logger(period = 0.01))
-    
-        #async with job_logger() as job_history_tracker:
-            
+             
         async for result in self.run_async(n, verbose, sleep, debug = debug):
-            self.elapsed_time = time.monotonic() - start_time
-
-            #job_history_tracker.log(self, results, elapsed_time)
-
+        
             self.results.append(result)
         
             if progress_bar:
@@ -224,7 +185,6 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
         except asyncio.CancelledError:
             pass
 
-        #breakpoint()
-        #self.job_history_tracker.plot_completion_times()
-
-        return Results(survey=self.jobs.survey, data=self.results)
+        results = Results(survey=self.jobs.survey, data=self.results)
+        results.job_history_tracker = self.job_history_tracker
+        return results
