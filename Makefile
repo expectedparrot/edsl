@@ -128,3 +128,12 @@ test-doctests: ## Run doctests
 
 docstrings: 
 	pydocstyle edsl
+
+visualize:
+	python visualize_structure.py
+	@UNAME=`uname`; if [ "$$UNAME" = "Darwin" ]; then \
+		open _visualize_structure/index.html; \
+	else \
+		firefox _visualize_structure/index.html; \
+	fi
+
