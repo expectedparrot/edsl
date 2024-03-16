@@ -7,6 +7,7 @@ EDSL Docs
    :maxdepth: 2
    :caption: Contents:
 
+   installation
    getting_started
    questions
    scenarios

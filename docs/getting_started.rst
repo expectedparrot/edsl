@@ -1,5 +1,5 @@
-Getting started with EDSL
-=========================
+Getting started
+===============
 
 The Expected Parrot Domain-Specifc Language (EDSL) library is a
 collection of tools for conducting surveys and experiments with AI
@@ -20,7 +20,9 @@ functions:
 Installation
 ------------
 
-The EDSL library is available on PyPI: https://pypi.org/project/edsl/.
+.. raw:: html
+  
+  The EDSL library is available on PyPI: <a href="https://pypi.org/project/edsl/" target="_blank">https://pypi.org/project/edsl/</a>.
 
 Before beginning this tutorial, see details on requirements and
 instructions on installing the EDSL library here.
@@ -28,10 +30,14 @@ instructions on installing the EDSL library here.
 Learn more
 ----------
 
--  This page is available as an interactive python notebook here.
--  See our Showcase of notebooks and templates exploring use cases and
-   ideas for conducting research using EDSL.
--  Learn more about the EDSL libary in the EDSL Docs.
+.. raw:: html
+  
+  This page is available as an interactive python notebook <a href="https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Tutorial%20-%20Getting%20Started-27a00ac7b7f24705beb18a271c5f70b7" target="_blank">here</a>.
+
+See our Showcase of notebooks and templates exploring use cases and
+ideas for conducting research using EDSL.
+
+Learn more about the EDSL libary in the EDSL Docs.
 
 Contents
 --------
@@ -4029,9 +4035,3 @@ method.
 
 Copyright © 2024 Expected Parrot, Inc. All rights reserved.
 www.expectedparrot.com
-
-.. raw:: html
-
-   </p>
-
-Created in Deepnote
