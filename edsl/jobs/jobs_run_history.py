@@ -1,4 +1,3 @@
-import json
 import asyncio
 from enum import Enum
 from typing import Literal, List, Type, DefaultDict
@@ -15,7 +14,17 @@ class InterviewStatistic(UserDict):
 
     @staticmethod
     def _format_number(number, digits=0, units=""):
-        """Format a number."""
+        """Format a number.
+
+        :param number: the number to format
+        :param digits: the number of digits to display
+        :param units: the units to display
+        
+        Example usage: 
+
+        >>> InterviewStatistic._format_number(1000, 1, "sec.")
+        '1,000.0 sec.'
+        """
         if type(number) == str:
             return number
         else:
@@ -23,6 +32,13 @@ class InterviewStatistic(UserDict):
 
     @property
     def _pretty_name(self):
+        """Return a pretty name for the statistic.
+        
+        Example usage:
+
+        >>> InterviewStatistic("elapsed_time", value=100, digits=1, units="sec.").pretty_name
+        'Elapsed time'
+        """
         return self.name.replace("_", " ").capitalize()
 
     def __init__(self, 
@@ -31,6 +47,7 @@ class InterviewStatistic(UserDict):
                  digits:int =0, 
                  units: str="", 
                  pretty_name: str = None):
+        """Create a new InterviewStatistic object."""
         self.name = name
         self.value = value
         self.digits = digits
@@ -41,18 +58,27 @@ class InterviewStatistic(UserDict):
             {self.pretty_name: self._format_number(self.value, self.digits, self.units)}
         )
 
-        self.raw = {self.name: self.value}
+        self.raw: dict = {self.name: self.value}
 
 
 class InterviewStatisticsCollection(UserDict):
+    """A collection of interview statistics."""
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.raw = {}
+        self.raw: dict = {}
 
     def add_stat(self, statistic: InterviewStatistic):
         """Add a statistic to the collection.
-        
+
         Each statistic is a dictionary with a single key-value pair.
+    
+        Example usage:
+
+        >>> isc = InterviewStatisticsCollection()
+        >>> isc.add_stat(InterviewStatistic("elapsed_time", value=100, digits=1, units="sec."))
+        >>> isc.raw
+        {'elapsed_time': 100}
         """
         self.update(statistic)
         self.raw.update(statistic.raw)
@@ -207,156 +233,29 @@ class JobsRunnerStatusData:
         return cache_info
 
 
-
 def enum_converter(obj):
     if isinstance(obj, Enum):
         return obj.name  # or obj.value if you prefer the enum's value
     raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
 
 
-class JobsRunHistory:
-    """A class to store the history of jobs run.
-    
-    -- Task failures and tracebacks
-    -- Response headers from API calls
-    -- Log each time an Interview is completed 
-
-    Methods: 
-    --- Visualization tools
-
-    """
-
-    def __init__(self, data = None):
-        self.data = data or {}
-        #self.interview_status_updates = interview_status_updates or []
-        #self.completed_interview_updates = completed_interview_updates or []    
-    
-        self.entries = 0 
-        self.status_functions = {
-            "status_dic": self.status_dict, 
-            "status_counts": self.status_counts, 
-            "time": self.log_time,
-            "exceptions": self.exceptions_dict,
-            }
-
-    def log(self, JobRunner, completed_tasks, elapsed_time):
-        """Log the status of the job runner."""
-
-        self.entries += 1
-
-        for name, f in self.status_functions.items():
-            entry = f(JobRunner, completed_tasks, elapsed_time)
-            if name not in self.data:
-                self.data[name] = []
-            self.data[name].append(entry)
-
-    def log_time(self, JobRunner, completed_tasks, elapsed_time):
-        return elapsed_time
-
-    def status_dict(self, JobRunner, completed_tasks, elapsed_time):
-        status = []
-        for index, interview in enumerate(JobRunner.total_interviews):
-            status.append(interview.interview_status)
-        return (elapsed_time, index, status)
-    
-    def exceptions_dict(self, JobRunner, completed_tasks, elapsed_time):
-        exceptions = []
-        for index, interview in enumerate(JobRunner.total_interviews):
-            if interview.has_exceptions:
-                exceptions.append(interview.exceptions)
-        return (elapsed_time, index, exceptions)
-
-    def status_counts(self, JobRunner, completed_tasks, elapsed_time):
-        model_to_status = defaultdict(InterviewStatusDictionary)
-        for index, interview in enumerate(JobRunner.total_interviews):
-            model = interview.model
-            model_to_status[model] += interview.interview_status
-        return (elapsed_time, index, model_to_status)
-    
-
-    def to_dict(self):
-        #breakpoint()
-        d = {}
-        for key, value in self.data.items():
-            d[key] = [t for t in value]
-        return d
-
-        # return {"interview_status_updates": [t.to_dict() for t in self.interview_status_updates],
-        #         "completed_interview_updates":[t.to_dict() for t in self.completed_interview_updates]}
-    
-    def to_json(self, json_file):
-        with open(json_file, "w") as file:
-            #json.dump(self.data, file, default=enum_converter)
-            json.dump(obj = self.to_dict(), fp = file)
-
-    @classmethod
-    def from_json(cls, json_file):
-        with open(json_file, "r") as file:
-            data = json.load(file)
-        return cls(data = data)
-
-    def plot_completion_times(self):
-        """Plot the completion times."""
-        from matplotlib import pyplot as plt
-        x = [item for item in self.data['time']]
-
-        status_counts = [(time, list(d.values())[0]) for time, d in self.data['status_counts']]
-        status_counts.sort(key=lambda x: x[0])
-        #breakpoint()
-        
-        #y = [item[TaskStatus.NOT_STARTED] for item in status_counts]
-        #breakpoint()
-        #plt.figure(figsize=(10, 6))
-        
-        rows = int(len(TaskStatus) ** 0.5) + 1
-        cols = (len(TaskStatus) + rows - 1) // rows  # Ensure all plots fit
-
-        plt.figure(figsize=(15, 10))  # Adjust the figure size as needed
-
-        for i, status in enumerate(TaskStatus, start=1):
-            plt.subplot(rows, cols, i)
-            x = [item[0] for item in status_counts]
-            y = [item[1].get(status, 0) for item in status_counts]  # Use .get() to handle missing keys safely
-            plt.plot(x, y, marker='o', linestyle='-')
-            plt.title(status.name)
-            plt.xlabel('Elapsed Time')
-            plt.ylabel('Count')
-            plt.grid(True)
-        
-        plt.tight_layout()
-        plt.show()
-        # for status in TaskStatus:
-        #     # Generate y-values for the current status
-        #     y = [item.get(status, 0) for item in status_counts]
-        #     print(status.name)
-        #     # Plot the line for the current status
-        #     plt.plot(x, y, marker='o', linestyle='-', label=status.name)
-
-        # Creating the plot
-        #plt.figure(figsize=(10, 6))
-        #plt.plot(x, y, marker='o', linestyle='-', color='blue')
-        # plt.title('Completed Interviews Over Time')
-        # plt.xlabel('Elapsed Time')
-        # plt.ylabel('Completed Interviews')
-        # plt.grid(True)
-        # plt.legend()
-        # plt.show()
-
-
 if __name__ == "__main__":
+    #pass
+    import doctest
+    doctest.testmod()
     # Create a JobsRunHistory object
-    jrh = JobsRunHistory()
+    # jrh = JobsRunHistory()
 
-    # Add some data to it
-    jrh.append({"elapsed_time": 0, "completed_interviews": 0})
-    jrh.append({"elapsed_time": 1, "completed_interviews": 1})
-    jrh.append({"elapsed_time": 2, "completed_interviews": 2})
+    # # Add some data to it
+    # jrh.append({"elapsed_time": 0, "completed_interviews": 0})
+    # jrh.append({"elapsed_time": 1, "completed_interviews": 1})
+    # jrh.append({"elapsed_time": 2, "completed_interviews": 2})
 
-    # Save the data to a file
-    jrh.to_json("jobs_run_history.json")
+    # # Save the data to a file
+    # jrh.to_json("jobs_run_history.json")
 
-    # Read the data from the file
-    jrh2 = JobsRunHistory.from_json("jobs_run_history.json")
+    # # Read the data from the file
+    # jrh2 = JobsRunHistory.from_json("jobs_run_history.json")
 
-    # Plot the data
-    jrh2.plot_completion_times()
+    # # Plot the data
+    # jrh2.plot_completion_times()

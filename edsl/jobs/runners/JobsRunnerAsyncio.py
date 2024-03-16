@@ -14,7 +14,7 @@ from edsl.jobs.Interview import Interview
 from edsl.utilities.decorators import jupyter_nb_handler
 
 from edsl.jobs.JobsRunnerStatusMixin import JobsRunnerStatusMixin
-from edsl.jobs.jobs_run_history import JobsRunHistory
+from edsl.jobs.JobsRunHistory import JobsRunHistory
 
 
 class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
