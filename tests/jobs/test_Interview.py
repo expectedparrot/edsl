@@ -97,6 +97,8 @@ def test_handle_model_exceptions(create_survey, fail_at_number, chained):
     jobs = survey.by(model)
     results = jobs.run()
     
+    #breakpoint()
+
     if not chained:
         assert results.select(f"answer.question_{fail_at_number}").first() is None
         assert (

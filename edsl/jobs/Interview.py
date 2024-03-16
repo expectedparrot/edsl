@@ -2,8 +2,10 @@
 from __future__ import annotations
 import traceback
 import asyncio
+import time
 import textwrap
 from typing import Any, Type, List, Generator, Tuple
+from collections import defaultdict 
 
 from edsl import CONFIG
 from edsl.agents import Agent
@@ -61,6 +63,9 @@ class Interview:
         ] = Answers()  # will get filled in as interview progresses
         self.task_creators = TaskCreators()  # tracks the task creators
 
+        self.exceptions = defaultdict(list)
+        self.has_exceptions = False
+        
     @property
     def dag(self):
         """Return the directed acyclic graph for the survey.
@@ -229,6 +234,7 @@ class Interview:
             {question.question_name: task_creator}
         )  # track this task creator
         return task_creator.generate_task(debug)
+    
 
     def async_timeout_handler(timeout):
         """Handle timeouts for async functions."""
@@ -273,7 +279,6 @@ class Interview:
                 raise ValueError(f"Prompt is of type {type(prompt)}")
         return len(combined_text) / 4.0
 
-    #@async_timeout_handler(TIMEOUT)
     @retry_strategy
     async def _answer_question_and_record_task(
         self,
@@ -287,25 +292,30 @@ class Interview:
         """
         invigilator = self.get_invigilator(question, debug=debug)
 
-        # @retry_strategy
-        # async def attempt_to_answer_question():
-        #     return await invigilator.async_answer_question()
-
-        #@retry_strategy
         async def attempt_to_answer_question(invigilator):
              try:
                  return await asyncio.wait_for(invigilator.async_answer_question(), timeout=TIMEOUT)
              except asyncio.TimeoutError as e:
+                self.has_exceptions = True
+                self.exceptions[question.question_name].append(
+                    {
+                        'exception': repr(e), 
+                        'traceback': traceback.format_exc(),
+                        'time': time.time()})
                 raise InterviewTimeoutError(
                         f"Task timed out after {TIMEOUT} seconds."
                 )
              except Exception as e:
+                self.has_exceptions = True
+                self.exceptions[question.question_name].append(
+                    {
+                        'exception': repr(e), 
+                        'traceback': traceback.format_exc(),
+                        'time': time.time()})
                 raise e
                 #raise  # Reraise to be caught by retry mechanism
 
         response: AgentResponseDict = await attempt_to_answer_question(invigilator)
-
-        #response: AgentResponseDict = await attempt_to_answer_question()
 
         self.answers.add_answer(response=response, question=question)
         self._cancel_skipped_questions(question)
