@@ -1,19 +1,23 @@
-Installing the EDSL library
-===========================
+Installing EDSL
+===============
 
 Requirements
 ------------
 
--  Python 3.9 - 3.11. You can download Python here:
-   https://www.python.org/downloads/.
--  `Expected Parrot account <#expected-parrot-account>`__ or your own
-   API keys for OpenAI, Google and/or DeepInfra (to access language
-   models such as GPT 4).
+.. raw:: html
+  
+    Python 3.9 - 3.11 (<a href="https://www.python.org/downloads/" target="_blank">https://www.python.org/downloads/</a>)
+
+`Expected Parrot account <#expected-parrot-account>`__ or your own
+API keys for OpenAI, Google and/or DeepInfra (to access language
+models such as GPT 4).
 
 Installation
 ------------
 
-The EDSL library is available at PyPI: https://pypi.org/project/edsl/.
+.. raw:: html
+  
+  The EDSL library is available on PyPI: <a href="https://pypi.org/project/edsl/" target="_blank">https://pypi.org/project/edsl/</a>.
 
 Quickstart
 ~~~~~~~~~~
@@ -111,7 +115,12 @@ At each prompt, you can either enter an API key or skip it by pressing
 enter/return.
 
 API keys are required in order to generate survey results with LLMs like
-GPT-3.5 and GPT-4. See: OpenAI Google Cloud
+GPT-3.5 and GPT-4. 
+
+.. raw:: html
+  
+    <a href="https://platform.openai.com/api-keys" target="_blank">OpenAI API</a>
+    <a href="https://cloud.google.com/docs/authentication/getting-started" target="_blank">Google Cloud</a>
 
 Expected Parrot account
 -----------------------
@@ -119,7 +128,10 @@ Expected Parrot account
 Create an account to get the Expected Parrot API key which provides
 access to all available language models and hosting for all of your
 results. Each new account comes with free tokens for getting started:
-https://www.expectedparrot.com/signup.
+
+.. raw:: html
+  
+    <a href="https://www.expectedparrot.com/signup" target="_blank">https://www.expectedparrot.com/signup</a>
 
 --------------
 
@@ -129,9 +141,3 @@ https://www.expectedparrot.com/signup.
 
 Copyright © 2024 Expected Parrot, Inc. All rights reserved.
 www.expectedparrot.com
-
-.. raw:: html
-
-   </p>
-
-Created in Deepnote
