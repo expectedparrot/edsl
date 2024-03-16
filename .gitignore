@@ -36,3 +36,4 @@ visualization_test_outputs
 venv
 *log
 visualization_test_outputs
+_visualize_structure
