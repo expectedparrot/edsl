@@ -16,21 +16,30 @@ from edsl.utilities.decorators import jupyter_nb_handler
 from edsl.jobs.JobsRunnerStatusMixin import JobsRunnerStatusMixin
 from edsl.jobs.jobs_run_history import JobsRunHistory
 
+#job_history_tracker = JobsRunHistory()
+
+
 @asynccontextmanager
 async def job_logger():
     debug = True
     """A context manager to record debug data if debug is True."""
-    debug_data = JobsRunHistory()
+    global job_history_tracker# = JobsRunHistory()
 
     try:
         # Provide a way to record debug data if debug is True
         # This is yielding a function that appends to the debug_data list
         # but if debug = False, it just returns a function that returns nothing
-        yield debug_data.append if debug else lambda *args, **kwargs: None
+        #yield debug_data.append if debug else lambda *args, **kwargs: None
+        yield job_history_tracker
     finally:
         if debug:
             file_name = "debug_data.json"
 
+            job_history_tracker.to_dict()
+            job_history_tracker.plot_completion_times()
+            #job_history_tracker.plot_completion_times()
+            #breakpoint()
+            #breakpoint()
             ## TODO: Get serialization working
             #debug_data.to_json(file_name)
             
@@ -44,6 +53,17 @@ async def job_logger():
 
 class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
     runner_name = "asyncio"
+    job_history_tracker = JobsRunHistory()
+
+    async def periodic_logger(self, period=1):
+        """
+        Logs every 'period' seconds.
+        """
+        self.job_history_tracker.log(self, self.results, self.elapsed_time)
+        while True:
+            await asyncio.sleep(period)  # Sleep for the specified period
+            self.job_history_tracker.log(self, self.results, self.elapsed_time)
+            # You might want to include a condition to break out of this loop.
 
     def populate_total_interviews(self, n = 1) -> None:
         """Populates self.total_interviews with n copies of each interview.
@@ -158,13 +178,14 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
         """
         verbose = True
         console = Console()
-        data = []
+        self.results = []
         start_time = time.monotonic()
+        self.elapsed_time = 0
 
         live = None
         if progress_bar:
             live = Live(
-                self.status_table(data, elapsed_time = 0),
+                self.status_table(self.results, elapsed_time = 0),
                 console=console,
                 refresh_per_second=10,
             )
@@ -174,24 +195,36 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
         ## - factor out the debug in run_async
         ## - Add a "break on error" option
         ## - Put JobsRunHistory in a separate file and add helper methods e.g., visualization
+        #job_history_tracker = JobsRunHistory()
+        logger_task = asyncio.create_task(self.periodic_logger(period = 0.01))
+    
+        #async with job_logger() as job_history_tracker:
+            
+        async for result in self.run_async(n, verbose, sleep, debug = debug):
+            self.elapsed_time = time.monotonic() - start_time
 
-        async with job_logger() as debug_record:
-            async for result in self.run_async(n, verbose, sleep, debug = debug):
-                elapsed_time = time.monotonic()- start_time
-                status_data = self.status_data(data, elapsed_time)
-                # debug_record is a function that appends to the debug_data list, or does nothing if debug = False
-                debug_record(status_data)
-                data.append(result)
+            #job_history_tracker.log(self, results, elapsed_time)
 
-                if progress_bar:
-                    live.update(self.status_table(data, elapsed_time))
+            self.results.append(result)
+        
+            if progress_bar:
+                live.update(self.status_table(self.results, self.elapsed_time))
 
         if progress_bar:
-            live.update(self.status_table(data, elapsed_time))
+            live.update(self.status_table(self.results, self.elapsed_time))
             await asyncio.sleep(0.5)  # short delay to show the final status
             live.__exit__(None, None, None)  # Manually exit the Live context
 
         if debug:
             print("Debug data saved to debug_data.json.")
 
-        return Results(survey=self.jobs.survey, data=data)
+        logger_task.cancel()
+        try:
+            await logger_task  # Wait for the cancellation to complete, catching any cancellation errors
+        except asyncio.CancelledError:
+            pass
+
+        #breakpoint()
+        #self.job_history_tracker.plot_completion_times()
+
+        return Results(survey=self.jobs.survey, data=self.results)

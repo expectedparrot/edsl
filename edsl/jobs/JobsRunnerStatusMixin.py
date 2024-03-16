@@ -62,8 +62,9 @@ class JobsRunnerStatusMixin(JobsRunnerStatusData, JobsRunnerStatusPresentation):
         #     completed_tasks=completed_tasks,
         #     elapsed_time=elapsed_time,
         #     interviews=self.total_interviews).raw
-        return self.full_status(self.total_interviews)
-      
+        #return self.full_status(self.total_interviews)
+        return None
+     
     def status_table(self, completed_tasks: List[asyncio.Task], elapsed_time: float):
         summary_data = self.generate_status_summary(
             completed_tasks=completed_tasks,

@@ -273,7 +273,8 @@ class Interview:
                 raise ValueError(f"Prompt is of type {type(prompt)}")
         return len(combined_text) / 4.0
 
-    @async_timeout_handler(TIMEOUT)
+    #@async_timeout_handler(TIMEOUT)
+    @retry_strategy
     async def _answer_question_and_record_task(
         self,
         question: Question,
@@ -286,11 +287,25 @@ class Interview:
         """
         invigilator = self.get_invigilator(question, debug=debug)
 
-        @retry_strategy
-        async def attempt_to_answer_question():
-            return await invigilator.async_answer_question()
+        # @retry_strategy
+        # async def attempt_to_answer_question():
+        #     return await invigilator.async_answer_question()
 
-        response: AgentResponseDict = await attempt_to_answer_question()
+        #@retry_strategy
+        async def attempt_to_answer_question(invigilator):
+             try:
+                 return await asyncio.wait_for(invigilator.async_answer_question(), timeout=TIMEOUT)
+             except asyncio.TimeoutError as e:
+                raise InterviewTimeoutError(
+                        f"Task timed out after {TIMEOUT} seconds."
+                )
+             except Exception as e:
+                raise e
+                #raise  # Reraise to be caught by retry mechanism
+
+        response: AgentResponseDict = await attempt_to_answer_question(invigilator)
+
+        #response: AgentResponseDict = await attempt_to_answer_question()
 
         self.answers.add_answer(response=response, question=question)
         self._cancel_skipped_questions(question)

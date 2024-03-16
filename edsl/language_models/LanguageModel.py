@@ -278,8 +278,12 @@ class LanguageModel(
         """Allow the model to be used as a key in a dictionary."""
         return self.model == other.model and self.parameters == other.parameters
 
-    def _set_rate_limits(self) -> None:
+    def _set_rate_limits(self, rpm = None, tpm = None) -> None:
         """Set the rate limits for the model. If the model does not have rate limits, use the default rate limits."""
+        if rpm is not None and tpm is not None:
+            self.__rate_limits = {"rpm": rpm, "tpm": tpm}
+            return 
+        
         if self.__rate_limits is None:
             if hasattr(self, "get_rate_limits"):
                 self.__rate_limits = self.get_rate_limits()
