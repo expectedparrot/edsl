@@ -20,7 +20,7 @@ from edsl.data_transfer_models import AgentResponseDict
 from edsl.jobs.Answers import Answers
 from edsl.surveys.base import EndOfSurvey
 from edsl.jobs.buckets.ModelBuckets import ModelBuckets
-from edsl.jobs.token_tracking import InterviewTokenUsage
+from edsl.jobs.tokens.InterviewTokenUsage import InterviewTokenUsage
 
 from edsl.jobs.tasks.question_task_creator import QuestionTaskCreator, TaskCreators
 from edsl.jobs.tasks.task_status_enum import InterviewTaskLogDict

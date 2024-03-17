@@ -1,5 +1,6 @@
 # TODO: Move this to a more appropriate location
-from edsl.jobs.token_tracking import TokenPricing, InterviewTokenUsage
+from edsl.jobs.tokens.TokenPricing import TokenPricing
+#, InterviewTokenUsage
 
 pricing = {
     "gpt-3.5-turbo": TokenPricing(
