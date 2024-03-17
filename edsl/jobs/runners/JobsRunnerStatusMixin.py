@@ -7,7 +7,7 @@ from rich.box import SIMPLE
 from rich.table import Table
 
 from edsl.jobs.token_tracking import InterviewTokenUsage
-from edsl.jobs.run_statistics import JobsRunnerStatusData
+from edsl.jobs.runners.JobsRunnerStatusData import JobsRunnerStatusData
 
 InterviewTokenUsageMapping = DefaultDict[str, InterviewTokenUsage]
 
