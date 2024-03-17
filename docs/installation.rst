@@ -1,58 +1,47 @@
-Installing EDSL
-===============
-
-Requirements
-------------
-
-.. raw:: html
-  
-    Python 3.9 - 3.11 (<a href="https://www.python.org/downloads/" target="_blank">https://www.python.org/downloads/</a>)
-
-`Expected Parrot account <#expected-parrot-account>`__ or your own
-API keys for OpenAI, Google and/or DeepInfra (to access language
-models such as GPT 4).
-
 Installation
-------------
+============
 
-.. raw:: html
-  
-  The EDSL library is available on PyPI: <a href="https://pypi.org/project/edsl/" target="_blank">https://pypi.org/project/edsl/</a>.
+EDSL is an open-source Python library. The goal of EDSL is to make
+AI-powered research easy for beginners, advanced users, and everyone in
+between!
 
-Quickstart
-~~~~~~~~~~
+In this page we show how to set up EDSL on your system.
 
-Run the following commands to install or update your version of EDSL on
-your computer.
+Quickstart Installation
+-----------------------
 
-Install EDSL:
+EDSL is a Python library. To use it, ensure that you have Python
+installed in your system and a basic working knowledge of how to write
+python code.
 
-.. code:: 
-
-    pip install edsl
-
-Check your version is up to date (compare the output message of this
-command to the version listed at PyPI):
+Open your terminal and verify that you have not previously installed
+EDSL on your system:
 
 .. code:: 
 
     pip show edsl
 
-Update your version:
+To install the latest version of EDSL through pip:
+
+.. code:: 
+
+    pip install edsl
+
+To update your EDSL version to the latest one:
 
 .. code:: 
 
     pip install --upgrade edsl
 
-Advanced
-~~~~~~~~
+Advanced Installation
+---------------------
 
-The Quickstart installation steps above will install EDSL globally on
-your system. Sometimes, you may face problems with conflicts between
-EDSL and other packages. To avoid any problems, we recommend using a
-virtual environment when working with EDSL.
+Following the steps in Quickstart Installation will install EDSL
+globally on your system. Sometimes, you may face problems with conflicts
+between EDSL and other libraries. To avoid such problems, we recommend
+that you use a virtual environment.
 
-Open your terminal and run:
+Open your terminal and run the following command:
 
 .. code:: 
 
@@ -82,57 +71,6 @@ You can deactivate the virtual environment at any time by running:
 
 To delete the virtual environment, simply delete the myenv folder.
 
-Notes
-~~~~~
-
--  Collaboration environments such as Deepnote, Google Collab and Github
-   Gists may require you to install the EDSL library whenever you use
-   it.
--  In your personal system you should only need to install EDSL once,
-   and then check for update
-
-API keys
---------
-
-The first time that you import tools from the EDSL library (i.e.,
-running any code blocks that begin with ``from edsl import ...``) you
-will be prompted to provide API keys for language models.
-
-There are 3 separate prompts for OpenAI, Google and DeepInfra that like
-this:
-
-::
-
-   ==================================================
-   Please provide your OpenAI API key (https://platform.openai.com/api-keys).
-   If you would like to skip this step, press enter.
-   If you would like to provide your key, do one of the following:
-   1. Set it as a regular environment variable
-   2. Create a .env file and add `OPENAI_API_KEY=...` to it
-   3. Enter the value below and press enter: 
-
-At each prompt, you can either enter an API key or skip it by pressing
-enter/return.
-
-API keys are required in order to generate survey results with LLMs like
-GPT-3.5 and GPT-4. 
-
-.. raw:: html
-  
-    <a href="https://platform.openai.com/api-keys" target="_blank">OpenAI API</a>
-    <a href="https://cloud.google.com/docs/authentication/getting-started" target="_blank">Google Cloud</a>
-
-Expected Parrot account
------------------------
-
-Create an account to get the Expected Parrot API key which provides
-access to all available language models and hosting for all of your
-results. Each new account comes with free tokens for getting started:
-
-.. raw:: html
-  
-    <a href="https://www.expectedparrot.com/signup" target="_blank">https://www.expectedparrot.com/signup</a>
-
 --------------
 
 .. raw:: html
@@ -141,3 +79,4 @@ results. Each new account comes with free tokens for getting started:
 
 Copyright © 2024 Expected Parrot, Inc. All rights reserved.
 www.expectedparrot.com
+
