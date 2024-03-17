@@ -3,10 +3,10 @@ from enum import Enum
 from typing import Literal, List, Type, DefaultDict
 from collections import UserDict, defaultdict
 
-from edsl.jobs.task_management import InterviewStatusDictionary
+from edsl.jobs.tasks.task_management import InterviewStatusDictionary
 from edsl.jobs.token_tracking import InterviewTokenUsage
 from edsl.jobs.pricing import pricing, TokenPricing
-from edsl.jobs.task_status_enum import TaskStatus
+from edsl.jobs.tasks.task_status_enum import TaskStatus
 
 InterviewTokenUsageMapping = DefaultDict[str, InterviewTokenUsage]
 

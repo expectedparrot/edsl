@@ -72,7 +72,7 @@ def test_task_management(create_survey):
     jobs = survey.by(model)
     results = jobs.run()
 
-    from edsl.jobs.task_management import InterviewStatusDictionary
+    from edsl.jobs.tasks.task_management import InterviewStatusDictionary
 
     interview_status = jobs.interviews()[0].interview_status
     assert isinstance(interview_status, InterviewStatusDictionary)

@@ -2,7 +2,7 @@ from typing import Union, List, Dict
 from collections import UserDict, UserList
 
 from edsl import CONFIG
-from edsl.jobs.task_status_enum import TaskStatus, get_enum_from_string
+from edsl.jobs.tasks.task_status_enum import TaskStatus, get_enum_from_string
 
 
 class TokensUsed(UserDict):
@@ -47,7 +47,7 @@ class InterviewStatusDictionary(UserDict):
         waiting_status_list = [
             TaskStatus.WAITING_FOR_REQUEST_CAPACITY, 
             TaskStatus.WAITING_FOR_TOKEN_CAPACITY,
-            TaskStatus.WAITING_ON_DEPENDENCIES]
+            TaskStatus.WAITING_FOR_DEPENDENCIES]
         
         return sum([self[status] for status in waiting_status_list])
     

@@ -3,6 +3,13 @@ from collections import UserDict, UserList
 import enum
 import time
 
+class InterviewStatus(enum.Enum):
+    "These are the possible states an interview can be in."
+    NOT_STARTED = enum.auto()
+    SUCCESS = enum.auto()
+    WAITING_FOR_RESOURCES = enum.auto()
+    FAILED = enum.auto()
+
 class TaskStatus(enum.Enum):
     "These are the possible states a task can be in."
     NOT_STARTED = enum.auto()
