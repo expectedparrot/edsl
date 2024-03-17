@@ -58,7 +58,9 @@ def test_token_usage(create_survey):
     results = jobs.run()
     token_usage = jobs.interviews()[0].token_usage
 
-    from edsl.jobs.token_tracking import TokenUsage, TokenPricing, InterviewTokenUsage
+    #from edsl.jobs.tokens.TokenUsage import TokenUsage
+    #from edsl.jobs.tokens.TokenPricing import TokenPricing
+    #from edsl.jobs.tokens.InterviewTokensUsage import InterviewTokenUsage
 
     assert token_usage.new_token_usage.prompt_tokens == 0
     assert token_usage.new_token_usage.completion_tokens == 0

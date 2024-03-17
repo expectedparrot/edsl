@@ -4,8 +4,9 @@ from typing import Literal, List, Type, DefaultDict
 from collections import UserDict, defaultdict
 
 from edsl.jobs.tasks.task_management import InterviewStatusDictionary
-from edsl.jobs.token_tracking import InterviewTokenUsage
-from edsl.jobs.pricing import pricing, TokenPricing
+from edsl.jobs.tokens.InterviewTokenUsage import InterviewTokenUsage
+from edsl.jobs.pricing import pricing
+from edsl.jobs.tokens.TokenPricing import TokenPricing
 from edsl.jobs.tasks.task_status_enum import TaskStatus
 
 InterviewTokenUsageMapping = DefaultDict[str, InterviewTokenUsage]

@@ -5,7 +5,7 @@ from collections import UserList
 from edsl.jobs.buckets import ModelBuckets
 from edsl.questions import Question
 from edsl.exceptions import InterviewErrorPriorTaskCanceled
-from edsl.jobs.token_tracking import TokenUsage
+from edsl.jobs.tokens.TokenUsage import TokenUsage
 
 from edsl.jobs.tasks.task_status_enum import TaskStatus, TaskStatusDescriptor, TaskStatusLog
 from edsl.jobs.tasks.task_management import TokensUsed
@@ -14,7 +14,7 @@ from edsl.jobs.tasks.task_management import InterviewStatusDictionary
 from collections import UserDict
 from edsl.jobs.Answers import Answers
 
-from edsl.jobs.token_tracking import InterviewTokenUsage
+from edsl.jobs.tokens.InterviewTokenUsage import InterviewTokenUsage
 
 class TaskCreators(UserDict):
     "A dictionary of task creators. A task is one question being answered."
