@@ -8,7 +8,7 @@ EDSL Docs
    :caption: Contents:
 
    installation
-   getting_started
+   starter_tutorial
    questions
    scenarios
    surveys
