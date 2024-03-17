@@ -1,8 +1,8 @@
 import asyncio
 import pytest
 
-from edsl.jobs.task_status_enum import TaskStatus
-from edsl.jobs.question_task_creator import QuestionTaskCreator
+from edsl.jobs.tasks.task_status_enum import TaskStatus
+from edsl.jobs.tasks.question_task_creator import QuestionTaskCreator
 from edsl import QuestionFreeText
 from edsl.jobs.buckets import ModelBuckets
 
@@ -34,7 +34,7 @@ async def test_task_creation():
     results = await creator._run_focal_task(debug=False)
     assert results == {"answer": 42}
 
-    assert creator.task_status == TaskStatus.FINISHED
+    assert creator.task_status == TaskStatus.SUCCESS
 
 
 @pytest.mark.asyncio

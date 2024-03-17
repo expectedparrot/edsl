@@ -2,7 +2,7 @@ import asyncio
 
 from edsl.jobs import Jobs
 from edsl.results import Results, Result
-from edsl.jobs.JobsRunner import JobsRunner
+from edsl.jobs.runners.JobsRunner import JobsRunner
 
 
 class JobsRunnerDryRun(JobsRunner):

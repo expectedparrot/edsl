@@ -3,12 +3,12 @@ import json
 from typing import DefaultDict, Union, List
 from collections import defaultdict
 
-from edsl.jobs.task_management import InterviewStatusDictionary
+from edsl.jobs.tasks.task_management import InterviewStatusDictionary
 from edsl.jobs.token_tracking import InterviewTokenUsage
-from edsl.jobs.task_status_enum import TaskStatus
+from edsl.jobs.tasks.task_status_enum import TaskStatus
 
 # for type-hints
-from edsl.jobs.JobsRunner import JobsRunner
+from edsl.jobs.runners.JobsRunner import JobsRunner
 import asyncio
 
 InterviewTokenUsageMapping = DefaultDict[str, InterviewTokenUsage]

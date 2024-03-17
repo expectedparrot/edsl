@@ -1,7 +1,7 @@
 import pytest
 
-from edsl.jobs.task_management import InterviewStatusDictionary
-from edsl.jobs.task_status_enum import TaskStatus, TaskStatusDescriptor
+from edsl.jobs.tasks.task_management import InterviewStatusDictionary
+from edsl.jobs.tasks.task_status_enum import TaskStatus, TaskStatusDescriptor
 
 def test_instantiation():
     i = InterviewStatusDictionary()

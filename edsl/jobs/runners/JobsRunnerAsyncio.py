@@ -9,12 +9,12 @@ from rich.live import Live
 from rich.console import Console
 
 from edsl.results import Results, Result
-from edsl.jobs.JobsRunner import JobsRunner
-from edsl.jobs.Interview import Interview
+from edsl.jobs.runners.JobsRunner import JobsRunner
+from edsl.jobs.interviews.Interview import Interview
 from edsl.utilities.decorators import jupyter_nb_handler
 
-from edsl.jobs.JobsRunnerStatusMixin import JobsRunnerStatusMixin
-from edsl.jobs.JobsRunHistory import JobsRunHistory
+from edsl.jobs.runners.JobsRunnerStatusMixin import JobsRunnerStatusMixin
+from edsl.jobs.runners.JobsRunHistory import JobsRunHistory
 
 
 class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):

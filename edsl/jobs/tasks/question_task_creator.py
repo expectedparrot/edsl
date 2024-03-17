@@ -7,13 +7,13 @@ from edsl.questions import Question
 from edsl.exceptions import InterviewErrorPriorTaskCanceled
 from edsl.jobs.token_tracking import TokenUsage
 
-from edsl.jobs.task_status_enum import TaskStatus, TaskStatusDescriptor, TaskStatusLog
-from edsl.jobs.task_management import TokensUsed
+from edsl.jobs.tasks.task_status_enum import TaskStatus, TaskStatusDescriptor, TaskStatusLog
+from edsl.jobs.tasks.task_management import TokensUsed
+from edsl.jobs.tasks.task_management import InterviewStatusDictionary
 
 from collections import UserDict
 from edsl.jobs.Answers import Answers
 
-from edsl.jobs.task_management import InterviewStatusDictionary
 from edsl.jobs.token_tracking import InterviewTokenUsage
 
 class TaskCreators(UserDict):
