@@ -126,19 +126,17 @@ class QuestionTaskCreator(UserList):
             self.task_status = TaskStatus.WAITING_FOR_TOKEN_CAPACITY
 
         await self.tokens_bucket.get_tokens(requested_tokens)
-        #self.task_status = TaskStatus.TOKEN_CAPACITY_ACQUIRED
 
         if (estimated_wait_time := self.requests_bucket.wait_time(1)) > 0:
             self.waiting = True
             self.task_status = TaskStatus.WAITING_FOR_REQUEST_CAPACITY
 
         await self.requests_bucket.get_tokens(1)
-        #self.task_status = TaskStatus.REQUEST_CAPACITY_ACQUIRED
 
         self.task_status = TaskStatus.API_CALL_IN_PROGRESS
         try:
             results = await self.answer_question_func(self.question, debug)
-            self.task_status = TaskStatus.API_CALL_COMPLETE
+            self.task_status = TaskStatus.SUCCESS
         except Exception as e:
             self.task_status = TaskStatus.FAILED
             raise e
@@ -160,7 +158,7 @@ class QuestionTaskCreator(UserList):
         tracker.add_tokens(
             prompt_tokens=prompt_tokens, completion_tokens=completion_tokens
         )
-        self.task_status = TaskStatus.FINISHED
+        #self.task_status = TaskStatus.FINISHED
 
         return results
 
@@ -173,7 +171,7 @@ class QuestionTaskCreator(UserList):
             # This is waiting for the tasks that must be completed before this one can be run.
             # This does *not* use the return_exceptions = True flag, so if any of the tasks fail,
             # it throws the exception immediately, which is what we want.
-            self.task_status = TaskStatus.WAITING_ON_DEPENDENCIES
+            self.task_status = TaskStatus.WAITING_FOR_DEPENDENCIES
             # The 'self' here is a list of tasks that must be completed before this one can be run.
             await asyncio.gather(*self)
         except asyncio.CancelledError:
@@ -182,6 +180,7 @@ class QuestionTaskCreator(UserList):
             raise
         except Exception as e:
             self.task_status = TaskStatus.PARENT_FAILED
+            #breakpoint()
             # logger.error(f"Required tasks for {self.question.question_name} failed: {e}")
             # turns the parent exception into a custom exception
             # So the task gets canceled but this InterviewErrorPriorTaskCanceled exception
@@ -192,5 +191,4 @@ class QuestionTaskCreator(UserList):
         else:
             # logger.info(f"Tasks for {self.question.question_name} completed")
             # This is the actual task that we want to run.
-            self.task_status = TaskStatus.DEPENDENCIES_COMPLETE
             return await self._run_focal_task(debug)

@@ -6,33 +6,25 @@ import time
 class TaskStatus(enum.Enum):
     "These are the possible states a task can be in."
     NOT_STARTED = enum.auto()
-    WAITING_ON_DEPENDENCIES = enum.auto()
+    WAITING_FOR_DEPENDENCIES = enum.auto()
     CANCELLED = enum.auto()
     PARENT_FAILED = enum.auto()
-    DEPENDENCIES_COMPLETE = enum.auto()
     WAITING_FOR_REQUEST_CAPACITY = enum.auto()
-    REQUEST_CAPACITY_ACQUIRED = enum.auto()
     WAITING_FOR_TOKEN_CAPACITY = enum.auto()
-    TOKEN_CAPACITY_ACQUIRED = enum.auto()
     API_CALL_IN_PROGRESS = enum.auto()
-    API_CALL_COMPLETE = enum.auto()
-    FINISHED = enum.auto()
+    SUCCESS = enum.auto()
     FAILED = enum.auto()
 
 status_colors = {
     TaskStatus.NOT_STARTED: 'grey',
-    TaskStatus.WAITING_ON_DEPENDENCIES: 'yellow',
-    TaskStatus.CANCELLED: 'darkgrey',
-    TaskStatus.PARENT_FAILED: 'red',
-    TaskStatus.DEPENDENCIES_COMPLETE: 'lightgreen',
-    TaskStatus.WAITING_FOR_REQUEST_CAPACITY: 'lightblue',
-    TaskStatus.REQUEST_CAPACITY_ACQUIRED: 'blue',
-    TaskStatus.WAITING_FOR_TOKEN_CAPACITY: 'purple',  
-    TaskStatus.TOKEN_CAPACITY_ACQUIRED: 'purple',
-    TaskStatus.API_CALL_IN_PROGRESS: 'orange',
-    TaskStatus.API_CALL_COMPLETE: 'darkgreen',
-    TaskStatus.FINISHED: 'darkblue',
-    TaskStatus.FAILED: 'black',
+    TaskStatus.WAITING_FOR_DEPENDENCIES: 'orange',
+    TaskStatus.WAITING_FOR_REQUEST_CAPACITY: 'yellow',
+    TaskStatus.WAITING_FOR_TOKEN_CAPACITY: 'gold',  
+    TaskStatus.CANCELLED: 'white',
+    TaskStatus.PARENT_FAILED: 'darkred',
+    TaskStatus.FAILED: 'red',
+    TaskStatus.API_CALL_IN_PROGRESS: 'blue',
+    TaskStatus.SUCCESS: 'green',
 }
 
 
