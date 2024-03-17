@@ -16,6 +16,9 @@ InterviewTokenUsageMapping = DefaultDict[str, InterviewTokenUsage]
 class JobsRunHistory:
     """A class to store the history of jobs run.
     
+
+    The goal of this class is to give a detailed history of the jobs run. 
+
     -- Task failures and tracebacks
     -- Response headers from API calls
     -- Log each time an Interview is completed 
@@ -39,6 +42,14 @@ class JobsRunHistory:
     def example(self):
         """Create an example JobsRunHistory object."""
         pass
+
+    def print(self):
+        """Print the JobsRunHistory object."""
+        for elapsed_time, index, status in self.data['status_dic']:
+            #breakpoint()
+            print(f"Elapsed Time: {elapsed_time}, Interview index: {index}")
+            for interview_status in status:
+                interview_status.print()
 
     def log(self, JobsRunner: 'JobsRunner', completed_tasks: List[asyncio.Task], elapsed_time: Union[int, float]) -> None:
         """Log the status of the job runner.
@@ -81,9 +92,12 @@ class JobsRunHistory:
     def status_counts(self, JobsRunner, completed_tasks, elapsed_time) -> tuple:
         model_to_status = defaultdict(InterviewStatusDictionary)
         index = -1
+        interviews_counted = 0
         for index, interview in enumerate(JobsRunner.total_interviews):
             model = interview.model
             model_to_status[model] += interview.interview_status
+            interviews_counted += 1
+        assert interviews_counted == len(JobsRunner.total_interviews)
         return (elapsed_time, index, model_to_status)
     
 
@@ -109,7 +123,7 @@ class JobsRunHistory:
         from matplotlib import pyplot as plt
         #x = [item for item in self.data['time']]
 
-        status_counts = [(time, list(d.values())[0]) for time, d in self.data['status_counts']]
+        status_counts = [(time, list(d.values())[0]) for time, index, d in self.data['status_counts']]
         status_counts.sort(key=lambda x: x[0])
         
         rows = int(len(TaskStatus) ** 0.5) + 1

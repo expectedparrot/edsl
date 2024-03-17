@@ -29,6 +29,9 @@ from edsl.jobs.task_management import (
 from edsl.jobs.retry_management import retry_strategy
 
 from edsl.jobs.question_task_creator import QuestionTaskCreator, TaskCreators
+from edsl.jobs.task_status_enum import InterviewTaskLogDict
+
+from edsl.jobs.interview_exception_tracking import InterviewExceptionEntry, InterviewExceptionCollection
 
 TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
 
@@ -63,11 +66,16 @@ class Interview:
         ] = Answers()  # will get filled in as interview progresses
         self.task_creators = TaskCreators()  # tracks the task creators
 
-        self.exceptions = defaultdict(list)
-        self.has_exceptions = False
-        
+        self.exceptions = InterviewExceptionCollection()  
+        self._task_status_log_dict = InterviewTaskLogDict()
+
     @property
-    def dag(self):
+    def has_exceptions(self)-> bool:
+        """Return True if there are exceptions."""
+        return len(self.exceptions) > 0
+
+    @property
+    def dag(self) -> 'DAG':
         """Return the directed acyclic graph for the survey.
 
         The DAG, or directed acyclic graph, is a dictionary that maps question names to their dependencies.
@@ -76,6 +84,16 @@ class Interview:
         The 'textify' parameter is set to True, so that the question names are returned as strings rather than integer indices.
         """
         return self.survey.dag(textify=True)
+    
+    @property
+    def task_status_logs(self) -> InterviewTaskLogDict:
+        """Return the task status logs for the interview.
+
+        The keys are the question names; the values are the lists of status log changes for each task.   
+        """
+        for task_creator in self.task_creators.values():
+            self._task_status_log_dict[task_creator.question.question_name] = task_creator.status_log
+        return self._task_status_log_dict
 
     @property
     def token_usage(self) -> InterviewTokenUsage:
@@ -86,7 +104,7 @@ class Interview:
     def interview_status(self) -> InterviewStatusDictionary:
         """Return a dictionary mapping task status codes to counts."""
         return self.task_creators.interview_status
-
+        
     @property
     def to_index(self) -> dict:
         """Return a dictionary mapping question names to their index in the survey."""
@@ -296,24 +314,25 @@ class Interview:
              try:
                  return await asyncio.wait_for(invigilator.async_answer_question(), timeout=TIMEOUT)
              except asyncio.TimeoutError as e:
-                self.has_exceptions = True
-                self.exceptions[question.question_name].append(
-                    {
-                        'exception': repr(e), 
-                        'traceback': traceback.format_exc(),
-                        'time': time.time()})
+                exception_entry = InterviewExceptionEntry(
+                    exception = repr(e), 
+                    time = time.time(),
+                    traceback = traceback.format_exc()
+                )
+
+                self.exceptions.add(question, exception_entry)
+                
                 raise InterviewTimeoutError(
                         f"Task timed out after {TIMEOUT} seconds."
                 )
              except Exception as e:
-                self.has_exceptions = True
-                self.exceptions[question.question_name].append(
-                    {
-                        'exception': repr(e), 
-                        'traceback': traceback.format_exc(),
-                        'time': time.time()})
+                exception_entry = InterviewExceptionEntry(
+                    exception = repr(e), 
+                    time = time.time(),
+                    traceback = traceback.format_exc()
+                )
+                self.exceptions.add(question, exception_entry)
                 raise e
-                #raise  # Reraise to be caught by retry mechanism
 
         response: AgentResponseDict = await attempt_to_answer_question(invigilator)
 
@@ -406,3 +425,11 @@ if __name__ == "__main__":
     # I
     # repr(I)
     # eval(repr(I))
+    #print(I.task_status_logs.status_matrix(20))
+    status_matrix = I.task_status_logs.status_matrix(20)
+    numerical_matrix = I.task_status_logs.numerical_matrix(20)
+    I.task_status_logs.visualize()
+
+
+    I.exceptions.print()
+    I.exceptions.ascii_table()
