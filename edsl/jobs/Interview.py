@@ -64,8 +64,9 @@ class Interview:
         self.answers: dict[
             str, str
         ] = Answers()  # will get filled in as interview progresses
-        self.task_creators = TaskCreators()  # tracks the task creators
 
+        # Trackers 
+        self.task_creators = TaskCreators()  # tracks the task creators
         self.exceptions = InterviewExceptionCollection()  
         self._task_status_log_dict = InterviewTaskLogDict()
 
