@@ -244,7 +244,7 @@ def test_handle_model_exception():
 
 
 def test_jobs_bucket_creator(valid_job):
-    from edsl.jobs.base import JobsRunnersRegistry
+    from edsl.jobs.runners.job_runners_registry import JobsRunnersRegistry
 
     JobRunner = JobsRunnersRegistry["asyncio"](jobs=valid_job)
     bc = JobRunner.bucket_collection

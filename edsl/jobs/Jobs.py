@@ -15,7 +15,7 @@ from edsl import Model
 from edsl.results import Results
 from edsl.scenarios import Scenario
 from edsl.surveys import Survey
-from edsl.jobs.base import JobsRunnersRegistry, JobsRunnerDescriptor
+from edsl.jobs.runners.job_runners_registry import JobsRunnersRegistry, JobsRunnerDescriptor
 from edsl.jobs.interviews.Interview import Interview
 from edsl.coop.old import JobRunnerAPI, ResultsAPI
 

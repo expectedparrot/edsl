@@ -30,7 +30,7 @@ from edsl.jobs.tasks.task_management import (
     TasksList,
 )
 
-from edsl.jobs.retry_management import retry_strategy
+from edsl.jobs.interviews.retry_management import retry_strategy
 
 
 TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
