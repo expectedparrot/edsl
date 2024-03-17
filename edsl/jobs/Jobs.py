@@ -21,7 +21,7 @@ from edsl.coop.old import JobRunnerAPI, ResultsAPI
 
 # from edsl.jobs.ModelBuckets import ModelBuckets, BucketCollection
 
-from edsl.jobs.buckets import BucketCollection
+from edsl.jobs.buckets.BucketCollection import BucketCollection
 
 
 class Jobs(Base):

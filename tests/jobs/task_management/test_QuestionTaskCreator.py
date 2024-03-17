@@ -4,7 +4,7 @@ import pytest
 from edsl.jobs.tasks.task_status_enum import TaskStatus
 from edsl.jobs.tasks.question_task_creator import QuestionTaskCreator
 from edsl import QuestionFreeText
-from edsl.jobs.buckets import ModelBuckets
+from edsl.jobs.buckets.ModelBuckets import ModelBuckets
 
 
 async def answer_question_func(question, debug):

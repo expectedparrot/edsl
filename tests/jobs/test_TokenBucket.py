@@ -1,7 +1,7 @@
 import pytest
 import asyncio
 import time
-from edsl.jobs.buckets import TokenBucket
+from edsl.jobs.buckets.TokenBucket import TokenBucket
 
 
 @pytest.mark.asyncio

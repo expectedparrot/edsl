@@ -4,7 +4,6 @@ import time
 from collections import UserDict
 from matplotlib import pyplot as plt
 
-
 class TokenBucket:
     """This is a token bucket used to respect rate limits to services."""
 
@@ -100,100 +99,3 @@ class TokenBucket:
         plt.grid(True)
         plt.tight_layout()
         plt.show()
-
-
-class ModelBuckets:
-    """A class to represent the token and request buckets for a model.
-
-    Most LLM model services have limits both on requests-per-minute (RPM) and tokens-per-minute (TPM).
-    A request is one call to the service. The number of tokens required for a request depends on parameters.
-    """
-
-    def __init__(self, requests_bucket: TokenBucket, tokens_bucket: TokenBucket):
-        """Initialize the model buckets.
-        
-        The requests bucket captures requests per unit of time.
-        The tokens bucket captures the number of language model tokens.
-        
-        """
-        self.requests_bucket = requests_bucket
-        self.tokens_bucket = tokens_bucket
-
-    def __add__(self, other: "ModelBuckets"):
-        """Combine two model buckets."""
-        return ModelBuckets(
-            requests_bucket=self.requests_bucket + other.requests_bucket,
-            tokens_bucket=self.tokens_bucket + other.tokens_bucket,
-        )
-
-    @classmethod
-    def infinity_bucket(cls, model_name: str = "not_specified") -> "ModelBuckets":
-        """Create a bucket with infinite capacity and refill rate."""
-        return cls(
-            requests_bucket=TokenBucket(
-                bucket_name=model_name,
-                bucket_type="requests",
-                capacity=float("inf"),
-                refill_rate=float("inf"),
-            ),
-            tokens_bucket=TokenBucket(
-                bucket_name=model_name,
-                bucket_type="tokens",
-                capacity=float("inf"),
-                refill_rate=float("inf"),
-            ),
-        )
-
-    def visualize(self):
-        """Visualize the token and request buckets."""
-        plot1 = self.requests_bucket.visualize()
-        plot2 = self.tokens_bucket.visualize()
-        return plot1, plot2
-
-    def __repr__(self):
-        return f"ModelBuckets(requests_bucket={self.requests_bucket}, tokens_bucket={self.tokens_bucket})"
-
-
-class BucketCollection(UserDict):
-    """A Jobs object will have a whole collection of model buckets, as multiple models could be used.
-
-    The keys here are the models, and the values are the ModelBuckets objects.
-    Models themselves are hashable, so this works.
-    """
-
-    def __init__(self):
-        super().__init__()
-
-    def __repr__(self):
-        return f"BucketCollection({self.data})"
-
-    def add_model(self, model: 'LanguageModel') -> None:
-        """Adds a model to the bucket collection. 
-        
-        This will create the token and request buckets for the model."""
-        # compute the TPS and RPS from the model
-        TPS = model.TPM / 60.0
-        RPS = model.RPM / 60.0
-        # create the buckets
-        requests_bucket = TokenBucket(
-            bucket_name=model.model,
-            bucket_type="requests",
-            capacity=RPS,
-            refill_rate=RPS,
-        )
-        tokens_bucket = TokenBucket(
-            bucket_name=model.model, bucket_type="tokens", capacity=TPS, refill_rate=TPS
-        )
-        model_buckets = ModelBuckets(requests_bucket, tokens_bucket)
-        if model in self:
-            # it if already exists, combine the buckets
-            self[model] += model_buckets
-        else:
-            self[model] = model_buckets
-
-    def visualize(self) -> dict:
-        """Visualize the token and request buckets for each model."""
-        plots = {}
-        for model in self:
-            plots[model] = self[model].visualize()
-        return plots
