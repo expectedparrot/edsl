@@ -7,7 +7,7 @@ from rich.box import SIMPLE
 from rich.table import Table
 
 from edsl.jobs.token_tracking import InterviewTokenUsage
-from edsl.jobs.jobs_run_history import JobsRunnerStatusData
+from edsl.jobs.run_statistics import JobsRunnerStatusData
 
 InterviewTokenUsageMapping = DefaultDict[str, InterviewTokenUsage]
 
@@ -61,7 +61,8 @@ class JobsRunnerStatusMixin(JobsRunnerStatusData, JobsRunnerStatusPresentation):
         # return self.generate_status_summary(
         #     completed_tasks=completed_tasks,
         #     elapsed_time=elapsed_time,
-        #     interviews=self.total_interviews).raw
+        #     interviews=self.total_interviews).rawplt.figure(figsize=(10, 6))
+        
         #return self.full_status(self.total_interviews)
         return None
      

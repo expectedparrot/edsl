@@ -7,7 +7,7 @@ from edsl.questions import Question
 from edsl.exceptions import InterviewErrorPriorTaskCanceled
 from edsl.jobs.token_tracking import TokenUsage
 
-from edsl.jobs.task_status_enum import TaskStatus, TaskStatusDescriptor
+from edsl.jobs.task_status_enum import TaskStatus, TaskStatusDescriptor, TaskStatusLog
 from edsl.jobs.task_management import TokensUsed
 
 from collections import UserDict
@@ -17,14 +17,14 @@ from edsl.jobs.task_management import InterviewStatusDictionary
 from edsl.jobs.token_tracking import InterviewTokenUsage
 
 class TaskCreators(UserDict):
-    "A dictionary of task creators"
+    "A dictionary of task creators. A task is one question being answered."
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
     @property
     def token_usage(self) -> InterviewTokenUsage:
-        """Determins how many tokens were used for the interview."""
+        """Determines how many tokens were used for the interview."""
         cached_tokens = TokenUsage(from_cache=True)
         new_tokens = TokenUsage(from_cache=False)
         for task_creator in self.values():
@@ -43,6 +43,10 @@ class TaskCreators(UserDict):
             status_dict[task_creator.task_status] += 1
             status_dict["number_from_cache"] += task_creator.from_cache
         return status_dict
+    
+    def status_logs(self):
+        """Returns a list of status logs for each task."""
+        return [task_creator.status_log for task_creator in self.values()]
 
 
 class QuestionTaskCreator(UserList):
@@ -71,6 +75,7 @@ class QuestionTaskCreator(UserList):
         self.model_buckets = model_buckets
         self.requests_bucket = self.model_buckets.requests_bucket
         self.tokens_bucket = self.model_buckets.tokens_bucket
+        self.status_log = TaskStatusLog()
 
         def fake_token_estimator(question):
             return 1
@@ -118,21 +123,25 @@ class QuestionTaskCreator(UserList):
 
         requested_tokens = self.estimated_tokens()
         if (estimated_wait_time := self.tokens_bucket.wait_time(requested_tokens)) > 0:
-            self.task_status = TaskStatus.WAITING_FOR_TOKEN_CAPCITY
+            self.task_status = TaskStatus.WAITING_FOR_TOKEN_CAPACITY
 
         await self.tokens_bucket.get_tokens(requested_tokens)
-        self.task_status = TaskStatus.TOKEN_CAPACITY_ACQUIRED
+        #self.task_status = TaskStatus.TOKEN_CAPACITY_ACQUIRED
 
         if (estimated_wait_time := self.requests_bucket.wait_time(1)) > 0:
             self.waiting = True
-            self.task_status = TaskStatus.WAITING_FOR_REQUEST_CAPCITY
+            self.task_status = TaskStatus.WAITING_FOR_REQUEST_CAPACITY
 
         await self.requests_bucket.get_tokens(1)
-        self.task_status = TaskStatus.REQUEST_CAPACITY_ACQUIRED
+        #self.task_status = TaskStatus.REQUEST_CAPACITY_ACQUIRED
 
         self.task_status = TaskStatus.API_CALL_IN_PROGRESS
-        results = await self.answer_question_func(self.question, debug)
-        self.task_status = TaskStatus.API_CALL_COMPLETE
+        try:
+            results = await self.answer_question_func(self.question, debug)
+            self.task_status = TaskStatus.API_CALL_COMPLETE
+        except Exception as e:
+            self.task_status = TaskStatus.FAILED
+            raise e
 
         if "cached_response" in results:
             if results["cached_response"]:

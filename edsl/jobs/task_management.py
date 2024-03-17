@@ -45,8 +45,8 @@ class InterviewStatusDictionary(UserDict):
         """Return the number of tasks that are in a waiting status of some kind."""
     
         waiting_status_list = [
-            TaskStatus.WAITING_FOR_REQUEST_CAPCITY, 
-            TaskStatus.WAITING_FOR_TOKEN_CAPCITY,
+            TaskStatus.WAITING_FOR_REQUEST_CAPACITY, 
+            TaskStatus.WAITING_FOR_TOKEN_CAPACITY,
             TaskStatus.WAITING_ON_DEPENDENCIES]
         
         return sum([self[status] for status in waiting_status_list])
@@ -57,6 +57,13 @@ class InterviewStatusDictionary(UserDict):
     def to_dict(self):
         new_data = {str(key):value for key, value in self.data.items()}
         return new_data
+    
+    def print(self):
+        d = {}
+        for key, value in self.data.items():
+            d[str(key)] = value
+        from edsl.utilities.interface import print_dict_with_rich
+        print_dict_with_rich(d)
 
     @classmethod
     def from_dict(cls, data):
