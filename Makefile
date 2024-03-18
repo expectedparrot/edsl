@@ -17,6 +17,7 @@ backup: ## Backup the code to `edsl/.backups/`
 .PHONY: docs 
 
 docs:
+	poetry export -f requirements.txt --output docs/requirements.txt
 	sphinx-build -b html docs _build
 
 docs-view:
