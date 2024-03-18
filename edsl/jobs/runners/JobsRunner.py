@@ -4,7 +4,7 @@ from typing import List
 from abc import ABC, ABCMeta, abstractmethod
 from edsl.results import Results
 
-
+from edsl.jobs.interviews.Interview import Interview
 
 # TODO: Currently cannot include because these created circular imports.
 #from edsl.jobs.Jobs import Jobs
@@ -64,3 +64,25 @@ class JobsRunner(ABC, metaclass=RegisterJobsRunnerMeta):
         - `progress_bar`: shows a progress bar
         """
         raise NotImplementedError
+
+    def populate_total_interviews(self, n = 1) -> None:
+        """Populates self.total_interviews with n copies of each interview.
+        
+        :param n: how many times to run each interview.
+        """
+        self.total_interviews = []
+        for interview in self.interviews:
+            for iteration in range(n):
+                if iteration > 0:
+                    new_interview = Interview(
+                        agent=interview.agent,
+                        survey=interview.survey,
+                        scenario=interview.scenario,
+                        model=interview.model,
+                        debug=interview.debug,
+                        verbose=interview.verbose,
+                        iteration=iteration,
+                    )
+                    self.total_interviews.append(new_interview)
+                else:
+                    self.total_interviews.append(interview)

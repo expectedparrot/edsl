@@ -3,7 +3,7 @@ import json
 from typing import DefaultDict, Union, List
 from collections import defaultdict
 
-from edsl.jobs.tasks.task_management import InterviewStatusDictionary
+from edsl.jobs.interviews.InterviewStatusDictionary import InterviewStatusDictionary
 from edsl.jobs.tokens.InterviewTokenUsage import InterviewTokenUsage
 from edsl.jobs.tasks.task_status_enum import TaskStatus
 
