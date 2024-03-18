@@ -3,7 +3,7 @@ from __future__ import annotations
 import traceback
 import asyncio
 import textwrap
-from typing import Any, Type, List, Generator, Tuple
+from typing import Any, Type, List, Generator
 
 from edsl import CONFIG
 from edsl.agents import Agent
@@ -17,14 +17,12 @@ from edsl.surveys.base import EndOfSurvey
 from edsl.jobs.buckets.ModelBuckets import ModelBuckets
 
 from edsl.jobs.tasks.TaskCreators import TaskCreators
-from edsl.jobs.tasks.task_status_enum import InterviewTaskLogDict
-from edsl.jobs.interviews.interview_exception_tracking import InterviewExceptionEntry, InterviewExceptionCollection
 
+from edsl.jobs.interviews.InterviewStatusLog import InterviewStatusLog
+from edsl.jobs.interviews.interview_exception_tracking import InterviewExceptionCollection
 from edsl.jobs.interviews.retry_management import retry_strategy
-
 from edsl.jobs.interviews.InterviewTaskBuildingMixin import InterviewTaskBuildingMixin
 from edsl.jobs.interviews.InterviewStatusMixin import InterviewStatusMixin
-
     
 class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
     """
@@ -64,7 +62,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         # Trackers 
         self.task_creators = TaskCreators()  # tracks the task creators
         self.exceptions = InterviewExceptionCollection()  
-        self._task_status_log_dict = InterviewTaskLogDict()
+        self._task_status_log_dict = InterviewStatusLog()
 
         # dictionary mapping question names to their index in the survey."""
         self.to_index =  {
