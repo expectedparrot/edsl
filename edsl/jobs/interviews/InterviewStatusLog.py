@@ -2,7 +2,7 @@ from collections import UserDict
 
 from edsl.jobs.tasks.task_status_enum import TaskStatus, status_colors
 
-class InterviewStatuLog(UserDict):
+class InterviewStatusLog(UserDict):
     """A dictionary of TaskStatusLog objects.
     
     The key is the name of the task.

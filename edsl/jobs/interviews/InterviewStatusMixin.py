@@ -1,5 +1,5 @@
 
-from edsl.jobs.tasks.task_status_enum import InterviewTaskLogDict
+from edsl.jobs.interviews.InterviewStatusLog import InterviewStatusLog
 from edsl.jobs.tokens.InterviewTokenUsage import InterviewTokenUsage
 
 from edsl.jobs.interviews.InterviewStatusDictionary import InterviewStatusDictionary
@@ -12,7 +12,7 @@ class InterviewStatusMixin:
         return len(self.exceptions) > 0
 
     @property
-    def task_status_logs(self) -> InterviewTaskLogDict:
+    def task_status_logs(self) -> InterviewStatusLog:
         """Return the task status logs for the interview.
 
         The keys are the question names; the values are the lists of status log changes for each task.   
