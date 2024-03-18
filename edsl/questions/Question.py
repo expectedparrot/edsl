@@ -1,7 +1,5 @@
 """This module contains the Question class, which is the base class for all questions in EDSL."""
 from __future__ import annotations
-import textwrap
-import io
 from abc import ABC, abstractmethod, ABCMeta
 from rich.console import Console
 from rich.table import Table
@@ -20,12 +18,8 @@ from edsl.questions.descriptors import (
 )
 
 from edsl.prompts.Prompt import Prompt
-
 from edsl.enums import QuestionType
-
-# from edsl.questions.question_registry import get_question_class
 from edsl.questions.AnswerValidatorMixin import AnswerValidatorMixin
-
 from edsl.exceptions.questions import QuestionMissingTypeError, QuestionBadTypeError
 
 
@@ -199,7 +193,7 @@ class Question(
     ############################
     # Forward methods
     ############################
-    def add_question(self, other):
+    def add_question(self, other: Question) -> 'Survey':
         """Add a question to this question by turning them into a survey with two questions."""
         from edsl.surveys.Survey import Survey
 

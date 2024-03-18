@@ -7,13 +7,15 @@ from edsl.questions import Question
 from edsl.exceptions import InterviewErrorPriorTaskCanceled
 from edsl.jobs.tokens.TokenUsage import TokenUsage
 
-from edsl.jobs.tasks.task_status_enum import TaskStatus, TaskStatusDescriptor, TaskStatusLog
+from edsl.jobs.tasks.task_status_enum import TaskStatus, TaskStatusDescriptor
 from edsl.jobs.tasks.task_management import TokensUsed
 from edsl.jobs.interviews.InterviewStatusDictionary import InterviewStatusDictionary
 
 from edsl.jobs.Answers import Answers
 from edsl.jobs.tokens.InterviewTokenUsage import InterviewTokenUsage
 
+
+from edsl.jobs.tasks.TaskStatusLog import TaskStatusLog
 
 class QuestionTaskCreator(UserList):
     """Class to create and manage question tasks with dependencies.
