@@ -1,9 +1,6 @@
 import time
 import asyncio
-import json
-from contextlib import asynccontextmanager
 from typing import Coroutine, List, AsyncGenerator
-from collections import UserList
 
 from rich.live import Live
 from rich.console import Console
@@ -29,52 +26,32 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
             await asyncio.sleep(period)  # Sleep for the specified period
             self.job_history_tracker.log(self, self.results, self.elapsed_time)
    
-    def populate_total_interviews(self, n = 1) -> None:
-        """Populates self.total_interviews with n copies of each interview.
-        
-        :param n: how many times to run each interview.
-        """
-        self.total_interviews = []
-        for interview in self.interviews:
-            for iteration in range(n):
-                if iteration > 0:
-                    new_interview = Interview(
-                        agent=interview.agent,
-                        survey=interview.survey,
-                        scenario=interview.scenario,
-                        model=interview.model,
-                        debug=interview.debug,
-                        verbose=interview.verbose,
-                        iteration=iteration,
-                    )
-                    self.total_interviews.append(new_interview)
-                else:
-                    self.total_interviews.append(interview)
-
     async def run_async(
-        self, n=1, verbose=False, sleep=0, debug=False
+        self, 
+        n: int = 1, 
+        debug:bool = False, 
+        stop_on_exception: bool = False,
     ) -> AsyncGenerator[Result, None]:
         """Creates the tasks, runs them asynchronously, and returns the results as a Results object.
 
         Completed tasks are yielded as they are completed.
 
         :param n: how many times to run each interview
-        :param verbose: prints messages
-        :param sleep: how long to sleep between interviews
-        :param debug: prints debug messages
+        :param debug: 
+        :param stop_on_exception:
         """
         tasks = []
         self.populate_total_interviews(n=n)  # Populate self.total_interviews before creating tasks
 
         for interview in self.total_interviews:
-            interviewing_task = self._interview_task(interview=interview, debug=debug)
+            interviewing_task = self._interview_task(interview=interview, debug=debug, stop_on_exception=stop_on_exception)
             tasks.append(asyncio.create_task(interviewing_task))
 
         for task in asyncio.as_completed(tasks):
             result = await task
             yield result
 
-    async def _interview_task(self, *, interview: Interview, debug: bool) -> Result:
+    async def _interview_task(self, *, interview: Interview, debug: bool, stop_on_exception:bool = False) -> Result:
         """Conducts an interview and returns the result.
         
         :param interview: the interview to conduct
@@ -87,6 +64,7 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
         answer, valid_results = await interview.async_conduct_interview(
             debug=debug,
             model_buckets=model_buckets,
+            stop_on_exception=stop_on_exception,
         )
 
         # we should have a valid result for each question
@@ -94,6 +72,8 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
 
         assert len(valid_results) == len(answer_key_names)
 
+
+        # TODO: move this down into Interview
         question_name_to_prompts = dict({})
         for result in valid_results:
             question_name = result["question_name"]
@@ -135,7 +115,11 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
 
     @jupyter_nb_handler
     async def run(
-        self, n=1, verbose=True, sleep=0, debug=False, progress_bar=False
+        self, 
+        n:int =1, 
+        debug:bool =False, 
+        stop_on_exception:bool = False,
+        progress_bar=False, 
     ) -> Coroutine:
         """Runs a collection of interviews, handling both async and sync contexts.
         
@@ -144,7 +128,6 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
         :param sleep: how long to sleep between interviews
         :param debug: prints debug messages
         """
-        verbose = True
         console = Console()
         self.results = []
         self.start_time = time.monotonic()
@@ -164,7 +147,7 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
 
         logger_task = asyncio.create_task(self.periodic_logger(period = 0.01))
              
-        async for result in self.run_async(n, verbose, sleep, debug = debug):
+        async for result in self.run_async(n = n, debug = debug, stop_on_exception = stop_on_exception):
         
             self.results.append(result)
         

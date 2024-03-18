@@ -4,6 +4,7 @@ from pylint.pyreverse.main import Run
 # Example list of projects and their paths
 projects = [
     ("jobs", "edsl/jobs"),
+    ("interviews", "edsl/jobs/interviews/"),
     ("agents", "edsl/agents"),
     ("data", "edsl/data"),
     ("language_models", "edsl/language_models"),
