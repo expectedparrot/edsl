@@ -25,7 +25,6 @@ from edsl.jobs.interviews.retry_management import retry_strategy
 from edsl.jobs.interviews.InterviewTaskBuildingMixin import InterviewTaskBuildingMixin
 from edsl.jobs.interviews.InterviewStatusMixin import InterviewStatusMixin
 
-TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
     
 class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
     """
@@ -40,22 +39,27 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         survey: Survey,
         scenario: Scenario,
         model: Type[LanguageModel],
-        verbose: bool = False,
         debug: bool = False,
         iteration: int = 0,
     ):
-        """Initialize the Interview instance."""
+        """Initialize the Interview instance.
+        
+        :param agent: the agent being interviewed.
+        :param survey: the survey being administered to the agent.
+        :param scenario: the scenario that populates the survey questions.
+        :param model: the language model used to answer the questions.
+
+        
+        """
         self.agent = agent
         self.survey = survey
         self.scenario = scenario
         self.model = model
         self.debug = debug
-        self.verbose = verbose
         self.iteration = iteration
 
-        self.answers: dict[
-            str, str
-        ] = Answers()  # will get filled in as interview progresses
+        # will get filled in as interview progresses
+        self.answers: dict[str, str] = Answers()  
 
         # Trackers 
         self.task_creators = TaskCreators()  # tracks the task creators
@@ -78,30 +82,38 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         """
         Conduct an Interview asynchronously.
 
-        params
-        - `model_buckets`: a dictionary of token buckets for the model
-        - `debug`: prints debug messages
-        - `replace_missing`: if True, replaces missing answers with None
+        :param model_buckets: a dictionary of token buckets for the model.
+        :param debug: run without calls to LLM.
+        :param stop_on_exception: if True, stops the interview if an exception is raised.
+
+        Example usage:
+        
+        >>> i = Interview.example()
+        >>> answers = asyncio.run(i.async_conduct_interview())
+        >>> answers['q0']
+        'yes'
+        
         """
         # if no model bucket is passed, create an 'infinity' bucket with no rate limits
-        self.tasks = self._build_question_tasks(
-            debug=debug, 
-            model_buckets=model_buckets or ModelBuckets.infinity_bucket()
-        )
-
+        model_buckets = model_buckets or ModelBuckets.infinity_bucket()
+        # build the tasks using the InterviewTaskBuildingMixin
+        self.tasks = self._build_question_tasks(debug=debug, model_buckets=model_buckets)
+        # 'Invigilators' are used to administer the survey
         self.invigilators = list(self._build_invigilators(debug=debug))
-
+        # await the tasks being conducted
         await asyncio.gather(*self.tasks, return_exceptions = not stop_on_exception)
-
         self.answers.replace_missing_answers_with_none(self.survey)
         valid_results = list(self._extract_valid_results())
-
         return self.answers, valid_results
 
     def _extract_valid_results(
-        self, print_traceback=False
+        self, 
+        print_traceback=False
     ) -> Generator["Answers", None, None]:
-        """Extract the valid results from the list of results."""
+        """Extract the valid results from the list of results.
+        
+        :param print_traceback: if True, print the traceback of any exceptions.
+        """
         # we only need to print the warning once if a task failed.
         warning_printed = False
         warning_header = textwrap.dedent(

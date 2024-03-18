@@ -52,16 +52,15 @@ class JobsRunner(ABC, metaclass=RegisterJobsRunnerMeta):
         self,
         n: int = 1,
         debug: bool = False,
-        verbose: bool = False,
         progress_bar: bool = True,
     ) -> Results:  # pragma: no cover
         """
         Runs the job: conducts Interviews and returns their results.
 
-        - `n`: how many times to run each interview
-        - `debug`: prints debug messages
-        - `verbose`: prints messages
-        - `progress_bar`: shows a progress bar
+        :param n: how many times to run each interview
+        :param debug: uses simulated responses from agents.
+        :param verbose: prints messages
+        :param progress_bar: shows a progress bar
         """
         raise NotImplementedError
 
@@ -80,7 +79,6 @@ class JobsRunner(ABC, metaclass=RegisterJobsRunnerMeta):
                         scenario=interview.scenario,
                         model=interview.model,
                         debug=interview.debug,
-                        verbose=interview.verbose,
                         iteration=iteration,
                     )
                     self.total_interviews.append(new_interview)

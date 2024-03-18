@@ -1,66 +1,8 @@
-from __future__ import annotations
 from collections import UserDict
-import enum
-import time
 
-from edsl.jobs.tasks.TaskStatusLogEntry import TaskStatusLogEntry
+from edsl.jobs.tasks.task_status_enum import TaskStatus, status_colors
 
-class TaskStatus(enum.Enum):
-    "These are the possible states a task can be in."
-    NOT_STARTED = enum.auto()
-    WAITING_FOR_DEPENDENCIES = enum.auto()
-    CANCELLED = enum.auto()
-    PARENT_FAILED = enum.auto()
-    WAITING_FOR_REQUEST_CAPACITY = enum.auto()
-    WAITING_FOR_TOKEN_CAPACITY = enum.auto()
-    API_CALL_IN_PROGRESS = enum.auto()
-    SUCCESS = enum.auto()
-    FAILED = enum.auto()
-
-class TaskStatusDescriptor:
-    "The descriptor ensures that the task status is always an instance of the TaskStatus enum."
-
-    def __init__(self):
-        self._task_status = None
-
-    def __get__(self, instance, owner):
-        return self._task_status
-
-    def __set__(self, instance, value):
-        """Ensure that the value is an instance of TaskStatus."""
-        if not isinstance(value, TaskStatus):
-            raise ValueError("Value must be an instance of TaskStatus enum")
-        t = time.monotonic()
-        if hasattr(instance, "status_log"):
-            instance.status_log.append(TaskStatusLogEntry(t, value))
-        self._task_status = value
-
-    def __delete__(self, instance):
-        self._task_status = None
-
-
-status_colors = {
-    TaskStatus.NOT_STARTED: 'grey',
-    TaskStatus.WAITING_FOR_DEPENDENCIES: 'orange',
-    TaskStatus.WAITING_FOR_REQUEST_CAPACITY: 'yellow',
-    TaskStatus.WAITING_FOR_TOKEN_CAPACITY: 'gold',  
-    TaskStatus.CANCELLED: 'white',
-    TaskStatus.PARENT_FAILED: 'darkred',
-    TaskStatus.FAILED: 'red',
-    TaskStatus.API_CALL_IN_PROGRESS: 'blue',
-    TaskStatus.SUCCESS: 'green',
-}
-
-def get_enum_from_string(str_key):
-    """Parse the string to extract the enum member name."""
-    try:
-        _, member_name = str_key.split('.')
-        enum_member = getattr(TaskStatus, member_name)
-        return enum_member
-    except ValueError:
-        return str_key
-    
-class InterviewTaskLogDict(UserDict):
+class InterviewStatuLog(UserDict):
     """A dictionary of TaskStatusLog objects.
     
     The key is the name of the task.
@@ -142,8 +84,3 @@ class InterviewTaskLogDict(UserDict):
         plt.show()
 
 
-
-
-
-if __name__ == "__main__":
-    pass

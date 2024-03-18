@@ -13,9 +13,39 @@ import asyncio
 
 InterviewTokenUsageMapping = DefaultDict[str, InterviewTokenUsage]
 
+class InterviewStatusObject:
+    pass
+
 class JobsRunHistory:
     """A class to store the history of jobs run.
-    
+
+    - Job status
+        - Interview status (1 per interview)
+            - Task status (1 per task)
+
+    It's a list. 
+    The values is a list of the status updates of each the interviews, with time stamps.
+
+    1. It should be a list of JobStatusObjects, with a time stamp.
+    2. A JobStatus object should be a list of InterviewStatusObjects at that time.
+    >>> [(time, JobStatusObject), (time, JobStatusObject), (time, JobStatusObject), ...]
+
+    >>> {"interview1": [
+        {"time": 0, "status": "InterviewStatusObject"},
+        {"time": 1, "status": "InterviewStatusObject"},
+        {"time": 2, "status": "InterviewStatusObject"},
+        ...
+        ], 
+        "interview2": [
+        {"time": 0, "status": "InterviewStatusObject"},
+        {"time": 1, "status": "InterviewStatusObject"},
+        {"time": 2, "status": "InterviewStatusObject"},
+        ...
+        ]
+
+    The status at a given time is what entry in the list closest to the asked-for time.
+
+    InterviewStatusObject + InterviewStatusObject --> JobsRunStatusObject 
 
     The goal of this class is to give a detailed history of the jobs run. 
 
@@ -39,9 +69,6 @@ class JobsRunHistory:
             "exceptions": self.exceptions_dict,
             }
 
-    def example(self):
-        """Create an example JobsRunHistory object."""
-        pass
 
     def print(self):
         """Print the JobsRunHistory object."""

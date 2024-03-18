@@ -19,17 +19,16 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
     job_history_tracker = JobsRunHistory()
 
     async def periodic_logger(self, period=1):
-        """Logs every 'period' seconds.
-        """
+        """Logs every 'period' seconds."""
         self.job_history_tracker.log(self, self.results, self.elapsed_time)
         while True:
             await asyncio.sleep(period)  # Sleep for the specified period
             self.job_history_tracker.log(self, self.results, self.elapsed_time)
-   
+
     async def run_async(
-        self, 
-        n: int = 1, 
-        debug:bool = False, 
+        self,
+        n: int = 1,
+        debug: bool = False,
         stop_on_exception: bool = False,
     ) -> AsyncGenerator[Result, None]:
         """Creates the tasks, runs them asynchronously, and returns the results as a Results object.
@@ -37,23 +36,29 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
         Completed tasks are yielded as they are completed.
 
         :param n: how many times to run each interview
-        :param debug: 
+        :param debug:
         :param stop_on_exception:
         """
         tasks = []
-        self.populate_total_interviews(n=n)  # Populate self.total_interviews before creating tasks
+        self.populate_total_interviews(
+            n=n
+        )  # Populate self.total_interviews before creating tasks
 
         for interview in self.total_interviews:
-            interviewing_task = self._interview_task(interview=interview, debug=debug, stop_on_exception=stop_on_exception)
+            interviewing_task = self._interview_task(
+                interview=interview, debug=debug, stop_on_exception=stop_on_exception
+            )
             tasks.append(asyncio.create_task(interviewing_task))
 
         for task in asyncio.as_completed(tasks):
             result = await task
             yield result
 
-    async def _interview_task(self, *, interview: Interview, debug: bool, stop_on_exception:bool = False) -> Result:
+    async def _interview_task(
+        self, *, interview: Interview, debug: bool, stop_on_exception: bool = False
+    ) -> Result:
         """Conducts an interview and returns the result.
-        
+
         :param interview: the interview to conduct
         :param debug: prints debug messages
         """
@@ -71,7 +76,6 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
         answer_key_names = {k for k in set(answer.keys()) if not k.endswith("_comment")}
 
         assert len(valid_results) == len(answer_key_names)
-
 
         # TODO: move this down into Interview
         question_name_to_prompts = dict({})
@@ -115,42 +119,42 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
 
     @jupyter_nb_handler
     async def run(
-        self, 
-        n:int =1, 
-        debug:bool =False, 
-        stop_on_exception:bool = False,
-        progress_bar=False, 
+        self,
+        n: int = 1,
+        debug: bool = False,
+        stop_on_exception: bool = False,
+        progress_bar=False,
     ) -> Coroutine:
         """Runs a collection of interviews, handling both async and sync contexts.
-        
+
         :param n: how many times to run each interview
-        :param verbose: prints messages
         :param sleep: how long to sleep between interviews
         :param debug: prints debug messages
         """
         console = Console()
         self.results = []
         self.start_time = time.monotonic()
-   
-        ## TODO: 
+
+        ## TODO:
         ## - factor out the debug in run_async
         ## - Add a "break on error" option
 
         live = None
         if progress_bar:
             live = Live(
-                self.status_table(self.results, elapsed_time = 0),
+                self.status_table(self.results, elapsed_time=0),
                 console=console,
                 refresh_per_second=10,
             )
             live.__enter__()  # Manually enter the Live context
 
-        logger_task = asyncio.create_task(self.periodic_logger(period = 0.01))
-             
-        async for result in self.run_async(n = n, debug = debug, stop_on_exception = stop_on_exception):
-        
+        logger_task = asyncio.create_task(self.periodic_logger(period=0.01))
+
+        async for result in self.run_async(
+            n=n, debug=debug, stop_on_exception=stop_on_exception
+        ):
             self.results.append(result)
-        
+
             if progress_bar:
                 live.update(self.status_table(self.results, self.elapsed_time))
 
