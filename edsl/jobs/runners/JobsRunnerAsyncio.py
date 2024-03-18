@@ -16,14 +16,14 @@ from edsl.jobs.runners.JobsRunHistory import JobsRunHistory
 
 class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
     runner_name = "asyncio"
-    job_history_tracker = JobsRunHistory()
+    history = JobsRunHistory()
 
     async def periodic_logger(self, period=1):
         """Logs every 'period' seconds."""
-        self.job_history_tracker.log(self, self.results, self.elapsed_time)
+        self.history.log(self, self.results, self.elapsed_time)
         while True:
             await asyncio.sleep(period)  # Sleep for the specified period
-            self.job_history_tracker.log(self, self.results, self.elapsed_time)
+            self.history.log(self, self.results, self.elapsed_time)
 
     async def run_async(
         self,
@@ -129,15 +129,12 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
 
         :param n: how many times to run each interview
         :param sleep: how long to sleep between interviews
-        :param debug: prints debug messages
+        :param debug: questions are answerd w/ simulated methods
+        :param stop_on_exception: stop the interview if an exception is raised
         """
         console = Console()
         self.results = []
         self.start_time = time.monotonic()
-
-        ## TODO:
-        ## - factor out the debug in run_async
-        ## - Add a "break on error" option
 
         live = None
         if progress_bar:
@@ -173,5 +170,5 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
             pass
 
         results = Results(survey=self.jobs.survey, data=self.results)
-        results.job_history_tracker = self.job_history_tracker
+        results.history = self.history
         return results
