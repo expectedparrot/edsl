@@ -63,14 +63,17 @@ class TokenBucket:
         available_tokens = min(self.capacity, self.tokens + refill_amount)
         return max(0, requested_tokens - available_tokens) / self.refill_rate
 
-    async def get_tokens(self, amount: Union[int, float]=1) -> None:
+    async def get_tokens(self, amount: Union[int, float]=1, warn = True) -> None:
         """Wait for the specified number of tokens to become available.
         Note that this method is a coroutine.
         """
         if amount > self.capacity:
-            raise ValueError(
-                f"Requested tokens exceed bucket capacity. Bucket capacity: {self.capacity}, requested amount: {amount}"
-            )
+            msg = f"Requested amount exceeds bucket capacity. Bucket capacity: {self.capacity}, requested amount: {amount}"
+            if warn: 
+                print(msg)
+                print("Going negative on the balance!")
+            else:
+                raise ValueError(msg)
         while self.tokens < amount:
             self.refill()
             await asyncio.sleep(0.1)  # Sleep briefly to prevent busy waiting

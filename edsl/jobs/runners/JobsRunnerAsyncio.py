@@ -13,9 +13,74 @@ from edsl.utilities.decorators import jupyter_nb_handler
 from edsl.jobs.runners.JobsRunnerStatusMixin import JobsRunnerStatusMixin
 from edsl.jobs.runners.JobsRunHistory import JobsRunHistory
 
+class TaskHistory:
+
+    def __init__(self, total_interviews):
+        self.total_interviews = total_interviews
+
+    def plotting_data(self, num_periods = 100):
+
+        updates = []
+        for interview in self.total_interviews:
+            for question_name, logs in interview.task_status_logs.items():
+                updates.append(logs)      
+    
+        min_t = min([update.min_time for update in updates])
+        max_t = max([update.max_time for update in updates])
+        delta_t = (max_t - min_t)/(num_periods * 1.0)
+        time_periods = [min_t + delta_t *i for i in range(num_periods)]
+      
+        def counts(t):
+            d = {}
+            for update in updates:
+                status = update.status_at_time(t)
+                if status in d:
+                    d[status] += 1
+                else:
+                    d[status] = 1
+            return d 
+  
+        status_counts = [counts(t) for t in time_periods]
+
+        new_counts = []
+        for status_count in status_counts:
+            d = {task_status:0 for task_status in TaskStatus}
+            d.update(status_count)
+            new_counts.append(d)
+
+        return new_counts
+    
+    def plot(self, num_periods):
+        new_counts = self.plotting_data(num_periods)
+
+        max_count = max([max(entry.values()) for entry in new_counts])
+
+        rows = int(len(TaskStatus) ** 0.5) + 1
+        cols = (len(TaskStatus) + rows - 1) // rows  # Ensure all plots fit
+        from matplotlib import pyplot as plt
+            
+        plt.figure(figsize=(15, 10))  # Adjust the figure size as needed
+        for i, status in enumerate(TaskStatus, start=1):
+            plt.subplot(rows, cols, i)
+            x = range(len(new_counts))
+            y = [item.get(status, 0) for item in new_counts]  # Use .get() to handle missing keys safely
+            plt.plot(x, y, marker='o', linestyle='-')
+            plt.title(status.name)
+            plt.xlabel('Time Periods')
+            plt.ylabel('Count')
+            plt.grid(True)
+            plt.ylim(0, max_count)
+
+        plt.tight_layout()
+        plt.show()
+
+from edsl.jobs.tasks.task_status_enum import TaskStatus
+
+
 
 class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
     runner_name = "asyncio"
+   
     history = JobsRunHistory()
 
     async def periodic_logger(self, period=1):
@@ -152,9 +217,13 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
         ):
             self.results.append(result)
 
+            # TODO: The progress bar only updates when a new result comes in. 
+            # But this will hang if no new results come in.
+
             if progress_bar:
                 live.update(self.status_table(self.results, self.elapsed_time))
 
+        # Update the progress bar one last time
         if progress_bar:
             live.update(self.status_table(self.results, self.elapsed_time))
             await asyncio.sleep(0.5)  # short delay to show the final status
@@ -171,4 +240,6 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
 
         results = Results(survey=self.jobs.survey, data=self.results)
         results.history = self.history
+        results.task_history = TaskHistory(self.total_interviews)
+        results.total_interviews = self.total_interviews
         return results
