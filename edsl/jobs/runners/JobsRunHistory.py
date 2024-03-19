@@ -19,9 +19,10 @@ class InterviewStatusObject:
 class JobsRunHistory:
     """A class to store the history of jobs run.
 
-    - Job status
-        - Interview status (1 per interview)
-            - Task status (1 per task)
+    Each entry in JobsRunHistory is a tuple:
+        - (time, JobStatus). The JobStatus is a list of:
+            - InterviewStatus objects (1 per interview) which is a list of 
+                - Each InterviewStatus object has TaskStatus objects (1 per task)
 
     It's a list. 
     The values is a list of the status updates of each the interviews, with time stamps.
@@ -157,7 +158,6 @@ class JobsRunHistory:
         cols = (len(TaskStatus) + rows - 1) // rows  # Ensure all plots fit
 
         plt.figure(figsize=(15, 10))  # Adjust the figure size as needed
-
         for i, status in enumerate(TaskStatus, start=1):
             plt.subplot(rows, cols, i)
             x = [item[0] for item in status_counts]

@@ -3,14 +3,13 @@ from __future__ import annotations
 import traceback
 import asyncio
 import textwrap
+import time
 from typing import Any, Type, List, Generator
 
-from edsl import CONFIG
 from edsl.agents import Agent
 from edsl.language_models import LanguageModel
 from edsl.scenarios import Scenario
 from edsl.surveys import Survey
-from edsl.utilities.decorators import sync_wrapper
 
 from edsl.jobs.Answers import Answers
 from edsl.surveys.base import EndOfSurvey
@@ -19,7 +18,9 @@ from edsl.jobs.buckets.ModelBuckets import ModelBuckets
 from edsl.jobs.tasks.TaskCreators import TaskCreators
 
 from edsl.jobs.interviews.InterviewStatusLog import InterviewStatusLog
-from edsl.jobs.interviews.interview_exception_tracking import InterviewExceptionCollection
+
+from edsl.jobs.interviews.interview_exception_tracking import InterviewExceptionCollection, InterviewExceptionEntry
+
 from edsl.jobs.interviews.retry_management import retry_strategy
 from edsl.jobs.interviews.InterviewTaskBuildingMixin import InterviewTaskBuildingMixin
 from edsl.jobs.interviews.InterviewStatusMixin import InterviewStatusMixin
@@ -128,6 +129,15 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
                     result = task.result()
                 except asyncio.CancelledError:  # task was cancelled
                     result = invigilator.get_failed_task_result()
+
+                    ## TODO: Currently, we only log errors at the question-answering phase
+                    ## Do we want to log exceptions here as well? 
+                    # exception_entry = InterviewExceptionEntry(
+                    #     exception = repr(e), 
+                    #     time = time.time(),
+                    #     traceback = traceback.format_exc()
+                    # )
+                    # self.exceptions.add(task.edsl_name, exception_entry)
                 except (
                     Exception
                 ) as exception:  # any other kind of exception in the task
