@@ -189,57 +189,128 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
         debug: bool = False,
         stop_on_exception: bool = False,
         progress_bar=False,
-    ) -> Coroutine:
-        """Runs a collection of interviews, handling both async and sync contexts.
-
-        :param n: how many times to run each interview
-        :param sleep: how long to sleep between interviews
-        :param debug: questions are answerd w/ simulated methods
-        :param stop_on_exception: stop the interview if an exception is raised
-        """
+    ) -> "Coroutine":
+        """Runs a collection of interviews, handling both async and sync contexts."""
         console = Console()
         self.results = []
         self.start_time = time.monotonic()
+        self.completed = False
 
-        live = None
-        if progress_bar:
-            live = Live(
-                self.status_table(self.results, elapsed_time=0),
-                console=console,
-                refresh_per_second=10,
-            )
-            live.__enter__()  # Manually enter the Live context
+        def generate_table():
+            return self.status_table(self.results, self.elapsed_time)
 
-        logger_task = asyncio.create_task(self.periodic_logger(period=0.01))
+        with Live(generate_table(), console=console, refresh_per_second=5) as live:
 
-        async for result in self.run_async(
-            n=n, debug=debug, stop_on_exception=stop_on_exception
-        ):
-            self.results.append(result)
+            async def update_progress_bar():
+                """Updates the progress bar at fixed intervals."""
+                while True:
+                    live.update(generate_table())
+                    await asyncio.sleep(0.1)  # Update interval
+                    if self.completed:
+                        break
+            
+            async def process_results():
+                """Processes results from interviews."""
+                async for result in self.run_async(n=n, debug=debug, stop_on_exception=stop_on_exception):
+                    live.update(generate_table())
+                    self.results.append(result)
+                self.completed = True
 
-            # TODO: The progress bar only updates when a new result comes in. 
-            # But this will hang if no new results come in.
+            #logger_task = asyncio.create_task(self.periodic_logger(period=0.01))
+            progress_task = asyncio.create_task(update_progress_bar())
 
-            if progress_bar:
-                live.update(self.status_table(self.results, self.elapsed_time))
+            try:
+                await asyncio.gather(process_results(), 
+                                     progress_task)
+            except asyncio.CancelledError:
+                pass
+            finally:
+                progress_task.cancel()  # Cancel the progress_task when process_results is done
+                await progress_task 
+            
+            await asyncio.sleep(1)  # short delay to show the final status
 
-        # Update the progress bar one last time
-        if progress_bar:
-            live.update(self.status_table(self.results, self.elapsed_time))
-            await asyncio.sleep(0.5)  # short delay to show the final status
-            live.__exit__(None, None, None)  # Manually exit the Live context
+            # one more update
+            live.update(generate_table())            
 
-        if debug:
-            print("Debug data saved to debug_data.json.")
+        # with live:
+        #     await asyncio.gather(
+        #         process_results(),
+        #         progress_task,
+        #         return_exceptions=True  # To handle cancellation without exceptions
+        #     )
 
-        logger_task.cancel()
-        try:
-            await logger_task  # Wait for the cancellation to complete, catching any cancellation errors
-        except asyncio.CancelledError:
-            pass
+        # logger_task.cancel()
+        # try:
+        #     await logger_task  # Wait for the cancellation to complete
+        # except asyncio.CancelledError:
+        #     pass
 
+        # Assuming Results, TaskHistory, etc. are defined elsewhere
         results = Results(survey=self.jobs.survey, data=self.results)
         results.history = self.history
         results.task_history = TaskHistory(self.total_interviews)
         results.total_interviews = self.total_interviews
         return results
+
+    # @jupyter_nb_handler
+    # async def run(
+    #     self,
+    #     n: int = 1,
+    #     debug: bool = False,
+    #     stop_on_exception: bool = False,
+    #     progress_bar=False,
+    # ) -> Coroutine:
+    #     """Runs a collection of interviews, handling both async and sync contexts.
+
+    #     :param n: how many times to run each interview
+    #     :param sleep: how long to sleep between interviews
+    #     :param debug: questions are answerd w/ simulated methods
+    #     :param stop_on_exception: stop the interview if an exception is raised
+    #     """
+    #     console = Console()
+    #     self.results = []
+    #     self.start_time = time.monotonic()
+
+    #     live = None
+    #     if progress_bar:
+    #         live = Live(
+    #             self.status_table(self.results, elapsed_time=0),
+    #             console=console,
+    #             refresh_per_second=10,
+    #         )
+    #         live.__enter__()  # Manually enter the Live context
+
+    #     logger_task = asyncio.create_task(self.periodic_logger(period=0.01))
+
+    #     async for result in self.run_async(
+    #         n=n, debug=debug, stop_on_exception=stop_on_exception
+    #     ):
+    #         self.results.append(result)
+
+    #         # TODO: The progress bar only updates when a new result comes in. 
+    #         # But this will hang if no new results come in.
+
+    #         if progress_bar:
+    #             live.update(self.status_table(self.results, self.elapsed_time))
+
+    #     # Update the progress bar one last time
+    #     if progress_bar:
+    #         live.update(self.status_table(self.results, self.elapsed_time))
+    #         await asyncio.sleep(0.5)  # short delay to show the final status
+    #         live.__exit__(None, None, None)  # Manually exit the Live context
+
+    #     if debug:
+    #         print("Debug data saved to debug_data.json.")
+
+    #     logger_task.cancel()
+    #     try:
+    #         await logger_task  # Wait for the cancellation to complete, catching any cancellation errors
+    #     except asyncio.CancelledError:
+    #         pass
+
+    #     results = Results(survey=self.jobs.survey, data=self.results)
+    #     results.history = self.history
+    #     results.task_history = TaskHistory(self.total_interviews)
+    #     results.total_interviews = self.total_interviews
+    #     return results
