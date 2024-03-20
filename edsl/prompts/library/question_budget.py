@@ -1,9 +1,12 @@
+"""Budget question instructions."""
 import textwrap
 
 from edsl.prompts.QuestionInstructionsBase import QuestionInstuctionsBase
 
 
 class Budget(QuestionInstuctionsBase):
+    """Budget question instructions."""
+
     question_type = "budget"
     model = "gpt-4-1106-preview"
     default_instructions = textwrap.dedent(
