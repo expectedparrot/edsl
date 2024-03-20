@@ -1,16 +1,19 @@
+"""This file contains the configuration for the prompt generation."""
 from enum import Enum
 
 NEGATIVE_INFINITY = float("-inf")
 
 
 class AttributeTypes(Enum):
+    """The types of attributes that a prompt can have."""
+    
     COMPONENT_TYPE = "component_type"
     MODEL = "model"
     QUESTION_TYPE = "question_type"
 
 
 class ComponentTypes(Enum):
-    """The types of attributes that a prompt can have"""
+    """The types of attributes that a prompt can have."""
 
     TEST = "test"
     GENERIC = "generic"
