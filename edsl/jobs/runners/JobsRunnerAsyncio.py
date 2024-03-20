@@ -18,13 +18,33 @@ class TaskHistory:
     def __init__(self, total_interviews):
         self.total_interviews = total_interviews
 
-    def plotting_data(self, num_periods = 100):
 
+    def get_updates(self):
         updates = []
         for interview in self.total_interviews:
             for question_name, logs in interview.task_status_logs.items():
-                updates.append(logs)      
-    
+                updates.append(logs)
+        return updates
+
+    def plot_completion_times(self):
+
+        updates = self.get_updates()
+
+        elapsed = [update.max_time - update.min_time for update in updates]
+        x = range(len(elapsed))
+        y = elapsed
+
+        import matplotlib.pyplot as plt
+        plt.bar(x, y)
+        plt.title('Per-interview completion times')
+        plt.xlabel('Task')
+        plt.ylabel('Time (seconds)')
+        plt.show()
+
+    def plotting_data(self, num_periods = 100):
+
+        updates = self.get_updates()
+        
         min_t = min([update.min_time for update in updates])
         max_t = max([update.max_time for update in updates])
         delta_t = (max_t - min_t)/(num_periods * 1.0)
@@ -50,7 +70,7 @@ class TaskHistory:
 
         return new_counts
     
-    def plot(self, num_periods):
+    def plot(self, num_periods = 100):
         new_counts = self.plotting_data(num_periods)
 
         max_count = max([max(entry.values()) for entry in new_counts])
@@ -83,12 +103,12 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
    
     history = JobsRunHistory()
 
-    async def periodic_logger(self, period=1):
-        """Logs every 'period' seconds."""
-        self.history.log(self, self.results, self.elapsed_time)
-        while True:
-            await asyncio.sleep(period)  # Sleep for the specified period
-            self.history.log(self, self.results, self.elapsed_time)
+    # async def periodic_logger(self, period=1):
+    #     """Logs every 'period' seconds."""
+    #     self.history.log(self, self.results, self.elapsed_time)
+    #     while True:
+    #         await asyncio.sleep(period)  # Sleep for the specified period
+    #         self.history.log(self, self.results, self.elapsed_time)
 
     async def run_async(
         self,
@@ -212,8 +232,8 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
             async def process_results():
                 """Processes results from interviews."""
                 async for result in self.run_async(n=n, debug=debug, stop_on_exception=stop_on_exception):
-                    live.update(generate_table())
                     self.results.append(result)
+                    live.update(generate_table())
                 self.completed = True
 
             #logger_task = asyncio.create_task(self.periodic_logger(period=0.01))
@@ -228,89 +248,32 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
                 progress_task.cancel()  # Cancel the progress_task when process_results is done
                 await progress_task 
             
-            await asyncio.sleep(1)  # short delay to show the final status
+                await asyncio.sleep(1)  # short delay to show the final status
 
-            # one more update
-            live.update(generate_table())            
+                # one more update
+                live.update(generate_table())            
 
-        # with live:
-        #     await asyncio.gather(
-        #         process_results(),
-        #         progress_task,
-        #         return_exceptions=True  # To handle cancellation without exceptions
-        #     )
-
-        # logger_task.cancel()
-        # try:
-        #     await logger_task  # Wait for the cancellation to complete
-        # except asyncio.CancelledError:
-        #     pass
+        ## Compute exceptions         
+        exceptions = [i.exceptions for index, i in enumerate(self.total_interviews) if i.exceptions != {}]
+        indices = [index for index, i in enumerate(self.total_interviews) if i.exceptions != {}]
 
         # Assuming Results, TaskHistory, etc. are defined elsewhere
         results = Results(survey=self.jobs.survey, data=self.results)
         results.history = self.history
         results.task_history = TaskHistory(self.total_interviews)
         results.total_interviews = self.total_interviews
+
+        if exceptions:
+            print(f"""Exceptions were raised in the following interviews: {indices}
+            These are available in `results.exceptions` if you want to inspect them and you 
+            names your results object `results`. 
+                  
+            If you want to plot by-task completion times, you can use 
+            `results.task_history.plot_completion_times()`
+            If you want to plot by-task status over time, you can use
+            `results.task_history.plot()`
+            """)
+            results.exceptions = exceptions
+
         return results
 
-    # @jupyter_nb_handler
-    # async def run(
-    #     self,
-    #     n: int = 1,
-    #     debug: bool = False,
-    #     stop_on_exception: bool = False,
-    #     progress_bar=False,
-    # ) -> Coroutine:
-    #     """Runs a collection of interviews, handling both async and sync contexts.
-
-    #     :param n: how many times to run each interview
-    #     :param sleep: how long to sleep between interviews
-    #     :param debug: questions are answerd w/ simulated methods
-    #     :param stop_on_exception: stop the interview if an exception is raised
-    #     """
-    #     console = Console()
-    #     self.results = []
-    #     self.start_time = time.monotonic()
-
-    #     live = None
-    #     if progress_bar:
-    #         live = Live(
-    #             self.status_table(self.results, elapsed_time=0),
-    #             console=console,
-    #             refresh_per_second=10,
-    #         )
-    #         live.__enter__()  # Manually enter the Live context
-
-    #     logger_task = asyncio.create_task(self.periodic_logger(period=0.01))
-
-    #     async for result in self.run_async(
-    #         n=n, debug=debug, stop_on_exception=stop_on_exception
-    #     ):
-    #         self.results.append(result)
-
-    #         # TODO: The progress bar only updates when a new result comes in. 
-    #         # But this will hang if no new results come in.
-
-    #         if progress_bar:
-    #             live.update(self.status_table(self.results, self.elapsed_time))
-
-    #     # Update the progress bar one last time
-    #     if progress_bar:
-    #         live.update(self.status_table(self.results, self.elapsed_time))
-    #         await asyncio.sleep(0.5)  # short delay to show the final status
-    #         live.__exit__(None, None, None)  # Manually exit the Live context
-
-    #     if debug:
-    #         print("Debug data saved to debug_data.json.")
-
-    #     logger_task.cancel()
-    #     try:
-    #         await logger_task  # Wait for the cancellation to complete, catching any cancellation errors
-    #     except asyncio.CancelledError:
-    #         pass
-
-    #     results = Results(survey=self.jobs.survey, data=self.results)
-    #     results.history = self.history
-    #     results.task_history = TaskHistory(self.total_interviews)
-    #     results.total_interviews = self.total_interviews
-    #     return results

@@ -7,7 +7,7 @@ from edsl import QuestionFreeText
 from edsl.jobs.buckets.ModelBuckets import ModelBuckets
 
 
-async def answer_question_func(question, debug):
+async def answer_question_func(question, debug, task = None):
     await asyncio.sleep(1)
     return {"answer": 42}
 

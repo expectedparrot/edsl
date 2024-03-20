@@ -68,12 +68,8 @@ class TokenBucket:
         Note that this method is a coroutine.
         """
         if amount > self.capacity:
-            msg = f"Requested amount exceeds bucket capacity. Bucket capacity: {self.capacity}, requested amount: {amount}"
-            if warn: 
-                print(msg)
-                print("Going negative on the balance!")
-            else:
-                raise ValueError(msg)
+            msg = f"Requested amount exceeds bucket capacity. Bucket capacity: {self.capacity}, requested amount: {amount}. As the bucket never overflows, the requested amount will never be available."
+            raise ValueError(msg)
         while self.tokens < amount:
             self.refill()
             await asyncio.sleep(0.1)  # Sleep briefly to prevent busy waiting

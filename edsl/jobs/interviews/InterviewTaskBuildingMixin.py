@@ -20,6 +20,8 @@ from edsl.jobs.interviews.InterviewStatusDictionary import InterviewStatusDictio
 
 from edsl.jobs.tasks.TasksList import TasksList
 
+from edsl.jobs.tasks.task_status_enum import TaskStatus
+
 #from edsl.jobs.tasks.task_management import (
 #    InterviewStatusDictionary,
 #    TasksList,
@@ -165,7 +167,8 @@ class InterviewTaskBuildingMixin:
                     time = time.time(),
                     traceback = traceback.format_exc()
                 )
-
+                if task:
+                    task.task_status = TaskStatus.FAILED
                 self.exceptions.add(question, exception_entry)
                 
                 raise InterviewTimeoutError(
@@ -177,6 +180,8 @@ class InterviewTaskBuildingMixin:
                     time = time.time(),
                     traceback = traceback.format_exc()
                 )
+                if task:
+                    task.task_status = TaskStatus.FAILED
                 self.exceptions.add(question, exception_entry)
                 raise e
 
