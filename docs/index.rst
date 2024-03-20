@@ -9,6 +9,8 @@ EDSL Docs
 
    installation
    starter_tutorial
+   coop
+   xdsl
    questions
    scenarios
    surveys
