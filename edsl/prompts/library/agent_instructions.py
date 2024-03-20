@@ -1,3 +1,4 @@
+"""Agent instructions for a human agent."""
 import textwrap
 
 from edsl.prompts.Prompt import PromptBase
@@ -7,6 +8,8 @@ from edsl.enums import LanguageModelType
 
 
 class AgentInstruction(PromptBase):
+    """Agent instructions for a human agent."""
+
     model = LanguageModelType.GPT_3_5_Turbo.value
     component_type = ComponentTypes.AGENT_INSTRUCTIONS
     default_instructions = textwrap.dedent(
@@ -18,6 +21,8 @@ class AgentInstruction(PromptBase):
 
 
 class AgentInstructionLlama(PromptBase):
+    """Agent instructions for a human agent."""
+
     model = LanguageModelType.LLAMA_2_70B_CHAT_HF.value
     component_type = ComponentTypes.AGENT_INSTRUCTIONS
     default_instructions = textwrap.dedent(
