@@ -1,3 +1,4 @@
+"""This module contains the Deep Infra class, which is a factory function that returns a new class."""
 import aiohttp
 import json
 from typing import Any
@@ -7,6 +8,7 @@ from edsl.language_models.LanguageModel import LanguageModel
 
 
 def create_deep_infra_model(model_name, url, model_class_name) -> LanguageModel:
+    """Create a LanguageModel class that uses the Deep Infra inference service. This is a factory function that returns a new class."""
     if not LanguageModelType.is_value_valid(model_name):
         acceptable_values = [item.value for item in LanguageModelType]
         raise Exception(
@@ -16,6 +18,8 @@ def create_deep_infra_model(model_name, url, model_class_name) -> LanguageModel:
         )
 
     class LLM(LanguageModel):
+        """A LanguageModel that uses the Deep Infra inference service. This is a factory function that returns a new class."""
+
         _inference_service_ = InferenceServiceType.DEEP_INFRA.value
         _model_ = model_name
         _parameters_ = {
@@ -31,6 +35,7 @@ def create_deep_infra_model(model_name, url, model_class_name) -> LanguageModel:
         async def async_execute_model_call(
             self, user_prompt: str, system_prompt: str = ""
         ) -> dict[str, Any]:
+            """Execute the model call asynchronously."""
             self.url = url
             headers = {
                 "Content-Type": "application/json",
@@ -56,6 +61,7 @@ def create_deep_infra_model(model_name, url, model_class_name) -> LanguageModel:
                     return json.loads(raw_response_text)
 
         def parse_response(self, raw_response: dict[str, Any]) -> str:
+            """Parse the response from the model."""
             return raw_response["results"][0]["generated_text"]
 
     LLM.__name__ = model_class_name

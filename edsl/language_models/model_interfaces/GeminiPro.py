@@ -1,3 +1,4 @@
+"""A LanguageModel that uses the Deep Infra inference service."""
 import aiohttp
 import json
 from typing import Any
@@ -7,6 +8,8 @@ from edsl.enums import LanguageModelType, InferenceServiceType
 
 
 class GeminiPro(LanguageModel):
+    """A LanguageModel that uses the Deep Infra inference service. This is a factory function that returns a new class."""
+    
     _inference_service_ = InferenceServiceType.GOOGLE.value
     _model_ = LanguageModelType.GEMINI_PRO.value
     _parameters_ = {
@@ -22,6 +25,7 @@ class GeminiPro(LanguageModel):
     async def async_execute_model_call(
         self, user_prompt: str, system_prompt: str = ""
     ) -> dict[str, Any]:
+        """Execute the model call asynchronously."""
         combined_prompt = user_prompt + system_prompt
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={self.api_token}"
         headers = {"Content-Type": "application/json"}
@@ -44,6 +48,7 @@ class GeminiPro(LanguageModel):
                 return json.loads(raw_response_text)
 
     def parse_response(self, raw_response: dict[str, Any]) -> str:
+        """Parse the response from the model."""
         data = raw_response
         return data["candidates"][0]["content"]["parts"][0]["text"]
 

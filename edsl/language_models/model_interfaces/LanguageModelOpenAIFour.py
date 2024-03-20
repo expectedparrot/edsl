@@ -1,3 +1,4 @@
+"""LanguageModelOpenAIFour class."""
 from edsl.language_models.OpenAI import create_openai_model
 from edsl.enums import LanguageModelType
 

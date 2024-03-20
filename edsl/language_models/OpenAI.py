@@ -1,3 +1,4 @@
+"""This module contains the OpenAI class for interacting with OpenAI's GPT-3 API."""
 import openai
 import re
 from typing import Any
@@ -10,12 +11,11 @@ LanguageModelType.GPT_4.value
 
 
 def create_openai_model(model_name, model_class_name) -> LanguageModel:
+    """Create a language model using OpenAI's GPT-3 API."""
     openai.api_key = CONFIG.get("OPENAI_API_KEY")
 
     class LLM(LanguageModel):
-        """
-        Child class of LanguageModel for interacting with OpenAI models
-        """
+        """Child class of LanguageModel for interacting with OpenAI models."""
 
         _inference_service_ = InferenceServiceType.OPENAI.value
         _model_ = model_name
@@ -30,6 +30,7 @@ def create_openai_model(model_name, model_class_name) -> LanguageModel:
         client = AsyncOpenAI()
 
         def get_headers(self) -> dict[str, Any]:
+            """Return the headers from the OpenAI API response."""
             from openai import OpenAI
 
             client = OpenAI()
@@ -61,7 +62,7 @@ def create_openai_model(model_name, model_class_name) -> LanguageModel:
         async def async_execute_model_call(
             self, user_prompt: str, system_prompt: str = ""
         ) -> dict[str, Any]:
-            """Calls the OpenAI API and returns the API response."""
+            """Call the OpenAI API and return the API response."""
             response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=[
@@ -78,7 +79,7 @@ def create_openai_model(model_name, model_class_name) -> LanguageModel:
 
         @staticmethod
         def parse_response(raw_response: dict[str, Any]) -> str:
-            """Parses the API response and returns the response text."""
+            """Parse the API response and return the response text."""
             response = raw_response["choices"][0]["message"]["content"]
             pattern = r"^```json(?:\\n|\n)(.+?)(?:\\n|\n)```$"
             match = re.match(pattern, response, re.DOTALL)

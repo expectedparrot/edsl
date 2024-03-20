@@ -1,3 +1,4 @@
+"""LlamaTwo13B model from DeepInfra."""
 from edsl.language_models.DeepInfra import create_deep_infra_model
 from edsl.enums import LanguageModelType
 

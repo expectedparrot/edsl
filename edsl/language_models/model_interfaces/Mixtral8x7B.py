@@ -1,3 +1,4 @@
+"""Mixtral8x7B model."""
 from edsl.enums import LanguageModelType
 from edsl.language_models.DeepInfra import create_deep_infra_model
 
