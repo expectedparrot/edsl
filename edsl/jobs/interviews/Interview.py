@@ -146,9 +146,9 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
                         print(warning_header)
 
                     error_message = f"Task `{task.edsl_name}` failed with `{exception.__class__.__name__}`:`{exception}`."
-                    print(error_message)
-                    if print_traceback:
-                        traceback.print_exc()
+                    #print(error_message)
+                    #if print_traceback:
+                    #    traceback.print_exc()
                     result = invigilator.get_failed_task_result()
 
                 yield result

@@ -103,7 +103,7 @@ class QuestionTaskCreator(UserList):
 
         self.task_status = TaskStatus.API_CALL_IN_PROGRESS
         try:
-            results = await self.answer_question_func(self.question, debug)
+            results = await self.answer_question_func(question = self.question, debug = debug, task = self)
             self.task_status = TaskStatus.SUCCESS
         except Exception as e:
             self.task_status = TaskStatus.FAILED
