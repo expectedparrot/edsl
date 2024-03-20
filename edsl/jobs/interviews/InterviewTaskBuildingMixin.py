@@ -147,6 +147,7 @@ class InterviewTaskBuildingMixin:
         self,
         question: Question,
         debug: bool,
+        task = None,
     ) -> AgentResponseDict:
         """Answer a question and records the task.
         
