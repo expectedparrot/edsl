@@ -201,7 +201,7 @@ class Jobs(Base):
         db: Database = database,
     ) -> Union[Results, ResultsAPI, None]:
         """
-        Runs the Job: conducts Interviews and returns their results.
+        Run the Job: conduct Interviews and return their results.
 
         :param n: how many times to run each interview
         :param debug: prints debug messages
@@ -277,7 +277,7 @@ class Jobs(Base):
 
     @classmethod
     def from_dict(cls, data: dict) -> Jobs:
-        """Creates a Jobs instance from a dictionary."""
+        """Create a Jobs instance from a dictionary."""
         return cls(
             survey=Survey.from_dict(data["survey"]),
             agents=[Agent.from_dict(agent) for agent in data["agents"]],

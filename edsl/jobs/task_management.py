@@ -1,3 +1,4 @@
+"""This module contains classes and functions to manage the tasks in an interview."""
 import asyncio
 import enum
 from typing import Callable
@@ -21,7 +22,8 @@ from tenacity import (
 
 
 class TaskStatus(enum.Enum):
-    "These are the possible statuses for a task."
+    """These are the possible statuses for a task."""
+
     NOT_STARTED = enum.auto()
     WAITING_ON_DEPENDENCIES = enum.auto()
     CANCELLED = enum.auto()
@@ -37,9 +39,13 @@ class TaskStatus(enum.Enum):
 
 
 class InterviewStatusDictionary(UserDict):
-    "A dictionary that keeps track of the status of all the tasks in an interview."
+    """A dictionary that keeps track of the status of all the tasks in an interview."""
 
     def __init__(self, data=None):
+        """Initialize the dictionary.
+         
+        If data is passed in, it is used to initialize the dictionary. Otherwise, the dictionary is initialized with all the task statuses set to 0.
+        """
         if data:
             # checks to make sure every task status is in the enum
             assert all([task_status in data for task_status in TaskStatus])
@@ -55,6 +61,10 @@ class InterviewStatusDictionary(UserDict):
     def __add__(
         self, other: "InterviewStatusDictionary"
     ) -> "InterviewStatusDictionary":
+        """Add two InterviewStatusDictionaries together.
+        
+        This is used to combine the status of all the tasks in an interview.
+        """
         if not isinstance(other, InterviewStatusDictionary):
             raise ValueError(f"Can't add {type(other)} to InterviewStatusDictionary")
         new_dict = {}
@@ -64,22 +74,27 @@ class InterviewStatusDictionary(UserDict):
 
     @property 
     def waiting(self):
+        """Return the number of tasks that are waiting for something."""
         return (self[TaskStatus.WAITING_FOR_REQUEST_CAPCITY] + self[TaskStatus.WAITING_FOR_TOKEN_CAPCITY] + self[TaskStatus.WAITING_ON_DEPENDENCIES])
 
     def __repr__(self):
+        """Return a string representation of the InterviewStatusDictionary."""
         return f"InterviewStatusDictionary({self.data})"
 
 
 class TaskStatusDescriptor:
-    "The descriptor ensures that the task status is always an instance of the TaskStatus enum."
+    """The descriptor ensures that the task status is always an instance of the TaskStatus enum."""
 
     def __init__(self):
+        """Initialize the descriptor."""
         self._task_status = None
 
     def __get__(self, instance, owner):
+        """Get the task status."""
         return self._task_status
 
     def __set__(self, instance, value):
+        """Set the task status. It must be an instance of the TaskStatus enum."""
         if not isinstance(value, TaskStatus):
             raise ValueError("Value must be an instance of TaskStatus enum")
         # if value != self._task_status:
@@ -87,11 +102,13 @@ class TaskStatusDescriptor:
         self._task_status = value
 
     def __delete__(self, instance):
+        """Delete the task status."""
         self._task_status = None
 
 
 class QuestionTaskCreator(UserList):
     """Class to create and manage question tasks with dependencies.
+
     It is a UserList with all the tasks that must be completed before the focal task can be run.
     When called, it returns an asyncio.Task that depends on the tasks that must be completed before it can be run.
     """
@@ -107,6 +124,10 @@ class QuestionTaskCreator(UserList):
         token_estimator: Callable = None,
         iteration: int = 0,
     ):
+        """Initialize the QuestionTaskCreator.
+        
+        It is a list of tasks that must be completed before the focal task can be run.
+        """
         super().__init__([])
         self.answer_question_func = answer_question_func
         self.question = question
@@ -131,36 +152,37 @@ class QuestionTaskCreator(UserList):
         self.task_status = TaskStatus.NOT_STARTED
 
     def add_dependency(self, task: asyncio.Task) -> None:
-        """Adds a task dependency to the list of dependencies."""
+        """Add a task dependency to the list of dependencies."""
         self.append(task)
 
     def __repr__(self):
+        """Return a string representation of the QuestionTaskCreator."""
         return f"QuestionTaskCreator(question = {repr(self.question)})"
 
     def generate_task(self, debug) -> asyncio.Task:
-        """Creates a task that depends on the passed-in dependencies."""
+        """Create a task that depends on the passed-in dependencies."""
         task = asyncio.create_task(self._run_task_async(debug))
         task.edsl_name = self.question.question_name
         task.depends_on = [x.edsl_name for x in self]
         return task
 
     def estimated_tokens(self) -> int:
-        """Estimates the number of tokens that will be required to run the focal task."""
+        """Estimate the number of tokens that will be required to run the focal task."""
         token_estimate = self.token_estimator(self.question)
         return token_estimate
 
     def token_usage(self) -> dict:
-        """Returns the token usage for the task."""
+        """Return the token usage for the task."""
         return {
             "cached_tokens": self.cached_token_usage,
             "new_tokens": self.new_token_usage,
         }
 
     async def _run_focal_task(self, debug) -> "Answers":
-        """Runs the focal task i.e., the question that we are interested in answering.
+        """Run the focal task i.e., the question that we are interested in answering.
+
         It is only called after all the dependency tasks are completed.
         """
-
         requested_tokens = self.estimated_tokens()
         if (estimated_wait_time := self.tokens_bucket.wait_time(requested_tokens)) > 0:
             self.task_status = TaskStatus.WAITING_FOR_TOKEN_CAPCITY
@@ -201,7 +223,7 @@ class QuestionTaskCreator(UserList):
         return results
 
     async def _run_task_async(self, debug) -> None:
-        """Runs the task asynchronously, awaiting the tasks that must be completed before this one can be run."""
+        """Run the task asynchronously, awaiting the tasks that must be completed before this one can be run."""
         # logger.info(f"Running task for {self.question.question_name}")
         try:
             # This is waiting for the tasks that must be completed before this one can be run.
@@ -231,14 +253,15 @@ class QuestionTaskCreator(UserList):
 
 
 class TaskCreators(UserDict):
-    "A dictionary of task creators"
+    """A dictionary of task creators."""
 
     def __init__(self, *args, **kwargs):
+        """Initialize the dictionary of task creators."""
         super().__init__(*args, **kwargs)
 
     @property
     def token_usage(self) -> InterviewTokenUsage:
-        "Determins how many tokens were used for the interview."
+        """Determine how many tokens were used for the interview."""
         cached_tokens = TokenUsage(from_cache=True)
         new_tokens = TokenUsage(from_cache=False)
         for task_creator in self.values():
@@ -251,7 +274,7 @@ class TaskCreators(UserDict):
 
     @property
     def interview_status(self) -> InterviewStatusDictionary:
-        """Returns a dictionary mapping task status codes to counts"""
+        """Return a dictionary mapping task status codes to counts."""
         status_dict = InterviewStatusDictionary()
         for task_creator in self.values():
             status_dict[task_creator.task_status] += 1
@@ -260,7 +283,13 @@ class TaskCreators(UserDict):
 
 
 class TasksList(UserList):
+    """A list of tasks.
+    
+    It is a UserList with some additional methods to print the status of the tasks.
+    """
+
     def status(self, debug=False):
+        """Print the status of the tasks in the list."""
         if debug:
             for task in self:
                 print(f"Task {task.edsl_name}")
@@ -284,7 +313,7 @@ EDSL_MAX_ATTEMPTS = int(CONFIG.get("EDSL_MAX_ATTEMPTS"))
 
 
 def print_retry(retry_state):
-    "Prints details on tenacity retries"
+    """Print details on tenacity retries."""
     attempt_number = retry_state.attempt_number
     exception = retry_state.outcome.exception()
     wait_time = retry_state.next_action.sleep

@@ -1,3 +1,4 @@
+"""This module contains the JobsRunnerStreaming class."""
 import json
 import threading
 import time
@@ -21,7 +22,8 @@ class JobsRunnerStreaming(JobsRunner):
         progress_bar: bool = False,
     ) -> Results:
         """
-        Conducts Interviews **serially** and returns their results.
+        Conduct Interviews **serially** and return their results.
+
         - `n`: how many times to run each interview
         - `debug`: prints debug messages
         - `verbose`: prints messages
@@ -31,6 +33,7 @@ class JobsRunnerStreaming(JobsRunner):
         total_results = len(self.interviews)
 
         def conduct_and_save_interviews():
+            """Conduct interviews and save the results."""
             for i, interview in enumerate(self.interviews):
                 answer = interview.conduct_interview(debug=debug)
                 CRUD.write_result(
