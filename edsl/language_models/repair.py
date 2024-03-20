@@ -1,8 +1,10 @@
+"""Repair a bad JSON object using a language model."""
 import json
 import asyncio
 
 
 async def async_repair(bad_json, error_message=""):
+    """Repair a bad JSON object."""
     from edsl.language_models import LanguageModelOpenAIFour
 
     m = LanguageModelOpenAIFour()
@@ -34,6 +36,7 @@ async def async_repair(bad_json, error_message=""):
 
 
 def repair_wrapper(bad_json, error_message=""):
+    """Wrap the repair function in an event loop."""
     try:
         loop = asyncio.get_event_loop()
         if loop.is_running():
@@ -51,6 +54,7 @@ def repair_wrapper(bad_json, error_message=""):
 
 
 def repair(bad_json, error_message=""):
+    """Repair a bad JSON object."""
     return repair_wrapper(bad_json, error_message)
 
 

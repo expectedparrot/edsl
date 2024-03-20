@@ -1,3 +1,4 @@
+"""ORM for the LLM model."""
 from sqlalchemy import Column, String, Integer, Text, Index, Sequence
 from sqlalchemy.orm import declarative_base
 
@@ -5,6 +6,8 @@ Base = declarative_base()
 
 
 class LLMOutputDataDB(Base):
+    """Table to store the output data from the LLM model."""
+
     __tablename__ = "responses"
 
     # Primary key
@@ -25,6 +28,8 @@ class LLMOutputDataDB(Base):
 
 
 class ResultDB(Base):
+    """Table to store the results of the LLM model."""
+
     __tablename__ = "result"
 
     id = Column(Integer, primary_key=True)

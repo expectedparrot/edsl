@@ -24,4 +24,4 @@ pip install edsl
 See https://www.expectedparrot.com/getting-started/ for examples and tutorials.
 
 ## 🔧 Dependencies
-API keys for LLMs that you want to use.
+API keys for LLMs that you want to use, stored in a `.env` file

@@ -1,9 +1,12 @@
+"""Linear scale question type."""
 import textwrap
 
 from edsl.prompts.QuestionInstructionsBase import QuestionInstuctionsBase
 
 
 class LinearScale(QuestionInstuctionsBase):
+    """Linear scale question type."""
+
     question_type = "linear_scale"
     model = "gpt-4-1106-preview"
     default_instructions = textwrap.dedent(

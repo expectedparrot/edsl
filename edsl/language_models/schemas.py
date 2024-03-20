@@ -1,4 +1,4 @@
-# MODEL PRICES
+"""Model prices."""
 model_prices = {
     "gpt-3.5-turbo": {
         "prompt_tokens": 0.001 / 1000,

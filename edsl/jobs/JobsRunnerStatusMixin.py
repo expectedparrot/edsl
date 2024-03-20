@@ -1,3 +1,4 @@
+"""Mixin for the JobsRunner status."""
 from __future__ import annotations
 from collections import defaultdict
 from typing import List, Dict, Type
@@ -61,10 +62,12 @@ class ModelStatus:
         self.RPM = RPM
 
 class JobsRunnerStatusData:
+    """Data for the JobsRunner status."""
 
     pricing = pricing
 
     def generate_status_summary(self, completed_tasks: List[Type[asyncio.Task]], elapsed_time: float, interviews: List[Type['Interview']]) -> Dict:
+        """Generate a summary of the status of the JobsRunner."""
         models_to_tokens = defaultdict(InterviewTokenUsage)
         model_to_status = defaultdict(InterviewStatusDictionary)
 
@@ -130,10 +133,11 @@ class JobsRunnerStatusData:
         return status_summary
         
 class JobsRunnerStatusPresentation:
+    """Presentation for the JobsRunner status."""
 
     @staticmethod
     def display_status_table(status_summary):
-
+        """Display the status summary as a table."""
         table = Table(
             title="Job Status",
             show_header=True,
@@ -175,8 +179,10 @@ class JobsRunnerStatusPresentation:
 
 
 class JobsRunnerStatusMixin(JobsRunnerStatusData, JobsRunnerStatusPresentation):
+    """Mixin for the JobsRunner status."""
 
     def status_table(self, completed_tasks: List[asyncio.Task], elapsed_time: float):
+        """Generate a status table for the JobsRunner."""
         summary_data = self.generate_status_summary(completed_tasks = completed_tasks, 
                                                     elapsed_time = elapsed_time, interviews = self.total_interviews)
         return self.display_status_table(summary_data)

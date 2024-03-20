@@ -1,3 +1,4 @@
+"""This module provides a registry for language models. It also provides a factory class for creating instances of language models."""
 import textwrap
 
 DEFAULT_MODEL_CLASS = "edsl.language_models.LanguageModelOpenAIFour"
@@ -31,7 +32,10 @@ get_model_class = (
 
 
 class Meta(type):
+    """Metaclass for the Model class. This metaclass provides a user-friendly interface for the Model class."""
+
     def __repr__(cls):
+        """Return a string representation of the class."""
         return textwrap.dedent(
             f"""\
         Available models: {cls.available()}
@@ -47,9 +51,12 @@ class Meta(type):
 
 
 class Model(metaclass=Meta):
+    """A factory class for creating instances of language models. This class is a factory class for creating instances of language models. It uses the metaclass `Meta` to provide a user-friendly interface."""
+    
     default_model = "gpt-4-1106-preview"
 
     def __new__(cls, model_name=None, *args, **kwargs):
+        """Create an instance of the selected subclass."""
         # Map index to the respective subclass
         get_model_classes = RegisterLanguageModelsMeta.model_names_to_classes()
 
@@ -71,6 +78,7 @@ class Model(metaclass=Meta):
 
     @classmethod
     def available(cls):
+        """Return a list of available models."""
         return list(RegisterLanguageModelsMeta.model_names_to_classes().keys())
 
 

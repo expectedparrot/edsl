@@ -62,6 +62,8 @@ class InvigilatorBase(ABC):
         from edsl.enums import LanguageModelType, InferenceServiceType
 
         class TestLanguageModelGood(LanguageModel):
+            """A test language model."""
+
             _model_ = LanguageModelType.TEST.value
             _parameters_ = {"temperature": 0.5}
             _inference_service_ = InferenceServiceType.TEST.value
@@ -71,8 +73,10 @@ class InvigilatorBase(ABC):
             ) -> dict[str, Any]:
                 await asyncio.sleep(0.1)
                 return {"message": """{"answer": "SPAM!"}"""}
+                """Return a response from the model."""
 
             def parse_response(self, raw_response: dict[str, Any]) -> str:
+                """Parse the response from the model."""
                 return raw_response["message"]
 
         model = TestLanguageModelGood()
@@ -93,7 +97,7 @@ class InvigilatorBase(ABC):
 
     @abstractmethod
     async def async_answer_question(self):
-        "Asnwer a question."
+        """Asnwer a question."""
         pass
 
     @jupyter_nb_handler
@@ -101,6 +105,7 @@ class InvigilatorBase(ABC):
         """Return a function that gets the answers to the question."""
 
         async def main():
+            """Return the answer to the question."""
             results = await asyncio.gather(self.async_answer_question())
             return results[0]  # Since there's only one task, return its result
 
@@ -117,6 +122,7 @@ class InvigilatorAI(InvigilatorBase):
     """An invigilator that uses an AI model to answer questions."""
 
     async def async_answer_question(self, failed=False) -> AgentResponseDict:
+        """Answer a question using the AI model."""
         data = {
             "agent": self.agent,
             "question": self.question,
@@ -142,7 +148,7 @@ class InvigilatorAI(InvigilatorBase):
     async def async_get_response(
         self, user_prompt: Prompt, system_prompt: Prompt, iteration: int = 1
     ):
-        """Calls the LLM and gets a response. Used in the `answer_question` method."""
+        """Call the LLM and gets a response. Used in the `answer_question` method."""
         try:
             response = await self.model.async_get_response(
                 user_prompt=user_prompt.text,
@@ -275,6 +281,7 @@ class InvigilatorDebug(InvigilatorBase):
     """An invigilator class for debugging purposes."""
 
     async def async_answer_question(self, iteration: int = 0) -> AgentResponseDict:
+        """Return the answer to the question."""
         results = self.question.simulate_answer(human_readable=True)
         results["prompts"] = self.get_prompts()
         results["question_name"] = self.question.question_name
@@ -282,14 +289,17 @@ class InvigilatorDebug(InvigilatorBase):
         return AgentResponseDict(**results)
 
     def get_prompts(self) -> Dict[str, Prompt]:
+        """Return the prompts used."""
         return {
             "user_prompt": Prompt("NA").text,
             "system_prompt": Prompt("NA").text,
         }
 
-
 class InvigilatorHuman(InvigilatorBase):
+    """An invigilator for when a human is answering the question."""
+
     async def async_answer_question(self, iteration: int = 0) -> AgentResponseDict:
+        """Return the answer to the question."""
         data = {
             "comment": "This is a real survey response from a human.",
             "answer": None,
@@ -313,6 +323,7 @@ class InvigilatorFunctional(InvigilatorBase):
     """A Invigilator for when the question has a answer_question_directly function."""
 
     async def async_answer_question(self, iteration: int = 0) -> AgentResponseDict:
+        """Return the answer to the question."""
         func = self.question.answer_question_directly
         data = {
             "comment": "Functional.",
@@ -332,6 +343,7 @@ class InvigilatorFunctional(InvigilatorBase):
             ) from e
 
     def get_prompts(self) -> Dict[str, Prompt]:
+        """Return the prompts used."""
         return {
             "user_prompt": Prompt("NA").text,
             "system_prompt": Prompt("NA").text,
@@ -351,9 +363,13 @@ if __name__ == "__main__":
     )
 
     class MockModel:
+        """Mock model for testing."""
+
         model = LanguageModelType.GPT_4.value
 
     class MockQuestion:
+        """Mock question for testing."""
+
         question_type = "free_text"
         question_text = "How are you feeling?"
         question_name = "feelings_question"

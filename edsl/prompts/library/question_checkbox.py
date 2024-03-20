@@ -1,8 +1,11 @@
+"""Checkbox question type."""
 import textwrap
 from edsl.prompts.QuestionInstructionsBase import QuestionInstuctionsBase
 
 
 class CheckBox(QuestionInstuctionsBase):
+    """Checkbox question type."""
+
     question_type = "checkbox"
     model = "gpt-4-1106-preview"
     default_instructions = textwrap.dedent(
@@ -29,4 +32,6 @@ class CheckBox(QuestionInstuctionsBase):
 
 
 class TopK(CheckBox):
+    """Top K question type."""
+    
     question_type = "top_k"

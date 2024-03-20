@@ -1,3 +1,4 @@
+"""This module contains the CRUDOperations class, which implements CRUD operations for the EDSL package."""
 from sqlalchemy import desc
 from typing import Union
 from edsl.data import Database, database, LLMOutputDataDB
@@ -17,6 +18,7 @@ class CRUDOperations:
     """
 
     def __init__(self, database: Database) -> None:
+        """Initialize the CRUDOperations object."""
         self.database = database
 
     def get_LLMOutputData(
@@ -28,7 +30,9 @@ class CRUDOperations:
         iteration: int,
     ) -> Union[str, None]:
         """
-        Retrieves a cached LLM output from the database. Arguments: in string format, the model, parameters, system_prompt, and prompt used to generate the output. Returns the output (json string) if it exists, otherwise None.
+        Retrieve a cached LLM output from the database.
+        
+        Arguments: in string format, the model, parameters, system_prompt, and prompt used to generate the output. Returns the output (json string) if it exists, otherwise None.
         """
         with self.database.get_db() as db:
             record = (
@@ -55,7 +59,9 @@ class CRUDOperations:
         iteration: int,
     ) -> None:
         """
-        Writes an LLM output to the database. Arguments: in string format, the model, parameters, system_prompt, prompt, and the generated output.
+        Write an LLM output to the database.
+        
+        Arguments: in string format, the model, parameters, system_prompt, prompt, and the generated output.
         """
         record = LLMOutputDataDB(
             model=model,
@@ -71,17 +77,13 @@ class CRUDOperations:
             db.commit()
 
     def clear_LLMOutputData(self) -> None:
-        """
-        Clears all LLM output data from the database.
-        """
+        """Clear all LLM output data from the database."""
         with self.database.get_db() as db:
             db.query(LLMOutputDataDB).delete()
             db.commit()
 
     def get_all_LLMOutputData(self) -> list:
-        """
-        Retrieves all LLM output data from the database and returns them as a list of dictionaries.
-        """
+        """Retrieve all LLM output data from the database and returns them as a list of dictionaries."""
         with self.database.get_db() as db:
             records = db.query(LLMOutputDataDB).all()
             return [
@@ -107,7 +109,7 @@ class CRUDOperations:
         answer: str,
         iteration: int,
     ) -> None:
-        """Writes a Result record to the database."""
+        """Write a Result record to the database."""
         record = ResultDB(
             job_uuid=job_uuid,
             result_uuid=result_uuid,
@@ -123,7 +125,7 @@ class CRUDOperations:
             db.commit()
 
     def read_results(self, job_uuid: str) -> list[ResultDB]:
-        """Reads all Result records associated with job_uuid from the database."""
+        """Read all Result records associated with job_uuid from the database."""
         with self.database.get_db() as db:
             records = (
                 db.query(ResultDB)

@@ -1,3 +1,4 @@
+"""This module contains the JobsRunnerAsyncio class, which is used to run interviews asynchronously."""
 import time
 import asyncio
 from typing import Coroutine, List, AsyncGenerator
@@ -13,9 +14,15 @@ from edsl.utilities.decorators import jupyter_nb_handler
 from edsl.jobs.JobsRunnerStatusMixin import JobsRunnerStatusMixin
 
 class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
+    """An asyncio-based JobsRunner. This is the default runner for the EDSL. It is used to run interviews asynchronously."""
+
     runner_name = "asyncio"
 
     def populate_total_interviews(self, n = 1):
+        """Populate self.total_interviews with the interviews to be conducted.
+        
+        This is used to run multiple iterations of the same interview.
+        """
         self.total_interviews = []
         for interview in self.interviews:
             for iteration in range(n):
@@ -36,7 +43,8 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
     async def run_async(
         self, n=1, verbose=False, sleep=0, debug=False
     ) -> AsyncGenerator[Result, None]:
-        """Creates the tasks, runs them asynchronously, and returns the results as a Results object.
+        """Create the tasks, runs them asynchronously, and returns the results as a Results object.
+        
         Completed tasks are yielded as they are completed.
         """
         tasks = []
@@ -51,7 +59,7 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
             yield result
 
     async def _interview_task(self, *, interview: Interview, debug: bool) -> Result:
-        """Conducts an interview and returns the result."""
+        """Conduct an interview and returns the result."""
         # the model buckets are used to track usage rates
         model_buckets = self.bucket_collection[interview.model]
 
@@ -106,7 +114,7 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
     async def run(
         self, n=1, verbose=True, sleep=0, debug=False, progress_bar=False
     ) -> Coroutine:
-        """Runs a collection of interviews, handling both async and sync contexts."""
+        """Run a collection of interviews, handling both async and sync contexts."""
         verbose = True
         console = Console()
         data = []
