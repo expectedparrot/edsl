@@ -1,6 +1,19 @@
 Surveys
 =======
 
+
+.. automodule:: edsl.surveys.base
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+
+.. automodule:: edsl.surveys.descriptors
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+
 Survey class
 ------------
 
@@ -20,8 +33,8 @@ There are some ways to export survey results.
    :undoc-members:
    :show-inheritance:
 
-Rule class
-----------
+Rule class and RuleCollection class
+-----------------------------------
 
 .. automodule:: edsl.surveys.Rule
    :members:
