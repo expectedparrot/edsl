@@ -18,15 +18,18 @@ class QuestionRank(Question):
     """
     This question asks the respondent to rank options from a list.
 
-    Arguments:
-    :param question_name: The name of the question (string).
-    :param question_text: The text of the question (string).
-    :param question_options: The options the user should select from (list of strings).
-
-    Optional arguments:
-    :param instructions: are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionRank.default_instructions`.
-    :param short_names_dict: maps question_options to short names (dictionary mapping strings to strings).
-    :param num_selections: is the number of options that must be selected (positive integer).
+    :param question_name: The name of the question.
+    :type question_name: str
+    :param question_text: The text of the question.
+    :type question_text: str
+    :param question_options: The options the respondent should select from.
+    :type question_options: list[str]
+    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionRank.default_instructions`.
+    :type instructions: str, optional
+    :param short_names_dict: Maps question_options to short names.
+    :type short_names_dict: dict[str, str], optional
+    :param num_selections: The number of options that must be selected.
+    :type num_selections: int, optional
 
     For an example, run `QuestionRank.example()`.
     """

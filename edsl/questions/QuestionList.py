@@ -16,15 +16,14 @@ class QuestionList(Question):
     """
     This question asks the respondent to answer by providing a list of items as comma-separated strings.
 
-    Arguments:
-    :param question_name: The name of the question (string).
-    :param question_text: The text of the question (string).
-
-    Optional arguments:
-    :param instructions: are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionList.default_instructions`.
-    :param short_names_dict: maps question_options to short names (dictionary mapping strings to strings).
-    :param max_list_items: is the maximum number of items that can be in the answer list (positive integer).
-    :param allow_nonresponse: is whether the user can skip the question (boolean). If not provided, the default is False.
+    :param question_name: The name of the question.
+    :type question_name: str
+    :param question_text: The text of the question.
+    :type question_text: str
+    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionList.default_instructions`.
+    :type instructions: str, optional
+    :param max_list_items: The maximum number of items that can be in the answer list.
+    :type max_list_items: int, optional
 
     For an example, run `QuestionList.example()`.
     """

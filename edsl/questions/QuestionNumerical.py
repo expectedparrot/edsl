@@ -14,15 +14,16 @@ class QuestionNumerical(Question):
     """
     This question asks the respondent to answer with a numerical value.
 
-    Arguments:
-    :param question_name: The name of the question (string).
-    :param question_text: The text of the question (string).
-
-    Optional arguments:
-    :param instructions: are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionNumerical.default_instructions`.
-    :param short_names_dict: maps question_options to short names (dictionary mapping strings to strings).
-    :param min_value: is the minimum value of the answer (float).
-    :param max_value: is the maximum value of the answer (float).
+    :param question_name: The name of the question.
+    :type question_name: str
+    :param question_text: The text of the question.
+    :type question_text: str
+    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionNumerical.default_instructions`.
+    :type instructions: str, optional
+    :param min_value: The minimum value of the answer.
+    :type min_value: float, optional
+    :param max_value: The maximum value of the answer.
+    :type max_value: float, optional
 
     For an example, run `QuestionNumerical.example()`.
     """
