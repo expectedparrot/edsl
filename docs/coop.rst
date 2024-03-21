@@ -42,3 +42,13 @@ Exporting content
 2. Exporting content to another platform:
 
 3. Copy code:
+
+
+
+Coop class
+--------------
+
+.. automodule:: edsl.coop.Coop
+   :members:
+   :undoc-members:
+   :show-inheritance:
