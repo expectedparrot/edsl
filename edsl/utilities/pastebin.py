@@ -1,3 +1,4 @@
+"""Module for uploading and retrieving objects from a community server."""
 import requests
 import json
 import textwrap
@@ -20,8 +21,7 @@ def post(
     public=True,
     ask=True,
 ):
-    """Uploads an object to the server with additional metadata."""
-
+    """Upload an object to the server with additional metadata."""
     info = SystemInfo("edsl")
     if ask:
         print(
@@ -80,7 +80,7 @@ def post(
 
 
 def get(key):
-    """Retrieves an object and its type from the server using a key."""
+    """Retrieve an object and its type from the server using a key."""
     response = requests.get(f"{SERVER_URL}/retrieve/{key}")
 
     if response.status_code == 200:
@@ -118,6 +118,7 @@ def get(key):
 
 
 def community():
+    """Retrieve all objects from the server."""
     response = requests.get(f"{SERVER_URL}/community")
     if response.status_code == 200:
         return response.json()

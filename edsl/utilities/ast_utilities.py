@@ -1,7 +1,9 @@
+"""Utilities for working with abstract syntax trees (ASTs)."""
 import ast
 
 
 def extract_variable_names(node):
+    """Extract variable names from an abstract syntax tree (AST) node."""
     if isinstance(node, ast.Name):
         return [node.id]  # Extract variable name
     elif isinstance(node, ast.BinOp):
