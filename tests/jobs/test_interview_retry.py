@@ -6,7 +6,7 @@ from edsl.agents import Agent
 from edsl.surveys import Survey
 from edsl.scenarios import Scenario
 from edsl.questions import QuestionMultipleChoice
-from edsl.jobs.Interview import Interview
+from edsl.jobs.interviews.Interview import Interview
 
 def test_retry():
     #  a survey with skip logic

@@ -1,9 +1,12 @@
+"""Rank question type."""
 import textwrap
 
 from edsl.prompts.QuestionInstructionsBase import QuestionInstuctionsBase
 
 
 class Rank(QuestionInstuctionsBase):
+    """Rank question type."""
+
     question_type = "rank"
     model = "gpt-4-1106-preview"
     default_instructions = textwrap.dedent(

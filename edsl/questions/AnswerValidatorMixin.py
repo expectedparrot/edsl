@@ -19,8 +19,7 @@ class AnswerValidatorMixin:
     # TEMPLATE VALIDATION
     #####################
     def validate_answer_template_basic(self, answer: Any) -> None:
-        """
-        Check that the answer (i) is a dictionary (ii) has an 'answer' key.
+        """Check that the answer (i) is a dictionary (ii) has an 'answer' key.
 
         - E.g., both {'answer': 1} and {'answer': {'a': 1}, 'other_key'=[1,2,3]} are valid
         """
@@ -76,8 +75,9 @@ class AnswerValidatorMixin:
     # QUESTION SPECIFIC VALIDATION
     #####################
     def validate_answer_budget(self, answer: dict[str, Any]) -> None:
-        """
-        QuestionBudget-specific answer validation. Checks that answer["answer"]:
+        """Validate QuestionBudget-specific answer.
+        
+        Check that answer["answer"]:
         - has keys that are in the range of the number of options
         - has values that are non-negative integers
         - has values that sum to `budget_sum`
@@ -107,8 +107,9 @@ class AnswerValidatorMixin:
             )
 
     def validate_answer_checkbox(self, answer: dict[str, Union[str, int]]) -> None:
-        """
-        QuestionCheckbox-specific answer validation. Checks that answer["answer"]:
+        """Validate QuestionCheckbox-specific answer.
+    
+        Check that answer["answer"]:
         - has elements that are strings, bytes-like objects or real numbers evaluating to integers
         - has elements that are in the range of the number of options
         - has at least `min_selections` elements, if provided
@@ -137,8 +138,9 @@ class AnswerValidatorMixin:
             )
 
     def validate_answer_extract(self, answer: dict[str, Any]) -> None:
-        """
-        QuestionExtract-specific answer validation. Checks that answer["answer"]:
+        """Validate QuestionExtract-specific answer.
+        
+        Check that answer["answer"]:
         - does not have keys that are not in the answer template
         - has all keys that are in the answer template
         """
@@ -154,8 +156,9 @@ class AnswerValidatorMixin:
             )
 
     def validate_answer_list(self, answer: dict[str, Union[list, str]]) -> None:
-        """
-        QuestionList-specific answer validation. Checks that answer["answer"]:
+        """Validate QuestionList-specific answer.
+         
+        Check that answer["answer"]:
         - is not empty, if `allow_nonresponse` is False
         - has no more than `max_list_items` elements
         - has no empty strings
@@ -181,8 +184,9 @@ class AnswerValidatorMixin:
             )
 
     def validate_answer_numerical(self, answer: dict) -> None:
-        """
-        QuestionNumerical-specific answer validation. Checks that answer["answer"]:
+        """Validate QuestionNumerical-specific answer.
+        
+        Check that answer["answer"]:
         - is not less than `min_value`
         - is not greater than `max_value`
         """
@@ -200,8 +204,9 @@ class AnswerValidatorMixin:
     def validate_answer_multiple_choice(
         self, answer: dict[str, Union[str, int]]
     ) -> None:
-        """
-        QuestionMultipleChoice-specific answer validation. Checks that answer["answer"]:
+        """Validate QuestionMultipleChoice-specific answer.
+        
+        Check that answer["answer"]:
         - is a string, bytes-like object or real number
         - is a non-negative integer
         - is in the range of the number of options
@@ -222,8 +227,9 @@ class AnswerValidatorMixin:
             )
 
     def validate_answer_rank(self, answer: dict[str, Union[str, int]]) -> None:
-        """
-        QuestionRank-specific answer validation. Checks that answer["answer"]:
+        """Validate QuestionRank-specific answer.
+        
+        Check that answer["answer"]:
         - contains only integers
         - contains only integers in the range of the number of options
         - has the correct number of elements

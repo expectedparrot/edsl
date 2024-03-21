@@ -15,13 +15,11 @@ from edsl import Model
 from edsl.results import Results
 from edsl.scenarios import Scenario
 from edsl.surveys import Survey
-from edsl.jobs.base import JobsRunnersRegistry, JobsRunnerDescriptor
-from edsl.jobs.Interview import Interview
+from edsl.jobs.runners.job_runners_registry import JobsRunnersRegistry, JobsRunnerDescriptor
+from edsl.jobs.interviews.Interview import Interview
 from edsl.coop.old import JobRunnerAPI, ResultsAPI
 
-# from edsl.jobs.ModelBuckets import ModelBuckets, BucketCollection
-
-from edsl.jobs.buckets import BucketCollection
+from edsl.jobs.buckets.BucketCollection import BucketCollection
 
 
 class Jobs(Base):
@@ -194,7 +192,6 @@ class Jobs(Base):
         self,
         n: int = 1,
         debug: bool = False,
-        verbose: bool = False,
         progress_bar: bool = False,
         dry_run: bool = False,
         streaming: bool = False,
@@ -224,7 +221,7 @@ class Jobs(Base):
             expected_parrot_api_key := CONFIG.get("EXPECTED_PARROT_API_KEY")
         ) == "local":
             results = self._run_local(
-                n=n, verbose=verbose, debug=debug, progress_bar=progress_bar, db=db
+                n=n, debug=debug, progress_bar=progress_bar, db=db
             )
         else:
             results = self._run_remote(

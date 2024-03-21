@@ -1,7 +1,10 @@
+"""This module contains the data transfer models for the application."""
 from collections import UserDict
 
 
 class AgentResponseDict(UserDict):
+    """A dictionary to store the response of the agent to a question."""
+    
     def __init__(
         self,
         *,
@@ -13,6 +16,7 @@ class AgentResponseDict(UserDict):
         cached_response=None,
         raw_model_response=None
     ):
+        """Initialize the AgentResponseDict object."""
         usage = usage or {"prompt_tokens": 0, "completion_tokens": 0}
         super().__init__(
             {
