@@ -102,6 +102,7 @@ class ResultsExportMixin:
 
     @convert_decorator
     def to_csv(self, filename: str = None, remove_prefix=False, download_link=False):
+        """Export the results to a CSV file."""
         r"""Export the results to a CSV file.
 
         Example:

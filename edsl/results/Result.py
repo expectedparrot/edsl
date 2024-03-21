@@ -1,3 +1,4 @@
+"""This module contains the Result class, which captures the result of one interview."""
 from __future__ import annotations
 from collections import UserDict
 from typing import Any, Type
@@ -18,8 +19,10 @@ from collections import UserDict
 
 
 class PromptDict(UserDict):
+    """A dictionary that is used to store the prompt for a given result."""
+
     def rich_print(self):
-        """Displays an object as a table."""
+        """Display an object as a table."""
         table = Table(title="")
         table.add_column("Attribute", style="bold")
         table.add_column("Value")
@@ -32,10 +35,11 @@ class PromptDict(UserDict):
 
 
 def agent_namer_closure():
-    """Returns a function that can be used to name an agent."""
+    """Return a function that can be used to name an agent."""
     agent_dict = {}
 
     def agent_namer(agent):
+        """Return a name for an agent. If the agent has been named before, return the same name. Otherwise, return a new name."""
         nonlocal agent_dict
         agent_count = len(agent_dict)
         if id(agent) in agent_dict:
@@ -53,6 +57,7 @@ agent_namer = agent_namer_closure()
 class Result(Base, UserDict):
     """
     This class captures the result of one interview.
+
     - Its main data is an Agent, a Scenario, a Model, an Iteration, and an Answer.
     - These are stored both in the UserDict and as attributes.
     """
@@ -67,7 +72,7 @@ class Result(Base, UserDict):
         prompt: dict[str, str] = None,
         raw_model_response=None,
     ):
-        # initialize the UserDict
+        """Initialize the UserDict."""
         data = {
             "agent": agent,
             "scenario": scenario,
@@ -92,8 +97,7 @@ class Result(Base, UserDict):
     ###############
     @property
     def sub_dicts(self) -> dict[str, dict]:
-        """Returns a dictionary where keys are strings for each of the main class attributes/objects (except for iteration) and values are dictionaries for the attributes and values for each of these objects."""
-
+        """Return a dictionary where keys are strings for each of the main class attributes/objects (except for iteration) and values are dictionaries for the attributes and values for each of these objects."""
         if self.agent.name is None:
             agent_name = agent_namer(self.agent)
         else:
@@ -110,11 +114,12 @@ class Result(Base, UserDict):
         }
 
     def code(self):
+        """Return a string of code that can be used to recreate the Result object."""
         raise NotImplementedError
 
     @property
     def combined_dict(self) -> dict[str, Any]:
-        """Returns a dictionary that includes all sub_dicts, but also puts the key-value pairs in each sub_dict as a key_value pair in the combined dictionary."""
+        """Return a dictionary that includes all sub_dicts, but also puts the key-value pairs in each sub_dict as a key_value pair in the combined dictionary."""
         combined = {}
         for key, sub_dict in self.sub_dicts.items():
             combined.update(sub_dict)
@@ -122,7 +127,8 @@ class Result(Base, UserDict):
         return combined
 
     def get_value(self, data_type: str, key: str) -> Any:
-        """Returns the value for a given data type and key
+        """Return the value for a given data type and key.
+
         - data types can be "agent", "scenario", "model", or "answer"
         - keys are relevant attributes of the Objects the data types represent
         results.get_value("answer", "how_feeling") will return "Good" or "Bad" or whatnot
@@ -131,7 +137,7 @@ class Result(Base, UserDict):
 
     @property
     def key_to_data_type(self) -> dict[str, str]:
-        """Returns a dictionary where keys are object attributes and values are the data type (object) that the attribute is associated with."""
+        """Return a dictionary where keys are object attributes and values are the data type (object) that the attribute is associated with."""
         d = {}
         for data_type in [
             "agent",
@@ -147,6 +153,7 @@ class Result(Base, UserDict):
         return d
 
     def rows(self, index):
+        """Return a generator of rows for the Result object."""
         for data_type, subdict in self.sub_dicts.items():
             for key, value in subdict.items():
                 yield (index, data_type, key, str(value))
@@ -155,24 +162,25 @@ class Result(Base, UserDict):
     # Useful
     ###############
     def copy(self) -> Result:
-        """Returns a copy of the Result object."""
+        """Return a copy of the Result object."""
         return Result.from_dict(self.to_dict())
 
     def __eq__(self, other):
+        """Return True if the Result object is equal to another Result object."""
         return self.to_dict() == other.to_dict()
 
     ###############
     # Serialization
     ###############
     def to_dict(self) -> dict[str, Any]:
-        """Returns a dictionary representation of the Result object."""
+        """Return a dictionary representation of the Result object."""
         return {
             k: v if not hasattr(v, "to_dict") else v.to_dict() for k, v in self.items()
         }
 
     @classmethod
     def from_dict(self, json_dict: dict) -> Result:
-        """Returns a Result object from a dictionary representation."""
+        """Return a Result object from a dictionary representation."""
         result = Result(
             agent=Agent.from_dict(json_dict["agent"]),
             scenario=Scenario.from_dict(json_dict["scenario"]),
@@ -187,7 +195,7 @@ class Result(Base, UserDict):
         return result
 
     def rich_print(self):
-        """Displays an object as a table."""
+        """Display an object as a table."""
         # from edsl.utilities import print_dict_with_rich
         from rich import print
 
@@ -208,16 +216,19 @@ class Result(Base, UserDict):
         return table
 
     def __repr__(self):
+        """Return a string representation of the Result object."""
         return f"Result(agent={repr(self.agent)}, scenario={repr(self.scenario)}, model={repr(self.model)}, iteration={self.iteration}, answer={repr(self.answer)}, prompt={repr(self.prompt)}"
 
     @classmethod
     def example(cls):
+        """Return an example Result object."""
         from edsl.results import Results
 
         return Results.example()[0]
 
 
 def main():
+    """Run the main function."""
     from edsl.results.Result import Result
     import json
 
