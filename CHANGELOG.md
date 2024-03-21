@@ -125,6 +125,7 @@ There is one for each question. The key is the question_name + `_raw_response_mo
 ### Added
 - Better docstrings
 - Making progress towards documentation
+- Coop Client
 
 ### Fixed
 - `.run(n = ...)` now works and will run each interview as many times as needed
