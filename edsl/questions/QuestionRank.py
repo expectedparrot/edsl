@@ -1,3 +1,4 @@
+"""This module contains the QuestionRank class."""
 from __future__ import annotations
 import random
 import textwrap
@@ -42,6 +43,7 @@ class QuestionRank(Question):
         num_selections: Optional[int] = None,
         short_names_dict: Optional[dict[str, str]] = None,
     ):
+        """Initialize the question."""
         self.question_name = question_name
         self.question_text = question_text
         self.question_options = question_options
@@ -52,6 +54,7 @@ class QuestionRank(Question):
     # Answer methods
     ################
     def validate_answer(self, answer: Any) -> dict[str, list[int]]:
+        """Validate the answer."""
         self.validate_answer_template_basic(answer)
         self.validate_answer_key_value(answer, "answer", list)
         self.validate_answer_rank(answer)
@@ -60,7 +63,7 @@ class QuestionRank(Question):
     def translate_answer_code_to_answer(
         self, answer_codes, scenario: Scenario = None
     ) -> list[str]:
-        """Translates the answer code to the actual answer."""
+        """Translate the answer code to the actual answer."""
         scenario = scenario or Scenario()
         translated_options = [
             Template(option).render(scenario) for option in self.question_options
@@ -71,7 +74,7 @@ class QuestionRank(Question):
         return translated_codes
 
     def simulate_answer(self, human_readable=True) -> dict[str, Union[int, str]]:
-        """Simulates a valid answer for debugging purposes"""
+        """Simulate a valid answer for debugging purposes."""
         if human_readable:
             selected = random.sample(self.question_options, self.num_selections)
         else:
@@ -89,6 +92,7 @@ class QuestionRank(Question):
     ################
     @classmethod
     def example(cls) -> QuestionRank:
+        """Return an example question."""
         return cls(
             question_name="rank_foods",
             question_text="Rank your favorite foods.",
@@ -98,6 +102,7 @@ class QuestionRank(Question):
 
 
 def main():
+    """Show example usage."""
     from edsl.questions.QuestionRank import QuestionRank
 
     q = QuestionRank.example()

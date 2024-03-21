@@ -1,3 +1,5 @@
+"""A client for the Expected Parrot API."""
+
 import json
 import requests
 from typing import Any, Optional, Type, Union
@@ -15,19 +17,25 @@ api_url = {
 
 
 class Coop:
+    """A client for the Expected Parrot API."""
+
     def __init__(self, api_key: str = None, run_mode: str = None) -> None:
-        self.api_key = api_key or CONFIG.EMERITUS_API_KEY
+        """Initialize the client."""
+        self.api_key = api_key or CONFIG.EXPECTED_PARROT_API_KEY
         self.run_mode = run_mode or CONFIG.EDSL_RUN_MODE
 
     def __repr__(self):
+        """Return a string representation of the client."""
         return f"Client(api_key='{self.api_key}', run_mode='{self.run_mode}')"
 
     @property
     def headers(self) -> dict:
+        """Return the headers for the request."""
         return {"Authorization": f"Bearer {self.api_key}"}
 
     @property
     def url(self) -> str:
+        """Return the URL for the request."""
         return api_url[self.run_mode]
 
     def _send_server_request(
@@ -50,14 +58,15 @@ class Coop:
         return response
 
     def _resolve_server_response(self, response: requests.Response) -> None:
-        """Checks the response from the server and raises appropriate errors."""
+        """Check the response from the server and raises appropriate errors."""
         if response.status_code >= 400:
             raise Exception(response.json().get("detail"))
 
     # QUESTIONS METHODS
     def create_question(self, question: Type[Question], public: bool = False) -> dict:
         """
-        Creates a Question object.
+        Create a Question object.
+
         - `question`: the EDSL Question to be sent.
         - `public`: whether the question should be public (defaults to False)
         """
@@ -70,14 +79,14 @@ class Coop:
         return response.json()
 
     def get_question(self, id: int) -> Type[Question]:
-        """Retrieves a Question object by id."""
+        """Retrieve a Question object by id."""
         response = self._send_server_request(uri=f"api/v0/questions/{id}", method="GET")
         self._resolve_server_response(response)
         return Question.from_dict(json.loads(response.json().get("json_string")))
 
     @property
     def questions(self) -> list[dict[str, Union[int, Question]]]:
-        """Retrieves all Questions."""
+        """Retrieve all Questions."""
         response = self._send_server_request(uri="api/v0/questions", method="GET")
         self._resolve_server_response(response)
         questions = [
@@ -90,7 +99,7 @@ class Coop:
         return questions
 
     def delete_question(self, id: int) -> dict:
-        """Deletes a question from the coop."""
+        """Delete a question from the coop."""
         response = self._send_server_request(
             uri=f"api/v0/questions/{id}", method="DELETE"
         )
@@ -100,7 +109,8 @@ class Coop:
     # Surveys METHODS
     def create_survey(self, survey: Type[Survey], public: bool = False) -> dict:
         """
-        Creates a Question object.
+        Create a Question object.
+
         - `survey`: the EDSL Survey to be sent.
         - `public`: whether the survey should be public (defaults to False)
         """
@@ -113,14 +123,14 @@ class Coop:
         return response.json()
 
     def get_survey(self, id: int) -> Type[Survey]:
-        """Retrieves a Survey object by id."""
+        """Retrieve a Survey object by id."""
         response = self._send_server_request(uri=f"api/v0/surveys/{id}", method="GET")
         self._resolve_server_response(response)
         return Survey.from_dict(json.loads(response.json().get("json_string")))
 
     @property
     def surveys(self) -> list[dict[str, Union[int, Survey]]]:
-        """Retrieves all Surveys."""
+        """Retrieve all Surveys."""
         response = self._send_server_request(uri="api/v0/surveys", method="GET")
         self._resolve_server_response(response)
         surveys = [
@@ -133,7 +143,7 @@ class Coop:
         return surveys
 
     def delete_survey(self, id: int) -> dict:
-        """Deletes a Survey from the coop."""
+        """Delete a Survey from the coop."""
         response = self._send_server_request(
             uri=f"api/v0/surveys/{id}", method="DELETE"
         )

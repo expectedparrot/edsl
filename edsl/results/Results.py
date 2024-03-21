@@ -65,10 +65,20 @@ from edsl.Base import Base
 class Results(UserList, Mixins, Base):
     """
     This class is a UserList of Result objects.
-    - It is instantiated with a Survey and a list of Result objects (observations).
-    - It can be manipulated in various ways with select, filter, mutate, etc.
-    - It also has a list of created_columns, which is a list of columns that have been created with `mutate`
+
+    It is instantiated with a `Survey` and a list of `Result` objects. It can be manipulated in various ways with select, filter, mutate, etc.
+    It also has a list of created_columns, which is a list of columns that have been created with `mutate`
     """
+
+    known_data_types = [
+        "answer",
+        "scenario",
+        "agent",
+        "model",
+        "prompt",
+        "raw_model_response",
+        "iteration",
+    ]
 
     def __init__(
         self,
@@ -78,6 +88,14 @@ class Results(UserList, Mixins, Base):
         job_uuid: str = None,
         total_results: int = None,
     ):
+        """Instantiate a `Results` object with a survey and a list of `Result` objects.
+
+        :param survey: A Survey object.
+        :param data: A list of Result objects.
+        :param created_columns: A list of strings that are created columns.
+        :param job_uuid: A string representing the job UUID.
+        :param total_results: An integer representing the total number of results.
+        """
         super().__init__(data)
         self.survey = survey
         self.created_columns = created_columns or []
@@ -272,10 +290,13 @@ class Results(UserList, Mixins, Base):
     def mutate(self, new_var_string: str, functions_dict: dict = None) -> Results:
         """
         Creates a value in the Results object as if has been asked as part of the survey.
-        - It splits the new_var_string at the "=" and uses simple_eval
-        - The functions dict is...
+
+        It splits the new_var_string at the "=" and uses simple_eval
+        :param new_var_string: A string that is a valid Python expression, e.g. "how_feeling_x = how_feeling + 'x'"
+        :param functions_dict: A dictionary of functions that can be used in the expression. The keys are the function names and the values are the functions themselves.
 
         Example:
+
         >>> r = Results.create_example()
         >>> r.mutate('how_feeling_x = how_feeling + "x"').select('how_feeling_x')
         [{'answer.how_feeling_x': ['Badx', 'Badx', 'Greatx', 'Greatx']}]
@@ -319,6 +340,11 @@ class Results(UserList, Mixins, Base):
     def select(self, *columns: Union[str, list[str]]) -> Dataset:
         """
         This selects data from the results and turns it into a format like so:
+
+        :param columns: A list of strings, each of which is a column name. The column name can be a single key, e.g. "how_feeling", or a dot-separated string, e.g. "answer.how_feeling".
+
+        Example:
+
         >>> results = Results.create_example()
         >>> results.select('how_feeling')
         [{'answer.how_feeling': ['Bad', 'Bad', 'Great', 'Great']}]
@@ -330,15 +356,13 @@ class Results(UserList, Mixins, Base):
         if isinstance(columns[0], list):
             columns = tuple(columns[0])
 
-        known_data_types = ["answer", "scenario", "agent", "model", "prompt"]
-
         def get_data_types_to_return(parsed_data_type):
             if parsed_data_type == "*":  # they want all of the columns
-                return known_data_types
+                return self.known_data_types
             else:
-                if parsed_data_type not in known_data_types:
+                if parsed_data_type not in self.known_data_types:
                     raise Exception(
-                        f"Data type {parsed_data_type} not found in data. Did you mean one of {known_data_types}"
+                        f"Data type {parsed_data_type} not found in data. Did you mean one of {self.known_data_types}"
                     )
                 return [parsed_data_type]
 
@@ -400,12 +424,22 @@ class Results(UserList, Mixins, Base):
         )
         return Results(survey=self.survey, data=new_data, created_columns=None)
 
-    def filter(self, expression) -> Results:
+    def filter(self, expression: str) -> "Results":
         """
-        This filters a result based on the expression that is passed in.
+        Filter `Results` based on the given expression and returns the filtered `Results`.
+
+        The `expression` parameter is a string that must resolve to a boolean value when evaluated against each element in `Results`.
+        This expression is used to determine which elements to include in the returned `Results`.
+
+        :param expression: A string expression that evaluates to a boolean. The expression is applied to each element in `Results` to determine whether it should be included in the filtered results.
+
+        Example usage:
+        Create an example `Results` instance and apply filters to it:
+
         >>> r = Results.create_example()
         >>> r.filter("how_feeling == 'Great'").select('how_feeling')
         [{'answer.how_feeling': ['Great', 'Great']}]
+
         >>> r.filter("how_feeling == 'Nothing'").select('how_feeling')
         [{'answer.how_feeling': []}]
         """
@@ -427,13 +461,14 @@ class Results(UserList, Mixins, Base):
     @classmethod
     def example(cls, debug: bool = False) -> Results:
         """
-        Returns an example Results object
-        - debug: if False, uses actual API calls
+        Returns an example `Results` object.
+
+        :param debug: if False, uses actual API calls
         """
         from edsl.jobs import Jobs
 
         job = Jobs.example()
-        results = job.run()
+        results = job.run(debug=debug)
         return results
 
     def rich_print(self):

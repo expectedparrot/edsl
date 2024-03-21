@@ -14,7 +14,7 @@ def create_openai_model(model_name, model_class_name) -> LanguageModel:
 
     class LLM(LanguageModel):
         """
-        Child class of LanguageModel for interacting with OpenAI GPT-4 model.
+        Child class of LanguageModel for interacting with OpenAI models
         """
 
         _inference_service_ = InferenceServiceType.OPENAI.value
@@ -28,6 +28,35 @@ def create_openai_model(model_name, model_class_name) -> LanguageModel:
             "use_cache": True,
         }
         client = AsyncOpenAI()
+
+        def get_headers(self) -> dict[str, Any]:
+            from openai import OpenAI
+
+            client = OpenAI()
+            response = client.chat.completions.with_raw_response.create(
+                messages=[
+                    {
+                        "role": "user",
+                        "content": "Say this is a test",
+                    }
+                ],
+                model=self.model,
+            )
+            return dict(response.headers)
+
+        def get_rate_limits(self) -> dict[str, Any]:
+            try:
+                headers = self.get_headers()
+            except Exception as e:
+                return {
+                    "rpm": 10_000,
+                    "tpm": 2_000_000,
+                }
+            else:
+                return {
+                    "rpm": int(headers["x-ratelimit-limit-requests"]),
+                    "tpm": int(headers["x-ratelimit-limit-tokens"]),
+                }
 
         async def async_execute_model_call(
             self, user_prompt: str, system_prompt: str = ""

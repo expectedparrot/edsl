@@ -1,12 +1,12 @@
+"""A module for creating agents that can answer questions."""
+
 from __future__ import annotations
 import copy
 import inspect
 import types
-import io
 from typing import Any, Callable, Optional, Union, Dict
 
 from jinja2 import Template
-
 from rich.console import Console
 from rich.table import Table
 
@@ -23,49 +23,31 @@ from edsl.agents.Invigilator import (
     InvigilatorHuman,
     InvigilatorFunctional,
     InvigilatorAI,
+    InvigilatorBase,
 )
 
 from edsl.language_models.registry import Model
 from edsl.scenarios import Scenario
 from edsl.enums import LanguageModelType
 
-# from edsl.utilities import (
-#     dict_to_html,
-#     print_dict_as_html_table,
-#     print_dict_with_rich,
-# )
-
 from edsl.agents.descriptors import (
     TraitsDescriptor,
     CodebookDescriptor,
     InstructionDescriptor,
-    NameDescriptor
+    NameDescriptor,
 )
 
 from edsl.utilities.decorators import sync_wrapper
-
 from edsl.data_transfer_models import AgentResponseDict
-
 from edsl.prompts.library.agent_persona import AgentPersona
 
 
 class Agent(Base):
-    """An agent that can answer questions.
-
-    Parameters
-    ----------
-    traits : dict, optional - A dictionary of traits that the agent has. The keys need to be
-    valid python variable names. The values can be any python object that has a valid __str__ method.
-    codebook : dict, optional - A codebook mapping trait keys to trait descriptions.
-    instruction : str, optional - Instructions for the agent.
-
-    dynamic_traits_function : Callable, optional - A function that returns a dictionary of traits.
-
-    """
+    """An Agent that can answer questions."""
 
     default_instruction = """You are answering questions as if you were a human. Do not break character."""
 
-    traits = TraitsDescriptor()
+    _traits = TraitsDescriptor()
     codebook = CodebookDescriptor()
     instruction = InstructionDescriptor()
     name = NameDescriptor()
@@ -80,6 +62,14 @@ class Agent(Base):
         trait_presentation_template: str = None,
         dynamic_traits_function: Callable = None,
     ):
+        """Initialize a new instance of Agent.
+
+        :param traits: A dictionary of traits that the agent has. The keys need to be
+        :param name: A name for the agent
+        :param codebook: A codebook mapping trait keys to trait descriptions.
+        :param instruction: Instructions for the agent in how to answer questions.
+        :param dynamic_traits_function: A function that returns a dictionary of traits.
+        """
         self.name = name
         self._traits = traits or dict()
         self.codebook = codebook or dict()
@@ -92,7 +82,11 @@ class Agent(Base):
             self.trait_presentation_template = trait_presentation_template
             self.agent_persona = AgentPersona(text=self.trait_presentation_template)
 
-    def _check_dynamic_traits_function(self):
+    def _check_dynamic_traits_function(self) -> None:
+        """Check whether dynamic trait function is valid.
+
+        This checks whether the dynamic traits function is valid.
+        """
         if self.dynamic_traits_function:
             sig = inspect.signature(self.dynamic_traits_function)
             if "question" in sig.parameters:
@@ -109,21 +103,18 @@ class Agent(Base):
 
     @property
     def traits(self) -> dict[str, str]:
-        """A agent's traits, which is a dictionary.
+        """An agent's traits, which is a dictionary.
 
-        >> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
-        >> a.traits
-        {'age': 10, 'hair': 'brown', 'height': 5.5}
-
-        >> a = Agent()
-        >> a.add_direct_question_answering_method(lambda question, scenario, self: {"age": 10, "hair": "brown", "height": 5.5})
-        >> a.traits
-        {'age': 10, 'hair': 'brown', 'height': 5.5}
-
-        The agent could have a a dynamic traits function (dynamic_traits_function) that returns a dictionary of traits
-        when called. This function can also take a question as an argument.  
+        The agent could have a a dynamic traits function (`dynamic_traits_function`) that returns a dictionary of traits
+        when called. This function can also take a `question` as an argument.
         If so, the dynamic traits function is called and the result is returned.
         Otherwise, the traits are returned.
+
+        Example:
+        >>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
+        >>> a.traits
+        {'age': 10, 'hair': 'brown', 'height': 5.5}
+
         """
         if self.dynamic_traits_function:
             sig = inspect.signature(self.dynamic_traits_function)
@@ -135,7 +126,18 @@ class Agent(Base):
             return self._traits
 
     def add_direct_question_answering_method(self, method: Callable):
-        """Adds a method to the agent that can answer a particular question type."""
+        """Add a method to the agent that can answer a particular question type.
+
+        :param method: A method that can answer a question directly.
+
+        Example usage:
+
+        >>> a = Agent()
+        >>> def f(self, question, scenario): return "I am a direct answer."
+        >>> a.add_direct_question_answering_method(f)
+        >>> a.answer_question_directly(question = None, scenario = None)
+        'I am a direct answer.'
+        """
         if hasattr(self, "answer_question_directly"):
             print("Warning: overwriting existing answer_question_directly method")
 
@@ -156,8 +158,10 @@ class Agent(Base):
         debug: bool = False,
         memory_plan: Optional[MemoryPlan] = None,
         current_answers: Optional[dict] = None,
-    ) -> 'Invigilator':
-        """
+        iteration: int = 1,
+    ) -> InvigilatorBase:
+        """Create an Invigilator.
+
         An invigator is an object that is responsible administering a question to an agent and
         recording the responses.
         """
@@ -165,7 +169,13 @@ class Agent(Base):
         model = model or Model(LanguageModelType.GPT_4.value, use_cache=True)
         scenario = scenario or Scenario()
         invigilator = self._create_invigilator(
-            question, scenario, model, debug, memory_plan, current_answers
+            question=question,
+            scenario=scenario,
+            model=model,
+            debug=debug,
+            memory_plan=memory_plan,
+            current_answers=current_answers,
+            iteration=iteration,
         )
         return invigilator
 
@@ -177,8 +187,11 @@ class Agent(Base):
         debug: bool = False,
         memory_plan: Optional[MemoryPlan] = None,
         current_answers: Optional[dict] = None,
+        iteration: int = 0,
     ) -> AgentResponseDict:
         """
+        Answer a posed question.
+
         This is a function where an agent returns an answer to a particular question.
         However, there are several different ways an agent can answer a question, so the
         actual functionality is delegated to an Invigilator object.
@@ -190,6 +203,7 @@ class Agent(Base):
             debug=debug,
             memory_plan=memory_plan,
             current_answers=current_answers,
+            iteration=iteration,
         )
         response: AgentResponseDict = await invigilator.async_answer_question()
         return response
@@ -204,12 +218,14 @@ class Agent(Base):
         debug: bool = False,
         memory_plan: Optional[MemoryPlan] = None,
         current_answers: Optional[dict] = None,
+        iteration: int = 0,
     ):
         model = model or Model(LanguageModelType.GPT_4.value, use_cache=True)
         scenario = scenario or Scenario()
 
         if debug:
             # use the question's simulate_answer method
+            # breakpoint()
             invigilator_class = InvigilatorDebug
         elif hasattr(question, "answer_question_directly"):
             # it is a functional question and the answer only depends on the agent's traits & the scenario
@@ -224,7 +240,13 @@ class Agent(Base):
             invigilator_class = InvigilatorAI
 
         invigilator = invigilator_class(
-            self, question, scenario, model, memory_plan, current_answers
+            self,
+            question=question,
+            scenario=scenario,
+            model=model,
+            memory_plan=memory_plan,
+            current_answers=current_answers,
+            iteration=iteration,
         )
         return invigilator
 
@@ -233,7 +255,10 @@ class Agent(Base):
     ################
     def __add__(self, other_agent: Agent = None) -> Agent:
         """
-        Combines two agents by joining their traits.The agents must not have overlapping traits.
+        Combine two agents by joining their traits.
+
+        The agents must not have overlapping traits.
+
         >>> a1 = Agent(traits = {"age": 10})
         >>> a2 = Agent(traits = {"height": 5.5})
         >>> a1 + a2
@@ -255,7 +280,9 @@ class Agent(Base):
             return new_agent
 
     def __eq__(self, other: Agent) -> bool:
-        """Checks if two agents are equal. Only checks the traits.
+        """Check if two agents are equal.
+
+        This only checks the traits.
         >>> a1 = Agent(traits = {"age": 10})
         >>> a2 = Agent(traits = {"age": 10})
         >>> a1 == a2
@@ -267,6 +294,7 @@ class Agent(Base):
         return self.data == other.data
 
     def __repr__(self):
+        """Return representation of Agent."""
         class_name = self.__class__.__name__
         items = [
             f"{k} = '{v}'" if isinstance(v, str) else f"{k} = {v}"
@@ -280,6 +308,7 @@ class Agent(Base):
     ################
     @property
     def data(self):
+        """Format the data for serialization."""
         raw_data = {
             k.replace("_", "", 1): v
             for k, v in self.__dict__.items()
@@ -295,12 +324,12 @@ class Agent(Base):
         return raw_data
 
     def to_dict(self) -> dict[str, Union[dict, bool]]:
-        """Serializes to a dictionary."""
+        """Serialize to a dictionary."""
         return self.data
 
     @classmethod
     def from_dict(cls, agent_dict: dict[str, Union[dict, bool]]) -> Agent:
-        """Deserializes from a dictionary."""
+        """Deserialize from a dictionary."""
         return cls(**agent_dict)
 
     ################
@@ -316,7 +345,7 @@ class Agent(Base):
         return table_data, column_names
 
     def rich_print(self):
-        """Displays an object as a rich table."""
+        """Display an object as a rich table."""
         table_data, column_names = self._table()
         table = Table(title=f"{self.__class__.__name__} Attributes")
         for column in column_names:
@@ -330,7 +359,7 @@ class Agent(Base):
 
     @classmethod
     def example(cls) -> Agent:
-        """Returns an example agent.
+        """Return an example agent.
 
         >>> Agent.example()
         Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})
@@ -338,12 +367,16 @@ class Agent(Base):
         return cls(traits={"age": 22, "hair": "brown", "height": 5.5})
 
     def code(self) -> str:
-        """Returns the code for the agent."""
+        """Return the code for the agent."""
         return f"Agent(traits={self.traits})"
 
 
 def main():
-    """Consumes API credits"""
+    """
+    Give an example of usage.
+
+    WARNING: Consume API credits
+    """
     from edsl.agents import Agent
     from edsl.questions import QuestionMultipleChoice
 

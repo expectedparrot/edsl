@@ -1,3 +1,4 @@
+"""This module provides a Config class that loads environment variables from a .env file and sets them as class attributes."""
 import os
 import sys
 from dotenv import load_dotenv, find_dotenv
@@ -29,15 +30,30 @@ CONFIG_MAP = {
         "allowed": None,
         "user_message": None,
     },
-    "API_CALL_TIMEOUT_SEC": {
+    "EDSL_API_TIMEOUT": {
         "default": "60",
         "allowed": None,
         "user_message": "What is the maximum number of seconds to wait for an API call to return?",
     },
-    "EMERITUS_API_KEY": {
+    "EDSL_BACKOFF_START_SEC": {
+        "default": "1",
+        "allowed": None,
+        "user_message": "What is the number of seconds to wait before retrying a failed API call?",
+    },
+    "EDSL_MAX_BACKOFF_SEC": {
+        "default": "60",
+        "allowed": None,
+        "user_message": "What is the maximum number of seconds to wait before retrying a failed API call?",
+    },
+    "EDSL_MAX_ATTEMPTS": {
+        "default": "5",
+        "allowed": None,
+        "user_message": "What is the maximum number of times to retry a failed API call?",
+    },
+    "EXPECTED_PARROT_API_KEY": {
         "default": "local",
         "allowed": None,
-        "user_message": "Please provide your Emeritus API key (https://emeritus.org/).",
+        "user_message": "Please provide your Expected Parrot API key (https://www.expectedparrot.com/).",
     },
     "OPENAI_API_KEY": {
         "default": None,
@@ -58,15 +74,19 @@ CONFIG_MAP = {
 
 
 class Config:
+    """A class that loads environment variables from a .env file and sets them as class attributes."""
+
     def __init__(self):
+        """Initialize the Config class."""
         self._load_dotenv()
         self._set_env_vars()
         self._validate_attributes()
 
     def _load_dotenv(self) -> None:
         """
-        Loads environment variables from the .env file.
-        Overrides existing env vars, unless the env var EDSL_TESTING="True".
+        Load environment variables from the .env file.
+
+        Override existing env vars, unless the env var EDSL_TESTING="True".
         """
         override = True
         if os.getenv("EDSL_TESTING") == "True":
@@ -74,7 +94,7 @@ class Config:
         _ = load_dotenv(dotenv_path=find_dotenv(usecwd=True), override=override)
 
     def _set_env_vars(self) -> None:
-        """Sets env vars as Config class attributes. If an env var is not set and has a default value in the CONFIG_MAP, sets it to the default value."""
+        """Set env vars as Config class attributes. If an env var is not set and has a default value in the CONFIG_MAP, sets it to the default value."""
         for env_var, config in CONFIG_MAP.items():
             # if the env var is set, set it as a CONFIG attribute as well
             if value := os.getenv(env_var):
@@ -85,7 +105,7 @@ class Config:
                 os.environ[env_var] = default_value
 
     def _set_env_var(self, env_var: str, config: dict[str, Any]) -> None:
-        """Attempts to set an environment variable."""
+        """Attempt to set an environment variable."""
         if self.EDSL_RUN_MODE == "development":
             raise MissingEnvironmentVariableError(f"Missing env var {env_var}.")
         else:
@@ -124,7 +144,7 @@ class Config:
             print("\n")
 
     def _validate_attributes(self):
-        """Validates that all attributes are allowed values."""
+        """Validate that all attributes are allowed values."""
         for attr, value in self.__dict__.items():
             config = CONFIG_MAP.get(attr)
             if config.get("allowed") and value not in config.get("allowed"):
@@ -135,7 +155,8 @@ class Config:
 
     def get(self, env_var: str) -> str:
         """
-        Returns the value of an environment variable.
+        Return the value of an environment variable.
+        
         - If the environment variable is valid but not set, attempts to set it.
         """
         if env_var not in CONFIG_MAP:
@@ -148,7 +169,7 @@ class Config:
         return self.__dict__.get(env_var)
 
     def show(self) -> str:
-        """Prints the currently set environment vars."""
+        """Print the currently set environment vars."""
         max_env_var_length = max(len(env_var) for env_var in self.__dict__)
         print("Here are the current configuration settings:")
         for env_var, value in self.__dict__.items():

@@ -1,3 +1,4 @@
+"""This module contains the QuestionList class. It is a subclass of the Question class and is used to create questions where the desired response is in the form of a list."""
 from __future__ import annotations
 import random
 import textwrap
@@ -38,6 +39,7 @@ class QuestionList(Question):
         allow_nonresponse: Optional[bool] = None,
         max_list_items: Optional[int] = None,
     ):
+        """Instantiate a new QuestionList."""
         self.question_text = question_text
         self.question_name = question_name
         self.allow_nonresponse = allow_nonresponse or False
@@ -47,7 +49,7 @@ class QuestionList(Question):
     # Answer methods
     ################
     def validate_answer(self, answer: Any) -> dict[str, Union[list[str], str]]:
-        """Validates the answer"""
+        """Validate the answer."""
         self.validate_answer_template_basic(answer)
         self.validate_answer_key_value(answer, "answer", list)
         self.validate_answer_list(answer)
@@ -58,7 +60,7 @@ class QuestionList(Question):
         return answer
 
     def simulate_answer(self, human_readable: bool = True):
-        "Simulates a valid answer for debugging purposes (what the validator expects)"
+        """Simulate a valid answer for debugging purposes (what the validator expects)."""
         num_items = random.randint(1, self.max_list_items or 2)
         return {"answer": [random_string() for _ in range(num_items)]}
 
@@ -67,6 +69,7 @@ class QuestionList(Question):
     ################
     @classmethod
     def example(cls) -> QuestionList:
+        """Return an example of a list question."""
         return cls(
             question_name="list_of_foods",
             question_text="What are your favorite foods?",
@@ -76,6 +79,7 @@ class QuestionList(Question):
 
 
 def main():
+    """Create an example of a list question and demonstrate its functionality."""
     from edsl.questions.QuestionList import QuestionList
 
     q = QuestionList.example()

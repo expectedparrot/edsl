@@ -1,18 +1,29 @@
+"""Mixin class for exporting results."""
 import base64
 import csv
 import io
+
+from typing import Literal
+
+from edsl.utilities.utilities import is_notebook
+
 from IPython.display import HTML, display
 import pandas as pd
 from edsl.utilities import (
     print_list_of_dicts_with_rich,
     print_list_of_dicts_as_html_table,
     print_dict_with_rich,
+    print_list_of_dicts_as_markdown_table,
 )
 
 
 class ResultsExportMixin:
+    """Mixin class for exporting results."""
+
     def convert_decorator(func):
+        """Convert the Results object to a Dataset object before calling the function."""
         def wrapper(self, *args, **kwargs):
+            """Return the function with the Results object converted to a Dataset object."""
             if self.__class__.__name__ == "Results":
                 return func(self.select(), *args, **kwargs)
             elif self.__class__.__name__ == "Dataset":
@@ -26,7 +37,7 @@ class ResultsExportMixin:
 
     @convert_decorator
     def _make_tabular(self, remove_prefix) -> tuple[list, list]:
-        "Helper function that turns the results into a tabular format."
+        """Turn the results into a tabular format."""
         d = {}
         full_header = sorted(list(self.relevant_columns()))
         for entry in self.data:
@@ -45,7 +56,7 @@ class ResultsExportMixin:
         return header, rows
 
     def print_long(self):
-        """ """
+        """Print the results in long format."""
         for result in self:
             if hasattr(result, "combined_dict"):
                 d = result.combined_dict
@@ -58,30 +69,43 @@ class ResultsExportMixin:
         self,
         pretty_labels=None,
         filename=None,
-        html=False,
+        format: Literal["rich", "html", "markdown"] = "rich",
         interactive=False,
         split_at_dot=True,
     ):
+        """Print the results in a pretty format."""
         if pretty_labels is None:
             pretty_labels = {}
+
+        if format not in ["rich", "html", "markdown"]:
+            raise ValueError(
+                "format must be one of 'rich', 'html', or 'markdown'."
+            )
 
         new_data = []
         for entry in self:
             key, list_of_values = list(entry.items())[0]
             new_data.append({pretty_labels.get(key, key): list_of_values})
-        else:
-            if not html:
-                print_list_of_dicts_with_rich(
-                    new_data, filename=filename, split_at_dot=split_at_dot
-                )
-            else:
-                print_list_of_dicts_as_html_table(
-                    new_data, filename=None, interactive=interactive
-                )
+        
+        if format == "rich":
+            print_list_of_dicts_with_rich(
+                new_data, filename=filename, split_at_dot=split_at_dot
+            )
+        elif format == "html":
+            notebook = is_notebook()
+            print_list_of_dicts_as_html_table(
+                new_data, filename=None, interactive=interactive, notebook = notebook
+            )
+        elif format == "markdown":
+            print_list_of_dicts_as_markdown_table(new_data, filename=filename)
+
 
     @convert_decorator
     def to_csv(self, filename: str = None, remove_prefix=False, download_link=False):
-        """
+        r"""Export the results to a CSV file.
+
+        Example:
+
         >>> r = create_example_results()
         >>> r.select('how_feeling').to_csv()
         'result.how_feeling\\r\\nBad\\r\\nBad\\r\\nGreat\\r\\nGreat\\r\\n'
@@ -109,15 +133,17 @@ class ResultsExportMixin:
 
     @convert_decorator
     def to_pandas(self, remove_prefix=False):
+        """Convert the results to a pandas DataFrame."""
         csv_string = self.to_csv(remove_prefix=remove_prefix)
         csv_buffer = io.StringIO(csv_string)
         df = pd.read_csv(csv_buffer)
         df_sorted = df.sort_index(axis=1)  # Sort columns alphabetically
         return df_sorted
-        #return df
+        # return df
 
     @convert_decorator
     def to_dicts(self, remove_prefix=False):
+        """Convert the results to a list of dictionaries."""
         df = self.to_pandas(remove_prefix=remove_prefix)
         df = df.convert_dtypes()
         list_of_dicts = df.to_dict(orient="records")
@@ -130,6 +156,7 @@ class ResultsExportMixin:
 
     @convert_decorator
     def to_list(self):
+        """Convert the results to a list of lists."""
         if len(self) == 1:
             return list(self[0].values())[0]
         else:
