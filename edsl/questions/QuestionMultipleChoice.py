@@ -1,27 +1,23 @@
+"""This module contains the QuestionMultipleChoice class. It is a subclass of the Question class and is used to create multiple choice questions."""
 from __future__ import annotations
-import random
-import textwrap
-from jinja2 import Template
 from typing import Optional, Union
+import random
+
+from jinja2 import Template
+
 from edsl.utilities import random_string
 from edsl.questions.descriptors import QuestionOptionsDescriptor
 from edsl.questions.Question import Question
 from edsl.scenarios import Scenario
 
-
 class QuestionMultipleChoice(Question):
     """
     This question asks the user to select one option from a list of options.
 
-    Arguments:
-    - `question_name` is the name of the question (string)
-    - `question_options` are the options the user should select from (list of strings)
-    - `question_text` is the text of the question (string)
-
-    Optional arguments:
-    - `instructions` are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionMultipleChoice.default_instructions`
-    - `short_names_dict` maps question_options to short names (dictionary mapping strings to strings)
-
+    :param question_text: The text of the question.
+    :param question_options: The options the user should select from.
+    :param question_name: The name of the question.
+    
     For an example, run `QuestionMultipleChoice.example()`
     """
 
@@ -36,6 +32,7 @@ class QuestionMultipleChoice(Question):
         question_name: str,
         short_names_dict: Optional[dict[str, str]] = None,
     ):
+        """Instantiate a new QuestionMultipleChoice."""
         self.question_text = question_text
         self.question_options = question_options
         self.question_name = question_name
@@ -47,13 +44,13 @@ class QuestionMultipleChoice(Question):
     def validate_answer(
         self, answer: dict[str, Union[str, int]]
     ) -> dict[str, Union[str, int]]:
-        """Validates the answer"""
+        """Validate the answer."""
         self.validate_answer_template_basic(answer)
         self.validate_answer_multiple_choice(answer)
         return answer
 
     def translate_answer_code_to_answer(self, answer_code, scenario: Scenario = None):
-        """Translates the answer code to the actual answer."""
+        """Translate the answer code to the actual answer."""
         scenario = scenario or Scenario()
         translated_options = [
             Template(str(option)).render(scenario) for option in self.question_options
@@ -63,7 +60,7 @@ class QuestionMultipleChoice(Question):
     def simulate_answer(
         self, human_readable: bool = True
     ) -> dict[str, Union[int, str]]:
-        """Simulates a valid answer for debugging purposes"""
+        """Simulate a valid answer for debugging purposes."""
         if human_readable:
             answer = random.choice(self.question_options)
         else:
@@ -78,6 +75,7 @@ class QuestionMultipleChoice(Question):
     ################
     @classmethod
     def example(cls) -> QuestionMultipleChoice:
+        """Return an example instance."""
         return cls(
             question_text="How are you?",
             question_options=["Good", "Great", "OK", "Bad"],
@@ -87,6 +85,7 @@ class QuestionMultipleChoice(Question):
 
 
 def main():
+    """Create an example QuestionMultipleChoice and test its methods."""
     from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
     q = QuestionMultipleChoice.example()

@@ -1,3 +1,4 @@
+"""This module contains the RegisterPromptsMeta metaclass, which is used to register prompts."""
 import traceback
 from collections import defaultdict
 from typing import List, Any
@@ -20,7 +21,8 @@ from edsl.exceptions.prompts import (
 
 
 class RegisterPromptsMeta(ABCMeta):
-    "Metaclass to register prompts"
+    """Metaclass to register prompts."""
+
     _registry = defaultdict(list)  # Initialize the registry as a dictionary
     _prompts_by_component_type = defaultdict(list)
     # _instances = {}
@@ -35,8 +37,10 @@ class RegisterPromptsMeta(ABCMeta):
     def __init__(cls, name, bases, dct):
         """
         We can only have one prompt class per name.
+
         Each prompt class must have a component type from the ComponentTypes enum.
 
+        Example usage:
         >>> class Prompt1(PromptBase):
         ...     component_type = ComponentTypes.TEST
 
@@ -97,6 +101,10 @@ class RegisterPromptsMeta(ABCMeta):
 
     @classmethod
     def _create_prompt_class_key(cls, dct, component_type) -> tuple[tuple[str, Any]]:
+        """Create a key for the prompt class.
+        
+        This is a helper function.
+        """
         attributes = [attribute.value for attribute in C2A.get(component_type, [])]
         cls_data = {key: value for key, value in dct.items() if key in attributes}
         return tuple(cls_data.items())
@@ -104,7 +112,8 @@ class RegisterPromptsMeta(ABCMeta):
     @classmethod
     def _get_classes_with_scores(cls, **kwargs) -> List[tuple[float, "PromptBase"]]:
         """
-        This how we find matching prompts.
+        Find matching prompts.
+
         NB that _get_classes_with_scores returns a list of tuples.
         The first element of the tuple is the score, and the second element is the prompt class.
         There is a public-facing function called get_classes that returns only the prompt classes.
@@ -153,6 +162,7 @@ class RegisterPromptsMeta(ABCMeta):
 
     @classmethod
     def _filter_out_non_matches(cls, prompts_with_scores):
+        """Filter out the prompts that have a score of -inf."""
         return [
             (score, prompt)
             for score, prompt in prompts_with_scores
@@ -161,12 +171,16 @@ class RegisterPromptsMeta(ABCMeta):
 
     @classmethod
     def get_classes(cls, **kwargs):
-        "Public-facing function that returns only the prompt classes and not the scores."
+        """Return only the prompt classes and not the scores.
+        
+        Public-facing function.
+        """
         with_scores = cls._get_classes_with_scores(**kwargs)
         return [prompt for _, prompt in with_scores]
 
     @classmethod
     def _score(cls, kwargs, prompt):
+        """Score the prompt based on the attributes that match."""
         required_list = ["question_type"]
         score = 0
         for key, value in kwargs.items():
@@ -179,6 +193,7 @@ class RegisterPromptsMeta(ABCMeta):
 
     @classmethod
     def get_registered_classes(cls):
+        """Return the registry."""
         return cls._registry
 
 

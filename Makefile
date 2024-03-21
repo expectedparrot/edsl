@@ -14,6 +14,19 @@ backup: ## Backup the code to `edsl/.backups/`
 	mv $${BACKUP_NAME} "./.backups";\
 	echo "Backup created: $${BACKUP_NAME}"
 
+.PHONY: docs 
+
+docs: ## Generate documentation
+	poetry export -f requirements.txt --dev --output docs/requirements.txt
+	sphinx-build -b html docs _build
+
+docs-view:
+	@UNAME=`uname`; if [ "$$UNAME" = "Darwin" ]; then \
+		open _build/index.html; \
+	else \
+		firefox _build/index.html; \
+	fi
+	
 clean: ## Cleans non-essential files and folders
 	[ ! -f .coverage ] || rm .coverage
 	[ ! -d .mypy_cache ] || rm -rf .mypy_cache
@@ -84,7 +97,7 @@ test: ## Run regular tests (no stress testing)
 
 test-coverage: ## Run regular tests and get a coverage report
 	make testclean
-	poetry run coverage run -m pytest tests && poetry run coverage html
+	poetry run coverage run -m pytest tests --ignore=tests/stress && poetry run coverage html
 	@UNAME=`uname`; if [ "$$UNAME" = "Darwin" ]; then \
 		open htmlcov/index.html; \
 	else \
@@ -111,3 +124,17 @@ test-doctests: ## Run doctests
 	pytest --doctest-modules edsl/prompts
 	pytest --doctest-modules edsl/reports	
 	pytest --doctest-modules edsl/language_models
+
+.PHONY: docstrings
+
+docstrings: 
+	pydocstyle edsl
+
+visualize:
+	python visualize_structure.py
+	@UNAME=`uname`; if [ "$$UNAME" = "Darwin" ]; then \
+		open _visualize_structure/index.html; \
+	else \
+		firefox _visualize_structure/index.html; \
+	fi
+

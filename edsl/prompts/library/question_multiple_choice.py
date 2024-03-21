@@ -1,8 +1,11 @@
+"""Multiple choice question type."""
 import textwrap
 from edsl.prompts.QuestionInstructionsBase import QuestionInstuctionsBase
 
 
 class MultipleChoiceTurbo(QuestionInstuctionsBase):
+    """Multiple choice question type."""
+
     question_type = "multiple_choice"
     model = "gpt-3.5-turbo"
     default_instructions = textwrap.dedent(
@@ -20,6 +23,8 @@ class MultipleChoiceTurbo(QuestionInstuctionsBase):
 
 
 class MultipleChoice(QuestionInstuctionsBase):
+    """Multiple choice question type."""
+
     question_type = "multiple_choice"
     model = "gpt-4-1106-preview"
     default_instructions = textwrap.dedent(
@@ -37,8 +42,12 @@ class MultipleChoice(QuestionInstuctionsBase):
 
 
 class LikertFive(MultipleChoice):
+    """Likert five question type."""
+
     question_type = "likert_five"
 
 
 class YesNo(MultipleChoice):
+    """Yes/No question type."""
+
     question_type = "yes_no"

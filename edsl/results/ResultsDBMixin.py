@@ -1,3 +1,4 @@
+"""Mixin for working with SQL databases."""
 import pandas as pd
 import sqlite3
 from sqlalchemy import create_engine
@@ -5,16 +6,22 @@ from enum import Enum
 
 
 class SQLDataShape(Enum):
+    """Enum for the shape of the data in the SQL database."""
+
     WIDE = "wide"
     LONG = "long"
 
 
 class ResultsDBMixin:
+    """Mixin for working with SQL databases."""
+
     def rows(self):
+        """Return the rows of the `Results` object as a list of tuples."""
         for index, result in enumerate(self):
             yield from result.rows(index)
 
     def export_sql_dump(self, shape, filename):
+        """Export the SQL database to a file."""
         shape_enum = self._get_shape_enum(shape)
         conn = self.db(shape=shape_enum)
 
@@ -27,6 +34,7 @@ class ResultsDBMixin:
         conn.close()
 
     def backup_db_to_file(self, shape, filename):
+        """Backup the in-memory database to a file."""
         shape_enum = self._get_shape_enum(shape)
         # Source database connection (in-memory)
         source_conn = self.db(shape=shape_enum)
@@ -43,6 +51,7 @@ class ResultsDBMixin:
         dest_conn.close()
 
     def db(self, shape: SQLDataShape, remove_prefix=False):
+        """Create a SQLite database in memory and return the connection."""
         if shape == SQLDataShape.LONG:
             # Step 2: Create a SQLite Database in Memory
             conn = sqlite3.connect(":memory:")
@@ -82,6 +91,7 @@ class ResultsDBMixin:
             raise Exception("Invalid SQLDataShape")
 
     def _get_shape_enum(self, shape: str):
+        """Convert the shape string to a SQLDataShape enum."""
         if shape is None:
             raise Exception("Must select either 'wide' or 'long' format")
         elif shape == "wide":
@@ -101,6 +111,7 @@ class ResultsDBMixin:
         csv: bool = False,
     ):
         """Execute a SQL query and return the results as a DataFrame.
+
         :param query: The SQL query to execute
         :param transpose: Transpose the DataFrame if True
         :param transpose_by: Column to use as the index when transposing, otherwise the first column
@@ -127,6 +138,7 @@ class ResultsDBMixin:
             return df
 
     def show_schema(self, shape: str, remove_prefix: bool = False):
+        """Show the schema of the SQL database."""
         shape_enum = self._get_shape_enum(shape)
         conn = self.db(shape=shape_enum, remove_prefix=remove_prefix)
 

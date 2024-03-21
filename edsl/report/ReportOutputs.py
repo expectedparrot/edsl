@@ -1,3 +1,4 @@
+"""This module contains classes for creating output elements for a report."""
 import platform
 import subprocess
 import tempfile
@@ -43,16 +44,18 @@ from edsl.utilities import is_notebook
 
 
 def save_figure(filename):
+    """Save the current figure to a file."""
     base, ext = os.path.splitext(filename)
-    if ext.lower() == '.png':
-        plt.savefig(filename, format='png')
-    elif ext.lower() == '.jpg' or ext.lower() == '.jpeg':
-        plt.savefig(filename, format='jpeg')
-    elif ext.lower() == '.svg':
-        plt.savefig(filename, format='svg')
+    if ext.lower() == ".png":
+        plt.savefig(filename, format="png")
+    elif ext.lower() == ".jpg" or ext.lower() == ".jpeg":
+        plt.savefig(filename, format="jpeg")
+    elif ext.lower() == ".svg":
+        plt.savefig(filename, format="svg")
     else:
         print("Unsupported file extension. Saving as PNG by default.")
-        plt.savefig(base + '.png', format='png')
+        plt.savefig(base + ".png", format="png")
+
 
 warnings.filterwarnings(
     "ignore",
@@ -65,29 +68,34 @@ warnings.filterwarnings("ignore", category=RuntimeWarning, module="scipy.optimiz
 warnings.filterwarnings("ignore", category=HessianInversionWarning)
 warnings.filterwarnings("ignore", category=ConvergenceWarning)
 
+
 def open_temp_file(file_path):
+    """Open a file in the default application for the file type."""
     system = platform.system()
-    if system == 'Linux':
+    if system == "Linux":
         subprocess.run(["xdg-open", file_path])
-    elif system == 'Windows':
+    elif system == "Windows":
         os.startfile(file_path)
-    elif system == 'Darwin':  # macOS
+    elif system == "Darwin":  # macOS
         subprocess.run(["open", file_path])
     else:
         print("Unsupported operating system")
 
+
 def convert_svg_to_png_in_memory(svg_bytes):
-    # Create a temporary SVG file
+    """Create a temporary SVG file."""
     with tempfile.NamedTemporaryFile(suffix=".svg", delete=False) as temp_svg:
         temp_svg.write(svg_bytes)
         open_temp_file(temp_svg.name)
 
 
 class RegisterElementMeta(ABCMeta):
-    "Metaclass to register output elements in a registry i.e., those that have a parent"
+    """Register output elements in a registry i.e., those that have a parent."""
+
     _registry = {}  # Initialize the registry as a dictionary
 
     def __init__(cls, name, bases, dct):
+        """Initialize the class."""
         super(RegisterElementMeta, cls).__init__(name, bases, dct)
         if cls.LeftInputType is not None or cls.RightInputType is not None:
             # Register the class in the registry
@@ -95,11 +103,14 @@ class RegisterElementMeta(ABCMeta):
 
     @classmethod
     def get_registered_classes(cls):
+        """Return the registered classes."""
         return cls._registry
 
 
 def camel_to_snake(name: str) -> str:
-    """Converts a camel case string to snake case, e.g.,
+    """Convert a camel case string to snake case.
+
+    Example:
     >>> camel_to_snake("HelloWorld")
     'hello_world'
     """
@@ -113,20 +124,24 @@ def camel_to_snake(name: str) -> str:
 
 
 class CustomFunctionWrapper:
-    """A wrapper for a function that adds a name and docstring."""
+    """Add a name and docstring to a function."""
 
     def __init__(self, func, name, doc):
+        """Initialize the function wrapper."""
         self._func = func
         self.name = name
         self.doc = doc
 
     def __call__(self, *args, **kwargs):
+        """Call the function."""
         return self._func(*args, **kwargs)
 
     def __repr__(self):
+        """Return the representation of the function."""
         return f"Method: `{self.name}`\nDescription: {self.doc or 'No description available'}"
 
     def _repr_html_(self):
+        """Return the HTML representation of the function."""
         html = markdown2.markdown(
             f"**Method:** {self.name}\n\n**Description:** {self.doc or 'No description available'}"
         )
@@ -136,10 +151,11 @@ class CustomFunctionWrapper:
 
 
 def html_decorator(func: Callable) -> Callable:
-    "A decorator that displays the output of a function as HTML."
+    """Display the output of a function as HTML."""
 
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):        
+    def wrapper(*args, **kwargs):
+        """Wrap the function."""
         obj = func(*args, **kwargs)
         if is_notebook():  # if in a jupyter notebook
             html = obj.html()
@@ -153,13 +169,11 @@ def html_decorator(func: Callable) -> Callable:
 class Element(ABC, metaclass=RegisterElementMeta):
     """Base class for all elements.
 
-
     LeftInputType: The type of the left parent. Could be None.
     RightInputType: The type of the right parent. Could Be None.
     OutputDataType: The type of the output data.
 
     "Root" elements are those that do not have a parent, and are created from the results.
-
     """
 
     LeftInputType = None
@@ -167,6 +181,7 @@ class Element(ABC, metaclass=RegisterElementMeta):
     OutputDataType = None
 
     def __init__(self, left_parent=None, right_parent=None, output_data=None, **kwargs):
+        """Initialize the element."""
         self.left_parent = left_parent
         self.right_parent = right_parent
         self.left_data = getattr(left_parent, "output_data", None)
@@ -197,21 +212,25 @@ class Element(ABC, metaclass=RegisterElementMeta):
 
     @classmethod
     def unary(cls):
+        """Check if the element is unary."""
         print("Switch to using the cls.element_type method instead")
         return cls.RightInputType is None
 
     @property
     def data(self):
+        """Return the output data."""
         print("Shift to using self.output_data")
         return self.output_data
 
     @classmethod
     @property
     def function_name(cls):
+        """Return the name of the function."""
         return camel_to_snake(cls.__name__)
 
     @classmethod
     def element_type(cls):
+        """Return the type of the element."""
         if cls.LeftInputType is None and cls.RightInputType is None:
             return "root"
         if cls.LeftInputType is not None and cls.RightInputType is None:
@@ -221,6 +240,7 @@ class Element(ABC, metaclass=RegisterElementMeta):
 
     @classmethod
     def code_generation(cls, results_name: str, left_column, right_column=None):
+        """Generate code for the element."""
         if cls.element_type() == "unary":
             return f'{results_name}.{cls.function_name}("{left_column}")'
         elif cls.element_type() == "binary":
@@ -232,15 +252,16 @@ class Element(ABC, metaclass=RegisterElementMeta):
 
     @abstractmethod
     def _primary_function(self):
-        "The function that creates the output data, as a dictionary."
+        """Create the output data, as a dictionary."""
         raise NotImplementedError
 
     @abstractmethod
     def _html(self):
-        "The function that creates the HTML representation of the output data"
+        """Create the HTML representation of the output data."""
         raise NotImplementedError
 
     def create_output(self, LeftInput, RightInput, **kwargs):
+        """Create the output data."""
         if self.element_type() == "unary":
             output_data = self._primary_function(LeftInput, **kwargs)
         elif self.element_type() == "binary":
@@ -249,15 +270,16 @@ class Element(ABC, metaclass=RegisterElementMeta):
             raise Exception("Should not be called on a root element")
         else:
             raise Exception("Unknown element type")
-        
+
         if output_data is None:
             self.filename = kwargs.get("filename", None)
-            return None        
+            return None
 
         return self.OutputDataType(**output_data)
 
     @classmethod
     def example(cls, **kwargs):
+        """Create an example of the element."""
         class MockParent:
             def __init__(self, data):
                 self.output_data = data
@@ -272,10 +294,12 @@ class Element(ABC, metaclass=RegisterElementMeta):
         return cls(left_parent, right_parent, **kwargs)
 
     def html(self):
+        """Return the HTML representation of the output data."""
         return self._html(**asdict(self.output_data))
 
     def view(self, **kwargs):
-        if hasattr(self.output_data, "buffer"):     
+        """View the output data."""
+        if hasattr(self.output_data, "buffer"):
             svg_bytes = self.output_data.buffer.getvalue()
             convert_svg_to_png_in_memory(svg_bytes)
         else:
@@ -289,14 +313,14 @@ class Element(ABC, metaclass=RegisterElementMeta):
 
     @classmethod
     def parameters(cls):
+        """Return the parameters of the primary function."""
         return inspect.signature(cls._primary_function).parameters
 
     @classmethod
     def create_external_function(cls, results) -> Callable:
-        """Adds a function to the Results class that creates an output element.
+        """Add a function to the Results class that creates an output element.
 
-
-        In ResultsOutputMixin, there is this function that iterates through the registered 
+        In ResultsOutputMixin, there is this function that iterates through the registered
         classes and adds a function to the Results class for each one.
 
             def add_output_functions(self) -> None:
@@ -308,10 +332,10 @@ class Element(ABC, metaclass=RegisterElementMeta):
                     self.__dict__[new_function_name] = new_function
 
                     self.analysis_options.append({new_function_name: output_class.__doc__})
-
         """
 
         def create_parent(data_type, key, input_type):
+            """Create a parent element from the results."""
             RootElement = create_root_element(input_type)
             parent = RootElement.from_results(results, key, input_type)
             return parent
@@ -319,6 +343,7 @@ class Element(ABC, metaclass=RegisterElementMeta):
         if cls.RightInputType is None:
 
             def func(column, **kwargs):
+                """Create an output element from the results."""
                 left_parent = create_parent(
                     *results._parse_column(column), input_type=cls.LeftInputType
                 )
@@ -327,6 +352,7 @@ class Element(ABC, metaclass=RegisterElementMeta):
         else:
 
             def func(left_column, right_column, **kwargs):
+                """Create an output element from the results."""
                 left_parent = create_parent(
                     *results._parse_column(left_column), cls.LeftInputType
                 )
@@ -341,6 +367,7 @@ class Element(ABC, metaclass=RegisterElementMeta):
 
     @classmethod
     def help(cls):
+        """Return the help text for the primary function."""
         help_text = textwrap.dedent(
             f"""\
         {cls._primary_function.__doc__}
@@ -349,18 +376,23 @@ class Element(ABC, metaclass=RegisterElementMeta):
         # return self._primary_function.__doc__
         return help_text
 
-
 def create_root_element(output_data_type):
+    """Create a root element from the output data type."""
+
     class Container(Element):
+        """A root element."""
+
         LeftInputType = None
         RightInputType = None
         OutputDataType = output_data_type
 
         def _primary_function(self):
+            """Should not be called directly."""
             raise Exception("Should not be called directly")
 
         @classmethod
         def from_results(cls, results, data_name, index=None):
+            """Create a root element from the results."""
             data_type, key = results._parse_column(data_name)
             output_data = results._fetch_element(data_type, key, cls.OutputDataType)
             return cls(
@@ -372,18 +404,21 @@ def create_root_element(output_data_type):
             )
 
         def _html(self):
+            """Return the HTML representation of the output data."""
             return self.output_data.html()
 
     return Container
 
 
 class PlotMixin:
-    OutputDataType = PlotData
+    """Mixin for creating plots."""
 
+    OutputDataType = PlotData
     image_format = "svg"
 
     @staticmethod
     def plt_to_buf(plt, format=image_format):
+        """Convert a plot to a buffer."""
         buf = BytesIO()
         plt.savefig(buf, format=format)
         buf.seek(0)
@@ -399,6 +434,7 @@ class PlotMixin:
         width_pct=100,
         **kwargs,
     ):
+        """Return the HTML representation of the output data."""
         image_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
         html = []
         html.append(title)
@@ -422,6 +458,7 @@ class PlotMixin:
 
 
 def tally(responses, options):
+    """Tally the responses."""
     response_counts = dict(Counter(responses))
     for key in options:
         if key not in response_counts:
@@ -432,6 +469,7 @@ def tally(responses, options):
 def replace_with_alpha_codes(
     options: list[str], responses: list[str], prefix: str = ""
 ):
+    """Replace options and responses with alphabetical codes."""
     code_gen = (chr(i) for i in range(65, 91))
     option_codes = {}
     for option in options:
@@ -442,6 +480,7 @@ def replace_with_alpha_codes(
 
 
 def header_version(options, index):
+    """Create a header version of the options."""
     cleaned_versions = [
         option.translate(str.maketrans("", "", string.punctuation)).lower()
         for option in options
@@ -452,6 +491,7 @@ def header_version(options, index):
 
 
 def find_version(options, index):
+    """Find the version of the options."""
     candidate = header_version(options, index)
     if len(set(candidate)) == len(candidate):
         return candidate
@@ -460,19 +500,19 @@ def find_version(options, index):
 
 
 def get_option_codes_short_name(options):
+    """Create a dictionary mapping options to codes."""
     return dict(zip(options, find_version(options, 1)))
 
-
 def to_strings(split_versions):
+    """Convert the split versions to strings."""
     return ["_".join(version) for version in split_versions]
 
-
 def is_unique(split_versions):
+    """Check if the split versions are unique."""
     return len(set(to_strings(split_versions))) == len(to_strings(split_versions))
 
-
 def get_option_codes(options: list[str]):
-    """Creates a dictionary mapping options to codes."""
+    """Create a dictionary mapping options to codes."""
     cleaned_versions = [
         option.translate(str.maketrans("", "", string.punctuation)).lower()
         for option in options
@@ -543,6 +583,7 @@ def get_option_codes(options: list[str]):
 def replace_with_codes(
     options: list[str], responses: list[str], short_names_dict=None, prefix=""
 ):
+    """Replace options and responses with codes."""
     if short_names_dict is not None:
         option_codes = short_names_dict
     else:
@@ -554,7 +595,8 @@ def replace_with_codes(
 
 
 class BarChart(PlotMixin, Element):
-    "Creates a bar chart plot for categorical data."
+    """Create a bar chart plot for categorical data."""
+
     LeftInputType = CategoricalData
     RightInputType = None
 
@@ -573,7 +615,7 @@ class BarChart(PlotMixin, Element):
         filename=None,
     ) -> dict:
         """
-        Generates a bar chart from the provided categorical data object.
+        Generate a bar chart from the provided categorical data object.
 
         ### Args:
             - CategoricalDataObject (CategoricalData): An object containing categorical data to be plotted.
@@ -657,6 +699,8 @@ class BarChart(PlotMixin, Element):
 
 
 class HistogramPlot(PlotMixin, Element):
+    """Create a histogram plot for numerical data."""
+
     LeftInputType = NumericalData
     RightInputType = None
 
@@ -674,7 +718,7 @@ class HistogramPlot(PlotMixin, Element):
         filename=None,
     ):
         """
-        Generates a histogram plot from a NumericalDataObject.
+        Generate a histogram plot from a NumericalDataObject.
 
         This method plots a histogram based on the responses contained within the NumericalDataObject.
         It allows customization of the plot's appearance including the number of bins, transparency,
@@ -721,6 +765,8 @@ class HistogramPlot(PlotMixin, Element):
 
 
 class ScatterPlot(PlotMixin, Element):
+    """Create a scatter plot for numerical data."""
+
     LeftInputType = NumericalData
     RightInputType = NumericalData
 
@@ -734,10 +780,10 @@ class ScatterPlot(PlotMixin, Element):
         x_text=None,
         y_text=None,
         width_pct=100,
-        filename = None, 
+        filename=None,
     ):
         """
-        Generates a scatter plot using numerical data from two provided data objects.
+        Generate a scatter plot using numerical data from two provided data objects.
 
         This method creates a scatter plot to visually represent the relationship between
         two sets of numerical data. It offers customization for the plot's transparency
@@ -796,7 +842,7 @@ class ScatterPlot(PlotMixin, Element):
         if filename is not None:
             save_figure(filename)
             return None
-        
+
         return {
             "buffer": self.plt_to_buf(plt),
             "title": "",
@@ -804,8 +850,9 @@ class ScatterPlot(PlotMixin, Element):
             "width_pct": width_pct,
         }
 
-
 class WordCloudPlot(PlotMixin, Element):
+    """Create a word cloud plot for free text data."""
+
     LeftInputType = FreeTextData
     RightInputType = None
 
@@ -815,10 +862,10 @@ class WordCloudPlot(PlotMixin, Element):
         width=800,
         height=400,
         background_color="white",
-        width_pct=100, 
-        filename = None
+        width_pct=100,
+        filename=None,
     ):
-        """Creates a word cloud plot for free text data.
+        """Create a word cloud plot for free text data.
 
         Parameters
         ----------
@@ -847,7 +894,7 @@ class WordCloudPlot(PlotMixin, Element):
             return None
 
         #
-        #with open(filename, "w") as f:
+        # with open(filename, "w") as f:
         #    f.write(wordcloud)
 
         return {
@@ -859,12 +906,14 @@ class WordCloudPlot(PlotMixin, Element):
 
 
 class Tally(Element):
+    """Create a tally of responses to a categorical question."""
+
     LeftInputType = CategoricalData
     RightInputType = None
     OutputDataType = TallyData
 
     def _primary_function(self, CategoricalDataObject, **kwargs):
-        """Creates a tally of responses to a categorical question."""
+        """Create a tally of responses to a categorical question."""
         responses = CategoricalDataObject.responses
         text = CategoricalDataObject.text
         options = CategoricalDataObject.options
@@ -882,6 +931,7 @@ class Tally(Element):
         }
 
     def _html(self, responses, text, **kwargs):
+        """Return the HTML representation of the output data."""
         report_html = [
             "<div>",
             f"<p>{text}</p>" "<table>",
@@ -894,6 +944,7 @@ class Tally(Element):
 
 
 def compute_cross_tab(left_responses, left_options, right_responses, right_options):
+    """Compute a cross tabulation of two categorical variables."""
     left_response_count = dict(Counter(left_responses))
     right_response_count = dict(Counter(right_responses))
     # Add 0s for things that weren't selected even once
@@ -918,6 +969,8 @@ def compute_cross_tab(left_responses, left_options, right_responses, right_optio
 
 
 class CrossTab(Element):
+    """Create a cross tabulation of two categorical variables."""
+
     LeftInputType = CategoricalData
     RightInputType = CategoricalData
     OutputDataType = CrossTabData
@@ -925,7 +978,8 @@ class CrossTab(Element):
     def _primary_function(
         self, LeftCategoricalDataObject, RightCategoricalDataObject, **kwargs
     ):
-        """Creates a cross tabulation of two categorical variables.
+        """Create a cross tabulation of two categorical variables.
+
         Parameters
         ----------
         left_column: str
@@ -950,6 +1004,7 @@ class CrossTab(Element):
         }
 
     def _html(self, cross_tab, left_title, right_title, **kwargs):
+        """Return the HTML representation of the output data."""
         report_html = [
             "<div>",
             f"<p>Cross tabulation of: {left_title} and {right_title}</p>",
@@ -977,6 +1032,8 @@ class CrossTab(Element):
 
 
 class FacetedBarChart(PlotMixin, Element):
+    """Create a set of bar plots to compare two categorical data sets."""
+
     LeftInputType = CategoricalData
     RightInputType = CategoricalData
 
@@ -992,10 +1049,10 @@ class FacetedBarChart(PlotMixin, Element):
         use_code_right=None,
         sharey=True,
         width_pct=100,
-        filename = None,
+        filename=None,
     ):
-        """ "
-            Generates a set of bar plots as a FacetGrid to compare two categorical data sets.
+        """ 
+        Generate a set of bar plots as a FacetGrid to compare two categorical data sets.
 
         This method creates a series of bar plots, one for each category in the RightCategoricalDataObject,
         to compare the frequencies of categories from LeftCategoricalDataObject. The plots are
@@ -1130,7 +1187,7 @@ class FacetedBarChart(PlotMixin, Element):
         if filename is not None:
             save_figure(filename)
             return None
-        
+
         return {
             "buffer": self.plt_to_buf(plt),
             "title": "",
@@ -1143,11 +1200,14 @@ class FacetedBarChart(PlotMixin, Element):
 
 
 class ChiSquare(Element):
+    """Perform a chi-square test for independence on two categorical variables."""
+
     LeftInputType = CategoricalData
     RightInputType = None
     OutputDataType = ChiSquareData
 
     def _primary_function(self, CategoricalDataObject, **kwargs):
+        """Perform a chi-square test for independence on two categorical variables."""
         responses = CategoricalDataObject.responses
         text = CategoricalDataObject.text
         options = CategoricalDataObject.options
@@ -1163,6 +1223,7 @@ class ChiSquare(Element):
         return {"chi_square": chi_square, "p_value": p_value, "text": text}
 
     def _html(self, chi_square, p_value, text, digits=3, **kwargs):
+        """Return the HTML representation of the output data."""
         report_html = ["<div>", f"<p>Chi-square test for: {text}</p>" "<table>"]
         report_html.append(f"<p>Chi-square statistic: {round(chi_square, digits)}</p>")
         report_html.append(f"<p>p-value: {round(p_value, digits)}</p>")
@@ -1171,6 +1232,8 @@ class ChiSquare(Element):
 
 
 class OrderedLogit(Element):
+    """Perform an ordered logit regression on two categorical variables."""
+
     LeftInputType = CategoricalData
     RightInputType = CategoricalData
     OutputDataType = RegressionData
@@ -1178,6 +1241,7 @@ class OrderedLogit(Element):
     def _primary_function(
         self, LeftSideCategoricalData, RightSideCategoricalData, **kwargs
     ):
+        """Perform an ordered logit regression on two categorical variables."""
         y = LeftSideCategoricalData.responses
         category_order = LeftSideCategoricalData.options
         X = RightSideCategoricalData.responses
@@ -1216,13 +1280,11 @@ class OrderedLogit(Element):
             }
 
     def _html(self, model_outcome: str, outcome_description: str):
+        """Return the HTML representation of the output data."""
         report_html = [
-            "<h1>Ordered logit</h1>"
-            "<div>",
+            "<h1>Ordered logit</h1>" "<div>",
             f"<p>Outcome: {outcome_description}</p>",
         ]
         report_html.append(model_outcome)
         report_html.append("</div>")
         return "\n".join(report_html)
-
-

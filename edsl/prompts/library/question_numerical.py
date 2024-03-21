@@ -1,9 +1,12 @@
+"""Numerical question type."""
 import textwrap
 
 from edsl.prompts.QuestionInstructionsBase import QuestionInstuctionsBase
 
 
 class Numerical(QuestionInstuctionsBase):
+    """Numerical question type."""
+
     question_type = "numerical"
     model = "gpt-4-1106-preview"
     default_instructions = textwrap.dedent(

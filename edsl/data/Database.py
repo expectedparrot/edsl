@@ -1,3 +1,4 @@
+"""This module contains the Database class, which manages the connection to the database."""
 import os
 import shutil
 from contextlib import contextmanager
@@ -11,10 +12,10 @@ from edsl.exceptions import DatabaseConnectionError, DatabaseIntegrityError
 
 
 class Database:
-    """The Database class manages the connection to the database."""
+    """Manage the connection to the database."""
 
     def __init__(self, config: Config = CONFIG):
-        """Initializes the database connection."""
+        """Initialize the database connection."""
         self.database_path = config.get("EDSL_DATABASE_PATH")
         try:
             self.engine = create_engine(self.database_path)
@@ -55,7 +56,7 @@ class Database:
 
     @contextmanager
     def get_db(self):
-        """Generator that yields a database session."""
+        """Generate a database session."""
         db = None
         try:
             db = self.SessionLocal()
@@ -67,7 +68,7 @@ class Database:
                 self.SessionLocal.remove()
 
     def _is_healthy(self):
-        """Returns True if the database is healthy, False otherwise."""
+        """Return True if the database is healthy, False otherwise."""
         try:
             with self.engine.connect() as connection:
                 result = connection.execute(text("PRAGMA integrity_check"))
@@ -81,7 +82,7 @@ class Database:
 
     @property
     def paths(self) -> tuple:
-        """Returns the (db_path, temp_path), or (None, None) if not applicable."""
+        """Return the (db_path, temp_path), or (None, None) if not applicable."""
         if (
             self.database_path.startswith("sqlite:///")
             and "memory" not in self.database_path
@@ -93,7 +94,7 @@ class Database:
             return None, None
 
     def _create_copy(self) -> None:
-        """Creates a copy of the database."""
+        """Create a copy of the database."""
         file_path, temp_path = self.paths
         if file_path:
             try:
@@ -103,13 +104,13 @@ class Database:
                 raise e
 
     def _delete_copy(self) -> None:
-        """Deletes a copy of the database."""
+        """Delete a copy of the database."""
         file_path, temp_path = self.paths
         if file_path and os.path.exists(temp_path):
             os.remove(temp_path)
 
     def _health_check_pre_run(self):
-        """Performs a health check before running a job."""
+        """Perform a health check before running a job."""
         # create a copy of the database if it is healthy
         if self._is_healthy():
             self._create_copy()
@@ -123,7 +124,7 @@ class Database:
             )
 
     def _health_check_post_run(self):
-        """Performs a health check before running a job."""
+        """Perform a health check before running a job."""
         if self._is_healthy():
             self._delete_copy()
         else:

@@ -1,18 +1,25 @@
+"""The Jobs class is a collection of agents, scenarios and models and one survey."""
 from __future__ import annotations
 from collections.abc import Sequence
+from collections import UserDict
 from itertools import product
-from typing import Union
+from typing import Union, Generator
+
 from edsl import CONFIG
 from edsl.agents import Agent
 from edsl.Base import Base
 from edsl.data import Database, database
-from edsl.language_models import LanguageModel, LanguageModelOpenAIThreeFiveTurbo
+from edsl.language_models import LanguageModel  # , LanguageModelOpenAIThreeFiveTurbo
+from edsl.enums import LanguageModelType
+from edsl import Model
 from edsl.results import Results
 from edsl.scenarios import Scenario
 from edsl.surveys import Survey
-from edsl.jobs.base import JobsRunnersRegistry, JobsRunnerDescriptor
-from edsl.jobs.Interview import Interview
+from edsl.jobs.runners.job_runners_registry import JobsRunnersRegistry, JobsRunnerDescriptor
+from edsl.jobs.interviews.Interview import Interview
 from edsl.coop.old import JobRunnerAPI, ResultsAPI
+
+from edsl.jobs.buckets.BucketCollection import BucketCollection
 
 
 class Jobs(Base):
@@ -24,6 +31,8 @@ class Jobs(Base):
     - `interviews()`: creates a collection of interviews
     - `run()`: runs a collection of interviews
 
+    Actually running of a job is done by a JobsRunner, which is a subclass of JobsRunner.
+    The JobsRunner is chosen by the user, and is stored in the `jobs_runner_name` attribute.
     """
 
     jobs_runner_name = JobsRunnerDescriptor()
@@ -35,10 +44,13 @@ class Jobs(Base):
         models: list[LanguageModel] = None,
         scenarios: list[Scenario] = None,
     ):
+        """Initialize a Jobs instance."""
         self.survey = survey
         self.agents = agents or []
         self.models = models or []
         self.scenarios = scenarios or []
+
+        self.__bucket_collection = None
 
     def by(
         self,
@@ -50,8 +62,10 @@ class Jobs(Base):
         ],
     ) -> Jobs:
         """
-        Adds Agents, Scenarios and LanguageModels to a job. If no objects of this type exist in the Jobs instance, it stores the new objects as a list in the corresponding attribute. Otherwise, it combines the new objects with existing objects using the object's `__add__` method.
+        Add Agents, Scenarios and LanguageModels to a job. If no objects of this type exist in the Jobs instance, it stores the new objects as a list in the corresponding attribute. Otherwise, it combines the new objects with existing objects using the object's `__add__` method.
 
+        This 'by' is intended to create a fluent interface.
+        
         Arguments:
         - objects or a sequence (list, tuple, ...) of objects of the same type
 
@@ -61,8 +75,6 @@ class Jobs(Base):
         - scenarios: traits of new scenarios are combined with traits of old existing. New scenarios will overwrite overlapping traits, and do not increase the number of scenarios in the instance
         - models: new models overwrite old models.
         """
-        # if the first argument is a sequence, grab it and ignore other arguments
-
         passed_objects = self._turn_args_to_list(args)
 
         current_objects, objects_key = self._get_current_objects_of_this_type(
@@ -79,8 +91,11 @@ class Jobs(Base):
 
     @staticmethod
     def _turn_args_to_list(args):
+        """Return a list of the first argument if it is a sequence, otherwise returns a list of all the arguments."""
         def did_user_pass_a_sequence(args):
-            """
+            """Return True if the user passed a sequence, False otherwise.
+
+            Example:
             >>> did_user_pass_a_sequence([1,2,3])
             True
             >>> did_user_pass_a_sequence(1)
@@ -94,6 +109,7 @@ class Jobs(Base):
             return list(args)
 
     def _get_current_objects_of_this_type(self, object):
+        """Return the current objects of the same type as the first argument."""
         class_to_key = {
             Agent: "agents",
             Scenario: "scenarios",
@@ -113,9 +129,10 @@ class Jobs(Base):
         return current_objects, key
 
     @staticmethod
-    def _merge_objects(passed_objects, current_objects):
+    def _merge_objects(passed_objects, current_objects) -> list:
         """
-        Combines all the existing objects with the new objects
+        Combine all the existing objects with the new objects.
+
         For example, if the user passes in 3 agents,
         and there are 2 existing agents, this will create 6 new agents
 
@@ -130,26 +147,51 @@ class Jobs(Base):
 
     def interviews(self) -> list[Interview]:
         """
-        Returns a list of Interviews, that will eventually be used by the JobRunner.
+        Return a list of Interviews, that will eventually be used by the JobRunner.
+        
         - Returns one Interview for each combination of Agent, Scenario, and LanguageModel.
         - If any of Agents, Scenarios, or LanguageModels are missing, fills in with defaults. Note that this will change the corresponding class attributes.
         """
+        return list(self._create_interviews())
+
+    def _create_interviews(self) -> Generator[Interview, None, None]:
+        """
+        Generate interviews.
+
+        Note that this sets the agents, model and scenarios if they have not been set. This is a side effect of the method.
+        """
         self.agents = self.agents or [Agent()]
-        self.models = self.models or [LanguageModelOpenAIThreeFiveTurbo(use_cache=True)]
+        self.models = self.models or [
+            Model(LanguageModelType.GPT_4.value, use_cache=True)
+        ]
         self.scenarios = self.scenarios or [Scenario()]
-        interviews = []
         for agent, scenario, model in product(self.agents, self.scenarios, self.models):
-            interview = Interview(
+            yield Interview(
                 survey=self.survey, agent=agent, scenario=scenario, model=model
             )
-            interviews.append(interview)
-        return interviews
+
+    def create_bucket_collection(self) -> BucketCollection:
+        """
+        Create a collection of buckets for each model.
+
+        These buckets are used to track API calls and tokeen usage.
+        """
+        bucket_collection = BucketCollection()
+        for model in self.models:
+            bucket_collection.add_model(model)
+        return bucket_collection
+
+    @property
+    def bucket_collection(self) -> BucketCollection:
+        """Return the bucket collection. If it does not exist, create it."""
+        if self.__bucket_collection is None:
+            self.__bucket_collection = self.create_bucket_collection()
+        return self.__bucket_collection
 
     def run(
         self,
         n: int = 1,
         debug: bool = False,
-        verbose: bool = False,
         progress_bar: bool = False,
         dry_run: bool = False,
         streaming: bool = False,
@@ -157,11 +199,15 @@ class Jobs(Base):
     ) -> Union[Results, ResultsAPI, None]:
         """
         Runs the Job: conducts Interviews and returns their results.
-        - `method`: "serial" or "threaded", defaults to "serial"
-        - `n`: how many times to run each interview
-        - `debug`: prints debug messages
-        - `verbose`: prints messages
-        - `progress_bar`: shows a progress bar
+
+        :param n: how many times to run each interview
+        :param debug: prints debug messages
+        :param verbose: prints messages
+        :param progress_bar: shows a progress bar
+        :param dry_run: does not actually run the job
+        :param streaming: uses the streaming API
+        :param db: the database to use
+
         """
         # self.job_runner_name = method
         if dry_run:
@@ -171,18 +217,21 @@ class Jobs(Base):
         else:
             self.job_runner_name = "asyncio"
 
-        if (emeritus_api_key := CONFIG.get("EMERITUS_API_KEY")) == "local":
-            return self._run_local(
-                n=n, verbose=verbose, debug=debug, progress_bar=progress_bar, db=db
+        if (
+            expected_parrot_api_key := CONFIG.get("EXPECTED_PARROT_API_KEY")
+        ) == "local":
+            results = self._run_local(
+                n=n, debug=debug, progress_bar=progress_bar, db=db
             )
         else:
             results = self._run_remote(
-                api_key=emeritus_api_key, job_dict=self.to_dict()
+                api_key=expected_parrot_api_key, job_dict=self.to_dict()
             )
+
         return results
 
     def _run_local(self, *args, db: Database = database, **kwargs):
-        """Runs the job locally."""
+        """Run the job locally."""
         db._health_check_pre_run()
         JobRunner = JobsRunnersRegistry[self.job_runner_name](jobs=self)
         results = JobRunner.run(*args, **kwargs)
@@ -190,7 +239,7 @@ class Jobs(Base):
         return results
 
     def _run_remote(self, *args, **kwargs):
-        """Runs the job remotely."""
+        """Run the job remotely."""
         results = JobRunnerAPI(*args, **kwargs)
         return results
 
@@ -198,11 +247,11 @@ class Jobs(Base):
     # Dunder methods
     #######################
     def __repr__(self) -> str:
-        """Returns an eval-able string representation of the Jobs instance."""
+        """Return an eval-able string representation of the Jobs instance."""
         return f"Jobs(survey={repr(self.survey)}, agents={repr(self.agents)}, models={repr(self.models)}, scenarios={repr(self.scenarios)})"
 
     def __len__(self) -> int:
-        """Returns the number of questions that will be asked while running this job."""
+        """Return the number of questions that will be asked while running this job."""
         number_of_questions = (
             len(self.agents or [1])
             * len(self.scenarios or [1])
@@ -215,7 +264,7 @@ class Jobs(Base):
     # Serialization methods
     #######################
     def to_dict(self) -> dict:
-        """Converts the Jobs instance to a dictionary."""
+        """Convert the Jobs instance to a dictionary."""
         return {
             "survey": self.survey.to_dict(),
             "agents": [agent.to_dict() for agent in self.agents],
@@ -225,7 +274,7 @@ class Jobs(Base):
 
     @classmethod
     def from_dict(cls, data: dict) -> Jobs:
-        """Creates a Jobs instance from a JSON string."""
+        """Creates a Jobs instance from a dictionary."""
         return cls(
             survey=Survey.from_dict(data["survey"]),
             agents=[Agent.from_dict(agent) for agent in data["agents"]],
@@ -238,8 +287,8 @@ class Jobs(Base):
     #######################
     @classmethod
     def example(cls) -> Jobs:
+        """Return an example Jobs instance."""
         from edsl.questions import QuestionMultipleChoice
-
         from edsl import Agent
 
         # (status, question, period)
@@ -255,12 +304,13 @@ class Jobs(Base):
         }
 
         def answer_question_directly(self, question, scenario):
+            """Return the answer to a question. This is a method that can be added to an agent."""
             return agent_answers[
                 (self.traits["status"], question.question_name, scenario["period"])
             ]
 
-        sad_agent = Agent(traits = {"status": "Sad"})
-        joy_agent = Agent(traits = {"status": "Joyful"})
+        sad_agent = Agent(traits={"status": "Sad"})
+        joy_agent = Agent(traits={"status": "Joyful"})
 
         sad_agent.add_direct_question_answering_method(answer_question_directly)
         joy_agent.add_direct_question_answering_method(answer_question_directly)
@@ -284,7 +334,7 @@ class Jobs(Base):
         return job
 
     def rich_print(self):
-        """Prints a rich representation of the Jobs instance."""
+        """Print a rich representation of the Jobs instance."""
         from rich.table import Table
 
         table = Table(title="Jobs")
@@ -293,10 +343,12 @@ class Jobs(Base):
         return table
 
     def code(self):
+        """Return the code to create this instance."""
         raise NotImplementedError
 
 
 def main():
+    """Run the module's doctests."""
     from edsl.jobs import Jobs
 
     job = Jobs.example()
@@ -307,6 +359,15 @@ def main():
 
 
 if __name__ == "__main__":
+    """Run the module's doctests."""
     import doctest
 
     doctest.testmod()
+
+    from edsl.jobs import Jobs
+
+    job = Jobs.example()
+    len(job) == 8
+    results, info = job.run(debug=True)
+    len(results) == 8
+    results

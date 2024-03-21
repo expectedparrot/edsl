@@ -1,3 +1,4 @@
+"""Mixin with validators for LLM answers to questions."""
 import re
 from typing import Any, Type, Union
 from edsl.exceptions import (
@@ -7,7 +8,8 @@ from edsl.exceptions import (
 
 class AnswerValidatorMixin:
     """
-    Mixin with validators for LLM answers to questions
+    Mixin with validators for LLM answers to questions.
+
     - Template validation: validators for the entire answer object format
     - Value validation: validators for specific values
     - Question specific validation: validators for specific question types
@@ -17,8 +19,8 @@ class AnswerValidatorMixin:
     # TEMPLATE VALIDATION
     #####################
     def validate_answer_template_basic(self, answer: Any) -> None:
-        """
-        Checks that the answer (i) is a dictionary (ii) has an 'answer' key
+        """Check that the answer (i) is a dictionary (ii) has an 'answer' key.
+
         - E.g., both {'answer': 1} and {'answer': {'a': 1}, 'other_key'=[1,2,3]} are valid
         """
         if not isinstance(answer, dict):
@@ -36,7 +38,7 @@ class AnswerValidatorMixin:
     def validate_answer_key_value(
         self, answer: dict[str, Any], key: str, of_type: Type
     ) -> None:
-        """Checks that the value of a key is of the specified type"""
+        """Check that the value of a key is of the specified type."""
         if not isinstance(answer.get(key), of_type):
             raise QuestionAnswerValidationError(
                 f"""Answer key '{key}' must be of type {of_type.__name__};
@@ -46,7 +48,7 @@ class AnswerValidatorMixin:
     def validate_answer_key_value_numeric(
         self, answer: dict[str, Any], key: str
     ) -> None:
-        """Checks that the value of a key is numeric (int or float)"""
+        """Check that the value of a key is numeric (int or float)."""
         value = answer.get(key)
         if type(value) == str:
             value = value.replace(",", "")
@@ -73,8 +75,9 @@ class AnswerValidatorMixin:
     # QUESTION SPECIFIC VALIDATION
     #####################
     def validate_answer_budget(self, answer: dict[str, Any]) -> None:
-        """
-        QuestionBudget-specific answer validation. Checks that answer["answer"]:
+        """Validate QuestionBudget-specific answer.
+        
+        Check that answer["answer"]:
         - has keys that are in the range of the number of options
         - has values that are non-negative integers
         - has values that sum to `budget_sum`
@@ -95,17 +98,18 @@ class AnswerValidatorMixin:
             )
         if any([int(key) not in acceptable_answer_keys for key in answer.keys()]):
             raise QuestionAnswerValidationError(
-                f"Budget keys must be in {acceptable_answer_keys}, but got {answer_keys}"
+                f"Budget keys must be in {acceptable_answer_keys}, but got {answer_keys}."
             )
         if acceptable_answer_keys != answer_keys:
             missing_keys = acceptable_answer_keys - answer_keys
             raise QuestionAnswerValidationError(
-                f"All but keys must be represented in the answer. Missing: {missing_keys}"
+                f"All but keys must be represented in the answer. Missing: {missing_keys}."
             )
 
     def validate_answer_checkbox(self, answer: dict[str, Union[str, int]]) -> None:
-        """
-        QuestionCheckbox-specific answer validation. Checks that answer["answer"]:
+        """Validate QuestionCheckbox-specific answer.
+    
+        Check that answer["answer"]:
         - has elements that are strings, bytes-like objects or real numbers evaluating to integers
         - has elements that are in the range of the number of options
         - has at least `min_selections` elements, if provided
@@ -134,8 +138,9 @@ class AnswerValidatorMixin:
             )
 
     def validate_answer_extract(self, answer: dict[str, Any]) -> None:
-        """
-        QuestionExtract-specific answer validation. Checks that answer["answer"]:
+        """Validate QuestionExtract-specific answer.
+        
+        Check that answer["answer"]:
         - does not have keys that are not in the answer template
         - has all keys that are in the answer template
         """
@@ -143,16 +148,17 @@ class AnswerValidatorMixin:
         acceptable_answer_keys = set(self.answer_template.keys())
         if any([key not in acceptable_answer_keys for key in value.keys()]):
             raise QuestionAnswerValidationError(
-                f"Answer keys must be in {acceptable_answer_keys}, but got {value.keys()}"
+                f"Answer keys must be in {acceptable_answer_keys}, but got {value.keys()}."
             )
         if any([key not in value.keys() for key in acceptable_answer_keys]):
             raise QuestionAnswerValidationError(
-                f"Answer must have all keys in {acceptable_answer_keys}, but got {value.keys()}"
+                f"Answer must have all keys in {acceptable_answer_keys}, but got {value.keys()}."
             )
 
     def validate_answer_list(self, answer: dict[str, Union[list, str]]) -> None:
-        """
-        QuestionList-specific answer validation. Checks that answer["answer"]:
+        """Validate QuestionList-specific answer.
+         
+        Check that answer["answer"]:
         - is not empty, if `allow_nonresponse` is False
         - has no more than `max_list_items` elements
         - has no empty strings
@@ -178,8 +184,9 @@ class AnswerValidatorMixin:
             )
 
     def validate_answer_numerical(self, answer: dict) -> None:
-        """
-        QuestionNumerical-specific answer validation. Checks that answer["answer"]:
+        """Validate QuestionNumerical-specific answer.
+        
+        Check that answer["answer"]:
         - is not less than `min_value`
         - is not greater than `max_value`
         """
@@ -197,8 +204,9 @@ class AnswerValidatorMixin:
     def validate_answer_multiple_choice(
         self, answer: dict[str, Union[str, int]]
     ) -> None:
-        """
-        QuestionMultipleChoice-specific answer validation. Checks that answer["answer"]:
+        """Validate QuestionMultipleChoice-specific answer.
+        
+        Check that answer["answer"]:
         - is a string, bytes-like object or real number
         - is a non-negative integer
         - is in the range of the number of options
@@ -219,8 +227,9 @@ class AnswerValidatorMixin:
             )
 
     def validate_answer_rank(self, answer: dict[str, Union[str, int]]) -> None:
-        """
-        QuestionRank-specific answer validation. Checks that answer["answer"]:
+        """Validate QuestionRank-specific answer.
+        
+        Check that answer["answer"]:
         - contains only integers
         - contains only integers in the range of the number of options
         - has the correct number of elements

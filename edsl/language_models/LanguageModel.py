@@ -1,3 +1,4 @@
+"""This module contains the LanguageModel class, which is an abstract base class for all language models."""
 from __future__ import annotations
 from functools import wraps
 import io
@@ -9,7 +10,6 @@ from typing import Coroutine
 from abc import ABC, abstractmethod, ABCMeta
 from rich.console import Console
 from rich.table import Table
-
 
 from edsl.trackers.TrackerAPI import TrackerAPI
 from queue import Queue
@@ -29,6 +29,7 @@ from edsl.Base import RichPrintingMixin, PersistenceMixin
 
 
 def handle_key_error(func):
+    """Handle KeyError exceptions."""
     @wraps(func)
     def wrapper(*args, **kwargs):
         try:
@@ -43,11 +44,13 @@ def handle_key_error(func):
 
 
 class RegisterLanguageModelsMeta(ABCMeta):
-    "Metaclass to register output elements in a registry i.e., those that have a parent"
+    """Metaclass to register output elements in a registry i.e., those that have a parent."""
+
     _registry = {}  # Initialize the registry as a dictionary
     REQUIRED_CLASS_ATTRIBUTES = ["_model_", "_parameters_", "_inference_service_"]
 
     def __init__(cls, name, bases, dct):
+        """Register the class in the registry if it has a _model_ attribute."""
         super(RegisterLanguageModelsMeta, cls).__init__(name, bases, dct)
         # if name != "LanguageModel":
         if (model_name := getattr(cls, "_model_", None)) is not None:
@@ -88,19 +91,19 @@ class RegisterLanguageModelsMeta(ABCMeta):
                 required_parameters=[("raw_response", dict[str, Any])],
                 must_be_async=False,
             )
-            # breakpoint()
-            # RegisterLanguageModelsMeta._registry[name] = cls
             RegisterLanguageModelsMeta._registry[model_name] = cls
 
     @classmethod
     def get_registered_classes(cls):
+        """Return the registry."""
         return cls._registry
 
     @staticmethod
     def check_required_class_variables(
         candidate_class: LanguageModel, required_attributes: List[str] = None
     ):
-        """Checks if a class has the required attributes
+        """Check if a class has the required attributes.
+
         >>> class M:
         ...     _model_ = "m"
         ...     _parameters_ = {}
@@ -127,6 +130,7 @@ class RegisterLanguageModelsMeta(ABCMeta):
         required_parameters: List[tuple[str, Any]] = None,
         must_be_async: bool = False,
     ):
+        """Verify that a method is defined in a class, has the correct return type, and has the correct parameters."""
         RegisterLanguageModelsMeta._check_method_defined(candidate_class, method_name)
 
         required_parameters = required_parameters or []
@@ -147,22 +151,25 @@ class RegisterLanguageModelsMeta(ABCMeta):
 
     @staticmethod
     def _check_method_defined(cls, method_name):
-        """Checks if a method is defined in a class
+        """Check if a method is defined in a class.
+
+        Example:
         >>> class M:
         ...     def f(self): pass
         >>> RegisterLanguageModelsMeta._check_method_defined(M, "f")
         >>> RegisterLanguageModelsMeta._check_method_defined(M, "g")
         Traceback (most recent call last):
         ...
-        NotImplementedError: g method must be implemented
+        NotImplementedError: g method must be implemented.
         """
         if not hasattr(cls, method_name):
-            raise NotImplementedError(f"{method_name} method must be implemented")
+            raise NotImplementedError(f"{method_name} method must be implemented.")
 
     @staticmethod
     def _check_is_coroutine(func: Callable):
-        """
-        Checks to make sure it's a coroutine function
+        """Check to make sure it's a coroutine function.
+
+        Example:
         >>> def f(): pass
         >>> RegisterLanguageModelsMeta._check_is_coroutine(f)
         Traceback (most recent call last):
@@ -171,11 +178,12 @@ class RegisterLanguageModelsMeta(ABCMeta):
         """
         if not inspect.iscoroutinefunction(func):
             raise TypeError(
-                f"A LangugeModel class with method {func.__name__} must be an asynchronous method"
+                f"A LangugeModel class with method {func.__name__} must be an asynchronous method."
             )
 
     @staticmethod
     def _verify_parameter(params, param_name, param_type, method_name):
+        """Verify that a parameter is defined in a method and has the correct type."""
         if param_name not in params:
             raise TypeError(
                 f"""Parameter "{param_name}" of method "{method_name}" must be defined.
@@ -191,7 +199,9 @@ class RegisterLanguageModelsMeta(ABCMeta):
     @staticmethod
     def _check_return_type(method, expected_return_type):
         """
-        Checks if the return type of a method is as expected
+        Check if the return type of a method is as expected.
+
+        Example:
         >>> class M:
         ...     async def f(self) -> str: pass
         >>> RegisterLanguageModelsMeta._check_return_type(M.f, str)
@@ -212,13 +222,14 @@ class RegisterLanguageModelsMeta(ABCMeta):
 
     @classmethod
     def model_names_to_classes(cls):
+        """Return a dictionary of model names to classes."""
         d = {}
         for classname, cls in cls._registry.items():
             if hasattr(cls, "_model_"):
                 d[cls._model_] = cls
             else:
                 raise Exception(
-                    f"Class {classname} does not have a _model_ class attribute"
+                    f"Class {classname} does not have a _model_ class attribute."
                 )
         return d
 
@@ -230,8 +241,14 @@ class LanguageModel(
 
     _model_ = None
 
+    __rate_limits = None
+    # TODO: Use the OpenAI Teir 1 rate limits
+    __default_rate_limits = {"rpm": 10_000, "tpm": 2_000_000}
+    _safety_factor = 0.8
+
     def __init__(self, crud: CRUDOperations = CRUD, **kwargs):
-        """
+        """Initialize the LanguageModel.
+
         Attributes:
         - all attributes inherited from subclasses
         - lock: lock for this model to ensure TODO
@@ -249,14 +266,45 @@ class LanguageModel(
             if key not in parameters:
                 setattr(self, key, value)
 
-        # for key, value in kwargs.items():
-        # setattr(self, key, value)
+        # TODO: This can very likely be removed
         self.api_queue = Queue()
         self.crud = crud
 
+    def __hash__(self):
+        """Allow the model to be used as a key in a dictionary."""
+        return hash(self.model + str(self.parameters))
+
+    def __eq__(self, other):
+        """Allow the model to be used as a key in a dictionary."""
+        return self.model == other.model and self.parameters == other.parameters
+
+    def _set_rate_limits(self, rpm = None, tpm = None) -> None:
+        """Set the rate limits for the model. If the model does not have rate limits, use the default rate limits."""
+        if rpm is not None and tpm is not None:
+            self.__rate_limits = {"rpm": rpm, "tpm": tpm}
+            return 
+        
+        if self.__rate_limits is None:
+            if hasattr(self, "get_rate_limits"):
+                self.__rate_limits = self.get_rate_limits()
+            else:
+                self.__rate_limits = self.__default_rate_limits
+
+    @property
+    def RPM(self):
+        """Model's requests-per-minute limit."""
+        self._set_rate_limits()
+        return self._safety_factor * self.__rate_limits["rpm"]
+
+    @property
+    def TPM(self):
+        """Model's tokens-per-minute limit."""
+        self._set_rate_limits()
+        return self._safety_factor * self.__rate_limits["tpm"]
+
     @staticmethod
     def _overide_default_parameters(passed_parameter_dict, default_parameter_dict):
-        """Returns a dictionary of parameters, with passed parameters taking precedence over defaults.
+        """Return a dictionary of parameters, with passed parameters taking precedence over defaults.
 
         >>> LanguageModel._overide_default_parameters(passed_parameter_dict={"temperature": 0.5}, default_parameter_dict={"temperature":0.9})
         {'temperature': 0.5}
@@ -273,10 +321,13 @@ class LanguageModel(
 
     @abstractmethod
     async def async_execute_model_call():
+        """Execute the model call and returns the result as a coroutine."""
         pass
 
     @jupyter_nb_handler
     def execute_model_call(self, *args, **kwargs) -> Coroutine:
+        """Execute the model call and returns the result as a coroutine."""
+
         async def main():
             results = await asyncio.gather(
                 self.async_execute_model_call(*args, **kwargs)
@@ -287,40 +338,19 @@ class LanguageModel(
 
     @abstractmethod
     def parse_response(raw_response: dict[str, Any]) -> str:
-        """Parses the API response and returns the response text.
+        """Parse the API response and returns the response text.
+
         What is returned by the API is model-specific and often includes meta-data that we do not need.
         For example, here is the results from a call to GPT-4:
-
-        {
-            "id": "chatcmpl-8eORaeuVb4po9WQRjKEFY6w7v6cTm",
-            "choices": [
-                {
-                    "finish_reason": "stop",
-                    "index": 0,
-                    "logprobs": None,
-                    "message": {
-                        "content": "Hello! How can I assist you today? If you have any questions or need information on a particular topic, feel free to ask.",
-                        "role": "assistant",
-                        "function_call": None,
-                        "tool_calls": None,
-                    },
-                }
-            ],
-            "created": 1704637774,
-            "model": "gpt-4-1106-preview",
-            "object": "chat.completion",
-            "system_fingerprint": "fp_168383a679",
-            "usage": {"completion_tokens": 27, "prompt_tokens": 13, "total_tokens": 40},
-        }
-
         To actually tract the response, we need to grab
-            data["choices[0]"]["message"]["content"].
+        data["choices[0]"]["message"]["content"].
         """
         raise NotImplementedError
 
     def _update_response_with_tracking(
         self, response, start_time, cached_response=False
     ):
+        """Update the response with tracking information and post it to the API Queue."""
         end_time = time.time()
         response["elapsed_time"] = end_time - start_time
         response["timestamp"] = end_time
@@ -329,9 +359,10 @@ class LanguageModel(
         return response
 
     async def async_get_raw_response(
-        self, user_prompt: str, system_prompt: str = ""
+        self, user_prompt: str, system_prompt: str, iteration: int = 1
     ) -> dict[str, Any]:
-        """This is some middle-ware that handles the caching of responses.
+        """Handle caching of responses.
+
         If the cache isn't being used, it just returns a 'fresh' call to the LLM,
         but appends some tracking information to the response (using the _update_response_with_tracking method).
         But if cache is being used, it first checks the database to see if the response is already there.
@@ -339,7 +370,8 @@ class LanguageModel(
         If it isn't, it calls the LLM, saves the response to the database, and returns the response with tracking information.
 
         If self.use_cache is True, then attempts to retrieve the response from the database;
-        if not in the DB, calls the LLM and writes the response to the DB."""
+        if not in the DB, calls the LLM and writes the response to the DB.
+        """
         start_time = time.time()
 
         if not self.use_cache:
@@ -351,6 +383,7 @@ class LanguageModel(
             parameters=str(self.parameters),
             system_prompt=system_prompt,
             prompt=user_prompt,
+            iteration=iteration,
         )
 
         if cached_response:
@@ -358,14 +391,20 @@ class LanguageModel(
             cache_used = True
         else:
             response = await self.async_execute_model_call(user_prompt, system_prompt)
-            self._save_response_to_db(user_prompt, system_prompt, response)
+            self._save_response_to_db(
+                user_prompt=user_prompt,
+                system_prompt=system_prompt,
+                response=response,
+                iteration=iteration,
+            )
             cache_used = False
 
         return self._update_response_with_tracking(response, start_time, cache_used)
 
     get_raw_response = sync_wrapper(async_get_raw_response)
 
-    def _save_response_to_db(self, prompt, system_prompt, response):
+    def _save_response_to_db(self, user_prompt, system_prompt, response, iteration):
+        """Save the response to the database."""
         try:
             output = json.dumps(response)
         except json.JSONDecodeError:
@@ -374,22 +413,30 @@ class LanguageModel(
             model=str(self.model),
             parameters=str(self.parameters),
             system_prompt=system_prompt,
-            prompt=prompt,
+            prompt=user_prompt,
             output=output,
+            iteration=iteration,
         )
 
-    async def async_get_response(self, user_prompt: str, system_prompt: str = ""):
+    async def async_get_response(
+        self, user_prompt: str, system_prompt: str, iteration: int = 1
+    ):
         """Get response, parse, and return as string."""
-        raw_response = await self.async_get_raw_response(user_prompt, system_prompt)
+        raw_response = await self.async_get_raw_response(
+            user_prompt=user_prompt, system_prompt=system_prompt, iteration=iteration
+        )
         response = self.parse_response(raw_response)
         try:
             dict_response = json.loads(response)
         except json.JSONDecodeError as e:
-            print("Could not load JSON. Trying to repair.")
-            print(response)
+            # TODO: Turn into logs to generate issues
             dict_response, success = await repair(response, str(e))
             if not success:
                 raise Exception("Even the repair failed.")
+
+        dict_response["cached_response"] = raw_response["cached_response"]
+        dict_response["usage"] = raw_response.get("usage", {})
+        dict_response["raw_model_response"] = raw_response
         return dict_response
 
     get_response = sync_wrapper(async_get_response)
@@ -398,7 +445,7 @@ class LanguageModel(
     # USEFUL METHODS
     #######################
     def _post_tracker_event(self, raw_response: dict[str, Any]) -> None:
-        """Parses the API response and sends usage details to the API Queue."""
+        """Parse the API response and sends usage details to the API Queue."""
         usage = raw_response.get("usage", {})
         usage.update(
             {
@@ -411,7 +458,7 @@ class LanguageModel(
         self.api_queue.put(event)
 
     def cost(self, raw_response: dict[str, Any]) -> float:
-        """Returns the dollar cost of a raw response."""
+        """Return the dollar cost of a raw response."""
         keys = raw_response["usage"].keys()
         prices = model_prices.get(self.model)
         return sum([prices.get(key, 0.0) * raw_response["usage"][key] for key in keys])
@@ -420,12 +467,12 @@ class LanguageModel(
     # SERIALIZATION METHODS
     #######################
     def to_dict(self) -> dict[str, Any]:
-        """Converts instance to a dictionary."""
+        """Convert instance to a dictionary."""
         return {"model": self.model, "parameters": self.parameters}
 
     @classmethod
     def from_dict(cls, data: dict) -> Type[LanguageModel]:
-        """Converts dictionary to a LanguageModel child instance."""
+        """Convert dictionary to a LanguageModel child instance."""
         from edsl.language_models.registry import get_model_class
 
         model_class = get_model_class(data["model"])
@@ -436,10 +483,11 @@ class LanguageModel(
     # DUNDER METHODS
     #######################
     def __repr__(self) -> str:
+        """Return a string representation of the object."""
         return f"{self.__class__.__name__}(model = '{self.model}', parameters={self.parameters})"
 
     def __add__(self, other_model: Type[LanguageModel]) -> Type[LanguageModel]:
-        """Combine two models into a single model (other_model takes precedence over self)"""
+        """Combine two models into a single model (other_model takes precedence over self)."""
         print(
             f"""Warning: one model is replacing another. If you want to run both models, use a single `by` e.g., 
               by(m1, m2, m3) not by(m1).by(m2).by(m3)."""
@@ -447,7 +495,7 @@ class LanguageModel(
         return other_model or self
 
     def rich_print(self):
-        """Displays an object as a table."""
+        """Display an object as a table."""
         table = Table(title="Language Model")
         table.add_column("Attribute", style="bold")
         table.add_column("Value")
@@ -460,13 +508,14 @@ class LanguageModel(
 
     @classmethod
     def example(cls):
-        "Returns a default instance of the class"
+        """Return a default instance of the class."""
         from edsl import Model
 
         return Model(Model.available()[0])
 
 
 if __name__ == "__main__":
+    """Run the module's test suite."""
     # import doctest
     # doctest.testmod()
     from edsl.language_models import LanguageModel

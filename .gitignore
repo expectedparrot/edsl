@@ -1,4 +1,5 @@
 # Data files
+_build/*
 *_temp
 *csv
 *db
@@ -35,3 +36,4 @@ visualization_test_outputs
 venv
 *log
 visualization_test_outputs
+_visualize_structure

@@ -3,6 +3,7 @@ import os
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)
 
+from edsl.__version__ import __version__
 from edsl.config import Config, CONFIG
 from edsl.agents.Agent import Agent
 from edsl.agents.AgentList import AgentList

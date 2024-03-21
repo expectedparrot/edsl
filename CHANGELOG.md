@@ -87,3 +87,47 @@
 - Fixed various issues with visualizations. They should now work better.
 
 ### Removed
+
+## [0.1.13] - 2024-03-01
+
+### Added
+- The `answer` component of the `Results` object is printed in a nicer format.
+
+### Fixed
+- `trait_name` descriptor was not working; it is now fixed.
+- `QuestionList` is now working properly again
+
+### Removed
+
+## [0.1.14] - 2024-03-06
+
+### Added
+- The raw model response is now available in the `Results` object, accessed via "raw_model_response" keyword. 
+There is one for each question. The key is the question_name + `_raw_response_model`
+- The `.run(progress_bar = True)` returns a much more informative real-time view of job progress.
+
+### Fixed
+
+### Removed
+
+## [0.1.15] - 2024-03-09
+
+### Added
+
+### Fixed
+- Various fixes and small improvements
+
+### Removed
+
+
+## [0.1.16] - 2024-03-11
+
+### Added
+- Better docstrings
+- Making progress towards documentation
+
+### Fixed
+- `.run(n = ...)` now works and will run each interview as many times as needed
+- 
+
+### Removed

@@ -17,19 +17,24 @@ UsageRates = namedtuple(
 
 
 class TrackerAPI(Tracker):
-    """ """
+    """This tracker tracks API calls."""
 
     class APICallDetails(Tracker.TrackerEvent):
+        """This is the kind of event that will be placed in the queue the tracker is monitoring."""
+
         def __init__(self, details):
+            """Each child class of TrackerEvent needs to know how to update the state of the tracker."""
             self.details = details
 
         def apply(self, tracker):
+            """Update the state of the tracker."""
             with tracker.lock:
                 tracker.usage.append(self.details)
 
     def __init__(
         self, lock, monitored_queue, tokens_per_minute_k=90, requests_per_minute_k=2
     ):
+        """Initialize the tracker with an event queue."""
         self.lock = lock
         self.tokens_per_minute_k = tokens_per_minute_k
         self.requests_per_minute_k = requests_per_minute_k
@@ -38,6 +43,7 @@ class TrackerAPI(Tracker):
         super().__init__(monitored_queue)
 
     def usage_rates(self, last_seconds=60):
+        """Compute the usage rates over the last `last_seconds` seconds."""
         with self.lock:
             right_now = time.time()
             relevant_usage = [
@@ -76,16 +82,18 @@ class TrackerAPI(Tracker):
                 return usage_rates
 
     def tracked_values(self) -> dict:
+        """Return the tracked values."""
         return {
             "Calls": len(self.usage),
         }
 
     def allowed_events(self):
+        """Return the allowed events."""
         return set([TrackerAPI.APICallDetails])
 
     @classmethod
     def fromJSON(cls, filename):
-        """This loads a tracker from a JSON file. Just for testing purposes"""
+        """Load a tracker from a JSON file."""
         with open(filename, "r") as f:
             json_dict = f.read()
         usage = json.loads(json_dict)
@@ -97,11 +105,12 @@ class TrackerAPI(Tracker):
         return instance
 
     def toJSON(self, filename="sample_data.json"):
+        """Save the tracker to a JSON file."""
         with open(filename, "w") as f:
             json.dump(self.usage, f)
 
     def status(self):
-        """This prints the status of the interview manager, while interviews are doing on."""
+        """Print the status of the interview manager, while interviews are doing on."""
         estimated_length = 100
         completed = self.status_tracker.complete
         pct_completed = self.status_tracker.percentage_complete

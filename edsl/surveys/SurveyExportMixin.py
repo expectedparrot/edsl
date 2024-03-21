@@ -1,9 +1,12 @@
+"""A mixin class for exporting surveys to different formats."""
 from docx import Document
 
 
 class SurveyExportMixin:
+    """A mixin class for exporting surveys to different formats."""
+
     def docx(self) -> "Document":
-        "Generates a docx document for the survey"
+        """Generate a docx document for the survey."""
         doc = Document()
         doc.add_heading("EDSL Auto-Generated Survey")
         doc.add_paragraph(f"\n")
@@ -24,7 +27,7 @@ class SurveyExportMixin:
 
     def code(self) -> list[str]:
         ## TODO: Refactor to only use the questions actually in the survey
-        "Creates the Python code representation of a survey"
+        """Create the Python code representation of a survey."""
         header_lines = ["from edsl.surveys.Survey import Survey"]
         header_lines.append(
             "from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice"
@@ -51,7 +54,7 @@ class SurveyExportMixin:
         return lines
 
     def html(self) -> str:
-        "Generates the html for the survey"
+        """Generate the html for the survey."""
         html_text = []
         for question in self._questions:
             html_text.append(

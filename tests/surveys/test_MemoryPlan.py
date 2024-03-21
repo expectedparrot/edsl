@@ -36,9 +36,9 @@ class TestMemoryPlan(unittest.TestCase):
 
     def test_check_valid_question_name(self):
         memory_plan = self.example()
-        memory_plan.check_valid_question_name("q1")
+        memory_plan._check_valid_question_name("q1")
         with self.assertRaises(ValueError):
-            memory_plan.check_valid_question_name("invalid_question")
+            memory_plan._check_valid_question_name("invalid_question")
 
     def test_add_single_memory(self):
         memory_plan = self.example()
