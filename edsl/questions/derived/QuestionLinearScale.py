@@ -8,19 +8,19 @@ from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
 class QuestionLinearScale(QuestionMultipleChoice):
     """
-    This question asks the user to respond to a statement on a linear scale.
+    This question asks the respondent to respond to a statement on a linear scale.
 
     Arguments:
-    - `question_name` is the name of the question (string)
-    - `question_text` is the text of the question (string)
-    - `question_options` are the options the user should select from (list of integers)
+    :param question_name: The name of the question (string).
+    :param question_text: The text of the question (string).
+    :param question_options: The options the user should select from (list of strings).
 
     Optional arguments:
-    - `instructions` are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionLinearScale.default_instructions`
-    - `option_labels` maps question_options to labels (dictionary mapping integers to strings)
-    - `short_names_dict` maps question_options to short names (dictionary mapping strings to strings)
+    :param instructions: are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionLinearScale.default_instructions`.
+    :param option_labels: maps question_options to labels (dictionary mapping integers to strings).
+    :param short_names_dict: maps question_options to short names (dictionary mapping strings to strings).
 
-    For an example, see `QuestionLinearScale.example()`
+    For an example, see `QuestionLinearScale.example()`.
     """
 
     question_type = "linear_scale"

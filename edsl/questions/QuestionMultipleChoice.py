@@ -12,13 +12,18 @@ from edsl.scenarios import Scenario
 
 class QuestionMultipleChoice(Question):
     """
-    This question asks the user to select one option from a list of options.
+    This question asks the respondent to select one option from a list of options.
 
-    :param question_text: The text of the question.
-    :param question_options: The options the user should select from.
-    :param question_name: The name of the question.
-    
-    For an example, run `QuestionMultipleChoice.example()`
+    Arguments:
+    :param question_name: The name of the question (string).
+    :param question_text: The text of the question (string).
+    :param question_options: The options the user should select from (list of strings).
+
+    Optional arguments:
+    :param instructions: are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionCheckBox.default_instructions`.
+    :param short_names_dict: maps question_options to short names (dictionary mapping strings to strings).
+
+    For an example, run `QuestionMultipleChoice.example()`.
     """
 
     question_type = "multiple_choice"

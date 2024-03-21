@@ -12,26 +12,26 @@ from edsl.questions.descriptors import (
 from edsl.scenarios import Scenario
 from edsl.utilities import random_string
 
-
 class QuestionCheckBox(Question):
     """
-    This question asks the user to select options from a list.
+    This question asks the respondent to select options from a list.
 
     Arguments:
-    - `question_name` is the name of the question (string)
-    - `question_options` are the options the user should select from (list of strings)
-    - `question_text` is the text of the question (string)
+    :param question_name: The name of the question (string).
+    :param question_text: The text of the question (string).
+    :param question_options: The options the user should select from (list of strings).
 
     Optional arguments:
-    - `min_selections` is the minimum number of options that must be selected (positive integer)
-    - `max_selections` is the maximum number of options that must be selected (positive integer)
-    - `instructions` are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionCheckBox.default_instructions`
-    - `short_names_dict` maps question_options to short names (dictionary mapping strings to strings)
+    :param min_selections: is the minimum number of options that must be selected (positive integer).
+    :param max_selections: is the maximum number of options that must be selected (positive integer).
+    :param instructions: are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionCheckBox.default_instructions`.
+    :param short_names_dict: maps question_options to short names (dictionary mapping strings to strings).
 
-    For an example, run `QuestionCheckBox.example()`
+    For an example, run `QuestionCheckBox.example()`.
     """
 
     question_type = "checkbox"
+    purpose = "When options are known and limited"
     question_options: list[str] = QuestionOptionsDescriptor()
     min_selections = IntegerDescriptor(none_allowed=True)
     max_selections = IntegerDescriptor(none_allowed=True)
