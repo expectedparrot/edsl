@@ -37,16 +37,22 @@ class Tracker(ABC):
 
     @abstractmethod
     def allowed_events(self) -> set:
-        """What events (classes) are allowed to be placed in the queue?"""
+        """Return a set of allowed events.
+        
+        What events (classes) are allowed to be placed in the queue?
+        """
         pass
 
     @abstractmethod
     def tracked_values(self) -> dict:
-        """What values are tracked by this tracker (should be flat dictionary)?"""
+        """Return a dictionary of tracked values.
+        
+        What values are tracked by this tracker (should be flat dictionary)?
+        """
         pass
 
     def get_from_queue(self):
-        """Get events from the queue and stores them in a list.
+        """Get events from the queue and store them in a list.
         
         It runs until the event_queue is empty.
         """
