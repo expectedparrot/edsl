@@ -96,11 +96,14 @@ class JobsRunnerStatusData:
                 "task_remaining", value=len(interviews) - len(completed_tasks), units=""
             )
         )
+        number_remaining = (len(interviews) - len(completed_tasks))
+        time_per_task = elapsed_time / len(completed_tasks) if len(completed_tasks) > 0 else "NA"
+        estimated_time_remaining = number_remaining * time_per_task if time_per_task != "NA" else "NA"
+
         interview_statistics.add_stat(
             InterviewStatistic(
                 "estimated_time_remaining",
-                value = (len(interviews) - len(completed_tasks))
-                * (elapsed_time / len(completed_tasks) if len(completed_tasks) > 0 else "NA"),
+                value = estimated_time_remaining,
                 digits=1,
                 units="sec.",
             )
@@ -158,7 +161,7 @@ class JobsRunnerStatusData:
                 {
                     "type": token_type,
                     "tokens": tokens,
-                    "cost": f"${token_usage.cost(prices):.5f}",
                 }
             )
+        cache_info['cost'] = f"${token_usage.cost(prices):.5f}"
         return cache_info
