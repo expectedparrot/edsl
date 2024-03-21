@@ -1,3 +1,4 @@
+"""This file contains the path to a results file."""
 import os
 from edsl import BASE_DIR
 
