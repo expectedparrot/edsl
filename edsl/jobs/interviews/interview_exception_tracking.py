@@ -12,9 +12,9 @@ class InterviewExceptionCollection(UserDict):
     """A collection of exceptions that occurred during the interview.
 
     """
-    def add(self, question: 'Question', entry: InterviewExceptionEntry) -> None:
+    def add(self, question_name: 'str', entry: InterviewExceptionEntry) -> None:
         """Add an exception entry to the collection."""
-        question_name = question.question_name
+        question_name = question_name
         if question_name not in self.data:
             self.data[question_name] = []
         self.data[question_name].append(entry)
