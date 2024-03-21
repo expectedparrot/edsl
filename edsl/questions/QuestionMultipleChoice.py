@@ -18,9 +18,9 @@ class QuestionMultipleChoice(Question):
     :type question_name: str
     :param question_text: The text of the question.
     :type question_text: str
-    :param question_options: The options the user should select from.
+    :param question_options: The options the respondent should select from.
     :type question_options: list[str]
-    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionCheckBox.default_instructions`.
+    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionMultipleChoice.default_instructions`.
     :type instructions: str, optional
     :param short_names_dict: Maps question_options to short names.
     :type short_names_dict: dict[str, str], optional
