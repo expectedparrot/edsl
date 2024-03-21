@@ -114,38 +114,42 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         :param print_traceback: if True, print the traceback of any exceptions.
         """
         # we only need to print the warning once if a task failed.
-        warning_printed = False
-        warning_header = textwrap.dedent(
-            """\
-            WARNING: At least one question in the survey was not answered.
-            """
-        )
-        # there should be one one invigilator for each task
+        # warning_printed = False
+        # warning_header = textwrap.dedent(
+        #     """\
+        #     WARNING: At least one question in the survey was not answered.
+        #     """
+        # )
+        # # there should be one one invigilator for each task
         assert len(self.tasks) == len(self.invigilators)
 
         for task, invigilator in zip(self.tasks, self.invigilators):
             if task.done():
                 try:  # task worked
                     result = task.result()
-                except asyncio.CancelledError:  # task was cancelled
+                except asyncio.CancelledError as e:  # task was cancelled
                     result = invigilator.get_failed_task_result()
 
                     ## TODO: Currently, we only log errors at the question-answering phase
                     ## Do we want to log exceptions here as well? 
-                    # exception_entry = InterviewExceptionEntry(
-                    #     exception = repr(e), 
-                    #     time = time.time(),
-                    #     traceback = traceback.format_exc()
-                    # )
-                    # self.exceptions.add(task.edsl_name, exception_entry)
-                except (
-                    Exception
-                ) as exception:  # any other kind of exception in the task
-                    if not warning_printed:
-                        warning_printed = True
-                        print(warning_header)
+                    exception_entry = InterviewExceptionEntry(
+                         exception = repr(e), 
+                         time = time.time(),
+                         traceback = traceback.format_exc()
+                     )
+                    self.exceptions.add(task.edsl_name, exception_entry)
+                except Exception as e:  # any other kind of exception in the task
+                    exception_entry = InterviewExceptionEntry(
+                         exception = repr(e), 
+                         time = time.time(),
+                         traceback = traceback.format_exc()
+                     )
+                    self.exceptions.add(task.edsl_name, exception_entry)
+                    # if not warning_printed:
+                    #     warning_printed = True
+                    #     print(warning_header)
 
-                    error_message = f"Task `{task.edsl_name}` failed with `{exception.__class__.__name__}`:`{exception}`."
+                    error_message = f"Task `{task.edsl_name}` failed with `{e.__class__.__name__}`:`{e}`."
                     #print(error_message)
                     #if print_traceback:
                     #    traceback.print_exc()

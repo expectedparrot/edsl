@@ -20,37 +20,37 @@ class JobsRunnerStatusPresentation:
             header_style="bold magenta",
             box=SIMPLE,
         )
-        table.add_column("Statistic", style="dim", no_wrap=True)
-        table.add_column("Value")
+        table.max_width = 100
+        table.add_column("Statistic", style="dim", no_wrap=True, width = 50)
+        table.add_column("Value", width = 10)
 
         for key, value in status_summary.items():
             if key != "model_queues":
                 table.add_row(key, value)
 
+        spacing = " "
         if "model_queues" in status_summary:
             table.add_row(Text("Model Queues", style="bold red"), "")
             for model_info in status_summary["model_queues"]:
                 model_name = model_info["model_name"]
-                table.add_row(Text(model_name, style="blue"), "")
-
-                # Basic model queue info
-                table.add_row("TPM limit (k)", str(model_info["TPM_limit_k"]))
-                table.add_row("RPM limit (k)", str(model_info["RPM_limit_k"]))
+                tpm = "TPM (k)=" + str(model_info["TPM_limit_k"])
+                rpm = "RPM (k)=" + str(model_info["RPM_limit_k"])
+                pretty_model_name = model_name + ";" + tpm + ";" + rpm
+                table.add_row(Text(pretty_model_name, style="blue"), "")
                 table.add_row(
                     "Number question tasks waiting for capacity",
                     str(model_info["num_tasks_waiting"]),
                 )
-
                 # Token usage and cost info
                 for cache_info in model_info["token_usage_info"]:
                     cache_status = cache_info["cache_status"]
-                    table.add_row(Text(cache_status, style="bold"), "")
+                    table.add_row(Text(spacing + cache_status.replace("_", " "), style="bold"), "")
                     for detail in cache_info["details"]:
                         token_type = detail["type"]
                         tokens = detail["tokens"]
-                        cost = detail["cost"]
-                        table.add_row(f"{token_type}", f"{tokens:,}")
-                        table.add_row("cost", cost)
+       #                 cost = detail["cost"]
+                        table.add_row(spacing + f"{token_type}", f"{tokens:,}")
+                    table.add_row(spacing + "cost", cache_info['cost'])
 
         return table
 

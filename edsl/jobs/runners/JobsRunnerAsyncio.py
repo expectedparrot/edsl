@@ -1,5 +1,6 @@
 import time
 import asyncio
+import textwrap
 from typing import Coroutine, List, AsyncGenerator
 
 from rich.live import Live
@@ -13,102 +14,15 @@ from edsl.utilities.decorators import jupyter_nb_handler
 from edsl.jobs.runners.JobsRunnerStatusMixin import JobsRunnerStatusMixin
 from edsl.jobs.runners.JobsRunHistory import JobsRunHistory
 
-class TaskHistory:
 
-    def __init__(self, total_interviews):
-        self.total_interviews = total_interviews
+#from edsl.jobs.tasks.task_status_enum import TaskStatus
 
-
-    def get_updates(self):
-        updates = []
-        for interview in self.total_interviews:
-            for question_name, logs in interview.task_status_logs.items():
-                updates.append(logs)
-        return updates
-
-    def plot_completion_times(self):
-
-        updates = self.get_updates()
-
-        elapsed = [update.max_time - update.min_time for update in updates]
-        x = range(len(elapsed))
-        y = elapsed
-
-        import matplotlib.pyplot as plt
-        plt.bar(x, y)
-        plt.title('Per-interview completion times')
-        plt.xlabel('Task')
-        plt.ylabel('Time (seconds)')
-        plt.show()
-
-    def plotting_data(self, num_periods = 100):
-
-        updates = self.get_updates()
-        
-        min_t = min([update.min_time for update in updates])
-        max_t = max([update.max_time for update in updates])
-        delta_t = (max_t - min_t)/(num_periods * 1.0)
-        time_periods = [min_t + delta_t *i for i in range(num_periods)]
-      
-        def counts(t):
-            d = {}
-            for update in updates:
-                status = update.status_at_time(t)
-                if status in d:
-                    d[status] += 1
-                else:
-                    d[status] = 1
-            return d 
-  
-        status_counts = [counts(t) for t in time_periods]
-
-        new_counts = []
-        for status_count in status_counts:
-            d = {task_status:0 for task_status in TaskStatus}
-            d.update(status_count)
-            new_counts.append(d)
-
-        return new_counts
-    
-    def plot(self, num_periods = 100):
-        new_counts = self.plotting_data(num_periods)
-
-        max_count = max([max(entry.values()) for entry in new_counts])
-
-        rows = int(len(TaskStatus) ** 0.5) + 1
-        cols = (len(TaskStatus) + rows - 1) // rows  # Ensure all plots fit
-        from matplotlib import pyplot as plt
-            
-        plt.figure(figsize=(15, 10))  # Adjust the figure size as needed
-        for i, status in enumerate(TaskStatus, start=1):
-            plt.subplot(rows, cols, i)
-            x = range(len(new_counts))
-            y = [item.get(status, 0) for item in new_counts]  # Use .get() to handle missing keys safely
-            plt.plot(x, y, marker='o', linestyle='-')
-            plt.title(status.name)
-            plt.xlabel('Time Periods')
-            plt.ylabel('Count')
-            plt.grid(True)
-            plt.ylim(0, max_count)
-
-        plt.tight_layout()
-        plt.show()
-
-from edsl.jobs.tasks.task_status_enum import TaskStatus
-
-
+from edsl.jobs.tasks.TaskHistory import TaskHistory
 
 class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
     runner_name = "asyncio"
    
-    history = JobsRunHistory()
-
-    # async def periodic_logger(self, period=1):
-    #     """Logs every 'period' seconds."""
-    #     self.history.log(self, self.results, self.elapsed_time)
-    #     while True:
-    #         await asyncio.sleep(period)  # Sleep for the specified period
-    #         self.history.log(self, self.results, self.elapsed_time)
+    #history = JobsRunHistory()
 
     async def run_async(
         self,
@@ -219,7 +133,21 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
         def generate_table():
             return self.status_table(self.results, self.elapsed_time)
 
-        with Live(generate_table(), console=console, refresh_per_second=5) as live:
+        from contextlib import contextmanager
+
+        @contextmanager
+        def no_op_cm():
+            """A no-op context manager with a dummy update method."""
+            yield DummyLive()
+
+        class DummyLive:
+            def update(self, *args, **kwargs):
+                """A dummy update method that does nothing."""
+                pass
+
+        progress_bar_context = Live(generate_table(), console=console, refresh_per_second=5) if progress_bar else no_op_cm()
+
+        with progress_bar_context as live:
 
             async def update_progress_bar():
                 """Updates the progress bar at fixed intervals."""
@@ -254,26 +182,27 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
                 live.update(generate_table())            
 
         ## Compute exceptions         
-        exceptions = [i.exceptions for index, i in enumerate(self.total_interviews) if i.exceptions != {}]
-        indices = [index for index, i in enumerate(self.total_interviews) if i.exceptions != {}]
 
-        # Assuming Results, TaskHistory, etc. are defined elsewhere
         results = Results(survey=self.jobs.survey, data=self.results)
-        results.history = self.history
         results.task_history = TaskHistory(self.total_interviews)
-        results.total_interviews = self.total_interviews
+        if results.task_history.has_exceptions:
+            print(textwrap.dedent(f"""\
+            Exceptions were raised in the following interviews: {results.task_history.indices}
+            If your results object is named `results` these are available in 
 
-        if exceptions:
-            print(f"""Exceptions were raised in the following interviews: {indices}
-            These are available in `results.exceptions` if you want to inspect them and you 
-            names your results object `results`. 
-                  
+            >>> results.exceptions 
+                              
             If you want to plot by-task completion times, you can use 
-            `results.task_history.plot_completion_times()`
+
+            >>> results.task_history.plot_completion_times()
+            
             If you want to plot by-task status over time, you can use
-            `results.task_history.plot()`
-            """)
-            results.exceptions = exceptions
+            
+            >>> results.task_history.plot()
+
+            >>> results.task_history.show_exceptions()
+            
+            """))
 
         return results
 
