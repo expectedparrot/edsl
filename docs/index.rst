@@ -22,7 +22,7 @@ EDSL Docs
    data
    reports
    trackers
-   utlities
+   utilities
 
    
 Indices and tables
