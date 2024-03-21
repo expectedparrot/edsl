@@ -10,15 +10,18 @@ class QuestionLinearScale(QuestionMultipleChoice):
     """
     This question asks the respondent to respond to a statement on a linear scale.
 
-    Arguments:
-    :param question_name: The name of the question (string).
-    :param question_text: The text of the question (string).
-    :param question_options: The options the user should select from (list of strings).
-
-    Optional arguments:
-    :param instructions: are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionLinearScale.default_instructions`.
-    :param option_labels: maps question_options to labels (dictionary mapping integers to strings).
-    :param short_names_dict: maps question_options to short names (dictionary mapping strings to strings).
+    :param question_name: The name of the question.
+    :type question_name: str
+    :param question_text: The text of the question.
+    :type question_text: str
+    :param question_options: The options the respondent should select from.
+    :type question_options: list[int]
+    :param option_labels: maps question_options to labels.
+    :type option_labels: dict[int, str], optional
+    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionLinearScale.default_instructions`.
+    :type instructions: str, optional
+    :param short_names_dict: Maps question_options to short names.
+    :type short_names_dict: dict[str, str], optional
 
     For an example, see `QuestionLinearScale.example()`.
     """

@@ -13,13 +13,12 @@ class QuestionFreeText(Question):
     """
     This question asks the respondent to answer with unstructured text.
 
-    Arguments:
-    :param question_name: is the name of the question (string).
-    :param question_text: is the text of the question (string).
-
-    Optional arguments:
-    :param allow_nonresponse: is whether the user can skip the question (boolean). If not provided, the default is False.
-    :param instructions: are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionFreeText.default_instructions`.
+    :param question_name: The name of the question.
+    :type question_name: str
+    :param question_text: The text of the question.
+    :type question_text: str
+    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionFreeText.default_instructions`.
+    :type instructions: str, optional
 
     For an example, run `QuestionFreeText.example()`.
     """
