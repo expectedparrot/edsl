@@ -12,18 +12,19 @@ from edsl.utilities import random_string
 
 class QuestionNumerical(Question):
     """
-    This question asks the user to answer with a numerical value.
+    This question asks the respondent to answer with a numerical value.
 
     Arguments:
-    - `question_name` is the name of the question (string)
-    - `question_text` is the text of the question (string)
+    :param question_name: The name of the question (string).
+    :param question_text: The text of the question (string).
 
     Optional arguments:
-    - `min_value` is the minimum value of the answer (float)
-    - `max_value` is the maximum value of the answer (float)
-    - `instructions` are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionNumerical.default_instructions`
+    :param instructions: are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionNumerical.default_instructions`.
+    :param short_names_dict: maps question_options to short names (dictionary mapping strings to strings).
+    :param min_value: is the minimum value of the answer (float).
+    :param max_value: is the maximum value of the answer (float).
 
-    For an example, run `QuestionNumerical.example()`
+    For an example, run `QuestionNumerical.example()`.
     """
 
     question_type = "numerical"

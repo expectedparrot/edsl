@@ -7,20 +7,20 @@ from edsl.questions.QuestionCheckBox import QuestionCheckBox
 
 class QuestionTopK(QuestionCheckBox):
     """
-    This question asks the user to select exactly K options from a list.
+    This question asks the respondent to select exactly K options from a list.
 
     Arguments:
-    - `question_name` is the name of the question (string)
-    - `question_text` is the text of the question (string)
-    - `question_options` are the options the user should select from (list of strings)
-    - `min_selections` is the minimum number of options that must be selected (positive integer).
-    - `max_selections` is the maximum number of options that must be selected (positive integer). Must be equal to `min_selections`
+    :param question_name: The name of the question (string).
+    :param question_text: The text of the question (string).
+    :param question_options: The options the user should select from (list of strings).
+    :param min_selections: is the minimum number of options that must be selected (positive integer).
+    :param max_selections: is the maximum number of options that must be selected (positive integer).
 
     Optional arguments:
-    - `instructions` are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionTopK.default_instructions`
-    - `short_names_dict` maps question_options to short names (dictionary mapping strings to strings)
+    :param instructions: are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionTopK.default_instructions`.
+    :param short_names_dict: maps question_options to short names (dictionary mapping strings to strings).
 
-    For an example, run `QuestionTopK.example()`
+    For an example, run `QuestionTopK.example()`.
     """
 
     question_type = "top_k"

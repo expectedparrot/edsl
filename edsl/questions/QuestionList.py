@@ -14,18 +14,19 @@ from edsl.utilities import random_string
 
 class QuestionList(Question):
     """
-    This question asks the user to answer by providing a list of items as comma-separated strings.
+    This question asks the respondent to answer by providing a list of items as comma-separated strings.
 
     Arguments:
-    - `question_name` is the name of the question (string)
-    - `question_text` is the text of the question (string)
+    :param question_name: The name of the question (string).
+    :param question_text: The text of the question (string).
 
     Optional arguments:
-    - `max_list_items` is the maximum number of items that can be in the answer list (positive integer)
-    - `allow_nonresponse` is whether the user can skip the question (boolean). If not provided, the default is False.
-    - `instructions` are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionList.default_instructions`
+    :param instructions: are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionList.default_instructions`.
+    :param short_names_dict: maps question_options to short names (dictionary mapping strings to strings).
+    :param max_list_items: is the maximum number of items that can be in the answer list (positive integer).
+    :param allow_nonresponse: is whether the user can skip the question (boolean). If not provided, the default is False.
 
-    For an example, run `QuestionList.example()`
+    For an example, run `QuestionList.example()`.
     """
 
     question_type = "list"

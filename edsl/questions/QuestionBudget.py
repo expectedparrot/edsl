@@ -14,16 +14,16 @@ class QuestionBudget(Question):
     This question asks the respondent to allocate a budget among options.
 
     Arguments:
-    - `budget_sum` is the total amount of the budget to be allocated (positive integer)
-    - `question_name` is the name of the question (string)
-    - `question_options` are the options the user should allocated the budget to (list of strings)
-    - `question_text` is the text of the question (string)
+    :param question_name` is the name of the question (string).
+    :param question_text` is the text of the question (string).
+    :param question_options` are the options the user should allocated the budget to (list of strings).
+    :param budget_sum` is the total amount of the budget to be allocated among the options (positive integer).
 
     Optional arguments:
-    - `instructions` are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionBudget.default_instructions`
-    - `short_names_dict` maps question_options to short names (dictionary mapping strings to strings)
+    :param instructions: are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionBudget.default_instructions`.
+    :param short_names_dict: maps question_options to short names (dictionary mapping strings to strings).
 
-    To generate an example, run `QuestionBudget.example()`
+    To generate an example, run `QuestionBudget.example()`.
     """
 
     question_type = "budget"

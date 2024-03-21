@@ -11,17 +11,18 @@ from edsl.utilities import random_string
 
 class QuestionExtract(Question):
     """
-    This question asks the user to extract values from a string, and return them in a given template.
+    This question asks the respondent to extract values from a string, and return them in a given template.
 
     Arguments:
-    - `question_name` is the name of the question (string)
-    - `question_text` is the text of the question (string)
-    - `answer_template` is the template for the answer (dictionary mapping strings to strings)
+    :param question_name: The name of the question (string).
+    :param question_text: The text of the question (string).
+    :param answer_template: is the template for the answer (dictionary mapping strings to strings).
 
     Optional arguments:
-    - `instructions` are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionExtract.default_instructions`
+    :param instructions: are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionExtract.default_instructions`.
+    :param short_names_dict: maps question_options to short names (dictionary mapping strings to strings).
 
-    For an example, run `QuestionExtract.example()`
+    For an example, run `QuestionExtract.example()`.
     """
 
     question_type = "extract"
