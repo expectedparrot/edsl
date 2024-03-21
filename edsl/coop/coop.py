@@ -10,7 +10,7 @@ from edsl.surveys import Survey
 
 api_url = {
     "development": "http://127.0.0.1:8000",
-    "production": "https://api.goemeritus.com",
+    "production": "your_production_url",
 }
 
 
@@ -235,7 +235,7 @@ class Coop:
 if __name__ == "__main__":
     from edsl.coop import Coop
 
-    API_KEY = "O2ZMFnMATqZqeRbLFio5oILc79-GTz6rfQuXRpPFOEg"
+    API_KEY = "your_api_key"
     RUN_MODE = "development"
     coop = Coop(api_key=API_KEY, run_mode=RUN_MODE)
 
@@ -355,7 +355,7 @@ if __name__ == "__main__":
     from edsl.results import Results
 
     # check results on server (should be an empty list)
-    coop.results
+    len(coop.results)
     for results in coop.results:
         coop.delete_results(results.get("id"))
 
@@ -378,136 +378,3 @@ if __name__ == "__main__":
 
     # check all results
     coop.results
-
-    data = [
-        [
-            "0",
-            "Florida Proud Boy Sentenced to 10 Years in Capitol Attack",
-            "Christopher Worrell had gone on the run after his conviction last August, and was captured six weeks later.",
-            "A Proud Boy from Florida who went on the lam after being convicted of using pepper spray on police officers during the attack on the Capitol on Jan. 6, 2021, was sentenced on Thursday to 10 years in prison.",
-            "2024-01-05T03:06:42+0000",
-        ],
-        [
-            "1",
-            "Trump Ballot Challenges Advance, Varying Widely in Strategy and Sophistication",
-            "Donald J. Trump's eligibility for the presidential ballot has been challenged in more than 30 states, but only a handful of those cases have gained traction so far.",
-            "John Anthony Castro, a 40-year-old Texan, long-shot Republican presidential candidate and the most prolific challenger of Donald J. Trump's eligibility to be president, has gone to court in at least 27 states trying to remove the former president from the ballot.",
-            "2024-01-04T21:11:21+0000",
-        ],
-        [
-            "2",
-            "In Tense Election Year, Public Officials Face Climate of Intimidation",
-            "Colorado and Maine, which blocked former President Donald J. Trump from the ballot, have grappled with the harassment of officials.",
-            "The caller had tipped off the authorities in Maine on Friday night: He told them that he had broken into the home of Shenna Bellows, the state's top election official, a Democrat who one night earlier had disqualified former President Donald J. Trump from the primary ballot because of his actions during the Jan. 6 Capitol riot.",
-            "2024-01-04T10:02:27+0000",
-        ],
-        [
-            "3",
-            "The Case for Disqualifying Trump Is Strong",
-            "Worrying about “consequences” is not a legal argument.",
-            "It's been just over two weeks since the Colorado Supreme Court ruled that Section 3 of the 14th Amendment disqualifies Donald Trump from holding the office of president of the United States, and I spent way too much of my holiday vacation reading the legal and political commentary around the decision, and as I did so, I found myself experiencing déjà vu. Since the rise of Trump, he and his movement have transgressed constitutional, legal and moral boundaries at will and then, when Americans attempt to impose consequences for those transgressions, Trump's defenders and critics alike caution that the consequences will be dangerous or destabilizing.",
-            "2024-01-04T10:02:30+0000",
-        ],
-        [
-            "4",
-            "The Thin Blue Line That Divides America",
-            "The stark symbol wielded in the Capitol riot was always more complicated than it seemed.",
-            "Among the banners that Donald Trump's supporters carried as they stormed the Capitol three years ago — 2016's Make America Great Again flags and 2020's Keep America Great flags, Confederate battle flags, Gadsden flags, Pine Tree flags, the Stars and Stripes — appeared a now-familiar variant of the American flag: white stars on a black field, with alternating black and white stripes, except for the stripe immediately beneath the union, which is blue.",
-            "2024-01-04T10:00:51+0000",
-        ],
-        [
-            "5",
-            "The Jan. 6 Riot Inquiry So Far: Three Years, Hundreds of Prison Sentences",
-            "More than 1,200 people have now been arrested in connection with the attack on the Capitol, and more than 450 sentenced to periods of incarceration. The investigation is far from over.",
-            "More than 1,200 people have now been arrested in connection with the attack on the Capitol, and more than 450 sentenced to periods of incarceration. The investigation is far from over.",
-            "2024-01-04T01:24:30+0000",
-        ],
-        [
-            "6",
-            "Trump Asks Supreme Court to Keep Him on Colorado Ballot",
-            "The petition came in response to a Colorado Supreme Court ruling that the former president had engaged in insurrection and was ineligible to hold office under the 14th Amendment.",
-            "Former President Donald J. Trump asked the U.S. Supreme Court on Wednesday to keep him on the primary ballot in Colorado, appealing an explosive ruling from the state Supreme Court declaring him ineligible based on his efforts to overturn the 2020 election that culminated in the Jan. 6, 2021, attack on the Capitol.",
-            "2024-01-03T22:11:59+0000",
-        ],
-        [
-            "7",
-            "Former Guard Official Says Army Retaliated for His Account of Jan. 6 Delay",
-            "Col. Earl Matthews, the top lawyer for the D.C. National Guard during the assault on the Capitol, said in a whistle-blower complaint that he was punished for contradicting the testimony of two top generals.",
-            "A former top lawyer for the D.C. National Guard has accused Army officials of retaliating against him for asserting to Congress that two top Army officers lied about why deployment of the Guard was delayed during the Jan. 6, 2021, attack on the Capitol, according to a complaint filed with the Defense Department and obtained by The New York Times.",
-            "2024-01-03T20:52:09+0000",
-        ],
-        [
-            "8",
-            "Biden Plans 2 Campaign Speeches to Underscore Contrasts With Trump",
-            "The president will speak at Valley Forge on the anniversary of the Jan. 6 Capitol riot, and later at a South Carolina church where a white supremacist killed nine people.",
-            "President Biden is intensifying his campaign efforts as he looks toward November, planning a series of speeches that aides said on Wednesday would cast the stakes of the coming election as the endurance of American democracy itself.",
-            "2024-01-03T10:02:22+0000",
-        ],
-        [
-            "9",
-            "Trump Makes Another Pitch to Appeals Court on Immunity in Election Case",
-            "The filing was the last step before an appeals court in Washington will hold a hearing on the crucial issue next week.",
-            "Lawyers for former President Donald J. Trump on Tuesday made their final written request to a federal appeals court to grant Mr. Trump immunity to charges of plotting to overturn the 2020 election, arguing the indictment should be tossed out because it arose from actions he took while in the White House.",
-            "2024-01-03T04:53:02+0000",
-        ],
-    ]
-
-    import pandas as pd
-
-    df = pd.DataFrame(
-        data, columns=["index", "title", "sentence1", "sentence2", "timestamp"]
-    )
-    df = df[["title", "sentence1", "sentence2"]]
-    df
-
-    def add_content(df):
-        from edsl.questions import QuestionFreeText
-        from edsl import Scenario, Survey, Agent, Model
-
-        # We create questions prompting the agent to provide the next sentence and to draft the next sentence
-        q_direct = QuestionFreeText(
-            question_name="direct",
-            question_text="""Consider the recent news article \'{{ title }}\' that begins: {{ sentence1 }}.
-            What is the next sentence in this article?""",
-        )
-        q_draft = QuestionFreeText(
-            question_name="draft",
-            question_text="""Consider a recent news article \'{{ title }}\' that begins: {{ sentence1 }}.
-            Draft the next sentence in this article.""",
-        )
-
-        # We create scenarios of the questions with the article titles and first sentences
-        scenarios = [
-            Scenario({"title": row["title"], "sentence1": row["sentence1"]})
-            for _, row in df.iterrows()
-        ]
-
-        # We create an agent that has total recall of recent articles and an agent that is capable of drafting an article
-        agents = [
-            Agent(
-                name="total_recall",
-                traits={"persona": "You have total recall of recent news articles."},
-            ),
-            Agent(
-                name="great_writer",
-                traits={"persona": "You are a world-class news journalist."},
-            ),
-        ]
-
-        # We combine the questions into a survey
-        survey = Survey(questions=[q_direct, q_draft])
-
-        # We select an LLM
-        models = [Model("gpt-4-1106-preview"), Model("gpt-3.5-turbo")]
-
-        # We administer the survey with the data to both agents -- questions are administered asynchronously
-        results = survey.by(scenarios).by(agents).by(models).run()
-
-        return results
-
-    results = add_content(df)
-
-    results.data[1].answer
-    coop.create_results(results)
-
-    print(results.survey)
