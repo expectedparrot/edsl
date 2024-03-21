@@ -16,7 +16,8 @@ backup: ## Backup the code to `edsl/.backups/`
 
 .PHONY: docs 
 
-docs:
+docs: ## Generate documentation
+	poetry export -f requirements.txt --dev --output docs/requirements.txt
 	sphinx-build -b html docs _build
 
 docs-view:
@@ -128,3 +129,12 @@ test-doctests: ## Run doctests
 
 docstrings: 
 	pydocstyle edsl
+
+visualize:
+	python visualize_structure.py
+	@UNAME=`uname`; if [ "$$UNAME" = "Darwin" ]; then \
+		open _visualize_structure/index.html; \
+	else \
+		firefox _visualize_structure/index.html; \
+	fi
+

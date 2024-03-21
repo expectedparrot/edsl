@@ -5,7 +5,7 @@ from edsl.jobs.runners.JobsRunnerAsyncio import JobsRunnerAsyncio
 from edsl.jobs.runners.JobsRunnerDryRun import JobsRunnerDryRun
 
 from edsl.exceptions import JobsRunError
-from edsl.jobs.JobsRunner import RegisterJobsRunnerMeta
+from edsl.jobs.runners.JobsRunner import RegisterJobsRunnerMeta
 
 
 class JobsRunnersRegistryDict(UserDict):

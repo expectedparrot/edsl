@@ -1,9 +1,12 @@
+"""List question type."""
 import textwrap
 
 from edsl.prompts.QuestionInstructionsBase import QuestionInstuctionsBase
 
 
 class ListQuestion(QuestionInstuctionsBase):
+    """List question type."""
+
     question_type = "list"
     model = "gpt-4-1106-preview"
     default_instructions = textwrap.dedent(

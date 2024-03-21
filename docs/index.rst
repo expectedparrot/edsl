@@ -1,13 +1,16 @@
 EDSL Docs
 =========
 
-| This page contains documentation for the EDSL package. 
+| This page contains documentation for the Expected Parrot Domain-Specific Language (EDSL) package. 
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
-   getting_started
+   installation
+   starter_tutorial
+   coop
+   xdsl
    questions
    scenarios
    surveys

@@ -1,8 +1,7 @@
 import pytest
 
-from edsl.jobs.task_management import InterviewStatusDictionary
-from edsl.jobs.task_management import TaskStatus, TaskStatusDescriptor
-
+from edsl.jobs.interviews.InterviewStatusDictionary import InterviewStatusDictionary
+from edsl.jobs.tasks.task_status_enum import TaskStatus, TaskStatusDescriptor
 
 def test_instantiation():
     i = InterviewStatusDictionary()
@@ -43,3 +42,15 @@ def test_check_descriptor():
     with pytest.raises(ValueError):
         b = FakeClass()
         b.task = "poo"
+
+
+def test_serialization():
+    data = {task_status: 0 for task_status in TaskStatus}
+    data["number_from_cache"] = 0
+    i = InterviewStatusDictionary(data=data)
+
+    d = i.to_dict()
+    i2 = InterviewStatusDictionary.from_dict(d)
+
+    assert i == i2
+    assert i is not i2

@@ -1,9 +1,12 @@
+"""Extract question type."""
 import textwrap
 
 from edsl.prompts.QuestionInstructionsBase import QuestionInstuctionsBase
 
 
 class Extract(QuestionInstuctionsBase):
+    """Extract question type."""
+
     question_type = "extract"
     model = "gpt-4-1106-preview"
     default_instructions = textwrap.dedent(
