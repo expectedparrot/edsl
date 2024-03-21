@@ -48,7 +48,7 @@ Coop
 Coop class
 ----------
 
-.. automodule:: edsl.coop
+.. automodule:: edsl.coop.coop
    :members:
    :undoc-members:
    :show-inheritance:

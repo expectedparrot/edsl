@@ -135,3 +135,8 @@ Other classes & methods
    :members:
    :undoc-members:
    :show-inheritance:
+
+.. automodule:: edsl.questions.descriptors
+   :members:
+   :undoc-members:
+   :show-inheritance:
