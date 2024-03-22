@@ -12,14 +12,22 @@ from edsl.scenarios import Scenario
 
 class QuestionMultipleChoice(Question):
     """
-    This question asks the user to select one option from a list of options.
+    This function asks the respondent to select one option from a list of options.
 
-    :param question_text: The text of the question.
-    :param question_options: The options the user should select from.
     :param question_name: The name of the question.
-    
-    For an example, run `QuestionMultipleChoice.example()`
+    :type question_name: str
+    :param question_text: The text of the question.
+    :type question_text: str
+    :param question_options: The options the respondent should select from.
+    :type question_options: list[str]
+    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionMultipleChoice.default_instructions`.
+    :type instructions: str, optional
+    :param short_names_dict: Maps question_options to short names.
+    :type short_names_dict: dict[str, str], optional
+
+    For an example, run `QuestionMultipleChoice.example()`.
     """
+
 
     question_type = "multiple_choice"
     purpose = "When options are known and limited"
