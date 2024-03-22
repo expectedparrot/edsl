@@ -1,129 +1,147 @@
-"""A Survey is collection of questions for an agent to take.
+"""A Survey is collection of questions that can be administered to an Agent.
 
-Constructing a survey
+Constructing a Survey
 ---------------------
-The key steps in constructing a survey are:
-* Writing the questions
-* Adding an skip-logic
-* Adding a requirements for the agent to have a memory of previous answers
-* Running the survey by sending it to an LLM
+Key steps:
+* Create questions
+* Add questions to a survey
+* Run the survey by sending it to an LLM
 
-In the final step, the survey can also be sent to Googe Forms, Survey Monkey, LimeSurvey or another survey 
-platform. 
+Before running the survey you can optionally:
+* Add personas for AI agents that will respond to the survey
+* Add rules and special logic (e.g., skip logic or memory of prior responses) (by default, questions are delivered asynchronously)
+* Add values for parameterized questions (Scenario objects) 
+* Specify the language models that will be used to answer the questions (the default model is GPT 4)
 
-In this baseline example, the identify of the agent is not specified.
-Furthermore, we are not specifiying the AI model to be used, nor are we 
-specifiying the `Scenario' that can populate the survey questions.
+A survey can also be sent to Googe Forms, Survey Monkey, LimeSurvey and other survey 
+platforms. 
 
 Defining questions
 ^^^^^^^^^^^^^^^^^^
-
-I can define a number of questions, like so: 
+Questions can be defined as various types, including multiple choice, checkbox, free text, linear scale, numerical and other types.
+The formats are defined in the `questions` module. Here we define some questions: 
 
 .. code-block:: python
 
-    from edsl.questions import QuestionMultipleChoice
-    from edsl.surveys.Survey import Survey
+    from edsl.questions import QuestionMultipleChoice, QuestionNumerical, QuestionFreeText
 
-    q0 = QuestionMultipleChoice(
-        question_text="Do you like school?",
-        question_options=["yes", "no"],
-        question_name="like_school",
-    )
     q1 = QuestionMultipleChoice(
-        question_text="Why not?",
-        question_options=[
-            "killer bees in cafeteria", 
-            "other"],
-        question_name="why_not",
+        question_name = "student",
+        question_text = "Are you a student?",
+        question_options = ["yes", "no"]
     )
-    q2 = QuestionMultipleChoice(
-        question_text="Why?",
-        question_options=[
-            "**lack*** of killer bees in cafeteria", 
-            "other"],
-        question_name="why",
+    q2 = QuestionNumerical(
+        question_name = "school_hours",
+        question_text = """How many hours do you spend in school each week?
+        (Round to the nearest hour)"""
+    )
+    q3 = QuestionFreeText(
+        question_name = "weekends",
+        question_text = "What do you do on weekends?"
     )
 
 Adding questions to a survey
-
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-I can then add these questions to a survey, like so:
+Questions are added to a Survey object as a list of question ids:
 
 .. code-block:: python
 
-    s = Survey(questions=[q0, q1, q2])
+    from edsl.surveys import Survey
 
-Alternatively, I can add questions to a survey one at a time:
+    survey = Survey(questions=[q1, q2, q3])
+
+Alternatively, questions can be added to a Survey one at a time:
 
 .. code-block:: python
 
-    s = Survey().add_question(q0).add_question(q1).add_question(q2)
+    survey = Survey().add_question(q1).add_question(q2)
     
-Controlling agent flow through a survey
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-I can also add rules to the survey by adding `rules.` 
-The first rule says that if the answer to q0 is "yes", then the next question is q2.
+Applying survey rules
+^^^^^^^^^^^^^^^^^^^^^
+Rules are applied to a Survey with the `add_rule` method which takes a logical expression that references the relevant questions.
+For example, the following rule specifies that if the response to q1 is "no" then the next question is q3 (a skip rule):
 
 .. code-block:: python
     
-    s = s.add_rule(q0, "like_school == 'yes'", q2)
+    survey = survey.add_rule(q1, "student == 'no'", q3)
 
-I can also specify a rule that will end the survey if the answer to q1 is "other".
+Here we modify the expression to apply a stop rule instead (by omitting the next question id):
 
 .. code-block:: python
 
-    .add_stop_rule(q1, "why_not == 'other'"))
+    survey = survey.add_stop_rule(q1, "student == 'no'"))
 
 Writing conditional expressions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-The expressions themselves like "like_school == 'yes'" are written in Python.
-The expression is evaluated to True or False, with the answer substituted into the expression. 
+The expressions themselves ()"student == 'no'") are written in Python.
+An expression is evaluated to True or False, with the answer substituted into the expression. 
 The placeholder for this answer is the name of the question itself. 
-In this example, the answer to q0 is substituted into the expression "like_school == 'yes'", 
-as the name of q0 is "like_school".
+In the examples, the answer to q1 is substituted into the expression "student == 'no'", 
+as the name of q1 is "student".
 
 Memory
 ^^^^^^
-When an agent is taking a survey, they can remember the answers to previous questions.
-This can be done in several ways. 
+When an agent is taking a survey, they can be prompted to "remember" answers to previous questions.
+This can be done in several ways:
 
-The agent can remember all of the answers to the questions in the survey.
+* Full memory: The agent is given all of the answers to the questions in the survey.
 
 .. code-block:: python
 
     s.set_full_memory_mode()
 
-Note that this is slow and token-intensive, as it requires the agent to remember all of the answers to the questions in the survey.
-Furthermore, all the answers to the questions must be answered serially. 
-When the agent does not need to remember all of the answers to the questions in the survey, execution can proceed in parallel.
+Note that this is slow and token-intensive, as the questions must be answered serially and requires the agent to remember all of the answers to the questions in the survey.
+In contrast, if the agent does not need to remember all of the answers to the questions in the survey, execution can proceed in parallel.
     
-The agent can remember the answers to the questions in the survey from the previous lags.
-In this example, the agent will remember the answers to the questions in the survey from the previous 2 lags.
+* Lagged memory: With each question, the agent is given the answers to the specified number of lagged (prior) questions.
+In this example, the agent is given the answers to the 2 previous questions in the survey:
 
 .. code-block:: python
 
     s.set_lagged_memory(2)
 
-The agent can remember the answers to specific targeted prior questions.
-In this example, the agent will remember the answer to q0 when answering q2.
+* Targeted memory: The agent is given the answers to specific targeted prior questions.
+In this example, the agent is given the answer to q1 when prompted to to answer q2:
 
 .. code-block:: python
 
-    s.add_targeted_memory("q2", "q0")
+    survey.add_targeted_memory(q2, q1)
 
+We can also use question names instead of question ids. The following example is equivalent to the previous one:
 
+.. code-block:: python
 
+    survey.add_targeted_memory("school_hours", "student")
+
+This method can be applied multiple times to add prior answers to a given question.
+For example, we can add answers to both q1 and q2 when answering q3:
+
+.. code-block:: python
+
+    survey.add_memory_collection(q3, q1)
+    survey.add_memory_collection(q3, q2)
+
+    
 Running a survey
 ^^^^^^^^^^^^^^^^
-
-Once a survey is constructed, I can `run` it, creating a `Results` object:
+Once constructed, a Survey can be `run`, creating a `Results` object:
 
 .. code-block:: python
 
-    results = s.run()
+    results = survey.run()
 
+If question scenarios, agents or language models have been specified, they are added to the survey with the `by` method when running it:
+
+.. code-block:: python
+
+    results = survey.by(scenarios).by(agents).by(models).run()
+
+Note that these survey components can be chained in any order, so long as each type of component is chained at once (e.g., if adding multiple agents, use `by.(agents)` once where agents is a list of all Agent objects).
+
+See details about question scenarios, agents and language models in their respective modules:
+* <a href="https://docs.expectedparrot.com/en/latest/scenarios.html">Scenarios</a>
+* <a href="https://docs.expectedparrot.com/en/latest/agents.html">Agents</a>
+* <a href="https://docs.expectedparrot.com/en/latest/language_models.html">Language Models</a>
 """
 from __future__ import annotations
 import re
