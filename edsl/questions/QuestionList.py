@@ -1,4 +1,16 @@
-"""This module contains the QuestionList class. It is a subclass of the Question class and is used to create questions where the desired response is in the form of a list."""
+"""This module contains the QuestionList class. It is a subclass of the Question class and is used to create questions where the desired response is in the form of a list.
+Example usage:
+
+.. code-block:: python
+
+    from edsl.questions import QuestionList
+
+    q = QuestionList(
+        question_name = "work_days",
+        question_text = "Which days of the week do you normally work?"
+    )
+
+"""
 from __future__ import annotations
 import random
 import textwrap

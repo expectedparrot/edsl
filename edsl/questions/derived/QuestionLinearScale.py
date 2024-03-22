@@ -1,4 +1,17 @@
-"""This module contains the QuestionLinearScale class. It is a subclass of the QuestionMultipleChoice class and is used to create linear scale questions."""
+"""This module contains the QuestionLinearScale class. It is a subclass of the QuestionMultipleChoice class and is used to create linear scale questions.
+Example usage:
+
+.. code-block:: python
+
+    from edsl.questions import QuestionLinearScale
+
+    q = QuestionLinearScale(
+        question_name = "studying",
+        question_text = "On a scale from 0 to 5, how much do you enjoy studying? (0 = not at all, 5 = very much)",
+        question_options = [0, 1, 2, 3, 4, 5]
+    )
+
+"""
 from __future__ import annotations
 import textwrap
 from typing import Optional

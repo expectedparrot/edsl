@@ -1,4 +1,18 @@
-"""This module contains the QuestionTopK class."""
+"""This module contains the QuestionTopK class. It is a subclass of the QuestionMultipleChoice class and is used to create questions where the respondent is prompted to respond to respond with a list of ranked items from a given list of options.
+Example usage:
+
+.. code-block:: python
+
+    from edsl.questions import QuestionTopK
+
+    q = QuestionTopK(
+        question_name = "foods_rank", 
+        question_text = "Select the best foods.", 
+        question_options = ["Pizza", "Pasta", "Salad", "Soup"],
+        num_selections = 2
+    )
+
+"""
 from __future__ import annotations
 from typing import Optional
 from edsl.exceptions import QuestionCreationValidationError
@@ -19,10 +33,8 @@ class QuestionTopK(QuestionCheckBox):
     :type instructions: str, optional
     :param short_names_dict: Maps question_options to short names.
     :type short_names_dict: dict[str, str], optional
-    :param min_selections: The minimum number of options that must be selected.
-    :type min_selections: int
-    :param max_selections: The maximum number of options that must be selected.
-    :type max_selections: int
+    :param num_selections: The number of options that must be selected.
+    :type num_selections: int
 
     For an example, run `QuestionTopK.example()`.
     """

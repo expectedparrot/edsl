@@ -1,5 +1,58 @@
-"""A module for creating agents that can answer questions."""
+"""An Agent is an AI agent that can reference a set of traits in answering questions.
 
+Constructing an Agent
+---------------------
+Key steps:
+
+* Create a dictionary of `traits` for an agent to reference in answering questions: 
+
+.. code-block:: python
+
+    traits_dict = {
+        "persona": "You are a 45-old-woman living in Massachusetts...",
+        "age": 45,
+        "location": "Massachusetts"
+    }
+
+A persona can be a short or detailed textual narrative. 
+Note that it can be helpful to include traits mentioned in the persona as independent keys and values in order to analyze survey results by those dimensions individually.
+
+* Create an Agent object with traits. Note that `traits=` is a required argument name: 
+
+.. code-block:: python
+
+    agent = Agent(traits = traits_dict)
+
+* Optionally give the agent a name: 
+
+.. code-block:: python
+
+    agent = Agent(name = "Robin", traits = traits_dict)
+
+If a name is not assigned when the Agent is created, an `agent_name` field is added to results when a survey is administered to the agent.
+
+Agents can also be created collectively and administered a survey together. This is useful for comparing responses across agents.
+The following example creates a list of agents with each combination of listed trait dimensions: 
+
+.. code-block:: python
+
+    ages = [10, 20, 30, 40, 50]
+    locations = ["New York", "California", "Texas", "Florida", "Washington"]
+    agents = [Agent(traits = {"age": age, "location": location}) for age, location in zip(ages, locations)]
+
+A survey is administered to all agents in the list together: 
+
+.. code-block:: python
+
+    results = survey.by(agents).run()
+
+See more details about surveys in the Survey module:
+
+* `Survey <https://docs.expectedparrot.com/en/latest/surveys.html>`_
+
+
+
+"""
 from __future__ import annotations
 import copy
 import inspect
