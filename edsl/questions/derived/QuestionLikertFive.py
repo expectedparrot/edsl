@@ -6,18 +6,20 @@ from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
 class QuestionLikertFive(QuestionMultipleChoice):
     """
-    This question asks the user to respond to a statement on a 5-point Likert scale.
+    This question asks the respondent to respond to a statement on a 5-point Likert scale.
 
-    Arguments:
-    - `question_name` is the name of the question (string)
-    - `question_text` is the text of the question (string)
+    :param question_name: The name of the question.
+    :type question_name: str
+    :param question_text: The text of the question.
+    :type question_text: str
+    :param question_options: The options the respondent should select from (list of strings). If not provided, the default likert options are used. To view them, run `QuestionLikertFive.likert_options`.
+    :type question_options: list[str], optional
+    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionLikertFive.default_instructions`.
+    :type instructions: str, optional
+    :param short_names_dict: Maps question_options to short names.
+    :type short_names_dict: dict[str, str], optional
 
-    Optional arguments:
-    - `instructions` are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionLikertFive.default_instructions`
-    - `question_options` are the options the user should select from (list of strings). If not provided, the default likert options are used. To view them, run `QuestionLikertFive.likert_options`
-    - `short_names_dict` maps question_options to short names (dictionary mapping strings to strings)
-
-    For an example, see `QuestionLikertFive.example()`
+    For an example, see `QuestionLikertFive.example()`.
     """
 
     question_type = "likert_five"

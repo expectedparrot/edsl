@@ -24,7 +24,7 @@ class QuestionFunctional(Question):
       QuestionDropdown(question_name = "dropdown", question_options = ["a", "b", "c"]...)
       which we then translate to the real QuestionFunctional `under the hood.`
 
-    To see how it's used, see `tests/test_QuestionFunctional_construction_from_function`
+    To see how it's used, see `tests/test_QuestionFunctional_construction_from_function`.
     """
 
     func: Callable = FunctionDescriptor()
