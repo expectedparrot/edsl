@@ -3,11 +3,13 @@
 Constructing a Survey
 ---------------------
 Key steps:
+
 * Create questions
 * Add questions to a survey
 * Run the survey by sending it to an LLM
 
 Before running the survey you can optionally:
+
 * Add personas for AI agents that will respond to the survey
 * Add rules and special logic (e.g., skip logic or memory of prior responses) (by default, questions are delivered asynchronously)
 * Add values for parameterized questions (Scenario objects) 
@@ -138,6 +140,7 @@ If question scenarios, agents or language models have been specified, they are a
 Note that these survey components can be chained in any order, so long as each type of component is chained at once (e.g., if adding multiple agents, use `by.(agents)` once where agents is a list of all Agent objects).
 
 See details about question scenarios, agents and language models in their respective modules:
+
 * `Scenario <https://docs.expectedparrot.com/en/latest/scenarios.html>`_
 * `Agent <https://docs.expectedparrot.com/en/latest/agents.html>`_
 * `Language Model <https://docs.expectedparrot.com/en/latest/language_models.html>`_

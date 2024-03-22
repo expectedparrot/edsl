@@ -3,6 +3,7 @@
 Constructing a Scenario
 -----------------------
 Key steps:
+
 * Create a question that takes a parameter in double braces, e.g.: 
 
 .. code-block:: python
@@ -41,6 +42,7 @@ If your question is part of a survey, add the Scenario objects to the survey:
 As with other Survey components (agents, language models), multiple Scenario objects should be added together as a list in the same `by` method.
 
 See more details about surveys in the Survey module:
+
 * `Survey <https://docs.expectedparrot.com/en/latest/surveys.html>`_
 
 
