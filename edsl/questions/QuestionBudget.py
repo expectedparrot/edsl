@@ -1,17 +1,18 @@
 """This module contains the QuestionBudget class. It is a subclass of the Question class and is used to create questions where the respondent is prompted to allocate a sum among a list of options.
 The response is a dictionary where the keys are the options and the values are the amounts allocated to each option.
 Example usage:
-```
-from edsl.questions import QuestionBudget
 
-q = QuestionBudget(
-    question_name = "food_budget", 
-    question_text = "How would you allocate $100?", 
-    question_options = ["Pizza", "Ice cream", "Burgers", "Salad"], 
-    budget_sum = 100
-)
-```
-See more details about constructing and administering questions in the <a href="https://docs.expectedparrot.com/en/latest/scenarios.html">`Question`</a> module.
+.. code-block:: python
+
+    from edsl.questions import QuestionBudget
+
+    q = QuestionBudget(
+        question_name = "food_budget", 
+        question_text = "How would you allocate $100?", 
+        question_options = ["Pizza", "Ice cream", "Burgers", "Salad"], 
+        budget_sum = 100
+    )
+
 """
 from __future__ import annotations
 import random

@@ -1,14 +1,15 @@
 """This module contains the QuestionLikertFive class. It is a subclass of the QuestionMultipleChoice class and is used to create questions where the respondent is prompted to respond to a statement on a 5-point Likert scale.
 Example usage:
-```
-from edsl.questions import QuestionLikertFive
 
-q = QuestionLikertFive(
-    question_name = "happy_raining",
-    question_text = "I'm only happy when it rains."
-)
-```
-See more details about constructing and administering questions in the <a href="https://docs.expectedparrot.com/en/latest/scenarios.html">`Question`</a> module.
+.. code-block:: python
+
+    from edsl.questions import QuestionLikertFive
+
+    q = QuestionLikertFive(
+        question_name = "happy_raining",
+        question_text = "I'm only happy when it rains."
+    )
+
 """
 from __future__ import annotations
 from typing import Optional
