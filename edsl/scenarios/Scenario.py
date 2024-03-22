@@ -1,4 +1,36 @@
-"""A Scenario is a dictionary of key/values that describe some situation."""
+"""A Scenario is a dictionary of parameters for creating different versions of questions.
+
+Constructing a Scenario
+-----------------------
+Key steps:
+* Create a question that takes a parameter in double braces, e.g.: `{{ item }}`
+``` 
+q = QuestionFreeText(
+    question_name = "favorite_item",
+    question_text = "What is your favorite {{ item }}?",
+)
+```
+* Create a Scenario for the value that will replace the parameter:
+```
+s = Scenario({"item": "color"})
+```
+* Add the scenario to the question or survey when you run it using the `by` method:
+```
+q.by(scenario).run()
+```
+If your question is part of a survey, add the Scenario objects to the survey:
+```
+q1 = ...
+q2 = ...
+survey = Survey([q1, q2]).by([s]).run()
+```
+* Note: Multiple Scenario objects should be added to a survey as a list:
+```
+s1 = Scenario({"item": "color"})
+s2 = Scenario({"item": "food"})
+survey = Survey([q]).by([s1, s2]).run()
+```
+"""
 
 import copy
 from collections import UserDict 
@@ -8,7 +40,7 @@ from edsl.Base import Base
 
 
 class Scenario(Base, UserDict):
-    """A Scenario is a dictionary of key/values that describe some situation."""
+    """A Scenario is a dictionary of keys/values for parameterizing questions."""
 
     def __add__(self, other_scenario: "Scenario") -> 'Scenario':
         """Combine two scenarios.
