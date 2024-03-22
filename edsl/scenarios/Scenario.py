@@ -12,22 +12,23 @@ q = QuestionFreeText(
 ```
 * Create a dictionary for the value that will replace the parameter and store it in a Scenario object:
 ```
-s = Scenario({"item": "color"})
+scenario = Scenario({"item": "color"})
 ```
 If multiple values will be used, create multiple Scenario objects in a list:
 ```
-s = [Scenario({"item": item}) for item in ["color", "food"]]
+scenarios = [Scenario({"item": item}) for item in ["color", "food"]]
 ```
 * Add the Scenario objects to the question when you run it with the `by` method:
 ```
-results = q.by(s).run()
+results = q.by(scenarios).run()
 ```
 If your question is part of a survey, add the Scenario objects to the survey:
 ```
 q1 = ...
 q2 = ...
-results = Survey([q1, q2]).by(s).run()
+results = Survey([q1, q2]).by(scenarios).run()
 ```
+As with other Survey components (agents, language models), multiple Scenario objects should be added together as a list in the same `by` method.
 """
 
 import copy
