@@ -1,16 +1,17 @@
 """This module contains the QuestionTopK class. It is a subclass of the QuestionMultipleChoice class and is used to create questions where the respondent is prompted to respond to respond with a list of ranked items from a given list of options.
 Example usage:
-```
-from edsl.questions import QuestionTopK
 
-q = QuestionTopK(
-    question_name = "foods_rank", 
-    question_text = "Select the best foods.", 
-    question_options = ["Pizza", "Pasta", "Salad", "Soup"],
-    num_selections = 2
-)
-```
-See more details about constructing and administering questions in the <a href="https://docs.expectedparrot.com/en/latest/scenarios.html">`Question`</a> module.
+.. code-block:: python
+
+    from edsl.questions import QuestionTopK
+
+    q = QuestionTopK(
+        question_name = "foods_rank", 
+        question_text = "Select the best foods.", 
+        question_options = ["Pizza", "Pasta", "Salad", "Soup"],
+        num_selections = 2
+    )
+
 """
 from __future__ import annotations
 from typing import Optional
