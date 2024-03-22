@@ -1,9 +1,8 @@
 Agents
 ======
 
-Agents, represented by `Agent` class, are the basic building blocks of the EDSL. 
-They are the entities that stand-in for humans.
-
+.. Agents, represented by `Agent` class, are the basic building blocks of the EDSL. 
+.. They are the entities that stand-in for humans.
 
 Agent class
 -----------
