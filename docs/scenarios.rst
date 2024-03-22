@@ -1,8 +1,5 @@
 Scenarios
-======================
-
-This is how we get scenario specific data. 
-
+=========
 
 Scenario class
 --------------

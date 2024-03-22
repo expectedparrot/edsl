@@ -1,4 +1,16 @@
-"""This question asks the user to respond to a statement on a 5-point Likert scale."""
+"""This module contains the QuestionLikertFive class. It is a subclass of the QuestionMultipleChoice class and is used to create questions where the respondent is prompted to respond to a statement on a 5-point Likert scale.
+Example usage:
+
+.. code-block:: python
+
+    from edsl.questions import QuestionLikertFive
+
+    q = QuestionLikertFive(
+        question_name = "happy_raining",
+        question_text = "I'm only happy when it rains."
+    )
+
+"""
 from __future__ import annotations
 from typing import Optional
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
@@ -12,7 +24,7 @@ class QuestionLikertFive(QuestionMultipleChoice):
     :type question_name: str
     :param question_text: The text of the question.
     :type question_text: str
-    :param question_options: The options the respondent should select from (list of strings). If not provided, the default likert options are used. To view them, run `QuestionLikertFive.likert_options`.
+    :param question_options: The options the respondent should select from (list of strings). If not provided, the default Likert options are used (['Strongly disagree', 'Disagree', 'Neutral', 'Agree', 'Strongly agree']). To view them, run `QuestionLikertFive.likert_options`.
     :type question_options: list[str], optional
     :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionLikertFive.default_instructions`.
     :type instructions: str, optional

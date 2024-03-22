@@ -2,16 +2,16 @@ Surveys
 =======
 
 
-.. automodule:: edsl.surveys.base
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. .. automodule:: edsl.surveys.base
+..    :members:
+..    :undoc-members:
+..    :show-inheritance:
 
 
-.. automodule:: edsl.surveys.descriptors
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. .. automodule:: edsl.surveys.descriptors
+..    :members:
+..    :undoc-members:
+..    :show-inheritance:
 
 
 Survey class

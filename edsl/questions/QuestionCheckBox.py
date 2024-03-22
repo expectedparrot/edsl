@@ -1,4 +1,20 @@
-"""This module contains the QuestionCheckBox class. It is a subclass of the Question class and is used to create checkbox questions."""
+"""This module contains the QuestionCheckBox class. It is a subclass of the Question class and is used to create questions where the respondent is prompted to select one or more of the given options and return them as a list.
+The minimum and maximum number of options that can be selected can be specified when creating the question. If not specified, the minimum is 1 and the maximum is the number of options in the question.
+Example usage:
+
+.. code-block:: python
+
+    from edsl.questions import QuestionCheckBox
+
+    q = QuestionCheckBox(
+        question_name = "favorite_days",
+        question_text = "What are your 2 favorite days of the week?",
+        question_options = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+        min_selections = 2,
+        max_selections = 2
+    )
+
+"""
 from __future__ import annotations
 import random
 import textwrap

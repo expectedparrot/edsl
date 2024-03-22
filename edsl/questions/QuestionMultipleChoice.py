@@ -1,4 +1,17 @@
-"""This module contains the QuestionMultipleChoice class. It is a subclass of the Question class and is used to create multiple choice questions."""
+"""This module contains the QuestionMultipleChoice class. It is a subclass of the Question class and is used to create multiple choice questions.
+Example usage:
+
+.. code-block:: python
+
+    from edsl.questions import QuestionMultipleChoice
+
+    q = QuestionMultipleChoice(
+        question_name = "color",
+        question_text = "What is your favorite color?",
+        question_options = ["Red", "Blue", "Green", "Yellow"]
+    )
+
+"""
 from __future__ import annotations
 from typing import Optional, Union
 import random
