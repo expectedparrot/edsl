@@ -1,3 +1,4 @@
+"""A module for displaying data in various formats."""
 from html import escape
 from IPython.display import HTML
 from IPython.display import display as ipython_diplay
@@ -7,12 +8,14 @@ from rich.table import Table
 
 
 def heartbeat_generator():
+    """Generate a heartbeat animation."""
     while True:
         for c in "|/-\\":
             yield c
 
 
 def gen_html_sandwich(html_inner, interactive=False):
+    """Wrap the inner HTML content in a header and footer to make a complete HTML document."""
     if interactive:
         html_header = """
             <html>
@@ -78,6 +81,7 @@ def gen_html_sandwich(html_inner, interactive=False):
 
 
 def view_html(html):
+    """Display HTML content in a web browser."""
     import tempfile
     import webbrowser
 
@@ -91,7 +95,8 @@ def view_html(html):
 
 
 def human_readable_labeler_creator():
-    """Creates a function that maps thread ids to human-readable labels.
+    """Create a function that maps thread ids to human-readable labels.
+
     It is structured as a closure, so that the mapping is persistent.
     I.e., when the returned function is called, it will use the same
     dictionary to map thread ids to human-readable labels if it's seen that ID
@@ -111,7 +116,7 @@ def human_readable_labeler_creator():
 
 
 def get_multiline_textsize(text, font):
-    # Split the text by lines
+    """Get the size of the text when it is drawn on an image."""
     lines = text.split("\n")
 
     # Initialize width and height
@@ -133,6 +138,7 @@ def get_multiline_textsize(text, font):
 
 
 def create_image(console, image_filename):
+    """Create an image from the console output."""
     font_size = 15
 
     text = console.export_text()  # Get the console output as text.
@@ -156,6 +162,7 @@ def create_image(console, image_filename):
 
 
 def display(console, table, filename):
+    """Display the table using the rich library and save it to a file if a filename is provided."""
     if filename is not None:
         with open(filename, "w") as f:
             with console.capture() as capture:
@@ -167,7 +174,9 @@ def display(console, table, filename):
 
 
 def print_dict_with_rich(d, key_name="Key", value_name="Value", filename=None):
-    """
+    """Print a dictionary as a table using the rich library.
+    
+    Example:
     >>> print_dict_with_rich({"a": 1, "b": 2, "c": 3})
     ┏━━━━━┳━━━━━━━┓
     ┃ Key ┃ Value ┃
@@ -189,8 +198,7 @@ def print_dict_with_rich(d, key_name="Key", value_name="Value", filename=None):
 def print_dict_as_html_table(
     d, show=False, key_name="Key", value_name="Value", filename=None,
 ):
-    """ 
-    Print a dictionary as an HTML table.
+    """Print a dictionary as an HTML table.
 
     :param d: The dictionary to print.
     :param show: Whether to display the HTML table in the browser.
@@ -225,7 +233,7 @@ def print_dict_as_html_table(
 
 
 def print_list_of_dicts_with_rich(data, filename=None, split_at_dot=True):
-    # Initialize console object
+    """Initialize console object."""
     """
     TODO: This is weirdly named. It's not a list of dictionaries.
     It's a a dictionary. 
@@ -268,9 +276,7 @@ def print_list_of_dicts_with_rich(data, filename=None, split_at_dot=True):
 
 
 def print_list_of_dicts_as_html_table(data, filename=None, interactive=False, notebook = False):
-    # Start the HTML table
-
-    """This prints a list of dictionaries as an HTML table.
+    """Print a list of dictionaries as an HTML table.
 
     :param data: The list of dictionaries to print.
     :param filename: The name of the file to save the HTML table to.
@@ -316,7 +322,7 @@ def print_list_of_dicts_as_html_table(data, filename=None, interactive=False, no
             print(html)
 
 def print_list_of_dicts_as_markdown_table(data, filename=None):
-    """This prints a list of dictionaries as a Markdown table.
+    """Print a list of dictionaries as a Markdown table.
 
     :param data: The list of dictionaries to print.
     :param filename: The name of the file to save the Markdown table to.
@@ -346,6 +352,7 @@ def print_list_of_dicts_as_markdown_table(data, filename=None):
 
 
 def print_public_methods_with_doc(obj):
+    """Print the public methods of an object along with their docstrings."""
     console = Console()
     public_methods_with_docstrings = [
         (method, getattr(obj, method).__doc__)
@@ -362,7 +369,9 @@ def print_public_methods_with_doc(obj):
 
 
 def print_table_with_rich(data, filename=None):
-    """
+    """Print a list of dictionaries as a table using the rich library.
+    
+    Example:
     >>> data = [{"a": 1, "b": 2, "c": 3}]
     >>> print_table_with_rich(data)
     ┏━━━┳━━━┳━━━┓

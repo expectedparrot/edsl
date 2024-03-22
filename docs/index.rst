@@ -10,7 +10,6 @@ EDSL Docs
    installation
    starter_tutorial
    coop
-   xdsl
    questions
    scenarios
    surveys
@@ -23,7 +22,7 @@ EDSL Docs
    data
    reports
    trackers
-   utlities
+   utilities
 
    
 Indices and tables

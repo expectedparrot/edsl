@@ -1,3 +1,4 @@
+"""Utility functions for working with strings, dictionaries, and files."""
 import hashlib
 import json
 import keyword
@@ -13,6 +14,7 @@ from typing import Callable, Union
 
 
 def is_gzipped(file_path):
+    """Check if a file is gzipped."""
     try:
         with gzip.open(file_path, "rb") as file:
             file.read(1)  # Try reading a small amount of data
@@ -22,7 +24,7 @@ def is_gzipped(file_path):
 
 
 def hash_value(value: Union[str, int]) -> str:
-    """Hashes a string or integer value using SHA-256."""
+    """Hash a string or integer value using SHA-256."""
     if isinstance(value, str):
         value_bytes = value.encode("utf-8")
     elif isinstance(value, int):
@@ -34,7 +36,7 @@ def hash_value(value: Union[str, int]) -> str:
 
 
 def repair_json(json_string: str) -> str:
-    """Attempts to repair a JSON string that is not valid JSON."""
+    """Attempt to repair a JSON string that is not valid JSON."""
     json_string = json_string.replace("\n", "\\n").replace("\r", "\\r")
     json_string = json_string.replace("'", "\\'")
     json_string = json_string.replace("'", '"')
@@ -45,6 +47,7 @@ def repair_json(json_string: str) -> str:
 
 
 def dict_to_html(d):
+    """Convert a dictionary to an HTML table."""
     # Start the HTML table
     html_table = f'<table border="1">\n<tr><th>{escape("Key")}</th><th>{escape("Value")}</th></tr>\n'
 
@@ -60,6 +63,7 @@ def dict_to_html(d):
 
 
 def is_notebook() -> bool:
+    """Check if the code is running in a Jupyter notebook."""
     try:
         shell = get_ipython().__class__.__name__
         if shell == "ZMQInteractiveShell":
@@ -73,16 +77,18 @@ def is_notebook() -> bool:
 
 
 class HTMLSnippet(str):
-    """
-    Creates an object with html content (`value`).
+    """Create an object with html content (`value`).
+
     `view` method allows you to view the html content in a web browser.
     """
 
     def __init__(self, value):
+        """Initialize the HTMLSnippet object."""
         super().__init__()
         self.value = value
 
     def view(self):
+        """View the HTML content in a web browser."""
         html_content = self.value
 
         # create a tempfile to write the HTML content
@@ -94,12 +100,12 @@ class HTMLSnippet(str):
 
 
 def random_string() -> str:
-    """Generate a random string of fixed length"""
+    """Generate a random string of fixed length."""
     return "".join(random.choice(string.ascii_letters) for i in range(10))
 
 
 def shortname_proposal(question, max_length=None):
-    """Take a question text and generate a slug"""
+    """Take a question text and generate a slug."""
     question = question.lower()
     tokens = question.split()
     stopwords = set(
@@ -138,7 +144,7 @@ def shortname_proposal(question, max_length=None):
 
 
 def text_to_shortname(long_text, forbidden_names=[]):
-    """Creates a slug for the question"""
+    """Create a slug for the question."""
     proposed_name = shortname_proposal(long_text)
     counter = 1
     # make sure the name is unique
@@ -149,7 +155,7 @@ def text_to_shortname(long_text, forbidden_names=[]):
 
 
 def merge_dicts(dict_list):
-    """Merges a list of dictionaries into a single dictionary."""
+    """Merge a list of dictionaries into a single dictionary."""
     result = {}
     all_keys = set()
     for d in dict_list:
@@ -160,7 +166,7 @@ def merge_dicts(dict_list):
 
 
 def extract_json_from_string(s):
-    """Extracts a JSON string from a string."""
+    """Extract a JSON string from a string."""
     # Find the first occurrence of '{'
     start_idx = s.find("{")
     # Find the last occurrence of '}'
@@ -175,6 +181,7 @@ def extract_json_from_string(s):
 
 
 def valid_json(json_string):
+    """Check if a string is valid JSON."""
     try:
         _ = json.loads(json_string)
         return True
@@ -183,11 +190,12 @@ def valid_json(json_string):
 
 
 def is_valid_variable_name(name):
+    """Check if a string is a valid variable name."""
     return name.isidentifier() and not keyword.iskeyword(name)
 
 
 def create_valid_var_name(s, transform_func: Callable = lambda x: x.lower()) -> str:
-    """Creates a valid variable name from a string."""
+    """Create a valid variable name from a string."""
     if transform_func is None:
         transform_func = lambda x: x
 
@@ -221,6 +229,7 @@ def create_valid_var_name(s, transform_func: Callable = lambda x: x.lower()) -> 
 
 
 def shorten_string(s, max_length, placeholder="..."):
+    """Shorten a string to a maximum length by removing characters from the middle."""
     if len(s) <= max_length:
         return s
 
