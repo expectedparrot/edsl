@@ -32,8 +32,7 @@ The formats are defined in the `questions` module. Here we define some questions
     )
     q2 = QuestionNumerical(
         question_name = "school_hours",
-        question_text = """How many hours do you spend in school each week?
-        (Round to the nearest hour)"""
+        question_text = "How many hours do you spend in school each week? (Round to the nearest hour)"
     )
     q3 = QuestionFreeText(
         question_name = "weekends",
@@ -58,14 +57,14 @@ Alternatively, questions can be added to a Survey one at a time:
     
 Applying survey rules
 ^^^^^^^^^^^^^^^^^^^^^
-Rules are applied to a Survey with the `add_rule` method which takes a logical expression that references the relevant questions.
+Rules are applied to a Survey with the `add_rule` and `add_stop_rule` methods which take a logical expression and the relevant questions.
 For example, the following rule specifies that if the response to q1 is "no" then the next question is q3 (a skip rule):
 
 .. code-block:: python
     
     survey = survey.add_rule(q1, "student == 'no'", q3)
 
-Here we modify the expression to apply a stop rule instead (by omitting the next question id):
+Here we apply a stop rule instead of a skip rule. If the response to q1 is "no", the survey will end after q1 is answered:
 
 .. code-block:: python
 
