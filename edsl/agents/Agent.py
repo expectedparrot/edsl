@@ -3,6 +3,7 @@
 Constructing an Agent
 ---------------------
 Key steps:
+
 * Create a dictionary of `traits` for an agent to reference in answering questions: 
 
 .. code-block:: python
@@ -46,6 +47,7 @@ A survey is administered to all agents in the list together:
     results = survey.by(agents).run()
 
 See more details about surveys in the Survey module:
+
 * `Survey <https://docs.expectedparrot.com/en/latest/surveys.html>`_
 
 
