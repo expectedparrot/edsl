@@ -1,4 +1,14 @@
-"""This module contains the QuestionYesNo class. It is a subclass of the QuestionMultipleChoice class and is used to create yes/no questions."""
+"""This module contains the QuestionYesNo class. It is a subclass of the QuestionMultipleChoice class and is used to create questions where the answer options are already specified: ["Yes", "No"].
+Example usage:
+```
+from edsl.questions import QuestionYesNo
+
+q = QuestionYesNo(
+    question_name = "student",
+    question_text = "Are you a student?"
+)
+```
+"""
 from __future__ import annotations
 from edsl.questions.descriptors import QuestionOptionsDescriptor
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice

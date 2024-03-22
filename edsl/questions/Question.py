@@ -1,4 +1,51 @@
-"""This module contains the Question class, which is the base class for all questions in EDSL."""
+"""This module contains the Question class, which is the base class for all questions in EDSL.
+
+The Question class is an abstract base class (ABC) that defines the interface for all questions in EDSL. It provides methods for serializing and deserializing questions, as well as validating answers and responses from the LLM.
+
+Constructing a Question
+-----------------------
+Key steps:
+* Identify a desired question type (multiple choice, free text, etc.) and import the corresponding class. For example:
+```
+from edsl.questions import QuestionMultipleChoice, QuestionFreeText
+```
+* Draft the question text and specify the question name and any answer options for relevant question types (such as multiple choice or checkbox). For example:
+```
+q1 = QuestionMultipleChoice(
+    question_name = "color",
+    question_text = "What is your favorite color?",
+    question_options = ["Red", "Blue", "Green", "Yellow"]
+)
+q2 = QuestionFreeText(
+    question_name = "food",
+    question_text = "What is your favorite food?"
+)
+* Optionally parameterize the question text using double braces, e.g.:
+```
+q3 = QuestionFreeText(
+    question_name = "favorite_item",
+    question_text = "What is your favorite {{ item }}?",
+)
+```
+This allows you to create multiple versions of a question that can be administered at once in a survey.
+See details about question parameters in the <a href="https://docs.expectedparrot.com/en/latest/scenarios.html">`Scenario`</a> module.
+
+Simulating a response
+---------------------
+* Add the question to a survey or run it directly with the `run` method:
+```
+results = Survey([q1, q2]).run()
+results = q3.run()
+```
+This administers the question to the LLM and returns the response in a `Results` object.
+Results can be printed, saved, analyzed and visualized in a variety of built-in methods.
+See details about these methods in the <a href="https://docs.expectedparrot.com/en/latest/results.html">`Results`</a> module.
+
+See also details about specifying question scenarios, agents and language models in their respective modules:
+* <a href="https://docs.expectedparrot.com/en/latest/scenarios.html">Scenarios</a>
+* <a href="https://docs.expectedparrot.com/en/latest/agents.html">Agents</a>
+* <a href="https://docs.expectedparrot.com/en/latest/language_models.html">Language Models</a>
+"""
 from __future__ import annotations
 from abc import ABC, abstractmethod, ABCMeta
 from rich.console import Console
