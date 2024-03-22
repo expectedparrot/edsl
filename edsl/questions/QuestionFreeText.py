@@ -1,4 +1,15 @@
-"""This module contains the QuestionFreeText class. It is a subclass of the Question class and is used to create free text questions."""
+"""This module contains the QuestionFreeText class. It is a subclass of the Question class and is used to create free text questions.
+Example usage:
+```
+from edsl.questions import QuestionFreeText
+
+q = QuestionFreeText(
+    question_name = "food",
+    question_text = "What is your favorite food?"
+)
+```
+See more details about constructing and administering questions in the <a href="https://docs.expectedparrot.com/en/latest/scenarios.html">`Question`</a> module.
+"""
 from __future__ import annotations
 import textwrap
 from typing import Any, Optional

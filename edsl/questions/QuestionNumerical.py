@@ -1,4 +1,15 @@
-"""This question asks the user to answer with a numerical value."""
+"""This module contains the QuestionNumerical class. It is a subclass of the Question class and is used to create questions where the respondent is prompted to answer with a numerical value.
+Example usage:
+```
+from edsl.questions import QuestionNumerical
+
+q = QuestionNumerical(
+    question_name = "work_days",
+    question_text = "How many days of the week do you normally work?"
+)
+```
+See more details about constructing and administering questions in the <a href="https://docs.expectedparrot.com/en/latest/scenarios.html">`Question`</a> module.
+"""
 from __future__ import annotations
 import textwrap
 from random import uniform

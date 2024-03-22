@@ -1,4 +1,15 @@
-"""This module contains the QuestionExtract class. It is used to create questions that ask the user to extract values from a string, and return them in a given template."""
+"""This module contains the QuestionExtract class. It is a subclass of the Question class and is used to create questions that ask the user to extract values from a string, and return them in a given template.
+Example usage:
+```
+from edsl.questions import QuestionExtract
+
+q = QuestionExtract(
+    question_name = "course_schedule",
+    question_text = "This semester we are offering courses on calligraphy on Friday mornings.",
+    answer_template = {"course_topic": "AI", "days": ["Monday", "Wednesday"]}
+)
+```
+"""
 from __future__ import annotations
 import re
 import json
