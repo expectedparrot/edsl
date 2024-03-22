@@ -11,17 +11,16 @@ from edsl.utilities import random_string
 # TODO: should allow answer = {"answer": None} if allow_nonresponse is True
 class QuestionFreeText(Question):
     """
-    This question asks the user to answer with free text.
+    This question asks the respondent to answer with unstructured text.
 
-    Arguments:
-    - `question_name` is the name of the question (string)
-    - `question_text` is the text of the question (string)
+    :param question_name: The name of the question.
+    :type question_name: str
+    :param question_text: The text of the question.
+    :type question_text: str
+    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionFreeText.default_instructions`.
+    :type instructions: str, optional
 
-    Optional arguments:
-    - `allow_nonresponse` is whether the user can skip the question (boolean). If not provided, the default is False.
-    - `instructions` are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionFreeText.default_instructions`
-
-    For an example, run `QuestionFreeText.example()`
+    For an example, run `QuestionFreeText.example()`.
     """
 
     question_type = "free_text"

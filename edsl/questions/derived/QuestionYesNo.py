@@ -6,18 +6,18 @@ from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
 class QuestionYesNo(QuestionMultipleChoice):
     """
-    This question asks the user to respond with "Yes" or "No".
+    This question asks the respondent to respond with "Yes" or "No".
 
-    Arguments:
-    - `question_name` is the name of the question (string)
-    - `question_text` is the text of the question (string)
-    - `question_options` are the options the user should select from (list of strings)
+    :param question_name: The name of the question.
+    :type question_name: str
+    :param question_text: The text of the question.
+    :type question_text: str
+    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionYesNo.default_instructions`.
+    :type instructions: str, optional
+    :param short_names_dict: Maps question_options to short names.
+    :type short_names_dict: dict[str, str], optional
 
-    Optional arguments:
-    - `instructions` are the instructions for the question (string). If not provided, the default instructions are used. To view them, run `QuestionYesNo.default_instructions`
-    - `short_names_dict` maps question_options to short names (dictionary mapping strings to strings)
-
-    For an example, see `QuestionYesNo.example()`
+    For an example, see `QuestionYesNo.example()`.
     """
 
     question_type = "yes_no"

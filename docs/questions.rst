@@ -1,5 +1,5 @@
 Questions
-==================
+=========
 
 Question class
 --------------
@@ -132,6 +132,11 @@ Other classes & methods
    :show-inheritance:
 
 .. automodule:: edsl.questions.AnswerValidatorMixin
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: edsl.questions.descriptors
    :members:
    :undoc-members:
    :show-inheritance:
