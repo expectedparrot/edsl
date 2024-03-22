@@ -1,4 +1,130 @@
-"""A collection of questions that supports skip logic."""
+"""A Survey is collection of questions for an agent to take.
+
+Constructing a survey
+---------------------
+The key steps in constructing a survey are:
+* Writing the questions
+* Adding an skip-logic
+* Adding a requirements for the agent to have a memory of previous answers
+* Running the survey by sending it to an LLM
+
+In the final step, the survey can also be sent to Googe Forms, Survey Monkey, LimeSurvey or another survey 
+platform. 
+
+In this baseline example, the identify of the agent is not specified.
+Furthermore, we are not specifiying the AI model to be used, nor are we 
+specifiying the `Scenario' that can populate the survey questions.
+
+Defining questions
+^^^^^^^^^^^^^^^^^^
+
+I can define a number of questions, like so: 
+
+.. code-block:: python
+
+    from edsl.questions import QuestionMultipleChoice
+    from edsl.surveys.Survey import Survey
+
+    q0 = QuestionMultipleChoice(
+        question_text="Do you like school?",
+        question_options=["yes", "no"],
+        question_name="like_school",
+    )
+    q1 = QuestionMultipleChoice(
+        question_text="Why not?",
+        question_options=[
+            "killer bees in cafeteria", 
+            "other"],
+        question_name="why_not",
+    )
+    q2 = QuestionMultipleChoice(
+        question_text="Why?",
+        question_options=[
+            "**lack*** of killer bees in cafeteria", 
+            "other"],
+        question_name="why",
+    )
+
+Adding questions to a survey
+
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+I can then add these questions to a survey, like so:
+
+.. code-block:: python
+
+    s = Survey(questions=[q0, q1, q2])
+
+Alternatively, I can add questions to a survey one at a time:
+
+.. code-block:: python
+
+    s = Survey().add_question(q0).add_question(q1).add_question(q2)
+    
+Controlling agent flow through a survey
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+I can also add rules to the survey by adding `rules.` 
+The first rule says that if the answer to q0 is "yes", then the next question is q2.
+
+.. code-block:: python
+    
+    s = s.add_rule(q0, "like_school == 'yes'", q2)
+
+I can also specify a rule that will end the survey if the answer to q1 is "other".
+
+.. code-block:: python
+
+    .add_stop_rule(q1, "why_not == 'other'"))
+
+Writing conditional expressions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The expressions themselves like "like_school == 'yes'" are written in Python.
+The expression is evaluated to True or False, with the answer substituted into the expression. 
+The placeholder for this answer is the name of the question itself. 
+In this example, the answer to q0 is substituted into the expression "like_school == 'yes'", 
+as the name of q0 is "like_school".
+
+Memory
+^^^^^^
+When an agent is taking a survey, they can remember the answers to previous questions.
+This can be done in several ways. 
+
+The agent can remember all of the answers to the questions in the survey.
+
+.. code-block:: python
+
+    s.set_full_memory_mode()
+
+Note that this is slow and token-intensive, as it requires the agent to remember all of the answers to the questions in the survey.
+Furthermore, all the answers to the questions must be answered serially. 
+When the agent does not need to remember all of the answers to the questions in the survey, execution can proceed in parallel.
+    
+The agent can remember the answers to the questions in the survey from the previous lags.
+In this example, the agent will remember the answers to the questions in the survey from the previous 2 lags.
+
+.. code-block:: python
+
+    s.set_lagged_memory(2)
+
+The agent can remember the answers to specific targeted prior questions.
+In this example, the agent will remember the answer to q0 when answering q2.
+
+.. code-block:: python
+
+    s.add_targeted_memory("q2", "q0")
+
+
+
+Running a survey
+^^^^^^^^^^^^^^^^
+
+Once a survey is constructed, I can `run` it, creating a `Results` object:
+
+.. code-block:: python
+
+    results = s.run()
+
+"""
 from __future__ import annotations
 import re
 from rich import print
