@@ -29,6 +29,9 @@ q2 = ...
 results = Survey([q1, q2]).by(scenarios).run()
 ```
 As with other Survey components (agents, language models), multiple Scenario objects should be added together as a list in the same `by` method.
+
+See more details about surveys in the Survey module:
+* <a href="https://docs.expectedparrot.com/en/latest/surveys.html">Surveys</a>
 """
 
 import copy
