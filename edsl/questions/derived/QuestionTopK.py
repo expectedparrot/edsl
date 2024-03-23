@@ -95,11 +95,11 @@ def main():
     # validate an answer
     q._validate_answer({"answer": [0, 3], "comment": "I like custard"})
     # translate answer code
-    q.translate_answer_code_to_answer([0, 3], {})
+    q._translate_answer_code_to_answer([0, 3], {})
     # simulate answer
-    q.simulate_answer()
-    q.simulate_answer(human_readable=False)
-    q._validate_answer(q.simulate_answer(human_readable=False))
+    q._simulate_answer()
+    q._simulate_answer(human_readable=False)
+    q._validate_answer(q._simulate_answer(human_readable=False))
     # serialization (inherits from Question)
     q.to_dict()
     assert q.from_dict(q.to_dict()) == q

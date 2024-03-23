@@ -170,15 +170,15 @@ def test_QuestionList_answers():
         )
 
     # code -> answer translation
-    assert q.translate_answer_code_to_answer(response_good, None) == response_good
+    assert q._translate_answer_code_to_answer(response_good, None) == response_good
 
 
 def test_test_QuestionList_extras():
     """Test QuestionList extra functionalities."""
     q = QuestionList(**valid_question)
     # instructions
-    # simulate_answer
-    simulated_answer = q.simulate_answer()
+    # _simulate_answer
+    simulated_answer = q._simulate_answer()
     assert isinstance(simulated_answer, dict)
     assert "answer" in simulated_answer
     assert isinstance(simulated_answer["answer"], list)

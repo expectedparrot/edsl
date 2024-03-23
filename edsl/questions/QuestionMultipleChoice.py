@@ -70,7 +70,7 @@ class QuestionMultipleChoice(Question):
         self._validate_answer_multiple_choice(answer)
         return answer
 
-    def translate_answer_code_to_answer(self, answer_code, scenario: Scenario = None):
+    def _translate_answer_code_to_answer(self, answer_code, scenario: Scenario = None):
         """Translate the answer code to the actual answer."""
         scenario = scenario or Scenario()
         translated_options = [
@@ -78,7 +78,7 @@ class QuestionMultipleChoice(Question):
         ]
         return translated_options[int(answer_code)]
 
-    def simulate_answer(
+    def _simulate_answer(
         self, human_readable: bool = True
     ) -> dict[str, Union[int, str]]:
         """Simulate a valid answer for debugging purposes."""
@@ -117,10 +117,10 @@ def main():
     # validate an answer
     q._validate_answer({"answer": 0, "comment": "I like custard"})
     # translate answer code
-    q.translate_answer_code_to_answer(0, {})
+    q._translate_answer_code_to_answer(0, {})
     # simulate answer
-    q.simulate_answer()
-    q.simulate_answer(human_readable=False)
+    q._simulate_answer()
+    q._simulate_answer(human_readable=False)
     # serialization (inherits from Question)
     q.to_dict()
     assert q.from_dict(q.to_dict()) == q

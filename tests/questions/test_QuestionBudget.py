@@ -140,15 +140,15 @@ def test_QuestionBudget_extras():
     q = QuestionBudget(**valid_question)
     # instructions
     # translate
-    assert q.translate_answer_code_to_answer({"0": 25, "1": 25, "2": 25, "3": 25}) == [
+    assert q._translate_answer_code_to_answer({"0": 25, "1": 25, "2": 25, "3": 25}) == [
         {"Pizza": 25},
         {"Ice Cream": 25},
         {"Burgers": 25},
         {"Salad": 25},
     ]
-    # simulate_answer
-    assert q.simulate_answer().keys() == q.simulate_answer(human_readable=True).keys()
-    simulated_answer = q.simulate_answer(human_readable=False)
+    # _simulate_answer
+    assert q._simulate_answer().keys() == q._simulate_answer(human_readable=True).keys()
+    simulated_answer = q._simulate_answer(human_readable=False)
     assert isinstance(simulated_answer, dict)
     assert "answer" in simulated_answer
     assert "comment" in simulated_answer
@@ -158,7 +158,7 @@ def test_QuestionBudget_extras():
         for k in simulated_answer["answer"].keys()
     )
     assert round(sum(simulated_answer["answer"].values())) == q.budget_sum
-    assert list(q.simulate_answer(human_readable=False)["answer"].keys()) == list(
+    assert list(q._simulate_answer(human_readable=False)["answer"].keys()) == list(
         range(len(q.question_options))
     )
     # form elements

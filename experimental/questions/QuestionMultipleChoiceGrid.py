@@ -53,7 +53,7 @@ class QuestionMultipleChoiceGrid(Question):
         """
         )
 
-    def translate_answer_code_to_answer(self, answer_codes):
+    def _translate_answer_code_to_answer(self, answer_codes):
         """Translates the answer codes to the actual answers.
         For example, for a budget question with options ["a", "b", "c"],
         the answer codes are 0, 1, and 2. The LLM will respond with 0.
@@ -126,7 +126,7 @@ class QuestionMultipleChoiceGrid(Question):
 
         return LocalAnswerDataModel
 
-    def simulate_answer(self):
+    def _simulate_answer(self):
         # Expand to allow multiple selections for checkbox (non-mc) case
         "Simulates a valid answer for debugging purposes (what the validator expects)"
         answers = []
