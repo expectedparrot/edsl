@@ -16,3 +16,6 @@ class ResultsInvalidNameError(ResultsErrors):
 
 class ResultsMutateError(ResultsErrors):
     pass
+
+class ResultsFilterError(ResultsErrors):
+    pass
