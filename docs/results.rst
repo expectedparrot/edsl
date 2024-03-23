@@ -1,23 +1,15 @@
 Results
 ===========================
 
-Result class
-------------
-
-.. automodule:: edsl.results.Result
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Results class
-------------
 
 .. automodule:: edsl.results.Results
    :members:
    :inherited-members:
    :exclude-members: append, clear, copy, count, extend, index, insert, pop, remove, reverse, sort
    :undoc-members:
+   :special-members: __init__
 
+   
 Dataset class
 -------------
 
