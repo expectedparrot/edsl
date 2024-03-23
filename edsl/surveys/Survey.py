@@ -25,7 +25,8 @@ The formats are defined in the `questions` module. Here we define some questions
 
 .. code-block:: python
 
-    from edsl.questions import QuestionMultipleChoice, QuestionNumerical, QuestionFreeText
+    from edsl.questions import QuestionMultipleChoice, 
+    QuestionNumerical, QuestionFreeText
 
     q1 = QuestionMultipleChoice(
         question_name = "student",
@@ -33,8 +34,8 @@ The formats are defined in the `questions` module. Here we define some questions
         question_options = ["yes", "no"]
     )
     q2 = QuestionNumerical(
-        question_name = "school_hours",
-        question_text = "How many hours do you spend in school each week? (Round to the nearest hour)"
+        question_name = "years",
+        question_text = "How many years have you been in school?"
     )
     q3 = QuestionFreeText(
         question_name = "weekends",
@@ -112,7 +113,7 @@ We can also use question names instead of question ids. The following example is
 
 .. code-block:: python
 
-    survey.add_targeted_memory("school_hours", "student")
+    survey.add_targeted_memory("years", "student")
 
 This method can be applied multiple times to add prior answers to a given question.
 For example, we can add answers to both q1 and q2 when answering q3:
@@ -139,14 +140,14 @@ If question scenarios, agents or language models have been specified, they are a
 
 Note that these survey components can be chained in any order, so long as each type of component is chained at once (e.g., if adding multiple agents, use `by.(agents)` once where agents is a list of all Agent objects).
 
-See details about question scenarios, agents and language models in their respective modules:
+Learn more about specifying question scenarios, agents and language models in their respective modules:
 
-* `Scenario <https://docs.expectedparrot.com/en/latest/scenarios.html>`_
-* `Agent <https://docs.expectedparrot.com/en/latest/agents.html>`_
-* `Language Model <https://docs.expectedparrot.com/en/latest/language_models.html>`_
+* :ref:`scenarios`
+* :ref:`agents`
+* :ref:`language_models`
 
-
-
+Survey class methods
+--------------------
 """
 from __future__ import annotations
 import re

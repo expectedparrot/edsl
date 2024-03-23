@@ -1,4 +1,11 @@
-"""This module contains the LanguageModel class, which is an abstract base class for all language models."""
+"""This module contains the LanguageModel class, which is an abstract base class for all language models.
+
+Selecting a language model
+--------------------------
+
+
+
+"""
 from __future__ import annotations
 from functools import wraps
 import io

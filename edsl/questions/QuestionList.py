@@ -6,8 +6,18 @@ Example usage:
     from edsl.questions import QuestionList
 
     q = QuestionList(
-        question_name = "work_days",
-        question_text = "Which days of the week do you normally work?"
+        question_name = "activities",
+        question_text = "What activities do you enjoy most?"
+    )
+
+The maximum number of items in the list can be specified using the `max_list_items` parameter:
+
+.. code-block:: python
+
+    q = QuestionList(
+        question_name = "activities",
+        question_text = "What activities do you enjoy most?",
+        max_list_items = 5
     )
 
 An example can also be created using the `example` method:

@@ -1,6 +1,7 @@
+.. _surveys:
+
 Surveys
 =======
-
 
 .. .. automodule:: edsl.surveys.base
 ..    :members:

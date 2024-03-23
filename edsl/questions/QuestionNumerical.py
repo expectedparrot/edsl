@@ -10,6 +10,17 @@ Example usage:
         question_text = "How many days a week do you normally work?"
     )
 
+The minimum and maximum values of the answer can be specified using the `min_value` and `max_value` parameters:
+
+    .. code-block:: python
+    
+        q = QuestionNumerical(
+            question_name = "work_days",
+            question_text = "How many days a week do you normally work?",
+            min_value = 1,
+            max_value = 7
+        )
+
 An example can also be created using the `example` method:
 
     .. code-block:: python
