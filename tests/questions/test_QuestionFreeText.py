@@ -125,15 +125,15 @@ def test_QuestionFreeText_answers():
     # q_empty._validate_answer({"answer": ""})
 
     # code -> answer translation
-    assert q.translate_answer_code_to_answer(response_good, None) == response_good
+    assert q._translate_answer_code_to_answer(response_good, None) == response_good
 
 
 def test_test_QuestionFreeText_extras():
     """Test QuestionFreeText extra functionalities."""
     q = QuestionFreeText(**valid_question)
     # instructions
-    # simulate_answer
-    simulated_answer = q.simulate_answer()
+    # _simulate_answer
+    simulated_answer = q._simulate_answer()
     assert isinstance(simulated_answer, dict)
     assert "answer" in simulated_answer
     assert isinstance(simulated_answer["answer"], str)

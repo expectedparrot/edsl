@@ -185,12 +185,12 @@ class Question(
         return response
 
     @abstractmethod
-    def translate_answer_code_to_answer(self):  # pragma: no cover
+    def _translate_answer_code_to_answer(self):  # pragma: no cover
         """Translate the answer code to the actual answer. Behavior depends on the question type."""
         pass
 
     @abstractmethod
-    def simulate_answer(self, human_readable=True) -> dict:  # pragma: no cover
+    def _simulate_answer(self, human_readable=True) -> dict:  # pragma: no cover
         """Simulate a valid answer for debugging purposes (what the validator expects)."""
         pass
 

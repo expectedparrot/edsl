@@ -277,7 +277,7 @@ class Agent(Base):
         scenario = scenario or Scenario()
 
         if debug:
-            # use the question's simulate_answer method
+            # use the question's _simulate_answer method
             # breakpoint()
             invigilator_class = InvigilatorDebug
         elif hasattr(question, "answer_question_directly"):

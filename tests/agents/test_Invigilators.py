@@ -14,7 +14,7 @@ class TestInvigilatorDebug(unittest.TestCase):
     def test_answer_question(self):
         agent = Mock()
         question = Mock()
-        question.simulate_answer.return_value = {
+        question._simulate_answer.return_value = {
             "answer": "Mocked Answer",
             "comment": "boop",
         }

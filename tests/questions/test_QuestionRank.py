@@ -190,7 +190,7 @@ def test_QuestionRank_answers():
         q._validate_answer({"answer": [""]})
 
     # code -> answer translation
-    assert q.translate_answer_code_to_answer(response_good["answer"], None) == [
+    assert q._translate_answer_code_to_answer(response_good["answer"], None) == [
         "Cake",
         "Ice cream",
     ]
@@ -200,12 +200,12 @@ def test_QuestionRank_extras():
     """Test QuestionFreeText extra functionalities."""
     q = QuestionRank(**valid_question)
     # instructions
-    # simulate_answer
-    assert q.simulate_answer().keys() == q.simulate_answer(human_readable=True).keys()
-    assert q.simulate_answer(human_readable=False)["answer"][0] in range(
+    # _simulate_answer
+    assert q._simulate_answer().keys() == q._simulate_answer(human_readable=True).keys()
+    assert q._simulate_answer(human_readable=False)["answer"][0] in range(
         len(q.question_options)
     )
-    simulated_answer = q.simulate_answer()
+    simulated_answer = q._simulate_answer()
     assert isinstance(simulated_answer, dict)
     assert "answer" in simulated_answer
     assert "comment" in simulated_answer
