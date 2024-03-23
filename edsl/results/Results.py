@@ -1,7 +1,83 @@
 """
 The Results object is the result of running a survey. 
-It is a list of Result objects, each of which represents a single response to the survey.
-It is a UserList of Result objects, and has a number of methods for manipulating the data, such as select, filter, mutate, etc.
+It is not typically instantiated directly, but is returned by the run method of a `Job` object.
+
+.. code-block:: python
+
+    job = Job.example()
+    results = job.run()
+
+It is a list of Result objects, each of which represents a single response to the survey and can be manipulated like a list.
+
+Creating tables by selecting and printing
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+A results object has many 'columns' that can be selected and printed.
+For example, to print a table of the `how_feeling` column:
+
+.. code-block:: python
+
+    results = Results.example()
+    results.select("how_feeling").print()
+
+This will print a table of the `how_feeling` column.
+
+.. code-block:: text
+
+    ┏━━━━━━━━━━━━━━┓
+    ┃ answer       ┃
+    ┃ .how_feeling ┃
+    ┡━━━━━━━━━━━━━━┩
+    │ OK           │
+    ├──────────────┤
+    │ Great        │
+    ├──────────────┤
+    │ Terrible     │
+    ├──────────────┤
+    │ OK           │
+    └──────────────┘
+
+Filtering
+^^^^^^^^^
+
+You can filter the results by using the `filter` method.
+
+.. code-block:: python
+
+    results = Results.example()
+    results.filter("how_feeling == 'Great'").select("how_feeling").print()
+
+which will print a table of the `how_feeling` column where the value is 'Great'.
+
+.. code-block:: text
+
+    ┏━━━━━━━━━━━━━━┓
+    ┃ answer       ┃
+    ┃ .how_feeling ┃
+    ┡━━━━━━━━━━━━━━┩
+    │ Great        │
+    └──────────────┘    
+
+
+Interacting via SQL
+^^^^^^^^^^^^^^^^^^^
+You can interact with the results via SQL.
+
+.. code-block:: python
+
+    results = Results.example()
+    results.sql("select data_type, key, value from self where data_type = 'answer' limit 3", shape="long")
+
+
+Exporting to other formats (pandas, csv, etc.)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+You can export the results to other formats, such as pandas DataFrames or csv files.
+
+.. code-block:: python
+
+    results = Results.example()
+    results.to_pandas()
+
 """
 from __future__ import annotations
 import json
@@ -153,7 +229,16 @@ class Results(UserList, Mixins, Base):
             return f"Results(data = {data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
 
     def to_dict(self) -> dict[str, Any]:
-        """Converts the Results object to a dictionary."""
+        """Converts the Results object to a dictionary.
+        
+        The dictionary can be quite large, as it includes all of the data in the Results object.
+
+        Example: Illustrating just the keys of the dictionary.
+
+        >>> r = Results.example()
+        >>> r.to_dict().keys()
+        dict_keys(['data', 'survey', 'created_columns'])
+        """
         return {
             "data": [result.to_dict() for result in self.data],
             "survey": self.survey.to_dict(),
@@ -162,17 +247,24 @@ class Results(UserList, Mixins, Base):
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Results:
-        """Converts a dictionary to a Results object."""
+        """Converts a dictionary to a Results object.
+        
+        :param data: A dictionary representation of a Results object.
+
+        Example:
+        
+        >>> r = Results.example()
+        >>> d = r.to_dict()
+        >>> r2 = Results.from_dict(d)
+        >>> r == r2
+        True
+        """
         results = cls(
             survey=Survey.from_dict(data["survey"]),
             data=[Result.from_dict(r) for r in data["data"]],
             created_columns=data.get("created_columns", None),
         )
         return results
-
-    def show_methods(self, show_docstrings: bool = True) -> None:
-        """Prints public methods of the Results class"""
-        print_public_methods_with_doc(self)
 
     ######################
     ## Convenience methods
@@ -200,6 +292,13 @@ class Results(UserList, Mixins, Base):
         Return a mapping of strings representing data types (objects such as Agent, Answer, Model, Scenario, etc.) to keys (how_feeling, status, etc.)
         - Uses the key_to_data_type property of the Result class.
         - Includes any columns that the user has created with `mutate`
+
+        Example:
+
+        >>> r = Results.example()
+        >>> r._data_type_to_keys
+        {'agent': {'agent_name', 'status'}, 'answer': {'how_feeling', 'how_feeling_comment', 'how_feeling_yesterday', 'how_feeling_yesterday_comment'}, 'model': {'frequency_penalty', 'use_cache', 'temperature', 'max_tokens', 'presence_penalty', 'top_p', 'model'}, 'prompt': {'how_feeling_system_prompt', 'how_feeling_user_prompt', 'how_feeling_yesterday_system_prompt', 'how_feeling_yesterday_user_prompt'}, 'raw_model_response': {'how_feeling_raw_model_response', 'how_feeling_yesterday_raw_model_response'}, 'scenario': {'period'}}
+
         """
         d: dict = defaultdict(set)
         for result in self.data:
@@ -271,11 +370,23 @@ class Results(UserList, Mixins, Base):
 
     @property
     def scenarios(self) -> list[Scenario]:
+        """Return a list of all of the scenarios in the Results.
+    
+        >>> r.scenarios
+        [{'period': 'morning'}, {'period': 'afternoon'}, {'period': 'morning'}, {'period': 'afternoon'}]
+    
+        """
         return [r.scenario for r in self.data]
 
     @property
     def agent_keys(self) -> set[str]:
-        """Return a set of all of the keys that are in the Agent data."""
+        """Return a set of all of the keys that are in the Agent data.
+
+        Example:
+
+        >>> r.agent_keys
+        {'agent_name', 'status'}
+        """
         return self._data_type_to_keys["agent"]
 
     @property
@@ -290,7 +401,12 @@ class Results(UserList, Mixins, Base):
 
     @property
     def scenario_keys(self) -> set[str]:
-        """Return a set of all of the keys that are in the Scenario data."""
+        """Return a set of all of the keys that are in the Scenario data.
+        
+        >>> r = Results.example()
+        >>> r.scenario_keys
+        {'period'}
+        """
         return self._data_type_to_keys["scenario"]
 
     @property
@@ -361,6 +477,13 @@ class Results(UserList, Mixins, Base):
 
     def first(self) -> Result:
         """Return the first observation in the results.
+
+        Example:
+
+        >>> r = Results.example()
+        >>> r.first()
+        Result(agent = Agent(traits = {'status': 'Joyful'}), scenario = {'period': 'morning'}, model = LanguageModelOpenAIFour(model = 'gpt-4-1106-preview', parameters = {'temperature': 0.5, 'max_tokens': 1000, 'top_p': 1, 'frequency_penalty': 0, 'presence_penalty': 0, 'use_cache': True}), iteration = 1, answer = {'how_feeling': 'OK'})
+
         """
         return self.data[0]
 
@@ -368,10 +491,10 @@ class Results(UserList, Mixins, Base):
         """
         Creates a value in the Results object as if has been asked as part of the survey.
 
-        It splits the new_var_string at the "=" and uses simple_eval
-
         :param new_var_string: A string that is a valid Python expression.
         :param functions_dict: A dictionary of functions that can be used in the expression. The keys are the function names and the values are the functions themselves.
+
+        It splits the new_var_string at the "=" and uses simple_eval
 
         Example:
 
@@ -539,7 +662,7 @@ class Results(UserList, Mixins, Base):
         )
         return Results(survey=self.survey, data=new_data, created_columns=None)
 
-    def filter(self, expression: str) -> "Results":
+    def filter(self, expression: str) -> Results:
         """
         Filter based on the given expression and returns the filtered `Results`.
 
