@@ -116,7 +116,7 @@ class TestResults(unittest.TestCase):
 
     def test_fetch_list(self):
         self.assertEqual(
-            self.example_results.fetch_list("answer", "how_feeling"),
+            self.example_results._fetch_list("answer", "how_feeling"),
             [result.answer.get("how_feeling") for result in self.example_results.data],
         )
 
