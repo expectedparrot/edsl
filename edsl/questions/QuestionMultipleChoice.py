@@ -1,4 +1,4 @@
-"""This module contains the QuestionMultipleChoice class. It is a subclass of the Question class and is used to create multiple choice questions.
+"""A subclass of the `Question` class for creating multiple choice questions.
 Example usage:
 
 .. code-block:: python
@@ -10,6 +10,12 @@ Example usage:
         question_text = "What is your favorite color?",
         question_options = ["Red", "Blue", "Green", "Yellow"]
     )
+
+To see an example:
+    
+    .. code-block:: python
+
+        QuestionMultipleChoice.example()
 
 """
 from __future__ import annotations
@@ -24,23 +30,7 @@ from edsl.questions.Question import Question
 from edsl.scenarios import Scenario
 
 class QuestionMultipleChoice(Question):
-    """
-    This function asks the respondent to select one option from a list of options.
-
-    :param question_name: The name of the question.
-    :type question_name: str
-    :param question_text: The text of the question.
-    :type question_text: str
-    :param question_options: The options the respondent should select from.
-    :type question_options: list[str]
-    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionMultipleChoice.default_instructions`.
-    :type instructions: str, optional
-    :param short_names_dict: Maps question_options to short names.
-    :type short_names_dict: dict[str, str], optional
-
-    For an example, run `QuestionMultipleChoice.example()`.
-    """
-
+    """This question prompts the agent to select one option from a list of options."""
 
     question_type = "multiple_choice"
     purpose = "When options are known and limited"
@@ -53,10 +43,16 @@ class QuestionMultipleChoice(Question):
         question_name: str,
         short_names_dict: Optional[dict[str, str]] = None,
     ):
-        """Instantiate a new QuestionMultipleChoice."""
+        """Instantiate a new QuestionMultipleChoice.
+
+        :param question_name: The name of the question.
+        :param question_text: The text of the question.
+        :param question_options: The options the agent should select from.
+        :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionMultipleChoice.default_instructions`.
+        """
+        self.question_name = question_name
         self.question_text = question_text
         self.question_options = question_options
-        self.question_name = question_name
         self.short_names_dict = short_names_dict or dict()
 
     ################

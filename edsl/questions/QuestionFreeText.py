@@ -1,4 +1,4 @@
-"""This module contains the QuestionFreeText class. It is a subclass of the Question class and is used to create free text questions.
+"""A subclass of the `Question` class for creating free response questions.
 Example usage:
 
 .. code-block:: python
@@ -9,6 +9,21 @@ Example usage:
         question_name = "food",
         question_text = "What is your favorite food?"
     )
+
+Required parameters:
+
+    :param question_name: The name of the question.
+    :param question_text: The text of the question.
+
+Optional parameters:
+
+    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionFreeText.default_instructions`.
+
+To see an example:
+
+    .. code-block:: python
+    
+        QuestionFreeText.example()
 
 """
 from __future__ import annotations
@@ -22,18 +37,7 @@ from edsl.utilities import random_string
 
 # TODO: should allow answer = {"answer": None} if allow_nonresponse is True
 class QuestionFreeText(Question):
-    """
-    This question asks the respondent to answer with unstructured text.
-
-    :param question_name: The name of the question.
-    :type question_name: str
-    :param question_text: The text of the question.
-    :type question_text: str
-    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionFreeText.default_instructions`.
-    :type instructions: str, optional
-
-    For an example, run `QuestionFreeText.example()`.
-    """
+    """This question prompts the agent to respond with unstructured text."""
 
     question_type = "free_text"
     allow_nonresponse: bool = AllowNonresponseDescriptor()

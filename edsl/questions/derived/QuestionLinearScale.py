@@ -1,4 +1,4 @@
-"""This module contains the QuestionLinearScale class. It is a subclass of the QuestionMultipleChoice class and is used to create linear scale questions.
+"""A subclass of the `QuestionMultipleChoice` class for creating linear scale questions.
 Example usage:
 
 .. code-block:: python
@@ -11,6 +11,19 @@ Example usage:
         question_options = [0, 1, 2, 3, 4, 5]
     )
 
+Required parameters:
+
+    :param question_name: The name of the question.
+    :param question_text: The text of the question.
+    :param question_options: The options the respondent should select from.
+
+Optional parameters:
+
+    :param option_labels: Maps question_options to labels.
+    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionLinearScale.default_instructions`.
+
+    For an example, see `QuestionLinearScale.example()`.
+    """
 """
 from __future__ import annotations
 import textwrap
@@ -20,24 +33,7 @@ from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
 
 class QuestionLinearScale(QuestionMultipleChoice):
-    """
-    This question asks the respondent to respond to a statement on a linear scale.
-
-    :param question_name: The name of the question.
-    :type question_name: str
-    :param question_text: The text of the question.
-    :type question_text: str
-    :param question_options: The options the respondent should select from.
-    :type question_options: list[int]
-    :param option_labels: maps question_options to labels.
-    :type option_labels: dict[int, str], optional
-    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionLinearScale.default_instructions`.
-    :type instructions: str, optional
-    :param short_names_dict: Maps question_options to short names.
-    :type short_names_dict: dict[str, str], optional
-
-    For an example, see `QuestionLinearScale.example()`.
-    """
+    """This question prompts the agent to respond to a statement on a linear scale."""
 
     question_type = "linear_scale"
     option_labels: Optional[dict[int, str]] = OptionLabelDescriptor()

@@ -1,4 +1,4 @@
-"""This module contains the QuestionRank class. It is a subclass of the Question class and is used to create questions where the respondent is prompted to rank options from a list.
+"""A subclass of the `Question` class for creating questions where the response is a ranked list of options.
 Example usage:
 
 .. code-block:: python
@@ -15,6 +15,23 @@ The number of options that must be selected can be optionally specified when cre
 Alternatively, `QuestionTopK` can be used to ask the respondent to select a specific number of options from a list.
 See more details about constructing and administering questions in the <a href="https://docs.expectedparrot.com/en/latest/scenarios.html">`Question`</a> module.
 
+Required parameters:
+
+    :param question_name: The name of the question.
+    :param question_text: The text of the question.
+    :param question_options: The options the respondent should select from.
+
+Optional parameters:
+
+    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionRank.default_instructions`.
+    :param min_selections: The minimum number of options that must be selected.
+    :param max_selections: The maximum number of options that must be selected.
+
+To see an example:
+
+    .. code-block:: python
+    
+        QuestionRank.example()
 
 """
 from __future__ import annotations
@@ -33,26 +50,7 @@ from edsl.questions.descriptors import (
 
 
 class QuestionRank(Question):
-    """
-    This question asks the respondent to rank options from a list.
-
-    :param question_name: The name of the question.
-    :type question_name: str
-    :param question_text: The text of the question.
-    :type question_text: str
-    :param question_options: The options the respondent should select from.
-    :type question_options: list[str]
-    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionRank.default_instructions`.
-    :type instructions: str, optional
-    :param short_names_dict: Maps question_options to short names.
-    :type short_names_dict: dict[str, str], optional
-    :param min_selections: The minimum number of options that must be selected.
-    :type min_selections: int, optional
-    :param max_selections: The maximum number of options that must be selected.
-    :type max_selections: int, optional
-
-    For an example, run `QuestionRank.example()`.
-    """
+    """This question prompts the agent to rank options from a list."""
 
     question_type = "rank"
     question_options: list[str] = QuestionOptionsDescriptor()

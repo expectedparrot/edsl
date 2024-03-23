@@ -1,4 +1,4 @@
-"""This module contains the QuestionList class. It is a subclass of the Question class and is used to create questions where the desired response is in the form of a list.
+"""A subclass of the `Question` class for creating questions where the response is a list.
 Example usage:
 
 .. code-block:: python
@@ -9,6 +9,22 @@ Example usage:
         question_name = "work_days",
         question_text = "Which days of the week do you normally work?"
     )
+
+Required parameters:
+
+    :param question_name: The name of the question.
+    :param question_text: The text of the question.
+
+Optional parameters:
+
+    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionList.default_instructions`.
+    :param max_list_items: The maximum number of items that can be in the answer list.
+
+To see an example:
+
+    .. code-block:: python
+    
+        QuestionList.example()
 
 """
 from __future__ import annotations
@@ -25,20 +41,7 @@ from edsl.utilities import random_string
 
 
 class QuestionList(Question):
-    """
-    This question asks the respondent to answer by providing a list of items as comma-separated strings.
-
-    :param question_name: The name of the question.
-    :type question_name: str
-    :param question_text: The text of the question.
-    :type question_text: str
-    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionList.default_instructions`.
-    :type instructions: str, optional
-    :param max_list_items: The maximum number of items that can be in the answer list.
-    :type max_list_items: int, optional
-
-    For an example, run `QuestionList.example()`.
-    """
+    """This question prompts the agent to answer by providing a list of items as comma-separated strings."""
 
     question_type = "list"
     max_list_items: int = IntegerOrNoneDescriptor()

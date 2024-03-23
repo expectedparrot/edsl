@@ -1,4 +1,4 @@
-"""This module contains the QuestionLikertFive class. It is a subclass of the QuestionMultipleChoice class and is used to create questions where the respondent is prompted to respond to a statement on a 5-point Likert scale.
+"""A subclass of the `QuestionMultipleChoice` class for creating questions where the answer is a response to a given statement on a 5-point Likert scale.
 Example usage:
 
 .. code-block:: python
@@ -6,10 +6,26 @@ Example usage:
     from edsl.questions import QuestionLikertFive
 
     q = QuestionLikertFive(
-        question_name = "happy_raining",
-        question_text = "I'm only happy when it rains."
+        question_name = "happy",
+        question_text = "I am only happy when it rains."
     )
 
+Required parameters:
+
+    :param question_name: The name of the question.
+    :param question_text: The text of the question.
+    :param question_options: The options the respondent should select from (list of strings). If not provided, the default Likert options are used (['Strongly disagree', 'Disagree', 'Neutral', 'Agree', 'Strongly agree']). To view them, run `QuestionLikertFive.likert_options`.
+
+Optional parameters:
+
+    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionLikertFive.default_instructions`.
+
+To see an example:
+
+    .. code-block:: python
+
+        QuestionLikertFive.example()
+    
 """
 from __future__ import annotations
 from typing import Optional
@@ -17,22 +33,7 @@ from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
 
 class QuestionLikertFive(QuestionMultipleChoice):
-    """
-    This question asks the respondent to respond to a statement on a 5-point Likert scale.
-
-    :param question_name: The name of the question.
-    :type question_name: str
-    :param question_text: The text of the question.
-    :type question_text: str
-    :param question_options: The options the respondent should select from (list of strings). If not provided, the default Likert options are used (['Strongly disagree', 'Disagree', 'Neutral', 'Agree', 'Strongly agree']). To view them, run `QuestionLikertFive.likert_options`.
-    :type question_options: list[str], optional
-    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionLikertFive.default_instructions`.
-    :type instructions: str, optional
-    :param short_names_dict: Maps question_options to short names.
-    :type short_names_dict: dict[str, str], optional
-
-    For an example, see `QuestionLikertFive.example()`.
-    """
+    """This question prompts the agent to respond to a statement on a 5-point Likert scale."""
 
     question_type = "likert_five"
     likert_options: list[str] = [
