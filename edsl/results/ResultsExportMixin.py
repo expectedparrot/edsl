@@ -4,7 +4,7 @@ import csv
 import io
 from functools import wraps
 
-from typing import Literal
+from typing import Literal, Optional
 
 from edsl.utilities.utilities import is_notebook
 
@@ -59,7 +59,9 @@ class ResultsExportMixin:
         return header, rows
 
     def print_long(self) -> None:
-        """Print the results in long format."""
+        """Print the results in long format.
+        
+        """
         for result in self:
             if hasattr(result, "combined_dict"):
                 d = result.combined_dict
@@ -70,11 +72,11 @@ class ResultsExportMixin:
     @_convert_decorator
     def print(
         self,
-        pretty_labels=None,
-        filename=None,
+        pretty_labels: Optional[dict] = None,
+        filename: Optional[str] = None,
         format: Literal["rich", "html", "markdown"] = "rich",
-        interactive=False,
-        split_at_dot=True,
+        interactive: bool =False,
+        split_at_dot: bool =True,
     ) -> None:
         """Print the results in a pretty format.
         
@@ -157,7 +159,10 @@ class ResultsExportMixin:
 
 
     @_convert_decorator
-    def to_csv(self, filename: str = None, remove_prefix=False, download_link=False):
+    def to_csv(self, 
+               filename: Optional[str] = None, 
+               remove_prefix: bool =False, 
+               download_link: bool =False):
         """Export the results to a CSV file.
 
         :param filename: The filename to save the CSV file to.
@@ -192,7 +197,8 @@ class ResultsExportMixin:
                 return output.getvalue()
 
     @_convert_decorator
-    def to_pandas(self, remove_prefix=False) -> pd.DataFrame:
+    def to_pandas(self, 
+                  remove_prefix: bool=False) -> pd.DataFrame:
         """Convert the results to a pandas DataFrame.
         
         :param remove_prefix: Whether to remove the prefix from the column names.
@@ -213,7 +219,7 @@ class ResultsExportMixin:
         # return df
 
     @_convert_decorator
-    def to_dicts(self, remove_prefix=False) -> list[dict]:
+    def to_dicts(self, remove_prefix:bool=False) -> list[dict]:
         """Convert the results to a list of dictionaries.
         
         :param remove_prefix: Whether to remove the prefix from the column names.
