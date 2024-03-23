@@ -1,4 +1,4 @@
-"""This module contains the QuestionExtract class. It is a subclass of the Question class and is used to create questions that ask the user to extract values from a string, and return them in a given template.
+"""A subclass of the `Question` class for creating questions where the response is information extracted from a given text and formatted a specified template.
 Example usage:
 
 .. code-block:: python
@@ -7,9 +7,28 @@ Example usage:
 
     q = QuestionExtract(
         question_name = "course_schedule",
-        question_text = "This semester we are offering courses on calligraphy on Friday mornings.",
-        answer_template = {"course_topic": "AI", "days": ["Monday", "Wednesday"]}
+        question_text = "This semester we are offering courses on 
+        calligraphy on Friday mornings.",
+        answer_template = {"course_topic": "AI", "days": ["Monday", 
+        "Wednesday"]}
     )
+
+Required parameters:
+
+    :param question_name: The name of the question.
+    :param question_text: The text of the question.
+    :param question_options: The options the respondent should select from.
+    :param answer_template: The template for the answer.
+
+Optional parameters:
+
+    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionExtract.default_instructions`.
+
+To see an example:
+    
+    .. code-block:: python
+
+        QuestionExtract.example()
 
 """
 from __future__ import annotations
@@ -23,24 +42,7 @@ from edsl.utilities import random_string
 
 
 class QuestionExtract(Question):
-    """
-    This question asks the respondent to extract values from a string, and return them in a given template.
-
-    :param question_name: The name of the question.
-    :type question_name: str
-    :param question_text: The text of the question.
-    :type question_text: str
-    :param question_options: The options the respondent should select from.
-    :type question_options: list[str]
-    :param answer_template: The template for the answer.
-    :type answer_template: dictionary[str, str]
-    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionExtract.default_instructions`.
-    :type instructions: str, optional
-    :param short_names_dict: Maps question_options to short names.
-    :type short_names_dict: dict[str, str], optional
-
-    For an example, run `QuestionExtract.example()`.
-    """
+    """This question prompts the agent to extract values from a string, and return them in a given template."""
 
     question_type = "extract"
     answer_template: dict[str, Any] = AnswerTemplateDescriptor()

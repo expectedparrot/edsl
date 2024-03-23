@@ -1,4 +1,4 @@
-"""This module contains the QuestionBudget class. It is a subclass of the Question class and is used to create questions where the respondent is prompted to allocate a sum among a list of options.
+"""A subclass of the `Question` class for creating questions where the agent is prompted to allocate a sum among a list of options.
 The response is a dictionary where the keys are the options and the values are the amounts allocated to each option.
 Example usage:
 
@@ -13,6 +13,23 @@ Example usage:
         budget_sum = 100
     )
 
+Required parameters:
+
+    :param question_name: The name of the question.
+    :param question_text: The text of the question.
+    :param question_options: The options for allocation of the budget sum.
+    :param budget_sum: The total amount of the budget to be allocated among the options.
+
+Optional parameters:
+
+    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionBudget.default_instructions`.
+
+To see an example:
+
+    .. code-block:: python
+    
+        QuestionBudget.example()
+
 """
 from __future__ import annotations
 import random
@@ -25,24 +42,7 @@ from edsl.utilities import random_string
 
 
 class QuestionBudget(Question):
-    """
-    This question asks the respondent to allocate a budget among options.
-
-    :param question_name: The name of the question.
-    :type question_name: str
-    :param question_text: The text of the question.
-    :type question_text: str
-    :param question_options: The options for allocation of the budget sum.
-    :type question_options: list[str]
-    :param budget_sum: The total amount of the budget to be allocated among the options.
-    :type budget_sum: integer
-    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionBudget.default_instructions`.
-    :type instructions: str, optional
-    :param short_names_dict: Maps question_options to short names.
-    :type short_names_dict: dict[str, str], optional
-
-    To generate an example, run `QuestionBudget.example()`.
-    """
+    """This question asks the agent to allocate a budget among options."""
 
     question_type = "budget"
     budget_sum: int = IntegerDescriptor(none_allowed=False)

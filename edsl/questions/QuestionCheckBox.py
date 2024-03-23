@@ -9,7 +9,8 @@ Example usage:
     q = QuestionCheckBox(
         question_name = "favorite_days",
         question_text = "What are your 2 favorite days of the week?",
-        question_options = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+        question_options = ["Monday", "Tuesday", "Wednesday", 
+        "Thursday", "Friday"],
         min_selections = 2,
         max_selections = 2
     )

@@ -1,18 +1,18 @@
 Questions
 =========
 
-Question class
---------------
+Base methods
+------------
 
 .. automodule:: edsl.questions.Question
    :members:
    :undoc-members:
    :show-inheritance:
 
-QuestionMultipleChoice class
+QuestionBudget class
 ----------------------------
 
-.. automodule:: edsl.questions.QuestionMultipleChoice
+.. automodule:: edsl.questions.QuestionBudget
    :members:
    :undoc-members:
    :show-inheritance:
@@ -25,10 +25,34 @@ QuestionCheckBox class
    :undoc-members:
    :show-inheritance:
 
+QuestionExtract class
+----------------------------
+
+.. automodule:: edsl.questions.QuestionExtract
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 QuestionFreeText class
 ----------------------
 
 .. automodule:: edsl.questions.QuestionFreeText
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+QuestionFunctional class
+-------------------
+
+.. automodule:: edsl.questions.QuestionFunctional
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   
+QuestionLikertFive class
+-------------------
+
+.. automodule:: edsl.questions.derived.QuestionLikertFive
    :members:
    :undoc-members:
    :show-inheritance:
@@ -41,14 +65,6 @@ QuestionLinearScale class
    :undoc-members:
    :show-inheritance:
 
-QuestionNumerical class
--------------------------
-
-.. automodule:: edsl.questions.QuestionNumerical
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 QuestionList class
 ------------------
 
@@ -57,18 +73,20 @@ QuestionList class
    :undoc-members:
    :show-inheritance:
 
-QuestionBudget class
---------------------
+QuestionMultipleChoice class
+----------------------------
 
-.. automodule:: edsl.questions.QuestionBudget
+.. automodule:: edsl.questions.QuestionMultipleChoice
    :members:
    :undoc-members:
    :show-inheritance:
+   :special-members: __init__
+   :exclude-members: 
+   
+QuestionNumerical class
+-------------------------
 
-QuestionYesNo class
--------------------
-
-.. automodule:: edsl.questions.derived.QuestionYesNo
+.. automodule:: edsl.questions.QuestionNumerical
    :members:
    :undoc-members:
    :show-inheritance:
@@ -81,14 +99,6 @@ QuestionRank class
    :undoc-members:
    :show-inheritance:
 
-QuestionLikertFive class
--------------------
-
-.. automodule:: edsl.questions.derived.QuestionLikertFive
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 QuestionTopK class
 -------------------
 
@@ -97,18 +107,10 @@ QuestionTopK class
    :undoc-members:
    :show-inheritance:
 
-QuestionExtract class
+QuestionYesNo class
 -------------------
 
-.. automodule:: edsl.questions.QuestionExtract
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-QuestionFunctional class
--------------------
-
-.. automodule:: edsl.questions.QuestionFunctional
+.. automodule:: edsl.questions.derived.QuestionYesNo
    :members:
    :undoc-members:
    :show-inheritance:

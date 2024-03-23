@@ -1,4 +1,4 @@
-"""This module contains the QuestionNumerical class. It is a subclass of the Question class and is used to create questions where the respondent is prompted to answer with a numerical value.
+"""A subclass of the `Question` class for creating questions where the response is a numerical value.
 Example usage:
 
 .. code-block:: python
@@ -7,8 +7,25 @@ Example usage:
 
     q = QuestionNumerical(
         question_name = "work_days",
-        question_text = "How many days of the week do you normally work?"
+        question_text = "How many days a week do you normally work?"
     )
+
+Required parameters:
+
+    :param question_name: The name of the question.
+    :param question_text: The text of the question.
+
+Optional parameters:
+
+    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionNumerical.default_instructions`.
+    :param min_value: The minimum value of the answer.
+    :param max_value: The maximum value of the answer.
+
+To see an example:
+
+    .. code-block:: python
+    
+        QuestionNumerical.example()
 
 """
 from __future__ import annotations
@@ -23,22 +40,7 @@ from edsl.utilities import random_string
 
 
 class QuestionNumerical(Question):
-    """
-    This question asks the respondent to answer with a numerical value.
-
-    :param question_name: The name of the question.
-    :type question_name: str
-    :param question_text: The text of the question.
-    :type question_text: str
-    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionNumerical.default_instructions`.
-    :type instructions: str, optional
-    :param min_value: The minimum value of the answer.
-    :type min_value: float, optional
-    :param max_value: The maximum value of the answer.
-    :type max_value: float, optional
-
-    For an example, run `QuestionNumerical.example()`.
-    """
+    """This question prompts the agent to answer with a numerical value."""
 
     question_type = "numerical"
     min_value: Optional[float] = NumericalOrNoneDescriptor()
