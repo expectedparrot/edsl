@@ -27,7 +27,7 @@ def test_meta():
     from edsl.questions import Question
 
     class ABCMixins:
-        def validate_answer(self, answer: dict[str, str]):
+        def _validate_answer(self, answer: dict[str, str]):
             pass
 
         def validate_response(self, response):

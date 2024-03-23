@@ -76,11 +76,11 @@ class QuestionRank(Question):
     ################
     # Answer methods
     ################
-    def validate_answer(self, answer: Any) -> dict[str, list[int]]:
+    def _validate_answer(self, answer: Any) -> dict[str, list[int]]:
         """Validate the answer."""
-        self.validate_answer_template_basic(answer)
-        self.validate_answer_key_value(answer, "answer", list)
-        self.validate_answer_rank(answer)
+        self._validate_answer_template_basic(answer)
+        self._validate_answer_key_value(answer, "answer", list)
+        self._validate_answer_rank(answer)
         return answer
 
     def translate_answer_code_to_answer(
@@ -135,13 +135,13 @@ def main():
     q.num_selections
     # validate an answer
     answer = {"answer": [0, 1], "comment": "I like pizza and pasta."}
-    q.validate_answer(answer)
+    q._validate_answer(answer)
     # translate an answer code to an answer
     q.translate_answer_code_to_answer([0, 1])
     # simulate answer
     q.simulate_answer()
     q.simulate_answer(human_readable=False)
-    q.validate_answer(q.simulate_answer(human_readable=False))
+    q._validate_answer(q.simulate_answer(human_readable=False))
     # serialization (inherits from Question)
     q.to_dict()
     assert q.from_dict(q.to_dict()) == q

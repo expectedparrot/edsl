@@ -43,7 +43,7 @@ class QuestionFunctional(Question):
         self.question_text = question_text
         self.instructions = self.default_instructions
 
-    def validate_answer(self, answer: dict[str, str]):
+    def _validate_answer(self, answer: dict[str, str]):
         """Required by Question, but not used by QuestionFunctional."""
         raise NotImplementedError
 
