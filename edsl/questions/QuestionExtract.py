@@ -59,15 +59,15 @@ class QuestionExtract(Question):
     ################
     # Answer methods
     ################
-    def validate_answer(self, answer: Any) -> dict[str, Any]:
+    def _validate_answer(self, answer: Any) -> dict[str, Any]:
         """Validate the answer."""
         # raw_json = answer["answer"]
         # fixed_json_data = re.sub(r"\'", '"', raw_json)
         # answer["answer"] = json.loads(fixed_json_data)
-        self.validate_answer_template_basic(answer)
-        # self.validate_answer_key_value(answer, "answer", dict)
+        self._validate_answer_template_basic(answer)
+        # self._validate_answer_key_value(answer, "answer", dict)
 
-        self.validate_answer_extract(answer)
+        self._validate_answer_extract(answer)
         return answer
 
     def translate_answer_code_to_answer(self, answer, scenario: Scenario = None):
@@ -102,13 +102,13 @@ def main():
     q.question_text
     q.question_name
     q.answer_template
-    q.validate_answer({"answer": {"name": "Moby", "profession": "truck driver"}})
+    q._validate_answer({"answer": {"name": "Moby", "profession": "truck driver"}})
     q.translate_answer_code_to_answer(
         {"answer": {"name": "Moby", "profession": "truck driver"}}
     )
     q.simulate_answer()
     q.simulate_answer(human_readable=False)
-    q.validate_answer(q.simulate_answer(human_readable=False))
+    q._validate_answer(q.simulate_answer(human_readable=False))
     # serialization (inherits from Question)
     q.to_dict()
     assert q.from_dict(q.to_dict()) == q

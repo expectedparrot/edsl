@@ -172,7 +172,7 @@ class Question(
         return compose_questions(self, other_question)
 
     @abstractmethod
-    def validate_answer(self, answer: dict[str, str]):
+    def _validate_answer(self, answer: dict[str, str]):
         """Validate the answer from the LLM. Behavior depends on the question type."""
         pass
 

@@ -171,7 +171,7 @@ class InvigilatorAI(InvigilatorBase):
 
         This cleans up the raw response to make it suitable to pass to AgentResponseDict.
         """
-        response = question.validate_answer(raw_response)
+        response = question._validate_answer(raw_response)
         comment = response.get("comment", "")
         answer_code = response["answer"]
         answer = question.translate_answer_code_to_answer(answer_code, scenario)

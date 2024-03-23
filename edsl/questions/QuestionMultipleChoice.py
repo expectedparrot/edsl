@@ -62,12 +62,12 @@ class QuestionMultipleChoice(Question):
     ################
     # Answer methods
     ################
-    def validate_answer(
+    def _validate_answer(
         self, answer: dict[str, Union[str, int]]
     ) -> dict[str, Union[str, int]]:
         """Validate the answer."""
-        self.validate_answer_template_basic(answer)
-        self.validate_answer_multiple_choice(answer)
+        self._validate_answer_template_basic(answer)
+        self._validate_answer_multiple_choice(answer)
         return answer
 
     def translate_answer_code_to_answer(self, answer_code, scenario: Scenario = None):
@@ -115,7 +115,7 @@ def main():
     q.question_name
     q.short_names_dict
     # validate an answer
-    q.validate_answer({"answer": 0, "comment": "I like custard"})
+    q._validate_answer({"answer": 0, "comment": "I like custard"})
     # translate answer code
     q.translate_answer_code_to_answer(0, {})
     # simulate answer

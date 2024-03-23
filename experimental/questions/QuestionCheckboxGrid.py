@@ -151,7 +151,7 @@ if __name__ == "__main__":
     print(response)
     q.validate_response(response)
     response.pop("comment")
-    q.validate_answer(response)
+    q._validate_answer(response)
     print("This is a valid response.\n")
 
     print("Now checking a non-required question.")
@@ -166,7 +166,7 @@ if __name__ == "__main__":
     print(response)
     q.validate_response(response)
     response.pop("comment")
-    q.validate_answer(response)
+    q._validate_answer(response)
     print("This is a valid answer.\n")
 
     print("Now checking a required question.")
@@ -182,7 +182,7 @@ if __name__ == "__main__":
         print(response)
         q.validate_response(response)
         response.pop("comment")
-        q.validate_answer(response)
+        q._validate_answer(response)
     except QuestionAnswerValidationError:
         print("Caught bad answer.\n")
 
@@ -192,7 +192,7 @@ if __name__ == "__main__":
         print(response)
         q.validate_response(response)
         response.pop("comment")
-        q.validate_answer(response)
+        q._validate_answer(response)
     except QuestionAnswerValidationError:
         print("Caught bad answer.\n")
 
@@ -202,6 +202,6 @@ if __name__ == "__main__":
         print(response)
         q.validate_response(response)
         response.pop("comment")
-        q.validate_answer(response)
+        q._validate_answer(response)
     except QuestionAnswerValidationError:
         print("Caught bad answer.\n")

@@ -165,5 +165,5 @@ if __name__ == "__main__":
     results = q.by(*scenarios).run()
     print(results)
 
-    # print(q.validate_answer(answer))
+    # print(q._validate_answer(answer))
     # print(q.get_prompt())

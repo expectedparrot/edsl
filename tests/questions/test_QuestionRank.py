@@ -158,36 +158,36 @@ def test_QuestionRank_answers():
     q.validate_response(response_bad)
 
     # answer validation
-    q.validate_answer(response_good)
-    q.validate_answer({"answer": ["2", "1"]})
+    q._validate_answer(response_good)
+    q._validate_answer({"answer": ["2", "1"]})
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer(response_terrible)
+        q._validate_answer(response_terrible)
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": 1})
+        q._validate_answer({"answer": 1})
 
     # missing answer
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": []})
+        q._validate_answer({"answer": []})
 
     # answer not in options
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": [5, 1]})
+        q._validate_answer({"answer": [5, 1]})
 
     # not enough answers
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": [1]})
+        q._validate_answer({"answer": [1]})
 
     # too many answers
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": [3, 2, 1]})
+        q._validate_answer({"answer": [3, 2, 1]})
 
     # wrong answer type
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": ["Ice cream", "Pizza"]})
+        q._validate_answer({"answer": ["Ice cream", "Pizza"]})
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": [{"answer": "yooooooooo"}]})
+        q._validate_answer({"answer": [{"answer": "yooooooooo"}]})
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": [""]})
+        q._validate_answer({"answer": [""]})
 
     # code -> answer translation
     assert q.translate_answer_code_to_answer(response_good["answer"], None) == [

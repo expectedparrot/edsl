@@ -141,35 +141,35 @@ def test_QuestionNumerical_answers():
     q.validate_response(response_bad)
 
     # answer validation
-    q.validate_answer(response_good)
-    q.validate_answer({"answer": "5"})
-    q.validate_answer({"answer": "5.555"})
+    q._validate_answer(response_good)
+    q._validate_answer({"answer": "5"})
+    q._validate_answer({"answer": "5.555"})
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer(response_terrible)
+        q._validate_answer(response_terrible)
 
     # min/max value validation
-    q.validate_answer({"answer": 1})
-    q.validate_answer({"answer": 10})
+    q._validate_answer({"answer": 1})
+    q._validate_answer({"answer": 10})
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": 0})
+        q._validate_answer({"answer": 0})
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": 11})
+        q._validate_answer({"answer": 11})
 
     # missing answer cases
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": ""})
+        q._validate_answer({"answer": ""})
 
     # wrong answer type
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": None})
+        q._validate_answer({"answer": None})
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": []})
+        q._validate_answer({"answer": []})
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": "yooooooooo"})
+        q._validate_answer({"answer": "yooooooooo"})
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": [{"answer": "yooooooooo"}]})
+        q._validate_answer({"answer": [{"answer": "yooooooooo"}]})
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": [""]})
+        q._validate_answer({"answer": [""]})
 
     # code -> answer translation
     assert q.translate_answer_code_to_answer(response_good, None) == response_good

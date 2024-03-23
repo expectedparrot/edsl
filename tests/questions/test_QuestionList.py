@@ -152,20 +152,20 @@ def test_QuestionList_answers():
     q.validate_response(response_bad)
 
     # answer validation
-    q.validate_answer(response_good)
+    q._validate_answer(response_good)
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer(response_terrible)
+        q._validate_answer(response_terrible)
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": 1})
+        q._validate_answer({"answer": 1})
 
     # missing answer cases
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": []})
-    q_empty.validate_answer({"answer": []})
+        q._validate_answer({"answer": []})
+    q_empty._validate_answer({"answer": []})
 
     # too many answers
     with pytest.raises(QuestionAnswerValidationError):
-        q_empty.validate_answer(
+        q_empty._validate_answer(
             {"answer": [str(uuid.uuid4()) for _ in range(q_empty.max_list_items + 1)]}
         )
 

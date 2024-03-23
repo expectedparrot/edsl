@@ -120,5 +120,5 @@ if __name__ == "__main__":
     print(results)
 
     # answer = {'answer': ["Ada", "Paul"]} #, 'comment': 'They are names that I found in the letters.'}
-    # print(q.validate_answer(answer))
+    # print(q._validate_answer(answer))
     # print(q.get_prompt())

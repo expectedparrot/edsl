@@ -235,27 +235,27 @@ def test_QuestionCheckBox_answers():
         q.validate_response(llm_response_invalid1)
 
     # answer must be an list of ints
-    q.validate_answer(llm_response_valid1)
+    q._validate_answer(llm_response_valid1)
 
-    q.validate_answer(llm_response_valid2)
+    q._validate_answer(llm_response_valid2)
     # answer value required
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": None})
+        q._validate_answer({"answer": None})
     # answer cannot have unacceptable values
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": [25, 20]})
+        q._validate_answer({"answer": [25, 20]})
     # or wrong types
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": ["Mon", "Tue"]})
+        q._validate_answer({"answer": ["Mon", "Tue"]})
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": [{"set"}]})
+        q._validate_answer({"answer": [{"set"}]})
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": {"answer": 0}})
+        q._validate_answer({"answer": {"answer": 0}})
     # and respect min_selections and max_selections
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": [1]})
+        q._validate_answer({"answer": [1]})
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": [1, 2, 3, 4]})
+        q._validate_answer({"answer": [1, 2, 3, 4]})
 
 
 def test_QuestionCheckBox_extras():

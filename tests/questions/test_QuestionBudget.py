@@ -107,32 +107,32 @@ def test_QuestionBudget_answers():
     valid_answer = {"answer": {"0": 25, "1": 25, "2": 25, "3": 25}, "comment": "Yum!"}
     q = QuestionBudget(**valid_question)
     # answer must be an integer or interpretable as integer
-    q.validate_answer(valid_answer)
+    q._validate_answer(valid_answer)
     # answer value required
     invalid_answer = valid_answer.copy()
     invalid_answer.update({"answer": None})
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": None})
+        q._validate_answer({"answer": None})
     # all options must be present
     invalid_answer = valid_answer.copy()
     invalid_answer.update({"answer": {0: 50, 1: 25, 2: 25}})
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer(invalid_answer)
+        q._validate_answer(invalid_answer)
     # answer must be in range of question_options
     invalid_answer = valid_answer.copy()
     invalid_answer.update({"answer": {0: 25, 1: 25, 2: 25, 3: 0, 4: 25}})
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer(invalid_answer)
+        q._validate_answer(invalid_answer)
     # answers must sum to budget_sum
     invalid_answer = valid_answer.copy()
     invalid_answer.update({"answer": {0: 25, 1: 25, 2: 25, 3: 26}})
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer(invalid_answer)
+        q._validate_answer(invalid_answer)
     # answers cannot be negative
     invalid_answer = valid_answer.copy()
     invalid_answer.update({"answer": {0: -1, 1: 25, 2: 25, 3: 51}})
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer(invalid_answer)
+        q._validate_answer(invalid_answer)
 
 
 def test_QuestionBudget_extras():
