@@ -1,13 +1,14 @@
 Questions
 =========
 
-Base methods
-------------
 
 .. automodule:: edsl.questions.Question
    :members:
    :undoc-members:
    :show-inheritance:
+   :special-members: __init__
+   :exclude-members: question_type, question_options, data, short_names_dict
+
 
 QuestionBudget class
 ----------------------------
@@ -16,6 +17,8 @@ QuestionBudget class
    :members:
    :undoc-members:
    :show-inheritance:
+   :special-members: __init__
+   :exclude-members: question_type, question_options, budget_sum, main
 
 QuestionCheckBox class
 ----------------------
@@ -24,6 +27,8 @@ QuestionCheckBox class
    :members:
    :undoc-members:
    :show-inheritance:
+   :special-members: __init__
+   :exclude-members: purpose, question_type, question_options, min_selections, max_selections, main
 
 QuestionExtract class
 ----------------------------
@@ -32,6 +37,8 @@ QuestionExtract class
    :members:
    :undoc-members:
    :show-inheritance:
+   :special-members: __init__
+   :exclude-members: question_type, answer_template, main
 
 QuestionFreeText class
 ----------------------
@@ -40,6 +47,8 @@ QuestionFreeText class
    :members:
    :undoc-members:
    :show-inheritance:
+   :special-members: __init__
+   :exclude-members: allow_nonresponse, default_instructions, question_type, main
 
 QuestionFunctional class
 -------------------
@@ -48,7 +57,9 @@ QuestionFunctional class
    :members:
    :undoc-members:
    :show-inheritance:
-   
+   :special-members: __init__
+   :exclude-members: answer_question_directly, default_instructions, func, question_type
+
 QuestionLikertFive class
 -------------------
 
@@ -56,6 +67,8 @@ QuestionLikertFive class
    :members:
    :undoc-members:
    :show-inheritance:
+   :special-members: __init__
+   :exclude-members: likert_options, question_type, main
 
 QuestionLinearScale class
 -------------------------
@@ -64,6 +77,8 @@ QuestionLinearScale class
    :members:
    :undoc-members:
    :show-inheritance:
+   :special-members: __init__
+   :exclude-members: question_type, question_options, option_labels, main
 
 QuestionList class
 ------------------
@@ -72,6 +87,8 @@ QuestionList class
    :members:
    :undoc-members:
    :show-inheritance:
+   :special-members: __init__
+   :exclude-members: allow_nonresponse, question_type, max_list_items, main
 
 QuestionMultipleChoice class
 ----------------------------
@@ -81,7 +98,7 @@ QuestionMultipleChoice class
    :undoc-members:
    :show-inheritance:
    :special-members: __init__
-   :exclude-members: 
+   :exclude-members: purpose, question_type, question_options, main
    
 QuestionNumerical class
 -------------------------
@@ -90,6 +107,8 @@ QuestionNumerical class
    :members:
    :undoc-members:
    :show-inheritance:
+   :special-members: __init__
+   :exclude-members: question_type, min_value, max_value, main
 
 QuestionRank class
 -------------------
@@ -98,6 +117,8 @@ QuestionRank class
    :members:
    :undoc-members:
    :show-inheritance:
+   :special-members: __init__
+   :exclude-members: question_type, question_options, num_selections, main
 
 QuestionTopK class
 -------------------
@@ -106,6 +127,8 @@ QuestionTopK class
    :members:
    :undoc-members:
    :show-inheritance:
+   :special-members: __init__
+   :exclude-members: question_type, main
 
 QuestionYesNo class
 -------------------
@@ -114,6 +137,8 @@ QuestionYesNo class
    :members:
    :undoc-members:
    :show-inheritance:
+   :special-members: __init__
+   :exclude-members: question_type, question_options, main
 
 Other classes & methods
 -----------------------

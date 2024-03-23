@@ -5,13 +5,7 @@ Constructing a Question
 -----------------------
 Key steps:
 
-* Import the `Question` class and select an appropriate question type. Use the `available()` method to see all available question types:
-
-.. code-block:: python
-
-    from edsl.questions import Question
-
-    Question.available()
+* Import the `Question` class and select an appropriate question type. Available question types include multiple choice, checkbox, free text, numerical, linear scale, list, rank, budget, extract, top k, Likert scale, yes/no.
 
 * Import the question type class. For example, to create a multiple choice question:
 
@@ -38,7 +32,7 @@ To see an example of a question type in the required format, use the question ty
 
 Simulating a response
 ---------------------
-* Administer the question to an agent with the `run` method. A single question can be run individually by appending the `run` method directly to the question object:
+Administer the question to an agent with the `run` method. A single question can be run individually by appending the `run` method directly to the question object:
 
 .. code-block:: python
 
@@ -52,12 +46,12 @@ If the question is part of a survey, the method is appended to the survey object
     q2 = ...
     results = Survey([q1, q2]).run()
 
-(See more details about surveys in the `Survey <https://docs.expectedparrot.com/en/latest/surveys.html>`_ module.)
+(See more details about surveys in the * :ref:`surveys` module.)
 
 
 The `run` method administers a question to the LLM and returns the response in a `Results` object.
 Results can be printed, saved, analyzed and visualized in a variety of built-in methods.
-See details about these methods in the `Results <https://docs.expectedparrot.com/en/latest/results.html>`_ module.
+See details about these methods in the * :ref:`results` module.
 
 
 Parameterizing a question
@@ -108,10 +102,13 @@ As with other Survey components (agents and language models), multiple Scenario 
 
 Learn more about specifying question scenarios, agents and language models in their respective modules:
 
-* `Scenario <https://docs.expectedparrot.com/en/latest/scenarios.html>`_
-* `Agent <https://docs.expectedparrot.com/en/latest/agents.html>`_
-* `Language Model <https://docs.expectedparrot.com/en/latest/language_models.html>`_
+* :ref:`scenarios`
+* :ref:`agents`
+* :ref:`language_models`
 
+
+Base class methods
+------------------
 """
 from __future__ import annotations
 from abc import ABC, abstractmethod

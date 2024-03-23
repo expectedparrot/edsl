@@ -1,3 +1,4 @@
+""""""
 from __future__ import annotations
 import json
 import io
@@ -70,7 +71,7 @@ class Results(UserList, Mixins, Base):
 
     It is instantiated with a `Survey` and a list of `Result` objects. 
     It can be manipulated in various ways with select, filter, mutate, etc.
-    It also has a list of created_columns, which is a list of columns that have been created with `mutate`
+    It also has a list of created_columns, which are columns that have been created with `mutate` and are not part of the original data.
     """
 
     known_data_types = [

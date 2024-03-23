@@ -17,7 +17,7 @@ Key steps:
 A persona can be a short or detailed textual narrative. 
 Note that it can be helpful to include traits mentioned in the persona as independent keys and values in order to analyze survey results by those dimensions individually.
 
-* Create an Agent object with traits. Note that `traits=` is a required argument name: 
+* Create an Agent object with traits. Note that `traits=` must be named explicitly: 
 
 .. code-block:: python
 
@@ -46,12 +46,7 @@ A survey is administered to all agents in the list together:
 
     results = survey.by(agents).run()
 
-See more details about surveys in the Survey module:
-
-* `Survey <https://docs.expectedparrot.com/en/latest/surveys.html>`_
-
-
-
+See more details about surveys in the :ref:`surveys` module.
 """
 from __future__ import annotations
 import copy

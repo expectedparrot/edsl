@@ -1,3 +1,5 @@
+.. _language_models:
+
 Language Models
 ===============
 

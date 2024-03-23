@@ -14,9 +14,9 @@ Example usage:
 
 An example can also be created using the `example` method:
 
-    .. code-block:: python
+.. code-block:: python
     
-        QuestionBudget.example()
+    QuestionBudget.example()
 
 """
 from __future__ import annotations
