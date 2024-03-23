@@ -11,11 +11,6 @@ from edsl.report.InputOutputDataTypes import (
 class ResultsFetchMixin:
     """Mixin for fetching data from results."""
 
-    def fetch_list(self, data_type, key) -> list:
-        """Return a list of values from the data for a given data type and key."""
-        print("Change to using _fetch_list here")
-        return self._fetch_list(data_type, key)
-
     def _fetch_list(self, data_type, key) -> list:
         """
         Return a list of values from the data for a given data type and key.

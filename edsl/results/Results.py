@@ -110,8 +110,8 @@ class Results(UserList, Mixins, Base):
         self._job_uuid = job_uuid
         self._total_results = total_results
 
-        if hasattr(self, "add_output_functions"):
-            self.add_output_functions()
+        if hasattr(self, "_add_output_functions"):
+            self._add_output_functions()
 
     ######################
     # Streaming methods
