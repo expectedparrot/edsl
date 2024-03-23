@@ -2,12 +2,28 @@ Questions
 =========
 
 .. automodule:: edsl.questions.Question
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :special-members: __init__
-   :exclude-members: question_type, question_options, data, short_names_dict
+   :noindex:
 
+.. automethod:: Question.__init__
+   :noindex:
+
+.. automethod:: Question.add_question
+   :noindex:
+
+.. automethod:: Question.by
+   :noindex:
+
+.. automethod:: Question.from_dict
+   :noindex:
+
+.. automethod:: Question.rich_print
+   :noindex:
+
+.. automethod:: Question.run
+   :noindex:
+
+.. automethod:: Question.to_dict
+   :noindex:
 
 QuestionBudget class
 ----------------------------

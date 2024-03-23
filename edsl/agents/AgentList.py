@@ -1,9 +1,13 @@
 """A list of Agent objects.
 
-Example:
->>> al = AgentList([Agent.example(), Agent.example()])
->>> len(al)
-2
+Example usage:
+
+.. code-block:: python
+
+    al = AgentList([Agent.example(), Agent.example()])
+    len(al)
+    2
+    
 """
 from __future__ import annotations
 from collections import UserList
