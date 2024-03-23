@@ -23,7 +23,6 @@ Optional parameters:
     :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionLinearScale.default_instructions`.
 
     For an example, see `QuestionLinearScale.example()`.
-    """
 """
 from __future__ import annotations
 import textwrap
