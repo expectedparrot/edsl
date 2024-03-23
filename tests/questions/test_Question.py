@@ -30,7 +30,7 @@ def test_meta():
         def _validate_answer(self, answer: dict[str, str]):
             pass
 
-        def validate_response(self, response):
+        def _validate_response(self, response):
             pass
 
         def _translate_answer_code_to_answer(self):

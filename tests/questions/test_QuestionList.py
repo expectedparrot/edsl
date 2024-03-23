@@ -145,11 +145,11 @@ def test_QuestionList_answers():
     response_terrible = {"you": "will never be able to do this!"}
 
     # LLM responses are only required to have an "answer" key
-    q.validate_response(response_good)
+    q._validate_response(response_good)
     with pytest.raises(QuestionResponseValidationError):
-        q.validate_response(response_terrible)
+        q._validate_response(response_terrible)
     # but can have additional keys
-    q.validate_response(response_bad)
+    q._validate_response(response_bad)
 
     # answer validation
     q._validate_answer(response_good)

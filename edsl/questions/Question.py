@@ -176,7 +176,7 @@ class Question(
         """Validate the answer from the LLM. Behavior depends on the question type."""
         pass
 
-    def validate_response(self, response):
+    def _validate_response(self, response):
         """Validate the response from the LLM. Behavior depends on the question type."""
         if "answer" not in response:
             raise QuestionResponseValidationError(

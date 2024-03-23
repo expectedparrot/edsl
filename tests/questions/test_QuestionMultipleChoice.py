@@ -160,10 +160,10 @@ def test_QuestionMultipleChoice_answers():
     llm_response_invalid1 = {"comment": "I'm good"}
 
     # LLM response is required to have an answer key, but is flexible otherwise
-    q.validate_response(llm_response_valid1)
-    q.validate_response(llm_response_valid2)
+    q._validate_response(llm_response_valid1)
+    q._validate_response(llm_response_valid2)
     with pytest.raises(QuestionResponseValidationError):
-        q.validate_response(llm_response_invalid1)
+        q._validate_response(llm_response_invalid1)
 
     # answer must be an integer or interpretable as integer
     q._validate_answer({"answer": 0})
