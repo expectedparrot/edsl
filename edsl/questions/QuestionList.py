@@ -10,17 +10,7 @@ Example usage:
         question_text = "Which days of the week do you normally work?"
     )
 
-Required parameters:
-
-    :param question_name: The name of the question.
-    :param question_text: The text of the question.
-
-Optional parameters:
-
-    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionList.default_instructions`.
-    :param max_list_items: The maximum number of items that can be in the answer list.
-
-To see an example:
+An example can also be created using the `example` method:
 
     .. code-block:: python
     
@@ -49,14 +39,20 @@ class QuestionList(Question):
 
     def __init__(
         self,
-        question_text: str,
         question_name: str,
+        question_text: str,
         allow_nonresponse: Optional[bool] = None,
         max_list_items: Optional[int] = None,
     ):
-        """Instantiate a new QuestionList."""
-        self.question_text = question_text
+        """Instantiate a new QuestionList.
+        
+        :param question_name: The name of the question.
+        :param question_text: The text of the question.
+        :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionList.default_instructions`.
+        :param max_list_items: The maximum number of items that can be in the answer list.
+        """
         self.question_name = question_name
+        self.question_text = question_text
         self.allow_nonresponse = allow_nonresponse or False
         self.max_list_items = max_list_items
 

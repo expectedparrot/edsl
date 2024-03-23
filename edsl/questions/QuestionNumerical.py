@@ -10,18 +10,7 @@ Example usage:
         question_text = "How many days a week do you normally work?"
     )
 
-Required parameters:
-
-    :param question_name: The name of the question.
-    :param question_text: The text of the question.
-
-Optional parameters:
-
-    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionNumerical.default_instructions`.
-    :param min_value: The minimum value of the answer.
-    :param max_value: The maximum value of the answer.
-
-To see an example:
+An example can also be created using the `example` method:
 
     .. code-block:: python
     
@@ -53,7 +42,14 @@ class QuestionNumerical(Question):
         min_value: Optional[Union[int, float]] = None,
         max_value: Optional[Union[int, float]] = None,
     ):
-        """Initialize the question."""
+        """Initialize the question.
+        
+        :param question_name: The name of the question.
+        :param question_text: The text of the question.
+        :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionNumerical.default_instructions`.
+        :param min_value: The minimum value of the answer.
+        :param max_value: The maximum value of the answer.
+        """
         self.question_name = question_name
         self.question_text = question_text
         self.min_value = min_value

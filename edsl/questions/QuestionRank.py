@@ -15,19 +15,7 @@ The number of options that must be selected can be optionally specified when cre
 Alternatively, `QuestionTopK` can be used to ask the respondent to select a specific number of options from a list.
 See more details about constructing and administering questions in the <a href="https://docs.expectedparrot.com/en/latest/scenarios.html">`Question`</a> module.
 
-Required parameters:
-
-    :param question_name: The name of the question.
-    :param question_text: The text of the question.
-    :param question_options: The options the respondent should select from.
-
-Optional parameters:
-
-    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionRank.default_instructions`.
-    :param min_selections: The minimum number of options that must be selected.
-    :param max_selections: The maximum number of options that must be selected.
-
-To see an example:
+An example can also be created using the `example` method:
 
     .. code-block:: python
     
@@ -64,7 +52,15 @@ class QuestionRank(Question):
         num_selections: Optional[int] = None,
         short_names_dict: Optional[dict[str, str]] = None,
     ):
-        """Initialize the question."""
+        """Initialize the question.
+        
+        :param question_name: The name of the question.
+        :param question_text: The text of the question.
+        :param question_options: The options the respondent should select from.
+        :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionRank.default_instructions`.
+        :param min_selections: The minimum number of options that must be selected.
+        :param max_selections: The maximum number of options that must be selected.
+        """
         self.question_name = question_name
         self.question_text = question_text
         self.question_options = question_options

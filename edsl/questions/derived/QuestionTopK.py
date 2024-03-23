@@ -1,4 +1,4 @@
-"""This module contains the QuestionTopK class. It is a subclass of the QuestionMultipleChoice class and is used to create questions where the respondent is prompted to respond to respond with a list of ranked items from a given list of options.
+"""A subclass of the `QuestionMultipleChoice` class for creating questions where the response is a list of ranked items.
 Example usage:
 
 .. code-block:: python
@@ -12,6 +12,12 @@ Example usage:
         num_selections = 2
     )
 
+An example can also be created using the `example` method:
+
+    .. code-block:: python
+
+        QuestionTopK.example()
+
 """
 from __future__ import annotations
 from typing import Optional
@@ -20,24 +26,7 @@ from edsl.questions.QuestionCheckBox import QuestionCheckBox
 
 
 class QuestionTopK(QuestionCheckBox):
-    """
-    This question asks the respondent to select exactly K options from a list.
-
-    :param question_name: The name of the question.
-    :type question_name: str
-    :param question_text: The text of the question.
-    :type question_text: str
-    :param question_options: The options the respondent should select from.
-    :type question_options: list[str]
-    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionTopK.default_instructions`.
-    :type instructions: str, optional
-    :param short_names_dict: Maps question_options to short names.
-    :type short_names_dict: dict[str, str], optional
-    :param num_selections: The number of options that must be selected.
-    :type num_selections: int
-
-    For an example, run `QuestionTopK.example()`.
-    """
+    """This question prompts the agent to select exactly K options from a list."""
 
     question_type = "top_k"
 
@@ -50,7 +39,14 @@ class QuestionTopK(QuestionCheckBox):
         max_selections: int,
         short_names_dict: Optional[dict[str, str]] = None,
     ):
-        """Initialize the question."""
+        """Initialize the question.
+        
+        :param question_name: The name of the question.
+        :param question_text: The text of the question.
+        :param question_options: The options the respondent should select from.
+        :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionTopK.default_instructions`.
+        :param num_selections: The number of options that must be selected.
+        """
         super().__init__(
             question_name=question_name,
             question_text=question_text,

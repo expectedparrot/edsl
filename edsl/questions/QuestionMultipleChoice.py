@@ -1,4 +1,4 @@
-"""A subclass of the `Question` class for creating multiple choice questions.
+"""A subclass of the `Question` class for creating multiple choice questions where the response is a single option selected from a list of options.
 Example usage:
 
 .. code-block:: python
@@ -11,11 +11,11 @@ Example usage:
         question_options = ["Red", "Blue", "Green", "Yellow"]
     )
 
-To see an example:
-    
-    .. code-block:: python
+An example can also created using the `example` method:
 
-        QuestionMultipleChoice.example()
+.. code-block:: python
+
+    QuestionMultipleChoice.example()
 
 """
 from __future__ import annotations
@@ -38,9 +38,9 @@ class QuestionMultipleChoice(Question):
 
     def __init__(
         self,
+        question_name: str,
         question_text: str,
         question_options: list[str],
-        question_name: str,
         short_names_dict: Optional[dict[str, str]] = None,
     ):
         """Instantiate a new QuestionMultipleChoice.

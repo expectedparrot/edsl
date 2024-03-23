@@ -10,16 +10,7 @@ Example usage:
         question_text = "What is your favorite food?"
     )
 
-Required parameters:
-
-    :param question_name: The name of the question.
-    :param question_text: The text of the question.
-
-Optional parameters:
-
-    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionFreeText.default_instructions`.
-
-To see an example:
+An example can also be created using the `example` method:
 
     .. code-block:: python
     
@@ -51,14 +42,19 @@ class QuestionFreeText(Question):
 
     def __init__(
         self,
-        question_text: str,
         question_name: str,
+        question_text: str,
         allow_nonresponse: Optional[bool] = None,
         instructions: Optional[str] = None,
     ):
-        """Instantiate a new QuestionFreeText."""
-        self.question_text = question_text
+        """Instantiate a new QuestionFreeText.
+
+        :param question_name: The name of the question.
+        :param question_text: The text of the question.
+        :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionFreeText.default_instructions`.
+        """
         self.question_name = question_name
+        self.question_text = question_text
         self.allow_nonresponse = allow_nonresponse or False
         self.instructions = instructions
 

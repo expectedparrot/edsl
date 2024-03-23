@@ -1,5 +1,5 @@
-"""This module contains the QuestionCheckBox class. It is a subclass of the Question class and is used to create questions where the respondent is prompted to select one or more of the given options and return them as a list.
-The minimum and maximum number of options that can be selected can be specified when creating the question. If not specified, the minimum is 1 and the maximum is the number of options in the question.
+"""A subclass of the `Question` class for creating questions where the response is a list of one or more of the given options.
+The minimum and maximum number of options that may be selected can be specified when creating the question. If not specified, the minimum is 1 and the maximum is the number of question options.
 Example usage:
 
 .. code-block:: python
@@ -10,10 +10,16 @@ Example usage:
         question_name = "favorite_days",
         question_text = "What are your 2 favorite days of the week?",
         question_options = ["Monday", "Tuesday", "Wednesday", 
-        "Thursday", "Friday"],
+        "Thursday", "Friday", "Saturday", "Sunday"],
         min_selections = 2,
         max_selections = 2
     )
+
+An example can also be created using the `example` method:
+
+.. code-block:: python
+
+    QuestionCheckBox.example()
 
 """
 from __future__ import annotations
@@ -30,26 +36,7 @@ from edsl.scenarios import Scenario
 from edsl.utilities import random_string
 
 class QuestionCheckBox(Question):
-    """
-    This question asks the respondent to select options from a list.
-
-    :param question_name: The name of the question.
-    :type question_name: str
-    :param question_text: The text of the question.
-    :type question_text: str
-    :param question_options: The options the respondent should select from.
-    :type question_options: list[str]
-    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionCheckBox.default_instructions`.
-    :type instructions: str, optional
-    :param short_names_dict: Maps question_options to short names.
-    :type short_names_dict: dict[str, str], optional
-    :param min_selections: The minimum number of options that must be selected.
-    :type min_selections: int, optional
-    :param max_selections: The maximum number of options that must be selected.
-    :type max_selections: int, optional
-    
-    For an example, run `QuestionCheckBox.example()`.
-    """
+    """This question prompts the agent to select options from a list."""
 
     question_type = "checkbox"
     purpose = "When options are known and limited"
@@ -66,7 +53,15 @@ class QuestionCheckBox(Question):
         max_selections: Optional[int] = None,
         short_names_dict: Optional[dict[str, str]] = None,
     ):
-        """Instantiate a new QuestionCheckBox."""
+        """Instantiate a new QuestionCheckBox.
+        
+        :param question_name: The name of the question.
+        :param question_text: The text of the question.
+        :param question_options: The options the respondent should select from.
+        :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionCheckBox.default_instructions`.
+        :param min_selections: The minimum number of options that must be selected.
+        :param max_selections: The maximum number of options that must be selected.
+        """
         self.question_name = question_name
         self.question_text = question_text
         self.min_selections = min_selections

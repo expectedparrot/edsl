@@ -1,5 +1,4 @@
-"""A subclass of the `Question` class for creating questions where the agent is prompted to allocate a sum among a list of options.
-The response is a dictionary where the keys are the options and the values are the amounts allocated to each option.
+"""A subclass of the `Question` class for creating questions where the response is an allocation of a sum among a list of options, in the form of a dictionary where the keys are the options and the values are the allocated amounts.
 Example usage:
 
 .. code-block:: python
@@ -13,18 +12,7 @@ Example usage:
         budget_sum = 100
     )
 
-Required parameters:
-
-    :param question_name: The name of the question.
-    :param question_text: The text of the question.
-    :param question_options: The options for allocation of the budget sum.
-    :param budget_sum: The total amount of the budget to be allocated among the options.
-
-Optional parameters:
-
-    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionBudget.default_instructions`.
-
-To see an example:
+An example can also be created using the `example` method:
 
     .. code-block:: python
     
@@ -42,7 +30,7 @@ from edsl.utilities import random_string
 
 
 class QuestionBudget(Question):
-    """This question asks the agent to allocate a budget among options."""
+    """This question prompts the agent to allocate a budget among options."""
 
     question_type = "budget"
     budget_sum: int = IntegerDescriptor(none_allowed=False)
@@ -56,7 +44,14 @@ class QuestionBudget(Question):
         budget_sum: int,
         short_names_dict: Optional[dict[str, str]] = None,
     ):
-        """Instantiate a new QuestionBudget."""
+        """Instantiate a new QuestionBudget.
+        
+        :param question_name: The name of the question.
+        :param question_text: The text of the question.
+        :param question_options: The options for allocation of the budget sum.
+        :param budget_sum: The total amount of the budget to be allocated among the options.
+        :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionBudget.default_instructions`.
+        """
         self.question_name = question_name
         self.question_text = question_text
         self.question_options = question_options

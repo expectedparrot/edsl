@@ -11,18 +11,12 @@ Example usage:
         question_options = [0, 1, 2, 3, 4, 5]
     )
 
-Required parameters:
+An example can also be created using the `example` method:
 
-    :param question_name: The name of the question.
-    :param question_text: The text of the question.
-    :param question_options: The options the respondent should select from.
+    .. code-block:: python
+    
+        QuestionLinearScale.example()
 
-Optional parameters:
-
-    :param option_labels: Maps question_options to labels.
-    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionLinearScale.default_instructions`.
-
-    For an example, see `QuestionLinearScale.example()`.
 """
 from __future__ import annotations
 import textwrap
@@ -40,17 +34,24 @@ class QuestionLinearScale(QuestionMultipleChoice):
 
     def __init__(
         self,
+        question_name: str,
         question_text: str,
         question_options: list[int],
-        question_name: str,
         short_names_dict: Optional[dict[str, str]] = None,
         option_labels: Optional[dict[int, str]] = None,
     ):
-        """Instantiate a new QuestionLinearScale."""
+        """Instantiate a new QuestionLinearScale.
+        
+        :param question_name: The name of the question.
+        :param question_text: The text of the question.
+        :param question_options: The options the respondent should select from.
+        :param option_labels: Maps question_options to labels.
+        :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionLinearScale.default_instructions`.
+        """
         super().__init__(
+            question_name=question_name,
             question_text=question_text,
             question_options=question_options,
-            question_name=question_name,
             short_names_dict=short_names_dict,
         )
         self.question_options = question_options
