@@ -1,11 +1,13 @@
-"""A list of edsl Agents.
+"""A list of Agent objects.
 
-This module contains the ``AgentList`` class, which is a list of Agents.
-It can be passed a list of agents, each of which is an instance of the ``Agent`` class.
+Example usage:
 
->>> al = AgentList([Agent.example(), Agent.example()])
->>> len(al)
-2
+.. code-block:: python
+
+    al = AgentList([Agent.example(), Agent.example()])
+    len(al)
+    2
+    
 """
 from __future__ import annotations
 from collections import UserList
@@ -18,16 +20,12 @@ from edsl.agents import Agent
 from edsl.agents.AgentListExportMixin import AgentListExportMixin
 
 class AgentList(UserList, Base, AgentListExportMixin):
-    """A list of Agents.
-
-    This is a list of Agents.
-    """
+    """A list of Agents."""
 
     def __init__(self, data: Optional[list[Agent]] = None):
         """Initialize a new AgentList.
 
         :param data: A list of Agents.
-        
         """
         if data is not None:
             super().__init__(data)

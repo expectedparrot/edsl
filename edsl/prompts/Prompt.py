@@ -1,12 +1,57 @@
-"""Class for creating prompts to be used in a survey."""
-import textwrap
+"""Class for creating prompts to be used in a survey.
+
+Overview of Prompts
+===================
+Prompts are text that is sent to the LLM. 
+These can include questions, instructions, or any other text that is displayed to the LLM.
+Typically, prompts are created using the `Prompt` class, which is a subclass of the `PromptBase` class.
+
+The base class `PromptBase` is an abstract class that defines the basic structure of a prompt.
+
+The `Prompt` class is a subclass of `PromptBase` that is used to create prompts.
+
+Agent Instructions
+^^^^^^^^^^^^^^^^^^
+This is guidance to the LLM on how the agent should be represented. 
+
+For example, consider the following agent instructions:
+
+.. code-block:: python
+
+    class AgentInstruction(PromptBase):
+        \"\"\"Agent instructions for a human agent.\"\"\"
+
+        model = LanguageModelType.GPT_3_5_Turbo.value
+        component_type = ComponentTypes.AGENT_INSTRUCTIONS
+        default_instructions = textwrap.dedent(
+            \"\"\"\
+        You are playing the role of a human answering survey questions.
+        Do not break character.
+        \"\"\"
+        )
+
+
+Question Instructions
+^^^^^^^^^^^^^^^^^^^^^
+
+Customizing prompts
+^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: python
+
+        applicable_prompts = get_classes(
+            component_type="agent_instructions",
+            model=self.model.model,
+        )
+        
+
+"""
+from __future__ import annotations
+from typing import Optional
 from abc import ABC
 from typing import Any, List
-import io
 
-from rich.console import Console
 from rich.table import Table
-
 from jinja2 import Template, Environment, meta, TemplateSyntaxError
 
 from edsl.exceptions.prompts import TemplateRenderError
@@ -17,11 +62,9 @@ from edsl.prompts.prompt_config import (
     NEGATIVE_INFINITY,
 )
 from edsl.prompts.registry import RegisterPromptsMeta
-
 from edsl.Base import PersistenceMixin, RichPrintingMixin
 
 MAX_NESTING = 100
-
 
 class PromptBase(
     PersistenceMixin, RichPrintingMixin, ABC, metaclass=RegisterPromptsMeta
@@ -30,8 +73,11 @@ class PromptBase(
 
     component_type = ComponentTypes.GENERIC
 
-    def __init__(self, text=None):
-        """Create a `Prompt` object."""
+    def __init__(self, text:Optional[str] = None):
+        """Create a `Prompt` object.
+        
+        :param text: The text of the prompt.
+        """
         if text is None:
             if hasattr(self, "default_instructions"):
                 text = self.default_instructions
@@ -48,10 +94,12 @@ class PromptBase(
         """Add two prompts together.
 
         Example:
+
         >>> p = Prompt("Hello, {{person}}")
         >>> p2 = Prompt("How are you?")
         >>> p + p2
         Prompt(text='Hello, {{person}}How are you?')
+        
         >>> p + "How are you?"
         Prompt(text='Hello, {{person}}How are you?')
         """
@@ -74,6 +122,7 @@ class PromptBase(
         """Check if the text_to_check is in the `Prompt` text.
 
         Example:
+
         >>> p = Prompt("Hello, {{person}}")
         >>> "person" in p
         True
@@ -96,15 +145,21 @@ class PromptBase(
         """Return the the variables in the template.
 
         Example:
+        
         >>> p = Prompt("Hello, {{person}}")
         >>> p.template_variables()
         ['person']
+        
         """
         return self._template_variables(self.text)
 
     @staticmethod
     def _template_variables(template: str) -> list[str]:
-        """Find and return the template variables."""
+        """Find and return the template variables.
+        
+        :param template: The template to find the variables in.
+
+        """
         env = Environment()
         ast = env.parse(template)
         return list(meta.find_undeclared_variables(ast))
@@ -115,9 +170,11 @@ class PromptBase(
         :param replacement_dict: A dictionary of replacements to populate the template.
 
         Example:
+
         >>> p = Prompt("Hello, {{person}}")
         >>> p.undefined_template_variables({"person": "John"})
         []
+        
         >>> p = Prompt("Hello, {{title}} {{person}}")
         >>> p.undefined_template_variables({"person": "John"})
         ['title']
@@ -133,9 +190,11 @@ class PromptBase(
         """Return True if the prompt has variables.
 
         Example:
+
         >>> p = Prompt("Hello, {{person}}")
         >>> p.has_variables
         True
+        
         >>> p = Prompt("Hello, person")
         >>> p.has_variables
         False
@@ -145,11 +204,16 @@ class PromptBase(
     def render(self, primary_replacement: dict, **additional_replacements) -> str:
         """Render the prompt with the replacements.
 
+        :param primary_replacement: The primary replacement dictionary.
+        :param additional_replacements: Additional replacement dictionaries.
+
         >>> p = Prompt("Hello, {{person}}")
         >>> p.render({"person": "John"})
         'Hello, John'
+
         >>> p.render({"person": "Mr. {{last_name}}", "last_name": "Horton"})
         'Hello, Mr. Horton'
+        
         >>> p.render({"person": "Mr. {{last_name}}", "last_name": "Ho{{letter}}ton"}, max_nesting = 1)
         'Hello, Mr. Horton'
         """
@@ -159,12 +223,17 @@ class PromptBase(
         return self.__class__(text=new_text)
 
     @staticmethod
-    def _render(text, primary_replacement, **additional_replacements) -> "PromptBase":
+    def _render(text:str, primary_replacement, **additional_replacements) -> "PromptBase":
         """Render the template text with variables replaced from the provided named dictionaries.
+
+        :param text: The text to render.
+        :param primary_replacement: The primary replacement dictionary.
+        :param additional_replacements: Additional replacement dictionaries.
 
         Allows for nested variable resolution up to a specified maximum nesting depth.
 
         Example:
+        
         >>> codebook = {"age": "Age"}
         >>> p = Prompt("You are an agent named {{ name }}. {{ codebook['age']}}: {{ age }}")
         >>> p.render({"name": "John", "age": 44}, codebook=codebook)
@@ -189,25 +258,29 @@ class PromptBase(
         except TemplateSyntaxError as e:
             raise TemplateRenderError(f"Template syntax error: {e}")
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
         """Return the `Prompt` as a dictionary.
 
         Example:
+
         >>> p = Prompt("Hello, {{person}}")
         >>> p.to_dict()
         {'text': 'Hello, {{person}}', 'class_name': 'Prompt'}
+        
         """
         return {"text": self.text, "class_name": self.__class__.__name__}
 
     @classmethod
-    def from_dict(cls, data):
+    def from_dict(cls, data) -> PromptBase:
         """Create a `Prompt` from a dictionary.
 
         Example:
+
         >>> p = Prompt("Hello, {{person}}")
         >>> p2 = Prompt.from_dict(p.to_dict())
         >>> p2
         Prompt(text='Hello, {{person}}')
+        
         """
         class_name = data["class_name"]
         cls = RegisterPromptsMeta._registry.get(class_name, Prompt)

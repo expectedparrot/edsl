@@ -1,4 +1,4 @@
-"""This module contains the QuestionMultipleChoice class. It is a subclass of the Question class and is used to create multiple choice questions.
+"""A subclass of the `Question` class for creating multiple choice questions where the response is a single option selected from a list of options.
 Example usage:
 
 .. code-block:: python
@@ -10,6 +10,12 @@ Example usage:
         question_text = "What is your favorite color?",
         question_options = ["Red", "Blue", "Green", "Yellow"]
     )
+
+An example can also created using the `example` method:
+
+.. code-block:: python
+
+    QuestionMultipleChoice.example()
 
 """
 from __future__ import annotations
@@ -24,23 +30,7 @@ from edsl.questions.Question import Question
 from edsl.scenarios import Scenario
 
 class QuestionMultipleChoice(Question):
-    """
-    This function asks the respondent to select one option from a list of options.
-
-    :param question_name: The name of the question.
-    :type question_name: str
-    :param question_text: The text of the question.
-    :type question_text: str
-    :param question_options: The options the respondent should select from.
-    :type question_options: list[str]
-    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionMultipleChoice.default_instructions`.
-    :type instructions: str, optional
-    :param short_names_dict: Maps question_options to short names.
-    :type short_names_dict: dict[str, str], optional
-
-    For an example, run `QuestionMultipleChoice.example()`.
-    """
-
+    """This question prompts the agent to select one option from a list of options."""
 
     question_type = "multiple_choice"
     purpose = "When options are known and limited"
@@ -48,29 +38,35 @@ class QuestionMultipleChoice(Question):
 
     def __init__(
         self,
+        question_name: str,
         question_text: str,
         question_options: list[str],
-        question_name: str,
         short_names_dict: Optional[dict[str, str]] = None,
     ):
-        """Instantiate a new QuestionMultipleChoice."""
+        """Instantiate a new QuestionMultipleChoice.
+
+        :param question_name: The name of the question.
+        :param question_text: The text of the question.
+        :param question_options: The options the agent should select from.
+        :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionMultipleChoice.default_instructions`.
+        """
+        self.question_name = question_name
         self.question_text = question_text
         self.question_options = question_options
-        self.question_name = question_name
         self.short_names_dict = short_names_dict or dict()
 
     ################
     # Answer methods
     ################
-    def validate_answer(
+    def _validate_answer(
         self, answer: dict[str, Union[str, int]]
     ) -> dict[str, Union[str, int]]:
         """Validate the answer."""
-        self.validate_answer_template_basic(answer)
-        self.validate_answer_multiple_choice(answer)
+        self._validate_answer_template_basic(answer)
+        self._validate_answer_multiple_choice(answer)
         return answer
 
-    def translate_answer_code_to_answer(self, answer_code, scenario: Scenario = None):
+    def _translate_answer_code_to_answer(self, answer_code, scenario: Scenario = None):
         """Translate the answer code to the actual answer."""
         scenario = scenario or Scenario()
         translated_options = [
@@ -78,7 +74,7 @@ class QuestionMultipleChoice(Question):
         ]
         return translated_options[int(answer_code)]
 
-    def simulate_answer(
+    def _simulate_answer(
         self, human_readable: bool = True
     ) -> dict[str, Union[int, str]]:
         """Simulate a valid answer for debugging purposes."""
@@ -115,12 +111,12 @@ def main():
     q.question_name
     q.short_names_dict
     # validate an answer
-    q.validate_answer({"answer": 0, "comment": "I like custard"})
+    q._validate_answer({"answer": 0, "comment": "I like custard"})
     # translate answer code
-    q.translate_answer_code_to_answer(0, {})
+    q._translate_answer_code_to_answer(0, {})
     # simulate answer
-    q.simulate_answer()
-    q.simulate_answer(human_readable=False)
+    q._simulate_answer()
+    q._simulate_answer(human_readable=False)
     # serialization (inherits from Question)
     q.to_dict()
     assert q.from_dict(q.to_dict()) == q

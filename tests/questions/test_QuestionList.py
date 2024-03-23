@@ -145,40 +145,40 @@ def test_QuestionList_answers():
     response_terrible = {"you": "will never be able to do this!"}
 
     # LLM responses are only required to have an "answer" key
-    q.validate_response(response_good)
+    q._validate_response(response_good)
     with pytest.raises(QuestionResponseValidationError):
-        q.validate_response(response_terrible)
+        q._validate_response(response_terrible)
     # but can have additional keys
-    q.validate_response(response_bad)
+    q._validate_response(response_bad)
 
     # answer validation
-    q.validate_answer(response_good)
+    q._validate_answer(response_good)
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer(response_terrible)
+        q._validate_answer(response_terrible)
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": 1})
+        q._validate_answer({"answer": 1})
 
     # missing answer cases
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": []})
-    q_empty.validate_answer({"answer": []})
+        q._validate_answer({"answer": []})
+    q_empty._validate_answer({"answer": []})
 
     # too many answers
     with pytest.raises(QuestionAnswerValidationError):
-        q_empty.validate_answer(
+        q_empty._validate_answer(
             {"answer": [str(uuid.uuid4()) for _ in range(q_empty.max_list_items + 1)]}
         )
 
     # code -> answer translation
-    assert q.translate_answer_code_to_answer(response_good, None) == response_good
+    assert q._translate_answer_code_to_answer(response_good, None) == response_good
 
 
 def test_test_QuestionList_extras():
     """Test QuestionList extra functionalities."""
     q = QuestionList(**valid_question)
     # instructions
-    # simulate_answer
-    simulated_answer = q.simulate_answer()
+    # _simulate_answer
+    simulated_answer = q._simulate_answer()
     assert isinstance(simulated_answer, dict)
     assert "answer" in simulated_answer
     assert isinstance(simulated_answer["answer"], list)

@@ -5,133 +5,128 @@ Constructing a Question
 -----------------------
 Key steps:
 
-* Identify a desired question type (multiple choice, free text, etc.) and import the corresponding class. For example: 
+* Import the `Question` class and select an appropriate question type. Available question types include multiple choice, checkbox, free text, numerical, linear scale, list, rank, budget, extract, top k, Likert scale, yes/no.
+
+* Import the question type class. For example, to create a multiple choice question:
 
 .. code-block:: python
 
-    from edsl.questions import QuestionMultipleChoice, QuestionFreeText
+    from edsl.questions import QuestionMultipleChoice
 
-* Draft the question text and specify the question name and any answer options for relevant question types (such as multiple choice or checkbox). For example: 
+* Construct a question in the required format. All question types require a question name and question text. Some question types require additional fields, such as question options for multiple choice questions:
 
 .. code-block:: python
 
-    q1 = QuestionMultipleChoice(
+    q = QuestionMultipleChoice(
         question_name = "color",
         question_text = "What is your favorite color?",
         question_options = ["Red", "Blue", "Green", "Yellow"]
     )
-    q2 = QuestionFreeText(
-        question_name = "food",
-        question_text = "What is your favorite food?"
-    )
 
-* Optionally parameterize the question text using double braces, e.g.: 
+To see an example of a question type in the required format, use the question type `example()` method:
 
 .. code-block:: python
 
-    q3 = QuestionFreeText(
+    QuestionMultipleChoice.example()
+
+
+Simulating a response
+---------------------
+Administer the question to an agent with the `run` method. A single question can be run individually by appending the `run` method directly to the question object:
+
+.. code-block:: python
+
+    results = q.run()
+    
+If the question is part of a survey, the method is appended to the survey object instead:
+
+.. code-block:: python
+    
+    q1 = ...
+    q2 = ...
+    results = Survey([q1, q2]).run()
+
+(See more details about surveys in the * :ref:`surveys` module.)
+
+
+The `run` method administers a question to the LLM and returns the response in a `Results` object.
+Results can be printed, saved, analyzed and visualized in a variety of built-in methods.
+See details about these methods in the * :ref:`results` module.
+
+
+Parameterizing a question
+-------------------------
+Questions can be parameterized to include variables that are replaced with specific values when the question is run.
+This allows you to create multiple versions of a question that can be administered at once in a survey.
+
+Key steps:
+
+* Create a question that takes a parameter in double braces:
+
+.. code-block:: python
+
+    from edsl.questions import QuestionFreeText
+
+    q = QuestionFreeText(
         question_name = "favorite_item",
         question_text = "What is your favorite {{ item }}?",
     )
 
-This allows you to create multiple versions of a question that can be administered at once in a survey.
-See details about adding question parameters to a survey in the `Scenario <https://docs.expectedparrot.com/en/latest/scenarios.html>`_ module.
-
-Simulating a response
----------------------
-* Add the question to a survey or run it directly with the `run` method: 
+* Create a dictionary for the value that will replace the parameter and store it in a Scenario object:
 
 .. code-block:: python
 
-    results = Survey([q1, q2]).run()
-    results = q3.run()
+    scenario = Scenario({"item": "color"})
 
-This administers the question to the LLM and returns the response in a `Results` object.
-Results can be printed, saved, analyzed and visualized in a variety of built-in methods.
-See details about these methods in the `Results <https://docs.expectedparrot.com/en/latest/results.html>`_ module.
+If multiple values will be used, create multiple Scenario objects in a list:
 
-See also details about specifying question scenarios, agents and language models in their respective modules:
+.. code-block:: python
 
-* `Scenario <https://docs.expectedparrot.com/en/latest/scenarios.html>`_
-* `Agent <https://docs.expectedparrot.com/en/latest/agents.html>`_
-* `Language Model <https://docs.expectedparrot.com/en/latest/language_models.html>`_
+    scenarios = [Scenario({"item": item}) for item in ["color", "food"]]
+
+* Add the Scenario objects to the question with the `by` method before appending the `run` method:
+
+.. code-block:: python
+
+    results = q.by(scenarios).run()
+
+If the question is part of a survey, add the Scenario objects to the survey:
+
+.. code-block:: python
+
+    q1 = ...
+    q2 = ...
+    results = Survey([q1, q2]).by(scenarios).run()
+
+As with other Survey components (agents and language models), multiple Scenario objects should be added together as a list in the same `by` method.
+
+Learn more about specifying question scenarios, agents and language models in their respective modules:
+
+* :ref:`scenarios`
+* :ref:`agents`
+* :ref:`language_models`
 
 
-
+Base class methods
+------------------
 """
 from __future__ import annotations
-from abc import ABC, abstractmethod, ABCMeta
-from rich.console import Console
+from abc import ABC, abstractmethod
 from rich.table import Table
-from jinja2 import Template, Environment, meta
 from typing import Any, Type
 from edsl.exceptions import (
     QuestionResponseValidationError,
     QuestionSerializationError,
-    QuestionScenarioRenderError,
 )
 from edsl.questions.descriptors import (
-    InstructionsDescriptor,
     QuestionNameDescriptor,
     QuestionTextDescriptor,
     ShortNamesDictDescriptor,
 )
 
-from edsl.prompts.Prompt import Prompt
-from edsl.enums import QuestionType
 from edsl.questions.AnswerValidatorMixin import AnswerValidatorMixin
-from edsl.exceptions.questions import QuestionMissingTypeError, QuestionBadTypeError
-
-
-class RegisterQuestionsMeta(ABCMeta):
-    """Metaclass to register output elements in a registry i.e., those that have a parent."""
-
-    _registry = {}  # Initialize the registry as a dictionary
-
-    def __init__(cls, name, bases, dct):
-        """Initialize the class and adds it to the registry if it's not the base class."""
-        super(RegisterQuestionsMeta, cls).__init__(name, bases, dct)
-        if name != "Question":
-            ## Enforce that all questions have a question_type class attribute
-            ## and it comes from our enum of valid question types.
-            if not hasattr(cls, "question_type"):
-                raise QuestionMissingTypeError(
-                    "Question must have a question_type class attribute"
-                )
-
-            if not QuestionType.is_value_valid(cls.question_type):
-                acceptable_values = [item.value for item in QuestionType]
-                raise QuestionBadTypeError(
-                    f"""question_type must be one of {QuestionType} values, which are 
-                                currently {acceptable_values}"""
-                    ""
-                )
-
-            RegisterQuestionsMeta._registry[name] = cls
-
-    @classmethod
-    def get_registered_classes(cls):
-        """Return the registry of registered classes."""
-        return cls._registry
-
-    @classmethod
-    def question_types_to_classes(
-        cls,
-    ):
-        """Return a dictionary of question types to classes."""
-        d = {}
-        for classname, cls in cls._registry.items():
-            if hasattr(cls, "question_type"):
-                d[cls.question_type] = cls
-            else:
-                raise Exception(
-                    f"Class {classname} does not have a question_type class attribute"
-                )
-        return d
-
-
+from edsl.questions.RegisterQuestionsMeta import RegisterQuestionsMeta
 from edsl.Base import PersistenceMixin, RichPrintingMixin
-
 
 class Question(
     PersistenceMixin,
@@ -228,11 +223,11 @@ class Question(
         return compose_questions(self, other_question)
 
     @abstractmethod
-    def validate_answer(self, answer: dict[str, str]):
+    def _validate_answer(self, answer: dict[str, str]):
         """Validate the answer from the LLM. Behavior depends on the question type."""
         pass
 
-    def validate_response(self, response):
+    def _validate_response(self, response):
         """Validate the response from the LLM. Behavior depends on the question type."""
         if "answer" not in response:
             raise QuestionResponseValidationError(
@@ -241,12 +236,12 @@ class Question(
         return response
 
     @abstractmethod
-    def translate_answer_code_to_answer(self):  # pragma: no cover
+    def _translate_answer_code_to_answer(self):  # pragma: no cover
         """Translate the answer code to the actual answer. Behavior depends on the question type."""
         pass
 
     @abstractmethod
-    def simulate_answer(self, human_readable=True) -> dict:  # pragma: no cover
+    def _simulate_answer(self, human_readable=True) -> dict:  # pragma: no cover
         """Simulate a valid answer for debugging purposes (what the validator expects)."""
         pass
 

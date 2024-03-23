@@ -6,7 +6,7 @@ from edsl.results.ResultsDBMixin import ResultsDBMixin
 
 
 class MockResultsDBMixin(ResultsDBMixin):
-    def rows(self):
+    def _rows(self):
         # Example implementation; replace with actual data
         yield (1, "type1", "key1", "value1")
         yield (2, "type2", "key2", "value2")
@@ -19,7 +19,7 @@ def db_mixin():
 
 def test_rows(db_mixin):
     expected_rows = [(1, "type1", "key1", "value1"), (2, "type2", "key2", "value2")]
-    assert list(db_mixin.rows()) == expected_rows
+    assert list(db_mixin._rows()) == expected_rows
 
 
 def test_export_sql_dump(mocker, db_mixin):
@@ -43,7 +43,7 @@ def test_backup_db_to_file(db_mixin):
 def test_db(db_mixin):
     from edsl.results.ResultsDBMixin import SQLDataShape
 
-    conn = db_mixin.db(shape=SQLDataShape.LONG)
+    conn = db_mixin._db(shape=SQLDataShape.LONG)
     cursor = conn.execute("SELECT * FROM self")
     rows = cursor.fetchall()
     assert rows == [(1, "type1", "key1", "value1"), (2, "type2", "key2", "value2")]

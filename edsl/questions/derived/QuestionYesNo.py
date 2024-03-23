@@ -1,4 +1,4 @@
-"""This module contains the QuestionYesNo class. It is a subclass of the QuestionMultipleChoice class and is used to create questions where the answer options are already specified: ["Yes", "No"].
+"""A subclass of the `QuestionMultipleChoice` class for creating multiple choice questions where the answer options are already specified: ['Yes', 'No'].
 Example usage:
 
 .. code-block:: python
@@ -10,6 +10,12 @@ Example usage:
         question_text = "Are you a student?"
     )
 
+An example can also be created using the `example` method:
+
+.. code-block:: python
+
+    QuestionYesNo.example()
+
 """
 from __future__ import annotations
 from edsl.questions.descriptors import QuestionOptionsDescriptor
@@ -17,20 +23,7 @@ from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
 
 class QuestionYesNo(QuestionMultipleChoice):
-    """
-    This question asks the respondent to respond with "Yes" or "No".
-
-    :param question_name: The name of the question.
-    :type question_name: str
-    :param question_text: The text of the question.
-    :type question_text: str
-    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionYesNo.default_instructions`.
-    :type instructions: str, optional
-    :param short_names_dict: Maps question_options to short names.
-    :type short_names_dict: dict[str, str], optional
-
-    For an example, see `QuestionYesNo.example()`.
-    """
+    """This question prompts the agent to respond with 'Yes' or 'No'."""
 
     question_type = "yes_no"
     question_options = QuestionOptionsDescriptor(num_choices=2)
@@ -42,7 +35,12 @@ class QuestionYesNo(QuestionMultipleChoice):
         short_names_dict: dict[str, str] = None,
         question_options: list[str] = ["Yes", "No"],
     ):
-        """Instantiate a new QuestionYesNo."""
+        """Instantiate a new QuestionYesNo.
+        
+        :param question_name: The name of the question.
+        :param question_text: The text of the question.
+        :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionYesNo.default_instructions`.
+        """
         super().__init__(
             question_name=question_name,
             question_text=question_text,
@@ -74,12 +72,12 @@ def main():
     q.question_name
     q.short_names_dict
     # validate an answer
-    q.validate_answer({"answer": 0, "comment": "I like custard"})
+    q._validate_answer({"answer": 0, "comment": "I like custard"})
     # translate answer code
-    q.translate_answer_code_to_answer(0, {})
-    q.simulate_answer()
-    q.simulate_answer(human_readable=False)
-    q.validate_answer(q.simulate_answer(human_readable=False))
+    q._translate_answer_code_to_answer(0, {})
+    q._simulate_answer()
+    q._simulate_answer(human_readable=False)
+    q._validate_answer(q._simulate_answer(human_readable=False))
     # serialization (inherits from Question)
     q.to_dict()
     assert q.from_dict(q.to_dict()) == q

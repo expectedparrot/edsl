@@ -1,4 +1,4 @@
-"""This module contains the QuestionFreeText class. It is a subclass of the Question class and is used to create free text questions.
+"""A subclass of the `Question` class for creating free response questions.
 Example usage:
 
 .. code-block:: python
@@ -9,6 +9,12 @@ Example usage:
         question_name = "food",
         question_text = "What is your favorite food?"
     )
+
+An example can also be created using the `example` method:
+
+    .. code-block:: python
+    
+        QuestionFreeText.example()
 
 """
 from __future__ import annotations
@@ -22,18 +28,7 @@ from edsl.utilities import random_string
 
 # TODO: should allow answer = {"answer": None} if allow_nonresponse is True
 class QuestionFreeText(Question):
-    """
-    This question asks the respondent to answer with unstructured text.
-
-    :param question_name: The name of the question.
-    :type question_name: str
-    :param question_text: The text of the question.
-    :type question_text: str
-    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionFreeText.default_instructions`.
-    :type instructions: str, optional
-
-    For an example, run `QuestionFreeText.example()`.
-    """
+    """This question prompts the agent to respond with unstructured text."""
 
     question_type = "free_text"
     allow_nonresponse: bool = AllowNonresponseDescriptor()
@@ -47,31 +42,36 @@ class QuestionFreeText(Question):
 
     def __init__(
         self,
-        question_text: str,
         question_name: str,
+        question_text: str,
         allow_nonresponse: Optional[bool] = None,
         instructions: Optional[str] = None,
     ):
-        """Instantiate a new QuestionFreeText."""
-        self.question_text = question_text
+        """Instantiate a new QuestionFreeText.
+
+        :param question_name: The name of the question.
+        :param question_text: The text of the question.
+        :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionFreeText.default_instructions`.
+        """
         self.question_name = question_name
+        self.question_text = question_text
         self.allow_nonresponse = allow_nonresponse or False
         self.instructions = instructions
 
     ################
     # Answer methods
     ################
-    def validate_answer(self, answer: Any) -> dict[str, str]:
+    def _validate_answer(self, answer: Any) -> dict[str, str]:
         """Validate the answer."""
-        self.validate_answer_template_basic(answer)
-        self.validate_answer_key_value(answer, "answer", str)
+        self._validate_answer_template_basic(answer)
+        self._validate_answer_key_value(answer, "answer", str)
         return answer
 
-    def translate_answer_code_to_answer(self, answer, scenario: Scenario = None):
+    def _translate_answer_code_to_answer(self, answer, scenario: Scenario = None):
         """Do nothing, because the answer is already in a human-readable format."""
         return answer
 
-    def simulate_answer(self, human_readable: bool = True) -> dict[str, str]:
+    def _simulate_answer(self, human_readable: bool = True) -> dict[str, str]:
         """Simulate a valid answer for debugging purposes."""
         return {"answer": random_string()}
 
@@ -93,13 +93,13 @@ def main():
     q.question_name
     q.instructions
     # validate an answer
-    q.validate_answer({"answer": "I like custard"})
+    q._validate_answer({"answer": "I like custard"})
     # translate answer code
-    q.translate_answer_code_to_answer({"answer"})
+    q._translate_answer_code_to_answer({"answer"})
     # simulate answer
-    q.simulate_answer()
-    q.simulate_answer(human_readable=False)
-    q.validate_answer(q.simulate_answer(human_readable=False))
+    q._simulate_answer()
+    q._simulate_answer(human_readable=False)
+    q._validate_answer(q._simulate_answer(human_readable=False))
     # serialization (inherits from Question)
     q.to_dict()
     assert q.from_dict(q.to_dict()) == q

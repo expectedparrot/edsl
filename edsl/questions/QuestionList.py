@@ -1,4 +1,4 @@
-"""This module contains the QuestionList class. It is a subclass of the Question class and is used to create questions where the desired response is in the form of a list.
+"""A subclass of the `Question` class for creating questions where the response is a list.
 Example usage:
 
 .. code-block:: python
@@ -6,9 +6,25 @@ Example usage:
     from edsl.questions import QuestionList
 
     q = QuestionList(
-        question_name = "work_days",
-        question_text = "Which days of the week do you normally work?"
+        question_name = "activities",
+        question_text = "What activities do you enjoy most?"
     )
+
+The maximum number of items in the list can be specified using the `max_list_items` parameter:
+
+.. code-block:: python
+
+    q = QuestionList(
+        question_name = "activities",
+        question_text = "What activities do you enjoy most?",
+        max_list_items = 5
+    )
+
+An example can also be created using the `example` method:
+
+    .. code-block:: python
+    
+        QuestionList.example()
 
 """
 from __future__ import annotations
@@ -25,20 +41,7 @@ from edsl.utilities import random_string
 
 
 class QuestionList(Question):
-    """
-    This question asks the respondent to answer by providing a list of items as comma-separated strings.
-
-    :param question_name: The name of the question.
-    :type question_name: str
-    :param question_text: The text of the question.
-    :type question_text: str
-    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionList.default_instructions`.
-    :type instructions: str, optional
-    :param max_list_items: The maximum number of items that can be in the answer list.
-    :type max_list_items: int, optional
-
-    For an example, run `QuestionList.example()`.
-    """
+    """This question prompts the agent to answer by providing a list of items as comma-separated strings."""
 
     question_type = "list"
     max_list_items: int = IntegerOrNoneDescriptor()
@@ -46,32 +49,38 @@ class QuestionList(Question):
 
     def __init__(
         self,
-        question_text: str,
         question_name: str,
+        question_text: str,
         allow_nonresponse: Optional[bool] = None,
         max_list_items: Optional[int] = None,
     ):
-        """Instantiate a new QuestionList."""
-        self.question_text = question_text
+        """Instantiate a new QuestionList.
+        
+        :param question_name: The name of the question.
+        :param question_text: The text of the question.
+        :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionList.default_instructions`.
+        :param max_list_items: The maximum number of items that can be in the answer list.
+        """
         self.question_name = question_name
+        self.question_text = question_text
         self.allow_nonresponse = allow_nonresponse or False
         self.max_list_items = max_list_items
 
     ################
     # Answer methods
     ################
-    def validate_answer(self, answer: Any) -> dict[str, Union[list[str], str]]:
+    def _validate_answer(self, answer: Any) -> dict[str, Union[list[str], str]]:
         """Validate the answer."""
-        self.validate_answer_template_basic(answer)
-        self.validate_answer_key_value(answer, "answer", list)
-        self.validate_answer_list(answer)
+        self._validate_answer_template_basic(answer)
+        self._validate_answer_key_value(answer, "answer", list)
+        self._validate_answer_list(answer)
         return answer
 
-    def translate_answer_code_to_answer(self, answer, scenario: Scenario = None):
+    def _translate_answer_code_to_answer(self, answer, scenario: Scenario = None):
         """There is no answer code."""
         return answer
 
-    def simulate_answer(self, human_readable: bool = True):
+    def _simulate_answer(self, human_readable: bool = True):
         """Simulate a valid answer for debugging purposes (what the validator expects)."""
         num_items = random.randint(1, self.max_list_items or 2)
         return {"answer": [random_string() for _ in range(num_items)]}
@@ -100,13 +109,13 @@ def main():
     q.allow_nonresponse
     q.max_list_items
     # validate an answer
-    q.validate_answer({"answer": ["pasta", "garlic", "oil", "parmesan"]})
+    q._validate_answer({"answer": ["pasta", "garlic", "oil", "parmesan"]})
     # translate answer code
-    q.translate_answer_code_to_answer(["pasta", "garlic", "oil", "parmesan"])
+    q._translate_answer_code_to_answer(["pasta", "garlic", "oil", "parmesan"])
     # simulate answer
-    q.simulate_answer()
-    q.simulate_answer(human_readable=False)
-    q.validate_answer(q.simulate_answer(human_readable=False))
+    q._simulate_answer()
+    q._simulate_answer(human_readable=False)
+    q._validate_answer(q._simulate_answer(human_readable=False))
     # serialization (inherits from Question)
     q.to_dict()
     assert q.from_dict(q.to_dict()) == q

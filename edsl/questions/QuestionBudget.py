@@ -1,5 +1,4 @@
-"""This module contains the QuestionBudget class. It is a subclass of the Question class and is used to create questions where the respondent is prompted to allocate a sum among a list of options.
-The response is a dictionary where the keys are the options and the values are the amounts allocated to each option.
+"""A subclass of the `Question` class for creating questions where the response is an allocation of a sum among a list of options, in the form of a dictionary where the keys are the options and the values are the allocated amounts.
 Example usage:
 
 .. code-block:: python
@@ -13,6 +12,12 @@ Example usage:
         budget_sum = 100
     )
 
+An example can also be created using the `example` method:
+
+.. code-block:: python
+    
+    QuestionBudget.example()
+
 """
 from __future__ import annotations
 import random
@@ -25,24 +30,7 @@ from edsl.utilities import random_string
 
 
 class QuestionBudget(Question):
-    """
-    This question asks the respondent to allocate a budget among options.
-
-    :param question_name: The name of the question.
-    :type question_name: str
-    :param question_text: The text of the question.
-    :type question_text: str
-    :param question_options: The options for allocation of the budget sum.
-    :type question_options: list[str]
-    :param budget_sum: The total amount of the budget to be allocated among the options.
-    :type budget_sum: integer
-    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionBudget.default_instructions`.
-    :type instructions: str, optional
-    :param short_names_dict: Maps question_options to short names.
-    :type short_names_dict: dict[str, str], optional
-
-    To generate an example, run `QuestionBudget.example()`.
-    """
+    """This question prompts the agent to allocate a budget among options."""
 
     question_type = "budget"
     budget_sum: int = IntegerDescriptor(none_allowed=False)
@@ -56,7 +44,14 @@ class QuestionBudget(Question):
         budget_sum: int,
         short_names_dict: Optional[dict[str, str]] = None,
     ):
-        """Instantiate a new QuestionBudget."""
+        """Instantiate a new QuestionBudget.
+        
+        :param question_name: The name of the question.
+        :param question_text: The text of the question.
+        :param question_options: The options for allocation of the budget sum.
+        :param budget_sum: The total amount of the budget to be allocated among the options.
+        :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionBudget.default_instructions`.
+        """
         self.question_name = question_name
         self.question_text = question_text
         self.question_options = question_options
@@ -66,14 +61,14 @@ class QuestionBudget(Question):
     ################
     # Answer methods
     ################
-    def validate_answer(self, answer: dict[str, Any]) -> dict[str, Union[int, str]]:
+    def _validate_answer(self, answer: dict[str, Any]) -> dict[str, Union[int, str]]:
         """Validate the answer."""
-        self.validate_answer_template_basic(answer)
-        self.validate_answer_key_value(answer, "answer", dict)
-        self.validate_answer_budget(answer)
+        self._validate_answer_template_basic(answer)
+        self._validate_answer_key_value(answer, "answer", dict)
+        self._validate_answer_budget(answer)
         return answer
 
-    def translate_answer_code_to_answer(
+    def _translate_answer_code_to_answer(
         self, answer_codes: dict[str, int], scenario: Scenario = None
     ):
         """
@@ -89,7 +84,7 @@ class QuestionBudget(Question):
 
         return translated_codes
 
-    def simulate_answer(self, human_readable=True):
+    def _simulate_answer(self, human_readable=True):
         """Simulate a valid answer for debugging purposes (what the validator expects)."""
         if human_readable:
             keys = self.question_options
@@ -136,15 +131,15 @@ def main():
     q.question_name
     q.short_names_dict
     # validate an answer
-    q.validate_answer(
+    q._validate_answer(
         {"answer": {0: 100, 1: 0, 2: 0, 3: 0}, "comment": "I like custard"}
     )
     # translate answer code
-    q.translate_answer_code_to_answer({0: 100, 1: 0, 2: 0, 3: 0})
+    q._translate_answer_code_to_answer({0: 100, 1: 0, 2: 0, 3: 0})
     # simulate answer
-    q.simulate_answer()
-    q.simulate_answer(human_readable=False)
-    q.validate_answer(q.simulate_answer(human_readable=False))
+    q._simulate_answer()
+    q._simulate_answer(human_readable=False)
+    q._validate_answer(q._simulate_answer(human_readable=False))
     # serialization (inherits from Question)
     q.to_dict()
     assert q.from_dict(q.to_dict()) == q

@@ -134,53 +134,53 @@ def test_QuestionNumerical_answers():
     response_terrible = {"you": "will never be able to do this!"}
 
     # LLM responses are only required to have an "answer" key
-    q.validate_response(response_good)
+    q._validate_response(response_good)
     with pytest.raises(QuestionResponseValidationError):
-        q.validate_response(response_terrible)
+        q._validate_response(response_terrible)
     # but can have additional keys
-    q.validate_response(response_bad)
+    q._validate_response(response_bad)
 
     # answer validation
-    q.validate_answer(response_good)
-    q.validate_answer({"answer": "5"})
-    q.validate_answer({"answer": "5.555"})
+    q._validate_answer(response_good)
+    q._validate_answer({"answer": "5"})
+    q._validate_answer({"answer": "5.555"})
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer(response_terrible)
+        q._validate_answer(response_terrible)
 
     # min/max value validation
-    q.validate_answer({"answer": 1})
-    q.validate_answer({"answer": 10})
+    q._validate_answer({"answer": 1})
+    q._validate_answer({"answer": 10})
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": 0})
+        q._validate_answer({"answer": 0})
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": 11})
+        q._validate_answer({"answer": 11})
 
     # missing answer cases
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": ""})
+        q._validate_answer({"answer": ""})
 
     # wrong answer type
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": None})
+        q._validate_answer({"answer": None})
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": []})
+        q._validate_answer({"answer": []})
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": "yooooooooo"})
+        q._validate_answer({"answer": "yooooooooo"})
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": [{"answer": "yooooooooo"}]})
+        q._validate_answer({"answer": [{"answer": "yooooooooo"}]})
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": [""]})
+        q._validate_answer({"answer": [""]})
 
     # code -> answer translation
-    assert q.translate_answer_code_to_answer(response_good, None) == response_good
+    assert q._translate_answer_code_to_answer(response_good, None) == response_good
 
 
 def test_test_QuestionNumerical_extras():
     """Test QuestionNumerical extra functionalities."""
     q = QuestionNumerical(**valid_question)
     # instructions
-    # simulate_answer
-    simulated_answer = q.simulate_answer()
+    # _simulate_answer
+    simulated_answer = q._simulate_answer()
     assert isinstance(simulated_answer, dict)
     assert "answer" in simulated_answer
     assert isinstance(simulated_answer["answer"], float)

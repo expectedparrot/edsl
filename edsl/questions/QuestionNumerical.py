@@ -1,4 +1,4 @@
-"""This module contains the QuestionNumerical class. It is a subclass of the Question class and is used to create questions where the respondent is prompted to answer with a numerical value.
+"""A subclass of the `Question` class for creating questions where the response is a numerical value.
 Example usage:
 
 .. code-block:: python
@@ -7,8 +7,25 @@ Example usage:
 
     q = QuestionNumerical(
         question_name = "work_days",
-        question_text = "How many days of the week do you normally work?"
+        question_text = "How many days a week do you normally work?"
     )
+
+The minimum and maximum values of the answer can be specified using the `min_value` and `max_value` parameters:
+
+    .. code-block:: python
+    
+        q = QuestionNumerical(
+            question_name = "work_days",
+            question_text = "How many days a week do you normally work?",
+            min_value = 1,
+            max_value = 7
+        )
+
+An example can also be created using the `example` method:
+
+    .. code-block:: python
+    
+        QuestionNumerical.example()
 
 """
 from __future__ import annotations
@@ -23,22 +40,7 @@ from edsl.utilities import random_string
 
 
 class QuestionNumerical(Question):
-    """
-    This question asks the respondent to answer with a numerical value.
-
-    :param question_name: The name of the question.
-    :type question_name: str
-    :param question_text: The text of the question.
-    :type question_text: str
-    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionNumerical.default_instructions`.
-    :type instructions: str, optional
-    :param min_value: The minimum value of the answer.
-    :type min_value: float, optional
-    :param max_value: The maximum value of the answer.
-    :type max_value: float, optional
-
-    For an example, run `QuestionNumerical.example()`.
-    """
+    """This question prompts the agent to answer with a numerical value."""
 
     question_type = "numerical"
     min_value: Optional[float] = NumericalOrNoneDescriptor()
@@ -51,7 +53,14 @@ class QuestionNumerical(Question):
         min_value: Optional[Union[int, float]] = None,
         max_value: Optional[Union[int, float]] = None,
     ):
-        """Initialize the question."""
+        """Initialize the question.
+        
+        :param question_name: The name of the question.
+        :param question_text: The text of the question.
+        :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionNumerical.default_instructions`.
+        :param min_value: The minimum value of the answer.
+        :param max_value: The maximum value of the answer.
+        """
         self.question_name = question_name
         self.question_text = question_text
         self.min_value = min_value
@@ -60,20 +69,20 @@ class QuestionNumerical(Question):
     ################
     # Answer methods
     ################
-    def validate_answer(
+    def _validate_answer(
         self, answer: dict[str, Any]
     ) -> dict[str, Union[str, float, int]]:
         """Validate the answer."""
-        self.validate_answer_template_basic(answer)
-        self.validate_answer_key_value_numeric(answer, "answer")
-        self.validate_answer_numerical(answer)
+        self._validate_answer_template_basic(answer)
+        self._validate_answer_key_value_numeric(answer, "answer")
+        self._validate_answer_numerical(answer)
         return answer
 
-    def translate_answer_code_to_answer(self, answer, scenario: Scenario = None):
+    def _translate_answer_code_to_answer(self, answer, scenario: Scenario = None):
         """There is no answer code."""
         return answer
 
-    def simulate_answer(self, human_readable: bool = True):
+    def _simulate_answer(self, human_readable: bool = True):
         """Simulate a valid answer for debugging purposes."""
         return {
             "answer": uniform(self.min_value, self.max_value),
@@ -103,13 +112,13 @@ def main():
     q.min_value
     q.max_value
     # validate an answer
-    q.validate_answer({"answer": 1, "comment": "I like custard"})
+    q._validate_answer({"answer": 1, "comment": "I like custard"})
     # translate answer code
-    q.translate_answer_code_to_answer(1)
+    q._translate_answer_code_to_answer(1)
     # simulate answer
-    q.simulate_answer()
-    q.simulate_answer(human_readable=False)
-    q.validate_answer(q.simulate_answer(human_readable=False))
+    q._simulate_answer()
+    q._simulate_answer(human_readable=False)
+    q._validate_answer(q._simulate_answer(human_readable=False))
     # serialization (inherits from Question)
     q.to_dict()
     assert q.from_dict(q.to_dict()) == q

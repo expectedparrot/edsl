@@ -1,4 +1,4 @@
-"""This module contains the QuestionRank class. It is a subclass of the Question class and is used to create questions where the respondent is prompted to rank options from a list.
+"""A subclass of the `Question` class for creating questions where the response is a ranked list of options.
 Example usage:
 
 .. code-block:: python
@@ -12,9 +12,24 @@ Example usage:
     )
 
 The number of options that must be selected can be optionally specified when creating the question. If not specified, all options are included in the response.
+
+.. code-block:: python
+
+    q = QuestionRank(
+        question_name = "foods_rank",
+        question_text = "Rank the following foods.",
+        question_options = ["Pizza", "Pasta", "Salad", "Soup"],
+        num_selections = 2
+    )
+
 Alternatively, `QuestionTopK` can be used to ask the respondent to select a specific number of options from a list.
 See more details about constructing and administering questions in the <a href="https://docs.expectedparrot.com/en/latest/scenarios.html">`Question`</a> module.
 
+An example can also be created using the `example` method:
+
+    .. code-block:: python
+    
+        QuestionRank.example()
 
 """
 from __future__ import annotations
@@ -33,26 +48,7 @@ from edsl.questions.descriptors import (
 
 
 class QuestionRank(Question):
-    """
-    This question asks the respondent to rank options from a list.
-
-    :param question_name: The name of the question.
-    :type question_name: str
-    :param question_text: The text of the question.
-    :type question_text: str
-    :param question_options: The options the respondent should select from.
-    :type question_options: list[str]
-    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionRank.default_instructions`.
-    :type instructions: str, optional
-    :param short_names_dict: Maps question_options to short names.
-    :type short_names_dict: dict[str, str], optional
-    :param min_selections: The minimum number of options that must be selected.
-    :type min_selections: int, optional
-    :param max_selections: The maximum number of options that must be selected.
-    :type max_selections: int, optional
-
-    For an example, run `QuestionRank.example()`.
-    """
+    """This question prompts the agent to rank options from a list."""
 
     question_type = "rank"
     question_options: list[str] = QuestionOptionsDescriptor()
@@ -66,7 +62,15 @@ class QuestionRank(Question):
         num_selections: Optional[int] = None,
         short_names_dict: Optional[dict[str, str]] = None,
     ):
-        """Initialize the question."""
+        """Initialize the question.
+        
+        :param question_name: The name of the question.
+        :param question_text: The text of the question.
+        :param question_options: The options the respondent should select from.
+        :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionRank.default_instructions`.
+        :param min_selections: The minimum number of options that must be selected.
+        :param max_selections: The maximum number of options that must be selected.
+        """
         self.question_name = question_name
         self.question_text = question_text
         self.question_options = question_options
@@ -76,14 +80,14 @@ class QuestionRank(Question):
     ################
     # Answer methods
     ################
-    def validate_answer(self, answer: Any) -> dict[str, list[int]]:
+    def _validate_answer(self, answer: Any) -> dict[str, list[int]]:
         """Validate the answer."""
-        self.validate_answer_template_basic(answer)
-        self.validate_answer_key_value(answer, "answer", list)
-        self.validate_answer_rank(answer)
+        self._validate_answer_template_basic(answer)
+        self._validate_answer_key_value(answer, "answer", list)
+        self._validate_answer_rank(answer)
         return answer
 
-    def translate_answer_code_to_answer(
+    def _translate_answer_code_to_answer(
         self, answer_codes, scenario: Scenario = None
     ) -> list[str]:
         """Translate the answer code to the actual answer."""
@@ -96,7 +100,7 @@ class QuestionRank(Question):
             translated_codes.append(translated_options[int(answer_code)])
         return translated_codes
 
-    def simulate_answer(self, human_readable=True) -> dict[str, Union[int, str]]:
+    def _simulate_answer(self, human_readable=True) -> dict[str, Union[int, str]]:
         """Simulate a valid answer for debugging purposes."""
         if human_readable:
             selected = random.sample(self.question_options, self.num_selections)
@@ -135,13 +139,13 @@ def main():
     q.num_selections
     # validate an answer
     answer = {"answer": [0, 1], "comment": "I like pizza and pasta."}
-    q.validate_answer(answer)
+    q._validate_answer(answer)
     # translate an answer code to an answer
-    q.translate_answer_code_to_answer([0, 1])
+    q._translate_answer_code_to_answer([0, 1])
     # simulate answer
-    q.simulate_answer()
-    q.simulate_answer(human_readable=False)
-    q.validate_answer(q.simulate_answer(human_readable=False))
+    q._simulate_answer()
+    q._simulate_answer(human_readable=False)
+    q._validate_answer(q._simulate_answer(human_readable=False))
     # serialization (inherits from Question)
     q.to_dict()
     assert q.from_dict(q.to_dict()) == q
