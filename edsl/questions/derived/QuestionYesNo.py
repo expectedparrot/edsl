@@ -1,4 +1,4 @@
-"""This module contains the QuestionYesNo class. It is a subclass of the QuestionMultipleChoice class and is used to create questions where the answer options are already specified: ["Yes", "No"].
+"""A subclass of the `QuestionMultipleChoice` class for creating multiple choice questions where the answer options are already specified: ['Yes', 'No'].
 Example usage:
 
 .. code-block:: python
@@ -10,6 +10,12 @@ Example usage:
         question_text = "Are you a student?"
     )
 
+An example can also be created using the `example` method:
+
+.. code-block:: python
+
+    QuestionYesNo.example()
+
 """
 from __future__ import annotations
 from edsl.questions.descriptors import QuestionOptionsDescriptor
@@ -17,20 +23,7 @@ from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
 
 class QuestionYesNo(QuestionMultipleChoice):
-    """
-    This question asks the respondent to respond with "Yes" or "No".
-
-    :param question_name: The name of the question.
-    :type question_name: str
-    :param question_text: The text of the question.
-    :type question_text: str
-    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionYesNo.default_instructions`.
-    :type instructions: str, optional
-    :param short_names_dict: Maps question_options to short names.
-    :type short_names_dict: dict[str, str], optional
-
-    For an example, see `QuestionYesNo.example()`.
-    """
+    """This question prompts the agent to respond with 'Yes' or 'No'."""
 
     question_type = "yes_no"
     question_options = QuestionOptionsDescriptor(num_choices=2)
@@ -42,7 +35,12 @@ class QuestionYesNo(QuestionMultipleChoice):
         short_names_dict: dict[str, str] = None,
         question_options: list[str] = ["Yes", "No"],
     ):
-        """Instantiate a new QuestionYesNo."""
+        """Instantiate a new QuestionYesNo.
+        
+        :param question_name: The name of the question.
+        :param question_text: The text of the question.
+        :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionYesNo.default_instructions`.
+        """
         super().__init__(
             question_name=question_name,
             question_text=question_text,

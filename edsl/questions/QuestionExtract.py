@@ -13,18 +13,7 @@ Example usage:
         "Wednesday"]}
     )
 
-Required parameters:
-
-    :param question_name: The name of the question.
-    :param question_text: The text of the question.
-    :param question_options: The options the respondent should select from.
-    :param answer_template: The template for the answer.
-
-Optional parameters:
-
-    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionExtract.default_instructions`.
-
-To see an example:
+An example can also be created using the `example` method:
     
     .. code-block:: python
 
@@ -42,7 +31,7 @@ from edsl.utilities import random_string
 
 
 class QuestionExtract(Question):
-    """This question prompts the agent to extract values from a string, and return them in a given template."""
+    """This question prompts the agent to extract information from a string and return it in a given template."""
 
     question_type = "extract"
     answer_template: dict[str, Any] = AnswerTemplateDescriptor()
@@ -53,7 +42,14 @@ class QuestionExtract(Question):
         answer_template: dict[str, Any],
         question_name: str,
     ):
-        """Initialize the question."""
+        """Initialize the question.
+
+        :param question_name: The name of the question.
+        :param question_text: The text of the question.
+        :param question_options: The options the respondent should select from.
+        :param answer_template: The template for the answer.
+        :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionExtract.default_instructions`.
+        """
         self.question_name = question_name
         self.question_text = question_text
         self.answer_template = answer_template
