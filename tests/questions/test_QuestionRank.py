@@ -151,46 +151,46 @@ def test_QuestionRank_answers():
     response_terrible = {"you": "will never be able to do this!"}
 
     # LLM responses are only required to have an "answer" key
-    q.validate_response(response_good)
+    q._validate_response(response_good)
     with pytest.raises(QuestionResponseValidationError):
-        q.validate_response(response_terrible)
+        q._validate_response(response_terrible)
     # but can have additional keys
-    q.validate_response(response_bad)
+    q._validate_response(response_bad)
 
     # answer validation
-    q.validate_answer(response_good)
-    q.validate_answer({"answer": ["2", "1"]})
+    q._validate_answer(response_good)
+    q._validate_answer({"answer": ["2", "1"]})
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer(response_terrible)
+        q._validate_answer(response_terrible)
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": 1})
+        q._validate_answer({"answer": 1})
 
     # missing answer
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": []})
+        q._validate_answer({"answer": []})
 
     # answer not in options
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": [5, 1]})
+        q._validate_answer({"answer": [5, 1]})
 
     # not enough answers
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": [1]})
+        q._validate_answer({"answer": [1]})
 
     # too many answers
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": [3, 2, 1]})
+        q._validate_answer({"answer": [3, 2, 1]})
 
     # wrong answer type
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": ["Ice cream", "Pizza"]})
+        q._validate_answer({"answer": ["Ice cream", "Pizza"]})
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": [{"answer": "yooooooooo"}]})
+        q._validate_answer({"answer": [{"answer": "yooooooooo"}]})
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": [""]})
+        q._validate_answer({"answer": [""]})
 
     # code -> answer translation
-    assert q.translate_answer_code_to_answer(response_good["answer"], None) == [
+    assert q._translate_answer_code_to_answer(response_good["answer"], None) == [
         "Cake",
         "Ice cream",
     ]
@@ -200,12 +200,12 @@ def test_QuestionRank_extras():
     """Test QuestionFreeText extra functionalities."""
     q = QuestionRank(**valid_question)
     # instructions
-    # simulate_answer
-    assert q.simulate_answer().keys() == q.simulate_answer(human_readable=True).keys()
-    assert q.simulate_answer(human_readable=False)["answer"][0] in range(
+    # _simulate_answer
+    assert q._simulate_answer().keys() == q._simulate_answer(human_readable=True).keys()
+    assert q._simulate_answer(human_readable=False)["answer"][0] in range(
         len(q.question_options)
     )
-    simulated_answer = q.simulate_answer()
+    simulated_answer = q._simulate_answer()
     assert isinstance(simulated_answer, dict)
     assert "answer" in simulated_answer
     assert "comment" in simulated_answer

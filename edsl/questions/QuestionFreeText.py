@@ -65,17 +65,17 @@ class QuestionFreeText(Question):
     ################
     # Answer methods
     ################
-    def validate_answer(self, answer: Any) -> dict[str, str]:
+    def _validate_answer(self, answer: Any) -> dict[str, str]:
         """Validate the answer."""
-        self.validate_answer_template_basic(answer)
-        self.validate_answer_key_value(answer, "answer", str)
+        self._validate_answer_template_basic(answer)
+        self._validate_answer_key_value(answer, "answer", str)
         return answer
 
-    def translate_answer_code_to_answer(self, answer, scenario: Scenario = None):
+    def _translate_answer_code_to_answer(self, answer, scenario: Scenario = None):
         """Do nothing, because the answer is already in a human-readable format."""
         return answer
 
-    def simulate_answer(self, human_readable: bool = True) -> dict[str, str]:
+    def _simulate_answer(self, human_readable: bool = True) -> dict[str, str]:
         """Simulate a valid answer for debugging purposes."""
         return {"answer": random_string()}
 
@@ -97,13 +97,13 @@ def main():
     q.question_name
     q.instructions
     # validate an answer
-    q.validate_answer({"answer": "I like custard"})
+    q._validate_answer({"answer": "I like custard"})
     # translate answer code
-    q.translate_answer_code_to_answer({"answer"})
+    q._translate_answer_code_to_answer({"answer"})
     # simulate answer
-    q.simulate_answer()
-    q.simulate_answer(human_readable=False)
-    q.validate_answer(q.simulate_answer(human_readable=False))
+    q._simulate_answer()
+    q._simulate_answer(human_readable=False)
+    q._validate_answer(q._simulate_answer(human_readable=False))
     # serialization (inherits from Question)
     q.to_dict()
     assert q.from_dict(q.to_dict()) == q

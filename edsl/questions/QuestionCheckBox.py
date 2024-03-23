@@ -77,14 +77,14 @@ class QuestionCheckBox(Question):
     ################
     # Answer methods
     ################
-    def validate_answer(self, answer: Any) -> dict[str, Union[int, str]]:
+    def _validate_answer(self, answer: Any) -> dict[str, Union[int, str]]:
         """Validate the answer."""
-        self.validate_answer_template_basic(answer)
-        self.validate_answer_key_value(answer, "answer", list)
-        self.validate_answer_checkbox(answer)
+        self._validate_answer_template_basic(answer)
+        self._validate_answer_key_value(answer, "answer", list)
+        self._validate_answer_checkbox(answer)
         return answer
 
-    def translate_answer_code_to_answer(self, answer_codes, scenario: Scenario = None):
+    def _translate_answer_code_to_answer(self, answer_codes, scenario: Scenario = None):
         """
         Translate the answer code to the actual answer.
 
@@ -100,7 +100,7 @@ class QuestionCheckBox(Question):
             translated_codes.append(translated_options[int(answer_code)])
         return translated_codes
 
-    def simulate_answer(self, human_readable=True) -> dict[str, Union[int, str]]:
+    def _simulate_answer(self, human_readable=True) -> dict[str, Union[int, str]]:
         """Simulate a valid answer for debugging purposes."""
         min_selections = self.min_selections or 1
         max_selections = self.max_selections or len(self.question_options)
@@ -154,13 +154,13 @@ def main():
     q.question_name
     q.short_names_dict
     # validate an answer
-    q.validate_answer({"answer": [1, 2], "comment": "I like custard"})
+    q._validate_answer({"answer": [1, 2], "comment": "I like custard"})
     # translate answer code
-    q.translate_answer_code_to_answer([1, 2])
+    q._translate_answer_code_to_answer([1, 2])
     # simulate answer
-    q.simulate_answer()
-    q.simulate_answer(human_readable=False)
-    q.validate_answer(q.simulate_answer(human_readable=False))
+    q._simulate_answer()
+    q._simulate_answer(human_readable=False)
+    q._validate_answer(q._simulate_answer(human_readable=False))
     # serialization (inherits from Question)
     q.to_dict()
     assert q.from_dict(q.to_dict()) == q

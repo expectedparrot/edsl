@@ -66,14 +66,14 @@ class QuestionBudget(Question):
     ################
     # Answer methods
     ################
-    def validate_answer(self, answer: dict[str, Any]) -> dict[str, Union[int, str]]:
+    def _validate_answer(self, answer: dict[str, Any]) -> dict[str, Union[int, str]]:
         """Validate the answer."""
-        self.validate_answer_template_basic(answer)
-        self.validate_answer_key_value(answer, "answer", dict)
-        self.validate_answer_budget(answer)
+        self._validate_answer_template_basic(answer)
+        self._validate_answer_key_value(answer, "answer", dict)
+        self._validate_answer_budget(answer)
         return answer
 
-    def translate_answer_code_to_answer(
+    def _translate_answer_code_to_answer(
         self, answer_codes: dict[str, int], scenario: Scenario = None
     ):
         """
@@ -89,7 +89,7 @@ class QuestionBudget(Question):
 
         return translated_codes
 
-    def simulate_answer(self, human_readable=True):
+    def _simulate_answer(self, human_readable=True):
         """Simulate a valid answer for debugging purposes (what the validator expects)."""
         if human_readable:
             keys = self.question_options
@@ -136,15 +136,15 @@ def main():
     q.question_name
     q.short_names_dict
     # validate an answer
-    q.validate_answer(
+    q._validate_answer(
         {"answer": {0: 100, 1: 0, 2: 0, 3: 0}, "comment": "I like custard"}
     )
     # translate answer code
-    q.translate_answer_code_to_answer({0: 100, 1: 0, 2: 0, 3: 0})
+    q._translate_answer_code_to_answer({0: 100, 1: 0, 2: 0, 3: 0})
     # simulate answer
-    q.simulate_answer()
-    q.simulate_answer(human_readable=False)
-    q.validate_answer(q.simulate_answer(human_readable=False))
+    q._simulate_answer()
+    q._simulate_answer(human_readable=False)
+    q._validate_answer(q._simulate_answer(human_readable=False))
     # serialization (inherits from Question)
     q.to_dict()
     assert q.from_dict(q.to_dict()) == q

@@ -74,14 +74,14 @@ class QuestionRank(Question):
     ################
     # Answer methods
     ################
-    def validate_answer(self, answer: Any) -> dict[str, list[int]]:
+    def _validate_answer(self, answer: Any) -> dict[str, list[int]]:
         """Validate the answer."""
-        self.validate_answer_template_basic(answer)
-        self.validate_answer_key_value(answer, "answer", list)
-        self.validate_answer_rank(answer)
+        self._validate_answer_template_basic(answer)
+        self._validate_answer_key_value(answer, "answer", list)
+        self._validate_answer_rank(answer)
         return answer
 
-    def translate_answer_code_to_answer(
+    def _translate_answer_code_to_answer(
         self, answer_codes, scenario: Scenario = None
     ) -> list[str]:
         """Translate the answer code to the actual answer."""
@@ -94,7 +94,7 @@ class QuestionRank(Question):
             translated_codes.append(translated_options[int(answer_code)])
         return translated_codes
 
-    def simulate_answer(self, human_readable=True) -> dict[str, Union[int, str]]:
+    def _simulate_answer(self, human_readable=True) -> dict[str, Union[int, str]]:
         """Simulate a valid answer for debugging purposes."""
         if human_readable:
             selected = random.sample(self.question_options, self.num_selections)
@@ -133,13 +133,13 @@ def main():
     q.num_selections
     # validate an answer
     answer = {"answer": [0, 1], "comment": "I like pizza and pasta."}
-    q.validate_answer(answer)
+    q._validate_answer(answer)
     # translate an answer code to an answer
-    q.translate_answer_code_to_answer([0, 1])
+    q._translate_answer_code_to_answer([0, 1])
     # simulate answer
-    q.simulate_answer()
-    q.simulate_answer(human_readable=False)
-    q.validate_answer(q.simulate_answer(human_readable=False))
+    q._simulate_answer()
+    q._simulate_answer(human_readable=False)
+    q._validate_answer(q._simulate_answer(human_readable=False))
     # serialization (inherits from Question)
     q.to_dict()
     assert q.from_dict(q.to_dict()) == q

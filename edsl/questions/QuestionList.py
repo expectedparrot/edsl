@@ -63,18 +63,18 @@ class QuestionList(Question):
     ################
     # Answer methods
     ################
-    def validate_answer(self, answer: Any) -> dict[str, Union[list[str], str]]:
+    def _validate_answer(self, answer: Any) -> dict[str, Union[list[str], str]]:
         """Validate the answer."""
-        self.validate_answer_template_basic(answer)
-        self.validate_answer_key_value(answer, "answer", list)
-        self.validate_answer_list(answer)
+        self._validate_answer_template_basic(answer)
+        self._validate_answer_key_value(answer, "answer", list)
+        self._validate_answer_list(answer)
         return answer
 
-    def translate_answer_code_to_answer(self, answer, scenario: Scenario = None):
+    def _translate_answer_code_to_answer(self, answer, scenario: Scenario = None):
         """There is no answer code."""
         return answer
 
-    def simulate_answer(self, human_readable: bool = True):
+    def _simulate_answer(self, human_readable: bool = True):
         """Simulate a valid answer for debugging purposes (what the validator expects)."""
         num_items = random.randint(1, self.max_list_items or 2)
         return {"answer": [random_string() for _ in range(num_items)]}
@@ -103,13 +103,13 @@ def main():
     q.allow_nonresponse
     q.max_list_items
     # validate an answer
-    q.validate_answer({"answer": ["pasta", "garlic", "oil", "parmesan"]})
+    q._validate_answer({"answer": ["pasta", "garlic", "oil", "parmesan"]})
     # translate answer code
-    q.translate_answer_code_to_answer(["pasta", "garlic", "oil", "parmesan"])
+    q._translate_answer_code_to_answer(["pasta", "garlic", "oil", "parmesan"])
     # simulate answer
-    q.simulate_answer()
-    q.simulate_answer(human_readable=False)
-    q.validate_answer(q.simulate_answer(human_readable=False))
+    q._simulate_answer()
+    q._simulate_answer(human_readable=False)
+    q._validate_answer(q._simulate_answer(human_readable=False))
     # serialization (inherits from Question)
     q.to_dict()
     assert q.from_dict(q.to_dict()) == q

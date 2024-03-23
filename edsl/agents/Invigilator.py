@@ -171,10 +171,10 @@ class InvigilatorAI(InvigilatorBase):
 
         This cleans up the raw response to make it suitable to pass to AgentResponseDict.
         """
-        response = question.validate_answer(raw_response)
+        response = question._validate_answer(raw_response)
         comment = response.get("comment", "")
         answer_code = response["answer"]
-        answer = question.translate_answer_code_to_answer(answer_code, scenario)
+        answer = question._translate_answer_code_to_answer(answer_code, scenario)
         raw_model_response = raw_model_response
         data = {
             "answer": answer,
@@ -282,7 +282,7 @@ class InvigilatorDebug(InvigilatorBase):
 
     async def async_answer_question(self, iteration: int = 0) -> AgentResponseDict:
         """Return the answer to the question."""
-        results = self.question.simulate_answer(human_readable=True)
+        results = self.question._simulate_answer(human_readable=True)
         results["prompts"] = self.get_prompts()
         results["question_name"] = self.question.question_name
         results["comment"] = "Debug comment"
