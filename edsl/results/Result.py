@@ -72,7 +72,17 @@ class Result(Base, UserDict):
         prompt: dict[str, str] = None,
         raw_model_response=None,
     ):
-        """Initialize the UserDict."""
+        """Initialize a Result object.
+        
+        :param agent: The Agent object.
+        :param scenario: The Scenario object.
+        :param model: The LanguageModel object.
+        :param iteration: The iteration number.
+        :param answer: The answer string.
+        :param prompt: A dictionary of prompts.
+        :param raw_model_response: The raw model response.
+    
+        """
         data = {
             "agent": agent,
             "scenario": scenario,
@@ -97,7 +107,8 @@ class Result(Base, UserDict):
     ###############
     @property
     def sub_dicts(self) -> dict[str, dict]:
-        """Return a dictionary where keys are strings for each of the main class attributes/objects (except for iteration) and values are dictionaries for the attributes and values for each of these objects."""
+        """Return a dictionary where keys are strings for each of the main class attributes/objects. 
+        """
         if self.agent.name is None:
             agent_name = agent_namer(self.agent)
         else:

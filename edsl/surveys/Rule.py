@@ -1,4 +1,21 @@
-"""The Rule class defines a rule for what question an agent should be presented next."""
+"""The Rule class defines a rule for determining the next question presented to an agent.
+
+The key component is an expression specifiying the logic of the rule, which can include any combination of logical operators ('and', 'or', 'not'), e.g.:
+
+.. code-block:: python
+
+    "q1 == 'yes' or q2 == 'no'"
+
+The expression must be about questions "before" the current question.
+
+Only one rule should apply at each priority level.
+If multiple rules apply, the one with the highest priority is used. 
+If there are conflicting rules, an exception is raised.
+
+If no rule is specified, the next question is given as the default.
+When a question is added with index, it is always given a rule the next question is index + 1, but
+with a low (-1) priority.
+"""
 import ast
 from collections import namedtuple
 from rich import print
@@ -18,44 +35,14 @@ from edsl.utilities.interface import print_table_with_rich
 
 
 class Rule:
-    """
-    The class defines a a "rule" for what question an agent should be presented next.
+    """The Rule class defines a "rule" for determining the next question presented to an agent."""
+    # Not implemented but nice to have:
+    # We could potentially use the question pydantic models to check for rule conflicts, as
+    # they define the potential trees through a survey.
 
-    The key structure of a rule is:
-    - current_q: The question at which the rule is potentially applied (an index)
-    - expression: A string that if evaluates to true, then next_q (an index) is next
-    - next_q: The question is true
-    - priority: an integer that determines which rule is applied if multiple rules apply
-
-    The key part of this is expression specifiying the skip logic.
-    An expression can be any combination of and/or/not/parenthesis etc.
-
-            "q1 == 'yes' or q2 == 'no'"
-
-    The skip-logic expression has to be about questions "before" the current node.
-    To determine the value of the expression, we currently, we use eval.
-    Eventually, we'll use the AST of the expression to make it safer.
-
-    If multiple rules apply, the one with the highest priority is used.
-    This is to deal with the fact that when we create a survey, we give the
-    next question as the default.
-    So when a question is added with index, it is always given a rule the next question is index + 1, but
-    given a low (-1) priority.
-
-    Only one rule should apply at each priority level.
-    If there are conflicting rules, an exception is raised.
-    Ideally, we'd have a way to resolve this ex ante, perhaps to traversing the implied tree
-    each time a rule is added, but for now, we'll let the error emerge at run-time.
-
-    ## Not implemented but nice to have
-    We could potentially use the question pydantic models to check for rule conflicts, as
-    they define the potential trees through a survey.
-
-    We could also use the AST to check for conflicts by inspecting the types of a rule.
-    For example, if we know the answer to a question is a string, we could check that
-    the expression only contains string comparisons.
-    This would be a lot of work.
-    """
+    # We could also use the AST to check for conflicts by inspecting the types of a rule.
+    # For example, if we know the answer to a question is a string, we could check that
+    # the expression only contains string comparisons.
 
     def __init__(
         self,
@@ -65,15 +52,21 @@ class Rule:
         question_name_to_index: dict[str, int],
         priority: int,
     ):
-        """Represent a rule for what question an agent should be presented next.
+        """Represent a rule for determining the next question presented to an agent.
 
         Questions are represented by int indices.
+
+        :param current_q: The question at which the rule is potentially applied.
+        :param expression: A string that evaluates to true or false. If true, then next_q is next.
+        :param next_q: The next question if the expression is true.
+        :param question_name_to_index: A dictionary mapping question names to indices.
+        :param priority: An integer that determines which rule is applied, if multiple rules apply.
         """
         self.current_q = current_q
         self.expression = expression
         self.next_q = next_q
-        self.priority = priority
         self.question_name_to_index = question_name_to_index
+        self.priority = priority
 
         if not next_q == EndOfSurvey and current_q > next_q:
             raise SurveyRuleSendsYouBackwardsError
@@ -159,7 +152,7 @@ class Rule:
         def substitute_in_answers(expression, answers):
             """Take the dictionary of answers and substitute them into the expression."""
             for var, value in answers.items():
-                # If it's a string, add quotes; otherwise, just convert to string
+                # If it is a string, add quotes; otherwise, just convert to string.
                 if isinstance(value, str):
                     replacement = f"'{value}'"
                 else:

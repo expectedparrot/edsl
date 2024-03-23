@@ -15,7 +15,7 @@ from edsl.utilities import is_notebook
 class RichPrintingMixin:
     """Mixin for rich printing and persistence of objects."""
 
-    def for_console(self):
+    def _for_console(self):
         """Return a string representation of the object for console printing."""
         with io.StringIO() as buf:
             console = Console(file=buf, record=True)
@@ -25,7 +25,7 @@ class RichPrintingMixin:
 
     def __str__(self):
         """Return a string representation of the object for console printing."""
-        return self.for_console()
+        return self._for_console()
 
     def print(self):
         """Print the object to the console."""
@@ -42,13 +42,21 @@ class PersistenceMixin:
     """Mixin for saving and loading objects to and from files."""
 
     def save(self, filename):
-        """Save the object to a file."""
+        """Save the object to a file as zippped JSON.
+        
+        >>> obj.save("obj.json.gz")
+        
+        """
         with gzip.open(filename, "wb") as f:
             f.write(json.dumps(self.to_dict()).encode("utf-8"))
 
     @classmethod
     def load(cls, filename):
-        """Load the object from a file."""
+        """Load the object from a file.
+        
+        >>> obj = cls.load("obj.json.gz")
+        
+        """
         with gzip.open(filename, "rb") as f:
             file_contents = f.read()
             file_contents_decoded = file_contents.decode("utf-8")
@@ -56,8 +64,11 @@ class PersistenceMixin:
             # d = json.loads(f.read().decode("utf-8"))
         return cls.from_dict(d)
 
-    def post(self):
-        """Post the object to a pastebin."""
+    def _post(self):
+        """
+        Post the object to a pastebin.
+        TODO: Implement this method using coop.
+        """
         from edsl.utilities.pastebin import post
 
         post(self)

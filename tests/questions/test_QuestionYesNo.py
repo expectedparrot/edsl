@@ -73,27 +73,27 @@ def test_QuestionYesNo_answers():
     llm_response_invalid1 = {"comment": "I'm good"}
 
     # LLM response is required to have an answer key, but is flexible otherwise
-    q.validate_response(llm_response_valid1)
-    q.validate_response(llm_response_valid2)
+    q._validate_response(llm_response_valid1)
+    q._validate_response(llm_response_valid2)
     with pytest.raises(QuestionResponseValidationError):
-        q.validate_response(llm_response_invalid1)
+        q._validate_response(llm_response_invalid1)
 
     # answer must be an integer or interpretable as integer
-    q.validate_answer({"answer": 0})
+    q._validate_answer({"answer": 0})
     # TODO: should the following three be allowed?
-    q.validate_answer({"answer": "0"})
-    q.validate_answer({"answer": True})
-    q.validate_answer({"answer": 0, "comment": "I'm good"})
+    q._validate_answer({"answer": "0"})
+    q._validate_answer({"answer": True})
+    q._validate_answer({"answer": 0, "comment": "I'm good"})
     # answer value required
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": None})
+        q._validate_answer({"answer": None})
     # answer must be in range of question_options
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": "2"})
+        q._validate_answer({"answer": "2"})
     # answer can't be a random string
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": "asdf"})
+        q._validate_answer({"answer": "asdf"})
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": [0, 1]})
+        q._validate_answer({"answer": [0, 1]})
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": {"answer": 0}})
+        q._validate_answer({"answer": {"answer": 0}})

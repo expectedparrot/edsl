@@ -2,8 +2,9 @@
 import base64
 import csv
 import io
+from functools import wraps
 
-from typing import Literal
+from typing import Literal, Optional
 
 from edsl.utilities.utilities import is_notebook
 
@@ -18,10 +19,12 @@ from edsl.utilities import (
 
 
 class ResultsExportMixin:
-    """Mixin class for exporting results."""
+    """Mixin class for exporting Results objects."""
 
-    def convert_decorator(func):
+    def _convert_decorator(func):
         """Convert the Results object to a Dataset object before calling the function."""
+
+        @wraps(func)
         def wrapper(self, *args, **kwargs):
             """Return the function with the Results object converted to a Dataset object."""
             if self.__class__.__name__ == "Results":
@@ -35,7 +38,7 @@ class ResultsExportMixin:
 
         return wrapper
 
-    @convert_decorator
+    @_convert_decorator
     def _make_tabular(self, remove_prefix) -> tuple[list, list]:
         """Turn the results into a tabular format."""
         d = {}
@@ -55,8 +58,10 @@ class ResultsExportMixin:
             rows.append(row)
         return header, rows
 
-    def print_long(self):
-        """Print the results in long format."""
+    def print_long(self) -> None:
+        """Print the results in long format.
+        
+        """
         for result in self:
             if hasattr(result, "combined_dict"):
                 d = result.combined_dict
@@ -64,16 +69,69 @@ class ResultsExportMixin:
                 d = result
             print_dict_with_rich(d)
 
-    @convert_decorator
+    @_convert_decorator
     def print(
         self,
-        pretty_labels=None,
-        filename=None,
+        pretty_labels: Optional[dict] = None,
+        filename: Optional[str] = None,
         format: Literal["rich", "html", "markdown"] = "rich",
-        interactive=False,
-        split_at_dot=True,
-    ):
-        """Print the results in a pretty format."""
+        interactive: bool =False,
+        split_at_dot: bool =True,
+    ) -> None:
+        """Print the results in a pretty format.
+        
+        :param pretty_labels: A dictionary of pretty labels for the columns.
+        :param filename: The filename to save the results to.
+        :param format: The format to print the results in. Options are 'rich', 'html', or 'markdown'.
+        :param interactive: Whether to print the results interactively in a Jupyter notebook.
+        :param split_at_dot: Whether to split the column names at the last dot w/ a newline.
+
+        Example: Print in rich format at the terminal
+        
+        >>> from edsl.results import Results
+        >>> r = Results.example()
+        >>> r.print()
+        >>> r.select('how_feeling').print()
+        ┏━━━━━━━━━━━━━━┓
+        ┃ answer       ┃
+        ┃ .how_feeling ┃
+        ┡━━━━━━━━━━━━━━┩
+        │ OK           │
+        ├──────────────┤
+        │ Great        │
+        ├──────────────┤
+        │ Terrible     │
+        ├──────────────┤
+        │ OK           │
+        └──────────────┘
+
+        Example: using the pretty_labels parameter
+        
+        >>> r.select('how_feeling').print(pretty_labels = {'answer.how_feeling': "How you are feeling"})
+        ┏━━━━━━━━━━━━━━━━━━━━━┓
+        ┃ How you are feeling ┃
+        ┡━━━━━━━━━━━━━━━━━━━━━┩
+        │ OK                  │
+        ├─────────────────────┤
+        │ Great               │
+        ├─────────────────────┤
+        │ Terrible            │
+        ├─────────────────────┤
+        │ OK                  │
+        └─────────────────────┘
+
+        Example: printing in markdown format
+        
+        >>> r.select('how_feeling').print(format='markdown')
+        | answer.how_feeling |
+        |--|
+        | OK |
+        | Great |
+        | Terrible |
+        | OK |
+
+
+        """
         if pretty_labels is None:
             pretty_labels = {}
 
@@ -100,11 +158,17 @@ class ResultsExportMixin:
             print_list_of_dicts_as_markdown_table(new_data, filename=filename)
 
 
-    @convert_decorator
-    def to_csv(self, filename: str = None, remove_prefix=False, download_link=False):
-        """Export the results to a CSV file."""
-        r"""Export the results to a CSV file.
+    @_convert_decorator
+    def to_csv(self, 
+               filename: Optional[str] = None, 
+               remove_prefix: bool =False, 
+               download_link: bool =False):
+        """Export the results to a CSV file.
 
+        :param filename: The filename to save the CSV file to.
+        :param remove_prefix: Whether to remove the prefix from the column names.
+        :param download_link: Whether to display a download link in a Jupyter notebook.
+        
         Example:
 
         >>> r = create_example_results()
@@ -132,9 +196,21 @@ class ResultsExportMixin:
             else:
                 return output.getvalue()
 
-    @convert_decorator
-    def to_pandas(self, remove_prefix=False):
-        """Convert the results to a pandas DataFrame."""
+    @_convert_decorator
+    def to_pandas(self, 
+                  remove_prefix: bool=False) -> pd.DataFrame:
+        """Convert the results to a pandas DataFrame.
+        
+        :param remove_prefix: Whether to remove the prefix from the column names.
+
+        >>> r.select('how_feeling').to_pandas()
+        answer.how_feeling
+        0                 OK
+        1              Great
+        2           Terrible
+        3                 OK
+
+        """
         csv_string = self.to_csv(remove_prefix=remove_prefix)
         csv_buffer = io.StringIO(csv_string)
         df = pd.read_csv(csv_buffer)
@@ -142,9 +218,18 @@ class ResultsExportMixin:
         return df_sorted
         # return df
 
-    @convert_decorator
-    def to_dicts(self, remove_prefix=False):
-        """Convert the results to a list of dictionaries."""
+    @_convert_decorator
+    def to_dicts(self, remove_prefix:bool=False) -> list[dict]:
+        """Convert the results to a list of dictionaries.
+        
+        :param remove_prefix: Whether to remove the prefix from the column names.
+
+        >>> from edsl.results import Results
+        >>> r = Results.example()
+        >>> r.select('how_feeling').to_dicts()
+        [{'answer.how_feeling': 'OK'}, {'answer.how_feeling': 'Great'}, {'answer.how_feeling': 'Terrible'}, {'answer.how_feeling': 'OK'}]
+
+        """
         df = self.to_pandas(remove_prefix=remove_prefix)
         df = df.convert_dtypes()
         list_of_dicts = df.to_dict(orient="records")
@@ -155,14 +240,20 @@ class ResultsExportMixin:
         ]
         return list_of_dicts
 
-    @convert_decorator
-    def to_list(self):
-        """Convert the results to a list of lists."""
+    @_convert_decorator
+    def to_list(self) -> list[list]:
+        """Convert the results to a list of lists.
+
+        >>> from edsl.results import Results
+        >>> r = Results.example()
+        >>> r.select('how_feeling').to_list()
+        ['OK', 'Great', 'Terrible', 'OK']
+        """
         if len(self) == 1:
             return list(self[0].values())[0]
         else:
             return tuple([list(x.values())[0] for x in self])
-
+        
 
 if __name__ == "__main__":
     import doctest

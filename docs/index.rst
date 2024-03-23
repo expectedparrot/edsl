@@ -17,6 +17,7 @@ EDSL Docs
    prompts
    language_models
    jobs
+   result
    results
    base
    data

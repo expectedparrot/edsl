@@ -1,4 +1,4 @@
-"""This module contains the QuestionLinearScale class. It is a subclass of the QuestionMultipleChoice class and is used to create linear scale questions.
+"""A subclass of the `QuestionMultipleChoice` class for creating linear scale questions.
 Example usage:
 
 .. code-block:: python
@@ -11,6 +11,12 @@ Example usage:
         question_options = [0, 1, 2, 3, 4, 5]
     )
 
+An example can also be created using the `example` method:
+
+    .. code-block:: python
+    
+        QuestionLinearScale.example()
+
 """
 from __future__ import annotations
 import textwrap
@@ -20,24 +26,7 @@ from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
 
 class QuestionLinearScale(QuestionMultipleChoice):
-    """
-    This question asks the respondent to respond to a statement on a linear scale.
-
-    :param question_name: The name of the question.
-    :type question_name: str
-    :param question_text: The text of the question.
-    :type question_text: str
-    :param question_options: The options the respondent should select from.
-    :type question_options: list[int]
-    :param option_labels: maps question_options to labels.
-    :type option_labels: dict[int, str], optional
-    :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionLinearScale.default_instructions`.
-    :type instructions: str, optional
-    :param short_names_dict: Maps question_options to short names.
-    :type short_names_dict: dict[str, str], optional
-
-    For an example, see `QuestionLinearScale.example()`.
-    """
+    """This question prompts the agent to respond to a statement on a linear scale."""
 
     question_type = "linear_scale"
     option_labels: Optional[dict[int, str]] = OptionLabelDescriptor()
@@ -45,17 +34,24 @@ class QuestionLinearScale(QuestionMultipleChoice):
 
     def __init__(
         self,
+        question_name: str,
         question_text: str,
         question_options: list[int],
-        question_name: str,
         short_names_dict: Optional[dict[str, str]] = None,
         option_labels: Optional[dict[int, str]] = None,
     ):
-        """Instantiate a new QuestionLinearScale."""
+        """Instantiate a new QuestionLinearScale.
+        
+        :param question_name: The name of the question.
+        :param question_text: The text of the question.
+        :param question_options: The options the respondent should select from.
+        :param option_labels: Maps question_options to labels.
+        :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionLinearScale.default_instructions`.
+        """
         super().__init__(
+            question_name=question_name,
             question_text=question_text,
             question_options=question_options,
-            question_name=question_name,
             short_names_dict=short_names_dict,
         )
         self.question_options = question_options
@@ -85,13 +81,13 @@ def main():
     q.question_name
     q.short_names_dict
     # validate an answer
-    q.validate_answer({"answer": 3, "comment": "I like custard"})
+    q._validate_answer({"answer": 3, "comment": "I like custard"})
     # translate answer code
-    q.translate_answer_code_to_answer(3, {})
+    q._translate_answer_code_to_answer(3, {})
     # simulate answer
-    q.simulate_answer()
-    q.simulate_answer(human_readable=False)
-    q.validate_answer(q.simulate_answer(human_readable=False))
+    q._simulate_answer()
+    q._simulate_answer(human_readable=False)
+    q._validate_answer(q._simulate_answer(human_readable=False))
     # serialization (inherits from Question)
     q.to_dict()
     assert q.from_dict(q.to_dict()) == q

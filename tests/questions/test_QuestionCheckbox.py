@@ -229,46 +229,46 @@ def test_QuestionCheckBox_answers():
     llm_response_invalid1 = {"comment": "I like beginnings"}
 
     # LLM response is required to have an answer key, but is flexible otherwise
-    q.validate_response(llm_response_valid1)
-    q.validate_response(llm_response_valid2)
+    q._validate_response(llm_response_valid1)
+    q._validate_response(llm_response_valid2)
     with pytest.raises(QuestionResponseValidationError):
-        q.validate_response(llm_response_invalid1)
+        q._validate_response(llm_response_invalid1)
 
     # answer must be an list of ints
-    q.validate_answer(llm_response_valid1)
+    q._validate_answer(llm_response_valid1)
 
-    q.validate_answer(llm_response_valid2)
+    q._validate_answer(llm_response_valid2)
     # answer value required
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": None})
+        q._validate_answer({"answer": None})
     # answer cannot have unacceptable values
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": [25, 20]})
+        q._validate_answer({"answer": [25, 20]})
     # or wrong types
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": ["Mon", "Tue"]})
+        q._validate_answer({"answer": ["Mon", "Tue"]})
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": [{"set"}]})
+        q._validate_answer({"answer": [{"set"}]})
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": {"answer": 0}})
+        q._validate_answer({"answer": {"answer": 0}})
     # and respect min_selections and max_selections
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": [1]})
+        q._validate_answer({"answer": [1]})
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": [1, 2, 3, 4]})
+        q._validate_answer({"answer": [1, 2, 3, 4]})
 
 
 def test_QuestionCheckBox_extras():
     """Test QuestionFreeText extra functionalities."""
     q = QuestionCheckBox(**valid_question)
-    # translate_answer_code_to_answer
-    assert q.translate_answer_code_to_answer([0, 1], None) == ["Mon", "Tue"]
+    # _translate_answer_code_to_answer
+    assert q._translate_answer_code_to_answer([0, 1], None) == ["Mon", "Tue"]
 
-    assert q.simulate_answer().keys() == q.simulate_answer(human_readable=True).keys()
-    assert q.simulate_answer(human_readable=False)["answer"][0] in range(
+    assert q._simulate_answer().keys() == q._simulate_answer(human_readable=True).keys()
+    assert q._simulate_answer(human_readable=False)["answer"][0] in range(
         len(q.question_options)
     )
-    simulated_answer = q.simulate_answer()
+    simulated_answer = q._simulate_answer()
     assert isinstance(simulated_answer, dict)
     assert "answer" in simulated_answer
     assert "comment" in simulated_answer

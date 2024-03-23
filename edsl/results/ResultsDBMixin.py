@@ -3,7 +3,7 @@ import pandas as pd
 import sqlite3
 from sqlalchemy import create_engine
 from enum import Enum
-
+from typing import Literal, Union
 
 class SQLDataShape(Enum):
     """Enum for the shape of the data in the SQL database."""
@@ -13,31 +13,43 @@ class SQLDataShape(Enum):
 
 
 class ResultsDBMixin:
-    """Mixin for working with SQL databases."""
+    """Mixin for interacting with a Results object as if it were a SQL database."""
 
-    def rows(self):
+    def _rows(self):
         """Return the rows of the `Results` object as a list of tuples."""
         for index, result in enumerate(self):
             yield from result.rows(index)
 
-    def export_sql_dump(self, shape, filename):
-        """Export the SQL database to a file."""
+    def export_sql_dump(self, shape: Literal["wide", "long"], filename: str):
+        """Export the SQL database to a file.
+        
+        :param shape: The shape of the data in the database (wide or long)
+        :param filename: The filename to save the database to
+        """
         shape_enum = self._get_shape_enum(shape)
-        conn = self.db(shape=shape_enum)
+        conn = self._db(shape=shape_enum)
 
-        # Open file to write SQL dump
         with open(filename, "w") as f:
             for line in conn.iterdump():
                 f.write(f"{line}\n")
 
-        # Close the connection
         conn.close()
 
-    def backup_db_to_file(self, shape, filename):
-        """Backup the in-memory database to a file."""
+    def backup_db_to_file(self, shape: Literal["wide", "long"], filename: str):
+        """Backup the in-memory database to a file.
+        
+
+        :param shape: The shape of the data in the database (wide or long)
+        :param filename: The filename to save the database to
+
+        >>> from edsl.results import Results
+        >>> r = Results.example()
+        >>> r.backup_db_to_file(filename="backup.db", shape="long")
+
+        """
         shape_enum = self._get_shape_enum(shape)
         # Source database connection (in-memory)
-        source_conn = self.db(shape=shape_enum)
+        source_conn = self._db(shape=shape_enum)
 
         # Destination database connection (file)
         dest_conn = sqlite3.connect(filename)
@@ -50,10 +62,14 @@ class ResultsDBMixin:
         source_conn.close()
         dest_conn.close()
 
-    def db(self, shape: SQLDataShape, remove_prefix=False):
-        """Create a SQLite database in memory and return the connection."""
+    def _db(self, shape: SQLDataShape, remove_prefix=False):
+        """Create a SQLite database in memory and return the connection.
+        
+        :param shape: The shape of the data in the database (wide or long)
+        :param remove_prefix: Whether to remove the prefix from the column names
+
+        """
         if shape == SQLDataShape.LONG:
-            # Step 2: Create a SQLite Database in Memory
             conn = sqlite3.connect(":memory:")
 
             create_table_query = """
@@ -66,8 +82,7 @@ class ResultsDBMixin:
             """
             conn.execute(create_table_query)
 
-            # # Step 3: Insert the tuples into the table
-            list_of_tuples = list(self.rows())
+            list_of_tuples = list(self._rows())
             insert_query = (
                 "INSERT INTO self (id, data_type, key, value) VALUES (?, ?, ?, ?)"
             )
@@ -75,22 +90,14 @@ class ResultsDBMixin:
             conn.commit()
             return conn
         elif shape == SQLDataShape.WIDE:
-            db_uri = "sqlite:///:memory:"
-
-            # Create SQLAlchemy engine with the in-memory database connection string
-            engine = create_engine(db_uri)
-
-            # Convert DataFrame to SQLite in-memory database
+            engine = create_engine("sqlite:///:memory:") 
             df = self.to_pandas(remove_prefix=remove_prefix)
             df.to_sql("self", engine, index=False, if_exists="replace")
-
-            # Create a connection to the SQLite database
-            conn = engine.connect()
-            return conn
+            return engine.connect()
         else:
             raise Exception("Invalid SQLDataShape")
 
-    def _get_shape_enum(self, shape: str):
+    def _get_shape_enum(self, shape: Literal["wide", "long"]):
         """Convert the shape string to a SQLDataShape enum."""
         if shape is None:
             raise Exception("Must select either 'wide' or 'long' format")
@@ -104,22 +111,49 @@ class ResultsDBMixin:
     def sql(
         self,
         query: str,
-        shape: str,
+        shape: Literal["wide", "long"] = "long",
         remove_prefix: bool = False,
         transpose: bool = None,
         transpose_by: str = None,
         csv: bool = False,
-    ):
+    ) -> Union[pd.DataFrame, str]:
         """Execute a SQL query and return the results as a DataFrame.
 
         :param query: The SQL query to execute
-        :param transpose: Transpose the DataFrame if True
-        :param transpose_by: Column to use as the index when transposing, otherwise the first column
-        :param csv: Return the DataFrame as a CSV string if True
+        :param shape: The shape of the data in the database (wide or long)
+        :param remove_prefix: Whether to remove the prefix from the column names
+        :param transpose: Whether to transpose the DataFrame
+        :param transpose_by: The column to use as the index when transposing
+        :param csv: Whether to return the DataFrame as a CSV string
+
+
+        Example usage:
+
+        >>> from edsl.results import Results
+        >>> r = Results.example()
+        >>> r.sql("select data_type, key, value from self where data_type = 'answer' limit 3", shape="long")
+          data_type                    key                                         value
+        0    answer            how_feeling                                            OK
+        1    answer    how_feeling_comment  This is a real survey response from a human.
+        2    answer  how_feeling_yesterday                                         Great
+
+        
+        We can also return the data in wide format. 
+        Note the use of single quotes to escape the column names, as required by sql.
+
+        >>> from edsl.results import Results
+        >>> r = Results.example()
+        >>> r.sql("select 'agent.agent_name', 'agent.status', 'answer.how_feeling' from self", shape="wide")
+        'agent.agent_name' 'agent.status' 'answer.how_feeling'
+        0   agent.agent_name   agent.status   answer.how_feeling
+        1   agent.agent_name   agent.status   answer.how_feeling
+        2   agent.agent_name   agent.status   answer.how_feeling
+        3   agent.agent_name   agent.status   answer.how_feeling
+
         """
         shape_enum = self._get_shape_enum(shape)
 
-        conn = self.db(shape=shape_enum, remove_prefix=remove_prefix)
+        conn = self._db(shape=shape_enum, remove_prefix=remove_prefix)
         df = pd.read_sql_query(query, conn)
 
         # Transpose the DataFrame if transpose is True
@@ -131,26 +165,34 @@ class ResultsDBMixin:
                 df = df.set_index(df.columns[0])
             df = df.transpose()
 
-        # Return as CSV if output is "csv"
         if csv:
             return df.to_csv(index=False)
         else:
             return df
 
-    def show_schema(self, shape: str, remove_prefix: bool = False):
-        """Show the schema of the SQL database."""
+    def show_schema(self, shape: Literal["wide", "long"], remove_prefix: bool = False) -> None:
+        """Show the schema of the Results database.
+        
+        :param shape: The shape of the data in the database (wide or long)
+        :param remove_prefix: Whether to remove the prefix from the column names
+
+        >>> from edsl.results import Results
+        >>> r = Results.example()
+        >>> r.show_schema(shape="long")
+        Type: table, Name: self, SQL: CREATE TABLE self (
+                id INTEGER,
+                data_type TEXT,
+                key TEXT, 
+                value TEXT
+        """
         shape_enum = self._get_shape_enum(shape)
-        conn = self.db(shape=shape_enum, remove_prefix=remove_prefix)
+        conn = self._db(shape=shape_enum, remove_prefix=remove_prefix)
 
         if shape_enum == SQLDataShape.LONG:
             # Query to get the schema of all tables
             query = "SELECT type, name, sql FROM sqlite_master WHERE type='table'"
-
-            # Execute the query
             cursor = conn.execute(query)
             schema = cursor.fetchall()
-
-            # Close the connection
             conn.close()
 
             # Format and return the schema information
@@ -166,31 +208,6 @@ class ResultsDBMixin:
 
 
 if __name__ == "__main__":
-    from edsl.results import Results
 
-    r = Results.example()
-
-    df = r.sql(
-        "select data_type, key, value from self where data_type = 'answer'",
-        shape="long",
-    )
-    print(df)
-
-    df = r.sql(
-        "select * from self",
-        shape="wide",
-    )
-
-    df = r.sql(
-        "select * from self",
-        shape="wide",
-    )
-
-    r.show_schema(shape="long")
-
-    df = r.sql(
-        "select * from self",
-        shape="wide",
-    )
-
-    print(df)
+    import doctest
+    doctest.testmod()
