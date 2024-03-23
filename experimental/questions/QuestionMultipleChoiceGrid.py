@@ -152,7 +152,7 @@ if __name__ == "__main__":
     print(q.get_prompt())
     response = {"answer": [0, 1], "comment": "OK"}
     print(response)
-    q.validate_response(response)
+    q._validate_response(response)
     response.pop("comment")
     q._validate_answer(response)
     print("This is a valid response.\n")
@@ -167,7 +167,7 @@ if __name__ == "__main__":
     print(q.get_prompt())
     response = {"answer": [None, 2], "comment": "OK"}
     print(response)
-    q.validate_response(response)
+    q._validate_response(response)
     response.pop("comment")
     q._validate_answer(response)
     print("This is a valid response.\n")
@@ -183,7 +183,7 @@ if __name__ == "__main__":
     try:
         response = {"answer": [3, None], "comment": "OK"}
         print(response)
-        q.validate_response(response)
+        q._validate_response(response)
         response.pop("comment")
         q._validate_answer(response)
     except QuestionAnswerValidationError:
@@ -193,7 +193,7 @@ if __name__ == "__main__":
     try:
         response = {"answer": [["Mon"], ["Wed"]], "comment": "OK"}
         print(response)
-        q.validate_response(response)
+        q._validate_response(response)
         response.pop("comment")
         q._validate_answer(response)
     except QuestionAnswerValidationError:

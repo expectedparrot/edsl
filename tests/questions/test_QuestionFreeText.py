@@ -107,10 +107,10 @@ def test_QuestionFreeText_answers():
     response_terrible = {"you": "suck"}
 
     # LLM responses are only required to have an "answer" key
-    q.validate_response(response_good)
-    q.validate_response(response_bad)
+    q._validate_response(response_good)
+    q._validate_response(response_bad)
     with pytest.raises(QuestionResponseValidationError):
-        q.validate_response(response_terrible)
+        q._validate_response(response_terrible)
 
     # answer validation
     q._validate_answer(response_good)

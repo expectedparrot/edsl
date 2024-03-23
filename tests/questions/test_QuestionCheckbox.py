@@ -229,10 +229,10 @@ def test_QuestionCheckBox_answers():
     llm_response_invalid1 = {"comment": "I like beginnings"}
 
     # LLM response is required to have an answer key, but is flexible otherwise
-    q.validate_response(llm_response_valid1)
-    q.validate_response(llm_response_valid2)
+    q._validate_response(llm_response_valid1)
+    q._validate_response(llm_response_valid2)
     with pytest.raises(QuestionResponseValidationError):
-        q.validate_response(llm_response_invalid1)
+        q._validate_response(llm_response_invalid1)
 
     # answer must be an list of ints
     q._validate_answer(llm_response_valid1)
