@@ -14,8 +14,9 @@ Results class
 
 .. automodule:: edsl.results.Results
    :members:
+   :inherited-members:
+   :exclude-members: append, clear, copy, count, extend, index, insert, pop, remove, reverse, sort
    :undoc-members:
-   :show-inheritance:
 
 Dataset class
 -------------
@@ -25,26 +26,26 @@ Dataset class
    :undoc-members:
    :show-inheritance:
 
-ResultsDBMixin class
---------------------
+.. ResultsDBMixin class
+.. --------------------
 
-.. automodule:: edsl.results.ResultsDBMixin
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. .. automodule:: edsl.results.ResultsDBMixin
+..    :members:
+..    :undoc-members:
+..    :show-inheritance:
 
-ResultsExportMixin class
-------------------------
+.. ResultsExportMixin class
+.. ------------------------
 
-.. automodule:: edsl.results.ResultsExportMixin
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. .. automodule:: edsl.results.ResultsExportMixin
+..    :members:
+..    :undoc-members:
+..    :show-inheritance:
 
-ResultsGGMixin class
---------------------
+.. ResultsGGMixin class
+.. --------------------
 
-.. automodule:: edsl.results.ResultsGGMixin
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. .. automodule:: edsl.results.ResultsGGMixin
+..    :members:
+..    :undoc-members:
+..    :show-inheritance:
