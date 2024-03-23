@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-""""""
-=======
 """
 The Results object is the result of running a survey. 
 It is not typically instantiated directly, but is returned by the run method of a `Job` object.
@@ -82,7 +79,6 @@ You can export the results to other formats, such as pandas DataFrames or csv fi
     results.to_pandas()
 
 """
->>>>>>> eabe9119fe31dfc29a5f278d896bf6588dca9e29
 from __future__ import annotations
 import json
 import io
