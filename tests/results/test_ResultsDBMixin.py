@@ -43,7 +43,7 @@ def test_backup_db_to_file(db_mixin):
 def test_db(db_mixin):
     from edsl.results.ResultsDBMixin import SQLDataShape
 
-    conn = db_mixin.db(shape=SQLDataShape.LONG)
+    conn = db_mixin._db(shape=SQLDataShape.LONG)
     cursor = conn.execute("SELECT * FROM self")
     rows = cursor.fetchall()
     assert rows == [(1, "type1", "key1", "value1"), (2, "type2", "key2", "value2")]

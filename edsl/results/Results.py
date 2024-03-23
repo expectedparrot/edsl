@@ -1,8 +1,13 @@
+"""
+The Results object is the result of running a survey. 
+It is a list of Result objects, each of which represents a single response to the survey.
+It is a UserList of Result objects, and has a number of methods for manipulating the data, such as select, filter, mutate, etc.
+"""
 from __future__ import annotations
 import json
 import io
 from collections import UserList, defaultdict
-
+from typing import Optional
 from rich.console import Console
 
 from simpleeval import EvalWithCompoundTypes
@@ -17,7 +22,7 @@ from edsl.exceptions.results import (
 )
 from edsl.agents import Agent
 from edsl.data import CRUD
-from edsl.language_models import LanguageModel
+from edsl.language_models.LanguageModel import LanguageModel
 from edsl.results.Dataset import Dataset
 from edsl.results.Result import Result
 from edsl.results.ResultsExportMixin import ResultsExportMixin
@@ -85,11 +90,11 @@ class Results(UserList, Mixins, Base):
 
     def __init__(
         self,
-        survey: Survey = None,
-        data: list[Result] = None,
-        created_columns: list = None,
-        job_uuid: str = None,
-        total_results: int = None,
+        survey: Optional[Survey] = None,
+        data: Optional[list[Result]] = None,
+        created_columns: Optional[list[str]] = None,
+        job_uuid: Optional[str] = None,
+        total_results: Optional[int] = None,
     ):
         """Instantiate a `Results` object with a survey and a list of `Result` objects.
 
@@ -196,7 +201,7 @@ class Results(UserList, Mixins, Base):
         - Uses the key_to_data_type property of the Result class.
         - Includes any columns that the user has created with `mutate`
         """
-        d = defaultdict(set)
+        d: dict = defaultdict(set)
         for result in self.data:
             for key, value in result.key_to_data_type.items():
                 d[value] = d[value].union(set({key}))
@@ -206,7 +211,14 @@ class Results(UserList, Mixins, Base):
 
     @property
     def columns(self) -> list[str]:
-        """Return a list of all of the columns that are in the Results."""
+        """Return a list of all of the columns that are in the Results.
+        
+        Example:
+
+        >>> r = Results.example()
+        >>> r.columns
+        ['agent.agent_name', 'agent.status', 'answer.how_feeling', 'answer.how_feeling_comment', 'answer.how_feeling_yesterday', 'answer.how_feeling_yesterday_comment', 'iteration.iteration', 'model.frequency_penalty', 'model.max_tokens', 'model.model', 'model.presence_penalty', 'model.temperature', 'model.top_p', 'model.use_cache', 'prompt.how_feeling_system_prompt', 'prompt.how_feeling_user_prompt', 'prompt.how_feeling_yesterday_system_prompt', 'prompt.how_feeling_yesterday_user_prompt', 'raw_model_response.how_feeling_raw_model_response', 'raw_model_response.how_feeling_yesterday_raw_model_response', 'scenario.period']
+        """
         column_names = [f"{v}.{k}" for k, v in self._key_to_data_type.items()]
         return sorted(column_names)
 
@@ -214,10 +226,15 @@ class Results(UserList, Mixins, Base):
     def answer_keys(self) -> dict[str, str]:
         """Return a mapping of answer keys to question text.
         
+        Example: 
+
         >>> r = Results.create_example()
         >>> r.answer_keys
         {'how_feeling': 'How are you this {{ period }}?', 'how_feeling_yesterday': 'How were you feeling yesterday {{ period }}?'}   
         """
+        if not self.survey:
+            raise Exception("Survey is not defined so no answer keys are available.")
+        
         answer_keys = self._data_type_to_keys["answer"]
         answer_keys = {k for k in answer_keys if "_comment" not in k}
         questions_text = [
@@ -228,10 +245,28 @@ class Results(UserList, Mixins, Base):
 
     @property
     def agents(self) -> list[Agent]:
+        """Return a list of all of the agents in the Results.
+        
+        Example:
+        
+        >>> r = Results.example()
+        >>> r.agents
+        [Agent(traits = {'status': 'Joyful'}), Agent(traits = {'status': 'Joyful'}), Agent(traits = {'status': 'Sad'}), Agent(traits = {'status': 'Sad'})]
+
+        """
         return [r.agent for r in self.data]
 
     @property
     def models(self) -> list[Type[LanguageModel]]:
+        """Return a list of all of the models in the Results.
+        
+        Example:
+
+        >>> r = Results.example()
+        >>> r.models[0]
+        LanguageModelOpenAIFour(model = 'gpt-4-1106-preview', parameters={'temperature': 0.5, 'max_tokens': 1000, 'top_p': 1, 'frequency_penalty': 0, 'presence_penalty': 0, 'use_cache': True})
+        
+        """
         return [r.model for r in self.data]
 
     @property
@@ -260,14 +295,29 @@ class Results(UserList, Mixins, Base):
 
     @property
     def question_names(self) -> list[str]:
-        """Return a list of all of the question names"""
+        """Return a list of all of the question names.
+        
+        Example:
+
+        >>> r = Results.example()
+        >>> r.question_names
+        ['how_feeling', 'how_feeling_yesterday']
+
+        """
         if self.survey is None:
             return []
         return list(self.survey.question_names)
 
     @property
     def all_keys(self) -> set[str]:
-        """Returns a set of all of the keys that are in the Results."""
+        """Returns a set of all of the keys that are in the Results.
+        
+        Example:
+
+        >>> r = Results.example()
+        >>> r.all_keys
+        {'agent.agent_name', 'agent.status', 'answer.how_feeling', 'answer.how_feeling_comment', 'answer.how_feeling_yesterday', 'answer.how_feeling_yesterday_comment', 'iteration.iteration', 'model.frequency_penalty', 'model.max_tokens', 'model.model', 'model.presence_penalty', 'model.temperature', 'model.top_p', 'model.use_cache', 'prompt.how_feeling_system_prompt', 'prompt.how_feeling_user_prompt', 'prompt.how_feeling_yesterday_system_prompt', 'prompt.how_feeling_yesterday_user_prompt', 'raw_model_response.how_feeling_raw_model_response', 'raw_model_response.how_feeling_yesterday_raw_model_response', 'scenario.period'}      
+        """
         answer_keys = set(self.answer_keys)
         return (
             answer_keys.union(self.agent_keys)
@@ -276,7 +326,15 @@ class Results(UserList, Mixins, Base):
         )
 
     def relevant_columns(self) -> set[str]:
-        """Returns all of the columns that are in the results."""
+        """Return all of the columns that are in the Results.
+        
+        Example:
+
+        >>> r = Results.example()
+        >>> r.relevant_columns()
+        {'agent.agent_name', 'agent.status', 'answer.how_feeling', 'answer.how_feeling_comment', 'answer.how_feeling_yesterday', 'answer.how_feeling_yesterday_comment', 'iteration.iteration', 'model.frequency_penalty', 'model.max_tokens', 'model.model', 'model.presence_penalty', 'model.temperature', 'model.top_p', 'model.use_cache', 'prompt.how_feeling_system_prompt', 'prompt.how_feeling_user_prompt', 'prompt.how_feeling_yesterday_system_prompt', 'prompt.how_feeling_yesterday_user_prompt', 'raw_model_response.how_feeling_raw_model_response', 'raw_model_response.how_feeling_yesterday_raw_model_response', 'scenario.period'}
+        
+        """
         return set().union(
             *(observation.combined_dict.keys() for observation in self.data)
         )
@@ -306,18 +364,18 @@ class Results(UserList, Mixins, Base):
         """
         return self.data[0]
 
-    def mutate(self, new_var_string: str, functions_dict: dict = None) -> Results:
+    def mutate(self, new_var_string: str, functions_dict: Optional[dict] = None) -> Results:
         """
         Creates a value in the Results object as if has been asked as part of the survey.
 
         It splits the new_var_string at the "=" and uses simple_eval
 
-        :param new_var_string: A string that is a valid Python expression, e.g. "how_feeling_x = how_feeling + 'x'"
+        :param new_var_string: A string that is a valid Python expression.
         :param functions_dict: A dictionary of functions that can be used in the expression. The keys are the function names and the values are the functions themselves.
 
         Example:
 
-        >>> r = Results.create_example()
+        >>> r = Results.example()
         >>> r.mutate('how_feeling_x = how_feeling + "x"').select('how_feeling_x')
         [{'answer.how_feeling_x': ['Badx', 'Badx', 'Greatx', 'Greatx']}]
         """
@@ -426,12 +484,44 @@ class Results(UserList, Mixins, Base):
 
         return Dataset(new_data)
 
-    def sort_by(self, column, reverse: bool=True) -> Results:
+    def sort_by(self, column, reverse: bool=False) -> Results:
         """Sort the results by a column.
+
         :param column: A string that is a column name. 
         :param reverse: A boolean that determines whether to sort in reverse order.
 
         The column name can be a single key, e.g. "how_feeling", or a dot-separated string, e.g. "answer.how_feeling".
+        
+        Example:
+
+        >>> r = Results.example()
+        >>> r.sort_by('how_feeling', reverse = False).select('how_feeling').print()
+        ┏━━━━━━━━━━━━━━┓
+        ┃ answer       ┃
+        ┃ .how_feeling ┃
+        ┡━━━━━━━━━━━━━━┩
+        │ Great        │
+        ├──────────────┤
+        │ OK           │
+        ├──────────────┤
+        │ OK           │
+        ├──────────────┤
+        │ Terrible     │
+        └──────────────┘
+        >>> r.sort_by('how_feeling', reverse = True).select('how_feeling').print()
+        ┏━━━━━━━━━━━━━━┓
+        ┃ answer       ┃
+        ┃ .how_feeling ┃
+        ┡━━━━━━━━━━━━━━┩
+        │ Terrible     │
+        ├──────────────┤
+        │ OK           │
+        ├──────────────┤
+        │ OK           │
+        ├──────────────┤
+        │ Great        │
+        └──────────────┘
+
         """
 
         data_type, key = self._parse_column(column)
@@ -460,12 +550,26 @@ class Results(UserList, Mixins, Base):
 
         Example usage: Create an example `Results` instance and apply filters to it:
 
-        >>> r = Results.create_example()
-        >>> r.filter("how_feeling == 'Great'").select('how_feeling')
-        [{'answer.how_feeling': ['Great', 'Great']}]
+        >>> r = Results.example()
+        >>> r.filter("how_feeling == 'Great'").select('how_feeling').print()
+        ┏━━━━━━━━━━━━━━┓
+        ┃ answer       ┃
+        ┃ .how_feeling ┃
+        ┡━━━━━━━━━━━━━━┩
+        │ Great        │
+        └──────────────┘
 
-        >>> r.filter("how_feeling == 'Nothing'").select('how_feeling')
-        [{'answer.how_feeling': []}]
+        Example usage: Using an OR operator in the filter expression.
+        
+        >>> r.filter("how_feeling == 'Great' or how_feeling == 'Terrible'").select('how_feeling').print()
+        ┏━━━━━━━━━━━━━━┓
+        ┃ answer       ┃
+        ┃ .how_feeling ┃
+        ┡━━━━━━━━━━━━━━┩
+        │ Great        │
+        ├──────────────┤
+        │ Terrible     │
+        └──────────────┘        
         """
 
         def create_evaluator(result):
@@ -489,9 +593,12 @@ class Results(UserList, Mixins, Base):
 
     @classmethod
     def example(cls, debug: bool = False) -> Results:
-        """
-        Returns an example `Results` object.
+        """Return an example `Results` object.
 
+        Example usage:
+        
+        >>> r = Results.example()
+       
         :param debug: if False, uses actual API calls
         """
         from edsl.jobs import Jobs
@@ -529,6 +636,6 @@ if __name__ == "__main__":
 
     r = Results.example()
     # db_row = list(r[0].rows(1))
-    db_rows = list(r.rows())
+    db_rows = list(r._rows())
 
     print(r.columns)
