@@ -1,4 +1,4 @@
-"""This module contains the `ScenarioList` class, which is used to create a list of scenarios to be used in a survey."""
+"""A list of Scenarios to be used in a survey."""
 from __future__ import annotations
 from collections import UserList
 from typing import Optional, Union

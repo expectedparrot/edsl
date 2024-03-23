@@ -3,34 +3,47 @@
 Agents
 ======
 
-.. Agents, represented by `Agent` class, are the basic building blocks of the EDSL. 
-.. They are the entities that stand-in for humans.
-
-Agent class
------------
-
 .. automodule:: edsl.agents.Agent
-   :members:
-   :undoc-members:
-   :show-inheritance:
+   :noindex:
 
+.. automethod:: Agent.__init__
+
+.. automethod:: Agent.default_instruction
+
+.. automethod:: Agent.example
+
+.. automethod:: Agent.from_dict
+
+.. automethod:: Agent.instruction
+
+.. automethod:: Agent.name
+
+.. automethod:: Agent.rich_print
+
+.. automethod:: Agent.to_dict
 
 AgentList class
 ---------------
 
-They can also be grouped together in an `AgentList` 
-
 .. automodule:: edsl.agents.AgentList
-   :members:
-   :undoc-members:
-   :show-inheritance:
+   :noindex:
 
-Invigilator class
------------------
+.. automethod:: AgentList.__init__
 
-The administration of Questions is managed by an `Invigilator`.
+.. automethod:: AgentList.example
 
-.. automodule:: edsl.agents.Invigilator
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. automethod:: AgentList.from_dict
+
+.. automethod:: AgentList.rich_print
+
+.. automethod:: AgentList.to_dict
+
+.. Invigilator class
+.. -----------------
+
+.. The administration of Questions is managed by an `Invigilator`.
+
+.. .. automodule:: edsl.agents.Invigilator
+..    :members:
+..    :undoc-members:
+..    :show-inheritance:
