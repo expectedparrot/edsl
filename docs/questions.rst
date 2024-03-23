@@ -1,7 +1,6 @@
 Questions
 =========
 
-
 .. automodule:: edsl.questions.Question
    :members:
    :undoc-members:

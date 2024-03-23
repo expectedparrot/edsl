@@ -47,6 +47,9 @@ A survey is administered to all agents in the list together:
     results = survey.by(agents).run()
 
 See more details about surveys in the :ref:`surveys` module.
+
+Agent class methods
+-------------------
 """
 from __future__ import annotations
 import copy
