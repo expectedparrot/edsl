@@ -54,7 +54,7 @@ class QuestionExtractDataTuples(Question):
 
         return LocalQuestionData
 
-    def translate_answer_code_to_answer(self, answer, scenario=None):
+    def _translate_answer_code_to_answer(self, answer, scenario=None):
         """There is no answer code."""
         return answer
 
@@ -76,7 +76,7 @@ class QuestionExtractDataTuples(Question):
 
         return LocalAnswerDataModel
 
-    def simulate_answer(self):
+    def _simulate_answer(self):
         "Simulates a valid answer for debugging purposes (what the validator expects)"
         raise NotImplementedError
 
@@ -120,5 +120,5 @@ if __name__ == "__main__":
     print(results)
 
     # answer = {'answer': ["Ada", "Paul"]} #, 'comment': 'They are names that I found in the letters.'}
-    # print(q.validate_answer(answer))
+    # print(q._validate_answer(answer))
     # print(q.get_prompt())

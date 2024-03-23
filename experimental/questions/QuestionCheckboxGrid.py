@@ -53,7 +53,7 @@ class QuestionCheckboxGrid(Question):
         """
         )
 
-    def translate_answer_code_to_answer(self, answer_codes):
+    def _translate_answer_code_to_answer(self, answer_codes):
         """Translates the answer codes to the actual answers.
         For example, for a budget question with options ["a", "b", "c"],
         the answer codes are 0, 1, and 2. The LLM will respond with 0.
@@ -126,7 +126,7 @@ class QuestionCheckboxGrid(Question):
 
         return LocalAnswerDataModel
 
-    def simulate_answer(self):
+    def _simulate_answer(self):
         # Expand to allow multiple selections for checkbox (non-mc) case
         "Simulates a valid answer for debugging purposes (what the validator expects)"
         answers = []
@@ -149,9 +149,9 @@ if __name__ == "__main__":
     print(q.get_prompt())
     response = {"answer": [[0, 2], [3, 4, 7]], "comment": "OK"}
     print(response)
-    q.validate_response(response)
+    q._validate_response(response)
     response.pop("comment")
-    q.validate_answer(response)
+    q._validate_answer(response)
     print("This is a valid response.\n")
 
     print("Now checking a non-required question.")
@@ -164,9 +164,9 @@ if __name__ == "__main__":
     print(q.get_prompt())
     response = {"answer": [[], [3, 4, 7]], "comment": "OK"}
     print(response)
-    q.validate_response(response)
+    q._validate_response(response)
     response.pop("comment")
-    q.validate_answer(response)
+    q._validate_answer(response)
     print("This is a valid answer.\n")
 
     print("Now checking a required question.")
@@ -180,9 +180,9 @@ if __name__ == "__main__":
     try:
         response = {"answer": [[], [3, 4, 7]], "comment": "OK"}
         print(response)
-        q.validate_response(response)
+        q._validate_response(response)
         response.pop("comment")
-        q.validate_answer(response)
+        q._validate_answer(response)
     except QuestionAnswerValidationError:
         print("Caught bad answer.\n")
 
@@ -190,9 +190,9 @@ if __name__ == "__main__":
     try:
         response = {"answer": [["Mon"], ["Wed"]], "comment": "OK"}
         print(response)
-        q.validate_response(response)
+        q._validate_response(response)
         response.pop("comment")
-        q.validate_answer(response)
+        q._validate_answer(response)
     except QuestionAnswerValidationError:
         print("Caught bad answer.\n")
 
@@ -200,8 +200,8 @@ if __name__ == "__main__":
     try:
         response = {"answer": [[1], None], "comment": "OK"}
         print(response)
-        q.validate_response(response)
+        q._validate_response(response)
         response.pop("comment")
-        q.validate_answer(response)
+        q._validate_answer(response)
     except QuestionAnswerValidationError:
         print("Caught bad answer.\n")

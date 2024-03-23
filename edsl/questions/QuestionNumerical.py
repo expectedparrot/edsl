@@ -62,20 +62,20 @@ class QuestionNumerical(Question):
     ################
     # Answer methods
     ################
-    def validate_answer(
+    def _validate_answer(
         self, answer: dict[str, Any]
     ) -> dict[str, Union[str, float, int]]:
         """Validate the answer."""
-        self.validate_answer_template_basic(answer)
-        self.validate_answer_key_value_numeric(answer, "answer")
-        self.validate_answer_numerical(answer)
+        self._validate_answer_template_basic(answer)
+        self._validate_answer_key_value_numeric(answer, "answer")
+        self._validate_answer_numerical(answer)
         return answer
 
-    def translate_answer_code_to_answer(self, answer, scenario: Scenario = None):
+    def _translate_answer_code_to_answer(self, answer, scenario: Scenario = None):
         """There is no answer code."""
         return answer
 
-    def simulate_answer(self, human_readable: bool = True):
+    def _simulate_answer(self, human_readable: bool = True):
         """Simulate a valid answer for debugging purposes."""
         return {
             "answer": uniform(self.min_value, self.max_value),
@@ -105,13 +105,13 @@ def main():
     q.min_value
     q.max_value
     # validate an answer
-    q.validate_answer({"answer": 1, "comment": "I like custard"})
+    q._validate_answer({"answer": 1, "comment": "I like custard"})
     # translate answer code
-    q.translate_answer_code_to_answer(1)
+    q._translate_answer_code_to_answer(1)
     # simulate answer
-    q.simulate_answer()
-    q.simulate_answer(human_readable=False)
-    q.validate_answer(q.simulate_answer(human_readable=False))
+    q._simulate_answer()
+    q._simulate_answer(human_readable=False)
+    q._validate_answer(q._simulate_answer(human_readable=False))
     # serialization (inherits from Question)
     q.to_dict()
     assert q.from_dict(q.to_dict()) == q

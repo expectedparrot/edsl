@@ -160,30 +160,30 @@ def test_QuestionMultipleChoice_answers():
     llm_response_invalid1 = {"comment": "I'm good"}
 
     # LLM response is required to have an answer key, but is flexible otherwise
-    q.validate_response(llm_response_valid1)
-    q.validate_response(llm_response_valid2)
+    q._validate_response(llm_response_valid1)
+    q._validate_response(llm_response_valid2)
     with pytest.raises(QuestionResponseValidationError):
-        q.validate_response(llm_response_invalid1)
+        q._validate_response(llm_response_invalid1)
 
     # answer must be an integer or interpretable as integer
-    q.validate_answer({"answer": 0})
+    q._validate_answer({"answer": 0})
     # TODO: should the following three be allowed?
-    q.validate_answer({"answer": "0"})
-    q.validate_answer({"answer": True})
-    q.validate_answer({"answer": 0, "comment": "I'm good"})
+    q._validate_answer({"answer": "0"})
+    q._validate_answer({"answer": True})
+    q._validate_answer({"answer": 0, "comment": "I'm good"})
     # answer value required
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": None})
+        q._validate_answer({"answer": None})
     # answer must be in range of question_options
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": "2"})
+        q._validate_answer({"answer": "2"})
     # answer can't be a random string
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": "asdf"})
+        q._validate_answer({"answer": "asdf"})
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": [0, 1]})
+        q._validate_answer({"answer": [0, 1]})
     with pytest.raises(QuestionAnswerValidationError):
-        q.validate_answer({"answer": {"answer": 0}})
+        q._validate_answer({"answer": {"answer": 0}})
 
 
 def test_QuestionMultipleChoice_extras():
@@ -191,17 +191,17 @@ def test_QuestionMultipleChoice_extras():
     q = QuestionMultipleChoice(**valid_question)
     # instructions
     # translate answer code to answer
-    assert q.translate_answer_code_to_answer(0, scenario=None) == "OK"
-    assert q.translate_answer_code_to_answer(1, scenario=None) == "Bad"
+    assert q._translate_answer_code_to_answer(0, scenario=None) == "OK"
+    assert q._translate_answer_code_to_answer(1, scenario=None) == "Bad"
     with pytest.raises(IndexError):
-        q.translate_answer_code_to_answer(2, scenario=None)
+        q._translate_answer_code_to_answer(2, scenario=None)
 
-    # simulate_answer
-    assert q.simulate_answer().keys() == q.simulate_answer(human_readable=True).keys()
-    assert q.simulate_answer(human_readable=False)["answer"] in range(
+    # _simulate_answer
+    assert q._simulate_answer().keys() == q._simulate_answer(human_readable=True).keys()
+    assert q._simulate_answer(human_readable=False)["answer"] in range(
         len(q.question_options)
     )
-    simulated_answer = q.simulate_answer()
+    simulated_answer = q._simulate_answer()
     assert isinstance(simulated_answer, dict)
     assert "answer" in simulated_answer
     assert "comment" in simulated_answer

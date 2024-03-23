@@ -27,16 +27,16 @@ def test_meta():
     from edsl.questions import Question
 
     class ABCMixins:
-        def validate_answer(self, answer: dict[str, str]):
+        def _validate_answer(self, answer: dict[str, str]):
             pass
 
-        def validate_response(self, response):
+        def _validate_response(self, response):
             pass
 
-        def translate_answer_code_to_answer(self):
+        def _translate_answer_code_to_answer(self):
             pass
 
-        def simulate_answer(self, human_readable=True) -> dict:
+        def _simulate_answer(self, human_readable=True) -> dict:
             pass
 
     with pytest.raises(QuestionMissingTypeError):

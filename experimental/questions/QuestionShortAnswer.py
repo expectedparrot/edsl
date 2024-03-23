@@ -52,7 +52,7 @@ class QuestionShortAnswerEnhanced(Question):
         """
         )
 
-    def translate_answer_code_to_answer(self, answer, scenario=None):
+    def _translate_answer_code_to_answer(self, answer, scenario=None):
         """There is no answer code."""
         return answer
 
@@ -74,7 +74,7 @@ class QuestionShortAnswerEnhanced(Question):
 
         return LocalAnswerDataModel
 
-    def simulate_answer(self):
+    def _simulate_answer(self):
         "Simulates a valid answer for debugging purposes (what the validator expects)"
         return {"answer": random_string()}
 

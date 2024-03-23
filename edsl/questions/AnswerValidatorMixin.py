@@ -18,7 +18,7 @@ class AnswerValidatorMixin:
     #####################
     # TEMPLATE VALIDATION
     #####################
-    def validate_answer_template_basic(self, answer: Any) -> None:
+    def _validate_answer_template_basic(self, answer: Any) -> None:
         """Check that the answer (i) is a dictionary (ii) has an 'answer' key.
 
         - E.g., both {'answer': 1} and {'answer': {'a': 1}, 'other_key'=[1,2,3]} are valid
@@ -35,7 +35,7 @@ class AnswerValidatorMixin:
     #####################
     # VALUE VALIDATION
     #####################
-    def validate_answer_key_value(
+    def _validate_answer_key_value(
         self, answer: dict[str, Any], key: str, of_type: Type
     ) -> None:
         """Check that the value of a key is of the specified type."""
@@ -45,7 +45,7 @@ class AnswerValidatorMixin:
                 (got {answer.get(key)}) which is of type {type(answer.get(key))}."""
             )
 
-    def validate_answer_key_value_numeric(
+    def _validate_answer_key_value_numeric(
         self, answer: dict[str, Any], key: str
     ) -> None:
         """Check that the value of a key is numeric (int or float)."""
@@ -74,7 +74,7 @@ class AnswerValidatorMixin:
     #####################
     # QUESTION SPECIFIC VALIDATION
     #####################
-    def validate_answer_budget(self, answer: dict[str, Any]) -> None:
+    def _validate_answer_budget(self, answer: dict[str, Any]) -> None:
         """Validate QuestionBudget-specific answer.
         
         Check that answer["answer"]:
@@ -106,7 +106,7 @@ class AnswerValidatorMixin:
                 f"All but keys must be represented in the answer. Missing: {missing_keys}."
             )
 
-    def validate_answer_checkbox(self, answer: dict[str, Union[str, int]]) -> None:
+    def _validate_answer_checkbox(self, answer: dict[str, Union[str, int]]) -> None:
         """Validate QuestionCheckbox-specific answer.
     
         Check that answer["answer"]:
@@ -137,7 +137,7 @@ class AnswerValidatorMixin:
                 f"Answer {answer_codes} has more than {self.max_selections} options selected."
             )
 
-    def validate_answer_extract(self, answer: dict[str, Any]) -> None:
+    def _validate_answer_extract(self, answer: dict[str, Any]) -> None:
         """Validate QuestionExtract-specific answer.
         
         Check that answer["answer"]:
@@ -155,7 +155,7 @@ class AnswerValidatorMixin:
                 f"Answer must have all keys in {acceptable_answer_keys}, but got {value.keys()}."
             )
 
-    def validate_answer_list(self, answer: dict[str, Union[list, str]]) -> None:
+    def _validate_answer_list(self, answer: dict[str, Union[list, str]]) -> None:
         """Validate QuestionList-specific answer.
          
         Check that answer["answer"]:
@@ -183,7 +183,7 @@ class AnswerValidatorMixin:
                 f"Answer cannot contain empty strings, but got {value}."
             )
 
-    def validate_answer_numerical(self, answer: dict) -> None:
+    def _validate_answer_numerical(self, answer: dict) -> None:
         """Validate QuestionNumerical-specific answer.
         
         Check that answer["answer"]:
@@ -201,7 +201,7 @@ class AnswerValidatorMixin:
             )
         return value
 
-    def validate_answer_multiple_choice(
+    def _validate_answer_multiple_choice(
         self, answer: dict[str, Union[str, int]]
     ) -> None:
         """Validate QuestionMultipleChoice-specific answer.
@@ -226,7 +226,7 @@ class AnswerValidatorMixin:
                 f"Answer code {value} must be in {list(range(len(self.question_options)))}."
             )
 
-    def validate_answer_rank(self, answer: dict[str, Union[str, int]]) -> None:
+    def _validate_answer_rank(self, answer: dict[str, Union[str, int]]) -> None:
         """Validate QuestionRank-specific answer.
         
         Check that answer["answer"]:

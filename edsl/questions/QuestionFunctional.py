@@ -43,7 +43,7 @@ class QuestionFunctional(Question):
         self.question_text = question_text
         self.instructions = self.default_instructions
 
-    def validate_answer(self, answer: dict[str, str]):
+    def _validate_answer(self, answer: dict[str, str]):
         """Required by Question, but not used by QuestionFunctional."""
         raise NotImplementedError
 
@@ -51,11 +51,11 @@ class QuestionFunctional(Question):
         """Return the answer to the question."""
         return {"answer": self.func(scenario, agent_traits), "comment": None}
 
-    def translate_answer_code_to_answer(self, answer, scenario):
+    def _translate_answer_code_to_answer(self, answer, scenario):
         """Required by Question, but not used by QuestionFunctional."""
         return None
 
-    def simulate_answer(self, human_readable=True) -> dict[str, str]:
+    def _simulate_answer(self, human_readable=True) -> dict[str, str]:
         """Required by Question, but not used by QuestionFunctional."""
         raise NotImplementedError
 
