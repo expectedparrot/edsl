@@ -83,6 +83,52 @@ class ResultsExportMixin:
         :param format: The format to print the results in. Options are 'rich', 'html', or 'markdown'.
         :param interactive: Whether to print the results interactively in a Jupyter notebook.
         :param split_at_dot: Whether to split the column names at the last dot w/ a newline.
+
+        Example: Print in rich format at the terminal
+        
+        >>> from edsl.results import Results
+        >>> r = Results.example()
+        >>> r.print()
+        >>> r.select('how_feeling').print()
+        ┏━━━━━━━━━━━━━━┓
+        ┃ answer       ┃
+        ┃ .how_feeling ┃
+        ┡━━━━━━━━━━━━━━┩
+        │ OK           │
+        ├──────────────┤
+        │ Great        │
+        ├──────────────┤
+        │ Terrible     │
+        ├──────────────┤
+        │ OK           │
+        └──────────────┘
+
+        Example: using the pretty_labels parameter
+        
+        >>> r.select('how_feeling').print(pretty_labels = {'answer.how_feeling': "How you are feeling"})
+        ┏━━━━━━━━━━━━━━━━━━━━━┓
+        ┃ How you are feeling ┃
+        ┡━━━━━━━━━━━━━━━━━━━━━┩
+        │ OK                  │
+        ├─────────────────────┤
+        │ Great               │
+        ├─────────────────────┤
+        │ Terrible            │
+        ├─────────────────────┤
+        │ OK                  │
+        └─────────────────────┘
+
+        Example: printing in markdown format
+        
+        >>> r.select('how_feeling').print(format='markdown')
+        | answer.how_feeling |
+        |--|
+        | OK |
+        | Great |
+        | Terrible |
+        | OK |
+
+
         """
         if pretty_labels is None:
             pretty_labels = {}
@@ -151,6 +197,13 @@ class ResultsExportMixin:
         
         :param remove_prefix: Whether to remove the prefix from the column names.
 
+        >>> r.select('how_feeling').to_pandas()
+        answer.how_feeling
+        0                 OK
+        1              Great
+        2           Terrible
+        3                 OK
+
         """
         csv_string = self.to_csv(remove_prefix=remove_prefix)
         csv_buffer = io.StringIO(csv_string)
@@ -164,6 +217,12 @@ class ResultsExportMixin:
         """Convert the results to a list of dictionaries.
         
         :param remove_prefix: Whether to remove the prefix from the column names.
+
+        >>> from edsl.results import Results
+        >>> r = Results.example()
+        >>> r.select('how_feeling').to_dicts()
+        [{'answer.how_feeling': 'OK'}, {'answer.how_feeling': 'Great'}, {'answer.how_feeling': 'Terrible'}, {'answer.how_feeling': 'OK'}]
+
         """
         df = self.to_pandas(remove_prefix=remove_prefix)
         df = df.convert_dtypes()
@@ -178,6 +237,11 @@ class ResultsExportMixin:
     @_convert_decorator
     def to_list(self) -> list[list]:
         """Convert the results to a list of lists.
+
+        >>> from edsl.results import Results
+        >>> r = Results.example()
+        >>> r.select('how_feeling').to_list()
+        ['OK', 'Great', 'Terrible', 'OK']
         """
         if len(self) == 1:
             return list(self[0].values())[0]

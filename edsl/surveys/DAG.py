@@ -15,11 +15,15 @@ class DAG(UserDict):
         """
         Create a reverse mapping of the DAG, where the keys are the children and the values are the parents.
 
-        Example:
-        >>> data = {"a": ["b", "c"], "b": ["d"], "c": [], "d": []}
-        >>> dag = DAG(data)
-        >>> dag._create_reverse_mapping()
-        {'b': {'a'}, 'c': {'a'}, 'd': {'b'}}
+        Example usage:
+
+        .. code-block:: python
+
+            data = {"a": ["b", "c"], "b": ["d"], "c": [], "d": []}
+            dag = DAG(data)
+            dag._create_reverse_mapping()
+            {'b': {'a'}, 'c': {'a'}, 'd': {'b'}}
+
         """
         rev_map = {}
         for key, values in self.items():
@@ -44,11 +48,15 @@ class DAG(UserDict):
         """
         Return a sequence of the DAG.
 
-        Example:
-        >>> data = {"a": ["b", "c"], "b": ["d"], "c": [], "d": []}
-        >>> dag = DAG(data)
-        >>> dag.topologically_sorted_nodes() == ['c', 'd', 'b', 'a']
-        True
+        Example usage:
+        
+        .. code-block:: python
+
+            data = {"a": ["b", "c"], "b": ["d"], "c": [], "d": []}
+            dag = DAG(data)
+            dag.topologically_sorted_nodes() == ['c', 'd', 'b', 'a']
+            True
+            
         """
         return list(TopologicalSorter(self).static_order())
 
