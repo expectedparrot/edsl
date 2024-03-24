@@ -2,147 +2,37 @@
 from abc import ABC, abstractmethod
 import asyncio
 import json
-from typing import Coroutine, Dict, Any
+from typing import Coroutine, Dict, Any, Optional
 
 from edsl.exceptions import AgentRespondedWithBadJSONError
 from edsl.prompts.Prompt import Prompt
 from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
-from edsl.prompts.registry import get_classes
+from edsl.prompts.registry import get_classes as prompt_lookup
 from edsl.exceptions import QuestionScenarioRenderError
 from edsl.data_transfer_models import AgentResponseDict
 from edsl.exceptions.agents import FailedTaskException
+from edsl.agents.PromptConstructionMixin import PromptConstructorMixin
 
+from edsl.agents.InvigilatorBase import InvigilatorBase
 
-class InvigilatorBase(ABC):
-    """An invigiator (someone who administers an exam) is a class that is responsible for administering a question to an agent."""
-
-    def __init__(
-        self,
-        agent,
-        question,
-        scenario,
-        model,
-        memory_plan,
-        current_answers: dict,
-        iteration: int = 1,
-    ):
-        """Initialize a new Invigilator."""
-        self.agent = agent
-        self.question = question
-        self.scenario = scenario
-        self.model = model
-        self.memory_plan = memory_plan
-        self.current_answers = current_answers
-        self.iteration = iteration
-
-    def get_failed_task_result(self) -> AgentResponseDict:
-        """Return an AgentResponseDict used in case the question-askinf fails."""
-        return AgentResponseDict(
-            answer=None,
-            comment="Failed to get response",
-            question_name=self.question.question_name,
-            prompts=self.get_prompts(),
-        )
-
-    def get_prompts(self) -> Dict[str, Prompt]:
-        """Return the prompt used."""
-        return {
-            "user_prompt": Prompt("NA").text,
-            "system_prompt": Prompt("NA").text,
-        }
-
-    @classmethod
-    def example(cls):
-        """Return an example invigilator."""
-        from edsl.agents.Agent import Agent
-        from edsl.questions import QuestionMultipleChoice
-        from edsl.scenarios.Scenario import Scenario
-        from edsl.language_models import LanguageModel
-
-        from edsl.enums import LanguageModelType, InferenceServiceType
-
-        class TestLanguageModelGood(LanguageModel):
-            """A test language model."""
-
-            _model_ = LanguageModelType.TEST.value
-            _parameters_ = {"temperature": 0.5}
-            _inference_service_ = InferenceServiceType.TEST.value
-
-            async def async_execute_model_call(
-                self, user_prompt: str, system_prompt: str
-            ) -> dict[str, Any]:
-                await asyncio.sleep(0.1)
-                return {"message": """{"answer": "SPAM!"}"""}
-                """Return a response from the model."""
-
-            def parse_response(self, raw_response: dict[str, Any]) -> str:
-                """Parse the response from the model."""
-                return raw_response["message"]
-
-        model = TestLanguageModelGood()
-        agent = Agent.example()
-        question = QuestionMultipleChoice.example()
-        scenario = Scenario.example()
-        #        model = LanguageModel.example()
-        memory_plan = None
-        current_answers = None
-        return cls(
-            agent=agent,
-            question=question,
-            scenario=scenario,
-            model=model,
-            memory_plan=memory_plan,
-            current_answers=current_answers,
-        )
-
-    @abstractmethod
-    async def async_answer_question(self):
-        """Asnwer a question."""
-        pass
-
-    @jupyter_nb_handler
-    def answer_question(self) -> Coroutine:
-        """Return a function that gets the answers to the question."""
-
-        async def main():
-            """Return the answer to the question."""
-            results = await asyncio.gather(self.async_answer_question())
-            return results[0]  # Since there's only one task, return its result
-
-        return main()
-
-    def create_memory_prompt(self, question_name):
-        """Create a memory for the agent."""
-        return self.memory_plan.get_memory_prompt_fragment(
-            question_name, self.current_answers
-        )
-
-
-class InvigilatorAI(InvigilatorBase):
+class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
     """An invigilator that uses an AI model to answer questions."""
 
-    async def async_answer_question(self, failed=False) -> AgentResponseDict:
-        """Answer a question using the AI model."""
+    async def async_answer_question(self, failed:bool=False) -> AgentResponseDict:
+        """Answer a question using the AI model.
+        """
+        params = self.get_prompts() | {"iteration": self.iteration}
+        raw_response = await self.async_get_response(**params)
+        assert "raw_model_response" in raw_response
         data = {
             "agent": self.agent,
             "question": self.question,
             "scenario": self.scenario,
         }
-        # This calls the self.async_get_response method w/ the prompts
-        # The raw response is a dictionary.
-        raw_response = await self.async_get_response(
-            **(self.get_prompts() | {"iteration": self.iteration})
-        )
-        assert "raw_model_response" in raw_response
-        response = self._format_raw_response(
-            **(
-                data
-                | {
-                    "raw_response": raw_response,
-                    "raw_model_response": raw_response["raw_model_response"],
-                }
-            )
-        )
+        raw_response_data = {"raw_response": raw_response,
+                             "raw_model_response": raw_response["raw_model_response"]}   
+        params = data | raw_response_data
+        response = self._format_raw_response(**params)
         return AgentResponseDict(**response)
 
     async def async_get_response(
@@ -188,94 +78,7 @@ class InvigilatorAI(InvigilatorBase):
         return AgentResponseDict(**data)
 
     get_response = sync_wrapper(async_get_response)
-
-    def construct_system_prompt(self) -> Prompt:
-        """Construct the system prompt for the LLM call."""
-        # TODO: Rename the terribly named 'get_classes'
-        applicable_prompts = get_classes(
-            component_type="agent_instructions",
-            model=self.model.model,
-        )
-        if len(applicable_prompts) == 0:
-            raise Exception("No applicable prompts found")
-
-        agent_instructions = applicable_prompts[0](text=self.agent.instruction)
-
-        if not hasattr(self.agent, "agent_persona"):
-            applicable_prompts = get_classes(
-                component_type="agent_persona",
-                model=self.model.model,
-            )
-            persona_prompt_template = applicable_prompts[0]()
-        else:
-            persona_prompt_template = self.agent.agent_persona
-
-        if undefined := persona_prompt_template.undefined_template_variables(
-            self.agent.traits
-            | {"traits": self.agent.traits}
-            | {"codebook": self.agent.codebook}
-            | {"traits": self.agent.traits}
-        ):
-            raise QuestionScenarioRenderError(
-                f"Agent persona still has variables that were not rendered: {undefined}"
-            )
-
-        persona_prompt = persona_prompt_template.render(
-            self.agent.traits | {"traits": self.agent.traits},
-            codebook=self.agent.codebook,
-            traits=self.agent.traits,
-        )
-
-        if persona_prompt.has_variables:
-            raise QuestionScenarioRenderError(
-                "Agent persona still has variables that were not rendered."
-            )
-
-        return (
-            agent_instructions
-            + " " * int(len(persona_prompt.text) > 0)
-            + persona_prompt
-        )
-
-    def get_question_instructions(self) -> Prompt:
-        """Get the instructions for the question."""
-        applicable_prompts = get_classes(
-            component_type="question_instructions",
-            question_type=self.question.question_type,
-            model=self.model.model,
-        )
-        ## Get the question instructions and renders with the scenario & question.data
-        question_prompt = applicable_prompts[0]()
-
-        undefined_template_variables = question_prompt.undefined_template_variables(
-            self.question.data | self.scenario
-        )
-        if undefined_template_variables:
-            print(undefined_template_variables)
-            raise QuestionScenarioRenderError(
-                "Question instructions still has variables."
-            )
-
-        return question_prompt.render(self.question.data | self.scenario)
-
-    def construct_user_prompt(self) -> Prompt:
-        """Construct the user prompt for the LLM call."""
-        user_prompt = self.get_question_instructions()
-        if self.memory_plan is not None:
-            user_prompt += self.create_memory_prompt(self.question.question_name)
-        return user_prompt
-
-    def get_prompts(self) -> Dict[str, Prompt]:
-        """Get both prompts for the LLM call."""
-        system_prompt = self.construct_system_prompt()
-        user_prompt = self.construct_user_prompt()
-        return {
-            "user_prompt": user_prompt,
-            "system_prompt": system_prompt,
-        }
-
     answer_question = sync_wrapper(async_answer_question)
-
 
 class InvigilatorDebug(InvigilatorBase):
     """An invigilator class for debugging purposes."""
