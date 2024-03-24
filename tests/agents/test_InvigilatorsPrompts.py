@@ -52,7 +52,7 @@ def test_invigilator_ai_no_trait_template(mock_model, mock_question):
         instruction="You are a happy-go lucky agent.",
         traits={"feeling": "happy", "age": "Young at heart"},
         codebook={"feeling": "Feelings right now", "age": "Age in years"},
-        trait_presentation_template="",
+        traits_presentation_template="",
     )
 
     i = InvigilatorAI(
@@ -72,7 +72,7 @@ def test_invigilator_ai_with_trait_template(mock_model, mock_question):
         instruction="You are a happy-go lucky agent.",
         traits={"feeling": "happy", "age": "Young at heart"},
         codebook={"feeling": "Feelings right now", "age": "Age in years"},
-        trait_presentation_template="You are feeling {{ feeling }}.",
+        traits_presentation_template="You are feeling {{ feeling }}.",
     )
 
     i = InvigilatorAI(
@@ -95,7 +95,7 @@ def test_invigilator_ai_with_incomplete_trait_template(mock_model, mock_question
         instruction="You are a happy-go lucky agent.",
         traits={"feeling": "happy", "age": "Young at heart"},
         codebook={"feeling": "Feelings right now", "age": "Age in years"},
-        trait_presentation_template="You are feeling {{ feeling }}. You eat lots of {{ food }}.",
+        traits_presentation_template="You are feeling {{ feeling }}. You eat lots of {{ food }}.",
     )
 
     i = InvigilatorAI(

@@ -4,6 +4,13 @@ Agents
 ======
 
 .. automodule:: edsl.agents.Agent
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :special-members: __init__
+   :exclude-members: codebook, default_instruction, instruction, name, rich_print, data
+
+.. automodule:: edsl.agents.Agent
    :noindex:
 
 .. automethod:: Agent.__init__
