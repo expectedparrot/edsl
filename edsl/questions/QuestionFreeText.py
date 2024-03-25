@@ -1,4 +1,5 @@
 """A subclass of the `Question` class for creating free response questions.
+
 Example usage:
 
 .. code-block:: python
@@ -20,14 +21,13 @@ An example can also be created using the `example` method:
 from __future__ import annotations
 import textwrap
 from typing import Any, Optional
-from edsl.questions import Question
+from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.descriptors import AllowNonresponseDescriptor
 from edsl.scenarios import Scenario
 from edsl.utilities import random_string
 
-
 # TODO: should allow answer = {"answer": None} if allow_nonresponse is True
-class QuestionFreeText(Question):
+class QuestionFreeText(QuestionBase):
     """This question prompts the agent to respond with unstructured text."""
 
     question_type = "free_text"

@@ -3,9 +3,8 @@ from edsl.exceptions import (
     QuestionAnswerValidationError,
     QuestionCreationValidationError,
 )
-from edsl.questions import Question
+from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.derived.QuestionLinearScale import QuestionLinearScale, main
-
 
 def test_QuestionLinearScale_main():
     main()
@@ -99,7 +98,7 @@ def test_QuestionLinearScale_serialization():
     }
 
     # deserialization should return a QuestionLinearScaleEnhanced object
-    q_lazarus = Question.from_dict(q.to_dict())
+    q_lazarus = QuestionBase.from_dict(q.to_dict())
     assert isinstance(q_lazarus, QuestionLinearScale)
     assert type(q) == type(q_lazarus)
     assert repr(q) == repr(q_lazarus)
@@ -117,7 +116,7 @@ def test_QuestionLinearScale_serialization():
             }
         )
     with pytest.raises(QuestionCreationValidationError):
-        Question.from_dict(
+        QuestionBase.from_dict(
             {
                 "question_text": "On a scale from 1 to 5, how much do you like pizza?",
                 "question_options": [1, 2, 3, 4, 5],

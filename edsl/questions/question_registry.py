@@ -3,28 +3,29 @@ import textwrap
 
 from edsl.exceptions import QuestionSerializationError
 from edsl.exceptions import QuestionCreationValidationError
-from edsl.questions.Question import RegisterQuestionsMeta
-
-# from edsl.questions.QuestionFreeText import QuestionFreeText
-# registry = RegisterQuestionsMeta.get_registered_classes()
-# q2c = RegisterQuestionsMeta.question_names_to_classes()
-
+from edsl.questions.QuestionBase import RegisterQuestionsMeta
 
 class Meta(type):
     """Metaclass for QuestionBase that provides a __repr__ method that lists all available questions."""
 
     def __repr__(cls):
         """Return a string that lists all available questions."""
-        lines = "\n".join(cls.available())
-        return textwrap.dedent(
-            f"""\
-        Available questions: 
-        {lines}        
-        """
-        )
+
+        s = textwrap.dedent("""
+        You can use the Question class to create objects by name. 
+        For example, to create a multiple choice question, you can do:
+
+        >>> from edsl import Question
+        >>> q = Question('multiple_choice', question_text='What is your favorite color?', question_name='color')
+        
+        Question Types:\n""")        
+        for question_type, question_class in cls.available(show_class_names=True).items():
+            line_info = f"{question_type} ({question_class.__name__}): {question_class.__doc__}"
+            s += line_info + "\n"
+        return s
 
 
-class QuestionBase(metaclass=Meta):
+class Question(metaclass=Meta):
     """Factory class for creating question objects."""
 
     def __new__(cls, question_type, *args, **kwargs):
@@ -43,9 +44,21 @@ class QuestionBase(metaclass=Meta):
         return instance
 
     @classmethod
-    def available(cls):
-        """Return a list of available question types."""
-        return list(RegisterQuestionsMeta.question_types_to_classes().keys())
+    def available(cls, show_class_names: bool = False):
+        """Return a list of available question types.
+
+        :param show_class_names: If True, return a dictionary of question types to class names. If False, return a set of question types.
+
+        Example usage:
+
+        >>> from edsl import Question
+        >>> Question.available()
+        {'top_k', 'likert_five', 'multiple_choice', 'linear_scale', 'yes_no', 'extract', 'numerical', 'budget', 'checkbox', 'list', 'free_text', 'functional', 'rank'}        
+        """
+        if show_class_names:
+            return RegisterQuestionsMeta.question_types_to_classes()
+        else:
+            return set(RegisterQuestionsMeta.question_types_to_classes().keys())
 
 
 def get_question_class(question_type):
@@ -58,31 +71,6 @@ def get_question_class(question_type):
     return q2c.get(question_type)
 
 
-# all question types must be registered here
-# the key is the question type
-# the value is a tuple of the module name and the class name
-# CLASS_REGISTRY = {
-#     "budget": ("edsl.questions.QuestionBudget", "QuestionBudget"),
-#     "checkbox": ("edsl.questions.QuestionCheckBox", "QuestionCheckBox"),
-#     "extract": ("edsl.questions.QuestionExtract", "QuestionExtract"),
-#     "free_text": ("edsl.questions.QuestionFreeText", "QuestionFreeText"),
-#     "functional": ("edsl.questions.QuestionFunctional", "QuestionFunctional"),
-#     "likert_five": ("edsl.questions.derived.QuestionLikertFive", "QuestionLikertFive"),
-#     "linear_scale": (
-#         "edsl.questions.derived.QuestionLinearScale",
-#         "QuestionLinearScale",
-#     ),
-#     "list": ("edsl.questions.QuestionList", "QuestionList"),
-#     "multiple_choice": (
-#         "edsl.questions.QuestionMultipleChoice",
-#         "QuestionMultipleChoice",
-#     ),
-#     "numerical": ("edsl.questions.QuestionNumerical", "QuestionNumerical"),
-#     "rank": ("edsl.questions.QuestionRank", "QuestionRank"),
-#     "top_k": ("edsl.questions.derived.QuestionTopK", "QuestionTopK"),
-#     "yes_no": ("edsl.questions.derived.QuestionYesNo", "QuestionYesNo"),
-# }
-
 question_purpose = {
     "multiple_choice": "When options are known and limited",
     "free_text": "When options are unknown or unlimited",
@@ -94,9 +82,9 @@ question_purpose = {
 
 
 if __name__ == "__main__":
-    print(QuestionBase.available())
+    print(Question.available())
 
-    q = QuestionBase(
+    q = Question(
         "free_text", question_text="How are you doing?", question_name="test"
     )
     results = q.run()

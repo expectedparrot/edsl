@@ -4,7 +4,8 @@ from edsl.exceptions import (
     QuestionAnswerValidationError,
     QuestionResponseValidationError,
 )
-from edsl.questions import Question, Settings
+from edsl.questions import Settings
+from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice, main
 
 
@@ -124,27 +125,27 @@ def test_QuestionMultipleChoice_serialization():
     }
 
     # deserialization should return a QuestionMultipleChoiceEnhanced object
-    q_lazarus = Question.from_dict(q.to_dict())
+    q_lazarus = QuestionBase.from_dict(q.to_dict())
     assert isinstance(q_lazarus, QuestionMultipleChoice)
     assert type(q) == type(q_lazarus)
     assert repr(q) == repr(q_lazarus)
 
     # serialization from bad data should raise an exception
     with pytest.raises(Exception):
-        Question.from_dict({"type": "multiple_choice"})
+        QuestionBase.from_dict({"type": "multiple_choice"})
     with pytest.raises(Exception):
-        Question.from_dict({"type": "multiple_choice", "question_text": 1})
+        QuestionBase.from_dict({"type": "multiple_choice", "question_text": 1})
     with pytest.raises(Exception):
-        Question.from_dict({"type": "multiple_choice", "question_text": ""})
+        QuestionBase.from_dict({"type": "multiple_choice", "question_text": ""})
     with pytest.raises(Exception):
-        Question.from_dict(
+        QuestionBase.from_dict(
             {
                 "type": "multiple_choice",
                 "question_text": "a" * (Settings.MAX_QUESTION_LENGTH + 1),
             }
         )
     with pytest.raises(Exception):
-        Question.from_dict(
+        QuestionBase.from_dict(
             {
                 "type": "multiple_choice",
                 "question_text": "How are you?",

@@ -2,7 +2,7 @@
 from edsl.questions.settings import Settings
 
 # Base Class
-from edsl.questions.Question import Question
+from edsl.questions.QuestionBase import QuestionBase
 
 # Core Questions
 from edsl.questions.QuestionBudget import QuestionBudget

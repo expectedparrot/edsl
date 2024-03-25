@@ -26,6 +26,11 @@ class MockQuestion:
         "question_type": "feelings_question",
     }
 
+    def get_instructions(self, model):
+        return Prompt(
+            text="You are a robot being asked the following question: How are you feeling? Return a valid JSON formatted like this: {'answer': '<put free text answer here>'}"
+        )
+
 
 # Assuming get_classes and InvigilatorAI are defined elsewhere in your codebase
 # from your_module import get_classes, InvigilatorAI
@@ -52,7 +57,7 @@ def test_invigilator_ai_no_trait_template(mock_model, mock_question):
         instruction="You are a happy-go lucky agent.",
         traits={"feeling": "happy", "age": "Young at heart"},
         codebook={"feeling": "Feelings right now", "age": "Age in years"},
-        trait_presentation_template="",
+        traits_presentation_template="",
     )
 
     i = InvigilatorAI(
@@ -72,7 +77,7 @@ def test_invigilator_ai_with_trait_template(mock_model, mock_question):
         instruction="You are a happy-go lucky agent.",
         traits={"feeling": "happy", "age": "Young at heart"},
         codebook={"feeling": "Feelings right now", "age": "Age in years"},
-        trait_presentation_template="You are feeling {{ feeling }}.",
+        traits_presentation_template="You are feeling {{ feeling }}.",
     )
 
     i = InvigilatorAI(
@@ -95,7 +100,7 @@ def test_invigilator_ai_with_incomplete_trait_template(mock_model, mock_question
         instruction="You are a happy-go lucky agent.",
         traits={"feeling": "happy", "age": "Young at heart"},
         codebook={"feeling": "Feelings right now", "age": "Age in years"},
-        trait_presentation_template="You are feeling {{ feeling }}. You eat lots of {{ food }}.",
+        traits_presentation_template="You are feeling {{ feeling }}. You eat lots of {{ food }}.",
     )
 
     i = InvigilatorAI(

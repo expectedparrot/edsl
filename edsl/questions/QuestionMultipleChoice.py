@@ -26,10 +26,10 @@ from jinja2 import Template
 
 from edsl.utilities import random_string
 from edsl.questions.descriptors import QuestionOptionsDescriptor
-from edsl.questions.Question import Question
+from edsl.questions.QuestionBase import QuestionBase
 from edsl.scenarios import Scenario
 
-class QuestionMultipleChoice(Question):
+class QuestionMultipleChoice(QuestionBase):
     """This question prompts the agent to select one option from a list of options."""
 
     question_type = "multiple_choice"
@@ -41,7 +41,7 @@ class QuestionMultipleChoice(Question):
         question_name: str,
         question_text: str,
         question_options: list[str],
-        short_names_dict: Optional[dict[str, str]] = None,
+        short_names_dict: Optional[dict[str, str]] = None
     ):
         """Instantiate a new QuestionMultipleChoice.
 
