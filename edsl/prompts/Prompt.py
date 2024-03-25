@@ -75,7 +75,7 @@ class PromptBase(
 
     @classmethod
     def prompt_attributes(cls) -> List[str]:
-        """Return the prompt attributes."""
+        """Return the prompt class attributes."""
         return {k:v for k, v in cls.__dict__.items() if not k.startswith("_")}
 
     def __init__(self, text:Optional[str] = None):
