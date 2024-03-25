@@ -19,10 +19,35 @@ api_url = {
 class Coop:
     """A client for the Expected Parrot API."""
 
+
     def __init__(self, api_key: str = None, run_mode: str = None) -> None:
         """Initialize the client."""
         self.api_key = api_key or CONFIG.EXPECTED_PARROT_API_KEY
         self.run_mode = run_mode or CONFIG.EDSL_RUN_MODE
+
+    def push(self, object, public):
+        if isinstance(object, QuestionBase):
+            return self.create_question(object, public)
+        elif isinstance(object, Survey):
+            return self.create_survey(object, public)
+        elif isinstance(object, Agent) or isinstance(object, AgentList):
+            return self.create_agent(object, public)
+        elif isinstance(object, Results):
+            return self.create_results(object, public)
+        else:
+            raise ValueError("Object type not recognized")
+        
+    def pull(self, cls, id):
+        if issubclass(cls, QuestionBase):
+            return self.get_question(id)
+        elif cls == Survey:
+            return self.get_survey(id)
+        elif cls == Agent or cls == AgentList:
+            return self.get_agent(id)
+        elif cls == Results:
+            return self.get_results(id)
+        else:
+            raise ValueError("Class type not recognized")
 
     def __repr__(self):
         """Return a string representation of the client."""
@@ -61,6 +86,32 @@ class Coop:
         """Check the response from the server and raises appropriate errors."""
         if response.status_code >= 400:
             raise Exception(response.json().get("detail"))
+   
+    def _create_edsl_object(self, edsl_object: Union[Type[QuestionBase], Type[Survey]], uri: str, public: bool = False) -> dict:
+        """
+        TODO: Re-factor all methods to use this method.
+        General method to create EDSL objects
+
+        - `edsl_object`: 
+        - `uri`: the API endpoint to send the request to.
+        - `public`: whether the object should be public (defaults to False).
+        """
+        response = self._send_server_request(
+            uri=uri,
+            method="POST",
+            payload={"json_string": json.dumps(edsl_object.to_dict()), "public": public},
+        )
+        self._resolve_server_response(response)
+        return response.json()
+    
+    def create_question(self, question: Type[QuestionBase], public: bool = False) -> dict:
+        """
+        Create a Question object.
+
+        - `question`: the EDSL Question to be sent.
+        - `public`: whether the question should be public (defaults to False)
+        """
+        return self._create_edsl_object(question, "api/v0/questions", public)
 
     # QUESTIONS METHODS
     def create_question(self, question: Type[QuestionBase], public: bool = False) -> dict:
@@ -197,7 +248,7 @@ class Coop:
         response = self._send_server_request(uri=f"api/v0/agents/{id}", method="DELETE")
         self._resolve_server_response(response)
         return response.json()
-
+    
     # RESULTS METHODS
     def create_results(self, results: Results, public: bool = False) -> dict:
         """

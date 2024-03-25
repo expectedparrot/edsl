@@ -10,13 +10,19 @@ class Meta(type):
 
     def __repr__(cls):
         """Return a string that lists all available questions."""
-        lines = "\n".join(cls.available())
-        return textwrap.dedent(
-            f"""\
-        Available questions: 
-        {lines}        
-        """
-        )
+
+        s = textwrap.dedent("""
+        You can use the Question class to create objects by name. 
+        For example, to create a multiple choice question, you can do:
+
+        >>> from edsl import Question
+        >>> q = Question('multiple_choice', question_text='What is your favorite color?', question_name='color')
+        
+        Question Types:\n""")        
+        for question_type, question_class in cls.available(show_class_names=True).items():
+            line_info = f"{question_type} ({question_class.__name__}): {question_class.__doc__}"
+            s += line_info + "\n"
+        return s
 
 
 class Question(metaclass=Meta):
@@ -38,9 +44,21 @@ class Question(metaclass=Meta):
         return instance
 
     @classmethod
-    def available(cls):
-        """Return a list of available question types."""
-        return list(RegisterQuestionsMeta.question_types_to_classes().keys())
+    def available(cls, show_class_names: bool = False):
+        """Return a list of available question types.
+
+        :param show_class_names: If True, return a dictionary of question types to class names. If False, return a set of question types.
+
+        Example usage:
+
+        >>> from edsl import Question
+        >>> Question.available()
+        {'top_k', 'likert_five', 'multiple_choice', 'linear_scale', 'yes_no', 'extract', 'numerical', 'budget', 'checkbox', 'list', 'free_text', 'functional', 'rank'}        
+        """
+        if show_class_names:
+            return RegisterQuestionsMeta.question_types_to_classes()
+        else:
+            return set(RegisterQuestionsMeta.question_types_to_classes().keys())
 
 
 def get_question_class(question_type):

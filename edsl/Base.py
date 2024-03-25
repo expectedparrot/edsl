@@ -41,6 +41,26 @@ class RichPrintingMixin:
 class PersistenceMixin:
     """Mixin for saving and loading objects to and from files."""
 
+    def push(self, public=False):
+        """Post the object to coop."""
+        from edsl.coop import Coop
+        c = Coop()
+        c.push(self, public)
+
+    @classmethod
+    def pull(cls, id):
+        """Pull the object from coop."""
+        from edsl.coop import Coop
+        c = Coop()
+        return c.pull(cls, id)
+    
+    @classmethod
+    def search(cls, query):
+        """Search for objects on coop."""
+        from edsl.coop import Coop
+        c = Coop()
+        return c.search(cls, query)
+
     def save(self, filename):
         """Save the object to a file as zippped JSON.
         
