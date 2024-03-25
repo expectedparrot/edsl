@@ -37,7 +37,7 @@ import random
 import textwrap
 from jinja2 import Template
 from typing import Any, Optional, Union
-from edsl.questions import Question
+from edsl.questions.QuestionBase import QuestionBase
 from edsl.exceptions import QuestionAnswerValidationError
 from edsl.scenarios import Scenario
 from edsl.utilities.utilities import random_string
@@ -47,7 +47,7 @@ from edsl.questions.descriptors import (
 )
 
 
-class QuestionRank(Question):
+class QuestionRank(QuestionBase):
     """This question prompts the agent to rank options from a list."""
 
     question_type = "rank"

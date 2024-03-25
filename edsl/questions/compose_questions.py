@@ -1,11 +1,12 @@
 """Compose two questions where the answer to q1 is used as an input to q2."""
-from edsl.questions import Question, QuestionFunctional
+from edsl.questions import QuestionFunctional
+from edsl.questions.QuestionBase import QuestionBase
 from edsl.agents import Agent
 from edsl.scenarios.Scenario import Scenario
 
 
 def compose_questions(
-    q1: Question, q2: Question, question_name: str = None
+    q1: QuestionBase, q2: QuestionBase, question_name: str = None
 ) -> QuestionFunctional:
     """
     Compose two questions where the answer to q1 is used as an input to q2.

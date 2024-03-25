@@ -3,7 +3,7 @@ import textwrap
 
 from edsl.exceptions import QuestionSerializationError
 from edsl.exceptions import QuestionCreationValidationError
-from edsl.questions.Question import RegisterQuestionsMeta
+from edsl.questions.QuestionBase import RegisterQuestionsMeta
 
 # from edsl.questions.QuestionFreeText import QuestionFreeText
 # registry = RegisterQuestionsMeta.get_registered_classes()
@@ -24,7 +24,7 @@ class Meta(type):
         )
 
 
-class QuestionBase(metaclass=Meta):
+class Question(metaclass=Meta):
     """Factory class for creating question objects."""
 
     def __new__(cls, question_type, *args, **kwargs):
@@ -94,9 +94,9 @@ question_purpose = {
 
 
 if __name__ == "__main__":
-    print(QuestionBase.available())
+    print(Question.available())
 
-    q = QuestionBase(
+    q = Question(
         "free_text", question_text="How are you doing?", question_name="test"
     )
     results = q.run()

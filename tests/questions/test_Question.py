@@ -24,7 +24,7 @@ valid_question_three = {
 
 
 def test_meta():
-    from edsl.questions import Question
+    from edsl.questions.QuestionBase import QuestionBase
 
     class ABCMixins:
         def _validate_answer(self, answer: dict[str, str]):
@@ -41,12 +41,12 @@ def test_meta():
 
     with pytest.raises(QuestionMissingTypeError):
 
-        class BadQuestion(ABCMixins, Question):
+        class BadQuestion(ABCMixins, QuestionBase):
             pass
 
     with pytest.raises(QuestionBadTypeError):
 
-        class BadQuestion(ABCMixins, Question):
+        class BadQuestion(ABCMixins, QuestionBase):
             question_type = "poop"
 
 

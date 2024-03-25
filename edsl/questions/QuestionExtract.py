@@ -21,16 +21,13 @@ An example can also be created using the `example` method:
 
 """
 from __future__ import annotations
-import re
-import json
 from typing import Any
-from edsl.questions import Question
+from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.descriptors import AnswerTemplateDescriptor
 from edsl.scenarios import Scenario
 from edsl.utilities import random_string
 
-
-class QuestionExtract(Question):
+class QuestionExtract(QuestionBase):
     """This question prompts the agent to extract information from a string and return it in a given template."""
 
     question_type = "extract"

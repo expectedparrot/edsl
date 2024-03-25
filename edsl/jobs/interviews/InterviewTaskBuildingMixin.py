@@ -7,7 +7,7 @@ from typing import Any, List, Generator
 
 from edsl import CONFIG
 from edsl.exceptions import InterviewTimeoutError
-from edsl.questions import Question
+from edsl.questions.QuestionBase import QuestionBase
 from edsl.data_transfer_models import AgentResponseDict
 
 from edsl.surveys.base import EndOfSurvey
@@ -73,7 +73,7 @@ class InterviewTaskBuildingMixin:
         return TasksList(tasks)  # , invigilators
 
     def _get_tasks_that_must_be_completed_before(
-        self, *, tasks: List[asyncio.Task], question: Question
+        self, *, tasks: List[asyncio.Task], question: QuestionBase
     ) -> Generator[asyncio.Task, None, None]:
         """Return the tasks that must be completed before the given question can be answered.
 
@@ -88,7 +88,7 @@ class InterviewTaskBuildingMixin:
     def _create_question_task(
         self,
         *,
-        question: Question,
+        question: QuestionBase,
         tasks_that_must_be_completed_before: List[asyncio.Task],
         model_buckets: ModelBuckets,
         debug: bool,
@@ -116,7 +116,7 @@ class InterviewTaskBuildingMixin:
         )  # track this task creator
         return task_creator.generate_task(debug)
     
-    def get_invigilator(self, question: Question, debug: bool) -> "Invigilator":
+    def get_invigilator(self, question: QuestionBase, debug: bool) -> "Invigilator":
         """Return an invigilator for the given question."""
         invigilator = self.agent.create_invigilator(
             question=question,
@@ -147,7 +147,7 @@ class InterviewTaskBuildingMixin:
     @retry_strategy
     async def _answer_question_and_record_task(
         self,
-        question: Question,
+        question: QuestionBase,
         debug: bool,
         task = None,
     ) -> AgentResponseDict:

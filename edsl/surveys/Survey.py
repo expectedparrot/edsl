@@ -161,7 +161,7 @@ from collections import UserDict
 
 from typing import Any, Generator, Optional, Union, List
 from edsl.exceptions import SurveyCreationError, SurveyHasNoRulesError
-from edsl.questions.Question import Question
+from edsl.questions.QuestionBase import QuestionBase
 from edsl.surveys.base import RulePriority, EndOfSurvey
 from edsl.surveys.Rule import Rule
 from edsl.surveys.RuleCollection import RuleCollection
@@ -207,7 +207,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
     def __init__(
         self,
-        questions: list[Question] = None,
+        questions: list[QuestionBase] = None,
         memory_plan: MemoryPlan = None,
         name: str = None,
         description: str = None,
@@ -229,7 +229,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         # print("WARNING: name is deprecated. Please use meta_data.name instead.")
         return self.meta_data.name
 
-    def get_question(self, question_name) -> Question:
+    def get_question(self, question_name) -> QuestionBase:
         """Return the question object given the question name."""
         if question_name not in self.question_name_to_index:
             raise KeyError(f"Question name {question_name} not found in survey.")
@@ -260,7 +260,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         return {q.question_name: i for i, q in enumerate(self.questions)}
 
     def add_question(
-        self, question: Question, question_name: Optional[str] = None
+        self, question: QuestionBase, question_name: Optional[str] = None
     ) -> Survey:
         """
         Add a question to survey.
@@ -323,7 +323,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
             )
 
     def add_targeted_memory(
-        self, focal_question: Union[Question, str], prior_question: Union[Question, str]
+        self, focal_question: Union[QuestionBase, str], prior_question: Union[QuestionBase, str]
     ) -> None:
         """Add instructions to a survey than when answering focal_question.
         
@@ -343,8 +343,8 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
     def add_memory_collection(
         self,
-        focal_question: Union[Question, str],
-        prior_questions: List[Union[Question, str]],
+        focal_question: Union[QuestionBase, str],
+        prior_questions: List[Union[QuestionBase, str]],
     ):
         """Add prior questions and responses so the agent has them when answering.
 
@@ -391,7 +391,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
             return self.question_name_to_index[question_name]
 
     def add_rule(
-        self, question: Question, expression: str, next_question: Question
+        self, question: QuestionBase, expression: str, next_question: QuestionBase
     ) -> Survey:
         """
         Add a rule to a Question of the Survey with the appropriate priority.
@@ -449,13 +449,13 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     ## Survey-Taking Methods
     ########################
 
-    def first_question(self) -> Question:
+    def first_question(self) -> QuestionBase:
         """Return the first question in the survey."""
         return self.questions[0]
 
     def next_question(
         self, current_question: "Question", answers: dict
-    ) -> Union[Question, EndOfSurvey.__class__]:
+    ) -> Union[QuestionBase, EndOfSurvey.__class__]:
         """
         Return the next question in a survey.
 
@@ -485,7 +485,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
             else:
                 return self.questions[next_question_object.next_q]
 
-    def gen_path_through_survey(self) -> Generator[Question, dict, None]:
+    def gen_path_through_survey(self) -> Generator[QuestionBase, dict, None]:
         """
         Generate a coroutine that can be used to conduct an Interview.
 
@@ -584,7 +584,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     @classmethod
     def from_dict(cls, data: dict) -> Survey:
         """Deserialize the dictionary back to a Survey object."""
-        questions = [Question.from_dict(q_dict) for q_dict in data["questions"]]
+        questions = [QuestionBase.from_dict(q_dict) for q_dict in data["questions"]]
         memory_plan = MemoryPlan.from_dict(data["memory_plan"])
         survey = cls(questions=questions, name=data["name"], memory_plan=memory_plan)
         survey.rule_collection = RuleCollection.from_dict(data["rule_collection"])

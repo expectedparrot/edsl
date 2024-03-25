@@ -3,7 +3,8 @@ from edsl.exceptions import (
     QuestionAnswerValidationError,
     QuestionResponseValidationError,
 )
-from edsl.questions import Question, Settings
+from edsl.questions import Settings
+from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.QuestionFreeText import QuestionFreeText, main
 
 
@@ -83,20 +84,20 @@ def test_QuestionFreeText_serialization():
     }
 
     # deserialization should return a QuestionFreeTextEnhanced object
-    q_lazarus = Question.from_dict(q.to_dict())
+    q_lazarus = QuestionBase.from_dict(q.to_dict())
     assert isinstance(q_lazarus, QuestionFreeText)
     assert type(q) == type(q_lazarus)
     assert repr(q) == repr(q_lazarus)
 
     # serialization from bad data should raise an exception
     with pytest.raises(Exception):
-        Question.from_dict({"type": "free_text"})
+        QuestionBase.from_dict({"type": "free_text"})
     with pytest.raises(Exception):
-        Question.from_dict({"type": "free_text", "question_text": 1})
+        QuestionBase.from_dict({"type": "free_text", "question_text": 1})
     with pytest.raises(Exception):
-        Question.from_dict({"type": "free_text", "question_text": ""})
+        QuestionBase.from_dict({"type": "free_text", "question_text": ""})
     with pytest.raises(Exception):
-        Question.from_dict({"question_text": "Yo??"})
+        QuestionBase.from_dict({"question_text": "Yo??"})
 
 
 def test_QuestionFreeText_answers():
