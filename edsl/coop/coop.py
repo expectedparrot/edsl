@@ -5,7 +5,7 @@ import requests
 from typing import Any, Optional, Type, Union
 from edsl import CONFIG
 from edsl.agents import Agent, AgentList
-from edsl.questions import Question
+from edsl.questions.QuestionBase import QuestionBase
 from edsl.results import Results
 from edsl.surveys import Survey
 
@@ -63,7 +63,7 @@ class Coop:
             raise Exception(response.json().get("detail"))
 
     # QUESTIONS METHODS
-    def create_question(self, question: Type[Question], public: bool = False) -> dict:
+    def create_question(self, question: Type[QuestionBase], public: bool = False) -> dict:
         """
         Create a Question object.
 
@@ -78,21 +78,21 @@ class Coop:
         self._resolve_server_response(response)
         return response.json()
 
-    def get_question(self, id: int) -> Type[Question]:
+    def get_question(self, id: int) -> Type[QuestionBase]:
         """Retrieve a Question object by id."""
         response = self._send_server_request(uri=f"api/v0/questions/{id}", method="GET")
         self._resolve_server_response(response)
-        return Question.from_dict(json.loads(response.json().get("json_string")))
+        return QuestionBase.from_dict(json.loads(response.json().get("json_string")))
 
     @property
-    def questions(self) -> list[dict[str, Union[int, Question]]]:
+    def questions(self) -> list[dict[str, Union[int, QuestionBase]]]:
         """Retrieve all Questions."""
         response = self._send_server_request(uri="api/v0/questions", method="GET")
         self._resolve_server_response(response)
         questions = [
             {
                 "id": q.get("id"),
-                "question": Question.from_dict(json.loads(q.get("json_string"))),
+                "question": QuestionBase.from_dict(json.loads(q.get("json_string"))),
             }
             for q in response.json()
         ]

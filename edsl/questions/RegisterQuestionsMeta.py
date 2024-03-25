@@ -12,7 +12,7 @@ class RegisterQuestionsMeta(ABCMeta):
     def __init__(cls, name, bases, dct):
         """Initialize the class and adds it to the registry if it's not the base class."""
         super(RegisterQuestionsMeta, cls).__init__(name, bases, dct)
-        if name != "Question":
+        if name != "QuestionBase":
             ## Enforce that all questions have a question_type class attribute
             ## and it comes from our enum of valid question types.
             if not hasattr(cls, "question_type"):

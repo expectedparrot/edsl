@@ -137,7 +137,7 @@ from edsl.questions.AnswerValidatorMixin import AnswerValidatorMixin
 from edsl.questions.RegisterQuestionsMeta import RegisterQuestionsMeta
 from edsl.Base import PersistenceMixin, RichPrintingMixin
 
-class Question(
+class QuestionBase(
     PersistenceMixin,
     RichPrintingMixin,
     ABC,
@@ -268,9 +268,9 @@ class Question(
         ]
         return f"{class_name}({', '.join(items)})"
 
-    def __eq__(self, other: Type[Question]) -> bool:
+    def __eq__(self, other: Type[QuestionBase]) -> bool:
         """Check if two questions are equal. Equality is defined as having the .to_dict()."""
-        if not isinstance(other, Question):
+        if not isinstance(other, QuestionBase):
             return False
         return self.to_dict() == other.to_dict()
 

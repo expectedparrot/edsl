@@ -3,7 +3,8 @@ from edsl.exceptions import (
     QuestionAnswerValidationError,
     QuestionResponseValidationError,
 )
-from edsl.questions import Question, Settings
+from edsl.questions import Settings
+from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.QuestionRank import QuestionRank, main
 
 
@@ -102,20 +103,20 @@ def test_QuestionRank_serialization():
     assert q.to_dict() == valid_question_w_type
 
     # deserialization should return a QuestionRankEnhanced object
-    q_lazarus = Question.from_dict(q.to_dict())
+    q_lazarus = QuestionBase.from_dict(q.to_dict())
     assert isinstance(q_lazarus, QuestionRank)
     assert type(q) == type(q_lazarus)
     assert repr(q) == repr(q_lazarus)
 
     # serialization from bad data should raise an exception
     with pytest.raises(Exception):
-        Question.from_dict({"question_type": "rank"})
+        QuestionBase.from_dict({"question_type": "rank"})
     with pytest.raises(Exception):
-        Question.from_dict({"question_type": "rank", "question_text": 1})
+        QuestionBase.from_dict({"question_type": "rank", "question_text": 1})
     with pytest.raises(Exception):
-        Question.from_dict({"question_type": "rank", "question_text": ""})
+        QuestionBase.from_dict({"question_type": "rank", "question_text": ""})
     with pytest.raises(Exception):
-        Question.from_dict(
+        QuestionBase.from_dict(
             {
                 "question_type": "list",
                 "question_text": "What are your 2 favorite foods in the list, ranked?",
@@ -125,7 +126,7 @@ def test_QuestionRank_serialization():
             }
         )
     with pytest.raises(Exception):
-        Question.from_dict(
+        QuestionBase.from_dict(
             {
                 "question_type": "list",
                 "question_text": "What are your 2 favorite foods in the list, ranked?",

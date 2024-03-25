@@ -33,13 +33,13 @@ import textwrap
 from random import uniform
 from typing import Any, Optional, Union
 from edsl.exceptions import QuestionAnswerValidationError
-from edsl.questions import Question
+from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.descriptors import NumericalOrNoneDescriptor
 from edsl.scenarios import Scenario
 from edsl.utilities import random_string
 
 
-class QuestionNumerical(Question):
+class QuestionNumerical(QuestionBase):
     """This question prompts the agent to answer with a numerical value."""
 
     question_type = "numerical"

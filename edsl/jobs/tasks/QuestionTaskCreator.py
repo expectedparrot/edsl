@@ -3,7 +3,7 @@ from typing import Callable, Union, List
 from collections import UserList
 
 from edsl.jobs.buckets import ModelBuckets
-from edsl.questions import Question
+from edsl.questions.QuestionBase import QuestionBase
 from edsl.exceptions import InterviewErrorPriorTaskCanceled
 from edsl.jobs.tokens.TokenUsage import TokenUsage
 
@@ -29,7 +29,7 @@ class QuestionTaskCreator(UserList):
     def __init__(
         self,
         *,
-        question: Question,
+        question: QuestionBase,
         answer_question_func: Callable,
         model_buckets: ModelBuckets,
         token_estimator: Union[Callable, None] = None,

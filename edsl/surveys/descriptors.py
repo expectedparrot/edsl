@@ -1,7 +1,7 @@
 """This module contains the descriptors for the classes in the edsl package."""
 from abc import ABC, abstractmethod
 from typing import Any
-from edsl.questions import Question
+from edsl.questions.QuestionBase import QuestionBase
 
 
 class BaseDescriptor(ABC):
@@ -37,7 +37,7 @@ class QuestionsDescriptor(BaseDescriptor):
         """Validate the value. If it is invalid, raise an exception. If it is valid, do nothing."""
         if not isinstance(value, list):
             raise TypeError("Questions must be a list.")
-        if not all(isinstance(question, Question) for question in value):
+        if not all(isinstance(question, QuestionBase) for question in value):
             raise TypeError("Questions must be a list of Question objects.")
         question_names = [question.question_name for question in value]
         if len(question_names) != len(set(question_names)):

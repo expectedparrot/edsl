@@ -31,7 +31,7 @@ from __future__ import annotations
 import random
 import textwrap
 from typing import Any, Optional, Union
-from edsl.questions import Question
+from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.descriptors import (
     AllowNonresponseDescriptor,
     IntegerOrNoneDescriptor,
@@ -40,7 +40,7 @@ from edsl.scenarios import Scenario
 from edsl.utilities import random_string
 
 
-class QuestionList(Question):
+class QuestionList(QuestionBase):
     """This question prompts the agent to answer by providing a list of items as comma-separated strings."""
 
     question_type = "list"

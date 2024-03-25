@@ -4,7 +4,8 @@ from edsl.exceptions import (
     QuestionAnswerValidationError,
     QuestionResponseValidationError,
 )
-from edsl.questions import Question, Settings
+from edsl.questions import Settings
+from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.QuestionList import QuestionList, main
 
 
@@ -96,24 +97,24 @@ def test_QuestionList_serialization():
     assert q.to_dict() == valid_question_w_type
 
     # deserialization should return a QuestionListEnhanced object
-    q_lazarus = Question.from_dict(q.to_dict())
+    q_lazarus = QuestionBase.from_dict(q.to_dict())
     assert isinstance(q_lazarus, QuestionList)
     assert type(q) == type(q_lazarus)
     assert repr(q) == repr(q_lazarus)
 
     # serialization from bad data should raise an exception
     with pytest.raises(Exception):
-        Question.from_dict({"type": "list"})
+        QuestionBase.from_dict({"type": "list"})
     with pytest.raises(Exception):
-        Question.from_dict({"type": "list", "question_text": 1})
+        QuestionBase.from_dict({"type": "list", "question_text": 1})
     with pytest.raises(Exception):
-        Question.from_dict({"type": "list", "question_text": ""})
+        QuestionBase.from_dict({"type": "list", "question_text": ""})
     with pytest.raises(Exception):
-        Question.from_dict(
+        QuestionBase.from_dict(
             {"type": "list", "question_text": "", "allow_nonresponse": "yes"}
         )
     with pytest.raises(Exception):
-        Question.from_dict(
+        QuestionBase.from_dict(
             {
                 "type": "list",
                 "question_text": "",
@@ -121,7 +122,7 @@ def test_QuestionList_serialization():
             }
         )
     with pytest.raises(Exception):
-        Question.from_dict(
+        QuestionBase.from_dict(
             {
                 "type": "list",
                 "question_text": "How do you change a tire?",

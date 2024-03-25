@@ -1,8 +1,8 @@
 import pytest
 import uuid
-from edsl.questions import Question, Settings
+from edsl.questions import Settings
+from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.derived.QuestionTopK import QuestionTopK, main
-
 
 def test_QuestionTopK_main():
     main()
@@ -87,7 +87,7 @@ def test_QuestionTopK_serialization():
     }
 
     # deserialization should return a QuestionTopKEnhanced object
-    q_lazarus = Question.from_dict(q.to_dict())
+    q_lazarus = QuestionBase.from_dict(q.to_dict())
     assert isinstance(q_lazarus, QuestionTopK)
     assert type(q) == type(q_lazarus)
     assert repr(q) == repr(q_lazarus)
