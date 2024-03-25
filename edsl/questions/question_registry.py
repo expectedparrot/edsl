@@ -5,11 +5,6 @@ from edsl.exceptions import QuestionSerializationError
 from edsl.exceptions import QuestionCreationValidationError
 from edsl.questions.QuestionBase import RegisterQuestionsMeta
 
-# from edsl.questions.QuestionFreeText import QuestionFreeText
-# registry = RegisterQuestionsMeta.get_registered_classes()
-# q2c = RegisterQuestionsMeta.question_names_to_classes()
-
-
 class Meta(type):
     """Metaclass for QuestionBase that provides a __repr__ method that lists all available questions."""
 
@@ -57,31 +52,6 @@ def get_question_class(question_type):
         )
     return q2c.get(question_type)
 
-
-# all question types must be registered here
-# the key is the question type
-# the value is a tuple of the module name and the class name
-# CLASS_REGISTRY = {
-#     "budget": ("edsl.questions.QuestionBudget", "QuestionBudget"),
-#     "checkbox": ("edsl.questions.QuestionCheckBox", "QuestionCheckBox"),
-#     "extract": ("edsl.questions.QuestionExtract", "QuestionExtract"),
-#     "free_text": ("edsl.questions.QuestionFreeText", "QuestionFreeText"),
-#     "functional": ("edsl.questions.QuestionFunctional", "QuestionFunctional"),
-#     "likert_five": ("edsl.questions.derived.QuestionLikertFive", "QuestionLikertFive"),
-#     "linear_scale": (
-#         "edsl.questions.derived.QuestionLinearScale",
-#         "QuestionLinearScale",
-#     ),
-#     "list": ("edsl.questions.QuestionList", "QuestionList"),
-#     "multiple_choice": (
-#         "edsl.questions.QuestionMultipleChoice",
-#         "QuestionMultipleChoice",
-#     ),
-#     "numerical": ("edsl.questions.QuestionNumerical", "QuestionNumerical"),
-#     "rank": ("edsl.questions.QuestionRank", "QuestionRank"),
-#     "top_k": ("edsl.questions.derived.QuestionTopK", "QuestionTopK"),
-#     "yes_no": ("edsl.questions.derived.QuestionYesNo", "QuestionYesNo"),
-# }
 
 question_purpose = {
     "multiple_choice": "When options are known and limited",
