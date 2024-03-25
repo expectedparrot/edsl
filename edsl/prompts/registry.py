@@ -177,6 +177,7 @@ class RegisterPromptsMeta(ABCMeta):
         """
         with_scores = cls._get_classes_with_scores(**kwargs)
         return [prompt for _, prompt in with_scores]
+        #return with_scores
 
     @classmethod
     def _score(cls, kwargs, prompt):

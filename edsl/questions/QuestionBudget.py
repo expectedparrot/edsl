@@ -23,13 +23,13 @@ from __future__ import annotations
 import random
 import textwrap
 from typing import Any, Optional, Union
-from edsl.questions import Question
+from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.descriptors import IntegerDescriptor, QuestionOptionsDescriptor
 from edsl.scenarios import Scenario
 from edsl.utilities import random_string
 
 
-class QuestionBudget(Question):
+class QuestionBudget(QuestionBase):
     """This question prompts the agent to allocate a budget among options."""
 
     question_type = "budget"

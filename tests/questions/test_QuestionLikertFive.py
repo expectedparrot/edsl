@@ -1,5 +1,5 @@
 import pytest
-from edsl.questions import Question
+from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.derived.QuestionLikertFive import QuestionLikertFive, main
 
 
@@ -59,12 +59,12 @@ def test_QuestionLikertFive_serialization():
     }
 
     # deserialization should return a QuestionLikertFiveEnhanced object
-    q_lazarus = Question.from_dict(q.to_dict())
+    q_lazarus = QuestionBase.from_dict(q.to_dict())
     assert isinstance(q_lazarus, QuestionLikertFive)
     assert type(q) == type(q_lazarus)
 
     q_extras = QuestionLikertFive(**valid_question_w_extras)
-    q_lazarus = Question.from_dict(q_extras.to_dict())
+    q_lazarus = QuestionBase.from_dict(q_extras.to_dict())
     assert repr(q_extras) == repr(q_lazarus)
 
 

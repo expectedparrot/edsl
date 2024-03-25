@@ -3,7 +3,7 @@ from edsl.exceptions import (
     QuestionResponseValidationError,
     QuestionAnswerValidationError,
 )
-from edsl.questions import Question
+from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.derived.QuestionYesNo import QuestionYesNo, main
 
 
@@ -60,7 +60,7 @@ def test_QuestionYesNo_serialization():
     }
 
     # deserialization should return a QuestionYesNoEnhanced object
-    q_lazarus = Question.from_dict(q.to_dict())
+    q_lazarus = QuestionBase.from_dict(q.to_dict())
     assert isinstance(q_lazarus, QuestionYesNo)
     assert type(q) == type(q_lazarus)
     assert repr(q) == repr(q_lazarus)

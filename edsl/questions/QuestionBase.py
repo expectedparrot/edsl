@@ -1,5 +1,14 @@
 """This module contains the Question class, which is the base class for all questions in EDSL.
-It provides methods for serializing and deserializing questions, as well as validating answers and responses from the LLM.
+
+There are numerous types of questions: multiple choice, checkbox, free text, numerical, linear scale, list, rank, budget, extract, top k, Likert scale, yes/no.
+Each question type inherits from the `Question` class and implements its own methods for validating answers and responses from the language model (LLM).
+
+
+Every question requires a question name and question text. 
+A question_name is a unique identifier for the question, while question_text is the text of the question itself.
+
+Some question types require additional fields, such as question options for multiple choice questions.
+    
 
 Constructing a Question
 -----------------------
@@ -11,7 +20,7 @@ Key steps:
 
 .. code-block:: python
 
-    from edsl.questions import QuestionMultipleChoice
+    from edsl import QuestionMultipleChoice
 
 * Construct a question in the required format. All question types require a question name and question text. Some question types require additional fields, such as question options for multiple choice questions:
 
@@ -107,13 +116,12 @@ Learn more about specifying question scenarios, agents and language models in th
 * :ref:`language_models`
 
 
-Base class methods
-------------------
 """
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from rich.table import Table
-from typing import Any, Type
+from typing import Any, Type, Optional
+
 from edsl.exceptions import (
     QuestionResponseValidationError,
     QuestionSerializationError,
@@ -124,11 +132,12 @@ from edsl.questions.descriptors import (
     ShortNamesDictDescriptor,
 )
 
+from edsl.prompts.registry import get_classes as prompt_lookup
 from edsl.questions.AnswerValidatorMixin import AnswerValidatorMixin
 from edsl.questions.RegisterQuestionsMeta import RegisterQuestionsMeta
 from edsl.Base import PersistenceMixin, RichPrintingMixin
 
-class Question(
+class QuestionBase(
     PersistenceMixin,
     RichPrintingMixin,
     ABC,
@@ -157,7 +166,66 @@ class Question(
                 candidate_data.pop(attribute, None)
 
         return candidate_data
+    
+    @classmethod 
+    def applicable_prompts(cls, model: Optional[str] = None) -> list[type['PromptBase']]:
+        """Get the prompts that are applicable to the question type.
 
+        :param model: The language model to use. 
+                
+        >>> from edsl.questions import QuestionFreeText
+        >>> QuestionFreeText.applicable_prompts()
+        [<class 'edsl.prompts.library.question_freetext.FreeText'>]
+        
+        :param model: The language model to use. If None, assumes does not matter. 
+        
+        """
+        applicable_prompts = prompt_lookup(
+            component_type="question_instructions",
+            question_type=cls.question_type,
+            model=model,
+        )
+        return applicable_prompts
+
+    @property
+    def model_instructions(self) -> dict:
+        """Get the model-specific instructions for the question."""
+        if not hasattr(self, "_model_instructions"):
+            self._model_instructions = {}
+        return self._model_instructions
+    
+    def add_model_instructions(self, *, instructions:str, model: Optional[str] = None) -> None:
+        """Add model-specific instructions for the question.
+        
+        :param instructions: The instructions to add. This is typically a jinja2 template.
+        :param model: The language model for this instruction.  
+
+        >>> from edsl.questions import QuestionFreeText
+        >>> q = QuestionFreeText(question_name = "color", question_text = "What is your favorite color?")
+        >>> q.add_model_instructions(instructions = "Answer in valid JSON like so {'answer': 'comment: <>}", model = "gpt3")
+
+        """
+        from edsl import Model
+        if not hasattr(self, "_model_instructions"):
+            self._model_instructions = {}
+        if model is None:
+            # if not model is passed, all the models are mapped to this instruction, including 'None'
+            self._model_instructions =  {model_name: instructions for model_name in Model.available()}
+            self._model_instructions.update({model: instructions})
+        else:  
+            self._model_instructions.update({model: instructions})     
+
+    def get_instructions(self, model: Optional[str] = None) -> type['PromptBase']:
+        """Get the mathcing question-answering instructions for the question.
+
+        :param model: The language model to use. 
+        """
+        from edsl.prompts.Prompt import Prompt        
+        if model in self.model_instructions:
+            return Prompt(text = self.model_instructions[model])
+        else:
+            return self.applicable_prompts(model)[0]()
+  
     ############################
     # Serialization methods
     ############################
@@ -200,9 +268,9 @@ class Question(
         ]
         return f"{class_name}({', '.join(items)})"
 
-    def __eq__(self, other: Type[Question]) -> bool:
+    def __eq__(self, other: Type[QuestionBase]) -> bool:
         """Check if two questions are equal. Equality is defined as having the .to_dict()."""
-        if not isinstance(other, Question):
+        if not isinstance(other, QuestionBase):
             return False
         return self.to_dict() == other.to_dict()
 

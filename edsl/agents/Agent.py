@@ -1,5 +1,6 @@
 """An Agent is an AI agent that can reference a set of traits in answering questions.
 
+
 Constructing an Agent
 ---------------------
 Key steps:
@@ -13,8 +14,43 @@ Key steps:
         "age": 45,
         "location": "Massachusetts"
     }
+    a = Agent(traits = traits_dict)
 
-A persona can be a short or detailed textual narrative. 
+    
+Rendering traits as a narrative persona
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The `traits_presentation_template` parameter can be used to create a narrative persona for an agent.
+
+.. code-block:: python
+
+    a = Agent(traits = {'age': 22, 'hair': 'brown', 'gender': 'female'}, 
+        traits_presentation_template = \"\"\"
+            I am a {{ age }} year-old {{ gender }} with {{ hair }} hair.\"\"\")
+    a.agent_persona.render(primary_replacement = a.traits)
+
+will return:
+
+.. code-block:: text
+
+    I am a 22 year-old female with brown hair.
+
+The trait keys themselves must be valid Python identifiers.
+This can create an issues, but it can be circumvented by using a dictionary with string keys and values. 
+
+.. code-block:: python
+
+    codebook = {'age': 'The age of the agent'}
+    a = Agent(traits = {'age': 22}, 
+        codebook = codebook, 
+        traits_presentation_template = "{{ codebook['age'] }} is {{ age }}.")
+    a.agent_persona.render(primary_replacement = a.traits)
+
+will return:
+
+.. code-block:: text
+
+    The age of the agent is 22.
+
 Note that it can be helpful to include traits mentioned in the persona as independent keys and values in order to analyze survey results by those dimensions individually.
 
 * Create an Agent object with traits. Note that `traits=` must be named explicitly: 
@@ -37,8 +73,10 @@ The following example creates a list of agents with each combination of listed t
 .. code-block:: python
 
     ages = [10, 20, 30, 40, 50]
-    locations = ["New York", "California", "Texas", "Florida", "Washington"]
-    agents = [Agent(traits = {"age": age, "location": location}) for age, location in zip(ages, locations)]
+    locations = ["New York", "California", 
+        "Texas", "Florida", "Washington"]
+    agents = [Agent(traits = {"age": age, "location": location}) 
+        for age, location in zip(ages, locations)]
 
 A survey is administered to all agents in the list together: 
 
@@ -47,6 +85,60 @@ A survey is administered to all agents in the list together:
     results = survey.by(agents).run()
 
 See more details about surveys in the :ref:`surveys` module.
+
+
+Dynamic traits function
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Agents can also be created with a `dynamic_traits_function` parameter. 
+This function can be used to generate traits dynamically based on the question being asked or the scenario in which the question is asked.
+Consider this example:
+
+.. code-block:: python
+
+    def dynamic_traits_function(self, question):
+        if question.question_name == "age":
+            return {"age": 10}
+        elif question.question_name == "hair":
+            return {"hair": "brown"}
+
+    a = Agent(dynamic_traits_function = dynamic_traits_function)
+
+when the agent is asked a question about age, the agent will return an age of 10. 
+When asked about hair, the agent will return "brown".
+This can be useful for creating agents that can answer questions about different topics without 
+including potentially irrelevant traits in the agent's traits dictionary.
+
+Agent direct-answering methods
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Agents can also be created with a method that can answer a particular question type directly.
+
+.. code-block:: python
+
+    a = Agent()
+    def f(self, question, scenario): return "I am a direct answer."
+    a.add_direct_question_answering_method(f)
+    a.answer_question_directly(question = None, scenario = None)
+
+will return:
+
+.. code-block:: text
+
+    I am a direct answer.
+
+This can be useful for creating agents that can answer questions directly without needing to use a language model.
+
+Giving the agent instructions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Agents can also be given instructions on how to answer questions.
+
+.. code-block:: python
+
+    a = Agent(traits = {"age": 10}, instruction = "Answer as if you were a 10-year-old.")
+    a.instruction
+
 
 Agent class methods
 -------------------
@@ -109,8 +201,8 @@ class Agent(Base):
         traits: dict = None,
         name: str = None,
         codebook: dict = None,
-        instruction: str = None,
-        trait_presentation_template: str = None,
+        instruction: Optional[str] = None,
+        traits_presentation_template: Optional[str] = None,
         dynamic_traits_function: Callable = None,
     ):
         """Initialize a new instance of Agent.
@@ -119,7 +211,18 @@ class Agent(Base):
         :param name: A name for the agent
         :param codebook: A codebook mapping trait keys to trait descriptions.
         :param instruction: Instructions for the agent in how to answer questions.
+        :param trait_presentation_template: A template for how to present the agent's traits.
         :param dynamic_traits_function: A function that returns a dictionary of traits.
+
+        Example usage:
+
+        >>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
+        >>> a.traits
+        {'age': 10, 'hair': 'brown', 'height': 5.5}
+
+        >>> a = Agent(traits = {"age": 10}, traits_presentation_template = "I am a {{age}} year old.")
+        >>> repr(a.agent_persona)
+        Prompt(text='I am a 10 year old.') 
         """
         self.name = name
         self._traits = traits or dict()
@@ -129,9 +232,9 @@ class Agent(Base):
         self._check_dynamic_traits_function()
         self.current_question = None
 
-        if trait_presentation_template is not None:
-            self.trait_presentation_template = trait_presentation_template
-            self.agent_persona = AgentPersona(text=self.trait_presentation_template)
+        if traits_presentation_template is not None:
+            self.traits_presentation_template = traits_presentation_template
+            self.agent_persona = AgentPersona(text=self.traits_presentation_template)
 
     def _check_dynamic_traits_function(self) -> None:
         """Check whether dynamic trait function is valid.
@@ -162,6 +265,7 @@ class Agent(Base):
         Otherwise, the traits are returned.
 
         Example:
+
         >>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
         >>> a.traits
         {'age': 10, 'hair': 'brown', 'height': 5.5}
@@ -176,7 +280,7 @@ class Agent(Base):
         else:
             return self._traits
 
-    def add_direct_question_answering_method(self, method: Callable):
+    def add_direct_question_answering_method(self, method: Callable) -> None:
         """Add a method to the agent that can answer a particular question type.
 
         :param method: A method that can answer a question directly.
@@ -243,6 +347,14 @@ class Agent(Base):
         """
         Answer a posed question.
 
+        :param question: The question to answer.
+        :param scenario: The scenario in which the question is asked.
+        :param model: The language model to use.
+        :param debug: Whether to run in debug mode.
+        :param memory_plan: The memory plan to use.
+        :param current_answers: The current answers.
+        :param iteration: The iteration number.
+
         This is a function where an agent returns an answer to a particular question.
         However, there are several different ways an agent can answer a question, so the
         actual functionality is delegated to an Invigilator object.
@@ -270,7 +382,8 @@ class Agent(Base):
         memory_plan: Optional[MemoryPlan] = None,
         current_answers: Optional[dict] = None,
         iteration: int = 0,
-    ):
+    ) -> InvigilatorBase:
+        """Create an Invigilator."""
         model = model or Model(LanguageModelType.GPT_4.value, use_cache=True)
         scenario = scenario or Scenario()
 
@@ -310,6 +423,8 @@ class Agent(Base):
 
         The agents must not have overlapping traits.
 
+        Example usage:
+        
         >>> a1 = Agent(traits = {"age": 10})
         >>> a2 = Agent(traits = {"height": 5.5})
         >>> a1 + a2
@@ -359,7 +474,11 @@ class Agent(Base):
     ################
     @property
     def data(self):
-        """Format the data for serialization."""
+        """Format the data for serialization.
+        
+        TODO: Warn if has dynamic traits function or direct answer function that cannot be serialized.
+        TODO: Add ability to have coop-hosted functions that are serializable.
+        """
         raw_data = {
             k.replace("_", "", 1): v
             for k, v in self.__dict__.items()
@@ -418,7 +537,9 @@ class Agent(Base):
         return cls(traits={"age": 22, "hair": "brown", "height": 5.5})
 
     def code(self) -> str:
-        """Return the code for the agent."""
+        """Return the code for the agent.
+        TODO: Add code for dynamic traits function.
+        """
         return f"Agent(traits={self.traits})"
 
 
@@ -452,6 +573,12 @@ def main():
 
 
 if __name__ == "__main__":
-    import doctest
+    #import doctest
+    #doctest.testmod()
 
-    doctest.testmod()
+    a = Agent(traits = {"age": 10}, traits_presentation_template = "I am a {{age}} year old.")
+    repr(a.agent_persona)
+
+    a = Agent(traits = {'age': 22, 'hair': 'brown', 'gender': 'female'}, 
+        traits_presentation_template = "I am a {{ age }} year-old {{ gender }} with {{ hair }} hair.")
+    print(a.agent_persona.render(primary_replacement = a.traits))

@@ -1,13 +1,5 @@
-"""A special type of question that is *not* answered by an LLM."""
-from typing import Optional, Callable
-from edsl.questions import Question
-from edsl.questions.descriptors import FunctionDescriptor
+"""A special type of question that is *not* answered by an LLM.
 
-
-class QuestionFunctional(Question):
-    """
-    A special type of question that is *not* answered by an LLM.
-    
     - Instead, it is "answered" by a function that is passed in, `func`.
     - Useful for questions that require some kind of computation first
       or are the result of a multi-step process.
@@ -25,7 +17,15 @@ class QuestionFunctional(Question):
       which we then translate to the real QuestionFunctional `under the hood.`
 
     To see how it's used, see `tests/test_QuestionFunctional_construction_from_function`.
-    """
+
+
+"""
+from typing import Optional, Callable
+from edsl.questions.QuestionBase import QuestionBase
+from edsl.questions.descriptors import FunctionDescriptor
+
+class QuestionFunctional(QuestionBase):
+    """A special type of question that is *not* answered by an LLM."""
 
     func: Callable = FunctionDescriptor()
     question_type = "functional"

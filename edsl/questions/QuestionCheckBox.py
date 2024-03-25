@@ -27,7 +27,7 @@ import random
 import textwrap
 from jinja2 import Template
 from typing import Any, Optional, Union
-from edsl.questions import Question
+from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.descriptors import (
     IntegerDescriptor,
     QuestionOptionsDescriptor,
@@ -35,7 +35,7 @@ from edsl.questions.descriptors import (
 from edsl.scenarios import Scenario
 from edsl.utilities import random_string
 
-class QuestionCheckBox(Question):
+class QuestionCheckBox(QuestionBase):
     """This question prompts the agent to select options from a list."""
 
     question_type = "checkbox"

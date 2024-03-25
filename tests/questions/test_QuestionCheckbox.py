@@ -4,7 +4,8 @@ from edsl.exceptions import (
     QuestionAnswerValidationError,
     QuestionResponseValidationError,
 )
-from edsl.questions import Question, Settings
+from edsl.questions.QuestionBase import QuestionBase
+from edsl.questions import Settings
 from edsl.questions.QuestionCheckBox import QuestionCheckBox, main
 
 
@@ -151,30 +152,30 @@ def test_QuestionCheckBox_serialization():
     }
 
     # deserialization should return a QuestionCheckBoxEnhanced object
-    q_lazarus = Question.from_dict(q.to_dict())
+    q_lazarus = QuestionBase.from_dict(q.to_dict())
     assert isinstance(q_lazarus, QuestionCheckBox)
     assert type(q) == type(q_lazarus)
     assert repr(q) == repr(q_lazarus)
-    q_lazarus = Question.from_dict(q_noextras.to_dict())
+    q_lazarus = QuestionBase.from_dict(q_noextras.to_dict())
     assert isinstance(q_lazarus, QuestionCheckBox)
     assert type(q_noextras) == type(q_lazarus)
     assert repr(q_noextras) == repr(q_lazarus)
     # serialization from bad data should raise an exception
     with pytest.raises(Exception):
-        Question.from_dict({"type": "checkbox"})
+        QuestionBase.from_dict({"type": "checkbox"})
     with pytest.raises(Exception):
-        Question.from_dict({"type": "checkbox", "question_text": 1})
+        QuestionBase.from_dict({"type": "checkbox", "question_text": 1})
     with pytest.raises(Exception):
-        Question.from_dict({"type": "checkbox", "question_text": ""})
+        QuestionBase.from_dict({"type": "checkbox", "question_text": ""})
     with pytest.raises(Exception):
-        Question.from_dict(
+        QuestionBase.from_dict(
             {
                 "type": "checkbox",
                 "question_text": "a" * (Settings.MAX_QUESTION_LENGTH + 1),
             }
         )
     with pytest.raises(Exception):
-        Question.from_dict(
+        QuestionBase.from_dict(
             {
                 "type": "checkbox",
                 "question_text": "Which weekdays do you like?",
@@ -183,7 +184,7 @@ def test_QuestionCheckBox_serialization():
             }
         )
     with pytest.raises(Exception):
-        Question.from_dict(
+        QuestionBase.from_dict(
             {
                 "type": "checkbox",
                 "question_text": "Which weekdays do you like?",
@@ -192,7 +193,7 @@ def test_QuestionCheckBox_serialization():
             }
         )
     with pytest.raises(Exception):
-        Question.from_dict(
+        QuestionBase.from_dict(
             {
                 "type": "checkbox",
                 "question_text": "Which weekdays do you like?",
@@ -201,7 +202,7 @@ def test_QuestionCheckBox_serialization():
             }
         )
     with pytest.raises(Exception):
-        Question.from_dict(
+        QuestionBase.from_dict(
             {
                 "type": "checkbox",
                 "question_text": "Which weekdays do you like?",
@@ -211,7 +212,7 @@ def test_QuestionCheckBox_serialization():
             }
         )
     with pytest.raises(Exception):
-        Question.from_dict(
+        QuestionBase.from_dict(
             {
                 "type": "checkbox",
                 "question_text": "Which weekdays do you like?",
