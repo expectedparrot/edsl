@@ -124,6 +124,7 @@ from edsl.questions.descriptors import (
     ShortNamesDictDescriptor,
 )
 
+from edsl.prompts.registry import get_classes as prompt_lookup
 from edsl.questions.AnswerValidatorMixin import AnswerValidatorMixin
 from edsl.questions.RegisterQuestionsMeta import RegisterQuestionsMeta
 from edsl.Base import PersistenceMixin, RichPrintingMixin
@@ -157,7 +158,50 @@ class Question(
                 candidate_data.pop(attribute, None)
 
         return candidate_data
+    
+    @classmethod 
+    def applicable_prompts(cls, model = None):
+        """Get the prompts that are applicable to the question type.
+        
+        :param model: The language model to use. If None, assumes does not matter. 
+        
+        """
+        applicable_prompts = prompt_lookup(
+            component_type="question_instructions",
+            question_type=cls.question_type,
+            model=model,
+        )
+        return applicable_prompts
 
+    @property
+    def model_instructions(self):
+        """Get the model-specific instructions for the question."""
+        if not hasattr(self, "_model_instructions"):
+            self._model_instructions = {}
+        return self._model_instructions
+    
+    def add_model_instructions(self, *, instructions:str, model: str = None):
+        """Add model-specific instructions for the question."""
+        from edsl import Model
+        if not hasattr(self, "_model_instructions"):
+            self._model_instructions = {}
+        if model is None:
+            # if not model is passed, all the models are mapped to this instruction, including 'None'
+            self._model_instructions =  {model_name: instructions for model_name in Model.available()}
+            self._model_instructions.update({model: instructions})
+        else:  
+            self._model_instructions.update({model: instructions})     
+
+    def get_instructions(self, model = None) -> type['PromptBase']:
+        """Get the mathcing question-answering instructions for the question.
+        :param model: The language model to use. If None, assumes does not matter. 
+        """
+        from edsl.prompts.Prompt import Prompt        
+        if model in self.model_instructions:
+            return Prompt(text = self.model_instructions[model])
+        else:
+            return self.applicable_prompts(model)[0]()
+  
     ############################
     # Serialization methods
     ############################

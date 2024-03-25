@@ -129,6 +129,17 @@ will return:
 
 This can be useful for creating agents that can answer questions directly without needing to use a language model.
 
+Giving the agent instructions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Agents can also be given instructions on how to answer questions.
+
+.. code-block:: python
+
+    a = Agent(traits = {"age": 10}, instruction = "Answer as if you were a 10-year-old.")
+    a.instruction
+
+
 Agent class methods
 -------------------
 """

@@ -26,6 +26,11 @@ class MockQuestion:
         "question_type": "feelings_question",
     }
 
+    def get_instructions(self, model):
+        return Prompt(
+            text="You are a robot being asked the following question: How are you feeling? Return a valid JSON formatted like this: {'answer': '<put free text answer here>'}"
+        )
+
 
 # Assuming get_classes and InvigilatorAI are defined elsewhere in your codebase
 # from your_module import get_classes, InvigilatorAI
