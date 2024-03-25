@@ -1,29 +1,130 @@
 Questions
 =========
 
-.. automodule:: edsl.questions.Question
-   :noindex:
+.. This module contains the Question class, which is the base class for all questions in EDSL.
 
-.. automethod:: Question.__init__
-   :noindex:
+There are numerous types of questions: multiple choice, checkbox, free text, numerical, linear scale, list, rank, budget, extract, top k, Likert scale, yes/no.
+Each question type inherits from the `Question` class and implements its own methods for validating answers and responses from the language model (LLM).
 
-.. automethod:: Question.add_question
-   :noindex:
+Every question requires a question name and question text. 
+A question_name is a unique identifier for the question, while question_text is the text of the question itself.
 
-.. automethod:: Question.by
-   :noindex:
+Some question types require additional fields, such as question options for multiple choice questions.
 
-.. automethod:: Question.from_dict
-   :noindex:
+Constructing a Question
+-----------------------
+Key steps:
 
-.. automethod:: Question.rich_print
-   :noindex:
+* Import the `Question` class and select an appropriate question type. Available question types include multiple choice, checkbox, free text, numerical, linear scale, list, rank, budget, extract, top k, Likert scale, yes/no.
 
-.. automethod:: Question.run
-   :noindex:
+* Import the question type class. For example, to create a multiple choice question:
 
-.. automethod:: Question.to_dict
-   :noindex:
+.. code-block:: python
+
+   from edsl import QuestionMultipleChoice
+
+* Construct a question in the required format. All question types require a question name and question text. Some question types require additional fields, such as question options for multiple choice questions:
+
+.. code-block:: python
+
+   q = QuestionMultipleChoice(
+      question_name = "color",
+      question_text = "What is your favorite color?",
+      question_options = ["Red", "Blue", "Green", "Yellow"]
+   )
+
+To see an example of a question type in the required format, use the question type `example()` method:
+
+.. code-block:: python
+
+   QuestionMultipleChoice.example()
+
+
+Simulating a response
+---------------------
+Administer the question to an agent with the `run` method. A single question can be run individually by appending the `run` method directly to the question object:
+
+.. code-block:: python
+
+   results = q.run()
+    
+If the question is part of a survey, the method is appended to the survey object instead:
+
+.. code-block:: python
+    
+   q1 = ...
+   q2 = ...
+   results = Survey([q1, q2]).run()
+
+(See more details about surveys in the :ref:`surveys` module.)
+
+
+The `run` method administers a question to the LLM and returns the response in a `Results` object.
+Results can be printed, saved, analyzed and visualized in a variety of built-in methods.
+See details about these methods in the :ref:`results` module.
+
+Parameterizing a question
+-------------------------
+Questions can be parameterized to include variables that are replaced with specific values when the question is run.
+This allows you to create multiple versions of a question that can be administered at once in a survey.
+
+Key steps:
+
+* Create a question that takes a parameter in double braces:
+
+.. code-block:: python
+
+   from edsl.questions import QuestionFreeText
+
+   q = QuestionFreeText(
+      question_name = "favorite_item",
+      question_text = "What is your favorite {{ item }}?",
+   )
+
+* Create a dictionary for the value that will replace the parameter and store it in a Scenario object:
+
+.. code-block:: python
+
+   scenario = Scenario({"item": "color"})
+
+If multiple values will be used, create multiple Scenario objects in a list:
+
+.. code-block:: python
+
+   scenarios = [Scenario({"item": item}) for item in ["color", "food"]]
+
+* Add the Scenario objects to the question with the `by` method before appending the `run` method:
+
+.. code-block:: python
+
+   results = q.by(scenarios).run()
+
+If the question is part of a survey, add the Scenario objects to the survey:
+
+.. code-block:: python
+
+   q1 = ...
+   q2 = ...
+   results = Survey([q1, q2]).by(scenarios).run()
+
+As with other Survey components (agents and language models), multiple Scenario objects should be added together as a list in the same `by` method.
+
+Learn more about specifying question scenarios, agents and language models in their respective modules:
+
+* :ref:`scenarios`
+* :ref:`agents`
+* :ref:`language_models`
+
+
+QuestionBase class 
+------------------
+
+.. automodule:: edsl.questions.QuestionBase
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :special-members: __init__
+   :exclude-members: question_name, question_text, question_type, short_names_dict, main
 
 QuestionBudget class
 ----------------------------
