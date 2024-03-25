@@ -72,13 +72,14 @@ class PromptConstructorMixin:
 
     def _get_question_instructions(self) -> Prompt:
         """Get the instructions for the question."""
-        applicable_prompts = prompt_lookup(
-            component_type="question_instructions",
-            question_type=self.question.question_type,
-            model=self.model.model,
-        )
+        #applicable_prompts = prompt_lookup(
+        #    component_type="question_instructions",
+        #    question_type=self.question.question_type,
+        #    model=self.model.model,
+        #)
         ## Get the question instructions and renders with the scenario & question.data
-        question_prompt = applicable_prompts[0]()
+        #question_prompt = applicable_prompts[0]()
+        question_prompt = self.question.get_instructions(model = self.model.model)
 
         undefined_template_variables = question_prompt.undefined_template_variables(
             self.question.data | self.scenario

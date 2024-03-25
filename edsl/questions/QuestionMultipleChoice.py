@@ -41,7 +41,7 @@ class QuestionMultipleChoice(Question):
         question_name: str,
         question_text: str,
         question_options: list[str],
-        short_names_dict: Optional[dict[str, str]] = None,
+        short_names_dict: Optional[dict[str, str]] = None
     ):
         """Instantiate a new QuestionMultipleChoice.
 
