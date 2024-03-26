@@ -1,6 +1,8 @@
 Coop 
 ====
 
+The Coop provides tools for managing and sharing research projects created with EDSL.
+
 .. Coop is a web application for storing and sharing your work, exploring AI-powered research and accessing your Expected Parrot API keys.
 
 .. .. raw:: html

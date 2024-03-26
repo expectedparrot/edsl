@@ -7,7 +7,7 @@ between!
 
 In this page we show how to set up EDSL on your system.
 
-Quickstart Installation
+Quickstart installation
 -----------------------
 
 EDSL is a Python library. To use it, ensure that you have Python
@@ -33,7 +33,7 @@ To update your EDSL version to the latest one:
 
     pip install --upgrade edsl
 
-Advanced Installation
+Advanced installation
 ---------------------
 
 Following the steps in Quickstart Installation will install EDSL
@@ -70,13 +70,3 @@ You can deactivate the virtual environment at any time by running:
     deactivate
 
 To delete the virtual environment, simply delete the myenv folder.
-
---------------
-
-.. raw:: html
-
-   <p style="font-size: 14px;">
-
-Copyright © 2024 Expected Parrot, Inc. All rights reserved.
-www.expectedparrot.com
-
