@@ -31,7 +31,7 @@ use. Here is an example of how this will look:
 
 .. code:: 
 
-    from edsl.questions import Question
+    from edsl.questions import QuestionMultipleChoice
 
 ::
 
@@ -240,13 +240,3 @@ results. You can also export them as a Pandas dataframe:
 
     View the output and examples of other methods in interactive notebooks <a href="https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Tutorial%20-%20Starter%20Tutorial-e080f5883d764931960d3920782baf34">here</a>.<br><br>
     Learn more about use cases and ways to conduct AI-powered research in the <a href="http://www.expectedparrot.com/getting-started#edsl-showcase">EDSL Showcase</a>.
-
-
---------------
-
-.. raw:: html
-
-   <p style="font-size: 14px;">
-
-Copyright © 2024 Expected Parrot, Inc. All rights reserved.
-www.expectedparrot.com
