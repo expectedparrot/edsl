@@ -7,6 +7,7 @@ The Expected Parrot Domain-Specific Language (EDSL) package lets you conduct soc
 
 ## 🔗 Links
 - PyPI: https://pypi.org/project/edsl/
+- GitHub: https://github.com/expectedparrot/edsl
 - Documentation: https://docs.expectedparrot.com
 - Getting started: https://www.expectedparrot.com/getting-started/
 - Discord: https://discord.com/invite/mxAYkjfy9m
