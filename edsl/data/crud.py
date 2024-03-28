@@ -1,5 +1,6 @@
 """This module contains the CRUDOperations class, which implements CRUD operations for the EDSL package."""
 from sqlalchemy import desc
+import time
 from typing import Union
 from edsl.data import Database, database, LLMOutputDataDB
 from edsl.data.orm import ResultDB
@@ -42,7 +43,7 @@ class CRUDOperations:
                     system_prompt=system_prompt,
                     model=model,
                     parameters=parameters,
-                    iteration=iteration,
+                    iteration=iteration
                 )
                 .order_by(desc(LLMOutputDataDB.id))
                 .first()
@@ -63,6 +64,8 @@ class CRUDOperations:
         
         Arguments: in string format, the model, parameters, system_prompt, prompt, and the generated output.
         """
+        timestamp = int(time.monotonic()*1_000)
+
         record = LLMOutputDataDB(
             model=model,
             parameters=parameters,
@@ -70,6 +73,7 @@ class CRUDOperations:
             prompt=prompt,
             output=output,
             iteration=iteration,
+            timestamp=timestamp,
         )
 
         with self.database.get_db() as db:

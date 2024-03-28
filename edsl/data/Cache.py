@@ -1,20 +1,31 @@
-"""Class for storing and retrieving data from a SQLite database."""
-from edsl import Config
+"""Class representing the Cache object."""
+from __future__ import annotations
 import sqlite3
 from collections import UserList
-from edsl.Base import Base
+from typing import Optional
+
 from rich.table import Table
+
+from edsl.Base import Base
+from edsl import Config
 
 config = Config()
 
 path = config.get("EDSL_DATABASE_PATH")
 
+#class Cache(Base, UserList):
+class Cache(Base, set):
+ 
+    """Class representing the Cache object.
+    
+    It is a python List of dictionaries, where each dictionary represents a row in the cache.
+    """
 
-class Cache(Base, UserList):
-    """Class for storing and retrieving data from a SQLite database."""
-
-    def __init__(self, data=None, schema=None):
-        """Initialize the Cache object."""
+    def __init__(self, data: Optional[list] = None, schema=None):
+        """Initialize the Cache object.
+        
+        
+        """
         self.db_path = config.get("EDSL_DATABASE_PATH")[len("sqlite:///") :]
         self.table_name = "responses"
 
@@ -30,7 +41,7 @@ class Cache(Base, UserList):
         """Connect to the SQLite database."""
         return sqlite3.connect(db_path if db_path else self.db_path)
 
-    def load_data(self):
+    def load_data(self) -> dict:
         """Load data from the SQLite database."""
         with self._connect() as conn:
             cur = conn.cursor()
@@ -44,7 +55,7 @@ class Cache(Base, UserList):
                 "schema": schema,
             }
 
-    def save_data_to_new_db(self, new_db_path):
+    def save_data_to_new_db(self, new_db_path) -> None:
         """Save data to a new SQLite database."""
         with self._connect(new_db_path) as new_conn:
             new_cur = new_conn.cursor()
@@ -88,6 +99,8 @@ class Cache(Base, UserList):
             (3, "system_prompt", "TEXT", 1, None, 0),
             (4, "prompt", "TEXT", 1, None, 0),
             (5, "output", "TEXT", 1, None, 0),
+            (6, "iteration", "INTEGER", 1, None, 0),
+            (7, "timestamp", "INTEGER", 1, None, 0),
         ]
         return cls(data=[eval(data0)], schema=schema)
 

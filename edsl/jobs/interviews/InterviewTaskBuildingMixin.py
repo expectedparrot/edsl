@@ -169,7 +169,7 @@ class InterviewTaskBuildingMixin:
                 )
                 if task:
                     task.task_status = TaskStatus.FAILED
-                self.exceptions.add(question, exception_entry)
+                self.exceptions.add(question.question_name, exception_entry)
                 
                 raise InterviewTimeoutError(
                         f"Task timed out after {TIMEOUT} seconds."

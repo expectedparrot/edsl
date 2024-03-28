@@ -1,5 +1,5 @@
 """ORM for the LLM model."""
-from sqlalchemy import Column, String, Integer, Text, Index, Sequence
+from sqlalchemy import Column, String, Integer, Text, Index, Sequence, BigInteger
 from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
@@ -20,6 +20,7 @@ class LLMOutputDataDB(Base):
     prompt = Column(Text, nullable=False)
     output = Column(Text, nullable=False)
     iteration = Column(Integer, nullable=False)
+    timestamp = Column(BigInteger, nullable=False)
 
     # Index for faster queries
     idx_responses_fields = Index(
