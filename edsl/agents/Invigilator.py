@@ -1,6 +1,4 @@
 """Module for creating Invigilators, which are objects to administer a question to an Agent."""
-from abc import ABC, abstractmethod
-import asyncio
 import json
 from typing import Coroutine, Dict, Any, Optional
 
@@ -8,7 +6,6 @@ from edsl.exceptions import AgentRespondedWithBadJSONError
 from edsl.prompts.Prompt import Prompt
 from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
 from edsl.prompts.registry import get_classes as prompt_lookup
-from edsl.exceptions import QuestionScenarioRenderError
 from edsl.data_transfer_models import AgentResponseDict
 from edsl.exceptions.agents import FailedTaskException
 from edsl.agents.PromptConstructionMixin import PromptConstructorMixin
@@ -44,6 +41,7 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
                 user_prompt=user_prompt.text,
                 system_prompt=system_prompt.text,
                 iteration=iteration,
+                cache = self.cache
             )
         except json.JSONDecodeError as e:
             raise AgentRespondedWithBadJSONError(

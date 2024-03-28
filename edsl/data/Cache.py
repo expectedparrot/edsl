@@ -13,8 +13,8 @@ config = Config()
 
 path = config.get("EDSL_DATABASE_PATH")
 
-#class Cache(Base, UserList):
-class Cache(Base, set):
+class Cache(Base, UserList):
+#class Cache(Base, set):
  
     """Class representing the Cache object.
     

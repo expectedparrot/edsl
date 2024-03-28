@@ -28,15 +28,33 @@ from edsl.jobs.tasks.task_status_enum import TaskStatus
 #)
 
 from edsl.jobs.interviews.retry_management import retry_strategy
+from edsl.data.new_cache import Cache
 
 TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
 
 class InterviewTaskBuildingMixin:
 
-    def _build_invigilators(self, debug: bool) -> Generator["Invigilator", None, None]:
+    def _build_invigilators(self, debug: bool, cache = None) -> Generator["Invigilator", None, None]:
         """Create an invigilator for each question."""
+        cache = cache or Cache()
         for question in self.survey.questions:
-            yield self.get_invigilator(question=question, debug=debug)
+            yield self.get_invigilator(question=question, debug=debug, cache=cache)
+
+    def get_invigilator(self, question: QuestionBase, debug: bool, cache = None) -> "Invigilator":
+        """Return an invigilator for the given question."""
+        cache = cache or Cache()
+        invigilator = self.agent.create_invigilator(
+            question=question,
+            scenario=self.scenario,
+            model=self.model,
+            debug=debug,
+            memory_plan=self.survey.memory_plan,
+            current_answers=self.answers,
+            iteration=self.iteration,
+            cache=cache,
+        )
+        """Return an invigilator for the given question."""
+        return invigilator
 
     @property
     def dag(self) -> 'DAG':
@@ -116,20 +134,7 @@ class InterviewTaskBuildingMixin:
         )  # track this task creator
         return task_creator.generate_task(debug)
     
-    def get_invigilator(self, question: QuestionBase, debug: bool) -> "Invigilator":
-        """Return an invigilator for the given question."""
-        invigilator = self.agent.create_invigilator(
-            question=question,
-            scenario=self.scenario,
-            model=self.model,
-            debug=debug,
-            memory_plan=self.survey.memory_plan,
-            current_answers=self.answers,
-            iteration=self.iteration,
-        )
-        """Return an invigilator for the given question."""
-        return invigilator
-
+    
     def _get_estimated_request_tokens(self, question) -> float:
         """Estimate the number of tokens that will be required to run the focal task."""
         invigilator = self.get_invigilator(question, debug=False)

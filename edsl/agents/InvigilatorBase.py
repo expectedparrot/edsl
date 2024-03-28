@@ -1,16 +1,13 @@
 from abc import ABC, abstractmethod
 import asyncio
-import json
 from typing import Coroutine, Dict, Any, Optional
 
-from edsl.exceptions import AgentRespondedWithBadJSONError
 from edsl.prompts.Prompt import Prompt
 from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
 from edsl.prompts.registry import get_classes as prompt_lookup
-from edsl.exceptions import QuestionScenarioRenderError
 from edsl.data_transfer_models import AgentResponseDict
-from edsl.exceptions.agents import FailedTaskException
-from edsl.agents.PromptConstructionMixin import PromptConstructorMixin
+
+from edsl.data.new_cache import Cache
 
 class InvigilatorBase(ABC):
     """An invigiator (someone who administers an exam) is a class that is responsible for administering a question to an agent."""
@@ -25,6 +22,7 @@ class InvigilatorBase(ABC):
         current_answers: dict,
         iteration: int = 1,
         additional_prompt_data: Optional[dict] = None,
+        cache = None
     ):
         """Initialize a new Invigilator."""
         self.agent = agent
@@ -35,6 +33,7 @@ class InvigilatorBase(ABC):
         self.current_answers = current_answers
         self.iteration = iteration
         self.additional_prompt_data = additional_prompt_data
+        self.cache = cache or Cache()
 
     def get_failed_task_result(self) -> AgentResponseDict:
         """Return an AgentResponseDict used in case the question-askinf fails."""

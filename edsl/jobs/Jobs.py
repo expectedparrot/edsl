@@ -21,6 +21,7 @@ from edsl.coop.old import JobRunnerAPI, ResultsAPI
 
 from edsl.jobs.buckets.BucketCollection import BucketCollection
 
+from edsl.data.new_cache import Cache
 
 class Jobs(Base):
     """
@@ -195,6 +196,7 @@ class Jobs(Base):
         progress_bar: bool = False,
         dry_run: bool = False,
         streaming: bool = False,
+        cache = None,
         db: Database = database,
     ) -> Union[Results, ResultsAPI, None]:
         """
@@ -209,6 +211,7 @@ class Jobs(Base):
         :param db: the database to use
 
         """
+        cache = cache or Cache()
         # self.job_runner_name = method
         if dry_run:
             self.job_runner_name = "dry_run"
@@ -363,7 +366,6 @@ if __name__ == "__main__":
     import doctest
 
     doctest.testmod()
-
     from edsl.jobs import Jobs
 
     job = Jobs.example()
