@@ -1,5 +1,6 @@
 """This module contains the LanguageModel class, which is an abstract base class for all language models."""
 from __future__ import annotations
+import warnings
 from functools import wraps
 import asyncio
 import json
@@ -10,8 +11,8 @@ from abc import ABC, abstractmethod, ABCMeta
 from rich.console import Console
 from rich.table import Table
 
-from edsl.trackers.TrackerAPI import TrackerAPI
-from queue import Queue
+#from edsl.trackers.TrackerAPI import TrackerAPI
+#from queue import Queue
 from typing import Any, Callable, Type, List
 from edsl.data import CRUDOperations, CRUD
 from edsl.exceptions import LanguageModelResponseNotJSONError
@@ -268,9 +269,12 @@ class LanguageModel(
             if key not in parameters:
                 setattr(self, key, value)
 
+        if "use_cache" in kwargs:
+            warnings.warn("The use_cache parameter is deprecated. Use the Cache class instead.")
+
         # TODO: This can very likely be removed
-        self.api_queue = Queue()
-        self.crud = crud
+        #self.api_queue = Queue()
+        # self.crud = crud
 
     def __hash__(self):
         """Allow the model to be used as a key in a dictionary."""
@@ -356,7 +360,7 @@ class LanguageModel(
         end_time = time.time()
         response["elapsed_time"] = end_time - start_time
         response["timestamp"] = end_time
-        self._post_tracker_event(response)
+        #self._post_tracker_event(response)
         response["cached_response"] = cached_response
         return response
 
@@ -411,20 +415,20 @@ class LanguageModel(
 
     get_raw_response = sync_wrapper(async_get_raw_response)
 
-    def _save_response_to_db(self, user_prompt, system_prompt, response, iteration):
-        """Save the response to the database."""
-        try:
-            output = json.dumps(response)
-        except json.JSONDecodeError:
-            raise LanguageModelResponseNotJSONError
-        self.crud.write_LLMOutputData(
-            model=str(self.model),
-            parameters=str(self.parameters),
-            system_prompt=system_prompt,
-            prompt=user_prompt,
-            output=output,
-            iteration=iteration,
-        )
+    # def _save_response_to_db(self, user_prompt, system_prompt, response, iteration):
+    #     """Save the response to the database."""
+    #     try:
+    #         output = json.dumps(response)
+    #     except json.JSONDecodeError:
+    #         raise LanguageModelResponseNotJSONError
+    #     self.crud.write_LLMOutputData(
+    #         model=str(self.model),
+    #         parameters=str(self.parameters),
+    #         system_prompt=system_prompt,
+    #         prompt=user_prompt,
+    #         output=output,
+    #         iteration=iteration,
+    #     )
 
     async def async_get_response(
         self, user_prompt: str, system_prompt: str, iteration: int = 1, cache = None
@@ -454,18 +458,18 @@ class LanguageModel(
     #######################
     # USEFUL METHODS
     #######################
-    def _post_tracker_event(self, raw_response: dict[str, Any]) -> None:
-        """Parse the API response and sends usage details to the API Queue."""
-        usage = raw_response.get("usage", {})
-        usage.update(
-            {
-                "cached_response": raw_response.get("cached_response", None),
-                "elapsed_time": raw_response.get("elapsed_time", None),
-                "timestamp": raw_response.get("timestamp", None),
-            }
-        )
-        event = TrackerAPI.APICallDetails(details=usage)
-        self.api_queue.put(event)
+    # def _post_tracker_event(self, raw_response: dict[str, Any]) -> None:
+    #     """Parse the API response and sends usage details to the API Queue."""
+    #     usage = raw_response.get("usage", {})
+    #     usage.update(
+    #         {
+    #             "cached_response": raw_response.get("cached_response", None),
+    #             "elapsed_time": raw_response.get("elapsed_time", None),
+    #             "timestamp": raw_response.get("timestamp", None),
+    #         }
+    #     )
+    #     #event = TrackerAPI.APICallDetails(details=usage)
+        #self.api_queue.put(event)
 
     def cost(self, raw_response: dict[str, Any]) -> float:
         """Return the dollar cost of a raw response."""
