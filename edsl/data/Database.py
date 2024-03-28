@@ -10,6 +10,8 @@ from edsl.config import Config, CONFIG
 from edsl.data import Base
 from edsl.exceptions import DatabaseConnectionError, DatabaseIntegrityError
 
+from edsl.data.check_schema import schema_matches
+import shutil 
 
 class Database:
     """Manage the connection to the database."""
@@ -19,6 +21,26 @@ class Database:
         self.database_path = config.get("EDSL_DATABASE_PATH")
         try:
             self.engine = create_engine(self.database_path)
+
+            # Check if the database schema matches the ORM
+            file_name = self.database_path.split("/")[-1]
+            if file_name is "edsl_cache.db" and not schema_matches(self.database_path):
+                self.engine.dispose()
+
+                database_file_path = self.database_path.replace('sqlite:///', '')
+
+                backup_path = database_file_path + ".bak"
+
+                #raise DatabaseIntegrityError(
+                #    "The database schema does not match the ORM. "
+                #    "Please update your database schema."
+                #)
+                print("The database schema does not match the ORM. Making a backup of the database and deleting the original.")
+                print("The back is at ", backup_path)
+                shutil.copy(database_file_path,backup_path)
+                os.remove(database_file_path)
+                self.engine = create_engine(self.database_path)
+                
 
             # listener sets WAL mode on connect
             # @event.listens_for(self.engine, "connect")
