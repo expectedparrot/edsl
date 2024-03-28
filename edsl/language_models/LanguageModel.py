@@ -1,7 +1,6 @@
 """This module contains the LanguageModel class, which is an abstract base class for all language models."""
 from __future__ import annotations
 from functools import wraps
-import io
 import asyncio
 import json
 import time
@@ -19,6 +18,8 @@ from edsl.exceptions import LanguageModelResponseNotJSONError
 from edsl.language_models.schemas import model_prices
 from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
 
+#from edsl.data.Cache import Cache
+
 from edsl.language_models.repair import repair
 from typing import get_type_hints
 
@@ -27,6 +28,7 @@ from edsl.enums import LanguageModelType, InferenceServiceType
 
 from edsl.Base import RichPrintingMixin, PersistenceMixin
 
+from edsl.data.new_cache import Cache    
 
 def handle_key_error(func):
     """Handle KeyError exceptions."""
@@ -359,9 +361,18 @@ class LanguageModel(
         return response
 
     async def async_get_raw_response(
-        self, user_prompt: str, system_prompt: str, iteration: int = 1
+        self, 
+        user_prompt: str, 
+        system_prompt: str, 
+        iteration: int = 0, 
+        cache = None
     ) -> dict[str, Any]:
         """Handle caching of responses.
+
+        :param user_prompt: The user's prompt.
+        :param system_prompt: The system's prompt.
+        :param iteration: The iteration number.
+        :param cache: The cache to use.
 
         If the cache isn't being used, it just returns a 'fresh' call to the LLM,
         but appends some tracking information to the response (using the _update_response_with_tracking method).
@@ -372,33 +383,30 @@ class LanguageModel(
         If self.use_cache is True, then attempts to retrieve the response from the database;
         if not in the DB, calls the LLM and writes the response to the DB.
         """
+        cache = cache or Cache()
         start_time = time.time()
 
-        if not self.use_cache:
-            response = await self.async_execute_model_call(user_prompt, system_prompt)
-            return self._update_response_with_tracking(response, start_time, False)
-
-        cached_response = self.crud.get_LLMOutputData(
-            model=str(self.model),
-            parameters=str(self.parameters),
-            system_prompt=system_prompt,
-            prompt=user_prompt,
-            iteration=iteration,
-        )
-
-        if cached_response:
-            response = json.loads(cached_response)
-            cache_used = True
-        else:
-            response = await self.async_execute_model_call(user_prompt, system_prompt)
-            self._save_response_to_db(
-                user_prompt=user_prompt,
+        with cache as c:
+            cached_response = c.fetch(
+                model=str(self.model),
+                parameters=str(self.parameters),
                 system_prompt=system_prompt,
-                response=response,
+                user_prompt=user_prompt,
                 iteration=iteration,
             )
-            cache_used = False
-
+            if cache_used := (cached_response is not None):
+                response = json.loads(cached_response)
+            else:
+                response = await self.async_execute_model_call(user_prompt, system_prompt)
+                c.store(
+                    user_prompt=user_prompt,
+                    model=str(self.model),
+                    parameters=str(self.parameters),
+                    system_prompt=system_prompt,
+                    response=response,
+                    iteration=iteration,
+                )
+    
         return self._update_response_with_tracking(response, start_time, cache_used)
 
     get_raw_response = sync_wrapper(async_get_raw_response)
@@ -419,11 +427,13 @@ class LanguageModel(
         )
 
     async def async_get_response(
-        self, user_prompt: str, system_prompt: str, iteration: int = 1
+        self, user_prompt: str, system_prompt: str, iteration: int = 1, cache = None
     ):
         """Get response, parse, and return as string."""
+        cache = cache or Cache()
         raw_response = await self.async_get_raw_response(
-            user_prompt=user_prompt, system_prompt=system_prompt, iteration=iteration
+            user_prompt=user_prompt, system_prompt=system_prompt, iteration=iteration, 
+            cache = cache
         )
         response = self.parse_response(raw_response)
         try:

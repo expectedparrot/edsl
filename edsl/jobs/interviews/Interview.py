@@ -2,7 +2,6 @@
 from __future__ import annotations
 import traceback
 import asyncio
-import textwrap
 import time
 from typing import Any, Type, List, Generator
 
@@ -24,7 +23,9 @@ from edsl.jobs.interviews.interview_exception_tracking import InterviewException
 from edsl.jobs.interviews.retry_management import retry_strategy
 from edsl.jobs.interviews.InterviewTaskBuildingMixin import InterviewTaskBuildingMixin
 from edsl.jobs.interviews.InterviewStatusMixin import InterviewStatusMixin
-    
+
+from edsl.data.new_cache import Cache
+
 class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
     """
     An 'interview' is one agent answering one survey, with one language model, for a given scenario.
@@ -77,6 +78,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         model_buckets: ModelBuckets = None,
         debug: bool = False,
         stop_on_exception: bool = False,
+        cache = None
     ) -> tuple["Answers", List[dict[str, Any]]]:
         """
         Conduct an Interview asynchronously.
@@ -84,6 +86,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         :param model_buckets: a dictionary of token buckets for the model.
         :param debug: run without calls to LLM.
         :param stop_on_exception: if True, stops the interview if an exception is raised.
+        :param cache: a cache object to use for the interview.
 
         Example usage:
         
@@ -93,12 +96,13 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         'yes'
         
         """
+        cache = cache or Cache()
         # if no model bucket is passed, create an 'infinity' bucket with no rate limits
         model_buckets = model_buckets or ModelBuckets.infinity_bucket()
         # build the tasks using the InterviewTaskBuildingMixin
         self.tasks = self._build_question_tasks(debug=debug, model_buckets=model_buckets)
         # 'Invigilators' are used to administer the survey
-        self.invigilators = list(self._build_invigilators(debug=debug))
+        self.invigilators = list(self._build_invigilators(debug=debug, cache=cache))
         # await the tasks being conducted
         await asyncio.gather(*self.tasks, return_exceptions = not stop_on_exception)
         self.answers.replace_missing_answers_with_none(self.survey)

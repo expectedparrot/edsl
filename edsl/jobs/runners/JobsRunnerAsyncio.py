@@ -14,6 +14,7 @@ from edsl.utilities.decorators import jupyter_nb_handler
 from edsl.jobs.runners.JobsRunnerStatusMixin import JobsRunnerStatusMixin
 from edsl.jobs.runners.JobsRunHistory import JobsRunHistory
 
+from edsl.data.new_cache import Cache
 
 #from edsl.jobs.tasks.task_status_enum import TaskStatus
 
@@ -29,6 +30,7 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
         n: int = 1,
         debug: bool = False,
         stop_on_exception: bool = False,
+        cache = None
     ) -> AsyncGenerator[Result, None]:
         """Creates the tasks, runs them asynchronously, and returns the results as a Results object.
 
@@ -38,6 +40,7 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
         :param debug:
         :param stop_on_exception:
         """
+        cache = cache or Cache()
         tasks = []
         self.populate_total_interviews(
             n=n
@@ -45,7 +48,7 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
 
         for interview in self.total_interviews:
             interviewing_task = self._interview_task(
-                interview=interview, debug=debug, stop_on_exception=stop_on_exception
+                interview=interview, debug=debug, stop_on_exception=stop_on_exception, cache = cache
             )
             tasks.append(asyncio.create_task(interviewing_task))
 
@@ -54,13 +57,14 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
             yield result
 
     async def _interview_task(
-        self, *, interview: Interview, debug: bool, stop_on_exception: bool = False
+        self, *, interview: Interview, debug: bool, stop_on_exception: bool = False, cache = None
     ) -> Result:
         """Conducts an interview and returns the result.
 
         :param interview: the interview to conduct
         :param debug: prints debug messages
         """
+        cache = cache or Cache()
         # the model buckets are used to track usage rates
         model_buckets = self.bucket_collection[interview.model]
 
@@ -69,6 +73,7 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
             debug=debug,
             model_buckets=model_buckets,
             stop_on_exception=stop_on_exception,
+            cache = cache
         )
 
         # we should have a valid result for each question

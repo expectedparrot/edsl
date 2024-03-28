@@ -184,6 +184,7 @@ from edsl.utilities.decorators import sync_wrapper
 from edsl.data_transfer_models import AgentResponseDict
 from edsl.prompts.library.agent_persona import AgentPersona
 
+from edsl.data.new_cache import Cache
 
 class Agent(Base):
     """An Agent that can answer questions."""
@@ -314,12 +315,14 @@ class Agent(Base):
         memory_plan: Optional[MemoryPlan] = None,
         current_answers: Optional[dict] = None,
         iteration: int = 1,
+        cache = None,
     ) -> InvigilatorBase:
         """Create an Invigilator.
 
         An invigator is an object that is responsible administering a question to an agent and
         recording the responses.
         """
+        cache = cache or Cache()
         self.current_question = question
         model = model or Model(LanguageModelType.GPT_4.value, use_cache=True)
         scenario = scenario or Scenario()
@@ -331,6 +334,7 @@ class Agent(Base):
             memory_plan=memory_plan,
             current_answers=current_answers,
             iteration=iteration,
+            cache=cache,
         )
         return invigilator
 
@@ -382,10 +386,12 @@ class Agent(Base):
         memory_plan: Optional[MemoryPlan] = None,
         current_answers: Optional[dict] = None,
         iteration: int = 0,
+        cache = None,
     ) -> InvigilatorBase:
         """Create an Invigilator."""
         model = model or Model(LanguageModelType.GPT_4.value, use_cache=True)
         scenario = scenario or Scenario()
+        cache = cache or Cache()
 
         if debug:
             # use the question's _simulate_answer method
@@ -411,6 +417,7 @@ class Agent(Base):
             memory_plan=memory_plan,
             current_answers=current_answers,
             iteration=iteration,
+            cache=cache,
         )
         return invigilator
 
