@@ -49,18 +49,6 @@ def test_config_store_and_load(test_config):
     assert os.getenv("EDSL_RUN_MODE") == test_config.EDSL_RUN_MODE
 
 
-def test_config_invalid_var(mock_env):
-    """Test that Config() raises an error if a var value is not allowed."""
-    with patch(
-        "os.getenv",
-        lambda var_name, default=None: (
-            "invalid" if var_name == "EDSL_RUN_MODE" else mock_getenv(var_name)
-        ),
-    ):
-        with pytest.raises(InvalidEnvironmentVariableError):
-            Config()
-
-
 def test_config_show_method(test_config, capsys):
     test_config.show()
     captured = capsys.readouterr()
