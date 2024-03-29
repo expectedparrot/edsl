@@ -1,4 +1,5 @@
 import openai
+import os
 import re
 from typing import Any
 from edsl import CONFIG
@@ -10,7 +11,7 @@ LanguageModelType.GPT_4.value
 
 
 def create_openai_model(model_name, model_class_name) -> LanguageModel:
-    openai.api_key = CONFIG.get("OPENAI_API_KEY")
+    openai.api_key = os.getenv("OPENAI_API_KEY")
 
     class LLM(LanguageModel):
         """
