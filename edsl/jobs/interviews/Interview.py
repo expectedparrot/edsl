@@ -41,6 +41,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         model: Type[LanguageModel],
         debug: bool = False,
         iteration: int = 0,
+        cache = None,
     ):
         """Initialize the Interview instance.
         
@@ -57,7 +58,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         self.model = model
         self.debug = debug
         self.iteration = iteration
-
+        self.cache = cache
         # will get filled in as interview progresses
         self.answers: dict[str, str] = Answers()  
 
@@ -78,7 +79,6 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         model_buckets: ModelBuckets = None,
         debug: bool = False,
         stop_on_exception: bool = False,
-        cache = None
     ) -> tuple["Answers", List[dict[str, Any]]]:
         """
         Conduct an Interview asynchronously.
@@ -86,7 +86,6 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         :param model_buckets: a dictionary of token buckets for the model.
         :param debug: run without calls to LLM.
         :param stop_on_exception: if True, stops the interview if an exception is raised.
-        :param cache: a cache object to use for the interview.
 
         Example usage:
         
@@ -96,13 +95,12 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         'yes'
         
         """
-        cache = cache or Cache()
         # if no model bucket is passed, create an 'infinity' bucket with no rate limits
         model_buckets = model_buckets or ModelBuckets.infinity_bucket()
         # build the tasks using the InterviewTaskBuildingMixin
         self.tasks = self._build_question_tasks(debug=debug, model_buckets=model_buckets)
         # 'Invigilators' are used to administer the survey
-        self.invigilators = list(self._build_invigilators(debug=debug, cache=cache))
+        self.invigilators = list(self._build_invigilators(debug=debug))
         # await the tasks being conducted
         await asyncio.gather(*self.tasks, return_exceptions = not stop_on_exception)
         self.answers.replace_missing_answers_with_none(self.survey)
@@ -210,7 +208,7 @@ if __name__ == "__main__":
 
     a.add_direct_question_answering_method(direct_question_answering_method)
     scenario = Scenario()
-    m = LanguageModelOpenAIThreeFiveTurbo(use_cache=False)
+    m = LanguageModelOpenAIThreeFiveTurbo()
     I = Interview(agent=a, survey=s, scenario=scenario, model=m)
 
     result = asyncio.run(I.async_conduct_interview())

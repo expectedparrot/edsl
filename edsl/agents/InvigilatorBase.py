@@ -20,9 +20,9 @@ class InvigilatorBase(ABC):
         model,
         memory_plan,
         current_answers: dict,
+        cache = None,
         iteration: int = 1,
         additional_prompt_data: Optional[dict] = None,
-        cache = None
     ):
         """Initialize a new Invigilator."""
         self.agent = agent
@@ -33,8 +33,8 @@ class InvigilatorBase(ABC):
         self.current_answers = current_answers
         self.iteration = iteration
         self.additional_prompt_data = additional_prompt_data
-        self.cache = cache or Cache()
-
+        self.cache = cache
+ 
     def get_failed_task_result(self) -> AgentResponseDict:
         """Return an AgentResponseDict used in case the question-askinf fails."""
         return AgentResponseDict(

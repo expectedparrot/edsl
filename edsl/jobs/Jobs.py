@@ -163,7 +163,7 @@ class Jobs(Base):
         """
         self.agents = self.agents or [Agent()]
         self.models = self.models or [
-            Model(LanguageModelType.GPT_4.value, use_cache=True)
+            Model(LanguageModelType.GPT_4.value)
         ]
         self.scenarios = self.scenarios or [Scenario()]
         for agent, scenario, model in product(self.agents, self.scenarios, self.models):
@@ -196,6 +196,7 @@ class Jobs(Base):
         progress_bar: bool = False,
         dry_run: bool = False,
         streaming: bool = False,
+        stop_on_exception: bool = False,
         cache = None,
         db: Database = database,
     ) -> Union[Results, ResultsAPI, None]:
@@ -211,7 +212,8 @@ class Jobs(Base):
         :param db: the database to use
 
         """
-        cache = cache or Cache()
+        if cache is None:
+            cache = Cache()
         # self.job_runner_name = method
         if dry_run:
             self.job_runner_name = "dry_run"
@@ -224,7 +226,8 @@ class Jobs(Base):
             expected_parrot_api_key := CONFIG.get("EXPECTED_PARROT_API_KEY")
         ) == "local":
             results = self._run_local(
-                n=n, debug=debug, progress_bar=progress_bar, db=db
+                n=n, debug=debug, progress_bar=progress_bar, db=db, cache=cache, 
+                stop_on_exception=stop_on_exception
             )
         else:
             results = self._run_remote(

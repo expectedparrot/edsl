@@ -108,15 +108,21 @@ class TestLanguageModel(unittest.TestCase):
 
     def test_cache_write_and_read(self):
         self.crud.clear_LLMOutputData()
+        from edsl.data.new_cache import Cache
+
         m = self.good_class(
             crud=self.crud,
-            use_cache=True,
+#            use_cache=True,
             model="fake model",
             parameters={"temperature": 0.5},
             iteration = 1
         )
+        from edsl.data.new_cache import Cache
+        cache = Cache(method = "memory")
+        
         m.get_response(
-            user_prompt="Hello world", system_prompt="You are a helpful agent"
+            user_prompt="Hello world", system_prompt="You are a helpful agent",
+            cache = cache
         )
 
         expected_response = {
@@ -129,7 +135,9 @@ class TestLanguageModel(unittest.TestCase):
             "iteration": 1,
         }
 
-        self.assertEqual(self.crud.get_all_LLMOutputData(), [expected_response])
+
+        breakpoint()
+        self.assertEqual(list(cache.data.values()), [expected_response])
 
         # call again with same prompt - should not write to db again
         m.get_response(
