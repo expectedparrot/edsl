@@ -308,21 +308,22 @@ class Agent(Base):
 
     def create_invigilator(
         self,
+        *, 
         question: Question,
+        cache, 
         scenario: Optional[Scenario] = None,
         model: Optional[LanguageModel] = None,
         debug: bool = False,
         memory_plan: Optional[MemoryPlan] = None,
         current_answers: Optional[dict] = None,
         iteration: int = 1,
-        cache = None,
     ) -> InvigilatorBase:
         """Create an Invigilator.
 
         An invigator is an object that is responsible administering a question to an agent and
         recording the responses.
         """
-        cache = cache or Cache()
+        cache = cache
         self.current_question = question
         model = model or Model(LanguageModelType.GPT_4.value, use_cache=True)
         scenario = scenario or Scenario()
@@ -340,7 +341,9 @@ class Agent(Base):
 
     async def async_answer_question(
         self,
+        *, 
         question: Question,
+        cache, 
         scenario: Optional[Scenario] = None,
         model: Optional[LanguageModel] = None,
         debug: bool = False,
@@ -365,6 +368,7 @@ class Agent(Base):
         """
         invigilator = self.create_invigilator(
             question=question,
+            cache=cache,
             scenario=scenario,
             model=model,
             debug=debug,
@@ -380,18 +384,20 @@ class Agent(Base):
     def _create_invigilator(
         self,
         question: Question,
+        cache = None, 
         scenario: Optional[Scenario] = None,
         model: Optional[LanguageModel] = None,
         debug: bool = False,
         memory_plan: Optional[MemoryPlan] = None,
         current_answers: Optional[dict] = None,
         iteration: int = 0,
-        cache = None,
     ) -> InvigilatorBase:
         """Create an Invigilator."""
         model = model or Model(LanguageModelType.GPT_4.value, use_cache=True)
         scenario = scenario or Scenario()
-        cache = cache or Cache()
+
+        if cache is None:
+            cache = Cache()
 
         if debug:
             # use the question's _simulate_answer method

@@ -27,10 +27,10 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
 
     async def run_async(
         self,
+        cache, 
         n: int = 1,
         debug: bool = False,
         stop_on_exception: bool = False,
-        cache = None
     ) -> AsyncGenerator[Result, None]:
         """Creates the tasks, runs them asynchronously, and returns the results as a Results object.
 
@@ -40,7 +40,6 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
         :param debug:
         :param stop_on_exception:
         """
-        cache = cache or Cache()
         tasks = []
         self.populate_total_interviews(
             n=n
@@ -48,7 +47,7 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
 
         for interview in self.total_interviews:
             interviewing_task = self._interview_task(
-                interview=interview, debug=debug, stop_on_exception=stop_on_exception, cache = cache
+                interview=interview, debug=debug, stop_on_exception=stop_on_exception
             )
             tasks.append(asyncio.create_task(interviewing_task))
 
@@ -57,14 +56,12 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
             yield result
 
     async def _interview_task(
-        self, *, interview: Interview, debug: bool, stop_on_exception: bool = False, cache = None
-    ) -> Result:
+        self, *, interview: Interview, debug: bool, stop_on_exception: bool = False) -> Result:
         """Conducts an interview and returns the result.
 
         :param interview: the interview to conduct
         :param debug: prints debug messages
         """
-        cache = cache or Cache()
         # the model buckets are used to track usage rates
         model_buckets = self.bucket_collection[interview.model]
 
@@ -73,7 +70,6 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
             debug=debug,
             model_buckets=model_buckets,
             stop_on_exception=stop_on_exception,
-            cache = cache
         )
 
         # we should have a valid result for each question
@@ -124,6 +120,7 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
     @jupyter_nb_handler
     async def run(
         self,
+        cache, 
         n: int = 1,
         debug: bool = False,
         stop_on_exception: bool = False,
@@ -134,6 +131,7 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
         self.results = []
         self.start_time = time.monotonic()
         self.completed = False
+        self.cache = cache
 
         def generate_table():
             return self.status_table(self.results, self.elapsed_time)
@@ -164,7 +162,7 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
             
             async def process_results():
                 """Processes results from interviews."""
-                async for result in self.run_async(n=n, debug=debug, stop_on_exception=stop_on_exception):
+                async for result in self.run_async(n=n, debug=debug, stop_on_exception=stop_on_exception, cache = cache):
                     self.results.append(result)
                     live.update(generate_table())
                 self.completed = True
@@ -193,9 +191,8 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
         if results.task_history.has_exceptions:
             print(textwrap.dedent(f"""\
             Exceptions were raised in the following interviews: {results.task_history.indices}
-            If your results object is named `results` these are available in 
 
-            >>> results.exceptions 
+            >>> results.task_history.show_exceptions()
                               
             If you want to plot by-task completion times, you can use 
 
@@ -204,8 +201,6 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
             If you want to plot by-task status over time, you can use
             
             >>> results.task_history.plot()
-
-            >>> results.task_history.show_exceptions()
             
             """))
 

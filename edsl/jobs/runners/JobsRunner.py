@@ -43,6 +43,7 @@ class JobsRunner(ABC, metaclass=RegisterJobsRunnerMeta):
 
     def __init__(self, jobs: Jobs):
         self.jobs = jobs
+
         self.interviews: List['Interview'] = jobs.interviews()
         self.bucket_collection: 'BucketCollection' = jobs.bucket_collection
         self.total_interviews: List['Interview'] = []
@@ -50,6 +51,7 @@ class JobsRunner(ABC, metaclass=RegisterJobsRunnerMeta):
     @abstractmethod
     def run(
         self,
+        cache,
         n: int = 1,
         debug: bool = False,
         progress_bar: bool = True,
@@ -80,7 +82,9 @@ class JobsRunner(ABC, metaclass=RegisterJobsRunnerMeta):
                         model=interview.model,
                         debug=interview.debug,
                         iteration=iteration,
+                        cache = self.cache
                     )
                     self.total_interviews.append(new_interview)
                 else:
+                    interview.cache = self.cache
                     self.total_interviews.append(interview)

@@ -34,15 +34,13 @@ TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
 
 class InterviewTaskBuildingMixin:
 
-    def _build_invigilators(self, debug: bool, cache = None) -> Generator["Invigilator", None, None]:
+    def _build_invigilators(self, debug: bool) -> Generator["Invigilator", None, None]:
         """Create an invigilator for each question."""
-        cache = cache or Cache()
         for question in self.survey.questions:
-            yield self.get_invigilator(question=question, debug=debug, cache=cache)
+            yield self.get_invigilator(question=question, debug=debug)
 
-    def get_invigilator(self, question: QuestionBase, debug: bool, cache = None) -> "Invigilator":
+    def get_invigilator(self, question: QuestionBase, debug: bool) -> "Invigilator":
         """Return an invigilator for the given question."""
-        cache = cache or Cache()
         invigilator = self.agent.create_invigilator(
             question=question,
             scenario=self.scenario,
@@ -51,7 +49,7 @@ class InterviewTaskBuildingMixin:
             memory_plan=self.survey.memory_plan,
             current_answers=self.answers,
             iteration=self.iteration,
-            cache=cache,
+            cache=self.cache,
         )
         """Return an invigilator for the given question."""
         return invigilator
@@ -137,7 +135,7 @@ class InterviewTaskBuildingMixin:
     
     def _get_estimated_request_tokens(self, question) -> float:
         """Estimate the number of tokens that will be required to run the focal task."""
-        invigilator = self.get_invigilator(question, debug=False)
+        invigilator = self.get_invigilator(question = question, debug=False)
         # TODO: There should be a way to get a more accurate estimate.
         combined_text = ""
         for prompt in invigilator.get_prompts().values():
@@ -152,8 +150,9 @@ class InterviewTaskBuildingMixin:
     @retry_strategy
     async def _answer_question_and_record_task(
         self,
+        *, 
         question: QuestionBase,
-        debug: bool,
+        debug: bool, 
         task = None,
     ) -> AgentResponseDict:
         """Answer a question and records the task.
