@@ -32,10 +32,15 @@ def create_deep_infra_model(model_name, url, model_class_name) -> LanguageModel:
             self, user_prompt: str, system_prompt: str = ""
         ) -> dict[str, Any]:
             self.url = url
-            api_token = os.getenv("DEEP_INFRA_API_KEY")
+            if not hasattr(self, "api_token"):
+                self.api_token = os.getenv("DEEP_INFRA_API_KEY")
+                if self.api_token is None:
+                    raise Exception(
+                        "The DEEP_INFRA_API_KEY environment variable is not set."
+                    )
             headers = {
                 "Content-Type": "application/json",
-                "Authorization": f"Token {api_token}",
+                "Authorization": f"Token {self.api_token}",
             }
             data = {
                 "input": f"""

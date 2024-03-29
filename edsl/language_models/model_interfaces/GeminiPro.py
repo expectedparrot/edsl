@@ -22,9 +22,12 @@ class GeminiPro(LanguageModel):
     async def async_execute_model_call(
         self, user_prompt: str, system_prompt: str = ""
     ) -> dict[str, Any]:
-        api_token = os.getenv("GOOGLE_API_KEY")
+        if not hasattr(self, "api_token"):
+            self.api_token = os.getenv("GOOGLE_API_KEY")
+            if self.api_token is None:
+                raise Exception("The GOOGLE_API_KEY environment variable is not set.")
         combined_prompt = user_prompt + system_prompt
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={api_token}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={self.api_token}"
         headers = {"Content-Type": "application/json"}
         data = {
             "contents": [{"parts": [{"text": combined_prompt}]}],

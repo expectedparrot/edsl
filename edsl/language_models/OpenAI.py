@@ -2,7 +2,6 @@ import openai
 import os
 import re
 from typing import Any
-from edsl import CONFIG
 from openai import AsyncOpenAI
 from edsl.enums import LanguageModelType, InferenceServiceType
 from edsl.language_models import LanguageModel
@@ -60,9 +59,15 @@ def create_openai_model(model_name, model_class_name) -> LanguageModel:
             self, user_prompt: str, system_prompt: str = ""
         ) -> dict[str, Any]:
             """Calls the OpenAI API and returns the API response."""
-            client = AsyncOpenAI()
-            openai.api_key = os.getenv("OPENAI_API_KEY")
-            response = await client.chat.completions.create(
+            if not hasattr(self, "api_token"):
+                self.api_token = os.getenv("OPENAI_API_KEY")
+                if self.api_token is None:
+                    raise Exception(
+                        "The OPENAI_API_KEY environment variable is not set."
+                    )
+                openai.api_key = os.getenv("OPENAI_API_KEY")
+                self.client = AsyncOpenAI()
+            response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=[
                     {"role": "system", "content": system_prompt},
