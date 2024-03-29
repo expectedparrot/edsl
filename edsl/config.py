@@ -91,7 +91,7 @@ class Config:
         mode = os.getenv("EDSL_RUN_MODE") or "production"
         if mode not in EDSL_RUN_MODES:
             raise InvalidEnvironmentVariableError(
-                f"Value {self.EDSL_RUN_MODE} is not allowed for EDSL_RUN_MODE."
+                f"Value {mode} is not allowed for EDSL_RUN_MODE."
             )
 
         # for each env var in the CONFIG_MAP
