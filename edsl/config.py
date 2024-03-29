@@ -8,7 +8,7 @@ from edsl.exceptions import (
 )
 
 # valid values for EDSL_RUN_MODE
-APP_RUN_MODES = ["development", "development-testrun", "production"]
+EDSL_RUN_MODES = ["development", "development-testrun", "production"]
 
 # `default` is used to impute values only in "production" mode
 # `info` gives a brief description of the env var
@@ -87,9 +87,9 @@ class Config:
         Sets env vars as Config class attributes.
         - If an env var is not set and has a default value in the CONFIG_MAP, sets it to the default value.
         """
-        # get and validate APP_RUN_MODE
-        mode = os.getenv("EDSL_RUN_MODE")
-        if mode not in APP_RUN_MODES:
+        # only for EDSL_RUN_MODE
+        mode = os.getenv("EDSL_RUN_MODE") or "production"
+        if mode not in EDSL_RUN_MODES:
             raise InvalidEnvironmentVariableError(
                 f"Value {self.EDSL_RUN_MODE} is not allowed for EDSL_RUN_MODE."
             )
@@ -104,7 +104,6 @@ class Config:
             # otherwise, if EDSL_RUN_MODE == "production" set it to its default value
             elif mode == "production":
                 setattr(self, env_var, default_value)
-                # os.environ[env_var] = default_value
 
     def get(self, env_var: str) -> str:
         """
