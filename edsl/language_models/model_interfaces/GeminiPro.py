@@ -1,3 +1,4 @@
+import os
 import aiohttp
 import json
 from typing import Any
@@ -17,7 +18,7 @@ class GeminiPro(LanguageModel):
         "stopSequences": [],
         "use_cache": True,
     }
-    api_token = CONFIG.get("GOOGLE_API_KEY")
+    api_token = os.getenv("GOOGLE_API_KEY")
 
     async def async_execute_model_call(
         self, user_prompt: str, system_prompt: str = ""

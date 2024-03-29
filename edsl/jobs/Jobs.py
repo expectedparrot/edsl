@@ -1,7 +1,8 @@
 """The Jobs class is a collection of agents, scenarios and models and one survey."""
+
 from __future__ import annotations
+import os
 from collections.abc import Sequence
-from collections import UserDict
 from itertools import product
 from typing import Union, Generator
 
@@ -9,16 +10,18 @@ from edsl import CONFIG
 from edsl.agents import Agent
 from edsl.Base import Base
 from edsl.data import Database, database
-from edsl.language_models import LanguageModel  # , LanguageModelOpenAIThreeFiveTurbo
+from edsl.language_models import LanguageModel
 from edsl.enums import LanguageModelType
 from edsl import Model
 from edsl.results import Results
 from edsl.scenarios import Scenario
 from edsl.surveys import Survey
-from edsl.jobs.runners.job_runners_registry import JobsRunnersRegistry, JobsRunnerDescriptor
+from edsl.jobs.runners.job_runners_registry import (
+    JobsRunnersRegistry,
+    JobsRunnerDescriptor,
+)
 from edsl.jobs.interviews.Interview import Interview
 from edsl.coop.old import JobRunnerAPI, ResultsAPI
-
 from edsl.jobs.buckets.BucketCollection import BucketCollection
 
 
@@ -65,7 +68,7 @@ class Jobs(Base):
         Add Agents, Scenarios and LanguageModels to a job. If no objects of this type exist in the Jobs instance, it stores the new objects as a list in the corresponding attribute. Otherwise, it combines the new objects with existing objects using the object's `__add__` method.
 
         This 'by' is intended to create a fluent interface.
-        
+
         Arguments:
         - objects or a sequence (list, tuple, ...) of objects of the same type
 
@@ -92,6 +95,7 @@ class Jobs(Base):
     @staticmethod
     def _turn_args_to_list(args):
         """Return a list of the first argument if it is a sequence, otherwise returns a list of all the arguments."""
+
         def did_user_pass_a_sequence(args):
             """Return True if the user passed a sequence, False otherwise.
 
@@ -148,7 +152,7 @@ class Jobs(Base):
     def interviews(self) -> list[Interview]:
         """
         Return a list of Interviews, that will eventually be used by the JobRunner.
-        
+
         - Returns one Interview for each combination of Agent, Scenario, and LanguageModel.
         - If any of Agents, Scenarios, or LanguageModels are missing, fills in with defaults. Note that this will change the corresponding class attributes.
         """
@@ -217,15 +221,14 @@ class Jobs(Base):
         else:
             self.job_runner_name = "asyncio"
 
-        if (
-            expected_parrot_api_key := CONFIG.get("EXPECTED_PARROT_API_KEY")
-        ) == "local":
-            results = self._run_local(
-                n=n, debug=debug, progress_bar=progress_bar, db=db
-            )
-        else:
+        expected_parrot_api_key = os.getenv("EXPECTED_PARROT_API_KEY")
+        if expected_parrot_api_key:
             results = self._run_remote(
                 api_key=expected_parrot_api_key, job_dict=self.to_dict()
+            )
+        else:
+            results = self._run_local(
+                n=n, debug=debug, progress_bar=progress_bar, db=db
             )
 
         return results
