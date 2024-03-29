@@ -7,7 +7,7 @@ help: ## Show all Makefile targets.
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(GIT_ROOT)/Makefile | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[33m%-30s\033[0m %s\n", $$1, $$2}'
 
 find: ## Search for a pattern. Use `make find term="pattern"`
-	@find . -type d -name '.venv' -prune -o -type f -print | xargs grep -l "$(term)"
+	@find . -type d \( -name '.venv' -o -name '__pycache__' \) -prune -o -type f -print | xargs grep -l "$(term)"
 
 backup: ## Backup the code to `edsl/.backups/`
 	TIMESTAMP=$$(date +"%Y%m%d_%H%M%S"); \
