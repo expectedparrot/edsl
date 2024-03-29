@@ -14,6 +14,8 @@ from .data import (
     DatabaseIntegrityError,
 )
 
+from .general import MissingAPIKeyError
+
 from .jobs import JobsRunError, InterviewErrorPriorTaskCanceled, InterviewTimeoutError
 
 from .language_models import (
