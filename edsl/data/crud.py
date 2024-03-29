@@ -58,13 +58,13 @@ class CRUDOperations:
         prompt: str,
         output: str,
         iteration: int,
+        timestamp: int = None,
     ) -> None:
         """
         Write an LLM output to the database.
         
         Arguments: in string format, the model, parameters, system_prompt, prompt, and the generated output.
         """
-        timestamp = int(time.monotonic()*1_000)
 
         record = LLMOutputDataDB(
             model=model,
