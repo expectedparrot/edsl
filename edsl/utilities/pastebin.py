@@ -1,14 +1,14 @@
 """Module for uploading and retrieving objects from a community server."""
 
+import os
 import requests
 import json
 import textwrap
 
 from rich import print as print
-from edsl.config import CONFIG
 
 
-SERVER_URL = CONFIG.get("EXPECTED_PARROT_URL")
+SERVER_URL = os.getenv("EXPECTED_PARROT_URL")
 
 from edsl.utilities.SystemInfo import SystemInfo
 

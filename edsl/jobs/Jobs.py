@@ -6,7 +6,6 @@ from collections.abc import Sequence
 from itertools import product
 from typing import Union, Generator
 
-from edsl import CONFIG
 from edsl.agents import Agent
 from edsl.Base import Base
 from edsl.data import Database, database

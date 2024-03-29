@@ -10,7 +10,7 @@ from edsl.exceptions import (
 # valid values for EDSL_RUN_MODE
 APP_RUN_MODES = ["development", "development-testrun", "production"]
 
-# `default` is used to impute values only in "development" mode
+# `default` is used to impute values only in "production" mode
 # `info` gives a brief description of the env var
 CONFIG_MAP = {
     "EDSL_RUN_MODE": {
@@ -71,7 +71,6 @@ class Config:
         """Initialize the Config class."""
         self._load_dotenv()
         self._set_env_vars()
-        self._validate_run_mode()
 
     def _load_dotenv(self) -> None:
         """
@@ -88,21 +87,24 @@ class Config:
         Sets env vars as Config class attributes.
         - If an env var is not set and has a default value in the CONFIG_MAP, sets it to the default value.
         """
-        for env_var, config in CONFIG_MAP.items():
-            # if the env var is set, set it as a CONFIG attribute as well
-            if value := os.getenv(env_var):
-                setattr(self, env_var, value)
-            # if the env var is not set and has a default value, set it as an CONFIG attribute and as an env var
-            elif default_value := config.get("default"):
-                setattr(self, env_var, default_value)
-                os.environ[env_var] = default_value
-
-    def _validate_run_mode(self):
-        """Validate that the EDSL_RUN_MODE is set to a valid value."""
-        if self.EDSL_RUN_MODE not in APP_RUN_MODES:
+        # get and validate APP_RUN_MODE
+        mode = os.getenv("EDSL_RUN_MODE")
+        if mode not in APP_RUN_MODES:
             raise InvalidEnvironmentVariableError(
                 f"Value {self.EDSL_RUN_MODE} is not allowed for EDSL_RUN_MODE."
             )
+
+        # for each env var in the CONFIG_MAP
+        for env_var, config in CONFIG_MAP.items():
+            value = os.getenv(env_var)
+            default_value = config.get("default")
+            # if the env var is set, set it as a CONFIG attribute
+            if value:
+                setattr(self, env_var, value)
+            # otherwise, if EDSL_RUN_MODE == "production" set it to its default value
+            elif mode == "production":
+                setattr(self, env_var, default_value)
+                # os.environ[env_var] = default_value
 
     def get(self, env_var: str) -> str:
         """
