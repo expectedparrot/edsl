@@ -14,6 +14,31 @@ class CacheEntry:
         self.timestamp = timestamp or int(time.time())
 
     @classmethod
+    def fetch_input_example(cls) -> dict:
+        """
+        
+        >>> CacheEntry.input_example()
+
+        """
+        input =cls.example().to_dict()
+        _ = input.pop('timestamp')
+        _ = input.pop('output')
+        return input
+
+    @classmethod    
+    def store_input_example(cls) -> dict:
+        input = cls.example().to_dict()
+        #model,
+        #parameters,
+        ##system_prompt,
+        #user_prompt,
+        #response,
+        #iteration,
+        _ = input.pop("timestamp")
+        input['response'] = input.pop('output')
+        return input
+
+    @classmethod
     def gen_key(self, *, model, parameters, system_prompt, user_prompt, iteration):
         """Generate a key for the cache entry.
         
