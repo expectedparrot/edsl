@@ -46,7 +46,7 @@ class SQLiteDict:
     def items(self):
         self.cursor.execute("SELECT key, value FROM data")
         for key, value in self.cursor.fetchall():
-            yield key, value
+            yield key, CacheEntry(**json.loads(value))
         
     def __delitem__(self, key):
         if key in self:

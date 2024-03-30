@@ -3,7 +3,7 @@ import hashlib
 
 class CacheEntry:
     key_fields = ['model', 'parameters', 'system_prompt', 'user_prompt', 'iteration']
-
+    all_fields = key_fields + ['timestamp', 'output']
     def __init__(self, *, model, parameters, system_prompt, user_prompt, output, iteration = None, timestamp = None):
         self.model = model
         self.parameters = parameters
@@ -12,6 +12,18 @@ class CacheEntry:
         self.output = output
         self.iteration = iteration or 0 
         self.timestamp = timestamp or int(time.time())
+
+    def __eq__(self, other_entry):
+        for field in self.all_fields:
+            if getattr(self, field) != getattr(other_entry, field):
+                raise False
+        return True
+
+    @classmethod
+    def example_dict(cls) -> dict:
+        entity = cls.example()
+        key = entity.key
+        return {key: entity}
 
     @classmethod
     def fetch_input_example(cls) -> dict:
