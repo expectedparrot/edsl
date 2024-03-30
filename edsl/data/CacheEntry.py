@@ -28,12 +28,6 @@ class CacheEntry:
     @classmethod    
     def store_input_example(cls) -> dict:
         input = cls.example().to_dict()
-        #model,
-        #parameters,
-        ##system_prompt,
-        #user_prompt,
-        #response,
-        #iteration,
         _ = input.pop("timestamp")
         input['response'] = input.pop('output')
         return input

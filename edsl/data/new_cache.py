@@ -74,6 +74,21 @@ class Cache:
         self.data = data or {}
         self.new_entries = {}
         self.immediate_write = immediate_write
+
+    def __len__(self):
+        """
+        >>> c = Cache()
+        >>> len(c)
+        0
+
+        >>> c = Cache(data = {'poo': "bar"})
+        >>> len(c)
+        1
+        """
+        return len(self.data)
+
+    def __repr__(self):
+        return f"Cache(data = {repr(self.data)}, immediate_write={self.immediate_write})"
     
     def __add__(self, other: 'Cache'):
         """Adds two caches together.
@@ -89,6 +104,25 @@ class Cache:
             raise ValueError("Can only add two caches together")
         return self.__class__(data = self.data | other.data)
     
+    @property
+    def last_insertion(self) -> int:
+        """
+        >>> c = Cache()
+        >>> input = CacheEntry.store_input_example()        
+        >>> c.store(**input)
+        >>> insert_time = list(c.data.values())[0].timestamp
+        >>> c.last_insertion - insert_time
+        0
+        """
+
+        keys = list(self.data.keys())
+        if len(keys) > 0:
+            last_key = keys[-1]
+            entry = self.data[last_key]
+            return getattr(entry, 'timestamp')
+        else:
+            raise Exception("Cache is empty!")
+
     def fetch(self, 
             *,
             model,
@@ -130,6 +164,22 @@ class Cache:
         >>> c.store(**input)
         >>> list(c.data.keys())
         ['55ce2e13d38aa7fb6ec848053285edb4']
+
+        >>> c = Cache(immediate_write = False)
+        >>> input = CacheEntry.store_input_example()        
+        >>> c.store(**input)
+        >>> list(c.data.keys())
+        []
+
+        ## NOT CURRENT WORKING - PROBABLY A DOCTEST ISSUE
+        
+        >> delay_cache = Cache(immediate_write = False)
+        >> with delay_cache as c:
+                input = CacheEntry.store_input_example()
+                c.store(**input)
+                assert list(c.data.keys()) == []
+        >> list(delay_cache.data.keys())
+        ['55ce2e13d38aa7fb6ec848053285edb4']
         """
         try:
             output = json.dumps(response)
@@ -149,10 +199,16 @@ class Cache:
            
         key = entry.key
         if self.immediate_write:
+            #print("Writing immediately")
             self.data[key] = entry
         else:
             self.new_entries[key] = entry
-        
+
+    def write_sqlite(self, db_path):
+        new_data = SQLiteDict(db_path)
+        for key, value in self.data.items():
+            new_data[key] = value
+ 
     def write_jsonl(self, filename):
         dir_name = os.path.dirname(filename)
         with tempfile.NamedTemporaryFile(mode='w', dir=dir_name, delete=False) as tmp_file:
@@ -166,14 +222,9 @@ class Cache:
         return cls(data = {CacheEntry.example().key: CacheEntry.example()})
 
     def __enter__(self):
-        # Maybe starts a new_entry list
-        # Tracks all keys that have been called; tracks all new entries created 
         return self
     
     def __exit__(self, exc_type, exc_value, traceback):
-        ## Idea: This could differ based on the method of storage
-        ## E.g., is SQLite, transactions are already committed
-        ## If it's a jsonl file, we need to write the new entries
         for key, entry in self.new_entries.items():
             self.data[key] = entry
         
@@ -202,7 +253,20 @@ if __name__ == "__main__":
     c = Cache(data = data)
     c.data
 
-    c.fetch(**CacheEntry.fetch_input_example())
+    print("Printing weird example")
+    c.write_sqlite("weird_example.db")
+
+    print(c.last_insertion)
+
+    delay_cache = Cache(immediate_write = False)
+    with delay_cache as c:
+        input = CacheEntry.store_input_example()
+        c.store(**input)
+        print("Keys are currently:", list(c.data.keys()))
+
+    print("Keys are now:", delay_cache.data.keys())
+
+    ##c.fetch(**CacheEntry.fetch_input_example())
 
     #cache = Cache.from_jsonl('cache.jsonl')
     #from edsl import QuestionFreeText

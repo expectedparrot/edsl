@@ -2,7 +2,6 @@ import sqlite3
 import json
 from edsl.data.CacheEntry import CacheEntry
 
-
     # def write_jsonl(self):
     #     dir_name = os.path.dirname(self.file_jsonl)
     #     with tempfile.NamedTemporaryFile(mode='w', dir=dir_name, delete=False) as tmp_file:
@@ -43,6 +42,11 @@ class SQLiteDict:
             return self[key]
         except KeyError:
             return default
+        
+    def items(self):
+        self.cursor.execute("SELECT key, value FROM data")
+        for key, value in self.cursor.fetchall():
+            yield key, value
         
     def __delitem__(self, key):
         if key in self:
