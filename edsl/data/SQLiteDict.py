@@ -1,11 +1,26 @@
 import sqlite3
 import json
-
 from edsl.data.CacheEntry import CacheEntry
+
+
+    # def write_jsonl(self):
+    #     dir_name = os.path.dirname(self.file_jsonl)
+    #     with tempfile.NamedTemporaryFile(mode='w', dir=dir_name, delete=False) as tmp_file:
+    #         for key, value in self.data.items():
+    #             tmp_file.write(json.dumps({key: value.to_dict()}) + '\n')
+    #         temp_name = tmp_file.name
+    #         os.replace(temp_name, self.file_jsonl)
+
+    # def incremental_write(self, entry, filename = None):
+    #     filename = filename or self.FILENAME_ROOT
+    #     key = entry.key
+    #     value = entry.to_dict()
+    #     with open(filename, 'a+') as f:
+    #         f.write(json.dumps({key: value}) + '\n')
 
 class SQLiteDict:
     def __init__(self, db_path = None):
-        self.db_path = db_path or "new_edsl_cache.db"
+        self.db_path = db_path or "./edsl_cache/data.db"
         self.conn = sqlite3.connect(self.db_path)
         self.cursor = self.conn.cursor()
         self.cursor.execute("CREATE TABLE IF NOT EXISTS data (key TEXT PRIMARY KEY, value TEXT)")
@@ -48,6 +63,9 @@ class SQLiteDict:
     def __len__(self):
         self.cursor.execute("SELECT COUNT(*) FROM data")
         return self.cursor.fetchone()[0]
+    
+    def keys(self):
+        return set(iter(self))
     
     def close(self):
         self.conn.close()

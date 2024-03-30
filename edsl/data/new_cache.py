@@ -1,5 +1,26 @@
 """
 
+
+Datasstore is the SQLite3 dict 
+-- Cache can be run in real-time writing or at the end
+-- testing, we just use a dictioary 
+-- JSONL is only used for exporting
+
+Maybe a Cache is intialized with a method of storage and the data
+
+data = MemoryDict{} # python dictionary 
+data = SQLiteDict() # SQLite3 database
+data = RemoteDict() # Remote database
+
+Persistance: 
+- Advantage of SQLite3 is we can leave DB as-is between sessions
+- Advantage of JSONL is that we can easily work with 'pieces' of the cache
+
+Idea: 
+- We leave an SQLite3 database on user's machine
+- When we start a session, we check if there are any updates to the cache on remote server
+- If there are, we download them and update the cache
+
 Desired features:
 - Hard to corrupt (e.g., if the program crashes)
 - Good transactional support
@@ -30,12 +51,8 @@ Writing options:
 - Write to cache persistence layer incrementally, as proceeding
 
 """
-from abc import ABC, ABCMeta, abstractmethod
 import json
-import hashlib
 import time
-import sqlite3
-import shutil
 import os
 import tempfile
 
@@ -46,22 +63,29 @@ from edsl.exceptions import LanguageModelResponseNotJSONError
 from edsl.data.CacheEntry import CacheEntry
 from edsl.data.SQLiteDict import SQLiteDict
 
-class CacheABC(ABC):
-
+class Cache:
+    """
+    The self.data is a data store that can be a SQLiteDict
+    It has to implement dictionary-like methods. 
+    """
     data = {}
-    new_entries = []
-
-    def __add__(self, other: 'CacheABC'):
+ 
+    def __init__(self, data: Union[SQLiteDict, dict, None]  = None, immediate_write:bool = True):
+        self.data = data or {}
+        self.new_entries = {}
+        self.immediate_write = immediate_write
+    
+    def __add__(self, other: 'Cache'):
         """Adds two caches together.
         
         >>> c1 = Cache.example()
         >>> c2 = Cache.example()
         >>> c3 = c1 + c2
-        >>> c3.data.keys()
-        dict_keys(['55ce2e13d38aa7fb6ec848053285edb4'])
+        >>> list(c3.data.keys())
+        ['55ce2e13d38aa7fb6ec848053285edb4']
         """
 
-        if not isinstance(other, CacheABC):
+        if not isinstance(other, Cache):
             raise ValueError("Can only add two caches together")
         return self.__class__(data = self.data | other.data)
     
@@ -79,10 +103,8 @@ class CacheABC(ABC):
         >>> c.fetch(model="gpt-3.5-turbo", parameters="{'temperature': 0.5}", system_prompt="The quick brown fox jumps over the lazy dog.", user_prompt="What does the fox say?", iteration=1)
 
         >>> c = Cache.example()
-        >>> inputs = CacheEntry.example().to_dict()
-        >>> _ = inputs.pop('output')
-        >>> _ = inputs.pop('timestamp')
-        >>> c.fetch(**inputs)
+        >>> input = CacheEntry.fetch_input_example()
+        >>> c.fetch(**input)
         "The fox says 'hello'"
         """
         key = CacheEntry.gen_key(model=model, 
@@ -103,20 +125,18 @@ class CacheABC(ABC):
         ):
         """Addds the response to the cache.
 
-        >>> c = Cache()        
-        >>> entry = CacheEntry.example()
-        >>> inputs = entry.to_dict()
-        >>> inputs['response'] = inputs.pop('output')
-        >>> _ = inputs.pop('timestamp')
-        >>> c.store(**inputs)
-        >>> c.data.keys()
-        dict_keys(['55ce2e13d38aa7fb6ec848053285edb4'])
+        >>> c = Cache()
+        >>> input = CacheEntry.store_input_example()        
+        >>> c.store(**input)
+        >>> list(c.data.keys())
+        ['55ce2e13d38aa7fb6ec848053285edb4']
         """
         try:
             output = json.dumps(response)
         except json.JSONDecodeError:
             raise LanguageModelResponseNotJSONError
 
+        timestamp = int(time.time())
         entry = CacheEntry(
             model=model,
             parameters=parameters,
@@ -124,92 +144,16 @@ class CacheABC(ABC):
             user_prompt=user_prompt,
             output=output,
             iteration=iteration,
-            timestamp=int(time.time())
+            timestamp=timestamp
         )
            
-        added_time = int(time.time())
         key = entry.key
-        self.data[key] = entry
-        self.timestamps[key] = added_time 
-        self.new_entries.append(entry)
-
-    @classmethod
-    def example(cls, method = 'jsonl'):
-        return cls(data = {CacheEntry.example().key: CacheEntry.example()}, method = method)
-
-    def incremental_write(self, entry):
-        self._incremental_write(entry)
-
-    def full_write(self):
-        self._full_write()
-
-    @abstractmethod
-    def _full_write(self):
-        pass
-
-    @abstractmethod
-    def _incremental_write(self, entry, filename):
-        pass
-
-    def __enter__(self):
-        return self
-    
-    def __exit__(self, exc_type, exc_value, traceback):
-        ## Idea: This could differ based on the method of storage
-        ## E.g., is SQLite, transactions are already committed
-        ## If it's a jsonl file, we need to write the new entries
-        for entry in self.new_entries:
-            self.incremental_write(entry)
+        if self.immediate_write:
+            self.data[key] = entry
+        else:
+            self.new_entries[key] = entry
         
-class Cache(CacheABC):
-    """Class representing a Cache for storing the output of language models.
-
-    - from_jsonl
-    - from_json
-    - from_old_sqlite_db
-    - from_sqlite_db
-    - backup_jsonl
-    - to_jsonl
-    """
-
-    FILENAME = 'edsl_cache.jsonl'
-
-    def __init__(self, data = None, method = "jsonl"):
-        self.new_entries = []
-        self.timestamps = {}
-
-        if method == 'jsonl':
-            self.data = {}
-        elif method == 'sqlite3':
-            self.data = SQLiteDict()
-
-        if data is not None:
-            for k, v in data.items():
-                if k in self.data:
-                    raise ValueError(f"Duplicate key: {k}")
-                if not isinstance(v, CacheEntry):
-                    self.data[k] = CacheEntry.from_dict(v)
-                else:
-                    self.data[k] = v
-
-    def backup_jsonl(self, filename = 'edsl_cache.jsonl'):
-        shutil.copy(filename, f"{filename}.bak")
-        
-    @classmethod
-    def from_jsonl(cls, filename = 'edsl_cache.jsonl'):
-        with open(filename, 'a+') as f:
-            f.seek(0)
-            lines = f.readlines()
-        data = {}
-        for line in lines:
-            d = json.loads(line)
-            key = list(d.keys())[0]
-            value = list(d.values())[0]
-            data[key] = value
-        return cls(data = data)
-    
-    def _full_write(self, filename = None):
-        filename = filename or self.FILENAME
+    def write_jsonl(self, filename):
         dir_name = os.path.dirname(filename)
         with tempfile.NamedTemporaryFile(mode='w', dir=dir_name, delete=False) as tmp_file:
             for key, value in self.data.items():
@@ -217,12 +161,21 @@ class Cache(CacheABC):
             temp_name = tmp_file.name
             os.replace(temp_name, filename)
 
-    def _incremental_write(self, entry, filename = None):
-        filename = filename or self.FILENAME
-        key = entry.key
-        value = entry.to_dict()
-        with open(filename, 'a+') as f:
-            f.write(json.dumps({key: value}) + '\n')
+    @classmethod
+    def example(cls):
+        return cls(data = {CacheEntry.example().key: CacheEntry.example()})
+
+    def __enter__(self):
+        # Maybe starts a new_entry list
+        # Tracks all keys that have been called; tracks all new entries created 
+        return self
+    
+    def __exit__(self, exc_type, exc_value, traceback):
+        ## Idea: This could differ based on the method of storage
+        ## E.g., is SQLite, transactions are already committed
+        ## If it's a jsonl file, we need to write the new entries
+        for key, entry in self.new_entries.items():
+            self.data[key] = entry
         
     # def __setitem__(self, key, value):
     #     super().__setitem__(key, value)
@@ -237,30 +190,19 @@ class Cache(CacheABC):
         return cls(data = data)
     
     ## Method for reading in an old sqlite database
-    @classmethod
-    def from_sqlite_db(cls, uri = "edsl_cache.db"):
-        conn = sqlite3.connect(uri)
-        cur = conn.cursor()
-        table_name = 'responses'  # Replace with your table name
-        cur.execute(f"PRAGMA table_info({table_name})")
-        columns = cur.fetchall()
-        schema = {column[1]: column[2] for column in columns}
-        #return schema
-        data = cur.execute(f"SELECT * FROM {table_name}").fetchall()
-        d = {}
-        for row in data:
-            entry_dict = {k: row[i] for i, k in enumerate(schema.keys())}
-            entry_dict.pop('id')
-            entry_dict['user_prompt'] = entry_dict.pop('prompt')
-            entry = CacheEntry(**entry_dict)
-            d[entry.key] = entry.to_dict()
-        return cls(data = d)
 
 
 if __name__ == "__main__":
 
     import doctest
     doctest.testmod()
+
+    data = {'poo': CacheEntry.example()}
+
+    c = Cache(data = data)
+    c.data
+
+    c.fetch(**CacheEntry.fetch_input_example())
 
     #cache = Cache.from_jsonl('cache.jsonl')
     #from edsl import QuestionFreeText
