@@ -390,19 +390,21 @@ class LanguageModel(
         #cache = cache or Cache()
         start_time = time.time()
 
-        c = cache
-        cached_response = c.fetch(
+        cached_response = cache.fetch(
             model=str(self.model),
             parameters=str(self.parameters),
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             iteration=iteration,
         )
+
         if cache_used := (cached_response is not None):
             response = json.loads(cached_response)
         else:
             response = await self.async_execute_model_call(user_prompt, system_prompt)
-            c.store(
+
+        if not cache_used:
+            cache.store(
                 user_prompt=user_prompt,
                 model=str(self.model),
                 parameters=str(self.parameters),
@@ -410,7 +412,6 @@ class LanguageModel(
                 response=response,
                 iteration=iteration,
             )
-    
         return self._update_response_with_tracking(response, start_time, cache_used)
 
     get_raw_response = sync_wrapper(async_get_raw_response)
