@@ -85,7 +85,7 @@ class Cache:
     data = {}
  
     def __init__(self, data: Union[SQLiteDict, dict, None]  = None, 
-                 immediate_write:bool = True):
+                 immediate_write:bool = True, method = None):
         self.data = data or {}
         self.new_entries = {}
         self.immediate_write = immediate_write
@@ -123,7 +123,10 @@ class Cache:
 
         if not isinstance(other, Cache):
             raise ValueError("Can only add two caches together")
-        return self.__class__(data = self.data | other.data)
+        
+        for key, value in other.data.items():
+            self.data[key] = value
+        return self
     
     @property
     def last_insertion(self) -> int:
@@ -181,7 +184,7 @@ class Cache:
             response,
             iteration,
         ):
-        """Addds the response to the cache.
+        """Adds the response to the cache.
 
         >>> c = Cache()
         >>> input = CacheEntry.store_input_example()        
@@ -311,7 +314,20 @@ class Cache:
         for key, value in db.items():
             new_data[key] = CacheEntry(**value)
         self.add_multiple_entries(new_data, write_now)
- 
+
+    @classmethod 
+    def from_sqlite_db(cls, db_path):
+        return cls(data = SQLiteDict(db_path))
+
+    @classmethod
+    def from_jsonl(cls, jsonlfile, db_path = None):
+        if db_path is None:
+            db_path = "./edsl_cache/data.db"
+        db = SQLiteDict(db_path)
+        cache = Cache(data = db)
+        cache.add_from_jsonl(jsonlfile)
+        return cache
+
     def write_sqlite(self, db_path):
         """
         >>> c = Cache.example()

@@ -43,6 +43,18 @@ class SQLiteDict:
         except KeyError:
             return default
         
+    def update(self, new_d):
+        for key, value in new_d.items():
+            if key in self:
+                pass
+            else:
+                self[key] = value    
+
+    def values(self):
+        self.cursor.execute("SELECT value from data")
+        for value in self.cursor.fetchall():
+            yield CacheEntry(**json.loads(value[0]))
+
     def items(self):
         self.cursor.execute("SELECT key, value FROM data")
         for key, value in self.cursor.fetchall():
