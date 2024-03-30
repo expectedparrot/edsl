@@ -63,6 +63,20 @@ from edsl.exceptions import LanguageModelResponseNotJSONError
 from edsl.data.CacheEntry import CacheEntry
 from edsl.data.SQLiteDict import SQLiteDict
 
+from collections import UserDict
+
+class DummyCacheEntry(UserDict):
+
+    def __init__(self, data):
+        super().__init__(data)
+
+    def to_dict(self):
+        return self
+
+    @classmethod
+    def from_dict(cls, data):
+        return cls(data) 
+
 class Cache:
     """
     The self.data is a data store that can be a SQLiteDict
@@ -70,10 +84,17 @@ class Cache:
     """
     data = {}
  
-    def __init__(self, data: Union[SQLiteDict, dict, None]  = None, immediate_write:bool = True):
+    def __init__(self, data: Union[SQLiteDict, dict, None]  = None, 
+                 immediate_write:bool = True):
         self.data = data or {}
         self.new_entries = {}
         self.immediate_write = immediate_write
+        self._check_value_types()
+
+    def _check_value_types(self):
+        for value in self.data.values():
+            if not isinstance(value, CacheEntry):
+                raise Exception("Not all values are CacheEntity")
 
     def __len__(self):
         """
@@ -81,7 +102,7 @@ class Cache:
         >>> len(c)
         0
 
-        >>> c = Cache(data = {'poo': "bar"})
+        >>> c = Cache(data = CacheEntry.example_dict())
         >>> len(c)
         1
         """
@@ -123,6 +144,9 @@ class Cache:
         else:
             raise Exception("Cache is empty!")
 
+    def fetch_input_example(self) -> dict:
+        return CacheEntry.fetch_input_example()
+
     def fetch(self, 
             *,
             model,
@@ -137,7 +161,7 @@ class Cache:
         >>> c.fetch(model="gpt-3.5-turbo", parameters="{'temperature': 0.5}", system_prompt="The quick brown fox jumps over the lazy dog.", user_prompt="What does the fox say?", iteration=1)
 
         >>> c = Cache.example()
-        >>> input = CacheEntry.fetch_input_example()
+        >>> input = c.fetch_input_example()
         >>> c.fetch(**input)
         "The fox says 'hello'"
         """
@@ -199,12 +223,100 @@ class Cache:
            
         key = entry.key
         if self.immediate_write:
-            #print("Writing immediately")
             self.data[key] = entry
         else:
             self.new_entries[key] = entry
 
+    def __eq__(self, other_cache: 'Cache'):
+        """
+        Note we define equalty just be checking keys. 
+
+        >>> c1 = Cache(data = {'poo': CacheEntry.example()})
+        >>> c2 = Cache(data = {'poo': CacheEntry.example()})
+        >>> c1 == c2
+        True
+
+        >>> c3 = Cache(data = {'poop': CacheEntry.example()})
+        >>> c1 == c3
+        False
+        """
+        for key in self.data: 
+            if key not in other_cache.data:
+                return False
+        for key in other_cache.data:
+            if key not in self.data:
+                return False
+        return True
+
+    def add_multiple_entries(self, new_data: dict, write_now:bool = True):
+        """
+        
+        Example of immediate writing: 
+
+        >>> c = Cache()
+        >>> data = {'poo': CacheEntry.example(), 'bandits': CacheEntry.example()}
+        >>> c.add_multiple_entries(new_data = data)
+        >>> c.data['poo'] == CacheEntry.example()
+        True
+
+        Example of delayed writing 
+        
+        >>> c = Cache()
+        >>> data = {'poo': CacheEntry.example(), 'bandits': CacheEntry.example()}
+        >>> c.add_multiple_entries(new_data = data, write_now = False)
+        >>> c.data 
+        {}
+        >>> c.__exit__(None, None, None)
+        >>> c.data['poo'] == CacheEntry.example()
+        True
+        """
+        for key, value in new_data.items():
+            if key in self.data:
+                if value != self.data[key]:
+                    raise Exception("Mismatch in values")
+            if not isinstance(value, CacheEntry):
+                raise Exception("Wrong type")
+    
+        if write_now:
+            self.data.update(new_data)
+        else:
+            self.new_entries.update(new_data)
+
+    def add_from_jsonl(self, filename, write_now = True):
+        """
+        >>> c = Cache(data = CacheEntry.example_dict())
+        >>> c.write_jsonl("example.jsonl")
+        >>> cnew = Cache()
+        >>> cnew.add_from_jsonl(filename = 'example.jsonl')
+        >>> c == cnew
+        True
+        """
+
+        with open(filename, 'a+') as f:
+            f.seek(0)
+            lines = f.readlines()
+        new_data = {}
+        for line in lines:
+            d = json.loads(line)
+            key = list(d.keys())[0]
+            value = list(d.values())[0]
+            new_data[key] = CacheEntry(**value)
+        self.add_multiple_entries(new_data, write_now = write_now)
+
+    def add_from_sqlite(self, db_path, write_now = True):
+        """
+        """
+        db = SQLiteDict(db_path)
+        new_data = {}
+        for key, value in db.items():
+            new_data[key] = CacheEntry(**value)
+        self.add_multiple_entries(new_data, write_now)
+ 
     def write_sqlite(self, db_path):
+        """
+        >>> c = Cache.example()
+        >>> c.write_sqlite("example.db")
+        """
         new_data = SQLiteDict(db_path)
         for key, value in self.data.items():
             new_data[key] = value
@@ -212,8 +324,9 @@ class Cache:
     def write_jsonl(self, filename):
         dir_name = os.path.dirname(filename)
         with tempfile.NamedTemporaryFile(mode='w', dir=dir_name, delete=False) as tmp_file:
-            for key, value in self.data.items():
-                tmp_file.write(json.dumps({key: value.to_dict()}) + '\n')
+            for key, raw_value in self.data.items():
+                value = raw_value if not hasattr(raw_value, "to_dict") else raw_value.to_dict()
+                tmp_file.write(json.dumps({key: value}) + '\n')
             temp_name = tmp_file.name
             os.replace(temp_name, filename)
 
