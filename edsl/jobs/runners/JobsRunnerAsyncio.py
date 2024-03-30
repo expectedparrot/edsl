@@ -150,41 +150,42 @@ class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
 
         progress_bar_context = Live(generate_table(), console=console, refresh_per_second=5) if progress_bar else no_op_cm()
 
-        with progress_bar_context as live:
+        #breakpoint()
 
-            async def update_progress_bar():
-                """Updates the progress bar at fixed intervals."""
-                while True:
-                    live.update(generate_table())
-                    await asyncio.sleep(0.1)  # Update interval
-                    if self.completed:
-                        break
-            
-            async def process_results():
-                """Processes results from interviews."""
-                async for result in self.run_async(n=n, debug=debug, stop_on_exception=stop_on_exception, cache = cache):
-                    self.results.append(result)
-                    live.update(generate_table())
-                self.completed = True
+        with cache as c:
+            with progress_bar_context as live:
 
-            #logger_task = asyncio.create_task(self.periodic_logger(period=0.01))
-            progress_task = asyncio.create_task(update_progress_bar())
+                async def update_progress_bar():
+                    """Updates the progress bar at fixed intervals."""
+                    while True:
+                        live.update(generate_table())
+                        await asyncio.sleep(0.1)  # Update interval
+                        if self.completed:
+                            break
+                
+                async def process_results():
+                    """Processes results from interviews."""
+                    async for result in self.run_async(n=n, debug=debug, stop_on_exception=stop_on_exception, cache=c):
+                        self.results.append(result)
+                        live.update(generate_table())
+                    self.completed = True
 
-            try:
-                await asyncio.gather(process_results(), 
-                                     progress_task)
-            except asyncio.CancelledError:
-                pass
-            finally:
-                progress_task.cancel()  # Cancel the progress_task when process_results is done
-                await progress_task 
-            
-                await asyncio.sleep(1)  # short delay to show the final status
+                #logger_task = asyncio.create_task(self.periodic_logger(period=0.01))
+                progress_task = asyncio.create_task(update_progress_bar())
 
-                # one more update
-                live.update(generate_table())            
+                try:
+                    await asyncio.gather(process_results(), 
+                                        progress_task)
+                except asyncio.CancelledError:
+                    pass
+                finally:
+                    progress_task.cancel()  # Cancel the progress_task when process_results is done
+                    await progress_task 
+                
+                    await asyncio.sleep(1)  # short delay to show the final status
 
-        ## Compute exceptions         
+                    # one more update
+                    live.update(generate_table())            
 
         results = Results(survey=self.jobs.survey, data=self.results)
         results.task_history = TaskHistory(self.total_interviews)

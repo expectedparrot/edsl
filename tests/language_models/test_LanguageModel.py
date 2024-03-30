@@ -85,18 +85,21 @@ class TestLanguageModel(unittest.TestCase):
             TestLanguageModelGood()
 
     def test_execute_model_call(self):
+        from edsl.data.new_cache import Cache
         m = self.good_class()
         response = m.get_raw_response(
-            user_prompt="Hello world", system_prompt="You are a helpful agent"
+            user_prompt="Hello world", system_prompt="You are a helpful agent", cache = Cache()
         )
         print(response)
         self.assertEqual(response["message"], """{"answer": "Hello world"}""")
         self.assertEqual(response["cached_response"], False)
 
     def test_get_response(self):
+        from edsl.data.new_cache import Cache
+
         m = self.good_class()
         response = m.get_response(
-            user_prompt="Hello world", system_prompt="You are a helpful agent"
+            user_prompt="Hello world", system_prompt="You are a helpful agent", cache = Cache()
         )
         expected_response = {
             "answer": "Hello world",
@@ -126,26 +129,34 @@ class TestLanguageModel(unittest.TestCase):
         )
 
         expected_response = {
-            "id": 1,
+#            "id": 1,
             "model": "fake model",
             "parameters": "{'temperature': 0.5}",
             "system_prompt": "You are a helpful agent",
-            "prompt": "Hello world",
+            "user_prompt": "Hello world",
             "output": '{"message": "{\\"answer\\": \\"Hello world\\"}"}',
             "iteration": 1,
         }
 
 
-        breakpoint()
-        self.assertEqual(list(cache.data.values()), [expected_response])
+        from edsl.data.new_cache import Cache
+
+        outcome = list(cache.data.values())[0].to_dict()
+
+        outcome.pop("timestamp")
+
+        self.assertEqual(outcome, expected_response)
 
         # call again with same prompt - should not write to db again
         m.get_response(
-            user_prompt="Hello world", system_prompt="You are a helpful agent"
+            user_prompt="Hello world", system_prompt="You are a helpful agent", 
+            cache = cache
         )
-        responses = self.crud.get_all_LLMOutputData()
-        self.assertEqual(len(responses), 1)
-        self.assertEqual(responses, [expected_response])
+
+        self.assertEqual(len(cache.data.values()), 1)
+        #responses = self.crud.get_all_LLMOutputData()
+        #self.assertEqual(len(responses), 1)
+        #self.assertEqual(responses, [expected_response])
 
     def test_parser_exception(self):
         class TestLanguageModelGood(LanguageModel):

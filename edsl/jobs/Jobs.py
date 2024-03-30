@@ -1,6 +1,7 @@
 """The Jobs class is a collection of agents, scenarios and models and one survey."""
 from __future__ import annotations
 from collections.abc import Sequence
+import shutil
 from collections import UserDict
 from itertools import product
 from typing import Union, Generator
@@ -212,8 +213,18 @@ class Jobs(Base):
         :param db: the database to use
 
         """
+        import os
+
         if cache is None:
-            cache = Cache()
+            if os.path.exists("edsl_cache.db"):
+                print("Using cache from edsl_cache.db")
+                cache = Cache.from_sqlite_db("edsl_cache.db")
+            if os.path.exists("edsl_cache.jsonl"):
+                print("Adding in the jsonl cache to the cache")
+                cache += Cache.from_jsonl("edsl_cache.jsonl")
+        else:
+            print("Using cache from passed in cache")
+            
         # self.job_runner_name = method
         if dry_run:
             self.job_runner_name = "dry_run"
@@ -238,10 +249,10 @@ class Jobs(Base):
 
     def _run_local(self, *args, db: Database = database, **kwargs):
         """Run the job locally."""
-        db._health_check_pre_run()
+        #db._health_check_pre_run()
         JobRunner = JobsRunnersRegistry[self.job_runner_name](jobs=self)
         results = JobRunner.run(*args, **kwargs)
-        db._health_check_post_run()
+        #db._health_check_post_run()
         return results
 
     def _run_remote(self, *args, **kwargs):

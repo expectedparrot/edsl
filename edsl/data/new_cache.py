@@ -1,176 +1,97 @@
+"""
+
+Desired features:
+- Hard to corrupt (e.g., if the program crashes)
+- Good transactional support
+- Can easily combine two caches together w/o duplicating entries
+- Can easily fetch another cache collection and add to own
+- Can easily use a remote cache w/o changing edsl code 
+- Easy to migrate 
+- Can deal easily with cache getting too large 
+- "Coopable" - could share a smaller cache with another user
+
+- Good defaults
+- Can export part of cache that was used for a particular run
+
+Export methods: 
+- JSONL
+- SQLite3
+- JSON
+
+Remote persistence options:
+- Database on Expected Parrot 
+
+Local persistence options: 
+- JSONL file
+- SQLite3 database
+
+Writing options: 
+- Wait until the end to write to cache persistence layer
+- Write to cache persistence layer incrementally, as proceeding
+
+"""
+from abc import ABC, ABCMeta, abstractmethod
 import json
 import hashlib
 import time
-import gzip
+import sqlite3
+import shutil
+import os
+import tempfile
 
-from typing import Literal
+from typing import Literal, Union
 
-from collections import UserDict
-from collections import defaultdict 
-
-from edsl.data import CRUD
 from edsl.exceptions import LanguageModelResponseNotJSONError
 
+from edsl.data.CacheEntry import CacheEntry
+from edsl.data.SQLiteDict import SQLiteDict
 
-class CacheEntry:
-    key_fields = ['model', 'parameters', 'system_prompt', 'user_prompt', 'iteration']
+class CacheABC(ABC):
 
-    def __init__(self, model, parameters, system_prompt, user_prompt, output, iteration, timestamp = None):
-        self.model = model
-        self.parameters = parameters
-        self.system_prompt = system_prompt
-        self.user_prompt = user_prompt
-        self.output = output
-        self.iteration = iteration
-        self.timestamp = timestamp or int(time.time())
+    data = {}
+    new_entries = []
 
-    @classmethod
-    def gen_key(self, model, parameters, system_prompt, user_prompt, iteration):
-        long_key = f"{model}{parameters}{system_prompt}{user_prompt}{iteration}"
-        return hashlib.md5(long_key.encode()).hexdigest()
-
-    @property
-    def key(self):
-        d = {k:value for k, value in self.__dict__.items() if k in self.key_fields}
-        return self.gen_key(**d)
-
-    def to_dict(self):
-        return {
-            'model': self.model,
-            'parameters': self.parameters,
-            'system_prompt': self.system_prompt,
-            'user_prompt': self.user_prompt,
-            'output': self.output,
-            'iteration': self.iteration,
-            'timestamp': self.timestamp
-        }
-    
-    def __repr__(self):
-        return f"CacheEntry({self.model}, {self.parameters}, {self.system_prompt}, {self.user_prompt}, {self.output}, {self.iteration}, {self.timestamp})"
-    
-    @classmethod
-    def from_dict(cls, data):
-        return cls(**data)
-    
-    @classmethod
-    def example(cls):
-        return CacheEntry(
-            model="gpt-3.5-turbo",
-            parameters="{'temperature': 0.5}",
-            system_prompt="The quick brown fox jumps over the lazy dog.",
-            user_prompt="What does the fox say?",
-            output="The fox says 'hello'",
-            iteration=1,
-            timestamp=int(time.time())
-        )
+    def __add__(self, other: 'CacheABC'):
+        """Adds two caches together.
         
-        
-class Cache(UserDict):
-    """Class representing a Cache for storing the output of language models.
+        >>> c1 = Cache.example()
+        >>> c2 = Cache.example()
+        >>> c3 = c1 + c2
+        >>> c3.data.keys()
+        dict_keys(['55ce2e13d38aa7fb6ec848053285edb4'])
+        """
 
-    They keys are generated from the model, parameters, system_prompt, user_prompt, and iteration.
-    The values are the inputs and outputs from the language model.
-
-    -- Add two caches together 
-    -- Serialize/Deserialize the cache
-    -- Store the cache in a database
-
-    """
-
-    def __init__(self, 
-                 data = None, 
-                 crud = None, 
-                 method: Literal['memory', 'db'] = 'memory'):
-        self.crud = crud or CRUD
-        self.method = method
-
-        if data is None:
-            # creating an emptty cache
-            self.by_factor_dict = defaultdict(lambda: defaultdict(list))
-            self.timestamps = {}
-            super().__init__(data)
-        else:
-            data = {k: CacheEntry.from_dict(v) for k, v in data.items()}
-            super().__init__(data)
-            # if there is data, we can re-generate the by_factor_dict and timestamps
-            self.by_factor_dict = self._gen_by_factor_dict()
-            self.timestamps = self._gen_timestamp_dict()
-
-    def _gen_timestamp_dict(self):
-        return {k: v.timestamp for k, v in self.data.items()}
+        if not isinstance(other, CacheABC):
+            raise ValueError("Can only add two caches together")
+        return self.__class__(data = self.data | other.data)
     
-    def _gen_by_factor_dict(self):
-        fields = ['model', 'parameters', 'system_prompt', 'user_prompt', 'iteration']
-        by_factor_dict = defaultdict(lambda: defaultdict(list))
-        for field in fields:
-            for key, entry in self.data.items():
-                by_factor_dict[field][getattr(entry, field)].append(key)
-        return by_factor_dict
-
-    def to_dict(self):
-        return {k:v.to_dict() for k, v in self.data.items()}
- 
-    @classmethod 
-    def from_dict(cls, data, method = 'memory'):
-        data = {k: CacheEntry.from_dict(v) for k, v in data}
-        return cls(data = data, method = method)
-
-    def save(self, filename):
-        with open(filename, 'w') as f:
-            f.write(json.dumps(self.to_dict()))
-
-    @classmethod
-    def load(cls, filename):
-        with open(filename, 'r') as f:
-            data = json.loads(f.read())
-            return cls(data = data)
-
     def fetch(self, 
+            *,
             model,
             parameters,
             system_prompt,
             user_prompt,
             iteration,
-        ):
-    
-        if self.method == 'memory':
-            memory_entry = self._fetch_from_memory(model, parameters, system_prompt, user_prompt, iteration)
-            return memory_entry
-        elif self.method == 'db':
-            db_entry = self._fetch_from_db(model, parameters, system_prompt, user_prompt, iteration)
-            return db_entry
-    
-    def _fetch_from_memory(self, 
-            model,
-            parameters,
-            system_prompt,
-            user_prompt,
-            iteration,
-        ):
-        key = CacheEntry.gen_key(model, parameters, system_prompt, user_prompt, iteration)
+        ) -> Union[str, CacheEntry]:
+        """Fetches the response from the cache.
+        
+        >>> c = Cache()
+        >>> c.fetch(model="gpt-3.5-turbo", parameters="{'temperature': 0.5}", system_prompt="The quick brown fox jumps over the lazy dog.", user_prompt="What does the fox say?", iteration=1)
+
+        >>> c = Cache.example()
+        >>> inputs = CacheEntry.example().to_dict()
+        >>> _ = inputs.pop('output')
+        >>> _ = inputs.pop('timestamp')
+        >>> c.fetch(**inputs)
+        "The fox says 'hello'"
+        """
+        key = CacheEntry.gen_key(model=model, 
+                                 parameters=parameters, 
+                                 system_prompt=system_prompt, 
+                                 user_prompt=user_prompt, 
+                                 iteration=iteration)
         entry = self.data.get(key, None)
-        if entry is None:
-            return None
-        else:
-            return entry.output
-
-    def _fetch_from_db(self, 
-            model,
-            parameters,
-            system_prompt,
-            user_prompt,
-            iteration,
-        ):
-        """Get the response from the database."""
-        cached_response = self.crud.get_LLMOutputData(
-                model=model,
-                parameters=parameters,
-                system_prompt=system_prompt,
-                prompt=user_prompt,
-                iteration=iteration,
-            )
-        return json.loads(cached_response)
-
+        return None if entry is None else entry.output
 
     def store(self,
             model,
@@ -180,6 +101,17 @@ class Cache(UserDict):
             response,
             iteration,
         ):
+        """Addds the response to the cache.
+
+        >>> c = Cache()        
+        >>> entry = CacheEntry.example()
+        >>> inputs = entry.to_dict()
+        >>> inputs['response'] = inputs.pop('output')
+        >>> _ = inputs.pop('timestamp')
+        >>> c.store(**inputs)
+        >>> c.data.keys()
+        dict_keys(['55ce2e13d38aa7fb6ec848053285edb4'])
+        """
         try:
             output = json.dumps(response)
         except json.JSONDecodeError:
@@ -194,67 +126,159 @@ class Cache(UserDict):
             iteration=iteration,
             timestamp=int(time.time())
         )
-        self._store_db(entry)
-        self._store_memory(entry)
-
-        # if self.method == 'memory':
-        #     self._store_memory(entry)
-        # elif self.method == 'db':
-        #     self._store_db(entry)
-        # else:
-        #     raise ValueError("Invalid method")
-
-        
-    def _store_memory(self, entry: CacheEntry):     
            
         added_time = int(time.time())
         key = entry.key
         self.data[key] = entry
         self.timestamps[key] = added_time 
-        fields = ['model', 'parameters', 'system_prompt', 'user_prompt', 'iteration']
-        for field in fields:
-            self.by_factor_dict[field][getattr(entry, field)].append(key)
+        self.new_entries.append(entry)
 
-    def _store_db(self, entry: CacheEntry):
+    @classmethod
+    def example(cls, method = 'jsonl'):
+        return cls(data = {CacheEntry.example().key: CacheEntry.example()}, method = method)
 
-        ## should timestamp be added here?
-                
-        self.crud.write_LLMOutputData(
-                model=entry.model,
-                parameters=entry.parameters,
-                system_prompt=entry.system_prompt,
-                prompt=entry.user_prompt,
-                output=entry.output,
-                iteration=entry.iteration,
-                timestamp=entry.timestamp
-            )
-    
+    def incremental_write(self, entry):
+        self._incremental_write(entry)
+
+    def full_write(self):
+        self._full_write()
+
+    @abstractmethod
+    def _full_write(self):
+        pass
+
+    @abstractmethod
+    def _incremental_write(self, entry, filename):
+        pass
+
     def __enter__(self):
         return self
     
     def __exit__(self, exc_type, exc_value, traceback):
-        pass
+        ## Idea: This could differ based on the method of storage
+        ## E.g., is SQLite, transactions are already committed
+        ## If it's a jsonl file, we need to write the new entries
+        for entry in self.new_entries:
+            self.incremental_write(entry)
+        
+class Cache(CacheABC):
+    """Class representing a Cache for storing the output of language models.
+
+    - from_jsonl
+    - from_json
+    - from_old_sqlite_db
+    - from_sqlite_db
+    - backup_jsonl
+    - to_jsonl
+    """
+
+    FILENAME = 'edsl_cache.jsonl'
+
+    def __init__(self, data = None, method = "jsonl"):
+        self.new_entries = []
+        self.timestamps = {}
+
+        if method == 'jsonl':
+            self.data = {}
+        elif method == 'sqlite3':
+            self.data = SQLiteDict()
+
+        if data is not None:
+            for k, v in data.items():
+                if k in self.data:
+                    raise ValueError(f"Duplicate key: {k}")
+                if not isinstance(v, CacheEntry):
+                    self.data[k] = CacheEntry.from_dict(v)
+                else:
+                    self.data[k] = v
+
+    def backup_jsonl(self, filename = 'edsl_cache.jsonl'):
+        shutil.copy(filename, f"{filename}.bak")
+        
+    @classmethod
+    def from_jsonl(cls, filename = 'edsl_cache.jsonl'):
+        with open(filename, 'a+') as f:
+            f.seek(0)
+            lines = f.readlines()
+        data = {}
+        for line in lines:
+            d = json.loads(line)
+            key = list(d.keys())[0]
+            value = list(d.values())[0]
+            data[key] = value
+        return cls(data = data)
+    
+    def _full_write(self, filename = None):
+        filename = filename or self.FILENAME
+        dir_name = os.path.dirname(filename)
+        with tempfile.NamedTemporaryFile(mode='w', dir=dir_name, delete=False) as tmp_file:
+            for key, value in self.data.items():
+                tmp_file.write(json.dumps({key: value.to_dict()}) + '\n')
+            temp_name = tmp_file.name
+            os.replace(temp_name, filename)
+
+    def _incremental_write(self, entry, filename = None):
+        filename = filename or self.FILENAME
+        key = entry.key
+        value = entry.to_dict()
+        with open(filename, 'a+') as f:
+            f.write(json.dumps({key: value}) + '\n')
+        
+    # def __setitem__(self, key, value):
+    #     super().__setitem__(key, value)
+    #     self.timestamps[key] = value.timestamp
+
+    def to_dict(self):
+        return {k:v.to_dict() for k, v in self.data.items()}
+ 
+    @classmethod 
+    def from_dict(cls, data, method = 'memory'):
+        data = {k: CacheEntry.from_dict(v) for k, v in data}
+        return cls(data = data)
+    
+    ## Method for reading in an old sqlite database
+    @classmethod
+    def from_sqlite_db(cls, uri = "edsl_cache.db"):
+        conn = sqlite3.connect(uri)
+        cur = conn.cursor()
+        table_name = 'responses'  # Replace with your table name
+        cur.execute(f"PRAGMA table_info({table_name})")
+        columns = cur.fetchall()
+        schema = {column[1]: column[2] for column in columns}
+        #return schema
+        data = cur.execute(f"SELECT * FROM {table_name}").fetchall()
+        d = {}
+        for row in data:
+            entry_dict = {k: row[i] for i, k in enumerate(schema.keys())}
+            entry_dict.pop('id')
+            entry_dict['user_prompt'] = entry_dict.pop('prompt')
+            entry = CacheEntry(**entry_dict)
+            d[entry.key] = entry.to_dict()
+        return cls(data = d)
+
 
 if __name__ == "__main__":
 
-    #c = CacheEntry.example()
+    import doctest
+    doctest.testmod()
 
-    c = Cache(method='memory')
-    from edsl import QuestionFreeText
+    #cache = Cache.from_jsonl('cache.jsonl')
+    #from edsl import QuestionFreeText
+    #results = QuestionFreeText.example().run(cache = cache)
 
-    q = QuestionFreeText(question_text = "How are you feeling when you haven't slept well?",
-                          question_name = "how_feeling")
-    
-    
-    # # Run 1 
-    results = q.run(cache = c, stop_on_exception = True, progress_bar = True)
 
-    # # Run 2
-    results = q.run(cache = c, stop_on_exception = True, progress_bar = True)
+    # start = time.monotonic()
+    # for i in range(1_000_000):
+    #     c = CacheEntry.example()
+    #     c.iteration += i
+    #     cache.add_to_jsonl(c)  
+    # end = time.monotonic()
+    # print(f"Time: {end - start} for 1_000_000 entries")
+    # # c.save('cache.json') 
 
-    c.save('cache.json') 
+    # cache.to_jsonl(filename = 'test_cache.jsonl')
 
-    new_cache = Cache.load('cache.json')   
+    # new_cache = Cache.load('cache.json')   
 
     #ce = CacheEntry("gpt-3.5-turbo", "{'temperature': 0.5}", "The quick brown fox jumps over the lazy dog.", "What does the fox say?", "The fox says 'hello'", 1)
     #ce.gen_key()
