@@ -1,29 +1,27 @@
+.. _questions:
+
 Questions
 =========
 
 .. This module contains the Question class, which is the base class for all questions in EDSL.
 
-There are numerous types of questions: multiple choice, checkbox, free text, numerical, linear scale, list, rank, budget, extract, top k, Likert scale, yes/no.
-Each question type inherits from the `Question` class and implements its own methods for validating answers and responses from the language model (LLM).
+EDSL includes templates for many common question types: multiple choice, checkbox, free text, numerical, linear scale, list, rank, budget, extract, top k, Likert scale and yes/no.
+Each question type inherits from the `Question` class and implements its own methods for validating answers and responses from language models.
 
 Every question requires a question name and question text. 
-A question_name is a unique identifier for the question, while question_text is the text of the question itself.
+A `question_name` is a unique identifier for the question, while `question_text` is the text of the question itself.
 
-Some question types require additional fields, such as question options for multiple choice questions.
+Some question types require additional fields, such as `question_options` for multiple choice questions.
 
-Constructing a Question
+Constructing a question
 -----------------------
-Key steps:
-
-* Import the `Question` class and select an appropriate question type. Available question types include multiple choice, checkbox, free text, numerical, linear scale, list, rank, budget, extract, top k, Likert scale, yes/no.
-
-* Import the question type class. For example, to create a multiple choice question:
+Select and import a question type based on the desired output. For example, to create a multiple choice question:
 
 .. code-block:: python
 
    from edsl import QuestionMultipleChoice
 
-* Construct a question in the required format. All question types require a question name and question text. Some question types require additional fields, such as question options for multiple choice questions:
+Construct a question in the question type template. The `question_name` and `question_text` fields are required for all question types, and certain question types require additional fields. For example, a multiple choice question requires a `question_options` field:
 
 .. code-block:: python
 
@@ -33,7 +31,7 @@ Key steps:
       question_options = ["Red", "Blue", "Green", "Yellow"]
    )
 
-To see an example of a question type in the required format, use the question type `example()` method:
+You can also use the `example()` method to show an example of any question type:
 
 .. code-block:: python
 
@@ -42,7 +40,7 @@ To see an example of a question type in the required format, use the question ty
 
 Simulating a response
 ---------------------
-Administer the question to an agent with the `run` method. A single question can be run individually by appending the `run` method directly to the question object:
+Administer the question to a language model by appending the `run` method to the question object:
 
 .. code-block:: python
 
@@ -56,12 +54,26 @@ If the question is part of a survey, the method is appended to the survey object
    q2 = ...
    results = Survey([q1, q2]).run()
 
-(See more details about surveys in the :ref:`surveys` module.)
-
-
-The `run` method administers a question to the LLM and returns the response in a `Results` object.
+The `run` method returns a `Result` object for the question and the agent and model that simulated the response to it.
 Results can be printed, saved, analyzed and visualized in a variety of built-in methods.
 See details about these methods in the :ref:`results` module.
+
+Learn more details about constructing surveys in the :ref:`surveys` module.
+
+Specifying agents and models
+----------------------------
+
+In the example above the result was simulated with the default model (GPT 4) and agent (no persona).
+Agent personas and language models can be specified by appending them to the question object before running it with the `by` method:
+
+.. code-block:: python
+
+   from edsl import Agent, Model
+
+   a = Agent(traits = {"persona": "student"})
+   m = Model('gpt-4-1106-preview') 
+
+   results = q.by(a).by(m).run()
 
 Parameterizing a question
 -------------------------
@@ -81,33 +93,37 @@ Key steps:
       question_text = "What is your favorite {{ item }}?",
    )
 
-* Create a dictionary for the value that will replace the parameter and store it in a Scenario object:
+* Create a dictionary for the value that will replace the parameter and store it in a `Scenario` object:
 
 .. code-block:: python
 
    scenario = Scenario({"item": "color"})
 
-If multiple values will be used, create multiple Scenario objects in a list:
+If multiple values will be used, create multiple `Scenario` objects in a list:
 
 .. code-block:: python
 
    scenarios = [Scenario({"item": item}) for item in ["color", "food"]]
 
-* Add the Scenario objects to the question with the `by` method before appending the `run` method:
+* Add the `Scenario` objects to the question with the `by` method when running it:
 
 .. code-block:: python
 
    results = q.by(scenarios).run()
 
-If the question is part of a survey, add the Scenario objects to the survey:
+If the question is part of a survey, add the `Scenario` objects to the survey:
 
 .. code-block:: python
 
    q1 = ...
    q2 = ...
-   results = Survey([q1, q2]).by(scenarios).run()
 
-As with other Survey components (agents and language models), multiple Scenario objects should be added together as a list in the same `by` method.
+   from edsl import Survey 
+
+   s = Survey([q1, q2])
+   results = s.by(scenarios).run()
+
+As with agents and models, scenarios should be added together as a list in the same `by` method.
 
 Learn more about specifying question scenarios, agents and language models in their respective modules:
 
