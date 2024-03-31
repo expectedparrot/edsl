@@ -2,30 +2,65 @@ import os
 import json
 import shutil
 import sqlite3
+from typing import Literal
 from edsl.data.CacheEntry import CacheEntry
+from edsl.data.new_cache import Cache
 
 class CacheHandler:
+    """
+    This CacheHandler figures out what caches are avaialble. 
+    
+    It syncs things up and creates appropriate backups. 
 
-    CACHE_PATH = ".edsl_cache"
+    Goal it to return a Cache object. 
+
+    >>> handler = CacheHandler(cache_type = "api", "local")
+    >>> cache = handler.gen_cache()
+    """
+
+    CACHE_PATH = ".edsl_cache/data.db"
     OLD_CACHE = "edsl_cache.db"
-    NEW_DB_CACHE = "./edsl_cache/edsl.db"
-    NEW_JSONL_CACHE = "./edsl_cache/edsl.jsonl"
 
-    def __init__(self, filename = None):
+    def __init__(self, cache_type: Literal["local", "api"] = "local"):
 
-        # if a filename is passed, use that. 
+        self.cache_type = cache_type
+
+        if cache_type not in ["local", "api"]:
+            raise Exception("Cache type must be either 'local' or 'api'")
         
-        data_old_cache = {}    
-        data_new_slite_cache = {}
-        data_jsonl_cache = {}
+        if cache_type == "api":
+            self.check_expected_parrot_account()
+            self.sync_local_and_remote()
+
+        self.collected_data = self.gather_data()
+
+    def gen_cache(self):
+        if self.catch_type == "local":
+            cache = Cache.from_sqlite_db(self.CACHE_PATH)
+            cache.add_multiple_entries(self.collected_data, write_now = True)
+            return cache 
 
 
-        # 1. If the new cache directory doesn't exist, create it. 
+    def gather_data():
+        return {}
+
+    def sync_local_and_remote(self):
+        pass
+
+    def check_expected_parrot_account():
+        pass
+
+    def find_old_caches(sef):
+        "Return a list of all identified old Caches"
+        pass
+
+    def create_cache_directory(self):
         directory_path = os.path.join(os.getcwd(), self.CACHE_PATH)
         if not os.path.exists(directory_path):
-            print("Created directory")
+            print(f"Created directory: {self.CACHE_PATH}")
             os.makedirs(directory_path)
-
+            
+    def backup_old_cache(self):
         # 2. Check for the old cache file. If it exists, get its data. Rename to .bak
         if os.path.exists(self.OLD_CACHE):
             print("Old cache found. Converting to new format.")
@@ -37,21 +72,7 @@ class CacheHandler:
             print("New DB cache found.")
             data_new_slite_cache = self.from_new_sqlite_cache_db(self.NEW_DB_CACHE)
         
-        # 4. Check for the new jsonl cache file. If it exists, get its data.
-        if os.path.exists(self.NEW_JSONL_CACHE):
-            print("JSONL cache found.")
-            data_jsonl_cache = self.from_jsonl(self.NEW_JSONL_CACHE)
-
-        # Data in JSONL not in DB: 
-        diff = {k: v for k, v in data_jsonl_cache.items() if k not in data_new_slite_cache}
-        print(f"Data in JSONL but not in DB: {diff}")
-
-        # Data in DB not in JSONL:
-        diff = {k: v for k, v in data_new_slite_cache.items() if k not in data_jsonl_cache}
-        print(f"Data in DB but not in JSONL: {diff}")
-
-        self._data = {**data_old_cache, **data_new_slite_cache, **data_jsonl_cache}
-
+        
     @property
     def data(self):
         return self._data 
