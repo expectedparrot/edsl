@@ -249,10 +249,10 @@ def test_handle_model_exception():
 
 
 def test_jobs_bucket_creator(valid_job):
-    from edsl.jobs.runners.job_runners_registry import JobsRunnersRegistry
-
-    JobRunner = JobsRunnersRegistry["asyncio"](jobs=valid_job)
-    bc = JobRunner.bucket_collection
+    #from edsl.jobs.runners.job_runners_registry import JobsRunnersRegistry
+    #JobRunner = JobsRunnersRegistry["asyncio"](jobs=valid_job)
+    from edsl.jobs.runners.JobsRunnerAsyncio import JobsRunnerAsyncio
+    bc = JobsRunnerAsyncio(jobs=valid_job).bucket_collection
     assert bc[valid_job.models[0]].requests_bucket.tokens > 10
     assert bc[valid_job.models[0]].tokens_bucket.tokens > 10
 

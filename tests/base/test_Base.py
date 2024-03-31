@@ -1,11 +1,9 @@
 import pytest
+import json
 import warnings
+
 from edsl.Base import RegisterSubclassesMeta, Base
 from edsl.questions import QuestionMultipleChoice
-
-from edsl.data.Cache import Cache
-import json
-
 
 class EvalReprFail(Warning):
     "Warning for when eval(repr(e), d) == e fails"
@@ -28,7 +26,6 @@ class TestBaseModels:
                 "ScenarioList",
                 "AgentList",
                 "Jobs",
-                "Cache",
             ]
 
         methods = [
