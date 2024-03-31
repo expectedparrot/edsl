@@ -421,7 +421,7 @@ class Cache:
             raise KeyError(f"Key '{key}' not found.")
         response.raise_for_status()
         data = response.json()
-        print("Updating with remote data")
+        #print("Updating with remote data")
         for key, value in data.items():
             if key not in self.data:
                 self.data[key] = CacheEntry(**value)
@@ -445,7 +445,7 @@ class Cache:
             try:
                 response = requests.post(f"{EXPECTED_PARROT_CACHE_URL}/items/batch", json=items)
                 response.raise_for_status()       
-                print(response.json())
+                #print(response.json())
             except requests.exceptions.ConnectionError as e:
                 print(f"Could not connect to remote server: {e}") 
                     
