@@ -1,7 +1,6 @@
 """
 
-
-Datasstore is the SQLite3 dict 
+Datastore is the SQLite3 dict 
 -- Cache can be run in real-time writing or at the end
 -- testing, we just use a dictioary 
 -- JSONL is only used for exporting
@@ -62,6 +61,7 @@ from edsl.exceptions import LanguageModelResponseNotJSONError
 
 from edsl.data.CacheEntry import CacheEntry
 from edsl.data.SQLiteDict import SQLiteDict
+from edsl.data.RemoteDict import RemoteDict
 
 from collections import UserDict
 
@@ -88,6 +88,7 @@ class Cache:
                  immediate_write:bool = True, method = None):
         self.data = data or {}
         self.new_entries = {}
+        self.new_entries_to_write_later = {}
         self.immediate_write = immediate_write
         self._check_value_types()
 
@@ -225,11 +226,12 @@ class Cache:
         )
            
         key = entry.key
+        self.new_entries[key] = entry
         if self.immediate_write:
             self.data[key] = entry
         else:
-            self.new_entries[key] = entry
-
+            self.new_entries_to_write_later[key] = entry
+        
     def __eq__(self, other_cache: 'Cache'):
         """
         Note we define equalty just be checking keys. 
@@ -280,10 +282,11 @@ class Cache:
             if not isinstance(value, CacheEntry):
                 raise Exception("Wrong type")
     
+        self.new_entries.update(new_data)
         if write_now:
             self.data.update(new_data)
         else:
-            self.new_entries.update(new_data)
+            self.new_entries_to_write_later.update(new_data)
 
     def add_from_jsonl(self, filename, write_now = True):
         """
@@ -327,6 +330,25 @@ class Cache:
         cache = Cache(data = db)
         cache.add_from_jsonl(jsonlfile)
         return cache
+    
+    @classmethod
+    def from_url(cls, base_url, db_path = None):
+        import requests
+        response = requests.get(f"{base_url}/items/all")
+        if response.status_code == 404:
+            raise KeyError(f"Key '{key}' not found.")
+        response.raise_for_status()
+        data = response.json()
+        if db_path is None:
+            db_path = "./edsl_cache/data.db"
+        db = SQLiteDict(db_path)
+        for key, value in data.items():
+            db[key] = CacheEntry(**value)
+        return Cache(data = db)
+    
+        #for key, value in self.data.items():
+            #response = requests.post(f"{base_url}/items/{key}", json=value.to_dict())
+            #response.raise_for_status()
 
     def write_sqlite(self, db_path):
         """
@@ -354,8 +376,19 @@ class Cache:
         return self
     
     def __exit__(self, exc_type, exc_value, traceback):
-        for key, entry in self.new_entries.items():
+        for key, entry in self.new_entries_to_write_later.items():
             self.data[key] = entry
+
+        print("Writing to remote server")
+        base_url = "https://f61709b5-4cdf-487d-a30c-a803ab910ca1-00-27digq3c8e2zg.worf.replit.dev"
+        import requests
+        items = [{"key": key, "item": value.to_dict()} for key, value in self.new_entries.items()]
+        response = requests.post(f"{base_url}/items/batch", json=items)
+        response.raise_for_status()
+        
+        # Handle the response
+        print(response.json())
+
         
     # def __setitem__(self, key, value):
     #     super().__setitem__(key, value)
@@ -374,26 +407,47 @@ class Cache:
 
 if __name__ == "__main__":
 
-    import doctest
-    doctest.testmod()
+    #import doctest
+    #doctest.testmod()
 
-    data = {'poo': CacheEntry.example()}
+    base_url = "https://f61709b5-4cdf-487d-a30c-a803ab910ca1-00-27digq3c8e2zg.worf.replit.dev"
+    #cache = Cache(data = RemoteDict(base_url = base_url))
 
-    c = Cache(data = data)
-    c.data
+    cache = Cache.from_url(base_url = base_url)
 
-    print("Printing weird example")
-    c.write_sqlite("weird_example.db")
+    from edsl import QuestionFreeText, QuestionMultipleChoice
+    # q = QuestionFreeText.example()
+    # results = q.run(cache = cache)
 
-    print(c.last_insertion)
+    # q2 = QuestionMultipleChoice.example()
+    # results = q2.run(cache = cache, progress_bar = True)
 
-    delay_cache = Cache(immediate_write = False)
-    with delay_cache as c:
-        input = CacheEntry.store_input_example()
-        c.store(**input)
-        print("Keys are currently:", list(c.data.keys()))
+#    with cache as c:
+    from edsl import Model, Scenario
+    m = Model(Model.available()[0])
+    numbers = range(150, 250)
+    scenarios = [Scenario({'number': number}) for number in numbers]
+    q = QuestionFreeText(question_text = "Is {{number}} prime?", question_name = "prime")
+    results = q.by(m).by(scenarios).run(cache = cache, progress_bar = True)
 
-    print("Keys are now:", delay_cache.data.keys())
+
+    # data = {'poo': CacheEntry.example()}
+
+    # c = Cache(data = data)
+    # c.data
+
+    # print("Printing weird example")
+    # c.write_sqlite("weird_example.db")
+
+    # print(c.last_insertion)
+
+    # delay_cache = Cache(immediate_write = False)
+    # with delay_cache as c:
+    #     input = CacheEntry.store_input_example()
+    #     c.store(**input)
+    #     print("Keys are currently:", list(c.data.keys()))
+
+    # print("Keys are now:", delay_cache.data.keys())
 
     ##c.fetch(**CacheEntry.fetch_input_example())
 

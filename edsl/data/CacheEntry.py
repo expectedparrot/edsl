@@ -2,6 +2,8 @@ import time
 import hashlib
 
 class CacheEntry:
+    """Class to represent a cache entry for the EDSL package."""
+
     key_fields = ['model', 'parameters', 'system_prompt', 'user_prompt', 'iteration']
     all_fields = key_fields + ['timestamp', 'output']
     def __init__(self, *, model, parameters, system_prompt, user_prompt, output, iteration = None, timestamp = None):
@@ -13,7 +15,8 @@ class CacheEntry:
         self.iteration = iteration or 0 
         self.timestamp = timestamp or int(time.time())
 
-    def __eq__(self, other_entry):
+    def __eq__(self, other_entry: 'CacheEntry') -> bool:
+        """Check if two cache entries are equal."""
         for field in self.all_fields:
             if getattr(self, field) != getattr(other_entry, field):
                 raise False
