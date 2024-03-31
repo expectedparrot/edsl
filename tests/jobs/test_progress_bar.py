@@ -22,7 +22,8 @@ def test_progress_bar():
     s = [Scenario({'number':number}) for number in range(20)]
     q = QuestionYesNo(question_text = "Is this number prime: {{ number }}?", 
                     question_name = "is_prime")
-
-    results = q.by(s).by(a).run(progress_bar = True)
+    
+    from edsl.data.new_cache import Cache
+    results = q.by(s).by(a).run(progress_bar = True, cache = Cache())
 
     #results.select('number', 'is_prime').print()

@@ -55,7 +55,9 @@ def test_token_usage(create_survey):
     model = create_language_model(ValueError, 100)()
     survey = create_survey(num_questions=5, chained=False)
     jobs = survey.by(model)
-    results = jobs.run()
+    from edsl.data.new_cache import Cache
+    cache = Cache()
+    results = jobs.run(cache = cache)
     token_usage = jobs.interviews()[0].token_usage
 
     #from edsl.jobs.tokens.TokenUsage import TokenUsage
@@ -72,7 +74,9 @@ def test_task_management(create_survey):
     model = create_language_model(ValueError, 100)()
     survey = create_survey(num_questions=5, chained=False)
     jobs = survey.by(model)
-    results = jobs.run()
+    from edsl.data.new_cache import Cache
+    cache = Cache()
+    results = jobs.run(cache = cache)
 
     from edsl.jobs.interviews.InterviewStatusDictionary import InterviewStatusDictionary
 
@@ -84,7 +88,10 @@ def test_bucket_collection(create_survey):
     model = create_language_model(ValueError, 100)()
     survey = create_survey(num_questions=5, chained=False)
     jobs = survey.by(model)
-    results = jobs.run()
+    from edsl.data.new_cache import Cache
+    cache = Cache()
+  
+    results = jobs.run(cache = cache)
 
     bc = jobs.bucket_collection
     bucket_list = list(bc.values())
@@ -97,7 +104,10 @@ def test_handle_model_exceptions(create_survey, fail_at_number, chained):
     model = create_language_model(ValueError, fail_at_number)()
     survey = create_survey(num_questions=20, chained=chained)
     jobs = survey.by(model)
-    results = jobs.run()
+    from edsl.data.new_cache import Cache
+    cache = Cache()
+  
+    results = jobs.run(cache = cache)
     
     #breakpoint()
 
@@ -115,7 +125,9 @@ def test_handle_timeout_exception(create_survey, capsys):
     ## TODO: We want to shrink the API_TIMEOUT_SEC param for testing purposes.
     model = create_language_model(ValueError, 3, never_ending=True)()
     survey = create_survey(num_questions=5, chained=False)
-    results = survey.by(model).run()
+    from edsl.data.new_cache import Cache
+    cache = Cache()
+    results = survey.by(model).run(cache = cache)
     captured = capsys.readouterr()
     # assert (
     #     "WARNING: At least one question in the survey was not answered." in captured.out
