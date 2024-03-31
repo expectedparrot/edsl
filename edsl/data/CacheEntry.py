@@ -2,10 +2,11 @@ import time
 import hashlib
 
 class CacheEntry:
-    """Class to represent a cache entry for the EDSL package."""
+    """Class to represent a cache entry."""
 
     key_fields = ['model', 'parameters', 'system_prompt', 'user_prompt', 'iteration']
     all_fields = key_fields + ['timestamp', 'output']
+
     def __init__(self, *, model, parameters, system_prompt, user_prompt, output, iteration = None, timestamp = None):
         self.model = model
         self.parameters = parameters
@@ -31,9 +32,7 @@ class CacheEntry:
     @classmethod
     def fetch_input_example(cls) -> dict:
         """
-        
-        >>> CacheEntry.input_example()
-
+        Create an example input for a 'fetch' operation.
         """
         input =cls.example().to_dict()
         _ = input.pop('timestamp')
@@ -42,13 +41,16 @@ class CacheEntry:
 
     @classmethod    
     def store_input_example(cls) -> dict:
+        """
+        Create an example input for a 'store' operation.
+        """
         input = cls.example().to_dict()
         _ = input.pop("timestamp")
         input['response'] = input.pop('output')
         return input
 
     @classmethod
-    def gen_key(self, *, model, parameters, system_prompt, user_prompt, iteration):
+    def gen_key(self, *, model, parameters, system_prompt, user_prompt, iteration) -> str:
         """Generate a key for the cache entry.
         
         >>> CacheEntry.gen_key(model = "gpt-3.5-turbo", parameters = "{'temperature': 0.5}", system_prompt = "The quick brown fox jumps over the lazy dog.", user_prompt = "What does the fox say?", iteration = 1)
@@ -60,10 +62,12 @@ class CacheEntry:
 
     @property
     def key(self):
+        """Return the key for the cache entry."""
         d = {k:value for k, value in self.__dict__.items() if k in self.key_fields}
         return self.gen_key(**d)
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
+        """Return a dictionary representation of the cache entry."""
         return {
             'model': self.model,
             'parameters': self.parameters,
@@ -78,7 +82,8 @@ class CacheEntry:
         return f"CacheEntry(model={self.model}, parameters={self.parameters}, system_prompt={self.system_prompt}, user_prompt={self.user_prompt}, output={self.output}, iteration={self.iteration}, timestamp={self.timestamp})"
     
     @classmethod
-    def from_dict(cls, data):
+    def from_dict(cls, data: dict):
+        """Create a cache entry from a dictionary representation."""
         return cls(**data)
     
     @classmethod
