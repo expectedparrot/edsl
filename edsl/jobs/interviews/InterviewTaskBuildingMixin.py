@@ -28,7 +28,7 @@ from edsl.jobs.tasks.task_status_enum import TaskStatus
 #)
 
 from edsl.jobs.interviews.retry_management import retry_strategy
-from edsl.data.new_cache import Cache
+from edsl.data.Cache import Cache
 
 TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
 

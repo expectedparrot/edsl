@@ -12,7 +12,6 @@ from rich.console import Console
 from rich.table import Table
 
 from typing import Any, Callable, Type, List
-# from edsl.data import CRUDOperations, CRUD
 from edsl.exceptions import LanguageModelResponseNotJSONError
 from edsl.language_models.schemas import model_prices
 from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
@@ -25,7 +24,7 @@ from edsl.enums import LanguageModelType, InferenceServiceType
 
 from edsl.Base import RichPrintingMixin, PersistenceMixin
 
-from edsl.data.new_cache import Cache    
+from edsl.data.Cache import Cache    
 
 def handle_key_error(func):
     """Handle KeyError exceptions."""

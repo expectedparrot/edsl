@@ -40,7 +40,7 @@ from edsl.utilities.decorators import sync_wrapper
 from edsl.data_transfer_models import AgentResponseDict
 from edsl.prompts.library.agent_persona import AgentPersona
 
-from edsl.data.new_cache import Cache
+from edsl.data.Cache import Cache
 
 class Agent(Base):
     """An Agent that can answer questions."""

@@ -15,7 +15,7 @@ from edsl.jobs.Jobs import Jobs
 from edsl.jobs.runners.JobsRunnerStatusMixin import JobsRunnerStatusMixin
 #from edsl.jobs.runners.JobsRunHistory import JobsRunHistory
 
-from edsl.data.new_cache import Cache
+from edsl.data.Cache import Cache
 
 #from edsl.jobs.tasks.task_status_enum import TaskStatus
 
