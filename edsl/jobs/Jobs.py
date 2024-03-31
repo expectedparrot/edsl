@@ -1,22 +1,20 @@
 """The Jobs class is a collection of agents, scenarios and models and one survey."""
 from __future__ import annotations
 from collections.abc import Sequence
-import shutil
-from collections import UserDict
+import os
+
 from itertools import product
 from typing import Union, Generator
 
 from edsl import CONFIG
 from edsl.agents import Agent
 from edsl.Base import Base
-from edsl.data import Database, database
 from edsl.language_models import LanguageModel  # , LanguageModelOpenAIThreeFiveTurbo
 from edsl.enums import LanguageModelType
 from edsl import Model
 from edsl.results import Results
 from edsl.scenarios import Scenario
 from edsl.surveys import Survey
-from edsl.jobs.runners.job_runners_registry import JobsRunnersRegistry, JobsRunnerDescriptor
 from edsl.jobs.interviews.Interview import Interview
 from edsl.coop.old import JobRunnerAPI, ResultsAPI
 
@@ -37,7 +35,7 @@ class Jobs(Base):
     The JobsRunner is chosen by the user, and is stored in the `jobs_runner_name` attribute.
     """
 
-    jobs_runner_name = JobsRunnerDescriptor()
+    #jobs_runner_name = JobsRunnerDescriptor()
 
     def __init__(
         self,
@@ -195,11 +193,8 @@ class Jobs(Base):
         n: int = 1,
         debug: bool = False,
         progress_bar: bool = False,
-        dry_run: bool = False,
-        streaming: bool = False,
         stop_on_exception: bool = False,
         cache = None,
-        db: Database = database,
     ) -> Union[Results, ResultsAPI, None]:
         """
         Runs the Job: conducts Interviews and returns their results.
@@ -208,12 +203,8 @@ class Jobs(Base):
         :param debug: prints debug messages
         :param verbose: prints messages
         :param progress_bar: shows a progress bar
-        :param dry_run: does not actually run the job
-        :param streaming: uses the streaming API
-        :param db: the database to use
 
         """
-        import os
 
         if cache is None:
             if os.path.exists("edsl_cache.db"):
@@ -224,20 +215,16 @@ class Jobs(Base):
                 cache += Cache.from_jsonl("edsl_cache.jsonl")
         else:
             print("Using cache from passed in cache")
-            
-        # self.job_runner_name = method
-        if dry_run:
-            self.job_runner_name = "dry_run"
-        elif streaming:
-            self.job_runner_name = "streaming"
-        else:
-            self.job_runner_name = "asyncio"
+
 
         if (
             expected_parrot_api_key := CONFIG.get("EXPECTED_PARROT_API_KEY")
         ) == "local":
             results = self._run_local(
-                n=n, debug=debug, progress_bar=progress_bar, db=db, cache=cache, 
+                n=n, 
+                debug=debug, 
+                progress_bar=progress_bar,  
+                cache=cache, 
                 stop_on_exception=stop_on_exception
             )
         else:
@@ -247,11 +234,11 @@ class Jobs(Base):
 
         return results
 
-    def _run_local(self, *args, db: Database = database, **kwargs):
+    def _run_local(self, *args, **kwargs):
         """Run the job locally."""
+        from edsl.jobs.runners.JobsRunnerAsyncio import JobsRunnerAsyncio
         #db._health_check_pre_run()
-        JobRunner = JobsRunnersRegistry[self.job_runner_name](jobs=self)
-        results = JobRunner.run(*args, **kwargs)
+        results = JobsRunnerAsyncio(self).run(*args, **kwargs)
         #db._health_check_post_run()
         return results
 

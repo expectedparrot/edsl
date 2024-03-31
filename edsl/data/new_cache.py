@@ -62,32 +62,28 @@ from edsl.exceptions import LanguageModelResponseNotJSONError
 from edsl.data.CacheEntry import CacheEntry
 from edsl.data.SQLiteDict import SQLiteDict
 from edsl.data.RemoteDict import RemoteDict
-
 from collections import UserDict
-
-class DummyCacheEntry(UserDict):
-
-    def __init__(self, data):
-        super().__init__(data)
-
-    def to_dict(self):
-        return self
-
-    @classmethod
-    def from_dict(cls, data):
-        return cls(data) 
 
 class Cache:
     """A class to represent a cache of responses from a language model."""
     data = {}
- 
+
+    EXPECTED_PARROT_CACHE_URL = "https://f61709b5-4cdf-487d-a30c-a803ab910ca1-00-27digq3c8e2zg.worf.replit.dev"
+
     def __init__(self, data: Union[SQLiteDict, dict, None]  = None, 
                  immediate_write:bool = True, 
                  method = None):
+        """Instantiate a new cache object.
         
+        :param data: The data to initialize the cache with.
+        :param immediate_write: Whether to write to the cache immediately after storing a new entry.
+        :param method: The method of storage to use for the cache. (Deprecated). Will be removed in future versions.
+        """
         self.data = data or {}
-        self.new_entries = {}
-        self.new_entries_to_write_later = {}
+        
+        self.new_entries = {} # New entries created during a __enter__ block
+        self.new_entries_to_write_later = {} # storarge for entries that will be written to the cache later
+        
         self.immediate_write = immediate_write
         self._check_value_types()
 

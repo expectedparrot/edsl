@@ -7,12 +7,13 @@ from rich.live import Live
 from rich.console import Console
 
 from edsl.results import Results, Result
-from edsl.jobs.runners.JobsRunner import JobsRunner
+#from edsl.jobs.runners.JobsRunner import JobsRunner
 from edsl.jobs.interviews.Interview import Interview
 from edsl.utilities.decorators import jupyter_nb_handler
+from edsl.jobs.Jobs import Jobs
 
 from edsl.jobs.runners.JobsRunnerStatusMixin import JobsRunnerStatusMixin
-from edsl.jobs.runners.JobsRunHistory import JobsRunHistory
+#from edsl.jobs.runners.JobsRunHistory import JobsRunHistory
 
 from edsl.data.new_cache import Cache
 
@@ -20,10 +21,38 @@ from edsl.data.new_cache import Cache
 
 from edsl.jobs.tasks.TaskHistory import TaskHistory
 
-class JobsRunnerAsyncio(JobsRunner, JobsRunnerStatusMixin):
-    runner_name = "asyncio"
-   
-    #history = JobsRunHistory()
+class JobsRunnerAsyncio(JobsRunnerStatusMixin):
+
+    def __init__(self, jobs: Jobs):
+        self.jobs = jobs
+
+        self.interviews: List['Interview'] = jobs.interviews()
+        self.bucket_collection: 'BucketCollection' = jobs.bucket_collection
+        self.total_interviews: List['Interview'] = []
+        
+    
+    def populate_total_interviews(self, n = 1) -> None:
+        """Populates self.total_interviews with n copies of each interview.
+        
+        :param n: how many times to run each interview.
+        """
+        self.total_interviews = []
+        for interview in self.interviews:
+            for iteration in range(n):
+                if iteration > 0:
+                    new_interview = Interview(
+                        agent=interview.agent,
+                        survey=interview.survey,
+                        scenario=interview.scenario,
+                        model=interview.model,
+                        debug=interview.debug,
+                        iteration=iteration,
+                        cache = self.cache
+                    )
+                    self.total_interviews.append(new_interview)
+                else:
+                    interview.cache = self.cache
+                    self.total_interviews.append(interview)
 
     async def run_async(
         self,

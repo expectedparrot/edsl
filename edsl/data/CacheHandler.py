@@ -9,11 +9,7 @@ from edsl.data.new_cache import Cache
 
 class CacheHandler:
     """
-    This CacheHandler figures out what caches are avaialble. 
-    
-    It syncs things up and creates appropriate backups. 
-
-    Goal it to return a Cache object. 
+    This CacheHandler figures out what caches are avaialble.     
 
     >>> handler = CacheHandler(cache_type = "api", "local")
     >>> cache = handler.gen_cache()

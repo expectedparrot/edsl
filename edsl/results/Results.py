@@ -97,7 +97,6 @@ from edsl.exceptions.results import (
     ResultsFilterError,
 )
 from edsl.agents import Agent
-from edsl.data import CRUD
 from edsl.language_models.LanguageModel import LanguageModel
 from edsl.results.Dataset import Dataset
 from edsl.results.Result import Result

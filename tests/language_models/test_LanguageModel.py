@@ -2,7 +2,7 @@ import asyncio
 import pytest
 import unittest
 from typing import Any
-from edsl.data import CRUD
+
 from edsl.exceptions.language_models import LanguageModelAttributeTypeError
 from edsl.enums import LanguageModelType, InferenceServiceType
 from edsl.language_models.LanguageModel import LanguageModel
@@ -45,7 +45,6 @@ class TestLanguageModel(unittest.TestCase):
                 return raw_response["message"]
 
         self.good_class = TestLanguageModelGood
-        self.crud = CRUD
 
     def test_instantiation(self):
         class Mixin:
@@ -110,12 +109,8 @@ class TestLanguageModel(unittest.TestCase):
             self.assertEqual(response[key], value)
 
     def test_cache_write_and_read(self):
-        self.crud.clear_LLMOutputData()
-        from edsl.data.new_cache import Cache
-
+ 
         m = self.good_class(
-            crud=self.crud,
-#            use_cache=True,
             model="fake model",
             parameters={"temperature": 0.5},
             iteration = 1
@@ -154,9 +149,6 @@ class TestLanguageModel(unittest.TestCase):
         )
 
         self.assertEqual(len(cache.data.values()), 1)
-        #responses = self.crud.get_all_LLMOutputData()
-        #self.assertEqual(len(responses), 1)
-        #self.assertEqual(responses, [expected_response])
 
     def test_parser_exception(self):
         class TestLanguageModelGood(LanguageModel):
