@@ -26,7 +26,7 @@ class CacheEntry:
         """
         for field in self.all_fields:
             if getattr(self, field) != getattr(other_entry, field):
-                raise False
+                return False
         return True
 
     @classmethod

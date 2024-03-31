@@ -5,8 +5,9 @@ def test_multiple_runs():
     
     a = Agent(traits = {})
 
+    from edsl.data.new_cache import Cache
     a.add_direct_question_answering_method(lambda self, question, scenario: "yes")
 
     q = QuestionFreeText.example()
-    results = q.by(a).run(n = 2)
+    results = q.by(a).run(n = 2, cache = Cache())
     assert len(results) == 2

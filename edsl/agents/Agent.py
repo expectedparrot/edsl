@@ -223,7 +223,7 @@ class Agent(Base):
 
         >>> a = Agent(traits = {"age": 10}, traits_presentation_template = "I am a {{age}} year old.")
         >>> repr(a.agent_persona)
-        Prompt(text='I am a 10 year old.') 
+        "Prompt(text='I am a {{age}} year old.')"
         """
         self.name = name
         self._traits = traits or dict()

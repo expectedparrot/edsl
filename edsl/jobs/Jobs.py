@@ -367,10 +367,10 @@ class Jobs(Base):
 def main():
     """Run the module's doctests."""
     from edsl.jobs import Jobs
-
+    from edsl.data.new_cache import Cache
     job = Jobs.example()
     len(job) == 8
-    results = job.run(debug=True)
+    results = job.run(debug=True, cache = Cache())
     len(results) == 8
     results
 

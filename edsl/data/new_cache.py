@@ -84,6 +84,7 @@ class Cache:
     def __init__(self, data: Union[SQLiteDict, dict, None]  = None, 
                  immediate_write:bool = True, 
                  method = None):
+        
         self.data = data or {}
         self.new_entries = {}
         self.new_entries_to_write_later = {}
@@ -384,6 +385,10 @@ class Cache:
 
     def write_sqlite(self, db_path):
         """
+        Write the cache to an SQLite database.
+
+        :param db_path: The path to the SQLite database.
+        
         >>> c = Cache.example()
         >>> c.write_sqlite("example.db")
         """
@@ -392,13 +397,19 @@ class Cache:
             new_data[key] = value
  
     def write_jsonl(self, filename):
+        """Write the cache to a JSONL file."""
         dir_name = os.path.dirname(filename)
         with tempfile.NamedTemporaryFile(mode='w', dir=dir_name, delete=False) as tmp_file:
             for key, raw_value in self.data.items():
                 value = raw_value if not hasattr(raw_value, "to_dict") else raw_value.to_dict()
                 tmp_file.write(json.dumps({key: value}) + '\n')
             temp_name = tmp_file.name
+        try:
             os.replace(temp_name, filename)
+        finally:
+            if os.path.exists(temp_name):
+                os.remove(temp_name)
+                os.replace(temp_name, filename)
 
     @classmethod
     def example(cls):
