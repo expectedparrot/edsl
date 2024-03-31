@@ -17,7 +17,13 @@ class CacheEntry:
         self.timestamp = timestamp or int(time.time())
 
     def __eq__(self, other_entry: 'CacheEntry') -> bool:
-        """Check if two cache entries are equal."""
+        """Check if two cache entries are equal.
+        
+        :param other_entry: The other cache entry to compare to.
+
+        >>> CacheEntry.example() == CacheEntry.example()
+        True
+        """
         for field in self.all_fields:
             if getattr(self, field) != getattr(other_entry, field):
                 raise False
@@ -25,6 +31,7 @@ class CacheEntry:
 
     @classmethod
     def example_dict(cls) -> dict:
+        """Return an example dictionary of cache entries."""
         entity = cls.example()
         key = entity.key
         return {key: entity}
@@ -62,7 +69,11 @@ class CacheEntry:
 
     @property
     def key(self):
-        """Return the key for the cache entry."""
+        """Return the key for the cache entry.
+        
+        >>> CacheEntry.example().key
+        '55ce2e13d38aa7fb6ec848053285edb4'
+        """
         d = {k:value for k, value in self.__dict__.items() if k in self.key_fields}
         return self.gen_key(**d)
 
@@ -97,3 +108,7 @@ class CacheEntry:
             iteration=1,
             timestamp=int(time.time())
         )
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()
