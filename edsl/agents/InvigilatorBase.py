@@ -7,7 +7,7 @@ from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
 from edsl.prompts.registry import get_classes as prompt_lookup
 from edsl.data_transfer_models import AgentResponseDict
 
-from edsl.data.new_cache import Cache
+from edsl.data.Cache import Cache
 
 class InvigilatorBase(ABC):
     """An invigiator (someone who administers an exam) is a class that is responsible for administering a question to an agent."""

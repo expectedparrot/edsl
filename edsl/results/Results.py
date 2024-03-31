@@ -647,7 +647,7 @@ class Results(UserList, Mixins, Base):
         :param debug: if False, uses actual API calls
         """
         from edsl.jobs import Jobs
-        from edsl.data.new_cache import Cache
+        from edsl.data.Cache import Cache
         c = Cache()
         job = Jobs.example()
         results = job.run(cache = c, debug=debug)

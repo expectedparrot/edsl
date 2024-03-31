@@ -5,7 +5,7 @@ import sqlite3
 from typing import Literal
 
 from edsl.data.CacheEntry import CacheEntry
-from edsl.data.new_cache import Cache
+from edsl.data.Cache import Cache
 
 class CacheHandler:
     """

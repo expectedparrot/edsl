@@ -84,7 +84,7 @@ class TestLanguageModel(unittest.TestCase):
             TestLanguageModelGood()
 
     def test_execute_model_call(self):
-        from edsl.data.new_cache import Cache
+        from edsl.data.Cache import Cache
         m = self.good_class()
         response = m.get_raw_response(
             user_prompt="Hello world", system_prompt="You are a helpful agent", cache = Cache()
@@ -94,7 +94,7 @@ class TestLanguageModel(unittest.TestCase):
         self.assertEqual(response["cached_response"], False)
 
     def test_get_response(self):
-        from edsl.data.new_cache import Cache
+        from edsl.data.Cache import Cache
 
         m = self.good_class()
         response = m.get_response(
@@ -115,7 +115,7 @@ class TestLanguageModel(unittest.TestCase):
             parameters={"temperature": 0.5},
             iteration = 1
         )
-        from edsl.data.new_cache import Cache
+        from edsl.data.Cache import Cache
         cache = Cache(method = "memory")
         
         m.get_response(
@@ -134,7 +134,7 @@ class TestLanguageModel(unittest.TestCase):
         }
 
 
-        from edsl.data.new_cache import Cache
+        from edsl.data.Cache import Cache
 
         outcome = list(cache.data.values())[0].to_dict()
 

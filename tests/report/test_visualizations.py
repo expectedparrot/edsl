@@ -6,7 +6,7 @@ import os
 
 imagepath = os.path.join(os.getcwd(), "visualization_test_outputs")
 
-from edsl.data.new_cache import Cache
+from edsl.data.Cache import Cache
 cache = Cache()  
 
 class TestPlots(unittest.TestCase):

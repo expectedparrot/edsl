@@ -136,7 +136,7 @@ class TestResults(unittest.TestCase):
         def answer_question_directly(self, question, scenario):
             return "Never"
 
-        from edsl.data.new_cache import Cache
+        from edsl.data.Cache import Cache
         cache = Cache()
         agent = Agent()
         agent.add_direct_question_answering_method(answer_question_directly)

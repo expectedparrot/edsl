@@ -24,7 +24,7 @@ from edsl.jobs.interviews.retry_management import retry_strategy
 from edsl.jobs.interviews.InterviewTaskBuildingMixin import InterviewTaskBuildingMixin
 from edsl.jobs.interviews.InterviewStatusMixin import InterviewStatusMixin
 
-from edsl.data.new_cache import Cache
+from edsl.data.Cache import Cache
 
 class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
     """

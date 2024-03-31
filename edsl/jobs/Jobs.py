@@ -20,7 +20,7 @@ from edsl.coop.old import JobRunnerAPI, ResultsAPI
 
 from edsl.jobs.buckets.BucketCollection import BucketCollection
 
-from edsl.data.new_cache import Cache
+from edsl.data.Cache import Cache
 
 class Jobs(Base):
     """
@@ -354,7 +354,7 @@ class Jobs(Base):
 def main():
     """Run the module's doctests."""
     from edsl.jobs import Jobs
-    from edsl.data.new_cache import Cache
+    from edsl.data.Cache import Cache
     job = Jobs.example()
     len(job) == 8
     results = job.run(debug=True, cache = Cache())
