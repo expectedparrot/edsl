@@ -54,6 +54,7 @@ import json
 import time
 import os
 import tempfile
+import requests
 
 from typing import Literal, Union
 
@@ -64,11 +65,11 @@ from edsl.data.SQLiteDict import SQLiteDict
 from edsl.data.RemoteDict import RemoteDict
 from collections import UserDict
 
+EXPECTED_PARROT_CACHE_URL = os.getenv("EXPECTED_PARROT_CACHE_URL", None)
+
 class Cache:
     """A class to represent a cache of responses from a language model."""
     data = {}
-
-    EXPECTED_PARROT_CACHE_URL = "https://f61709b5-4cdf-487d-a30c-a803ab910ca1-00-27digq3c8e2zg.worf.replit.dev"
 
     def __init__(self, data: Union[SQLiteDict, dict, None]  = None, 
                  immediate_write:bool = True, 
@@ -90,6 +91,9 @@ class Cache:
         if method is not None:
             import warnings
             warnings.warn("Method is deprecated", DeprecationWarning)
+
+        if EXPECTED_PARROT_CACHE_URL is not None:
+            self.remote_backups = True
 
     def _check_value_types(self) -> None:
         """Check that all values in the cache are CacheEntry objects."""     
@@ -362,7 +366,6 @@ class Cache:
     
     @classmethod
     def from_url(cls, base_url, db_path = None):
-        import requests
         response = requests.get(f"{base_url}/items/all")
         if response.status_code == 404:
             raise KeyError(f"Key '{key}' not found.")
@@ -410,30 +413,42 @@ class Cache:
     @classmethod
     def example(cls):
         return cls(data = {CacheEntry.example().key: CacheEntry.example()})
+    
+    def get_missing_entries_from_remote(self):
+        """Get missing entries from the remote server."""
+        response = requests.get(f"{EXPECTED_PARROT_CACHE_URL}/items/all")
+        if response.status_code == 404:
+            raise KeyError(f"Key '{key}' not found.")
+        response.raise_for_status()
+        data = response.json()
+        print("Updating with remote data")
+        for key, value in data.items():
+            if key not in self.data:
+                self.data[key] = CacheEntry(**value)
 
     def __enter__(self):
+        # Try to sync with remote server
+        try:
+            self.get_missing_entries_from_remote()
+        except requests.exceptions.ConnectionError as e:
+            print(f"Could not connect to remote server: {e}")
         return self
+    
     
     def __exit__(self, exc_type, exc_value, traceback):
         for key, entry in self.new_entries_to_write_later.items():
             self.data[key] = entry
 
-        remote_cache = False
-        if remote_cache:
-            print("Writing to remote server")
-            base_url = "https://f61709b5-4cdf-487d-a30c-a803ab910ca1-00-27digq3c8e2zg.worf.replit.dev"
+        if self.remote_backups:
             import requests
             items = [{"key": key, "item": value.to_dict()} for key, value in self.new_entries.items()]
-            response = requests.post(f"{base_url}/items/batch", json=items)
-            response.raise_for_status()
-        
-            # Handle the response
-            print(response.json())
-
-        
-    # def __setitem__(self, key, value):
-    #     super().__setitem__(key, value)
-    #     self.timestamps[key] = value.timestamp
+            try:
+                response = requests.post(f"{EXPECTED_PARROT_CACHE_URL}/items/batch", json=items)
+                response.raise_for_status()       
+                print(response.json())
+            except requests.exceptions.ConnectionError as e:
+                print(f"Could not connect to remote server: {e}") 
+                    
 
     def to_dict(self):
         return {k:v.to_dict() for k, v in self.data.items()}
