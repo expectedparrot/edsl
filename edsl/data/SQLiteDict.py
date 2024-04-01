@@ -11,6 +11,10 @@ class SQLiteDict:
     EDSL_CACHE_DB_PATH = ".edsl_cache/data.db"
 
     def __init__(self, db_path: Optional[str] = None):
+        """Construct a new SQLiteDict object.
+        
+        :param db_path: The path to the SQLite database file.
+        """
         self.db_path = db_path or self.EDSL_CACHE_DB_PATH
 
         try:
@@ -103,7 +107,7 @@ class SQLiteDict:
         for key, value in self.cursor.fetchall():
             yield key, CacheEntry(**json.loads(value))
         
-    def __delitem__(self, key):
+    def __delitem__(self, key) -> None:
         """Delete the value at the given key.
         
         :param key: The key to delete.
@@ -147,7 +151,7 @@ class SQLiteDict:
         for row in self.cursor.fetchall():
             yield row[0]
             
-    def __len__(self):
+    def __len__(self) -> int:
         """Return the number of items in the cache.
         
         >>> d = SQLiteDict.example()
@@ -172,7 +176,8 @@ class SQLiteDict:
         for row in self.cursor.fetchall():
             yield row[0]
     
-    def close(self):
+    def close(self) -> None:
+        """Close the connection to the database."""
         self.conn.close()
 
     def __repr__(self) -> str:

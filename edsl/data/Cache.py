@@ -1,19 +1,141 @@
 """
+The Cache class is used to store responses from a language model
 
-Datastore is the SQLite3 dict 
--- Cache can be run in real-time writing or at the end
--- testing, we just use a dictioary 
--- JSONL is only used for exporting
+Why caching?
+^^^^^^^^^^^^
+Langauge model outputs are expensive to create, both in time and money. 
+As such, it is useful to store the outputs of a language model in a cache so that they can be re-used later.
 
-Maybe a Cache is intialized with a method of storage and the data
+Use cases:
+* You can avoid re-running the same queries if a job partial fails, only sending the new queries to the language model
+* You can share your cache with others so they can re-run your queries but at no cost
+* You can use a common remote cache to avoid re-running queries that others have already run
+* Building up training data to train or fine-tune a smaller model
+* Build up a public repository of queries and responses so others can learn from them
 
-data = MemoryDict{} # python dictionary 
-data = SQLiteDict() # SQLite3 database
-data = RemoteDict() # Remote database
+How it works
+^^^^^^^^^^^^
+The cache is a dictionary-like object that stores the inputs and outputs of a language model.
+Specifically, the cache has an attribute, `data` that is dictionary-like. 
 
-Persistance: 
-- Advantage of SQLite3 is we can leave DB as-is between sessions
-- Advantage of JSONL is that we can easily work with 'pieces' of the cache
+The keys of the cache as hashes of the unique inputs to the language model.
+The values are CacheEntry objects, which store the inputs and outputs of the language model.
+
+It can either be a Python in-memory dictionary or dictionary tied to an SQLite3 database.
+The default constructor is an in-memory dictionary.
+If an SQLite3 database is used, the cache will persist automatically between sessions.
+
+After a session, the cache will have new entries. 
+These can be written to a local SQLite3 database, a JSONL file, or a remote server.
+
+
+Instantiating a new cache
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This code will instantiate a new cache object but using a dictionary as the data attribute:
+
+In-memory usage
+^^^^^^^^^^^^^^^
+
+.. code-block:: python
+
+    from edsl.data.Cache import Cache
+    my_in_memory_cache = Cache()
+
+It can then be passed as an object to a `run` method. 
+
+.. code-block:: python
+
+    from edsl import QuestionFreeText
+    q = QuestionFreeText.example()
+    results = q.run(cache = my_in_memory_cache)
+
+If an in-memory cache is not stored explicitly, the data will be lost when the session is over _unles_ it is written to a file OR
+remote caching in instantiated.
+More on this later. 
+
+Local persistence for an in-memory cache
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: python
+
+    c = Cache()
+    # a bunch of operations
+    c.write_sqlite("example.db")
+    # or 
+    c.write_jsonl("example.jsonl")
+
+You can then load the cache from the SQLite3 database or JSONL file using Cache methods.
+
+.. code-block:: python
+
+    c = Cache.from_sqlite_db("example.db")
+    # or
+    c = Cache.from_jsonl("example.jsonl")
+
+SQLite3Dict for transactions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Instead of using a dictionary as the data attribute, you can use a special dictionary-like object based on 
+SQLite3. This will persist the cache between sessions.
+This is the "normal" way that a cache is used for runs where no specic cache is passed. 
+
+.. code-block:: python
+    from edsl.data.Cache import Cache
+    from edsl.data.SQLiteDict import SQLiteDict
+    my_sqlite_cache = Cache(data = SQLiteDict("example.db"))
+
+This will leave a SQLite3 database on the user's machine at the file, in this case `example.db` in the current directory.
+It will persist between sessions and can be loaded using the `from_sqlite_db` method shown above.
+
+The default SQLite Cache: .edsl_cache/data.db
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+By default, the cache will be stored in a SQLite3 database at the path `.edsl_cache/data.db`.
+You can interact with this cache directly, e.g., 
+
+.. code-block:: bash 
+
+    sqlite3 .edsl_cache/data.db
+
+Remote Cache on Expected Parrot
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+In addition to local caching, the cache can be stored on a remote server---namely the Expected Parrot server.
+This is done if the `remote_backups` parameter is set to True AND a valid URL is set in the `EXPECTED_PARROT_CACHE_URL` environment variable.
+This is a `.env` file in the root directory of the project.
+
+When remote caching is enabled, the cache will be synced with the remote server at the start end of each `session.`
+These sessions are defined by the `__enter__` and `__exit__` methods of the cache object.
+When the `__enter__` method is called, the cache will be synced with the remote server by downloading what is missing. 
+When the `__exit__` method is called, the new entries will be sent to the remote server, as well as any entries that local 
+cache had that were not in the remote cache.
+
+Delayed cache-writing: Useful for remote caching
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Separate from this remote cache syncing, delays can be made in writing to the cache itself. 
+By default, the cache will write to the cache immediately after storing a new entry.
+However, this can be changed by setting the `immediate_write` parameter to False.
+
+.. code-block:: python
+
+    c = Cache(immediate_write = False)
+
+This is useful when you want to store entries to the cache only after a block of code has been executed.
+This is also controlled by using the cache object as a context. 
+
+.. code-block:: python
+
+    with c as cache:
+        # readings / writing 
+        ...
+
+    # The cache will be written to the cache persistence layer after the block of code has been executed
+    
+
+Why this? Well, in some future version, it might be possible to totally eschew the local cache and use a remote cache only.
+Remote reads might be very fast, but writes might be slow, so this would be a way to optimize the cache for that use case.        
+
 
 Idea: 
 - We leave an SQLite3 database on user's machine
@@ -41,14 +163,6 @@ Export methods:
 Remote persistence options:
 - Database on Expected Parrot 
 
-Local persistence options: 
-- JSONL file
-- SQLite3 database
-
-Writing options: 
-- Wait until the end to write to cache persistence layer
-- Write to cache persistence layer incrementally, as proceeding
-
 """
 import json
 import time
@@ -56,6 +170,8 @@ import os
 import tempfile
 import requests
 import hashlib
+import functools
+import warnings
 
 from typing import Literal, Union
 
@@ -66,13 +182,37 @@ from edsl.data.SQLiteDict import SQLiteDict
 from edsl.data.RemoteDict import RemoteDict
 from collections import UserDict
 
+def handle_request_exceptions(reraise=False):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except requests.exceptions.ConnectionError as e:
+                print(f"Could not connect to remote server: {e}")
+            except requests.exceptions.Timeout as e:
+                print(f"Request timed out: {e}")
+            except requests.exceptions.HTTPError as e:
+                print(f"HTTP error occurred: {e}")
+            except requests.exceptions.RequestException as e:
+                print(f"An error occurred during the request: {e}")
+            except ValueError as e:
+                print(f"Invalid data format: {e}")
+
+            if reraise:
+                raise
+        return wrapper
+    return decorator
+
 EXPECTED_PARROT_CACHE_URL = os.getenv("EXPECTED_PARROT_CACHE_URL", None)
 
 class Cache:
     """A class to represent a cache of responses from a language model."""
     data = {}
+    EDSL_DEFAULT_DICT = ".edsl_cache/data.db"
 
-    def __init__(self, data: Union[SQLiteDict, dict, None]  = None, 
+    def __init__(self, *, data: Union[SQLiteDict, dict, None]  = None,
+                 remote_backups:bool = False, 
                  immediate_write:bool = True, 
                  method = None):
         """Instantiate a new cache object.
@@ -90,14 +230,29 @@ class Cache:
         self._check_value_types()
 
         if method is not None:
-            import warnings
             warnings.warn("Method is deprecated", DeprecationWarning)
 
-        if EXPECTED_PARROT_CACHE_URL is not None:
+        if remote_backups:
+            if EXPECTED_PARROT_CACHE_URL is None:
+                raise ValueError("EXPECTED_PARROT_CACHE_URL is not set")
             self.remote_backups = True
+        else:
+            self.remote_backups = False
+
 
     def _check_value_types(self) -> None:
-        """Check that all values in the cache are CacheEntry objects."""     
+        """Check that all values in the cache are CacheEntry objects.
+        
+        >>> c = Cache(data = {'poo': CacheEntry.example()})
+        >>> c._check_value_types()
+
+        
+        >>> c = Cache(data = {'poo': 'not a CacheEntry'})
+        Traceback (most recent call last):
+        ...
+        Exception: Not all values are CacheEntity
+        
+        """     
         for value in self.data.values():
             if not isinstance(value, CacheEntry):
                 raise Exception("Not all values are CacheEntity")
@@ -156,6 +311,7 @@ class Cache:
             raise Exception("Cache is empty!")
 
     def fetch_input_example(self) -> dict:
+        """Create an example input for a 'fetch' operation."""
         return CacheEntry.fetch_input_example()
 
     def fetch(self, 
@@ -167,6 +323,8 @@ class Cache:
             iteration,
         ) -> Union[None, CacheEntry]:
         """Fetches the response from the cache.
+
+        If there is a cache hit, return the output field from the entity. Otherwise, return None.
 
         :param model: The model used to generate the response.
         :param parameters: The parameters used to generate the response.
@@ -199,7 +357,7 @@ class Cache:
             response,
             iteration,
         ):
-        """Adds the response to the cache.
+        """Adds a response to the cache.
 
         :param model: The model used to generate the response.
         :param parameters: The parameters used to generate the response.
@@ -214,12 +372,15 @@ class Cache:
         >>> list(c.data.keys())
         ['55ce2e13d38aa7fb6ec848053285edb4']
 
+        Illustrating the use of delayed write:
+
         >>> c = Cache(immediate_write = False)
         >>> input = CacheEntry.store_input_example()        
         >>> c.store(**input)
         >>> list(c.data.keys())
         []
 
+        Use of context manager to write delayed entries
        
         >>> delay_cache = Cache(immediate_write = False)
         >>> c = delay_cache.__enter__()
@@ -358,31 +519,40 @@ class Cache:
 
     @classmethod
     def from_jsonl(cls, jsonlfile:str, db_path:str = None) -> 'Cache':
+        """Return a Cache object from a JSONL file.
+        
+        :param jsonlfile: The path to the JSONL file.
+        :param db_path: The path to the SQLite database. If None, the cache will be stored in memory, as a dictionary.
+
+        >>> c = Cache.example()
+        >>> import tempfile
+        >>> with tempfile.NamedTemporaryFile() as f:
+        ...     c.write_jsonl(f.name)
+        ...     cnew = Cache.from_jsonl(f.name)
+        >>> c == cnew
+        True
+        """
         if db_path is None:
-            db_path = ".edsl_cache/data.db"
-        db = SQLiteDict(db_path)
-        cache = Cache(data = db)
+            datastore = {}
+        else:
+            datastore = SQLiteDict(db_path)
+        cache = Cache(data = datastore)
         cache.add_from_jsonl(jsonlfile)
         return cache
     
+    @handle_request_exceptions(reraise=True)
     @classmethod
-    def from_url(cls, base_url, db_path = None):
-        response = requests.get(f"{base_url}/items/all")
-        if response.status_code == 404:
-            raise KeyError(f"Key '{key}' not found.")
+    def from_url(cls, db_path = None) -> 'Cache':
+        """Return a Cache object from the remote cache."""
+        response = requests.get(f"{EXPECTED_PARROT_CACHE_URL}/items/all")
         response.raise_for_status()
         data = response.json()
-        if db_path is None:
-            db_path = ".edsl_cache/data.db"
+        db_path = cls.EDSL_DEFAULT_DICT if db_path is None else db_path
         db = SQLiteDict(db_path)
         for key, value in data.items():
             db[key] = CacheEntry(**value)
         return Cache(data = db)
-    
-        #for key, value in self.data.items():
-            #response = requests.post(f"{base_url}/items/{key}", json=value.to_dict())
-            #response.raise_for_status()
-
+      
     def write_sqlite(self, db_path):
         """
         Write the cache to an SQLite database.
@@ -446,22 +616,30 @@ class Cache:
             if key not in self.data:
                 self.data[key] = CacheEntry(**value)
 
-    def __enter__(self):
-        # Try to sync with remote server
-        try:
-            if self.remote_cache_matches():
+    @handle_request_exceptions(reraise=True)
+    def sync_local_and_remote(self, verbose = False):
+        """Sync the local and remote caches."""
+        if self.remote_cache_matches():
+            if verbose:
                 print("Remote and local caches are the same")
-            else:
-                print("Caches are different")
-                print("Getting missing entries from remote")
-                self.get_missing_entries_from_remote()
+        else:
+            if verbose:
+                print("Caches are different; getting missing entries from remote")
+            self.get_missing_entries_from_remote()
+            if verbose:        
                 print("Sending missing entries to remote")
-                self.send_missing_entries_to_remote()
-        except requests.exceptions.ConnectionError as e:
-            print(f"Could not connect to remote server: {e}")
+            self.send_missing_entries_to_remote()
+
+    def __enter__(self):
+        if self.remote_backups:
+            self.sync_local_and_remote()
         return self
-    
-    
+
+    def send_new_entries_to_remote(self):
+        items = [{"key": key, "item": value.to_dict()} for key, value in self.new_entries.items()]
+        response = requests.post(f"{EXPECTED_PARROT_CACHE_URL}/items/batch", json=items)
+        response.raise_for_status()
+
     def __exit__(self, exc_type, exc_value, traceback):
         for key, entry in self.new_entries_to_write_later.items():
             self.data[key] = entry
@@ -472,7 +650,6 @@ class Cache:
             try:
                 response = requests.post(f"{EXPECTED_PARROT_CACHE_URL}/items/batch", json=items)
                 response.raise_for_status()       
-                #print(response.json())
             except requests.exceptions.ConnectionError as e:
                 print(f"Could not connect to remote server: {e}") 
                     
