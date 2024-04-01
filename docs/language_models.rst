@@ -194,7 +194,7 @@ The table will look like this:
      - Sat
      - My favorite color is blue. It reminds me of the ocean on a clear summer day, full of possibilities and mystery.
 
-To explore more methods of inspecting and printing results, see the :ref:`results` documentation.
+To learn more about methods of inspecting and printing results, please see the :ref:`results` module.
 
 
 LanguageModel class
