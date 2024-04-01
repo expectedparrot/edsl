@@ -172,7 +172,7 @@ class RegisterLanguageModelsMeta(ABCMeta):
         >>> RegisterLanguageModelsMeta._check_is_coroutine(f)
         Traceback (most recent call last):
         ...
-        TypeError: A LangugeModel class with method f must be an asynchronous method
+        TypeError: A LangugeModel class with method f must be an asynchronous method.
         """
         if not inspect.iscoroutinefunction(func):
             raise TypeError(
@@ -208,7 +208,7 @@ class RegisterLanguageModelsMeta(ABCMeta):
         >>> RegisterLanguageModelsMeta._check_return_type(N.f, str)
         Traceback (most recent call last):
         ...
-        TypeError: Return type of f must be <class 'str'>. Got <class 'int'>
+        TypeError: Return type of f must be <class 'str'>. Got <class 'int'>.
         """
         if inspect.isroutine(method):
             # return_type = inspect.signature(method).return_annotation

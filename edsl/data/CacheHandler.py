@@ -11,8 +11,6 @@ class CacheHandler:
     """
     This CacheHandler figures out what caches are avaialble.     
 
-    >>> handler = CacheHandler(cache_type = "api", "local")
-    >>> cache = handler.gen_cache()
     """
 
     CACHE_PATH = ".edsl_cache/data.db"
