@@ -3,15 +3,13 @@
 Surveys
 =======
 
-.. A Survey is collection of questions that can be administered to an Agent.
+A `Survey` is collection of questions that can be administered asynchronously to one or more agents and language models, or according to specified rules or skip logic.
 
-Constructing a Survey
----------------------
-Key steps:
+The key steps to creating and conducting a survey are:
 
-* Create questions
-* Add questions to a survey
-* Run the survey by sending it to an LLM
+* Creating questions in the `Questions` module
+* Passing questions to a `Survey` object
+* Running the survey by sending it to a language model
 
 Before running the survey you can optionally:
 
@@ -20,8 +18,11 @@ Before running the survey you can optionally:
 * Add values for parameterized questions (Scenario objects) 
 * Specify the language models that will be used to answer the questions (the default model is GPT 4)
 
-A survey can also be sent to Googe Forms, Survey Monkey, LimeSurvey and other survey 
+An EDSL survey can also be sent to Googe Forms, Survey Monkey, LimeSurvey and other survey 
 platforms. 
+
+Constructing a survey
+---------------------
 
 Defining questions
 ^^^^^^^^^^^^^^^^^^
@@ -49,7 +50,7 @@ The formats are defined in the `questions` module. Here we define some questions
 
 Adding questions to a survey
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Questions are added to a Survey object as a list of question ids:
+Questions are passed to a `Survey` object as a list of question ids:
 
 .. code-block:: python
 
@@ -57,7 +58,7 @@ Questions are added to a Survey object as a list of question ids:
 
    survey = Survey(questions=[q1, q2, q3])
 
-Alternatively, questions can be added to a Survey one at a time:
+Alternatively, questions can be added to a survey one at a time:
 
 .. code-block:: python
 
@@ -65,7 +66,7 @@ Alternatively, questions can be added to a Survey one at a time:
     
 Applying survey rules
 ^^^^^^^^^^^^^^^^^^^^^
-Rules are applied to a Survey with the `add_rule` and `add_stop_rule` methods which take a logical expression and the relevant questions.
+Rules are applied to a survey with the `add_rule` and `add_stop_rule` methods, which take a logical expression and the relevant questions.
 For example, the following rule specifies that if the response to q1 is "no" then the next question is q3 (a skip rule):
 
 .. code-block:: python
@@ -80,10 +81,10 @@ Here we apply a stop rule instead of a skip rule. If the response to q1 is "no",
 
 Writing conditional expressions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-The expressions themselves ("student == 'no'") are written in Python.
+The expressions themselves (`"student == 'no'"`) are written in Python.
 An expression is evaluated to True or False, with the answer substituted into the expression. 
 The placeholder for this answer is the name of the question itself. 
-In the examples, the answer to q1 is substituted into the expression "student == 'no'", 
+In the examples, the answer to q1 is substituted into the expression `"student == 'no'"`, 
 as the name of q1 is "student".
 
 Memory
