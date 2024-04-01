@@ -167,6 +167,7 @@ class RegisterLanguageModelsMeta(ABCMeta):
         """Check to make sure it's a coroutine function.
 
         Example:
+
         >>> def f(): pass
         >>> RegisterLanguageModelsMeta._check_is_coroutine(f)
         Traceback (most recent call last):
@@ -266,11 +267,20 @@ class LanguageModel(
         return hash(self.model + str(self.parameters))
 
     def __eq__(self, other):
-        """Allow the model to be used as a key in a dictionary."""
+        """Check is two models are the same.
+        
+        >>> m1 = LanguageModel.example()
+        >>> m2 = LanguageModel.example()
+        >>> m1 == m2
+        True
+        
+        """
         return self.model == other.model and self.parameters == other.parameters
 
     def _set_rate_limits(self, rpm = None, tpm = None) -> None:
-        """Set the rate limits for the model. If the model does not have rate limits, use the default rate limits."""
+        """Set the rate limits for the model. 
+        
+        If the model does not have rate limits, use the default rate limits."""
         if rpm is not None and tpm is not None:
             self.__rate_limits = {"rpm": rpm, "tpm": tpm}
             return 
@@ -345,7 +355,6 @@ class LanguageModel(
         end_time = time.time()
         response["elapsed_time"] = end_time - start_time
         response["timestamp"] = end_time
-        #self._post_tracker_event(response)
         response["cached_response"] = cached_response
         return response
 
@@ -372,7 +381,6 @@ class LanguageModel(
         If self.use_cache is True, then attempts to retrieve the response from the database;
         if not in the DB, calls the LLM and writes the response to the DB.
         """
-        #cache = cache or Cache()
         start_time = time.time()
 
         cached_response = cache.fetch(
@@ -402,9 +410,16 @@ class LanguageModel(
     get_raw_response = sync_wrapper(async_get_raw_response)
 
     async def async_get_response(
-        self, user_prompt: str, system_prompt: str, cache, iteration: int = 1
-    ):
-        """Get response, parse, and return as string."""
+        self, user_prompt: str, system_prompt: str, cache: Cache, iteration: int = 1
+    ) -> dict:
+        """Get response, parse, and return as string.
+        
+        :param user_prompt: The user's prompt.
+        :param system_prompt: The system's prompt.
+        :param iteration: The iteration number.
+        :param cache: The cache to use.
+        
+        """
         raw_response = await self.async_get_raw_response(
             user_prompt=user_prompt, system_prompt=system_prompt, iteration=iteration, 
             cache = cache
