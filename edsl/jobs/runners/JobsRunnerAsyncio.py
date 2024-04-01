@@ -139,6 +139,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             answer=answer,
             prompt=prompt_dictionary,
             raw_model_response=raw_model_results_dictionary,
+            survey = interview.survey
         )
         return result
 

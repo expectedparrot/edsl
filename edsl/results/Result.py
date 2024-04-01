@@ -58,8 +58,17 @@ class Result(Base, UserDict):
     """
     This class captures the result of one interview.
 
-    - Its main data is an Agent, a Scenario, a Model, an Iteration, and an Answer.
-    - These are stored both in the UserDict and as attributes.
+    The answer dictionary has the structure: 
+
+    >>> Result.example().answer 
+    {'how_feeling': 'OK', 'how_feeling_comment': 'This is a real survey response from a human.', 'how_feeling_yesterday': 'Great', 'how_feeling_yesterday_comment': 'This is a real survey response from a human.'}
+
+    Its main data is an Agent, a Scenario, a Model, an Iteration, and an Answer.
+    These are stored both in the UserDict and as attributes.
+
+    >>> results.select('question_text.how_feeling')
+    >>> results.select('question_type.how_feeling')
+
     """
 
     def __init__(
@@ -71,6 +80,7 @@ class Result(Base, UserDict):
         answer: str,
         prompt: dict[str, str] = None,
         raw_model_response=None,
+        survey = None
     ):
         """Initialize a Result object.
         
@@ -101,6 +111,13 @@ class Result(Base, UserDict):
         self.answer = answer
         self.prompt = prompt or {}
         self.raw_model_response = raw_model_response or {}
+        self.survey = survey 
+
+        if survey is not None:
+            self.question_to_attributes = {q.question_name: {'question_text': q.question_text, 'question_type': q.question_type} 
+                                       for q in survey.questions}
+        else:
+            self.question_to_attributes = {}
 
     ###############
     # Used in Results
@@ -114,6 +131,11 @@ class Result(Base, UserDict):
         else:
             agent_name = self.agent.name
 
+        question_text_dict = {}
+        for key, _ in self.answer.items():
+            if key in self.question_to_attributes:
+                question_text_dict[key + "_question_text"] = self.question_to_attributes[key]['question_text']
+            
         return {
             "agent": self.agent.traits | {"agent_name": agent_name},
             "scenario": self.scenario,
@@ -122,6 +144,7 @@ class Result(Base, UserDict):
             "prompt": self.prompt,
             "raw_model_response": self.raw_model_response,
             "iteration": {"iteration": self.iteration},
+            "question_text": question_text_dict
         }
 
     def code(self):

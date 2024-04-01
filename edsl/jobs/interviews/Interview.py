@@ -17,14 +17,10 @@ from edsl.jobs.buckets.ModelBuckets import ModelBuckets
 from edsl.jobs.tasks.TaskCreators import TaskCreators
 
 from edsl.jobs.interviews.InterviewStatusLog import InterviewStatusLog
-
 from edsl.jobs.interviews.interview_exception_tracking import InterviewExceptionCollection, InterviewExceptionEntry
-
 from edsl.jobs.interviews.retry_management import retry_strategy
 from edsl.jobs.interviews.InterviewTaskBuildingMixin import InterviewTaskBuildingMixin
 from edsl.jobs.interviews.InterviewStatusMixin import InterviewStatusMixin
-
-from edsl.data.Cache import Cache
 
 class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
     """
@@ -49,7 +45,6 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         :param survey: the survey being administered to the agent.
         :param scenario: the scenario that populates the survey questions.
         :param model: the language model used to answer the questions.
-
         
         """
         self.agent = agent
