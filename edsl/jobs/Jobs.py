@@ -207,12 +207,19 @@ class Jobs(Base):
         """
 
         if cache is None:
-            if os.path.exists("edsl_cache.db"):
-                print("Using cache from edsl_cache.db")
-                cache = Cache.from_sqlite_db("edsl_cache.db")
-            if os.path.exists("edsl_cache.jsonl"):
-                print("Adding in the jsonl cache to the cache")
-                cache += Cache.from_jsonl("edsl_cache.jsonl")
+            from edsl.data.SQLiteDict import SQLiteDict
+            cache = Cache(data = SQLiteDict())
+        
+            #import shutil
+            #if os.path.exists("edsl_cache.db"):
+                #print("Using cache from edsl_cache.db")
+                #cache = Cache.from_sqlite_db("edsl_cache.db")
+                #shutil.copy("edsl_cache.db", "edsl_cache.db.bak")
+                #
+                #print(f"Connecting to .edsl_cache/data.db")
+            #if os.path.exists("edsl_cache.jsonl"):
+            #    print("Adding in the jsonl cache to the cache")
+            #    cache += Cache.from_jsonl("edsl_cache.jsonl")
         else:
             print("Using cache from passed in cache")
 
