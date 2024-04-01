@@ -631,25 +631,46 @@ class Cache:
         return coop_remote_cache_matches(self.data)
 
     def send_missing_entries_to_remote(self):
-        """Send missing entries to the remote server."""
-        items = [{"key": key, "item": value.to_dict()} for key, value in self.data.items()]
-        response = requests.post(f"{EXPECTED_PARROT_CACHE_URL}/items/batch", json=items)
-        response.raise_for_status()
+        """Send missing entries to the remote server.
+        
+        """
+
+        # TODO: We want a function that computes missing entries and then only sends those; this 
+        # just sends everything.
+
+        @handle_request_exceptions
+        def coop_send_missing_entries_to_remote_cache(data: dict) -> None:
+            items = [{"key": key, "item": value.to_dict()} for key, value in data.items()]
+            response = requests.post(f"{EXPECTED_PARROT_CACHE_URL}/items/batch", json=items)
+            response.raise_for_status()
+
+        coop_send_missing_entries_to_remote_cache(self.data)
 
     def get_missing_entries_from_remote(self):
         """Get missing entries from the remote server."""
-        response = requests.get(f"{EXPECTED_PARROT_CACHE_URL}/items/all")
-        if response.status_code == 404:
-            raise KeyError(f"Key '{key}' not found.")
-        response.raise_for_status()
-        data = response.json()
-        #print("Updating with remote data")
-        for key, value in data.items():
+
+        def coop_get_missing_entries_from_remote(data: dict) -> dict:
+            """This function should take the current cache as input and then figure out, with the 
+            remote server, what entities it needs to get synced up. 
+            
+            TODO:
+            This could mean just sending the 'top hash' of a Merkle tree or the list of key values.
+        
+            Right now, it's just retruning everything. 
+            """
+            response = requests.get(f"{EXPECTED_PARROT_CACHE_URL}/items/all")
+            if response.status_code == 404:
+                raise KeyError(f"Key '{key}' not found.")
+            response.raise_for_status()
+            data = response.json()
+            return data 
+        
+        locally_missing = coop_get_missing_entries_from_remote(self.data) 
+        for key, value in locally_missing.items():
             if key not in self.data:
                 self.data[key] = CacheEntry(**value)
 
-    @handle_request_exceptions(reraise=True)
-    def sync_local_and_remote(self, verbose = False):
+    def sync_local_and_remote(self, verbose:bool = False):
         """Sync the local and remote caches."""
         if self.remote_cache_matches():
             if verbose:
@@ -660,30 +681,55 @@ class Cache:
             self.get_missing_entries_from_remote()
             if verbose:        
                 print("Sending missing entries to remote")
+ 
+            # TODO: This should actually happen *after* on exit
             self.send_missing_entries_to_remote()
 
     def __enter__(self):
-        if self.remote_backups:
+        """This is run when a context is entered.
+        
+        >>> new_cache = Cache()
+        >>> with new_cache as cache:
+        ...    cache.data['a'] = Cache.example()
+        >>> new_cache.data['a'] == Cache.example()
+        True
+        """
+
+        def coop_backup_enabled(value) -> bool:
+            # TODO: Presumably we would have some some way to indicate that 
+            # the user wants remote backups to happen.
+            return value
+
+        # Do something smarter here
+        if coop_backup_enabled(self.remote_backups):
             self.sync_local_and_remote()
+
         return self
 
     def send_new_entries_to_remote(self):
-        items = [{"key": key, "item": value.to_dict()} for key, value in self.new_entries.items()]
-        response = requests.post(f"{EXPECTED_PARROT_CACHE_URL}/items/batch", json=items)
-        response.raise_for_status()
+
+        def coop_send_to_remote(new_entries: dict) -> None:
+            """Send new entries to the remote cache."""
+            items = [{"key": key, "item": value.to_dict()} for key, value in new_entries.items()]
+            response = requests.post(f"{EXPECTED_PARROT_CACHE_URL}/items/batch", json=items)
+            response.raise_for_status()
+        
+        coop_send_to_remote(self.new_entries)
 
     def __exit__(self, exc_type, exc_value, traceback):
         for key, entry in self.new_entries_to_write_later.items():
             self.data[key] = entry
 
+        # TODO: Use a coop function to check if remote backup enabled. 
         if self.remote_backups:
-            import requests
-            items = [{"key": key, "item": value.to_dict()} for key, value in self.new_entries.items()]
-            try:
-                response = requests.post(f"{EXPECTED_PARROT_CACHE_URL}/items/batch", json=items)
-                response.raise_for_status()       
-            except requests.exceptions.ConnectionError as e:
-                print(f"Could not connect to remote server: {e}") 
+            self.send_new_entries_to_remote()
+            # import requests
+            # items = [{"key": key, "item": value.to_dict()} for key, value in self.new_entries.items()]
+            # try:
+            #     response = requests.post(f"{EXPECTED_PARROT_CACHE_URL}/items/batch", json=items)
+            #     response.raise_for_status()       
+            # except requests.exceptions.ConnectionError as e:
+            #     print(f"Could not connect to remote server: {e}") 
                     
 
     def to_dict(self):
@@ -694,8 +740,6 @@ class Cache:
         data = {k: CacheEntry.from_dict(v) for k, v in data}
         return cls(data = data)
     
-    ## Method for reading in an old sqlite database
-
 
 if __name__ == "__main__":
 
