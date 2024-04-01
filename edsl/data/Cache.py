@@ -61,7 +61,7 @@ Local persistence for an in-memory cache
 
     c = Cache()
     # a bunch of operations
-    c.write_sqlite("example.db")
+    c.write_sqlite_db("example.db")
     # or 
     c.write_jsonl("example.jsonl")
 
@@ -172,15 +172,12 @@ import requests
 import hashlib
 import functools
 import warnings
-
 from typing import Literal, Union
 
 from edsl.exceptions import LanguageModelResponseNotJSONError
 
 from edsl.data.CacheEntry import CacheEntry
 from edsl.data.SQLiteDict import SQLiteDict
-from edsl.data.RemoteDict import RemoteDict
-from collections import UserDict
 
 def handle_request_exceptions(reraise=False):
     def decorator(func):
@@ -350,14 +347,14 @@ class Cache:
         return None if entry is None else entry.output
 
     def store(self,
-            model,
-            parameters,
-            system_prompt,
-            user_prompt,
-            response,
-            iteration,
-        ):
-        """Adds a response to the cache.
+            model: str,
+            parameters: str,
+            system_prompt: str,
+            user_prompt: str,
+            response: str,
+            iteration: int,
+        ) -> None:
+        """Adds an entity to the cache.
 
         :param model: The model used to generate the response.
         :param parameters: The parameters used to generate the response.
@@ -397,7 +394,9 @@ class Cache:
         except json.JSONDecodeError:
             raise LanguageModelResponseNotJSONError
 
+        #TODO: Should this be UTC time? 
         timestamp = int(time.time())
+
         entry = CacheEntry(
             model=model,
             parameters=parameters,
@@ -409,7 +408,7 @@ class Cache:
         )
            
         key = entry.key
-        self.new_entries[key] = entry
+        self.new_entries[key] = entry # added here no matter what 
         if self.immediate_write:
             self.data[key] = entry
         else:
@@ -418,6 +417,8 @@ class Cache:
     def __eq__(self, other_cache: 'Cache') -> bool:
         """
         Check if two caches are equal.
+
+        :param other_cache: Other cache object to check. 
 
         >>> c1 = Cache(data = {'poo': CacheEntry.example()})
         >>> c2 = Cache(data = {'poo': CacheEntry.example()})
@@ -440,6 +441,9 @@ class Cache:
         """
         Add multiple entries to the cache.
 
+        :param new_data: A dictionary of new key-value pairs to add. 
+        :param write_now: Indicates that the new entries should be added to the cache immediately.
+
         Example of immediate writing: 
 
         >>> c = Cache()
@@ -448,7 +452,7 @@ class Cache:
         >>> c.data['poo'] == CacheEntry.example()
         True
 
-        Example of delayed writing 
+        Example of delayed writing:
         
         >>> c = Cache()
         >>> data = {'poo': CacheEntry.example(), 'bandits': CacheEntry.example()}
@@ -465,15 +469,19 @@ class Cache:
                     raise Exception("Mismatch in values")
             if not isinstance(value, CacheEntry):
                 raise Exception("Wrong type")
-    
+
+        # TODO: What do we want to do if & when there is a mismatch?    
         self.new_entries.update(new_data)
         if write_now:
             self.data.update(new_data)
         else:
             self.new_entries_to_write_later.update(new_data)
 
-    def add_from_jsonl(self, filename: str, write_now = True) -> None:
+    def add_from_jsonl(self, filename: str, write_now:bool = True) -> None:
         """Add entries from a JSONL file to the cache.
+
+        :param filename: File to read from. 
+        :param write_now: Whether to write to cache immediately.
 
         >>> c = Cache(data = CacheEntry.example_dict())
         >>> c.write_jsonl("example.jsonl")
@@ -491,16 +499,20 @@ class Cache:
             key = list(d.keys())[0]
             value = list(d.values())[0]
             new_data[key] = CacheEntry(**value)
-        self.add_multiple_entries(new_data, write_now = write_now)
+        self.add_multiple_entries(new_data = new_data, write_now = write_now)
 
-    def add_from_sqlite(self, db_path, write_now = True):
+    def add_from_sqlite(self, db_path: str, write_now:bool = True):
         """Add entries from an SQLite database to the cache.
+
+        :param db_path: Path to the SQLite database. 
+        :param write_bool: Whether to write immediately.
         """
+        # TODO: If the file already exists, make sure it is valid. 
         db = SQLiteDict(db_path)
         new_data = {}
         for key, value in db.items():
             new_data[key] = CacheEntry(**value)
-        self.add_multiple_entries(new_data, write_now)
+        self.add_multiple_entries(new_data=new_data, write_now=write_now)
 
     @classmethod 
     def from_sqlite_db(cls, db_path:str) -> 'Cache':
@@ -510,7 +522,7 @@ class Cache:
 
         >>> c = Cache.example()
         >>> c.data['poo'] = CacheEntry.example()
-        >>> c.write_sqlite("example.db")
+        >>> c.write_sqlite_db("example.db")
         >>> cnew = Cache.from_sqlite_db("example.db")
         >>> c == cnew
         True
@@ -532,43 +544,55 @@ class Cache:
         >>> c == cnew
         True
         """
-        if db_path is None:
-            datastore = {}
-        else:
-            datastore = SQLiteDict(db_path)
+        datastore = {} if db_path is None else SQLiteDict(db_path)
         cache = Cache(data = datastore)
         cache.add_from_jsonl(jsonlfile)
         return cache
     
-    @handle_request_exceptions(reraise=True)
     @classmethod
     def from_url(cls, db_path = None) -> 'Cache':
         """Return a Cache object from the remote cache."""
-        response = requests.get(f"{EXPECTED_PARROT_CACHE_URL}/items/all")
-        response.raise_for_status()
-        data = response.json()
+
+        @handle_request_exceptions(reraise=True)
+        def coop_fetch_full_remote_cache() -> dict:
+            """Fetches the full remote cache."""
+            response = requests.get(f"{EXPECTED_PARROT_CACHE_URL}/items/all")
+            response.raise_for_status()
+            return response.json()
+
+        data = coop_fetch_full_remote_cache()
         db_path = cls.EDSL_DEFAULT_DICT if db_path is None else db_path
         db = SQLiteDict(db_path)
         for key, value in data.items():
             db[key] = CacheEntry(**value)
         return Cache(data = db)
       
-    def write_sqlite(self, db_path):
+    def write_sqlite_db(self, db_path: str) -> None:
         """
         Write the cache to an SQLite database.
 
         :param db_path: The path to the SQLite database.
         
+        >>> os.remove("example.db")
         >>> c = Cache.example()
-        >>> c.write_sqlite("example.db")
+        >>> c.write_sqlite_db("example.db")
+        >>> cnew = Cache.from_sqlite_db("example.db")
+        >>> c == cnew
+        True
         """
+        ## TODO: Check to make sure not over-writing. 
+        ## Should be added to SQLiteDict constructor
         new_data = SQLiteDict(db_path)
         for key, value in self.data.items():
             new_data[key] = value
  
-    def write_jsonl(self, filename):
-        """Write the cache to a JSONL file."""
+    def write_jsonl(self, filename: str) -> None:
+        """Write the cache to a JSONL file.
+        
+        :param filename: Filename to write the JSONL to. 
+        """
         dir_name = os.path.dirname(filename)
+        # TODO: Clean up tempfile.
         with tempfile.NamedTemporaryFile(mode='w', dir=dir_name, delete=False) as tmp_file:
             for key, raw_value in self.data.items():
                 value = raw_value if not hasattr(raw_value, "to_dict") else raw_value.to_dict()
@@ -582,21 +606,29 @@ class Cache:
                 os.replace(temp_name, filename)
 
     @classmethod
-    def example(cls):
+    def example(cls) -> 'Cache':
+        """Return an example Cache."""
         return cls(data = {CacheEntry.example().key: CacheEntry.example()})
     
-    def all_key_hash(self):
+    @staticmethod
+    def all_key_hash(key_list) -> str:
         """Return a hash of all the keys in the cache.
         """
-        all_keys_string = "".join(sorted(self.data.keys()))
+        # TODO: Check to make sure keys are unique. 
+        all_keys_string = "".join(sorted(key_list))
         return hashlib.md5(all_keys_string.encode()).hexdigest()
     
-    def remote_cache_matches(self):
+    def remote_cache_matches(self) -> bool:
         """Check the remote cache for any updates."""
-        current_all_key_hash = self.all_key_hash()
-        response = requests.get(f"{EXPECTED_PARROT_CACHE_URL}/compare_hash/{current_all_key_hash}")
-        response.raise_for_status()
-        return response.json()['match']
+        
+        @handle_request_exceptions()
+        def coop_remote_cache_matches(data) -> bool:
+            current_all_key_hash = Cache.all_key_hash(data.keys())
+            response = requests.get(f"{EXPECTED_PARROT_CACHE_URL}/compare_hash/{current_all_key_hash}")
+            response.raise_for_status()
+            return response.json()['match']
+        
+        return coop_remote_cache_matches(self.data)
 
     def send_missing_entries_to_remote(self):
         """Send missing entries to the remote server."""
@@ -699,7 +731,7 @@ if __name__ == "__main__":
         # c.data
 
         # print("Printing weird example")
-        # c.write_sqlite("weird_example.db")
+        # c.write_sqlite_db("weird_example.db")
 
         # print(c.last_insertion)
 
