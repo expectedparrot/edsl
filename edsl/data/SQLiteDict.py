@@ -8,12 +8,16 @@ from edsl.data.CacheEntry import CacheEntry
 class SQLiteDict:
     """A dictionary-like object that stores its data in an SQLite database."""
 
-    EDSL_CACHE_DB_PATH = "edsl_cache/data.db"
+    EDSL_CACHE_DB_PATH = ".edsl_cache/data.db"
 
     def __init__(self, db_path: Optional[str] = None):
         self.db_path = db_path or self.EDSL_CACHE_DB_PATH
 
-        self.conn = sqlite3.connect(self.db_path)
+        try:
+            self.conn = sqlite3.connect(self.db_path)
+        except sqlite3.OperationalError:
+            raise Exception("Unable to connect to the database.")
+
         self.cursor = self.conn.cursor()
         self.cursor.execute("CREATE TABLE IF NOT EXISTS data (key TEXT PRIMARY KEY, value TEXT)")
         self.conn.commit()

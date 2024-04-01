@@ -55,6 +55,7 @@ import time
 import os
 import tempfile
 import requests
+import hashlib
 
 from typing import Literal, Union
 
@@ -358,7 +359,7 @@ class Cache:
     @classmethod
     def from_jsonl(cls, jsonlfile:str, db_path:str = None) -> 'Cache':
         if db_path is None:
-            db_path = "./edsl_cache/data.db"
+            db_path = ".edsl_cache/data.db"
         db = SQLiteDict(db_path)
         cache = Cache(data = db)
         cache.add_from_jsonl(jsonlfile)
@@ -372,7 +373,7 @@ class Cache:
         response.raise_for_status()
         data = response.json()
         if db_path is None:
-            db_path = "./edsl_cache/data.db"
+            db_path = ".edsl_cache/data.db"
         db = SQLiteDict(db_path)
         for key, value in data.items():
             db[key] = CacheEntry(**value)
@@ -414,6 +415,25 @@ class Cache:
     def example(cls):
         return cls(data = {CacheEntry.example().key: CacheEntry.example()})
     
+    def all_key_hash(self):
+        """Return a hash of all the keys in the cache.
+        """
+        all_keys_string = "".join(sorted(self.data.keys()))
+        return hashlib.md5(all_keys_string.encode()).hexdigest()
+    
+    def remote_cache_matches(self):
+        """Check the remote cache for any updates."""
+        current_all_key_hash = self.all_key_hash()
+        response = requests.get(f"{EXPECTED_PARROT_CACHE_URL}/compare_hash/{current_all_key_hash}")
+        response.raise_for_status()
+        return response.json()['match']
+
+    def send_missing_entries_to_remote(self):
+        """Send missing entries to the remote server."""
+        items = [{"key": key, "item": value.to_dict()} for key, value in self.data.items()]
+        response = requests.post(f"{EXPECTED_PARROT_CACHE_URL}/items/batch", json=items)
+        response.raise_for_status()
+
     def get_missing_entries_from_remote(self):
         """Get missing entries from the remote server."""
         response = requests.get(f"{EXPECTED_PARROT_CACHE_URL}/items/all")
@@ -429,7 +449,14 @@ class Cache:
     def __enter__(self):
         # Try to sync with remote server
         try:
-            self.get_missing_entries_from_remote()
+            if self.remote_cache_matches():
+                print("Remote and local caches are the same")
+            else:
+                print("Caches are different")
+                print("Getting missing entries from remote")
+                self.get_missing_entries_from_remote()
+                print("Sending missing entries to remote")
+                self.send_missing_entries_to_remote()
         except requests.exceptions.ConnectionError as e:
             print(f"Could not connect to remote server: {e}")
         return self
