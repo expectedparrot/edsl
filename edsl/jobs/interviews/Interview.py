@@ -2,7 +2,6 @@
 from __future__ import annotations
 import traceback
 import asyncio
-import textwrap
 import time
 from typing import Any, Type, List, Generator
 
@@ -18,13 +17,11 @@ from edsl.jobs.buckets.ModelBuckets import ModelBuckets
 from edsl.jobs.tasks.TaskCreators import TaskCreators
 
 from edsl.jobs.interviews.InterviewStatusLog import InterviewStatusLog
-
 from edsl.jobs.interviews.interview_exception_tracking import InterviewExceptionCollection, InterviewExceptionEntry
-
 from edsl.jobs.interviews.retry_management import retry_strategy
 from edsl.jobs.interviews.InterviewTaskBuildingMixin import InterviewTaskBuildingMixin
 from edsl.jobs.interviews.InterviewStatusMixin import InterviewStatusMixin
-    
+
 class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
     """
     An 'interview' is one agent answering one survey, with one language model, for a given scenario.
@@ -40,6 +37,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         model: Type[LanguageModel],
         debug: bool = False,
         iteration: int = 0,
+        cache = None,
     ):
         """Initialize the Interview instance.
         
@@ -47,7 +45,6 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         :param survey: the survey being administered to the agent.
         :param scenario: the scenario that populates the survey questions.
         :param model: the language model used to answer the questions.
-
         
         """
         self.agent = agent
@@ -56,7 +53,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         self.model = model
         self.debug = debug
         self.iteration = iteration
-
+        self.cache = cache
         # will get filled in as interview progresses
         self.answers: dict[str, str] = Answers()  
 
@@ -206,7 +203,7 @@ if __name__ == "__main__":
 
     a.add_direct_question_answering_method(direct_question_answering_method)
     scenario = Scenario()
-    m = LanguageModelOpenAIThreeFiveTurbo(use_cache=False)
+    m = LanguageModelOpenAIThreeFiveTurbo()
     I = Interview(agent=a, survey=s, scenario=scenario, model=m)
 
     result = asyncio.run(I.async_conduct_interview())
