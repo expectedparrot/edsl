@@ -89,6 +89,8 @@ class CacheEntry:
         Checks if two CacheEntry objects are equal.
         - Includes timestamp in the comparison.
         """
+        if not isinstance(other, CacheEntry):
+            return False
         for field in self.all_fields:
             if getattr(self, field) != getattr(other, field):
                 return False

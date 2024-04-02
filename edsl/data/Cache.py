@@ -1,5 +1,4 @@
-"""
-The Cache class is used to store responses from a language model
+"""The Cache class is used to store responses from a language model
 
 Why caching?
 ^^^^^^^^^^^^
@@ -164,20 +163,27 @@ Remote persistence options:
 - Database on Expected Parrot 
 
 """
-import json
-import time
-import os
-import tempfile
-import requests
-import hashlib
+
+# TODO: I'd say implement coop as follows:
+# - There is a function that instantiates the Coop client (or checks if it is already instantiated) and saves it to a class attribute.
+# - The Coop client methods are used in the Cache methods that need it
+# - Offload as much of the general errors, such as "this key is not valid" etc to be handled at the level of the Coop client, handle here what is specific to the Cache
+
+import datetime
 import functools
+import hashlib
+import json
+import os
+import requests
+import tempfile
 import warnings
-from typing import Literal, Union
-
-from edsl.exceptions import LanguageModelResponseNotJSONError
-
+from typing import Optional, Union
 from edsl.data.CacheEntry import CacheEntry
 from edsl.data.SQLiteDict import SQLiteDict
+from edsl.exceptions import LanguageModelResponseNotJSONError
+
+EXPECTED_PARROT_CACHE_URL = os.getenv("EXPECTED_PARROT_CACHE_URL")
+
 
 def handle_request_exceptions(reraise=False):
     def decorator(func):
@@ -198,127 +204,61 @@ def handle_request_exceptions(reraise=False):
 
             if reraise:
                 raise
+
         return wrapper
+
     return decorator
 
-EXPECTED_PARROT_CACHE_URL = os.getenv("EXPECTED_PARROT_CACHE_URL", None)
 
 class Cache:
-    """A class to represent a cache of responses from a language model."""
+    """
+    A class to represent a cache of responses from a language model.
+    """
+
     data = {}
     EDSL_DEFAULT_DICT = ".edsl_cache/data.db"
 
-    def __init__(self, *, data: Union[SQLiteDict, dict, None]  = None,
-                 remote_backups:bool = False, 
-                 immediate_write:bool = True, 
-                 method = None):
-        """Instantiate a new cache object.
-        
+    def __init__(
+        self,
+        *,
+        data: Optional[Union[SQLiteDict, dict]] = None,
+        remote_backups: bool = False,
+        immediate_write: bool = True,
+        method=None,
+    ):
+        """
+        Instantiates a new Cache.
+
         :param data: The data to initialize the cache with.
         :param immediate_write: Whether to write to the cache immediately after storing a new entry.
-        :param method: The method of storage to use for the cache. (Deprecated). Will be removed in future versions.
+        :param method: (Deprecated and will be removed in the future) The method of storage to use for the cache. Will be removed in future versions.
         """
         self.data = data or {}
-        
-        self.new_entries = {} # New entries created during a __enter__ block
-        self.new_entries_to_write_later = {} # storarge for entries that will be written to the cache later
-        
+        self.remote_backups = remote_backups
         self.immediate_write = immediate_write
-        self._check_value_types()
 
+        # `new_entries` are created during a __enter__ block
+        # `new_entries_to_write_later` stores entries that will be written to the Cache later
+        self.new_entries = {}
+        self.new_entries_to_write_later = {}
+
+        # sanity checks and warnings
+        if self.remote_backups and not EXPECTED_PARROT_CACHE_URL:
+            raise ValueError("EXPECTED_PARROT_CACHE_URL is not set")
         if method is not None:
-            warnings.warn("Method is deprecated", DeprecationWarning)
+            warnings.warn("Argument `method` is deprecated", DeprecationWarning)
+        if any(not isinstance(value, CacheEntry) for value in self.data.values()):
+            raise Exception("Not all values are CacheEntry instances")
 
-        if remote_backups:
-            if EXPECTED_PARROT_CACHE_URL is None:
-                raise ValueError("EXPECTED_PARROT_CACHE_URL is not set")
-            self.remote_backups = True
-        else:
-            self.remote_backups = False
-
-
-    def _check_value_types(self) -> None:
-        """Check that all values in the cache are CacheEntry objects.
-        
-        >>> c = Cache(data = {'poo': CacheEntry.example()})
-        >>> c._check_value_types()
-
-        
-        >>> c = Cache(data = {'poo': 'not a CacheEntry'})
-        Traceback (most recent call last):
-        ...
-        Exception: Not all values are CacheEntity
-        
-        """     
-        for value in self.data.values():
-            if not isinstance(value, CacheEntry):
-                raise Exception("Not all values are CacheEntity")
-
-    def __len__(self):
-        """
-        >>> c = Cache()
-        >>> len(c)
-        0
-
-        >>> c = Cache(data = CacheEntry.example_dict())
-        >>> len(c)
-        1
-        """
-        return len(self.data)
-
-    def __repr__(self):
-        return f"Cache(data = {repr(self.data)}, immediate_write={self.immediate_write})"
-    
-    def __add__(self, other: 'Cache'):
-        """Adds two caches together.
-        
-        :param other: The other cache to add to this one.
-
-        >>> c1 = Cache.example()
-        >>> c2 = Cache.example()
-        >>> c3 = c1 + c2
-        >>> list(c3.data.keys())
-        ['55ce2e13d38aa7fb6ec848053285edb4']
-        """
-        if not isinstance(other, Cache):
-            raise ValueError("Can only add two caches together")
-        
-        for key, value in other.data.items():
-            self.data[key] = value
-        return self
-    
-    @property
-    def last_insertion(self) -> int:
-        """
-        Get the timestamp of the last insertion into the cache.
-
-        >>> c = Cache()
-        >>> input = CacheEntry.store_input_example()        
-        >>> c.store(**input)
-        >>> insert_time = list(c.data.values())[0].timestamp
-        >>> c.last_insertion - insert_time
-        0
-        """
-        keys = list(self.data.keys())
-        if len(keys) > 0:
-            last_key = keys[-1]
-            entry = self.data[last_key]
-            return getattr(entry, 'timestamp')
-        else:
-            raise Exception("Cache is empty!")
-
-    def fetch_input_example(self) -> dict:
-        """Create an example input for a 'fetch' operation."""
-        return CacheEntry.fetch_input_example()
-
-    def fetch(self, 
-            *,
-            model,
-            parameters,
-            system_prompt,
-            user_prompt,
-            iteration,
-        ) -> Union[None, CacheEntry]:
+    def fetch(
+        self,
+        *,
+        model,
+        parameters,
+        system_prompt,
+        user_prompt,
+        iteration,
+    ) -> Union[None, CacheEntry]:
         """Fetches the response from the cache.
 
         If there is a cache hit, return the output field from the entity. Otherwise, return None.
@@ -338,22 +278,25 @@ class Cache:
         >>> c.fetch(**input)
         "The fox says 'hello'"
         """
-        key = CacheEntry.gen_key(model=model, 
-                                 parameters=parameters, 
-                                 system_prompt=system_prompt, 
-                                 user_prompt=user_prompt, 
-                                 iteration=iteration)
+        key = CacheEntry.gen_key(
+            model=model,
+            parameters=parameters,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            iteration=iteration,
+        )
         entry = self.data.get(key, None)
         return None if entry is None else entry.output
 
-    def store(self,
-            model: str,
-            parameters: str,
-            system_prompt: str,
-            user_prompt: str,
-            response: str,
-            iteration: int,
-        ) -> None:
+    def store(
+        self,
+        model: str,
+        parameters: str,
+        system_prompt: str,
+        user_prompt: str,
+        response: str,
+        iteration: int,
+    ) -> None:
         """Adds an entity to the cache.
 
         :param model: The model used to generate the response.
@@ -364,7 +307,7 @@ class Cache:
         :param iteration: The iteration of the response.
 
         >>> c = Cache()
-        >>> input = CacheEntry.store_input_example()        
+        >>> input = CacheEntry.store_input_example()
         >>> c.store(**input)
         >>> list(c.data.keys())
         ['55ce2e13d38aa7fb6ec848053285edb4']
@@ -372,13 +315,13 @@ class Cache:
         Illustrating the use of delayed write:
 
         >>> c = Cache(immediate_write = False)
-        >>> input = CacheEntry.store_input_example()        
+        >>> input = CacheEntry.store_input_example()
         >>> c.store(**input)
         >>> list(c.data.keys())
         []
 
         Use of context manager to write delayed entries
-       
+
         >>> delay_cache = Cache(immediate_write = False)
         >>> c = delay_cache.__enter__()
         >>> input = CacheEntry.store_input_example()
@@ -394,8 +337,7 @@ class Cache:
         except json.JSONDecodeError:
             raise LanguageModelResponseNotJSONError
 
-        #TODO: Should this be UTC time? 
-        timestamp = int(time.time())
+        timestamp = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
 
         entry = CacheEntry(
             model=model,
@@ -404,47 +346,24 @@ class Cache:
             user_prompt=user_prompt,
             output=output,
             iteration=iteration,
-            timestamp=timestamp
+            timestamp=timestamp,
         )
-           
+
         key = entry.key
-        self.new_entries[key] = entry # added here no matter what 
+        self.new_entries[key] = entry  # added here no matter what
         if self.immediate_write:
             self.data[key] = entry
         else:
             self.new_entries_to_write_later[key] = entry
-        
-    def __eq__(self, other_cache: 'Cache') -> bool:
-        """
-        Check if two caches are equal.
 
-        :param other_cache: Other cache object to check. 
-
-        >>> c1 = Cache(data = {'poo': CacheEntry.example()})
-        >>> c2 = Cache(data = {'poo': CacheEntry.example()})
-        >>> c1 == c2
-        True
-
-        >>> c3 = Cache(data = {'poop': CacheEntry.example()})
-        >>> c1 == c3
-        False
-        """
-        for key in self.data: 
-            if key not in other_cache.data:
-                return False
-        for key in other_cache.data:
-            if key not in self.data:
-                return False
-        return True
-
-    def add_multiple_entries(self, new_data: dict, write_now:bool = True) -> None:
+    def add_multiple_entries(self, new_data: dict, write_now: bool = True) -> None:
         """
         Add multiple entries to the cache.
 
-        :param new_data: A dictionary of new key-value pairs to add. 
+        :param new_data: A dictionary of new key-value pairs to add.
         :param write_now: Indicates that the new entries should be added to the cache immediately.
 
-        Example of immediate writing: 
+        Example of immediate writing:
 
         >>> c = Cache()
         >>> data = {'poo': CacheEntry.example(), 'bandits': CacheEntry.example()}
@@ -453,11 +372,11 @@ class Cache:
         True
 
         Example of delayed writing:
-        
+
         >>> c = Cache()
         >>> data = {'poo': CacheEntry.example(), 'bandits': CacheEntry.example()}
         >>> c.add_multiple_entries(new_data = data, write_now = False)
-        >>> c.data 
+        >>> c.data
         {}
         >>> c.__exit__(None, None, None)
         >>> c.data['poo'] == CacheEntry.example()
@@ -470,17 +389,17 @@ class Cache:
             if not isinstance(value, CacheEntry):
                 raise Exception("Wrong type")
 
-        # TODO: What do we want to do if & when there is a mismatch?    
+        # TODO: What do we want to do if & when there is a mismatch?
         self.new_entries.update(new_data)
         if write_now:
             self.data.update(new_data)
         else:
             self.new_entries_to_write_later.update(new_data)
 
-    def add_from_jsonl(self, filename: str, write_now:bool = True) -> None:
+    def add_from_jsonl(self, filename: str, write_now: bool = True) -> None:
         """Add entries from a JSONL file to the cache.
 
-        :param filename: File to read from. 
+        :param filename: File to read from.
         :param write_now: Whether to write to cache immediately.
 
         >>> c = Cache(data = CacheEntry.example_dict())
@@ -490,7 +409,7 @@ class Cache:
         >>> c == cnew
         True
         """
-        with open(filename, 'a+') as f:
+        with open(filename, "a+") as f:
             f.seek(0)
             lines = f.readlines()
         new_data = {}
@@ -499,23 +418,23 @@ class Cache:
             key = list(d.keys())[0]
             value = list(d.values())[0]
             new_data[key] = CacheEntry(**value)
-        self.add_multiple_entries(new_data = new_data, write_now = write_now)
+        self.add_multiple_entries(new_data=new_data, write_now=write_now)
 
-    def add_from_sqlite(self, db_path: str, write_now:bool = True):
+    def add_from_sqlite(self, db_path: str, write_now: bool = True):
         """Add entries from an SQLite database to the cache.
 
-        :param db_path: Path to the SQLite database. 
+        :param db_path: Path to the SQLite database.
         :param write_bool: Whether to write immediately.
         """
-        # TODO: If the file already exists, make sure it is valid. 
+        # TODO: If the file already exists, make sure it is valid.
         db = SQLiteDict(db_path)
         new_data = {}
         for key, value in db.items():
             new_data[key] = CacheEntry(**value)
         self.add_multiple_entries(new_data=new_data, write_now=write_now)
 
-    @classmethod 
-    def from_sqlite_db(cls, db_path:str) -> 'Cache':
+    @classmethod
+    def from_sqlite_db(cls, db_path: str) -> "Cache":
         """Return a Cache object from an SQLite database.
 
         :param db_path: The path to the SQLite database.
@@ -527,12 +446,12 @@ class Cache:
         >>> c == cnew
         True
         """
-        return cls(data = SQLiteDict(db_path))
+        return cls(data=SQLiteDict(db_path))
 
     @classmethod
-    def from_jsonl(cls, jsonlfile:str, db_path:str = None) -> 'Cache':
+    def from_jsonl(cls, jsonlfile: str, db_path: str = None) -> "Cache":
         """Return a Cache object from a JSONL file.
-        
+
         :param jsonlfile: The path to the JSONL file.
         :param db_path: The path to the SQLite database. If None, the cache will be stored in memory, as a dictionary.
 
@@ -545,12 +464,12 @@ class Cache:
         True
         """
         datastore = {} if db_path is None else SQLiteDict(db_path)
-        cache = Cache(data = datastore)
+        cache = Cache(data=datastore)
         cache.add_from_jsonl(jsonlfile)
         return cache
-    
+
     @classmethod
-    def from_url(cls, db_path = None) -> 'Cache':
+    def from_url(cls, db_path=None) -> "Cache":
         """Return a Cache object from the remote cache."""
 
         @handle_request_exceptions(reraise=True)
@@ -565,14 +484,14 @@ class Cache:
         db = SQLiteDict(db_path)
         for key, value in data.items():
             db[key] = CacheEntry(**value)
-        return Cache(data = db)
-      
+        return Cache(data=db)
+
     def write_sqlite_db(self, db_path: str) -> None:
         """
         Write the cache to an SQLite database.
 
         :param db_path: The path to the SQLite database.
-        
+
         >>> os.remove("example.db")
         >>> c = Cache.example()
         >>> c.write_sqlite_db("example.db")
@@ -580,23 +499,29 @@ class Cache:
         >>> c == cnew
         True
         """
-        ## TODO: Check to make sure not over-writing. 
+        ## TODO: Check to make sure not over-writing.
         ## Should be added to SQLiteDict constructor
         new_data = SQLiteDict(db_path)
         for key, value in self.data.items():
             new_data[key] = value
- 
+
     def write_jsonl(self, filename: str) -> None:
         """Write the cache to a JSONL file.
-        
-        :param filename: Filename to write the JSONL to. 
+
+        :param filename: Filename to write the JSONL to.
         """
         dir_name = os.path.dirname(filename)
         # TODO: Clean up tempfile.
-        with tempfile.NamedTemporaryFile(mode='w', dir=dir_name, delete=False) as tmp_file:
+        with tempfile.NamedTemporaryFile(
+            mode="w", dir=dir_name, delete=False
+        ) as tmp_file:
             for key, raw_value in self.data.items():
-                value = raw_value if not hasattr(raw_value, "to_dict") else raw_value.to_dict()
-                tmp_file.write(json.dumps({key: value}) + '\n')
+                value = (
+                    raw_value
+                    if not hasattr(raw_value, "to_dict")
+                    else raw_value.to_dict()
+                )
+                tmp_file.write(json.dumps({key: value}) + "\n")
             temp_name = tmp_file.name
         try:
             os.replace(temp_name, filename)
@@ -606,42 +531,45 @@ class Cache:
                 os.replace(temp_name, filename)
 
     @classmethod
-    def example(cls) -> 'Cache':
+    def example(cls) -> "Cache":
         """Return an example Cache."""
-        return cls(data = {CacheEntry.example().key: CacheEntry.example()})
-    
+        return cls(data={CacheEntry.example().key: CacheEntry.example()})
+
     @staticmethod
     def all_key_hash(key_list) -> str:
-        """Return a hash of all the keys in the cache.
-        """
-        # TODO: Check to make sure keys are unique. 
+        """Return a hash of all the keys in the cache."""
+        # TODO: Check to make sure keys are unique.
         all_keys_string = "".join(sorted(key_list))
         return hashlib.md5(all_keys_string.encode()).hexdigest()
-    
+
     def remote_cache_matches(self) -> bool:
         """Check the remote cache for any updates."""
-        
+
         @handle_request_exceptions()
         def coop_remote_cache_matches(data) -> bool:
             current_all_key_hash = Cache.all_key_hash(data.keys())
-            response = requests.get(f"{EXPECTED_PARROT_CACHE_URL}/compare_hash/{current_all_key_hash}")
+            response = requests.get(
+                f"{EXPECTED_PARROT_CACHE_URL}/compare_hash/{current_all_key_hash}"
+            )
             response.raise_for_status()
-            return response.json()['match']
-        
+            return response.json()["match"]
+
         return coop_remote_cache_matches(self.data)
 
     def send_missing_entries_to_remote(self):
-        """Send missing entries to the remote server.
-        
-        """
+        """Send missing entries to the remote server."""
 
-        # TODO: We want a function that computes missing entries and then only sends those; this 
+        # TODO: We want a function that computes missing entries and then only sends those; this
         # just sends everything.
 
         @handle_request_exceptions
         def coop_send_missing_entries_to_remote_cache(data: dict) -> None:
-            items = [{"key": key, "item": value.to_dict()} for key, value in data.items()]
-            response = requests.post(f"{EXPECTED_PARROT_CACHE_URL}/items/batch", json=items)
+            items = [
+                {"key": key, "item": value.to_dict()} for key, value in data.items()
+            ]
+            response = requests.post(
+                f"{EXPECTED_PARROT_CACHE_URL}/items/batch", json=items
+            )
             response.raise_for_status()
 
         coop_send_missing_entries_to_remote_cache(self.data)
@@ -650,27 +578,27 @@ class Cache:
         """Get missing entries from the remote server."""
 
         def coop_get_missing_entries_from_remote(data: dict) -> dict:
-            """This function should take the current cache as input and then figure out, with the 
-            remote server, what entities it needs to get synced up. 
-            
+            """This function should take the current cache as input and then figure out, with the
+            remote server, what entities it needs to get synced up.
+
             TODO:
             This could mean just sending the 'top hash' of a Merkle tree or the list of key values.
-        
-            Right now, it's just retruning everything. 
+
+            Right now, it's just retruning everything.
             """
             response = requests.get(f"{EXPECTED_PARROT_CACHE_URL}/items/all")
             if response.status_code == 404:
                 raise KeyError(f"Key '{key}' not found.")
             response.raise_for_status()
             data = response.json()
-            return data 
-        
-        locally_missing = coop_get_missing_entries_from_remote(self.data) 
+            return data
+
+        locally_missing = coop_get_missing_entries_from_remote(self.data)
         for key, value in locally_missing.items():
             if key not in self.data:
                 self.data[key] = CacheEntry(**value)
 
-    def sync_local_and_remote(self, verbose:bool = False):
+    def sync_local_and_remote(self, verbose: bool = False):
         """Sync the local and remote caches."""
         if self.remote_cache_matches():
             if verbose:
@@ -679,15 +607,15 @@ class Cache:
             if verbose:
                 print("Caches are different; getting missing entries from remote")
             self.get_missing_entries_from_remote()
-            if verbose:        
+            if verbose:
                 print("Sending missing entries to remote")
- 
+
             # TODO: This should actually happen *after* on exit
             self.send_missing_entries_to_remote()
 
     def __enter__(self):
         """This is run when a context is entered.
-        
+
         >>> new_cache = Cache()
         >>> with new_cache as cache:
         ...    cache.data['a'] = Cache.example()
@@ -696,7 +624,7 @@ class Cache:
         """
 
         def coop_backup_enabled(value) -> bool:
-            # TODO: Presumably we would have some some way to indicate that 
+            # TODO: Presumably we would have some some way to indicate that
             # the user wants remote backups to happen.
             return value
 
@@ -707,67 +635,162 @@ class Cache:
         return self
 
     def send_new_entries_to_remote(self):
+        # TODO: So here it would be something like
+        # self.coop.send_to_remote(self.new_entries)
 
         def coop_send_to_remote(new_entries: dict) -> None:
             """Send new entries to the remote cache."""
-            items = [{"key": key, "item": value.to_dict()} for key, value in new_entries.items()]
-            response = requests.post(f"{EXPECTED_PARROT_CACHE_URL}/items/batch", json=items)
+            items = [
+                {"key": key, "item": value.to_dict()}
+                for key, value in new_entries.items()
+            ]
+            response = requests.post(
+                f"{EXPECTED_PARROT_CACHE_URL}/items/batch", json=items
+            )
             response.raise_for_status()
-        
+
         coop_send_to_remote(self.new_entries)
 
     def __exit__(self, exc_type, exc_value, traceback):
         for key, entry in self.new_entries_to_write_later.items():
             self.data[key] = entry
 
-        # TODO: Use a coop function to check if remote backup enabled. 
+        # TODO: Use a coop function to check if remote backup enabled.
         if self.remote_backups:
             self.send_new_entries_to_remote()
             # import requests
             # items = [{"key": key, "item": value.to_dict()} for key, value in self.new_entries.items()]
             # try:
             #     response = requests.post(f"{EXPECTED_PARROT_CACHE_URL}/items/batch", json=items)
-            #     response.raise_for_status()       
+            #     response.raise_for_status()
             # except requests.exceptions.ConnectionError as e:
-            #     print(f"Could not connect to remote server: {e}") 
-                    
+            #     print(f"Could not connect to remote server: {e}")
 
     def to_dict(self):
-        return {k:v.to_dict() for k, v in self.data.items()}
- 
-    @classmethod 
-    def from_dict(cls, data, method = 'memory'):
+        return {k: v.to_dict() for k, v in self.data.items()}
+
+    @classmethod
+    def from_dict(cls, data, method="memory"):
         data = {k: CacheEntry.from_dict(v) for k, v in data}
-        return cls(data = data)
-    
+        return cls(data=data)
+
+    ####################
+    # DUNDER
+    ####################
+    def __len__(self):
+        """Returns the number of CacheEntry objects in the Cache."""
+        return len(self.data)
+
+    def __eq__(self, other_cache: "Cache") -> bool:
+        """
+        Checks if two Cache objects are equal.
+        - Doesn't verify their values are equal, just that they have the same keys.
+        """
+        if not isinstance(other_cache, Cache):
+            return False
+        return self.data.keys() == other_cache.data.keys()
+
+    def __add__(self, other: "Cache"):
+        """Combines two caches."""
+        if not isinstance(other, Cache):
+            raise ValueError("Can only add two caches together")
+        self.data.update(other.data)
+        return self
+
+    def __repr__(self):
+        """Returns a string representation of the Cache object."""
+        return (
+            f"Cache(data = {repr(self.data)}, immediate_write={self.immediate_write})"
+        )
+
+    ####################
+    # EXAMPLES
+    ####################
+    def fetch_input_example(self) -> dict:
+        """Create an example input for a 'fetch' operation."""
+        return CacheEntry.fetch_input_example()
+
+    ####################
+    # TODO: REMOVE?
+    ####################
+
+    # TODO: Doesn't seem to be used anywhere
+    # @property
+    # def last_insertion(self) -> int:
+    #     """
+    #     Get the timestamp of the last insertion into the cache.
+
+    #     >>> c = Cache()
+    #     >>> input = CacheEntry.store_input_example()
+    #     >>> c.store(**input)
+    #     >>> insert_time = list(c.data.values())[0].timestamp
+    #     >>> c.last_insertion - insert_time
+    #     0
+    #     """
+    #     keys = list(self.data.keys())
+    #     if len(keys) > 0:
+    #         last_key = keys[-1]
+    #         entry = self.data[last_key]
+    #         return getattr(entry, "timestamp")
+    #     else:
+    #         raise Exception("Cache is empty!")
+
+
+def main():
+    from edsl.data.Cache import Cache
+    from edsl.data.CacheEntry import CacheEntry
+
+    # a non-valid Cache
+    Cache(data={"poo": "not a CacheEntry"})
+    # an empty valid Cache
+    cache_empty = Cache()
+    # a valid Cache with one entry
+    cache = Cache(data={"poo": CacheEntry.example()})
+
+    # __len__
+    len(cache_empty) == 0
+    len(cache) == 1
+    # __eq__
+    cache_empty == cache_empty
+    cache == cache
+    cache_empty != cache
+    # __add__
+    len(cache_empty + cache) == 1
+    len(cache_empty + cache_empty) == 0
+    cache + cache_empty == cache
+    cache + cache == cache
+
 
 if __name__ == "__main__":
-
     import doctest
+
     doctest.testmod()
 
     if False:
-        #base_url = "https://f61709b5-4cdf-487d-a30c-a803ab910ca1-00-27digq3c8e2zg.worf.replit.dev"
-        #cache = Cache(data = RemoteDict(base_url = base_url))
-        #cache = Cache.from_url(base_url = base_url)
+        # base_url = "https://f61709b5-4cdf-487d-a30c-a803ab910ca1-00-27digq3c8e2zg.worf.replit.dev"
+        # cache = Cache(data = RemoteDict(base_url = base_url))
+        # cache = Cache.from_url(base_url = base_url)
 
         cache = Cache()
 
         from edsl import QuestionFreeText, QuestionMultipleChoice
+
         # q = QuestionFreeText.example()
         # results = q.run(cache = cache)
 
         # q2 = QuestionMultipleChoice.example()
         # results = q2.run(cache = cache, progress_bar = True)
 
-    #    with cache as c:
+        #    with cache as c:
         from edsl import Model, Scenario
+
         m = Model(Model.available()[0])
         numbers = range(150, 250)
-        scenarios = [Scenario({'number': number}) for number in numbers]
-        q = QuestionFreeText(question_text = "Is {{number}} prime?", question_name = "prime")
-        results = q.by(m).by(scenarios).run(cache = cache, progress_bar = True)
-
+        scenarios = [Scenario({"number": number}) for number in numbers]
+        q = QuestionFreeText(
+            question_text="Is {{number}} prime?", question_name="prime"
+        )
+        results = q.by(m).by(scenarios).run(cache=cache, progress_bar=True)
 
         # data = {'poo': CacheEntry.example()}
 
@@ -789,26 +812,25 @@ if __name__ == "__main__":
 
         ##c.fetch(**CacheEntry.fetch_input_example())
 
-        #cache = Cache.from_jsonl('cache.jsonl')
-        #from edsl import QuestionFreeText
-        #results = QuestionFreeText.example().run(cache = cache)
-
+        # cache = Cache.from_jsonl('cache.jsonl')
+        # from edsl import QuestionFreeText
+        # results = QuestionFreeText.example().run(cache = cache)
 
         # start = time.monotonic()
         # for i in range(1_000_000):
         #     c = CacheEntry.example()
         #     c.iteration += i
-        #     cache.add_to_jsonl(c)  
+        #     cache.add_to_jsonl(c)
         # end = time.monotonic()
         # print(f"Time: {end - start} for 1_000_000 entries")
-        # # c.save('cache.json') 
+        # # c.save('cache.json')
 
         # cache.to_jsonl(filename = 'test_cache.jsonl')
 
-        # new_cache = Cache.load('cache.json')   
+        # new_cache = Cache.load('cache.json')
 
-        #ce = CacheEntry("gpt-3.5-turbo", "{'temperature': 0.5}", "The quick brown fox jumps over the lazy dog.", "What does the fox say?", "The fox says 'hello'", 1)
-        #ce.gen_key()
+        # ce = CacheEntry("gpt-3.5-turbo", "{'temperature': 0.5}", "The quick brown fox jumps over the lazy dog.", "What does the fox say?", "The fox says 'hello'", 1)
+        # ce.gen_key()
 
         # c = Cache()
         # c._store_memory("gpt-3.5-turbo", "{'temperature': 0.5}", "The quick brown fox jumps over the lazy dog.", "What does the fox say?", "The fox says 'hello'", 1)
