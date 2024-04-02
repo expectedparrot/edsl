@@ -1,5 +1,6 @@
 import datetime
 import hashlib
+from typing import Optional
 
 # TODO: deal better with types
 # passing in
@@ -22,9 +23,9 @@ class CacheEntry:
         parameters: str,
         system_prompt: str,
         user_prompt: str,
-        iteration: int = None,
         output: str,
-        timestamp: int = None,
+        iteration: Optional[int] = None,
+        timestamp: Optional[int] = None,
     ):
         self.model = model
         self.parameters = parameters
