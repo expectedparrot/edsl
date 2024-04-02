@@ -20,11 +20,11 @@ class CacheEntry:
         output: str,
         timestamp: int = None,
     ):
-        self.model = str(model)
-        self.parameters = str(parameters)
-        self.system_prompt = str(system_prompt)
-        self.user_prompt = str(user_prompt)
-        self.output = str(output)
+        self.model = model
+        self.parameters = parameters
+        self.system_prompt = system_prompt
+        self.user_prompt = user_prompt
+        self.output = output
         self.iteration = iteration or 0
         self.timestamp = timestamp or int(
             datetime.datetime.now(datetime.timezone.utc).timestamp()
