@@ -1,19 +1,17 @@
+from __future__ import annotations
 import datetime
 import hashlib
 from typing import Optional
 
-# TODO: deal better with types
-# passing in
-#    parameters = "{'temperature': 0.5}"
-# vs
-#    parameters = '{"temperature": 0.5}'
-# yields different hashes
 
-# TODO: equality includes timestamps. Is that what we want?
+# TODO: Timestamp should probably be float?
+# TODO: Equality should not include timestamp?
 
 
 class CacheEntry:
-    """Class to represent a cache entry."""
+    """
+    A Class to represent a cache entry.
+    """
 
     key_fields = ["model", "parameters", "system_prompt", "user_prompt", "iteration"]
     all_fields = key_fields + ["timestamp", "output"]
@@ -22,11 +20,11 @@ class CacheEntry:
         self,
         *,
         model: str,
-        parameters: str,
+        parameters: dict,
         system_prompt: str,
         user_prompt: str,
-        output: str,
         iteration: Optional[int] = None,
+        output: str,
         timestamp: Optional[int] = None,
     ):
         self.model = model
@@ -38,6 +36,27 @@ class CacheEntry:
         self.timestamp = timestamp or int(
             datetime.datetime.now(datetime.timezone.utc).timestamp()
         )
+        self._check_types()
+
+    def _check_types(self):
+        """
+        Checks if the types of the fields are correct.
+        """
+        if not isinstance(self.model, str):
+            raise TypeError("`model` should be a string.")
+        if not isinstance(self.parameters, dict):
+            raise TypeError("`parameters` should be a dictionary.")
+        if not isinstance(self.system_prompt, str):
+            raise TypeError("`system_prompt` should be a string.")
+        if not isinstance(self.user_prompt, str):
+            raise TypeError("`user_prompt` should be a string")
+        if not isinstance(self.output, str):
+            raise TypeError("`output` should be a string")
+        if not isinstance(self.iteration, int):
+            raise TypeError("`iteration` should be an integer")
+        # TODO: should probably be float
+        if not isinstance(self.timestamp, int):
+            raise TypeError(f"`timestamp` should be an integer")
 
     @classmethod
     def gen_key(
@@ -45,20 +64,17 @@ class CacheEntry:
     ) -> str:
         """
         Generates a key for the cache entry.
-
-        >>> CacheEntry.gen_key(model = "gpt-3.5-turbo", parameters = "{'temperature': 0.5}", system_prompt = "The quick brown fox jumps over the lazy dog.", user_prompt = "What does the fox say?", iteration = 1)
-        '55ce2e13d38aa7fb6ec848053285edb4'
+        - Treats single and double quotes as the same. TODO: add more robustness.
         """
         long_key = f"{model}{parameters}{system_prompt}{user_prompt}{iteration}"
+        long_key = long_key.replace('"', "'")
         return hashlib.md5(long_key.encode()).hexdigest()
 
     @property
     def key(self) -> str:
         """
         Returns the key for the cache entry.
-
-        >>> CacheEntry.example().key
-        '55ce2e13d38aa7fb6ec848053285edb4'
+        - The key is a hash of the key fields.
         """
         d = {k: value for k, value in self.__dict__.items() if k in self.key_fields}
         return self.gen_key(**d)
@@ -78,21 +94,21 @@ class CacheEntry:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "CacheEntry":
+    def from_dict(cls, data: dict) -> CacheEntry:
         """
         Initializes a CacheEntry object from its dictionary representation.
         """
         return cls(**data)
 
-    def __eq__(self, other: "CacheEntry") -> bool:
+    def __eq__(self, other: CacheEntry) -> bool:
         """
         Checks if two CacheEntry objects are equal.
-        - Includes timestamp in the comparison.
+        - Does not include timestamp in the comparison.
         """
         if not isinstance(other, CacheEntry):
             return False
         for field in self.all_fields:
-            if getattr(self, field) != getattr(other, field):
+            if getattr(self, field) != getattr(other, field) and field != "timestamp":
                 return False
         return True
 
@@ -100,10 +116,18 @@ class CacheEntry:
         """
         Returns a string representation of a CacheEntry.
         """
-        return f"CacheEntry(model={self.model}, parameters={self.parameters}, system_prompt={self.system_prompt}, user_prompt={self.user_prompt}, output={self.output}, iteration={self.iteration}, timestamp={self.timestamp})"
+        return (
+            f"CacheEntry(model={repr(self.model)}, "
+            f"parameters={self.parameters}, "
+            f"system_prompt={repr(self.system_prompt)}, "
+            f"user_prompt={repr(self.user_prompt)}, "
+            f"output={repr(self.output)}, "
+            f"iteration={self.iteration}, "
+            f"timestamp={self.timestamp})"
+        )
 
     @classmethod
-    def example(cls) -> "CacheEntry":
+    def example(cls) -> CacheEntry:
         """
         Returns a CacheEntry example.
         """
@@ -154,20 +178,21 @@ def main():
 
     # an example of how a cache entry looks
     cache_entry = CacheEntry.example()
-    # the key gives the hash of the cache entry
+    cache_entry
+
+    # .key property returns the hash of the cache entry
     cache_entry.key
-    # kind of a forward method, that will be used by Cache
-    cache_entry.example_dict()
     # to dict / from dict
     cache_entry.to_dict()
     CacheEntry.from_dict(cache_entry.to_dict())
     # TODO: this will be false because equality includes timestamp
     CacheEntry.from_dict(cache_entry.to_dict()) == CacheEntry.example()
-    # equality through checking one by one
-    CacheEntry.example() == CacheEntry.example()
-    # but could also check the hash
+    # equality by checking values
+    cache_entry == CacheEntry.example()
+    # equality by checking keys
     cache_entry.key == CacheEntry.example().key
-
+    # evalable repr
+    eval(repr(cache_entry)) == cache_entry
     # not sure what these are useful for yet
     cache_entry.example_dict()
     cache_entry.fetch_input_example()
