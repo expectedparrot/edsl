@@ -34,7 +34,7 @@ These concepts are also the key classes of the package, and are described in det
 
 :ref:`agents`: An `Agent` is an AI agent that "answer" the questions. Agents can have different traits that affect their behavior, such as background or expertise, or "memory" of prior survey responses.
 
-:ref:`models`: A `Model` is a large language model that generate the responses. EDSL is mode-agnostic, so questions can be delivered to multiple models for comparison.
+:ref:`language_models`: A `Model` is a large language model that generate the responses. EDSL is mode-agnostic, so questions can be delivered to multiple models for comparison.
 
 :ref:`scenarios`: A `Scenario` is context or data that is passed to questions when they are run. The parameterization of question allows for the same question to be asked in different contexts at scale.
 
@@ -69,9 +69,9 @@ We can visualize the interplay of the components in the following illustrations:
 
 Key operations
 --------------
-The running of a job--administering a question or survey to an agent and model and simulating a result--is the central operation in EDSL. 
-It is initiated by calling the `run()` method on a question or survey object after it has been optionally configured with agents, models and scenarios using the `by()` method.
-This will deliver each question to each of the agents, which will generate a response using each of the specified models, and return a result object for each question/agent/model combination.
+The running of a job--administering a survey to an agent and model--is the central operation in EDSL. 
+It is initiated by calling the `run()` method on a survey object after it has been configured with agents, models and scenarios with the `by()` method.
+This operation delivers each question to each of the agents, generates a response using each of the specified models, and returns a result object for each question/agent/model combination.
 This operation takes the following general form:
 
 .. code-block:: python
