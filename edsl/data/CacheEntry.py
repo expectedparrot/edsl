@@ -9,6 +9,8 @@ from typing import Optional
 #    parameters = '{"temperature": 0.5}'
 # yields different hashes
 
+# TODO: equality includes timestamps. Is that what we want?
+
 
 class CacheEntry:
     """Class to represent a cache entry."""
@@ -165,6 +167,7 @@ def main():
     cache_entry.key == CacheEntry.example().key
 
     # not sure what these are useful for yet
+    cache_entry.example_dict()
     cache_entry.fetch_input_example()
     cache_entry.store_input_example()
 
