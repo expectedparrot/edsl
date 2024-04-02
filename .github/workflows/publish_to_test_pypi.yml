@@ -35,7 +35,7 @@ jobs:
 
       - name: Build and publish to Test PyPI
         run: |
-          poetry config repositories.testpypi https://test.pypi.org/legacy/
+          poetry config repositories.test-pypi https://test.pypi.org/legacy/
           poetry config pypi-token.test-pypi ${{ env.TEST_PYPI_TOKEN }}
           make test-pypi
         shell: bash
