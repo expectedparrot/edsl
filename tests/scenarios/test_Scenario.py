@@ -71,37 +71,6 @@ class TestScenario(unittest.TestCase):
         result = s.rename({"food": "food_preference"})
         self.assertEqual(result, {"food_preference": "wood chips"})
 
-    # def test_make_question(self):
-    #     s = Scenario(
-    #         {
-    #             "question_name": "feelings",
-    #             "question_text": "How are you feeling?",
-    #             "question_options": [
-    #                 "Very sad",
-    #                 "Sad",
-    #                 "Neutral",
-    #                 "Happy",
-    #                 "Very happy",
-    #             ],
-    #         }
-    #     )
-    #     q = s.make_question(QuestionMultipleChoice)
-    #     # self.assertEqual(print(q), print("QuestionMultipleChoice"))
-    #     self.assertIn("How are you feeling?", q.question_text)
-    #     self.assertEqual(
-    #         q.question_options, ["Very sad", "Sad", "Neutral", "Happy", "Very happy"]
-    #     )
-    #     # self.assertEqual(q.by(Agent(traits = {'feeling': 'Very sad'})).run().select("feelings"), ['Very sad'])
-
-    #     base_survey = Survey(questions=[q])
-    #     results = base_survey.run(debug=True)
-    #     # self.assertIn(results[0]['result']['feelings'], range(len(q.question_options)))
-    #     self.assertIn(
-    #         q.question_options.index(results[0]["answer"]["feelings"]),
-    #         range(len(q.question_options)),
-    #     )
-    #     self.assertIn(results[0]["answer"]["feelings"], q.question_options)
-
 
 if __name__ == "__main__":
     unittest.main()

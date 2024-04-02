@@ -53,12 +53,12 @@ class Question(metaclass=Meta):
 
         >>> from edsl import Question
         >>> Question.available()
-        {'top_k', 'likert_five', 'multiple_choice', 'linear_scale', 'yes_no', 'extract', 'numerical', 'budget', 'checkbox', 'list', 'free_text', 'functional', 'rank'}        
+        ['budget', 'checkbox', 'extract', 'free_text', 'functional', 'likert_five', 'linear_scale', 'list', 'multiple_choice', 'numerical', 'rank', 'top_k', 'yes_no']
         """
         if show_class_names:
-            return RegisterQuestionsMeta.question_types_to_classes()
+            return sorted(RegisterQuestionsMeta.question_types_to_classes())
         else:
-            return set(RegisterQuestionsMeta.question_types_to_classes().keys())
+            return sorted(set(RegisterQuestionsMeta.question_types_to_classes().keys()))
 
 
 def get_question_class(question_type):

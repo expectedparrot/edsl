@@ -19,7 +19,6 @@ def test_no_model_passed_to_instructions():
                             )
 
     q0.add_model_instructions(instructions = new_instructions)
-    #breakpoint()
     assert "roger-dodger" in q0.get_instructions().text
 
 def test_model_specific_instructions():
@@ -37,7 +36,5 @@ def test_model_specific_instructions():
 
     assert "roger-dodger" in q.get_instructions(model = m1.model).text
     assert "roger-dodger" not in q.get_instructions(model = m2.model).text
-
-    #results = q.by([m1, m2]).run().select("answer.*", 'model.model').print()
 
 
