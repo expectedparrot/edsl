@@ -1,7 +1,8 @@
+import os
 import aiohttp
 import json
 from typing import Any
-from edsl import CONFIG
+from edsl.exceptions import MissingAPIKeyError
 from edsl.enums import LanguageModelType, InferenceServiceType
 from edsl.language_models.LanguageModel import LanguageModel
 
@@ -26,12 +27,17 @@ def create_deep_infra_model(model_name, url, model_class_name) -> LanguageModel:
             "stopSequences": [],
             "use_cache": True,
         }
-        api_token = CONFIG.get("DEEP_INFRA_API_KEY")
 
         async def async_execute_model_call(
             self, user_prompt: str, system_prompt: str = ""
         ) -> dict[str, Any]:
             self.url = url
+            if not hasattr(self, "api_token"):
+                self.api_token = os.getenv("DEEP_INFRA_API_KEY")
+                if self.api_token is None:
+                    raise MissingAPIKeyError(
+                        "The DEEP_INFRA_API_KEY environment variable is not set."
+                    )
             headers = {
                 "Content-Type": "application/json",
                 "Authorization": f"Token {self.api_token}",

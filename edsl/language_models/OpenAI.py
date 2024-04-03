@@ -1,17 +1,16 @@
 import openai
+import os
 import re
 from typing import Any
-from edsl import CONFIG
 from openai import AsyncOpenAI
 from edsl.enums import LanguageModelType, InferenceServiceType
 from edsl.language_models import LanguageModel
+from edsl.exceptions import MissingAPIKeyError
 
 LanguageModelType.GPT_4.value
 
 
 def create_openai_model(model_name, model_class_name) -> LanguageModel:
-    openai.api_key = CONFIG.get("OPENAI_API_KEY")
-
     class LLM(LanguageModel):
         """
         Child class of LanguageModel for interacting with OpenAI models
@@ -27,7 +26,6 @@ def create_openai_model(model_name, model_class_name) -> LanguageModel:
             "presence_penalty": 0,
             "use_cache": True,
         }
-        client = AsyncOpenAI()
 
         def get_headers(self) -> dict[str, Any]:
             from openai import OpenAI
@@ -62,6 +60,14 @@ def create_openai_model(model_name, model_class_name) -> LanguageModel:
             self, user_prompt: str, system_prompt: str = ""
         ) -> dict[str, Any]:
             """Calls the OpenAI API and returns the API response."""
+            if not hasattr(self, "api_token"):
+                self.api_token = os.getenv("OPENAI_API_KEY")
+                if self.api_token is None:
+                    raise MissingAPIKeyError(
+                        "The OPENAI_API_KEY environment variable is not set."
+                    )
+                openai.api_key = os.getenv("OPENAI_API_KEY")
+                self.client = AsyncOpenAI()
             response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=[
