@@ -400,7 +400,7 @@ class LanguageModel(
             cache.store(
                 user_prompt=user_prompt,
                 model=str(self.model),
-                parameters=str(self.parameters),
+                parameters=self.parameters,
                 system_prompt=system_prompt,
                 response=response,
                 iteration=iteration,
