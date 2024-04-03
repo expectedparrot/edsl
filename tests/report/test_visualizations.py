@@ -4,10 +4,14 @@ import unittest
 from unittest.mock import patch
 import os
 
-imagepath = os.path.join(os.getcwd(), "visualization_test_outputs")
+imagepath = os.path.join(os.getcwd(), "tests/temp_outputs")
+if not os.path.exists(imagepath):
+    os.makedirs(imagepath)
 
 from edsl.data.Cache import Cache
-cache = Cache()  
+
+cache = Cache()
+
 
 class TestPlots(unittest.TestCase):
     def test_historgram(self):
@@ -19,7 +23,7 @@ class TestPlots(unittest.TestCase):
             agent.add_direct_question_answering_method(answer_question_directly)
 
         q = QuestionNumerical.example()
-        results = q.by(agents).run(cache = cache)
+        results = q.by(agents).run(cache=cache)
 
         # results.select("answer.age").print()
         results.histogram_plot(
@@ -99,7 +103,7 @@ class TestPlots(unittest.TestCase):
             question_text="How tall are you?", question_name="height"
         )
         s = q_age.add_question(q_height)
-        results = s.by(agents).run(cache = cache)
+        results = s.by(agents).run(cache=cache)
 
         results.scatter_plot(
             "age",
