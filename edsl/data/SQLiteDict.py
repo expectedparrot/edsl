@@ -1,47 +1,47 @@
 from __future__ import annotations
-from typing import List, Optional, Generator, Union, Any
-
-import sqlite3
 import json
+import sqlite3
+from typing import Any, Generator, Optional, Union
+from edsl.config import CONFIG
 from edsl.data.CacheEntry import CacheEntry
 
-class SQLiteDict:
-    """A dictionary-like object that stores its data in an SQLite database."""
 
-    EDSL_CACHE_DB_PATH = ".edsl_cache/data.db"
+class SQLiteDict:
+    """
+    A dictionary-like object that is an interface for an SQLite database.
+    """
 
     def __init__(self, db_path: Optional[str] = None):
-        """Construct a new SQLiteDict object.
-        
-        :param db_path: The path to the SQLite database file.
-        """
-        self.db_path = db_path or self.EDSL_CACHE_DB_PATH
-
+        self.db_path = db_path or CONFIG.get("EDSL_DATABASE_PATH")
         try:
             self.conn = sqlite3.connect(self.db_path)
         except sqlite3.OperationalError:
-            print(f"Tried to connect to the database at {self.db_path}.")
-            raise Exception("Unable to connect to the database.")
-        
-
+            raise Exception(f"Unable to connect to the database ({self.db_path}).")
         self.cursor = self.conn.cursor()
-        self.cursor.execute("CREATE TABLE IF NOT EXISTS data (key TEXT PRIMARY KEY, value TEXT)")
+        self.cursor.execute(
+            "CREATE TABLE IF NOT EXISTS data (key TEXT PRIMARY KEY, value TEXT)"
+        )
         self.conn.commit()
-        
-    def __setitem__(self, key: str, value: CacheEntry) -> None:
-        """Set the value at the given key.
-        
-        :param key: The key to set.
-        :param value: The value to set.
-        """
-        value_json = json.dumps(value.to_dict())
-        self.cursor.execute("INSERT OR REPLACE INTO data (key, value) VALUES (?, ?)", (key, value_json))
-        self.conn.commit()
-        
-    def __getitem__(self, key: str) -> CacheEntry:
-        """Get the value at the given key.
 
-        :param key: The key to get.
+    def __setitem__(self, key: str, value: CacheEntry) -> None:
+        """
+        Stores a key-value pair.
+
+        >>> d = SQLiteDict.example()
+        >>> d["foo"] = CacheEntry.example()
+        """
+        if not isinstance(value, CacheEntry):
+            raise ValueError(f"Value must be a CacheEntry object (got {type(value)}.")
+        self.cursor.execute(
+            "INSERT OR REPLACE INTO data (key, value) VALUES (?, ?)",
+            (key, json.dumps(value.to_dict())),
+        )
+        self.conn.commit()
+
+    def __getitem__(self, key: str) -> CacheEntry:
+        """
+        Gets a value for a given key.
+        - Raises a KeyError if the key is not found.
 
         >>> d = SQLiteDict.example()
         >>> d["foo"] = CacheEntry.example()
@@ -53,12 +53,11 @@ class SQLiteDict:
         if result:
             return CacheEntry.from_dict(json.loads(result[0]))
         raise KeyError(f"Key '{key}' not found.")
-    
-    def get(self, key: str, default=None) -> Union[CacheEntry, Any]:
-        """Get the value at the given key, or a default value if the key is not found.
-        
-        :param key: The key to use to get the value.
-        :param default: The default value to return if the key is not found.
+
+    def get(self, key: str, default: Optional[Any] = None) -> Union[CacheEntry, Any]:
+        """
+        Gets the value for a given key
+        - Returns the `default` value if the key is not found.
 
         >>> d = SQLiteDict.example()
         >>> d.get("foo", "bar")
@@ -68,26 +67,33 @@ class SQLiteDict:
             return self[key]
         except KeyError:
             return default
-        
-    def update(self, new_d: dict, overwrite:bool = False) -> None:
-        """Update the dictionary with the values from another dictionary.
-        
-        :param new_d: The dictionary to update with.
-        :param overwrite: Whether to overwrite existing values.
+
+    def update(
+        self, new_d: Union[dict, SQLiteDict], overwrite: Optional[bool] = False
+    ) -> None:
+        """
+        Updates the dictionary with the values from another dictionary.
+        - If `overwrite` is True, existing values will be overwritten.
 
         >>> d = SQLiteDict.example()
         >>> d.update({"foo": CacheEntry.example()})
+        >>> d["foo"] == CacheEntry.example()
+        True
         """
+        if not (isinstance(new_d, dict) or isinstance(new_d, SQLiteDict)):
+            raise ValueError(
+                f"new_d must be a dict or SQLiteDict object (got {type(new_d)})"
+            )
         for key, value in new_d.items():
-            if key in self:
-                if overwrite:
-                    self[key] = value
+            if key in self and overwrite:
+                self[key] = value
             else:
-                self[key] = value    
+                self[key] = value
 
     def values(self) -> Generator[CacheEntry, None, None]:
-        """Return a generator that yields the values in the cache.
-        
+        """
+        Returns a generator that yields the values in the cache.
+
         >>> d = SQLiteDict.example()
         >>> d["foo"] = CacheEntry.example()
         >>> list(d.values()) == [CacheEntry.example()]
@@ -98,8 +104,9 @@ class SQLiteDict:
             yield CacheEntry(**json.loads(value[0]))
 
     def items(self) -> Generator[tuple[str, CacheEntry], None, None]:
-        """Return a generator that yields the items in the cache.
-        
+        """
+        Returns a generator that yields the items in the cache.
+
         >>> d = SQLiteDict.example()
         >>> d["foo"] = CacheEntry.example()
         >>> list(d.items()) == [("foo", CacheEntry.example())]
@@ -108,11 +115,10 @@ class SQLiteDict:
         self.cursor.execute("SELECT key, value FROM data")
         for key, value in self.cursor.fetchall():
             yield key, CacheEntry(**json.loads(value))
-        
-    def __delitem__(self, key) -> None:
-        """Delete the value at the given key.
-        
-        :param key: The key to delete.
+
+    def __delitem__(self, key: str) -> None:
+        """
+        Deletes the value for a given key.
 
         >>> d = SQLiteDict.example()
         >>> d["foo"] = CacheEntry.example()
@@ -125,11 +131,10 @@ class SQLiteDict:
             self.conn.commit()
         else:
             raise KeyError(f"Key '{key}' not found.")
-            
+
     def __contains__(self, key: str) -> bool:
-        """Check if the cache contains the given key.
-        
-        :param key: The key to check for.
+        """
+        Checks if the dict contains the given key.
 
         >>> d = SQLiteDict.example()
         >>> d["foo"] = CacheEntry.example()
@@ -140,10 +145,11 @@ class SQLiteDict:
         """
         self.cursor.execute("SELECT 1 FROM data WHERE key = ?", (key,))
         return self.cursor.fetchone() is not None
-    
+
     def __iter__(self) -> Generator[str, None, None]:
-        """Return a generator that yields the keys in the cache.
-        
+        """
+        Returns a generator that yields the keys in the dict.
+
         >>> d = SQLiteDict.example()
         >>> d["foo"] = CacheEntry.example()
         >>> list(iter(d)) == ["foo"]
@@ -152,10 +158,11 @@ class SQLiteDict:
         self.cursor.execute("SELECT key FROM data")
         for row in self.cursor.fetchall():
             yield row[0]
-            
+
     def __len__(self) -> int:
-        """Return the number of items in the cache.
-        
+        """
+        Returns the number of items in the cache.
+
         >>> d = SQLiteDict.example()
         >>> len(d)
         0
@@ -165,10 +172,11 @@ class SQLiteDict:
         """
         self.cursor.execute("SELECT COUNT(*) FROM data")
         return self.cursor.fetchone()[0]
-    
+
     def keys(self) -> Generator[str, None, None]:
-        """Return a generator that yields the keys in the cache.
-        
+        """
+        Returns a generator that yields the keys in the cache.
+
         >>> d = SQLiteDict.example()
         >>> d["foo"] = CacheEntry.example()
         >>> list(d.keys()) == ["foo"]
@@ -177,9 +185,11 @@ class SQLiteDict:
         self.cursor.execute("SELECT key from data")
         for row in self.cursor.fetchall():
             yield row[0]
-    
+
     def close(self) -> None:
-        """Close the connection to the database."""
+        """
+        Closes the database connection.
+        """
         self.conn.close()
 
     def __repr__(self) -> str:
@@ -187,13 +197,17 @@ class SQLiteDict:
 
     @classmethod
     def example(cls) -> SQLiteDict:
-        """Return an example SQLiteDict object.
-        
+        """
+        Returns an example SQLiteDict object.
+        - The example SQLiteDict is empty and stored in memory.
+
         >>> SQLiteDict.example()
         SQLiteDict(db_path=':memory:')
         """
         return cls(db_path=":memory:")
 
+
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod()
