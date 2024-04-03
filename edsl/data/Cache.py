@@ -169,6 +169,7 @@ Remote persistence options:
 # - The Coop client methods are used in the Cache methods that need it
 # - Offload as much of the general errors, such as "this key is not valid" etc to be handled at the level of the Coop client, handle here what is specific to the Cache
 
+from __future__ import annotations
 import datetime
 import functools
 import hashlib
@@ -178,10 +179,13 @@ import requests
 import tempfile
 import warnings
 from typing import Optional, Union
+from edsl.config import CONFIG
 from edsl.data.CacheEntry import CacheEntry
 from edsl.data.SQLiteDict import SQLiteDict
 from edsl.exceptions import LanguageModelResponseNotJSONError
 
+
+EDSL_DATABASE_PATH = CONFIG.get("EDSL_DATABASE_PATH")
 EXPECTED_PARROT_CACHE_URL = os.getenv("EXPECTED_PARROT_CACHE_URL")
 
 
@@ -216,7 +220,6 @@ class Cache:
     """
 
     data = {}
-    EDSL_DEFAULT_DICT = ".edsl_cache/data.db"
 
     def __init__(
         self,
@@ -434,7 +437,7 @@ class Cache:
         self.add_multiple_entries(new_data=new_data, write_now=write_now)
 
     @classmethod
-    def from_sqlite_db(cls, db_path: str) -> "Cache":
+    def from_sqlite_db(cls, db_path: str) -> Cache:
         """Return a Cache object from an SQLite database.
 
         :param db_path: The path to the SQLite database.
@@ -480,7 +483,7 @@ class Cache:
             return response.json()
 
         data = coop_fetch_full_remote_cache()
-        db_path = cls.EDSL_DEFAULT_DICT if db_path is None else db_path
+        db_path = db_path or EDSL_DATABASE_PATH
         db = SQLiteDict(db_path)
         for key, value in data.items():
             db[key] = CacheEntry(**value)
