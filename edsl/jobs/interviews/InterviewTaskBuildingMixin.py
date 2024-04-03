@@ -1,39 +1,27 @@
 """This module contains the Interview class, which is responsible for conducting an interview asynchronously."""
+
 from __future__ import annotations
-import traceback
 import asyncio
 import time
-from typing import Any, List, Generator
-
+import traceback
+from typing import Generator
 from edsl import CONFIG
 from edsl.exceptions import InterviewTimeoutError
-from edsl.questions.QuestionBase import QuestionBase
 from edsl.data_transfer_models import AgentResponseDict
-
+from edsl.questions.QuestionBase import QuestionBase
 from edsl.surveys.base import EndOfSurvey
 from edsl.jobs.buckets.ModelBuckets import ModelBuckets
-
-from edsl.jobs.tasks.QuestionTaskCreator import QuestionTaskCreator
-from edsl.jobs.interviews.interview_exception_tracking import InterviewExceptionEntry, InterviewExceptionCollection
-
-from edsl.jobs.interviews.InterviewStatusDictionary import InterviewStatusDictionary
-
-from edsl.jobs.tasks.TasksList import TasksList
-
-from edsl.jobs.tasks.task_status_enum import TaskStatus
-
-#from edsl.jobs.tasks.task_management import (
-#    InterviewStatusDictionary,
-#    TasksList,
-#)
-
+from edsl.jobs.interviews.interview_exception_tracking import InterviewExceptionEntry
 from edsl.jobs.interviews.retry_management import retry_strategy
+from edsl.jobs.tasks.task_status_enum import TaskStatus
+from edsl.jobs.tasks.TasksList import TasksList
+from edsl.jobs.tasks.QuestionTaskCreator import QuestionTaskCreator
 from edsl.data.Cache import Cache
 
 TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
 
-class InterviewTaskBuildingMixin:
 
+class InterviewTaskBuildingMixin:
     def _build_invigilators(self, debug: bool) -> Generator["Invigilator", None, None]:
         """Create an invigilator for each question."""
         for question in self.survey.questions:
@@ -55,7 +43,7 @@ class InterviewTaskBuildingMixin:
         return invigilator
 
     @property
-    def dag(self) -> 'DAG':
+    def dag(self) -> "DAG":
         """Return the directed acyclic graph for the survey.
 
         The DAG, or directed acyclic graph, is a dictionary that maps question names to their dependencies.
@@ -69,7 +57,7 @@ class InterviewTaskBuildingMixin:
         self,
         debug: bool,
         model_buckets: ModelBuckets,
-    ) -> List[asyncio.Task]:
+    ) -> list[asyncio.Task]:
         """Create a task for each question, with dependencies on the questions that must be answered before this one can be answered."""
         tasks = []
         for question in self.survey.questions:
@@ -89,7 +77,7 @@ class InterviewTaskBuildingMixin:
         return TasksList(tasks)  # , invigilators
 
     def _get_tasks_that_must_be_completed_before(
-        self, *, tasks: List[asyncio.Task], question: QuestionBase
+        self, *, tasks: list[asyncio.Task], question: QuestionBase
     ) -> Generator[asyncio.Task, None, None]:
         """Return the tasks that must be completed before the given question can be answered.
 
@@ -105,7 +93,7 @@ class InterviewTaskBuildingMixin:
         self,
         *,
         question: QuestionBase,
-        tasks_that_must_be_completed_before: List[asyncio.Task],
+        tasks_that_must_be_completed_before: list[asyncio.Task],
         model_buckets: ModelBuckets,
         debug: bool,
         iteration: int = 0,
@@ -131,11 +119,10 @@ class InterviewTaskBuildingMixin:
             {question.question_name: task_creator}
         )  # track this task creator
         return task_creator.generate_task(debug)
-    
-    
+
     def _get_estimated_request_tokens(self, question) -> float:
         """Estimate the number of tokens that will be required to run the focal task."""
-        invigilator = self.get_invigilator(question = question, debug=False)
+        invigilator = self.get_invigilator(question=question, debug=False)
         # TODO: There should be a way to get a more accurate estimate.
         combined_text = ""
         for prompt in invigilator.get_prompts().values():
@@ -150,39 +137,39 @@ class InterviewTaskBuildingMixin:
     @retry_strategy
     async def _answer_question_and_record_task(
         self,
-        *, 
+        *,
         question: QuestionBase,
-        debug: bool, 
-        task = None,
+        debug: bool,
+        task=None,
     ) -> AgentResponseDict:
         """Answer a question and records the task.
-        
+
         This in turn calls the the passed-in agent's async_answer_question method, which returns a response dictionary.
         Note that is updates answers with the response.
         """
         invigilator = self.get_invigilator(question, debug=debug)
 
         async def attempt_to_answer_question(invigilator):
-             try:
-                 return await asyncio.wait_for(invigilator.async_answer_question(), timeout=TIMEOUT)
-             except asyncio.TimeoutError as e:
+            try:
+                return await asyncio.wait_for(
+                    invigilator.async_answer_question(), timeout=TIMEOUT
+                )
+            except asyncio.TimeoutError as e:
                 exception_entry = InterviewExceptionEntry(
-                    exception = repr(e), 
-                    time = time.time(),
-                    traceback = traceback.format_exc()
+                    exception=repr(e),
+                    time=time.time(),
+                    traceback=traceback.format_exc(),
                 )
                 if task:
                     task.task_status = TaskStatus.FAILED
                 self.exceptions.add(question.question_name, exception_entry)
-                
-                raise InterviewTimeoutError(
-                        f"Task timed out after {TIMEOUT} seconds."
-                )
-             except Exception as e:
+
+                raise InterviewTimeoutError(f"Task timed out after {TIMEOUT} seconds.")
+            except Exception as e:
                 exception_entry = InterviewExceptionEntry(
-                    exception = repr(e), 
-                    time = time.time(),
-                    traceback = traceback.format_exc()
+                    exception=repr(e),
+                    time=time.time(),
+                    traceback=traceback.format_exc(),
                 )
                 if task:
                     task.task_status = TaskStatus.FAILED

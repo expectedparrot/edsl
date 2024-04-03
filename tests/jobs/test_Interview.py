@@ -2,6 +2,7 @@ import asyncio
 import pytest
 from typing import Any
 from edsl import Survey
+from edsl.config import CONFIG
 from edsl.enums import LanguageModelType, InferenceServiceType
 from edsl.language_models.LanguageModel import LanguageModel
 from edsl.questions import QuestionFreeText
@@ -18,7 +19,9 @@ def create_language_model(
         async def async_execute_model_call(
             self, user_prompt: str, system_prompt: str
         ) -> dict[str, Any]:
-            question_number = int(user_prompt.split("XX")[1]) ## grabs the question number from the prompt
+            question_number = int(
+                user_prompt.split("XX")[1]
+            )  ## grabs the question number from the prompt
             await asyncio.sleep(0.1)
             if never_ending:  ## you're not going anywhere buddy
                 await asyncio.sleep(float("inf"))
@@ -56,13 +59,14 @@ def test_token_usage(create_survey):
     survey = create_survey(num_questions=5, chained=False)
     jobs = survey.by(model)
     from edsl.data.Cache import Cache
+
     cache = Cache()
-    results = jobs.run(cache = cache)
+    results = jobs.run(cache=cache)
     token_usage = jobs.interviews()[0].token_usage
 
-    #from edsl.jobs.tokens.TokenUsage import TokenUsage
-    #from edsl.jobs.tokens.TokenPricing import TokenPricing
-    #from edsl.jobs.tokens.InterviewTokensUsage import InterviewTokenUsage
+    # from edsl.jobs.tokens.TokenUsage import TokenUsage
+    # from edsl.jobs.tokens.TokenPricing import TokenPricing
+    # from edsl.jobs.tokens.InterviewTokensUsage import InterviewTokenUsage
 
     assert token_usage.new_token_usage.prompt_tokens == 0
     assert token_usage.new_token_usage.completion_tokens == 0
@@ -75,8 +79,9 @@ def test_task_management(create_survey):
     survey = create_survey(num_questions=5, chained=False)
     jobs = survey.by(model)
     from edsl.data.Cache import Cache
+
     cache = Cache()
-    results = jobs.run(cache = cache)
+    results = jobs.run(cache=cache)
 
     from edsl.jobs.interviews.InterviewStatusDictionary import InterviewStatusDictionary
 
@@ -84,14 +89,16 @@ def test_task_management(create_survey):
     assert isinstance(interview_status, InterviewStatusDictionary)
     assert list(interview_status.values())[0] == 0
 
+
 def test_bucket_collection(create_survey):
     model = create_language_model(ValueError, 100)()
     survey = create_survey(num_questions=5, chained=False)
     jobs = survey.by(model)
     from edsl.data.Cache import Cache
+
     cache = Cache()
-  
-    results = jobs.run(cache = cache)
+
+    results = jobs.run(cache=cache)
 
     bc = jobs.bucket_collection
     bucket_list = list(bc.values())
@@ -105,11 +112,12 @@ def test_handle_model_exceptions(create_survey, fail_at_number, chained):
     survey = create_survey(num_questions=20, chained=chained)
     jobs = survey.by(model)
     from edsl.data.Cache import Cache
+
     cache = Cache()
-  
-    results = jobs.run(cache = cache)
-    
-    #breakpoint()
+
+    results = jobs.run(cache=cache)
+
+    # breakpoint()
 
     if not chained:
         assert results.select(f"answer.question_{fail_at_number}").first() is None
@@ -126,8 +134,9 @@ def test_handle_timeout_exception(create_survey, capsys):
     model = create_language_model(ValueError, 3, never_ending=True)()
     survey = create_survey(num_questions=5, chained=False)
     from edsl.data.Cache import Cache
+
     cache = Cache()
-    results = survey.by(model).run(cache = cache)
+    results = survey.by(model).run(cache=cache)
     captured = capsys.readouterr()
     # assert (
     #     "WARNING: At least one question in the survey was not answered." in captured.out
