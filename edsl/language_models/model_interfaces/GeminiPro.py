@@ -1,7 +1,8 @@
+import os
 import aiohttp
 import json
 from typing import Any
-from edsl import CONFIG
+from edsl.exceptions import MissingAPIKeyError
 from edsl.language_models.LanguageModel import LanguageModel
 from edsl.enums import LanguageModelType, InferenceServiceType
 
@@ -17,11 +18,16 @@ class GeminiPro(LanguageModel):
         "stopSequences": [],
         "use_cache": True,
     }
-    api_token = CONFIG.get("GOOGLE_API_KEY")
 
     async def async_execute_model_call(
         self, user_prompt: str, system_prompt: str = ""
     ) -> dict[str, Any]:
+        if not hasattr(self, "api_token"):
+            self.api_token = os.getenv("GOOGLE_API_KEY")
+            if self.api_token is None:
+                raise MissingAPIKeyError(
+                    "The GOOGLE_API_KEY environment variable is not set."
+                )
         combined_prompt = user_prompt + system_prompt
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={self.api_token}"
         headers = {"Content-Type": "application/json"}
