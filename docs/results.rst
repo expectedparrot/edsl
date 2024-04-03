@@ -85,7 +85,6 @@ You can export the results to other formats, such as pandas DataFrames or csv fi
 
 Results class
 -------------
-
 .. automodule:: edsl.results.Results
    :members:
    :inherited-members:
