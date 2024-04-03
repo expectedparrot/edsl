@@ -33,7 +33,7 @@ clean-test: ## Clean test files
 	[ ! -d dist ] || rm -rf dist
 	[ ! -d htmlcov ] || rm -rf htmlcov
 	[ ! -d prof ] || rm -rf prof
-	[ ! -d tests/visualization_test_outputs ] || rm -rf tests/visualization_test_outputs
+	[ ! -d tests/temp_outputs ] || rm -rf tests/temp_outputs
 	[ ! -f tests/edsl_cache_test.db ] || rm tests/edsl_cache_test.db
 	[ ! -f tests/edsl_cache_test.db_temp ] || rm tests/edsl_cache_test.db_temp
 	[ ! -f tests/interview.log ] || rm tests/interview.log
