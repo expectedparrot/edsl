@@ -22,6 +22,7 @@ This page contains documentation for the Expected Parrot Domain-Specific Languag
    results
    base
    data
+   cache
    reports
    trackers
    utilities

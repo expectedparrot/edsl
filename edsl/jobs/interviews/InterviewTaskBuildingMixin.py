@@ -28,6 +28,7 @@ from edsl.jobs.tasks.task_status_enum import TaskStatus
 #)
 
 from edsl.jobs.interviews.retry_management import retry_strategy
+from edsl.data.Cache import Cache
 
 TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
 
@@ -37,6 +38,21 @@ class InterviewTaskBuildingMixin:
         """Create an invigilator for each question."""
         for question in self.survey.questions:
             yield self.get_invigilator(question=question, debug=debug)
+
+    def get_invigilator(self, question: QuestionBase, debug: bool) -> "Invigilator":
+        """Return an invigilator for the given question."""
+        invigilator = self.agent.create_invigilator(
+            question=question,
+            scenario=self.scenario,
+            model=self.model,
+            debug=debug,
+            memory_plan=self.survey.memory_plan,
+            current_answers=self.answers,
+            iteration=self.iteration,
+            cache=self.cache,
+        )
+        """Return an invigilator for the given question."""
+        return invigilator
 
     @property
     def dag(self) -> 'DAG':
@@ -116,23 +132,10 @@ class InterviewTaskBuildingMixin:
         )  # track this task creator
         return task_creator.generate_task(debug)
     
-    def get_invigilator(self, question: QuestionBase, debug: bool) -> "Invigilator":
-        """Return an invigilator for the given question."""
-        invigilator = self.agent.create_invigilator(
-            question=question,
-            scenario=self.scenario,
-            model=self.model,
-            debug=debug,
-            memory_plan=self.survey.memory_plan,
-            current_answers=self.answers,
-            iteration=self.iteration,
-        )
-        """Return an invigilator for the given question."""
-        return invigilator
-
+    
     def _get_estimated_request_tokens(self, question) -> float:
         """Estimate the number of tokens that will be required to run the focal task."""
-        invigilator = self.get_invigilator(question, debug=False)
+        invigilator = self.get_invigilator(question = question, debug=False)
         # TODO: There should be a way to get a more accurate estimate.
         combined_text = ""
         for prompt in invigilator.get_prompts().values():
@@ -147,8 +150,9 @@ class InterviewTaskBuildingMixin:
     @retry_strategy
     async def _answer_question_and_record_task(
         self,
+        *, 
         question: QuestionBase,
-        debug: bool,
+        debug: bool, 
         task = None,
     ) -> AgentResponseDict:
         """Answer a question and records the task.
@@ -169,7 +173,7 @@ class InterviewTaskBuildingMixin:
                 )
                 if task:
                     task.task_status = TaskStatus.FAILED
-                self.exceptions.add(question, exception_entry)
+                self.exceptions.add(question.question_name, exception_entry)
                 
                 raise InterviewTimeoutError(
                         f"Task timed out after {TIMEOUT} seconds."

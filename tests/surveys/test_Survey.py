@@ -121,7 +121,8 @@ class TestSurvey(unittest.TestCase):
 
         jobs = survey.by(d)
 
-        results = jobs.run()
+        from edsl.data.Cache import Cache
+        results = jobs.run(cache = Cache())
         # with this skip logic, the second question should not be answered
         assert results[0].answer["own_shovel"] == None
 
