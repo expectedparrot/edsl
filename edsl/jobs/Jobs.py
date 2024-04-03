@@ -1,5 +1,4 @@
-"""The Jobs class is a collection of agents, scenarios and models and one survey."""
-
+# """The Jobs class is a collection of agents, scenarios and models and one survey."""
 from __future__ import annotations
 import os
 from collections.abc import Sequence
@@ -22,15 +21,9 @@ from edsl.surveys import Survey
 
 class Jobs(Base):
     """
-    The Jobs class is a collection of agents, scenarios and models and one survey.
-
-    Methods:
-    - `by()`: adds agents, scenarios or models to the job. Its a tricksy little method, be careful.
-    - `interviews()`: creates a collection of interviews
-    - `run()`: runs a collection of interviews
-
-    Actually running of a job is done by a JobsRunner, which is a subclass of JobsRunner.
-    The JobsRunner is chosen by the user, and is stored in the `jobs_runner_name` attribute.
+    A collection of agents, scenarios and models and one survey.
+    The actual running of a job is done by a `JobsRunner`, which is a subclass of `JobsRunner`.
+    The `JobsRunner` is chosen by the user, and is stored in the `jobs_runner_name` attribute.
     """
 
     # jobs_runner_name = JobsRunnerDescriptor()

@@ -20,9 +20,11 @@ Rather than working procedurally (*"for agent in agent, for question in survey, 
 Key concepts
 ------------
 EDSL is built around the concept of a `Question` that is answered by an AI `Agent` using a large language `Model`, generating a `Result` that can be analyzed, visualized and shared, or used to inform other questions.
-Questions of various types (free text, multiple choice, etc.) can be combined into a `Survey` and run in parallel or according to specified rules or skip logic (e.g., answer the next question based on a responses to a prior question).
-Questions can also be parameterized with a `Scenario` that provides context or data to the questions when they are run (e.g., for data labeling tasks, where a question is "asked" about each piece of data).
-Surveys can be run with different agents and models to provide different kinds of responses.
+Questions of various types (free text, multiple choice, etc.) can be combined into a `Survey` and run in parallel or according to specified rules or skip logic (e.g., answer the next question based on a response to a prior question).
+A question can also be parameterized with a `Scenario` that provides context or data as an input to the question when it is run, allowing us to administer multiple versions of a question at once.
+(This is a useful way to use EDSL to conduct data labeling tasks, where a question is "asked" about each piece of data to generate a labeled dataset. 
+See the :ref:`scenarios` section for more details on this.)
+Surveys can also be run with many agents and models at once to provide different kinds of responses.
 
 Key components
 --------------
@@ -126,15 +128,16 @@ Links
 -----
 .. raw:: html
 
-    PyPI: <a href="https://pypi.org/project/edsl" target="_blank">https://pypi.org/project/edsl/</a>     
+    Download the latest version of EDSL at PyPI: <a href="https://pypi.org/project/edsl" target="_blank">https://pypi.org/project/edsl/</a>     
+    <br><br>
+    Get the latest updates at GitHub: <a href="https://github.com/expectedparrot/edsl" target="_blank">https://github.com/expectedparrot/edsl</a>
+    <br><br>
+    Access sample code and research examples: 
     <br>
-    GitHub: <a href="https://github.com/expectedparrot/edsl" target="_blank">https://github.com/expectedparrot/edsl</a>
+    * <a href="http://www.expectedparrot.com/getting-started#edsl-showcase" target="_blank">EDSL Showcase</a>
     <br>
-    <a href="https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Tutorial%20-%20Starter%20Tutorial-e080f5883d764931960d3920782baf34" target="_blank">Example notebooks</a>
-    <br>
-    <a href="http://www.expectedparrot.com/getting-started#edsl-showcase" target="_blank">EDSL Showcase</a>.
-    <br>
-    Discord: <a href="https://discord.com/invite/mxAYkjfy9m" target="_blank">https://discord.com/invite/mxAYkjfy9m</a>
-
-
-Email: info@expectedparrot.com
+    * <a href="https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Tutorial%20-%20Starter%20Tutorial-e080f5883d764931960d3920782baf34" target="_blank">Notebooks</a>
+    <br><br>
+    Join our Discord to connect with other users! <a href="https://discord.com/invite/mxAYkjfy9m" target="_blank">https://discord.com/invite/mxAYkjfy9m</a>
+    <br><br>
+    Contact us for support: info@expectedparrot.com
