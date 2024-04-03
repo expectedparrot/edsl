@@ -1,4 +1,18 @@
+import os
 import pytest
+from edsl.config import CONFIG
+from edsl.data.SQLiteDict import SQLiteDict
+
+
+@pytest.fixture(scope="function")
+def sqlite_dict():
+    """
+    Yields a fresh SQLiteDict instance for each test.
+    - Deletes the database file after the test.
+    """
+    print(CONFIG.get("EDSL_DATABASE_PATH"))
+    yield SQLiteDict(db_path=CONFIG.get("EDSL_DATABASE_PATH"))
+    os.remove(CONFIG.get("EDSL_DATABASE_PATH").replace("sqlite:///", ""))
 
 
 @pytest.fixture(scope="function", autouse=True)
