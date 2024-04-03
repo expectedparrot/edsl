@@ -1,9 +1,12 @@
 from __future__ import annotations
 import json
-import sqlite3
+from sqlalchemy import create_engine
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import sessionmaker
 from typing import Any, Generator, Optional, Union
 from edsl.config import CONFIG
 from edsl.data.CacheEntry import CacheEntry
+from edsl.data.orm import Base, Data
 
 
 class SQLiteDict:
@@ -14,14 +17,11 @@ class SQLiteDict:
     def __init__(self, db_path: Optional[str] = None):
         self.db_path = db_path or CONFIG.get("EDSL_DATABASE_PATH")
         try:
-            self.conn = sqlite3.connect(self.db_path)
-        except sqlite3.OperationalError:
-            raise Exception(f"Unable to connect to the database ({self.db_path}).")
-        self.cursor = self.conn.cursor()
-        self.cursor.execute(
-            "CREATE TABLE IF NOT EXISTS data (key TEXT PRIMARY KEY, value TEXT)"
-        )
-        self.conn.commit()
+            self.engine = create_engine(self.db_path, echo=False, future=True)
+            Base.metadata.create_all(self.engine)
+            self.Session = sessionmaker(bind=self.engine)
+        except SQLAlchemyError as e:
+            raise Exception(f"Database initialization error: {e}") from e
 
     def __setitem__(self, key: str, value: CacheEntry) -> None:
         """
@@ -31,12 +31,10 @@ class SQLiteDict:
         >>> d["foo"] = CacheEntry.example()
         """
         if not isinstance(value, CacheEntry):
-            raise ValueError(f"Value must be a CacheEntry object (got {type(value)}.")
-        self.cursor.execute(
-            "INSERT OR REPLACE INTO data (key, value) VALUES (?, ?)",
-            (key, json.dumps(value.to_dict())),
-        )
-        self.conn.commit()
+            raise ValueError(f"Value must be a CacheEntry object (got {type(value)}).")
+        with self.Session() as db:
+            db.merge(Data(key=key, value=json.dumps(value.to_dict())))
+            db.commit()
 
     def __getitem__(self, key: str) -> CacheEntry:
         """
@@ -48,11 +46,11 @@ class SQLiteDict:
         >>> d["foo"] == CacheEntry.example()
         True
         """
-        self.cursor.execute("SELECT value FROM data WHERE key = ?", (key,))
-        result = self.cursor.fetchone()
-        if result:
-            return CacheEntry.from_dict(json.loads(result[0]))
-        raise KeyError(f"Key '{key}' not found.")
+        with self.Session() as db:
+            value = db.query(Data).filter_by(key=key).first()
+            if not value:
+                raise KeyError(f"Key '{key}' not found.")
+            return CacheEntry.from_dict(json.loads(value.value))
 
     def get(self, key: str, default: Optional[Any] = None) -> Union[CacheEntry, Any]:
         """
@@ -84,11 +82,14 @@ class SQLiteDict:
             raise ValueError(
                 f"new_d must be a dict or SQLiteDict object (got {type(new_d)})"
             )
-        for key, value in new_d.items():
-            if key in self and overwrite:
-                self[key] = value
-            else:
-                self[key] = value
+        with self.Session() as db:
+            for key, value in new_d.items():
+                if key in self:
+                    if overwrite:
+                        db.merge(Data(key=key, value=json.dumps(value.to_dict())))
+                else:
+                    db.merge(Data(key=key, value=json.dumps(value.to_dict())))
+            db.commit()
 
     def values(self) -> Generator[CacheEntry, None, None]:
         """
@@ -99,9 +100,9 @@ class SQLiteDict:
         >>> list(d.values()) == [CacheEntry.example()]
         True
         """
-        self.cursor.execute("SELECT value from data")
-        for value in self.cursor.fetchall():
-            yield CacheEntry(**json.loads(value[0]))
+        with self.Session() as db:
+            for instance in db.query(Data).all():
+                yield CacheEntry.from_dict(json.loads(instance.value))
 
     def items(self) -> Generator[tuple[str, CacheEntry], None, None]:
         """
@@ -112,9 +113,9 @@ class SQLiteDict:
         >>> list(d.items()) == [("foo", CacheEntry.example())]
         True
         """
-        self.cursor.execute("SELECT key, value FROM data")
-        for key, value in self.cursor.fetchall():
-            yield key, CacheEntry(**json.loads(value))
+        with self.Session() as db:
+            for instance in db.query(Data).all():
+                yield (instance.key, CacheEntry.from_dict(json.loads(instance.value)))
 
     def __delitem__(self, key: str) -> None:
         """
@@ -126,11 +127,13 @@ class SQLiteDict:
         >>> d.get("foo", "missing")
         'missing'
         """
-        if key in self:
-            self.cursor.execute("DELETE FROM data WHERE key = ?", (key,))
-            self.conn.commit()
-        else:
-            raise KeyError(f"Key '{key}' not found.")
+        with self.Session() as db:
+            instance = db.query(Data).filter_by(key=key).one_or_none()
+            if instance:
+                db.delete(instance)
+                db.commit()
+            else:
+                raise KeyError(f"Key '{key}' not found.")
 
     def __contains__(self, key: str) -> bool:
         """
@@ -143,8 +146,8 @@ class SQLiteDict:
         >>> "bar" in d
         False
         """
-        self.cursor.execute("SELECT 1 FROM data WHERE key = ?", (key,))
-        return self.cursor.fetchone() is not None
+        with self.Session() as db:
+            return db.query(Data).filter_by(key=key).first() is not None
 
     def __iter__(self) -> Generator[str, None, None]:
         """
@@ -155,9 +158,9 @@ class SQLiteDict:
         >>> list(iter(d)) == ["foo"]
         True
         """
-        self.cursor.execute("SELECT key FROM data")
-        for row in self.cursor.fetchall():
-            yield row[0]
+        with self.Session() as db:
+            for instance in db.query(Data).all():
+                yield instance.key
 
     def __len__(self) -> int:
         """
@@ -170,8 +173,8 @@ class SQLiteDict:
         >>> len(d)
         1
         """
-        self.cursor.execute("SELECT COUNT(*) FROM data")
-        return self.cursor.fetchone()[0]
+        with self.Session() as db:
+            return db.query(Data).count()
 
     def keys(self) -> Generator[str, None, None]:
         """
@@ -182,15 +185,7 @@ class SQLiteDict:
         >>> list(d.keys()) == ["foo"]
         True
         """
-        self.cursor.execute("SELECT key from data")
-        for row in self.cursor.fetchall():
-            yield row[0]
-
-    def close(self) -> None:
-        """
-        Closes the database connection.
-        """
-        self.conn.close()
+        return self.__iter__()
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(db_path={self.db_path!r})"
@@ -202,14 +197,32 @@ class SQLiteDict:
         - The example SQLiteDict is empty and stored in memory.
 
         >>> SQLiteDict.example()
-        SQLiteDict(db_path=':memory:')
+        SQLiteDict(db_path='sqlite:///:memory:')
         """
-        return cls(db_path=":memory:")
+        return cls(db_path="sqlite:///:memory:")
 
 
 def main():
     from edsl.data.CacheEntry import CacheEntry
     from edsl.data.SQLiteDict import SQLiteDict
+
+    d = SQLiteDict.example()
+    d["foo"] = CacheEntry.example()
+    d["foo"]
+    d.get("foo")
+    d.get("poo")
+    d.get("poo", "not found")
+    d.update({"poo": CacheEntry.example()})
+    d["poo"]
+    len(d)
+    list(d.keys())
+    list(d.values())
+    list(d.items())
+    "poo" in d
+    "loo" in d
+    del d["poo"]
+    len(d) == 1
+    repr(d)
 
 
 if __name__ == "__main__":
