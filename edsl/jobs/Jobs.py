@@ -10,7 +10,7 @@ from edsl.agents import Agent
 from edsl.Base import Base
 from edsl.coop.old import JobRunnerAPI, ResultsAPI
 from edsl.data.Cache import Cache
-from edsl.data.SQLiteDict import SQLiteDict
+from edsl.data.LocalDict import LocalDict
 from edsl.enums import LanguageModelType
 from edsl.jobs.buckets.BucketCollection import BucketCollection
 from edsl.jobs.interviews.Interview import Interview
@@ -207,7 +207,7 @@ class Jobs(Base):
             if not os.path.exists(".edsl_cache"):
                 os.makedirs(".edsl_cache")
 
-            cache = Cache(data=SQLiteDict())
+            cache = Cache(data=LocalDict())
 
             # import shutil
             # if os.path.exists("edsl_cache.db"):
