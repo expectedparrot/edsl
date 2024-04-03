@@ -1,114 +1,206 @@
-import time
+from __future__ import annotations
+import json
+import datetime
 import hashlib
+from typing import Optional
+
+
+# TODO: Timestamp should probably be float?
+# TODO: Equality should not include timestamp?
+
 
 class CacheEntry:
-    """Class to represent a cache entry."""
+    """
+    A Class to represent a cache entry.
+    """
 
-    key_fields = ['model', 'parameters', 'system_prompt', 'user_prompt', 'iteration']
-    all_fields = key_fields + ['timestamp', 'output']
+    key_fields = ["model", "parameters", "system_prompt", "user_prompt", "iteration"]
+    all_fields = key_fields + ["timestamp", "output"]
 
-    def __init__(self, *, model, parameters, system_prompt, user_prompt, output, iteration = None, timestamp = None):
+    def __init__(
+        self,
+        *,
+        model: str,
+        parameters: dict,
+        system_prompt: str,
+        user_prompt: str,
+        iteration: Optional[int] = None,
+        output: str,
+        timestamp: Optional[int] = None,
+    ):
         self.model = model
         self.parameters = parameters
         self.system_prompt = system_prompt
         self.user_prompt = user_prompt
         self.output = output
-        self.iteration = iteration or 0 
-        self.timestamp = timestamp or int(time.time())
+        self.iteration = iteration or 0
+        self.timestamp = timestamp or int(
+            datetime.datetime.now(datetime.timezone.utc).timestamp()
+        )
+        self._check_types()
 
-    def __eq__(self, other_entry: 'CacheEntry') -> bool:
-        """Check if two cache entries are equal.
-        
-        :param other_entry: The other cache entry to compare to.
-
-        >>> CacheEntry.example() == CacheEntry.example()
-        True
+    def _check_types(self):
         """
-        for field in self.all_fields:
-            if getattr(self, field) != getattr(other_entry, field):
-                return False
-        return True
+        Checks if the types of the fields are correct.
+        """
+        if not isinstance(self.model, str):
+            raise TypeError("`model` should be a string.")
+        if not isinstance(self.parameters, dict):
+            raise TypeError("`parameters` should be a dictionary.")
+        if not isinstance(self.system_prompt, str):
+            raise TypeError("`system_prompt` should be a string.")
+        if not isinstance(self.user_prompt, str):
+            raise TypeError("`user_prompt` should be a string")
+        if not isinstance(self.output, str):
+            raise TypeError("`output` should be a string")
+        if not isinstance(self.iteration, int):
+            raise TypeError("`iteration` should be an integer")
+        # TODO: should probably be float
+        if not isinstance(self.timestamp, int):
+            raise TypeError(f"`timestamp` should be an integer")
 
     @classmethod
-    def example_dict(cls) -> dict:
-        """Return an example dictionary of cache entries."""
-        entity = cls.example()
-        key = entity.key
-        return {key: entity}
-
-    @classmethod
-    def fetch_input_example(cls) -> dict:
+    def gen_key(
+        self, *, model, parameters, system_prompt, user_prompt, iteration
+    ) -> str:
         """
-        Create an example input for a 'fetch' operation.
+        Generates a key for the cache entry.
+        - Treats single and double quotes as the same. TODO: add more robustness.
         """
-        input =cls.example().to_dict()
-        _ = input.pop('timestamp')
-        _ = input.pop('output')
-        return input
-
-    @classmethod    
-    def store_input_example(cls) -> dict:
-        """
-        Create an example input for a 'store' operation.
-        """
-        input = cls.example().to_dict()
-        _ = input.pop("timestamp")
-        input['response'] = input.pop('output')
-        return input
-
-    @classmethod
-    def gen_key(self, *, model, parameters, system_prompt, user_prompt, iteration) -> str:
-        """Generate a key for the cache entry.
-        
-        >>> CacheEntry.gen_key(model = "gpt-3.5-turbo", parameters = "{'temperature': 0.5}", system_prompt = "The quick brown fox jumps over the lazy dog.", user_prompt = "What does the fox say?", iteration = 1)
-        '55ce2e13d38aa7fb6ec848053285edb4'
-        """
-
-        long_key = f"{model}{parameters}{system_prompt}{user_prompt}{iteration}"
+        #long_key = f"{model}{parameters}{system_prompt}{user_prompt}{iteration}"
+        long_key = f'{model}{json.dumps(parameters, sort_keys=True)}{system_prompt}{user_prompt}{iteration}'
         return hashlib.md5(long_key.encode()).hexdigest()
 
     @property
-    def key(self):
-        """Return the key for the cache entry.
-        
-        >>> CacheEntry.example().key
-        '55ce2e13d38aa7fb6ec848053285edb4'
+    def key(self) -> str:
         """
-        d = {k:value for k, value in self.__dict__.items() if k in self.key_fields}
+        Returns the key for the cache entry.
+        - The key is a hash of the key fields.
+        """
+        d = {k: value for k, value in self.__dict__.items() if k in self.key_fields}
         return self.gen_key(**d)
 
     def to_dict(self) -> dict:
-        """Return a dictionary representation of the cache entry."""
+        """
+        Returns a dictionary representation of a CacheEntry.
+        """
         return {
-            'model': self.model,
-            'parameters': self.parameters,
-            'system_prompt': self.system_prompt,
-            'user_prompt': self.user_prompt,
-            'output': self.output,
-            'iteration': self.iteration,
-            'timestamp': self.timestamp
+            "model": self.model,
+            "parameters": self.parameters,
+            "system_prompt": self.system_prompt,
+            "user_prompt": self.user_prompt,
+            "output": self.output,
+            "iteration": self.iteration,
+            "timestamp": self.timestamp,
         }
-    
-    def __repr__(self):
-        return f"CacheEntry(model={self.model}, parameters={self.parameters}, system_prompt={self.system_prompt}, user_prompt={self.user_prompt}, output={self.output}, iteration={self.iteration}, timestamp={self.timestamp})"
-    
+
     @classmethod
-    def from_dict(cls, data: dict):
-        """Create a cache entry from a dictionary representation."""
+    def from_dict(cls, data: dict) -> CacheEntry:
+        """
+        Initializes a CacheEntry object from its dictionary representation.
+        """
         return cls(**data)
-    
+
+    def __eq__(self, other: CacheEntry) -> bool:
+        """
+        Checks if two CacheEntry objects are equal.
+        - Does not include timestamp in the comparison.
+        """
+        if not isinstance(other, CacheEntry):
+            return False
+        for field in self.all_fields:
+            if getattr(self, field) != getattr(other, field) and field != "timestamp":
+                return False
+        return True
+
+    def __repr__(self) -> str:
+        """
+        Returns a string representation of a CacheEntry.
+        """
+        return (
+            f"CacheEntry(model={repr(self.model)}, "
+            f"parameters={self.parameters}, "
+            f"system_prompt={repr(self.system_prompt)}, "
+            f"user_prompt={repr(self.user_prompt)}, "
+            f"output={repr(self.output)}, "
+            f"iteration={self.iteration}, "
+            f"timestamp={self.timestamp})"
+        )
+
     @classmethod
-    def example(cls):
+    def example(cls) -> CacheEntry:
+        """
+        Returns a CacheEntry example.
+        """
         return CacheEntry(
             model="gpt-3.5-turbo",
-            parameters="{'temperature': 0.5}",
+            parameters={"temperature": 0.5},
             system_prompt="The quick brown fox jumps over the lazy dog.",
             user_prompt="What does the fox say?",
             output="The fox says 'hello'",
             iteration=1,
-            timestamp=int(time.time())
+            timestamp=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
         )
+
+    @classmethod
+    def example_dict(cls) -> dict:
+        """
+        Returns an example dictionary with a single CacheEntry.
+        - This will be useful one level up, in the Cache class.
+        """
+        cache_entry = cls.example()
+        return {cache_entry.key: cache_entry}
+
+    @classmethod
+    def fetch_input_example(cls) -> dict:
+        """
+        Creates an example input for a 'fetch' operation.
+        - This will be useful one level up, in the Cache class.
+        """
+        input = cls.example().to_dict()
+        _ = input.pop("timestamp")
+        _ = input.pop("output")
+        return input
+
+    @classmethod
+    def store_input_example(cls) -> dict:
+        """
+        Creates an example input for a 'store' operation.
+        - This will be useful one level up, in the Cache class.
+        """
+        input = cls.example().to_dict()
+        _ = input.pop("timestamp")
+        input["response"] = input.pop("output")
+        return input
+
+
+def main():
+    from edsl.data.CacheEntry import CacheEntry
+
+    # an example of how a cache entry looks
+    cache_entry = CacheEntry.example()
+    cache_entry
+
+    # .key property returns the hash of the cache entry
+    cache_entry.key
+    # to dict / from dict
+    cache_entry.to_dict()
+    CacheEntry.from_dict(cache_entry.to_dict())
+    # TODO: this will be false because equality includes timestamp
+    CacheEntry.from_dict(cache_entry.to_dict()) == CacheEntry.example()
+    # equality by checking values
+    cache_entry == CacheEntry.example()
+    # equality by checking keys
+    cache_entry.key == CacheEntry.example().key
+    # evalable repr
+    eval(repr(cache_entry)) == cache_entry
+    # not sure what these are useful for yet
+    cache_entry.example_dict()
+    cache_entry.fetch_input_example()
+    cache_entry.store_input_example()
+
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod()

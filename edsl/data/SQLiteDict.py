@@ -20,7 +20,9 @@ class SQLiteDict:
         try:
             self.conn = sqlite3.connect(self.db_path)
         except sqlite3.OperationalError:
+            print(f"Tried to connect to the database at {self.db_path}.")
             raise Exception("Unable to connect to the database.")
+        
 
         self.cursor = self.conn.cursor()
         self.cursor.execute("CREATE TABLE IF NOT EXISTS data (key TEXT PRIMARY KEY, value TEXT)")
