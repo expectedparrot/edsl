@@ -160,7 +160,10 @@ def test_jobs_interviews(valid_job):
 
 
 def test_jobs_run(valid_job):
-    results = valid_job.run(debug=True)
+    from edsl.data.Cache import Cache
+    cache = Cache()
+  
+    results = valid_job.run(debug=True, cache = cache)
     # breakpoint()
 
     assert len(results) == 1
@@ -192,7 +195,9 @@ def test_normal_run():
     from edsl.questions import QuestionFreeText
 
     q = QuestionFreeText(question_text="What is your name?", question_name="name")
-    results = q.by(model).run()
+    from edsl.data.Cache import Cache
+    cache = Cache()
+    results = q.by(model).run(cache = cache)
     assert results[0]["answer"] == {"name": "SPAM!"}
 
 
@@ -244,10 +249,10 @@ def test_handle_model_exception():
 
 
 def test_jobs_bucket_creator(valid_job):
-    from edsl.jobs.runners.job_runners_registry import JobsRunnersRegistry
-
-    JobRunner = JobsRunnersRegistry["asyncio"](jobs=valid_job)
-    bc = JobRunner.bucket_collection
+    #from edsl.jobs.runners.job_runners_registry import JobsRunnersRegistry
+    #JobRunner = JobsRunnersRegistry["asyncio"](jobs=valid_job)
+    from edsl.jobs.runners.JobsRunnerAsyncio import JobsRunnerAsyncio
+    bc = JobsRunnerAsyncio(jobs=valid_job).bucket_collection
     assert bc[valid_job.models[0]].requests_bucket.tokens > 10
     assert bc[valid_job.models[0]].tokens_bucket.tokens > 10
 

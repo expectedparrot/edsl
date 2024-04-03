@@ -2,14 +2,12 @@
 
 Scenarios
 =========
-
-.. A Scenario is a dictionary with a key/value to parameterize a question.
+A `Scenario` is a dictionary containing a single key/value pair that is used to parameterize a question.
+A `ScenarioList` is a list of `Scenario` objects that can be used to create multiple versions of a question with different parameters, that can all be administered at once.
 
 Constructing a Scenario
 -----------------------
-Key steps:
-
-* Create a question that takes a parameter in double braces, e.g.: 
+To use scenarios, we start by creating a question that takes a parameter in double braces: 
 
 .. code-block:: python
 
@@ -18,35 +16,34 @@ Key steps:
         question_text = "What is your favorite {{ item }}?",
     )
 
-* Create a dictionary for the value that will replace the parameter and store it in a Scenario object: 
+Next we create a dictionary for the value that will replace the parameter and store it in a `Scenario` object: 
 
 .. code-block:: python
 
     scenario = Scenario({"item": "color"})
 
-If multiple values will be used, create multiple Scenario objects in a list: 
+If multiple values will be used, we can create a list of `Scenario` objects: 
 
 .. code-block:: python
 
     scenarios = [Scenario({"item": item}) for item in ["color", "food"]]
 
-* Add the Scenario objects to the question when you run it with the `by` method: 
+Using Scenarios
+---------------
+`Scenario` objects are used by adding them to a question or survey with the `by` method when the question or survey is run:.
+A scenario can be appended to a single question, for example:
 
 .. code-block:: python
 
-    results = q.by(scenarios).run()
+    results = survey.by(scenario).run()
 
-If your question is part of a survey, add the Scenario objects to the survey: 
+As with other survey components (agents and language models), multiple `Scenario` objects should be added together as a list in the same `by` method:
 
 .. code-block:: python
 
-    q1 = ...
-    q2 = ...
-    results = Survey([q1, q2]).by(scenarios).run()
+    results = survey.by(scenarios).run()
 
-As with other Survey components (agents, language models), multiple Scenario objects should be added together as a list in the same `by` method.
-
-See more details about surveys in the :ref:`surveys` module.
+To learn more about constructing surveys, please see the :ref:`surveys` module.
 
 Scenario class
 --------------

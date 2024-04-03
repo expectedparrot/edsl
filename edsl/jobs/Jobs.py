@@ -5,23 +5,19 @@ import os
 from collections.abc import Sequence
 from itertools import product
 from typing import Union, Generator
-
+from edsl import Model
 from edsl.agents import Agent
 from edsl.Base import Base
-from edsl.data import Database, database
-from edsl.language_models import LanguageModel
+from edsl.coop.old import JobRunnerAPI, ResultsAPI
+from edsl.data.Cache import Cache
+from edsl.data.SQLiteDict import SQLiteDict
 from edsl.enums import LanguageModelType
-from edsl import Model
+from edsl.jobs.buckets.BucketCollection import BucketCollection
+from edsl.jobs.interviews.Interview import Interview
 from edsl.results import Results
+from edsl.language_models import LanguageModel
 from edsl.scenarios import Scenario
 from edsl.surveys import Survey
-from edsl.jobs.runners.job_runners_registry import (
-    JobsRunnersRegistry,
-    JobsRunnerDescriptor,
-)
-from edsl.jobs.interviews.Interview import Interview
-from edsl.coop.old import JobRunnerAPI, ResultsAPI
-from edsl.jobs.buckets.BucketCollection import BucketCollection
 
 
 class Jobs(Base):
@@ -37,7 +33,7 @@ class Jobs(Base):
     The JobsRunner is chosen by the user, and is stored in the `jobs_runner_name` attribute.
     """
 
-    jobs_runner_name = JobsRunnerDescriptor()
+    # jobs_runner_name = JobsRunnerDescriptor()
 
     def __init__(
         self,
@@ -164,9 +160,7 @@ class Jobs(Base):
         Note that this sets the agents, model and scenarios if they have not been set. This is a side effect of the method.
         """
         self.agents = self.agents or [Agent()]
-        self.models = self.models or [
-            Model(LanguageModelType.GPT_4.value, use_cache=True)
-        ]
+        self.models = self.models or [Model(LanguageModelType.GPT_4.value)]
         self.scenarios = self.scenarios or [Scenario()]
         for agent, scenario, model in product(self.agents, self.scenarios, self.models):
             yield Interview(
@@ -196,9 +190,8 @@ class Jobs(Base):
         n: int = 1,
         debug: bool = False,
         progress_bar: bool = False,
-        dry_run: bool = False,
-        streaming: bool = False,
-        db: Database = database,
+        stop_on_exception: bool = False,
+        cache=None,
     ) -> Union[Results, ResultsAPI, None]:
         """
         Runs the Job: conducts Interviews and returns their results.
@@ -207,37 +200,51 @@ class Jobs(Base):
         :param debug: prints debug messages
         :param verbose: prints messages
         :param progress_bar: shows a progress bar
-        :param dry_run: does not actually run the job
-        :param streaming: uses the streaming API
-        :param db: the database to use
 
         """
-        # self.job_runner_name = method
-        if dry_run:
-            self.job_runner_name = "dry_run"
-        elif streaming:
-            self.job_runner_name = "streaming"
+
+        if cache is None:
+            if not os.path.exists(".edsl_cache"):
+                os.makedirs(".edsl_cache")
+
+            cache = Cache(data=SQLiteDict())
+
+            # import shutil
+            # if os.path.exists("edsl_cache.db"):
+            # print("Using cache from edsl_cache.db")
+            # cache = Cache.from_sqlite_db("edsl_cache.db")
+            # shutil.copy("edsl_cache.db", "edsl_cache.db.bak")
+            #
+            # print(f"Connecting to .edsl_cache/data.db")
+            # if os.path.exists("edsl_cache.jsonl"):
+            #    print("Adding in the jsonl cache to the cache")
+            #    cache += Cache.from_jsonl("edsl_cache.jsonl")
         else:
-            self.job_runner_name = "asyncio"
+            print("Using cache from passed in cache")
 
         expected_parrot_api_key = os.getenv("EXPECTED_PARROT_API_KEY")
-        if expected_parrot_api_key:
-            results = self._run_remote(
-                api_key=expected_parrot_api_key, job_dict=self.to_dict()
+        if not expected_parrot_api_key:
+            results = self._run_local(
+                n=n,
+                debug=debug,
+                progress_bar=progress_bar,
+                cache=cache,
+                stop_on_exception=stop_on_exception,
             )
         else:
-            results = self._run_local(
-                n=n, debug=debug, progress_bar=progress_bar, db=db
+            results = self._run_remote(
+                api_key=expected_parrot_api_key, job_dict=self.to_dict()
             )
 
         return results
 
-    def _run_local(self, *args, db: Database = database, **kwargs):
+    def _run_local(self, *args, **kwargs):
         """Run the job locally."""
-        db._health_check_pre_run()
-        JobRunner = JobsRunnersRegistry[self.job_runner_name](jobs=self)
-        results = JobRunner.run(*args, **kwargs)
-        db._health_check_post_run()
+        from edsl.jobs.runners.JobsRunnerAsyncio import JobsRunnerAsyncio
+
+        # db._health_check_pre_run()
+        results = JobsRunnerAsyncio(self).run(*args, **kwargs)
+        # db._health_check_post_run()
         return results
 
     def _run_remote(self, *args, **kwargs):
@@ -352,10 +359,11 @@ class Jobs(Base):
 def main():
     """Run the module's doctests."""
     from edsl.jobs import Jobs
+    from edsl.data.Cache import Cache
 
     job = Jobs.example()
     len(job) == 8
-    results = job.run(debug=True)
+    results = job.run(debug=True, cache=Cache())
     len(results) == 8
     results
 
@@ -365,7 +373,6 @@ if __name__ == "__main__":
     import doctest
 
     doctest.testmod()
-
     from edsl.jobs import Jobs
 
     job = Jobs.example()

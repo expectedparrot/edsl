@@ -18,7 +18,7 @@ def test_constructor():
         scenario=Scenario.example(),
         model=LanguageModel.example(),
         iteration=1,
-        answer="answer",
+        answer={'how_feeling': 'Good'},
         prompt={"key": "value"},
     )
 
@@ -39,7 +39,7 @@ def test_constructor():
         scenario=Scenario.example(),
         model=LanguageModel.example(),
         iteration=1,
-        answer="answer",
+        answer={'how_feeling': 'Good'},
         prompt={"key": "value"},
     )
 

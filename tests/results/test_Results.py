@@ -136,6 +136,8 @@ class TestResults(unittest.TestCase):
         def answer_question_directly(self, question, scenario):
             return "Never"
 
+        from edsl.data.Cache import Cache
+        cache = Cache()
         agent = Agent()
         agent.add_direct_question_answering_method(answer_question_directly)
 
@@ -144,7 +146,7 @@ class TestResults(unittest.TestCase):
             question_text="How often do you typically exercise each week?",
             question_options=["Never", "Sometimes", "Often"],
         )
-        results = q.by(agent).run()
+        results = q.by(agent).run(cache = cache)
 
         with StringIO() as buf, redirect_stdout(buf):
             results.select("answer.*").print()

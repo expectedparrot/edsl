@@ -20,7 +20,6 @@ from edsl.exceptions.results import (
     ResultsFilterError,
 )
 from edsl.agents import Agent
-from edsl.data import CRUD
 from edsl.language_models.LanguageModel import LanguageModel
 from edsl.results.Dataset import Dataset
 from edsl.results.Result import Result
@@ -648,9 +647,10 @@ class Results(UserList, Mixins, Base):
         :param debug: if False, uses actual API calls
         """
         from edsl.jobs import Jobs
-
+        from edsl.data.Cache import Cache
+        c = Cache()
         job = Jobs.example()
-        results = job.run(debug=debug)
+        results = job.run(cache = c, debug=debug)
         return results
 
     def rich_print(self):
