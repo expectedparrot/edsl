@@ -126,7 +126,7 @@ class TestLanguageModel(unittest.TestCase):
         expected_response = {
 #            "id": 1,
             "model": "fake model",
-            "parameters": "{'temperature': 0.5}",
+            "parameters": {'temperature': 0.5},
             "system_prompt": "You are a helpful agent",
             "user_prompt": "Hello world",
             "output": '{"message": "{\\"answer\\": \\"Hello world\\"}"}',
