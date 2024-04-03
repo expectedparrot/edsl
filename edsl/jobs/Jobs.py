@@ -208,6 +208,11 @@ class Jobs(Base):
 
         if cache is None:
             from edsl.data.SQLiteDict import SQLiteDict
+
+            import os 
+            if not os.path.exists(".edsl_cache"):
+                os.makedirs(".edsl_cache")
+
             cache = Cache(data = SQLiteDict())
         
             #import shutil
