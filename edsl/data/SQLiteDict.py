@@ -207,6 +207,11 @@ class SQLiteDict:
         return cls(db_path=":memory:")
 
 
+def main():
+    from edsl.data.CacheEntry import CacheEntry
+    from edsl.data.SQLiteDict import SQLiteDict
+
+
 if __name__ == "__main__":
     import doctest
 
