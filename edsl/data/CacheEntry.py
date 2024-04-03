@@ -1,4 +1,5 @@
 from __future__ import annotations
+import json
 import datetime
 import hashlib
 from typing import Optional
@@ -66,8 +67,8 @@ class CacheEntry:
         Generates a key for the cache entry.
         - Treats single and double quotes as the same. TODO: add more robustness.
         """
-        long_key = f"{model}{parameters}{system_prompt}{user_prompt}{iteration}"
-long_key = f'{model}{json.dumps(parameters, sort_keys=True)}{system_prompt}{user_prompt}{iteration}'
+        #long_key = f"{model}{parameters}{system_prompt}{user_prompt}{iteration}"
+        long_key = f'{model}{json.dumps(parameters, sort_keys=True)}{system_prompt}{user_prompt}{iteration}'
         return hashlib.md5(long_key.encode()).hexdigest()
 
     @property

@@ -46,12 +46,12 @@ def test_CacheEntry_gen_key():
         user_prompt="What does the fox say?",
         iteration=1,
     )
-    assert key == "55ce2e13d38aa7fb6ec848053285edb4"
+    assert key == '5ee60636048b05b4f7b6995a0cf9b78e'
 
 
 def test_CacheEntry_key_property():
     entry = CacheEntry.example()
-    assert entry.key == "55ce2e13d38aa7fb6ec848053285edb4"
+    assert entry.key == '5513286eb6967abc0511211f0402587d'
 
 
 def test_CacheEntry_to_dict():
