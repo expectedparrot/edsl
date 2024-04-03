@@ -67,7 +67,7 @@ class CacheEntry:
         - Treats single and double quotes as the same. TODO: add more robustness.
         """
         long_key = f"{model}{parameters}{system_prompt}{user_prompt}{iteration}"
-        long_key = long_key.replace('"', "'")
+long_key = f'{model}{json.dumps(parameters, sort_keys=True)}{system_prompt}{user_prompt}{iteration}'
         return hashlib.md5(long_key.encode()).hexdigest()
 
     @property
