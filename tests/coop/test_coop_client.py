@@ -3,11 +3,11 @@ from edsl.coop.coop import Coop
 from edsl.questions import QuestionMultipleChoice, QuestionCheckBox, QuestionFreeText
 
 
-@pytest.mark.server
-def test_coop_client():
+@pytest.mark.coop
+def test_coop_client_questions():
     """
     Test the Coop client.
-    - Server must be running!!!
+    - Coop server must be running!!!
     """
     coop = Coop()
     # this is drawn from pytest.ini
@@ -42,6 +42,15 @@ def test_coop_client():
     assert coop.questions[0].get("id") == 2
     assert coop.questions[0].get("question") == QuestionMultipleChoice.example()
 
+    # now let's initialize another client
+    coop2 = Coop(api_key="a")
+    # should be able to get the public question
+    assert coop2.get_question(id=4) == QuestionFreeText.example()
+    # should not be able to get the private question
+    with pytest.raises(Exception):
+        coop2.get_question(id=3)
+
+    # cleanup
     for question in coop.questions:
         coop.delete_question(question.get("id"))
     assert coop.questions == []

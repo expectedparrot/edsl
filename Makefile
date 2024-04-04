@@ -125,13 +125,13 @@ lint: ## Run code linters (flake8, pylint, mypy).
 ###############
 ##@Testing 🐛
 ###############
-test: ## Run regular tests (no server tests) 
+test: ## Run regular tests (no Coop tests) 
 	make clean-test
-	pytest -xv tests --noserver
+	pytest -xv tests --nocoop
 
-test-server: ## Run server tests (no regular tests)
+test-coop: ## Run coop tests (no regular tests)
 	make clean-test
-	pytest -xv tests --server
+	pytest -xv tests --coop
 
 test-coverage: ## Run regular tests and get a coverage report
 	make clean-test
