@@ -7,7 +7,7 @@ A `Survey` is collection of questions that can be administered asynchronously to
 
 The key steps to creating and conducting a survey are:
 
-* Creating questions in the `Questions` module
+* Creating questions of any type in the `Question` module (multiple choice, etc.)
 * Passing questions to a `Survey` object
 * Running the survey by sending it to a language model
 
@@ -15,8 +15,8 @@ Before running the survey you can optionally:
 
 * Add personas for AI agents that will respond to the survey
 * Add rules and special logic (e.g., skip logic or memory of prior responses) (by default, questions are delivered asynchronously)
-* Add values for parameterized questions (Scenario objects) 
-* Specify the language models that will be used to answer the questions (the default model is GPT 4)
+* Add values for parameterized questions (`Scenario` objects) 
+* Specify the language model(s) that will be used to answer the questions (the default model is GPT 4)
 
 An EDSL survey can also be sent to Googe Forms, Survey Monkey, LimeSurvey and other survey 
 platforms. 
