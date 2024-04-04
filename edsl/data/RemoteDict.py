@@ -33,7 +33,7 @@ def handle_request_exceptions(reraise=False):
 class RemoteDict:
     """
     A dictionary-like object that is an interface for a remote database.
-    - You can use LocalDict as a regular dictionary.
+    - You can use RemoteDict as a regular dictionary.
     - TODO: Implement the methods.
     """
 

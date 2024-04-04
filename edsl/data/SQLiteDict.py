@@ -9,10 +9,10 @@ from edsl.data.CacheEntry import CacheEntry
 from edsl.data.orm import Base, Data
 
 
-class LocalDict:
+class SQLiteDict:
     """
     A dictionary-like object that is an interface for an local database.
-    - You can use LocalDict as a regular dictionary.
+    - You can use SQLiteDict as a regular dictionary.
     - Supports only SQLite for now.
     """
 
@@ -29,7 +29,7 @@ class LocalDict:
         """
         Stores a key-value pair.
 
-        >>> d = LocalDict.example()
+        >>> d = SQLiteDict.example()
         >>> d["foo"] = CacheEntry.example()
         """
         if not isinstance(value, CacheEntry):
@@ -43,7 +43,7 @@ class LocalDict:
         Gets a value for a given key.
         - Raises a KeyError if the key is not found.
 
-        >>> d = LocalDict.example()
+        >>> d = SQLiteDict.example()
         >>> d["foo"] = CacheEntry.example()
         >>> d["foo"] == CacheEntry.example()
         True
@@ -59,7 +59,7 @@ class LocalDict:
         Gets the value for a given key
         - Returns the `default` value if the key is not found.
 
-        >>> d = LocalDict.example()
+        >>> d = SQLiteDict.example()
         >>> d.get("foo", "bar")
         'bar'
         """
@@ -69,20 +69,20 @@ class LocalDict:
             return default
 
     def update(
-        self, new_d: Union[dict, LocalDict], overwrite: Optional[bool] = False
+        self, new_d: Union[dict, SQLiteDict], overwrite: Optional[bool] = False
     ) -> None:
         """
         Updates the dictionary with the values from another dictionary.
         - If `overwrite` is True, existing values will be overwritten.
 
-        >>> d = LocalDict.example()
+        >>> d = SQLiteDict.example()
         >>> d.update({"foo": CacheEntry.example()})
         >>> d["foo"] == CacheEntry.example()
         True
         """
-        if not (isinstance(new_d, dict) or isinstance(new_d, LocalDict)):
+        if not (isinstance(new_d, dict) or isinstance(new_d, SQLiteDict)):
             raise ValueError(
-                f"new_d must be a dict or LocalDict object (got {type(new_d)})"
+                f"new_d must be a dict or SQLiteDict object (got {type(new_d)})"
             )
         with self.Session() as db:
             for key, value in new_d.items():
@@ -97,7 +97,7 @@ class LocalDict:
         """
         Returns a generator that yields the values in the cache.
 
-        >>> d = LocalDict.example()
+        >>> d = SQLiteDict.example()
         >>> d["foo"] = CacheEntry.example()
         >>> list(d.values()) == [CacheEntry.example()]
         True
@@ -110,7 +110,7 @@ class LocalDict:
         """
         Returns a generator that yields the items in the cache.
 
-        >>> d = LocalDict.example()
+        >>> d = SQLiteDict.example()
         >>> d["foo"] = CacheEntry.example()
         >>> list(d.items()) == [("foo", CacheEntry.example())]
         True
@@ -123,7 +123,7 @@ class LocalDict:
         """
         Deletes the value for a given key.
 
-        >>> d = LocalDict.example()
+        >>> d = SQLiteDict.example()
         >>> d["foo"] = CacheEntry.example()
         >>> del d["foo"]
         >>> d.get("foo", "missing")
@@ -141,7 +141,7 @@ class LocalDict:
         """
         Checks if the dict contains the given key.
 
-        >>> d = LocalDict.example()
+        >>> d = SQLiteDict.example()
         >>> d["foo"] = CacheEntry.example()
         >>> "foo" in d
         True
@@ -155,7 +155,7 @@ class LocalDict:
         """
         Returns a generator that yields the keys in the dict.
 
-        >>> d = LocalDict.example()
+        >>> d = SQLiteDict.example()
         >>> d["foo"] = CacheEntry.example()
         >>> list(iter(d)) == ["foo"]
         True
@@ -168,7 +168,7 @@ class LocalDict:
         """
         Returns the number of items in the cache.
 
-        >>> d = LocalDict.example()
+        >>> d = SQLiteDict.example()
         >>> len(d)
         0
         >>> d["foo"] = CacheEntry.example()
@@ -182,7 +182,7 @@ class LocalDict:
         """
         Returns a generator that yields the keys in the cache.
 
-        >>> d = LocalDict.example()
+        >>> d = SQLiteDict.example()
         >>> d["foo"] = CacheEntry.example()
         >>> list(d.keys()) == ["foo"]
         True
@@ -193,22 +193,22 @@ class LocalDict:
         return f"{self.__class__.__name__}(db_path={self.db_path!r})"
 
     @classmethod
-    def example(cls) -> LocalDict:
+    def example(cls) -> SQLiteDict:
         """
-        Returns an example LocalDict object.
-        - The example LocalDict is empty and stored in memory.
+        Returns an example SQLiteDict object.
+        - The example SQLiteDict is empty and stored in memory.
 
-        >>> LocalDict.example()
-        LocalDict(db_path='sqlite:///:memory:')
+        >>> SQLiteDict.example()
+        SQLiteDict(db_path='sqlite:///:memory:')
         """
         return cls(db_path="sqlite:///:memory:")
 
 
 def main():
     from edsl.data.CacheEntry import CacheEntry
-    from edsl.data.LocalDict import LocalDict
+    from edsl.data.SQLiteDict import SQLiteDict
 
-    d = LocalDict.example()
+    d = SQLiteDict.example()
     d["foo"] = CacheEntry.example()
     d["foo"]
     d.get("foo")

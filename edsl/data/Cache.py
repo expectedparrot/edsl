@@ -81,8 +81,8 @@ This is the "normal" way that a cache is used for runs where no specic cache is 
 
 .. code-block:: python
     from edsl.data.Cache import Cache
-    from edsl.data.LocalDict import LocalDict
-    my_sqlite_cache = Cache(data = LocalDict("example.db"))
+    from edsl.data.SQLiteDict import SQLiteDict
+    my_sqlite_cache = Cache(data = SQLiteDict("example.db"))
 
 This will leave a SQLite3 database on the user's machine at the file, in this case `example.db` in the current directory.
 It will persist between sessions and can be loaded using the `from_sqlite_db` method shown above.
@@ -174,12 +174,11 @@ import hashlib
 import json
 import os
 import requests
-import tempfile
 import warnings
 from typing import Optional, Union
 from edsl.config import CONFIG
 from edsl.data.CacheEntry import CacheEntry
-from edsl.data.LocalDict import LocalDict
+from edsl.data.SQLiteDict import SQLiteDict
 from edsl.data.RemoteDict import RemoteDict, handle_request_exceptions
 
 
@@ -208,7 +207,7 @@ class Cache:
     def __init__(
         self,
         *,
-        data: Optional[Union[LocalDict, dict]] = None,
+        data: Optional[Union[SQLiteDict, dict]] = None,
         remote_backups: bool = False,
         immediate_write: bool = True,
         method=None,
@@ -330,7 +329,7 @@ class Cache:
         Add entries to the cache from an SQLite database.
         - `write_now` whether to write to the cache immediately (similar to `immediate_write`).
         """
-        db = LocalDict(db_path)
+        db = SQLiteDict(db_path)
         new_data = {}
         for key, value in db.items():
             new_data[key] = CacheEntry(**value)
@@ -341,7 +340,7 @@ class Cache:
         """
         Construct a Cache from an SQLite database.
         """
-        return cls(data=LocalDict(db_path))
+        return cls(data=SQLiteDict(db_path))
 
     @classmethod
     def from_jsonl(cls, jsonlfile: str, db_path: str = None) -> Cache:
@@ -353,7 +352,7 @@ class Cache:
         if db_path is None:
             data = {}
         else:
-            data = LocalDict(db_path)
+            data = SQLiteDict(db_path)
         cache = Cache(data=data)
         cache.add_from_jsonl(jsonlfile)
         return cache
@@ -375,18 +374,18 @@ class Cache:
 
         data = coop_fetch_full_remote_cache()
         db_path = db_path or EDSL_DATABASE_PATH
-        db = LocalDict(db_path)
+        db = SQLiteDict(db_path)
         for key, value in data.items():
             db[key] = CacheEntry(**value)
         return Cache(data=db)
 
     ## TODO: Check to make sure not over-writing.
-    ## Should be added to LocalDict constructor
+    ## Should be added to SQLiteDict constructor
     def write_sqlite_db(self, db_path: str) -> None:
         """
         Write the cache to an SQLite database.
         """
-        new_data = LocalDict(db_path)
+        new_data = SQLiteDict(db_path)
         for key, value in self.data.items():
             new_data[key] = value
 
