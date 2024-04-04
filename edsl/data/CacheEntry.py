@@ -2,6 +2,7 @@ from __future__ import annotations
 import json
 import datetime
 import hashlib
+import random
 from typing import Optional
 
 
@@ -128,14 +129,16 @@ class CacheEntry:
         )
 
     @classmethod
-    def example(cls) -> CacheEntry:
+    def example(cls, randomize: bool = False) -> CacheEntry:
         """
         Returns a CacheEntry example.
         """
+        # if random, create a random number for 0-100
+        addition = "" if not randomize else str(random.randint(0, 1000))
         return CacheEntry(
             model="gpt-3.5-turbo",
             parameters={"temperature": 0.5},
-            system_prompt="The quick brown fox jumps over the lazy dog.",
+            system_prompt=f"The quick brown fox jumps over the lazy dog.{addition}",
             user_prompt="What does the fox say?",
             output="The fox says 'hello'",
             iteration=1,
