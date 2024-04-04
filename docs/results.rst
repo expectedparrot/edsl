@@ -3,8 +3,8 @@
 Results
 =======
 A `Results` object is the result of running a survey. 
-It is a list of individual `Result` objects, each of which represents a single response to the survey.
-It is not typically instantiated directly, but is returned by the `run` method of a `Jobs` object:
+It is a list of individual `Result` objects, each of which represents a single response to a survey for each agent and model used.
+It is not typically instantiated directly, but is returned by calling the `run` method of a `Jobs` object:
 
 .. code-block:: python
 
@@ -212,6 +212,13 @@ The `to_json` method will write the results to a JSON file:
 
    See more examples of built-in methods for analyzing and visualizing results in <a href="https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Tutorial%20-%20Exploring%20Your%20Results-bb273d63fed340efab082accce308219">interactive notebooks</a>.
 
+
+Result class
+------------
+.. automodule:: edsl.results.Result
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 Results class
 -------------
