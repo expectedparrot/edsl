@@ -1,6 +1,7 @@
 import json
 import os
 import requests
+from requests.exceptions import ConnectionError
 from typing import Any, Optional, Type, Union
 from edsl import CONFIG
 from edsl.agents import Agent, AgentList
@@ -56,12 +57,24 @@ class Coop:
         """
         url = f"{self.url}/{uri}"
 
-        if method.upper() in ["GET", "DELETE"]:
-            response = requests.request(
-                method, url, params=params, headers=self.headers
-            )
-        else:
-            response = requests.request(method, url, json=payload, headers=self.headers)
+        try:
+            if method.upper() in ["GET", "DELETE"]:
+                response = requests.request(
+                    method, url, params=params, headers=self.headers
+                )
+            else:
+                response = requests.request(
+                    method, url, json=payload, headers=self.headers
+                )
+        except ConnectionError:
+            if self.run_mode == "production":
+                raise ConnectionError("Could not connect to the server.")
+            else:
+                raise ConnectionError(
+                    f"\n\n\nCould not connect to the server."
+                    f"\nIs the server running? Try:"
+                    f"\n   cd ~/coop && make fresh-db && make launch"
+                )
 
         return response
 
