@@ -147,7 +147,6 @@ For example:
 
 Agent class
 -----------
-
 .. automodule:: edsl.agents.Agent
    :members:
    :undoc-members:
@@ -157,7 +156,6 @@ Agent class
    
 AgentList class
 ---------------
-
 .. automodule:: edsl.agents.AgentList
    :noindex:
 
@@ -178,7 +176,6 @@ AgentList class
    
 .. Invigilator class
 .. -----------------
-
 .. The administration of Questions is managed by an `Invigilator`.
 
 .. .. automodule:: edsl.agents.Invigilator
