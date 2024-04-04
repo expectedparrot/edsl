@@ -3,13 +3,64 @@
 Scenarios
 =========
 A `Scenario` is a dictionary containing a single key/value pair that is used to parameterize a question.
-A `ScenarioList` is a list of `Scenario` objects that can be used to create multiple versions of a question with different parameters, that can all be administered at once.
+
+Purpose 
+-------
+Scenarios are used to easily create variations and versions of questions with one or more parameters that can be replaced with different values.
+For example, we could create a question `"What is your favorite {{ item }}?"` and replace the parameter `item` with `color` or `food` or other items.
+This allows us to straightforwardly administer variations of the question all at once, or according to some other desired logic.
+
+Data labeling tasks
+^^^^^^^^^^^^^^^^^^^
+Scenarios are particularly useful for conducting data labeling tasks, where a task is designed as questions about the data.
+For example, say we have a dataset of messages from users that we want to sort by topic.
+We could create multiple choice questions such as `"What is the primary topic of this message: {{ message }}?"` or `"Does this message mention a safety issue? {{ message }}"` and replace the parameter `message` with each message in the dataset, generating a dataset of results that can be readily analyzed.
+
+The following code demonstrates how to use scenarios to create a survey for this task.
+For more step-by-step details, please also see `Constructing a Scenario` below it.
+
+.. code-block:: python
+
+    from edsl.questions import QuestionMultipleChoice
+    from edsl import Survey, Scenario
+
+    # Create a question with a parameter
+    q1 = QuestionMultipleChoice(
+        question_name = "topic",
+        question_text = "What is the topic of this message: {{ message }}?",
+        choices = ["Safety", "Product support", "Billing", "Login issue", "Other"]
+    )
+
+    q2 = QuestionMultipleChoice(
+        question_name = "safety",
+        question_text = "Does this message mention a safety issue? {{ message }}?",
+        choices = ["Yes", "No", "Unclear"]
+    )
+
+    # Create a list of scenarios for the parameter
+    messages = [
+        "I can't log in...", 
+        "I need help with my bill...", 
+        "I have a safety concern...", 
+        "I need help with a product..."
+        ]
+    scenarios = [Scenario({"message": message}) for message in messages]
+
+    # Create a survey with the question
+    survey = Survey(questions = [q1, q2])
+
+    # Run the survey with the scenarios
+    results = survey.by(scenarios).run()
+
+To learn more about accessing, analyzing and visualizing survey results, please see the :ref:`results` section.
 
 Constructing a Scenario
 -----------------------
 To use scenarios, we start by creating a question that takes a parameter in double braces: 
 
 .. code-block:: python
+
+    from edsl.questions import QuestionFreeText
 
     q = QuestionFreeText(
         question_name = "favorite_item",
@@ -19,6 +70,8 @@ To use scenarios, we start by creating a question that takes a parameter in doub
 Next we create a dictionary for the value that will replace the parameter and store it in a `Scenario` object: 
 
 .. code-block:: python
+
+    from edsl import Scenario 
 
     scenario = Scenario({"item": "color"})
 
@@ -35,6 +88,10 @@ A scenario can be appended to a single question, for example:
 
 .. code-block:: python
 
+    from edsl import Survey
+    
+    survey = Survey(questions = [q])
+    
     results = survey.by(scenario).run()
 
 As with other survey components (agents and language models), multiple `Scenario` objects should be added together as a list in the same `by` method:
