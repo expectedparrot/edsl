@@ -278,6 +278,19 @@ The `to_pandas` method will return a pandas DataFrame:
 
    results.to_pandas()
 
+For example, here we use it to inspect the first set of (default) prompts used in the results:
+
+.. code-block:: python
+
+   results.to_pandas()[["prompt.tomorrow_user_prompt", "prompt.tomorrow_system_prompt"]].iloc[0]
+
+.. code-block:: text
+
+   prompt.tomorrow_user_prompt    {'text': 'You are being asked the following question: How do you expect to feel tomorrow morning?\nReturn a valid JSON formatted like this:\n{"answer": "<put free text answer here>"}', 'class_name': 'FreeText'}
+   prompt.tomorrow_system_prompt  {'text': "You are answering questions as if you were a human. Do not break character. You are an agent with the following persona:\n{'status': 'happy'}", 'class_name': 'AgentInstruction'}
+   Name: 0, dtype: object
+
+
 The `to_csv` method will write the results to a CSV file:
 
 .. code-block:: python
