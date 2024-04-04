@@ -396,7 +396,7 @@ class Coop:
 if __name__ == "__main__":
     from edsl.coop import Coop
 
-    API_KEY = "a"
+    API_KEY = "b"
     RUN_MODE = "development"
     coop = Coop(api_key=API_KEY, run_mode=RUN_MODE)
 
@@ -443,7 +443,7 @@ if __name__ == "__main__":
         coop.delete_question(question.get("id"))
 
     # get a question that does not exist (should return None)
-    coop.get_question(id=1)
+    coop.get_question(id=1000)
 
     # now post a Question
     coop.create_question(QuestionMultipleChoice.example())
