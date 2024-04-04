@@ -13,7 +13,8 @@ def test_coop_client_questions():
     # this is drawn from pytest.ini
     assert coop.api_key == "b"
 
-    # delete all questions
+    # delete all questions so we can start fresh
+    # regardless of whether previous tests failed
     for question in coop.questions:
         coop.delete_question(question.get("id"))
 
