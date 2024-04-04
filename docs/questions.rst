@@ -62,7 +62,6 @@ Learn more details about constructing surveys in the :ref:`surveys` module.
 
 Specifying agents and models
 ----------------------------
-
 In the example above the result was simulated with the default model (GPT 4) and agent (no persona).
 Agent personas and language models can be specified by appending them to the question object before running it with the `by` method:
 
@@ -132,95 +131,15 @@ Learn more about specifying question scenarios, agents and language models in th
 * :ref:`language_models`
 
 
-QuestionBase class 
-------------------
+.. QuestionBase class 
+.. ------------------
 
-.. automodule:: edsl.questions.QuestionBase
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :special-members: __init__
-   :exclude-members: question_name, question_text, question_type, short_names_dict, main
-
-QuestionBudget class
-----------------------------
-
-.. automodule:: edsl.questions.QuestionBudget
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :special-members: __init__
-   :exclude-members: question_type, question_options, budget_sum, main
-
-QuestionCheckBox class
-----------------------
-
-.. automodule:: edsl.questions.QuestionCheckBox
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :special-members: __init__
-   :exclude-members: purpose, question_type, question_options, min_selections, max_selections, main
-
-QuestionExtract class
-----------------------------
-
-.. automodule:: edsl.questions.QuestionExtract
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :special-members: __init__
-   :exclude-members: question_type, answer_template, main
-
-QuestionFreeText class
-----------------------
-
-.. automodule:: edsl.questions.QuestionFreeText
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :special-members: __init__
-   :exclude-members: allow_nonresponse, default_instructions, question_type, main
-
-QuestionFunctional class
--------------------
-
-.. automodule:: edsl.questions.QuestionFunctional
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :special-members: __init__
-   :exclude-members: answer_question_directly, default_instructions, func, question_type
-
-QuestionLikertFive class
--------------------
-
-.. automodule:: edsl.questions.derived.QuestionLikertFive
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :special-members: __init__
-   :exclude-members: likert_options, question_type, main
-
-QuestionLinearScale class
--------------------------
-
-.. automodule:: edsl.questions.derived.QuestionLinearScale
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :special-members: __init__
-   :exclude-members: question_type, question_options, option_labels, main
-
-QuestionList class
-------------------
-
-.. automodule:: edsl.questions.QuestionList
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :special-members: __init__
-   :exclude-members: allow_nonresponse, question_type, max_list_items, main
+.. .. automodule:: edsl.questions.QuestionBase
+..    :members:
+..    :undoc-members:
+..    :show-inheritance:
+..    :special-members: __init__
+..    :exclude-members: question_name, question_text, question_type, short_names_dict, main
 
 QuestionMultipleChoice class
 ----------------------------
@@ -232,6 +151,36 @@ QuestionMultipleChoice class
    :special-members: __init__
    :exclude-members: purpose, question_type, question_options, main
    
+QuestionCheckBox class
+----------------------
+
+.. automodule:: edsl.questions.QuestionCheckBox
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :special-members: __init__
+   :exclude-members: purpose, question_type, question_options, min_selections, max_selections, main
+
+QuestionFreeText class
+----------------------
+
+.. automodule:: edsl.questions.QuestionFreeText
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :special-members: __init__
+   :exclude-members: allow_nonresponse, default_instructions, question_type, main
+
+QuestionLinearScale class
+-------------------------
+
+.. automodule:: edsl.questions.derived.QuestionLinearScale
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :special-members: __init__
+   :exclude-members: question_type, question_options, option_labels, main
+
 QuestionNumerical class
 -------------------------
 
@@ -241,6 +190,16 @@ QuestionNumerical class
    :show-inheritance:
    :special-members: __init__
    :exclude-members: question_type, min_value, max_value, main
+
+QuestionLikertFive class
+-------------------
+
+.. automodule:: edsl.questions.derived.QuestionLikertFive
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :special-members: __init__
+   :exclude-members: likert_options, question_type, main
 
 QuestionRank class
 -------------------
@@ -271,6 +230,46 @@ QuestionYesNo class
    :show-inheritance:
    :special-members: __init__
    :exclude-members: question_type, question_options, main
+
+QuestionList class
+------------------
+
+.. automodule:: edsl.questions.QuestionList
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :special-members: __init__
+   :exclude-members: allow_nonresponse, question_type, max_list_items, main
+
+QuestionBudget class
+----------------------------
+
+.. automodule:: edsl.questions.QuestionBudget
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :special-members: __init__
+   :exclude-members: question_type, question_options, budget_sum, main
+
+QuestionExtract class
+----------------------------
+
+.. automodule:: edsl.questions.QuestionExtract
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :special-members: __init__
+   :exclude-members: question_type, answer_template, main
+
+QuestionFunctional class
+-------------------
+
+.. automodule:: edsl.questions.QuestionFunctional
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :special-members: __init__
+   :exclude-members: answer_question_directly, default_instructions, func, question_type
 
 Other classes & methods
 -----------------------
