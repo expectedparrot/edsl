@@ -4,6 +4,41 @@ from edsl.config import CONFIG
 from edsl.data.SQLiteDict import SQLiteDict
 
 
+##############
+# Custom pytest options and markers
+##############
+def pytest_addoption(parser):
+    """
+    Adds custom CLI options to pytest.
+    """
+    parser.addoption("--noserver", action="store_true", help="Do not run server tests")
+    parser.addoption("--server", action="store_true", help="Run only server tests")
+
+
+def pytest_configure(config):
+    """
+    Defines custom pytest markers
+    """
+    config.addinivalue_line("markers", "server: requires running server")
+
+
+def pytest_collection_modifyitems(config, items):
+    """
+    Tells pytest which tests to run based on pytest markers and CLI options.
+    """
+    if config.getoption("--noserver"):
+        skip_server = pytest.mark.skip(reason="Skipping server tests")
+        for item in items:
+            if "server" in item.keywords:
+                item.add_marker(skip_server)
+
+    if config.getoption("--server"):
+        skip_notserver = pytest.mark.skip(reason="Skipping non-server tests")
+        for item in items:
+            if "server" not in item.keywords:
+                item.add_marker(skip_notserver)
+
+
 @pytest.fixture(scope="function")
 def sqlite_dict():
     """
