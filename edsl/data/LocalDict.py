@@ -220,11 +220,12 @@ def main():
     list(d.keys())
     list(d.values())
     list(d.items())
-    "poo" in d
-    "loo" in d
+    assert "poo" in d
+    assert "loo" not in d
     del d["poo"]
-    len(d) == 1
+    assert len(d) == 1
     repr(d)
+    d
 
 
 if __name__ == "__main__":
