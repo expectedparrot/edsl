@@ -79,8 +79,8 @@ Here we apply a stop rule instead of a skip rule. If the response to q1 is "no",
 
    survey = survey.add_stop_rule(q1, "student == 'no'")
 
-Writing conditional expressions
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Conditional expressions
+^^^^^^^^^^^^^^^^^^^^^^^
 The expressions themselves (`"student == 'no'"`) are written in Python.
 An expression is evaluated to True or False, with the answer substituted into the expression. 
 The placeholder for this answer is the name of the question itself. 

@@ -17,10 +17,7 @@ This page contains documentation for the Expected Parrot Domain-Specific Languag
    agents
    prompts
    language_models
-   jobs
-   result
    results
-   base
    data
    cache
    reports
