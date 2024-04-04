@@ -1,6 +1,5 @@
-"""A client for the Expected Parrot API."""
-
 import json
+import os
 import requests
 from typing import Any, Optional, Type, Union
 from edsl import CONFIG
@@ -12,55 +11,35 @@ from edsl.surveys import Survey
 
 api_url = {
     "development": "http://127.0.0.1:8000",
-    "production": "your_production_url",
+    "production": "http://127.0.0.1:8000",
 }
 
 
 class Coop:
-    """A client for the Expected Parrot API."""
-
+    """
+    Client for the Expected Parrot API.
+    """
 
     def __init__(self, api_key: str = None, run_mode: str = None) -> None:
-        """Initialize the client."""
-        self.api_key = api_key or CONFIG.EXPECTED_PARROT_API_KEY
+        self.api_key = api_key or os.getenv("EXPECTED_PARROT_API_KEY")
         self.run_mode = run_mode or CONFIG.EDSL_RUN_MODE
+        self._api_key_is_valid()
 
-    def push(self, object, public):
-        if isinstance(object, QuestionBase):
-            return self.create_question(object, public)
-        elif isinstance(object, Survey):
-            return self.create_survey(object, public)
-        elif isinstance(object, Agent) or isinstance(object, AgentList):
-            return self.create_agent(object, public)
-        elif isinstance(object, Results):
-            return self.create_results(object, public)
-        else:
-            raise ValueError("Object type not recognized")
-        
-    def pull(self, cls, id):
-        if issubclass(cls, QuestionBase):
-            return self.get_question(id)
-        elif cls == Survey:
-            return self.get_survey(id)
-        elif cls == Agent or cls == AgentList:
-            return self.get_agent(id)
-        elif cls == Results:
-            return self.get_results(id)
-        else:
-            raise ValueError("Class type not recognized")
-
-    def __repr__(self):
-        """Return a string representation of the client."""
-        return f"Client(api_key='{self.api_key}', run_mode='{self.run_mode}')"
-
+    ################
+    # BASIC METHODS
+    ################
     @property
     def headers(self) -> dict:
-        """Return the headers for the request."""
+        """
+        Returns the headers for the request.
+        """
         return {"Authorization": f"Bearer {self.api_key}"}
 
     @property
     def url(self) -> str:
-        """Return the URL for the request."""
+        """
+        Returns the URL for the request.
+        """
         return api_url[self.run_mode]
 
     def _send_server_request(
@@ -70,7 +49,9 @@ class Coop:
         payload: Optional[dict[str, Any]] = None,
         params: Optional[dict[str, Any]] = None,
     ) -> requests.Response:
-        """Sends a request to the server and returns the response."""
+        """
+        Sends a request to the server and returns the response.
+        """
         url = f"{self.url}/{uri}?save_questions=true"
 
         if method.upper() in ["GET", "DELETE"]:
@@ -83,28 +64,55 @@ class Coop:
         return response
 
     def _resolve_server_response(self, response: requests.Response) -> None:
-        """Check the response from the server and raises appropriate errors."""
+        """
+        Checks the response from the server and raises appropriate errors.
+        """
         if response.status_code >= 400:
             raise Exception(response.json().get("detail"))
-   
-    def _create_edsl_object(self, edsl_object: Union[Type[QuestionBase], Type[Survey]], uri: str, public: bool = False) -> dict:
+
+    ################
+    # VALIDATION METHODS
+    ################
+    def _api_key_is_valid(self) -> None:
+        """Check if the API key is valid."""
+        if not self.api_key:
+            raise ValueError("API key is required.")
+        if not isinstance(self.api_key, str):
+            raise ValueError("API key must be a string.")
+        response = self._send_server_request(uri="api/v0/validate-apikey", method="GET")
+        self._resolve_server_response(response)
+
+    ################
+    # EDSL METHODS
+    ################
+    # TODO: Re-factor all methods to use this method.
+    def _create_edsl_object(
+        self,
+        edsl_object: Union[Type[QuestionBase], Type[Survey]],
+        uri: str,
+        public: bool = False,
+    ) -> dict:
         """
-        TODO: Re-factor all methods to use this method.
         General method to create EDSL objects
 
-        - `edsl_object`: 
+        - `edsl_object`:
         - `uri`: the API endpoint to send the request to.
         - `public`: whether the object should be public (defaults to False).
         """
         response = self._send_server_request(
             uri=uri,
             method="POST",
-            payload={"json_string": json.dumps(edsl_object.to_dict()), "public": public},
+            payload={
+                "json_string": json.dumps(edsl_object.to_dict()),
+                "public": public,
+            },
         )
         self._resolve_server_response(response)
         return response.json()
-    
-    def create_question(self, question: Type[QuestionBase], public: bool = False) -> dict:
+
+    def create_question(
+        self, question: Type[QuestionBase], public: bool = False
+    ) -> dict:
         """
         Create a Question object.
 
@@ -114,7 +122,9 @@ class Coop:
         return self._create_edsl_object(question, "api/v0/questions", public)
 
     # QUESTIONS METHODS
-    def create_question(self, question: Type[QuestionBase], public: bool = False) -> dict:
+    def create_question(
+        self, question: Type[QuestionBase], public: bool = False
+    ) -> dict:
         """
         Create a Question object.
 
@@ -248,7 +258,7 @@ class Coop:
         response = self._send_server_request(uri=f"api/v0/agents/{id}", method="DELETE")
         self._resolve_server_response(response)
         return response.json()
-    
+
     # RESULTS METHODS
     def create_results(self, results: Results, public: bool = False) -> dict:
         """
@@ -291,6 +301,37 @@ class Coop:
         )
         self._resolve_server_response(response)
         return response.json()
+
+    def push(self, object, public):
+        if isinstance(object, QuestionBase):
+            return self.create_question(object, public)
+        elif isinstance(object, Survey):
+            return self.create_survey(object, public)
+        elif isinstance(object, Agent) or isinstance(object, AgentList):
+            return self.create_agent(object, public)
+        elif isinstance(object, Results):
+            return self.create_results(object, public)
+        else:
+            raise ValueError("Object type not recognized")
+
+    def pull(self, cls, id):
+        if issubclass(cls, QuestionBase):
+            return self.get_question(id)
+        elif cls == Survey:
+            return self.get_survey(id)
+        elif cls == Agent or cls == AgentList:
+            return self.get_agent(id)
+        elif cls == Results:
+            return self.get_results(id)
+        else:
+            raise ValueError("Class type not recognized")
+
+    ################
+    # DUNDER METHODS
+    ################
+    def __repr__(self):
+        """Return a string representation of the client."""
+        return f"Client(api_key='{self.api_key}', run_mode='{self.run_mode}')"
 
 
 if __name__ == "__main__":

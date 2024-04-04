@@ -100,7 +100,7 @@ You can interact with this cache directly, e.g.,
 Remote Cache on Expected Parrot
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 In addition to local caching, the cache can be stored on a remote server---namely the Expected Parrot server.
-This is done if the `remote_backups` parameter is set to True AND a valid URL is set in the `EXPECTED_PARROT_CACHE_URL` environment variable.
+This is done if the `remote` parameter is set to True AND a valid URL is set in the `EXPECTED_PARROT_CACHE_URL` environment variable.
 This is a `.env` file in the root directory of the project.
 
 When remote caching is enabled, the cache will be synced with the remote server at the start end of each `session.`
@@ -164,11 +164,6 @@ Remote persistence options:
 
 """
 
-# TODO: I'd say implement coop as follows:
-# - There is a function that instantiates the Coop client (or checks if it is already instantiated) and saves it to a class attribute.
-# - The Coop client methods are used in the Cache methods that need it
-# - Offload as much of the general errors, such as "this key is not valid" etc to be handled at the level of the Coop client, handle here what is specific to the Cache
-
 from __future__ import annotations
 import hashlib
 import json
@@ -179,7 +174,7 @@ from typing import Optional, Union
 from edsl.config import CONFIG
 from edsl.data.CacheEntry import CacheEntry
 from edsl.data.SQLiteDict import SQLiteDict
-from edsl.data.RemoteDict import RemoteDict, handle_request_exceptions
+from edsl.data.RemoteDict import handle_request_exceptions
 
 
 EDSL_DATABASE_PATH = CONFIG.get("EDSL_DATABASE_PATH")
@@ -189,13 +184,18 @@ EXPECTED_PARROT_CACHE_URL = os.getenv("EXPECTED_PARROT_CACHE_URL")
 #       -- if two keys are the same but the values are different?
 # TODO: In the read methods, if the file already exists, make sure it is valid.
 
+# TODO: I'd say implement coop as follows:
+# - There is a function that instantiates the Coop client (or checks if it is already instantiated) and saves it to a class attribute.
+# - The Coop client methods are used in the Cache methods that need it
+# - Offload as much of the general errors, such as "this key is not valid" etc to be handled at the level of the Coop client, handle here what is specific to the Cache
+
 
 class Cache:
     """
     A class that represents a cache of responses from a language model.
 
     - `data`: The data to initialize the cache with.
-    - `remote_backups`: Whether to store the cache on a remote server.
+    - `remote`: Whether to sync the Cache with the server.
     - `immediate_write`: Whether to write to the cache immediately after storing a new entry.
 
     Deprecated:
@@ -208,7 +208,7 @@ class Cache:
         self,
         *,
         data: Optional[Union[SQLiteDict, dict]] = None,
-        remote_backups: bool = False,
+        remote: bool = False,
         immediate_write: bool = True,
         method=None,
     ):
@@ -218,21 +218,24 @@ class Cache:
         - `new_entries_to_write_later`: entries that will be written to the cache later
         """
         self.data = data or {}
-        self.remote_backups = remote_backups
+        self.remote = remote
         self.immediate_write = immediate_write
         self.method = method
         self.new_entries = {}
         self.new_entries_to_write_later = {}
+        self.coop = None
         self._perform_checks()
 
     def _perform_checks(self):
         """Perform checks on the cache."""
-        if self.remote_backups and not EXPECTED_PARROT_CACHE_URL:
-            raise ValueError("EXPECTED_PARROT_CACHE_URL is not set")
         if any(not isinstance(value, CacheEntry) for value in self.data.values()):
             raise Exception("Not all values are CacheEntry instances")
         if self.method is not None:
             warnings.warn("Argument `method` is deprecated", DeprecationWarning)
+        if self.remote:
+            from edsl.coop import Coop
+
+            self.coop = Coop()
 
     def fetch(
         self,
@@ -270,6 +273,11 @@ class Cache:
         Adds a new key-value pair to the cache.
         - Key is a hash of the input parameters.
         - Output is the response from the language model.
+
+        How it works
+        - The key-value pair is added to `self.new_entries`
+        - If `immediate_write` is True , the key-value pair is added to `self.data`
+        - If `immediate_write` is False, the key-value pair is added to `self.new_entries_to_write_later`
         """
         entry = CacheEntry(
             model=model,
@@ -357,14 +365,14 @@ class Cache:
         cache.add_from_jsonl(jsonlfile)
         return cache
 
+    # TODO: This should be a coop function
+    # TODO: We should check whether some part of the cache is already in the local cache
     @classmethod
     def from_url(cls, db_path=None) -> Cache:
         """
         Construct a Cache object from a remote.
         """
 
-        # TODO: This should be a coop function
-        # TODO: We should check whether some part of the cache is already in the local cache
         @handle_request_exceptions(reraise=True)
         def coop_fetch_full_remote_cache() -> dict:
             """Fetches the full remote cache."""
@@ -393,18 +401,10 @@ class Cache:
         """
         Write the cache to a JSONL file.
         """
-        # join filename and cwd
         path = os.path.join(os.getcwd(), filename)
         with open(path, "w") as f:
             for key, value in self.data.items():
                 f.write(json.dumps({key: value.to_dict()}) + "\n")
-
-    @classmethod
-    def example(cls) -> Cache:
-        """
-        Return an example Cache.
-        """
-        return cls(data={CacheEntry.example().key: CacheEntry.example()})
 
     # TODO: Check to make sure keys are unique.
     @staticmethod
@@ -430,12 +430,12 @@ class Cache:
 
         return coop_remote_cache_matches(self.data)
 
+    # TODO: Logic should live in the Coop client
+    # TODO: Need a function that computes missing entries and then only sends those;
+    #       this just sends everything.
     def send_missing_entries_to_remote(self):
         """Send missing entries to the remote server."""
 
-        # TODO: Logic should live in the Coop client
-        # TODO: Need a function that computes missing entries and then only sends those;
-        #       this just sends everything.
         @handle_request_exceptions
         def coop_send_missing_entries_to_remote_cache(data: dict) -> None:
             items = [
@@ -448,13 +448,13 @@ class Cache:
 
         coop_send_missing_entries_to_remote_cache(self.data)
 
+    # TODO: Logic should live in the Coop client
+    # TODO: This function should take the current cache as input and then figure out, with the
+    #       remote server, what entities it needs to get synced up. This could mean just sending
+    #       the 'top hash' of a Merkle tree or the list of key values.
     def get_missing_entries_from_remote(self):
         """Get missing entries from the remote server."""
 
-        # TODO: Logic should live in the Coop client
-        # TODO: This function should take the current cache as input and then figure out, with the
-        #       remote server, what entities it needs to get synced up. This could mean just sending
-        #       the 'top hash' of a Merkle tree or the list of key values.
         def coop_get_missing_entries_from_remote(data: dict) -> dict:
             """
             This function should take the current cache as input and then figure out, with the
@@ -489,7 +489,8 @@ class Cache:
             self.send_missing_entries_to_remote()
 
     def __enter__(self):
-        """This is run when a context is entered.
+        """
+        Runs when a context is entered.
 
         >>> new_cache = Cache()
         >>> with new_cache as cache:
@@ -504,7 +505,7 @@ class Cache:
             return value
 
         # Do something smarter here
-        if coop_backup_enabled(self.remote_backups):
+        if coop_backup_enabled(self.remote):
             self.sync_local_and_remote()
 
         return self
@@ -527,11 +528,14 @@ class Cache:
         coop_send_to_remote(self.new_entries)
 
     def __exit__(self, exc_type, exc_value, traceback):
+        """
+        Runs when a context is exited.
+        """
         for key, entry in self.new_entries_to_write_later.items():
             self.data[key] = entry
 
         # TODO: Use a coop function to check if remote backup enabled.
-        if self.remote_backups:
+        if self.remote:
             self.send_new_entries_to_remote()
             # import requests
             # items = [{"key": key, "item": value.to_dict()} for key, value in self.new_entries.items()]
@@ -556,6 +560,8 @@ class Cache:
         """Returns the number of CacheEntry objects in the Cache."""
         return len(self.data)
 
+    # TODO: Same inputs could give different results and this could be useful
+    # can't distinguish unless we do the ε trick or vary iterations
     def __eq__(self, other_cache: "Cache") -> bool:
         """
         Checks if two Cache objects are equal.
@@ -578,16 +584,24 @@ class Cache:
         """
         Returns a string representation of the Cache object.
         """
-        return (
-            f"Cache(data = {repr(self.data)}, immediate_write={self.immediate_write})"
-        )
+        return f"Cache(data = {repr(self.data)}, immediate_write={self.immediate_write}, remote={self.remote})"
 
     ####################
     # EXAMPLES
     ####################
     def fetch_input_example(self) -> dict:
-        """Create an example input for a 'fetch' operation."""
+        """
+        Creates an example input for a 'fetch' operation.
+        """
         return CacheEntry.fetch_input_example()
+
+    @classmethod
+    def example(cls) -> Cache:
+        """
+        Return an example Cache.
+        - The example Cache has one entry.
+        """
+        return cls(data={CacheEntry.example().key: CacheEntry.example()})
 
 
 def main():
