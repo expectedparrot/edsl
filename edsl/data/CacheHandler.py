@@ -34,7 +34,7 @@ class CacheHandler:
     def gen_cache(self):
         if self.catch_type == "local":
             cache = Cache.from_sqlite_db(EDSL_DATABASE_PATH)
-            cache.add_multiple_entries(self.collected_data, write_now=True)
+            cache.add_from_dict(self.collected_data, write_now=True)
             return cache
 
     def gather_data():
