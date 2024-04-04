@@ -5,7 +5,7 @@
 GIT_ROOT ?= $(shell git rev-parse --show-toplevel)
 PROJECT_NAME ?= $(shell basename $(GIT_ROOT))
 # PHONY
-.PHONY: help find docs integration
+.PHONY: help find docs integration docstrings
 
 ###############
 ##@Utils ⭐ 
@@ -122,13 +122,16 @@ integration-visuals:
 lint: ## Run code linters (flake8, pylint, mypy).
 	mypy edsl
 
-############
-# TESTING
-############
-
-test: ## Run regular tests (no stress testing) 
+###############
+##@Testing 🐛
+###############
+test: ## Run regular tests (no server tests) 
 	make clean-test
-	pytest -x tests --ignore=tests/stress
+	pytest -xv tests --noserver
+
+test-server: ## Run server tests (no regular tests)
+	make clean-test
+	pytest -xv tests --server
 
 test-coverage: ## Run regular tests and get a coverage report
 	make clean-test
@@ -138,10 +141,6 @@ test-coverage: ## Run regular tests and get a coverage report
 	else \
 		firefox htmlcov/index.html; \
 	fi
-
-test-stress: ## Run stress tests
-	make clean-test
-	pytest -x tests/stress --profile-svg
 
 test-pypi: ## Build and upload package to test.pypi.com
 	make clean-test
@@ -161,7 +160,6 @@ test-doctests: ## Run doctests
 	pytest --doctest-modules edsl/language_models
 	pytest --doctest-modules edsl/data
 
-.PHONY: docstrings
 
 docstrings: 
 	pydocstyle edsl
