@@ -7,6 +7,7 @@ from edsl.agents import Agent, AgentList
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.results import Results
 from edsl.surveys import Survey
+from edsl.data.CacheEntry import CacheEntry
 
 
 api_url = {
@@ -52,7 +53,7 @@ class Coop:
         """
         Sends a request to the server and returns the response.
         """
-        url = f"{self.url}/{uri}?save_questions=true"
+        url = f"{self.url}/{uri}"
 
         if method.upper() in ["GET", "DELETE"]:
             response = requests.request(
@@ -74,13 +75,54 @@ class Coop:
     # VALIDATION METHODS
     ################
     def _api_key_is_valid(self) -> None:
-        """Check if the API key is valid."""
+        """
+        Checks if the API key is valid.
+        """
         if not self.api_key:
             raise ValueError("API key is required.")
         if not isinstance(self.api_key, str):
             raise ValueError("API key must be a string.")
         response = self._send_server_request(uri="api/v0/validate-apikey", method="GET")
         self._resolve_server_response(response)
+
+    ################
+    # CACHE METHODS
+    ################
+    def create_cache_entry(self, cache_entry: CacheEntry) -> dict:
+        """
+        Creates a CacheEntry object.
+        """
+        response = self._send_server_request(
+            uri="api/v0/cache/create-cache-entry",
+            method="POST",
+            payload={
+                "json_string": json.dumps(
+                    {"key": cache_entry.key, "value": json.dumps(cache_entry.to_dict())}
+                )
+            },
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def get_cache_entries(
+        self, exclude_keys: Optional[list[str]] = None
+    ) -> list[CacheEntry]:
+        """
+        Returns a list of CacheEntry items from the server.
+        - `exclude_keys`: a list of keys to exclude from the response.
+        """
+        if exclude_keys is None:
+            exclude_keys = []
+        response = self._send_server_request(
+            uri="api/v0/cache/get-cache-entries",
+            method="POST",
+            payload={"json_string": json.dumps(exclude_keys)},
+        )
+        self._resolve_server_response(response)
+        return [
+            CacheEntry.from_dict(json.loads(v.get("json_string")))
+            for v in response.json()
+        ]
 
     ################
     # EDSL METHODS
@@ -337,7 +379,7 @@ class Coop:
 if __name__ == "__main__":
     from edsl.coop import Coop
 
-    API_KEY = "your_api_key"
+    API_KEY = "a"
     RUN_MODE = "development"
     coop = Coop(api_key=API_KEY, run_mode=RUN_MODE)
 
@@ -345,6 +387,15 @@ if __name__ == "__main__":
     coop
     coop.headers
     coop.url
+
+    # temp -- cache
+    from edsl.data.CacheEntry import CacheEntry
+
+    cache_entry = CacheEntry.example()
+    coop.create_cache_entry(cache_entry)
+    coop.get_cache_entries(exclude_keys=[])
+    coop.get_cache_entries(exclude_keys=["a"])
+    coop.get_cache_entries(exclude_keys=[cache_entry.key])
 
     ##############
     # A. QUESTIONS
