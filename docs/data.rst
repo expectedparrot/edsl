@@ -56,7 +56,6 @@ More on this later.
 
 Local persistence for an in-memory cache
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
 .. code-block:: python
 
    c = Cache()
@@ -75,7 +74,6 @@ You can then load the cache from the SQLite3 database or JSONL file using Cache 
 
 SQLite3Dict for transactions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
 Instead of using a dictionary as the data attribute, you can use a special dictionary-like object based on 
 SQLite3. This will persist the cache between sessions.
 This is the "normal" way that a cache is used for runs where no specic cache is passed. 
@@ -165,20 +163,3 @@ Export methods:
 Remote persistence options:
 
 - Database on Expected Parrot 
-
-
-Cache class
---------------
-
-.. automodule:: edsl.data.Cache
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Database class
------------------------------
-
-.. automodule:: edsl.data.Database
-   :members:
-   :undoc-members:
-   :show-inheritance:
