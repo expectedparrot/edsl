@@ -389,6 +389,8 @@ class Cache:
     # REMOTE
     ####################
     # TODO: Make this work
+    # - Need to decide whether the cache belongs to a user and what can be shared
+    # - I.e., some cache entries? all or nothing?
     @classmethod
     def from_url(cls, db_path=None) -> Cache:
         """
@@ -413,19 +415,19 @@ class Cache:
         """
         Runs when a context is exited.
         """
-        # for key, entry in self.new_entries_to_write_later.items():
-        #     self.data[key] = entry
+        for key, entry in self.new_entries_to_write_later.items():
+            self.data[key] = entry
 
-        # # TODO: Use a coop function to check if remote backup enabled.
+        # TODO: Use a coop function to check if remote backup enabled.
         # if self.remote:
         #     self.send_new_entries_to_remote()
-        #     # import requests
-        #     # items = [{"key": key, "item": value.to_dict()} for key, value in self.new_entries.items()]
-        #     # try:
-        #     #     response = requests.post(f"{EXPECTED_PARROT_CACHE_URL}/items/batch", json=items)
-        #     #     response.raise_for_status()
-        #     # except requests.exceptions.ConnectionError as e:
-        #     #     print(f"Could not connect to remote server: {e}")
+        # import requests
+        # items = [{"key": key, "item": value.to_dict()} for key, value in self.new_entries.items()]
+        # try:
+        #     response = requests.post(f"{EXPECTED_PARROT_CACHE_URL}/items/batch", json=items)
+        #     response.raise_for_status()
+        # except requests.exceptions.ConnectionError as e:
+        #     print(f"Could not connect to remote server: {e}")
 
     ####################
     # DUNDER / USEFUL
