@@ -185,6 +185,7 @@ class Jobs(Base):
         progress_bar: bool = False,
         stop_on_exception: bool = False,
         cache=None,
+        remote: bool = False,
     ) -> Union[Results, ResultsAPI, None]:
         """
         Runs the Job: conducts Interviews and returns their results.
@@ -215,8 +216,7 @@ class Jobs(Base):
         else:
             print("Using cache from passed in cache")
 
-        expected_parrot_api_key = os.getenv("EXPECTED_PARROT_API_KEY")
-        if not expected_parrot_api_key:
+        if not remote:
             results = self._run_local(
                 n=n,
                 debug=debug,
@@ -225,6 +225,7 @@ class Jobs(Base):
                 stop_on_exception=stop_on_exception,
             )
         else:
+            expected_parrot_api_key = os.getenv("EXPECTED_PARROT_API_KEY")
             results = self._run_remote(
                 api_key=expected_parrot_api_key, job_dict=self.to_dict()
             )

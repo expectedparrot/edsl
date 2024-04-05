@@ -2,11 +2,11 @@ from __future__ import annotations
 import json
 import datetime
 import hashlib
+import random
 from typing import Optional
 
 
 # TODO: Timestamp should probably be float?
-# TODO: Equality should not include timestamp?
 
 
 class CacheEntry:
@@ -65,10 +65,11 @@ class CacheEntry:
     ) -> str:
         """
         Generates a key for the cache entry.
-        - Treats single and double quotes as the same. TODO: add more robustness.
+        - Treats single and double quotes as the same.
+
+        TODO: add more robustness.
         """
-        #long_key = f"{model}{parameters}{system_prompt}{user_prompt}{iteration}"
-        long_key = f'{model}{json.dumps(parameters, sort_keys=True)}{system_prompt}{user_prompt}{iteration}'
+        long_key = f"{model}{json.dumps(parameters, sort_keys=True)}{system_prompt}{user_prompt}{iteration}"
         return hashlib.md5(long_key.encode()).hexdigest()
 
     @property
@@ -128,14 +129,16 @@ class CacheEntry:
         )
 
     @classmethod
-    def example(cls) -> CacheEntry:
+    def example(cls, randomize: bool = False) -> CacheEntry:
         """
         Returns a CacheEntry example.
         """
+        # if random, create a random number for 0-100
+        addition = "" if not randomize else str(random.randint(0, 1000))
         return CacheEntry(
             model="gpt-3.5-turbo",
             parameters={"temperature": 0.5},
-            system_prompt="The quick brown fox jumps over the lazy dog.",
+            system_prompt=f"The quick brown fox jumps over the lazy dog.{addition}",
             user_prompt="What does the fox say?",
             output="The fox says 'hello'",
             iteration=1,

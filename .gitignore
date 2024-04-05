@@ -7,6 +7,7 @@ _build/*
 *db-wal
 *gz
 *json
+*jsonl
 *txt
 !edsl/utilities/data/*.json
 !.vscode/settings.json
@@ -30,10 +31,9 @@ prof
 .coverage
 .pytest_cache
 htmlcov
-visualization_test_outputs
+tests/temp_outputs
 # Virtual environment files
 .venv
 venv
 *log
-visualization_test_outputs
 _visualize_structure
