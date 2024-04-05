@@ -360,7 +360,7 @@ class Coop:
         results = [
             {
                 "id": r.get("id"),
-                "survey": Results.from_dict(json.loads(r.get("json_string"))),
+                "results": Results.from_dict(json.loads(r.get("json_string"))),
             }
             for r in response.json()
         ]
@@ -417,31 +417,6 @@ if __name__ == "__main__":
     coop
     coop.headers
     coop.url
-
-    ##############
-    # E. CACHE
-    ##############
-    from edsl.data.CacheEntry import CacheEntry
-
-    # should be empty in the beginning
-    coop.get_cache_entries()
-    # now create one cache entry
-    cache_entry = CacheEntry.example()
-    coop.create_cache_entry(cache_entry)
-    # see that if you try to create it again, you'll get the same id
-    coop.create_cache_entry(cache_entry)
-    # now get all your cache entries
-    coop.get_cache_entries()
-    coop.get_cache_entries(exclude_keys=[])
-    coop.get_cache_entries(exclude_keys=["a"])
-    # this will be empty
-    coop.get_cache_entries(exclude_keys=[cache_entry.key])
-    # now send many cache entries
-    cache_entries = {}
-    for i in range(10):
-        cache_entry = CacheEntry.example(randomize=True)
-        cache_entries[cache_entry.key] = cache_entry
-    coop.send_cache_entries(cache_entries)
 
     ##############
     # A. QUESTIONS
@@ -577,3 +552,28 @@ if __name__ == "__main__":
 
     # check all results
     coop.results
+
+    ##############
+    # E. CACHE
+    ##############
+    from edsl.data.CacheEntry import CacheEntry
+
+    # should be empty in the beginning
+    coop.get_cache_entries()
+    # now create one cache entry
+    cache_entry = CacheEntry.example()
+    coop.create_cache_entry(cache_entry)
+    # see that if you try to create it again, you'll get the same id
+    coop.create_cache_entry(cache_entry)
+    # now get all your cache entries
+    coop.get_cache_entries()
+    coop.get_cache_entries(exclude_keys=[])
+    coop.get_cache_entries(exclude_keys=["a"])
+    # this will be empty
+    coop.get_cache_entries(exclude_keys=[cache_entry.key])
+    # now send many cache entries
+    cache_entries = {}
+    for i in range(10):
+        cache_entry = CacheEntry.example(randomize=True)
+        cache_entries[cache_entry.key] = cache_entry
+    coop.send_cache_entries(cache_entries)
