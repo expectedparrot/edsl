@@ -154,6 +154,22 @@ class Coop:
     ################
     # EDSL METHODS
     ################
+    def _edsl_object_to_uri(
+        self, object: Union[Type[QuestionBase], Survey, Agent, Results]
+    ) -> str:
+        """
+        Returns the URI for the object type.
+        """
+        if isinstance(object, QuestionBase):
+            return "questions"
+        elif isinstance(object, Survey):
+            return "surveys"
+        elif isinstance(object, Agent) or isinstance(object, AgentList):
+            return "agents"
+        elif isinstance(object, Results):
+            return "results"
+        else:
+            raise ValueError("Incorrect or not supported object type")
 
     # -----------------
     # A. CREATE METHODS
@@ -161,18 +177,16 @@ class Coop:
     def _create(
         self,
         edsl_object: Union[Type[QuestionBase], Survey, Agent, AgentList, Results],
-        uri: str,
         public: bool = False,
     ) -> dict:
         """
         Creates an EDSL object in the Coop server.
-
         - `edsl_object`: the EDSL object to be sent.
-        - `uri`: the API endpoint to send the object to.
         - `public`: whether the object should be public (defaults to False).
         """
+        uri = self._edsl_object_to_uri(edsl_object)
         response = self._send_server_request(
-            uri=uri,
+            uri=f"api/v0/{uri}",
             method="POST",
             payload={
                 "json_string": json.dumps(edsl_object.to_dict()),
@@ -181,44 +195,6 @@ class Coop:
         )
         self._resolve_server_response(response)
         return response.json()
-
-    def create_question(
-        self, question: Type[QuestionBase], public: bool = False
-    ) -> dict:
-        """
-        Creates a Question object.
-
-        - `question`: the EDSL Question to be sent.
-        - `public`: whether the question should be public (defaults to False)
-        """
-        return self._create(question, "api/v0/questions", public)
-
-    def create_survey(self, survey: Survey, public: bool = False) -> dict:
-        """
-        Create a Survey object.
-
-        - `survey`: the EDSL Survey to be sent in the Coop server.
-        - `public`: whether the survey should be public (defaults to False)
-        """
-        return self._create(survey, "api/v0/surveys", public)
-
-    def create_agent(
-        self, agent: Union[Agent, AgentList], public: bool = False
-    ) -> dict:
-        """
-        Creates an Agent or AgentList object in the Coop server.
-        - `agent`: the EDSL Agent or AgentList to be sent.
-        - `public`: whether the agent should be public (defaults to False)
-        """
-        return self._create(agent, "api/v0/agents", public)
-
-    def create_results(self, results: Results, public: bool = False) -> dict:
-        """
-        Creates a Results object in the Coop server.
-        - `results`: the EDSL Results to be sent.
-        - `public`: whether the Results should be public (defaults to False)
-        """
-        return self._create(results, "api/v0/results", public)
 
     def create(
         self,
@@ -229,28 +205,19 @@ class Coop:
         Creates an EDSL object in the Coop server.
         - `object`: the EDSL object to be sent.
         - `public`: whether the object should be public (defaults to False)
-
-        Supports QuestionBase, Survey, Agent, AgentList, and Results objects.
         """
-        if isinstance(object, QuestionBase):
-            return self.create_question(object, public)
-        elif isinstance(object, Survey):
-            return self.create_survey(object, public)
-        elif isinstance(object, Agent) or isinstance(object, AgentList):
-            return self.create_agent(object, public)
-        elif isinstance(object, Results):
-            return self.create_results(object, public)
-        else:
-            raise ValueError("Object type not recognized")
+        return self._create(object, public)
 
     # -----------------
     # B. GET METHODS
     # -----------------
-    def _get(self, uri: str, id: int) -> dict:
+    def _get(self, object_type: str, id: int) -> dict:
         """
         Retrieves an EDSL object from the Coop server.
         """
-        response = self._send_server_request(uri=f"{uri}/{id}", method="GET")
+        response = self._send_server_request(
+            uri=f"api/v0/{object_type}/{id}", method="GET"
+        )
         self._resolve_server_response(response)
         return json.loads(response.json().get("json_string"))
 
@@ -258,21 +225,21 @@ class Coop:
         """
         Retrieves a Question object by its id.
         """
-        json_dict = self._get("api/v0/questions", id)
+        json_dict = self._get("questions", id)
         return QuestionBase.from_dict(json_dict)
 
     def get_survey(self, id: int) -> Type[Survey]:
         """
         Retrieves a Survey object by its id.
         """
-        json_dict = self._get("api/v0/surveys", id)
+        json_dict = self._get("surveys", id)
         return Survey.from_dict(json_dict)
 
     def get_agent(self, id: int) -> Union[Agent, AgentList]:
         """
         Retrieves an Agent or AgentList object by id.
         """
-        json_dict = self._get("api/v0/agents", id)
+        json_dict = self._get("agents", id)
         if "agent_list" in json_dict:
             return AgentList.from_dict(json_dict)
         else:
@@ -280,7 +247,7 @@ class Coop:
 
     def get_results(self, id: int) -> Results:
         """Retrieves a Results object by id."""
-        json_dict = self._get("api/v0/results", id)
+        json_dict = self._get("results", id)
         return Results.from_dict(json_dict)
 
     def get(
@@ -291,11 +258,11 @@ class Coop:
         - `object_type`: the type of object to retrieve.
         - `id`: the id of the object.
         """
-        if object_type == "question":
+        if object_type in {"question", "questions"}:
             return self.get_question(id)
-        elif object_type == "survey":
+        elif object_type in {"survey", "surveys"}:
             return self.get_survey(id)
-        elif object_type == "agent":
+        elif object_type in {"agent", "agents"}:
             return self.get_agent(id)
         elif object_type == "results":
             return self.get_results(id)
@@ -446,9 +413,9 @@ if __name__ == "__main__":
     coop.get_question(id=1000)
 
     # now post a Question
-    coop.create_question(QuestionMultipleChoice.example())
-    coop.create_question(QuestionCheckBox.example(), public=False)
-    coop.create_question(QuestionFreeText.example(), public=True)
+    coop.create(QuestionMultipleChoice.example())
+    coop.create(QuestionCheckBox.example(), public=False)
+    coop.create(QuestionFreeText.example(), public=True)
 
     # check all questions
     coop.questions
@@ -476,16 +443,16 @@ if __name__ == "__main__":
     coop.get_survey(id=1)
 
     # now post a Survey
-    coop.create_survey(Survey.example())
-    coop.create_survey(Survey.example(), public=False)
-    coop.create_survey(Survey.example(), public=True)
-    coop.create_survey(Survey(), public=True)
+    coop.create(Survey.example())
+    coop.create(Survey.example(), public=False)
+    coop.create(Survey.example(), public=True)
+    coop.create(Survey(), public=True)
     s = Survey().example()
     for i in range(10):
         q = QuestionFreeText.example()
         q.question_name = f"question_{i}"
         s.add_question(q)
-    coop.create_survey(s, public=True)
+    coop.create(s, public=True)
 
     # check all surveys
     coop.surveys
@@ -513,15 +480,15 @@ if __name__ == "__main__":
     coop.get_agent(id=2)
 
     # now post an Agent
-    coop.create_agent(Agent.example())
-    coop.create_agent(Agent.example(), public=False)
-    coop.create_agent(Agent.example(), public=True)
-    coop.create_agent(
+    coop.create(Agent.example())
+    coop.create(Agent.example(), public=False)
+    coop.create(Agent.example(), public=True)
+    coop.create(
         Agent(traits={"hair_type": "curly", "skil_color": "white"}), public=True
     )
-    coop.create_agent(AgentList.example())
-    coop.create_agent(AgentList.example(), public=False)
-    coop.create_agent(AgentList.example(), public=True)
+    coop.create(AgentList.example())
+    coop.create(AgentList.example(), public=False)
+    coop.create(AgentList.example(), public=True)
 
     # check all agents
     coop.agents
@@ -549,9 +516,9 @@ if __name__ == "__main__":
     coop.get_results(id=2)
 
     # now post a Results
-    coop.create_results(Results.example())
-    coop.create_results(Results.example(), public=False)
-    coop.create_results(Results.example(), public=True)
+    coop.create(Results.example())
+    coop.create(Results.example(), public=False)
+    coop.create(Results.example(), public=True)
 
     # check all results
     coop.results
