@@ -31,6 +31,17 @@ class Coop:
     ################
     # BASIC METHODS
     ################
+    def _api_key_is_valid(self) -> None:
+        """
+        Checks if the API key is valid.
+        """
+        if not self.api_key:
+            raise ValueError("API key is required.")
+        if not isinstance(self.api_key, str):
+            raise ValueError("API key must be a string.")
+        response = self._send_server_request(uri="api/v0/validate-apikey", method="GET")
+        self._resolve_server_response(response)
+
     @property
     def headers(self) -> dict:
         """
@@ -84,20 +95,6 @@ class Coop:
         """
         if response.status_code >= 400:
             raise Exception(response.json().get("detail"))
-
-    ################
-    # VALIDATION METHODS
-    ################
-    def _api_key_is_valid(self) -> None:
-        """
-        Checks if the API key is valid.
-        """
-        if not self.api_key:
-            raise ValueError("API key is required.")
-        if not isinstance(self.api_key, str):
-            raise ValueError("API key must be a string.")
-        response = self._send_server_request(uri="api/v0/validate-apikey", method="GET")
-        self._resolve_server_response(response)
 
     ################
     # CACHE METHODS
@@ -157,18 +154,21 @@ class Coop:
     ################
     # EDSL METHODS
     ################
-    # TODO: Re-factor all methods to use this method.
-    def _create_edsl_object(
+
+    # -----------------
+    # A. CREATE METHODS
+    # -----------------
+    def _create(
         self,
-        edsl_object: Union[Type[QuestionBase], Type[Survey]],
+        edsl_object: Union[Type[QuestionBase], Survey, Agent, AgentList, Results],
         uri: str,
         public: bool = False,
     ) -> dict:
         """
-        General method to create EDSL objects
+        Creates an EDSL object in the Coop server.
 
-        - `edsl_object`:
-        - `uri`: the API endpoint to send the request to.
+        - `edsl_object`: the EDSL object to be sent.
+        - `uri`: the API endpoint to send the object to.
         - `public`: whether the object should be public (defaults to False).
         """
         response = self._send_server_request(
@@ -186,37 +186,140 @@ class Coop:
         self, question: Type[QuestionBase], public: bool = False
     ) -> dict:
         """
-        Create a Question object.
+        Creates a Question object.
 
         - `question`: the EDSL Question to be sent.
         - `public`: whether the question should be public (defaults to False)
         """
-        return self._create_edsl_object(question, "api/v0/questions", public)
+        return self._create(question, "api/v0/questions", public)
 
-    # QUESTIONS METHODS
-    def create_question(
-        self, question: Type[QuestionBase], public: bool = False
+    def create_survey(self, survey: Survey, public: bool = False) -> dict:
+        """
+        Create a Survey object.
+
+        - `survey`: the EDSL Survey to be sent in the Coop server.
+        - `public`: whether the survey should be public (defaults to False)
+        """
+        return self._create(survey, "api/v0/surveys", public)
+
+    def create_agent(
+        self, agent: Union[Agent, AgentList], public: bool = False
     ) -> dict:
         """
-        Create a Question object.
-
-        - `question`: the EDSL Question to be sent.
-        - `public`: whether the question should be public (defaults to False)
+        Creates an Agent or AgentList object in the Coop server.
+        - `agent`: the EDSL Agent or AgentList to be sent.
+        - `public`: whether the agent should be public (defaults to False)
         """
-        response = self._send_server_request(
-            uri="api/v0/questions",
-            method="POST",
-            payload={"json_string": json.dumps(question.to_dict()), "public": public},
-        )
+        return self._create(agent, "api/v0/agents", public)
+
+    def create_results(self, results: Results, public: bool = False) -> dict:
+        """
+        Creates a Results object in the Coop server.
+        - `results`: the EDSL Results to be sent.
+        - `public`: whether the Results should be public (defaults to False)
+        """
+        return self._create(results, "api/v0/results", public)
+
+    def create(
+        self,
+        object: Union[Type[QuestionBase], Survey, Agent, AgentList, Results],
+        public: bool = False,
+    ):
+        """
+        Creates an EDSL object in the Coop server.
+        - `object`: the EDSL object to be sent.
+        - `public`: whether the object should be public (defaults to False)
+
+        Supports QuestionBase, Survey, Agent, AgentList, and Results objects.
+        """
+        if isinstance(object, QuestionBase):
+            return self.create_question(object, public)
+        elif isinstance(object, Survey):
+            return self.create_survey(object, public)
+        elif isinstance(object, Agent) or isinstance(object, AgentList):
+            return self.create_agent(object, public)
+        elif isinstance(object, Results):
+            return self.create_results(object, public)
+        else:
+            raise ValueError("Object type not recognized")
+
+    # -----------------
+    # B. GET METHODS
+    # -----------------
+    def _get(self, uri: str, id: int) -> dict:
+        """
+        Retrieves an EDSL object from the Coop server.
+        """
+        response = self._send_server_request(uri=f"{uri}/{id}", method="GET")
         self._resolve_server_response(response)
-        return response.json()
+        return json.loads(response.json().get("json_string"))
 
     def get_question(self, id: int) -> Type[QuestionBase]:
-        """Retrieve a Question object by id."""
-        response = self._send_server_request(uri=f"api/v0/questions/{id}", method="GET")
-        self._resolve_server_response(response)
-        return QuestionBase.from_dict(json.loads(response.json().get("json_string")))
+        """
+        Retrieves a Question object by its id.
+        """
+        json_dict = self._get("api/v0/questions", id)
+        return QuestionBase.from_dict(json_dict)
 
+    def get_survey(self, id: int) -> Type[Survey]:
+        """
+        Retrieves a Survey object by its id.
+        """
+        json_dict = self._get("api/v0/surveys", id)
+        return Survey.from_dict(json_dict)
+
+    def get_agent(self, id: int) -> Union[Agent, AgentList]:
+        """
+        Retrieves an Agent or AgentList object by id.
+        """
+        json_dict = self._get("api/v0/agents", id)
+        if "agent_list" in json_dict:
+            return AgentList.from_dict(json_dict)
+        else:
+            return Agent.from_dict(json_dict)
+
+    def get_results(self, id: int) -> Results:
+        """Retrieves a Results object by id."""
+        json_dict = self._get("api/v0/results", id)
+        return Results.from_dict(json_dict)
+
+    def get(
+        self, object_type: str, id: int
+    ) -> Union[Type[QuestionBase], Survey, Agent, AgentList, Results]:
+        """
+        Retrieves an EDSL object by its id.
+        - `object_type`: the type of object to retrieve.
+        - `id`: the id of the object.
+        """
+        if object_type == "question":
+            return self.get_question(id)
+        elif object_type == "survey":
+            return self.get_survey(id)
+        elif object_type == "agent":
+            return self.get_agent(id)
+        elif object_type == "results":
+            return self.get_results(id)
+        else:
+            raise ValueError("Object type not recognized")
+
+    def _get_base(self, cls, id):
+        """
+        Used by the Base class to offer a get functionality.
+        """
+        if issubclass(cls, QuestionBase):
+            return self.get_question(id)
+        elif cls == Survey:
+            return self.get_survey(id)
+        elif cls == Agent or cls == AgentList:
+            return self.get_agent(id)
+        elif cls == Results:
+            return self.get_results(id)
+        else:
+            raise ValueError("Class type not recognized")
+
+    # -----------------
+    # C. GET ALL METHODS
+    # -----------------
     @property
     def questions(self) -> list[dict[str, Union[int, QuestionBase]]]:
         """Retrieve all Questions."""
@@ -231,36 +334,6 @@ class Coop:
         ]
         return questions
 
-    def delete_question(self, id: int) -> dict:
-        """Delete a question from the coop."""
-        response = self._send_server_request(
-            uri=f"api/v0/questions/{id}", method="DELETE"
-        )
-        self._resolve_server_response(response)
-        return response.json()
-
-    # Surveys METHODS
-    def create_survey(self, survey: Type[Survey], public: bool = False) -> dict:
-        """
-        Create a Question object.
-
-        - `survey`: the EDSL Survey to be sent.
-        - `public`: whether the survey should be public (defaults to False)
-        """
-        response = self._send_server_request(
-            uri="api/v0/surveys",
-            method="POST",
-            payload={"json_string": json.dumps(survey.to_dict()), "public": public},
-        )
-        self._resolve_server_response(response)
-        return response.json()
-
-    def get_survey(self, id: int) -> Type[Survey]:
-        """Retrieve a Survey object by id."""
-        response = self._send_server_request(uri=f"api/v0/surveys/{id}", method="GET")
-        self._resolve_server_response(response)
-        return Survey.from_dict(json.loads(response.json().get("json_string")))
-
     @property
     def surveys(self) -> list[dict[str, Union[int, Survey]]]:
         """Retrieve all Surveys."""
@@ -274,41 +347,6 @@ class Coop:
             for q in response.json()
         ]
         return surveys
-
-    def delete_survey(self, id: int) -> dict:
-        """Delete a Survey from the coop."""
-        response = self._send_server_request(
-            uri=f"api/v0/surveys/{id}", method="DELETE"
-        )
-        self._resolve_server_response(response)
-        return response.json()
-
-    # AGENT METHODS
-    def create_agent(
-        self, agent: Union[Agent, AgentList], public: bool = False
-    ) -> dict:
-        """
-        Creates an Agent or AgentList object.
-        - `agent`: the EDSL Agent or AgentList to be sent.
-        - `public`: whether the agent should be public (defaults to False)
-        """
-        response = self._send_server_request(
-            uri="api/v0/agents",
-            method="POST",
-            payload={"json_string": json.dumps(agent.to_dict()), "public": public},
-        )
-        self._resolve_server_response(response)
-        return response.json()
-
-    def get_agent(self, id: int) -> Union[Agent, AgentList]:
-        """Retrieves an Agent or AgentList object by id."""
-        response = self._send_server_request(uri=f"api/v0/agents/{id}", method="GET")
-        self._resolve_server_response(response)
-        agent_dict = json.loads(response.json().get("json_string"))
-        if "agent_list" in agent_dict:
-            return AgentList.from_dict(agent_dict)
-        else:
-            return Agent.from_dict(agent_dict)
 
     @property
     def agents(self) -> list[dict[str, Union[int, Agent, AgentList]]]:
@@ -325,33 +363,6 @@ class Coop:
             agents.append({"id": q.get("id"), "agent": agent})
         return agents
 
-    def delete_agent(self, id: int) -> dict:
-        """Deletes an Agent or AgentList from the coop."""
-        response = self._send_server_request(uri=f"api/v0/agents/{id}", method="DELETE")
-        self._resolve_server_response(response)
-        return response.json()
-
-    # RESULTS METHODS
-    def create_results(self, results: Results, public: bool = False) -> dict:
-        """
-        Creates a Results object.
-        - `results`: the EDSL Results to be sent.
-        - `public`: whether the Results should be public (defaults to False)
-        """
-        response = self._send_server_request(
-            uri="api/v0/results",
-            method="POST",
-            payload={"json_string": json.dumps(results.to_dict()), "public": public},
-        )
-        self._resolve_server_response(response)
-        return response.json()
-
-    def get_results(self, id: int) -> Results:
-        """Retrieves a Results object by id."""
-        response = self._send_server_request(uri=f"api/v0/results/{id}", method="GET")
-        self._resolve_server_response(response)
-        return Results.from_dict(json.loads(response.json().get("json_string")))
-
     @property
     def results(self) -> list[dict[str, Union[int, Results]]]:
         """Retrieves all Results."""
@@ -366,6 +377,31 @@ class Coop:
         ]
         return results
 
+    # -----------------
+    # D. DELETE METHODS
+    # -----------------
+    def delete_question(self, id: int) -> dict:
+        """Delete a question from the coop."""
+        response = self._send_server_request(
+            uri=f"api/v0/questions/{id}", method="DELETE"
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def delete_survey(self, id: int) -> dict:
+        """Delete a Survey from the coop."""
+        response = self._send_server_request(
+            uri=f"api/v0/surveys/{id}", method="DELETE"
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def delete_agent(self, id: int) -> dict:
+        """Deletes an Agent or AgentList from the coop."""
+        response = self._send_server_request(uri=f"api/v0/agents/{id}", method="DELETE")
+        self._resolve_server_response(response)
+        return response.json()
+
     def delete_results(self, id: int) -> dict:
         """Deletes a Results object from the coop."""
         response = self._send_server_request(
@@ -373,30 +409,6 @@ class Coop:
         )
         self._resolve_server_response(response)
         return response.json()
-
-    def push(self, object, public):
-        if isinstance(object, QuestionBase):
-            return self.create_question(object, public)
-        elif isinstance(object, Survey):
-            return self.create_survey(object, public)
-        elif isinstance(object, Agent) or isinstance(object, AgentList):
-            return self.create_agent(object, public)
-        elif isinstance(object, Results):
-            return self.create_results(object, public)
-        else:
-            raise ValueError("Object type not recognized")
-
-    def pull(self, cls, id):
-        if issubclass(cls, QuestionBase):
-            return self.get_question(id)
-        elif cls == Survey:
-            return self.get_survey(id)
-        elif cls == Agent or cls == AgentList:
-            return self.get_agent(id)
-        elif cls == Results:
-            return self.get_results(id)
-        else:
-            raise ValueError("Class type not recognized")
 
     ################
     # DUNDER METHODS
