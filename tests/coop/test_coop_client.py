@@ -33,13 +33,13 @@ def test_coop_client_questions():
         coop.get_question(id=100)
 
     # create
-    response = coop.create_question(QuestionMultipleChoice.example())
+    response = coop.create(QuestionMultipleChoice.example())
     assert response.get("id") == 2
     assert response.get("type") == "question"
-    response = coop.create_question(QuestionCheckBox.example(), public=False)
+    response = coop.create(QuestionCheckBox.example(), public=False)
     assert response.get("id") == 3
     assert response.get("type") == "question"
-    response = coop.create_question(QuestionFreeText.example(), public=True)
+    response = coop.create(QuestionFreeText.example(), public=True)
     assert response.get("id") == 4
     assert response.get("type") == "question"
     # check
@@ -83,18 +83,18 @@ def test_coop_client_surveys():
         coop.get_survey(id=100)
 
     # create
-    response = coop.create_survey(Survey.example())
+    response = coop.create(Survey.example())
     assert response.get("id") == 2
     assert response.get("type") == "survey"
-    response = coop.create_survey(Survey.example(), public=False)
+    response = coop.create(Survey.example(), public=False)
     assert response.get("id") == 3
     assert response.get("type") == "survey"
-    response = coop.create_survey(Survey.example(), public=True)
+    response = coop.create(Survey.example(), public=True)
     assert response.get("id") == 4
     assert response.get("type") == "survey"
     #  can't create an empty survey
     with pytest.raises(Exception):
-        response = coop.create_survey(Survey(), public=True)
+        response = coop.create(Survey(), public=True)
     # check
     assert len(coop.surveys) == 3
     assert coop.surveys[0].get("id") == 2
@@ -135,13 +135,13 @@ def test_coop_client_agents():
         coop.get_agent(id=100)
 
     # create
-    response = coop.create_agent(Agent.example())
+    response = coop.create(Agent.example())
     assert response.get("id") == 2
     assert response.get("type") == "agent"
-    response = coop.create_agent(Agent.example(), public=False)
+    response = coop.create(Agent.example(), public=False)
     assert response.get("id") == 3
     assert response.get("type") == "agent"
-    response = coop.create_agent(Agent.example(), public=True)
+    response = coop.create(Agent.example(), public=True)
     assert response.get("id") == 4
     assert response.get("type") == "agent"
 
@@ -185,13 +185,13 @@ def test_coop_client_results():
         coop.get_results(id=100)
 
     # create
-    response = coop.create_results(Results.example())
+    response = coop.create(Results.example())
     assert response.get("id") == 2
     assert response.get("type") == "results"
-    response = coop.create_results(Results.example(), public=False)
+    response = coop.create(Results.example(), public=False)
     assert response.get("id") == 3
     assert response.get("type") == "results"
-    response = coop.create_results(Results.example(), public=True)
+    response = coop.create(Results.example(), public=True)
     assert response.get("id") == 4
     assert response.get("type") == "results"
 
