@@ -198,7 +198,6 @@ def test_coop_client_results():
     # check
     assert len(coop.results) == 3
     assert coop.results[0].get("id") == 2
-    print(coop.results[0])
     assert coop.results[0].get("results") == Results.example()
 
     # other client..
