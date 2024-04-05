@@ -129,7 +129,7 @@ test: ## Run regular tests (no Coop tests)
 	make clean-test
 	pytest -xv tests --nocoop
 
-test-coop: ## Run coop tests (no regular tests)
+test-coop: ## Run coop tests (no regular tests, requires coop server running)
 	make clean-test
 	pytest -xv tests --coop
 
