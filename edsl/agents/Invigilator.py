@@ -34,7 +34,7 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
 
     async def async_get_response(
         self, user_prompt: Prompt, system_prompt: Prompt, iteration: int = 1
-    ):
+    ) -> dict:
         """Call the LLM and gets a response. Used in the `answer_question` method."""
         try:
             response = await self.model.async_get_response(
@@ -43,6 +43,9 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
                 iteration=iteration,
                 cache = self.cache
             )
+
+        # TODO: I *don't* think we need to delete the cache key here because I think 
+        # it will not have been set yet; the exception would have been raised before.
         except json.JSONDecodeError as e:
             raise AgentRespondedWithBadJSONError(
                 f"Returned bad JSON: {e}"
@@ -59,7 +62,17 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
 
         This cleans up the raw response to make it suitable to pass to AgentResponseDict.
         """
-        response = question._validate_answer(raw_response)
+        try:
+            response = question._validate_answer(raw_response)
+        except Exception as e:
+            print("Purging the cache key")
+            if "raw_model_response" in raw_response and 'cache_key' in raw_response['raw_model_response']:
+                cache_key = raw_response['raw_model_response']['cache_key']
+            else:
+                cache_key = None
+            del self.cache.data[cache_key]
+            raise e
+
         comment = response.get("comment", "")
         answer_code = response["answer"]
         answer = question._translate_answer_code_to_answer(answer_code, scenario)

@@ -6,39 +6,34 @@ import asyncio
 import json
 import time
 import inspect
-from typing import Coroutine
+from typing import Coroutine, Any, Callable, Type, List, get_type_hints
+
 from abc import ABC, abstractmethod, ABCMeta
-from rich.console import Console
+
 from rich.table import Table
 
-from typing import Any, Callable, Type, List
-from edsl.exceptions import LanguageModelResponseNotJSONError
 from edsl.language_models.schemas import model_prices
 from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
-
 from edsl.language_models.repair import repair
-from typing import get_type_hints
-
 from edsl.exceptions.language_models import LanguageModelAttributeTypeError
 from edsl.enums import LanguageModelType, InferenceServiceType
-
 from edsl.Base import RichPrintingMixin, PersistenceMixin
-
 from edsl.data.Cache import Cache    
 
 def handle_key_error(func):
     """Handle KeyError exceptions."""
+
     @wraps(func)
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
             assert True == False
         except KeyError as e:
-            # Handle the KeyError exception
             return f"""KeyError occurred: {e}. This is most likely because the model you are using 
             returned a JSON object we were not expecting."""
 
     return wrapper
+
 
 class RegisterLanguageModelsMeta(ABCMeta):
     """Metaclass to register output elements in a registry i.e., those that have a parent."""
@@ -245,8 +240,7 @@ class LanguageModel(
     _safety_factor = 0.8
 
     def __init__(self, **kwargs):
-        """Initialize the LanguageModel.
-        """
+        """Initialize the LanguageModel."""
         self.model = getattr(self, "_model_", None)
         default_parameters = getattr(self, "_parameters_", None)
         parameters = self._overide_default_parameters(kwargs, default_parameters)
@@ -260,7 +254,24 @@ class LanguageModel(
                 setattr(self, key, value)
 
         if "use_cache" in kwargs:
-            warnings.warn("The use_cache parameter is deprecated. Use the Cache class instead.")
+            warnings.warn(
+                "The use_cache parameter is deprecated. Use the Cache class instead."
+            )
+
+    def has_valid_api_key(self) -> bool:
+        """Check if the model has a valid API key.
+
+        This method is used to check if the model has a valid API key.
+        """
+        from edsl.enums import service_to_api_keyname
+        import os
+
+        if self._model_ == LanguageModelType.TEST.value:
+            return True
+    
+        key_name = service_to_api_keyname.get(self._inference_service_, "NOT FOUND")
+        key_value = os.getenv(key_name)
+        return key_value is not None
 
     def __hash__(self):
         """Allow the model to be used as a key in a dictionary."""
@@ -268,23 +279,23 @@ class LanguageModel(
 
     def __eq__(self, other):
         """Check is two models are the same.
-        
+
         >>> m1 = LanguageModel.example()
         >>> m2 = LanguageModel.example()
         >>> m1 == m2
         True
-        
+
         """
         return self.model == other.model and self.parameters == other.parameters
 
-    def _set_rate_limits(self, rpm = None, tpm = None) -> None:
-        """Set the rate limits for the model. 
-        
+    def _set_rate_limits(self, rpm=None, tpm=None) -> None:
+        """Set the rate limits for the model.
+
         If the model does not have rate limits, use the default rate limits."""
         if rpm is not None and tpm is not None:
             self.__rate_limits = {"rpm": rpm, "tpm": tpm}
-            return 
-        
+            return
+
         if self.__rate_limits is None:
             if hasattr(self, "get_rate_limits"):
                 self.__rate_limits = self.get_rate_limits()
@@ -349,22 +360,23 @@ class LanguageModel(
         raise NotImplementedError
 
     def _update_response_with_tracking(
-        self, response, start_time, cached_response=False
+        self, response, start_time, cached_response=False, cache_key=None
     ):
         """Update the response with tracking information and post it to the API Queue."""
         end_time = time.time()
         response["elapsed_time"] = end_time - start_time
         response["timestamp"] = end_time
         response["cached_response"] = cached_response
+        response["cache_key"] = cache_key
         return response
 
     async def async_get_raw_response(
-        self, 
-        user_prompt: str, 
-        system_prompt: str, 
+        self,
+        user_prompt: str,
+        system_prompt: str,
         cache,
-        iteration: int = 0, 
-        ) -> dict[str, Any]:
+        iteration: int = 0,
+    ) -> dict[str, Any]:
         """Handle caching of responses.
 
         :param user_prompt: The user's prompt.
@@ -397,7 +409,7 @@ class LanguageModel(
             response = await self.async_execute_model_call(user_prompt, system_prompt)
 
         if not cache_used:
-            cache.store(
+            cache_key = cache.store(
                 user_prompt=user_prompt,
                 model=str(self.model),
                 parameters=self.parameters,
@@ -405,7 +417,9 @@ class LanguageModel(
                 response=response,
                 iteration=iteration,
             )
-        return self._update_response_with_tracking(response, start_time, cache_used)
+        else:
+            cache_key = None
+        return self._update_response_with_tracking(response = response, start_time = start_time, cached_response = cache_used, cache_key = cache_key)
 
     get_raw_response = sync_wrapper(async_get_raw_response)
 
@@ -413,16 +427,18 @@ class LanguageModel(
         self, user_prompt: str, system_prompt: str, cache: Cache, iteration: int = 1
     ) -> dict:
         """Get response, parse, and return as string.
-        
+
         :param user_prompt: The user's prompt.
         :param system_prompt: The system's prompt.
         :param iteration: The iteration number.
         :param cache: The cache to use.
-        
+
         """
         raw_response = await self.async_get_raw_response(
-            user_prompt=user_prompt, system_prompt=system_prompt, iteration=iteration, 
-            cache = cache
+            user_prompt=user_prompt,
+            system_prompt=system_prompt,
+            iteration=iteration,
+            cache=cache,
         )
         response = self.parse_response(raw_response)
         try:
