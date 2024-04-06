@@ -1,24 +1,3 @@
-"""A subclass of the `Question` class for creating questions where the response is an allocation of a sum among a list of options, in the form of a dictionary where the keys are the options and the values are the allocated amounts.
-Example usage:
-
-.. code-block:: python
-
-    from edsl.questions import QuestionBudget
-
-    q = QuestionBudget(
-        question_name = "food_budget", 
-        question_text = "How would you allocate $100?", 
-        question_options = ["Pizza", "Ice cream", "Burgers", "Salad"], 
-        budget_sum = 100
-    )
-
-An example can also be created using the `example` method:
-
-.. code-block:: python
-    
-    QuestionBudget.example()
-
-"""
 from __future__ import annotations
 import random
 import textwrap
