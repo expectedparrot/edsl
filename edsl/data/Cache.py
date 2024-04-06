@@ -97,7 +97,7 @@ class Cache:
         user_prompt: str,
         response: str,
         iteration: int,
-    ) -> None:
+    ) -> str:
         """
         Adds a new key-value pair to the cache.
         - Key is a hash of the input parameters.
@@ -122,6 +122,7 @@ class Cache:
             self.data[key] = entry
         else:
             self.new_entries_to_write_later[key] = entry
+        return key
 
     def add_from_dict(
         self, new_data: dict[str, CacheEntry], write_now: Optional[bool] = True

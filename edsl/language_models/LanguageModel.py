@@ -349,13 +349,14 @@ class LanguageModel(
         raise NotImplementedError
 
     def _update_response_with_tracking(
-        self, response, start_time, cached_response=False
+        self, response, start_time, cached_response=False, cache_key=None
     ):
         """Update the response with tracking information and post it to the API Queue."""
         end_time = time.time()
         response["elapsed_time"] = end_time - start_time
         response["timestamp"] = end_time
         response["cached_response"] = cached_response
+        response["cache_key"] = cache_key
         return response
 
     async def async_get_raw_response(
@@ -397,7 +398,7 @@ class LanguageModel(
             response = await self.async_execute_model_call(user_prompt, system_prompt)
 
         if not cache_used:
-            cache.store(
+            cache_key = cache.store(
                 user_prompt=user_prompt,
                 model=str(self.model),
                 parameters=self.parameters,
@@ -405,7 +406,9 @@ class LanguageModel(
                 response=response,
                 iteration=iteration,
             )
-        return self._update_response_with_tracking(response, start_time, cache_used)
+        else:
+            cache_key = None
+        return self._update_response_with_tracking(response = response, start_time = start_time, cached_response = cache_used, cache_key = cache_key)
 
     get_raw_response = sync_wrapper(async_get_raw_response)
 
