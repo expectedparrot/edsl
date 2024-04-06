@@ -100,6 +100,111 @@ We can quickly inspect the first `Result` object:
          }
    )
 
+We can use the `rich_print` method to display the `Result` object in a more readable format:
+
+.. code-block:: python
+
+   results[0].rich_print()
+
+.. code-block:: text
+
+                                                         Result                                                       
+   ┏━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+   ┃ Attribute          ┃ Value                                                                                      ┃
+   ┡━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+   │ agent              │                                      Agent Attributes                                      │
+   │                    │ ┏━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
+   │                    │ ┃ Attribute               ┃ Value                                                        ┃ │
+   │                    │ ┡━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩ │
+   │                    │ │ _name                   │ None                                                         │ │
+   │                    │ │ _traits                 │ {'status': 'happy'}                                          │ │
+   │                    │ │ _codebook               │ {}                                                           │ │
+   │                    │ │ _instruction            │ 'You are answering questions as if you were a human. Do not  │ │
+   │                    │ │                         │ break character.'                                            │ │
+   │                    │ │ set_instructions        │ False                                                        │ │
+   │                    │ │ dynamic_traits_function │ None                                                         │ │
+   │                    │ │ current_question        │ QuestionFreeText(question_text = 'How do you expect to feel  │ │
+   │                    │ │                         │ tomorrow {{ period }}?', question_name = 'tomorrow',         │ │
+   │                    │ │                         │ allow_nonresponse = False)                                   │ │
+   │                    │ └─────────────────────────┴──────────────────────────────────────────────────────────────┘ │
+   │ scenario           │          Scenario Attributes                                                               │
+   │                    │ ┏━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━┓                                                      │
+   │                    │ ┃ Attribute ┃ Value                 ┃                                                      │
+   │                    │ ┡━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━┩                                                      │
+   │                    │ │ data      │ {'period': 'morning'} │                                                      │
+   │                    │ └───────────┴───────────────────────┘                                                      │
+   │ model              │                                       Language Model                                       │
+   │                    │ ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
+   │                    │ ┃ Attribute                   ┃ Value                                                    ┃ │
+   │                    │ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩ │
+   │                    │ │ model                       │ 'mixtral-8x7B-instruct-v0.1'                             │ │
+   │                    │ │ parameters                  │ {'temperature': 0.5, 'top_p': 1, 'top_k': 1,             │ │
+   │                    │ │                             │ 'max_new_tokens': 2048, 'stopSequences': [],             │ │
+   │                    │ │                             │ 'use_cache': True}                                       │ │
+   │                    │ │ temperature                 │ 0.5                                                      │ │
+   │                    │ │ top_p                       │ 1                                                        │ │
+   │                    │ │ top_k                       │ 1                                                        │ │
+   │                    │ │ max_new_tokens              │ 2048                                                     │ │
+   │                    │ │ stopSequences               │ []                                                       │ │
+   │                    │ │ use_cache                   │ True                                                     │ │
+   │                    │ │ api_queue                   │ <queue.Queue object at 0x7f48b86c0400>                   │ │
+   │                    │ │ crud                        │ <edsl.data.crud.CRUDOperations object at 0x7f48b2c4c9d0> │ │
+   │                    │ │ _LanguageModel__rate_limits │ {'rpm': 10000, 'tpm': 2000000}                           │ │
+   │                    │ │ url                         │ 'https://api.deepinfra.com/v1/inference/mistralai/Mixtr… │ │
+   │                    │ └─────────────────────────────┴──────────────────────────────────────────────────────────┘ │
+   │ iteration          │ 1                                                                                          │
+   │ answer             │                                          Answers                                           │
+   │                    │ ┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
+   │                    │ ┃ Attribute         ┃ Value                                                              ┃ │
+   │                    │ ┡━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩ │
+   │                    │ │ yesterday         │ 'Good'                                                             │ │
+   │                    │ │ yesterday_comment │ 'I felt good yesterday morning, thank you for asking!'             │ │
+   │                    │ │ tomorrow          │ 'I expect to feel happy and refreshed tomorrow morning, ready to   │ │
+   │                    │ │                   │ start a new day with enthusiasm and positivity!'                   │ │
+   │                    │ └───────────────────┴────────────────────────────────────────────────────────────────────┘ │
+   │ prompt             │ ┏━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
+   │                    │ ┃ Attribute               ┃ Value                                                        ┃ │
+   │                    │ ┡━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩ │
+   │                    │ │ tomorrow_user_prompt    │ {'text': 'You are being asked the following question: How do │ │
+   │                    │ │                         │ you expect to feel tomorrow morning?\nReturn a valid JSON    │ │
+   │                    │ │                         │ formatted like this:\n{"answer": "<put free text answer      │ │
+   │                    │ │                         │ here>"}', 'class_name': 'FreeText'}                          │ │
+   │                    │ │ tomorrow_system_prompt  │ {'text': "You are answering questions as if you were a       │ │
+   │                    │ │                         │ human. Do not break character. You are an agent with the     │ │
+   │                    │ │                         │ following persona:\n{'status': 'happy'}", 'class_name':      │ │
+   │                    │ │                         │ 'AgentInstruction'}                                          │ │
+   │                    │ │ yesterday_user_prompt   │ {'text': 'You are being asked the following question: How    │ │
+   │                    │ │                         │ did you feel yesterday morning?\nThe options are\n\n0:       │ │
+   │                    │ │                         │ Good\n\n1: OK\n\n2: Terrible\n\nReturn a valid JSON          │ │
+   │                    │ │                         │ formatted like this, selecting only the number of the        │ │
+   │                    │ │                         │ option:\n{"answer": <put answer code here>, "comment": "<put │ │
+   │                    │ │                         │ explanation here>"}\nOnly 1 option may be selected.',        │ │
+   │                    │ │                         │ 'class_name': 'MultipleChoiceTurbo'}                         │ │
+   │                    │ │ yesterday_system_prompt │ {'text': "You are answering questions as if you were a       │ │
+   │                    │ │                         │ human. Do not break character. You are an agent with the     │ │
+   │                    │ │                         │ following persona:\n{'status': 'happy'}", 'class_name':      │ │
+   │                    │ │                         │ 'AgentInstruction'}                                          │ │
+   │                    │ └─────────────────────────┴──────────────────────────────────────────────────────────────┘ │
+   │ raw_model_response │ ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
+   │                    │ ┃ Attribute                    ┃ Value                                                   ┃ │
+   │                    │ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩ │
+   │                    │ │ yesterday_raw_model_response │ {'inference_status': {'runtime_ms': 500, 'cost':        │ │
+   │                    │ │                              │ 4.563e-05, 'tokens_generated': 23, 'tokens_input':      │ │
+   │                    │ │                              │ 146}, 'results': [{'generated_text': ' {"answer": 0,    │ │
+   │                    │ │                              │ "comment": "I felt good yesterday morning, thank you    │ │
+   │                    │ │                              │ for asking!"}'}], 'num_tokens': 23, 'num_input_tokens': │ │
+   │                    │ │                              │ 146, 'elapsed_time': 1.6693482398986816, 'timestamp':   │ │
+   │                    │ │                              │ 1712429824.1722908, 'cached_response': False}           │ │
+   │                    │ │ tomorrow_raw_model_response  │ {'inference_status': {'runtime_ms': 747, 'cost':        │ │
+   │                    │ │                              │ 3.564e-05, 'tokens_generated': 29, 'tokens_input':      │ │
+   │                    │ │                              │ 103}, 'results': [{'generated_text': ' {"answer": "I    │ │
+   │                    │ │                              │ expect to feel happy and refreshed tomorrow morning,    │ │
+   │                    │ │                              │ ready to start a new day with enthusiasm and            │ │
+   │                    │ │                              │ positivity!"}'}], 'num_tokens': 29, 'num_input_tokens': │ │
+   │                    │ │                              │ 103, 'elapsed_time': 2.170380115509033, 'timestamp':    │ │
+   │                    │ │                              │ 1712429824.6782303, 'cached_response': False}           │ │
+   │                    │ └──────────────────────────────┴─────────────────────────────────────────────────────────┘ │
+   └────────────────────┴────────────────────────────────────────────────────────────────────────────────────────────┘
 
 Results components
 ^^^^^^^^^^^^^^^^^^
@@ -409,6 +514,7 @@ The `to_json` method will write the results to a JSON file:
 
    results.to_pandas().to_json("results.json")
 
+
 See more examples of built-in methods for analyzing and visualizing results:
 
 .. raw:: html
@@ -420,8 +526,10 @@ Result class
 ------------
 .. automodule:: edsl.results.Result
    :members:
+   :inherited-members:
+   :exclude-members: 
    :undoc-members:
-   :show-inheritance:
+   :special-members: __init__
 
 Results class
 -------------
