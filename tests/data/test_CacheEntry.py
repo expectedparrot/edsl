@@ -30,7 +30,7 @@ def test_CacheEntry_fetch_input_example():
     assert all(field in fetch_input for field in CacheEntry.key_fields)
 
 
-def test_store_input_example():
+def test_CacheEntry_store_input_example():
     store_input = CacheEntry.store_input_example()
     assert "timestamp" not in store_input
     assert "response" in store_input
@@ -46,12 +46,12 @@ def test_CacheEntry_gen_key():
         user_prompt="What does the fox say?",
         iteration=1,
     )
-    assert key == '5ee60636048b05b4f7b6995a0cf9b78e'
+    assert key == "5ee60636048b05b4f7b6995a0cf9b78e"
 
 
 def test_CacheEntry_key_property():
     entry = CacheEntry.example()
-    assert entry.key == '5513286eb6967abc0511211f0402587d'
+    assert entry.key == "5513286eb6967abc0511211f0402587d"
 
 
 def test_CacheEntry_to_dict():
