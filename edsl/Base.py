@@ -1,14 +1,11 @@
 """Base class for all classes in the package. It provides rich printing and persistence of objects."""
 
 from abc import ABC, abstractmethod, ABCMeta
-import io
 import gzip
+import io
 import json
-
-from rich.console import Console
-from rich.table import Table
 from IPython.display import display
-
+from rich.console import Console
 from edsl.utilities import is_notebook
 
 
@@ -44,28 +41,31 @@ class PersistenceMixin:
     def push(self, public=False):
         """Post the object to coop."""
         from edsl.coop import Coop
+
         c = Coop()
-        c.push(self, public)
+        c.create(self, public)
 
     @classmethod
     def pull(cls, id):
         """Pull the object from coop."""
         from edsl.coop import Coop
+
         c = Coop()
-        return c.pull(cls, id)
-    
+        return c._get_base(cls, id)
+
     @classmethod
     def search(cls, query):
         """Search for objects on coop."""
         from edsl.coop import Coop
+
         c = Coop()
         return c.search(cls, query)
 
     def save(self, filename):
         """Save the object to a file as zippped JSON.
-        
+
         >>> obj.save("obj.json.gz")
-        
+
         """
         with gzip.open(filename, "wb") as f:
             f.write(json.dumps(self.to_dict()).encode("utf-8"))
@@ -73,9 +73,9 @@ class PersistenceMixin:
     @classmethod
     def load(cls, filename):
         """Load the object from a file.
-        
+
         >>> obj = cls.load("obj.json.gz")
-        
+
         """
         with gzip.open(filename, "rb") as f:
             file_contents = f.read()
@@ -96,7 +96,7 @@ class PersistenceMixin:
 
 class RegisterSubclassesMeta(ABCMeta):
     """Metaclass for registering subclasses."""
-    
+
     _registry = {}
 
     def __init__(cls, name, bases, nmspc):

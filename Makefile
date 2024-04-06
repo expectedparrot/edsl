@@ -1,13 +1,64 @@
+###############
+# VARIABLES
+###############
+# Project
 GIT_ROOT ?= $(shell git rev-parse --show-toplevel)
 PROJECT_NAME ?= $(shell basename $(GIT_ROOT))
-.PHONY: integration
+# PHONY
+.PHONY: help find docs integration docstrings
 
-
-help: ## Show all Makefile targets.
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(GIT_ROOT)/Makefile | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[33m%-30s\033[0m %s\n", $$1, $$2}'
+###############
+##@Utils ⭐ 
+###############
+help: ## Show this helpful message
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  \033[33m%-25s\033[0m %s\n", $$1, $$2} /^##@/ {printf "\n\033[0;32m%s\033[0m\n", substr($$0, 4)} ' $(MAKEFILE_LIST)
 
 find: ## Search for a pattern. Use `make find term="pattern"`
 	@find . -type d \( -name '.venv' -o -name '__pycache__' \) -prune -o -type f -print | xargs grep -l "$(term)"
+
+clean: ## Clean temp files
+	@echo "Cleaning tempfiles..."
+	[ ! -f .coverage ] || rm .coverage
+	[ ! -d .mypy_cache ] || rm -rf .mypy_cache
+	[ ! -d dist ] || rm -rf dist
+	[ ! -f edsl_cache.db ] || rm edsl_cache.db
+	[ ! -d htmlcov ] || rm -rf htmlcov
+	[ ! -d prof ] || rm -rf prof
+	find . -type d -name '.venv' -prune -o -type f -name '*.db' -exec rm -rf {} +
+	find . -type d -name '.venv' -prune -o -type f -name '*.log' -exec rm -rf {} +
+	find . -type d -name '.venv' -prune -o -type d -name '.pytest_cache' -exec rm -rf {} +
+	find . -type d -name '.venv' -prune -o -type d -name '__pycache__' -exec rm -rf {} +
+
+clean-test: ## Clean test files
+	[ ! -d dist ] || rm -rf dist
+	[ ! -d htmlcov ] || rm -rf htmlcov
+	[ ! -d prof ] || rm -rf prof
+	[ ! -d tests/temp_outputs ] || rm -rf tests/temp_outputs
+	[ ! -f tests/edsl_cache_test.db ] || rm tests/edsl_cache_test.db
+	[ ! -f tests/edsl_cache_test.db_temp ] || rm tests/edsl_cache_test.db_temp
+	[ ! -f tests/interview.log ] || rm tests/interview.log
+
+clean-all: ## Clean everything (including the venv)
+	@if [ -n "$$VIRTUAL_ENV" ]; then \
+		echo "Your virtual environment is active. Please deactivate it."; \
+		exit 1; \
+	fi
+	@echo "Cleaning tempfiles..."
+	@make clean
+	@echo "Cleaning testfiles..."
+	@make clean-test
+	@echo "Cleaning the venv..."
+	@[ ! -d .venv ] || rm -rf .venv
+	@echo "Done!"
+
+###############
+##@Local Development 💻 🛠️  
+###############
+install: ## Install all project deps and create a venv (local)
+	make clean-all
+	@echo "Creating a venv from pyproject.toml and installing deps using poetry..."
+	poetry install --with dev
+	@echo "All deps installed and venv created."
 
 backup: ## Backup the code to `edsl/.backups/`
 	TIMESTAMP=$$(date +"%Y%m%d_%H%M%S"); \
@@ -17,7 +68,6 @@ backup: ## Backup the code to `edsl/.backups/`
 	mv $${BACKUP_NAME} "./.backups";\
 	echo "Backup created: $${BACKUP_NAME}"
 
-.PHONY: docs 
 
 docs: ## Generate documentation
 	poetry export -f requirements.txt --dev --output docs/requirements.txt
@@ -29,17 +79,6 @@ docs-view:
 	else \
 		firefox _build/index.html; \
 	fi
-	
-clean: ## Cleans non-essential files and folders
-	[ ! -f .coverage ] || rm .coverage
-	[ ! -d .mypy_cache ] || rm -rf .mypy_cache
-	[ ! -d .venv ] || rm -rf .venv
-	[ ! -d dist ] || rm -rf dist
-	[ ! -d htmlcov ] || rm -rf htmlcov
-	[ ! -d prof ] || rm -rf prof
-	[ ! -f edsl_cache.db ] || rm edsl_cache.db
-	find . -type d -name '__pycache__' -exec rm -rf {} +
-	find . -type d -name '.pytest_cache' -exec rm -rf {} +
 
 format: ## Run code autoformatters (black).
 	pre-commit install
@@ -83,23 +122,19 @@ integration-visuals:
 lint: ## Run code linters (flake8, pylint, mypy).
 	mypy edsl
 
-############
-# TESTING
-############
-testclean:
-	[ ! -d dist ] || rm -rf dist
-	[ ! -d htmlcov ] || rm -rf htmlcov
-	[ ! -d prof ] || rm -rf prof
-	[ ! -f tests/edsl_cache_test.db ] || rm tests/edsl_cache_test.db
-	[ ! -f tests/edsl_cache_test.db_temp ] || rm tests/edsl_cache_test.db_temp
-	[ ! -f tests/interview.log ] || rm tests/interview.log
+###############
+##@Testing 🐛
+###############
+test: ## Run regular tests (no Coop tests) 
+	make clean-test
+	pytest -xv tests --nocoop
 
-test: ## Run regular tests (no stress testing) 
-	make testclean
-	pytest -x tests --ignore=tests/stress
+test-coop: ## Run coop tests (no regular tests, requires coop server running)
+	make clean-test
+	pytest -xv tests --coop
 
 test-coverage: ## Run regular tests and get a coverage report
-	make testclean
+	make clean-test
 	poetry run coverage run -m pytest tests --ignore=tests/stress && poetry run coverage html
 	@UNAME=`uname`; if [ "$$UNAME" = "Darwin" ]; then \
 		open htmlcov/index.html; \
@@ -107,18 +142,14 @@ test-coverage: ## Run regular tests and get a coverage report
 		firefox htmlcov/index.html; \
 	fi
 
-test-stress: ## Run stress tests
-	make testclean
-	pytest -x tests/stress --profile-svg
-
 test-pypi: ## Build and upload package to test.pypi.com
-	make testclean
+	make clean-test
 	poetry build
 	poetry publish -r test-pypi 
 	[ ! -d dist ] || rm -rf dist
 
 test-doctests: ## Run doctests
-	make testclean
+	make clean-test
 	pytest --doctest-modules edsl/surveys
 	pytest --doctest-modules edsl/agents
 	pytest --doctest-modules edsl/scenarios
@@ -129,7 +160,6 @@ test-doctests: ## Run doctests
 	pytest --doctest-modules edsl/language_models
 	pytest --doctest-modules edsl/data
 
-.PHONY: docstrings
 
 docstrings: 
 	pydocstyle edsl
