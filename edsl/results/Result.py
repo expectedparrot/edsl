@@ -1,4 +1,4 @@
-"""This module contains the Result class, which captures the result of one interview."""
+# """This module contains the Result class, which captures the result of one interview."""
 from __future__ import annotations
 from collections import UserDict
 from typing import Any, Type
