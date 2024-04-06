@@ -18,7 +18,7 @@ Before running the survey you can optionally:
 * Add values for parameterized questions (`Scenario` objects) 
 * Specify different language model(s) that will be used to answer the questions (the default model is GPT 4)
 
-An EDSL survey can also be sent to Googe Forms, Survey Monkey, LimeSurvey and other survey 
+An EDSL survey can also be sent to Google Forms, Survey Monkey, LimeSurvey and other survey 
 platforms. 
 
 
