@@ -1,27 +1,3 @@
-"""A subclass of the `Question` class for creating questions where the response is a list of one or more of the given options.
-The minimum and maximum number of options that may be selected can be specified when creating the question. If not specified, the minimum is 1 and the maximum is the number of question options.
-Example usage:
-
-.. code-block:: python
-
-    from edsl.questions import QuestionCheckBox
-
-    q = QuestionCheckBox(
-        question_name = "favorite_days",
-        question_text = "What are your 2 favorite days of the week?",
-        question_options = ["Monday", "Tuesday", "Wednesday", 
-        "Thursday", "Friday", "Saturday", "Sunday"],
-        min_selections = 2,
-        max_selections = 2
-    )
-
-An example can also be created using the `example` method:
-
-.. code-block:: python
-
-    QuestionCheckBox.example()
-
-"""
 from __future__ import annotations
 import random
 import textwrap
