@@ -11,6 +11,8 @@ from edsl.Base import Base
 from edsl.coop.old import JobRunnerAPI, ResultsAPI
 from edsl.data.Cache import Cache
 from edsl.data.SQLiteDict import SQLiteDict
+from edsl.data.CacheHandler import CacheHandler
+
 from edsl.enums import LanguageModelType
 from edsl.jobs.buckets.BucketCollection import BucketCollection
 from edsl.jobs.interviews.Interview import Interview
@@ -210,12 +212,9 @@ class Jobs(Base):
                     raise Exception(f"The model {str(model)} is missing an API")
 
 
-        if cache is None:
-            if not os.path.exists(".edsl_cache"):
-                os.makedirs(".edsl_cache")
 
-            cache = Cache(data=SQLiteDict())
-            # TODO: CacheHandler here? 
+        if cache is None:
+            cache = CacheHandler().get_cache()
 
         else:
             print("Using cache from passed in cache")
