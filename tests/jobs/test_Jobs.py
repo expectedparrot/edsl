@@ -163,7 +163,7 @@ def test_jobs_run(valid_job):
     from edsl.data.Cache import Cache
     cache = Cache()
   
-    results = valid_job.run(debug=True, cache = cache)
+    results = valid_job.run(debug=True, cache = cache, check_api_keys=False)
     # breakpoint()
 
     assert len(results) == 1
