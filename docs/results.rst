@@ -212,6 +212,111 @@ The following table will be printed:
    │ llama-2-70b-chat-hf        │ sad     │ evening  │ Terrible   │
    └────────────────────────────┴─────────┴──────────┴────────────┘
 
+We can sort the columns by calling the `sort_by` method and passing it the column name to sort by:
+
+.. code-block:: python
+
+   (results
+   .sort_by("model", reverse=False)
+   .select("model", "status", "period", "yesterday")
+   .print()
+   )
+
+.. code-block:: text
+   
+   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━┓
+   ┃ model                      ┃ agent   ┃ scenario ┃ answer     ┃
+   ┃ .model                     ┃ .status ┃ .period  ┃ .yesterday ┃
+   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━┩
+   │ llama-2-70b-chat-hf        │ happy   │ morning  │ Good       │
+   ├────────────────────────────┼─────────┼──────────┼────────────┤
+   │ llama-2-70b-chat-hf        │ happy   │ evening  │ Good       │
+   ├────────────────────────────┼─────────┼──────────┼────────────┤
+   │ llama-2-70b-chat-hf        │ sad     │ morning  │ Terrible   │
+   ├────────────────────────────┼─────────┼──────────┼────────────┤
+   │ llama-2-70b-chat-hf        │ sad     │ evening  │ Terrible   │
+   ├────────────────────────────┼─────────┼──────────┼────────────┤
+   │ mixtral-8x7B-instruct-v0.1 │ happy   │ morning  │ Good       │
+   ├────────────────────────────┼─────────┼──────────┼────────────┤
+   │ mixtral-8x7B-instruct-v0.1 │ happy   │ evening  │ Good       │
+   ├────────────────────────────┼─────────┼──────────┼────────────┤
+   │ mixtral-8x7B-instruct-v0.1 │ sad     │ morning  │ Terrible   │
+   ├────────────────────────────┼─────────┼──────────┼────────────┤
+   │ mixtral-8x7B-instruct-v0.1 │ sad     │ evening  │ Terrible   │
+   └────────────────────────────┴─────────┴──────────┴────────────┘
+
+The `sort_by` method can be applied multiple times:
+
+.. code-block:: python
+
+   (results
+   .sort_by("model", reverse=False)
+   .sort_by("status", reverse=True)
+   .select("model", "status", "period", "yesterday")
+   .print()
+   )
+
+.. code-block:: text
+   
+   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━┓
+   ┃ model                      ┃ agent   ┃ scenario ┃ answer     ┃
+   ┃ .model                     ┃ .status ┃ .period  ┃ .yesterday ┃
+   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━┩
+   │ llama-2-70b-chat-hf        │ sad     │ morning  │ Good       │
+   ├────────────────────────────┼─────────┼──────────┼────────────┤
+   │ llama-2-70b-chat-hf        │ sad     │ evening  │ Good       │
+   ├────────────────────────────┼─────────┼──────────┼────────────┤
+   │ llama-2-70b-chat-hf        │ happy   │ morning  │ Terrible   │
+   ├────────────────────────────┼─────────┼──────────┼────────────┤
+   │ llama-2-70b-chat-hf        │ happy   │ evening  │ Terrible   │
+   ├────────────────────────────┼─────────┼──────────┼────────────┤
+   │ mixtral-8x7B-instruct-v0.1 │ sad     │ morning  │ Good       │
+   ├────────────────────────────┼─────────┼──────────┼────────────┤
+   │ mixtral-8x7B-instruct-v0.1 │ sad     │ evening  │ Good       │
+   ├────────────────────────────┼─────────┼──────────┼────────────┤
+   │ mixtral-8x7B-instruct-v0.1 │ happy   │ morning  │ Terrible   │
+   ├────────────────────────────┼─────────┼──────────┼────────────┤
+   │ mixtral-8x7B-instruct-v0.1 │ happy   │ evening  │ Terrible   │
+   └────────────────────────────┴─────────┴──────────┴────────────┘
+
+We can also add some table labels by passing a dictionary to the `pretty_labels` argument of the `print` method:
+
+.. code-block:: python
+
+   (results
+   .sort_by("model", reverse=False)
+   .sort_by("status", reverse=True)
+   .select("model", "status", "period", "yesterday")
+   .print(pretty_labels={
+      "model": "LLM", 
+      "status": "Agent", 
+      "period": "Period", 
+      "yesterday": q1.question_text
+      })
+   )
+
+.. code-block:: text
+   
+   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+   ┃ LLM                        ┃ Agent   ┃ scenario ┃ How did you feel yesterday {{ period }}?   ┃
+   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+   │ llama-2-70b-chat-hf        │ sad     │ morning  │ Good                                       │
+   ├────────────────────────────┼─────────┼──────────┼────────────────────────────────────────────┤
+   │ llama-2-70b-chat-hf        │ sad     │ evening  │ Good                                       │
+   ├────────────────────────────┼─────────┼──────────┼────────────────────────────────────────────┤
+   │ llama-2-70b-chat-hf        │ happy   │ morning  │ Terrible                                   │
+   ├────────────────────────────┼─────────┼──────────┼────────────────────────────────────────────┤
+   │ llama-2-70b-chat-hf        │ happy   │ evening  │ Terrible                                   │
+   ├────────────────────────────┼─────────┼──────────┼────────────────────────────────────────────┤
+   │ mixtral-8x7B-instruct-v0.1 │ sad     │ morning  │ Good                                       │
+   ├────────────────────────────┼─────────┼──────────┼────────────────────────────────────────────┤
+   │ mixtral-8x7B-instruct-v0.1 │ sad     │ evening  │ Good                                       │
+   ├────────────────────────────┼─────────┼──────────┼────────────────────────────────────────────┤
+   │ mixtral-8x7B-instruct-v0.1 │ happy   │ morning  │ Terrible                                   │
+   ├────────────────────────────┼─────────┼──────────┼────────────────────────────────────────────┤
+   │ mixtral-8x7B-instruct-v0.1 │ happy   │ evening  │ Terrible                                   │
+   └────────────────────────────┴─────────┴──────────┴────────────────────────────────────────────┘
+
 Filtering
 ^^^^^^^^^
 Results can be filtered by using the `filter` method and passing it a logical expression identifying the results that should be selected.
