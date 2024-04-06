@@ -18,7 +18,7 @@ Before running the survey you can optionally:
 * Add values for parameterized questions (`Scenario` objects) 
 * Specify different language model(s) that will be used to answer the questions (the default model is GPT 4)
 
-An EDSL survey can also be sent to Googe Forms, Survey Monkey, LimeSurvey and other survey 
+An EDSL survey can also be sent to Google Forms, Survey Monkey, LimeSurvey and other survey 
 platforms. 
 
 
@@ -82,10 +82,10 @@ Here we apply a stop rule instead of a skip rule. If the response to q1 is "no",
 
 Conditional expressions
 ^^^^^^^^^^^^^^^^^^^^^^^
-The expressions themselves (`"student == 'no'"`) are written in Python.
+The expressions themselves ("student == 'no'") are written in Python.
 An expression is evaluated to True or False, with the answer substituted into the expression. 
 The placeholder for this answer is the name of the question itself. 
-In the examples, the answer to q1 is substituted into the expression `"student == 'no'"`, 
+In the examples, the answer to q1 is substituted into the expression "student == 'no'", 
 as the name of q1 is "student".
 
 Memory
