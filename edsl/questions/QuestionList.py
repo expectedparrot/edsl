@@ -1,32 +1,3 @@
-"""A subclass of the `Question` class for creating questions where the response is a list.
-Example usage:
-
-.. code-block:: python
-
-    from edsl.questions import QuestionList
-
-    q = QuestionList(
-        question_name = "activities",
-        question_text = "What activities do you enjoy most?"
-    )
-
-The maximum number of items in the list can be specified using the `max_list_items` parameter:
-
-.. code-block:: python
-
-    q = QuestionList(
-        question_name = "activities",
-        question_text = "What activities do you enjoy most?",
-        max_list_items = 5
-    )
-
-An example can also be created using the `example` method:
-
-    .. code-block:: python
-    
-        QuestionList.example()
-
-"""
 from __future__ import annotations
 import random
 import textwrap

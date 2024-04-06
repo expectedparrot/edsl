@@ -1,23 +1,3 @@
-"""A subclass of the `Question` class for creating free response questions.
-
-Example usage:
-
-.. code-block:: python
-
-    from edsl.questions import QuestionFreeText
-
-    q = QuestionFreeText(
-        question_name = "food",
-        question_text = "What is your favorite food?"
-    )
-
-An example can also be created using the `example` method:
-
-    .. code-block:: python
-    
-        QuestionFreeText.example()
-
-"""
 from __future__ import annotations
 import textwrap
 from typing import Any, Optional

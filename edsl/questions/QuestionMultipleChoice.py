@@ -1,23 +1,3 @@
-"""A subclass of the `Question` class for creating multiple choice questions where the response is a single option selected from a list of options.
-Example usage:
-
-.. code-block:: python
-
-    from edsl.questions import QuestionMultipleChoice
-
-    q = QuestionMultipleChoice(
-        question_name = "color",
-        question_text = "What is your favorite color?",
-        question_options = ["Red", "Blue", "Green", "Yellow"]
-    )
-
-An example can also created using the `example` method:
-
-.. code-block:: python
-
-    QuestionMultipleChoice.example()
-
-"""
 from __future__ import annotations
 from typing import Optional, Union
 import random
