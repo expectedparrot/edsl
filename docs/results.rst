@@ -3,10 +3,11 @@
 Results
 =======
 A `Results` object is the result of running a survey. 
-It is a list of individual `Result` objects, each of which represents a single response to a survey for each agent and model used.
-It is not typically instantiated directly, but is returned by calling the `run` method of a `Survey` object after optionally specifying `Scenario` and `Agent` objects. 
+It is a list of individual `Result` objects, each of which represents a response to a survey for each combination of agent, model and scenario used in the survey.
+For example, a survey (of any number of questions) with only 1 scenario or none that is administered to a single agent and model will generate 1 `Result` object within a `Results` object, while a survey using 2 scenarios that is administered to 2 agents and 2 models will generate 8 `Result` objects.
 
-To quickly inspect a `Results` object we can call the `example` method:
+A `Results` object is not typically instantiated directly, but is returned by calling the `run` method of a `Survey` object after optionally specifying `Scenario`, `Agent` and `Model` objects. 
+To see an example `Results` object we can call the `example` method:
 
 .. code-block:: python
 
@@ -14,11 +15,11 @@ To quickly inspect a `Results` object we can call the `example` method:
 
    results = Results.example()
 
-For purposes of showing how to unpack and interact with a `Results` object (and `Result` objects), we'll use the following code to generate results for a survey consisting of 2 questions, 1 scenario, 2 agents and 2 models:
+For purposes of showing how to unpack and interact with results, we'll use the following code to generate results for a survey consisting of 2 questions, 2 scenarios, 2 agents and 2 models:
 
 .. code-block:: python
 
-   # Create questions
+   # Create 2 questions
    from edsl.questions import QuestionMultipleChoice, QuestionFreeText
 
    q1 = QuestionMultipleChoice(
@@ -32,17 +33,17 @@ For purposes of showing how to unpack and interact with a `Results` object (and 
       question_text = "How do you expect to feel tomorrow {{ period }}?"
    )
 
-   # Optionally parameterize the questions
+   # Optionally parameterize the questions with 2 scenarios
    from edsl import Scenario 
 
    scenarios = [Scenario({"period": period}) for period in ["morning", "evening"]]
 
-   # Optionally create agent traits
+   # Optionally create 2 agents with different traits
    from edsl import Agent 
 
    agents = [Agent(traits = {"status": status}) for status in ["happy", "sad"]]
 
-   # Optionally specify language models (the default is GPT 4)
+   # Optionally specify 2 language models
    from edsl import Model 
 
    models = [Model(model) for model in ['llama-2-70b-chat-hf', 'mixtral-8x7B-instruct-v0.1']]
@@ -65,9 +66,9 @@ We can check the number of individual `Result` objects created by inspecting the
 
    len(results)
 
-This will return:
+This will count 2 (scenarios) x 2 (agents) x 2 (models) = 8 `Result` objects in the `Results` object:
 
-   4
+   8
 
 There is a result (a set of responses to the survey questions) for each combination of scenario/agents/models used (1 scenario x 2 agents x 2 models = 4 `Result` objects, where each `Result` contains the responses to the 2 questions).
 
