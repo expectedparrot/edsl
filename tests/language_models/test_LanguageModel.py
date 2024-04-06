@@ -1,11 +1,19 @@
 import asyncio
 import pytest
 import unittest
+from unittest.mock import patch
 from typing import Any
+from tempfile import NamedTemporaryFile
 
 from edsl.exceptions.language_models import LanguageModelAttributeTypeError
 from edsl.enums import LanguageModelType, InferenceServiceType
 from edsl.language_models.LanguageModel import LanguageModel
+
+def create_temp_env_file(contents):
+    temp_file = NamedTemporaryFile(delete=False)
+    temp_file.write(contents.encode())
+    temp_file.close()
+    return temp_file.name
 
 
 class TestLanguageModel(unittest.TestCase):
@@ -172,6 +180,28 @@ class TestLanguageModel(unittest.TestCase):
 
         with pytest.raises(KeyError):
             m.parse_response(raw_response={"messPOOPage": "Hello world"})
+
+    def test_key_check(self):
+        class TestLanguageModelGood(LanguageModel):
+            _model_ = LanguageModelType.TEST.value
+            _parameters_ = {"temperature": 0.5}
+            _inference_service_ = InferenceServiceType.TEST.value
+
+            async def async_execute_model_call(
+                self, user_prompt: str, system_prompt: str
+            ) -> dict[str, Any]:
+                await asyncio.sleep(0.1)
+                return {
+                    "message": """{"answer": "Hello world", 'cached_response': False}"""
+                }
+
+            def parse_response(self, raw_response: dict[str, Any]) -> str:
+                return raw_response["message"]
+            
+        m = TestLanguageModelGood()
+        # all test models have a valid api key
+        assert m.has_valid_api_key()
+
 
 
 if __name__ == "__main__":

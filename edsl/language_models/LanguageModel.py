@@ -6,26 +6,19 @@ import asyncio
 import json
 import time
 import inspect
-from typing import Coroutine
+from typing import Coroutine, Any, Callable, Type, List, get_type_hints
+
 from abc import ABC, abstractmethod, ABCMeta
-from rich.console import Console
+
 from rich.table import Table
 
-from typing import Any, Callable, Type, List
-from edsl.exceptions import LanguageModelResponseNotJSONError
 from edsl.language_models.schemas import model_prices
 from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
-
 from edsl.language_models.repair import repair
-from typing import get_type_hints
-
 from edsl.exceptions.language_models import LanguageModelAttributeTypeError
 from edsl.enums import LanguageModelType, InferenceServiceType
-
 from edsl.Base import RichPrintingMixin, PersistenceMixin
-
-from edsl.data.Cache import Cache
-
+from edsl.data.Cache import Cache    
 
 def handle_key_error(func):
     """Handle KeyError exceptions."""
@@ -36,7 +29,6 @@ def handle_key_error(func):
             return func(*args, **kwargs)
             assert True == False
         except KeyError as e:
-            # Handle the KeyError exception
             return f"""KeyError occurred: {e}. This is most likely because the model you are using 
             returned a JSON object we were not expecting."""
 
@@ -274,9 +266,10 @@ class LanguageModel(
         from edsl.enums import service_to_api_keyname
         import os
 
-        print("The inference service is: ", self._inference_service_)
+        if self._model_ == LanguageModelType.TEST.value:
+            return True
+    
         key_name = service_to_api_keyname.get(self._inference_service_, "NOT FOUND")
-        print(f"The associated key_name is: {key_name}")
         key_value = os.getenv(key_name)
         return key_value is not None
 
@@ -367,13 +360,14 @@ class LanguageModel(
         raise NotImplementedError
 
     def _update_response_with_tracking(
-        self, response, start_time, cached_response=False
+        self, response, start_time, cached_response=False, cache_key=None
     ):
         """Update the response with tracking information and post it to the API Queue."""
         end_time = time.time()
         response["elapsed_time"] = end_time - start_time
         response["timestamp"] = end_time
         response["cached_response"] = cached_response
+        response["cache_key"] = cache_key
         return response
 
     async def async_get_raw_response(
@@ -415,7 +409,7 @@ class LanguageModel(
             response = await self.async_execute_model_call(user_prompt, system_prompt)
 
         if not cache_used:
-            cache.store(
+            cache_key = cache.store(
                 user_prompt=user_prompt,
                 model=str(self.model),
                 parameters=self.parameters,
@@ -423,7 +417,9 @@ class LanguageModel(
                 response=response,
                 iteration=iteration,
             )
-        return self._update_response_with_tracking(response, start_time, cache_used)
+        else:
+            cache_key = None
+        return self._update_response_with_tracking(response = response, start_time = start_time, cached_response = cache_used, cache_key = cache_key)
 
     get_raw_response = sync_wrapper(async_get_raw_response)
 
