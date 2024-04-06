@@ -6,24 +6,18 @@ import asyncio
 import json
 import time
 import inspect
-from typing import Coroutine
+from typing import Coroutine, Any, Callable, Type, List, get_type_hints
+
 from abc import ABC, abstractmethod, ABCMeta
-from rich.console import Console
+
 from rich.table import Table
 
-from typing import Any, Callable, Type, List
-from edsl.exceptions import LanguageModelResponseNotJSONError
 from edsl.language_models.schemas import model_prices
 from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
-
 from edsl.language_models.repair import repair
-from typing import get_type_hints
-
 from edsl.exceptions.language_models import LanguageModelAttributeTypeError
 from edsl.enums import LanguageModelType, InferenceServiceType
-
 from edsl.Base import RichPrintingMixin, PersistenceMixin
-
 from edsl.data.Cache import Cache    
 
 def handle_key_error(func):
@@ -34,7 +28,6 @@ def handle_key_error(func):
             return func(*args, **kwargs)
             assert True == False
         except KeyError as e:
-            # Handle the KeyError exception
             return f"""KeyError occurred: {e}. This is most likely because the model you are using 
             returned a JSON object we were not expecting."""
 
