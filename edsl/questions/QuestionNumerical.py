@@ -1,33 +1,3 @@
-"""A subclass of the `Question` class for creating questions where the response is a numerical value.
-Example usage:
-
-.. code-block:: python
-
-    from edsl.questions import QuestionNumerical
-
-    q = QuestionNumerical(
-        question_name = "work_days",
-        question_text = "How many days a week do you normally work?"
-    )
-
-The minimum and maximum values of the answer can be specified using the `min_value` and `max_value` parameters:
-
-    .. code-block:: python
-    
-        q = QuestionNumerical(
-            question_name = "work_days",
-            question_text = "How many days a week do you normally work?",
-            min_value = 1,
-            max_value = 7
-        )
-
-An example can also be created using the `example` method:
-
-    .. code-block:: python
-    
-        QuestionNumerical.example()
-
-"""
 from __future__ import annotations
 import textwrap
 from random import uniform

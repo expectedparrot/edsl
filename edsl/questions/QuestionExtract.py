@@ -1,25 +1,3 @@
-"""A subclass of the `Question` class for creating questions where the response is information extracted from a given text and formatted a specified template.
-Example usage:
-
-.. code-block:: python
-
-    from edsl.questions import QuestionExtract
-
-    q = QuestionExtract(
-        question_name = "course_schedule",
-        question_text = "This semester we are offering courses on 
-        calligraphy on Friday mornings.",
-        answer_template = {"course_topic": "AI", "days": ["Monday", 
-        "Wednesday"]}
-    )
-
-An example can also be created using the `example` method:
-    
-    .. code-block:: python
-
-        QuestionExtract.example()
-
-"""
 from __future__ import annotations
 from typing import Any
 from edsl.questions.QuestionBase import QuestionBase

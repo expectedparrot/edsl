@@ -1,22 +1,3 @@
-"""A subclass of the `QuestionMultipleChoice` class for creating questions where the answer is a response to a given statement on a 5-point Likert scale.
-Example usage:
-
-.. code-block:: python
-
-    from edsl.questions import QuestionLikertFive
-
-    q = QuestionLikertFive(
-        question_name = "happy",
-        question_text = "I am only happy when it rains."
-    )
-
-An example can also be created using the `example` method:
-
-    .. code-block:: python
-
-        QuestionLikertFive.example()
-    
-"""
 from __future__ import annotations
 from typing import Optional
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice

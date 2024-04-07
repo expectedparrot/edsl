@@ -24,7 +24,8 @@ def create_openai_model(model_name, model_class_name) -> LanguageModel:
             "top_p": 1,
             "frequency_penalty": 0,
             "presence_penalty": 0,
-            "use_cache": True,
+            "logprobs": False,
+            "top_logprobs": 3
         }
 
         def get_headers(self) -> dict[str, Any]:
@@ -79,6 +80,8 @@ def create_openai_model(model_name, model_class_name) -> LanguageModel:
                 top_p=self.top_p,
                 frequency_penalty=self.frequency_penalty,
                 presence_penalty=self.presence_penalty,
+                logprobs=self.logprobs,
+                top_logprobs=self.top_logprobs if self.logprobs else None,
             )
             return response.model_dump()
 

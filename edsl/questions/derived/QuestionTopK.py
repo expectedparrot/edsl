@@ -1,24 +1,3 @@
-"""A subclass of the `QuestionMultipleChoice` class for creating questions where the response is a list of ranked items.
-Example usage:
-
-.. code-block:: python
-
-    from edsl.questions import QuestionTopK
-
-    q = QuestionTopK(
-        question_name = "foods_rank", 
-        question_text = "Select the best foods.", 
-        question_options = ["Pizza", "Pasta", "Salad", "Soup"],
-        num_selections = 2
-    )
-
-An example can also be created using the `example` method:
-
-    .. code-block:: python
-
-        QuestionTopK.example()
-
-"""
 from __future__ import annotations
 from typing import Optional
 from edsl.exceptions import QuestionCreationValidationError
