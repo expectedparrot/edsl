@@ -70,7 +70,7 @@ def test_results_example():
     from edsl.results import Results
 
     r = Results.example()
-    desired_output_string = "id,data_type,key,value\n1,model,temperature,0.5\n1,model,max_tokens,1000\n1,model,top_p,1\n1,model,frequency_penalty,0\n1,model,presence_penalty,0\n1,model,use_cache,True\n1,model,model,gpt-4-1106-preview\n"
+    desired_output_string = "id,data_type,key,value\n1,model,temperature,0.5\n1,model,max_tokens,1000\n1,model,top_p,1\n1,model,frequency_penalty,0\n1,model,presence_penalty,0\n1,model,logprobs,False\n1,model,top_logprobs,3\n1,model,model,gpt-4-1106-preview\n"
     actual_output_string = r.sql(
         "select * from self where id = 1 and data_type = 'model'",
         shape="long",
@@ -88,7 +88,7 @@ def test_results_example_group_by():
     from edsl.results import Results
 
     r = Results.example()
-    output_string = "id,data_type,key,value\n1,model,temperature,0.5\n1,model,max_tokens,1000\n1,model,top_p,1\n1,model,frequency_penalty,0\n1,model,presence_penalty,0\n1,model,use_cache,True\n1,model,model,gpt-4-1106-preview\n"
+    output_string = "id,data_type,key,value\n1,model,temperature,0.5\n1,model,max_tokens,1000\n1,model,top_p,1\n1,model,frequency_penalty,0\n1,model,presence_penalty,0\n1,model,logprobs,False\n1,model,top_logprobs,3\n1,model,model,gpt-4-1106-preview\n"
     sql_output = r.sql(
         "select * from self where id = 1 and data_type = 'model'",
         shape="long",
