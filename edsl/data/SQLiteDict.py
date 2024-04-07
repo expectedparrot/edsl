@@ -17,13 +17,26 @@ class SQLiteDict:
     """
 
     def __init__(self, db_path: Optional[str] = None):
+        """
+
+        >>> temp_db_path = self._get_temp_path()
+        >>> SQLiteDict(f"sqlite:///{temp_db_path}")  # Use the temp file for SQLite
+        >>> os.unlink(temp_db_path)  # Clean up the temp file after the test
+   
+        """
         self.db_path = db_path or CONFIG.get("EDSL_DATABASE_PATH")
         try:
             self.engine = create_engine(self.db_path, echo=False, future=True)
             Base.metadata.create_all(self.engine)
             self.Session = sessionmaker(bind=self.engine)
         except SQLAlchemyError as e:
-            raise Exception(f"Database initialization error: {e}") from e
+            raise Exception(f"""Database initialization error: {e}. The attempted DB path was {db_path}""") from e
+        
+    def _get_temp_path(self):
+        import tempfile
+        import os
+        _, temp_db_path = tempfile.mkstemp(suffix='.db')
+        return temp_db_path
 
     def __setitem__(self, key: str, value: CacheEntry) -> None:
         """
@@ -67,12 +80,26 @@ class SQLiteDict:
             return self[key]
         except KeyError:
             return default
+        
+    def __bool__(self) -> bool:
+        """This is so likes like 
+        self.data = data or {} 'work' as expected
+        """
+        return True
 
     def update(
-        self, new_d: Union[dict, SQLiteDict], overwrite: Optional[bool] = False
+        self, 
+        new_d: Union[dict, SQLiteDict], 
+        overwrite: Optional[bool] = False, 
+        max_batch_size: Optional[int] = 100
     ) -> None:
         """
-        Updates the dictionary with the values from another dictionary.
+        Update the dictionary with the values from another dictionary.
+        
+        :param new_d: The dictionary to update the current dictionary with.
+        :param overwrite: If `overwrite` is False, existing values will not be overwritten.
+        :param max_batch_size: The maximum number of items to update in a single transaction.
+        
         - If `overwrite` is True, existing values will be overwritten.
 
         >>> d = SQLiteDict.example()
@@ -84,8 +111,13 @@ class SQLiteDict:
             raise ValueError(
                 f"new_d must be a dict or SQLiteDict object (got {type(new_d)})"
             )
+        current_batch = 0
         with self.Session() as db:
             for key, value in new_d.items():
+                if current_batch == max_batch_size:
+                    db.commit()
+                    current_batch = 0
+                current_batch += 1
                 if key in self:
                     if overwrite:
                         db.merge(Data(key=key, value=json.dumps(value.to_dict())))

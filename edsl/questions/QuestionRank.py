@@ -1,37 +1,3 @@
-"""A subclass of the `Question` class for creating questions where the response is a ranked list of options.
-Example usage:
-
-.. code-block:: python
-
-    from edsl.questions import QuestionRank
-
-    q = QuestionRank(
-        question_name = "foods_rank", 
-        question_text = "Rank the following foods.", 
-        question_options = ["Pizza", "Pasta", "Salad", "Soup"]
-    )
-
-The number of options that must be selected can be optionally specified when creating the question. If not specified, all options are included in the response.
-
-.. code-block:: python
-
-    q = QuestionRank(
-        question_name = "foods_rank",
-        question_text = "Rank the following foods.",
-        question_options = ["Pizza", "Pasta", "Salad", "Soup"],
-        num_selections = 2
-    )
-
-Alternatively, `QuestionTopK` can be used to ask the respondent to select a specific number of options from a list.
-See more details about constructing and administering questions in the <a href="https://docs.expectedparrot.com/en/latest/scenarios.html">`Question`</a> module.
-
-An example can also be created using the `example` method:
-
-    .. code-block:: python
-    
-        QuestionRank.example()
-
-"""
 from __future__ import annotations
 import random
 import textwrap
