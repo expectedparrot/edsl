@@ -105,6 +105,34 @@ def sqlite_dict():
     os.remove(CONFIG.get("EDSL_DATABASE_PATH").replace("sqlite:///", ""))
 
 
+@pytest.fixture
+def set_env_vars():
+    """
+    This fixture sets environment variables for the duration of the test.
+    After the test, it restores the env to its original state.
+
+    Usage:
+    - Pass this fixture to the test
+    - Call the fixture, e.g. `set_env_vars(ENV_VAR1='value1', ENV_VAR2='value2')`
+    - Set a variable equal to None to delete it from the env
+    """
+    # copy
+    original_env = os.environ.copy()
+
+    def _set_env_vars(**env_vars):
+        for var, value in env_vars.items():
+            if value is None and var in os.environ:
+                del os.environ[var]
+            else:
+                os.environ[var] = value
+
+    yield _set_env_vars
+
+    # restore
+    os.environ.clear()
+    os.environ.update(original_env)
+
+
 @pytest.fixture(scope="function", autouse=True)
 async def clear_after_test():
     """
