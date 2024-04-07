@@ -79,7 +79,6 @@ class Config:
         """
         run_mode = os.getenv("EDSL_RUN_MODE")
         default = CONFIG_MAP.get("EDSL_RUN_MODE").get("default")
-        # defaults to "production"
         if run_mode is None:
             run_mode = default
         if run_mode not in EDSL_RUN_MODES:
