@@ -103,8 +103,14 @@ class SQLiteDict:
             raise ValueError(
                 f"new_d must be a dict or SQLiteDict object (got {type(new_d)})"
             )
+        MAX_BATCH_SIZE = 100
+        current_batch = 0
         with self.Session() as db:
             for key, value in new_d.items():
+                if current_batch == MAX_BATCH_SIZE:
+                    db.commit()
+                    current_batch = 0
+                current_batch += 1
                 if key in self:
                     if overwrite:
                         db.merge(Data(key=key, value=json.dumps(value.to_dict())))
