@@ -78,9 +78,10 @@ class Config:
         Checks the validity and sets EDSL_RUN_MODE.
         """
         run_mode = os.getenv("EDSL_RUN_MODE")
+        default = CONFIG_MAP.get("EDSL_RUN_MODE").get("default")
         # defaults to "production"
         if run_mode is None:
-            run_mode = "production"
+            run_mode = default
         if run_mode not in EDSL_RUN_MODES:
             raise InvalidEnvironmentVariableError(
                 f"Value `{run_mode}` is not allowed for EDSL_RUN_MODE."
