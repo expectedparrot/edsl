@@ -26,7 +26,9 @@ class CacheHandler:
     CACHE_PATH = ".edsl_cache/data.db"
     OLD_CACHE = "edsl_cache.db"
 
-    def __init__(self):
+    def __init__(self, test = False):
+
+        self.test = test
 
         self.create_cache_directory()
 
@@ -53,6 +55,8 @@ class CacheHandler:
 
     def gen_cache(self) -> Cache:
         """Generate a cache object."""
+        if self.test:
+            return Cache(data = {})
         uri = "sqlite:///" + os.path.join(os.getcwd(), EDSL_DATABASE_PATH)
         cache = Cache(data = SQLiteDict(uri))
         return cache
