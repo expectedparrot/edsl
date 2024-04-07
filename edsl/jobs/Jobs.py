@@ -1,15 +1,18 @@
 # """The Jobs class is a collection of agents, scenarios and models and one survey."""
 from __future__ import annotations
+
 import os
-from collections.abc import Sequence
-from itertools import product
-from typing import Union, Generator
+from typing import Optional, Union, Sequence, Generator
+from itertools import product 
+
 from edsl import Model
 from edsl.agents import Agent
 from edsl.Base import Base
 from edsl.coop.old import JobRunnerAPI, ResultsAPI
 from edsl.data.Cache import Cache
 from edsl.data.SQLiteDict import SQLiteDict
+from edsl.data.CacheHandler import CacheHandler
+
 from edsl.enums import LanguageModelType
 from edsl.jobs.buckets.BucketCollection import BucketCollection
 from edsl.jobs.interviews.Interview import Interview
@@ -26,16 +29,20 @@ class Jobs(Base):
     The `JobsRunner` is chosen by the user, and is stored in the `jobs_runner_name` attribute.
     """
 
-    # jobs_runner_name = JobsRunnerDescriptor()
-
     def __init__(
         self,
         survey: Survey,
-        agents: list[Agent] = None,
-        models: list[LanguageModel] = None,
-        scenarios: list[Scenario] = None,
+        agents: Optional[list[Agent]] = None,
+        models: Optional[list[LanguageModel]] = None,
+        scenarios: Optional[list[Scenario]] = None,
     ):
-        """Initialize a Jobs instance."""
+        """Initialize a Jobs instance.
+        
+        :param survey: the survey to be used in the job
+        :param agents: a list of agents 
+        :param models: a list of models
+        :param scenarios: a list of scenarios
+        """
         self.survey = survey
         self.agents = agents or []
         self.models = models or []
@@ -88,8 +95,10 @@ class Jobs(Base):
             """Return True if the user passed a sequence, False otherwise.
 
             Example:
+
             >>> did_user_pass_a_sequence([1,2,3])
             True
+            
             >>> did_user_pass_a_sequence(1)
             False
             """
@@ -100,7 +109,7 @@ class Jobs(Base):
         else:
             return list(args)
 
-    def _get_current_objects_of_this_type(self, object):
+    def _get_current_objects_of_this_type(self, object: Union[Agent, Scenario, LanguageModel]) -> tuple[list, str]:
         """Return the current objects of the same type as the first argument."""
         class_to_key = {
             Agent: "agents",
@@ -184,8 +193,9 @@ class Jobs(Base):
         debug: bool = False,
         progress_bar: bool = False,
         stop_on_exception: bool = False,
-        cache=None,
+        cache: Optional[Cache] =None,
         remote: bool = False,
+        check_api_keys = True, 
     ) -> Union[Results, ResultsAPI, None]:
         """
         Runs the Job: conducts Interviews and returns their results.
@@ -196,23 +206,16 @@ class Jobs(Base):
         :param progress_bar: shows a progress bar
 
         """
+        if check_api_keys:
+            for model in self.models:
+                if not model.has_valid_api_key(): 
+                    raise Exception(f"The model {str(model)} is missing an API")
+
+
 
         if cache is None:
-            if not os.path.exists(".edsl_cache"):
-                os.makedirs(".edsl_cache")
+            cache = CacheHandler().get_cache()
 
-            cache = Cache(data=SQLiteDict())
-
-            # import shutil
-            # if os.path.exists("edsl_cache.db"):
-            # print("Using cache from edsl_cache.db")
-            # cache = Cache.from_sqlite_db("edsl_cache.db")
-            # shutil.copy("edsl_cache.db", "edsl_cache.db.bak")
-            #
-            # print(f"Connecting to .edsl_cache/data.db")
-            # if os.path.exists("edsl_cache.jsonl"):
-            #    print("Adding in the jsonl cache to the cache")
-            #    cache += Cache.from_jsonl("edsl_cache.jsonl")
         else:
             print("Using cache from passed in cache")
 

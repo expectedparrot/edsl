@@ -21,7 +21,7 @@ def valid_job():
     )
     survey = Survey(name="Test Survey", questions=[q])
     agent = Agent(traits={"trait1": "value1"})
-    model = LanguageModelOpenAIThreeFiveTurbo(use_cache=True)
+    model = LanguageModelOpenAIThreeFiveTurbo()
     scenario = Scenario({"price": 100, "quantity": 2})
     valid_job = Jobs(
         survey=survey,
@@ -118,8 +118,8 @@ def test_jobs_by_models():
         question_name="how_feeling",
     )
     survey = Survey(name="Test Survey", questions=[q])
-    model1 = LanguageModelOpenAIThreeFiveTurbo(use_cache=True)
-    model2 = LanguageModelOpenAIFour(use_cache=False)
+    model1 = LanguageModelOpenAIThreeFiveTurbo()
+    model2 = LanguageModelOpenAIFour()
     # by without existing models
     job = survey.by(model1)
     assert job.models == [model1]
@@ -156,14 +156,13 @@ def test_jobs_interviews(valid_job):
     assert interviews[0].scenario == Scenario()
     assert interviews[0].agent == Agent()
     assert interviews[0].model.model == "gpt-4-1106-preview"
-    assert interviews[0].model.use_cache == True
-
+   
 
 def test_jobs_run(valid_job):
     from edsl.data.Cache import Cache
     cache = Cache()
   
-    results = valid_job.run(debug=True, cache = cache)
+    results = valid_job.run(debug=True, cache = cache, check_api_keys=False)
     # breakpoint()
 
     assert len(results) == 1
@@ -179,7 +178,7 @@ def test_normal_run():
 
     class TestLanguageModelGood(LanguageModel):
         _model_ = LanguageModelType.TEST.value
-        _parameters_ = {"temperature": 0.5, "use_cache": False}
+        _parameters_ = {"temperature": 0.5}
         _inference_service_ = InferenceServiceType.TEST.value
 
         async def async_execute_model_call(
@@ -215,7 +214,7 @@ def test_handle_model_exception():
     def create_exception_throwing_model(exception: Exception, probability: float):
         class TestLanguageModelGood(LanguageModel):
             _model_ = LanguageModelType.TEST.value
-            _parameters_ = {"temperature": 0.5, "use_cache": False}
+            _parameters_ = {"temperature": 0.5}
             _inference_service_ = InferenceServiceType.TEST.value
 
             async def async_execute_model_call(
@@ -271,7 +270,7 @@ if __name__ == "__main__":
         )
         survey = Survey(name="Test Survey", questions=[q])
         agent = Agent(traits={"trait1": "value1"})
-        model = LanguageModelOpenAIThreeFiveTurbo(use_cache=True)
+        model = LanguageModelOpenAIThreeFiveTurbo()
         scenario = Scenario({"price": 100, "quantity": 2})
         valid_job = Jobs(
             survey=survey,

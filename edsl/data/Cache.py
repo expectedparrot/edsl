@@ -51,7 +51,7 @@ class Cache:
         self.new_entries_to_write_later = {}
         self.coop = None
         self._perform_checks()
-
+        
     def _perform_checks(self):
         """Perform checks on the cache."""
         if any(not isinstance(value, CacheEntry) for value in self.data.values()):
@@ -97,7 +97,7 @@ class Cache:
         user_prompt: str,
         response: str,
         iteration: int,
-    ) -> None:
+    ) -> str:
         """
         Adds a new key-value pair to the cache.
         - Key is a hash of the input parameters.
@@ -122,6 +122,7 @@ class Cache:
             self.data[key] = entry
         else:
             self.new_entries_to_write_later[key] = entry
+        return key
 
     def add_from_dict(
         self, new_data: dict[str, CacheEntry], write_now: Optional[bool] = True
@@ -135,7 +136,7 @@ class Cache:
                 if value != self.data[key]:
                     raise Exception("Mismatch in values")
             if not isinstance(value, CacheEntry):
-                raise Exception("Wrong type")
+                raise Exception(f"Wrong type - the observed type is {type(value)}")
 
         self.new_entries.update(new_data)
         if write_now:
