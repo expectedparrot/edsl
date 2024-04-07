@@ -53,3 +53,13 @@ class InferenceServiceType(EnumWithChecks):
     OPENAI = "openai"
     GOOGLE = "google"
     TEST = "test"
+
+
+service_to_api_keyname = {
+    InferenceServiceType.BEDROCK.value: "TBD",
+    InferenceServiceType.DEEP_INFRA.value: "DEEP_INFRA_API_KEY",
+    InferenceServiceType.REPLICATE.value: "TBD",
+    InferenceServiceType.OPENAI.value: "OPENAI_API_KEY",
+    InferenceServiceType.GOOGLE.value: "GOOGLE_API_KEY",
+    InferenceServiceType.TEST.value: "TBD",
+}
