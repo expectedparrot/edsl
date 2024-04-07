@@ -33,7 +33,6 @@ class CacheHandler:
             data = {}
 
         self.cache = self.gen_cache()
-        breakpoint()
         self.cache.add_from_dict(data)
 
     def get_cache(self):
@@ -42,7 +41,6 @@ class CacheHandler:
     def gen_cache(self):
         uri = "sqlite:///" + os.path.join(os.getcwd(), EDSL_DATABASE_PATH)
         cache = Cache(data = SQLiteDict(uri))
-        breakpoint()
         return cache
 
     def create_cache_directory(self):
