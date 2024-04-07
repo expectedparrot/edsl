@@ -88,10 +88,18 @@ class SQLiteDict:
         return True
 
     def update(
-        self, new_d: Union[dict, SQLiteDict], overwrite: Optional[bool] = False
+        self, 
+        new_d: Union[dict, SQLiteDict], 
+        overwrite: Optional[bool] = False, 
+        max_batch_size: Optional[int] = 100
     ) -> None:
         """
-        Updates the dictionary with the values from another dictionary.
+        Update the dictionary with the values from another dictionary.
+        
+        :param new_d: The dictionary to update the current dictionary with.
+        :param overwrite: If `overwrite` is False, existing values will not be overwritten.
+        :param max_batch_size: The maximum number of items to update in a single transaction.
+        
         - If `overwrite` is True, existing values will be overwritten.
 
         >>> d = SQLiteDict.example()
@@ -103,11 +111,10 @@ class SQLiteDict:
             raise ValueError(
                 f"new_d must be a dict or SQLiteDict object (got {type(new_d)})"
             )
-        MAX_BATCH_SIZE = 100
         current_batch = 0
         with self.Session() as db:
             for key, value in new_d.items():
-                if current_batch == MAX_BATCH_SIZE:
+                if current_batch == max_batch_size:
                     db.commit()
                     current_batch = 0
                 current_batch += 1
