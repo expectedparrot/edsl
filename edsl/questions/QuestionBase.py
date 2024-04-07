@@ -107,6 +107,22 @@ class QuestionBase(
             return Prompt(text = self.model_instructions[model])
         else:
             return self.applicable_prompts(model)[0]()
+        
+    def option_permutations(self) -> list[QuestionBase]:
+        """Return a list of questions with all possible permutations of the options."""
+
+        if not hasattr(self, "question_options"):
+            return [self]
+        
+        import copy 
+        import itertools
+        questions = []
+        for index, permutation in enumerate(itertools.permutations(self.question_options)):
+            question = copy.deepcopy(self)
+            question.question_options = list(permutation)
+            question.question_name = f"{self.question_name}_{index}"
+            questions.append(question)
+        return questions
   
     ############################
     # Serialization methods
