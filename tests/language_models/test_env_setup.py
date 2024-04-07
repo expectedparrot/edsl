@@ -11,10 +11,14 @@ def temp_env():
         env_path = os.path.join(temp_dir, '.env')
         with open(env_path, 'w') as f:
             f.write("KEY=VALUE\nANOTHER_KEY=ANOTHER_VALUE")
+            f.write("\nOPENAI_API_KEY='a_fake_key'")
 
         # Change the current working directory to the temporary directory
         original_cwd = os.getcwd()
         os.chdir(temp_dir)
+
+        os.environ.clear()
+
         dotenv.load_dotenv(env_path, override=True)        
         
         yield
@@ -29,8 +33,8 @@ def test_application_with_custom_env(temp_env):
     value = os.getenv('KEY')
     assert value == 'VALUE'
 
-    #key = os.getenv('OPENAI_API_KEY')
-    #assert key == "a_fake_key"
+    key = os.getenv('OPENAI_API_KEY')
+    assert key == "a_fake_key"
 
     from edsl import Model
     m = Model()
