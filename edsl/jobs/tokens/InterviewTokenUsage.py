@@ -1,5 +1,5 @@
 from edsl.jobs.tokens.TokenUsage import TokenUsage
-from edsl.jobs.tokens.TokenPricing import TokenPricing
+from edsl.enums import TokenPricing
 
 class InterviewTokenUsage:
     def __init__(

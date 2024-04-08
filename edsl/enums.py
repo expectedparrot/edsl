@@ -67,8 +67,6 @@ service_to_api_keyname = {
     InferenceServiceType.ANTHROPIC.value: "ANTHROPIC_API_KEY",
 }
 
-#from edsl.jobs.tokens.TokenPricing import TokenPricing
-
 class TokenPricing:
     def __init__(
         self,
