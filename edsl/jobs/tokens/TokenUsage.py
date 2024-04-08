@@ -1,4 +1,4 @@
-from edsl.jobs.tokens.TokenPricing import TokenPricing
+from edsl.enums import TokenPricing
 
 class TokenUsage:
     def __init__(
