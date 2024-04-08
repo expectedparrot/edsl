@@ -10,7 +10,6 @@ This page contains documentation for the Expected Parrot Domain-Specific Languag
    overview
    installation
    starter_tutorial
-   coop
    questions
    scenarios
    surveys
@@ -20,9 +19,6 @@ This page contains documentation for the Expected Parrot Domain-Specific Languag
    results
    data
    cache
-   reports
-   trackers
-   utilities
 
    
 Indices and tables
