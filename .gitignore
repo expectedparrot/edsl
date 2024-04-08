@@ -3,6 +3,7 @@ _build/*
 *_temp
 *csv
 *db
+*db.bak
 *db-shm
 *db-wal
 *gz
