@@ -156,68 +156,9 @@ Learn more about specifying question scenarios, agents and language models in th
 Survey class
 ------------
 
-.. .. automodule:: edsl.surveys.base
-   .. :members:
-   .. :undoc-members:
-   .. :show-inheritance:
-
-.. .. automodule:: edsl.surveys.descriptors
-..    :members:
-..    :undoc-members:
-..    :show-inheritance:
-
 .. automodule:: edsl.surveys.Survey
-   :members:
+   :members: 
    :undoc-members:
    :show-inheritance:
    :special-members: __init__
    :exclude-members:
-
-SurveyExportMixin class
------------------------
-
-.. automodule:: edsl.surveys.SurveyExportMixin
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Rule class
-----------
-
-.. automodule:: edsl.surveys.Rule
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-RuleCollection class
---------------------
-
-.. automodule:: edsl.surveys.RuleCollection
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Memory class
-------------
-
-.. automodule:: edsl.surveys.Memory
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-MemoryPlan class
-----------------
-
-.. automodule:: edsl.surveys.MemoryPlan
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-DAG class
----------
-
-.. automodule:: edsl.surveys.DAG
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
