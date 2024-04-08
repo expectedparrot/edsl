@@ -217,7 +217,7 @@ class Jobs(Base):
             cache = CacheHandler().get_cache()
 
         else:
-            print("Using cache from passed in cache")
+            pass
 
         if not remote:
             results = self._run_local(
