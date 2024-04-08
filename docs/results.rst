@@ -525,7 +525,7 @@ See more examples of built-in methods for analyzing and visualizing results:
 Result class
 ------------
 .. automodule:: edsl.results.Result
-   :members:
+   :members: rich_print, 
    :inherited-members:
    :exclude-members: 
    :undoc-members:

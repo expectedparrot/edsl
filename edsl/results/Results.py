@@ -71,7 +71,7 @@ class Results(UserList, Mixins, Base):
     """
     This class is a UserList of Result objects.
 
-    It is instantiated with a `Survey` and a list of `Result` objects. 
+    It is instantiated with a `Survey` and a list of `Result` objects.
     It can be manipulated in various ways with select, filter, mutate, etc.
     It also has a list of created_columns, which are columns that have been created with `mutate` and are not part of the original data.
     """
@@ -151,8 +151,8 @@ class Results(UserList, Mixins, Base):
             return f"Results(data = {data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
 
     def to_dict(self) -> dict[str, Any]:
-        """Converts the Results object to a dictionary.
-        
+        """Convert the Results object to a dictionary.
+
         The dictionary can be quite large, as it includes all of the data in the Results object.
 
         Example: Illustrating just the keys of the dictionary.
@@ -169,12 +169,12 @@ class Results(UserList, Mixins, Base):
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Results:
-        """Converts a dictionary to a Results object.
-        
+        """Convert a dictionary to a Results object.
+
         :param data: A dictionary representation of a Results object.
 
         Example:
-        
+
         >>> r = Results.example()
         >>> d = r.to_dict()
         >>> r2 = Results.from_dict(d)
@@ -196,7 +196,7 @@ class Results(UserList, Mixins, Base):
     def _key_to_data_type(self) -> dict[str, str]:
         """
         Return a mapping of keys (how_feeling, status, etc.) to strings representing data types.
-         
+
         Objects such as Agent, Answer, Model, Scenario, etc.
         - Uses the key_to_data_type property of the Result class.
         - Includes any columns that the user has created with `mutate`
@@ -219,8 +219,7 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r._data_type_to_keys
-        {'agent': {'agent_name', 'status'}, 'answer': {'how_feeling', 'how_feeling_comment', 'how_feeling_yesterday', 'how_feeling_yesterday_comment'}, 'model': {'frequency_penalty', 'use_cache', 'temperature', 'max_tokens', 'presence_penalty', 'top_p', 'model'}, 'prompt': {'how_feeling_system_prompt', 'how_feeling_user_prompt', 'how_feeling_yesterday_system_prompt', 'how_feeling_yesterday_user_prompt'}, 'raw_model_response': {'how_feeling_raw_model_response', 'how_feeling_yesterday_raw_model_response'}, 'scenario': {'period'}}
-
+        defaultdict(...
         """
         d: dict = defaultdict(set)
         for result in self.data:
@@ -233,12 +232,12 @@ class Results(UserList, Mixins, Base):
     @property
     def columns(self) -> list[str]:
         """Return a list of all of the columns that are in the Results.
-        
+
         Example:
 
         >>> r = Results.example()
         >>> r.columns
-        ['agent.agent_name', 'agent.status', 'answer.how_feeling', 'answer.how_feeling_comment', 'answer.how_feeling_yesterday', 'answer.how_feeling_yesterday_comment', 'iteration.iteration', 'model.frequency_penalty', 'model.max_tokens', 'model.model', 'model.presence_penalty', 'model.temperature', 'model.top_p', 'model.use_cache', 'prompt.how_feeling_system_prompt', 'prompt.how_feeling_user_prompt', 'prompt.how_feeling_yesterday_system_prompt', 'prompt.how_feeling_yesterday_user_prompt', 'raw_model_response.how_feeling_raw_model_response', 'raw_model_response.how_feeling_yesterday_raw_model_response', 'scenario.period']
+        ['agent.agent_name', ...
         """
         column_names = [f"{v}.{k}" for k, v in self._key_to_data_type.items()]
         return sorted(column_names)
@@ -246,142 +245,144 @@ class Results(UserList, Mixins, Base):
     @property
     def answer_keys(self) -> dict[str, str]:
         """Return a mapping of answer keys to question text.
-        
-        Example: 
 
-        >>> r = Results.create_example()
+        Example:
+
+        >>> r = Results.example()
         >>> r.answer_keys
-        {'how_feeling': 'How are you this {{ period }}?', 'how_feeling_yesterday': 'How were you feeling yesterday {{ period }}?'}   
+        {'how_feeling': 'How are you this {{ period }}?', 'how_feeling_yesterday': 'How were you feeling yesterday {{ period }}?'}
         """
         if not self.survey:
             raise Exception("Survey is not defined so no answer keys are available.")
-        
+
         answer_keys = self._data_type_to_keys["answer"]
         answer_keys = {k for k in answer_keys if "_comment" not in k}
         questions_text = [
             self.survey.get_question(k).question_text for k in answer_keys
         ]
         short_question_text = [shorten_string(q, 80) for q in questions_text]
-        return dict(zip(answer_keys, short_question_text))
+        initial_dict = dict(zip(answer_keys, short_question_text))
+        sorted_dict = {key: initial_dict[key] for key in sorted(initial_dict)}
+        return sorted_dict
 
     @property
     def agents(self) -> list[Agent]:
         """Return a list of all of the agents in the Results.
-        
+
         Example:
-        
+
         >>> r = Results.example()
         >>> r.agents
         [Agent(traits = {'status': 'Joyful'}), Agent(traits = {'status': 'Joyful'}), Agent(traits = {'status': 'Sad'}), Agent(traits = {'status': 'Sad'})]
-
         """
         return [r.agent for r in self.data]
 
     @property
     def models(self) -> list[Type[LanguageModel]]:
         """Return a list of all of the models in the Results.
-        
+
         Example:
 
         >>> r = Results.example()
         >>> r.models[0]
-        LanguageModelOpenAIFour(model = 'gpt-4-1106-preview', parameters={'temperature': 0.5, 'max_tokens': 1000, 'top_p': 1, 'frequency_penalty': 0, 'presence_penalty': 0, 'use_cache': True})
-        
+        LanguageModelOpenAIFour(model = 'gpt-4-1106-preview', parameters={'temperature': 0.5, 'max_tokens': 1000, 'top_p': 1, 'frequency_penalty': 0, 'presence_penalty': 0, 'logprobs': False, 'top_logprobs': 3})
         """
         return [r.model for r in self.data]
 
     @property
     def scenarios(self) -> list[Scenario]:
         """Return a list of all of the scenarios in the Results.
-    
+
+        Example:
+
+        >>> r = Results.example()
         >>> r.scenarios
         [{'period': 'morning'}, {'period': 'afternoon'}, {'period': 'morning'}, {'period': 'afternoon'}]
-    
         """
         return [r.scenario for r in self.data]
 
     @property
-    def agent_keys(self) -> set[str]:
+    def agent_keys(self) -> list[str]:
         """Return a set of all of the keys that are in the Agent data.
 
         Example:
 
+        >>> r = Results.example()
         >>> r.agent_keys
-        {'agent_name', 'status'}
+        ['agent_name', 'status']
         """
-        return self._data_type_to_keys["agent"]
+        return sorted(self._data_type_to_keys["agent"])
 
     @property
-    def model_keys(self) -> set[str]:
+    def model_keys(self) -> list[str]:
         """Return a set of all of the keys that are in the LanguageModel data.
-        
-        >>> r = Results.create_example()
+
+        >>> r = Results.example()
         >>> r.model_keys
-        {'frequency_penalty', 'use_cache', 'temperature', 'max_tokens', 'presence_penalty', 'top_p', 'model'}
+        ['frequency_penalty', 'logprobs', 'max_tokens', 'model', 'presence_penalty', 'temperature', 'top_logprobs', 'top_p']
         """
-        return self._data_type_to_keys["model"]
+        return sorted(self._data_type_to_keys["model"])
 
     @property
-    def scenario_keys(self) -> set[str]:
+    def scenario_keys(self) -> list[str]:
         """Return a set of all of the keys that are in the Scenario data.
-        
+
         >>> r = Results.example()
         >>> r.scenario_keys
-        {'period'}
+        ['period']
         """
-        return self._data_type_to_keys["scenario"]
+        return sorted(self._data_type_to_keys["scenario"])
 
     @property
     def question_names(self) -> list[str]:
         """Return a list of all of the question names.
-        
+
         Example:
 
         >>> r = Results.example()
         >>> r.question_names
         ['how_feeling', 'how_feeling_yesterday']
-
         """
         if self.survey is None:
             return []
-        return list(self.survey.question_names)
+        return sorted(list(self.survey.question_names))
 
     @property
-    def all_keys(self) -> set[str]:
-        """Returns a set of all of the keys that are in the Results.
-        
+    def all_keys(self) -> list[str]:
+        """Return a set of all of the keys that are in the Results.
+
         Example:
 
         >>> r = Results.example()
         >>> r.all_keys
-        {'agent.agent_name', 'agent.status', 'answer.how_feeling', 'answer.how_feeling_comment', 'answer.how_feeling_yesterday', 'answer.how_feeling_yesterday_comment', 'iteration.iteration', 'model.frequency_penalty', 'model.max_tokens', 'model.model', 'model.presence_penalty', 'model.temperature', 'model.top_p', 'model.use_cache', 'prompt.how_feeling_system_prompt', 'prompt.how_feeling_user_prompt', 'prompt.how_feeling_yesterday_system_prompt', 'prompt.how_feeling_yesterday_user_prompt', 'raw_model_response.how_feeling_raw_model_response', 'raw_model_response.how_feeling_yesterday_raw_model_response', 'scenario.period'}      
+        ['agent_name', 'frequency_penalty', 'how_feeling', 'how_feeling_yesterday', 'logprobs', 'max_tokens', 'model', 'period', 'presence_penalty', 'status', 'temperature', 'top_logprobs', 'top_p']
         """
         answer_keys = set(self.answer_keys)
-        return (
+        all_keys = (
             answer_keys.union(self.agent_keys)
             .union(self.scenario_keys)
             .union(self.model_keys)
         )
+        return sorted(list(all_keys))
 
-    def relevant_columns(self) -> set[str]:
+    def relevant_columns(self) -> list[str]:
         """Return all of the columns that are in the Results.
-        
+
         Example:
 
         >>> r = Results.example()
         >>> r.relevant_columns()
-        {'agent.agent_name', 'agent.status', 'answer.how_feeling', 'answer.how_feeling_comment', 'answer.how_feeling_yesterday', 'answer.how_feeling_yesterday_comment', 'iteration.iteration', 'model.frequency_penalty', 'model.max_tokens', 'model.model', 'model.presence_penalty', 'model.temperature', 'model.top_p', 'model.use_cache', 'prompt.how_feeling_system_prompt', 'prompt.how_feeling_user_prompt', 'prompt.how_feeling_yesterday_system_prompt', 'prompt.how_feeling_yesterday_user_prompt', 'raw_model_response.how_feeling_raw_model_response', 'raw_model_response.how_feeling_yesterday_raw_model_response', 'scenario.period'}
-        
+        ['agent', 'agent_name', 'answer', 'frequency_penalty', 'how_feeling', 'how_feeling_comment', 'how_feeling_question_text', 'how_feeling_raw_model_response', 'how_feeling_system_prompt', 'how_feeling_user_prompt', 'how_feeling_yesterday', 'how_feeling_yesterday_comment', 'how_feeling_yesterday_question_text', 'how_feeling_yesterday_raw_model_response', 'how_feeling_yesterday_system_prompt', 'how_feeling_yesterday_user_prompt', 'iteration', 'logprobs', 'max_tokens', 'model', 'period', 'presence_penalty', 'prompt', 'question_text', 'raw_model_response', 'scenario', 'status', 'temperature', 'top_logprobs', 'top_p']
         """
-        return set().union(
+        return sorted(set().union(
             *(observation.combined_dict.keys() for observation in self.data)
-        )
+        ))
 
     def _parse_column(self, column: str) -> tuple[str, str]:
         """
         Parses a column name into a tuple containing a data type and a key.
 
-        >>> r = Results.create_example()
+        >>> r = Results.example()
         >>> r._parse_column("answer.how_feeling")
         ('answer', 'how_feeling')
 
@@ -404,12 +405,13 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.first()
-        Result(agent = Agent(traits = {'status': 'Joyful'}), scenario = {'period': 'morning'}, model = LanguageModelOpenAIFour(model = 'gpt-4-1106-preview', parameters = {'temperature': 0.5, 'max_tokens': 1000, 'top_p': 1, 'frequency_penalty': 0, 'presence_penalty': 0, 'use_cache': True}), iteration = 1, answer = {'how_feeling': 'OK'})
-
+        Result(agent...
         """
         return self.data[0]
 
-    def mutate(self, new_var_string: str, functions_dict: Optional[dict] = None) -> Results:
+    def mutate(
+        self, new_var_string: str, functions_dict: Optional[dict] = None
+    ) -> Results:
         """
         Creates a value in the Results object as if has been asked as part of the survey.
 
@@ -422,7 +424,7 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.mutate('how_feeling_x = how_feeling + "x"').select('how_feeling_x')
-        [{'answer.how_feeling_x': ['Badx', 'Badx', 'Greatx', 'Greatx']}]
+        [{'answer.how_feeling_x': ...
         """
         # extract the variable name and the expression
         if "=" not in new_var_string:
@@ -462,15 +464,15 @@ class Results(UserList, Mixins, Base):
 
     def select(self, *columns: Union[str, list[str]]) -> Dataset:
         """
-        This selects data from the results and turns it into a format like so:
+        Select data from the results and format it.
 
         :param columns: A list of strings, each of which is a column name. The column name can be a single key, e.g. "how_feeling", or a dot-separated string, e.g. "answer.how_feeling".
 
         Example:
 
-        >>> results = Results.create_example()
+        >>> results = Results.example()
         >>> results.select('how_feeling')
-        [{'answer.how_feeling': ['Bad', 'Bad', 'Great', 'Great']}]
+        [{'answer.how_feeling': ...
         """
 
         if not columns or columns == ("*",) or columns == (None,):
@@ -529,14 +531,14 @@ class Results(UserList, Mixins, Base):
 
         return Dataset(new_data)
 
-    def sort_by(self, column, reverse: bool=False) -> Results:
+    def sort_by(self, column, reverse: bool = False) -> Results:
         """Sort the results by a column.
 
-        :param column: A string that is a column name. 
+        :param column: A string that is a column name.
         :param reverse: A boolean that determines whether to sort in reverse order.
 
         The column name can be a single key, e.g. "how_feeling", or a dot-separated string, e.g. "answer.how_feeling".
-        
+
         Example:
 
         >>> r = Results.example()
@@ -566,9 +568,7 @@ class Results(UserList, Mixins, Base):
         ├──────────────┤
         │ Great        │
         └──────────────┘
-
         """
-
         data_type, key = self._parse_column(column)
 
         def to_numeric_if_possible(v):
@@ -605,7 +605,7 @@ class Results(UserList, Mixins, Base):
         └──────────────┘
 
         Example usage: Using an OR operator in the filter expression.
-        
+
         >>> r.filter("how_feeling == 'Great' or how_feeling == 'Terrible'").select('how_feeling').print()
         ┏━━━━━━━━━━━━━━┓
         ┃ answer       ┃
@@ -614,7 +614,7 @@ class Results(UserList, Mixins, Base):
         │ Great        │
         ├──────────────┤
         │ Terrible     │
-        └──────────────┘        
+        └──────────────┘
         """
 
         def create_evaluator(result):
@@ -641,20 +641,21 @@ class Results(UserList, Mixins, Base):
         """Return an example `Results` object.
 
         Example usage:
-        
+
         >>> r = Results.example()
-       
+
         :param debug: if False, uses actual API calls
         """
         from edsl.jobs import Jobs
         from edsl.data.Cache import Cache
+
         c = Cache()
         job = Jobs.example()
-        results = job.run(cache = c, debug=debug)
+        results = job.run(cache=c, debug=debug)
         return results
 
     def rich_print(self):
-        """Displays an object as a table."""
+        """Display an object as a table."""
         with io.StringIO() as buf:
             console = Console(file=buf, record=True)
 
@@ -669,7 +670,7 @@ class Results(UserList, Mixins, Base):
 
 
 def main():  # pragma: no cover
-    """Calls the OpenAI API credits"""
+    """Call the OpenAI API credits."""
     from edsl.results.Results import Results
 
     results = Results.example(debug=True)
@@ -678,10 +679,5 @@ def main():  # pragma: no cover
 
 
 if __name__ == "__main__":
-    print(Results.example())
-
-    r = Results.example()
-    # db_row = list(r[0].rows(1))
-    db_rows = list(r._rows())
-
-    print(r.columns)
+    import doctest
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
