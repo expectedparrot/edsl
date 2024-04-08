@@ -25,6 +25,7 @@ clean: ## Clean temp files
 	[ ! -d htmlcov ] || rm -rf htmlcov
 	[ ! -d prof ] || rm -rf prof
 	find . -type d -name '.venv' -prune -o -type f -name '*.db' -exec rm -rf {} +
+	find . -type d -name '.venv' -prune -o -type f -name '*.db.bak' -exec rm -rf {} +
 	find . -type d -name '.venv' -prune -o -type f -name '*.log' -exec rm -rf {} +
 	find . -type d -name '.venv' -prune -o -type d -name '.pytest_cache' -exec rm -rf {} +
 	find . -type d -name '.venv' -prune -o -type d -name '__pycache__' -exec rm -rf {} +
