@@ -5,7 +5,8 @@ from collections import UserDict, defaultdict
 
 from edsl.jobs.interviews.InterviewStatusDictionary import InterviewStatusDictionary
 from edsl.jobs.tokens.InterviewTokenUsage import InterviewTokenUsage
-from edsl.jobs.pricing import pricing
+#from edsl.jobs.pricing import pricing
+from edsl.enums import pricing
 from edsl.jobs.tokens.TokenPricing import TokenPricing
 from edsl.jobs.tasks.task_status_enum import TaskStatus
 
