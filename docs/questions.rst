@@ -570,17 +570,6 @@ An example can also be created using the `example` method:
    :exclude-members: question_type, answer_template, main
 
 
-QuestionFunctional class
--------------------
-
-.. automodule:: edsl.questions.QuestionFunctional
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :special-members: __init__
-   :exclude-members: answer_question_directly, default_instructions, func, question_type
-
-
 Other classes & methods
 -----------------------
 
@@ -590,21 +579,6 @@ Other classes & methods
    :show-inheritance:
 
 .. automodule:: edsl.questions.compose_questions
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. automodule:: edsl.questions.question_registry
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. automodule:: edsl.questions.AnswerValidatorMixin
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. automodule:: edsl.questions.descriptors
    :members:
    :undoc-members:
    :show-inheritance:
