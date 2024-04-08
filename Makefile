@@ -92,7 +92,11 @@ integration: ## Run integration tests via pytest **consumes API credits**
 	make integration-questions
 	make integration-models
 	make integration-visuals
-	
+	make integration-notebooks
+
+integration-notebooks: ## Run integration tests via pytest **consumes API credits**
+	pytest -v integration/test_example_notebooks.py
+
 integration-memory: ## Run integration tests via pytest **consumes API credits**
 	pytest -v integration/test_memory.py
 
