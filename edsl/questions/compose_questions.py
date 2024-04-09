@@ -10,7 +10,7 @@ def compose_questions(
 ) -> QuestionFunctional:
     """
     Compose two questions where the answer to q1 is used as an input to q2.
-    
+
     The resulting question is a question that can be used like other questions.
     Note that the same result can also be achieved in other ways:
     - Using the `add_targeted_memory(q2, q1)` method in Survey
@@ -49,6 +49,7 @@ def compose_questions(
     return QuestionFunctional(
         question_name=question_name, question_text="functional", func=combo
     )
+
 
 # UNCOMMENT BELOW TO SEE HOW THIS WORKS
 

@@ -6,6 +6,7 @@ from edsl.questions.descriptors import AllowNonresponseDescriptor
 from edsl.scenarios import Scenario
 from edsl.utilities import random_string
 
+
 # TODO: should allow answer = {"answer": None} if allow_nonresponse is True
 class QuestionFreeText(QuestionBase):
     """This question prompts the agent to respond with unstructured text."""
@@ -64,6 +65,7 @@ class QuestionFreeText(QuestionBase):
             allow_nonresponse=True,
         )
 
+
 def main():
     """Create an example question and demonstrate its functionality."""
     from edsl.questions.QuestionFreeText import QuestionFreeText
@@ -85,4 +87,5 @@ def main():
     assert q.from_dict(q.to_dict()) == q
 
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)

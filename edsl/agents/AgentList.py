@@ -19,6 +19,7 @@ from edsl.Base import Base
 from edsl.agents import Agent
 from edsl.agents.AgentListExportMixin import AgentListExportMixin
 
+
 class AgentList(UserList, Base, AgentListExportMixin):
     """A list of Agents."""
 
@@ -32,7 +33,7 @@ class AgentList(UserList, Base, AgentListExportMixin):
         else:
             super().__init__()
 
-    def to(self, question_or_survey: Union['Question', 'Survey']) -> "Jobs":
+    def to(self, question_or_survey: Union["Question", "Survey"]) -> "Jobs":
         """Return a Job with a question or survey taken by the agent."""
         return question_or_survey.by(*self)
 
@@ -41,16 +42,16 @@ class AgentList(UserList, Base, AgentListExportMixin):
         return {"agent_list": [agent.to_dict() for agent in self.data]}
 
     @classmethod
-    def from_dict(cls, data: dict) -> 'AgentList':
+    def from_dict(cls, data: dict) -> "AgentList":
         """Deserialize the dictionary back to an AgentList object.
-        
+
         :param: data: A dictionary representing an AgentList.
         """
         agents = [Agent.from_dict(agent_dict) for agent_dict in data["agent_list"]]
         return cls(agents)
 
     @classmethod
-    def example(cls) -> 'AgentList':
+    def example(cls) -> "AgentList":
         """Return an example AgentList."""
         return cls([Agent.example(), Agent.example()])
 
@@ -74,4 +75,5 @@ class AgentList(UserList, Base, AgentListExportMixin):
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)

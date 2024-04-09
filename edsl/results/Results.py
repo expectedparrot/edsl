@@ -374,9 +374,11 @@ class Results(UserList, Mixins, Base):
         >>> r.relevant_columns()
         ['agent', 'agent_name', 'answer', 'frequency_penalty', 'how_feeling', 'how_feeling_comment', 'how_feeling_question_text', 'how_feeling_raw_model_response', 'how_feeling_system_prompt', 'how_feeling_user_prompt', 'how_feeling_yesterday', 'how_feeling_yesterday_comment', 'how_feeling_yesterday_question_text', 'how_feeling_yesterday_raw_model_response', 'how_feeling_yesterday_system_prompt', 'how_feeling_yesterday_user_prompt', 'iteration', 'logprobs', 'max_tokens', 'model', 'period', 'presence_penalty', 'prompt', 'question_text', 'raw_model_response', 'scenario', 'status', 'temperature', 'top_logprobs', 'top_p']
         """
-        return sorted(set().union(
-            *(observation.combined_dict.keys() for observation in self.data)
-        ))
+        return sorted(
+            set().union(
+                *(observation.combined_dict.keys() for observation in self.data)
+            )
+        )
 
     def _parse_column(self, column: str) -> tuple[str, str]:
         """
@@ -680,4 +682,5 @@ def main():  # pragma: no cover
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)

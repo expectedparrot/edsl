@@ -5,6 +5,7 @@ from edsl.questions.descriptors import AnswerTemplateDescriptor
 from edsl.scenarios import Scenario
 from edsl.utilities import random_string
 
+
 class QuestionExtract(QuestionBase):
     """This question prompts the agent to extract information from a string and return it in a given template."""
 
@@ -87,4 +88,5 @@ def main():
     assert q.from_dict(q.to_dict()) == q
 
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)

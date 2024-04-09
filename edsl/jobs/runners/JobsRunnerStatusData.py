@@ -11,30 +11,31 @@ from edsl.jobs.tasks.task_status_enum import TaskStatus
 InterviewTokenUsageMapping = DefaultDict[str, InterviewTokenUsage]
 
 from edsl.jobs.interviews.InterviewStatistic import InterviewStatistic
-from edsl.jobs.interviews.InterviewStatisticsCollection import InterviewStatisticsCollection
+from edsl.jobs.interviews.InterviewStatisticsCollection import (
+    InterviewStatisticsCollection,
+)
+
 
 class JobsRunnerStatusData:
     pricing = pricing
 
     def status_dict(self, interviews):
- 
         status = []
         for interview in interviews:
-            #model = interview.model
+            # model = interview.model
             status.append(interview.interview_status)
 
         return status
-        #return model_to_status
+        # return model_to_status
 
     def status_counts(self, interviews):
-
         model_to_status = defaultdict(InterviewStatusDictionary)
 
         for interview in interviews:
             model = interview.model
             model_to_status[model] += interview.interview_status
 
-        #breakpoint()
+        # breakpoint()
         return model_to_status.values()
 
     def generate_status_summary(
@@ -64,18 +65,24 @@ class JobsRunnerStatusData:
             waiting_dict[model] += interview.interview_status.waiting
 
         interview_statistics.add_stat(
-            InterviewStatistic("elapsed_time", value=elapsed_time, digits=1, units="sec.")
+            InterviewStatistic(
+                "elapsed_time", value=elapsed_time, digits=1, units="sec."
+            )
         )
         interview_statistics.add_stat(
-            InterviewStatistic("total_interviews_requested", value=len(interviews), units="")
+            InterviewStatistic(
+                "total_interviews_requested", value=len(interviews), units=""
+            )
         )
         interview_statistics.add_stat(
-            InterviewStatistic("completed_interviews", value=len(completed_tasks), units="")
+            InterviewStatistic(
+                "completed_interviews", value=len(completed_tasks), units=""
+            )
         )
         interview_statistics.add_stat(
             InterviewStatistic(
                 "percent_complete",
-                value = len(completed_tasks) / len(interviews) * 100
+                value=len(completed_tasks) / len(interviews) * 100
                 if len(interviews) > 0
                 else "NA",
                 digits=0,
@@ -85,7 +92,7 @@ class JobsRunnerStatusData:
         interview_statistics.add_stat(
             InterviewStatistic(
                 "average_time_per_interview",
-                value = elapsed_time / len(completed_tasks) if completed_tasks else "NA",
+                value=elapsed_time / len(completed_tasks) if completed_tasks else "NA",
                 digits=1,
                 units="sec.",
             )
@@ -95,14 +102,18 @@ class JobsRunnerStatusData:
                 "task_remaining", value=len(interviews) - len(completed_tasks), units=""
             )
         )
-        number_remaining = (len(interviews) - len(completed_tasks))
-        time_per_task = elapsed_time / len(completed_tasks) if len(completed_tasks) > 0 else "NA"
-        estimated_time_remaining = number_remaining * time_per_task if time_per_task != "NA" else "NA"
+        number_remaining = len(interviews) - len(completed_tasks)
+        time_per_task = (
+            elapsed_time / len(completed_tasks) if len(completed_tasks) > 0 else "NA"
+        )
+        estimated_time_remaining = (
+            number_remaining * time_per_task if time_per_task != "NA" else "NA"
+        )
 
         interview_statistics.add_stat(
             InterviewStatistic(
                 "estimated_time_remaining",
-                value = estimated_time_remaining,
+                value=estimated_time_remaining,
                 digits=1,
                 units="sec.",
             )
@@ -162,5 +173,5 @@ class JobsRunnerStatusData:
                     "tokens": tokens,
                 }
             )
-        cache_info['cost'] = f"${token_usage.cost(prices):.5f}"
+        cache_info["cost"] = f"${token_usage.cost(prices):.5f}"
         return cache_info

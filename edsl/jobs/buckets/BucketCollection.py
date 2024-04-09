@@ -1,6 +1,7 @@
-from collections import UserDict 
+from collections import UserDict
 from edsl.jobs.buckets.TokenBucket import TokenBucket
 from edsl.jobs.buckets.ModelBuckets import ModelBuckets
+
 
 class BucketCollection(UserDict):
     """A Jobs object will have a whole collection of model buckets, as multiple models could be used.
@@ -15,9 +16,9 @@ class BucketCollection(UserDict):
     def __repr__(self):
         return f"BucketCollection({self.data})"
 
-    def add_model(self, model: 'LanguageModel') -> None:
-        """Adds a model to the bucket collection. 
-        
+    def add_model(self, model: "LanguageModel") -> None:
+        """Adds a model to the bucket collection.
+
         This will create the token and request buckets for the model."""
         # compute the TPS and RPS from the model
         TPS = model.TPM / 60.0

@@ -329,7 +329,7 @@ class QuestionTextDescriptor(BaseDescriptor):
 
 class ShortNamesDictDescriptor(BaseDescriptor):
     """Validate that the short names dictionary is a dictionary with string keys and string values."""
-    
+
     def validate(self, value, instance):
         """Validate the short names dictionary."""
         if not isinstance(value, dict):

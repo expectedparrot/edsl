@@ -5,6 +5,7 @@ from typing import Union, Dict
 
 from edsl.jobs.tasks.task_status_enum import TaskStatus, get_enum_from_string
 
+
 class InterviewStatusDictionary(UserDict):
     """A dictionary that keeps track of the status of all the tasks in an interview."""
 
@@ -22,8 +23,7 @@ class InterviewStatusDictionary(UserDict):
             super().__init__(d)
 
     def __add__(
-        self, 
-        other: "InterviewStatusDictionary"
+        self, other: "InterviewStatusDictionary"
     ) -> "InterviewStatusDictionary":
         """Adds two InterviewStatusDictionaries together."""
         if not isinstance(other, InterviewStatusDictionary):
@@ -33,43 +33,46 @@ class InterviewStatusDictionary(UserDict):
             new_dict[key] = self[key] + other[key]
         return InterviewStatusDictionary(new_dict)
 
-    @property 
+    @property
     def waiting(self) -> int:
         """Return the number of tasks that are in a waiting status of some kind."""
-    
+
         waiting_status_list = [
-            TaskStatus.WAITING_FOR_REQUEST_CAPACITY, 
+            TaskStatus.WAITING_FOR_REQUEST_CAPACITY,
             TaskStatus.WAITING_FOR_TOKEN_CAPACITY,
-            TaskStatus.WAITING_FOR_DEPENDENCIES]
-        
+            TaskStatus.WAITING_FOR_DEPENDENCIES,
+        ]
+
         return sum([self[status] for status in waiting_status_list])
-    
+
     def __repr__(self):
         return f"InterviewStatusDictionary({self.data})"
-    
+
     def to_dict(self):
-        new_data = {str(key):value for key, value in self.data.items()}
+        new_data = {str(key): value for key, value in self.data.items()}
         return new_data
-    
+
     def print(self):
         d = {}
         for key, value in self.data.items():
             d[str(key)] = value
         from edsl.utilities.interface import print_dict_with_rich
+
         print_dict_with_rich(d)
 
     @classmethod
     def from_dict(cls, data):
-        new_data = {get_enum_from_string(key):value for key, value in data.items()}
+        new_data = {get_enum_from_string(key): value for key, value in data.items()}
         return cls(new_data)
 
     def to_json(self):
         import json
+
         return json.dumps(self.to_dict())
 
     @classmethod
     def from_json(cls, data):
         import json
+
         data = json.loads(data)
         return cls.from_dict(data)
-

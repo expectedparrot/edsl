@@ -4,7 +4,7 @@ from collections import UserDict
 
 class AgentResponseDict(UserDict):
     """A dictionary to store the response of the agent to a question."""
-    
+
     def __init__(
         self,
         *,
