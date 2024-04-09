@@ -2,9 +2,9 @@
 
 Language Models
 ===============
-Language models are used to simulate agent responses to questions and can be specified when running a survey.
-API keys are required to access the models, and should be stored in your private .env file when you are running a survey.
-See instructions on how to set up your .env file in the :ref:`starter_tutorial` section.
+Language models are used to generate agent responses to questions and can be specified when running a survey.
+API keys are required in order to access the available models, and should be stored in your private `.env` file.
+See the :ref:`starter_tutorial` section for instructions on storing your keys.
 
 Available models
 ----------------
@@ -75,6 +75,7 @@ This will return the following dictionary of parameters:
    'presence_penalty': 0, 
    'logprobs': False, 
    'top_logprobs': 3}
+
 
 Running a survey with a model
 -----------------------------
