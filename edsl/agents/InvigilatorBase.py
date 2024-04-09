@@ -9,6 +9,7 @@ from edsl.data_transfer_models import AgentResponseDict
 
 from edsl.data.Cache import Cache
 
+
 class InvigilatorBase(ABC):
     """An invigiator (someone who administers an exam) is a class that is responsible for administering a question to an agent."""
 
@@ -20,7 +21,7 @@ class InvigilatorBase(ABC):
         model,
         memory_plan,
         current_answers: dict,
-        cache = None,
+        cache=None,
         iteration: int = 1,
         additional_prompt_data: Optional[dict] = None,
     ):
@@ -34,7 +35,7 @@ class InvigilatorBase(ABC):
         self.iteration = iteration
         self.additional_prompt_data = additional_prompt_data
         self.cache = cache
- 
+
     def get_failed_task_result(self) -> AgentResponseDict:
         """Return an AgentResponseDict used in case the question-askinf fails."""
         return AgentResponseDict(
@@ -116,4 +117,3 @@ class InvigilatorBase(ABC):
         return self.memory_plan.get_memory_prompt_fragment(
             question_name, self.current_answers
         )
-

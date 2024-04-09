@@ -1,5 +1,6 @@
 from collections import UserList
 
+
 class TasksList(UserList):
     def status(self, debug=False):
         if debug:

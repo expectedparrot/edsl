@@ -17,6 +17,7 @@ from edsl.jobs.tokens.InterviewTokenUsage import InterviewTokenUsage
 
 from edsl.jobs.tasks.TaskStatusLog import TaskStatusLog
 
+
 class QuestionTaskCreator(UserList):
     """Class to create and manage question tasks with dependencies.
 
@@ -69,7 +70,7 @@ class QuestionTaskCreator(UserList):
     def generate_task(self, debug) -> asyncio.Task:
         """Creates a task that depends on the passed-in dependencies."""
         task = asyncio.create_task(self._run_task_async(debug))
-        # TODO: This is a bit hacky. 
+        # TODO: This is a bit hacky.
         task.edsl_name = self.question.question_name
         task.depends_on = [x.edsl_name for x in self]
         return task
@@ -80,9 +81,10 @@ class QuestionTaskCreator(UserList):
 
     def token_usage(self) -> TokensUsed:
         """Returns the token usage for the task."""
-        #return {'cached_tokens': self.cached_token_usage, 'new_tokens': self.new_token_usage}
-        return TokensUsed(cached_tokens = self.cached_token_usage, 
-                          new_tokens = self.new_token_usage)
+        # return {'cached_tokens': self.cached_token_usage, 'new_tokens': self.new_token_usage}
+        return TokensUsed(
+            cached_tokens=self.cached_token_usage, new_tokens=self.new_token_usage
+        )
 
     async def _run_focal_task(self, debug) -> Answers:
         """Runs the focal task i.e., the question that we are interested in answering.
@@ -103,7 +105,9 @@ class QuestionTaskCreator(UserList):
 
         self.task_status = TaskStatus.API_CALL_IN_PROGRESS
         try:
-            results = await self.answer_question_func(question = self.question, debug = debug, task = self)
+            results = await self.answer_question_func(
+                question=self.question, debug=debug, task=self
+            )
             self.task_status = TaskStatus.SUCCESS
         except Exception as e:
             self.task_status = TaskStatus.FAILED
@@ -126,14 +130,12 @@ class QuestionTaskCreator(UserList):
         tracker.add_tokens(
             prompt_tokens=prompt_tokens, completion_tokens=completion_tokens
         )
-        #self.task_status = TaskStatus.FINISHED
+        # self.task_status = TaskStatus.FINISHED
 
         return results
 
     async def _run_task_async(self, debug) -> None:
-        """Runs the task asynchronously, awaiting the tasks that must be completed before this one can be run.
-                
-        """
+        """Runs the task asynchronously, awaiting the tasks that must be completed before this one can be run."""
         # logger.info(f"Running task for {self.question.question_name}")
         try:
             # This is waiting for the tasks that must be completed before this one can be run.
@@ -148,7 +150,7 @@ class QuestionTaskCreator(UserList):
             raise
         except Exception as e:
             self.task_status = TaskStatus.PARENT_FAILED
-            #breakpoint()
+            # breakpoint()
             # logger.error(f"Required tasks for {self.question.question_name} failed: {e}")
             # turns the parent exception into a custom exception
             # So the task gets canceled but this InterviewErrorPriorTaskCanceled exception

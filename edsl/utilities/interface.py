@@ -175,7 +175,7 @@ def display(console, table, filename):
 
 def print_dict_with_rich(d, key_name="Key", value_name="Value", filename=None):
     """Print a dictionary as a table using the rich library.
-    
+
     Example:
     >>> print_dict_with_rich({"a": 1, "b": 2, "c": 3})
     ┏━━━━━┳━━━━━━━┓
@@ -196,7 +196,11 @@ def print_dict_with_rich(d, key_name="Key", value_name="Value", filename=None):
 
 
 def print_dict_as_html_table(
-    d, show=False, key_name="Key", value_name="Value", filename=None,
+    d,
+    show=False,
+    key_name="Key",
+    value_name="Value",
+    filename=None,
 ):
     """Print a dictionary as an HTML table.
 
@@ -275,7 +279,9 @@ def print_list_of_dicts_with_rich(data, filename=None, split_at_dot=True):
     display(console, table, filename)
 
 
-def print_list_of_dicts_as_html_table(data, filename=None, interactive=False, notebook = False):
+def print_list_of_dicts_as_html_table(
+    data, filename=None, interactive=False, notebook=False
+):
     """Print a list of dictionaries as an HTML table.
 
     :param data: The list of dictionaries to print.
@@ -321,6 +327,7 @@ def print_list_of_dicts_as_html_table(data, filename=None, interactive=False, no
         else:
             print(html)
 
+
 def print_list_of_dicts_as_markdown_table(data, filename=None):
     """Print a list of dictionaries as a Markdown table.
 
@@ -339,9 +346,8 @@ def print_list_of_dicts_as_markdown_table(data, filename=None):
     num_rows = len(next(iter(data[0].values())))
     for i in range(num_rows):
         row = [str(d[key][i]) for d in data for key in d.keys()]
-        #table.add_row(*row)
+        # table.add_row(*row)
         markdown_table += "| " + " | ".join(row) + " |\n"
-
 
     # Output or save to file
     if filename:
@@ -370,7 +376,7 @@ def print_public_methods_with_doc(obj):
 
 def print_table_with_rich(data, filename=None):
     """Print a list of dictionaries as a table using the rich library.
-    
+
     Example:
     >>> data = [{"a": 1, "b": 2, "c": 3}]
     >>> print_table_with_rich(data)

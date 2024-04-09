@@ -5,14 +5,14 @@ from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
 from edsl.prompts.registry import get_classes as prompt_lookup
 from edsl.exceptions import QuestionScenarioRenderError
 
-class PromptConstructorMixin:
 
+class PromptConstructorMixin:
     def construct_system_prompt(self) -> Prompt:
         """Construct the system prompt for the LLM call."""
- 
+
         agent_instructions = self._get_agent_instructions_prompt()
-        persona_prompt = self._get_persona_prompt()             
-        
+        persona_prompt = self._get_persona_prompt()
+
         return (
             agent_instructions
             + " " * int(len(persona_prompt.text) > 0)
@@ -23,7 +23,7 @@ class PromptConstructorMixin:
         """Get the persona prompt.
 
         The is the description of the agent to the LLM.
-        
+
         The agent_persona is constructed when the Agent is created.
         If the agent is passed a template for "agent_trait_presentation_template" that is used to construct the persona.
         If it does not exist, the persona is looked up in the prompt registry
@@ -59,7 +59,6 @@ class PromptConstructorMixin:
             )
         return persona_prompt
 
-
     def _get_agent_instructions_prompt(self) -> Prompt:
         """Get the agent instructions prompt."""
         applicable_prompts = prompt_lookup(
@@ -72,14 +71,14 @@ class PromptConstructorMixin:
 
     def _get_question_instructions(self) -> Prompt:
         """Get the instructions for the question."""
-        #applicable_prompts = prompt_lookup(
+        # applicable_prompts = prompt_lookup(
         #    component_type="question_instructions",
         #    question_type=self.question.question_type,
         #    model=self.model.model,
-        #)
+        # )
         ## Get the question instructions and renders with the scenario & question.data
-        #question_prompt = applicable_prompts[0]()
-        question_prompt = self.question.get_instructions(model = self.model.model)
+        # question_prompt = applicable_prompts[0]()
+        question_prompt = self.question.get_instructions(model=self.model.model)
 
         undefined_template_variables = question_prompt.undefined_template_variables(
             self.question.data | self.scenario
@@ -108,10 +107,11 @@ class PromptConstructorMixin:
             "system_prompt": system_prompt,
         }
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
     from edsl import Model
     from edsl import Agent
+
     a = Agent(
         instruction="You are a happy-go lucky agent.",
         traits={"feeling": "happy", "age": "Young at heart"},

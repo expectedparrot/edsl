@@ -1,5 +1,5 @@
-#import anthropic
-import os 
+# import anthropic
+import os
 import dotenv
 from typing import Any
 from anthropic import AsyncAnthropic
@@ -29,6 +29,7 @@ from edsl.exceptions import MissingAPIKeyError
 import os
 import re
 
+
 class ClaudeOpus(LanguageModel):
     """
     Child class of LanguageModel for interacting with OpenAI models
@@ -43,7 +44,7 @@ class ClaudeOpus(LanguageModel):
         "frequency_penalty": 0,
         "presence_penalty": 0,
         "logprobs": False,
-        "top_logprobs": 3
+        "top_logprobs": 3,
     }
 
     async def async_execute_model_call(
@@ -51,7 +52,7 @@ class ClaudeOpus(LanguageModel):
     ) -> dict[str, Any]:
         """Calls the OpenAI API and returns the API response."""
         api_key = os.environ.get("ANTHROPIC_API_KEY")
-        client = AsyncAnthropic(api_key = api_key)
+        client = AsyncAnthropic(api_key=api_key)
 
         response = await client.messages.create(
             model="claude-3-opus-20240229",
@@ -59,9 +60,10 @@ class ClaudeOpus(LanguageModel):
             temperature=0.0,
             system=system_prompt,
             messages=[
-           #     {"role": "system", "content": system_prompt},
+                #     {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
-            ])
+            ],
+        )
         return response.model_dump()
 
     @staticmethod
@@ -74,14 +76,16 @@ class ClaudeOpus(LanguageModel):
             return match.group(1)
         else:
             return response
-        
+
+
 if __name__ == "__main__":
-    #m = ClaudeOpus()
-    #results = m.execute_model_call("How are you today?")
-    #cleaned_up = ClaudeOpus.parse_response(results)
-    #print(cleaned_up)
+    # m = ClaudeOpus()
+    # results = m.execute_model_call("How are you today?")
+    # cleaned_up = ClaudeOpus.parse_response(results)
+    # print(cleaned_up)
 
     from edsl import QuestionMultipleChoice
+
     q = QuestionMultipleChoice.example()
     m = ClaudeOpus()
     results = q.by(m).run()

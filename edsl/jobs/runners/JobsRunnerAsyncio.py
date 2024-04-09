@@ -7,33 +7,34 @@ from rich.live import Live
 from rich.console import Console
 
 from edsl.results import Results, Result
-#from edsl.jobs.runners.JobsRunner import JobsRunner
+
+# from edsl.jobs.runners.JobsRunner import JobsRunner
 from edsl.jobs.interviews.Interview import Interview
 from edsl.utilities.decorators import jupyter_nb_handler
 from edsl.jobs.Jobs import Jobs
 
 from edsl.jobs.runners.JobsRunnerStatusMixin import JobsRunnerStatusMixin
-#from edsl.jobs.runners.JobsRunHistory import JobsRunHistory
+
+# from edsl.jobs.runners.JobsRunHistory import JobsRunHistory
 
 from edsl.data.Cache import Cache
 
-#from edsl.jobs.tasks.task_status_enum import TaskStatus
+# from edsl.jobs.tasks.task_status_enum import TaskStatus
 
 from edsl.jobs.tasks.TaskHistory import TaskHistory
 
-class JobsRunnerAsyncio(JobsRunnerStatusMixin):
 
+class JobsRunnerAsyncio(JobsRunnerStatusMixin):
     def __init__(self, jobs: Jobs):
         self.jobs = jobs
 
-        self.interviews: List['Interview'] = jobs.interviews()
-        self.bucket_collection: 'BucketCollection' = jobs.bucket_collection
-        self.total_interviews: List['Interview'] = []
-        
-    
-    def populate_total_interviews(self, n = 1) -> None:
+        self.interviews: List["Interview"] = jobs.interviews()
+        self.bucket_collection: "BucketCollection" = jobs.bucket_collection
+        self.total_interviews: List["Interview"] = []
+
+    def populate_total_interviews(self, n=1) -> None:
         """Populates self.total_interviews with n copies of each interview.
-        
+
         :param n: how many times to run each interview.
         """
         self.total_interviews = []
@@ -47,7 +48,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                         model=interview.model,
                         debug=interview.debug,
                         iteration=iteration,
-                        cache = self.cache
+                        cache=self.cache,
                     )
                     self.total_interviews.append(new_interview)
                 else:
@@ -56,7 +57,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
 
     async def run_async(
         self,
-        cache, 
+        cache,
         n: int = 1,
         debug: bool = False,
         stop_on_exception: bool = False,
@@ -85,7 +86,8 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             yield result
 
     async def _interview_task(
-        self, *, interview: Interview, debug: bool, stop_on_exception: bool = False) -> Result:
+        self, *, interview: Interview, debug: bool, stop_on_exception: bool = False
+    ) -> Result:
         """Conducts an interview and returns the result.
 
         :param interview: the interview to conduct
@@ -139,7 +141,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             answer=answer,
             prompt=prompt_dictionary,
             raw_model_response=raw_model_results_dictionary,
-            survey = interview.survey
+            survey=interview.survey,
         )
         return result
 
@@ -150,7 +152,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
     @jupyter_nb_handler
     async def run(
         self,
-        cache, 
+        cache,
         n: int = 1,
         debug: bool = False,
         stop_on_exception: bool = False,
@@ -178,9 +180,13 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                 """A dummy update method that does nothing."""
                 pass
 
-        progress_bar_context = Live(generate_table(), console=console, refresh_per_second=5) if progress_bar else no_op_cm()
+        progress_bar_context = (
+            Live(generate_table(), console=console, refresh_per_second=5)
+            if progress_bar
+            else no_op_cm()
+        )
 
-        #breakpoint()
+        # breakpoint()
 
         with cache as c:
             with progress_bar_context as live:
@@ -192,35 +198,38 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                         await asyncio.sleep(0.1)  # Update interval
                         if self.completed:
                             break
-                
+
                 async def process_results():
                     """Processes results from interviews."""
-                    async for result in self.run_async(n=n, debug=debug, stop_on_exception=stop_on_exception, cache=c):
+                    async for result in self.run_async(
+                        n=n, debug=debug, stop_on_exception=stop_on_exception, cache=c
+                    ):
                         self.results.append(result)
                         live.update(generate_table())
                     self.completed = True
 
-                #logger_task = asyncio.create_task(self.periodic_logger(period=0.01))
+                # logger_task = asyncio.create_task(self.periodic_logger(period=0.01))
                 progress_task = asyncio.create_task(update_progress_bar())
 
                 try:
-                    await asyncio.gather(process_results(), 
-                                        progress_task)
+                    await asyncio.gather(process_results(), progress_task)
                 except asyncio.CancelledError:
                     pass
                 finally:
                     progress_task.cancel()  # Cancel the progress_task when process_results is done
-                    await progress_task 
-                
+                    await progress_task
+
                     await asyncio.sleep(1)  # short delay to show the final status
 
                     # one more update
-                    live.update(generate_table())            
+                    live.update(generate_table())
 
         results = Results(survey=self.jobs.survey, data=self.results)
         results.task_history = TaskHistory(self.total_interviews)
         if results.task_history.has_exceptions:
-            print(textwrap.dedent(f"""\
+            print(
+                textwrap.dedent(
+                    f"""\
             Exceptions were raised in the following interviews: {results.task_history.indices}
 
             >>> results.task_history.show_exceptions()
@@ -233,7 +242,8 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             
             >>> results.task_history.plot()
             
-            """))
+            """
+                )
+            )
 
         return results
-

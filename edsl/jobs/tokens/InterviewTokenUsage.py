@@ -1,6 +1,7 @@
 from edsl.jobs.tokens.TokenUsage import TokenUsage
 from edsl.enums import TokenPricing
 
+
 class InterviewTokenUsage:
     def __init__(
         self, new_token_usage: TokenUsage = None, cached_token_usage: TokenUsage = None

@@ -6,7 +6,7 @@ NEGATIVE_INFINITY = float("-inf")
 
 class AttributeTypes(Enum):
     """The types of attributes that a prompt can have."""
-    
+
     COMPONENT_TYPE = "component_type"
     MODEL = "model"
     QUESTION_TYPE = "question_type"

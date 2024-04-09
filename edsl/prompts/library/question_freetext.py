@@ -15,7 +15,3 @@ class FreeText(QuestionInstuctionsBase):
         {"answer": "<put free text answer here>"}
         """
     )
-
-
-
-

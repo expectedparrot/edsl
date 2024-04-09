@@ -1,6 +1,6 @@
 """A Scenario is a dictionary with a key/value to parameterize a question."""
 import copy
-from collections import UserDict 
+from collections import UserDict
 from rich.table import Table
 from typing import Union, List
 from edsl.Base import Base
@@ -9,9 +9,9 @@ from edsl.Base import Base
 class Scenario(Base, UserDict):
     """A Scenario is a dictionary of keys/values for parameterizing questions."""
 
-    def __add__(self, other_scenario: "Scenario") -> 'Scenario':
+    def __add__(self, other_scenario: "Scenario") -> "Scenario":
         """Combine two scenarios.
-        
+
         If the other scenario is None, then just return self.
 
         :param other_scenario: The other scenario to combine with.
@@ -34,7 +34,7 @@ class Scenario(Base, UserDict):
             new_scenario.update(copy.deepcopy(other_scenario))
             return Scenario(new_scenario)
 
-    def rename(self, replacement_dict: dict) -> 'Scenario':
+    def rename(self, replacement_dict: dict) -> "Scenario":
         """Rename the keys of a scenario.
 
         :param replacement_dict: A dictionary of old keys to new keys.
@@ -85,7 +85,7 @@ class Scenario(Base, UserDict):
         return self.data
 
     @classmethod
-    def from_dict(cls, d: dict) -> 'Scenario':
+    def from_dict(cls, d: dict) -> "Scenario":
         """Convert a dictionary to a scenario.
 
         >>> Scenario.from_dict({"food": "wood chips"})
@@ -101,7 +101,7 @@ class Scenario(Base, UserDict):
         column_names = ["Attribute", "Value"]
         return table_data, column_names
 
-    def rich_print(self) -> 'Table':
+    def rich_print(self) -> "Table":
         """Display an object as a rich table."""
         table_data, column_names = self._table()
         table = Table(title=f"{self.__class__.__name__} Attributes")
@@ -115,7 +115,7 @@ class Scenario(Base, UserDict):
         return table
 
     @classmethod
-    def example(cls) -> 'Scenario':
+    def example(cls) -> "Scenario":
         """Return an example scenario.
 
         >>> Scenario.example()
@@ -132,10 +132,11 @@ class Scenario(Base, UserDict):
         lines = []
         lines.append("from edsl.scenario import Scenario")
         lines.append(f"s = Scenario({self.data})")
-        #return f"Scenario({self.data})"
+        # return f"Scenario({self.data})"
         return lines
 
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)

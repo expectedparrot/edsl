@@ -24,6 +24,7 @@ from typing import Optional, Callable
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.descriptors import FunctionDescriptor
 
+
 class QuestionFunctional(QuestionBase):
     """A special type of question that is *not* answered by an LLM."""
 

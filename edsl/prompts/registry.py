@@ -102,7 +102,7 @@ class RegisterPromptsMeta(ABCMeta):
     @classmethod
     def _create_prompt_class_key(cls, dct, component_type) -> tuple[tuple[str, Any]]:
         """Create a key for the prompt class.
-        
+
         This is a helper function.
         """
         attributes = [attribute.value for attribute in C2A.get(component_type, [])]
@@ -172,12 +172,12 @@ class RegisterPromptsMeta(ABCMeta):
     @classmethod
     def get_classes(cls, **kwargs):
         """Return only the prompt classes and not the scores.
-        
+
         Public-facing function.
         """
         with_scores = cls._get_classes_with_scores(**kwargs)
         return [prompt for _, prompt in with_scores]
-        #return with_scores
+        # return with_scores
 
     @classmethod
     def _score(cls, kwargs, prompt):

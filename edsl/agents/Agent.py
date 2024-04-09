@@ -42,6 +42,7 @@ from edsl.prompts.library.agent_persona import AgentPersona
 
 from edsl.data.Cache import Cache
 
+
 class Agent(Base):
     """An Agent that can answer questions."""
 
@@ -164,9 +165,9 @@ class Agent(Base):
 
     def create_invigilator(
         self,
-        *, 
+        *,
         question: Question,
-        cache, 
+        cache,
         scenario: Optional[Scenario] = None,
         model: Optional[LanguageModel] = None,
         debug: bool = False,
@@ -197,9 +198,9 @@ class Agent(Base):
 
     async def async_answer_question(
         self,
-        *, 
+        *,
         question: Question,
-        cache, 
+        cache,
         scenario: Optional[Scenario] = None,
         model: Optional[LanguageModel] = None,
         debug: bool = False,
@@ -240,7 +241,7 @@ class Agent(Base):
     def _create_invigilator(
         self,
         question: Question,
-        cache = None, 
+        cache=None,
         scenario: Optional[Scenario] = None,
         model: Optional[LanguageModel] = None,
         debug: bool = False,
@@ -293,7 +294,7 @@ class Agent(Base):
         The agents must not have overlapping traits.
 
         Example usage:
-        
+
         >>> a1 = Agent(traits = {"age": 10})
         >>> a2 = Agent(traits = {"height": 5.5})
         >>> a1 + a2
@@ -344,7 +345,7 @@ class Agent(Base):
     @property
     def data(self):
         """Format the data for serialization.
-        
+
         TODO: Warn if has dynamic traits function or direct answer function that cannot be serialized.
         TODO: Add ability to have coop-hosted functions that are serializable.
         """
@@ -443,11 +444,16 @@ def main():
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)
 
-    a = Agent(traits = {"age": 10}, traits_presentation_template = "I am a {{age}} year old.")
+    a = Agent(
+        traits={"age": 10}, traits_presentation_template="I am a {{age}} year old."
+    )
     repr(a.agent_persona)
 
-    a = Agent(traits = {'age': 22, 'hair': 'brown', 'gender': 'female'}, 
-        traits_presentation_template = "I am a {{ age }} year-old {{ gender }} with {{ hair }} hair.")
-    print(a.agent_persona.render(primary_replacement = a.traits))
+    a = Agent(
+        traits={"age": 22, "hair": "brown", "gender": "female"},
+        traits_presentation_template="I am a {{ age }} year-old {{ gender }} with {{ hair }} hair.",
+    )
+    print(a.agent_persona.render(primary_replacement=a.traits))

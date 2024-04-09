@@ -2,6 +2,7 @@
 from collections import UserDict
 from rich.table import Table
 
+
 class Answers(UserDict):
     """Helper class to hold the answers to a survey."""
 

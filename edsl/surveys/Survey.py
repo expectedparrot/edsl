@@ -159,7 +159,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
     def set_lagged_memory(self, lags: int):
         """Add instructions to a survey that the agent should remember the answers to the questions in the survey.
-        
+
         The agent should remember the answers to the questions in the survey from the previous lags.
         """
         self._set_memory_plan(lambda i: self.question_names[max(0, i - lags) : i])
@@ -173,10 +173,12 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
             )
 
     def add_targeted_memory(
-        self, focal_question: Union[QuestionBase, str], prior_question: Union[QuestionBase, str]
+        self,
+        focal_question: Union[QuestionBase, str],
+        prior_question: Union[QuestionBase, str],
     ) -> None:
         """Add instructions to a survey than when answering focal_question.
-        
+
         The agent should also remember the answers to prior_questions listed in prior_questions.
         """
         focal_question_name = self.question_names[
@@ -227,7 +229,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
     def _get_question_index(self, q):
         """Return the index of the question or EndOfSurvey object.
-        
+
         It can handle it if the user passes in the question name, the question object, or the EndOfSurvey object.
         """
         if q == EndOfSurvey:
@@ -479,6 +481,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     def example(cls) -> Survey:
         """Return an example survey."""
         from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
+
         # from edsl.surveys.Survey import Survey
 
         q0 = QuestionMultipleChoice(
@@ -503,6 +506,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
 def main():
     """Run the example survey."""
+
     def example_survey():
         """Return an example survey."""
         from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
@@ -569,7 +573,8 @@ if __name__ == "__main__":
     # print(results)
 
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)
-    
+
     s = example_survey()
     s.show_flow()

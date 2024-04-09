@@ -1,5 +1,6 @@
 """Settings for the questions module."""
 
+
 class Settings:
     """Settings for the questions module."""
 

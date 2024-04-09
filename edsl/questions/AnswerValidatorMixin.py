@@ -76,7 +76,7 @@ class AnswerValidatorMixin:
     #####################
     def _validate_answer_budget(self, answer: dict[str, Any]) -> None:
         """Validate QuestionBudget-specific answer.
-        
+
         Check that answer["answer"]:
         - has keys that are in the range of the number of options
         - has values that are non-negative integers
@@ -108,7 +108,7 @@ class AnswerValidatorMixin:
 
     def _validate_answer_checkbox(self, answer: dict[str, Union[str, int]]) -> None:
         """Validate QuestionCheckbox-specific answer.
-    
+
         Check that answer["answer"]:
         - has elements that are strings, bytes-like objects or real numbers evaluating to integers
         - has elements that are in the range of the number of options
@@ -139,7 +139,7 @@ class AnswerValidatorMixin:
 
     def _validate_answer_extract(self, answer: dict[str, Any]) -> None:
         """Validate QuestionExtract-specific answer.
-        
+
         Check that answer["answer"]:
         - does not have keys that are not in the answer template
         - has all keys that are in the answer template
@@ -157,7 +157,7 @@ class AnswerValidatorMixin:
 
     def _validate_answer_list(self, answer: dict[str, Union[list, str]]) -> None:
         """Validate QuestionList-specific answer.
-         
+
         Check that answer["answer"]:
         - is not empty, if `allow_nonresponse` is False
         - has no more than `max_list_items` elements
@@ -185,7 +185,7 @@ class AnswerValidatorMixin:
 
     def _validate_answer_numerical(self, answer: dict) -> None:
         """Validate QuestionNumerical-specific answer.
-        
+
         Check that answer["answer"]:
         - is not less than `min_value`
         - is not greater than `max_value`
@@ -205,7 +205,7 @@ class AnswerValidatorMixin:
         self, answer: dict[str, Union[str, int]]
     ) -> None:
         """Validate QuestionMultipleChoice-specific answer.
-        
+
         Check that answer["answer"]:
         - is a string, bytes-like object or real number
         - is a non-negative integer
@@ -228,7 +228,7 @@ class AnswerValidatorMixin:
 
     def _validate_answer_rank(self, answer: dict[str, Union[str, int]]) -> None:
         """Validate QuestionRank-specific answer.
-        
+
         Check that answer["answer"]:
         - contains only integers
         - contains only integers in the range of the number of options

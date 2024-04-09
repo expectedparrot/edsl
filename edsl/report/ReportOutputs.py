@@ -280,6 +280,7 @@ class Element(ABC, metaclass=RegisterElementMeta):
     @classmethod
     def example(cls, **kwargs):
         """Create an example of the element."""
+
         class MockParent:
             def __init__(self, data):
                 self.output_data = data
@@ -375,6 +376,7 @@ class Element(ABC, metaclass=RegisterElementMeta):
         )
         # return self._primary_function.__doc__
         return help_text
+
 
 def create_root_element(output_data_type):
     """Create a root element from the output data type."""
@@ -503,13 +505,16 @@ def get_option_codes_short_name(options):
     """Create a dictionary mapping options to codes."""
     return dict(zip(options, find_version(options, 1)))
 
+
 def to_strings(split_versions):
     """Convert the split versions to strings."""
     return ["_".join(version) for version in split_versions]
 
+
 def is_unique(split_versions):
     """Check if the split versions are unique."""
     return len(set(to_strings(split_versions))) == len(to_strings(split_versions))
+
 
 def get_option_codes(options: list[str]):
     """Create a dictionary mapping options to codes."""
@@ -850,6 +855,7 @@ class ScatterPlot(PlotMixin, Element):
             "width_pct": width_pct,
         }
 
+
 class WordCloudPlot(PlotMixin, Element):
     """Create a word cloud plot for free text data."""
 
@@ -1051,7 +1057,7 @@ class FacetedBarChart(PlotMixin, Element):
         width_pct=100,
         filename=None,
     ):
-        """ 
+        """
         Generate a set of bar plots as a FacetGrid to compare two categorical data sets.
 
         This method creates a series of bar plots, one for each category in the RightCategoricalDataObject,
