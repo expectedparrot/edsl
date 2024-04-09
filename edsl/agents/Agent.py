@@ -442,8 +442,8 @@ def main():
 
 
 if __name__ == "__main__":
-    #import doctest
-    #doctest.testmod()
+    import doctest
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
 
     a = Agent(traits = {"age": 10}, traits_presentation_template = "I am a {{age}} year old.")
     repr(a.agent_persona)

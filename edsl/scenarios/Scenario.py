@@ -34,22 +34,6 @@ class Scenario(Base, UserDict):
             new_scenario.update(copy.deepcopy(other_scenario))
             return Scenario(new_scenario)
 
-    def to(self, question_or_survey: Union['Question', 'Survey']) -> 'Jobs':
-        """Create a job from this question/survey and the scenario.
-
-        :param question_or_survey: A question or survey to run.
-        Useful if you want to reverse the typical chain of operations.
-
-        Examples:
-        This creates a scenario and then runs it with question with scenarios.
-
-        >>> from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
-        >>> s = Scenario({"food": "wood chips"})
-        >>> q = QuestionMultipleChoice(question_text = "Do you enjoy the taste of {{food}}?", question_options = ["Yes", "No"], question_name = "food_preference")
-        >>> _ = s.to(q)
-        """
-        return question_or_survey.by(self)
-
     def rename(self, replacement_dict: dict) -> 'Scenario':
         """Rename the keys of a scenario.
 
@@ -154,5 +138,4 @@ class Scenario(Base, UserDict):
 
 if __name__ == "__main__":
     import doctest
-
-    doctest.testmod()
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
