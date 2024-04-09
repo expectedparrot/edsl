@@ -1,12 +1,7 @@
-from edsl.language_models import (
-    LanguageModelOpenAIThreeFiveTurbo,
-    LanguageModelOpenAIFour,
-    GeminiPro,
-)
-from edsl.agents import Agent
+from edsl import Model, Agent, Scenario, Survey
 from edsl.questions import QuestionMultipleChoice
-from edsl.scenarios import Scenario
-from edsl.surveys import Survey
+
+Model.available()
 
 
 def test_simple_job_integration():
@@ -21,33 +16,15 @@ def test_simple_job_integration():
         question_name="how_feeling_yesterday",
     )
     survey = Survey(questions=[q1, q2])
-    agents = [Agent(traits = {"state": value}) for value in {"sad", "happy"}]
+    agents = [Agent(traits={"state": value}) for value in {"sad", "happy"}]
     scenarios = [Scenario({"greeting": key}) for key in ["mate", "friendo"]]
-    models_no_cache = [
-        LanguageModelOpenAIThreeFiveTurbo(use_cache=False),
-        LanguageModelOpenAIFour(use_cache=False),
-        GeminiPro(use_cache=False),
-    ]
-    models_cache = [
-        LanguageModelOpenAIThreeFiveTurbo(use_cache=True),
-        LanguageModelOpenAIFour(use_cache=True),
-        GeminiPro(use_cache=True),
-    ]
 
-    # print("-------------------------")
-    # print("Uncomment to test streaming")
-    # job_no_cache = survey.by(agents).by(scenarios).by(models_no_cache)
-    # results_streaming = job_no_cache.run(method="streaming")
-    # results_streaming
+    models = [Model(model) for model in Model.available()]
 
     print("-------------------------")
-    print("Running job without cache")
-    job_no_cache = survey.by(agents).by(scenarios).by(models_no_cache)
+    print("Running job without cache?")
+    job_no_cache = survey.by(agents).by(scenarios).by(models)
     results_no_cache = job_no_cache.run()
     results_no_cache
 
-    print("-------------------------")
-    print("Running job with cache")
-    job_cache = survey.by(agents).by(scenarios).by(models_cache)
-    results_cache = job_cache.run()
-    results_cache
+    # TODO: ADD OPTION THAT SPECIFIES CACHE
