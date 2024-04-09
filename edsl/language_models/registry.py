@@ -62,7 +62,7 @@ class Model(metaclass=Meta):
 
         subclass = get_model_classes.get(model_name, None)
         if subclass is None:
-            raise ValueError(f"No model registered with name {model_name}")
+            raise ValueError(f"No model registered with name '{model_name}'. See a list of available models run: Model.available()")
 
         # Create an instance of the selected subclass
         instance = object.__new__(subclass)
