@@ -17,7 +17,7 @@ python code.
 Open your terminal and verify that you have not previously installed
 EDSL on your system:
 
-.. code:: 
+.. code::
 
     pip show edsl
 
