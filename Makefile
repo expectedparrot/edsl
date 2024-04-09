@@ -1,17 +1,21 @@
 ###############
 # VARIABLES
 ###############
-# Project
 GIT_ROOT ?= $(shell git rev-parse --show-toplevel)
 PROJECT_NAME ?= $(shell basename $(GIT_ROOT))
-# PHONY
-.PHONY: help find docs integration docstrings
+.PHONY: bump docs docstrings find help integration
 
 ###############
 ##@Utils ⭐ 
 ###############
 help: ## Show this helpful message
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  \033[33m%-25s\033[0m %s\n", $$1, $$2} /^##@/ {printf "\n\033[0;32m%s\033[0m\n", substr($$0, 4)} ' $(MAKEFILE_LIST)
+
+install: ## Install all project deps and create a venv (local)
+	make clean-all
+	@echo "Creating a venv from pyproject.toml and installing deps using poetry..."
+	poetry install --with dev
+	@echo "All deps installed and venv created."
 
 find: ## Search for a pattern. Use `make find term="pattern"`
 	@find . -type d \( -name '.venv' -o -name '__pycache__' \) -prune -o -type f -print | xargs grep -l "$(term)"
@@ -56,12 +60,6 @@ clean-all: ## Clean everything (including the venv)
 ###############
 ##@Development 🛠️  
 ###############
-install: ## Install all project deps and create a venv (local)
-	make clean-all
-	@echo "Creating a venv from pyproject.toml and installing deps using poetry..."
-	poetry install --with dev
-	@echo "All deps installed and venv created."
-
 backup: ## Backup the code to `edsl/.backups/`
 	TIMESTAMP=$$(date +"%Y%m%d_%H%M%S"); \
 	BACKUP_NAME=$(PROJECT_NAME)_$${TIMESTAMP}.tar.gz; \
@@ -69,6 +67,11 @@ backup: ## Backup the code to `edsl/.backups/`
 	tar -czf $${BACKUP_NAME} --exclude="*pkl" --exclude="*tar.gz" --exclude="*db" --exclude="*csv" --exclude="./.*" --exclude="node_modules" --exclude="__pycache__" .;\
 	mv $${BACKUP_NAME} "./.backups";\
 	echo "Backup created: $${BACKUP_NAME}"
+
+bump: ## Bump the version of the package
+	@python scripts/bump_version.py $(filter-out $@,$(MAKECMDGOALS))
+%:
+	@:
 
 docs: ## Generate documentation
 	mkdir -p .temp/docs
