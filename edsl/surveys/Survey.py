@@ -569,8 +569,7 @@ if __name__ == "__main__":
     # print(results)
 
     import doctest
-
-    doctest.testmod()
-
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
+    
     s = example_survey()
     s.show_flow()

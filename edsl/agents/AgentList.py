@@ -73,4 +73,5 @@ class AgentList(UserList, Base, AgentListExportMixin):
 
 
 if __name__ == "__main__":
-    pass
+    import doctest
+    doctest.testmod(optionflags=doctest.ELLIPSIS)

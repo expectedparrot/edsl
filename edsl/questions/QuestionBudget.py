@@ -127,3 +127,6 @@ def main():
 if __name__ == "__main__":
     q = QuestionBudget.example()
     results = q.run()
+
+    import doctest
+    doctest.testmod(optionflags=doctest.ELLIPSIS)

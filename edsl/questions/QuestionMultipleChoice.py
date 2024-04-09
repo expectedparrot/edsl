@@ -100,3 +100,6 @@ def main():
     # serialization (inherits from Question)
     q.to_dict()
     assert q.from_dict(q.to_dict()) == q
+
+    import doctest
+    doctest.testmod(optionflags=doctest.ELLIPSIS)

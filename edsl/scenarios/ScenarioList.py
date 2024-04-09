@@ -17,10 +17,6 @@ class ScenarioList(Base, UserList):
         if data is not None:
             super().__init__(data)
 
-    def to(self, question_or_survey: Union["Question", "Survey"]):
-        """Create a survey from a list of scenarios."""
-        return question_or_survey.by(*self)
-
     @classmethod
     def from_csv(cls, filename):
         """Create a ScenarioList from a CSV file."""
@@ -94,5 +90,5 @@ if __name__ == "__main__":
 
     print(scenario_list.code())
 
-    results = scenario_list.to(q).run()
-    print(results)
+    import doctest
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
