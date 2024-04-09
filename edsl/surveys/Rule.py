@@ -36,6 +36,7 @@ from edsl.utilities.interface import print_table_with_rich
 
 class Rule:
     """The Rule class defines a "rule" for determining the next question presented to an agent."""
+
     # Not implemented but nice to have:
     # We could potentially use the question pydantic models to check for rule conflicts, as
     # they define the potential trees through a survey.
@@ -149,6 +150,7 @@ class Rule:
 
         If the expression cannot be evaluated, it raises a CannotEvaluate exception.
         """
+
         def substitute_in_answers(expression, answers):
             """Take the dictionary of answers and substitute them into the expression."""
             for var, value in answers.items():

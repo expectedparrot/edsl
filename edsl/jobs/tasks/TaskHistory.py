@@ -2,14 +2,20 @@ from edsl.jobs.tasks.task_status_enum import TaskStatus
 from matplotlib import pyplot as plt
 from typing import List
 
-class TaskHistory:
 
-    def __init__(self, interviews: List['Interview']):
+class TaskHistory:
+    def __init__(self, interviews: List["Interview"]):
         self.total_interviews = interviews
 
-        self.exceptions = [i.exceptions for index, i in enumerate(self.total_interviews) if i.exceptions != {}]
-        self.indices = [index for index, i in enumerate(self.total_interviews) if i.exceptions != {}]
- 
+        self.exceptions = [
+            i.exceptions
+            for index, i in enumerate(self.total_interviews)
+            if i.exceptions != {}
+        ]
+        self.indices = [
+            index for index, i in enumerate(self.total_interviews) if i.exceptions != {}
+        ]
+
     @property
     def has_exceptions(self) -> bool:
         """Return True if there are any exceptions."""
@@ -34,26 +40,25 @@ class TaskHistory:
 
         elapsed = [update.max_time - update.min_time for update in updates]
         for i, update in enumerate(updates):
-            if update[-1]['value'] != TaskStatus.SUCCESS:
+            if update[-1]["value"] != TaskStatus.SUCCESS:
                 elapsed[i] = 0
         x = range(len(elapsed))
         y = elapsed
 
         plt.bar(x, y)
-        plt.title('Per-interview completion times')
-        plt.xlabel('Task')
-        plt.ylabel('Time (seconds)')
+        plt.title("Per-interview completion times")
+        plt.xlabel("Task")
+        plt.ylabel("Time (seconds)")
         plt.show()
 
-    def plotting_data(self, num_periods = 100):
-
+    def plotting_data(self, num_periods=100):
         updates = self.get_updates()
-        
+
         min_t = min([update.min_time for update in updates])
         max_t = max([update.max_time for update in updates])
-        delta_t = (max_t - min_t)/(num_periods * 1.0)
-        time_periods = [min_t + delta_t *i for i in range(num_periods)]
-      
+        delta_t = (max_t - min_t) / (num_periods * 1.0)
+        time_periods = [min_t + delta_t * i for i in range(num_periods)]
+
         def counts(t):
             d = {}
             for update in updates:
@@ -62,19 +67,19 @@ class TaskHistory:
                     d[status] += 1
                 else:
                     d[status] = 1
-            return d 
-  
+            return d
+
         status_counts = [counts(t) for t in time_periods]
 
         new_counts = []
         for status_count in status_counts:
-            d = {task_status:0 for task_status in TaskStatus}
+            d = {task_status: 0 for task_status in TaskStatus}
             d.update(status_count)
             new_counts.append(d)
 
         return new_counts
-    
-    def plot(self, num_periods = 100):
+
+    def plot(self, num_periods=100):
         """Plot the number of tasks in each state over time."""
         new_counts = self.plotting_data(num_periods)
         max_count = max([max(entry.values()) for entry in new_counts])
@@ -82,16 +87,18 @@ class TaskHistory:
         rows = int(len(TaskStatus) ** 0.5) + 1
         cols = (len(TaskStatus) + rows - 1) // rows  # Ensure all plots fit
         from matplotlib import pyplot as plt
-            
+
         plt.figure(figsize=(15, 10))  # Adjust the figure size as needed
         for i, status in enumerate(TaskStatus, start=1):
             plt.subplot(rows, cols, i)
             x = range(len(new_counts))
-            y = [item.get(status, 0) for item in new_counts]  # Use .get() to handle missing keys safely
-            plt.plot(x, y, marker='o', linestyle='-')
+            y = [
+                item.get(status, 0) for item in new_counts
+            ]  # Use .get() to handle missing keys safely
+            plt.plot(x, y, marker="o", linestyle="-")
             plt.title(status.name)
-            plt.xlabel('Time Periods')
-            plt.ylabel('Count')
+            plt.xlabel("Time Periods")
+            plt.ylabel("Count")
             plt.grid(True)
             plt.ylim(0, max_count)
 

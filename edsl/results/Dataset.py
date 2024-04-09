@@ -36,6 +36,7 @@ class Dataset(UserList, ResultsExportMixin):
 
     def order_by(self, sort_key: str, reverse: bool = False) -> Dataset:
         """Return a new dataset with the observations sorted by the given key."""
+
         def sort_indices(lst: list[Any]) -> list[int]:
             """
             Return the indices that would sort the list.

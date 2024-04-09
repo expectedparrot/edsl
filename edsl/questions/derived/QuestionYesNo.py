@@ -17,7 +17,7 @@ class QuestionYesNo(QuestionMultipleChoice):
         question_options: list[str] = ["Yes", "No"],
     ):
         """Instantiate a new QuestionYesNo.
-        
+
         :param question_name: The name of the question.
         :param question_text: The text of the question.
         :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionYesNo.default_instructions`.
@@ -64,4 +64,5 @@ def main():
     assert q.from_dict(q.to_dict()) == q
 
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)

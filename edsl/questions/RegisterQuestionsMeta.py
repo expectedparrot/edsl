@@ -4,6 +4,7 @@ from abc import ABCMeta
 from edsl.enums import QuestionType
 from edsl.exceptions.questions import QuestionMissingTypeError, QuestionBadTypeError
 
+
 class RegisterQuestionsMeta(ABCMeta):
     """Metaclass to register output elements in a registry i.e., those that have a parent."""
 

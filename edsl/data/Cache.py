@@ -51,7 +51,7 @@ class Cache:
         self.new_entries_to_write_later = {}
         self.coop = None
         self._perform_checks()
-        
+
     def _perform_checks(self):
         """Perform checks on the cache."""
         if any(not isinstance(value, CacheEntry) for value in self.data.values()):

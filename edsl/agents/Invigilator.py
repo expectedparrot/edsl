@@ -12,12 +12,12 @@ from edsl.agents.PromptConstructionMixin import PromptConstructorMixin
 
 from edsl.agents.InvigilatorBase import InvigilatorBase
 
+
 class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
     """An invigilator that uses an AI model to answer questions."""
 
-    async def async_answer_question(self, failed:bool=False) -> AgentResponseDict:
-        """Answer a question using the AI model.
-        """
+    async def async_answer_question(self, failed: bool = False) -> AgentResponseDict:
+        """Answer a question using the AI model."""
         params = self.get_prompts() | {"iteration": self.iteration}
         raw_response = await self.async_get_response(**params)
         assert "raw_model_response" in raw_response
@@ -26,8 +26,10 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
             "question": self.question,
             "scenario": self.scenario,
         }
-        raw_response_data = {"raw_response": raw_response,
-                             "raw_model_response": raw_response["raw_model_response"]}   
+        raw_response_data = {
+            "raw_response": raw_response,
+            "raw_model_response": raw_response["raw_model_response"],
+        }
         params = data | raw_response_data
         response = self._format_raw_response(**params)
         return AgentResponseDict(**response)
@@ -41,10 +43,10 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
                 user_prompt=user_prompt.text,
                 system_prompt=system_prompt.text,
                 iteration=iteration,
-                cache = self.cache
+                cache=self.cache,
             )
 
-        # TODO: I *don't* think we need to delete the cache key here because I think 
+        # TODO: I *don't* think we need to delete the cache key here because I think
         # it will not have been set yet; the exception would have been raised before.
         except json.JSONDecodeError as e:
             raise AgentRespondedWithBadJSONError(
@@ -66,8 +68,11 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
             response = question._validate_answer(raw_response)
         except Exception as e:
             print("Purging the cache key")
-            if "raw_model_response" in raw_response and 'cache_key' in raw_response['raw_model_response']:
-                cache_key = raw_response['raw_model_response']['cache_key']
+            if (
+                "raw_model_response" in raw_response
+                and "cache_key" in raw_response["raw_model_response"]
+            ):
+                cache_key = raw_response["raw_model_response"]["cache_key"]
             else:
                 cache_key = None
             del self.cache.data[cache_key]
@@ -91,6 +96,7 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
     get_response = sync_wrapper(async_get_response)
     answer_question = sync_wrapper(async_answer_question)
 
+
 class InvigilatorDebug(InvigilatorBase):
     """An invigilator class for debugging purposes."""
 
@@ -108,6 +114,7 @@ class InvigilatorDebug(InvigilatorBase):
             "user_prompt": Prompt("NA").text,
             "system_prompt": Prompt("NA").text,
         }
+
 
 class InvigilatorHuman(InvigilatorBase):
     """An invigilator for when a human is answering the question."""

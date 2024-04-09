@@ -19,12 +19,13 @@ NextQuestion = namedtuple(
     "NextQuestion", "next_q, num_rules_found, expressions_evaluating_to_true, priority"
 )
 
+
 class RuleCollection(UserList):
     """A collection of rules for a particular survey."""
 
     def __init__(self, num_questions: int = None, rules: List[Rule] = None):
         """Initialize the RuleCollection object.
-        
+
         :param num_questions: The number of questions in the survey.
         :param rules: A list of Rule objects.
         """
@@ -145,7 +146,7 @@ class RuleCollection(UserList):
         Example usage:
 
         .. code-block:: python
-        
+
             rule_collection = RuleCollection(num_questions=5)
             rule_collection.keys_between(1, 3)
             [2, 3]
@@ -197,7 +198,7 @@ class RuleCollection(UserList):
 
         """
         children_to_parents = defaultdict(set)
-        # We are only interested in non-default rules. Default rules are those 
+        # We are only interested in non-default rules. Default rules are those
         # that just go to the next question, so they don't add any dependencies
         for rule in self.non_default_rules:
             current_q, next_q = rule.current_q, rule.next_q

@@ -5,6 +5,7 @@ from edsl.jobs.tokens.TokenUsage import TokenUsage
 from edsl.jobs.interviews.InterviewStatusDictionary import InterviewStatusDictionary
 from edsl.jobs.tokens.InterviewTokenUsage import InterviewTokenUsage
 
+
 class TaskCreators(UserDict):
     "A dictionary of task creators. A task is one question being answered."
 
@@ -32,9 +33,7 @@ class TaskCreators(UserDict):
             status_dict[task_creator.task_status] += 1
             status_dict["number_from_cache"] += task_creator.from_cache
         return status_dict
-    
+
     def status_logs(self):
         """Returns a list of status logs for each task."""
         return [task_creator.status_log for task_creator in self.values()]
-
-

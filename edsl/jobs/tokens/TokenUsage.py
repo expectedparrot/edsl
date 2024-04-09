@@ -1,5 +1,6 @@
 from edsl.enums import TokenPricing
 
+
 class TokenUsage:
     def __init__(
         self, from_cache: bool, prompt_tokens: int = 0, completion_tokens: int = 0
@@ -31,4 +32,3 @@ class TokenUsage:
             self.prompt_tokens * prices.prompt_token_price
             + self.completion_tokens * prices.completion_token_price
         )
-

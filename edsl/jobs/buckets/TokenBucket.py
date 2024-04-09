@@ -4,6 +4,7 @@ import time
 from collections import UserDict
 from matplotlib import pyplot as plt
 
+
 class TokenBucket:
     """This is a token bucket used to respect rate limits to services."""
 
@@ -25,8 +26,8 @@ class TokenBucket:
         self.log: List[Any] = []
 
     def __add__(self, other) -> "TokenBucket":
-        """Combine two token buckets. 
-        
+        """Combine two token buckets.
+
         The resulting bucket has the minimum capacity and refill rate of the two buckets.
         This is useful, for example, if we have two calls to the same model on the same service but have different temperatures.
         """
@@ -63,7 +64,7 @@ class TokenBucket:
         available_tokens = min(self.capacity, self.tokens + refill_amount)
         return max(0, requested_tokens - available_tokens) / self.refill_rate
 
-    async def get_tokens(self, amount: Union[int, float]=1, warn = True) -> None:
+    async def get_tokens(self, amount: Union[int, float] = 1, warn=True) -> None:
         """Wait for the specified number of tokens to become available.
         Note that this method is a coroutine.
         """

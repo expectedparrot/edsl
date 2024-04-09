@@ -11,6 +11,7 @@ from edsl.jobs.runners.JobsRunnerStatusData import JobsRunnerStatusData
 
 InterviewTokenUsageMapping = DefaultDict[str, InterviewTokenUsage]
 
+
 class JobsRunnerStatusPresentation:
     @staticmethod
     def display_status_table(status_summary):
@@ -21,8 +22,8 @@ class JobsRunnerStatusPresentation:
             box=SIMPLE,
         )
         table.max_width = 100
-        table.add_column("Statistic", style="dim", no_wrap=True, width = 50)
-        table.add_column("Value", width = 10)
+        table.add_column("Statistic", style="dim", no_wrap=True, width=50)
+        table.add_column("Value", width=10)
 
         for key, value in status_summary.items():
             if key != "model_queues":
@@ -44,28 +45,29 @@ class JobsRunnerStatusPresentation:
                 # Token usage and cost info
                 for cache_info in model_info["token_usage_info"]:
                     cache_status = cache_info["cache_status"]
-                    table.add_row(Text(spacing + cache_status.replace("_", " "), style="bold"), "")
+                    table.add_row(
+                        Text(spacing + cache_status.replace("_", " "), style="bold"), ""
+                    )
                     for detail in cache_info["details"]:
                         token_type = detail["type"]
                         tokens = detail["tokens"]
-       #                 cost = detail["cost"]
+                        #                 cost = detail["cost"]
                         table.add_row(spacing + f"{token_type}", f"{tokens:,}")
-                    table.add_row(spacing + "cost", cache_info['cost'])
+                    table.add_row(spacing + "cost", cache_info["cost"])
 
         return table
 
 
 class JobsRunnerStatusMixin(JobsRunnerStatusData, JobsRunnerStatusPresentation):
-    
     def status_data(self, completed_tasks: List[asyncio.Task], elapsed_time: float):
         # return self.generate_status_summary(
         #     completed_tasks=completed_tasks,
         #     elapsed_time=elapsed_time,
         #     interviews=self.total_interviews).rawplt.figure(figsize=(10, 6))
-        
-        #return self.full_status(self.total_interviews)
+
+        # return self.full_status(self.total_interviews)
         return None
-     
+
     def status_table(self, completed_tasks: List[asyncio.Task], elapsed_time: float):
         summary_data = self.generate_status_summary(
             completed_tasks=completed_tasks,

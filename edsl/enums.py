@@ -67,6 +67,7 @@ service_to_api_keyname = {
     InferenceServiceType.ANTHROPIC.value: "ANTHROPIC_API_KEY",
 }
 
+
 class TokenPricing:
     def __init__(
         self,
@@ -87,6 +88,7 @@ class TokenPricing:
             and self.prompt_token_price == other.prompt_token_price
             and self.completion_token_price == other.completion_token_price
         )
+
 
 pricing = {
     "claude-3-opus-20240229": TokenPricing(

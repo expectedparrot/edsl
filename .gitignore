@@ -1,4 +1,4 @@
-# Data files
+__pycache__
 _build/*
 *_temp
 *csv
@@ -9,32 +9,24 @@ _build/*
 *gz
 *json
 *jsonl
+*log
 *txt
+.backups
+.DS_Store
+.coverage
+.edsl_cache
+.env
+.ipynb_checkpoints/
+.mypy_cache
+.pytest_cache
+.temp
+.venv
+docs/_build/
+dist
+htmlcov
+prof
+tests/temp_outputs
+venv
+# exceptions
 !edsl/utilities/data/*.json
 !.vscode/settings.json
-# Docs
-docs/_build/
-# Dotenv
-.env
-# Jupyter notebook files
-.ipynb_checkpoints/
-# MacOS files
-.DS_Store
-# Miscelannea
-.backups
-# MyPy files
-.mypy_cache
-# Packaging files
-dist
-# Testing files
-__pycache__
-prof
-.coverage
-.pytest_cache
-htmlcov
-tests/temp_outputs
-# Virtual environment files
-.venv
-venv
-*log
-_visualize_structure

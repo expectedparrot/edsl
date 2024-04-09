@@ -33,5 +33,5 @@ class CheckBox(QuestionInstuctionsBase):
 
 class TopK(CheckBox):
     """Top K question type."""
-    
+
     question_type = "top_k"

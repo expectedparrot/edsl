@@ -1,5 +1,6 @@
 import enum
 
+
 class InterviewStatus(enum.Enum):
     "These are the possible states an interview can be in."
     NOT_STARTED = enum.auto()
