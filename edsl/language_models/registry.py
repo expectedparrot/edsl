@@ -71,14 +71,14 @@ class Model(metaclass=Meta):
 
     @classmethod
     def available(cls):
-        return list(RegisterLanguageModelsMeta.model_names_to_classes().keys())
+        return sorted(list(RegisterLanguageModelsMeta.model_names_to_classes().keys()))
 
 
 if __name__ == "__main__":
+    import doctest
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
+    
     available = Model.available()
     m = Model("gpt-4-1106-preview")
     results = m.execute_model_call("Hello world")
     print(results)
-
-    import doctest
-    doctest.testmod(optionflags=doctest.ELLIPSIS)
