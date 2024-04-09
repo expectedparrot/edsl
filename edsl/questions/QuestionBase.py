@@ -258,4 +258,5 @@ class QuestionBase(
 
 
 if __name__ == "__main__":
-    q = get_question_class("free_text")
+    import doctest
+    doctest.testmod(optionflags=doctest.ELLIPSIS)

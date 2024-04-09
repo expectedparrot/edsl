@@ -76,8 +76,14 @@ question_purpose = {
     "free_text": "When options are unknown or unlimited",
     "checkbox": "When multiple options can be selected",
     "numerical": "When the answer is a single numerical value e.g., a float",
-    "linear_scale": "When options are text, but can be ordered e.g., daily, weekly, monthly, etc.",
+    "linear_scale": "When options are text, but can be ordered, e.g., daily, weekly, monthly, etc.",
     "yes_no": "When the question can be fully answered with either a yes or a no",
+    "list": "When the answer should be a list of items",
+    "rank": "When the answer should be a ranked list of items",
+    "budget": "When the answer should be an amount allocated among a set of options",
+    "top_k": "When the answer should be a list of the top k items",
+    "likert_five": "When the answer should be a value on the Likert scale from 1 to 5",
+    "extract": "When the answer should be information extracted or extrapolated from a text in a given format",
 }
 
 
