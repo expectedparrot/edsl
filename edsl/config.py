@@ -61,6 +61,10 @@ CONFIG_MAP = {
     #     "default": None,
     #     "info": "This env var holds your Google API key (https://console.cloud.google.com/apis/credentials).",
     # },
+    # "ANTHROPIC_API_KEY": {
+    #     "default": None,
+    #     "info": "This env var holds your Anthropic API key (https://www.anthropic.com/).",
+    # },
 }
 
 

@@ -42,6 +42,7 @@ class LanguageModelType(EnumWithChecks):
     GEMINI_PRO = "gemini_pro"
     MIXTRAL_8x7B_INSTRUCT = "mixtral-8x7B-instruct-v0.1"
     TEST = "test"
+    ANTHROPIC_3_OPUS = "claude-3-opus-20240229"
 
 
 class InferenceServiceType(EnumWithChecks):
@@ -53,6 +54,7 @@ class InferenceServiceType(EnumWithChecks):
     OPENAI = "openai"
     GOOGLE = "google"
     TEST = "test"
+    ANTHROPIC = "anthropic"
 
 
 service_to_api_keyname = {
@@ -62,4 +64,69 @@ service_to_api_keyname = {
     InferenceServiceType.OPENAI.value: "OPENAI_API_KEY",
     InferenceServiceType.GOOGLE.value: "GOOGLE_API_KEY",
     InferenceServiceType.TEST.value: "TBD",
+    InferenceServiceType.ANTHROPIC.value: "ANTHROPIC_API_KEY",
+}
+
+class TokenPricing:
+    def __init__(
+        self,
+        *,
+        model_name,
+        prompt_token_price_per_k: float,
+        completion_token_price_per_k: float,
+    ):
+        self.model_name = model_name
+        self.prompt_token_price = prompt_token_price_per_k / 1_000.0
+        self.completion_token_price = completion_token_price_per_k / 1_000.0
+
+    def __eq__(self, other):
+        if not isinstance(other, TokenPricing):
+            return False
+        return (
+            self.model_name == other.model_name
+            and self.prompt_token_price == other.prompt_token_price
+            and self.completion_token_price == other.completion_token_price
+        )
+
+pricing = {
+    "claude-3-opus-20240229": TokenPricing(
+        model_name="claude-3-opus-20240229",
+        prompt_token_price_per_k=0.0,
+        completion_token_price_per_k=0.0,
+    ),
+    "gpt-3.5-turbo": TokenPricing(
+        model_name="gpt-3.5-turbo",
+        prompt_token_price_per_k=0.0005,
+        completion_token_price_per_k=0.0015,
+    ),
+    "gpt-4-1106-preview": TokenPricing(
+        model_name="gpt-4",
+        prompt_token_price_per_k=0.01,
+        completion_token_price_per_k=0.03,
+    ),
+    "test": TokenPricing(
+        model_name="test",
+        prompt_token_price_per_k=0.0,
+        completion_token_price_per_k=0.0,
+    ),
+    "gemini_pro": TokenPricing(
+        model_name="gemini_pro",
+        prompt_token_price_per_k=0.0,
+        completion_token_price_per_k=0.0,
+    ),
+    "llama-2-13b-chat-hf": TokenPricing(
+        model_name="llama-2-13b-chat-hf",
+        prompt_token_price_per_k=0.0,
+        completion_token_price_per_k=0.0,
+    ),
+    "llama-2-70b-chat-hf": TokenPricing(
+        model_name="llama-2-70b-chat-hf",
+        prompt_token_price_per_k=0.0,
+        completion_token_price_per_k=0.0,
+    ),
+    "mixtral-8x7B-instruct-v0.1": TokenPricing(
+        model_name="mixtral-8x7B-instruct-v0.1",
+        prompt_token_price_per_k=0.0,
+        completion_token_price_per_k=0.0,
+    ),
 }
