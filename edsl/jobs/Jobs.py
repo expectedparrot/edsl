@@ -209,9 +209,7 @@ class Jobs(Base):
         if check_api_keys:
             for model in self.models:
                 if not model.has_valid_api_key(): 
-                    raise Exception(f"The model {str(model)} is missing an API")
-
-
+                    raise Exception(f"The model {str(model.model)} is missing an API key. Please set it in your private .env file. See instructions on how to do this: https://docs.expectedparrot.com/en/latest/starter_tutorial.html#part-1-using-api-keys")
 
         if cache is None:
             cache = CacheHandler().get_cache()
