@@ -19,6 +19,7 @@ from edsl.questions.AnswerValidatorMixin import AnswerValidatorMixin
 from edsl.questions.RegisterQuestionsMeta import RegisterQuestionsMeta
 from edsl.Base import PersistenceMixin, RichPrintingMixin
 
+
 class QuestionBase(
     PersistenceMixin,
     RichPrintingMixin,
@@ -48,19 +49,21 @@ class QuestionBase(
                 candidate_data.pop(attribute, None)
 
         return candidate_data
-    
-    @classmethod 
-    def applicable_prompts(cls, model: Optional[str] = None) -> list[type['PromptBase']]:
+
+    @classmethod
+    def applicable_prompts(
+        cls, model: Optional[str] = None
+    ) -> list[type["PromptBase"]]:
         """Get the prompts that are applicable to the question type.
 
-        :param model: The language model to use. 
-                
+        :param model: The language model to use.
+
         >>> from edsl.questions import QuestionFreeText
         >>> QuestionFreeText.applicable_prompts()
         [<class 'edsl.prompts.library.question_freetext.FreeText'>]
-        
-        :param model: The language model to use. If None, assumes does not matter. 
-        
+
+        :param model: The language model to use. If None, assumes does not matter.
+
         """
         applicable_prompts = prompt_lookup(
             component_type="question_instructions",
@@ -75,12 +78,14 @@ class QuestionBase(
         if not hasattr(self, "_model_instructions"):
             self._model_instructions = {}
         return self._model_instructions
-    
-    def add_model_instructions(self, *, instructions:str, model: Optional[str] = None) -> None:
+
+    def add_model_instructions(
+        self, *, instructions: str, model: Optional[str] = None
+    ) -> None:
         """Add model-specific instructions for the question.
-        
+
         :param instructions: The instructions to add. This is typically a jinja2 template.
-        :param model: The language model for this instruction.  
+        :param model: The language model for this instruction.
 
         >>> from edsl.questions import QuestionFreeText
         >>> q = QuestionFreeText(question_name = "color", question_text = "What is your favorite color?")
@@ -88,42 +93,49 @@ class QuestionBase(
 
         """
         from edsl import Model
+
         if not hasattr(self, "_model_instructions"):
             self._model_instructions = {}
         if model is None:
             # if not model is passed, all the models are mapped to this instruction, including 'None'
-            self._model_instructions =  {model_name: instructions for model_name in Model.available()}
+            self._model_instructions = {
+                model_name: instructions for model_name in Model.available()
+            }
             self._model_instructions.update({model: instructions})
-        else:  
-            self._model_instructions.update({model: instructions})     
+        else:
+            self._model_instructions.update({model: instructions})
 
-    def get_instructions(self, model: Optional[str] = None) -> type['PromptBase']:
+    def get_instructions(self, model: Optional[str] = None) -> type["PromptBase"]:
         """Get the mathcing question-answering instructions for the question.
 
-        :param model: The language model to use. 
+        :param model: The language model to use.
         """
-        from edsl.prompts.Prompt import Prompt        
+        from edsl.prompts.Prompt import Prompt
+
         if model in self.model_instructions:
-            return Prompt(text = self.model_instructions[model])
+            return Prompt(text=self.model_instructions[model])
         else:
             return self.applicable_prompts(model)[0]()
-        
+
     def option_permutations(self) -> list[QuestionBase]:
         """Return a list of questions with all possible permutations of the options."""
 
         if not hasattr(self, "question_options"):
             return [self]
-        
-        import copy 
+
+        import copy
         import itertools
+
         questions = []
-        for index, permutation in enumerate(itertools.permutations(self.question_options)):
+        for index, permutation in enumerate(
+            itertools.permutations(self.question_options)
+        ):
             question = copy.deepcopy(self)
             question.question_options = list(permutation)
             question.question_name = f"{self.question_name}_{index}"
             questions.append(question)
         return questions
-  
+
     ############################
     # Serialization methods
     ############################
@@ -214,7 +226,7 @@ class QuestionBase(
     ############################
     # Forward methods
     ############################
-    def add_question(self, other: Question) -> 'Survey':
+    def add_question(self, other: Question) -> "Survey":
         """Add a question to this question by turning them into a survey with two questions."""
         from edsl.surveys.Survey import Survey
 
@@ -259,4 +271,5 @@ class QuestionBase(
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)

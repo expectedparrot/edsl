@@ -58,9 +58,9 @@ class Result(Base, UserDict):
     """
     This class captures the result of one interview.
 
-    The answer dictionary has the structure: 
+    The answer dictionary has the structure:
 
-    >>> Result.example().answer 
+    >>> Result.example().answer
     {'how_feeling': 'OK', 'how_feeling_comment': 'This is a real survey response from a human.', 'how_feeling_yesterday': 'Great', 'how_feeling_yesterday_comment': 'This is a real survey response from a human.'}
 
     Its main data is an Agent, a Scenario, a Model, an Iteration, and an Answer.
@@ -80,10 +80,10 @@ class Result(Base, UserDict):
         answer: str,
         prompt: dict[str, str] = None,
         raw_model_response=None,
-        survey = None
+        survey=None,
     ):
         """Initialize a Result object.
-        
+
         :param agent: The Agent object.
         :param scenario: The Scenario object.
         :param model: The LanguageModel object.
@@ -91,7 +91,7 @@ class Result(Base, UserDict):
         :param answer: The answer string.
         :param prompt: A dictionary of prompts.
         :param raw_model_response: The raw model response.
-    
+
         """
         data = {
             "agent": agent,
@@ -111,11 +111,16 @@ class Result(Base, UserDict):
         self.answer = answer
         self.prompt = prompt or {}
         self.raw_model_response = raw_model_response or {}
-        self.survey = survey 
+        self.survey = survey
 
         if survey is not None:
-            self.question_to_attributes = {q.question_name: {'question_text': q.question_text, 'question_type': q.question_type} 
-                                       for q in survey.questions}
+            self.question_to_attributes = {
+                q.question_name: {
+                    "question_text": q.question_text,
+                    "question_type": q.question_type,
+                }
+                for q in survey.questions
+            }
         else:
             self.question_to_attributes = {}
 
@@ -124,8 +129,7 @@ class Result(Base, UserDict):
     ###############
     @property
     def sub_dicts(self) -> dict[str, dict]:
-        """Return a dictionary where keys are strings for each of the main class attributes/objects. 
-        """
+        """Return a dictionary where keys are strings for each of the main class attributes/objects."""
         if self.agent.name is None:
             agent_name = agent_namer(self.agent)
         else:
@@ -134,8 +138,10 @@ class Result(Base, UserDict):
         question_text_dict = {}
         for key, _ in self.answer.items():
             if key in self.question_to_attributes:
-                question_text_dict[key + "_question_text"] = self.question_to_attributes[key]['question_text']
-            
+                question_text_dict[
+                    key + "_question_text"
+                ] = self.question_to_attributes[key]["question_text"]
+
         return {
             "agent": self.agent.traits | {"agent_name": agent_name},
             "scenario": self.scenario,
@@ -144,7 +150,7 @@ class Result(Base, UserDict):
             "prompt": self.prompt,
             "raw_model_response": self.raw_model_response,
             "iteration": {"iteration": self.iteration},
-            "question_text": question_text_dict
+            "question_text": question_text_dict,
         }
 
     def code(self):

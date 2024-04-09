@@ -17,10 +17,14 @@ from edsl.jobs.buckets.ModelBuckets import ModelBuckets
 from edsl.jobs.tasks.TaskCreators import TaskCreators
 
 from edsl.jobs.interviews.InterviewStatusLog import InterviewStatusLog
-from edsl.jobs.interviews.interview_exception_tracking import InterviewExceptionCollection, InterviewExceptionEntry
+from edsl.jobs.interviews.interview_exception_tracking import (
+    InterviewExceptionCollection,
+    InterviewExceptionEntry,
+)
 from edsl.jobs.interviews.retry_management import retry_strategy
 from edsl.jobs.interviews.InterviewTaskBuildingMixin import InterviewTaskBuildingMixin
 from edsl.jobs.interviews.InterviewStatusMixin import InterviewStatusMixin
+
 
 class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
     """
@@ -37,15 +41,15 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         model: Type[LanguageModel],
         debug: bool = False,
         iteration: int = 0,
-        cache = None,
+        cache=None,
     ):
         """Initialize the Interview instance.
-        
+
         :param agent: the agent being interviewed.
         :param survey: the survey being administered to the agent.
         :param scenario: the scenario that populates the survey questions.
         :param model: the language model used to answer the questions.
-        
+
         """
         self.agent = agent
         self.survey = survey
@@ -55,19 +59,19 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         self.iteration = iteration
         self.cache = cache
         # will get filled in as interview progresses
-        self.answers: dict[str, str] = Answers()  
+        self.answers: dict[str, str] = Answers()
 
-        # Trackers 
+        # Trackers
         self.task_creators = TaskCreators()  # tracks the task creators
-        self.exceptions = InterviewExceptionCollection()  
+        self.exceptions = InterviewExceptionCollection()
         self._task_status_log_dict = InterviewStatusLog()
 
         # dictionary mapping question names to their index in the survey."""
-        self.to_index =  {
+        self.to_index = {
             question_name: index
             for index, question_name in enumerate(self.survey.question_names)
         }
-            
+
     async def async_conduct_interview(
         self,
         *,
@@ -83,31 +87,32 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         :param stop_on_exception: if True, stops the interview if an exception is raised.
 
         Example usage:
-        
+
         >>> i = Interview.example()
         >>> answers = asyncio.run(i.async_conduct_interview())
         >>> answers['q0']
         'yes'
-        
+
         """
         # if no model bucket is passed, create an 'infinity' bucket with no rate limits
         model_buckets = model_buckets or ModelBuckets.infinity_bucket()
         # build the tasks using the InterviewTaskBuildingMixin
-        self.tasks = self._build_question_tasks(debug=debug, model_buckets=model_buckets)
+        self.tasks = self._build_question_tasks(
+            debug=debug, model_buckets=model_buckets
+        )
         # 'Invigilators' are used to administer the survey
         self.invigilators = list(self._build_invigilators(debug=debug))
         # await the tasks being conducted
-        await asyncio.gather(*self.tasks, return_exceptions = not stop_on_exception)
+        await asyncio.gather(*self.tasks, return_exceptions=not stop_on_exception)
         self.answers.replace_missing_answers_with_none(self.survey)
         valid_results = list(self._extract_valid_results())
         return self.answers, valid_results
 
     def _extract_valid_results(
-        self, 
-        print_traceback=False
+        self, print_traceback=False
     ) -> Generator["Answers", None, None]:
         """Extract the valid results from the list of results.
-        
+
         :param print_traceback: if True, print the traceback of any exceptions.
         """
         # we only need to print the warning once if a task failed.
@@ -128,27 +133,27 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
                     result = invigilator.get_failed_task_result()
 
                     ## TODO: Currently, we only log errors at the question-answering phase
-                    ## Do we want to log exceptions here as well? 
+                    ## Do we want to log exceptions here as well?
                     exception_entry = InterviewExceptionEntry(
-                         exception = repr(e), 
-                         time = time.time(),
-                         traceback = traceback.format_exc()
-                     )
+                        exception=repr(e),
+                        time=time.time(),
+                        traceback=traceback.format_exc(),
+                    )
                     self.exceptions.add(task.edsl_name, exception_entry)
                 except Exception as e:  # any other kind of exception in the task
                     exception_entry = InterviewExceptionEntry(
-                         exception = repr(e), 
-                         time = time.time(),
-                         traceback = traceback.format_exc()
-                     )
+                        exception=repr(e),
+                        time=time.time(),
+                        traceback=traceback.format_exc(),
+                    )
                     self.exceptions.add(task.edsl_name, exception_entry)
                     # if not warning_printed:
                     #     warning_printed = True
                     #     print(warning_header)
 
                     error_message = f"Task `{task.edsl_name}` failed with `{e.__class__.__name__}`:`{e}`."
-                    #print(error_message)
-                    #if print_traceback:
+                    # print(error_message)
+                    # if print_traceback:
                     #    traceback.print_exc()
                     result = invigilator.get_failed_task_result()
 
@@ -215,11 +220,10 @@ if __name__ == "__main__":
     # I
     # repr(I)
     # eval(repr(I))
-    #print(I.task_status_logs.status_matrix(20))
+    # print(I.task_status_logs.status_matrix(20))
     status_matrix = I.task_status_logs.status_matrix(20)
     numerical_matrix = I.task_status_logs.numerical_matrix(20)
     I.task_status_logs.visualize()
-
 
     I.exceptions.print()
     I.exceptions.ascii_table()

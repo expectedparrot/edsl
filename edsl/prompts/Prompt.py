@@ -19,6 +19,7 @@ from edsl.Base import PersistenceMixin, RichPrintingMixin
 
 MAX_NESTING = 100
 
+
 class PromptBase(
     PersistenceMixin, RichPrintingMixin, ABC, metaclass=RegisterPromptsMeta
 ):
@@ -29,11 +30,11 @@ class PromptBase(
     @classmethod
     def prompt_attributes(cls) -> List[str]:
         """Return the prompt class attributes."""
-        return {k:v for k, v in cls.__dict__.items() if not k.startswith("_")}
+        return {k: v for k, v in cls.__dict__.items() if not k.startswith("_")}
 
-    def __init__(self, text:Optional[str] = None):
+    def __init__(self, text: Optional[str] = None):
         """Create a `Prompt` object.
-        
+
         :param text: The text of the prompt.
         """
         if text is None:
@@ -57,7 +58,7 @@ class PromptBase(
         >>> p2 = Prompt("How are you?")
         >>> p + p2
         Prompt(text='Hello, {{person}}How are you?')
-        
+
         >>> p + "How are you?"
         Prompt(text='Hello, {{person}}How are you?')
         """
@@ -68,7 +69,7 @@ class PromptBase(
 
     def __str__(self):
         """Return the `Prompt` text.
-        
+
         Example:
         >>> p = Prompt("Hello, {{person}}")
         >>> str(p)
@@ -103,18 +104,18 @@ class PromptBase(
         """Return the the variables in the template.
 
         Example:
-        
+
         >>> p = Prompt("Hello, {{person}}")
         >>> p.template_variables()
         ['person']
-        
+
         """
         return self._template_variables(self.text)
 
     @staticmethod
     def _template_variables(template: str) -> list[str]:
         """Find and return the template variables.
-        
+
         :param template: The template to find the variables in.
 
         """
@@ -132,7 +133,7 @@ class PromptBase(
         >>> p = Prompt("Hello, {{person}}")
         >>> p.undefined_template_variables({"person": "John"})
         []
-        
+
         >>> p = Prompt("Hello, {{title}} {{person}}")
         >>> p.undefined_template_variables({"person": "John"})
         ['title']
@@ -152,7 +153,7 @@ class PromptBase(
         >>> p = Prompt("Hello, {{person}}")
         >>> p.has_variables
         True
-        
+
         >>> p = Prompt("Hello, person")
         >>> p.has_variables
         False
@@ -171,7 +172,7 @@ class PromptBase(
 
         >>> p.render({"person": "Mr. {{last_name}}", "last_name": "Horton"})
         'Hello, Mr. Horton'
-        
+
         >>> p.render({"person": "Mr. {{last_name}}", "last_name": "Ho{{letter}}ton"}, max_nesting = 1)
         'Hello, Mr. Horton'
         """
@@ -181,7 +182,9 @@ class PromptBase(
         return self.__class__(text=new_text)
 
     @staticmethod
-    def _render(text:str, primary_replacement, **additional_replacements) -> "PromptBase":
+    def _render(
+        text: str, primary_replacement, **additional_replacements
+    ) -> "PromptBase":
         """Render the template text with variables replaced from the provided named dictionaries.
 
         :param text: The text to render.
@@ -191,7 +194,7 @@ class PromptBase(
         Allows for nested variable resolution up to a specified maximum nesting depth.
 
         Example:
-        
+
         >>> codebook = {"age": "Age"}
         >>> p = Prompt("You are an agent named {{ name }}. {{ codebook['age']}}: {{ age }}")
         >>> p.render({"name": "John", "age": 44}, codebook=codebook)
@@ -224,7 +227,7 @@ class PromptBase(
         >>> p = Prompt("Hello, {{person}}")
         >>> p.to_dict()
         {'text': 'Hello, {{person}}', 'class_name': 'Prompt'}
-        
+
         """
         return {"text": self.text, "class_name": self.__class__.__name__}
 
@@ -238,7 +241,7 @@ class PromptBase(
         >>> p2 = Prompt.from_dict(p.to_dict())
         >>> p2
         Prompt(text='Hello, {{person}}')
-        
+
         """
         class_name = data["class_name"]
         cls = RegisterPromptsMeta._registry.get(class_name, Prompt)

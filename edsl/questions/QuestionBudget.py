@@ -24,7 +24,7 @@ class QuestionBudget(QuestionBase):
         short_names_dict: Optional[dict[str, str]] = None,
     ):
         """Instantiate a new QuestionBudget.
-        
+
         :param question_name: The name of the question.
         :param question_text: The text of the question.
         :param question_options: The options for allocation of the budget sum.
@@ -52,7 +52,7 @@ class QuestionBudget(QuestionBase):
     ):
         """
         Translate the answer codes to the actual answers.
-        
+
         For example, for a budget question with options ["a", "b", "c"],
         the answer codes are 0, 1, and 2. The LLM will respond with 0.
         This code will translate that to "a".
@@ -129,4 +129,5 @@ if __name__ == "__main__":
     results = q.run()
 
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)

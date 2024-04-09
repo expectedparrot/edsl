@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 from typing import Optional, Union, Sequence, Generator
-from itertools import product 
+from itertools import product
 
 from edsl import Model
 from edsl.agents import Agent
@@ -37,9 +37,9 @@ class Jobs(Base):
         scenarios: Optional[list[Scenario]] = None,
     ):
         """Initialize a Jobs instance.
-        
+
         :param survey: the survey to be used in the job
-        :param agents: a list of agents 
+        :param agents: a list of agents
         :param models: a list of models
         :param scenarios: a list of scenarios
         """
@@ -98,7 +98,7 @@ class Jobs(Base):
 
             >>> did_user_pass_a_sequence([1,2,3])
             True
-            
+
             >>> did_user_pass_a_sequence(1)
             False
             """
@@ -109,7 +109,9 @@ class Jobs(Base):
         else:
             return list(args)
 
-    def _get_current_objects_of_this_type(self, object: Union[Agent, Scenario, LanguageModel]) -> tuple[list, str]:
+    def _get_current_objects_of_this_type(
+        self, object: Union[Agent, Scenario, LanguageModel]
+    ) -> tuple[list, str]:
         """Return the current objects of the same type as the first argument."""
         class_to_key = {
             Agent: "agents",
@@ -193,9 +195,9 @@ class Jobs(Base):
         debug: bool = False,
         progress_bar: bool = False,
         stop_on_exception: bool = False,
-        cache: Optional[Cache] =None,
+        cache: Optional[Cache] = None,
         remote: bool = False,
-        check_api_keys = True, 
+        check_api_keys=True,
     ) -> Union[Results, ResultsAPI, None]:
         """
         Runs the Job: conducts Interviews and returns their results.
@@ -208,8 +210,10 @@ class Jobs(Base):
         """
         if check_api_keys:
             for model in self.models:
-                if not model.has_valid_api_key(): 
-                    raise Exception(f"The model {str(model.model)} is missing an API key. Please set it in your private .env file. See instructions on how to do this: https://docs.expectedparrot.com/en/latest/starter_tutorial.html#part-1-using-api-keys")
+                if not model.has_valid_api_key():
+                    raise Exception(
+                        f"The model {str(model.model)} is missing an API key. Please set it in your private .env file. See instructions on how to do this: https://docs.expectedparrot.com/en/latest/starter_tutorial.html#part-1-using-api-keys"
+                    )
 
         if cache is None:
             cache = CacheHandler().get_cache()

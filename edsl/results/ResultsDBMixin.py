@@ -5,6 +5,7 @@ from sqlalchemy import create_engine
 from enum import Enum
 from typing import Literal, Union
 
+
 class SQLDataShape(Enum):
     """Enum for the shape of the data in the SQL database."""
 
@@ -22,7 +23,7 @@ class ResultsDBMixin:
 
     def export_sql_dump(self, shape: Literal["wide", "long"], filename: str):
         """Export the SQL database to a file.
-        
+
         :param shape: The shape of the data in the database (wide or long)
         :param filename: The filename to save the database to
         """
@@ -37,7 +38,7 @@ class ResultsDBMixin:
 
     def backup_db_to_file(self, shape: Literal["wide", "long"], filename: str):
         """Backup the in-memory database to a file.
-        
+
 
         :param shape: The shape of the data in the database (wide or long)
         :param filename: The filename to save the database to
@@ -64,7 +65,7 @@ class ResultsDBMixin:
 
     def _db(self, shape: SQLDataShape, remove_prefix=False):
         """Create a SQLite database in memory and return the connection.
-        
+
         :param shape: The shape of the data in the database (wide or long)
         :param remove_prefix: Whether to remove the prefix from the column names
 
@@ -90,7 +91,7 @@ class ResultsDBMixin:
             conn.commit()
             return conn
         elif shape == SQLDataShape.WIDE:
-            engine = create_engine("sqlite:///:memory:") 
+            engine = create_engine("sqlite:///:memory:")
             df = self.to_pandas(remove_prefix=remove_prefix)
             df.to_sql("self", engine, index=False, if_exists="replace")
             return engine.connect()
@@ -137,8 +138,8 @@ class ResultsDBMixin:
         1    answer    how_feeling_comment  This is a real survey response from a human.
         2    answer  how_feeling_yesterday                                         Great
 
-        
-        We can also return the data in wide format. 
+
+        We can also return the data in wide format.
         Note the use of single quotes to escape the column names, as required by sql.
 
         >>> from edsl.results import Results
@@ -170,9 +171,11 @@ class ResultsDBMixin:
         else:
             return df
 
-    def show_schema(self, shape: Literal["wide", "long"], remove_prefix: bool = False) -> None:
+    def show_schema(
+        self, shape: Literal["wide", "long"], remove_prefix: bool = False
+    ) -> None:
         """Show the schema of the Results database.
-        
+
         :param shape: The shape of the data in the database (wide or long)
         :param remove_prefix: Whether to remove the prefix from the column names
 
@@ -182,7 +185,7 @@ class ResultsDBMixin:
         Type: table, Name: self, SQL: CREATE TABLE self (
                 id INTEGER,
                 data_type TEXT,
-                key TEXT, 
+                key TEXT,
                 value TEXT
         """
         shape_enum = self._get_shape_enum(shape)
@@ -208,6 +211,6 @@ class ResultsDBMixin:
 
 
 if __name__ == "__main__":
-
     import doctest
+
     doctest.testmod()

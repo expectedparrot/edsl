@@ -18,7 +18,8 @@ from edsl.language_models.repair import repair
 from edsl.exceptions.language_models import LanguageModelAttributeTypeError
 from edsl.enums import LanguageModelType, InferenceServiceType
 from edsl.Base import RichPrintingMixin, PersistenceMixin
-from edsl.data.Cache import Cache    
+from edsl.data.Cache import Cache
+
 
 def handle_key_error(func):
     """Handle KeyError exceptions."""
@@ -268,7 +269,7 @@ class LanguageModel(
 
         if self._model_ == LanguageModelType.TEST.value:
             return True
-    
+
         key_name = service_to_api_keyname.get(self._inference_service_, "NOT FOUND")
         key_value = os.getenv(key_name)
         return key_value is not None
@@ -419,7 +420,12 @@ class LanguageModel(
             )
         else:
             cache_key = None
-        return self._update_response_with_tracking(response = response, start_time = start_time, cached_response = cache_used, cache_key = cache_key)
+        return self._update_response_with_tracking(
+            response=response,
+            start_time=start_time,
+            cached_response=cache_used,
+            cache_key=cache_key,
+        )
 
     get_raw_response = sync_wrapper(async_get_raw_response)
 
@@ -516,6 +522,7 @@ class LanguageModel(
 if __name__ == "__main__":
     """Run the module's test suite."""
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)
 
     from edsl.language_models import LanguageModel

@@ -1,9 +1,10 @@
 """Mixin for exporting agent list to docx."""
 from docx import Document
 
+
 class AgentListExportMixin:
     """Mixin for exporting agent list to docx."""
-    
+
     def docx(self) -> "Document":
         """Generate a docx document for the survey."""
         doc = Document()

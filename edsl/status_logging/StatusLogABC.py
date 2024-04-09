@@ -28,11 +28,12 @@ import time
 
 from collections import UserList, UserDict
 
+
 class StatusObjectABC(ABC, UserDict):
     """An abstract base class for status objects.
-    
-    This is a snapshot of this object at a moment in time. 
-    -For example, for a task, it could be just the state of the task. 
+
+    This is a snapshot of this object at a moment in time.
+    -For example, for a task, it could be just the state of the task.
     -For an interivew, could be the states of the all the component tasks.
     -For a job, it could be the states of all the interviews.
 
@@ -53,10 +54,10 @@ class StatusObjectABC(ABC, UserDict):
     def to_dict(self) -> dict:
         """Return the status object as a dictionary."""
         pass
-    
+
     @classmethod
     @abstractmethod
-    def from_dict(cls, data_dict) -> 'StatusObjectABC':
+    def from_dict(cls, data_dict) -> "StatusObjectABC":
         """Return a status object from a dictionary."""
         pass
 
@@ -72,10 +73,11 @@ class CumulativeStatusObjectABC(ABC):
         """Add a new object to the cumulative object."""
         pass
 
+
 class StatusLogABC(ABC, UserList):
     """For example, these could be status of a task, or the status of a job."""
 
-    def __init__(self, data = None):
+    def __init__(self, data=None):
         """Initialize the log with the given data."""
         if data is None:
             data = []
@@ -86,20 +88,20 @@ class StatusLogABC(ABC, UserList):
     def __init_subclass__(cls, **kwargs):
         """Check that the subclass has a status_enum attribute."""
         super().__init_subclass__(**kwargs)
-        if not hasattr(cls, 'status_enum'):
+        if not hasattr(cls, "status_enum"):
             raise TypeError(f"{cls.__name__} is missing 'status_enum' class attribute")
-        
+
     @property
     def current(self):
         """Return the most recently added status."""
         self._check()
         return self[-1]
-    
+
     def _check(self):
         """Check that the log is not empty."""
         if len(self) == 0:
             raise Exception("No data in log")
-    
+
     # def reduce(self):
     #     """Reduce a list of status objects to a single status object."""
     #     _, result = self[0]
@@ -121,12 +123,12 @@ class StatusLogABC(ABC, UserList):
             if t <= target_time:
                 return status
         return None
-        
+
     @abstractmethod
     def __repr__(self):
         """Return a string representation of the log."""
         pass
-    
+
     @property
     def min_time(self):
         """Return the earliest time in the log."""
@@ -140,20 +142,20 @@ class StatusLogABC(ABC, UserList):
         if len(self) == 0:
             raise Exception("No data in log")
         return self[-1][0]
-    
+
     def to_dict(self):
         """Return the log as a dictionary."""
         return {"data": [(t, status.to_dict()) for t, status in self.data]}
-    
+
     @classmethod
     def from_dict(cls, data_dict):
         """Return a log from a dictionary."""
         obj = cls()
-        data = data_dict['data']
+        data = data_dict["data"]
         for t, status in data:
             obj.append(t, status.from_dict())
 
-    def status_vector(self, num_periods = 10):
+    def status_vector(self, num_periods=10):
         """Return a matrix of status values."""
         start_time = self.min_time
         end_time = self.max_time
@@ -161,8 +163,8 @@ class StatusLogABC(ABC, UserList):
         time_periods = [start_time + i * time_increment for i in range(num_periods)]
         status_vector = [self.status_at_time(t) for t in time_periods]
         return status_vector
-    
-    def state_vector(self, num_periods = 10):
+
+    def state_vector(self, num_periods=10):
         """Return a vector of status values."""
         status_vector = self.status_vector(num_periods)
         return [status.state() for status in status_vector]
@@ -175,11 +177,11 @@ class StatusLogABC(ABC, UserList):
     # def numerical_matrix(self, num_periods):
     #     """Return a numerical matrix of status values."""
     #     status_dicts = self.status_vector(num_periods)
-        
+
     #     num_cols = num_periods
     #     num_rows = len(status_dicts)
     #     matrix = [[0 for _ in range(num_cols)] for _ in range(num_rows)]
-        
+
     #     for row_index, (task_name, status_list) in enumerate(status_dicts.items()):
     #         matrix[row_index] = [list(status_colors.keys()).index(status) for status in status_list]
 
@@ -192,7 +194,6 @@ class StatusLogABC(ABC, UserList):
     #     from matplotlib.colors import ListedColormap
     #     import numpy as np
     #     from matplotlib.patches import Rectangle
-
 
     #     # Define your custom colormap
     #     custom_cmap = ListedColormap(list(status_colors.values()))
@@ -229,13 +230,13 @@ class StatusLogABC(ABC, UserList):
     #     plt.show()
 
 
-
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod()
-    
+
     import enum
-    
+
     class ExampleStatusEnum(enum.Enum):
         """An example of a status enum."""
 
@@ -249,11 +250,12 @@ if __name__ == "__main__":
 
         status_enum = ExampleStatusEnum
         status_color_dict = {
-            ExampleStatusEnum.NOT_STARTED: 'grey',
-            ExampleStatusEnum.IN_PROGRESS: 'orange',
-            ExampleStatusEnum.SUCCESS: 'green',
-            ExampleStatusEnum.FAILED: 'red',
+            ExampleStatusEnum.NOT_STARTED: "grey",
+            ExampleStatusEnum.IN_PROGRESS: "orange",
+            ExampleStatusEnum.SUCCESS: "green",
+            ExampleStatusEnum.FAILED: "red",
         }
+
         def __init__(self, value):
             """Initialize the status object with a value."""
             self.value = value
@@ -265,19 +267,19 @@ if __name__ == "__main__":
         def __repr__(self):
             """Return a string representation of the status object."""
             return f"ExampleStatus(value = {self.value})"
-    
+
         def to_dict(self):
             """Return the status object as a dictionary."""
-            return {'example_key': 'example_value'}
+            return {"example_key": "example_value"}
 
         @classmethod
         def from_dict(cls, data_dict):
             """Return a status object from a dictionary."""
             return cls()
-        
+
     class ExampleStatusLog(StatusLogABC):
         """An example of a status log."""
-        
+
         status_enum = ExampleStatusEnum
 
         def __repr__(self):
@@ -292,7 +294,6 @@ if __name__ == "__main__":
     log.log(example_status1)
     log.log(example_status2)
     log.log(example_status3)
-
 
     print(log.to_dict())
 

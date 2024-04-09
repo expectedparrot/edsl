@@ -49,14 +49,14 @@ class DAG(UserDict):
         Return a sequence of the DAG.
 
         Example usage:
-        
+
         .. code-block:: python
 
             data = {"a": ["b", "c"], "b": ["d"], "c": [], "d": []}
             dag = DAG(data)
             dag.topologically_sorted_nodes() == ['c', 'd', 'b', 'a']
             True
-            
+
         """
         return list(TopologicalSorter(self).static_order())
 

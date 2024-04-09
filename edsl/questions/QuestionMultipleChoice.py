@@ -9,6 +9,7 @@ from edsl.questions.descriptors import QuestionOptionsDescriptor
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.scenarios import Scenario
 
+
 class QuestionMultipleChoice(QuestionBase):
     """This question prompts the agent to select one option from a list of options."""
 
@@ -21,7 +22,7 @@ class QuestionMultipleChoice(QuestionBase):
         question_name: str,
         question_text: str,
         question_options: list[str],
-        short_names_dict: Optional[dict[str, str]] = None
+        short_names_dict: Optional[dict[str, str]] = None,
     ):
         """Instantiate a new QuestionMultipleChoice.
 
@@ -102,4 +103,5 @@ def main():
     assert q.from_dict(q.to_dict()) == q
 
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)

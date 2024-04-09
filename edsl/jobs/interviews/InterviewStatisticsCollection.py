@@ -1,6 +1,7 @@
 from collections import UserDict
 from edsl.jobs.interviews.InterviewStatistic import InterviewStatistic
 
+
 class InterviewStatisticsCollection(UserDict):
     """A collection of interview statistics."""
 
@@ -12,7 +13,7 @@ class InterviewStatisticsCollection(UserDict):
         """Add a statistic to the collection.
 
         Each statistic is a dictionary with a single key-value pair.
-    
+
         Example usage:
 
         >>> isc = InterviewStatisticsCollection()
@@ -22,5 +23,3 @@ class InterviewStatisticsCollection(UserDict):
         """
         self.update(statistic)
         self.raw.update(statistic.raw)
-
-

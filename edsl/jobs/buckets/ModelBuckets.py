@@ -1,5 +1,6 @@
 from edsl.jobs.buckets.TokenBucket import TokenBucket
 
+
 class ModelBuckets:
     """A class to represent the token and request buckets for a model.
 
@@ -9,10 +10,10 @@ class ModelBuckets:
 
     def __init__(self, requests_bucket: TokenBucket, tokens_bucket: TokenBucket):
         """Initialize the model buckets.
-        
+
         The requests bucket captures requests per unit of time.
         The tokens bucket captures the number of language model tokens.
-        
+
         """
         self.requests_bucket = requests_bucket
         self.tokens_bucket = tokens_bucket
@@ -50,4 +51,3 @@ class ModelBuckets:
 
     def __repr__(self):
         return f"ModelBuckets(requests_bucket={self.requests_bucket}, tokens_bucket={self.tokens_bucket})"
-

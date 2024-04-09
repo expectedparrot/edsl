@@ -59,9 +59,7 @@ class ResultsExportMixin:
         return header, rows
 
     def print_long(self) -> None:
-        """Print the results in long format.
-        
-        """
+        """Print the results in long format."""
         for result in self:
             if hasattr(result, "combined_dict"):
                 d = result.combined_dict
@@ -75,11 +73,11 @@ class ResultsExportMixin:
         pretty_labels: Optional[dict] = None,
         filename: Optional[str] = None,
         format: Literal["rich", "html", "markdown"] = "rich",
-        interactive: bool =False,
-        split_at_dot: bool =True,
+        interactive: bool = False,
+        split_at_dot: bool = True,
     ) -> None:
         """Print the results in a pretty format.
-        
+
         :param pretty_labels: A dictionary of pretty labels for the columns.
         :param filename: The filename to save the results to.
         :param format: The format to print the results in. Options are 'rich', 'html', or 'markdown'.
@@ -87,7 +85,7 @@ class ResultsExportMixin:
         :param split_at_dot: Whether to split the column names at the last dot w/ a newline.
 
         Example: Print in rich format at the terminal
-        
+
         >>> from edsl.results import Results
         >>> r = Results.example()
         >>> r.print()
@@ -106,7 +104,7 @@ class ResultsExportMixin:
         └──────────────┘
 
         Example: using the pretty_labels parameter
-        
+
         >>> r.select('how_feeling').print(pretty_labels = {'answer.how_feeling': "How you are feeling"})
         ┏━━━━━━━━━━━━━━━━━━━━━┓
         ┃ How you are feeling ┃
@@ -121,7 +119,7 @@ class ResultsExportMixin:
         └─────────────────────┘
 
         Example: printing in markdown format
-        
+
         >>> r.select('how_feeling').print(format='markdown')
         | answer.how_feeling |
         |--|
@@ -136,15 +134,13 @@ class ResultsExportMixin:
             pretty_labels = {}
 
         if format not in ["rich", "html", "markdown"]:
-            raise ValueError(
-                "format must be one of 'rich', 'html', or 'markdown'."
-            )
+            raise ValueError("format must be one of 'rich', 'html', or 'markdown'.")
 
         new_data = []
         for entry in self:
             key, list_of_values = list(entry.items())[0]
             new_data.append({pretty_labels.get(key, key): list_of_values})
-        
+
         if format == "rich":
             print_list_of_dicts_with_rich(
                 new_data, filename=filename, split_at_dot=split_at_dot
@@ -152,23 +148,24 @@ class ResultsExportMixin:
         elif format == "html":
             notebook = is_notebook()
             print_list_of_dicts_as_html_table(
-                new_data, filename=None, interactive=interactive, notebook = notebook
+                new_data, filename=None, interactive=interactive, notebook=notebook
             )
         elif format == "markdown":
             print_list_of_dicts_as_markdown_table(new_data, filename=filename)
 
-
     @_convert_decorator
-    def to_csv(self, 
-               filename: Optional[str] = None, 
-               remove_prefix: bool =False, 
-               download_link: bool =False):
+    def to_csv(
+        self,
+        filename: Optional[str] = None,
+        remove_prefix: bool = False,
+        download_link: bool = False,
+    ):
         """Export the results to a CSV file.
 
         :param filename: The filename to save the CSV file to.
         :param remove_prefix: Whether to remove the prefix from the column names.
         :param download_link: Whether to display a download link in a Jupyter notebook.
-        
+
         Example:
 
         >>> r = create_example_results()
@@ -197,10 +194,9 @@ class ResultsExportMixin:
                 return output.getvalue()
 
     @_convert_decorator
-    def to_pandas(self, 
-                  remove_prefix: bool=False) -> pd.DataFrame:
+    def to_pandas(self, remove_prefix: bool = False) -> pd.DataFrame:
         """Convert the results to a pandas DataFrame.
-        
+
         :param remove_prefix: Whether to remove the prefix from the column names.
 
         >>> r.select('how_feeling').to_pandas()
@@ -219,9 +215,9 @@ class ResultsExportMixin:
         # return df
 
     @_convert_decorator
-    def to_dicts(self, remove_prefix:bool=False) -> list[dict]:
+    def to_dicts(self, remove_prefix: bool = False) -> list[dict]:
         """Convert the results to a list of dictionaries.
-        
+
         :param remove_prefix: Whether to remove the prefix from the column names.
 
         >>> from edsl.results import Results
@@ -253,7 +249,7 @@ class ResultsExportMixin:
             return list(self[0].values())[0]
         else:
             return tuple([list(x.values())[0] for x in self])
-        
+
 
 if __name__ == "__main__":
     import doctest

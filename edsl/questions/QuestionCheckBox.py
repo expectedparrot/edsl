@@ -11,6 +11,7 @@ from edsl.questions.descriptors import (
 from edsl.scenarios import Scenario
 from edsl.utilities import random_string
 
+
 class QuestionCheckBox(QuestionBase):
     """This question prompts the agent to select options from a list."""
 
@@ -30,7 +31,7 @@ class QuestionCheckBox(QuestionBase):
         short_names_dict: Optional[dict[str, str]] = None,
     ):
         """Instantiate a new QuestionCheckBox.
-        
+
         :param question_name: The name of the question.
         :param question_text: The text of the question.
         :param question_options: The options the respondent should select from.
@@ -137,4 +138,5 @@ def main():
     assert q.from_dict(q.to_dict()) == q
 
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)

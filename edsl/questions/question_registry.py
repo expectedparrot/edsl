@@ -5,22 +5,29 @@ from edsl.exceptions import QuestionSerializationError
 from edsl.exceptions import QuestionCreationValidationError
 from edsl.questions.QuestionBase import RegisterQuestionsMeta
 
+
 class Meta(type):
     """Metaclass for QuestionBase that provides a __repr__ method that lists all available questions."""
 
     def __repr__(cls):
         """Return a string that lists all available questions."""
 
-        s = textwrap.dedent("""
+        s = textwrap.dedent(
+            """
         You can use the Question class to create objects by name. 
         For example, to create a multiple choice question, you can do:
 
         >>> from edsl import Question
         >>> q = Question('multiple_choice', question_text='What is your favorite color?', question_name='color')
         
-        Question Types:\n""")        
-        for question_type, question_class in cls.available(show_class_names=True).items():
-            line_info = f"{question_type} ({question_class.__name__}): {question_class.__doc__}"
+        Question Types:\n"""
+        )
+        for question_type, question_class in cls.available(
+            show_class_names=True
+        ).items():
+            line_info = (
+                f"{question_type} ({question_class.__name__}): {question_class.__doc__}"
+            )
             s += line_info + "\n"
         return s
 
@@ -90,7 +97,5 @@ question_purpose = {
 if __name__ == "__main__":
     print(Question.available())
 
-    q = Question(
-        "free_text", question_text="How are you doing?", question_name="test"
-    )
+    q = Question("free_text", question_text="How are you doing?", question_name="test")
     results = q.run()

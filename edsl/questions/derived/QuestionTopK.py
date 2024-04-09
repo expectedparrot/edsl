@@ -19,7 +19,7 @@ class QuestionTopK(QuestionCheckBox):
         short_names_dict: Optional[dict[str, str]] = None,
     ):
         """Initialize the question.
-        
+
         :param question_name: The name of the question.
         :param question_text: The text of the question.
         :param question_options: The options the respondent should select from.
@@ -80,4 +80,5 @@ def main():
     assert q.from_dict(q.to_dict()) == q
 
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)
