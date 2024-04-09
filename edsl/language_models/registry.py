@@ -79,3 +79,6 @@ if __name__ == "__main__":
     m = Model("gpt-4-1106-preview")
     results = m.execute_model_call("Hello world")
     print(results)
+
+    import doctest
+    doctest.testmod(optionflags=doctest.ELLIPSIS)

@@ -515,8 +515,9 @@ class LanguageModel(
 
 if __name__ == "__main__":
     """Run the module's test suite."""
-    # import doctest
-    # doctest.testmod()
+    import doctest
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
+
     from edsl.language_models import LanguageModel
 
     print(LanguageModel.example())

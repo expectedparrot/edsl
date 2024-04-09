@@ -6,7 +6,7 @@ Language models are used to simulate agent responses to questions and can be spe
 
 Available models
 ----------------
-We can see all of the available models by calling the `available()` method on the `Model` class:
+We can see all of the currently available models by calling the `available()` method on the `Model` class:
 
 .. code-block:: python
 
@@ -18,29 +18,34 @@ This will return a list of short names for available models to choose from:
 
 .. code-block:: python
 
-   ['gpt-3.5-turbo',
+   ['claude-3-opus-20240229',
+   'gpt-3.5-turbo',
    'gpt-4-1106-preview',
    'gemini_pro',
    'llama-2-13b-chat-hf',
    'llama-2-70b-chat-hf',
    'mixtral-8x7B-instruct-v0.1']
 
+
+*If you don't see a model that you want to work with, please send us a feature request to add it!*
+
 Specifying a model
 ------------------
-We specify a model for a job by creating a `Model` object for an available model and optionally setting model parameters. 
-For example, the following code creates a `Model` object for the GPT 4 model with default model parameters:
+We specify a model for a job by creating a `Model` object and passing it the name of an available model.
+We can optionally set the other model parameters (temperature, etc.). 
+For example, the following code creates a `Model` object for Claude 3 with default model parameters:
 
 .. code-block:: python
 
    from edsl import Model
 
-   model = Model('gpt-4-1106-preview')
+   m = Model('claude-3-opus-20240229')
 
-We can inspect the default modifiable parameters of the model by calling the `parameters` method on it:
+We can inspect the default parameters of the model by calling the `parameters` method on it:
 
 .. code-block:: python
 
-   models.parameters
+   m.parameters
 
 This will return the following dictionary of parameters:
 
