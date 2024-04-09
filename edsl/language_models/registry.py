@@ -62,7 +62,7 @@ class Model(metaclass=Meta):
 
         subclass = get_model_classes.get(model_name, None)
         if subclass is None:
-            raise ValueError(f"No model registered with name {model_name}")
+            raise ValueError(f"No model registered with name '{model_name}'. See a list of available models run: Model.available()")
 
         # Create an instance of the selected subclass
         instance = object.__new__(subclass)
@@ -71,10 +71,13 @@ class Model(metaclass=Meta):
 
     @classmethod
     def available(cls):
-        return list(RegisterLanguageModelsMeta.model_names_to_classes().keys())
+        return sorted(list(RegisterLanguageModelsMeta.model_names_to_classes().keys()))
 
 
 if __name__ == "__main__":
+    import doctest
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
+    
     available = Model.available()
     m = Model("gpt-4-1106-preview")
     results = m.execute_model_call("Hello world")
