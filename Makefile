@@ -20,6 +20,7 @@ clean: ## Clean temp files
 	@echo "Cleaning tempfiles..."
 	[ ! -f .coverage ] || rm .coverage
 	[ ! -d .mypy_cache ] || rm -rf .mypy_cache
+	[ ! -d .temp ] || rm -rf .temp
 	[ ! -d dist ] || rm -rf dist
 	[ ! -f edsl_cache.db ] || rm edsl_cache.db
 	[ ! -d htmlcov ] || rm -rf htmlcov
@@ -169,10 +170,10 @@ test-doctests: ## Run doctests
 docstrings: 
 	pydocstyle edsl
 
-visualize:
-	python visualize_structure.py
+visualize: ## Visualizes the repo structure
+	python scripts/visualize_structure.py
 	@UNAME=`uname`; if [ "$$UNAME" = "Darwin" ]; then \
-		open _visualize_structure/index.html; \
+		open .temp/visualize_structure/index.html; \
 	else \
-		firefox _visualize_structure/index.html; \
+		firefox .temp/visualize_structure/index.html; \
 	fi
