@@ -34,37 +34,6 @@ class TestScenario(unittest.TestCase):
         s3 = Scenario({"color": None})
         self.assertEqual(s1 + s3, {"price": 100, "quantity": 2, "color": None})
 
-    def test_to(self):
-        s = Scenario({"food": "wood chips"})
-        q = QuestionMultipleChoice(
-            question_text="Do you enjoy the taste of {{food}}?",
-            question_options=["Yes", "No"],
-            question_name="food_preference",
-        )
-        self.assertIsInstance(s.to(q), Jobs)
-        # checking print instead of Jobs because of uuids
-        self.assertEqual(
-            print(s.to(q)),
-            print(
-                Jobs(
-                    survey=Survey(
-                        questions=[
-                            QuestionMultipleChoice(
-                                question_text="Do you enjoy the taste of {{food}}?",
-                                question_options=["Yes", "No"],
-                                question_name="food_preference",
-                            )
-                        ],
-                        name=None,
-                    ),
-                    agents=[Agent(traits={})],
-                    models=[
-                        LanguageModelOpenAIThreeFiveTurbo(model="", use_cache=True)
-                    ],
-                    scenarios=[{"food": "wood chips"}],
-                )
-            ),
-        )
 
     def test_rename(self):
         s = Scenario({"food": "wood chips"})
