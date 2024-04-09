@@ -25,7 +25,7 @@ def create_openai_model(model_name, model_class_name) -> LanguageModel:
             "frequency_penalty": 0,
             "presence_penalty": 0,
             "logprobs": False,
-            "top_logprobs": 3
+            "top_logprobs": 3,
         }
 
         def get_headers(self) -> dict[str, Any]:
