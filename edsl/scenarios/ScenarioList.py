@@ -89,3 +89,6 @@ if __name__ == "__main__":
     )
 
     print(scenario_list.code())
+
+    import doctest
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
