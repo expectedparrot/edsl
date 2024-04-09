@@ -10,18 +10,18 @@ Please let us know if you have any questions or need help by contacting us at in
     You can also view the contents of this tutorial in an <a href="https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Tutorial%20-%20Starter%20Tutorial-e080f5883d764931960d3920782baf34" target="_blank">interactive notebook</a>.
 
 
-Part 1: Using API Keys
-----------------------
+Part 1: Using API Keys for LLMs
+-------------------------------
 Large language models (LLMs) are at the heart of AI-powered research. 
 EDSL allows you to easily conduct research with popular LLMs, including OpenAI's GPTs, Google's Gemini, Anthropic's Claude, Llama 2 and others. 
-In order to do so, you must provide EDSL with your API keys from LLM providers. 
-*EDSL will never store your personal API keys.*
+In order to do so, you must provide EDSL with your API keys that you obtain from LLM providers. 
+*Note: EDSL will never store your personal API keys.*
 
 There are 2 ways to provide your API keys to EDSL:
 
-1. Recommended: Use a .env file
+1. Use a .env file (*recommended*)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Create a file with the name `.env` in your working directory and populate it as follows, replacing `your_key_here` with your actual API keys:
+Create a file named `.env` in your working directory and populate it as follows, replacing `your_key_here` with your actual API keys:
 
 .. code-block:: python
 
@@ -31,10 +31,11 @@ Create a file with the name `.env` in your working directory and populate it as 
    OPENAI_API_KEY=your_key_here
 
 EDSL will read your API keys from this file.  
-This method allows you to avoid having to provide your keys each time that you start a session with EDSL and is the recommended way to provide your API keys.
+This method allows you to avoid having to provide your keys each time that you start a session with EDSL and is the recommended way to provide your API keys for this reason.
 
-If you are not planning to use one of these providers you can comment out the line.
-This will ensure that you get an error message if you accidentally try to use that provider without a valid API key.
+If you are not planning to use one or more of these providers you can comment out the relevant lines.
+This will ensure that you get an error message if you accidentally try to use an LLM without a valid API key.
+
 For example, if you only plan to use models provided by Anthropic, you can set your `.env` file as follows:
 
 .. code-block:: python
@@ -46,7 +47,7 @@ For example, if you only plan to use models provided by Anthropic, you can set y
    
 2. Set your API keys in your Python code
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-You can alternatively set your API keys in your Python code before you import any EDSL object as follows:
+Instead of using an `.env` file, you can set your API keys in your Python code before you import any EDSL object as follows:
 
 .. code-block:: python
 
@@ -56,11 +57,11 @@ You can alternatively set your API keys in your Python code before you import an
    os.environ['GOOGLE_API_KEY'] = 'your_key_here'
    os.environ['OPENAI_API_KEY'] = 'your_key_here'
 
-Note that EDSL will store your API keys in your system's memory only for the duration of your session. 
+Note that this will store your API keys in your system's memory only for the duration of your session. 
 If you restart your session, you will need to set your API keys again.
 
-If you are not planning to use one of these providers you can delete the line.
-This will ensure that you get an error message if you accidentally try to use that provider without a valid API key.
+If you are not planning to use one or more of these providers you can delete the line.
+This will ensure that you get an error message if you accidentally try to use an LLM without a valid API key.
 
 Caution
 ~~~~~~~
