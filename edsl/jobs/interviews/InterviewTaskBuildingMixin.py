@@ -173,7 +173,7 @@ class InterviewTaskBuildingMixin:
                 )
                 if task:
                     task.task_status = TaskStatus.FAILED
-                self.exceptions.add(question, exception_entry)
+                self.exceptions.add(question.question_name, exception_entry)
                 raise e
 
         response: AgentResponseDict = await attempt_to_answer_question(invigilator)
