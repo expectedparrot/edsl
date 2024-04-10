@@ -58,6 +58,33 @@ This will return the following:
       parameters={'temperature': 0.5, 'max_tokens': 1000, 'top_p': 1, 'frequency_penalty': 0, 'presence_penalty': 0, 'logprobs': False, 'top_logprobs': 3}
    )
 
+We can also print the model name and parameters in a readable table with the `print()` method:
+
+.. code-block:: python
+
+   m.print()
+
+This will print the following table:
+
+.. code-block:: python
+
+                                       Language Model                                       
+   ┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+   ┃ Attribute         ┃ Value                                                               ┃
+   ┡━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+   │ model             │ 'claude-3-opus-20240229'                                            │
+   │ parameters        │ {'temperature': 0.5, 'max_tokens': 1000, 'top_p': 1,                │
+   │                   │ 'frequency_penalty': 0, 'presence_penalty': 0, 'logprobs': False,   │
+   │                   │ 'top_logprobs': 3}                                                  │
+   │ temperature       │ 0.5                                                                 │
+   │ max_tokens        │ 1000                                                                │
+   │ top_p             │ 1                                                                   │
+   │ frequency_penalty │ 0                                                                   │
+   │ presence_penalty  │ 0                                                                   │
+   │ logprobs          │ False                                                               │
+   │ top_logprobs      │ 3                                                                   │
+   └───────────────────┴─────────────────────────────────────────────────────────────────────┘
+
 We can also inspect the default parameters of the model by calling the `parameters` method on it:
 
 .. code-block:: python
@@ -222,7 +249,6 @@ For the above example, this will display the following list of attributes (note 
    'model.top_k', 
    'model.top_logprobs', 
    'model.top_p', 
-   'model.use_cache', 
    'prompt.favorite_color_system_prompt', 
    'prompt.favorite_color_user_prompt', 
    'prompt.favorite_day_system_prompt', 
