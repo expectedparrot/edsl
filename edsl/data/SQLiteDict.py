@@ -25,6 +25,8 @@ class SQLiteDict:
 
         """
         self.db_path = db_path or CONFIG.get("EDSL_DATABASE_PATH")
+        if not self.db_path.startswith("sqlite:///"):
+            self.db_path = f"sqlite:///{self.db_path}"
         try:
             self.engine = create_engine(self.db_path, echo=False, future=True)
             Base.metadata.create_all(self.engine)
