@@ -31,12 +31,13 @@ print(sys.path)
 username = "expectedparrot"
 projectname = "edsl"
 
+
 def linkcode_resolve(domain, info):
-    if domain != 'py':
+    if domain != "py":
         return None
-    if not info['module']:
+    if not info["module"]:
         return None
-    filename = info['module'].replace('.', '/')
+    filename = info["module"].replace(".", "/")
     return f"https://github.com/{username}/{projectname}/blob/main/{filename}.py"
 
 
@@ -68,6 +69,7 @@ def linkcode_resolve(domain, info):
 #     filename = module_name.replace('.', '/')
 #     return f"https://github.com/{username}/{projectname}/blob/main/{filename}.py"
 
+
 def print_directory_tree(startpath):
     for root, dirs, files in os.walk(startpath):
         level = root.replace(startpath, "").count(os.sep)
@@ -85,13 +87,13 @@ print_directory_tree(os.getcwd())
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 # extensions = []
-extensions = ["sphinx.ext.autodoc", "sphinx_copybutton", 'sphinx.ext.linkcode']
+extensions = ["sphinx.ext.autodoc", "sphinx_copybutton", "sphinx.ext.linkcode"]
 
-templates_path = ["_templates"]
+# templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = "alabaster"
-html_static_path = ["_static"]
+# html_static_path = ["_static"]

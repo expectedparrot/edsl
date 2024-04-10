@@ -35,6 +35,9 @@ clean: ## Clean temp files
 	find . -type d -name '.venv' -prune -o -type d -name '.pytest_cache' -exec rm -rf {} +
 	find . -type d -name '.venv' -prune -o -type d -name '__pycache__' -exec rm -rf {} +
 
+clean-docs: ## Clean documentation files
+	[ ! -d .temp/docs ] || rm -rf .temp/docs
+
 clean-test: ## Clean test files
 	[ ! -d dist ] || rm -rf dist
 	[ ! -d htmlcov ] || rm -rf htmlcov
@@ -57,12 +60,6 @@ clean-all: ## Clean everything (including the venv)
 	@[ ! -d .venv ] || rm -rf .venv
 	@echo "Done!"
 
-clean-docs:
-	rm -rf .temp/docs
-	rm -rf _build/*
-	rm -rf _static/*
-	rm -rf _templates/*
-
 ###############
 ##@Development 🛠️  
 ###############
@@ -80,6 +77,7 @@ bump: ## Bump the version of the package
 	@:
 
 docs: ## Generate documentation
+	make clean-docs
 	mkdir -p .temp/docs
 	poetry export -f requirements.txt --dev --output .temp/docs/requirements.txt
 	sphinx-build -b html docs .temp/docs
