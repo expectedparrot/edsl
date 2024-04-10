@@ -37,6 +37,7 @@ class PromptConstructorMixin:
         else:
             persona_prompt_template = self.agent.agent_persona
 
+        # TODO: This multiple passing of agent traits - not sure if it is necessary. Not harmful.
         if undefined := persona_prompt_template.undefined_template_variables(
             self.agent.traits
             | {"traits": self.agent.traits}

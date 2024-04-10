@@ -2,8 +2,8 @@
 
 Agents
 ======
-An `Agent` is an object for an AI agent that can reference a set of traits in answering questions.
-Agents are used together with language models to simulate answers to questions in place of human respondents.
+An `Agent` can reference a set of traits in answering questions.
+Agents characteristics and capabilties are used together with language models to influence how a question is answered. 
 
 Constructing an Agent
 ---------------------
@@ -21,56 +21,6 @@ Traits can be anything that might be relevant to the questions the agent will be
 
 Note that `traits=` must be named explicitly in the construction.
     
-Rendering traits as a narrative persona
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-The `traits_presentation_template` parameter can be used to create a narrative persona for an agent.
-This is a template string that can be rendered with the agent's traits as variables, for example:
-
-.. code-block:: python
-
-    a = Agent(traits = {'age': 22, 'hair': 'brown', 'gender': 'female'}, 
-        traits_presentation_template = \"\"\"
-            I am a {{ age }} year-old {{ gender }} with {{ hair }} hair.\"\"\")
-    a.agent_persona.render(primary_replacement = a.traits)
-
-This code will return:
-
-.. code-block:: text
-
-    I am a 22 year-old female with brown hair.
-
-Note that the trait keys must be valid Python identifiers (e.g., `home_state` but not `home state` or `home-state`).
-This can be handled by using a dictionary with string keys and values, for example:
-
-.. code-block:: python
-
-    codebook = {'age': 'The age of the agent'}
-    a = Agent(traits = {'age': 22}, 
-        codebook = codebook, 
-        traits_presentation_template = "{{ codebook['age'] }} is {{ age }}.")
-    a.agent_persona.render(primary_replacement = a.traits)
-
-This code will return:
-
-.. code-block:: text
-
-    The age of the agent is 22.
-
-Note that it can be helpful to include traits mentioned in the persona as independent keys and values in order to analyze survey results by those dimensions individually.
-For example, we may want the narrative to include a sentence about the agent's age, but also be able to readily analyze or filter results by age.
-
-The following code will include the agent's age as a column of a table with any other selected components:
-
-.. code-block:: python
-
-    results.select("agent.age", ...).print()
-
-And this code will let us filter the results by the agent's age:
-
-.. code-block:: python
-
-    results.filter("agent.age == 22").print()
-
 Agent names 
 -----------
 We can optionally give an agent a name when it is constructed:
@@ -141,8 +91,60 @@ For example:
 
 .. code-block:: python
 
-    a = Agent(traits = {"age": 10}, instruction = "Answer as if you were a 10-year-old.")
+    a = Agent(traits = {"age": 10}, instruction = "Answer in German.")
     a.instruction
+
+
+Fing-grained control over the presentation of the persona
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The `traits_presentation_template` parameter can be used to create a narrative persona for an agent.
+This is a template string that can be rendered with the agent's traits as variables, for example:
+
+.. code-block:: python
+
+    a = Agent(traits = {'age': 22, 'hair': 'brown', 'gender': 'female'}, 
+        traits_presentation_template = \"\"\"
+            I am a {{ age }} year-old {{ gender }} with {{ hair }} hair.\"\"\")
+    a.agent_persona.render(primary_replacement = a.traits)
+
+This code will return:
+
+.. code-block:: text
+
+    I am a 22 year-old female with brown hair.
+
+Note that the trait keys must be valid Python identifiers (e.g., `home_state` but not `home state` or `home-state`).
+This can be handled by using a dictionary with string keys and values, for example:
+
+.. code-block:: python
+
+    codebook = {'age': 'The age of the agent'}
+    a = Agent(traits = {'age': 22}, 
+        codebook = codebook, 
+        traits_presentation_template = "{{ codebook['age'] }} is {{ age }}.")
+    a.agent_persona.render(primary_replacement = a.traits)
+
+This code will return:
+
+.. code-block:: text
+
+    The age of the agent is 22.
+
+Note that it can be helpful to include traits mentioned in the persona as independent keys and values in order to analyze survey results by those dimensions individually.
+For example, we may want the narrative to include a sentence about the agent's age, but also be able to readily analyze or filter results by age.
+
+The following code will include the agent's age as a column of a table with any other selected components:
+
+.. code-block:: python
+
+    results.select("agent.age", ...).print()
+
+And this code will let us filter the results by the agent's age:
+
+.. code-block:: python
+
+    results.filter("agent.age == 22").print()
 
 
 Agent class
