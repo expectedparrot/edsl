@@ -20,12 +20,13 @@ class Cache:
     """
     A class that represents a cache of responses from a language model.
 
-    - `data`: The data to initialize the cache with.
-    - `remote`: Whether to sync the Cache with the server.
-    - `immediate_write`: Whether to write to the cache immediately after storing a new entry.
+    :param data: The data to initialize the cache with.
+    :param remote: Whether to sync the Cache with the server.
+    :param immediate_write: Whether to write to the cache immediately after storing a new entry.
 
     Deprecated:
-    - `method`: the method of storage to use for the cache.
+
+    :param method: The method of storage to use for the cache.
     """
 
     data = {}
@@ -39,9 +40,10 @@ class Cache:
         method=None,
     ):
         """
-        Creates two dictionaries to store the cache data.
-        - `new_entries`: entries that are created during a __enter__ block
-        - `new_entries_to_write_later`: entries that will be written to the cache later
+        Create two dictionaries to store the cache data.
+
+        :param new_entries: Entries that are created during a __enter__ block.
+        :param new_entries_to_write_later: Entries that will be written to the cache later.
         """
         self.data = data or {}
         self.remote = remote
@@ -76,8 +78,8 @@ class Cache:
         iteration: int,
     ) -> Union[None, str]:
         """
-        Fetches a value (LLM output) from the cache.
-        - Returns None if the response is not found.
+        Fetch a value (LLM output) from the cache.
+        Return None if the response is not found.
         """
         key = CacheEntry.gen_key(
             model=model,
@@ -99,14 +101,16 @@ class Cache:
         iteration: int,
     ) -> str:
         """
-        Adds a new key-value pair to the cache.
-        - Key is a hash of the input parameters.
-        - Output is the response from the language model.
+        Add a new key-value pair to the cache.
+        
+        * Key is a hash of the input parameters.
+        * Output is the response from the language model.
 
-        How it works
-        - The key-value pair is added to `self.new_entries`
-        - If `immediate_write` is True , the key-value pair is added to `self.data`
-        - If `immediate_write` is False, the key-value pair is added to `self.new_entries_to_write_later`
+        How it works:
+
+        * The key-value pair is added to `self.new_entries`
+        * If `immediate_write` is True , the key-value pair is added to `self.data`
+        * If `immediate_write` is False, the key-value pair is added to `self.new_entries_to_write_later`
         """
         entry = CacheEntry(
             model=model,
@@ -129,7 +133,8 @@ class Cache:
     ) -> None:
         """
         Add entries to the cache from a dictionary.
-        - `write_now` whether to write to the cache immediately (similar to `immediate_write`).
+
+        :param write_now: Whether to write to the cache immediately (similar to `immediate_write`).
         """
         for key, value in new_data.items():
             if key in self.data:
@@ -147,7 +152,8 @@ class Cache:
     def add_from_jsonl(self, filename: str, write_now: Optional[bool] = True) -> None:
         """
         Add entries to the cache from a JSONL.
-        - `write_now` whether to write to the cache immediately (similar to `immediate_write`).
+
+        :param write_now: Whether to write to the cache immediately (similar to `immediate_write`).
         """
         with open(filename, "a+") as f:
             f.seek(0)
@@ -163,7 +169,8 @@ class Cache:
     def add_from_sqlite(self, db_path: str, write_now: Optional[bool] = True):
         """
         Add entries to the cache from an SQLite database.
-        - `write_now` whether to write to the cache immediately (similar to `immediate_write`).
+        
+        :param write_now: Whether to write to the cache immediately (similar to `immediate_write`).
         """
         db = SQLiteDict(db_path)
         new_data = {}
@@ -174,7 +181,7 @@ class Cache:
     @classmethod
     def from_sqlite_db(cls, db_path: str) -> Cache:
         """
-        Construct a Cache from an SQLite database.
+        Construct a Cache from a SQLite database.
         """
         return cls(data=SQLiteDict(db_path))
 
@@ -182,8 +189,9 @@ class Cache:
     def from_jsonl(cls, jsonlfile: str, db_path: str = None) -> Cache:
         """
         Construct a Cache from a JSONL file.
-        - if `db_path` is None, the cache will be stored in memory, as a dictionary.
-        - if `db_path` is provided, the cache will be stored in an SQLite database.
+
+        * If `db_path` is None, the cache will be stored in memory, as a dictionary.
+        * If `db_path` is provided, the cache will be stored in an SQLite database.
         """
         if db_path is None:
             data = {}
@@ -229,7 +237,7 @@ class Cache:
 
     def __enter__(self):
         """
-        Runs when a context is entered.
+        Run when a context is entered.
         """
         if self.remote:
             print("Syncing local and remote caches")
@@ -240,7 +248,7 @@ class Cache:
 
     def __exit__(self, exc_type, exc_value, traceback):
         """
-        Runs when a context is exited.
+        Run when a context is exited.
         """
         for key, entry in self.new_entries_to_write_later.items():
             self.data[key] = entry
@@ -251,23 +259,25 @@ class Cache:
     # DUNDER / USEFUL
     ####################
     def to_dict(self) -> dict:
+        """Return the Cache as a dictionary."""
         return {k: v.to_dict() for k, v in self.data.items()}
 
     @classmethod
     def from_dict(cls, data) -> Cache:
+        """Construct a Cache from a dictionary."""
         data = {k: CacheEntry.from_dict(v) for k, v in data}
         return cls(data=data)
 
     def __len__(self):
-        """Returns the number of CacheEntry objects in the Cache."""
+        """Return the number of CacheEntry objects in the Cache."""
         return len(self.data)
 
     # TODO: Same inputs could give different results and this could be useful
     # can't distinguish unless we do the ε trick or vary iterations
     def __eq__(self, other_cache: "Cache") -> bool:
         """
-        Checks if two Cache objects are equal.
-        - Doesn't verify their values are equal, just that they have the same keys.
+        Check if two Cache objects are equal.
+        Does not verify their values are equal, only that they have the same keys.
         """
         if not isinstance(other_cache, Cache):
             return False
@@ -275,7 +285,7 @@ class Cache:
 
     def __add__(self, other: "Cache"):
         """
-        Combines two caches.
+        Combine two caches.
         """
         if not isinstance(other, Cache):
             raise ValueError("Can only add two caches together")
@@ -284,7 +294,7 @@ class Cache:
 
     def __repr__(self):
         """
-        Returns a string representation of the Cache object.
+        Return a string representation of the Cache object.
         """
         return f"Cache(data = {repr(self.data)}, immediate_write={self.immediate_write}, remote={self.remote})"
 
@@ -293,7 +303,7 @@ class Cache:
     ####################
     def fetch_input_example(self) -> dict:
         """
-        Creates an example input for a 'fetch' operation.
+        Create an example input for a 'fetch' operation.
         """
         return CacheEntry.fetch_input_example()
 
@@ -301,7 +311,7 @@ class Cache:
     def example(cls) -> Cache:
         """
         Return an example Cache.
-        - The example Cache has one entry.
+        The example Cache has one entry.
         """
         return cls(data={CacheEntry.example().key: CacheEntry.example()})
 
@@ -419,5 +429,4 @@ def main():
 
 if __name__ == "__main__":
     import doctest
-
-    doctest.testmod()
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
