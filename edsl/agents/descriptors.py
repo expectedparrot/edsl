@@ -29,16 +29,32 @@ class TraitsDescriptor:
 
     def __set__(self, instance, traits_dict: Dict[str, str]) -> None:
         """Set the value of the attribute."""
+        corrected_traits = {}
         for key, value in traits_dict.items():
-            if not is_valid_variable_name(key):
-                raise AgentNameError("Trait keys must be a valid variable name!")
+            # Check for "name" key before any corrections
             if key == "name":
                 raise AgentNameError(
-                    """Trait keys cannot be 'name'!. Instead, use the 'name' attribute directly e.g., 
-                                >>> Agent(name="my_agent", traits={"trait1": "value1", "trait2": "value2"})
-                                """
+                    """Trait keys cannot be 'name'! Instead, use the 'name' attribute directly e.g., 
+                    Agent(name="my_agent", traits={"trait1": "value1", "trait2": "value2"})
+                    """
                 )
+            
+            # Proceed with checking validity of the variable name
+            if not is_valid_variable_name(key):
+                corrected_key = key.replace(" ", "_")
+                if not is_valid_variable_name(corrected_key):
+                    raise AgentNameError("Trait keys must be a valid variable name!")
+                key = corrected_key
+
+            corrected_traits[key] = value
+
+        # Now, `traits_dict` is updated outside the loop correctly.
+        # Note: This line only changes the local reference of `traits_dict` and doesn't affect `instance`
+        traits_dict = corrected_traits
+
+        # Assuming `self.name` is correctly defined elsewhere and is the attribute name to be set in `instance`
         instance.__dict__[self.name] = traits_dict
+
 
     def __set_name__(self, owner, name: str) -> None:
         """Set the name of the attribute."""
