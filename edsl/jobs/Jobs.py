@@ -209,7 +209,7 @@ class Jobs(Base):
 
         """
         if check_api_keys:
-            for model in self.models:
+            for model in self.models + [Model(LanguageModelType.GPT_4.value)]:
                 if not model.has_valid_api_key():
                     raise Exception(
                         f"The model {str(model.model)} is missing an API key. Please set it in your private .env file. See instructions on how to do this: https://docs.expectedparrot.com/en/latest/starter_tutorial.html#part-1-using-api-keys"
