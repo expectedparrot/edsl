@@ -57,6 +57,12 @@ clean-all: ## Clean everything (including the venv)
 	@[ ! -d .venv ] || rm -rf .venv
 	@echo "Done!"
 
+clean-docs:
+	rm -rf .temp/docs
+	rm -rf _build/*
+	rm -rf _static/*
+	rm -rf _templates/*
+
 ###############
 ##@Development 🛠️  
 ###############

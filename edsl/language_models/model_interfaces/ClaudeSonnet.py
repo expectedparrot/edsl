@@ -1,14 +1,14 @@
 from edsl.language_models.Anthropic import create_anthropic_model
 from edsl.enums import LanguageModelType
 
-model_name = LanguageModelType.ANTHROPIC_3_OPUS.value
+model_name = LanguageModelType.ANTHROPIC_3_SONNET.value
 
-ClaudeOpus = create_anthropic_model(
-    model_name=model_name, model_class_name="ClaudeOpus"
+ClaudeSonnet = create_anthropic_model(
+    model_name=model_name, model_class_name="ClaudeSonnet"
 )
 
 if __name__ == "__main__":
-    model = ClaudeOpus()
+    model = ClaudeSonnet()
     from edsl import QuestionFreeText
 
     results = QuestionFreeText.example().by(model).run()

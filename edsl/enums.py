@@ -43,6 +43,9 @@ class LanguageModelType(EnumWithChecks):
     MIXTRAL_8x7B_INSTRUCT = "mixtral-8x7B-instruct-v0.1"
     TEST = "test"
     ANTHROPIC_3_OPUS = "claude-3-opus-20240229"
+    ANTHROPIC_3_SONNET = "claude-3-sonnet-20240229"
+    ANTHROPIC_3_HAIKU = "claude-3-haiku-20240307"
+    DBRX_INSTRUCT = "dbrx-instruct"
 
 
 class InferenceServiceType(EnumWithChecks):
@@ -91,8 +94,23 @@ class TokenPricing:
 
 
 pricing = {
+    "dbrx-instruct": TokenPricing(
+        model_name="dbrx-instruct",
+        prompt_token_price_per_k=0.0,
+        completion_token_price_per_k=0.0,
+    ),
     "claude-3-opus-20240229": TokenPricing(
         model_name="claude-3-opus-20240229",
+        prompt_token_price_per_k=0.0,
+        completion_token_price_per_k=0.0,
+    ),
+    "claude-3-haiku-20240307": TokenPricing(
+        model_name="claude-3-haiku-20240307",
+        prompt_token_price_per_k=0.0,
+        completion_token_price_per_k=0.0,
+    ),
+    "claude-3-sonnet-20240229": TokenPricing(
+        model_name="claude-3-sonnet-20240229",
         prompt_token_price_per_k=0.0,
         completion_token_price_per_k=0.0,
     ),
