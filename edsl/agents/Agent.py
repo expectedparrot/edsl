@@ -72,15 +72,46 @@ class Agent(Base):
         :param trait_presentation_template: A template for how to present the agent's traits.
         :param dynamic_traits_function: A function that returns a dictionary of traits.
 
+        The `traits` parameter is a dictionary of traits that the agent has. 
+        These traits are used to construct a prompt that is presented to the LLM.
+        In the absence of a `traits_presentation_template`, the default is used.
+        This is a template that is used to present the agent's traits to the LLM.
+        See :py:class:`edsl.prompts.library.agent_persona.AgentPersona` for more information.
+
         Example usage:
 
         >>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
         >>> a.traits
         {'age': 10, 'hair': 'brown', 'height': 5.5}
 
+        These traits are used to construct a prompt that is presented to the LLM. 
+
+        In the absence of a `traits_presentation_template`, the default is used.
+
         >>> a = Agent(traits = {"age": 10}, traits_presentation_template = "I am a {{age}} year old.")
         >>> repr(a.agent_persona)
         "Prompt(text='I am a {{age}} year old.')"
+
+        When this is rendered for presentation to the LLM, it will replace the `{{age}}` with the actual age.
+        it is also possible to use the `codebook` to provide a more human-readable description of the trait.
+        Here is an example where we give a prefix to the age trait (namely the age):
+
+        >>> traits = {"age": 10, "hair": "brown", "height": 5.5}
+        >>> codebook = {'age': 'Their age is'}
+        >>> a = Agent(traits = traits, codebook = codebook, traits_presentation_template = "This agent is Dave. {{codebook['age']}} {{age}}")
+        >>> d = a.traits | {'codebook': a.codebook}
+        >>> a.agent_persona.render(d)
+        Prompt(text='This agent is Dave. Their age is 10')
+
+        Instructions
+        ------------------
+        The agent can also have instructions. These are instructions that are given to the agent when answering questions.
+
+        >>> Agent.default_instruction
+        'You are answering questions as if you were a human. Do not break character.'
+
+        See see how these are used to actually construct the prompt that is presented to the LLM, see :py:class:`edsl.agents.Invigilator.InvigilatorBase`.
+
         """
         self.name = name
         self._traits = traits or dict()
@@ -177,7 +208,7 @@ class Agent(Base):
     ) -> InvigilatorBase:
         """Create an Invigilator.
 
-        An invigator is an object that is responsible administering a question to an agent and
+        An invigator is an object that is responsible for administering a question to an agent and
         recording the responses.
         """
         cache = cache
@@ -444,16 +475,15 @@ def main():
 
 if __name__ == "__main__":
     import doctest
-
     doctest.testmod(optionflags=doctest.ELLIPSIS)
 
-    a = Agent(
-        traits={"age": 10}, traits_presentation_template="I am a {{age}} year old."
-    )
-    repr(a.agent_persona)
+    # a = Agent(
+    #     traits={"age": 10}, traits_presentation_template="I am a {{age}} year old."
+    # )
+    # repr(a.agent_persona)
 
-    a = Agent(
-        traits={"age": 22, "hair": "brown", "gender": "female"},
-        traits_presentation_template="I am a {{ age }} year-old {{ gender }} with {{ hair }} hair.",
-    )
-    print(a.agent_persona.render(primary_replacement=a.traits))
+    # a = Agent(
+    #     traits={"age": 22, "hair": "brown", "gender": "female"},
+    #     traits_presentation_template="I am a {{ age }} year-old {{ gender }} with {{ hair }} hair.",
+    # )
+    # print(a.agent_persona.render(primary_replacement=a.traits))

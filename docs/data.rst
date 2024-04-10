@@ -1,6 +1,12 @@
-Data
-====
+.. _caching:
+
+Caching LLM Calls
+=================
 The `Cache` class is used to store responses from a language model.
+
+.. raw:: html
+
+   <i>What is a cache?</i> (<a href="https://en.wikipedia.org/wiki/Cache_(computing)" target="_blank">Wikipedia</a>)
 
 Why caching?
 ^^^^^^^^^^^^
@@ -36,7 +42,6 @@ This code will instantiate a new cache object but using a dictionary as the data
 
 In-memory usage
 ^^^^^^^^^^^^^^^
-
 .. code-block:: python
 
     from edsl.data.Cache import Cache
@@ -97,20 +102,11 @@ You can interact with this cache directly, e.g.,
     sqlite3 .edsl_cache/data.db
 
 
-Remote cache on Expected Parrot
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-In addition to local caching, the cache can be stored on a remote server---namely, the Expected Parrot server.
-This is done if the `remote_backups` parameter is set to True AND a valid URL is set in the `EXPECTED_PARROT_CACHE_URL` environment variable.
-This is a `.env` file in the root directory of the project.
-
-When remote caching is enabled, the cache will be synced with the remote server at the start end of each `session.`
-These sessions are defined by the `__enter__` and `__exit__` methods of the cache object.
-When the `__enter__` method is called, the cache will be synced with the remote server by downloading what is missing. 
-When the `__exit__` method is called, the new entries will be sent to the remote server, as well as any entries that local 
-cache had that were not in the remote cache.
+For developers
+^^^^^^^^^^^^^^
 
 Delayed cache-writing: Useful for remote caching
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+------------------------------------------------
 Separate from this remote cache syncing, delays can be made in writing to the cache itself. 
 By default, the cache will write to the cache immediately after storing a new entry.
 However, this can be changed by setting the `immediate_write` parameter to False.
@@ -129,37 +125,16 @@ This is also controlled by using the cache object as a context.
       ...
 
    # The cache will be written to the cache persistence layer after the block of code has been executed
-    
-
-Why this? In a future version, it may be possible to totally eschew the local cache and use a remote cache only.
-Remote reads might be very fast, but writes might be slow, so this would be a way to optimize the cache for that use case.        
+   
 
 
-Idea: 
 
-- We leave an SQLite3 database on user's machine
-- When we start a session, we check if there are any updates to the cache on remote server
-- If there are, we download them and update the cache
+Cache class 
+-----------
 
-Desired features:
-
-- Hard to corrupt (e.g., if the program crashes)
-- Good transactional support
-- Can easily combine two caches together w/o duplicating entries
-- Can easily fetch another cache collection and add to own
-- Can easily use a remote cache w/o changing edsl code 
-- Easy to migrate 
-- Can deal easily with cache getting too large 
-- "Coopable" - could share a smaller cache with another user
-- Good defaults
-- Can export part of cache that was used for a particular run
-
-Export methods: 
-
-- JSONL
-- SQLite3
-- JSON
-
-Remote persistence options:
-
-- Database on Expected Parrot 
+.. automodule:: edsl.data.Cache
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :special-members: __init__
+   :exclude-members: codebook, data, main

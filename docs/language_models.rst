@@ -20,7 +20,10 @@ This will return a list of names for available models to choose from:
 
 .. code-block:: python
 
-   ['claude-3-opus-20240229',
+   ['claude-3-haiku-20240307', 
+    'claude-3-opus-20240229', 
+    'claude-3-sonnet-20240229', 
+    'dbrx-instruct', 
     'gpt-3.5-turbo',
     'gpt-4-1106-preview',
     'gemini_pro',
@@ -28,6 +31,8 @@ This will return a list of names for available models to choose from:
     'llama-2-70b-chat-hf',
     'mixtral-8x7B-instruct-v0.1']
 
+The available models are updated regularly.
+A current list is also available at :py:class:`edsl.enums.LanguageModelEnum`.
 
 *If you don't see a model that you want to work with, please send us a feature request to add it!*
 
@@ -57,6 +62,33 @@ This will return the following:
       model = 'claude-3-opus-20240229', 
       parameters={'temperature': 0.5, 'max_tokens': 1000, 'top_p': 1, 'frequency_penalty': 0, 'presence_penalty': 0, 'logprobs': False, 'top_logprobs': 3}
    )
+
+We can also print the model name and parameters in a readable table with the `print()` method:
+
+.. code-block:: python
+
+   m.print()
+
+This will print the following table:
+
+.. code-block:: python
+
+                                       Language Model                                       
+   ┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+   ┃ Attribute         ┃ Value                                                               ┃
+   ┡━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+   │ model             │ 'claude-3-opus-20240229'                                            │
+   │ parameters        │ {'temperature': 0.5, 'max_tokens': 1000, 'top_p': 1,                │
+   │                   │ 'frequency_penalty': 0, 'presence_penalty': 0, 'logprobs': False,   │
+   │                   │ 'top_logprobs': 3}                                                  │
+   │ temperature       │ 0.5                                                                 │
+   │ max_tokens        │ 1000                                                                │
+   │ top_p             │ 1                                                                   │
+   │ frequency_penalty │ 0                                                                   │
+   │ presence_penalty  │ 0                                                                   │
+   │ logprobs          │ False                                                               │
+   │ top_logprobs      │ 3                                                                   │
+   └───────────────────┴─────────────────────────────────────────────────────────────────────┘
 
 We can also inspect the default parameters of the model by calling the `parameters` method on it:
 
@@ -222,7 +254,6 @@ For the above example, this will display the following list of attributes (note 
    'model.top_k', 
    'model.top_logprobs', 
    'model.top_p', 
-   'model.use_cache', 
    'prompt.favorite_color_system_prompt', 
    'prompt.favorite_color_user_prompt', 
    'prompt.favorite_day_system_prompt', 
