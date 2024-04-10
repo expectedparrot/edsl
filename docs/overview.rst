@@ -90,7 +90,7 @@ It is also model agnostic, so you can easily present the same questions to diffe
 It is open source with a permissive license, so you can use it for your own research or build on it for your own projects.
 
 Coop
-^^^^
+----
 *Coming soon!*
 
 EDSL is designed to facilitate sharing of research, code and results. 

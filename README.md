@@ -3,7 +3,7 @@
   <img src="https://github.com/expectedparrot/edsl/blob/main/static/logo.png?raw=true" alt="edsl.png" width="100"/>
 </p>
 
-The Expected Parrot Domain-Specific Language (EDSL) package lets you conduct social science and market research with AI. Use it to design surveys and experiments, simulate responses with LLMs and analyze results. 
+The Expected Parrot Domain-Specific Language (EDSL) package lets you conduct computational social science and market research with AI. Use it to design surveys and experiments, simulate responses with large language models, and perform data labeling and other research tasks. EDSL comes with built-in methods for analyzing, visualizing and sharing your results. 
 
 ## 🔗 Links
 - PyPI: https://pypi.org/project/edsl/

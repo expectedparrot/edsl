@@ -17,10 +17,15 @@ This page contains documentation for the Expected Parrot Domain-Specific Languag
    prompts
    language_models
    results
-   data
-   cache
+ 
+.. toctree::
+   :maxdepth: 2
+   :caption: Developer:
 
-   
+   data
+   enums
+
+
 Indices and tables
 ==================
 
