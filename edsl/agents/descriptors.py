@@ -29,20 +29,22 @@ class TraitsDescriptor:
 
     def __set__(self, instance, traits_dict: Dict[str, str]) -> None:
         """Set the value of the attribute."""
+        corrected_traits = {}  
         for key, value in traits_dict.items():
             if not is_valid_variable_name(key):
                 corrected_key = key.replace(" ", "_")
                 if not is_valid_variable_name(corrected_key):
                     raise AgentNameError("Trait keys must be a valid variable name!")
-                else:
-                    key = corrected_key
+                key = corrected_key
+            corrected_traits[key] = value
+        traits_dict = corrected_traits
 
-            if key == "name":
-                raise AgentNameError(
-                    """Trait keys cannot be 'name'!. Instead, use the 'name' attribute directly e.g., 
-                                >>> Agent(name="my_agent", traits={"trait1": "value1", "trait2": "value2"})
-                                """
-                )
+        if key == "name":
+            raise AgentNameError(
+                """Trait keys cannot be 'name'!. Instead, use the 'name' attribute directly e.g., 
+                >>> Agent(name="my_agent", traits={"trait1": "value1", "trait2": "value2"})
+                """
+            )
         instance.__dict__[self.name] = traits_dict
 
     def __set_name__(self, owner, name: str) -> None:
