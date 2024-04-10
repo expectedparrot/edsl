@@ -404,14 +404,12 @@ class LanguageModel(
             iteration=iteration,
         )
 
-
-
         if cache_used := (cached_response is not None):
-            #print("Cache used")
+            # print("Cache used")
             response = json.loads(cached_response)
         else:
-            #print("Cache not used")
-            #print(f"Cache data is: {cache.data}")
+            # print("Cache not used")
+            # print(f"Cache data is: {cache.data}")
             response = await self.async_execute_model_call(user_prompt, system_prompt)
 
         if not cache_used:
