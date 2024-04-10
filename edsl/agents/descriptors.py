@@ -31,7 +31,12 @@ class TraitsDescriptor:
         """Set the value of the attribute."""
         for key, value in traits_dict.items():
             if not is_valid_variable_name(key):
-                raise AgentNameError("Trait keys must be a valid variable name!")
+                corrected_key = key.replace(" ", "_")
+                if not is_valid_variable_name(corrected_key):
+                    raise AgentNameError("Trait keys must be a valid variable name!")
+                else:
+                    key = corrected_key
+
             if key == "name":
                 raise AgentNameError(
                     """Trait keys cannot be 'name'!. Instead, use the 'name' attribute directly e.g., 
