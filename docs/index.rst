@@ -23,6 +23,7 @@ This page contains documentation for the Expected Parrot Domain-Specific Languag
    :caption: Developer:
 
    data
+   enums
 
 
 Indices and tables

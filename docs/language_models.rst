@@ -20,7 +20,10 @@ This will return a list of names for available models to choose from:
 
 .. code-block:: python
 
-   ['claude-3-opus-20240229',
+   ['claude-3-haiku-20240307', 
+    'claude-3-opus-20240229', 
+    'claude-3-sonnet-20240229', 
+    'dbrx-instruct', 
     'gpt-3.5-turbo',
     'gpt-4-1106-preview',
     'gemini_pro',
@@ -28,6 +31,8 @@ This will return a list of names for available models to choose from:
     'llama-2-70b-chat-hf',
     'mixtral-8x7B-instruct-v0.1']
 
+The available models are updated regularly.
+A current list is also available at :py:class:`edsl.enums.LanguageModelEnum`.
 
 *If you don't see a model that you want to work with, please send us a feature request to add it!*
 
