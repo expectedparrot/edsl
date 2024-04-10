@@ -23,10 +23,10 @@ find: ## Search for a pattern. Use `make find term="pattern"`
 clean: ## Clean temp files
 	@echo "Cleaning tempfiles..."
 	[ ! -f .coverage ] || rm .coverage
+	[ ! -d .edsl_cache ] || rm  -rf .edsl_cache
 	[ ! -d .mypy_cache ] || rm -rf .mypy_cache
 	[ ! -d .temp ] || rm -rf .temp
 	[ ! -d dist ] || rm -rf dist
-	[ ! -f edsl_cache.db ] || rm edsl_cache.db
 	[ ! -d htmlcov ] || rm -rf htmlcov
 	[ ! -d prof ] || rm -rf prof
 	find . -type d -name '.venv' -prune -o -type f -name '*.db' -exec rm -rf {} +
@@ -44,7 +44,6 @@ clean-test: ## Clean test files
 	[ ! -d prof ] || rm -rf prof
 	[ ! -d tests/temp_outputs ] || rm -rf tests/temp_outputs
 	[ ! -f tests/edsl_cache_test.db ] || rm tests/edsl_cache_test.db
-	[ ! -f tests/edsl_cache_test.db_temp ] || rm tests/edsl_cache_test.db_temp
 	[ ! -f tests/interview.log ] || rm tests/interview.log
 
 clean-all: ## Clean everything (including the venv)
