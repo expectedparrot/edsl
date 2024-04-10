@@ -1,5 +1,5 @@
-#import anthropic
-import os 
+# import anthropic
+import os
 import dotenv
 from typing import Any
 from anthropic import AsyncAnthropic
@@ -15,8 +15,8 @@ from edsl.exceptions import MissingAPIKeyError
 import os
 import re
 
+
 def create_anthropic_model(model_name, model_class_name) -> LanguageModel:
-    
     class LLM(LanguageModel):
         """
         Child class of LanguageModel for interacting with OpenAI models
@@ -31,7 +31,7 @@ def create_anthropic_model(model_name, model_class_name) -> LanguageModel:
             "frequency_penalty": 0,
             "presence_penalty": 0,
             "logprobs": False,
-            "top_logprobs": 3
+            "top_logprobs": 3,
         }
 
         async def async_execute_model_call(
@@ -39,7 +39,7 @@ def create_anthropic_model(model_name, model_class_name) -> LanguageModel:
         ) -> dict[str, Any]:
             """Calls the OpenAI API and returns the API response."""
             api_key = os.environ.get("ANTHROPIC_API_KEY")
-            client = AsyncAnthropic(api_key = api_key)
+            client = AsyncAnthropic(api_key=api_key)
 
             response = await client.messages.create(
                 model="claude-3-opus-20240229",
@@ -47,9 +47,10 @@ def create_anthropic_model(model_name, model_class_name) -> LanguageModel:
                 temperature=0.0,
                 system=system_prompt,
                 messages=[
-            #     {"role": "system", "content": system_prompt},
+                    #     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
-                ])
+                ],
+            )
             return response.model_dump()
 
         @staticmethod
@@ -62,14 +63,15 @@ def create_anthropic_model(model_name, model_class_name) -> LanguageModel:
                 return match.group(1)
             else:
                 return response
-        
+
     LLM.__name__ = model_class_name
 
     return LLM
-        
+
+
 if __name__ == "__main__":
     pass
-    #ClaudeOpus = create_anthropic_model("claude-3-opus-20240229", "ClaudeOpus")
-    #results = m.execute_model_call("How are you today?")
-    #cleaned_up = ClaudeOpus.parse_response(results)
-    #print(cleaned_up)
+    # ClaudeOpus = create_anthropic_model("claude-3-opus-20240229", "ClaudeOpus")
+    # results = m.execute_model_call("How are you today?")
+    # cleaned_up = ClaudeOpus.parse_response(results)
+    # print(cleaned_up)
