@@ -19,4 +19,3 @@ if __name__ == "__main__":
     )
     results = q.by(model).run()
     results.select("answer.*", "model.model").print()
-
