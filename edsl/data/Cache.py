@@ -102,7 +102,7 @@ class Cache:
     ) -> str:
         """
         Add a new key-value pair to the cache.
-        
+
         * Key is a hash of the input parameters.
         * Output is the response from the language model.
 
@@ -169,7 +169,7 @@ class Cache:
     def add_from_sqlite(self, db_path: str, write_now: Optional[bool] = True):
         """
         Add entries to the cache from an SQLite database.
-        
+
         :param write_now: Whether to write to the cache immediately (similar to `immediate_write`).
         """
         db = SQLiteDict(db_path)
@@ -318,8 +318,12 @@ class Cache:
 
 def main():
     import os
+    from edsl import CONFIG
     from edsl.data.CacheEntry import CacheEntry
     from edsl.data.Cache import Cache
+
+    db_path = CONFIG.get("EDSL_DATABASE_PATH")
+    db_path_no_prefix = db_path.replace("sqlite:///", "")
 
     # fetch
     cache = Cache()
@@ -381,10 +385,10 @@ def main():
     # add multiple entries from a SQLite db with immediate write
     cache = Cache.example()
     cache.data["poo"] = CacheEntry.example()
-    cache.write_sqlite_db("sqlite:///example.db")
-    cache_new = Cache.from_sqlite_db("sqlite:///example.db")
+    cache.write_sqlite_db(db_path)
+    cache_new = Cache.from_sqlite_db(db_path)
     assert cache == cache_new
-    os.remove("example.db")
+    os.remove(db_path_no_prefix)
 
     # construct a cache from a jsonl file and save to memory
     cache = Cache.example()
@@ -396,16 +400,16 @@ def main():
     # construct a cache from a jsonl file and save to sqlite
     cache = Cache.example()
     cache.write_jsonl("example.jsonl")
-    cache_new = Cache.from_jsonl("example.jsonl", db_path="sqlite:///example.db")
+    cache_new = Cache.from_jsonl("example.jsonl", db_path=db_path)
     assert cache == cache_new
     os.remove("example.jsonl")
-    os.remove("example.db")
 
     # wrte to a SQLite db and read from it
     c = Cache.example()
-    c.write_sqlite_db("sqlite:///example.db")
-    cnew = Cache.from_sqlite_db("sqlite:///example.db")
+    c.write_sqlite_db(db_path)
+    cnew = Cache.from_sqlite_db(db_path)
     assert c == cnew
+    os.remove(db_path_no_prefix)
 
     # a non-valid Cache
     # Cache(data={"poo": "not a CacheEntry"})
@@ -429,4 +433,5 @@ def main():
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)

@@ -72,7 +72,7 @@ class Agent(Base):
         :param trait_presentation_template: A template for how to present the agent's traits.
         :param dynamic_traits_function: A function that returns a dictionary of traits.
 
-        The `traits` parameter is a dictionary of traits that the agent has. 
+        The `traits` parameter is a dictionary of traits that the agent has.
         These traits are used to construct a prompt that is presented to the LLM.
         In the absence of a `traits_presentation_template`, the default is used.
         This is a template that is used to present the agent's traits to the LLM.
@@ -84,7 +84,7 @@ class Agent(Base):
         >>> a.traits
         {'age': 10, 'hair': 'brown', 'height': 5.5}
 
-        These traits are used to construct a prompt that is presented to the LLM. 
+        These traits are used to construct a prompt that is presented to the LLM.
 
         In the absence of a `traits_presentation_template`, the default is used.
 
@@ -475,6 +475,7 @@ def main():
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)
 
     # a = Agent(
