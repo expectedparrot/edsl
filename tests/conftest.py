@@ -1,13 +1,11 @@
+import asyncio
 import os
 import pytest
+from typing import Any
 from edsl.config import CONFIG
 from edsl.data.SQLiteDict import SQLiteDict
-import subprocess
-import os
-import signal
-import time
-import requests
-import pytest
+from edsl.enums import LanguageModelType, InferenceServiceType
+from edsl.language_models.LanguageModel import LanguageModel
 
 
 ##############
@@ -46,8 +44,11 @@ def pytest_collection_modifyitems(config, items):
                 item.add_marker(skip_notcoop)
 
 
-# Uncomment to automatically try to start the server if --coop is passed
+##############
+# Fixtures
+##############
 
+# TODO: Uncomment to automatically try to start the server if --coop is passed
 # @pytest.fixture(scope="session", autouse=True)
 # def start_server(request):
 #     """
@@ -94,6 +95,32 @@ def pytest_collection_modifyitems(config, items):
 #         os.chdir(EDSL_PATH)
 
 
+@pytest.fixture
+def set_env_vars():
+    """
+    Sets environment variables for the duration of the test.
+    After the test, it restores the env to their original state.
+
+    Usage:
+    - Pass this fixture to the test
+    - Call the fixture, e.g. `set_env_vars(ENV_VAR1='value1', ENV_VAR2='value2')`
+    - Set a variable equal to None to delete it from the env
+    """
+    original_env = os.environ.copy()
+
+    def _set_env_vars(**env_vars):
+        for var, value in env_vars.items():
+            if value is None and var in os.environ:
+                del os.environ[var]
+            else:
+                os.environ[var] = value
+
+    yield _set_env_vars
+
+    os.environ.clear()
+    os.environ.update(original_env)
+
+
 @pytest.fixture(scope="function")
 def sqlite_dict():
     """
@@ -106,31 +133,27 @@ def sqlite_dict():
 
 
 @pytest.fixture
-def set_env_vars():
+def language_model_good():
     """
-    This fixture sets environment variables for the duration of the test.
-    After the test, it restores the env to its original state.
-
-    Usage:
-    - Pass this fixture to the test
-    - Call the fixture, e.g. `set_env_vars(ENV_VAR1='value1', ENV_VAR2='value2')`
-    - Set a variable equal to None to delete it from the env
+    Provides a good language model for testing.
     """
-    # copy
-    original_env = os.environ.copy()
 
-    def _set_env_vars(**env_vars):
-        for var, value in env_vars.items():
-            if value is None and var in os.environ:
-                del os.environ[var]
-            else:
-                os.environ[var] = value
+    class TestLanguageModelGood(LanguageModel):
+        use_cache = False
+        _model_ = LanguageModelType.TEST.value
+        _parameters_ = {"temperature": 0.5}
+        _inference_service_ = InferenceServiceType.TEST.value
 
-    yield _set_env_vars
+        async def async_execute_model_call(
+            self, user_prompt: str, system_prompt: str
+        ) -> dict[str, Any]:
+            await asyncio.sleep(0.1)
+            return {"message": """{"answer": "Hello world"}"""}
 
-    # restore
-    os.environ.clear()
-    os.environ.update(original_env)
+        def parse_response(self, raw_response: dict[str, Any]) -> str:
+            return raw_response["message"]
+
+    return TestLanguageModelGood()
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -138,8 +161,6 @@ async def clear_after_test():
     """
     This fixture does some things after each test (function) runs.
     """
-    # Before the test runs, do nothing
+    # Do nothing before the test runs
     yield
-    # After the test completes, do the following
-
-    # e.g., you could clear your database
+    # TODO: Do some things after the test, e.g., clear the database
