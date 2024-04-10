@@ -120,15 +120,20 @@ There is one for each question. The key is the question_name + `_raw_response_mo
 ### Removed
 
 
-## [0.1.16] - 2024-03-11
+## [0.1.16] - 2024-04-10
 
 ### Added
-- Better docstrings
-- Making progress towards documentation
-- Coop Client
+- New documentation page: https://docs.expectedparrot.com
+- Progress bar: You can now pass `progress_bar=True` to the `run()` method to see a progress bar as your survey is running. Example:
+
+### Changed
+- Caching:
+
+### Deprecated
+
+### Removed
 
 ### Fixed
 - `.run(n = ...)` now works and will run each interview as many times as needed
-- 
 
-### Removed
+
