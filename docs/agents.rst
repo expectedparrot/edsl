@@ -3,11 +3,11 @@
 Agents
 ======
 An `Agent` can reference a set of traits in answering questions.
-Agents characteristics and capabilties are used together with language models to influence how a question is answered. 
+Agent characteristics and capabilties are used together with language models to influence how a question is answered. 
 
 Constructing an Agent
 ---------------------
-An `Agent` is created by passing a dictionary of `traits` for the agent to reference in answering questions: 
+An `Agent` is created by passing a dictionary of `traits` for the agent to reference in answering questions. 
 Traits can be anything that might be relevant to the questions the agent will be asked, and constructed with single values or textual narratives:
 
 .. code-block:: python
@@ -19,7 +19,7 @@ Traits can be anything that might be relevant to the questions the agent will be
     }
     a = Agent(traits = traits_dict)
 
-Note that `traits=` must be named explicitly in the construction.
+Note that `traits=` must be named explicitly in the construction, and the traits must use Python identifiers as keys (e.g., `home_state` but not `home state` or `home-state`).
     
 Agent names 
 -----------
@@ -32,9 +32,12 @@ We can optionally give an agent a name when it is constructed:
 If a name is not passed when the agent is created, an `agent_name` field is automatically added to results when a survey is administered to the agent.
 This field is a unique identifier for the agent and can be used to filter or group results by agent.
 
+Note that trying to create two agents with the same name or trying to include the name in the traits will raise an error.
+
 Agent lists
 -----------
-Agents can be created collectively and administered a survey together. This is useful for comparing responses across agents.
+Agents can be created collectively and administered a survey together. 
+This is useful for comparing responses across agents.
 The following example creates a list of agents with each combination of listed trait dimensions: 
 
 .. code-block:: python
@@ -45,7 +48,7 @@ The following example creates a list of agents with each combination of listed t
         for age, location in zip(ages, locations)]
 
 Dynamic traits function
-^^^^^^^^^^^^^^^^^^^^^^^
+-----------------------
 Agents can also be created with a `dynamic_traits_function` parameter. 
 This function can be used to generate traits dynamically based on the question being asked or the scenario in which the question is asked.
 For example:
@@ -66,7 +69,7 @@ This can be useful for creating agents that can answer questions about different
 including potentially irrelevant traits in the agent's traits dictionary.
 
 Agent direct-answering methods
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+------------------------------
 Agents can also be created with a method that can answer a particular question type directly:
 
 .. code-block:: python
@@ -85,7 +88,7 @@ This code will return:
 This can be useful for creating agents that can answer questions directly without needing to use a language model.
 
 Giving an agent instructions
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+----------------------------
 In addition to traits, agents can be given detailed instructions on how to answer questions.
 For example:
 
@@ -95,11 +98,11 @@ For example:
     a.instruction
 
 
-Fing-grained control over the presentation of the persona
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
+Controlling the presentation of the persona
+-------------------------------------------
 The `traits_presentation_template` parameter can be used to create a narrative persona for an agent.
-This is a template string that can be rendered with the agent's traits as variables, for example:
+This is a template string that can be rendered with the agent's traits as variables.
+For example:
 
 .. code-block:: python
 
