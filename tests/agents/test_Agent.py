@@ -13,6 +13,9 @@ from edsl.language_models import LanguageModelOpenAIThreeFiveTurbo
 from edsl.questions import QuestionMultipleChoice
 from edsl.surveys import Survey
 
+from edsl.exceptions.agents import AgentNameError
+from edsl.exceptions.agents import AgentTraitKeyError
+
 
 # from edsl.agents.Agent import Agent as Agent
 
@@ -85,12 +88,14 @@ def test_agent_serialization():
     assert agent2 == agent
 
 
-from edsl.exceptions.agents import AgentNameError
-
-
 def test_agent_forbidden_name():
     with pytest.raises(AgentNameError):
         Agent(traits={"age": 10, "name": "Peter"})
+
+
+def test_agent_invalid_trait_key():
+    with pytest.raises(AgentTraitKeyError):
+        Agent(traits={"age": 10, "home state": "Massachusetts"})
 
 
 def test_agent_serialization_with_name():
