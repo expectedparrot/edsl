@@ -26,7 +26,6 @@ Create a file named `.env` in your working directory and populate it as follows,
 .. code-block:: python
 
    ANTHROPIC_API_KEY=your_key_here
-   DBRX_API_KEY=your_key_here
    DEEP_INFRA_API_KEY=your_key_here
    GOOGLE_API_KEY=your_key_here
    OPENAI_API_KEY=your_key_here
@@ -42,7 +41,6 @@ For example, if you only plan to use models provided by Anthropic, you can set y
 .. code-block:: python
 
    ANTHROPIC_API_KEY=your_key_here
-   # DBRX_API_KEY=your_key_here
    # DEEP_INFRA_API_KEY=your_key_here
    # GOOGLE_API_KEY=your_key_here
    # OPENAI_API_KEY=your_key_here
