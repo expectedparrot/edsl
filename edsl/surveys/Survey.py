@@ -468,7 +468,8 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     def show_questions(self):
         """Print out the questions in the survey."""
         for name, question in zip(self.question_names, self._questions):
-            print(f"Question:{name},{question}")
+            print(f"Question: {name}")
+            print(question)
 
     def codebook(self) -> dict[str, str]:
         """Create a codebook for the survey, mapping question names to question text."""
