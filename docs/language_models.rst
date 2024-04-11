@@ -32,7 +32,7 @@ This will return a list of names for available models to choose from:
     'mixtral-8x7B-instruct-v0.1']
 
 The available models are updated regularly.
-A current list is also available at :py:class:`edsl.enums.LanguageModelEnum`.
+A current list is also available at :py:class:`edsl.enums.LanguageModelType`.
 
 *If you don't see a model that you want to work with, please send us a feature request to add it!*
 
