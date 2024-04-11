@@ -1,7 +1,7 @@
 """This module contains the descriptors used to set the attributes of the Agent class."""
 from typing import Dict
 from edsl.utilities.utilities import is_valid_variable_name
-from edsl.exceptions.agents import AgentNameError
+from edsl.exceptions.agents import AgentNameError, AgentTraitKeyError
 
 
 class NameDescriptor:
@@ -29,32 +29,18 @@ class TraitsDescriptor:
 
     def __set__(self, instance, traits_dict: Dict[str, str]) -> None:
         """Set the value of the attribute."""
-        corrected_traits = {}
         for key, value in traits_dict.items():
-            # Check for "name" key before any corrections
             if key == "name":
                 raise AgentNameError(
-                    """Trait keys cannot be 'name'! Instead, use the 'name' attribute directly e.g., 
+                    """Trait keys cannot be 'name'. Instead, use the 'name' attribute directly e.g., 
                     Agent(name="my_agent", traits={"trait1": "value1", "trait2": "value2"})
                     """
                 )
             
-            # Proceed with checking validity of the variable name
             if not is_valid_variable_name(key):
-                corrected_key = key.replace(" ", "_")
-                if not is_valid_variable_name(corrected_key):
-                    raise AgentNameError("Trait keys must be a valid variable name!")
-                key = corrected_key
+                raise AgentTraitKeyError("Trait keys must be valid Python identifiers (must be alphanumeric, cannot start with a number and must use underscores instead of spaces).")
 
-            corrected_traits[key] = value
-
-        # Now, `traits_dict` is updated outside the loop correctly.
-        # Note: This line only changes the local reference of `traits_dict` and doesn't affect `instance`
-        traits_dict = corrected_traits
-
-        # Assuming `self.name` is correctly defined elsewhere and is the attribute name to be set in `instance`
         instance.__dict__[self.name] = traits_dict
-
 
     def __set_name__(self, owner, name: str) -> None:
         """Set the name of the attribute."""
