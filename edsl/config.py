@@ -18,7 +18,7 @@ CONFIG_MAP = {
         "info": "This env var determines the run mode of the application.",
     },
     "EDSL_DATABASE_PATH": {
-        "default": f"sqlite:///{os.path.join(os.getcwd(), 'edsl_cache.db')}",
+        "default": f"sqlite:///{os.path.join(os.getcwd(), '.edsl_cache/data.db')}",
         "info": "This env var determines the path to the cache file.",
     },
     "EDSL_LOGGING_PATH": {
