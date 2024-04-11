@@ -71,7 +71,7 @@ We can also print the model name and parameters in a readable table with the `pr
 
 This will print the following table:
 
-.. code-block:: python
+.. code-block:: text
 
                                        Language Model                                       
    ┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
