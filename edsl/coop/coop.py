@@ -64,7 +64,7 @@ class Coop:
         params: Optional[dict[str, Any]] = None,
     ) -> requests.Response:
         """
-        Sends a request to the server and returns the response.
+        Send a request to the server and returns the response.
         """
         url = f"{self.url}/{uri}"
 
@@ -119,7 +119,8 @@ class Coop:
         self, exclude_keys: Optional[list[str]] = None
     ) -> list[CacheEntry]:
         """
-        Returns CacheEntry objects from the server.
+        Return CacheEntry objects from the server.
+
         :param exclude_keys: exclude CacheEntry objects with these keys.
         """
         if exclude_keys is None:
@@ -180,7 +181,8 @@ class Coop:
         public: bool = False,
     ) -> dict:
         """
-        Creates an EDSL object in the Coop server.
+        Create an EDSL object in the Coop server.
+        
         :param edsl_object: the EDSL object to be sent.
         :param public: whether the object should be public (defaults to False).
         """
@@ -202,7 +204,8 @@ class Coop:
         public: bool = False,
     ):
         """
-        Creates an EDSL object in the Coop server.
+        Create an EDSL object in the Coop server.
+
         :param object: the EDSL object to be sent.
         :param public: whether the object should be public (defaults to False)
         """
@@ -254,7 +257,8 @@ class Coop:
         self, object_type: str, id: int
     ) -> Union[Type[QuestionBase], Survey, Agent, AgentList, Results]:
         """
-        Retrieves an EDSL object by its id.
+        Retrieve an EDSL object by its id.
+
         :param object_type: the type of object to retrieve.
         :param id: the id of the object.
         """
