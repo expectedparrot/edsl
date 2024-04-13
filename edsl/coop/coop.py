@@ -255,8 +255,8 @@ class Coop:
     ) -> Union[Type[QuestionBase], Survey, Agent, AgentList, Results]:
         """
         Retrieves an EDSL object by its id.
-        - `object_type`: the type of object to retrieve.
-        - `id`: the id of the object.
+        :param object_type: the type of object to retrieve.
+        :param id: the id of the object.
         """
         if object_type in {"question", "questions"}:
             return self.get_question(id)
@@ -317,7 +317,7 @@ class Coop:
 
     @property
     def agents(self) -> list[dict[str, Union[int, Agent, AgentList]]]:
-        """Retrieves all Agents and AgentLists."""
+        """Retrieve all Agents and AgentLists."""
         response = self._send_server_request(uri="api/v0/agents", method="GET")
         self._resolve_server_response(response)
         agents = []
@@ -332,7 +332,7 @@ class Coop:
 
     @property
     def results(self) -> list[dict[str, Union[int, Results]]]:
-        """Retrieves all Results."""
+        """Retrieve all Results."""
         response = self._send_server_request(uri="api/v0/results", method="GET")
         self._resolve_server_response(response)
         results = [
@@ -364,13 +364,13 @@ class Coop:
         return response.json()
 
     def delete_agent(self, id: int) -> dict:
-        """Deletes an Agent or AgentList from the coop."""
+        """Delete an Agent or AgentList from the coop."""
         response = self._send_server_request(uri=f"api/v0/agents/{id}", method="DELETE")
         self._resolve_server_response(response)
         return response.json()
 
     def delete_results(self, id: int) -> dict:
-        """Deletes a Results object from the coop."""
+        """Delete a Results object from the coop."""
         response = self._send_server_request(
             uri=f"api/v0/results/{id}", method="DELETE"
         )
