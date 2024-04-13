@@ -307,6 +307,52 @@ class Cache:
         """
         return CacheEntry.fetch_input_example()
 
+    def to_html(self):
+        #json_str = json.dumps(self.data, indent=4)
+        d = {k: v.to_dict() for k, v in self.data.items()}
+        for key, value in d.items():
+            for k, v in value.items():
+                if isinstance(v, dict):
+                    d[key][k] = {kk: str(vv) for kk, vv in v.items()}
+                else:
+                    d[key][k] = str(v) 
+
+        json_str = json.dumps(d, indent=4)
+
+        # HTML template with the JSON string embedded
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Display JSON</title>
+        </head>
+        <body>
+            <pre id="jsonData"></pre>
+            <script>
+                var json = {json_str};
+
+                // JSON.stringify with spacing to format
+                document.getElementById('jsonData').textContent = JSON.stringify(json, null, 4);
+            </script>
+        </body>
+        </html>
+        """
+        return html
+    
+    def view(self):
+        import tempfile
+        import webbrowser
+        html_content = self.to_html()
+        # Create a temporary file to hold the HTML
+        with tempfile.NamedTemporaryFile('w', delete=False, suffix='.html') as tmpfile:
+            tmpfile.write(html_content)
+            # Get the path to the temporary file
+            filepath = tmpfile.name
+
+        # Open the HTML file in a new browser tab
+        webbrowser.open('file://' + filepath)
+
+
     @classmethod
     def example(cls) -> Cache:
         """
