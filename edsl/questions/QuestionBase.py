@@ -246,6 +246,17 @@ class QuestionBase(
 
         s = Survey([self])
         return s.by(*args)
+    
+    def human_readable(self):
+        """Print the question in a human readable format.
+        """
+        lines = []
+        lines.append(f"Question Type: {self.question_type}")
+        lines.append(f"Question: {self.question_text}")
+        if hasattr(self, "question_options"):
+            for index, option in enumerate(self.question_options):
+                lines.append(f"\tOption {index}: {option}")
+        return "\n".join(lines)
 
     def rich_print(self):
         """Print the question in a rich format."""

@@ -42,6 +42,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         debug: bool = False,
         iteration: int = 0,
         cache=None,
+        sidecar_model=None,
     ):
         """Initialize the Interview instance.
 
@@ -78,6 +79,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         model_buckets: ModelBuckets = None,
         debug: bool = False,
         stop_on_exception: bool = False,
+        sidecar_model=None,
     ) -> tuple["Answers", List[dict[str, Any]]]:
         """
         Conduct an Interview asynchronously.
@@ -94,6 +96,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         'yes'
 
         """
+        self.sidecar_model = sidecar_model
         # if no model bucket is passed, create an 'infinity' bucket with no rate limits
         model_buckets = model_buckets or ModelBuckets.infinity_bucket()
         # build the tasks using the InterviewTaskBuildingMixin

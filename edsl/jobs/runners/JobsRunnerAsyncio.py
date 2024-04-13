@@ -61,6 +61,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         n: int = 1,
         debug: bool = False,
         stop_on_exception: bool = False,
+        sidecar_model = None,
     ) -> AsyncGenerator[Result, None]:
         """Creates the tasks, runs them asynchronously, and returns the results as a Results object.
 
@@ -77,7 +78,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
 
         for interview in self.total_interviews:
             interviewing_task = self._interview_task(
-                interview=interview, debug=debug, stop_on_exception=stop_on_exception
+                interview=interview, debug=debug, stop_on_exception=stop_on_exception, sidecar_model=sidecar_model
             )
             tasks.append(asyncio.create_task(interviewing_task))
 
@@ -86,7 +87,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             yield result
 
     async def _interview_task(
-        self, *, interview: Interview, debug: bool, stop_on_exception: bool = False
+        self, *, interview: Interview, debug: bool, stop_on_exception: bool = False, sidecar_model = None
     ) -> Result:
         """Conducts an interview and returns the result.
 
@@ -101,6 +102,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             debug=debug,
             model_buckets=model_buckets,
             stop_on_exception=stop_on_exception,
+            sidecar_model=sidecar_model,
         )
 
         # we should have a valid result for each question
@@ -157,6 +159,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         debug: bool = False,
         stop_on_exception: bool = False,
         progress_bar=False,
+        sidecar_model=None,
     ) -> "Coroutine":
         """Runs a collection of interviews, handling both async and sync contexts."""
         console = Console()
@@ -164,6 +167,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         self.start_time = time.monotonic()
         self.completed = False
         self.cache = cache
+        self.sidecar_model = sidecar_model
 
         def generate_table():
             return self.status_table(self.results, self.elapsed_time)
@@ -202,7 +206,8 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                 async def process_results():
                     """Processes results from interviews."""
                     async for result in self.run_async(
-                        n=n, debug=debug, stop_on_exception=stop_on_exception, cache=c
+                        n=n, debug=debug, stop_on_exception=stop_on_exception, cache=c, 
+                        sidecar_model=sidecar_model
                     ):
                         self.results.append(result)
                         live.update(generate_table())
