@@ -1,7 +1,7 @@
 import os
 import aiohttp
 import json
-from typing import Any
+from typing import Any, Type
 from edsl.exceptions import MissingAPIKeyError
 from edsl.enums import LanguageModelType, InferenceServiceType
 from edsl.language_models.LanguageModel import LanguageModel
@@ -27,6 +27,7 @@ def create_deep_infra_model(model_name, url, model_class_name) -> LanguageModel:
             "stopSequences": [],
             "use_cache": True,
         }
+
 
         async def async_execute_model_call(
             self, user_prompt: str, system_prompt: str = ""

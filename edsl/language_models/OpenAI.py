@@ -61,14 +61,7 @@ def create_openai_model(model_name, model_class_name) -> LanguageModel:
             self, user_prompt: str, system_prompt: str = ""
         ) -> dict[str, Any]:
             """Calls the OpenAI API and returns the API response."""
-            if not hasattr(self, "api_token"):
-                self.api_token = os.getenv("OPENAI_API_KEY")
-                if self.api_token is None:
-                    raise MissingAPIKeyError(
-                        "The OPENAI_API_KEY environment variable is not set."
-                    )
-                openai.api_key = os.getenv("OPENAI_API_KEY")
-                self.client = AsyncOpenAI()
+            self.client = AsyncOpenAI()
             response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=[
