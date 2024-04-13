@@ -87,6 +87,8 @@ class Rule:
         try:
             assert all([q in question_name_to_index for q in extracted_question_names])
         except AssertionError:
+            print(f"Question name to index: {question_name_to_index}")
+            print(f"Extracted question names: {extracted_question_names}")
             raise SurveyRuleReferenceInRuleToUnknownQuestionError
 
         # get the indices of the questions mentioned in the expression
