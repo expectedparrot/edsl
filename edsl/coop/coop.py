@@ -182,7 +182,7 @@ class Coop:
     ) -> dict:
         """
         Create an EDSL object in the Coop server.
-        
+
         :param edsl_object: the EDSL object to be sent.
         :param public: whether the object should be public (defaults to False).
         """
