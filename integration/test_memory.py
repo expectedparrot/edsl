@@ -44,7 +44,7 @@ def get_survey(memory):
     )
     s = Survey(questions=[q1, q2])
     if memory:
-        s.add_targeted_memory(focal_question="q2", prior_question="q1")
+        s = s.add_targeted_memory(focal_question="q2", prior_question="q1")
     return s
 
 
