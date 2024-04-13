@@ -162,6 +162,7 @@ class InvigilatorSidecar(InvigilatorAI):
         }
         params = data | raw_response_data
         response = self._format_raw_response(**params)
+        response.update({'simple_model_raw_response': simple_response})
         return AgentResponseDict(**response)
 
     #get_response = sync_wrapper(async_get_response)
