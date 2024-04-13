@@ -38,6 +38,7 @@ class InterviewTaskBuildingMixin:
             current_answers=self.answers,
             iteration=self.iteration,
             cache=self.cache,
+            sidecar_model=self.sidecar_model,
         )
         """Return an invigilator for the given question."""
         return invigilator
@@ -173,7 +174,7 @@ class InterviewTaskBuildingMixin:
                 )
                 if task:
                     task.task_status = TaskStatus.FAILED
-                self.exceptions.add(question, exception_entry)
+                self.exceptions.add(question.question_name, exception_entry)
                 raise e
 
         response: AgentResponseDict = await attempt_to_answer_question(invigilator)
