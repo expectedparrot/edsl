@@ -120,7 +120,7 @@ class Coop:
     ) -> list[CacheEntry]:
         """
         Returns CacheEntry objects from the server.
-        - `exclude_keys`: exclude CacheEntry objects with these keys.
+        :param exclude_keys: exclude CacheEntry objects with these keys.
         """
         if exclude_keys is None:
             exclude_keys = []
@@ -181,8 +181,8 @@ class Coop:
     ) -> dict:
         """
         Creates an EDSL object in the Coop server.
-        - `edsl_object`: the EDSL object to be sent.
-        - `public`: whether the object should be public (defaults to False).
+        :param edsl_object: the EDSL object to be sent.
+        :param public: whether the object should be public (defaults to False).
         """
         uri = self._edsl_object_to_uri(edsl_object)
         response = self._send_server_request(
@@ -203,8 +203,8 @@ class Coop:
     ):
         """
         Creates an EDSL object in the Coop server.
-        - `object`: the EDSL object to be sent.
-        - `public`: whether the object should be public (defaults to False)
+        :param object: the EDSL object to be sent.
+        :param public: whether the object should be public (defaults to False)
         """
         return self._create(object, public)
 
