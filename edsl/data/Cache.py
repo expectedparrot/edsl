@@ -197,6 +197,11 @@ class Cache:
             data = {}
         else:
             data = SQLiteDict(db_path)
+        
+        # if a file doesn't exist at jsonfile, throw an error
+        if not os.path.exists(jsonlfile):
+            raise FileNotFoundError(f"File {jsonlfile} not found")
+
         cache = Cache(data=data)
         cache.add_from_jsonl(jsonlfile)
         return cache
@@ -339,7 +344,8 @@ class Cache:
         """
         return html
     
-    def view(self):
+    def view(self) -> None:
+        """View the Cache in a new browser tab."""
         import tempfile
         import webbrowser
         html_content = self.to_html()
@@ -360,121 +366,6 @@ class Cache:
         The example Cache has one entry.
         """
         return cls(data={CacheEntry.example().key: CacheEntry.example()})
-
-
-def main():
-    import os
-    from edsl import CONFIG
-    from edsl.data.CacheEntry import CacheEntry
-    from edsl.data.Cache import Cache
-
-    db_path = CONFIG.get("EDSL_DATABASE_PATH")
-    db_path_no_prefix = db_path.replace("sqlite:///", "")
-
-    # fetch
-    cache = Cache()
-    assert (
-        cache.fetch(
-            model="gpt-3.5-turbo",
-            parameters="{'temperature': 0.5}",
-            system_prompt="The quick brown fox jumps over the lazy dog.",
-            user_prompt="What does the fox say?",
-            iteration=1,
-        )
-        == None
-    )
-    cache = Cache.example()
-    assert cache.fetch(**cache.fetch_input_example()) == "The fox says 'hello'"
-
-    # store with immediate write
-    cache = Cache()
-    input = CacheEntry.store_input_example()
-    cache.store(**input)
-    assert list(cache.data.keys()) == ["5513286eb6967abc0511211f0402587d"]
-
-    # store with delayed write
-    cache = Cache(immediate_write=False)
-    input = CacheEntry.store_input_example()
-    cache.store(**input)
-    assert list(cache.data.keys()) == []
-
-    # use context manager to write delayed entries
-    cache = Cache(immediate_write=False)
-    cache = cache.__enter__()
-    input = CacheEntry.store_input_example()
-    cache.store(**input)
-    assert list(cache.data.keys()) == []
-    cache.__exit__(None, None, None)
-    assert list(cache.data.keys()) == ["5513286eb6967abc0511211f0402587d"]
-
-    # add multiple entries from a dict with immediate write
-    cache = Cache()
-    data = {"poo": CacheEntry.example(), "bandits": CacheEntry.example()}
-    cache.add_from_dict(new_data=data)
-    assert cache.data["poo"] == CacheEntry.example()
-    # with delayed write
-    cache = Cache()
-    data = {"poo": CacheEntry.example(), "bandits": CacheEntry.example()}
-    cache.add_from_dict(new_data=data, write_now=False)
-    assert cache.data == {}
-    cache.__exit__(None, None, None)
-    assert cache.data["poo"] == CacheEntry.example()
-
-    # add multiple entries from a JSONL file with immediate write
-    cache = Cache(data=CacheEntry.example_dict())
-    cache.write_jsonl("example.jsonl")
-    cache_new = Cache()
-    cache_new.add_from_jsonl(filename="example.jsonl")
-    assert cache == cache_new
-    os.remove("example.jsonl")
-
-    # add multiple entries from a SQLite db with immediate write
-    cache = Cache.example()
-    cache.data["poo"] = CacheEntry.example()
-    cache.write_sqlite_db(db_path)
-    cache_new = Cache.from_sqlite_db(db_path)
-    assert cache == cache_new
-    os.remove(db_path_no_prefix)
-
-    # construct a cache from a jsonl file and save to memory
-    cache = Cache.example()
-    cache.write_jsonl("example.jsonl")
-    cache_new = Cache.from_jsonl("example.jsonl")
-    assert cache == cache_new
-    os.remove("example.jsonl")
-
-    # construct a cache from a jsonl file and save to sqlite
-    cache = Cache.example()
-    cache.write_jsonl("example.jsonl")
-    cache_new = Cache.from_jsonl("example.jsonl", db_path=db_path)
-    assert cache == cache_new
-    os.remove("example.jsonl")
-
-    # wrte to a SQLite db and read from it
-    c = Cache.example()
-    c.write_sqlite_db(db_path)
-    cnew = Cache.from_sqlite_db(db_path)
-    assert c == cnew
-    os.remove(db_path_no_prefix)
-
-    # a non-valid Cache
-    # Cache(data={"poo": "not a CacheEntry"})
-    # an empty valid Cache
-    cache_empty = Cache()
-    # a valid Cache with one entry
-    cache = Cache(data={"poo": CacheEntry.example()})
-    # __len__
-    assert len(cache_empty) == 0
-    assert len(cache) == 1
-    # __eq__
-    assert cache_empty == cache_empty
-    assert cache == cache
-    assert cache_empty != cache
-    # __add__
-    assert len(cache_empty + cache) == 1
-    assert len(cache_empty + cache_empty) == 1
-    assert cache + cache_empty == cache
-    assert cache + cache == cache
 
 
 if __name__ == "__main__":
