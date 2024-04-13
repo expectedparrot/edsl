@@ -245,5 +245,6 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             """
                 )
             )
+        results.task_history.show_exceptions()
 
         return results
