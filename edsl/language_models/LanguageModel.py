@@ -20,6 +20,8 @@ from edsl.enums import LanguageModelType, InferenceServiceType
 from edsl.Base import RichPrintingMixin, PersistenceMixin
 from edsl.data.Cache import Cache
 
+from edsl.exceptions import MissingAPIKeyError
+
 
 def handle_key_error(func):
     """Handle KeyError exceptions."""
@@ -258,6 +260,20 @@ class LanguageModel(
             warnings.warn(
                 "The use_cache parameter is deprecated. Use the Cache class instead."
             )
+ 
+        import os
+        from edsl.enums import service_to_api_keyname
+        if not hasattr(self, "api_token"):
+            key_name = service_to_api_keyname.get(self._inference_service_, "NOT FOUND")
+            self.api_token = os.getenv(key_name)
+            if self.api_token is None and self._inference_service_ != 'test':
+                raise MissingAPIKeyError(
+                    f"""The key for service: `{self._inference_service_}` is not set.
+                    Need a key with name {key_name} in your .env file.
+                    """
+                )
+
+    
 
     def hello(self):
         """Runs a simple test to check if the model is working."""
