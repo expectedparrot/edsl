@@ -132,14 +132,15 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
                 except asyncio.CancelledError as e:  # task was cancelled
                     result = invigilator.get_failed_task_result()
 
-                    ## TODO: Currently, we only log errors at the question-answering phase
-                    ## Do we want to log exceptions here as well?
-                    exception_entry = InterviewExceptionEntry(
-                        exception=repr(e),
-                        time=time.time(),
-                        traceback=traceback.format_exc(),
-                    )
-                    self.exceptions.add(task.edsl_name, exception_entry)
+                # We don't want to log cancelled tasks, as this is expected behavior
+                ## TODO: Currently, we only log errors at the question-answering phase
+                ## Do we want to log exceptions here as well?
+                #     exception_entry = InterviewExceptionEntry(
+                #         exception=repr(e),
+                #         time=time.time(),
+                #         traceback=traceback.format_exc(),
+                #     )
+                #     self.exceptions.add(task.edsl_name, exception_entry)
                 except Exception as e:  # any other kind of exception in the task
                     exception_entry = InterviewExceptionEntry(
                         exception=repr(e),
