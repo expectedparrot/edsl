@@ -20,6 +20,15 @@ from edsl.surveys.MemoryPlan import MemoryPlan
 
 from edsl.surveys.DAG import DAG
 
+from edsl.utilities import is_notebook
+
+
+from pygments import highlight
+from pygments.lexers import JsonLexer
+from pygments.formatters import HtmlFormatter
+from IPython.display import HTML
+import json
+
 
 @dataclass
 class SurveyMetaData:
@@ -412,7 +421,10 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
     def __getitem__(self, index) -> Question:
         """Return the question object given the question index."""
-        return self._questions[index]
+        if isinstance(index, int):
+            return self._questions[index]
+        elif isinstance(index, str):
+            return getattr(self, index)
 
     def __eq__(self, other):
         """Return True if the two surveys have the same to_dict."""
@@ -449,7 +461,12 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         questions_string = ", ".join([repr(q) for q in self._questions])
         question_names_string = ", ".join([repr(name) for name in self.question_names])
         return f"Survey(questions=[{questions_string}], name={repr(self.name)})"
-
+        
+    def _repr_html_(self) -> str:
+        json_str = json.dumps(self.to_dict(), indent=4)
+        formatted_json = highlight(json_str, JsonLexer(), HtmlFormatter(style="default", full=True, noclasses=True))
+        return HTML(formatted_json).data
+  
     def show_rules(self) -> None:
         """Print out the rules in the survey."""
         self.rule_collection.show_rules()

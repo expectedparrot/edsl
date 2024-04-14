@@ -169,6 +169,9 @@ class Agent(Base):
         else:
             return self._traits
 
+    def __getitem__(self, key):
+        return getattr(self, key)
+
     def add_direct_question_answering_method(self, method: Callable) -> None:
         """Add a method to the agent that can answer a particular question type.
 

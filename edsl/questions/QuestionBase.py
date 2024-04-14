@@ -33,6 +33,10 @@ class QuestionBase(
     question_text: str = QuestionTextDescriptor()
     short_names_dict: dict[str, str] = ShortNamesDictDescriptor()
 
+    def __getitem__(self, key: str) -> Any:
+        """Get an attribute of the question."""
+        return getattr(self, key)
+
     @property
     def data(self) -> dict:
         """Return a dictionary of question attributes **except** for question_type."""

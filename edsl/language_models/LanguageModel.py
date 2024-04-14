@@ -278,7 +278,9 @@ class LanguageModel(
                     """
                 )
 
-    
+    def __getitem__(self, key):
+        return getattr(self, key)
+
 
     def hello(self):
         """Runs a simple test to check if the model is working."""
@@ -457,6 +459,12 @@ class LanguageModel(
         )
 
     get_raw_response = sync_wrapper(async_get_raw_response)
+
+    def simple_ask(self, question: QuestionBase, system_prompt = "You are a helpful agent pretending to be a human.", top_logprobs = 2):
+        """Ask a question and return the response."""
+        self.logprobs = True
+        self.top_logprobs = top_logprobs
+        return self.execute_model_call(user_prompt=question.human_readable(), system_prompt=system_prompt)
 
     async def async_get_response(
         self, user_prompt: str, system_prompt: str, cache: Cache, iteration: int = 1
