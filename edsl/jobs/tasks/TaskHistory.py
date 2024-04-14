@@ -20,6 +20,12 @@ class TaskHistory:
     def has_exceptions(self) -> bool:
         """Return True if there are any exceptions."""
         return len(self.exceptions) > 0
+    
+    def _repr_html_(self):
+        """Return an HTML representation of the TaskHistory."""
+        from edsl.utilities.utilities import data_to_html
+        return data_to_html(self.exceptions)
+
 
     def show_exceptions(self):
         """Print the exceptions."""

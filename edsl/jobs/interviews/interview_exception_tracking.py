@@ -21,6 +21,10 @@ class InterviewExceptionCollection(UserDict):
             self.data[question_name] = []
         self.data[question_name].append(entry)
 
+    def _repr_html_(self) -> str:
+        from edsl.utilities.utilities import data_to_html
+        return data_to_html(self.data)
+
     def ascii_table(self, traceback: bool = False) -> None:
         headers = ["Question name", "Exception", "Time", "Traceback"]
         from tabulate import tabulate
