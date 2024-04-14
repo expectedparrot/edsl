@@ -24,6 +24,7 @@ class Coop:
     """
 
     def __init__(self, api_key: str = None, run_mode: str = None) -> None:
+        """Initialize the client."""
         self.api_key = api_key or os.getenv("EXPECTED_PARROT_API_KEY")
         self.run_mode = run_mode or CONFIG.EDSL_RUN_MODE
         self._api_key_is_valid()
@@ -33,7 +34,7 @@ class Coop:
     ################
     def _api_key_is_valid(self) -> None:
         """
-        Checks if the API key is valid.
+        Check if the API key is valid.
         """
         if not self.api_key:
             raise ValueError("API key is required.")
@@ -45,14 +46,14 @@ class Coop:
     @property
     def headers(self) -> dict:
         """
-        Returns the headers for the request.
+        Return the headers for the request.
         """
         return {"Authorization": f"Bearer {self.api_key}"}
 
     @property
     def url(self) -> str:
         """
-        Returns the URL for the request.
+        Return the URL for the request.
         """
         return api_url[self.run_mode]
 
@@ -64,7 +65,7 @@ class Coop:
         params: Optional[dict[str, Any]] = None,
     ) -> requests.Response:
         """
-        Send a request to the server and returns the response.
+        Send a request to the server and return the response.
         """
         url = f"{self.url}/{uri}"
 
@@ -91,7 +92,7 @@ class Coop:
 
     def _resolve_server_response(self, response: requests.Response) -> None:
         """
-        Checks the response from the server and raises appropriate errors.
+        Check the response from the server and raise appropriate errors.
         """
         if response.status_code >= 400:
             raise Exception(response.json().get("detail"))
@@ -101,7 +102,7 @@ class Coop:
     ################
     def create_cache_entry(self, cache_entry: CacheEntry) -> dict:
         """
-        Creates a CacheEntry object.
+        Create a CacheEntry object.
         """
         response = self._send_server_request(
             uri="api/v0/cache/create-cache-entry",
@@ -138,7 +139,7 @@ class Coop:
 
     def send_cache_entries(self, cache_entries: dict[str, CacheEntry]) -> None:
         """
-        Sends a dictionary of CacheEntry objects to the server.
+        Send a dictionary of CacheEntry objects to the server.
         """
         response = self._send_server_request(
             uri="api/v0/cache/create-cache-entries",
@@ -159,7 +160,7 @@ class Coop:
         self, object: Union[Type[QuestionBase], Survey, Agent, Results]
     ) -> str:
         """
-        Returns the URI for the object type.
+        Return the URI for the object type.
         """
         if isinstance(object, QuestionBase):
             return "questions"
@@ -205,7 +206,7 @@ class Coop:
     ):
         """
         Create an EDSL object in the Coop server.
-
+        
         :param object: the EDSL object to be sent.
         :param public: whether the object should be public (defaults to False)
         """
@@ -216,7 +217,7 @@ class Coop:
     # -----------------
     def _get(self, object_type: str, id: int) -> dict:
         """
-        Retrieves an EDSL object from the Coop server.
+        Retrieve an EDSL object from the Coop server.
         """
         response = self._send_server_request(
             uri=f"api/v0/{object_type}/{id}", method="GET"
@@ -226,21 +227,21 @@ class Coop:
 
     def get_question(self, id: int) -> Type[QuestionBase]:
         """
-        Retrieves a Question object by its id.
+        Retrieve a Question object by its id.
         """
         json_dict = self._get("questions", id)
         return QuestionBase.from_dict(json_dict)
 
     def get_survey(self, id: int) -> Type[Survey]:
         """
-        Retrieves a Survey object by its id.
+        Retrieve a Survey object by its id.
         """
         json_dict = self._get("surveys", id)
         return Survey.from_dict(json_dict)
 
     def get_agent(self, id: int) -> Union[Agent, AgentList]:
         """
-        Retrieves an Agent or AgentList object by id.
+        Retrieve an Agent or AgentList object by id.
         """
         json_dict = self._get("agents", id)
         if "agent_list" in json_dict:
@@ -249,7 +250,7 @@ class Coop:
             return Agent.from_dict(json_dict)
 
     def get_results(self, id: int) -> Results:
-        """Retrieves a Results object by id."""
+        """Retrieve a Results object by id."""
         json_dict = self._get("results", id)
         return Results.from_dict(json_dict)
 
@@ -352,7 +353,7 @@ class Coop:
     # D. DELETE METHODS
     # -----------------
     def delete_question(self, id: int) -> dict:
-        """Delete a question from the coop."""
+        """Delete a question from the Coop."""
         response = self._send_server_request(
             uri=f"api/v0/questions/{id}", method="DELETE"
         )
