@@ -206,6 +206,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         :param prior_questions: The questions that the agent should remember when answering the focal question.
 
         Example:
+        
         >>> s = Survey.example()
         >>> s.add_memory_collection("q2", ["q0", "q1"])
         """
