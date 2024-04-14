@@ -50,6 +50,10 @@ This page contains documentation for the Expected Parrot Domain-Specific Languag
    notebooks/tutorial_started
    notebooks/validating_business_ideas
 
+.. image:: https://colab.research.google.com/assets/colab-badge.svg
+   :target: https://colab.research.google.com/github/expectedparrot/edsl/blob/main/examples/create_agents.ipynb 
+   :alt: Open In Colab
+
 Indices and tables
 ==================
 
