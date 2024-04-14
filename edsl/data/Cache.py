@@ -54,6 +54,12 @@ class Cache:
         self.coop = None
         self._perform_checks()
 
+    def keys(self):
+        return list(self.data.keys())
+    
+    def values(self):
+        return list(self.data.values())
+
     def _perform_checks(self):
         """Perform checks on the cache."""
         if any(not isinstance(value, CacheEntry) for value in self.data.values()):
@@ -266,6 +272,10 @@ class Cache:
     def to_dict(self) -> dict:
         """Return the Cache as a dictionary."""
         return {k: v.to_dict() for k, v in self.data.items()}
+    
+    def _repr_html_(self):
+        from edsl.utilities.utilities import data_to_html
+        return data_to_html(self.to_dict())
 
     @classmethod
     def from_dict(cls, data) -> Cache:
