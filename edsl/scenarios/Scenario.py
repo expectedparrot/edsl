@@ -83,6 +83,13 @@ class Scenario(Base, UserDict):
         {'food': 'wood chips'}
         """
         return self.data
+    
+    def _repr_html_(self):
+        from edsl.utilities.utilities import data_to_html
+        return data_to_html(self.to_dict())
+    
+    def __repr__(self):
+        return "Scenario(" + repr(self.data) + ")"
 
     @classmethod
     def from_dict(cls, d: dict) -> "Scenario":

@@ -281,6 +281,9 @@ class LanguageModel(
     def __getitem__(self, key):
         return getattr(self, key)
 
+    def _repr_html_(self):
+        from edsl.utilities.utilities import data_to_html
+        return data_to_html(self.to_dict())
 
     def hello(self):
         """Runs a simple test to check if the model is working."""
