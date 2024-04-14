@@ -205,6 +205,7 @@ class Agent(Base):
         memory_plan: Optional[MemoryPlan] = None,
         current_answers: Optional[dict] = None,
         iteration: int = 1,
+        sidecar_model=None,
     ) -> InvigilatorBase:
         """Create an Invigilator.
 
@@ -224,6 +225,7 @@ class Agent(Base):
             current_answers=current_answers,
             iteration=iteration,
             cache=cache,
+            sidecar_model=sidecar_model,
         )
         return invigilator
 
@@ -279,6 +281,7 @@ class Agent(Base):
         memory_plan: Optional[MemoryPlan] = None,
         current_answers: Optional[dict] = None,
         iteration: int = 0,
+        sidecar_model=None,
     ) -> InvigilatorBase:
         """Create an Invigilator."""
         model = model or Model(LanguageModelType.GPT_4.value, use_cache=True)
@@ -286,6 +289,7 @@ class Agent(Base):
 
         if cache is None:
             cache = Cache()
+
 
         if debug:
             # use the question's _simulate_answer method
@@ -303,6 +307,10 @@ class Agent(Base):
             # this means an LLM agent will be used. This is the standard case.
             invigilator_class = InvigilatorAI
 
+        if sidecar_model is not None:
+            from edsl.agents.Invigilator import InvigilatorSidecar
+            invigilator_class = InvigilatorSidecar
+
         invigilator = invigilator_class(
             self,
             question=question,
@@ -312,6 +320,7 @@ class Agent(Base):
             current_answers=current_answers,
             iteration=iteration,
             cache=cache,
+            sidecar_model=sidecar_model,
         )
         return invigilator
 

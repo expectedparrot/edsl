@@ -1,7 +1,7 @@
 import os
 import aiohttp
 import json
-from typing import Any
+from typing import Any, Type
 from edsl.exceptions import MissingAPIKeyError
 from edsl.enums import LanguageModelType, InferenceServiceType
 from edsl.language_models.LanguageModel import LanguageModel
@@ -27,6 +27,7 @@ def create_deep_infra_model(model_name, url, model_class_name) -> LanguageModel:
             "stopSequences": [],
             "use_cache": True,
         }
+
 
         async def async_execute_model_call(
             self, user_prompt: str, system_prompt: str = ""
@@ -62,6 +63,14 @@ def create_deep_infra_model(model_name, url, model_class_name) -> LanguageModel:
                     return json.loads(raw_response_text)
 
         def parse_response(self, raw_response: dict[str, Any]) -> str:
+            if "results" not in raw_response:
+                raise Exception(
+                    f"Deep Infra response does not contain 'results' key: {raw_response}"
+                )
+            if "generated_text" not in raw_response["results"][0]:
+                raise Exception(
+                    f"Deep Infra response does not contain 'generate_text' key: {raw_response['results'][0]}"
+                )
             return raw_response["results"][0]["generated_text"]
 
     LLM.__name__ = model_class_name

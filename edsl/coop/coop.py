@@ -14,7 +14,7 @@ from edsl.data.CacheEntry import CacheEntry
 api_url = {
     "development": "http://127.0.0.1:8000",
     "development-testrun": "http://127.0.0.1:8000",
-    "production": "http://127.0.0.1:8000",
+    "production": os.getenv("EXPECTED_PARROT_API_URL"),
 }
 
 
@@ -27,6 +27,7 @@ class Coop:
         """Initialize the client."""
         self.api_key = api_key or os.getenv("EXPECTED_PARROT_API_KEY")
         self.run_mode = run_mode or CONFIG.EDSL_RUN_MODE
+        self.run_mode = "production"
         self._api_key_is_valid()
 
     ################

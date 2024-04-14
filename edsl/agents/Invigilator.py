@@ -96,6 +96,79 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
     get_response = sync_wrapper(async_get_response)
     answer_question = sync_wrapper(async_answer_question)
 
+class InvigilatorSidecar(InvigilatorAI):
+    """An invigilator that presents the 'raw' question to the agent 
+    & uses a sidecar model to answer questions."""
+
+    async def async_answer_question(self, failed: bool = False) -> AgentResponseDict:
+        """Answer a question using the AI model."""
+        from edsl import Model
+        advanced_model = self.sidecar_model
+        simple_model = self.model
+        question = self.question
+        human_readable_question = "Please answer this single question: " +  question.human_readable()
+        print("Getting the simple model response to: ", human_readable_question)
+        raw_simple_response = await simple_model.async_execute_model_call(user_prompt = human_readable_question, 
+        system_prompt = """Pretend you are a human answering a question. Do not break character.""")
+        simple_response = simple_model.parse_response(raw_simple_response)
+        instructions = question.get_instructions()
+
+        main_model_prompt = Prompt(text = """
+        A simpler language model was asked this question: 
+
+        To the simpel model:
+        {{ human_readable_question }}
+
+        The simple model responded:
+        <response>
+        {{ simple_response }}
+        </response>
+
+        It was suppose to respond according to these instructions:                                                      
+        <instructions>
+        {{ instructions }}
+        </instructions>
+                                
+        Please format the simple model's response as it should have been formmated, given the instructions.
+        Only respond in valid JSON, like so {"answer": "SPAM!"} or {"answer": "SPAM!", "comment": "I am a robot."}
+        Do not inlcude the word 'json'
+        """)
+        
+        d = {'human_readable_question': human_readable_question, 'simple_response': simple_response, 'instructions': instructions}
+    
+        print("The human-readable question is: ", human_readable_question)
+        print("The simple response is: ", simple_response)
+
+        raw_response_data = await advanced_model.async_execute_model_call(
+            user_prompt = main_model_prompt.render(d).text, 
+            system_prompt = "You are a helpful assistant."
+            )   
+        
+        raw_response = await advanced_model.async_get_response(
+            user_prompt = main_model_prompt.render(d).text, 
+            system_prompt = "You are a helpful assistant.",
+            iteration=0,
+            cache=self.cache,
+        )
+
+        data = {
+            "agent": self.agent,
+            "question": self.question,
+            "scenario": self.scenario,
+        }
+        raw_response_data = {
+            "raw_response": raw_response,
+            "raw_model_response": raw_response["raw_model_response"],
+        }
+        params = data | raw_response_data
+        response = self._format_raw_response(**params)
+        response.update({'simple_model_raw_response': simple_response})
+        return AgentResponseDict(**response)
+
+    #get_response = sync_wrapper(async_get_response)
+    answer_question = sync_wrapper(async_answer_question)
+
+
 
 class InvigilatorDebug(InvigilatorBase):
     """An invigilator class for debugging purposes."""

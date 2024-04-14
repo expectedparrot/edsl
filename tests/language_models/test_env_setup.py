@@ -25,5 +25,9 @@ def test_model_with_missing_key(set_env_vars):
     # you can also use the fixture to delete an env var for the duration of the test
     set_env_vars(OPENAI_API_KEY=None)
     assert os.getenv("OPENAI_API_KEY") is None
-    m = Model()
-    assert not m.has_valid_api_key()
+    from edsl.exceptions import MissingAPIKeyError
+    import pytest
+    with pytest.raises(MissingAPIKeyError):
+        m = Model()
+    
+    

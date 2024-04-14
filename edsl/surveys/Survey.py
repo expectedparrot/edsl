@@ -3,11 +3,8 @@ from __future__ import annotations
 import re
 from rich import print
 from rich.table import Table
-from rich.console import Console
-import io
 
 from dataclasses import dataclass
-from collections import UserDict
 
 from typing import Any, Generator, Optional, Union, List
 from edsl.exceptions import SurveyCreationError, SurveyHasNoRulesError
@@ -176,7 +173,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         self,
         focal_question: Union[QuestionBase, str],
         prior_question: Union[QuestionBase, str],
-    ) -> None:
+    ) -> Survey:
         """Add instructions to a survey than when answering focal_question.
 
         The agent should also remember the answers to prior_questions listed in prior_questions.
@@ -192,6 +189,8 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
             focal_question=focal_question_name,
             prior_question=prior_question_name,
         )
+
+        return self
 
     def add_memory_collection(
         self,
@@ -223,12 +222,12 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
             focal_question=focal_question_name, prior_questions=prior_question_names
         )
 
-    def add_stop_rule(self, question: Question, expression: str) -> Survey:
+    def add_stop_rule(self, question: Union[QuestionBase, str], expression: str) -> Survey:
         """Add a rule that stops the survey."""
         self.add_rule(question, expression, EndOfSurvey)
         return self
 
-    def _get_question_index(self, q):
+    def _get_question_index(self, q:Union[QuestionBase, str, EndOfSurvey.__class__]) -> int:
         """Return the index of the question or EndOfSurvey object.
 
         It can handle it if the user passes in the question name, the question object, or the EndOfSurvey object.
