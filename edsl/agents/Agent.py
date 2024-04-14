@@ -381,6 +381,10 @@ class Agent(Base):
             if k != "question_type"
         ]
         return f"{class_name}({', '.join(items)})"
+    
+    def _repr_html_(self):
+        from edsl.utilities.utilities import data_to_html
+        return data_to_html(self.to_dict())
 
     ################
     # SERIALIZATION METHODS

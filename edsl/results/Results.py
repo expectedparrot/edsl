@@ -34,11 +34,11 @@ from edsl.utilities import (
     is_notebook,
 )
 
+import json
 from pygments import highlight
 from pygments.lexers import JsonLexer
 from pygments.formatters import HtmlFormatter
 from IPython.display import HTML
-import json
 
 
 from edsl.results.ResultsDBMixin import ResultsDBMixin
@@ -675,7 +675,7 @@ class Results(UserList, Mixins, Base):
         #     return console.export_text()
 
     def __str__(self):
-        return self.rich_print()
+        return repr(self)
 
 
 def main():  # pragma: no cover

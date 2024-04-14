@@ -118,6 +118,18 @@ class Base(RichPrintingMixin, PersistenceMixin, ABC, metaclass=RegisterSubclasse
     # def __getitem__(self, key):
     #     return getattr(self, key)
 
+    # @abstractmethod
+    # def _repr_html_(self) -> str:
+    #     raise NotImplementedError("This method is not implemented yet.")
+    
+    # @abstractmethod
+    # def _repr_(self) -> str:
+    #     raise NotImplementedError("This method is not implemented yet.")
+
+    def _repr_html_(self):
+        from edsl.utilities.utilities import data_to_html
+        return data_to_html(self.to_dict())
+
     @abstractmethod
     def example():
         """This method should be implemented by subclasses."""

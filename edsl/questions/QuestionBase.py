@@ -37,6 +37,10 @@ class QuestionBase(
         """Get an attribute of the question."""
         return getattr(self, key)
 
+    def _repr_html_(self):
+        from edsl.utilities.utilities import data_to_html
+        return data_to_html(self.to_dict())
+
     @property
     def data(self) -> dict:
         """Return a dictionary of question attributes **except** for question_type."""
