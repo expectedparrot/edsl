@@ -290,6 +290,7 @@ QuestionLinearScale class
 -------------------------
 A subclass of the `QuestionMultipleChoice` class for creating linear scale questions.
 It requires a `question_options` list of integers for the scale.
+The `option_labels` parameter can be used to specify labels for the scale options.
 Example usage:
 
 .. code-block:: python
@@ -300,7 +301,8 @@ Example usage:
       question_name = "studying",
       question_text = """On a scale from 0 to 5, how much do you 
       enjoy studying? (0 = not at all, 5 = very much)""",
-      question_options = [0, 1, 2, 3, 4, 5]
+      question_options = [0, 1, 2, 3, 4, 5],
+      option_labels = {0: "Not at all", 5: "Very much"} # optional
    )
 
 An example can also be created using the `example` method:
