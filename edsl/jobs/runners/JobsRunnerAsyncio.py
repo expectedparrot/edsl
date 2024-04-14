@@ -231,25 +231,16 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
 
         results = Results(survey=self.jobs.survey, data=self.results)
         results.task_history = TaskHistory(self.total_interviews)
+
         if results.task_history.has_exceptions:
             print(
-                textwrap.dedent(
-                    f"""\
-            Exceptions were raised in the following interviews: {results.task_history.indices}
-
-            >>> results.task_history.show_exceptions()
-                              
-            If you want to plot by-task completion times, you can use 
-
-            >>> results.task_history.plot_completion_times()
-            
-            If you want to plot by-task status over time, you can use
-            
-            >>> results.task_history.plot()
-            
-            """
+                textwrap.dedent(f"""\Exceptions were raised in the following interviews: {results.task_history.indices}"""
                 )
             )
-        results.task_history.show_exceptions()
+            show = input("Print exceptions? (y/n): ")
+            if show == "y":
+                #results.task_history.show_exceptions()
+                results.task_history._repr_html_()
+        #results.task_history.show_exceptions()
 
         return results
