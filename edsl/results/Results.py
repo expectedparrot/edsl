@@ -34,6 +34,13 @@ from edsl.utilities import (
     is_notebook,
 )
 
+from pygments import highlight
+from pygments.lexers import JsonLexer
+from pygments.formatters import HtmlFormatter
+from IPython.display import HTML
+import json
+
+
 from edsl.results.ResultsDBMixin import ResultsDBMixin
 
 
@@ -140,16 +147,15 @@ class Results(UserList, Mixins, Base):
             ]
             self.data = results
 
-    def __repr__(self) -> str:
-        self._update_results()
-        if self._job_uuid and len(self.data) < self._total_results:
-            print(f"Completeness: {len(self.data)}/{self._total_results}")
-        data = [repr(result) for result in self.data]
-        if is_notebook():
-            return self.rich_print()
-        else:
-            return f"Results(data = {data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
+    def __repr__(self) -> str:   
+        return f"Results(data = {self.data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
+    
 
+    def _repr_html_(self) -> str:
+        json_str = json.dumps(self.to_dict()['data'], indent=4)
+        formatted_json = highlight(json_str, JsonLexer(), HtmlFormatter(style="default", full=True, noclasses=True))
+        return HTML(formatted_json).data
+    
     def to_dict(self) -> dict[str, Any]:
         """Convert the Results object to a dictionary.
 
@@ -658,14 +664,15 @@ class Results(UserList, Mixins, Base):
 
     def rich_print(self):
         """Display an object as a table."""
-        with io.StringIO() as buf:
-            console = Console(file=buf, record=True)
+        pass
+        # with io.StringIO() as buf:
+        #     console = Console(file=buf, record=True)
 
-            for index, result in enumerate(self):
-                console.print(f"Result {index}")
-                console.print(result.rich_print())
+        #     for index, result in enumerate(self):
+        #         console.print(f"Result {index}")
+        #         console.print(result.rich_print())
 
-            return console.export_text()
+        #     return console.export_text()
 
     def __str__(self):
         return self.rich_print()

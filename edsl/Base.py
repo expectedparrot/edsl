@@ -115,6 +115,9 @@ class RegisterSubclassesMeta(ABCMeta):
 class Base(RichPrintingMixin, PersistenceMixin, ABC, metaclass=RegisterSubclassesMeta):
     """Base class for all classes in the package."""
 
+    # def __getitem__(self, key):
+    #     return getattr(self, key)
+
     @abstractmethod
     def example():
         """This method should be implemented by subclasses."""
