@@ -25,7 +25,14 @@ class PromptBase(
 ):
     """Class for creating a prompt to be used in a survey."""
 
+    default_instructions: Optional[str] = "Do good things, friendly LLM!"
     component_type = ComponentTypes.GENERIC
+
+    def _repr_html_(self):
+        """Return an HTML representation of the Prompt."""
+        from edsl.utilities.utilities import data_to_html
+
+        return data_to_html(self.to_dict())
 
     @classmethod
     def prompt_attributes(cls) -> List[str]:
