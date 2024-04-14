@@ -40,6 +40,11 @@ class AgentList(UserList, Base, AgentListExportMixin):
     def to_dict(self):
         """Return dictionary of AgentList to serialization."""
         return {"agent_list": [agent.to_dict() for agent in self.data]}
+    
+    def _repr_html_(self):
+        """Return an HTML representation of the AgentList."""
+        from edsl.utilities.utilities import data_to_html
+        return data_to_html(self.to_dict()['agent_list'])
 
     @classmethod
     def from_dict(cls, data: dict) -> "AgentList":

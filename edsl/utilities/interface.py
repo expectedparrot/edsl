@@ -16,6 +16,7 @@ def heartbeat_generator():
 
 def gen_html_sandwich(html_inner, interactive=False):
     """Wrap the inner HTML content in a header and footer to make a complete HTML document."""
+    return html_inner
     if interactive:
         html_header = """
             <html>
@@ -280,7 +281,7 @@ def print_list_of_dicts_with_rich(data, filename=None, split_at_dot=True):
 
 
 def print_list_of_dicts_as_html_table(
-    data, filename=None, interactive=False, notebook=False
+    data, filename=None, interactive=True, notebook=False
 ):
     """Print a list of dictionaries as an HTML table.
 
