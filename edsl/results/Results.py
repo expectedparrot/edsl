@@ -126,12 +126,15 @@ class Results(UserList, Mixins, Base):
         raise NotImplementedError
 
     def __getitem__(self, i):
-        if isinstance(i, slice):
-            # Return a sliced view of the list
-            return self.__class__(survey=self.survey, data=self.data[i])
+        if isinstance(i, int):
+            if isinstance(i, slice):
+                # Return a sliced view of the list
+                return self.__class__(survey=self.survey, data=self.data[i])
+            else:
+                # Return a single item
+                return self.data[i]
         else:
-            # Return a single item
-            return self.data[i]
+            return self.to_dict()[i]
 
     def _update_results(self) -> None:
         if self._job_uuid and len(self.data) < self._total_results:

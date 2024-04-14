@@ -1,7 +1,7 @@
 """A list of Scenarios to be used in a survey."""
 from __future__ import annotations
 from collections import UserList
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 from rich.table import Table
 
@@ -72,7 +72,15 @@ class ScenarioList(Base, UserList):
         for i, s in enumerate(self):
             table.add_row(str(i), s.rich_print())
         return table
-
+    
+    def __getitem__(self, key: Union[int, slice]) -> Any:
+        """Return the item at the given index."""
+        if isinstance(key, slice):
+            return ScenarioList(super().__getitem__(key))
+        elif isinstance(key, int):
+            return super().__getitem__(key)
+        else:
+            return self.to_dict()[key]
 
 if __name__ == "__main__":
     from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
