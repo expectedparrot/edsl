@@ -155,6 +155,14 @@ class QuestionBase(
         local_data = data.copy()
         try:
             question_type = local_data.pop("question_type")
+            if question_type == "linear_scale":
+                # This is a fix for issue https://github.com/expectedparrot/edsl/issues/165
+                options_labels = local_data.get("option_labels", None)
+                if options_labels:
+                    options_labels = {
+                        int(key): value for key, value in options_labels.items()
+                    }
+                    local_data["option_labels"] = options_labels
         except:
             raise QuestionSerializationError(
                 f"Data does not have a 'question_type' field (got {data})."

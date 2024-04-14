@@ -1,51 +1,67 @@
 Coop 
 ====
-
-The Coop provides tools for managing and sharing research projects created with EDSL.
-
-*A live web application of the Coop is coming soon!*
-
-.. Coop is a web application for storing and sharing your work, exploring AI-powered research and accessing your Expected Parrot API keys.
-
-.. .. raw:: html
-
-..     <a href="https://www.expectedparrot.com/getting-started#coop-create-account">Create an account</a>
+Coop is a web application for storing and sharing content created with EDSL and accessing your Expected Parrot API keys.
+The `Coop` class provides tools for managing and accessing content in the Coop web application.
 
 
-.. Posting content
-.. ---------------
+Setup
+-----
+Create an account and log into the Coop:
 
-.. 1. Surveys 
+.. raw:: html
 
-.. 2. Results
+    <a href="https://www.expectedparrot.com/getting-started#coop-create-account">Create an account</a>
 
-.. 3. Agents 
+Navigate to `Account > API` and get your Coop API key.
+Add it to your private `.env` file:
 
+.. code-block:: python 
 
-.. Visibility settings 
-.. -------------------
-
-.. Content posted to Coop is public by default. You can specify that content should be private when posting it to Coop or change posted content to private by clicking the "Private" button on the content page.
-
-.. 1. Make content private when posting it to Coop:
-
-.. 2. Change posted content to private:
+   EXPECTED_PARROT_API_KEY = "<your_key_here>"
 
 
-.. Searching for content
-.. ---------------------
+Posting content
+---------------
+Create a Coop client in your session:
 
-.. You can search for content on Coop by using the search bar at the top of the page. You can search for content by title, description, tags and author.
+.. code-block:: python 
+
+   from edsl.coop import Coop
+
+   coop = Coop()
+
+Call the `create` method and pass it an EDSL object -- a question, survey, agent or agent list, or results:
+By default, all content is publicly viewable by other users.
+If you want your content to be private, also pass a parameter `public=False`.
+Example:
+
+.. code-block:: python
+
+   from edsl import QuestionMultipleChoice
+   q = QuestionMultipleChoice.example()
+
+   coop.create(q, public=False)
 
 
-.. Exporting content 
-.. -----------------
+Visibility settings 
+-------------------
+Change the visibility of an object in the Coop by logging in and clicking the button below the object to change it from "Private" to "Public".
 
-.. 1. Exporting content to a file:
 
-.. 2. Exporting content to another platform:
+Searching for content
+---------------------
+You can search for content on Coop by using the search bar at the top of the page. 
+You can search for content by title, description, tags and author.
 
-.. 3. Copy code:
+
+Exporting content 
+-----------------
+
+1. Exporting content to a file:
+
+2. Exporting content to another platform:
+
+3. Copy code:
 
 
 

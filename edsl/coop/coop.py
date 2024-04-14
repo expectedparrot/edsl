@@ -24,6 +24,7 @@ class Coop:
     """
 
     def __init__(self, api_key: str = None, run_mode: str = None) -> None:
+        """Initialize the client."""
         self.api_key = api_key or os.getenv("EXPECTED_PARROT_API_KEY")
         self.run_mode = run_mode or CONFIG.EDSL_RUN_MODE
         self.run_mode = "production"
@@ -34,7 +35,7 @@ class Coop:
     ################
     def _api_key_is_valid(self) -> None:
         """
-        Checks if the API key is valid.
+        Check if the API key is valid.
         """
         if not self.api_key:
             raise ValueError("API key is required.")
@@ -46,14 +47,14 @@ class Coop:
     @property
     def headers(self) -> dict:
         """
-        Returns the headers for the request.
+        Return the headers for the request.
         """
         return {"Authorization": f"Bearer {self.api_key}"}
 
     @property
     def url(self) -> str:
         """
-        Returns the URL for the request.
+        Return the URL for the request.
         """
         return api_url[self.run_mode]
 
@@ -65,7 +66,7 @@ class Coop:
         params: Optional[dict[str, Any]] = None,
     ) -> requests.Response:
         """
-        Sends a request to the server and returns the response.
+        Send a request to the server and return the response.
         """
         url = f"{self.url}/{uri}"
 
@@ -92,7 +93,7 @@ class Coop:
 
     def _resolve_server_response(self, response: requests.Response) -> None:
         """
-        Checks the response from the server and raises appropriate errors.
+        Check the response from the server and raise appropriate errors.
         """
         if response.status_code >= 400:
             raise Exception(response.json().get("detail"))
@@ -102,7 +103,7 @@ class Coop:
     ################
     def create_cache_entry(self, cache_entry: CacheEntry) -> dict:
         """
-        Creates a CacheEntry object.
+        Create a CacheEntry object.
         """
         response = self._send_server_request(
             uri="api/v0/cache/create-cache-entry",
@@ -120,8 +121,9 @@ class Coop:
         self, exclude_keys: Optional[list[str]] = None
     ) -> list[CacheEntry]:
         """
-        Returns CacheEntry objects from the server.
-        - `exclude_keys`: exclude CacheEntry objects with these keys.
+        Return CacheEntry objects from the server.
+
+        :param exclude_keys: exclude CacheEntry objects with these keys.
         """
         if exclude_keys is None:
             exclude_keys = []
@@ -138,7 +140,7 @@ class Coop:
 
     def send_cache_entries(self, cache_entries: dict[str, CacheEntry]) -> None:
         """
-        Sends a dictionary of CacheEntry objects to the server.
+        Send a dictionary of CacheEntry objects to the server.
         """
         response = self._send_server_request(
             uri="api/v0/cache/create-cache-entries",
@@ -159,7 +161,7 @@ class Coop:
         self, object: Union[Type[QuestionBase], Survey, Agent, Results]
     ) -> str:
         """
-        Returns the URI for the object type.
+        Return the URI for the object type.
         """
         if isinstance(object, QuestionBase):
             return "questions"
@@ -181,9 +183,10 @@ class Coop:
         public: bool = False,
     ) -> dict:
         """
-        Creates an EDSL object in the Coop server.
-        - `edsl_object`: the EDSL object to be sent.
-        - `public`: whether the object should be public (defaults to False).
+        Create an EDSL object in the Coop server.
+
+        :param edsl_object: the EDSL object to be sent.
+        :param public: whether the object should be public (defaults to False).
         """
         uri = self._edsl_object_to_uri(edsl_object)
         response = self._send_server_request(
@@ -203,9 +206,10 @@ class Coop:
         public: bool = False,
     ):
         """
-        Creates an EDSL object in the Coop server.
-        - `object`: the EDSL object to be sent.
-        - `public`: whether the object should be public (defaults to False)
+        Create an EDSL object in the Coop server.
+        
+        :param object: the EDSL object to be sent.
+        :param public: whether the object should be public (defaults to False)
         """
         return self._create(object, public)
 
@@ -214,7 +218,7 @@ class Coop:
     # -----------------
     def _get(self, object_type: str, id: int) -> dict:
         """
-        Retrieves an EDSL object from the Coop server.
+        Retrieve an EDSL object from the Coop server.
         """
         response = self._send_server_request(
             uri=f"api/v0/{object_type}/{id}", method="GET"
@@ -224,21 +228,21 @@ class Coop:
 
     def get_question(self, id: int) -> Type[QuestionBase]:
         """
-        Retrieves a Question object by its id.
+        Retrieve a Question object by its id.
         """
         json_dict = self._get("questions", id)
         return QuestionBase.from_dict(json_dict)
 
     def get_survey(self, id: int) -> Type[Survey]:
         """
-        Retrieves a Survey object by its id.
+        Retrieve a Survey object by its id.
         """
         json_dict = self._get("surveys", id)
         return Survey.from_dict(json_dict)
 
     def get_agent(self, id: int) -> Union[Agent, AgentList]:
         """
-        Retrieves an Agent or AgentList object by id.
+        Retrieve an Agent or AgentList object by id.
         """
         json_dict = self._get("agents", id)
         if "agent_list" in json_dict:
@@ -247,7 +251,7 @@ class Coop:
             return Agent.from_dict(json_dict)
 
     def get_results(self, id: int) -> Results:
-        """Retrieves a Results object by id."""
+        """Retrieve a Results object by id."""
         json_dict = self._get("results", id)
         return Results.from_dict(json_dict)
 
@@ -255,9 +259,10 @@ class Coop:
         self, object_type: str, id: int
     ) -> Union[Type[QuestionBase], Survey, Agent, AgentList, Results]:
         """
-        Retrieves an EDSL object by its id.
-        - `object_type`: the type of object to retrieve.
-        - `id`: the id of the object.
+        Retrieve an EDSL object by its id.
+
+        :param object_type: the type of object to retrieve.
+        :param id: the id of the object.
         """
         if object_type in {"question", "questions"}:
             return self.get_question(id)
@@ -318,7 +323,7 @@ class Coop:
 
     @property
     def agents(self) -> list[dict[str, Union[int, Agent, AgentList]]]:
-        """Retrieves all Agents and AgentLists."""
+        """Retrieve all Agents and AgentLists."""
         response = self._send_server_request(uri="api/v0/agents", method="GET")
         self._resolve_server_response(response)
         agents = []
@@ -333,7 +338,7 @@ class Coop:
 
     @property
     def results(self) -> list[dict[str, Union[int, Results]]]:
-        """Retrieves all Results."""
+        """Retrieve all Results."""
         response = self._send_server_request(uri="api/v0/results", method="GET")
         self._resolve_server_response(response)
         results = [
@@ -349,7 +354,7 @@ class Coop:
     # D. DELETE METHODS
     # -----------------
     def delete_question(self, id: int) -> dict:
-        """Delete a question from the coop."""
+        """Delete a question from the Coop."""
         response = self._send_server_request(
             uri=f"api/v0/questions/{id}", method="DELETE"
         )
@@ -365,13 +370,13 @@ class Coop:
         return response.json()
 
     def delete_agent(self, id: int) -> dict:
-        """Deletes an Agent or AgentList from the coop."""
+        """Delete an Agent or AgentList from the coop."""
         response = self._send_server_request(uri=f"api/v0/agents/{id}", method="DELETE")
         self._resolve_server_response(response)
         return response.json()
 
     def delete_results(self, id: int) -> dict:
-        """Deletes a Results object from the coop."""
+        """Delete a Results object from the coop."""
         response = self._send_server_request(
             uri=f"api/v0/results/{id}", method="DELETE"
         )
