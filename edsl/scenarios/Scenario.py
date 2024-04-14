@@ -84,9 +84,6 @@ class Scenario(Base, UserDict):
         """
         return self.data
     
-    def _repr_html_(self):
-        from edsl.utilities.utilities import data_to_html
-        return data_to_html(self.to_dict())
     
     def __repr__(self):
         return "Scenario(" + repr(self.data) + ")"

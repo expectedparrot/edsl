@@ -58,8 +58,8 @@ class Model(metaclass=Meta):
 
         if model_name is None:
             model_name = cls.default_model
-            print(f"No model name provided, using default model: {model_name}")
-
+            #print(f"No model name provided, using default model: {model_name}")
+        
         subclass = get_model_classes.get(model_name, None)
         if subclass is None:
             raise ValueError(

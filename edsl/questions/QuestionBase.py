@@ -19,10 +19,12 @@ from edsl.questions.AnswerValidatorMixin import AnswerValidatorMixin
 from edsl.questions.RegisterQuestionsMeta import RegisterQuestionsMeta
 from edsl.Base import PersistenceMixin, RichPrintingMixin
 
+from edsl.questions.SimpleAskMixin import SimpleAskMixin
 
 class QuestionBase(
     PersistenceMixin,
     RichPrintingMixin,
+    SimpleAskMixin,
     ABC,
     AnswerValidatorMixin,
     metaclass=RegisterQuestionsMeta,
@@ -270,8 +272,9 @@ class QuestionBase(
         lines.append(f"Question Type: {self.question_type}")
         lines.append(f"Question: {self.question_text}")
         if hasattr(self, "question_options"):
+            lines.append("Please name the option you choose from the following.:")
             for index, option in enumerate(self.question_options):
-                lines.append(f"\tOption {index}: {option}")
+                lines.append(f"{option}")
         return "\n".join(lines)
 
     def rich_print(self):
