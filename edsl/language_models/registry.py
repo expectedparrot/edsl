@@ -74,6 +74,14 @@ class Model(metaclass=Meta):
     @classmethod
     def available(cls):
         return sorted(list(RegisterLanguageModelsMeta.model_names_to_classes().keys()))
+    
+    @classmethod
+    def check_models(cls):
+        for model in cls.available():
+            print(f"Now checking: {model}")
+            m = cls(model)
+            print(m.hello())
+            print("\n")
 
 
 if __name__ == "__main__":

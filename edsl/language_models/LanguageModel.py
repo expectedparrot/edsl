@@ -6,6 +6,8 @@ import asyncio
 import json
 import time
 import inspect
+import os
+
 from typing import Coroutine, Any, Callable, Type, List, get_type_hints
 
 from abc import ABC, abstractmethod, ABCMeta
@@ -19,6 +21,9 @@ from edsl.exceptions.language_models import LanguageModelAttributeTypeError
 from edsl.enums import LanguageModelType, InferenceServiceType
 from edsl.Base import RichPrintingMixin, PersistenceMixin
 from edsl.data.Cache import Cache
+from edsl.enums import service_to_api_keyname
+
+from edsl.exceptions import MissingAPIKeyError
 
 
 def handle_key_error(func):
@@ -258,6 +263,27 @@ class LanguageModel(
             warnings.warn(
                 "The use_cache parameter is deprecated. Use the Cache class instead."
             )
+ 
+        if skip_api_key_check := kwargs.get("skip_api_key_check", False):
+            # Skip the API key check. Sometimes this is useful for testing.
+            self.api_token = None
+
+        if not hasattr(self, "api_token"):
+            key_name = service_to_api_keyname.get(self._inference_service_, "NOT FOUND")
+            self.api_token = os.getenv(key_name)
+            if self.api_token is None and self._inference_service_ != 'test':
+                raise MissingAPIKeyError(
+                    f"""The key for service: `{self._inference_service_}` is not set.
+                    Need a key with name {key_name} in your .env file.
+                    """
+                )
+
+    
+
+    def hello(self):
+        """Runs a simple test to check if the model is working."""
+        print(f"Current key is {self.api_token}")
+        return self.execute_model_call(user_prompt = "Hello, model!", system_prompt = "You are a helpful agent.")
 
     def has_valid_api_key(self) -> bool:
         """Check if the model has a valid API key.
@@ -519,7 +545,7 @@ class LanguageModel(
         """Return a default instance of the class."""
         from edsl import Model
 
-        return Model(Model.available()[0])
+        return Model(Model.available()[0], skip_api_key_check=True)
 
 
 if __name__ == "__main__":

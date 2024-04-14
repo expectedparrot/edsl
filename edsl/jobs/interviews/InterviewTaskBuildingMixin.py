@@ -38,6 +38,7 @@ class InterviewTaskBuildingMixin:
             current_answers=self.answers,
             iteration=self.iteration,
             cache=self.cache,
+            sidecar_model=self.sidecar_model,
         )
         """Return an invigilator for the given question."""
         return invigilator

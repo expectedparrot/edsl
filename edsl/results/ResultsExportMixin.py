@@ -75,6 +75,7 @@ class ResultsExportMixin:
         format: Literal["rich", "html", "markdown"] = "rich",
         interactive: bool = False,
         split_at_dot: bool = True,
+        max_rows = None,
     ) -> None:
         """Print the results in a pretty format.
 
@@ -137,9 +138,14 @@ class ResultsExportMixin:
             raise ValueError("format must be one of 'rich', 'html', or 'markdown'.")
 
         new_data = []
-        for entry in self:
+        for index, entry in enumerate(self):
             key, list_of_values = list(entry.items())[0]
             new_data.append({pretty_labels.get(key, key): list_of_values})
+
+        if max_rows is not None:
+            for entry in new_data:
+                for key in entry:
+                    entry[key] = entry[key][:max_rows]
 
         if format == "rich":
             print_list_of_dicts_with_rich(

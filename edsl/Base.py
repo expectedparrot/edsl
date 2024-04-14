@@ -43,7 +43,8 @@ class PersistenceMixin:
         from edsl.coop import Coop
 
         c = Coop()
-        c.create(self, public)
+        _ = c.create(self, public)
+        print(_)
 
     @classmethod
     def pull(cls, id):

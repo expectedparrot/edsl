@@ -87,7 +87,10 @@ print_directory_tree(os.getcwd())
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 # extensions = []
-extensions = ["sphinx.ext.autodoc", "sphinx_copybutton", "sphinx.ext.linkcode"]
+extensions = ["sphinx.ext.autodoc", "sphinx_copybutton", "sphinx.ext.linkcode", "nbsphinx"]
+nbsphinx_notebooks = ["../examples/*.ipynb"]
+import glob
+nbsphinx_notebooks = glob.glob("notebooks/*.ipynb")
 
 # templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
