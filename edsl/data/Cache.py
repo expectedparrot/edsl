@@ -54,6 +54,12 @@ class Cache:
         self.coop = None
         self._perform_checks()
 
+    def keys(self):
+        return list(self.data.keys())
+    
+    def values(self):
+        return list(self.data.values())
+
     def _perform_checks(self):
         """Perform checks on the cache."""
         if any(not isinstance(value, CacheEntry) for value in self.data.values()):

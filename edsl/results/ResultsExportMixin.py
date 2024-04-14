@@ -72,7 +72,7 @@ class ResultsExportMixin:
         self,
         pretty_labels: Optional[dict] = None,
         filename: Optional[str] = None,
-        format: Literal["rich", "html", "markdown"] = "rich",
+        format: Literal["rich", "html", "markdown"] = None,
         interactive: bool = False,
         split_at_dot: bool = True,
         max_rows = None,
@@ -90,7 +90,7 @@ class ResultsExportMixin:
         >>> from edsl.results import Results
         >>> r = Results.example()
         >>> r.print()
-        >>> r.select('how_feeling').print()
+        >>> r.select('how_feeling').print(format = "rich")
         ┏━━━━━━━━━━━━━━┓
         ┃ answer       ┃
         ┃ .how_feeling ┃
@@ -106,7 +106,7 @@ class ResultsExportMixin:
 
         Example: using the pretty_labels parameter
 
-        >>> r.select('how_feeling').print(pretty_labels = {'answer.how_feeling': "How you are feeling"})
+        >>> r.select('how_feeling').print(format="rich", pretty_labels = {'answer.how_feeling': "How you are feeling"})
         ┏━━━━━━━━━━━━━━━━━━━━━┓
         ┃ How you are feeling ┃
         ┡━━━━━━━━━━━━━━━━━━━━━┩
@@ -131,6 +131,12 @@ class ResultsExportMixin:
 
 
         """
+        if format is None:
+            if is_notebook():
+                format = "html"
+            else:
+                format = "rich"
+
         if pretty_labels is None:
             pretty_labels = {}
 
