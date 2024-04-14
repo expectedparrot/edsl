@@ -9,9 +9,20 @@ import string
 import tempfile
 import gzip
 import webbrowser
+import json
 from html import escape
 from typing import Callable, Union
 
+from pygments import highlight
+from pygments.lexers import JsonLexer
+from pygments.formatters import HtmlFormatter
+from IPython.display import HTML
+
+def data_to_html(data):
+    json_str = json.dumps(data, indent=4)
+    formatted_json = highlight(json_str, JsonLexer(), HtmlFormatter(style="default", full=True, noclasses=True))
+    return HTML(formatted_json).data
+  
 
 def is_gzipped(file_path):
     """Check if a file is gzipped."""

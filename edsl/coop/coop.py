@@ -260,7 +260,7 @@ class Coop:
     ) -> Union[Type[QuestionBase], Survey, Agent, AgentList, Results]:
         """
         Retrieve an EDSL object by its id.
-        
+
         :param object_type: the type of object to retrieve.
         :param id: the id of the object.
         """

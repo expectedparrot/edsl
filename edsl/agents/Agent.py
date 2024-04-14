@@ -169,6 +169,9 @@ class Agent(Base):
         else:
             return self._traits
 
+    def __getitem__(self, key):
+        return getattr(self, key)
+
     def add_direct_question_answering_method(self, method: Callable) -> None:
         """Add a method to the agent that can answer a particular question type.
 
@@ -378,6 +381,10 @@ class Agent(Base):
             if k != "question_type"
         ]
         return f"{class_name}({', '.join(items)})"
+    
+    def _repr_html_(self):
+        from edsl.utilities.utilities import data_to_html
+        return data_to_html(self.to_dict())
 
     ################
     # SERIALIZATION METHODS
