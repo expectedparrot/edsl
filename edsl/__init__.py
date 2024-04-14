@@ -24,3 +24,6 @@ from edsl.language_models.registry import Model
 from edsl.utilities.pastebin import post, get
 
 from edsl.questions.question_registry import Question
+from edsl.results.Results import Results
+from edsl.data.Cache import Cache
+from edsl.coop.coop import Coop
