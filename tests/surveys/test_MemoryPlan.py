@@ -66,7 +66,7 @@ class TestMemoryPlan(unittest.TestCase):
         data = {
             "survey_question_names": self.question_names,
             "survey_question_texts": self.question_texts,
-            "data": {"q2": Memory(["q1"])},
+            "data": {"q2": Memory(["q1"]).to_dict()},
         }
         new_memory_plan = MemoryPlan.from_dict(data)
         self.assertIn("q1", new_memory_plan["q2"])

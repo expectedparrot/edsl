@@ -12,7 +12,7 @@ from edsl.results import Results, Result
 from edsl.jobs.interviews.Interview import Interview
 from edsl.utilities.decorators import jupyter_nb_handler
 from edsl.jobs.Jobs import Jobs
-
+from edsl.utilities.utilities import is_notebook
 from edsl.jobs.runners.JobsRunnerStatusMixin import JobsRunnerStatusMixin
 
 # from edsl.jobs.runners.JobsRunHistory import JobsRunHistory
@@ -160,6 +160,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         stop_on_exception: bool = False,
         progress_bar=False,
         sidecar_model=None,
+        batch_mode = False
     ) -> "Coroutine":
         """Runs a collection of interviews, handling both async and sync contexts."""
         console = Console()
@@ -189,8 +190,6 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             if progress_bar
             else no_op_cm()
         )
-
-        # breakpoint()
 
         with cache as c:
             with progress_bar_context as live:
@@ -232,15 +231,48 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         results = Results(survey=self.jobs.survey, data=self.results)
         results.task_history = TaskHistory(self.total_interviews)
 
-        if results.task_history.has_exceptions:
+        if results.task_history.has_exceptions and not batch_mode:
             print(
                 textwrap.dedent(f"""\Exceptions were raised in the following interviews: {results.task_history.indices}"""
                 )
             )
             show = input("Print exceptions? (y/n): ")
             if show == "y":
-                #results.task_history.show_exceptions()
-                results.task_history._repr_html_()
-        #results.task_history.show_exceptions()
+                if is_notebook():
+                    print(results.task_history._repr_html_())
+                else:
+                    results.task_history.show_exceptions()
 
+            upload = input("Ok to upload errors to us  - we can potentially help! (y/n): ")
+            if upload == "y":
+                try:
+                    from edsl.jobs.interviews.ReportErrors import ReportErrors
+                    report = ReportErrors(results.task_history)
+                    report.get_email()
+                    report.upload()
+                except Exception as e:
+                    print(f"Error uploading errors: {e}")
+                # import json
+                # import requests
+                # email = input("Please enter your email address (if you want us to get in touch): ")
+                # url = 'https://375b1a19-3a5b-444d-9925-a81164a5bd2c-00-23kgwodh3kmtc.picard.replit.dev/messages/'
+                # # JSON object to send
+                # data = {
+                #     "text": results.task_history.to_dict(),
+                #     "email": email,
+                # }
+                # # Convert the Python dictionary to a JSON string before sending
+                # json_data = json.dumps(data)
+                # #breakpoint()
+                # headers = {
+                #     "Content-Type": "application/json"
+                # }
+
+                # # Send the POST request
+                # response = requests.post(url, data=json_data, headers=headers)
+                # #breakpoint()
+                # # Print the response from the server
+                # print("Status Code:", response.status_code)
+                # print("Response Content:", response.json())
+                #results.task_history.upload_exceptions()
         return results
