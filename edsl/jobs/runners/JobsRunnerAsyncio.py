@@ -242,37 +242,14 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                     print(results.task_history._repr_html_())
                 else:
                     results.task_history.show_exceptions()
-
-            upload = input("Ok to upload errors to us  - we can potentially help! (y/n): ")
-            if upload == "y":
                 try:
                     from edsl.jobs.interviews.ReportErrors import ReportErrors
                     report = ReportErrors(results.task_history)
-                    report.get_email()
-                    report.upload()
+                    upload = input("Ok to upload errors to us? We can potentially help! (y/n): ")
+                    if upload == "y":
+                        report.get_email()
+                        report.upload()
+                        print("Errors are reported here: ", report.url)
                 except Exception as e:
-                    print(f"Error uploading errors: {e}")
-                # import json
-                # import requests
-                # email = input("Please enter your email address (if you want us to get in touch): ")
-                # url = 'https://375b1a19-3a5b-444d-9925-a81164a5bd2c-00-23kgwodh3kmtc.picard.replit.dev/messages/'
-                # # JSON object to send
-                # data = {
-                #     "text": results.task_history.to_dict(),
-                #     "email": email,
-                # }
-                # # Convert the Python dictionary to a JSON string before sending
-                # json_data = json.dumps(data)
-                # #breakpoint()
-                # headers = {
-                #     "Content-Type": "application/json"
-                # }
-
-                # # Send the POST request
-                # response = requests.post(url, data=json_data, headers=headers)
-                # #breakpoint()
-                # # Print the response from the server
-                # print("Status Code:", response.status_code)
-                # print("Response Content:", response.json())
-                #results.task_history.upload_exceptions()
+                    pass 
         return results
