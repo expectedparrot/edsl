@@ -285,11 +285,12 @@ class LanguageModel(
         from edsl.utilities.utilities import data_to_html
         return data_to_html(self.to_dict())
 
-    def hello(self):
+    def hello(self, verbose = True):
         """Runs a simple test to check if the model is working."""
         token = self.api_token
         masked = token[:min(8, len(token))] + "..."
-        print(f"Current key is {masked}")
+        if verbose:
+            print(f"Current key is {masked}")
         return self.execute_model_call(user_prompt = "Hello, model!", system_prompt = "You are a helpful agent.")
 
     def has_valid_api_key(self) -> bool:
