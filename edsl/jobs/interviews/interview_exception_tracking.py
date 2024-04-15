@@ -10,6 +10,10 @@ class InterviewExceptionEntry(UserDict):
         data = {"exception": exception, "time": time, "traceback": traceback}
         super().__init__(data)
 
+    def to_dict(self) -> dict:
+        """Return the exception as a dictionary."""
+        return self.data
+
 
 class InterviewExceptionCollection(UserDict):
     """A collection of exceptions that occurred during the interview."""
@@ -20,6 +24,14 @@ class InterviewExceptionCollection(UserDict):
         if question_name not in self.data:
             self.data[question_name] = []
         self.data[question_name].append(entry)
+
+    def to_dict(self) -> dict:
+        """Return the collection of exceptions as a dictionary."""
+        return {k:[e.to_dict() for e in v] for k, v in self.data.items()}
+
+    def _repr_html_(self) -> str:
+        from edsl.utilities.utilities import data_to_html
+        return data_to_html(self.to_dict())
 
     def ascii_table(self, traceback: bool = False) -> None:
         headers = ["Question name", "Exception", "Time", "Traceback"]

@@ -146,7 +146,7 @@ class TestResults(unittest.TestCase):
             question_text="How often do you typically exercise each week?",
             question_options=["Never", "Sometimes", "Often"],
         )
-        results = q.by(agent).run(cache = cache)
+        results = q.by(agent).run(cache = cache, batch_mode = True)
 
         with StringIO() as buf, redirect_stdout(buf):
             results.select("answer.*").print()
@@ -157,6 +157,15 @@ class TestResults(unittest.TestCase):
             results.select("answer.*").print_long()
             output = buf.getvalue()
         self.assertIn("Never", output)
+
+    # def test_stefan(self):
+    #     from edsl.questions import QuestionBase
+    #     from edsl.results import Results
+    #     from edsl.surveys import Survey
+    #     results = Survey.example().run()
+
+    #     res_dect = results.to_dict()
+    #     res = Results.from_dict(res_dect)
 
 
 if __name__ == "__main__":

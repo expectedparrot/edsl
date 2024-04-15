@@ -16,10 +16,23 @@ class TaskHistory:
             index for index, i in enumerate(self.total_interviews) if i.exceptions != {}
         ]
 
+    def to_dict(self):
+        """Return the TaskHistory as a dictionary."""
+        return {
+            "exceptions": [e.to_dict() for e in self.exceptions],
+            "indices": self.indices,
+        }
+
     @property
     def has_exceptions(self) -> bool:
         """Return True if there are any exceptions."""
         return len(self.exceptions) > 0
+    
+    def _repr_html_(self):
+        """Return an HTML representation of the TaskHistory."""
+        from edsl.utilities.utilities import data_to_html
+        return data_to_html([e.to_dict() for e in self.exceptions])
+
 
     def show_exceptions(self):
         """Print the exceptions."""
