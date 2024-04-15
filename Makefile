@@ -78,7 +78,8 @@ bump: ## Bump the version of the package
 docs: ## Generate documentation
 	make clean-docs
 	mkdir -p .temp/docs
-	poetry export -f requirements.txt --dev --output .temp/docs/requirements.txt
+	poetry export -f requirements.txt --with dev --output .temp/docs/requirements.txt
+	poetry export -f requirements.txt --with dev --output docs/requirements.txt
 	sphinx-build -b html docs .temp/docs
 
 docs-view: ## View documentation
