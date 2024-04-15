@@ -30,6 +30,7 @@ This page contains documentation for the Expected Parrot Domain-Specific Languag
    :caption: Notebooks:
 
    notebooks/create_questions
+   notebooks/create_surveys
    notebooks/create_agents
    notebooks/create_models
    notebooks/edsl_components
