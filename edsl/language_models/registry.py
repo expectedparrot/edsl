@@ -77,10 +77,19 @@ class Model(metaclass=Meta):
     
     @classmethod
     def check_models(cls):
+        print("Checking all available models...\n")
         for model in cls.available():
             print(f"Now checking: {model}")
-            m = cls(model)
-            print(m.hello())
+            try:
+                m = cls(model)
+            except Exception as e:
+                print(f"Error creating instance of {model}: {e}")
+                continue 
+            try:
+                print(m.hello())
+            except Exception as e:
+                print(f"Error calling 'hello' on {model}: {e}")
+                continue
             print("\n")
 
 
