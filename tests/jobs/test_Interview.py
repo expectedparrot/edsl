@@ -61,7 +61,7 @@ def test_token_usage(create_survey):
     from edsl.data.Cache import Cache
 
     cache = Cache()
-    results = jobs.run(cache=cache)
+    results = jobs.run(cache=cache, batch_mode = True)
     token_usage = jobs.interviews()[0].token_usage
 
     # from edsl.jobs.tokens.TokenUsage import TokenUsage
@@ -81,7 +81,7 @@ def test_task_management(create_survey):
     from edsl.data.Cache import Cache
 
     cache = Cache()
-    results = jobs.run(cache=cache)
+    results = jobs.run(cache=cache, batch_mode = True)
 
     from edsl.jobs.interviews.InterviewStatusDictionary import InterviewStatusDictionary
 
@@ -115,7 +115,7 @@ def test_handle_model_exceptions(create_survey, fail_at_number, chained):
 
     cache = Cache()
 
-    results = jobs.run(cache=cache)
+    results = jobs.run(cache=cache, batch_mode = True)
 
     # breakpoint()
 
@@ -136,7 +136,7 @@ def test_handle_timeout_exception(create_survey, capsys):
     from edsl.data.Cache import Cache
 
     cache = Cache()
-    results = survey.by(model).run(cache=cache)
+    results = survey.by(model).run(cache=cache, batch_mode = True)
     captured = capsys.readouterr()
     # assert (
     #     "WARNING: At least one question in the survey was not answered." in captured.out
