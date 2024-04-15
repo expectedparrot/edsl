@@ -76,7 +76,7 @@ class Model(metaclass=Meta):
         return sorted(list(RegisterLanguageModelsMeta.model_names_to_classes().keys()))
     
     @classmethod
-    def check_models(cls):
+    def check_models(cls, verbose = False):
         print("Checking all available models...\n")
         for model in cls.available():
             print(f"Now checking: {model}")
@@ -86,10 +86,13 @@ class Model(metaclass=Meta):
                 print(f"Error creating instance of {model}: {e}")
                 continue 
             try:
-                print(m.hello())
+                results = m.hello(verbose)
+                if verbose:
+                    print(f"Results from model call: {results}")
             except Exception as e:
                 print(f"Error calling 'hello' on {model}: {e}")
                 continue
+            print("OK!")
             print("\n")
 
 
