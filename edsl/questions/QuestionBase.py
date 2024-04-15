@@ -21,6 +21,7 @@ from edsl.Base import PersistenceMixin, RichPrintingMixin
 
 from edsl.questions.SimpleAskMixin import SimpleAskMixin
 
+
 class QuestionBase(
     PersistenceMixin,
     RichPrintingMixin,
@@ -41,6 +42,7 @@ class QuestionBase(
 
     def _repr_html_(self):
         from edsl.utilities.utilities import data_to_html
+
         return data_to_html(self.to_dict())
 
     @property
@@ -88,6 +90,11 @@ class QuestionBase(
         if not hasattr(self, "_model_instructions"):
             self._model_instructions = {}
         return self._model_instructions
+
+    @model_instructions.setter
+    def model_instructions(self, data: dict):
+        """Set the model-specific instructions for the question."""
+        self._model_instructions = data
 
     def add_model_instructions(
         self, *, instructions: str, model: Optional[str] = None
@@ -156,7 +163,7 @@ class QuestionBase(
         return candidate_data
 
     @classmethod
-    def from_dict(cls, data: dict) -> Type[Question]:
+    def from_dict(cls, data: dict) -> Type[QuestionBase]:
         """Construct a question object from a dictionary created by that question's `to_dict` method."""
         local_data = data.copy()
         try:
@@ -181,6 +188,13 @@ class QuestionBase(
             raise QuestionSerializationError(
                 f"No question registered with question_type {question_type}"
             )
+
+        if "model_instructions" in local_data:
+            model_instructions = local_data.pop("model_instructions")
+            new_q = question_class(**local_data)
+            new_q.model_instructions = model_instructions
+            return new_q
+
         return question_class(**local_data)
 
     ############################
@@ -264,10 +278,9 @@ class QuestionBase(
 
         s = Survey([self])
         return s.by(*args)
-    
+
     def human_readable(self):
-        """Print the question in a human readable format.
-        """
+        """Print the question in a human readable format."""
         lines = []
         lines.append(f"Question Type: {self.question_type}")
         lines.append(f"Question: {self.question_text}")
