@@ -126,6 +126,26 @@ class TestSurvey(unittest.TestCase):
         # with this skip logic, the second question should not be answered
         assert results[0].answer["own_shovel"] == None
 
+    def test_serialiation_with_memory(self):
+        from edsl.questions import QuestionYesNo, QuestionLinearScale
+        from edsl import Survey
+
+        q1 = QuestionYesNo(
+            question_name="enjoy",
+            question_text="Do you enjoy clothes shopping?",
+        )
+        q2 = QuestionLinearScale(
+            question_name="enjoy_scale",
+            question_text="On a scale of 0-10, how much do you typically enjoy clothes shopping?",
+            question_options=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+            option_labels={0: "Not at all", 10: "Very much"},
+        )
+        survey = Survey(questions=[q1, q2])
+        survey.add_targeted_memory(q2, q1)
+        d = survey.to_dict()
+        newsurvey = Survey.from_dict(d)
+        assert survey == newsurvey
+
 
 if __name__ == "__main__":
     unittest.main()

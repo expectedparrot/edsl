@@ -22,7 +22,7 @@ class Memory(UserList):
 
     def to_dict(self):
         """Create a dictionary representation of the Memory object."""
-        return {"prior_questions": self}
+        return {"prior_questions": self.data}
 
     @classmethod
     def from_dict(cls, data):
