@@ -12,7 +12,7 @@ from edsl.results import Results, Result
 from edsl.jobs.interviews.Interview import Interview
 from edsl.utilities.decorators import jupyter_nb_handler
 from edsl.jobs.Jobs import Jobs
-
+from edsl.utilities.utilities import is_notebook
 from edsl.jobs.runners.JobsRunnerStatusMixin import JobsRunnerStatusMixin
 
 # from edsl.jobs.runners.JobsRunHistory import JobsRunHistory
@@ -160,6 +160,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         stop_on_exception: bool = False,
         progress_bar=False,
         sidecar_model=None,
+        batch_mode = False
     ) -> "Coroutine":
         """Runs a collection of interviews, handling both async and sync contexts."""
         console = Console()
@@ -189,8 +190,6 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             if progress_bar
             else no_op_cm()
         )
-
-        # breakpoint()
 
         with cache as c:
             with progress_bar_context as live:
@@ -231,25 +230,26 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
 
         results = Results(survey=self.jobs.survey, data=self.results)
         results.task_history = TaskHistory(self.total_interviews)
-        if results.task_history.has_exceptions:
+
+        if results.task_history.has_exceptions and not batch_mode:
             print(
-                textwrap.dedent(
-                    f"""\
-            Exceptions were raised in the following interviews: {results.task_history.indices}
-
-            >>> results.task_history.show_exceptions()
-                              
-            If you want to plot by-task completion times, you can use 
-
-            >>> results.task_history.plot_completion_times()
-            
-            If you want to plot by-task status over time, you can use
-            
-            >>> results.task_history.plot()
-            
-            """
+                textwrap.dedent(f"""\Exceptions were raised in the following interviews: {results.task_history.indices}"""
                 )
             )
-        results.task_history.show_exceptions()
-
+            show = input("Print exceptions? (y/n): ")
+            if show == "y":
+                if is_notebook():
+                    print(results.task_history._repr_html_())
+                else:
+                    results.task_history.show_exceptions()
+                try:
+                    from edsl.jobs.interviews.ReportErrors import ReportErrors
+                    report = ReportErrors(results.task_history)
+                    upload = input("Ok to upload errors to us? We can potentially help! (y/n): ")
+                    if upload == "y":
+                        report.get_email()
+                        report.upload()
+                        print("Errors are reported here: ", report.url)
+                except Exception as e:
+                    pass 
         return results

@@ -117,16 +117,24 @@ class MemoryPlan(UserDict):
 
     def to_dict(self) -> dict:
         """Serialize the memory plan to a dictionary."""
+        newdata = {}
+        for question_name, memory in self.items():
+            newdata[question_name] = memory.to_dict()
+        
         return {
             "survey_question_names": self.survey_question_names,
             "survey_question_texts": self.question_texts,
-            "data": {k: v.to_dict() for k, v in self.items()},
+            "data": newdata,
         }
 
     @classmethod
     def from_dict(cls, data) -> "MemoryPlan":
         """Deserialize a memory plan from a dictionary."""
-        memory_plan = cls(survey=None, data=data["data"])
+        newdata = {}
+        for question_name, memory in data["data"].items():
+            newdata[question_name] = Memory.from_dict(memory)
+
+        memory_plan = cls(survey=None, data=newdata)
         memory_plan.survey_question_names = data["survey_question_names"]
         memory_plan.question_texts = data["survey_question_texts"]
         return memory_plan
