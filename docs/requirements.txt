@@ -1276,6 +1276,9 @@ nbconvert==7.16.3 ; python_full_version >= "3.9.1" and python_version < "3.12" \
 nbformat==5.10.3 ; python_full_version >= "3.9.1" and python_version < "3.12" \
     --hash=sha256:60ed5e910ef7c6264b87d644f276b1b49e24011930deef54605188ddeb211685 \
     --hash=sha256:d9476ca28676799af85385f409b49d95e199951477a159a576ef2a675151e5e8
+nbsphinx==0.9.3 ; python_full_version >= "3.9.1" and python_version < "3.12" \
+    --hash=sha256:6e805e9627f4a358bd5720d5cbf8bf48853989c79af557afd91a5f22e163029f \
+    --hash=sha256:ec339c8691b688f8676104a367a4b8cf3ea01fd089dc28d24dec22d563b11562
 nest-asyncio==1.6.0 ; python_full_version >= "3.9.1" and python_version < "3.12" \
     --hash=sha256:6f172d5449aca15afd6c646851f4e31e02c598d553a667e38cafa997cfec55fe \
     --hash=sha256:87af6efd6b5e897c81050477ef65c62e2b2f35d51703cae01aff2905b1852e1c
