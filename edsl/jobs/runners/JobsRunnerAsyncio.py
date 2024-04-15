@@ -229,22 +229,26 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                     live.update(generate_table())
 
         results = Results(survey=self.jobs.survey, data=self.results)
-        results.task_history = TaskHistory(self.total_interviews)
+        results.task_history = TaskHistory(self.total_interviews, include_traceback=False)
 
         if results.task_history.has_exceptions and not batch_mode:
             print(
-                textwrap.dedent(f"""\Exceptions were raised in the following interviews: {results.task_history.indices}"""
+                textwrap.dedent(f"""\Exceptions were raised in the following interviews: {results.task_history.indices}.
+                The object results.task_history contains the exceptions.                
+                """
                 )
             )
             show = input("Print exceptions? (y/n): ")
             if show == "y":
                 if is_notebook():
-                    print(results.task_history._repr_html_())
+                    from IPython.display import HTML, display
+                    display(HTML(results.task_history._repr_html_()))
                 else:
                     results.task_history.show_exceptions()
                 try:
                     from edsl.jobs.interviews.ReportErrors import ReportErrors
-                    report = ReportErrors(results.task_history)
+                    full_task_history = TaskHistory(self.total_interviews, include_traceback=True)
+                    report = ReportErrors(full_task_history)
                     upload = input("Ok to upload errors to us? We can potentially help! (y/n): ")
                     if upload == "y":
                         report.get_email()
