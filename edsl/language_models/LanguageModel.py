@@ -287,7 +287,9 @@ class LanguageModel(
 
     def hello(self):
         """Runs a simple test to check if the model is working."""
-        print(f"Current key is {self.api_token}")
+        token = self.api_token
+        masked = token[:min(8, len(token))] + "..."
+        print(f"Current key is {masked}")
         return self.execute_model_call(user_prompt = "Hello, model!", system_prompt = "You are a helpful agent.")
 
     def has_valid_api_key(self) -> bool:
