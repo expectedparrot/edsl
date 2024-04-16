@@ -51,7 +51,7 @@ class Question(metaclass=Meta):
         return instance
     
     @classmethod
-    def pull(cls, id):
+    def pull(cls, id:int) -> 'QuestionBase':
         """Pull the object from coop."""
         from edsl.coop import Coop
 
