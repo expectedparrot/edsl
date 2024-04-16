@@ -4,8 +4,9 @@ from typing import List
 
 
 class TaskHistory:
-    def __init__(self, interviews: List["Interview"]):
+    def __init__(self, interviews: List["Interview"], include_traceback = False):
         self.total_interviews = interviews
+        self.include_traceback = include_traceback
 
         self.exceptions = [
             i.exceptions
@@ -19,7 +20,7 @@ class TaskHistory:
     def to_dict(self):
         """Return the TaskHistory as a dictionary."""
         return {
-            "exceptions": [e.to_dict() for e in self.exceptions],
+            "exceptions": [e.to_dict(include_traceback = self.include_traceback) for e in self.exceptions],
             "indices": self.indices,
         }
 
@@ -31,7 +32,8 @@ class TaskHistory:
     def _repr_html_(self):
         """Return an HTML representation of the TaskHistory."""
         from edsl.utilities.utilities import data_to_html
-        return data_to_html([e.to_dict() for e in self.exceptions])
+        newdata = self.to_dict()['exceptions']
+        return data_to_html(newdata, replace_new_lines = True)
 
 
     def show_exceptions(self):
