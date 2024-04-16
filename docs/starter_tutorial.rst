@@ -158,20 +158,25 @@ We also use multiple LLMs to compare results for them:
     View the results in an interactive notebook <a href="https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Tutorial%20-%20Starter%20Tutorial-e080f5883d764931960d3920782baf34" target="_blank">here</a>.
 
 
-Exploring your results
+Exploring Your Results
 ~~~~~~~~~~~~~~~~~~~~~~
 EDSL comes with built-in methods for analyzing and visualizing your results. 
 For example, you can access results as a Pandas dataframe:
 
 .. code-block:: python
 
-    # Turn the Results object to a pandas dataframe
+    # Convert the Results object to a pandas dataframe
     results.to_pandas()
+
+
+Call the `columns` method to see a list of all components of results, and then `select` and `print` display them:
 
 .. code-block:: python
 
-    # The Results object has various attributes you can use
     results.columns
+
+
+Output for the results generated above:
 
 .. code-block:: python
 
@@ -200,12 +205,16 @@ For example, you can access results as a Pandas dataframe:
      'scenario.activity']
 
 
+The `Results` object also supports SQL-like queries:
+
 .. code-block:: python
 
-    # The Results object also supports SQL-like queries
+    # Execute an SQL-like query on the results
     results.sql("select * from self", shape="wide")
 
 .. raw:: html
 
     View the output and examples of other methods in interactive notebooks <a href="https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Tutorial%20-%20Starter%20Tutorial-e080f5883d764931960d3920782baf34" target="_blank">here</a>.<br><br>
-    Learn more about use cases and ways to conduct AI-powered research in the <a href="http://www.expectedparrot.com/getting-started#edsl-showcase" target="_blank">EDSL Showcase</a>.
+
+
+
