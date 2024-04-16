@@ -32,7 +32,7 @@ Surveys in EDSL can be executed with multiple agents and models concurrently, of
 
 Key components
 --------------
-These concepts are the basic classes of the package, and are described in detail in the following sections:
+These concepts form the basic classes of the package, and are described in detail in the following sections:
 
 :ref:`questions`: A `Question` serves as the foundational element for research design in EDSL. 
 It allows users to choose from various question types, such as free text or multiple choice, depending on the desired outcome of the results.
@@ -63,11 +63,13 @@ The following illustrations provide a visual representation of how these compone
    :align: center
 
 
+
 2. Parameterize questions with content or data:
 
 .. image:: static/survey_graphic2.png
    :alt: Optionally parameterize questions
    :align: center
+
 
 
 3. Create AI agents to answer the questions:
@@ -77,6 +79,7 @@ The following illustrations provide a visual representation of how these compone
    :align: center
 
 
+
 4. Select AI models to generate results:
 
 .. image:: static/survey_graphic4.png
@@ -84,15 +87,11 @@ The following illustrations provide a visual representation of how these compone
    :align: center
 
 
+
 Key operations
 --------------
-
-The running of a job--administering a survey to an agent and model--is the central operation in EDSL. 
-It is initiated by calling the `run()` method on a survey object after it has been configured with agents, models and scenarios with the `by()` method.
-This operation delivers each question to each of the agents, generates a response using each of the specified models, and returns a result object for each question/agent/model combination.
-This operation takes the following general form:
-
 *Running a Survey*
+
 The core operation within EDSL involves administering a survey to one or more agents using specific models. 
 This is executed by invoking the `run()` method on a `Survey` object, which must first be configured with any desired `Agent`, `Model`, and `Scenario` objects using the `by()` method. 
 This method chain ensures that each question within the survey is presented to each agent, responses are generated using each model, and a `Result` object is returned for every unique question-agent-model combination. 
@@ -107,6 +106,8 @@ The operation is typically structured as follows:
 Key features 
 ------------
 *Python Integration*
+
+
 EDSL leverages Python's robust ecosystem, seamlessly integrating with existing Python tools. 
 It is ideally used within a notebook environment, facilitating the execution and detailed analysis of research outcomes. 
 Key features include:
@@ -116,17 +117,6 @@ Key features include:
 *Model Agnosticism*: The framework's design allows for the application of diverse language models and agents to the same set of questions, enabling comparative analysis across different models.
 
 *Open Source Flexibility*: EDSL is open-source under a permissive license, offering the freedom to use, modify, and extend it for personal or commercial projects.
-
-
-Coop
-----
-*Coming soon!*
-
-EDSL is designed to facilitate sharing of research, code and results. 
-
- `Coop`_ is a platform for sharing and collaborating on research projects, and is built around the EDSL package.
-
- Coop provides automatic caching, versioning and sharing of code, data and results, and it designed to work with EDSL the way that GitHub works with git.
 
 
 Coop: Collaborative Research Platform
@@ -144,8 +134,6 @@ It functions similarly to how GitHub operates with Git, providing essential serv
 
 Use cases
 ---------
-*Versatile Application for Research*
-
 EDSL is adept at handling a broad spectrum of research tasks that benefit from the integration of AI agents and language models. 
 Potential applications include:
 
@@ -175,6 +163,9 @@ For example, to see an example of a multiple choice question, you can run:
    QuestionMultipleChoice.example()
 
 
+Please also see the notebooks listed here for help getting started and example code for applications and research ideas.
+
+
 Links
 -----
 .. raw:: html
@@ -183,12 +174,8 @@ Links
    <br><br>
    Get the latest updates at GitHub: <a href="https://github.com/expectedparrot/edsl" target="_blank">https://github.com/expectedparrot/edsl</a>
    <br><br>
-   Access sample code and research examples: 
-   <br>
-   * <a href="http://www.expectedparrot.com/getting-started#edsl-showcase" target="_blank">EDSL Showcase</a>
-   <br>
-   * <a href="https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Tutorial%20-%20Starter%20Tutorial-e080f5883d764931960d3920782baf34" target="_blank">Notebooks</a>
-   <br><br>
    Join our Discord to connect with other users! <a href="https://discord.com/invite/mxAYkjfy9m" target="_blank">https://discord.com/invite/mxAYkjfy9m</a>
    <br><br>
-   Contact us for support: info@expectedparrot.com
+   Contact us for support: *info@expectedparrot.com*
+
+
