@@ -56,7 +56,7 @@ class Cache:
 
     def keys(self):
         return list(self.data.keys())
-    
+
     def values(self):
         return list(self.data.values())
 
@@ -203,7 +203,7 @@ class Cache:
             data = {}
         else:
             data = SQLiteDict(db_path)
-        
+
         # if a file doesn't exist at jsonfile, throw an error
         if not os.path.exists(jsonlfile):
             raise FileNotFoundError(f"File {jsonlfile} not found")
@@ -272,9 +272,10 @@ class Cache:
     def to_dict(self) -> dict:
         """Return the Cache as a dictionary."""
         return {k: v.to_dict() for k, v in self.data.items()}
-    
+
     def _repr_html_(self):
         from edsl.utilities.utilities import data_to_html
+
         return data_to_html(self.to_dict())
 
     @classmethod
@@ -323,14 +324,14 @@ class Cache:
         return CacheEntry.fetch_input_example()
 
     def to_html(self):
-        #json_str = json.dumps(self.data, indent=4)
+        # json_str = json.dumps(self.data, indent=4)
         d = {k: v.to_dict() for k, v in self.data.items()}
         for key, value in d.items():
             for k, v in value.items():
                 if isinstance(v, dict):
                     d[key][k] = {kk: str(vv) for kk, vv in v.items()}
                 else:
-                    d[key][k] = str(v) 
+                    d[key][k] = str(v)
 
         json_str = json.dumps(d, indent=4)
 
@@ -353,21 +354,21 @@ class Cache:
         </html>
         """
         return html
-    
+
     def view(self) -> None:
         """View the Cache in a new browser tab."""
         import tempfile
         import webbrowser
+
         html_content = self.to_html()
         # Create a temporary file to hold the HTML
-        with tempfile.NamedTemporaryFile('w', delete=False, suffix='.html') as tmpfile:
+        with tempfile.NamedTemporaryFile("w", delete=False, suffix=".html") as tmpfile:
             tmpfile.write(html_content)
             # Get the path to the temporary file
             filepath = tmpfile.name
 
         # Open the HTML file in a new browser tab
-        webbrowser.open('file://' + filepath)
-
+        webbrowser.open("file://" + filepath)
 
     @classmethod
     def example(cls) -> Cache:

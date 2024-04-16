@@ -37,6 +37,7 @@ class Dataset(UserList, ResultsExportMixin):
     def _repr_html_(self) -> str:
         """Return an HTML representation of the dataset."""
         from edsl.utilities.utilities import data_to_html
+
         return data_to_html(self.data)
 
     def order_by(self, sort_key: str, reverse: bool = False) -> Dataset:

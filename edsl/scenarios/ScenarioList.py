@@ -72,7 +72,7 @@ class ScenarioList(Base, UserList):
         for i, s in enumerate(self):
             table.add_row(str(i), s.rich_print())
         return table
-    
+
     def __getitem__(self, key: Union[int, slice]) -> Any:
         """Return the item at the given index."""
         if isinstance(key, slice):
@@ -81,6 +81,7 @@ class ScenarioList(Base, UserList):
             return super().__getitem__(key)
         else:
             return self.to_dict()[key]
+
 
 if __name__ == "__main__":
     from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
