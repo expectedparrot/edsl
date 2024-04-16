@@ -121,7 +121,7 @@ class Base(RichPrintingMixin, PersistenceMixin, ABC, metaclass=RegisterSubclasse
     # @abstractmethod
     # def _repr_html_(self) -> str:
     #     raise NotImplementedError("This method is not implemented yet.")
-    
+
     # @abstractmethod
     # def _repr_(self) -> str:
     #     raise NotImplementedError("This method is not implemented yet.")
@@ -129,13 +129,14 @@ class Base(RichPrintingMixin, PersistenceMixin, ABC, metaclass=RegisterSubclasse
     def keys(self):
         """Return the keys of the object."""
         return self.to_dict().keys()
-    
+
     def values(self):
         """Return the values of the object."""
         return self.to_dict().values()
 
     def _repr_html_(self):
         from edsl.utilities.utilities import data_to_html
+
         return data_to_html(self.to_dict())
 
     @abstractmethod

@@ -58,8 +58,8 @@ class Model(metaclass=Meta):
 
         if model_name is None:
             model_name = cls.default_model
-            #print(f"No model name provided, using default model: {model_name}")
-        
+            # print(f"No model name provided, using default model: {model_name}")
+
         subclass = get_model_classes.get(model_name, None)
         if subclass is None:
             raise ValueError(
@@ -74,9 +74,9 @@ class Model(metaclass=Meta):
     @classmethod
     def available(cls):
         return sorted(list(RegisterLanguageModelsMeta.model_names_to_classes().keys()))
-    
+
     @classmethod
-    def check_models(cls, verbose = False):
+    def check_models(cls, verbose=False):
         print("Checking all available models...\n")
         for model in cls.available():
             print(f"Now checking: {model}")
@@ -84,7 +84,7 @@ class Model(metaclass=Meta):
                 m = cls(model)
             except Exception as e:
                 print(f"Error creating instance of {model}: {e}")
-                continue 
+                continue
             try:
                 results = m.hello(verbose)
                 if verbose:
