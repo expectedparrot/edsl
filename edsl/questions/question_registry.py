@@ -1,5 +1,6 @@
 """This module provides a factory class for creating question objects."""
 import textwrap
+from typing import Union
 
 from edsl.exceptions import QuestionSerializationError
 from edsl.exceptions import QuestionCreationValidationError
@@ -22,9 +23,7 @@ class Meta(type):
         
         Question Types:\n"""
         )
-        for question_type, question_class in cls.available(
-            show_class_names=True
-        ).items():
+        for question_type, question_class in cls.available(show_class_names=True).items():
             line_info = (
                 f"{question_type} ({question_class.__name__}): {question_class.__doc__}"
             )
@@ -59,7 +58,7 @@ class Question(metaclass=Meta):
         return c.get("question", id)
 
     @classmethod
-    def available(cls, show_class_names: bool = False):
+    def available(cls, show_class_names: bool = False) -> Union[list, dict]:
         """Return a list of available question types.
 
         :param show_class_names: If True, return a dictionary of question types to class names. If False, return a set of question types.
@@ -71,7 +70,7 @@ class Question(metaclass=Meta):
         ['budget', 'checkbox', 'extract', 'free_text', 'functional', 'likert_five', 'linear_scale', 'list', 'multiple_choice', 'numerical', 'rank', 'top_k', 'yes_no']
         """
         if show_class_names:
-            return sorted(RegisterQuestionsMeta.question_types_to_classes())
+            return RegisterQuestionsMeta.question_types_to_classes()
         else:
             return sorted(set(RegisterQuestionsMeta.question_types_to_classes().keys()))
 
