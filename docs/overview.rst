@@ -21,16 +21,10 @@ This approach enhances expressiveness, allowing users to achieve more with minim
 
 Key concepts
 ------------
-EDSL is built around the concept of a `Question` that is answered by an AI `Agent` using a large language `Model`, generating a `Result` that can be analyzed, visualized and shared, or used to inform other questions.
-Questions of various types (free text, multiple choice, etc.) can be combined into a `Survey` and run in parallel or according to specified rules or skip logic (e.g., answer the next question based on a response to a prior question).
-A question can also be parameterized with a `Scenario` that provides context or data as an input to the question when it is run, allowing us to administer multiple versions of a question at once.
-(This is a useful way to use EDSL to conduct data labeling tasks, where a question is "asked" about each piece of data to generate a labeled dataset. 
-See the :ref:`scenarios` section for more details on this.)
-Surveys can also be run with many agents and models at once to provide different kinds of responses.
-
 At its core, EDSL revolves around the notion of a `Question` answered by an AI `Agent` using a large language `Model`, producing a `Result`. 
 These results can be analyzed, visualized, shared, or further utilized to refine subsequent questions. 
 EDSL supports various question types, from free text to multiple choice, that can be grouped into a `Survey` that operates either in parallel or based on specific rules and conditional logic. 
+
 Questions may also be parameterized with a `Scenario` to provide contextual data or variations, facilitating the administration of multiple question versions simultaneously. 
 This functionality is particularly beneficial for data labeling tasks, where each dataset item is queried to generate annotated data. 
 
@@ -93,7 +87,7 @@ The following illustrations provide a visual representation of how these compone
 Key operations
 --------------
 
- running of a job--administering a survey to an agent and model--is the central operation in EDSL. 
+The running of a job--administering a survey to an agent and model--is the central operation in EDSL. 
 It is initiated by calling the `run()` method on a survey object after it has been configured with agents, models and scenarios with the `by()` method.
 This operation delivers each question to each of the agents, generates a response using each of the specified models, and returns a result object for each question/agent/model combination.
 This operation takes the following general form:
