@@ -92,9 +92,16 @@ It is initiated by calling the `run()` method on a survey object after it has be
 This operation delivers each question to each of the agents, generates a response using each of the specified models, and returns a result object for each question/agent/model combination.
 This operation takes the following general form:
 
+*Running a Survey*
+The core operation within EDSL involves administering a survey to one or more agents using specific models. 
+This is executed by invoking the `run()` method on a `Survey` object, which must first be configured with any desired `Agent`, `Model`, and `Scenario` objects using the `by()` method. 
+This method chain ensures that each question within the survey is presented to each agent, responses are generated using each model, and a `Result` object is returned for every unique question-agent-model combination. 
+
+The operation is typically structured as follows:
+
 .. code-block:: python
 
-    results = survey.by(scenarios).by(agents).by(models).run()
+   results = survey.by(scenarios).by(agents).by(models).run()
 
 
 Key features 
