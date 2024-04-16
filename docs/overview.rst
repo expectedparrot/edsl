@@ -106,11 +106,17 @@ The operation is typically structured as follows:
 
 Key features 
 ------------
-EDSL is python-based and plays nicely with existing python tooling.
-It is designed to be used in a notebook context, where you can easily run and analyze the results of your research.
-It has built-in methods for analysis and visualization of results, and can be readily extended with custom methods.
-It is also model agnostic, so you can easily present the same questions to different models and agents in parallel to compare results.
-It is open source with a permissive license, so you can use it for your own research or build on it for your own projects.
+*Python Integration*
+EDSL leverages Python's robust ecosystem, seamlessly integrating with existing Python tools. 
+It is ideally used within a notebook environment, facilitating the execution and detailed analysis of research outcomes. 
+Key features include:
+
+*Built-in Analytical Tools*: Methods for data analysis and result visualization are built into EDSL, with the capability to expand these tools with custom methods tailored to specific research needs.
+
+*Model Agnosticism*: The framework's design allows for the application of diverse language models and agents to the same set of questions, enabling comparative analysis across different models.
+
+*Open Source Flexibility*: EDSL is open-source under a permissive license, offering the freedom to use, modify, and extend it for personal or commercial projects.
+
 
 Coop
 ----
@@ -122,18 +128,35 @@ EDSL is designed to facilitate sharing of research, code and results.
 
  Coop provides automatic caching, versioning and sharing of code, data and results, and it designed to work with EDSL the way that GitHub works with git.
 
+
+Coop: Collaborative Research Platform
+-------------------------------------
+*(Coming soon!)*
+
+*Enhancing Research Collaboration*: EDSL promotes not only the creation of research but also the sharing of insights, code, and results. 
+`Coop` is a platform designed to enhance collaborative research efforts. 
+It functions similarly to how GitHub operates with Git, providing essential services such as:
+
+*Automatic Caching and Versioning*: Ensures that all aspects of your research are tracked and retrievable.
+
+*Effortless Sharing*: Facilitates the sharing of code, data, and results, streamlining collaborative efforts.
+
+
 Use cases
 ---------
-EDSL is designed for a wide range of research tasks that involve--or *could* benefit from or be extended by the use of--AI agents and language models, including:
+*Versatile Application for Research*
 
-* Simulating surveys and experiments
-* Data labeling and classification
-* Data augmentation
-* Synthetic data generation
+EDSL is adept at handling a broad spectrum of research tasks that benefit from the integration of AI agents and language models. 
+Potential applications include:
 
-.. raw:: html
+*Survey Simulation and Experimental Research*: Create and simulate detailed surveys and experiments.
 
-   Some ideas for using EDSL are explored in our <a href="https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Tutorial%20-%20Starter%20Tutorial-e080f5883d764931960d3920782baf34" target="_blank">example interactive notebooks</a>.
+*Data Labeling and Classification*: Efficiently label and classify large datasets.
+
+*Data Augmentation*: Enhance datasets by generating synthetic, yet realistic, data additions.
+
+*Synthetic Data Generation*: Produce completely new data sets that mimic real-world data for training and testing models.
+
 
 Getting help 
 ------------
