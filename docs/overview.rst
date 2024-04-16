@@ -4,7 +4,7 @@ Overview
 What is EDSL? 
 -------------
 
- *Expected Parrot Domain-Specific Language* (EDSL) is an open-source Python package for conducting AI-powered research. 
+*Expected Parrot Domain-Specific Language* (EDSL) is an open-source Python package for conducting AI-powered research. 
 EDSL simplifies the creation and execution of surveys, experiments, data labeling tasks, and other research activities involving large numbers of AI agents and language models. 
 Its primary goal is to facilitate complex AI-based research tasks with ease and efficiency.
 
@@ -61,17 +61,20 @@ These results can be analyzed, visualized, shared, and utilized to refine furthe
 
 The following illustrations provide a visual representation of how these components interact:
 
+
 1. Construct questions of various types:
 
 .. image:: static/survey_graphic1.png
    :alt: Construct questions
    :align: center
 
-2. Optionally parameterize questions with content or data:
+
+2. Parameterize questions with content or data:
 
 .. image:: static/survey_graphic2.png
    :alt: Optionally parameterize questions
    :align: center
+
 
 3. Create AI agents to answer the questions:
 
@@ -79,7 +82,8 @@ The following illustrations provide a visual representation of how these compone
    :alt: Create AI agents to answer the questions
    :align: center
 
-4. Select AI models to simulate results:
+
+4. Select AI models to generate results:
 
 .. image:: static/survey_graphic4.png
    :alt: Select AI models to simulate results
