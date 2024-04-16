@@ -94,20 +94,21 @@ class CacheEntry:
             "iteration": self.iteration,
             "timestamp": self.timestamp,
         }
-    
+
     def _repr_html_(self) -> str:
         """
         Returns an HTML representation of a CacheEntry.
         """
         from edsl.utilities.utilities import data_to_html
+
         return data_to_html(self.to_dict())
-    
+
     def keys(self):
         return list(self.to_dict().keys())
-    
+
     def values(self):
         return list(self.to_dict().values())
-    
+
     def __getitem__(self, key):
         """
         Returns the value of a field.

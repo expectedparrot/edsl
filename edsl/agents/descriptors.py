@@ -36,9 +36,11 @@ class TraitsDescriptor:
                     Agent(name="my_agent", traits={"trait1": "value1", "trait2": "value2"})
                     """
                 )
-            
+
             if not is_valid_variable_name(key):
-                raise AgentTraitKeyError("Trait keys must be valid Python identifiers (must be alphanumeric, cannot start with a number and must use underscores instead of spaces).")
+                raise AgentTraitKeyError(
+                    "Trait keys must be valid Python identifiers (must be alphanumeric, cannot start with a number and must use underscores instead of spaces)."
+                )
 
         instance.__dict__[self.name] = traits_dict
 

@@ -23,8 +23,6 @@ from edsl.surveys.DAG import DAG
 from edsl.utilities import is_notebook
 
 
-
-
 @dataclass
 class SurveyMetaData:
     """Metadata for a survey. This is a dataclass that holds the name, description, and version of a survey."""
@@ -209,7 +207,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         :param prior_questions: The questions that the agent should remember when answering the focal question.
 
         Example:
-        
+
         >>> s = Survey.example()
         >>> s.add_memory_collection("q2", ["q0", "q1"])
         """
@@ -226,12 +224,16 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
             focal_question=focal_question_name, prior_questions=prior_question_names
         )
 
-    def add_stop_rule(self, question: Union[QuestionBase, str], expression: str) -> Survey:
+    def add_stop_rule(
+        self, question: Union[QuestionBase, str], expression: str
+    ) -> Survey:
         """Add a rule that stops the survey."""
         self.add_rule(question, expression, EndOfSurvey)
         return self
 
-    def _get_question_index(self, q:Union[QuestionBase, str, EndOfSurvey.__class__]) -> int:
+    def _get_question_index(
+        self, q: Union[QuestionBase, str, EndOfSurvey.__class__]
+    ) -> int:
         """Return the index of the question or EndOfSurvey object.
 
         It can handle it if the user passes in the question name, the question object, or the EndOfSurvey object.
@@ -457,11 +459,12 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         questions_string = ", ".join([repr(q) for q in self._questions])
         question_names_string = ", ".join([repr(name) for name in self.question_names])
         return f"Survey(questions=[{questions_string}], name={repr(self.name)})"
-        
+
     def _repr_html_(self) -> str:
         from edsl.utilities.utilities import data_to_html
+
         return data_to_html(self.to_dict())
-  
+
     def show_rules(self) -> None:
         """Print out the rules in the survey."""
         self.rule_collection.show_rules()

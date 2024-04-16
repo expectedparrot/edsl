@@ -324,7 +324,7 @@ def print_list_of_dicts_as_html_table(
     else:
         # view_html(html)
         if notebook:
-            #ipython_diplay(HTML(html))
+            # ipython_diplay(HTML(html))
             return html
         else:
             print(html)

@@ -33,6 +33,7 @@ class AgentNameError(AgentErrors):
 class AgentTraitKeyError(AgentErrors):
     pass
 
+
 class FailedTaskException(Exception):
     def __init__(self, message, agent_response_dict):
         super().__init__(message)

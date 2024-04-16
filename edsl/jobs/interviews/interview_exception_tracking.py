@@ -25,18 +25,21 @@ class InterviewExceptionCollection(UserDict):
             self.data[question_name] = []
         self.data[question_name].append(entry)
 
-    def to_dict(self, include_traceback = False) -> dict:
+    def to_dict(self, include_traceback=False) -> dict:
         """Return the collection of exceptions as a dictionary."""
-        newdata = {k:[e.to_dict() for e in v] for k, v in self.data.items()}
+        newdata = {k: [e.to_dict() for e in v] for k, v in self.data.items()}
         if not include_traceback:
             for question in newdata:
                 for exception in newdata[question]:
-                    exception["traceback"] = "Traceback removed. Set include_traceback=True to include."
+                    exception[
+                        "traceback"
+                    ] = "Traceback removed. Set include_traceback=True to include."
         return newdata
 
     def _repr_html_(self) -> str:
         from edsl.utilities.utilities import data_to_html
-        return data_to_html(self.to_dict(include_traceback = True))
+
+        return data_to_html(self.to_dict(include_traceback=True))
 
     def ascii_table(self, traceback: bool = False) -> None:
         headers = ["Question name", "Exception", "Time", "Traceback"]
