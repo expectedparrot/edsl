@@ -69,7 +69,7 @@ class Coop:
         Send a request to the server and return the response.
         """
         url = f"{self.url}/{uri}"
-
+        print(url)
         try:
             if method.upper() in ["GET", "DELETE"]:
                 response = requests.request(
@@ -188,12 +188,17 @@ class Coop:
         :param edsl_object: the EDSL object to be sent.
         :param public: whether the object should be public (defaults to False).
         """
+
+        def handle_none(value):
+            if value is None:
+                return "null"
+
         uri = self._edsl_object_to_uri(edsl_object)
         response = self._send_server_request(
             uri=f"api/v0/{uri}",
             method="POST",
             payload={
-                "json_string": json.dumps(edsl_object.to_dict()),
+                "json_string": json.dumps(edsl_object.to_dict(), default=handle_none),
                 "public": public,
             },
         )
@@ -207,7 +212,7 @@ class Coop:
     ):
         """
         Create an EDSL object in the Coop server.
-        
+
         :param object: the EDSL object to be sent.
         :param public: whether the object should be public (defaults to False)
         """
