@@ -159,9 +159,11 @@ class ResultsExportMixin:
             )
         elif format == "html":
             notebook = is_notebook()
-            print_list_of_dicts_as_html_table(
+            html = print_list_of_dicts_as_html_table(
                 new_data, filename=None, interactive=interactive, notebook=notebook
             )
+            #print(html)
+            display(HTML(html))
         elif format == "markdown":
             print_list_of_dicts_as_markdown_table(new_data, filename=filename)
 
