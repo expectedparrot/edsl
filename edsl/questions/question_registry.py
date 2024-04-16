@@ -49,6 +49,14 @@ class Question(metaclass=Meta):
         instance = object.__new__(subclass)
         instance.__init__(*args, **kwargs)
         return instance
+    
+    @classmethod
+    def pull(cls, id):
+        """Pull the object from coop."""
+        from edsl.coop import Coop
+
+        c = Coop()
+        return c.get("question", id)
 
     @classmethod
     def available(cls, show_class_names: bool = False):
@@ -97,5 +105,7 @@ question_purpose = {
 if __name__ == "__main__":
     print(Question.available())
 
-    q = Question("free_text", question_text="How are you doing?", question_name="test")
-    results = q.run()
+    #q = Question("free_text", question_text="How are you doing?", question_name="test")
+    #results = q.run()
+
+    q = Question.pull(id = 76)
