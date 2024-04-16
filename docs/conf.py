@@ -5,8 +5,8 @@
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
-import sys
 import os
+import sys
 
 import sphinx
 import sphinx_rtd_theme
@@ -42,35 +42,6 @@ def linkcode_resolve(domain, info):
     return f"https://github.com/{username}/{projectname}/blob/main/{filename}.py"
 
 
-# def linkcode_resolve(domain, info):
-#     if domain != 'py':
-#         return None
-#     if not info['module']:
-#         return None
-
-#     module_name = info['module']
-#     full_name = info['fullname']
-
-#     obj = sphinx.ext.linkcode.import_object(module_name, full_name)
-#     if obj is None:
-#         return None
-
-#     try:
-#         file = inspect.getsourcefile(obj)
-#         _, lineno = inspect.getsourcelines(obj)
-#     except Exception:
-#         file = None
-#         lineno = None
-
-#     if file and lineno:
-#         rel_file = os.path.relpath(file, start=os.path.dirname(yourpackage.__file__))
-#         filename = rel_file.replace(os.path.sep, '/')
-#         return f"https://github.com/{username}/{projectname}/blob/main/{filename}#L{lineno}"
-
-#     filename = module_name.replace('.', '/')
-#     return f"https://github.com/{username}/{projectname}/blob/main/{filename}.py"
-
-
 def print_directory_tree(startpath):
     for root, dirs, files in os.walk(startpath):
         level = root.replace(startpath, "").count(os.sep)
@@ -88,9 +59,15 @@ print_directory_tree(os.getcwd())
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 # extensions = []
-extensions = ["sphinx.ext.autodoc", "sphinx_copybutton", "sphinx.ext.linkcode", "nbsphinx"]
+extensions = [
+    "sphinx.ext.autodoc",
+    "sphinx_copybutton",
+    "sphinx.ext.linkcode",
+    "nbsphinx",
+]
 nbsphinx_notebooks = ["../examples/*.ipynb"]
 import glob
+
 nbsphinx_notebooks = glob.glob("notebooks/*.ipynb")
 
 # templates_path = ["_templates"]
@@ -99,10 +76,10 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = "sphinx_rtd_theme" # "alabaster"
+html_theme = "sphinx_rtd_theme"  # "alabaster"
 # html_static_path = ["_static"]
 html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
 html_theme_options = {
-    'fixed_sidebar': True,
+    "fixed_sidebar": True,
 }
