@@ -28,7 +28,6 @@ def create_deep_infra_model(model_name, url, model_class_name) -> LanguageModel:
             "use_cache": True,
         }
 
-
         async def async_execute_model_call(
             self, user_prompt: str, system_prompt: str = ""
         ) -> dict[str, Any]:

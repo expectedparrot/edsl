@@ -96,7 +96,9 @@ class PromptConstructorMixin:
         """Construct the user prompt for the LLM call."""
         user_prompt = self._get_question_instructions()
         if self.memory_plan is not None:
-            user_prompt += self.create_memory_prompt(self.question.question_name).render(self.scenario)
+            user_prompt += self.create_memory_prompt(
+                self.question.question_name
+            ).render(self.scenario)
         return user_prompt
 
     def get_prompts(self) -> Dict[str, Prompt]:

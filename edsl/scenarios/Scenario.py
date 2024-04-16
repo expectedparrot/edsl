@@ -83,8 +83,7 @@ class Scenario(Base, UserDict):
         {'food': 'wood chips'}
         """
         return self.data
-    
-    
+
     def __repr__(self):
         return "Scenario(" + repr(self.data) + ")"
 

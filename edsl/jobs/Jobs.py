@@ -198,8 +198,8 @@ class Jobs(Base):
         cache: Optional[Cache] = None,
         remote: bool = False,
         check_api_keys=True,
-        sidecar_model = None,
-        batch_mode = False
+        sidecar_model=None,
+        batch_mode=False,
     ) -> Union[Results, ResultsAPI, None]:
         """
         Runs the Job: conducts Interviews and returns their results.
@@ -230,8 +230,8 @@ class Jobs(Base):
                 progress_bar=progress_bar,
                 cache=cache,
                 stop_on_exception=stop_on_exception,
-                sidecar_model = sidecar_model,
-                batch_mode = batch_mode
+                sidecar_model=sidecar_model,
+                batch_mode=batch_mode,
             )
         else:
             expected_parrot_api_key = os.getenv("EXPECTED_PARROT_API_KEY")

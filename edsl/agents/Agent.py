@@ -293,7 +293,6 @@ class Agent(Base):
         if cache is None:
             cache = Cache()
 
-
         if debug:
             # use the question's _simulate_answer method
             # breakpoint()
@@ -312,6 +311,7 @@ class Agent(Base):
 
         if sidecar_model is not None:
             from edsl.agents.Invigilator import InvigilatorSidecar
+
             invigilator_class = InvigilatorSidecar
 
         invigilator = invigilator_class(
@@ -381,9 +381,10 @@ class Agent(Base):
             if k != "question_type"
         ]
         return f"{class_name}({', '.join(items)})"
-    
+
     def _repr_html_(self):
         from edsl.utilities.utilities import data_to_html
+
         return data_to_html(self.to_dict())
 
     ################

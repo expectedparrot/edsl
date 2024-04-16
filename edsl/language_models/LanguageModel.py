@@ -263,7 +263,7 @@ class LanguageModel(
             warnings.warn(
                 "The use_cache parameter is deprecated. Use the Cache class instead."
             )
- 
+
         if skip_api_key_check := kwargs.get("skip_api_key_check", False):
             # Skip the API key check. Sometimes this is useful for testing.
             self.api_token = None
@@ -271,7 +271,7 @@ class LanguageModel(
         if not hasattr(self, "api_token"):
             key_name = service_to_api_keyname.get(self._inference_service_, "NOT FOUND")
             self.api_token = os.getenv(key_name)
-            if self.api_token is None and self._inference_service_ != 'test':
+            if self.api_token is None and self._inference_service_ != "test":
                 raise MissingAPIKeyError(
                     f"""The key for service: `{self._inference_service_}` is not set.
                     Need a key with name {key_name} in your .env file.
@@ -283,15 +283,18 @@ class LanguageModel(
 
     def _repr_html_(self):
         from edsl.utilities.utilities import data_to_html
+
         return data_to_html(self.to_dict())
 
-    def hello(self, verbose = True):
+    def hello(self, verbose=True):
         """Runs a simple test to check if the model is working."""
         token = self.api_token
-        masked = token[:min(8, len(token))] + "..."
+        masked = token[: min(8, len(token))] + "..."
         if verbose:
             print(f"Current key is {masked}")
-        return self.execute_model_call(user_prompt = "Hello, model!", system_prompt = "You are a helpful agent.")
+        return self.execute_model_call(
+            user_prompt="Hello, model!", system_prompt="You are a helpful agent."
+        )
 
     def has_valid_api_key(self) -> bool:
         """Check if the model has a valid API key.
@@ -466,11 +469,18 @@ class LanguageModel(
 
     get_raw_response = sync_wrapper(async_get_raw_response)
 
-    def simple_ask(self, question: QuestionBase, system_prompt = "You are a helpful agent pretending to be a human.", top_logprobs = 2):
+    def simple_ask(
+        self,
+        question: QuestionBase,
+        system_prompt="You are a helpful agent pretending to be a human.",
+        top_logprobs=2,
+    ):
         """Ask a question and return the response."""
         self.logprobs = True
         self.top_logprobs = top_logprobs
-        return self.execute_model_call(user_prompt=question.human_readable(), system_prompt=system_prompt)
+        return self.execute_model_call(
+            user_prompt=question.human_readable(), system_prompt=system_prompt
+        )
 
     async def async_get_response(
         self, user_prompt: str, system_prompt: str, cache: Cache, iteration: int = 1

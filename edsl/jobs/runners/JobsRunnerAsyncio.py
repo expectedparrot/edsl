@@ -61,7 +61,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         n: int = 1,
         debug: bool = False,
         stop_on_exception: bool = False,
-        sidecar_model = None,
+        sidecar_model=None,
     ) -> AsyncGenerator[Result, None]:
         """Creates the tasks, runs them asynchronously, and returns the results as a Results object.
 
@@ -78,7 +78,10 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
 
         for interview in self.total_interviews:
             interviewing_task = self._interview_task(
-                interview=interview, debug=debug, stop_on_exception=stop_on_exception, sidecar_model=sidecar_model
+                interview=interview,
+                debug=debug,
+                stop_on_exception=stop_on_exception,
+                sidecar_model=sidecar_model,
             )
             tasks.append(asyncio.create_task(interviewing_task))
 
@@ -87,7 +90,12 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             yield result
 
     async def _interview_task(
-        self, *, interview: Interview, debug: bool, stop_on_exception: bool = False, sidecar_model = None
+        self,
+        *,
+        interview: Interview,
+        debug: bool,
+        stop_on_exception: bool = False,
+        sidecar_model=None,
     ) -> Result:
         """Conducts an interview and returns the result.
 
@@ -160,7 +168,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         stop_on_exception: bool = False,
         progress_bar=False,
         sidecar_model=None,
-        batch_mode = False
+        batch_mode=False,
     ) -> "Coroutine":
         """Runs a collection of interviews, handling both async and sync contexts."""
         console = Console()
@@ -205,8 +213,11 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                 async def process_results():
                     """Processes results from interviews."""
                     async for result in self.run_async(
-                        n=n, debug=debug, stop_on_exception=stop_on_exception, cache=c, 
-                        sidecar_model=sidecar_model
+                        n=n,
+                        debug=debug,
+                        stop_on_exception=stop_on_exception,
+                        cache=c,
+                        sidecar_model=sidecar_model,
                     ):
                         self.results.append(result)
                         live.update(generate_table())
@@ -229,11 +240,14 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                     live.update(generate_table())
 
         results = Results(survey=self.jobs.survey, data=self.results)
-        results.task_history = TaskHistory(self.total_interviews, include_traceback=False)
+        results.task_history = TaskHistory(
+            self.total_interviews, include_traceback=False
+        )
 
         if results.task_history.has_exceptions and not batch_mode:
             print(
-                textwrap.dedent(f"""\Exceptions were raised in the following interviews: {results.task_history.indices}.
+                textwrap.dedent(
+                    f"""\Exceptions were raised in the following interviews: {results.task_history.indices}.
                 The object results.task_history contains the exceptions.                
                 """
                 )
@@ -242,18 +256,24 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             if show == "y":
                 if is_notebook():
                     from IPython.display import HTML, display
+
                     display(HTML(results.task_history._repr_html_()))
                 else:
                     results.task_history.show_exceptions()
                 try:
                     from edsl.jobs.interviews.ReportErrors import ReportErrors
-                    full_task_history = TaskHistory(self.total_interviews, include_traceback=True)
+
+                    full_task_history = TaskHistory(
+                        self.total_interviews, include_traceback=True
+                    )
                     report = ReportErrors(full_task_history)
-                    upload = input("Ok to upload errors to us? We can potentially help! (y/n): ")
+                    upload = input(
+                        "Ok to upload errors to us? We can potentially help! (y/n): "
+                    )
                     if upload == "y":
                         report.get_email()
                         report.upload()
                         print("Errors are reported here: ", report.url)
                 except Exception as e:
-                    pass 
+                    pass
         return results
