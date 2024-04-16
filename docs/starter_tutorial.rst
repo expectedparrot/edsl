@@ -12,6 +12,7 @@ If you encounter any issues or have questions, feel free to reach out via email 
 
 
 
+
 Part 1: Using API Keys for LLMs
 -------------------------------
 Large language models (LLMs) are at the heart of AI-powered research. 
@@ -158,6 +159,8 @@ We also use multiple LLMs to compare results for them:
     View the results in an interactive notebook <a href="https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Tutorial%20-%20Starter%20Tutorial-e080f5883d764931960d3920782baf34" target="_blank">here</a>.
 
 
+
+
 Exploring Your Results
 ~~~~~~~~~~~~~~~~~~~~~~
 EDSL comes with built-in methods for analyzing and visualizing your results. 
@@ -169,7 +172,7 @@ For example, you can access results as a Pandas dataframe:
     results.to_pandas()
 
 
-Call the `columns` method to see a list of all components of results, and then `select` and `print` display them:
+The `columns` method will display a list of all the components of your results, which you can then `select` and `print` to show them:
 
 .. code-block:: python
 
