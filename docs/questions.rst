@@ -19,14 +19,14 @@ See examples of each type below for details on formatting.
 
 Constructing a question
 -----------------------
-Select and import a question type based on the desired output. 
+We start by importing a question type based on the desired output. 
 For example, to return a single option selected from a given list we can create a multiple choice question:
 
 .. code-block:: python
 
    from edsl import QuestionMultipleChoice
 
-Construct a question in the question type template:
+Next we construct a question in the question type template:
 
 .. code-block:: python
 
@@ -36,12 +36,23 @@ Construct a question in the question type template:
       question_options = ["Red", "Yellow", "Blue"] # must be a list of strings
    )
 
-You can also use the `example()` method to show an example of any question type:
+We can also use the `example()` method to show an example of any question type:
 
 .. code-block:: python
 
    QuestionMultipleChoice.example()
 
+
+Simulating a response 
+---------------------
+We generate a response to a question by delivering it to a language model.
+In the simplest case, we can administer a question to the default LLM (GPT 4) by appending the `run()` method directly to the question:
+
+.. code-block:: python
+
+   results = q.run()
+
+This generates a `Results` object that contains the response to the question, and information about the model used.
 
 Parameterizing a question
 -------------------------
