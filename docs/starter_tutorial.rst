@@ -69,12 +69,12 @@ Never share them publicly or upload files containing your API keys to public rep
 
 Part 2: Conducting AI-powered research
 --------------------------------------
-With your API keys in place, you're now ready for AI-powered research!
-In this part we show how to create and run a simple survey in just a few lines of code, and then create a proper survey with only slightly more work.
+With your API keys in place, we can move on to conducting AI-powered research!
+In the steps below we show how to create and run a simple survey, and then explore a more detailed survey setup with AI agents and models.
 
 Quickstart Example
 ~~~~~~~~~~~~~~~~~~
-Here we create a multiple choice question, prompt an AI agent answer it, and inspect the results:
+Here we create a basic multiple choice question, administer it to a language model, and examine the response:
 
 .. code-block:: python 
 
@@ -94,6 +94,9 @@ Here we create a multiple choice question, prompt an AI agent answer it, and ins
     # Inspect the results
     results.select("example_question").print()
 
+
+Output:
+
 .. code-block:: text
 
     ┏━━━━━━━━━━━━━━━━━━━┓
@@ -106,16 +109,17 @@ Here we create a multiple choice question, prompt an AI agent answer it, and ins
 
 A Proper Survey
 ~~~~~~~~~~~~~~~
-Here we create a more complex survey where we ask AI agents how much they enjoy different activities. 
-We also create agents with different personas, and use different LLMs to generate the results:
+Here we create a survey of questions and personas for AI agents that we prompt to answer the questions.
+Note that we parameterize the questions in order to create different versions of the question texts.
+We also use multiple LLMs to compare results for them:
 
 .. code-block:: python
 
-    # Import other desired question types - see examples of all types in the :ref:`questions` section.
+    # Select desired question types and survey components
     from edsl.questions import QuestionLinearScale, QuestionFreeText
     from edsl import Scenario, Survey, Agent, Model
     
-    # Construct questions - note that we use a parameter `activity` in order to create multiple scenarios of the question texts
+    # Construct questions that take parameters
     q1 = QuestionLinearScale(
         question_name = "q1",
         question_text = "On a scale from 0 to 5, how much do you enjoy {{ activity }}?",
@@ -127,25 +131,27 @@ We also create agents with different personas, and use different LLMs to generat
         question_text = "Describe your habits with respect to {{ activity }}."
     )
     
-    # Add values for the scenarios
+    # Add values for the question scenarios
     activities = ["exercising", "reading", "cooking"]
     scenarios = [Scenario({"activity": a}) for a in activities]
     
     # Combine the questions in a survey
     survey = Survey(questions = [q1, q2])
     
-    # Create personas for agents that will respond to the survey
+    # Create personas for AI agents to use with the survey
     personas = ["You are an athlete", "You are a student", "You are a chef"]
     agents = [Agent(traits = {"persona": p}) for p in personas]
     
     # Select language models
+    # To see all available models: Model.available()
     models = [Model("gpt-3.5-turbo"), Model("gpt-4-1106-preview")]
     
-    # Administer the survey 
+    # Run the survey with the scenarios, agents and models
     results = survey.by(scenarios).by(agents).by(models).run()
     
-    # Select components of the results to view
+    # Select components of the results to review
     results.select("model.model", "scenario.activity", "agent.persona", "answer.*").print()
+
 
 .. raw:: html
 
