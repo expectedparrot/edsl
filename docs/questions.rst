@@ -118,7 +118,7 @@ This allows us to easily create and administer multiple versions of a question a
 
 *Key steps*:
 
-* Create a question text that takes a parameter in double braces:
+Create a question text that takes a parameter in double braces:
 
 .. code-block:: python
 
@@ -129,7 +129,7 @@ This allows us to easily create and administer multiple versions of a question a
       question_text = "What is your favorite {{ item }}?",
    )
 
-* Create a dictionary for each value that will replace the parameter and store them in `Scenario` objects:
+Create a dictionary for each value that will replace the parameter and store them in `Scenario` objects:
 
 .. code-block:: python
 
@@ -137,7 +137,7 @@ This allows us to easily create and administer multiple versions of a question a
 
    scenarios = [Scenario({"item": item}) for item in ["color", "food"]]
 
-* Pass the scenario or scenarios to the question with the `by` method when the question is run. 
+Pass the scenario or scenarios to the question with the `by` method when the question is run. 
 If multiple scenarios are to be used, they are passed as a list:
 
 .. code-block:: python 
@@ -174,9 +174,13 @@ For example, if we want a question answered by an AI agent representing a studen
 
 To generate a response for the agent, we pass it to the `by` method when we run the question:
 
+.. code-block:: python 
+
    results = q.by(agent).run()
 
 If we have multiple agents, we pass them as a list:
+
+.. code-block:: python 
 
    results = q.by(agents).run()
 
@@ -185,8 +189,8 @@ The `Results` will contain a `Result` for each agent that answered the question.
 
 Specifying language models
 --------------------------
-In the above examples we did not specify a language model for the question and survey, so the default model (GPT 4) was used.
-Similar to the way that we optionally passed scenarios to the question, we can also use the `by` method to specify one or more LLMs to use in generating results.
+In the above examples we did not specify a language model for the question or survey, so the default model (GPT 4) was used.
+Similar to the way that we optionally passed scenarios to a question and added AI agents, we can also use the `by` method to specify one or more LLMs to use in generating results.
 This is done by creating `Model` objects for desired models and optionally specifying model parameters, such as temperature.
 
 To check available models:
@@ -242,7 +246,7 @@ Note that multiple scenarios, agents and models are always passed as lists in th
 
 
 
-Learn more about specifying question scenarios, agents and language models in their respective sections:
+Learn more about specifying question scenarios, agents and language models and their parameters in the respective sections:
 
 * :ref:`scenarios`
 * :ref:`agents`
@@ -259,8 +263,12 @@ Learn more about specifying question scenarios, agents and language models in th
 ..    :special-members: __init__
 ..    :exclude-members: question_name, question_text, question_type, short_names_dict, main
 
+
+Question type classes
+---------------------
+
 QuestionMultipleChoice class
-----------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 A subclass of the `Question` class for creating multiple choice questions where the response is a single option selected from a list of options.
 It specially requires a `question_options` list of strings for the options.
 Example usage:
@@ -291,7 +299,7 @@ An example can also created using the `example` method:
    
 
 QuestionCheckBox class
-----------------------
+^^^^^^^^^^^^^^^^^^^^^^
 A subclass of the `Question` class for creating questions where the response is a list of one or more of the given options.
 It specially requires a `question_options` list of strings for the options.
 The minimum number of options that *must* be selected and the maximum number that *may* be selected can be specified when creating the question (parameters `min_selections` and `max_selections`). 
@@ -327,7 +335,7 @@ An example can also be created using the `example` method:
 
 
 QuestionFreeText class
-----------------------
+^^^^^^^^^^^^^^^^^^^^^^
 A subclass of the `Question` class for creating free response questions.
 There are no specially required fields (only `question_name` and `question_text`).
 The response is a single string of text.
@@ -358,7 +366,7 @@ An example can also be created using the `example` method:
 
 
 QuestionLinearScale class
--------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^
 A subclass of the `QuestionMultipleChoice` class for creating linear scale questions.
 It requires a `question_options` list of integers for the scale.
 The `option_labels` parameter can be used to specify labels for the scale options.
@@ -392,7 +400,7 @@ An example can also be created using the `example` method:
 
 
 QuestionNumerical class
--------------------------
+^^^^^^^^^^^^^^^^^^^^^^^
 A subclass of the `Question` class for creating questions where the response is a numerical value.
 The minimum and maximum values of the answer can be specified using the `min_value` and `max_value` parameters.
 Example usage:
@@ -424,7 +432,7 @@ An example can also be created using the `example` method:
 
 
 QuestionLikertFive class
--------------------
+^^^^^^^^^^^^^^^^^^^^^^^^
 A subclass of the `QuestionMultipleChoice` class for creating questions where the answer is a response to a given statement on a 5-point Likert scale.
 (The scale does *not* need to be added as a parameter.)
 Example usage:
@@ -454,7 +462,7 @@ An example can also be created using the `example` method:
 
 
 QuestionRank class
--------------------
+^^^^^^^^^^^^^^^^^^
 A subclass of the `Question` class for creating questions where the response is a ranked list of options.
 It specially requires a `question_options` list of strings for the options.
 The number of options that *must* be selected can be optionally specified when creating the question. 
@@ -490,7 +498,7 @@ Alternatively, `QuestionTopK` can be used to ask the respondent to select a spec
 
 
 QuestionTopK class
--------------------
+^^^^^^^^^^^^^^^^^^
 A subclass of the `QuestionMultipleChoice` class for creating questions where the response is a list of ranked items.
 It specially requires a `question_options` list of strings for the options and the number of options that must be selected (`num_selections`).
 Example usage:
@@ -522,7 +530,7 @@ An example can also be created using the `example` method:
 
 
 QuestionYesNo class
--------------------
+^^^^^^^^^^^^^^^^^^^
 A subclass of the `QuestionMultipleChoice` class for creating multiple choice questions where the answer options are already specified: ['Yes', 'No'].
 Example usage:
 
@@ -551,7 +559,7 @@ An example can also be created using the `example` method:
 
 
 QuestionList class
-------------------
+^^^^^^^^^^^^^^^^^^
 A subclass of the `Question` class for creating questions where the response is a list of strings.
 The maximum number of items in the list can be specified using the `max_list_items` parameter.
 Example usage:
@@ -580,7 +588,7 @@ An example can also be created using the `example` method:
 
 
 QuestionBudget class
-----------------------------
+^^^^^^^^^^^^^^^^^^^^
 A subclass of the `Question` class for creating questions where the response is an allocation of a sum among a list of options in the form of a dictionary where the keys are the options and the values are the allocated amounts.
 It specially requires a `question_options` list of strings for the options and a `budget_sum` number for the total sum to be allocated.
 Example usage:
@@ -612,7 +620,7 @@ An example can also be created using the `example` method:
 
 
 QuestionExtract class
-----------------------------
+^^^^^^^^^^^^^^^^^^^^^
 A subclass of the `Question` class for creating questions where the response is information extracted (or extrapolated) from a given text and formatted according to a specified template.
 Example usage:
 
