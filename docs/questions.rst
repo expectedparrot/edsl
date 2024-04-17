@@ -6,58 +6,115 @@ Questions
 .. This module contains the Question class, which is the base class for all questions in EDSL.
 
 EDSL includes templates for many common question types, including multiple choice, checkbox, free text, numerical, linear scale, Likert scale and others.
-Each question type inherits from the `Question` class and implements its own methods for validating answers and responses from language models.
+The `Question` class has subclasses for each of these types (`QuestionMultipleChoice`, `QuestionFreeText`, etc.) which have methods for validating answers and responses from language models.
 
-Every question type requires a question name and question text. 
+
+Question type templates 
+-----------------------
+Each question type requires a `question_name` and `question_text`. 
 The `question_name` is a unique Pythonic identifier for a question (e.g., "favorite_color" but not "favorite color").
 The `question_text` is the text of the question itself written as a string (e.g., "What is your favorite color?").
 
-Question types other than free text require certain additional fields.
+Question types other than free text also require certain additional fields.
 For example, multiple choice, checkbox, linear scale, rank, top k and budget questions all require a `question_options` list of available answer options.
-See examples of each type below for details on formatting.
+See examples below for details on required fields and formatting for each type.
 
 
 Constructing a question
 -----------------------
-We start by importing a question type based on the desired output. 
-For example, to return a single option selected from a given list we can create a multiple choice question:
+To construct a question, we start by importing the appropriate question type for the desired result. 
+For example, if we want the response to be a single option selected from a given list we can create a multiple choice question:
 
 .. code-block:: python
 
    from edsl import QuestionMultipleChoice
 
-Next we construct a question in the question type template:
+Next we format a question in the question type template. 
+A multiple choice question requires a question name, question text and list of question options:
 
 .. code-block:: python
 
    q = QuestionMultipleChoice(
       question_name = "favorite_primary_color",
       question_text = "Which is your favorite primary color?",
-      question_options = ["Red", "Yellow", "Blue"] # must be a list of strings
+      question_options = ["red", "yellow", "blue"] 
    )
 
-We can also use the `example()` method to show an example of any question type:
 
-.. code-block:: python
+Creating a survey
+-----------------
+We can combine questions into a survey by passing a list of questions to a `Survey` object:
 
-   QuestionMultipleChoice.example()
+.. code-block:: python 
+
+   from edsl import Survey 
+
+   q1 = ...
+   q2 = ...
+   q3 = ...
+
+   survey = Survey(questions = [q1, q2, q3])
+
+This allows us to administer multiple questions at once, either asynchronously (by default) or according to specified logic (e.g., skip or stop rules).
+To learn more about designing surveys with conditional logic, please see the :ref:`surveys` section.
 
 
 Simulating a response 
 ---------------------
 We generate a response to a question by delivering it to a language model.
-In the simplest case, we can administer a question to the default LLM (GPT 4) by appending the `run()` method directly to the question:
+This is done by calling the `run` method for the question:
 
 .. code-block:: python
 
    results = q.run()
 
-This generates a `Results` object that contains the response to the question, and information about the model used.
+This will generate a `Results` object that contains a single `Result` representing the response to the question and information about the model used.
+If the model to be used has not been specified (as in the above example), the `run` method delivers the question to the default LLM (GPT 4).
+We can inspect the response and model used by calling the `select` and `print` methods on the components of the results that we want to display.
+For example, we can print just the `answer` to the question:
+
+.. code-block:: python 
+
+   results.select("answer.favorite_primary_color").print()
+
+
+Output:
+
+.. code-block::
+
+   blue
+
+
+Or to inspect the model:
+
+.. code-block:: python 
+
+   results.select("model").print()
+
+
+Output: 
+
+.. code-block::
+
+   gpt-4-1106-preview
+
+
+If questions have been combined in a survey, the `run` method is called directly on the survey instead:
+
+.. code-block:: python
+
+   results = survey.run()
+
+
+For a survey, each `Result` represents a response for the set of survey questions. 
+
+To learn more about analyzing results, please see the :ref:`results` section.
+
 
 Parameterizing a question
 -------------------------
-A question can be constructed to take one or more parameters that are replaced with specific values when the question is run.
-This allows us to create multiple versions of a question that can be administered all at once or according to specified rules (e.g., skip or stop logic).
+A question can also be constructed to take one or more parameters that are replaced with specified values when the question is run.
+This allows us to easily create and administer multiple versions of a question at once.
 
 *Key steps*:
 
@@ -72,54 +129,29 @@ This allows us to create multiple versions of a question that can be administere
       question_text = "What is your favorite {{ item }}?",
    )
 
-* Create a dictionary for the value that will replace the parameter and store it in a `Scenario` object:
+* Create a dictionary for each value that will replace the parameter and store them in `Scenario` objects:
 
 .. code-block:: python
 
-   scenario = Scenario({"item": "color"})
-
-If multiple values will be used, create a list of `Scenario` objects:
-
-.. code-block:: python
+   from edsl import Scenario 
 
    scenarios = [Scenario({"item": item}) for item in ["color", "food"]]
 
-
-
-Simulating a response 
----------------------
-We generate a response to a question by delivering it to a language model.
-In the simplest case, we can administer a question to the default LLM (GPT 4) by appending the `run()` method directly to the question:
-
-.. code-block:: python
-
-   results = q.run()
-
-This generates a `Results` object that contains the response to the question, and information about the model used.
-
-
-Combining questions into surveys 
---------------------------------
-To administer questions together, we pass them as a list to a `Survey` object:
+* Pass the scenario or scenarios to the question with the `by` method when the question is run. 
+If multiple scenarios are to be used, they are passed as a list:
 
 .. code-block:: python 
 
-   from edsl import Survey 
+   results = q.by(scenarios).run()
 
-   q1 = ...
-   q2 = ...
-   q3 = ...
+The `Results` that are generated will include an individual `Result` for each version of the question that was answered.
+Scenarios can also be passed to a survey of questions in the same way:
 
-   survey = Survey(questions = [q1, q2, q3])
+.. code-block:: python 
 
-We call the `run` method on a survey to generate responses to all of the questions at once:
+   results = survey.by(scenarios).run()
 
-.. code-block:: python
-
-   results = survey.run()
-
-To learn more about constructing surveys with conditional logic, see the :ref:`surveys` section.
-
+This will generate `Results` where each `Result` includes responses for all the scenarios of each question in the survey.
 
 
 Specifying agents and models
