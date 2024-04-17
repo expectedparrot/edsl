@@ -3,19 +3,20 @@
 Results
 =======
 A `Results` object is the result of running a survey. 
-It is a list of individual `Result` objects, each of which represents a response to a survey for each combination of agent, model and scenario used in the survey.
-For example, a survey (of any number of questions) with only 1 scenario or none that is administered to a single agent and model will generate 1 `Result` object within a `Results` object, while a survey using 2 scenarios that is administered to 2 agents and 2 models will generate 8 `Result` objects.
+It is a list of individual `Result` objects, each of which represents a response to a `Survey` for each combination of `Agent`, `Model` and `Scenario` objects used with the survey.
+For example, the `Results` of a survey administered to 2 agents and 2 models (with no question scenarios) will contain 4 individual `Result` objects.
+If the survey questions are parameterized with 2 scenarios then 8 `Result` objects are generated.
 
-A `Results` object is not typically instantiated directly, but is returned by calling the `run` method of a `Survey` object after optionally specifying `Scenario`, `Agent` and `Model` objects. 
-To see an example `Results` object we can call the `example` method:
+A `Results` object is not typically instantiated directly, but is returned by calling the `run` method of a survey after optionally specifying agents, models and scenarios. 
+To see example `Results` we can call the `example` method:
 
 .. code-block:: python
 
-   from edsl.results import Results
+   from edsl import Results
 
    results = Results.example()
 
-For purposes of showing how to unpack and interact with results, we'll use the following code to generate results for a survey consisting of 2 questions, 2 scenarios, 2 agents and 2 models:
+For purposes of showing how to unpack and interact with results, we'll use the following code to generate results for a simply survey:
 
 .. code-block:: python
 
@@ -38,7 +39,7 @@ For purposes of showing how to unpack and interact with results, we'll use the f
 
    scenarios = [Scenario({"period": period}) for period in ["morning", "evening"]]
 
-   # Optionally create agents with different traits
+   # Optionally create agents with traits
    from edsl import Agent 
 
    agents = [Agent(traits = {"status": status}) for status in ["happy", "sad"]]
@@ -53,26 +54,24 @@ For purposes of showing how to unpack and interact with results, we'll use the f
 
    survey = Survey([q1, q2])
 
-   # Run the survey with the scenarios, agents and models
+   # Run the survey with the scenarios, agents and models 
    results = survey.by(scenarios).by(agents).by(models).run()
 
-For more details on each of the above steps, please see the relevant sections of the documentation.
+For more details on each of the above steps, please see the relevant sections of the docs.
 
 Result objects 
 ^^^^^^^^^^^^^^
-We can check the number of individual `Result` objects created by inspecting the length of the `Results` object:
+We can check the number of `Result` objects created by inspecting the length of the `Results`:
 
 .. code-block:: python
 
    len(results)
 
-This will count 2 (scenarios) x 2 (agents) x 2 (models) = 8 `Result` objects in the `Results` object:
+This will count 2 (scenarios) x 2 (agents) x 2 (models) = 8 `Result` objects:
 
    8
 
-There is a result (a set of responses to the survey questions) for each combination of scenario/agents/models used (1 scenario x 2 agents x 2 models = 4 `Result` objects, where each `Result` contains the responses to the 2 questions).
-
-We can quickly inspect the first `Result` object:
+We can readily inspect a result:
 
 .. code-block:: python
 
@@ -208,8 +207,8 @@ We can use the `rich_print` method to display the `Result` object in a more read
 
 Results components
 ^^^^^^^^^^^^^^^^^^
-A `Results` object has many "columns" that can be accessed and analyzed individually or collectively.
-A list of these can be viewed by calling the `columns` method on the object:
+Results contain components that can be accessed and analyzed individually or collectively.
+A list of components is displayed by calling the `columns` method:
 
 .. code-block:: python
 
@@ -479,11 +478,6 @@ We can also interact with the results via SQL using the `sql` method.
 
    results.sql("select data_type, key, value from self where data_type = 'answer' limit 3", shape="long")
 
-View more examples of the `sql` method:
-
-.. raw:: html
-
-   <a href="https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Tutorial%20-%20Exploring%20Your%20Results-bb273d63fed340efab082accce308219" target="_blank">interactive notebooks</a>
 
 
 Exporting to other formats
@@ -520,12 +514,6 @@ The `to_json` method will write the results to a JSON file:
 
    results.to_pandas().to_json("results.json")
 
-
-See more examples of built-in methods for analyzing and visualizing results:
-
-.. raw:: html
-
-   <a href="https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Tutorial%20-%20Exploring%20Your%20Results-bb273d63fed340efab082accce308219" target="_blank">interactive notebooks</a>
 
 
 Result class

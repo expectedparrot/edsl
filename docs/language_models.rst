@@ -4,11 +4,11 @@ Language Models
 ===============
 Language models are used to generate agent responses to questions and can be specified when running a survey.
 API keys are required in order to access the available models, and should be stored in your private `.env` file.
-See the :ref:`starter_tutorial` section for instructions on storing your keys.
+See the :ref:`starter_tutorial` section for instructions on storing your API keys.
 
 Available models
 ----------------
-We can see all of the currently available models by calling the `available()` method on the `Model` class:
+We can see all of the available models by calling the `available()` method of the `Model` class:
 
 .. code-block:: python
 
@@ -16,7 +16,7 @@ We can see all of the currently available models by calling the `available()` me
 
    Model.available()
 
-This will return a list of names for available models to choose from:
+This will return a list of names of models we can choose from:
 
 .. code-block:: python
 
@@ -31,28 +31,38 @@ This will return a list of names for available models to choose from:
     'llama-2-70b-chat-hf',
     'mixtral-8x7B-instruct-v0.1']
 
-The available models are updated regularly.
-A current list is also available at :py:class:`edsl.enums.LanguageModelType`.
+Available models are updated regularly.
+A current list is also viewable at :py:class:`edsl.enums.LanguageModelType`.
 
 *If you don't see a model that you want to work with, please send us a feature request to add it!*
 
+Check models 
+------------
+We can check the models that for which we have already properly stored API keys by calling the `show_available()` method:
+
+.. code-block:: python
+
+   Mode.show_available()
+
+This will return a list of the available models and a confirmation message whether a valid key exists.
+
 Specifying a model
 ------------------
-We specify a model by creating a `Model` object and passing it the name of an available model.
-We can optionally set the other model parameters as well (temperature, etc.). 
+We specify a model to use with a survey by creating a `Model` object and passing it the name of an available model.
+We can optionally set other model parameters as well (temperature, etc.). 
 For example, the following code creates a `Model` object for Claude 3 with default model parameters:
 
 .. code-block:: python
 
    from edsl import Model
 
-   m = Model('claude-3-opus-20240229')
+   model = Model('claude-3-opus-20240229')
 
 We can see that the object consists of a model name and a dictionary of parameters:
 
 .. code-block:: python
 
-   m
+   model
 
 This will return the following:
 
@@ -67,7 +77,7 @@ We can also print the model name and parameters in a readable table with the `pr
 
 .. code-block:: python
 
-   m.print()
+   model.print()
 
 This will print the following table:
 
@@ -94,7 +104,7 @@ We can also inspect the default parameters of the model by calling the `paramete
 
 .. code-block:: python
 
-   m.parameters
+   model.parameters
 
 This will return the following dictionary of parameters:
 
@@ -111,10 +121,10 @@ This will return the following dictionary of parameters:
 
 Running a survey with a model
 -----------------------------
-Similar to how we specify :ref:`agents` and :ref:`scenarios` in running a survey, we specify the models to use by appending them with the `by()` method when the survey is run.
+Similar to how we specify :ref:`agents` and :ref:`scenarios` in running a survey, we specify the models to use by adding them to a survey with the `by()` method when the survey is run.
 If a single model is specified, it is the only item passed to the `by()` method. 
 If multiple models are to be used, they are passed as a list.
-For example, the following code specifies that a survey should be run with each of GPT 4 and Llama 2:
+For example, the following code specifies that a survey be run with each of GPT 4 and Llama 2:
 
 .. code-block:: python
 
@@ -227,14 +237,14 @@ The table will look like this:
    * - llama-2-70b-chat-hf
      - 0.5
 
-We can also print model attributes together with other result attributes.
-We can see a list of all results attributes by calling the `columns` method on the results object:
+We can also print model attributes together with other components of results.
+We can see a list of all components by calling the `columns` method on the results:
 
 .. code-block:: python
 
    results.columns
 
-For the above example, this will display the following list of attributes (note that no agents were specified, so there are no agent fields listed other than the default `agent_name` that is generated when a job is run):
+For the above example, this will display the following list of components (note that no agents were specified, so there are no agent fields listed other than the default `agent_name` that is generated when a job is run):
 
 .. code-block:: python
 
