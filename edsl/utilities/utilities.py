@@ -18,13 +18,16 @@ from pygments.lexers import JsonLexer
 from pygments.formatters import HtmlFormatter
 from IPython.display import HTML
 
-def data_to_html(data, replace_new_lines = False):
+
+def data_to_html(data, replace_new_lines=False):
     json_str = json.dumps(data, indent=4)
-    formatted_json = highlight(json_str, JsonLexer(), HtmlFormatter(style="default", full=True, noclasses=True))
+    formatted_json = highlight(
+        json_str, JsonLexer(), HtmlFormatter(style="default", full=True, noclasses=True)
+    )
     if replace_new_lines:
-        formatted_json = formatted_json.replace('\\n', '<br>')
+        formatted_json = formatted_json.replace("\\n", "<br>")
     return HTML(formatted_json).data
-  
+
 
 def is_gzipped(file_path):
     """Check if a file is gzipped."""

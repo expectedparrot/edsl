@@ -1,6 +1,7 @@
 from rich.table import Table
 from rich.console import Console
-import math 
+import math
+
 
 def logprob_to_prob(logprob):
     if logprob is None:
@@ -9,24 +10,24 @@ def logprob_to_prob(logprob):
 
 
 def format_output(data):
-    content = data['choices'][0]['logprobs']['content']
+    content = data["choices"][0]["logprobs"]["content"]
     table = Table(show_header=True, header_style="bold magenta")
 
     # First pass to determine the maximum number of top tokens
-    max_tokens = max(len(item['top_logprobs']) for item in content)
-    
+    max_tokens = max(len(item["top_logprobs"]) for item in content)
+
     # Set up the table columns
     table.add_column("Token", style="bold")
     for i in range(max_tokens):
         table.add_column(f"Top Token {i+1}")
 
     for item in content:
-        token = item['token'].strip()
+        token = item["token"].strip()
         top_tokens = [
-            (top['token'].strip(), logprob_to_prob(top.get('logprob')))
-            for top in item['top_logprobs']
+            (top["token"].strip(), logprob_to_prob(top.get("logprob")))
+            for top in item["top_logprobs"]
         ]
-        
+
         # Row data starts with the main token
         row = [token]
 
@@ -44,25 +45,29 @@ def format_output(data):
             else:
                 formatted_token = f"{token} (N/A)"
             row.append(formatted_token)
-        
+
         # Ensure row has enough columns
         while len(row) < max_tokens + 1:
             row.append("")
-        
+
         table.add_row(*row)
 
     console = Console()
     console.print(table)
 
+
 class SimpleAskMixin:
+    # def simple_ask(self, question: QuestionBase, system_prompt = "You are a helpful agent pretending to be a human.", top_logprobs = 2):
 
-    #def simple_ask(self, question: QuestionBase, system_prompt = "You are a helpful agent pretending to be a human.", top_logprobs = 2):
-
-    def simple_ask(self, model = None, system_prompt = "You are a helpful agent pretending to be a human. Do not break character", top_logprobs = 4):
+    def simple_ask(
+        self,
+        model=None,
+        system_prompt="You are a helpful agent pretending to be a human. Do not break character",
+        top_logprobs=4,
+    ):
         from edsl import Model
+
         if model is None:
             model = Model()
         response = model.simple_ask(self, system_prompt, top_logprobs)
         return format_output(response)
-        
-

@@ -120,7 +120,7 @@ class MemoryPlan(UserDict):
         newdata = {}
         for question_name, memory in self.items():
             newdata[question_name] = memory.to_dict()
-        
+
         return {
             "survey_question_names": self.survey_question_names,
             "survey_question_texts": self.question_texts,
