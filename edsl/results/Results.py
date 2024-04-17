@@ -50,28 +50,34 @@ class Mixins(ResultsExportMixin, ResultsDBMixin):
 
 # These are only made available if the user has installed
 # our package from pip with the [report] option
-try:
-    from edsl.report.RegressionMixin import RegressionMixin
+# try:
+#     from edsl.report.RegressionMixin import RegressionMixin
 
-    Mixins = type("Mixins", (RegressionMixin, Mixins), {})
-except (ImportError, ModuleNotFoundError):
-    pass
+#     Mixins = type("Mixins", (RegressionMixin, Mixins), {})
+# except (ImportError, ModuleNotFoundError):
+#     pass
 
-try:
-    from edsl.report.ResultsFetchMixin import ResultsFetchMixin
+# try:
+#     from edsl.results.ResultsFetchMixin import ResultsFetchMixin
 
-    Mixins = type("Mixins", (ResultsFetchMixin, Mixins), {})
-except (ImportError, ModuleNotFoundError):
-    pass
+#     Mixins = type("Mixins", (ResultsFetchMixin, Mixins), {})
+# except (ImportError, ModuleNotFoundError):
+#     pass
 
-try:
-    from edsl.report.ResultsOutputMixin import ResultsOutputMixin
+# try:
+#     from edsl.report.ResultsOutputMixin import ResultsOutputMixin
 
-    Mixins = type("Mixins", (ResultsOutputMixin, Mixins), {})
-except (ImportError, ModuleNotFoundError):
-    pass
+#     Mixins = type("Mixins", (ResultsOutputMixin, Mixins), {})
+# except (ImportError, ModuleNotFoundError):
+#     pass
+
 
 from edsl.Base import Base
+from edsl.results.ResultsFetchMixin import ResultsFetchMixin
+
+
+class Mixins(ResultsExportMixin, ResultsDBMixin, ResultsFetchMixin):
+    pass
 
 
 class Results(UserList, Mixins, Base):

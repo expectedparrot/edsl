@@ -7,7 +7,7 @@ from edsl.exceptions import (
     ResultsColumnNotFoundError,
     ResultsInvalidNameError,
 )
-from edsl.report.InputOutputDataTypes import CategoricalData
+#from edsl.report.InputOutputDataTypes import CategoricalData
 from edsl.results import Results
 
 
@@ -120,13 +120,13 @@ class TestResults(unittest.TestCase):
             [result.answer.get("how_feeling") for result in self.example_results.data],
         )
 
-    def test_fetch_answer_data(self):
-        self.assertEqual(
-            self.example_results._fetch_answer_data(
-                "how_feeling", CategoricalData
-            ).responses,
-            [result.answer.get("how_feeling") for result in self.example_results.data],
-        )
+    # def test_fetch_answer_data(self):
+    #     self.assertEqual(
+    #         self.example_results._fetch_answer_data(
+    #             "how_feeling", CategoricalData
+    #         ).responses,
+    #         [result.answer.get("how_feeling") for result in self.example_results.data],
+    #     )
 
     def test_print_long(self):
         from edsl.questions import QuestionLinearScale, QuestionMultipleChoice

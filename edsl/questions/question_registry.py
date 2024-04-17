@@ -23,7 +23,9 @@ class Meta(type):
         
         Question Types:\n"""
         )
-        for question_type, question_class in cls.available(show_class_names=True).items():
+        for question_type, question_class in cls.available(
+            show_class_names=True
+        ).items():
             line_info = (
                 f"{question_type} ({question_class.__name__}): {question_class.__doc__}"
             )
@@ -48,9 +50,9 @@ class Question(metaclass=Meta):
         instance = object.__new__(subclass)
         instance.__init__(*args, **kwargs)
         return instance
-    
+
     @classmethod
-    def pull(cls, id:int) -> 'QuestionBase':
+    def pull(cls, id: int) -> "QuestionBase":
         """Pull the object from coop."""
         from edsl.coop import Coop
 
@@ -104,7 +106,7 @@ question_purpose = {
 if __name__ == "__main__":
     print(Question.available())
 
-    #q = Question("free_text", question_text="How are you doing?", question_name="test")
-    #results = q.run()
+    # q = Question("free_text", question_text="How are you doing?", question_name="test")
+    # results = q.run()
 
-    q = Question.pull(id = 76)
+    q = Question.pull(id=76)
