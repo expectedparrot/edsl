@@ -2,26 +2,31 @@
 
 Starter Tutorial
 ================
-This page provides a guide for getting started running your first AI-powered research! 
-Please let us know if you have any questions or need help by contacting us at info@expectedparrot.com or posting a message in our Discord channel: https://discord.com/invite/mxAYkjfy9m.
+This tutorial will guide you through the initial steps required to run your first project using EDSL. 
+If you encounter any issues or have questions, feel free to reach out via email at info@expectedparrot.com or join the discussion in our Discord channel: https://discord.com/invite/mxAYkjfy9m.
+
 
 .. raw:: html
 
     You can also view the contents of this tutorial in an <a href="https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Tutorial%20-%20Starter%20Tutorial-e080f5883d764931960d3920782baf34" target="_blank">interactive notebook</a>.
 
 
+
+
 Part 1: Using API Keys for LLMs
 -------------------------------
 Large language models (LLMs) are at the heart of AI-powered research. 
 EDSL allows you to easily conduct research with popular LLMs, including OpenAI's GPTs, Google's Gemini, Anthropic's Claude, Llama 2 and others. 
-In order to do so, you must provide EDSL with your API keys that you obtain from LLM providers. 
-*Note: EDSL will never store your personal API keys.*
+To interact with these models with EDSL, you'll need to authenticate using API keys provided by the LLM services.
 
-There are 2 ways to provide your API keys to EDSL:
+*Securing Your API Keys*
 
-1. Use a .env file (*recommended*)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Create a file named `.env` in your working directory and populate it as follows, replacing `your_key_here` with your actual API keys:
+There are two recommended methods to securely provide your API keys to EDSL:
+
+1. Using a .env file (*recommended*)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Create a `.env` file in your working directory and populate it with your API keys. 
+Replace `your_key_here` with your actual API keys for each service you plan to use:
 
 .. code-block:: python
 
@@ -30,13 +35,8 @@ Create a file named `.env` in your working directory and populate it as follows,
    GOOGLE_API_KEY=your_key_here
    OPENAI_API_KEY=your_key_here
 
-EDSL will read your API keys from this file.  
-This method allows you to avoid having to provide your keys each time that you start a session with EDSL and is the recommended way to provide your API keys for this reason.
-
-If you are not planning to use one or more of these providers you can comment out the relevant lines.
-This will ensure that you get an error message if you accidentally try to use an LLM without a valid API key.
-
-For example, if you only plan to use models provided by Anthropic, you can set your `.env` file as follows:
+By using a .env file, you avoid the need to repeatedly enter your API keys each time you start a session with EDSL. 
+Comment out the API keys for any services you do not plan to use to avoid runtime errors:
 
 .. code-block:: python
 
@@ -45,9 +45,11 @@ For example, if you only plan to use models provided by Anthropic, you can set y
    # GOOGLE_API_KEY=your_key_here
    # OPENAI_API_KEY=your_key_here
    
-2. Set your API keys in your Python code
+
+2. Setting API keys in your Python code
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Instead of using an `.env` file, you can set your API keys in your Python code before you import any EDSL object as follows:
+Alternatively, you can directly set your API keys in your Python script before importing any EDSL objects. 
+This method stores the keys in your system's memory only for the duration of the session:
 
 .. code-block:: python
 
@@ -57,24 +59,23 @@ Instead of using an `.env` file, you can set your API keys in your Python code b
    os.environ['GOOGLE_API_KEY'] = 'your_key_here'
    os.environ['OPENAI_API_KEY'] = 'your_key_here'
 
-Note that this will store your API keys in your system's memory only for the duration of your session. 
-If you restart your session, you will need to set your API keys again.
 
-If you are not planning to use one or more of these providers you can delete the line.
-This will ensure that you get an error message if you accidentally try to use an LLM without a valid API key.
+Remember, if you restart your session, you will need to re-enter your API keys.
 
 Caution
 ~~~~~~~
-You should always treat your API keys like you treat your passwords: never share them or upload files with your API keys to any public repository.
+Treat your API keys as sensitive information, akin to passwords. 
+Never share them publicly or upload files containing your API keys to public repositories.
+
 
 Part 2: Conducting AI-powered research
 --------------------------------------
-With your API keys in place, you're now ready for AI-powered research!
-In this part we show how to create and run a simple survey in just a few lines of code, and then create a proper survey with only slightly more work.
+With your API keys in place, we can move on to conducting AI-powered research!
+In the steps below we show how to create and run a simple survey, and then explore a more detailed survey setup with AI agents and models.
 
 Quickstart Example
 ~~~~~~~~~~~~~~~~~~
-Here we create a multiple choice question, prompt an AI agent answer it, and inspect the results:
+Here we create a basic multiple choice question, administer it to a language model, and examine the response:
 
 .. code-block:: python 
 
@@ -94,6 +95,9 @@ Here we create a multiple choice question, prompt an AI agent answer it, and ins
     # Inspect the results
     results.select("example_question").print()
 
+
+Output:
+
 .. code-block:: text
 
     ┏━━━━━━━━━━━━━━━━━━━┓
@@ -106,16 +110,17 @@ Here we create a multiple choice question, prompt an AI agent answer it, and ins
 
 A Proper Survey
 ~~~~~~~~~~~~~~~
-Here we create a more complex survey where we ask AI agents how much they enjoy different activities. 
-We also create agents with different personas, and use different LLMs to generate the results:
+Here we create a survey of questions and personas for AI agents that we prompt to answer the questions.
+Note that we parameterize the questions in order to create different versions of the question texts.
+We also use multiple LLMs to compare results for them:
 
 .. code-block:: python
 
-    # Import other desired question types - see examples of all types in the :ref:`questions` section.
+    # Select desired question types and survey components
     from edsl.questions import QuestionLinearScale, QuestionFreeText
     from edsl import Scenario, Survey, Agent, Model
     
-    # Construct questions - note that we use a parameter `activity` in order to create multiple scenarios of the question texts
+    # Construct questions that take parameters
     q1 = QuestionLinearScale(
         question_name = "q1",
         question_text = "On a scale from 0 to 5, how much do you enjoy {{ activity }}?",
@@ -127,45 +132,54 @@ We also create agents with different personas, and use different LLMs to generat
         question_text = "Describe your habits with respect to {{ activity }}."
     )
     
-    # Add values for the scenarios
+    # Add values for the question scenarios
     activities = ["exercising", "reading", "cooking"]
     scenarios = [Scenario({"activity": a}) for a in activities]
     
     # Combine the questions in a survey
     survey = Survey(questions = [q1, q2])
     
-    # Create personas for agents that will respond to the survey
+    # Create personas for AI agents to use with the survey
     personas = ["You are an athlete", "You are a student", "You are a chef"]
     agents = [Agent(traits = {"persona": p}) for p in personas]
     
     # Select language models
+    # To see all available models: Model.available()
     models = [Model("gpt-3.5-turbo"), Model("gpt-4-1106-preview")]
     
-    # Administer the survey 
+    # Run the survey with the scenarios, agents and models
     results = survey.by(scenarios).by(agents).by(models).run()
     
-    # Select components of the results to view
+    # Select components of the results to review
     results.select("model.model", "scenario.activity", "agent.persona", "answer.*").print()
+
 
 .. raw:: html
 
     View the results in an interactive notebook <a href="https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Tutorial%20-%20Starter%20Tutorial-e080f5883d764931960d3920782baf34" target="_blank">here</a>.
 
 
-Exploring your results
+
+
+Exploring Your Results
 ~~~~~~~~~~~~~~~~~~~~~~
 EDSL comes with built-in methods for analyzing and visualizing your results. 
 For example, you can access results as a Pandas dataframe:
 
 .. code-block:: python
 
-    # Turn the Results object to a pandas dataframe
+    # Convert the Results object to a pandas dataframe
     results.to_pandas()
+
+
+The `columns` method will display a list of all the components of your results, which you can then `select` and `print` to show them:
 
 .. code-block:: python
 
-    # The Results object has various attributes you can use
     results.columns
+
+
+Output for the results generated above:
 
 .. code-block:: python
 
@@ -194,12 +208,16 @@ For example, you can access results as a Pandas dataframe:
      'scenario.activity']
 
 
+The `Results` object also supports SQL-like queries:
+
 .. code-block:: python
 
-    # The Results object also supports SQL-like queries
+    # Execute an SQL-like query on the results
     results.sql("select * from self", shape="wide")
 
 .. raw:: html
 
     View the output and examples of other methods in interactive notebooks <a href="https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Tutorial%20-%20Starter%20Tutorial-e080f5883d764931960d3920782baf34" target="_blank">here</a>.<br><br>
-    Learn more about use cases and ways to conduct AI-powered research in the <a href="http://www.expectedparrot.com/getting-started#edsl-showcase" target="_blank">EDSL Showcase</a>.
+
+
+
