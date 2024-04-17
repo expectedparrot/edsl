@@ -278,10 +278,11 @@ class Coop:
         self._resolve_server_response(response)
         surveys = [
             {
-                "id": q.get("id"),
-                "survey": Survey.from_dict(json.loads(q.get("json_string"))),
+                "id": s.get("id"),
+                "survey": Survey.from_dict(json.loads(s.get("json_string"))),
+                "version": s.get("version"),
             }
-            for q in response.json()
+            for s in response.json()
         ]
         return surveys
 
@@ -291,13 +292,19 @@ class Coop:
         response = self._send_server_request(uri="api/v0/agents", method="GET")
         self._resolve_server_response(response)
         agents = []
-        for q in response.json():
-            agent_dict = json.loads(q.get("json_string"))
+        for a in response.json():
+            agent_dict = json.loads(a.get("json_string"))
             if "agent_list" in agent_dict:
                 agent = AgentList.from_dict(agent_dict)
             else:
                 agent = Agent.from_dict(agent_dict)
-            agents.append({"id": q.get("id"), "agent": agent})
+            agents.append(
+                {
+                    "id": a.get("id"),
+                    "agent": agent,
+                    "version": a.get("version"),
+                }
+            )
         return agents
 
     @property
@@ -309,6 +316,7 @@ class Coop:
             {
                 "id": r.get("id"),
                 "results": Results.from_dict(json.loads(r.get("json_string"))),
+                "version": r.get("version"),
             }
             for r in response.json()
         ]
