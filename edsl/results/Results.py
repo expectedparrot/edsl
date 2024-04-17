@@ -150,15 +150,18 @@ class Results(UserList, Mixins, Base):
             ]
             self.data = results
 
-    def __repr__(self) -> str:   
+    def __repr__(self) -> str:
         return f"Results(data = {self.data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
-    
 
     def _repr_html_(self) -> str:
-        json_str = json.dumps(self.to_dict()['data'], indent=4)
-        formatted_json = highlight(json_str, JsonLexer(), HtmlFormatter(style="default", full=True, noclasses=True))
+        json_str = json.dumps(self.to_dict()["data"], indent=4)
+        formatted_json = highlight(
+            json_str,
+            JsonLexer(),
+            HtmlFormatter(style="default", full=True, noclasses=True),
+        )
         return HTML(formatted_json).data
-    
+
     def to_dict(self) -> dict[str, Any]:
         """Convert the Results object to a dictionary.
 

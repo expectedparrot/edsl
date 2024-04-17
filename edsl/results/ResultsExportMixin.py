@@ -75,7 +75,7 @@ class ResultsExportMixin:
         format: Literal["rich", "html", "markdown"] = None,
         interactive: bool = False,
         split_at_dot: bool = True,
-        max_rows = None,
+        max_rows=None,
     ) -> None:
         """Print the results in a pretty format.
 
@@ -162,7 +162,7 @@ class ResultsExportMixin:
             html = print_list_of_dicts_as_html_table(
                 new_data, filename=None, interactive=interactive, notebook=notebook
             )
-            #print(html)
+            # print(html)
             display(HTML(html))
         elif format == "markdown":
             print_list_of_dicts_as_markdown_table(new_data, filename=filename)

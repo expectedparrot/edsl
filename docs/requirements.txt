@@ -991,7 +991,6 @@ lxml==5.2.1 ; python_full_version >= "3.9.1" and python_version < "3.12" \
     --hash=sha256:b070bbe8d3f0f6147689bed981d19bbb33070225373338df755a46893528104a \
     --hash=sha256:b0b58fbfa1bf7367dde8a557994e3b1637294be6cf2169810375caf8571a085c \
     --hash=sha256:b560e3aa4b1d49e0e6c847d72665384db35b2f5d45f8e6a5c0072e0283430533 \
-    --hash=sha256:b6241d4eee5f89453307c2f2bfa03b50362052ca0af1efecf9fef9a41a22bb4f \
     --hash=sha256:b6787b643356111dfd4032b5bffe26d2f8331556ecb79e15dacb9275da02866e \
     --hash=sha256:bcbf4af004f98793a95355980764b3d80d47117678118a44a80b721c9913436a \
     --hash=sha256:beb72935a941965c52990f3a32d7f07ce869fe21c6af8b34bf6a277b33a345d3 \
@@ -1985,6 +1984,9 @@ soupsieve==2.5 ; python_full_version >= "3.9.1" and python_version < "3.12" \
 sphinx-copybutton==0.5.2 ; python_full_version >= "3.9.1" and python_version < "3.12" \
     --hash=sha256:4cf17c82fb9646d1bc9ca92ac280813a3b605d8c421225fd9913154103ee1fbd \
     --hash=sha256:fb543fd386d917746c9a2c50360c7905b605726b9355cd26e9974857afeae06e
+sphinx-rtd-theme==2.0.0 ; python_full_version >= "3.9.1" and python_version < "3.12" \
+    --hash=sha256:bd5d7b80622406762073a04ef8fadc5f9151261563d47027de09910ce03afe6b \
+    --hash=sha256:ec93d0856dc280cf3aee9a4c9807c60e027c7f7b461b77aeffed682e68f0e586
 sphinx==7.2.6 ; python_full_version >= "3.9.1" and python_version < "3.12" \
     --hash=sha256:1e09160a40b956dc623c910118fa636da93bd3ca0b9876a7b3df90f07d691560 \
     --hash=sha256:9a5160e1ea90688d5963ba09a2dcd8bdd526620edbb65c328728f1b2228d5ab5
@@ -1997,6 +1999,9 @@ sphinxcontrib-devhelp==1.0.6 ; python_full_version >= "3.9.1" and python_version
 sphinxcontrib-htmlhelp==2.0.5 ; python_full_version >= "3.9.1" and python_version < "3.12" \
     --hash=sha256:0dc87637d5de53dd5eec3a6a01753b1ccf99494bd756aafecd74b4fa9e729015 \
     --hash=sha256:393f04f112b4d2f53d93448d4bce35842f62b307ccdc549ec1585e950bc35e04
+sphinxcontrib-jquery==4.1 ; python_full_version >= "3.9.1" and python_version < "3.12" \
+    --hash=sha256:1620739f04e36a2c779f1a131a2dfd49b2fd07351bf1968ced074365933abc7a \
+    --hash=sha256:f936030d7d0147dd026a4f2b5a57343d233f1fc7b363f68b3d4f1cb0993878ae
 sphinxcontrib-jsmath==1.0.1 ; python_full_version >= "3.9.1" and python_version < "3.12" \
     --hash=sha256:2ec2eaebfb78f3f2078e73666b1415417a116cc848b72e5172e596c871103178 \
     --hash=sha256:a9925e4a4587247ed2191a22df5f6970656cb8ca2bd6284309578f2153e0c4b8

@@ -3,8 +3,8 @@ import json
 import requests
 import threading
 
-class ReportErrors:
 
+class ReportErrors:
     def __init__(self, task_history):
         self.task_history = task_history
         self.email = None
@@ -20,11 +20,13 @@ class ReportErrors:
         }
 
     def get_email(self, timeout=10):
-        """ Helper method to get user input with a timeout. """
+        """Helper method to get user input with a timeout."""
         input_queue = []
 
         def input_thread_method():
-            email_input = input("Please enter your email address (if you want us to get in touch): ")
+            email_input = input(
+                "Please enter your email address (if you want us to get in touch): "
+            )
             input_queue.append(email_input)
 
         input_thread = threading.Thread(target=input_thread_method)
@@ -38,9 +40,6 @@ class ReportErrors:
 
     def upload(self):
         json_data = json.dumps(self.data)
-        headers = {
-            "Content-Type": "application/json"
-        }
+        headers = {"Content-Type": "application/json"}
         response = requests.post(self.url, data=json_data, headers=headers)
         print("Status Code:", response.status_code)
-
