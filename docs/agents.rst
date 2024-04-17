@@ -2,20 +2,21 @@
 
 Agents
 ======
-An `Agent` can reference a set of traits in answering questions.
-Agent characteristics and capabilties are used together with language models to influence how a question is answered. 
+`Agent` objects are used to simulate survey responses for target audiences. 
+They are created with specified traits, such as personas and relevant attributes for a survey, that are used together with language models to generate responses to questions. 
 
 Constructing an Agent
 ---------------------
-An `Agent` is created by passing a dictionary of `traits` for the agent to reference in answering questions. 
-Traits can be anything that might be relevant to the questions the agent will be asked, and constructed with single values or textual narratives:
+An `Agent` is created by passing a dictionary of `traits` for a language model to reference in answering questions. 
+Traits can be anything that might be relevant to the questions the agent will be asked, and constructed with single values or textual narratives.
+For example:
 
 .. code-block:: python
 
     traits_dict = {
         "persona": "You are a 45-old-woman living in Massachusetts...",
         "age": 45,
-        "location": "Massachusetts"
+        "home_state": "Massachusetts"
     }
     a = Agent(traits = traits_dict)
 
@@ -38,14 +39,13 @@ Agent lists
 -----------
 Agents can be created collectively and administered a survey together. 
 This is useful for comparing responses across agents.
-The following example creates a list of agents with each combination of listed trait dimensions: 
+Here we create a list of agents with each combination of listed trait dimensions: 
 
 .. code-block:: python
 
     ages = [10, 20, 30, 40, 50]
     locations = ["New York", "California", "Texas", "Florida", "Washington"]
-    agents = [Agent(traits = {"age": age, "location": location}) 
-        for age, location in zip(ages, locations)]
+    agents = [Agent(traits = {"age": age, "location": location}) for age, location in zip(ages, locations)]
 
 Dynamic traits function
 -----------------------
@@ -65,8 +65,7 @@ For example:
 
 When the agent is asked a question about age, the agent will return an age of 10. 
 When asked about hair, the agent will return "brown".
-This can be useful for creating agents that can answer questions about different topics without 
-including potentially irrelevant traits in the agent's traits dictionary.
+This can be useful for creating agents that can answer questions about different topics without including potentially irrelevant traits in the agent's traits dictionary.
 
 Agent direct-answering methods
 ------------------------------
@@ -97,6 +96,7 @@ For example:
     a = Agent(traits = {"age": 10}, instruction = "Answer in German.")
     a.instruction
 
+When the agent is assigned to a survey, the special instruction will be added to the prompts for generating responses.
 
 Controlling the presentation of the persona
 -------------------------------------------
@@ -149,6 +149,30 @@ And this code will let us filter the results by the agent's age:
 
     results.filter("agent.age == 22").print()
 
+Simulating agent responses 
+--------------------------
+As with question scenarios and language models, an agent is assigned to a survey using the `by` method when the survey is run:
+
+.. code-block:: python 
+
+    agent = Agent(traits = {...})
+    results = survey.by(agent).run()
+
+This will generate a `Results` object that contains a `Result` for each agent's responses to the survey questions.
+If multiple agents will be used with a survey, they are passed as a list in the same `by` call:
+
+.. code-block:: python 
+
+    agents = [AgentList(...)]
+    results = survey.by(agents).run()
+
+If scenarios and/or models are also specified for a survey, each component type is added in a separate `by` call that can be chained in any order with the `run` method appended last:
+
+.. code-block:: python 
+
+    results = survey.by(scenarios).by(agents).by(models).run()
+
+To learn more about <a href="https://docs.expectedparrot.com/en/latest/scenarios.html">scenarios</a>, <a href="https://docs.expectedparrot.com/en/latest/models.html">models</a> and <a href="https://docs.expectedparrot.com/en/latest/results.html">results</a>, please see those of the docs.
 
 Agent class
 -----------
