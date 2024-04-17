@@ -1,7 +1,7 @@
 EDSL Docs
 =========
 
-This page contains documentation for the Expected Parrot Domain-Specific Language (EDSL) package. 
+This page contains documentation for the Expected Parrot Domain-Specific Language (EDSL) library, an open-source Python package for conducting AI-powered research. 
 
 .. toctree::
    :maxdepth: 2
@@ -28,7 +28,7 @@ This page contains documentation for the Expected Parrot Domain-Specific Languag
 .. toctree::
    :maxdepth: 2
    :caption: Notebooks:
-   
+
    notebooks/edsl_components
    notebooks/tutorial_getting_started
    notebooks/data_labeling_example.ipynb
