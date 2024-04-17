@@ -1,14 +1,14 @@
-import os
 import json
 import requests
 import threading
+from edsl.config import CONFIG
 
 
 class ReportErrors:
     def __init__(self, task_history):
         self.task_history = task_history
         self.email = None
-        self.url = os.getenv("EXPECTED_PARROT_ERROR_REPORTING_URL", None)
+        self.url = CONFIG.EXPECTED_PARROT_URL
         if self.url is None:
             raise ValueError("The URL for the error reporting service is not set.")
 
@@ -41,5 +41,35 @@ class ReportErrors:
     def upload(self):
         json_data = json.dumps(self.data)
         headers = {"Content-Type": "application/json"}
-        response = requests.post(self.url, data=json_data, headers=headers)
+        response = requests.post(
+            f"{self.url}/api/v0/errors",
+            json={"json_string": json_data},
+            headers=headers,
+        )
         print("Status Code:", response.status_code)
+
+
+def main():
+    from edsl.jobs.interviews.ReportErrors import ReportErrors
+
+    class TaskHistory:
+        def __init__(self, data):
+            self.data = data
+
+        def to_dict(self):
+            """Converts the internal data of the task history to a dictionary format."""
+            return self.data
+
+    task_history_data = {
+        "task": "Example Task",
+        "status": "Completed",
+        "details": "This is an example of a task history.",
+    }
+    task_history = TaskHistory(task_history_data)
+
+    reporter = ReportErrors(task_history)
+    # one without email
+    reporter.upload()
+    # one with email
+    reporter.email = "fake@gmail.com"
+    reporter.upload()
