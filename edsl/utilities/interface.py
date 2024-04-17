@@ -2,7 +2,8 @@
 from html import escape
 from IPython.display import HTML
 from IPython.display import display as ipython_diplay
-from PIL import Image, ImageDraw, ImageFont
+
+# from PIL import Image, ImageDraw, ImageFont
 from rich.console import Console
 from rich.table import Table
 
@@ -138,40 +139,40 @@ def get_multiline_textsize(text, font):
     return max_width, total_height
 
 
-def create_image(console, image_filename):
-    """Create an image from the console output."""
-    font_size = 15
+# def create_image(console, image_filename):
+#     """Create an image from the console output."""
+#     font_size = 15
 
-    text = console.export_text()  # Get the console output as text.
+#     text = console.export_text()  # Get the console output as text.
 
-    # Create an image from the text
-    font_size = 15
-    font = ImageFont.load_default()  # Use the default font to avoid file path issues.
-    # text_width, text_height = ImageDraw.Draw(
-    #    Image.new("RGB", (100, 100))
-    # ).multiline_textsize(text, font=font)
-    text_width, text_height = get_multiline_textsize(text, font)
-    image = Image.new(
-        "RGB", (text_width + 20, text_height + 20), color=(255, 255, 255)
-    )  # Add some padding
-    d = ImageDraw.Draw(image)
+#     # Create an image from the text
+#     font_size = 15
+#     font = ImageFont.load_default()  # Use the default font to avoid file path issues.
+#     # text_width, text_height = ImageDraw.Draw(
+#     #    Image.new("RGB", (100, 100))
+#     # ).multiline_textsize(text, font=font)
+#     text_width, text_height = get_multiline_textsize(text, font)
+#     image = Image.new(
+#         "RGB", (text_width + 20, text_height + 20), color=(255, 255, 255)
+#     )  # Add some padding
+#     d = ImageDraw.Draw(image)
 
-    # Draw text to image
-    d.multiline_text((10, 10), text, font=font, fill=(0, 0, 0))
-    # Save the image
-    image.save(image_filename)
+#     # Draw text to image
+#     d.multiline_text((10, 10), text, font=font, fill=(0, 0, 0))
+#     # Save the image
+#     image.save(image_filename)
 
 
-def display(console, table, filename):
-    """Display the table using the rich library and save it to a file if a filename is provided."""
-    if filename is not None:
-        with open(filename, "w") as f:
-            with console.capture() as capture:
-                console.print(table)
-            f.write(capture.get())
-        create_image(console, filename + ".png")
-    else:
-        console.print(table)
+# def display(console, table, filename):
+#     """Display the table using the rich library and save it to a file if a filename is provided."""
+#     if filename is not None:
+#         with open(filename, "w") as f:
+#             with console.capture() as capture:
+#                 console.print(table)
+#             f.write(capture.get())
+#         create_image(console, filename + ".png")
+#     else:
+#         console.print(table)
 
 
 def print_dict_with_rich(d, key_name="Key", value_name="Value", filename=None):
@@ -193,7 +194,8 @@ def print_dict_with_rich(d, key_name="Key", value_name="Value", filename=None):
     table.add_column(value_name, style="dim")
     for key, value in d.items():
         table.add_row(key, str(value))
-    display(console, table, filename)
+    console.print(table)
+    # display(console, table, filename)
 
 
 def print_dict_as_html_table(
@@ -277,7 +279,8 @@ def print_list_of_dicts_with_rich(data, filename=None, split_at_dot=True):
         row = [str(d[key][i]) for d in data for key in d.keys()]
         table.add_row(*row)
 
-    display(console, table, filename)
+    console.print(table)
+    # display(console, table, filename)
 
 
 def print_list_of_dicts_as_html_table(
