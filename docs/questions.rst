@@ -156,20 +156,33 @@ This will generate `Results` where each `Result` includes responses for all the 
 
 Designing AI agents 
 -------------------
-EDSL allows us to create AI agents with personas and other traits for the language models to reference in responding to questions.
-This is done by creating `Agent` objects with Pythonic dictionaries of desired traits.
-For example, if we want our question answered by an AI agent representing a student we can create an `Agent` object with a relevant persona and attributes:
+A key feature of EDSL is the ability to design AI agents with personas and other traits for language models to use in responding to questions.
+The use of agents allows us to simulate survey results for target audiences at scale.
+This is done by creating `Agent` objects with dictionaries of desired traits and adding them to questions when they are run.
+For example, if we want a question answered by an AI agent representing a student we can create an `Agent` object with a relevant persona and attributes:
 
 .. code-block:: python
 
    from edsl import Agent
 
-   agent = Agent(traits = {"persona": "You are a student...", "age": 20, "current_grade": "college sophomore"})
+   agent = Agent(traits = {
+      "persona": "You are a student...", # can be an extended text
+      "age": 20, # individual trait values can be useful for analysis
+      "current_grade": "college sophomore"
+      })
 
-   results = survey.by(agent).run()
+
+To generate a response for the agent, we pass it to the `by` method when we run the question:
+
+   results = q.by(agent).run()
+
+If we have multiple agents, we pass them as a list:
+
+   results = q.by(agents).run()
+
+The `Results` will contain a `Result` for each agent that answered the question.
 
 
-   
 Specifying language models
 --------------------------
 In the above examples we did not specify a language model for the question and survey, so the default model (GPT 4) was used.
