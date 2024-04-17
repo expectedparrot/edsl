@@ -20,13 +20,6 @@ This page contains documentation for the Expected Parrot Domain-Specific Languag
 
 .. toctree::
    :maxdepth: 2
-   :caption: Developer:
-
-   data
-   enums
-
-.. toctree::
-   :maxdepth: 2
    :caption: Notebooks:
 
    notebooks/edsl_components
@@ -43,6 +36,13 @@ This page contains documentation for the Expected Parrot Domain-Specific Languag
    notebooks/digital_twin
    notebooks/validating_business_ideas
    notebooks/grading_experiment
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Developer:
+
+   data
+   enums
 
 .. image:: https://colab.research.google.com/assets/colab-badge.svg
    :target: https://colab.research.google.com/github/expectedparrot/edsl/blob/main/examples/create_agents.ipynb 
