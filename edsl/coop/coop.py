@@ -3,6 +3,7 @@ import os
 import requests
 from requests.exceptions import ConnectionError
 from typing import Any, Optional, Type, Union
+import edsl
 from edsl import CONFIG
 from edsl.agents import Agent, AgentList
 from edsl.questions.QuestionBase import QuestionBase
@@ -27,7 +28,6 @@ class Coop:
         """Initialize the client."""
         self.api_key = api_key or os.getenv("EXPECTED_PARROT_API_KEY")
         self.run_mode = run_mode or CONFIG.EDSL_RUN_MODE
-        self.run_mode = "production"
         self._api_key_is_valid()
 
     ################
@@ -38,11 +38,11 @@ class Coop:
         Check if the API key is valid.
         """
         if not self.api_key:
-            raise ValueError("API key is required.")
+            raise ValueError("Expected Parrot API key is required.")
         if not isinstance(self.api_key, str):
-            raise ValueError("API key must be a string.")
+            raise ValueError("Expected Parrot API key must be a string.")
         response = self._send_server_request(uri="api/v0/validate-apikey", method="GET")
-        self._resolve_server_response(response)
+        _ = self._resolve_server_response(response)
 
     @property
     def headers(self) -> dict:
@@ -69,7 +69,6 @@ class Coop:
         Send a request to the server and return the response.
         """
         url = f"{self.url}/{uri}"
-        print(url)
         try:
             if method.upper() in ["GET", "DELETE"]:
                 response = requests.request(
@@ -80,14 +79,7 @@ class Coop:
                     method, url, json=payload, headers=self.headers
                 )
         except ConnectionError:
-            if self.run_mode == "production":
-                raise ConnectionError("Could not connect to the server.")
-            else:
-                raise ConnectionError(
-                    f"\n\n\nCould not connect to the server."
-                    f"\nIs the server running? Try:"
-                    f"\n   cd ~/coop && make fresh-db && make launch"
-                )
+            raise ConnectionError("Could not connect to the server.")
 
         return response
 
@@ -99,69 +91,32 @@ class Coop:
             raise Exception(response.json().get("detail"))
 
     ################
-    # CACHE METHODS
+    # HELPER METHODS
     ################
-    def create_cache_entry(self, cache_entry: CacheEntry) -> dict:
+    def _json_handle_none(value: Any) -> Any:
         """
-        Create a CacheEntry object.
+        Helper function to handle None values in JSON serialization.
         """
-        response = self._send_server_request(
-            uri="api/v0/cache/create-cache-entry",
-            method="POST",
-            payload={
-                "json_string": json.dumps(
-                    {"key": cache_entry.key, "value": json.dumps(cache_entry.to_dict())}
-                )
-            },
-        )
-        self._resolve_server_response(response)
-        return response.json()
+        if value is None:
+            return "null"
+        else:
+            return value
 
-    def get_cache_entries(
-        self, exclude_keys: Optional[list[str]] = None
-    ) -> list[CacheEntry]:
+    def _get_edsl_version(self) -> str:
         """
-        Return CacheEntry objects from the server.
+        Return the version of the EDSL.
+        """
+        try:
+            version = edsl.__version__
+        except:
+            version = None
+        return version
 
-        :param exclude_keys: exclude CacheEntry objects with these keys.
-        """
-        if exclude_keys is None:
-            exclude_keys = []
-        response = self._send_server_request(
-            uri="api/v0/cache/get-cache-entries",
-            method="POST",
-            payload={"json_string": json.dumps(exclude_keys)},
-        )
-        self._resolve_server_response(response)
-        return [
-            CacheEntry.from_dict(json.loads(v.get("json_string")))
-            for v in response.json()
-        ]
-
-    def send_cache_entries(self, cache_entries: dict[str, CacheEntry]) -> None:
-        """
-        Send a dictionary of CacheEntry objects to the server.
-        """
-        response = self._send_server_request(
-            uri="api/v0/cache/create-cache-entries",
-            method="POST",
-            payload={
-                "json_string": json.dumps(
-                    {k: json.dumps(v.to_dict()) for k, v in cache_entries.items()}
-                )
-            },
-        )
-        self._resolve_server_response(response)
-        return response.json()
-
-    ################
-    # EDSL METHODS
-    ################
     def _edsl_object_to_uri(
         self, object: Union[Type[QuestionBase], Survey, Agent, Results]
     ) -> str:
         """
-        Return the URI for the object type.
+        Return the URI for an object type.
         """
         if isinstance(object, QuestionBase):
             return "questions"
@@ -173,6 +128,10 @@ class Coop:
             return "results"
         else:
             raise ValueError("Incorrect or not supported object type")
+
+    ################
+    # OBJECT METHODS
+    ################
 
     # -----------------
     # A. CREATE METHODS
@@ -189,17 +148,16 @@ class Coop:
         :param public: whether the object should be public (defaults to False).
         """
 
-        def handle_none(value):
-            if value is None:
-                return "null"
-
         uri = self._edsl_object_to_uri(edsl_object)
         response = self._send_server_request(
             uri=f"api/v0/{uri}",
             method="POST",
             payload={
-                "json_string": json.dumps(edsl_object.to_dict(), default=handle_none),
+                "json_string": json.dumps(
+                    edsl_object.to_dict(), default=self._json_handle_none
+                ),
                 "public": public,
+                "version": self._get_edsl_version(),
             },
         )
         self._resolve_server_response(response)
@@ -307,6 +265,7 @@ class Coop:
             {
                 "id": q.get("id"),
                 "question": QuestionBase.from_dict(json.loads(q.get("json_string"))),
+                "version": q.get("version"),
             }
             for q in response.json()
         ]
@@ -319,10 +278,11 @@ class Coop:
         self._resolve_server_response(response)
         surveys = [
             {
-                "id": q.get("id"),
-                "survey": Survey.from_dict(json.loads(q.get("json_string"))),
+                "id": s.get("id"),
+                "survey": Survey.from_dict(json.loads(s.get("json_string"))),
+                "version": s.get("version"),
             }
-            for q in response.json()
+            for s in response.json()
         ]
         return surveys
 
@@ -332,13 +292,19 @@ class Coop:
         response = self._send_server_request(uri="api/v0/agents", method="GET")
         self._resolve_server_response(response)
         agents = []
-        for q in response.json():
-            agent_dict = json.loads(q.get("json_string"))
+        for a in response.json():
+            agent_dict = json.loads(a.get("json_string"))
             if "agent_list" in agent_dict:
                 agent = AgentList.from_dict(agent_dict)
             else:
                 agent = Agent.from_dict(agent_dict)
-            agents.append({"id": q.get("id"), "agent": agent})
+            agents.append(
+                {
+                    "id": a.get("id"),
+                    "agent": agent,
+                    "version": a.get("version"),
+                }
+            )
         return agents
 
     @property
@@ -350,6 +316,7 @@ class Coop:
             {
                 "id": r.get("id"),
                 "results": Results.from_dict(json.loads(r.get("json_string"))),
+                "version": r.get("version"),
             }
             for r in response.json()
         ]
@@ -384,6 +351,62 @@ class Coop:
         """Delete a Results object from the coop."""
         response = self._send_server_request(
             uri=f"api/v0/results/{id}", method="DELETE"
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    ################
+    # CACHE METHODS
+    ################
+    def create_cache_entry(self, cache_entry: CacheEntry) -> dict:
+        """
+        Create a CacheEntry object.
+        """
+        response = self._send_server_request(
+            uri="api/v0/cache/create-cache-entry",
+            method="POST",
+            payload={
+                "json_string": json.dumps(
+                    {"key": cache_entry.key, "value": json.dumps(cache_entry.to_dict())}
+                )
+            },
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def get_cache_entries(
+        self, exclude_keys: Optional[list[str]] = None
+    ) -> list[CacheEntry]:
+        """
+        Return CacheEntry objects from the server.
+
+        :param exclude_keys: exclude CacheEntry objects with these keys.
+        """
+        if exclude_keys is None:
+            exclude_keys = []
+        response = self._send_server_request(
+            uri="api/v0/cache/get-cache-entries",
+            method="POST",
+            payload={"json_string": json.dumps(exclude_keys)},
+        )
+        self._resolve_server_response(response)
+        return [
+            CacheEntry.from_dict(json.loads(v.get("json_string")))
+            for v in response.json()
+        ]
+
+    def send_cache_entries(self, cache_entries: dict[str, CacheEntry]) -> None:
+        """
+        Send a dictionary of CacheEntry objects to the server.
+        """
+        response = self._send_server_request(
+            uri="api/v0/cache/create-cache-entries",
+            method="POST",
+            payload={
+                "json_string": json.dumps(
+                    {k: json.dumps(v.to_dict()) for k, v in cache_entries.items()}
+                )
+            },
         )
         self._resolve_server_response(response)
         return response.json()
