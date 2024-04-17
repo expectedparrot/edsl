@@ -245,9 +245,13 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         )
 
         if results.task_history.has_exceptions and not batch_mode:
+            if len(results.task_history.indices) > 5:
+                msg = "Exceptions were raised in multiple interviews (> 5)."
+            else:
+                msg = f"Exceptions were raised in the following interviews: {results.task_history.indices}"
             print(
                 textwrap.dedent(
-                    f"""\Exceptions were raised in the following interviews: {results.task_history.indices}.
+                    f"""\Exceptions were raised in the following interviews: {msg}.
                 The object results.task_history contains the exceptions.                
                 """
                 )
