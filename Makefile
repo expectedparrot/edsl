@@ -127,12 +127,6 @@ test-coverage: ## Run regular tests and get a coverage report
 		firefox htmlcov/index.html; \
 	fi
 
-test-pypi: ## Build and upload package to test.pypi.com
-	make clean-test
-	poetry build
-	poetry publish -r test-pypi 
-	[ ! -d dist ] || rm -rf dist
-
 test-doctests: ## Run doctests
 	make clean-test
 	pytest --doctest-modules edsl/surveys
