@@ -75,8 +75,10 @@ class Mixins(ResultsExportMixin, ResultsDBMixin):
 from edsl.Base import Base
 from edsl.results.ResultsFetchMixin import ResultsFetchMixin
 
+
 class Mixins(ResultsExportMixin, ResultsDBMixin, ResultsFetchMixin):
     pass
+
 
 class Results(UserList, Mixins, Base):
     """

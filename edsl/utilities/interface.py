@@ -2,7 +2,8 @@
 from html import escape
 from IPython.display import HTML
 from IPython.display import display as ipython_diplay
-#from PIL import Image, ImageDraw, ImageFont
+
+# from PIL import Image, ImageDraw, ImageFont
 from rich.console import Console
 from rich.table import Table
 
@@ -194,7 +195,7 @@ def print_dict_with_rich(d, key_name="Key", value_name="Value", filename=None):
     for key, value in d.items():
         table.add_row(key, str(value))
     console.print(table)
-    #display(console, table, filename)
+    # display(console, table, filename)
 
 
 def print_dict_as_html_table(
@@ -279,7 +280,7 @@ def print_list_of_dicts_with_rich(data, filename=None, split_at_dot=True):
         table.add_row(*row)
 
     console.print(table)
-    #display(console, table, filename)
+    # display(console, table, filename)
 
 
 def print_list_of_dicts_as_html_table(
