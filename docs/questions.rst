@@ -15,7 +15,7 @@ Each question type requires a `question_name` and `question_text`.
 The `question_name` is a unique Pythonic identifier for a question (e.g., "favorite_color" but not "favorite color").
 The `question_text` is the text of the question itself written as a string (e.g., "What is your favorite color?").
 
-Question types other than free text also require certain additional fields.
+Individual question types other than free text also require certain additional fields.
 For example, multiple choice, checkbox, linear scale, rank, top k and budget questions all require a `question_options` list of available answer options.
 See examples below for details on required fields and formatting for each type.
 
@@ -39,6 +39,8 @@ A multiple choice question requires a question name, question text and list of q
       question_text = "Which is your favorite primary color?",
       question_options = ["red", "yellow", "blue"] 
    )
+
+Details and examples of each question type can be found at the bottom of this page.
 
 
 Creating a survey
@@ -77,13 +79,11 @@ For example, we can print just the `answer` to the question:
 
    results.select("answer.favorite_primary_color").print()
 
-
 Output:
 
 .. code-block::
 
    blue
-
 
 Or to inspect the model:
 
@@ -91,13 +91,11 @@ Or to inspect the model:
 
    results.select("model").print()
 
-
 Output: 
 
 .. code-block::
 
    gpt-4-1106-preview
-
 
 If questions have been combined in a survey, the `run` method is called directly on the survey instead:
 
@@ -105,9 +103,7 @@ If questions have been combined in a survey, the `run` method is called directly
 
    results = survey.run()
 
-
 For a survey, each `Result` represents a response for the set of survey questions. 
-
 To learn more about analyzing results, please see the :ref:`results` section.
 
 
@@ -152,6 +148,7 @@ Scenarios can also be passed to a survey of questions in the same way:
    results = survey.by(scenarios).run()
 
 This will generate `Results` where each `Result` includes responses for all the scenarios of each question in the survey.
+To learn more about using scenarios, please see the :ref:`Scenarios` section.
 
 
 Designing AI agents 
@@ -185,6 +182,7 @@ If we have multiple agents, we pass them as a list:
    results = q.by(agents).run()
 
 The `Results` will contain a `Result` for each agent that answered the question.
+To learn more about designing agents, please see the :ref:`agents` section.
 
 
 Specifying language models
@@ -243,8 +241,6 @@ If scenarios and/or agents are also specified, each component is added in its ow
    results = q.by(scenarios).by(agents).by(models).run()
 
 Note that multiple scenarios, agents and models are always passed as lists in the same `by` call.
-
-
 
 Learn more about specifying question scenarios, agents and language models and their parameters in the respective sections:
 

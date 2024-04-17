@@ -1,7 +1,7 @@
 EDSL Docs
 =========
 
-This page contains documentation for the Expected Parrot Domain-Specific Language (EDSL) package. 
+This page contains documentation for the Expected Parrot Domain-Specific Language (EDSL) library, an open-source Python package for conducting AI-powered research. 
 
 .. toctree::
    :maxdepth: 2
@@ -20,24 +20,10 @@ This page contains documentation for the Expected Parrot Domain-Specific Languag
 
 .. toctree::
    :maxdepth: 2
-   :caption: Developer:
-
-   data
-   enums
-
-.. toctree::
-   :maxdepth: 2
    :caption: Notebooks:
 
-   notebooks/create_questions
-   notebooks/create_surveys
-   notebooks/create_agents
-   notebooks/create_models
    notebooks/edsl_components
    notebooks/tutorial_getting_started
-   notebooks/tutorial_building_your_research
-   notebooks/tutorial_exploring_your_research
-   notebooks/tutorial_exploring_your_results
    notebooks/data_labeling_example.ipynb
    notebooks/data_labeling_agent.ipynb
    notebooks/explore_llm_biases.ipynb
@@ -50,6 +36,13 @@ This page contains documentation for the Expected Parrot Domain-Specific Languag
    notebooks/digital_twin
    notebooks/validating_business_ideas
    notebooks/grading_experiment
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Developer:
+
+   data
+   enums
 
 .. image:: https://colab.research.google.com/assets/colab-badge.svg
    :target: https://colab.research.google.com/github/expectedparrot/edsl/blob/main/examples/create_agents.ipynb 
