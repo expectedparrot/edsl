@@ -13,7 +13,6 @@ class QuestionYesNo(QuestionMultipleChoice):
         self,
         question_name: str,
         question_text: str,
-        short_names_dict: dict[str, str] = None,
         question_options: list[str] = ["Yes", "No"],
     ):
         """Instantiate a new QuestionYesNo.
@@ -26,7 +25,6 @@ class QuestionYesNo(QuestionMultipleChoice):
             question_name=question_name,
             question_text=question_text,
             question_options=question_options,
-            short_names_dict=short_names_dict,
         )
         self.question_options = question_options
 
@@ -38,8 +36,7 @@ class QuestionYesNo(QuestionMultipleChoice):
         """Return an example of a yes/no question."""
         return cls(
             question_name="is_it_raining",
-            question_text="Is it raining?",
-            short_names_dict={"Yes": "y", "No": "y"},
+            question_text="Is it raining?"
         )
 
 
@@ -51,7 +48,6 @@ def main():
     q.question_text
     q.question_options
     q.question_name
-    q.short_names_dict
     # validate an answer
     q._validate_answer({"answer": 0, "comment": "I like custard"})
     # translate answer code

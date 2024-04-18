@@ -9,14 +9,12 @@ def test_QuestionLikertFive_main():
 
 valid_question = {
     "question_text": "You like pizza. How strongly do you dis/agree?",
-    "short_names_dict": {},
     "question_name": "pizza_love",
 }
 
 valid_question_w_extras = {
     "question_text": "Statement: Pizza is delicious.",
     "question_name": "pizza_love",
-    "short_names_dict": {},
 }
 
 
@@ -55,7 +53,6 @@ def test_QuestionLikertFive_serialization():
         "question_options": default_options,
         "question_name": "pizza_love",
         "question_type": "likert_five",
-        "short_names_dict": {},
     }
 
     # deserialization should return a QuestionLikertFiveEnhanced object
