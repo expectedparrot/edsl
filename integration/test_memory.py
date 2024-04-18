@@ -6,6 +6,7 @@ from edsl.scenarios.ScenarioList import ScenarioList
 from edsl.language_models import LanguageModelOpenAIThreeFiveTurbo, LanguageModelOpenAIFour
 from edsl import Model
 
+remote = False
 
 c_memory = Cache()
 c_no_memory = Cache()
@@ -51,7 +52,7 @@ def get_survey(memory):
 def test_without_memory():
     s = get_survey(memory=False)
     flip_scenarios = flips(NUM_FLIPS)
-    results = s.by(flip_scenarios).by(m).run(cache = c_no_memory)
+    results = s.by(flip_scenarios).by(m).run(cache = c_no_memory, remote = remote)
     if verbose:
         results.select("coin_flip_observed", "q2").print()
     assert all([result == "I don't know" for result in results.select("q2").to_list()])
@@ -61,7 +62,7 @@ def test_without_memory():
 def test_with_memory():
     s = get_survey(memory=True)
     flip_scenarios = flips(NUM_FLIPS)
-    results = s.by(flip_scenarios).by(m).run(cache = c_memory).mutate("match = q1 == q2")
+    results = s.by(flip_scenarios).by(m).run(cache = c_memory, remote = remote).mutate("match = q1 == q2")
     #breakpoint()
     if verbose:
         results.select("q1", "q2", "match").print()

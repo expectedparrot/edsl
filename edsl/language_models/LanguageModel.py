@@ -3,6 +3,7 @@ from __future__ import annotations
 import warnings
 from functools import wraps
 import asyncio
+import aiohttp
 import json
 import time
 import inspect
@@ -25,6 +26,10 @@ from edsl.enums import service_to_api_keyname
 
 from edsl.exceptions import MissingAPIKeyError
 
+
+def get_url():
+    """Return the URL for the remote service."""
+    return os.getenv("EXPECTED_PARROT_INFERENCE_URL", None)
 
 def handle_key_error(func):
     """Handle KeyError exceptions."""
@@ -251,6 +256,7 @@ class LanguageModel(
         default_parameters = getattr(self, "_parameters_", None)
         parameters = self._overide_default_parameters(kwargs, default_parameters)
         self.parameters = parameters
+        self.remote = False
 
         for key, value in parameters.items():
             setattr(self, key, value)
@@ -268,15 +274,15 @@ class LanguageModel(
             # Skip the API key check. Sometimes this is useful for testing.
             self.api_token = None
 
-        if not hasattr(self, "api_token"):
-            key_name = service_to_api_keyname.get(self._inference_service_, "NOT FOUND")
-            self.api_token = os.getenv(key_name)
-            if self.api_token is None and self._inference_service_ != "test":
-                raise MissingAPIKeyError(
-                    f"""The key for service: `{self._inference_service_}` is not set.
-                    Need a key with name {key_name} in your .env file.
-                    """
-                )
+        # if not hasattr(self, "api_token"):
+        #     key_name = service_to_api_keyname.get(self._inference_service_, "NOT FOUND")
+        #     self.api_token = os.getenv(key_name)
+        #     if self.api_token is None and self._inference_service_ != "test" and not self.remote:
+        #         raise MissingAPIKeyError(
+        #             f"""The key for service: `{self._inference_service_}` is not set.
+        #             Need a key with name {key_name} in your .env file.
+        #             """
+        #         )
 
     def __getitem__(self, key):
         return getattr(self, key)
@@ -370,9 +376,31 @@ class LanguageModel(
         return parameters
 
     @abstractmethod
-    async def async_execute_model_call():
+    async def async_execute_model_call(user_prompt, system_prompt):
         """Execute the model call and returns the result as a coroutine."""
         pass
+
+    async def remote_async_execute_model_call(self, user_prompt, system_prompt):
+        """Execute the model call and returns the result as a coroutine."""
+        url = get_url()
+
+        # Define the model dictionary and the prompts
+        data = {
+            "model_dict": self.to_dict(),
+            "user_prompt": user_prompt,
+            "system_prompt": system_prompt
+        }
+
+        # Use aiohttp to send a POST request asynchronously
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json=data) as response:
+                response_data = await response.json()
+                #print("Status Code:", response.status)
+                #print("Response Body:", response_data)
+                # model_dict = self.to_dict()
+                ## call to remote service goes here
+        return response_data
+
 
     @jupyter_nb_handler
     def execute_model_call(self, *args, **kwargs) -> Coroutine:
@@ -407,6 +435,7 @@ class LanguageModel(
         response["cached_response"] = cached_response
         response["cache_key"] = cache_key
         return response
+            
 
     async def async_get_raw_response(
         self,
@@ -447,7 +476,10 @@ class LanguageModel(
         else:
             # print("Cache not used")
             # print(f"Cache data is: {cache.data}")
-            response = await self.async_execute_model_call(user_prompt, system_prompt)
+            if hasattr(self, "remote") and self.remote:
+                response = await self.remote_async_execute_model_call(user_prompt, system_prompt)
+            else:
+                response = await self.async_execute_model_call(user_prompt, system_prompt)
 
         if not cache_used:
             cache_key = cache.store(
@@ -471,7 +503,7 @@ class LanguageModel(
 
     def simple_ask(
         self,
-        question: QuestionBase,
+        question: 'QuestionBase',
         system_prompt="You are a helpful agent pretending to be a human.",
         top_logprobs=2,
     ):
