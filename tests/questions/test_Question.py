@@ -7,13 +7,11 @@ from edsl.exceptions.questions import QuestionMissingTypeError, QuestionBadTypeE
 
 valid_question = {
     "question_text": "How are you?",
-    "allow_nonresponse": False,
     "question_name": "how_are_you",
 }
 
 valid_question_two = {
     "question_text": "How were you this morning?",
-    "allow_nonresponse": False,
     "question_name": "how_were_you",
 }
 

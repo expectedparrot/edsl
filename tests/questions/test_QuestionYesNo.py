@@ -15,7 +15,6 @@ valid_question = {
     "question_text": "Do you like pizza?",
     "question_options": ["Yes", "No"],
     "question_name": "pizza",
-    "short_names_dict": {},
 }
 
 
@@ -56,7 +55,6 @@ def test_QuestionYesNo_serialization():
         "question_text": valid_question["question_text"],
         "question_options": ["Yes", "No"],
         "question_type": "yes_no",
-        "short_names_dict": {},
     }
 
     # deserialization should return a QuestionYesNoEnhanced object

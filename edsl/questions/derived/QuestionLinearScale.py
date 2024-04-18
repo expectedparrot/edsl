@@ -1,9 +1,8 @@
 from __future__ import annotations
-import textwrap
 from typing import Optional
+
 from edsl.questions.descriptors import QuestionOptionsDescriptor, OptionLabelDescriptor
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
-
 
 class QuestionLinearScale(QuestionMultipleChoice):
     """This question prompts the agent to respond to a statement on a linear scale."""
@@ -17,7 +16,6 @@ class QuestionLinearScale(QuestionMultipleChoice):
         question_name: str,
         question_text: str,
         question_options: list[int],
-        short_names_dict: Optional[dict[str, str]] = None,
         option_labels: Optional[dict[int, str]] = None,
     ):
         """Instantiate a new QuestionLinearScale.
@@ -32,7 +30,6 @@ class QuestionLinearScale(QuestionMultipleChoice):
             question_name=question_name,
             question_text=question_text,
             question_options=question_options,
-            short_names_dict=short_names_dict,
         )
         self.question_options = question_options
         self.option_labels = option_labels
@@ -59,7 +56,6 @@ def main():
     q.question_text
     q.question_options
     q.question_name
-    q.short_names_dict
     # validate an answer
     q._validate_answer({"answer": 3, "comment": "I like custard"})
     # translate answer code

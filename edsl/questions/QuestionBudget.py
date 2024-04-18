@@ -21,7 +21,6 @@ class QuestionBudget(QuestionBase):
         question_text: str,
         question_options: list[str],
         budget_sum: int,
-        short_names_dict: Optional[dict[str, str]] = None,
     ):
         """Instantiate a new QuestionBudget.
 
@@ -35,7 +34,6 @@ class QuestionBudget(QuestionBase):
         self.question_text = question_text
         self.question_options = question_options
         self.budget_sum = budget_sum
-        self.short_names_dict = short_names_dict or {}
 
     ################
     # Answer methods
@@ -108,7 +106,6 @@ def main():
     q.question_text
     q.question_options
     q.question_name
-    q.short_names_dict
     # validate an answer
     q._validate_answer(
         {"answer": {0: 100, 1: 0, 2: 0, 3: 0}, "comment": "I like custard"}

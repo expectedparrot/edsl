@@ -14,7 +14,6 @@ valid_question = {
     "question_text": "On a scale from 1 to 5, how much do you like pizza?",
     "question_options": [1, 2, 3, 4, 5],
     "question_name": "pizza",
-    "short_names_dict": {},
 }
 
 valid_question_w_extras = {
@@ -22,7 +21,6 @@ valid_question_w_extras = {
     "question_options": [1, 2, 3, 4, 5],
     "option_labels": {1: "Bleh", 2: "Eeh", 3: "OK", 4: "Mm", 5: "Mmmm"},
     "question_name": "pizza",
-    "short_names_dict": {},
 }
 
 
@@ -94,7 +92,6 @@ def test_QuestionLinearScale_serialization():
         "question_name": "pizza",
         "option_labels": None,
         "question_type": "linear_scale",
-        "short_names_dict": {},
     }
 
     # deserialization should return a QuestionLinearScaleEnhanced object
@@ -112,7 +109,6 @@ def test_QuestionLinearScale_serialization():
                 "question_name": "pizza",
                 "option_labels": None,
                 "question_type": "linear_scale",
-                "short_names_dict": {},
             }
         )
     with pytest.raises(QuestionCreationValidationError):
@@ -123,7 +119,6 @@ def test_QuestionLinearScale_serialization():
                 "question_name": "pizza",
                 "option_labels": {1: 1, 5: [1, 1]},
                 "question_type": "linear_scale",
-                "short_names_dict": {},
             }
         )
 

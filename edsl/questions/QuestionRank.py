@@ -26,7 +26,6 @@ class QuestionRank(QuestionBase):
         question_text: str,
         question_options: list[str],
         num_selections: Optional[int] = None,
-        short_names_dict: Optional[dict[str, str]] = None,
     ):
         """Initialize the question.
 
@@ -40,7 +39,6 @@ class QuestionRank(QuestionBase):
         self.question_name = question_name
         self.question_text = question_text
         self.question_options = question_options
-        self.short_names_dict = short_names_dict or dict()
         self.num_selections = num_selections or len(question_options)
 
     ################

@@ -1,8 +1,9 @@
 from __future__ import annotations
 import random
-import textwrap
-from jinja2 import Template
 from typing import Any, Optional, Union
+
+from jinja2 import Template
+
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.descriptors import (
     IntegerDescriptor,
@@ -28,7 +29,6 @@ class QuestionCheckBox(QuestionBase):
         question_options: list[str],
         min_selections: Optional[int] = None,
         max_selections: Optional[int] = None,
-        short_names_dict: Optional[dict[str, str]] = None,
     ):
         """Instantiate a new QuestionCheckBox.
 
@@ -44,7 +44,6 @@ class QuestionCheckBox(QuestionBase):
         self.min_selections = min_selections
         self.max_selections = max_selections
         self.question_options = question_options
-        self.short_names_dict = short_names_dict or dict()
 
     ################
     # Answer methods
@@ -124,7 +123,6 @@ def main():
     q.question_text
     q.question_options
     q.question_name
-    q.short_names_dict
     # validate an answer
     q._validate_answer({"answer": [1, 2], "comment": "I like custard"})
     # translate answer code

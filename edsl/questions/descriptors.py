@@ -154,17 +154,6 @@ class NumericalOrNoneDescriptor(BaseDescriptor):
 ################################
 
 
-class AllowNonresponseDescriptor(BaseDescriptor):
-    """Validate that the `allow_nonresponse` attribute is a boolean."""
-
-    def validate(self, value, instance):
-        """Validate the value is a boolean."""
-        if not isinstance(value, bool):
-            raise QuestionCreationValidationError(
-                f"`allow_nonresponse` must be a boolean (got {value})."
-            )
-
-
 class AnswerTemplateDescriptor(BaseDescriptor):
     """Validate that the answer template is a dictionary with string keys and string values."""
 
@@ -327,20 +316,3 @@ class QuestionTextDescriptor(BaseDescriptor):
             )
 
 
-class ShortNamesDictDescriptor(BaseDescriptor):
-    """Validate that the short names dictionary is a dictionary with string keys and string values."""
-
-    def validate(self, value, instance):
-        """Validate the short names dictionary."""
-        if not isinstance(value, dict):
-            raise QuestionCreationValidationError(
-                f"Short names dictionary must be a dictionary (got {value})."
-            )
-        if not all(isinstance(x, str) for x in value.keys()):
-            raise QuestionCreationValidationError(
-                f"Short names dictionary keys must be strings (got {value})."
-            )
-        if not all(isinstance(x, str) for x in value.values()):
-            raise QuestionCreationValidationError(
-                f"Short names dictionary values must be strings (got {value})."
-            )
