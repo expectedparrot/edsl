@@ -85,15 +85,6 @@ class PersistenceMixin:
             # d = json.loads(f.read().decode("utf-8"))
         return cls.from_dict(d)
 
-    def _post(self):
-        """
-        Post the object to a pastebin.
-        TODO: Implement this method using coop.
-        """
-        from edsl.utilities.pastebin import post
-
-        post(self)
-
 
 class RegisterSubclassesMeta(ABCMeta):
     """Metaclass for registering subclasses."""
