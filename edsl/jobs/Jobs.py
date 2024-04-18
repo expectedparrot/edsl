@@ -165,6 +165,9 @@ class Jobs(Base):
         """
         self.agents = self.agents or [Agent()]
         self.models = self.models or [Model(LanguageModelType.GPT_4.value)]
+        if self.remote:
+            for model in self.models:
+                model.remote = True
         self.scenarios = self.scenarios or [Scenario()]
         for agent, scenario, model in product(self.agents, self.scenarios, self.models):
             yield Interview(
@@ -210,7 +213,9 @@ class Jobs(Base):
         :param progress_bar: shows a progress bar
 
         """
-        if check_api_keys:
+        self.remote = remote
+
+        if check_api_keys and not remote:
             for model in self.models + [Model(LanguageModelType.GPT_4.value)]:
                 if not model.has_valid_api_key():
                     raise Exception(
@@ -219,25 +224,32 @@ class Jobs(Base):
 
         if cache is None:
             cache = CacheHandler().get_cache()
-
-        else:
-            pass
-
-        if not remote:
-            results = self._run_local(
-                n=n,
-                debug=debug,
-                progress_bar=progress_bar,
-                cache=cache,
-                stop_on_exception=stop_on_exception,
-                sidecar_model=sidecar_model,
-                batch_mode=batch_mode,
-            )
-        else:
-            expected_parrot_api_key = os.getenv("EXPECTED_PARROT_API_KEY")
-            results = self._run_remote(
-                api_key=expected_parrot_api_key, job_dict=self.to_dict()
-            )
+        
+        results = self._run_local(
+            n=n,
+            debug=debug,
+            progress_bar=progress_bar,
+            cache=cache,
+            stop_on_exception=stop_on_exception,
+            sidecar_model=sidecar_model,
+            batch_mode=batch_mode,
+        )
+        
+        # if not remote:
+        #     results = self._run_local(
+        #         n=n,
+        #         debug=debug,
+        #         progress_bar=progress_bar,
+        #         cache=cache,
+        #         stop_on_exception=stop_on_exception,
+        #         sidecar_model=sidecar_model,
+        #         batch_mode=batch_mode,
+        #     )
+        # else:
+        #     expected_parrot_api_key = os.getenv("EXPECTED_PARROT_API_KEY")
+        #     results = self._run_remote(
+        #         api_key=expected_parrot_api_key, job_dict=self.to_dict()
+        #     )
 
         return results
 
