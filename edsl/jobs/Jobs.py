@@ -50,6 +50,10 @@ class Jobs(Base):
 
         self.__bucket_collection = None
 
+        # This isn't ideal - remote should be an attribute of a run. 
+        # But for now, we'll keep it here.
+        self.remote = False
+
     def by(
         self,
         *args: Union[
@@ -216,6 +220,7 @@ class Jobs(Base):
         self.remote = remote
 
         if check_api_keys and not remote:
+            # only check API keys is the user is not running remotely
             for model in self.models + [Model(LanguageModelType.GPT_4.value)]:
                 if not model.has_valid_api_key():
                     raise Exception(
