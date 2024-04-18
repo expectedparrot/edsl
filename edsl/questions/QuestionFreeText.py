@@ -2,17 +2,14 @@ from __future__ import annotations
 import textwrap
 from typing import Any, Optional
 from edsl.questions.QuestionBase import QuestionBase
-from edsl.questions.descriptors import AllowNonresponseDescriptor
 from edsl.scenarios import Scenario
 from edsl.utilities import random_string
 
 
-# TODO: should allow answer = {"answer": None} if allow_nonresponse is True
 class QuestionFreeText(QuestionBase):
-    """This question prompts the agent to respond with unstructured text."""
+    """This question prompts the agent to respond with free text."""
 
     question_type = "free_text"
-    allow_nonresponse: bool = AllowNonresponseDescriptor()
     default_instructions = textwrap.dedent(
         """\
         You are being asked the following question: {{question_text}}
@@ -25,7 +22,6 @@ class QuestionFreeText(QuestionBase):
         self,
         question_name: str,
         question_text: str,
-        allow_nonresponse: Optional[bool] = None,
         instructions: Optional[str] = None,
     ):
         """Instantiate a new QuestionFreeText.
@@ -36,7 +32,6 @@ class QuestionFreeText(QuestionBase):
         """
         self.question_name = question_name
         self.question_text = question_text
-        self.allow_nonresponse = allow_nonresponse or False
         self.instructions = instructions
 
     ################
@@ -61,8 +56,7 @@ class QuestionFreeText(QuestionBase):
         """Return an example instance of a free text question."""
         return cls(
             question_name="how_are_you",
-            question_text="How are you?",
-            allow_nonresponse=True,
+            question_text="How are you?"
         )
 
 

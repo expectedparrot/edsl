@@ -19,14 +19,12 @@ valid_question = {
     "min_selections": 2,
     "max_selections": 3,
     "question_name": "weekdays",
-    "short_names_dict": {},
 }
 
 valid_question_wo_extras = {
     "question_text": "Which weekdays do you like? Select 2 or 3.",
     "question_options": ["Mon", "Tue", "Wed", "Thu", "Fri"],
     "question_name": "weekdays",
-    "short_names_dict": {},
 }
 
 
@@ -139,7 +137,6 @@ def test_QuestionCheckBox_serialization():
         "min_selections": 2,
         "max_selections": 3,
         "question_type": "checkbox",
-        "short_names_dict": {},
     }
     assert q_noextras.to_dict() == {
         "question_name": "weekdays",
@@ -148,7 +145,6 @@ def test_QuestionCheckBox_serialization():
         "min_selections": None,
         "max_selections": None,
         "question_type": "checkbox",
-        "short_names_dict": {},
     }
 
     # deserialization should return a QuestionCheckBoxEnhanced object
@@ -180,7 +176,6 @@ def test_QuestionCheckBox_serialization():
                 "type": "checkbox",
                 "question_text": "Which weekdays do you like?",
                 "question_options": [],
-                "short_names_dict": {},
             }
         )
     with pytest.raises(Exception):
@@ -189,7 +184,6 @@ def test_QuestionCheckBox_serialization():
                 "type": "checkbox",
                 "question_text": "Which weekdays do you like?",
                 "question_options": ["Sun"],
-                "short_names_dict": {},
             }
         )
     with pytest.raises(Exception):
@@ -198,7 +192,6 @@ def test_QuestionCheckBox_serialization():
                 "type": "checkbox",
                 "question_text": "Which weekdays do you like?",
                 "question_options": ["Sun", "Sun"],
-                "short_names_dict": {},
             }
         )
     with pytest.raises(Exception):
@@ -208,7 +201,6 @@ def test_QuestionCheckBox_serialization():
                 "question_text": "Which weekdays do you like?",
                 "question_options": ["Mon", "Tue"],
                 "min_selections": 3,
-                "short_names_dict": {},
             }
         )
     with pytest.raises(Exception):
@@ -218,7 +210,6 @@ def test_QuestionCheckBox_serialization():
                 "question_text": "Which weekdays do you like?",
                 "question_options": ["Mon", "Tue"],
                 "max_selections": 5,
-                "short_names_dict": {},
             }
         )
 

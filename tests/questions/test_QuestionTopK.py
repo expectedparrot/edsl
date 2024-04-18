@@ -14,7 +14,6 @@ valid_question = {
     "min_selections": 2,
     "max_selections": 2,
     "question_name": "food",
-    "short_names_dict": {},
 }
 
 
@@ -83,7 +82,6 @@ def test_QuestionTopK_serialization():
         "min_selections": 2,
         "max_selections": 2,
         "question_type": "top_k",
-        "short_names_dict": {},
     }
 
     # deserialization should return a QuestionTopKEnhanced object

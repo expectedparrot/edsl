@@ -17,14 +17,12 @@ valid_question = {
     "question_options": ["Pizza", "Ice cream", "Cake", "Cereal"],
     "question_name": "food",
     "num_selections": 2,
-    "short_names_dict": {},
 }
 
 valid_question_wo_extras = {
     "question_text": "What are your 2 favorite foods in the list, ranked?",
     "question_options": ["Pizza", "Ice cream", "Cake", "Cereal"],
     "question_name": "food",
-    "short_names_dict": {},
 }
 
 
@@ -122,7 +120,6 @@ def test_QuestionRank_serialization():
                 "question_text": "What are your 2 favorite foods in the list, ranked?",
                 "question_options": ["Pizza", "Ice cream", "Cake", "Cereal"],
                 "num_selections": 52,
-                "short_names_dict": {},
             }
         )
     with pytest.raises(Exception):
@@ -133,7 +130,6 @@ def test_QuestionRank_serialization():
                 "question_options": ["Pizza", "Ice cream", "Cake", "Cereal"],
                 "num_selections": 3,
                 "kirby": "is cute",
-                "short_names_dict": {},
             }
         )
 
