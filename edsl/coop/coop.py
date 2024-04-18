@@ -12,51 +12,30 @@ from edsl.surveys import Survey
 from edsl.data.CacheEntry import CacheEntry
 
 
-api_url = {
-    "development": "http://127.0.0.1:8000",
-    "development-testrun": "http://127.0.0.1:8000",
-    "production": os.getenv("EXPECTED_PARROT_API_URL"),
-}
-
-
 class Coop:
     """
     Client for the Expected Parrot API.
     """
 
-    def __init__(self, api_key: str = None, run_mode: str = None) -> None:
-        """Initialize the client."""
+    def __init__(self, api_key: str = None, url: str = None) -> None:
+        """
+        Initialize the client.
+        """
         self.api_key = api_key or os.getenv("EXPECTED_PARROT_API_KEY")
-        self.run_mode = run_mode or CONFIG.EDSL_RUN_MODE
-        self._api_key_is_valid()
+        self.url = url or CONFIG.EXPECTED_PARROT_URL
 
     ################
     # BASIC METHODS
     ################
-    def _api_key_is_valid(self) -> None:
-        """
-        Check if the API key is valid.
-        """
-        if not self.api_key:
-            raise ValueError("Expected Parrot API key is required.")
-        if not isinstance(self.api_key, str):
-            raise ValueError("Expected Parrot API key must be a string.")
-        response = self._send_server_request(uri="api/v0/validate-apikey", method="GET")
-        _ = self._resolve_server_response(response)
-
     @property
     def headers(self) -> dict:
         """
         Return the headers for the request.
         """
-        return {"Authorization": f"Bearer {self.api_key}"}
-
-    @property
-    def url(self) -> str:
-        """
-        Return the URL for the request.
-        """
-        return api_url[self.run_mode]
+        headers = {}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        return headers
 
     def _send_server_request(
         self,
@@ -88,7 +67,10 @@ class Coop:
         Check the response from the server and raise appropriate errors.
         """
         if response.status_code >= 400:
-            raise Exception(response.json().get("detail"))
+            message = response.json().get("detail")
+            if "Authorization" in message:
+                message = "Please provide an Expected Parrot API key."
+            raise Exception(message)
 
     ################
     # HELPER METHODS
@@ -412,24 +394,36 @@ class Coop:
         return response.json()
 
     ################
+    # ERROR MESSAGE METHODS
+    ################
+    def send_error_message(self, error_data: str) -> dict:
+        """
+        Send an error message to the server.
+        """
+        response = self._send_server_request(
+            uri="api/v0/errors",
+            method="POST",
+            payload={"json_string": json.dumps(error_data)},
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    ################
     # DUNDER METHODS
     ################
     def __repr__(self):
         """Return a string representation of the client."""
-        return f"Client(api_key='{self.api_key}', run_mode='{self.run_mode}')"
+        return f"Client(api_key='{self.api_key}', url='{self.url}')"
 
 
 if __name__ == "__main__":
     from edsl.coop import Coop
 
     API_KEY = "b"
-    RUN_MODE = "development"
-    coop = Coop(api_key=API_KEY, run_mode=RUN_MODE)
+    coop = Coop(api_key=API_KEY)
 
     # basics
     coop
-    coop.headers
-    coop.url
 
     ##############
     # A. QUESTIONS
@@ -590,3 +584,12 @@ if __name__ == "__main__":
         cache_entry = CacheEntry.example(randomize=True)
         cache_entries[cache_entry.key] = cache_entry
     coop.send_cache_entries(cache_entries)
+
+    ##############
+    # E. ERROR MESSAGE
+    ##############
+    coop = Coop()
+    coop.api_key = "a"
+    coop.send_error_message({"something": "This is an error message"})
+    coop.api_key = None
+    coop.send_error_message({"something": "This is an error message"})
