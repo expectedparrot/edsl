@@ -22,7 +22,6 @@ class QuestionMultipleChoice(QuestionBase):
         question_name: str,
         question_text: str,
         question_options: list[str],
-        short_names_dict: Optional[dict[str, str]] = None,
     ):
         """Instantiate a new QuestionMultipleChoice.
 
@@ -34,7 +33,6 @@ class QuestionMultipleChoice(QuestionBase):
         self.question_name = question_name
         self.question_text = question_text
         self.question_options = question_options
-        self.short_names_dict = short_names_dict or dict()
 
     ################
     # Answer methods
@@ -77,8 +75,7 @@ class QuestionMultipleChoice(QuestionBase):
         return cls(
             question_text="How are you?",
             question_options=["Good", "Great", "OK", "Bad"],
-            question_name="how_feeling",
-            short_names_dict={"Good": "g", "Great": "gr", "OK": "ok", "Bad": "b"},
+            question_name="how_feeling"
         )
 
 
@@ -90,7 +87,6 @@ def main():
     q.question_text
     q.question_options
     q.question_name
-    q.short_names_dict
     # validate an answer
     q._validate_answer({"answer": 0, "comment": "I like custard"})
     # translate answer code

@@ -10,8 +10,7 @@ from edsl.exceptions import (
 )
 from edsl.questions.descriptors import (
     QuestionNameDescriptor,
-    QuestionTextDescriptor,
-    ShortNamesDictDescriptor,
+    QuestionTextDescriptor
 )
 
 from edsl.prompts.registry import get_classes as prompt_lookup
@@ -34,8 +33,7 @@ class QuestionBase(
 
     question_name: str = QuestionNameDescriptor()
     question_text: str = QuestionTextDescriptor()
-    short_names_dict: dict[str, str] = ShortNamesDictDescriptor()
-
+    
     def __getitem__(self, key: str) -> Any:
         """Get an attribute of the question."""
         return getattr(self, key)

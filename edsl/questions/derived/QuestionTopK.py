@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import Optional
+
 from edsl.exceptions import QuestionCreationValidationError
 from edsl.questions.QuestionCheckBox import QuestionCheckBox
 
@@ -16,7 +17,6 @@ class QuestionTopK(QuestionCheckBox):
         question_options: list[str],
         min_selections: int,
         max_selections: int,
-        short_names_dict: Optional[dict[str, str]] = None,
     ):
         """Initialize the question.
 
@@ -30,7 +30,6 @@ class QuestionTopK(QuestionCheckBox):
             question_name=question_name,
             question_text=question_text,
             question_options=question_options,
-            short_names_dict=short_names_dict,
             min_selections=min_selections,
             max_selections=max_selections,
         )
@@ -66,7 +65,6 @@ def main():
     q.question_text
     q.question_options
     q.question_name
-    q.short_names_dict
     # validate an answer
     q._validate_answer({"answer": [0, 3], "comment": "I like custard"})
     # translate answer code

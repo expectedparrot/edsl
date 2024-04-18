@@ -14,18 +14,12 @@ def test_QuestionFreeText_main():
 
 valid_question = {
     "question_text": "How are you?",
-    "allow_nonresponse": False,
     "question_name": "how_are_you",
 }
 
-valid_question_wo_nonresponse = {
-    "question_text": "How are you buddy?",
-    "question_name": "how_are_you",
-}
 
 valid_question_allow_nonresponse = {
     "question_text": "How are you buddy?",
-    "allow_nonresponse": True,
     "question_name": "how_are_you",
 }
 
@@ -37,17 +31,9 @@ def test_QuestionFreeText_construction():
     assert isinstance(q, QuestionFreeText)
     assert q.question_name == valid_question["question_name"]
     assert q.question_text == valid_question["question_text"]
-    assert q.allow_nonresponse == valid_question["allow_nonresponse"]
-
+   
     assert q.data == valid_question
 
-    # QuestionFreeText should impute allow_nonresponse with False
-    q = QuestionFreeText(**valid_question_wo_nonresponse)
-    assert q.question_name == valid_question_wo_nonresponse["question_name"]
-    assert q.question_text == valid_question_wo_nonresponse["question_text"]
-    assert q.allow_nonresponse == False
-
-    assert q.data != valid_question_wo_nonresponse
 
     # should raise an exception if question_text is missing
     invalid_question = valid_question.copy()
@@ -79,7 +65,6 @@ def test_QuestionFreeText_serialization():
     assert q.to_dict() == {
         "question_name": "how_are_you",
         "question_text": "How are you?",
-        "allow_nonresponse": False,
         "question_type": "free_text",
     }
 

@@ -3,10 +3,8 @@ import random
 import textwrap
 from typing import Any, Optional, Union
 from edsl.questions.QuestionBase import QuestionBase
-from edsl.questions.descriptors import (
-    AllowNonresponseDescriptor,
-    IntegerOrNoneDescriptor,
-)
+from edsl.questions.descriptors import IntegerOrNoneDescriptor
+
 from edsl.scenarios import Scenario
 from edsl.utilities import random_string
 
@@ -16,13 +14,11 @@ class QuestionList(QuestionBase):
 
     question_type = "list"
     max_list_items: int = IntegerOrNoneDescriptor()
-    allow_nonresponse: bool = AllowNonresponseDescriptor()
 
     def __init__(
         self,
         question_name: str,
         question_text: str,
-        allow_nonresponse: Optional[bool] = None,
         max_list_items: Optional[int] = None,
     ):
         """Instantiate a new QuestionList.
@@ -34,7 +30,6 @@ class QuestionList(QuestionBase):
         """
         self.question_name = question_name
         self.question_text = question_text
-        self.allow_nonresponse = allow_nonresponse or False
         self.max_list_items = max_list_items
 
     ################
@@ -65,7 +60,6 @@ class QuestionList(QuestionBase):
         return cls(
             question_name="list_of_foods",
             question_text="What are your favorite foods?",
-            allow_nonresponse=False,
             max_list_items=5,
         )
 
@@ -77,7 +71,6 @@ def main():
     q = QuestionList.example()
     q.question_text
     q.question_name
-    q.allow_nonresponse
     q.max_list_items
     # validate an answer
     q._validate_answer({"answer": ["pasta", "garlic", "oil", "parmesan"]})

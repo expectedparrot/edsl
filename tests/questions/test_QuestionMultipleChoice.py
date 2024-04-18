@@ -17,7 +17,6 @@ valid_question = {
     "question_text": "How are you?",
     "question_options": ["OK", "Bad"],
     "question_name": "how_are_you",
-    "short_names_dict": {},
 }
 
 
@@ -121,7 +120,6 @@ def test_QuestionMultipleChoice_serialization():
         "question_text": "How are you?",
         "question_options": ["OK", "Bad"],
         "question_type": "multiple_choice",
-        "short_names_dict": {},
     }
 
     # deserialization should return a QuestionMultipleChoiceEnhanced object

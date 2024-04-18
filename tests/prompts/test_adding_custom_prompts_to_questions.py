@@ -15,7 +15,6 @@ def test_no_model_passed_to_instructions():
     q0 = QuestionMultipleChoice(question_text = "How are you?", 
                             question_options = ["Good", "Great", "OK", "Bad"], 
                             question_name = "how_feeling", 
-                            short_names_dict = {"Good": "g", "Great": "gr", "OK": "ok", "Bad": "b"},
                             )
 
     q0.add_model_instructions(instructions = new_instructions)
@@ -29,7 +28,6 @@ def test_model_specific_instructions():
     q = QuestionMultipleChoice(question_text = "How are you?", 
                             question_options = ["Good", "Great", "OK", "Bad"], 
                             question_name = "how_feeling", 
-                            short_names_dict = {"Good": "g", "Great": "gr", "OK": "ok", "Bad": "b"}
                             )
 
     q.add_model_instructions(instructions =  new_instructions, model = m1.model)

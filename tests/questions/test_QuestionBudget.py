@@ -21,7 +21,6 @@ valid_question_w_extras = {
     "question_options": ["Pizza", "Ice Cream", "Burgers", "Salad"],
     "budget_sum": 100,
     "question_name": "food_budget",
-    "short_names_dict": {"Pizza": "P", "Ice Cream": "IC", "Burgers": "B", "Salad": "S"},
 }
 
 
