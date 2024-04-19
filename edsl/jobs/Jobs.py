@@ -55,9 +55,10 @@ class Jobs(Base):
 
         # This isn't ideal - remote should be an attribute of a run. 
         # But for now, we'll keep it here.
-        self.remote = False
-        if os.getenv("EXPECTED_PARROT_INFERENCE_URL") is not None:
-            self.remote = True
+        #self.remote = False
+
+        #if os.getenv("EXPECTED_PARROT_INFERENCE_URL") is not None:
+        #    self.remote = True
 
     def by(
         self,
@@ -176,7 +177,7 @@ class Jobs(Base):
         """
         self.agents = self.agents or [Agent()]
         self.models = self.models or [Model(LanguageModelType.GPT_4.value)]
-        if self.remote:
+        if hasattr(self, "remote") and self.remote:
             for model in self.models:
                 model.remote = True
         self.scenarios = self.scenarios or [Scenario()]
@@ -210,7 +211,7 @@ class Jobs(Base):
         progress_bar: bool = False,
         stop_on_exception: bool = False,
         cache: Optional[Cache] = None,
-        remote: bool = os.getenv('DEFAULT_RUN_REMOTE', False),
+        remote: bool = False if os.getenv('DEFAULT_RUN_MODE', 'local') else True,
         check_api_keys=True,
         sidecar_model=None,
         batch_mode=False,
@@ -229,12 +230,12 @@ class Jobs(Base):
         :batch_mode: run the job in batch mode i.e., no expecation of interaction with the user
 
         """
+        self.remote = remote
+
         if self.remote:
             if os.getenv("EXPECTED_PARROT_INFERENCE_URL", None) is None:
                 raise MissingRemoteInferenceError()
     
-        self.remote = remote
-
         # only check API keys is the user is not running remotely
         if check_api_keys and not self.remote:
             for model in self.models + [Model(LanguageModelType.GPT_4.value)]:
