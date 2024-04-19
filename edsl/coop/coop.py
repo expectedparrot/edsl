@@ -2,7 +2,7 @@ import json
 import os
 import requests
 from requests.exceptions import ConnectionError
-from typing import Any, Optional, Type, Union
+from typing import Any, Optional, Type, Union, Literal
 import edsl
 from edsl import CONFIG
 from edsl.agents import Agent, AgentList
@@ -157,6 +157,24 @@ class Coop:
         :param public: whether the object should be public (defaults to False)
         """
         return self._create(object, public)
+
+    def web(
+        self,
+        survey: dict,
+        platform: Literal[
+            "google_forms", "lime_survey", "survey_monkey"
+        ] = "lime_survey",
+    ):
+        base_url = self.url
+
+        if base_url is None:
+            return {"status": "error", "error": "EXPECTED_PARROT_API_URL not set"}
+
+        url = f"{base_url}/api/v0/export_to_{platform}"
+        data = {"json_string": json.dumps({"survey": survey})}
+        response_json = requests.post(url, data=json.dumps(data))
+
+        return response_json
 
     # -----------------
     # B. GET METHODS
