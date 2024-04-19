@@ -382,8 +382,9 @@ class LanguageModel(
 
     async def remote_async_execute_model_call(self, user_prompt, system_prompt):
         """Execute the model call and returns the result as a coroutine."""
-        url = get_url()
-
+        #url = get_url()
+        #url = "http://localhost:8000/inference/"
+        url = os.getenv("EXPECTED_PARROT_API_URL") + 'inference/'
         # Define the model dictionary and the prompts
         data = {
             "model_dict": self.to_dict(),
