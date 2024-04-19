@@ -6,7 +6,7 @@ from rich.table import Table
 
 from dataclasses import dataclass
 
-from typing import Any, Generator, Optional, Union, List
+from typing import Any, Generator, Optional, Union, List, Literal
 from edsl.exceptions import SurveyCreationError, SurveyHasNoRulesError
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.surveys.base import RulePriority, EndOfSurvey
@@ -491,6 +491,28 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         for question in self._questions:
             codebook[question.question_name] = question.question_text
         return codebook
+
+    def web(
+        self,
+        platform: Literal[
+            "google_forms", "lime_survey", "survey_monkey"
+        ] = "google_forms",
+    ):
+        import os
+        import json
+        import requests
+
+        base_url = os.environ.get("EXPECTED_PARROT_API_URL", None)
+
+        if base_url is None:
+            return {"status": "error", "error": "EXPECTED_PARROT_API_URL not set"}
+
+        url = f"{base_url}/api/v0/export_to_{platform}"
+        data = {"json_string": json.dumps({"survey": self.to_dict()})}
+        response_json = requests.post(url, data=json.dumps(data))
+
+        print(response_json.json())
+        return response_json
 
     @classmethod
     def example(cls) -> Survey:
