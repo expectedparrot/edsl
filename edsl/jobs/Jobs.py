@@ -226,7 +226,7 @@ class Jobs(Base):
         self.remote = remote
 
         if self.remote:
-            if os.getenv("EXPECTED_PARROT_INFERENCE_URL", None) is None:
+            if os.getenv("EXPECTED_PARROT_API_URL", None) is None:
                 raise MissingRemoteInferenceError()
     
         # only check API keys is the user is not running remotely
