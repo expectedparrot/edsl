@@ -15,11 +15,7 @@ from edsl.jobs.Jobs import Jobs
 from edsl.utilities.utilities import is_notebook
 from edsl.jobs.runners.JobsRunnerStatusMixin import JobsRunnerStatusMixin
 
-# from edsl.jobs.runners.JobsRunHistory import JobsRunHistory
-
 from edsl.data.Cache import Cache
-
-# from edsl.jobs.tasks.task_status_enum import TaskStatus
 
 from edsl.jobs.tasks.TaskHistory import TaskHistory
 
@@ -264,6 +260,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                     display(HTML(results.task_history._repr_html_()))
                 else:
                     results.task_history.show_exceptions()
+                
                 try:
                     from edsl.jobs.interviews.ReportErrors import ReportErrors
 
@@ -280,4 +277,8 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                         print("Errors are reported here: ", report.url)
                 except Exception as e:
                     pass
+
+        if results.task_history.has_exceptions and batch_mode:
+            results.task_history.show_exceptions()
+
         return results
