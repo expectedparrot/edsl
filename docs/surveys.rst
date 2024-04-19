@@ -147,6 +147,33 @@ If question scenarios, agents or language models have been specified, they are a
 
 Note that these survey components can be chained in any order, so long as each type of component is chained at once (e.g., if adding multiple agents, use `by.(agents)` once where agents is a list of all Agent objects).
 
+Exporting a survey
+^^^^^^^^^^^^^^^^^^
+An EDSL survey can also be exported to other survey platforms, such as LimeSurvey and Google Forms. 
+This is done by calling the `web` method and specifying the destination platform.
+
+To export a survey to LimeSurvey:
+
+.. code-block:: python
+
+   ls_survey = survey.web(platform="lime_survey")
+
+To get the url of the newly created survey:
+
+.. code-block:: python
+
+   ls_survey.json()["data"]["url"]
+
+This will return a url that can be used to access the survey on LimeSurvey.
+Or to export to Google Forms:
+
+.. code-block:: python
+
+   survey.web(platform="google_forms")
+
+Note: The `web` method is in testing! This page will be updated when it is live.* 
+
+
 Learn more about specifying question scenarios, agents and language models in their respective modules:
 
 * :ref:`scenarios`
