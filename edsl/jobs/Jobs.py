@@ -6,6 +6,7 @@ from textwrap import dedent
 from typing import Optional, Union, Sequence, Generator
 from itertools import product
 
+from edsl.config import CONFIG
 from edsl import Model
 from edsl.agents import Agent
 from edsl.Base import Base
@@ -226,7 +227,7 @@ class Jobs(Base):
         self.remote = remote
 
         if self.remote:
-            if os.getenv("EXPECTED_PARROT_API_URL", None) is None:
+            if os.getenv("EXPECTED_PARROT_API_KEY", None) is None:
                 raise MissingRemoteInferenceError()
     
         # only check API keys is the user is not running remotely

@@ -15,6 +15,7 @@ from abc import ABC, abstractmethod, ABCMeta
 
 from rich.table import Table
 
+from edsl.config import CONFIG
 from edsl.language_models.schemas import model_prices
 from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
 from edsl.language_models.repair import repair
@@ -382,10 +383,8 @@ class LanguageModel(
 
     async def remote_async_execute_model_call(self, user_prompt, system_prompt):
         """Execute the model call and returns the result as a coroutine."""
-        #url = get_url()
-        #url = "http://localhost:8000/inference/"
-        url = os.getenv("EXPECTED_PARROT_API_URL") + 'inference/'
-        # Define the model dictionary and the prompts
+        url = CONFIG.get("EXPECTED_PARROT_URL") + '/inference/'
+        print("Now using url: ", url)
         data = {
             "model_dict": self.to_dict(),
             "user_prompt": user_prompt,
