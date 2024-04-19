@@ -498,20 +498,12 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
             "google_forms", "lime_survey", "survey_monkey"
         ] = "google_forms",
     ):
-        import os
-        import json
-        import requests
+        from edsl.coop import Coop
 
-        base_url = os.environ.get("EXPECTED_PARROT_API_URL", None)
+        c = Coop()
 
-        if base_url is None:
-            return {"status": "error", "error": "EXPECTED_PARROT_API_URL not set"}
-
-        url = f"{base_url}/api/v0/export_to_{platform}"
-        data = {"json_string": json.dumps({"survey": self.to_dict()})}
-        response_json = requests.post(url, data=json.dumps(data))
-
-        return response_json
+        res = c.web(self.to_dict(), platform)
+        return res
 
     @classmethod
     def example(cls) -> Survey:
