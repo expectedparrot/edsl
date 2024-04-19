@@ -9,7 +9,6 @@ from itertools import product
 from edsl import Model
 from edsl.agents import Agent
 from edsl.Base import Base
-from edsl.coop.old import JobRunnerAPI, ResultsAPI
 from edsl.data.Cache import Cache
 from edsl.data.SQLiteDict import SQLiteDict
 from edsl.data.CacheHandler import CacheHandler
@@ -53,12 +52,6 @@ class Jobs(Base):
 
         self.__bucket_collection = None
 
-        # This isn't ideal - remote should be an attribute of a run. 
-        # But for now, we'll keep it here.
-        #self.remote = False
-
-        #if os.getenv("EXPECTED_PARROT_INFERENCE_URL") is not None:
-        #    self.remote = True
 
     def by(
         self,
@@ -265,10 +258,10 @@ class Jobs(Base):
         results = JobsRunnerAsyncio(self).run(*args, **kwargs)
         return results
 
-    def _run_remote(self, *args, **kwargs):
-        """Run the job remotely."""
-        results = JobRunnerAPI(*args, **kwargs)
-        return results
+    # def _run_remote(self, *args, **kwargs):
+    #     """Run the job remotely."""
+    #     results = JobRunnerAPI(*args, **kwargs)
+    #     return results
 
     #######################
     # Dunder methods
