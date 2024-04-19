@@ -6,7 +6,6 @@ from edsl.exceptions import MissingAPIKeyError
 from edsl.language_models.LanguageModel import LanguageModel
 from edsl.enums import LanguageModelType, InferenceServiceType
 
-
 class GeminiPro(LanguageModel):
     _inference_service_ = InferenceServiceType.GOOGLE.value
     _model_ = LanguageModelType.GEMINI_PRO.value
@@ -22,6 +21,7 @@ class GeminiPro(LanguageModel):
     async def async_execute_model_call(
         self, user_prompt: str, system_prompt: str = ""
     ) -> dict[str, Any]:
+        self.api_token = os.getenv("GOOGLE_API_KEY")
         combined_prompt = user_prompt + system_prompt
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={self.api_token}"
         headers = {"Content-Type": "application/json"}

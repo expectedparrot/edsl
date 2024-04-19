@@ -26,3 +26,4 @@ class MissingAPIKeyError(GeneralErrors):
         This key is assocaited with the inference service `{inference_service}`.
         Please see https://docs.expectedparrot.com/en/latest/starter_tutorial.html#part-1-using-api-keys-for-llms.
         """)
+        super().__init__(full_message)
