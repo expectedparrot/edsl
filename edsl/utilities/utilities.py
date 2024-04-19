@@ -22,7 +22,9 @@ from IPython.display import HTML
 def data_to_html(data, replace_new_lines=False):
     json_str = json.dumps(data, indent=4)
     formatted_json = highlight(
-        json_str, JsonLexer(), HtmlFormatter(style="default", full=False, noclasses=False)
+        json_str,
+        JsonLexer(),
+        HtmlFormatter(style="default", full=False, noclasses=False),
     )
     if replace_new_lines:
         formatted_json = formatted_json.replace("\\n", "<br>")

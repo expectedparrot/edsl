@@ -6,7 +6,7 @@ from rich.table import Table
 
 from dataclasses import dataclass
 
-from typing import Any, Generator, Optional, Union, List
+from typing import Any, Generator, Optional, Union, List, Literal
 from edsl.exceptions import SurveyCreationError, SurveyHasNoRulesError
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.surveys.base import RulePriority, EndOfSurvey
@@ -491,6 +491,19 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         for question in self._questions:
             codebook[question.question_name] = question.question_text
         return codebook
+
+    def web(
+        self,
+        platform: Literal[
+            "google_forms", "lime_survey", "survey_monkey"
+        ] = "google_forms",
+    ):
+        from edsl.coop import Coop
+
+        c = Coop()
+
+        res = c.web(self.to_dict(), platform)
+        return res
 
     @classmethod
     def example(cls) -> Survey:
