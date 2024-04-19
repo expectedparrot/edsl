@@ -3,23 +3,14 @@
 Starter Tutorial
 ================
 This tutorial will guide you through the initial steps required to run your first project using EDSL. 
-If you encounter any issues or have questions, feel free to reach out via email at info@expectedparrot.com or join the discussion in our Discord channel: https://discord.com/invite/mxAYkjfy9m.
-
-
-.. raw:: html
-
-    You can also view the contents of this tutorial in an <a href="https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Tutorial%20-%20Starter%20Tutorial-e080f5883d764931960d3920782baf34" target="_blank">interactive notebook</a>.
-
-
-
+If you encounter any issues or have questions, feel free to reach out via email at info@expectedparrot.com or join the discussion in our `Discord channel <https://discord.com/invite/mxAYkjfy9m>`_.
+You can also view the contents of this tutorial in an `interactive notebook <https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Tutorial%20-%20Starter%20Tutorial-e080f5883d764931960d3920782baf34>`_.
 
 Part 1: Using API Keys for LLMs
 -------------------------------
 Large language models (LLMs) are at the heart of AI-powered research. 
 EDSL allows you to easily conduct research with popular LLMs, including OpenAI's GPTs, Google's Gemini, Anthropic's Claude, Llama 2 and others. 
 To interact with these models with EDSL, you'll need to authenticate using API keys provided by the LLM services.
-
-*Securing Your API Keys*
 
 There are two recommended methods to securely provide your API keys to EDSL:
 
@@ -153,12 +144,7 @@ We also use multiple LLMs to compare results for them:
     # Select components of the results to review
     results.select("model.model", "scenario.activity", "agent.persona", "answer.*").print()
 
-
-.. raw:: html
-
-    View the results in an interactive notebook <a href="https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Tutorial%20-%20Starter%20Tutorial-e080f5883d764931960d3920782baf34" target="_blank">here</a>.
-
-
+View the results in an `interactive notebook <https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Tutorial%20-%20Starter%20Tutorial-e080f5883d764931960d3920782baf34>`_.
 
 
 Exploring Your Results
@@ -215,9 +201,7 @@ The `Results` object also supports SQL-like queries:
     # Execute an SQL-like query on the results
     results.sql("select * from self", shape="wide")
 
-.. raw:: html
-
-    View the output and examples of other methods in interactive notebooks <a href="https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Tutorial%20-%20Starter%20Tutorial-e080f5883d764931960d3920782baf34" target="_blank">here</a>.<br><br>
+You can view the output and examples of other methods in `interactive notebooks <https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Tutorial%20-%20Starter%20Tutorial-e080f5883d764931960d3920782baf34>`_.
 
 
 
