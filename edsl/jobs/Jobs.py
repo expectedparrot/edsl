@@ -9,18 +9,17 @@ from itertools import product
 from edsl import Model
 from edsl.agents import Agent
 from edsl.Base import Base
-from edsl.coop.old import JobRunnerAPI, ResultsAPI
 from edsl.data.Cache import Cache
-from edsl.data.SQLiteDict import SQLiteDict
 from edsl.data.CacheHandler import CacheHandler
 
 from edsl.exceptions.jobs import MissingRemoteInferenceError
 from edsl.exceptions import MissingAPIKeyError
+
 from edsl.enums import LanguageModelType
 from edsl.jobs.buckets.BucketCollection import BucketCollection
 from edsl.jobs.interviews.Interview import Interview
-from edsl.results import Results
 from edsl.language_models import LanguageModel
+from edsl.results import Results
 from edsl.scenarios import Scenario
 from edsl.surveys import Survey
 
@@ -215,7 +214,7 @@ class Jobs(Base):
         check_api_keys=True,
         sidecar_model=None,
         batch_mode=False,
-    ) -> Union[Results, ResultsAPI, None]:
+    ) -> Union[Results, None]:
         """
         Runs the Job: conducts Interviews and returns their results.
 
@@ -256,6 +255,20 @@ class Jobs(Base):
             batch_mode=batch_mode,
         )
         
+
+#         if not remote:
+#             results = self._run_local(
+#                 n=n,
+#                 debug=debug,
+#                 progress_bar=progress_bar,
+#                 cache=cache,
+#                 stop_on_exception=stop_on_exception,
+#                 sidecar_model=sidecar_model,
+#                 batch_mode=batch_mode,
+#             )
+#         else:
+#             raise NotImplementedError("Remote running is not yet implemented.")
+
         return results
 
     def _run_local(self, *args, **kwargs):
@@ -263,11 +276,6 @@ class Jobs(Base):
         from edsl.jobs.runners.JobsRunnerAsyncio import JobsRunnerAsyncio
 
         results = JobsRunnerAsyncio(self).run(*args, **kwargs)
-        return results
-
-    def _run_remote(self, *args, **kwargs):
-        """Run the job remotely."""
-        results = JobRunnerAPI(*args, **kwargs)
         return results
 
     #######################

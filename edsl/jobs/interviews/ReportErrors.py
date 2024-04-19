@@ -1,16 +1,13 @@
 import json
 import requests
 import threading
-from edsl.config import CONFIG
+from edsl.coop import Coop
 
 
 class ReportErrors:
     def __init__(self, task_history):
         self.task_history = task_history
         self.email = None
-        self.url = CONFIG.EXPECTED_PARROT_URL
-        if self.url is None:
-            raise ValueError("The URL for the error reporting service is not set.")
 
     @property
     def data(self):
@@ -39,14 +36,8 @@ class ReportErrors:
             print("No input received within the timeout period.")
 
     def upload(self):
-        json_data = json.dumps(self.data)
-        headers = {"Content-Type": "application/json"}
-        response = requests.post(
-            f"{self.url}/api/v0/errors",
-            json={"json_string": json_data},
-            headers=headers,
-        )
-        print("Status Code:", response.status_code)
+        coop = Coop()
+        coop.send_error_message(error_data=self.data)
 
 
 def main():
