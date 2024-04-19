@@ -511,7 +511,6 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         data = {"json_string": json.dumps({"survey": self.to_dict()})}
         response_json = requests.post(url, data=json.dumps(data))
 
-        print(response_json.json())
         return response_json
 
     @classmethod
