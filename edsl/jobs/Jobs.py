@@ -210,7 +210,7 @@ class Jobs(Base):
         progress_bar: bool = False,
         stop_on_exception: bool = False,
         cache: Optional[Cache] = None,
-        remote: bool = False if os.getenv('DEFAULT_RUN_MODE', 'local') else True,
+        remote: bool = False if os.getenv('DEFAULT_RUN_MODE', 'local') == 'local' else True,
         check_api_keys=True,
         sidecar_model=None,
         batch_mode=False,
