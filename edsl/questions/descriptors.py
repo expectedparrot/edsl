@@ -312,7 +312,7 @@ class QuestionTextDescriptor(BaseDescriptor):
             raise Exception("Question must be a string!")
         if contains_single_braced_substring(value):
             print(
-                f"WARNING: Question text contains a single-braced substring: {value}.\nYou probably mean to use a double-braced substring, e.g. {{variable}}."
+                f"WARNING: Question text contains a single-braced substring: {value}.\nIf you intended to parameterize the question with a Scenario this should be changed to a double-braced substring, e.g. {{variable}}.\nSee details on constructing Scenarios in the docs: https://docs.expectedparrot.com/en/latest/scenarios.html"
             )
 
 
