@@ -1,5 +1,6 @@
 # import anthropic
 import os
+import re
 import dotenv
 from typing import Any
 from anthropic import AsyncAnthropic
@@ -10,16 +11,10 @@ api_key = os.environ.get("ANTHROPIC_API_KEY")
 
 from edsl.language_models.LanguageModel import LanguageModel
 from edsl.enums import InferenceServiceType
-from edsl.enums import LanguageModelType
-from edsl.exceptions import MissingAPIKeyError
-import os
-import re
-
 
 def create_anthropic_model(model_name, model_class_name) -> LanguageModel:
     class LLM(LanguageModel):
         """
-        Child class of LanguageModel for interacting with OpenAI models
         """
 
         _inference_service_ = InferenceServiceType.ANTHROPIC.value

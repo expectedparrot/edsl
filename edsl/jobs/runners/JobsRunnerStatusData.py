@@ -5,7 +5,8 @@ from collections import UserDict, defaultdict
 
 from edsl.jobs.interviews.InterviewStatusDictionary import InterviewStatusDictionary
 from edsl.jobs.tokens.InterviewTokenUsage import InterviewTokenUsage
-from edsl.enums import pricing, TokenPricing
+#from edsl.enums import pricing, TokenPricing
+from edsl.enums import get_token_pricing
 from edsl.jobs.tasks.task_status_enum import TaskStatus
 
 InterviewTokenUsageMapping = DefaultDict[str, InterviewTokenUsage]
@@ -17,7 +18,7 @@ from edsl.jobs.interviews.InterviewStatisticsCollection import (
 
 
 class JobsRunnerStatusData:
-    pricing = pricing
+    #pricing = pricing
 
     def status_dict(self, interviews):
         status = []
@@ -134,10 +135,12 @@ class JobsRunnerStatusData:
         models_to_tokens: InterviewTokenUsageMapping,
     ):
         """Get the status of a model."""
-        if model.model not in self.pricing:
-            raise ValueError(f"Model {model.model} not found in pricing")
+        # if model.model not in self.pricing:
+        #     #raise ValueError(f"Model {model.model} not found in pricing")
+        #     import warning
+        #     warning.warn(f"Model {model.model} not found in pricing")
 
-        prices = self.pricing[model.model]
+        prices = get_token_pricing(model.model)
 
         model_info = {
             "model_name": model.model,
@@ -161,7 +164,7 @@ class JobsRunnerStatusData:
         cache_status: Literal["new_token_usage", "cached_token_usage"],
         models_to_tokens: InterviewTokenUsageMapping,
         model: str,
-        prices: TokenPricing,
+        prices: 'TokenPricing',
     ):
         cache_info = {"cache_status": cache_status, "details": []}
         token_usage = getattr(models_to_tokens[model], cache_status)

@@ -8,13 +8,13 @@ from edsl.language_models.LanguageModel import LanguageModel
 
 
 def create_deep_infra_model(model_name, url, model_class_name) -> LanguageModel:
-    if not LanguageModelType.is_value_valid(model_name):
-        acceptable_values = [item.value for item in LanguageModelType]
-        raise Exception(
-            f"""
-        A Prompt's model must be one of {LanguageModelType} values, which are 
-        currently {acceptable_values}. You passed {model_name}."""
-        )
+    # if not LanguageModelType.is_value_valid(model_name):
+    #     acceptable_values = [item.value for item in LanguageModelType]
+    #     raise Exception(
+    #         f"""
+    #     A model must be one of {LanguageModelType} values, which are 
+    #     currently {acceptable_values}. You passed {model_name}."""
+    #     )
 
     class LLM(LanguageModel):
         _inference_service_ = InferenceServiceType.DEEP_INFRA.value
@@ -25,7 +25,6 @@ def create_deep_infra_model(model_name, url, model_class_name) -> LanguageModel:
             "top_k": 1,
             "max_new_tokens": 2048,
             "stopSequences": [],
-            "use_cache": True,
         }
 
         async def async_execute_model_call(
@@ -40,7 +39,7 @@ def create_deep_infra_model(model_name, url, model_class_name) -> LanguageModel:
                     )
             headers = {
                 "Content-Type": "application/json",
-                "Authorization": f"Token {self.api_token}",
+                "Authorization": f"bearer {self.api_token}",
             }
             data = {
                 "input": f"""

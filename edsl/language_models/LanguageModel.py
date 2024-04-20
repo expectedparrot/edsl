@@ -59,12 +59,12 @@ class RegisterLanguageModelsMeta(ABCMeta):
             )
 
             ## Check that model name is valid
-            if not LanguageModelType.is_value_valid(model_name):
-                acceptable_values = [item.value for item in LanguageModelType]
-                raise LanguageModelAttributeTypeError(
-                    f"""A LanguageModel's model must be one of {LanguageModelType} values, which are
-                    {acceptable_values}. You passed {model_name}."""
-                )
+            # if not LanguageModelType.is_value_valid(model_name):
+            #     acceptable_values = [item.value for item in LanguageModelType]
+            #     raise LanguageModelAttributeTypeError(
+            #         f"""A LanguageModel's model must be one of {LanguageModelType} values, which are
+            #         {acceptable_values}. You passed {model_name}."""
+            #     )
 
             if not InferenceServiceType.is_value_valid(
                 inference_service := getattr(cls, "_inference_service_", None)
@@ -269,17 +269,20 @@ class LanguageModel(
 
         if skip_api_key_check := kwargs.get("skip_api_key_check", False):
             # Skip the API key check. Sometimes this is useful for testing.
-            self.api_token = None
+            self._api_token = None
 
-        # if not hasattr(self, "api_token"):
-        #     key_name = service_to_api_keyname.get(self._inference_service_, "NOT FOUND")
-        #     self.api_token = os.getenv(key_name)
-        #     if self.api_token is None and self._inference_service_ != "test" and not self.remote:
-        #         raise MissingAPIKeyError(
-        #             f"""The key for service: `{self._inference_service_}` is not set.
-        #             Need a key with name {key_name} in your .env file.
-        #             """
-        #         )
+    @property
+    def api_token(self):
+        if not hasattr(self, "_api_token"):
+            key_name = service_to_api_keyname.get(self._inference_service_, "NOT FOUND")
+            self._api_token = os.getenv(key_name)
+            if self._api_token is None and self._inference_service_ != "test" and not self.remote:
+                raise MissingAPIKeyError(
+                    f"""The key for service: `{self._inference_service_}` is not set.
+                    Need a key with name {key_name} in your .env file.
+                    """
+                )
+        return self._api_token
 
     def __getitem__(self, key):
         return getattr(self, key)
@@ -289,7 +292,7 @@ class LanguageModel(
 
         return data_to_html(self.to_dict())
 
-    def hello(self, verbose=True):
+    def hello(self, verbose=False):
         """Runs a simple test to check if the model is working."""
         token = self.api_token
         masked = token[: min(8, len(token))] + "..."
@@ -587,7 +590,7 @@ class LanguageModel(
         """Return a default instance of the class."""
         from edsl import Model
 
-        return Model(Model.available()[0], skip_api_key_check=True)
+        return Model(skip_api_key_check=True)
 
 
 if __name__ == "__main__":

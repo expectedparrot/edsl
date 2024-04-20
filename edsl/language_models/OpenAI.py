@@ -28,6 +28,11 @@ def create_openai_model(model_name, model_class_name) -> LanguageModel:
             "top_logprobs": 3,
         }
 
+        @classmethod
+        def available(cls) -> list[str]:
+            client = openai.OpenAI()
+            return client.models.list()
+          
         def get_headers(self) -> dict[str, Any]:
             from openai import OpenAI
 
