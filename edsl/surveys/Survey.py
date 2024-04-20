@@ -497,12 +497,13 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         platform: Literal[
             "google_forms", "lime_survey", "survey_monkey"
         ] = "google_forms",
+        email=None,
     ):
         from edsl.coop import Coop
 
         c = Coop()
 
-        res = c.web(self.to_dict(), platform)
+        res = c.web(self.to_dict(), platform, email)
         return res
 
     @classmethod
