@@ -164,6 +164,7 @@ class Coop:
         platform: Literal[
             "google_forms", "lime_survey", "survey_monkey"
         ] = "lime_survey",
+        email=None,
     ):
         base_url = self.url
 
@@ -171,7 +172,11 @@ class Coop:
             return {"status": "error", "error": "EXPECTED_PARROT_API_URL not set"}
 
         url = f"{base_url}/api/v0/export_to_{platform}"
-        data = {"json_string": json.dumps({"survey": survey})}
+        if email:
+            data = {"json_string": json.dumps({"survey": survey, "email": email})}
+        else:
+            data = {"json_string": json.dumps({"survey": survey, "email": email})}
+
         response_json = requests.post(url, data=json.dumps(data))
 
         return response_json
