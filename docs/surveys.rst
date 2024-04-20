@@ -3,23 +3,23 @@
 Surveys
 =======
 
-A `Survey` is collection of questions that can be administered asynchronously to one or more agents and language models, or according to specified rules or skip logic.
+A `Survey` is collection of questions that can be administered asynchronously to one or more agents and language models, or according to specified rules such as skip or stop logic.
 
 The key steps to creating and conducting a survey are:
 
-* Creating questions of any type in the `Question` module (multiple choice, free text, linear scale, etc.)
-* Passing questions to a `Survey` object
-* Running the survey by sending it to a language model
+* Creating `Question` objects of any type (multiple choice, free text, linear scale, etc.)
+* Passing questions to a `Survey` 
+* Running the survey by sending it to a language `Model` 
 
 Before running the survey you can optionally:
 
-* Add traits for AI agents that will respond to the survey (e.g., a "student" agent)
-* Add rules and special logic (e.g., skip logic or memory of prior responses) (by default, questions are delivered asynchronously)
+* Add traits for an AI `Agent` (or `AgentList`) that will respond to the survey 
+* Add conditional rules or "memory" of responses to other questions
 * Add values for parameterized questions (`Scenario` objects) 
-* Specify different language model(s) that will be used to answer the questions (the default model is GPT 4)
 
-An EDSL survey can also be sent to Google Forms, Survey Monkey, LimeSurvey and other survey 
-platforms. 
+*Coming soon:*
+An EDSL survey can also be exported to other platforms such as LimeSurvey, Google Forms, Qualtrics and SurveyMonkey. 
+This can be useful for combining responses from AI and human audiences. See a [demo notebook](https://docs.expectedparrot.com/en/latest/notebooks/edsl_components.html).
 
 
 Constructing a survey
@@ -93,7 +93,8 @@ Memory
 When an agent is taking a survey, they can be prompted to "remember" answers to previous questions.
 This can be done in several ways:
 
-* Full memory: The agent is given all of the answers to the questions in the survey.
+<b>Full memory:</b> 
+The agent is given all of the answers to the questions in the survey.
 
 .. code-block:: python
 
@@ -102,14 +103,16 @@ This can be done in several ways:
 Note that this is slow and token-intensive, as the questions must be answered serially and requires the agent to remember all of the answers to the questions in the survey.
 In contrast, if the agent does not need to remember all of the answers to the questions in the survey, execution can proceed in parallel.
     
-* Lagged memory: With each question, the agent is given the answers to the specified number of lagged (prior) questions.
+<b>Lagged memory:</b>
+With each question, the agent is given the answers to the specified number of lagged (prior) questions.
 In this example, the agent is given the answers to the 2 previous questions in the survey:
 
 .. code-block:: python
 
    s.set_lagged_memory(2)
 
-* Targeted memory: The agent is given the answers to specific targeted prior questions.
+<b>Targeted memory:</b>
+The agent is given the answers to specific targeted prior questions.
 In this example, the agent is given the answer to q1 when prompted to to answer q2:
 
 .. code-block:: python
@@ -132,7 +135,7 @@ For example, we can add answers to both q1 and q2 when answering q3:
 
     
 Running a survey
-^^^^^^^^^^^^^^^^
+----------------
 Once constructed, a Survey can be `run`, creating a `Results` object:
 
 .. code-block:: python
@@ -146,6 +149,38 @@ If question scenarios, agents or language models have been specified, they are a
    results = survey.by(scenarios).by(agents).by(models).run()
 
 Note that these survey components can be chained in any order, so long as each type of component is chained at once (e.g., if adding multiple agents, use `by.(agents)` once where agents is a list of all Agent objects).
+
+
+Exporting a survey to other platforms
+-------------------------------------
+*Coming soon!*
+An EDSL survey can also be exported to other survey platforms, such as LimeSurvey, Google Forms, Qualtrics and SurveyMonkey.
+This is useful for combining responses from AI and human audiences. 
+We do this by calling the `web` method and specifying the destination platform.
+
+For example, to export a survey to LimeSurvey:
+
+.. code-block:: python
+
+   ls_survey = survey.web(platform="lime_survey")
+
+To get the url of the newly created survey:
+
+.. code-block:: python
+
+   ls_survey.json()["data"]["url"]
+
+This will return a url that can be used to access the survey on LimeSurvey.
+
+Or to export to Google Forms:
+
+.. code-block:: python
+
+   survey.web(platform="google_forms")
+
+<i>Note: This feature is in launching soon! This page will be updated when it is live. 
+If you would like to sign up for alpha testing this and other new features, please complete the following survey which was created with this new method: [EDSL signup survey ](https://survey.expectedparrot.com/index.php/132345).</i>
+
 
 Learn more about specifying question scenarios, agents and language models in their respective modules:
 
