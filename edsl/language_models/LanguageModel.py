@@ -28,10 +28,6 @@ from edsl.enums import service_to_api_keyname
 from edsl.exceptions import MissingAPIKeyError
 
 
-def get_url():
-    """Return the URL for the remote service."""
-    return os.getenv("EXPECTED_PARROT_INFERENCE_URL", None)
-
 def handle_key_error(func):
     """Handle KeyError exceptions."""
 
@@ -382,25 +378,11 @@ class LanguageModel(
         pass
 
     async def remote_async_execute_model_call(self, user_prompt, system_prompt):
-        """Execute the model call and returns the result as a coroutine."""
-        url = CONFIG.get("EXPECTED_PARROT_URL") + '/inference/'
-        print("Now using url: ", url)
-        data = {
-            "model_dict": self.to_dict(),
-            "user_prompt": user_prompt,
-            "system_prompt": system_prompt
-        }
-
-        # Use aiohttp to send a POST request asynchronously
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, json=data) as response:
-                response_data = await response.json()
-                #print("Status Code:", response.status)
-                #print("Response Body:", response_data)
-                # model_dict = self.to_dict()
-                ## call to remote service goes here
+        """Execute the model call and returns the result as a coroutine, using Coop."""
+        from edsl.coop import Coop
+        client = Coop()
+        response_data = await client.remote_async_execute_model_call(self.to_dict(), user_prompt, system_prompt)
         return response_data
-
 
     @jupyter_nb_handler
     def execute_model_call(self, *args, **kwargs) -> Coroutine:
