@@ -5,6 +5,7 @@ It is not typically instantiated directly, but is returned by the run method of 
 from __future__ import annotations
 import json
 import io
+import sys
 from collections import UserList, defaultdict
 from typing import Optional
 from rich.console import Console
@@ -156,7 +157,11 @@ class Results(UserList, Mixins, Base):
             ]
             self.data = results
 
+
     def __repr__(self) -> str:
+        from rich import print_json
+        import json
+        print_json(json.dumps(self.to_dict()['data']))
         return f"Results(data = {self.data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
 
     def _repr_html_(self) -> str:
@@ -687,7 +692,8 @@ class Results(UserList, Mixins, Base):
         #     return console.export_text()
 
     def __str__(self):
-        return repr(self)
+        data = self.to_dict()['data']
+        return json.dumps(data, indent=4)
 
 
 def main():  # pragma: no cover

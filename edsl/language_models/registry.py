@@ -1,10 +1,12 @@
 import textwrap
+import pkgutil
+import importlib
 
 DEFAULT_MODEL_CLASS = "edsl.language_models.LanguageModelOpenAIFour"
 
 from edsl.language_models.LanguageModel import RegisterLanguageModelsMeta
-import pkgutil
-import importlib
+from edsl.exceptions.language_models import LanguageModelNotFound
+
 import edsl.language_models.model_interfaces as model_interfaces
 
 # Dynamically import all modules in the model_interfaces package
@@ -58,13 +60,10 @@ class Model(metaclass=Meta):
 
         if model_name is None:
             model_name = cls.default_model
-            # print(f"No model name provided, using default model: {model_name}")
 
         subclass = get_model_classes.get(model_name, None)
         if subclass is None:
-            raise ValueError(
-                f"No model registered with name '{model_name}'. See a list of available models run: Model.available()"
-            )
+            raise LanguageModelNotFound(model_name)
 
         # Create an instance of the selected subclass
         instance = object.__new__(subclass)

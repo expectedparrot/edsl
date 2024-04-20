@@ -206,6 +206,9 @@ class QuestionBase(
             for k, v in self.data.items()
             if k != "question_type"
         ]
+        from rich import print_json
+        import json
+        print_json(json.dumps(self.to_dict()))
         return f"{class_name}({', '.join(items)})"
 
     def __eq__(self, other: Type[QuestionBase]) -> bool:
