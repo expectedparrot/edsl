@@ -18,7 +18,7 @@ from edsl.config import CONFIG
 from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
 from edsl.language_models.repair import repair
 from edsl.exceptions.language_models import LanguageModelAttributeTypeError
-from edsl.enums import LanguageModelType, InferenceServiceType
+from edsl.enums import InferenceServiceType
 from edsl.Base import RichPrintingMixin, PersistenceMixin
 from edsl.data.Cache import Cache
 from edsl.enums import service_to_api_keyname
@@ -308,7 +308,7 @@ class LanguageModel(
         from edsl.enums import service_to_api_keyname
         import os
 
-        if self._model_ == LanguageModelType.TEST.value:
+        if self._model_ == "test":
             return True
 
         key_name = service_to_api_keyname.get(self._inference_service_, "NOT FOUND")

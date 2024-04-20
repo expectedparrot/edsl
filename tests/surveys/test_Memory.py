@@ -30,7 +30,7 @@ class TestMemory(unittest.TestCase):
     def test_adding_memories(self):
         import random
         from edsl.language_models.LanguageModel import LanguageModel
-        from edsl.enums import LanguageModelType, InferenceServiceType
+        from edsl.enums import InferenceServiceType
         import asyncio
         from typing import Any
         from edsl import Scenario, Survey
@@ -40,7 +40,7 @@ class TestMemory(unittest.TestCase):
 
         def create_exception_throwing_model(exception: Exception, probability: float):
             class TestLanguageModelGood(LanguageModel):
-                _model_ = LanguageModelType.TEST.value
+                _model_ = 'test'
                 _parameters_ = {"temperature": 0.5, "use_cache": False}
                 _inference_service_ = InferenceServiceType.TEST.value
 

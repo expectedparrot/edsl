@@ -6,7 +6,7 @@ from typing import Any
 from tempfile import NamedTemporaryFile
 
 from edsl.exceptions.language_models import LanguageModelAttributeTypeError
-from edsl.enums import LanguageModelType, InferenceServiceType
+from edsl.enums import InferenceServiceType
 from edsl.language_models.LanguageModel import LanguageModel
 
 def create_temp_env_file(contents):
@@ -19,7 +19,7 @@ def create_temp_env_file(contents):
 class TestLanguageModel(unittest.TestCase):
     def setUp(self):
         class TestLanguageModelBad(LanguageModel):
-            _model_ = LanguageModelType.TEST.value
+            _model_ = "test"
             _parameters_ = {"temperature": 0.5}
             _inference_service_ = InferenceServiceType.TEST.value
             pass
@@ -39,7 +39,7 @@ class TestLanguageModel(unittest.TestCase):
 
         class TestLanguageModelGood(LanguageModel):
             use_cache = False
-            _model_ = LanguageModelType.TEST.value
+            _model_ = "test"
             _parameters_ = {"temperature": 0.5}
             _inference_service_ = InferenceServiceType.TEST.value
 
@@ -160,7 +160,7 @@ class TestLanguageModel(unittest.TestCase):
 
     def test_parser_exception(self):
         class TestLanguageModelGood(LanguageModel):
-            _model_ = LanguageModelType.TEST.value
+            _model_ = "test"
             _parameters_ = {"temperature": 0.5}
             _inference_service_ = InferenceServiceType.TEST.value
 
@@ -183,7 +183,7 @@ class TestLanguageModel(unittest.TestCase):
 
     def test_key_check(self):
         class TestLanguageModelGood(LanguageModel):
-            _model_ = LanguageModelType.TEST.value
+            _model_ = "test"
             _parameters_ = {"temperature": 0.5}
             _inference_service_ = InferenceServiceType.TEST.value
 
