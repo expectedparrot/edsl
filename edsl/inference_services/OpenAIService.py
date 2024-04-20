@@ -113,6 +113,6 @@ class OpenAIService(InferenceServiceABC):
                 else:
                     return response
 
-        LLM.__name__ = model_class_name
+        LLM.__name__ = "LanguageModel"
 
         return LLM

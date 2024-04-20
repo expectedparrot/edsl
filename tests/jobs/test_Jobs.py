@@ -6,11 +6,7 @@ from edsl.jobs.Jobs import Jobs, main
 from edsl.questions import QuestionMultipleChoice
 from edsl.scenarios import Scenario
 from edsl.surveys import Survey
-from edsl.language_models import (
-    LanguageModelOpenAIThreeFiveTurbo,
-    LanguageModelOpenAIFour,
-)
-
+from edsl import Model
 
 @pytest.fixture(scope="function")
 def valid_job():
@@ -21,7 +17,7 @@ def valid_job():
     )
     survey = Survey(name="Test Survey", questions=[q])
     agent = Agent(traits={"trait1": "value1"})
-    model = LanguageModelOpenAIThreeFiveTurbo()
+    model = Model()
     scenario = Scenario({"price": 100, "quantity": 2})
     valid_job = Jobs(
         survey=survey,
@@ -36,7 +32,7 @@ def test_jobs_simple_stuf(valid_job):
     # simple stuff
     assert valid_job.survey.name == "Test Survey"
     assert valid_job.agents[0].traits == {"trait1": "value1"}
-    assert valid_job.models[0].model == "gpt-3.5-turbo"
+    assert valid_job.models[0].model == 'gpt-4-1106-preview'
     assert valid_job.scenarios[0].get("price") == 100
     # eval works and returns eval-able string
     assert "Jobs(survey=Survey(" in repr(valid_job)
@@ -118,8 +114,8 @@ def test_jobs_by_models():
         question_name="how_feeling",
     )
     survey = Survey(name="Test Survey", questions=[q])
-    model1 = LanguageModelOpenAIThreeFiveTurbo()
-    model2 = LanguageModelOpenAIFour()
+    model1 = Model.from_index(0)
+    model2 = Model.from_index(1)
     # by without existing models
     job = survey.by(model1)
     assert job.models == [model1]

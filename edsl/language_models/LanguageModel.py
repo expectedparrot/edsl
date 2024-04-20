@@ -3,7 +3,6 @@ from __future__ import annotations
 import warnings
 from functools import wraps
 import asyncio
-import aiohttp
 import json
 import time
 import inspect
@@ -16,7 +15,6 @@ from abc import ABC, abstractmethod, ABCMeta
 from rich.table import Table
 
 from edsl.config import CONFIG
-from edsl.language_models.schemas import model_prices
 from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
 from edsl.language_models.repair import repair
 from edsl.exceptions.language_models import LanguageModelAttributeTypeError
@@ -534,9 +532,10 @@ class LanguageModel(
 
     def cost(self, raw_response: dict[str, Any]) -> float:
         """Return the dollar cost of a raw response."""
-        keys = raw_response["usage"].keys()
-        prices = model_prices.get(self.model)
-        return sum([prices.get(key, 0.0) * raw_response["usage"][key] for key in keys])
+        raise NotImplementedError
+        # keys = raw_response["usage"].keys()
+        # prices = model_prices.get(self.model)
+        # return sum([prices.get(key, 0.0) * raw_response["usage"][key] for key in keys])
 
     #######################
     # SERIALIZATION METHODS
@@ -562,8 +561,8 @@ class LanguageModel(
         from rich import print_json
         import json
         print_json(json.dumps(self.to_dict()))
-
-        return f"{self.__class__.__name__}(model = '{self.model}', parameters={self.parameters})"
+        param_string = ", ".join(f"{key} = {value}" for key, value in self.parameters.items())
+        return f"Model(model_name = '{self.model}'" + (f", {param_string}" if param_string else "") + ")"
 
     def __add__(self, other_model: Type[LanguageModel]) -> Type[LanguageModel]:
         """Combine two models into a single model (other_model takes precedence over self)."""
