@@ -4,7 +4,7 @@ import pytest
 from typing import Any
 from edsl.config import CONFIG
 from edsl.data.SQLiteDict import SQLiteDict
-from edsl.enums import LanguageModelType, InferenceServiceType
+from edsl.enums import InferenceServiceType
 from edsl.language_models.LanguageModel import LanguageModel
 
 
@@ -140,7 +140,7 @@ def language_model_good():
 
     class TestLanguageModelGood(LanguageModel):
         use_cache = False
-        _model_ = LanguageModelType.TEST.value
+        _model_ = "test"
         _parameters_ = {"temperature": 0.5}
         _inference_service_ = InferenceServiceType.TEST.value
 

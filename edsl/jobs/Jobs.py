@@ -16,7 +16,7 @@ from edsl.data.CacheHandler import CacheHandler
 
 from edsl.exceptions.jobs import MissingRemoteInferenceError
 from edsl.exceptions import MissingAPIKeyError
-from edsl.enums import LanguageModelType
+#from edsl.enums import LanguageModelType
 from edsl.jobs.buckets.BucketCollection import BucketCollection
 from edsl.jobs.interviews.Interview import Interview
 from edsl.results import Results
@@ -170,7 +170,7 @@ class Jobs(Base):
         with us filling in defaults.
         """
         self.agents = self.agents or [Agent()]
-        self.models = self.models or [Model(LanguageModelType.GPT_4.value)]
+        self.models = self.models or [Model()]
         if hasattr(self, "remote") and self.remote:
             for model in self.models:
                 model.remote = True
@@ -232,7 +232,7 @@ class Jobs(Base):
     
         # only check API keys is the user is not running remotely
         if check_api_keys and not self.remote:
-            for model in self.models + [Model(LanguageModelType.GPT_4.value)]:
+            for model in self.models + [Model()]:
                 if not model.has_valid_api_key():
                     raise MissingAPIKeyError(model_name = str(model.model), 
                                              inference_service = model._inference_service_)

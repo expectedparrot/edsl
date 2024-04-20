@@ -4,7 +4,6 @@ import json
 from typing import Any
 from edsl.exceptions import MissingAPIKeyError
 from edsl.language_models.LanguageModel import LanguageModel
-from edsl.enums import LanguageModelType, InferenceServiceType
 
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
 

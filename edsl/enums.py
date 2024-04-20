@@ -32,20 +32,20 @@ class QuestionType(EnumWithChecks):
 # https://huggingface.co/meta-llama/Llama-2-70b-chat-hf
 
 
-class LanguageModelType(EnumWithChecks):
-    """Enum for the language model types."""
+# class LanguageModelType(EnumWithChecks):
+#     """Enum for the language model types."""
 
-    GPT_4 = "gpt-4-1106-preview"
-    GPT_3_5_Turbo = "gpt-3.5-turbo"
-    LLAMA_2_70B_CHAT_HF = "llama-2-70b-chat-hf"
-    LLAMA_2_13B_CHAT_HF = "llama-2-13b-chat-hf"
-    GEMINI_PRO = "gemini_pro"
-    MIXTRAL_8x7B_INSTRUCT = "mixtral-8x7B-instruct-v0.1"
-    TEST = "test"
-    ANTHROPIC_3_OPUS = "claude-3-opus-20240229"
-    ANTHROPIC_3_SONNET = "claude-3-sonnet-20240229"
-    ANTHROPIC_3_HAIKU = "claude-3-haiku-20240307"
-    DBRX_INSTRUCT = "dbrx-instruct"
+#     GPT_4 = "gpt-4-1106-preview"
+#     GPT_3_5_Turbo = "gpt-3.5-turbo"
+#     LLAMA_2_70B_CHAT_HF = "llama-2-70b-chat-hf"
+#     LLAMA_2_13B_CHAT_HF = "llama-2-13b-chat-hf"
+#     GEMINI_PRO = "gemini_pro"
+#     MIXTRAL_8x7B_INSTRUCT = "mixtral-8x7B-instruct-v0.1"
+#     TEST = "test"
+#     ANTHROPIC_3_OPUS = "claude-3-opus-20240229"
+#     ANTHROPIC_3_SONNET = "claude-3-sonnet-20240229"
+#     ANTHROPIC_3_HAIKU = "claude-3-haiku-20240307"
+#     DBRX_INSTRUCT = "dbrx-instruct"
 
 
 class InferenceServiceType(EnumWithChecks):

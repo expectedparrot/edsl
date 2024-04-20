@@ -168,12 +168,12 @@ def test_jobs_run(valid_job):
 
 def test_normal_run():
     from edsl.language_models.LanguageModel import LanguageModel
-    from edsl.enums import LanguageModelType, InferenceServiceType
+    from edsl.enums import InferenceServiceType
     import asyncio
     from typing import Any
 
     class TestLanguageModelGood(LanguageModel):
-        _model_ = LanguageModelType.TEST.value
+        _model_ = "test"
         _parameters_ = {"temperature": 0.5}
         _inference_service_ = InferenceServiceType.TEST.value
 
@@ -199,7 +199,7 @@ def test_normal_run():
 def test_handle_model_exception():
     import random
     from edsl.language_models.LanguageModel import LanguageModel
-    from edsl.enums import LanguageModelType, InferenceServiceType
+    from edsl.enums import InferenceServiceType
     import asyncio
     from typing import Any
     from edsl import Scenario
@@ -209,7 +209,7 @@ def test_handle_model_exception():
 
     def create_exception_throwing_model(exception: Exception, probability: float):
         class TestLanguageModelGood(LanguageModel):
-            _model_ = LanguageModelType.TEST.value
+            _model_ = "test"
             _parameters_ = {"temperature": 0.5}
             _inference_service_ = InferenceServiceType.TEST.value
 

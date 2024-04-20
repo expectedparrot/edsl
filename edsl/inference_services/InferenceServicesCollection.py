@@ -5,7 +5,6 @@ class InferenceServicesCollection():
         self.services = services or []
 
     def available(self):
-        index = 0
         total_models = []
         for service in self.services:
             try:

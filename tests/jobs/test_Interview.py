@@ -3,7 +3,7 @@ import pytest
 from typing import Any
 from edsl import Survey
 from edsl.config import CONFIG
-from edsl.enums import LanguageModelType, InferenceServiceType
+from edsl.enums import InferenceServiceType
 from edsl.language_models.LanguageModel import LanguageModel
 from edsl.questions import QuestionFreeText
 
@@ -12,8 +12,8 @@ def create_language_model(
     exception: Exception, fail_at_number: int, never_ending=False
 ):
     class TestLanguageModel(LanguageModel):
-        _model_ = LanguageModelType.TEST.value
-        _parameters_ = {"temperature": 0.5, "use_cache": False}
+        _model_ = "test"
+        _parameters_ = {"temperature": 0.5}
         _inference_service_ = InferenceServiceType.TEST.value
 
         async def async_execute_model_call(

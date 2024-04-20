@@ -4,7 +4,7 @@ import textwrap
 from edsl.prompts.Prompt import PromptBase
 from edsl.prompts.prompt_config import ComponentTypes
 
-from edsl.enums import LanguageModelType
+#from edsl.enums import LanguageModelType
 
 
 class AgentPersona(PromptBase):
