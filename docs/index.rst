@@ -35,7 +35,6 @@ This page contains documentation for the Expected Parrot Domain-Specific Languag
    notebooks/free_responses
    notebooks/qualitative_research
    notebooks/digital_twin
-   notebooks/validating_business_ideas
    notebooks/grading_experiment
 
 .. toctree::
