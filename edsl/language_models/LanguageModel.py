@@ -556,6 +556,10 @@ class LanguageModel(
     #######################
     def __repr__(self) -> str:
         """Return a string representation of the object."""
+        from rich import print_json
+        import json
+        print_json(json.dumps(self.to_dict()))
+
         return f"{self.__class__.__name__}(model = '{self.model}', parameters={self.parameters})"
 
     def __add__(self, other_model: Type[LanguageModel]) -> Type[LanguageModel]:
