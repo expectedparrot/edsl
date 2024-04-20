@@ -1,5 +1,9 @@
 import json
 import os
+from edsl.config import CONFIG
+import aiohttp
+import asyncio
+
 import requests
 from requests.exceptions import ConnectionError
 from typing import Any, Optional, Type, Union, Literal
@@ -110,6 +114,20 @@ class Coop:
             return "results"
         else:
             raise ValueError("Incorrect or not supported object type")
+        
+    async def remote_async_execute_model_call(self, model_dict: dict, user_prompt: str, system_prompt:str) -> dict:
+        url = CONFIG.get("EXPECTED_PARROT_URL") + '/inference/'
+        #print("Now using url: ", url)
+        data = {
+            "model_dict": model_dict,
+            "user_prompt": user_prompt,
+            "system_prompt": system_prompt
+        }
+        # Use aiohttp to send a POST request asynchronously
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json=data) as response:
+                response_data = await response.json()
+        return response_data
 
     ################
     # OBJECT METHODS
