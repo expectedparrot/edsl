@@ -19,7 +19,9 @@ Before running the survey you can optionally:
 
 *Coming soon:*
 An EDSL survey can also be exported to other platforms such as LimeSurvey, Google Forms, Qualtrics and SurveyMonkey. 
-This can be useful for combining responses from AI and human audiences. See a [demo notebook](https://docs.expectedparrot.com/en/latest/notebooks/edsl_components.html).
+This can be useful for combining responses from AI and human audiences. 
+See a `demo notebook <https://docs.expectedparrot.com/en/latest/notebooks/edsl_components.html>`_.
+
 
 
 Constructing a survey
