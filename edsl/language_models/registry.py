@@ -1,42 +1,10 @@
 import textwrap
-import pkgutil
-import importlib
 
-DEFAULT_MODEL_CLASS = "edsl.language_models.LanguageModelOpenAIFour"
-
-from edsl.language_models.LanguageModel import RegisterLanguageModelsMeta
-from edsl.exceptions.language_models import LanguageModelNotFound
-
-import edsl.language_models.model_interfaces as model_interfaces
-
-# Dynamically import all modules in the model_interfaces package
-for loader, module_name, is_pkg in pkgutil.iter_modules(model_interfaces.__path__):
-    full_module_name = f"{model_interfaces.__name__}.{module_name}"
-    if not is_pkg:
-        module = importlib.import_module(full_module_name)
-        globals().update(
-            {
-                name: getattr(module, name)
-                for name in dir(module)
-                if not name.startswith("_")
-            }
-        )
-
-meta_class_registry = RegisterLanguageModelsMeta.get_registered_classes()
-
-# For compatibility with older versions of EDSL
-get_model_class_old = (
-    lambda model_name: RegisterLanguageModelsMeta.model_names_to_classes().get(
-        model_name
-    )
-)
 
 def get_model_class(model_name):
     from edsl.inference_services.services_collection import collection
     factory = collection.create_model_factory(model_name)
     return factory      
-
-
 
 class Meta(type):
     def __repr__(cls):
@@ -90,7 +58,7 @@ class Model(metaclass=Meta):
     @classmethod
     def check_models(cls, verbose=False):
         print("Checking all available models...\n")
-        for model in cls.available():
+        for model in cls.available(name_only=True):
             print(f"Now checking: {model}")
             try:
                 m = cls(model)
