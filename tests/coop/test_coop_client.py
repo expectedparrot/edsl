@@ -30,22 +30,26 @@ def test_coop_client_questions():
 
     # cannot get an object that does not exist
     with pytest.raises(Exception):
-        coop.get(object_type="question", id=100)
+        coop.get(object_type="question", id=10000)
 
     # create
-    response = coop.create(QuestionMultipleChoice.example())
-    assert response.get("id") == 2
-    assert response.get("type") == "question"
-    response = coop.create(QuestionCheckBox.example(), public=False)
-    assert response.get("id") == 3
-    assert response.get("type") == "question"
-    response = coop.create(QuestionFreeText.example(), public=True)
-    assert response.get("id") == 4
-    assert response.get("type") == "question"
+    question_examples = [
+        (QuestionMultipleChoice.example(), True),
+        (QuestionCheckBox.example(), False),
+        (QuestionFreeText.example(), True),
+    ]
+
+    # Test creation and retrieval
+    for question, public in question_examples:
+        response = coop.create(question, public=public)
+        assert response.get("type") == "question", "Expected type 'question'"
+        assert (
+            coop.get(object_type="question", id=response.get("id")) == question
+        ), "Question retrieval mismatch"
+        assert coop.get(url=response.get("url")) == question, "URL retrieval mismatch"
+
     # check
     assert len(coop.questions) == 3
-    assert coop.questions[0].get("id") == 2
-    assert coop.questions[0].get("question") == QuestionMultipleChoice.example()
 
     # other client..
     coop2 = Coop(api_key="a")
@@ -86,12 +90,15 @@ def test_coop_client_surveys():
     response = coop.create(Survey.example())
     assert response.get("id") == 2
     assert response.get("type") == "survey"
+    assert response.get("url") is not None
     response = coop.create(Survey.example(), public=False)
     assert response.get("id") == 3
     assert response.get("type") == "survey"
+    assert response.get("url") is not None
     response = coop.create(Survey.example(), public=True)
     assert response.get("id") == 4
     assert response.get("type") == "survey"
+    assert response.get("url") is not None
     #  can't create an empty survey
     with pytest.raises(Exception):
         response = coop.create(Survey(), public=True)
@@ -138,12 +145,15 @@ def test_coop_client_agents():
     response = coop.create(Agent.example())
     assert response.get("id") == 2
     assert response.get("type") == "agent"
+    assert response.get("url") is not None
     response = coop.create(Agent.example(), public=False)
     assert response.get("id") == 3
     assert response.get("type") == "agent"
+    assert response.get("url") is not None
     response = coop.create(Agent.example(), public=True)
     assert response.get("id") == 4
     assert response.get("type") == "agent"
+    assert response.get("url") is not None
 
     # check
     assert len(coop.agents) == 3
@@ -188,12 +198,15 @@ def test_coop_client_results():
     response = coop.create(Results.example())
     assert response.get("id") == 2
     assert response.get("type") == "results"
+    assert response.get("url") is not None
     response = coop.create(Results.example(), public=False)
     assert response.get("id") == 3
     assert response.get("type") == "results"
+    assert response.get("url") is not None
     response = coop.create(Results.example(), public=True)
     assert response.get("id") == 4
     assert response.get("type") == "results"
+    assert response.get("url") is not None
 
     # check
     assert len(coop.results) == 3
