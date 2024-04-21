@@ -79,14 +79,14 @@ class Coop:
     ################
     # HELPER METHODS
     ################
-    def _json_handle_none(value: Any) -> Any:
+    def _json_handle_none(self, value: Any) -> Any:
         """
         Helper function to handle None values in JSON serialization.
         """
         if value is None:
             return "null"
-        else:
-            return value
+        #!!! THIS METHOD only returns when vlaue is None don't return anything else because
+        # ends in a circular logic.
 
     def _get_edsl_version(self) -> str:
         """
@@ -114,14 +114,16 @@ class Coop:
             return "results"
         else:
             raise ValueError("Incorrect or not supported object type")
-        
-    async def remote_async_execute_model_call(self, model_dict: dict, user_prompt: str, system_prompt:str) -> dict:
-        url = CONFIG.get("EXPECTED_PARROT_URL") + '/inference/'
-        #print("Now using url: ", url)
+
+    async def remote_async_execute_model_call(
+        self, model_dict: dict, user_prompt: str, system_prompt: str
+    ) -> dict:
+        url = CONFIG.get("EXPECTED_PARROT_URL") + "/inference/"
+        # print("Now using url: ", url)
         data = {
             "model_dict": model_dict,
             "user_prompt": user_prompt,
-            "system_prompt": system_prompt
+            "system_prompt": system_prompt,
         }
         # Use aiohttp to send a POST request asynchronously
         async with aiohttp.ClientSession() as session:
