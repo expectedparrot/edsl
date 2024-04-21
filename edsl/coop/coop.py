@@ -114,14 +114,16 @@ class Coop:
             return "results"
         else:
             raise ValueError("Incorrect or not supported object type")
-        
-    async def remote_async_execute_model_call(self, model_dict: dict, user_prompt: str, system_prompt:str) -> dict:
-        url = CONFIG.get("EXPECTED_PARROT_URL") + '/inference/'
-        #print("Now using url: ", url)
+
+    async def remote_async_execute_model_call(
+        self, model_dict: dict, user_prompt: str, system_prompt: str
+    ) -> dict:
+        url = CONFIG.get("EXPECTED_PARROT_URL") + "/inference/"
+        # print("Now using url: ", url)
         data = {
             "model_dict": model_dict,
             "user_prompt": user_prompt,
-            "system_prompt": system_prompt
+            "system_prompt": system_prompt,
         }
         # Use aiohttp to send a POST request asynchronously
         async with aiohttp.ClientSession() as session:
@@ -491,6 +493,8 @@ if __name__ == "__main__":
 
     # or get question by id
     coop.get_question(id=1)
+    # alternatively
+    coop.get(object_type="question", id=1)
 
     # delete the question
     coop.delete_question(id=1)
