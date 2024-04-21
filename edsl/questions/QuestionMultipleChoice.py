@@ -75,7 +75,7 @@ class QuestionMultipleChoice(QuestionBase):
         return cls(
             question_text="How are you?",
             question_options=["Good", "Great", "OK", "Bad"],
-            question_name="how_feeling"
+            question_name="how_feeling",
         )
 
 
