@@ -3,20 +3,14 @@ from edsl.surveys import Survey
 from edsl.data import Cache
 from edsl.questions import QuestionMultipleChoice
 from edsl.scenarios.ScenarioList import ScenarioList
-from edsl.language_models import LanguageModelOpenAIThreeFiveTurbo, LanguageModelOpenAIFour
 from edsl import Model
-
 
 c_memory = Cache()
 c_no_memory = Cache()
 
-NUM_FLIPS = 20
-#m = LanguageModelOpenAIThreeFiveTurbo(use_cache=False)
-#m = Model(Model.available()[0], use_cache=False)
-m = LanguageModelOpenAIFour()
+m = Model()
 verbose = False
 random.seed("agents are cool")
-
 NUM_FLIPS = 10
 
 
