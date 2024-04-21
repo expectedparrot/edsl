@@ -30,7 +30,7 @@ def test_coop_client_questions():
 
     # cannot get an object that does not exist
     with pytest.raises(Exception):
-        coop.get_question(id=100)
+        coop.get(object_type="question", id=100)
 
     # create
     response = coop.create(QuestionMultipleChoice.example())
@@ -50,9 +50,9 @@ def test_coop_client_questions():
     # other client..
     coop2 = Coop(api_key="a")
     # ..should be able to get public but not private questions
-    assert coop2.get_question(id=4) == QuestionFreeText.example()
+    assert coop2.get(object_type="question", id=4) == QuestionFreeText.example()
     with pytest.raises(Exception):
-        coop2.get_question(id=3)
+        coop2.get(object_type="question", id=3)
     # ..should not be able to delete another client's questions
     for i in range(2, 5):
         with pytest.raises(Exception):
@@ -80,7 +80,7 @@ def test_coop_client_surveys():
 
     # cannot get an object that does not exist
     with pytest.raises(Exception):
-        coop.get_survey(id=100)
+        coop.get(object_type="survey", id=100)
 
     # create
     response = coop.create(Survey.example())
@@ -103,9 +103,9 @@ def test_coop_client_surveys():
     # other client..
     coop2 = Coop(api_key="a")
     # ..should be able to get public but not private surveys
-    assert coop2.get_survey(id=4) == Survey.example()
+    assert coop2.get(object_type="survey", id=4) == Survey.example()
     with pytest.raises(Exception):
-        coop2.get_survey(id=3)
+        coop2.get(object_type="survey", id=3)
     # ..should not be able to delete another client's surveys
     for i in range(2, 5):
         with pytest.raises(Exception):
@@ -132,7 +132,7 @@ def test_coop_client_agents():
 
     # cannot get an object that does not exist
     with pytest.raises(Exception):
-        coop.get_agent(id=100)
+        coop.get(object_type="agent", id=100)
 
     # create
     response = coop.create(Agent.example())
@@ -153,9 +153,9 @@ def test_coop_client_agents():
     # other client..
     coop2 = Coop(api_key="a")
     # ..should be able to get public but not private agents
-    assert coop2.get_agent(id=4) == Agent.example()
+    assert coop2.get(object_type="agent", id=4) == Agent.example()
     with pytest.raises(Exception):
-        coop2.get_agent(id=3)
+        coop2.get(object_type="agent", id=3)
     # ..should not be able to delete another client's agents
     for i in range(2, 5):
         with pytest.raises(Exception):
@@ -182,7 +182,7 @@ def test_coop_client_results():
 
     # cannot get an object that does not exist
     with pytest.raises(Exception):
-        coop.get_results(id=100)
+        coop.get(object_type="results", id=100)
 
     # create
     response = coop.create(Results.example())
@@ -203,9 +203,9 @@ def test_coop_client_results():
     # other client..
     coop2 = Coop(api_key="a")
     # ..should be able to get public but not private results
-    assert coop2.get_results(id=4) == Results.example()
+    assert coop2.get(object_type="results", id=4) == Results.example()
     with pytest.raises(Exception):
-        coop2.get_results(id=3)
+        coop2.get(object_type="results", id=3)
     # ..should not be able to delete another client's results
     for i in range(2, 5):
         with pytest.raises(Exception):

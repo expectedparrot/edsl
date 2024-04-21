@@ -1,15 +1,13 @@
+import aiohttp
 import json
 import os
-from edsl.config import CONFIG
-import aiohttp
-import asyncio
-
 import requests
 from requests.exceptions import ConnectionError
 from typing import Any, Optional, Type, Union, Literal
 import edsl
 from edsl import CONFIG
 from edsl.agents import Agent, AgentList
+from edsl.config import CONFIG
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.results import Results
 from edsl.surveys import Survey
@@ -82,11 +80,10 @@ class Coop:
     def _json_handle_none(self, value: Any) -> Any:
         """
         Helper function to handle None values in JSON serialization.
+        - Returns "null" if value is None. If not, doesn't return anything else.
         """
         if value is None:
             return "null"
-        #!!! THIS METHOD only returns when vlaue is None don't return anything else because
-        # ends in a circular logic.
 
     def _get_edsl_version(self) -> str:
         """
@@ -214,35 +211,6 @@ class Coop:
         self._resolve_server_response(response)
         return json.loads(response.json().get("json_string"))
 
-    def get_question(self, id: int) -> Type[QuestionBase]:
-        """
-        Retrieve a Question object by its id.
-        """
-        json_dict = self._get("questions", id)
-        return QuestionBase.from_dict(json_dict)
-
-    def get_survey(self, id: int) -> Type[Survey]:
-        """
-        Retrieve a Survey object by its id.
-        """
-        json_dict = self._get("surveys", id)
-        return Survey.from_dict(json_dict)
-
-    def get_agent(self, id: int) -> Union[Agent, AgentList]:
-        """
-        Retrieve an Agent or AgentList object by id.
-        """
-        json_dict = self._get("agents", id)
-        if "agent_list" in json_dict:
-            return AgentList.from_dict(json_dict)
-        else:
-            return Agent.from_dict(json_dict)
-
-    def get_results(self, id: int) -> Results:
-        """Retrieve a Results object by id."""
-        json_dict = self._get("results", id)
-        return Results.from_dict(json_dict)
-
     def get(
         self, object_type: str, id: int
     ) -> Union[Type[QuestionBase], Survey, Agent, AgentList, Results]:
@@ -253,28 +221,35 @@ class Coop:
         :param id: the id of the object.
         """
         if object_type in {"question", "questions"}:
-            return self.get_question(id)
+            json_dict = self._get("questions", id)
+            return QuestionBase.from_dict(json_dict)
         elif object_type in {"survey", "surveys"}:
-            return self.get_survey(id)
+            json_dict = self._get("surveys", id)
+            return Survey.from_dict(json_dict)
         elif object_type in {"agent", "agents"}:
-            return self.get_agent(id)
+            json_dict = self._get("agents", id)
+            if "agent_list" in json_dict:
+                return AgentList.from_dict(json_dict)
+            else:
+                return Agent.from_dict(json_dict)
         elif object_type == "results":
-            return self.get_results(id)
+            json_dict = self._get("results", id)
+            return Results.from_dict(json_dict)
         else:
-            raise ValueError("Object type not recognized")
+            raise ValueError(f"Object type {object_type} not recognized")
 
     def _get_base(self, cls, id):
         """
         Used by the Base class to offer a get functionality.
         """
         if issubclass(cls, QuestionBase):
-            return self.get_question(id)
+            return self.get(object_type="question", id=id)
         elif cls == Survey:
-            return self.get_survey(id)
+            return self.get(object_type="survey", id=id)
         elif cls == Agent or cls == AgentList:
-            return self.get_agent(id)
+            return self.get(object_type="agent", id=id)
         elif cls == Results:
-            return self.get_results(id)
+            return self.get(object_type="results", id=id)
         else:
             raise ValueError("Class type not recognized")
 
@@ -481,7 +456,7 @@ if __name__ == "__main__":
         coop.delete_question(question.get("id"))
 
     # get a question that does not exist (should return None)
-    coop.get_question(id=1000)
+    coop.get(object_type="question", id=1000)
 
     # now post a Question
     coop.create(QuestionMultipleChoice.example())
@@ -492,8 +467,6 @@ if __name__ == "__main__":
     coop.questions
 
     # or get question by id
-    coop.get_question(id=1)
-    # alternatively
     coop.get(object_type="question", id=1)
 
     # delete the question
@@ -513,7 +486,7 @@ if __name__ == "__main__":
         coop.delete_survey(survey.get("id"))
 
     # get a survey that does not exist (should return None)
-    coop.get_survey(id=1)
+    coop.get(object_type="survey", id=1)
 
     # now post a Survey
     coop.create(Survey.example())
@@ -531,7 +504,7 @@ if __name__ == "__main__":
     coop.surveys
 
     # or get survey by id
-    coop.get_survey(id=1)
+    coop.get(object_type="survey", id=1)
 
     # delete the survey
     coop.delete_survey(id=1)
@@ -550,7 +523,7 @@ if __name__ == "__main__":
         coop.delete_agent(agent.get("id"))
 
     # get an agent that does not exist (should return None)
-    coop.get_agent(id=2)
+    coop.get(object_type="agent", id=2)
 
     # now post an Agent
     coop.create(Agent.example())
@@ -567,7 +540,7 @@ if __name__ == "__main__":
     coop.agents
 
     # or get agent by id
-    coop.get_agent(id=1)
+    coop.get(object_type="agent", id=1)
 
     # delete the agent
     coop.delete_agent(id=1)
@@ -586,7 +559,7 @@ if __name__ == "__main__":
         coop.delete_results(results.get("id"))
 
     # get a result that does not exist (should return None)
-    coop.get_results(id=2)
+    coop.get(object_type="results", id=2)
 
     # now post a Results
     coop.create(Results.example())
@@ -597,7 +570,7 @@ if __name__ == "__main__":
     coop.results
 
     # or get results by id
-    coop.get_results(id=1)
+    coop.get(object_type="results", id=1)
 
     # delete the results
     coop.delete_results(id=1)
