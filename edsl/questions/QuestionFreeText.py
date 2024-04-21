@@ -54,10 +54,7 @@ class QuestionFreeText(QuestionBase):
     @classmethod
     def example(cls) -> QuestionFreeText:
         """Return an example instance of a free text question."""
-        return cls(
-            question_name="how_are_you",
-            question_text="How are you?"
-        )
+        return cls(question_name="how_are_you", question_text="How are you?")
 
 
 def main():
