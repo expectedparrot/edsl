@@ -157,11 +157,11 @@ class Results(UserList, Mixins, Base):
             ]
             self.data = results
 
-
     def __repr__(self) -> str:
         from rich import print_json
         import json
-        print_json(json.dumps(self.to_dict()['data']))
+
+        print_json(json.dumps(self.to_dict()["data"]))
         return f"Results(data = {self.data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
 
     def _repr_html_(self) -> str:
@@ -692,7 +692,7 @@ class Results(UserList, Mixins, Base):
         #     return console.export_text()
 
     def __str__(self):
-        data = self.to_dict()['data']
+        data = self.to_dict()["data"]
         return json.dumps(data, indent=4)
 
 

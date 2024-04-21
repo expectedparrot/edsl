@@ -6,6 +6,7 @@ from edsl.exceptions import MissingAPIKeyError
 from edsl.language_models.LanguageModel import LanguageModel
 from edsl.enums import LanguageModelType, InferenceServiceType
 
+
 class GeminiPro(LanguageModel):
     _inference_service_ = InferenceServiceType.GOOGLE.value
     _model_ = LanguageModelType.GEMINI_PRO.value

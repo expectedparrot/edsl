@@ -1,10 +1,11 @@
 from textwrap import dedent
 
+
 class LanguageModelExceptions(Exception):
     pass
 
-class LanguageModelNotFound(LanguageModelExceptions):
 
+class LanguageModelNotFound(LanguageModelExceptions):
     def __init__(self, model_name):
         msg = dedent(
             f"""\
@@ -20,6 +21,7 @@ class LanguageModelNotFound(LanguageModelExceptions):
             """
         )
         super().__init__(msg)
+
 
 class LanguageModelResponseNotJSONError(LanguageModelExceptions):
     pass
