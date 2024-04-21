@@ -260,7 +260,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                     display(HTML(results.task_history._repr_html_()))
                 else:
                     results.task_history.show_exceptions()
-                
+
                 try:
                     from edsl.jobs.interviews.ReportErrors import ReportErrors
 
