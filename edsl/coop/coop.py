@@ -79,14 +79,14 @@ class Coop:
     ################
     # HELPER METHODS
     ################
-    def _json_handle_none(value: Any) -> Any:
+    def _json_handle_none(self, value: Any) -> Any:
         """
         Helper function to handle None values in JSON serialization.
         """
         if value is None:
             return "null"
-        else:
-            return value
+        #!!! THIS METHOD only returns when vlaue is None don't return anything else because
+        # ends in a circular logic.
 
     def _get_edsl_version(self) -> str:
         """
