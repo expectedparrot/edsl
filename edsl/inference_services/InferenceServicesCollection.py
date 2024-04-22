@@ -20,11 +20,14 @@ class InferenceServicesCollection():
             model[2] = i
             model = tuple(model)
         return sorted_models
-    
+
+    def register(self, service):
+        self.services.append(service)
+
     def create_model_factory(self, model_name:str, service_name = None, index = None):
         for service in self.services:
             if model_name in service.available():
                 if service_name is None or service_name == service._inference_service_:
                     return service.create_model(model_name)
-            
+
         raise Exception(f"Model {model_name} not found in any of the services")

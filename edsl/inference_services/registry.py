@@ -5,7 +5,7 @@ from edsl.inference_services.AnthropicService import AnthropicService
 from edsl.inference_services.DeepInfraService import DeepInfraService
 from edsl.inference_services.GoogleService import GoogleService
 
-collection = InferenceServicesCollection([
+default = InferenceServicesCollection([
     OpenAIService,
     AnthropicService,
     DeepInfraService,
