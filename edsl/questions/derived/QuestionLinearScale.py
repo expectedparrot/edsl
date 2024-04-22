@@ -4,6 +4,7 @@ from typing import Optional
 from edsl.questions.descriptors import QuestionOptionsDescriptor, OptionLabelDescriptor
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
+
 class QuestionLinearScale(QuestionMultipleChoice):
     """This question prompts the agent to respond to a statement on a linear scale."""
 

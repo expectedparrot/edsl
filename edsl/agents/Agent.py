@@ -382,6 +382,7 @@ class Agent(Base):
         ]
         from rich import print_json
         import json
+
         print_json(json.dumps(self.to_dict()))
         return f"{class_name}({', '.join(items)})"
 

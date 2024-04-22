@@ -458,8 +458,9 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         """Return a string representation of the survey."""
         from rich import print_json
         import json
+
         print_json(json.dumps(self.to_dict()))
-        
+
         questions_string = ", ".join([repr(q) for q in self._questions])
         question_names_string = ", ".join([repr(name) for name in self.question_names])
         return f"Survey(questions=[{questions_string}], name={repr(self.name)})"
@@ -501,12 +502,13 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         platform: Literal[
             "google_forms", "lime_survey", "survey_monkey"
         ] = "google_forms",
+        email=None,
     ):
         from edsl.coop import Coop
 
         c = Coop()
 
-        res = c.web(self.to_dict(), platform)
+        res = c.web(self.to_dict(), platform, email)
         return res
 
     @classmethod

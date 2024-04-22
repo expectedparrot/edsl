@@ -26,6 +26,7 @@ This page contains documentation for the Expected Parrot Domain-Specific Languag
    notebooks/tutorial_getting_started
    notebooks/data_labeling_example.ipynb
    notebooks/data_labeling_agent.ipynb
+   notebooks/export_survey_updates.ipynb
    notebooks/explore_llm_biases.ipynb
    notebooks/research_methods
    notebooks/research_random_silicon_sampling
@@ -34,7 +35,6 @@ This page contains documentation for the Expected Parrot Domain-Specific Languag
    notebooks/free_responses
    notebooks/qualitative_research
    notebooks/digital_twin
-   notebooks/validating_business_ideas
    notebooks/grading_experiment
 
 .. toctree::

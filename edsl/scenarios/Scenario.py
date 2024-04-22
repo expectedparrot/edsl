@@ -87,14 +87,15 @@ class Scenario(Base, UserDict):
     def __repr__(self):
         from rich import print_json
         import json
+
         print_json(json.dumps(self.to_dict()))
 
         return "Scenario(" + repr(self.data) + ")"
-    
+
     def _repr_html_(self):
         from edsl.utilities.utilities import data_to_html
-        return data_to_html(self.to_dict())
 
+        return data_to_html(self.to_dict())
 
     @classmethod
     def from_dict(cls, d: dict) -> "Scenario":

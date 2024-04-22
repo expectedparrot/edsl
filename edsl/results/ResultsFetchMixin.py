@@ -3,8 +3,6 @@ from functools import partial
 from itertools import chain
 
 
-
-
 class ResultsFetchMixin:
     """Mixin for fetching data from results."""
 
@@ -28,4 +26,5 @@ class ResultsFetchMixin:
 
 if __name__ == "__main__":
     from edsl.results import Results
+
     r = Results.example()
