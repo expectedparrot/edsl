@@ -158,7 +158,7 @@ def test_jobs_run(valid_job):
     from edsl.data.Cache import Cache
     cache = Cache()
   
-    results = valid_job.run(debug=True, cache = cache, check_api_keys=False)
+    results = valid_job.run(debug=True, cache = cache, check_api_keys=False, remote=False)
     # breakpoint()
 
     assert len(results) == 1
@@ -192,7 +192,7 @@ def test_normal_run():
     q = QuestionFreeText(question_text="What is your name?", question_name="name")
     from edsl.data.Cache import Cache
     cache = Cache()
-    results = q.by(model).run(cache = cache)
+    results = q.by(model).run(cache = cache, remote = False)
     assert results[0]["answer"] == {"name": "SPAM!"}
 
 
@@ -266,7 +266,7 @@ if __name__ == "__main__":
         )
         survey = Survey(name="Test Survey", questions=[q])
         agent = Agent(traits={"trait1": "value1"})
-        model = LanguageModelOpenAIThreeFiveTurbo()
+        model = Model()
         scenario = Scenario({"price": 100, "quantity": 2})
         valid_job = Jobs(
             survey=survey,
