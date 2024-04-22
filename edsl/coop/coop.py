@@ -4,6 +4,7 @@ import os
 import requests
 from requests.exceptions import ConnectionError
 from typing import Any, Optional, Type, Union, Literal
+from uuid import UUID
 import edsl
 from edsl import CONFIG
 from edsl.agents import Agent, AgentList
@@ -196,81 +197,61 @@ class Coop:
     # -----------------
     # B. GET METHODS
     # -----------------
-    def _get(self, object_type: str, id: int = None, uuid: str = None) -> dict:
+    def _get(self, object_type_uri: str, uuid: Union[str, UUID]) -> dict:
         """
         Retrieve an EDSL object from the Coop server.
         """
-        if id:
-            response = self._send_server_request(
-                uri=f"api/v0/{object_type}/{id}", method="GET"
-            )
-        else:
-            response = self._send_server_request(
-                uri=f"api/v0/{object_type}/uuid/{uuid}", method="GET"
-            )
+        response = self._send_server_request(
+            uri=f"api/v0/{object_type_uri}/{uuid}", method="GET"
+        )
         self._resolve_server_response(response)
         return json.loads(response.json().get("json_string"))
 
     def get(
-        self, object_type: str = None, id: int = None, url: str = None
+        self, object_type: str, uuid: Union[str, UUID]
     ) -> Union[Type[QuestionBase], Survey, Agent, AgentList, Results]:
         """
-        Retrieve an EDSL object by its id or url.
-        To retrieve by id, object_type must also be provided.
+        Retrieve an EDSL object by its UUID and object type.
 
         :param object_type: the type of object to retrieve.
-        :param id: the id of the object.
-        :param url: the url of the object.
+        :param uuid: the uuid of the object either in str or UUID format.
         """
-        if (id is None) == (url is None):
-            raise ValueError("Either object id or url must be provided.")
 
         type_map = {
             "question": ("questions", QuestionBase),
-            "questions": ("questions", QuestionBase),
             "survey": ("surveys", Survey),
-            "surveys": ("surveys", Survey),
             "agent": ("agents", Agent),
-            "agents": ("agents", Agent),
             "results": ("results", Results),
         }
 
-        # get by id logic
-        if id:
-            if object_type is None:
-                raise ValueError(
-                    "Please provide `object_type` to retrieve an object by its id."
-                )
+        if object_type is None:
+            raise ValueError("Please provide an `object_type`.")
+        elif object_type not in type_map:
+            raise ValueError(f"Object type {object_type} not recognized")
 
-            if object_type in type_map:
-                key, cls = type_map[object_type]
-                json_dict = self._get(object_type=key, id=id)
-            else:
-                raise ValueError(f"Object type {object_type} not recognized")
-        # get by url logic
-        else:
-            url_split = url.split("/")
-            object_type = url_split[-2]
-            key, cls = type_map[object_type]
-            uuid = url_split[-1]
-            json_dict = self._get(object_type=object_type, uuid=uuid)
-
-        if object_type in {"agent", "agents"} and "agent_list" in json_dict:
+        object_type_uri, cls = type_map[object_type]
+        json_dict = self._get(object_type_uri=object_type_uri, uuid=uuid)
+        if object_type == "agent" and "agent_list" in json_dict:
             return AgentList.from_dict(json_dict)
-        return cls.from_dict(json_dict)
+        else:
+            return cls.from_dict(json_dict)
 
-    def _get_base(self, cls, id):
+    def _get_base(
+        self,
+        cls: Union[Type[QuestionBase], Survey, Agent, AgentList, Results],
+        uuid: Union[str, UUID],
+    ):
         """
         Used by the Base class to offer a get functionality.
         """
         if issubclass(cls, QuestionBase):
-            return self.get(object_type="question", id=id)
+            return self.get("question", uuid)
         elif cls == Survey:
-            return self.get(object_type="survey", id=id)
+            return self.get("survey", uuid)
         elif cls == Agent or cls == AgentList:
-            return self.get(object_type="agent", id=id)
+            return self.get("agent", uuid)
         elif cls == Results:
-            return self.get(object_type="results", id=id)
+            return self.get("results", uuid)
         else:
             raise ValueError("Class type not recognized")
 
@@ -284,9 +265,9 @@ class Coop:
         self._resolve_server_response(response)
         questions = [
             {
-                "id": q.get("id"),
-                "question": QuestionBase.from_dict(json.loads(q.get("json_string"))),
-                "version": q.get("version"),
+                "question": QuestionBase.from_dict(json.loads(q["json_string"])),
+                "uuid": q["uuid"],
+                "version": q["version"],
             }
             for q in response.json()
         ]
@@ -346,10 +327,10 @@ class Coop:
     # -----------------
     # D. DELETE METHODS
     # -----------------
-    def delete_question(self, id: int) -> dict:
+    def delete_question(self, uuid: Union[str, UUID]) -> dict:
         """Delete a question from the Coop."""
         response = self._send_server_request(
-            uri=f"api/v0/questions/{id}", method="DELETE"
+            uri=f"api/v0/questions/{uuid}", method="DELETE"
         )
         self._resolve_server_response(response)
         return response.json()
@@ -457,6 +438,7 @@ class Coop:
 
 if __name__ == "__main__":
     from edsl.coop import Coop
+    import uuid
 
     API_KEY = "b"
     coop = Coop(api_key=API_KEY)
@@ -473,12 +455,12 @@ if __name__ == "__main__":
 
     # check questions on server (should be an empty list)
     coop.questions
-    for question in coop.questions:
-        question_id = question.get("id")
-        coop.delete_question(id=question_id)
+    for item in coop.questions:
+        coop.delete_question(uuid=item.get("uuid"))
 
-    # get a question that does not exist (should return None)
-    coop.get(object_type="question", id=1000)
+    # get a question that does not exist
+    coop.get(object_type="question", uuid=uuid.uuid4())
+    coop.get(object_type="question", uuid=str(uuid.uuid4()))
 
     # now post a Question
     response = coop.create(QuestionMultipleChoice.example())
@@ -489,12 +471,10 @@ if __name__ == "__main__":
     coop.questions
 
     # or get a question by its id
-    coop.get(object_type="question", id=response.get("id"))
-    # or by its url
-    coop.get(url=response.get("url"))
+    coop.get(object_type="question", uuid=response.get("uuid"))
 
     # delete the question
-    coop.delete_question(id=1)
+    coop.delete_question(uuid=response.get("uuid"))
 
     # check all questions
     coop.questions
