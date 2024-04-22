@@ -1,10 +1,11 @@
 import textwrap
 
 
-def get_model_class(model_name):
-    from edsl.inference_services.services_collection import collection
-    factory = collection.create_model_factory(model_name)
-    return factory      
+def get_model_class(model_name, registry=None):
+    from edsl.inference_services.registry import default
+    registry = registry or collection
+    factory = registry.create_model_factory(model_name)
+    return factory
 
 class Meta(type):
     def __repr__(cls):
@@ -25,24 +26,20 @@ class Model(metaclass=Meta):
 
     default_model = "gpt-4-1106-preview"
 
-    def __new__(cls, model_name=None, *args, **kwargs):
+    def __new__(cls, model_name=None, registry=None, *args, **kwargs):
         # Map index to the respective subclass
         if model_name is None:
             model_name = cls.default_model
-        from edsl.inference_services.services_collection import collection
-        factory = collection.create_model_factory(model_name)
+        from edsl.inference_services.registry import default
+        registry = registry or collection
+        factory = registry.create_model_factory(model_name)
         return factory(*args, **kwargs)
-    
-    @classmethod
-    def from_index(cls, index, *args, **kwargs):
-        from edsl.inference_services.services_collection import collection
-        model_name = collection.available()[index][0]
-        return cls(model_name, *args, **kwargs)
 
     @classmethod
-    def available(cls, search_term = None, name_only = False):
-        from edsl.inference_services.services_collection import collection
-        full_list = collection.available()
+    def available(cls, search_term = None, name_only = False, registry=None):
+        from edsl.inference_services.registry import default
+        registry = registry or collection
+        full_list = registry.available()
         if search_term is None:
             if name_only:
                 return [m[0] for m in full_list]
