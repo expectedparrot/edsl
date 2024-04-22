@@ -1,15 +1,13 @@
+import aiohttp
 import json
 import os
-from edsl.config import CONFIG
-import aiohttp
-import asyncio
-
 import requests
 from requests.exceptions import ConnectionError
 from typing import Any, Optional, Type, Union, Literal
 import edsl
 from edsl import CONFIG
 from edsl.agents import Agent, AgentList
+from edsl.config import CONFIG
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.results import Results
 from edsl.surveys import Survey
@@ -79,14 +77,47 @@ class Coop:
     ################
     # HELPER METHODS
     ################
-    def _json_handle_none(value: Any) -> Any:
+    async def remote_async_execute_model_call(
+        self, model_dict: dict, user_prompt: str, system_prompt: str
+    ) -> dict:
+        url = self.url + "/inference/"
+        # print("Now using url: ", url)
+        data = {
+            "model_dict": model_dict,
+            "user_prompt": user_prompt,
+            "system_prompt": system_prompt,
+        }
+        # Use aiohttp to send a POST request asynchronously
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json=data) as response:
+                response_data = await response.json()
+        return response_data
+
+    def web(
+        self,
+        survey: dict,
+        platform: Literal[
+            "google_forms", "lime_survey", "survey_monkey"
+        ] = "lime_survey",
+        email=None,
+    ):
+        url = f"{self.url}/api/v0/export_to_{platform}"
+        if email:
+            data = {"json_string": json.dumps({"survey": survey, "email": email})}
+        else:
+            data = {"json_string": json.dumps({"survey": survey, "email": email})}
+
+        response_json = requests.post(url, data=json.dumps(data))
+
+        return response_json
+
+    def _json_handle_none(self, value: Any) -> Any:
         """
         Helper function to handle None values in JSON serialization.
+        - Returns "null" if value is None. If not, doesn't return anything else.
         """
         if value is None:
             return "null"
-        else:
-            return value
 
     def _get_edsl_version(self) -> str:
         """
@@ -114,20 +145,6 @@ class Coop:
             return "results"
         else:
             raise ValueError("Incorrect or not supported object type")
-        
-    async def remote_async_execute_model_call(self, model_dict: dict, user_prompt: str, system_prompt:str) -> dict:
-        url = CONFIG.get("EXPECTED_PARROT_URL") + '/inference/'
-        #print("Now using url: ", url)
-        data = {
-            "model_dict": model_dict,
-            "user_prompt": user_prompt,
-            "system_prompt": system_prompt
-        }
-        # Use aiohttp to send a POST request asynchronously
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, json=data) as response:
-                response_data = await response.json()
-        return response_data
 
     ################
     # OBJECT METHODS
@@ -138,23 +155,23 @@ class Coop:
     # -----------------
     def _create(
         self,
-        edsl_object: Union[Type[QuestionBase], Survey, Agent, AgentList, Results],
+        object: Union[Type[QuestionBase], Survey, Agent, AgentList, Results],
         public: bool = False,
     ) -> dict:
         """
         Create an EDSL object in the Coop server.
 
-        :param edsl_object: the EDSL object to be sent.
+        :param object: the EDSL object to be sent.
         :param public: whether the object should be public (defaults to False).
         """
 
-        uri = self._edsl_object_to_uri(edsl_object)
+        uri = self._edsl_object_to_uri(object)
         response = self._send_server_request(
             uri=f"api/v0/{uri}",
             method="POST",
             payload={
                 "json_string": json.dumps(
-                    edsl_object.to_dict(), default=self._json_handle_none
+                    object.to_dict(), default=self._json_handle_none
                 ),
                 "public": public,
                 "version": self._get_edsl_version(),
@@ -176,98 +193,84 @@ class Coop:
         """
         return self._create(object, public)
 
-    def web(
-        self,
-        survey: dict,
-        platform: Literal[
-            "google_forms", "lime_survey", "survey_monkey"
-        ] = "lime_survey",
-    ):
-        base_url = self.url
-
-        if base_url is None:
-            return {"status": "error", "error": "EXPECTED_PARROT_API_URL not set"}
-
-        url = f"{base_url}/api/v0/export_to_{platform}"
-        data = {"json_string": json.dumps({"survey": survey})}
-        response_json = requests.post(url, data=json.dumps(data))
-
-        return response_json
-
     # -----------------
     # B. GET METHODS
     # -----------------
-    def _get(self, object_type: str, id: int) -> dict:
+    def _get(self, object_type: str, id: int = None, uuid: str = None) -> dict:
         """
         Retrieve an EDSL object from the Coop server.
         """
-        response = self._send_server_request(
-            uri=f"api/v0/{object_type}/{id}", method="GET"
-        )
+        if id:
+            response = self._send_server_request(
+                uri=f"api/v0/{object_type}/{id}", method="GET"
+            )
+        else:
+            response = self._send_server_request(
+                uri=f"api/v0/{object_type}/uuid/{uuid}", method="GET"
+            )
         self._resolve_server_response(response)
         return json.loads(response.json().get("json_string"))
 
-    def get_question(self, id: int) -> Type[QuestionBase]:
-        """
-        Retrieve a Question object by its id.
-        """
-        json_dict = self._get("questions", id)
-        return QuestionBase.from_dict(json_dict)
-
-    def get_survey(self, id: int) -> Type[Survey]:
-        """
-        Retrieve a Survey object by its id.
-        """
-        json_dict = self._get("surveys", id)
-        return Survey.from_dict(json_dict)
-
-    def get_agent(self, id: int) -> Union[Agent, AgentList]:
-        """
-        Retrieve an Agent or AgentList object by id.
-        """
-        json_dict = self._get("agents", id)
-        if "agent_list" in json_dict:
-            return AgentList.from_dict(json_dict)
-        else:
-            return Agent.from_dict(json_dict)
-
-    def get_results(self, id: int) -> Results:
-        """Retrieve a Results object by id."""
-        json_dict = self._get("results", id)
-        return Results.from_dict(json_dict)
-
     def get(
-        self, object_type: str, id: int
+        self, object_type: str = None, id: int = None, url: str = None
     ) -> Union[Type[QuestionBase], Survey, Agent, AgentList, Results]:
         """
-        Retrieve an EDSL object by its id.
+        Retrieve an EDSL object by its id or url.
+        To retrieve by id, object_type must also be provided.
 
         :param object_type: the type of object to retrieve.
         :param id: the id of the object.
+        :param url: the url of the object.
         """
-        if object_type in {"question", "questions"}:
-            return self.get_question(id)
-        elif object_type in {"survey", "surveys"}:
-            return self.get_survey(id)
-        elif object_type in {"agent", "agents"}:
-            return self.get_agent(id)
-        elif object_type == "results":
-            return self.get_results(id)
+        if (id is None) == (url is None):
+            raise ValueError("Either object id or url must be provided.")
+
+        type_map = {
+            "question": ("questions", QuestionBase),
+            "questions": ("questions", QuestionBase),
+            "survey": ("surveys", Survey),
+            "surveys": ("surveys", Survey),
+            "agent": ("agents", Agent),
+            "agents": ("agents", Agent),
+            "results": ("results", Results),
+        }
+
+        # get by id logic
+        if id:
+            if object_type is None:
+                raise ValueError(
+                    "Please provide `object_type` to retrieve an object by its id."
+                )
+
+            if object_type in type_map:
+                key, cls = type_map[object_type]
+                json_dict = self._get(object_type=key, id=id)
+            else:
+                raise ValueError(f"Object type {object_type} not recognized")
+        # get by url logic
         else:
-            raise ValueError("Object type not recognized")
+            url_split = url.split("/")
+            object_type = url_split[-2]
+            key, cls = type_map[object_type]
+            uuid = url_split[-1]
+            json_dict = self._get(object_type=object_type, uuid=uuid)
+
+        if object_type in {"agent", "agents"} and "agent_list" in json_dict:
+            return AgentList.from_dict(json_dict)
+        return cls.from_dict(json_dict)
 
     def _get_base(self, cls, id):
         """
         Used by the Base class to offer a get functionality.
         """
         if issubclass(cls, QuestionBase):
-            return self.get_question(id)
+            return self.get(object_type="question", id=id)
         elif cls == Survey:
-            return self.get_survey(id)
+            return self.get(object_type="survey", id=id)
         elif cls == Agent or cls == AgentList:
-            return self.get_agent(id)
+            return self.get(object_type="agent", id=id)
         elif cls == Results:
-            return self.get_results(id)
+            return self.get(object_type="results", id=id)
         else:
             raise ValueError("Class type not recognized")
 
@@ -471,21 +474,24 @@ if __name__ == "__main__":
     # check questions on server (should be an empty list)
     coop.questions
     for question in coop.questions:
-        coop.delete_question(question.get("id"))
+        question_id = question.get("id")
+        coop.delete_question(id=question_id)
 
     # get a question that does not exist (should return None)
-    coop.get_question(id=1000)
+    coop.get(object_type="question", id=1000)
 
     # now post a Question
-    coop.create(QuestionMultipleChoice.example())
+    response = coop.create(QuestionMultipleChoice.example())
     coop.create(QuestionCheckBox.example(), public=False)
     coop.create(QuestionFreeText.example(), public=True)
 
     # check all questions
     coop.questions
 
-    # or get question by id
-    coop.get_question(id=1)
+    # or get a question by its id
+    coop.get(object_type="question", id=response.get("id"))
+    # or by its url
+    coop.get(url=response.get("url"))
 
     # delete the question
     coop.delete_question(id=1)
@@ -504,10 +510,10 @@ if __name__ == "__main__":
         coop.delete_survey(survey.get("id"))
 
     # get a survey that does not exist (should return None)
-    coop.get_survey(id=1)
+    coop.get(object_type="survey", id=1)
 
     # now post a Survey
-    coop.create(Survey.example())
+    response = coop.create(Survey.example())
     coop.create(Survey.example(), public=False)
     coop.create(Survey.example(), public=True)
     coop.create(Survey(), public=True)
@@ -522,7 +528,9 @@ if __name__ == "__main__":
     coop.surveys
 
     # or get survey by id
-    coop.get_survey(id=1)
+    coop.get(object_type="survey", id=response.get("id"))
+    # or by its url
+    coop.get(url=response.get("url"))
 
     # delete the survey
     coop.delete_survey(id=1)
@@ -541,10 +549,10 @@ if __name__ == "__main__":
         coop.delete_agent(agent.get("id"))
 
     # get an agent that does not exist (should return None)
-    coop.get_agent(id=2)
+    coop.get(object_type="agent", id=2)
 
     # now post an Agent
-    coop.create(Agent.example())
+    result = coop.create(Agent.example())
     coop.create(Agent.example(), public=False)
     coop.create(Agent.example(), public=True)
     coop.create(
@@ -558,7 +566,9 @@ if __name__ == "__main__":
     coop.agents
 
     # or get agent by id
-    coop.get_agent(id=1)
+    coop.get(object_type="agent", id=result.get("id"))
+    # or by its url
+    coop.get(url=result.get("url"))
 
     # delete the agent
     coop.delete_agent(id=1)
@@ -577,10 +587,10 @@ if __name__ == "__main__":
         coop.delete_results(results.get("id"))
 
     # get a result that does not exist (should return None)
-    coop.get_results(id=2)
+    coop.get(object_type="results", id=2)
 
     # now post a Results
-    coop.create(Results.example())
+    response = coop.create(Results.example())
     coop.create(Results.example(), public=False)
     coop.create(Results.example(), public=True)
 
@@ -588,7 +598,9 @@ if __name__ == "__main__":
     coop.results
 
     # or get results by id
-    coop.get_results(id=1)
+    coop.get(object_type="results", id=response.get("id"))
+    # or by its url
+    coop.get(url=response.get("url"))
 
     # delete the results
     coop.delete_results(id=1)

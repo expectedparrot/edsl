@@ -30,29 +30,33 @@ def test_coop_client_questions():
 
     # cannot get an object that does not exist
     with pytest.raises(Exception):
-        coop.get_question(id=100)
+        coop.get(object_type="question", id=10000)
 
     # create
-    response = coop.create(QuestionMultipleChoice.example())
-    assert response.get("id") == 2
-    assert response.get("type") == "question"
-    response = coop.create(QuestionCheckBox.example(), public=False)
-    assert response.get("id") == 3
-    assert response.get("type") == "question"
-    response = coop.create(QuestionFreeText.example(), public=True)
-    assert response.get("id") == 4
-    assert response.get("type") == "question"
+    question_examples = [
+        (QuestionMultipleChoice.example(), True),
+        (QuestionCheckBox.example(), False),
+        (QuestionFreeText.example(), True),
+    ]
+
+    # Test creation and retrieval
+    for question, public in question_examples:
+        response = coop.create(question, public=public)
+        assert response.get("type") == "question", "Expected type 'question'"
+        assert (
+            coop.get(object_type="question", id=response.get("id")) == question
+        ), "Question retrieval mismatch"
+        assert coop.get(url=response.get("url")) == question, "URL retrieval mismatch"
+
     # check
     assert len(coop.questions) == 3
-    assert coop.questions[0].get("id") == 2
-    assert coop.questions[0].get("question") == QuestionMultipleChoice.example()
 
     # other client..
     coop2 = Coop(api_key="a")
     # ..should be able to get public but not private questions
-    assert coop2.get_question(id=4) == QuestionFreeText.example()
+    assert coop2.get(object_type="question", id=4) == QuestionFreeText.example()
     with pytest.raises(Exception):
-        coop2.get_question(id=3)
+        coop2.get(object_type="question", id=3)
     # ..should not be able to delete another client's questions
     for i in range(2, 5):
         with pytest.raises(Exception):
@@ -80,18 +84,21 @@ def test_coop_client_surveys():
 
     # cannot get an object that does not exist
     with pytest.raises(Exception):
-        coop.get_survey(id=100)
+        coop.get(object_type="survey", id=100)
 
     # create
     response = coop.create(Survey.example())
     assert response.get("id") == 2
     assert response.get("type") == "survey"
+    assert response.get("url") is not None
     response = coop.create(Survey.example(), public=False)
     assert response.get("id") == 3
     assert response.get("type") == "survey"
+    assert response.get("url") is not None
     response = coop.create(Survey.example(), public=True)
     assert response.get("id") == 4
     assert response.get("type") == "survey"
+    assert response.get("url") is not None
     #  can't create an empty survey
     with pytest.raises(Exception):
         response = coop.create(Survey(), public=True)
@@ -103,9 +110,9 @@ def test_coop_client_surveys():
     # other client..
     coop2 = Coop(api_key="a")
     # ..should be able to get public but not private surveys
-    assert coop2.get_survey(id=4) == Survey.example()
+    assert coop2.get(object_type="survey", id=4) == Survey.example()
     with pytest.raises(Exception):
-        coop2.get_survey(id=3)
+        coop2.get(object_type="survey", id=3)
     # ..should not be able to delete another client's surveys
     for i in range(2, 5):
         with pytest.raises(Exception):
@@ -132,18 +139,21 @@ def test_coop_client_agents():
 
     # cannot get an object that does not exist
     with pytest.raises(Exception):
-        coop.get_agent(id=100)
+        coop.get(object_type="agent", id=100)
 
     # create
     response = coop.create(Agent.example())
     assert response.get("id") == 2
     assert response.get("type") == "agent"
+    assert response.get("url") is not None
     response = coop.create(Agent.example(), public=False)
     assert response.get("id") == 3
     assert response.get("type") == "agent"
+    assert response.get("url") is not None
     response = coop.create(Agent.example(), public=True)
     assert response.get("id") == 4
     assert response.get("type") == "agent"
+    assert response.get("url") is not None
 
     # check
     assert len(coop.agents) == 3
@@ -153,9 +163,9 @@ def test_coop_client_agents():
     # other client..
     coop2 = Coop(api_key="a")
     # ..should be able to get public but not private agents
-    assert coop2.get_agent(id=4) == Agent.example()
+    assert coop2.get(object_type="agent", id=4) == Agent.example()
     with pytest.raises(Exception):
-        coop2.get_agent(id=3)
+        coop2.get(object_type="agent", id=3)
     # ..should not be able to delete another client's agents
     for i in range(2, 5):
         with pytest.raises(Exception):
@@ -182,18 +192,21 @@ def test_coop_client_results():
 
     # cannot get an object that does not exist
     with pytest.raises(Exception):
-        coop.get_results(id=100)
+        coop.get(object_type="results", id=100)
 
     # create
     response = coop.create(Results.example())
     assert response.get("id") == 2
     assert response.get("type") == "results"
+    assert response.get("url") is not None
     response = coop.create(Results.example(), public=False)
     assert response.get("id") == 3
     assert response.get("type") == "results"
+    assert response.get("url") is not None
     response = coop.create(Results.example(), public=True)
     assert response.get("id") == 4
     assert response.get("type") == "results"
+    assert response.get("url") is not None
 
     # check
     assert len(coop.results) == 3
@@ -203,9 +216,9 @@ def test_coop_client_results():
     # other client..
     coop2 = Coop(api_key="a")
     # ..should be able to get public but not private results
-    assert coop2.get_results(id=4) == Results.example()
+    assert coop2.get(object_type="results", id=4) == Results.example()
     with pytest.raises(Exception):
-        coop2.get_results(id=3)
+        coop2.get(object_type="results", id=3)
     # ..should not be able to delete another client's results
     for i in range(2, 5):
         with pytest.raises(Exception):

@@ -8,10 +8,7 @@ from edsl.exceptions import (
     QuestionResponseValidationError,
     QuestionSerializationError,
 )
-from edsl.questions.descriptors import (
-    QuestionNameDescriptor,
-    QuestionTextDescriptor
-)
+from edsl.questions.descriptors import QuestionNameDescriptor, QuestionTextDescriptor
 
 from edsl.prompts.registry import get_classes as prompt_lookup
 from edsl.questions.AnswerValidatorMixin import AnswerValidatorMixin
@@ -33,7 +30,7 @@ class QuestionBase(
 
     question_name: str = QuestionNameDescriptor()
     question_text: str = QuestionTextDescriptor()
-    
+
     def __getitem__(self, key: str) -> Any:
         """Get an attribute of the question."""
         return getattr(self, key)
@@ -208,6 +205,7 @@ class QuestionBase(
         ]
         from rich import print_json
         import json
+
         print_json(json.dumps(self.to_dict()))
         return f"{class_name}({', '.join(items)})"
 

@@ -381,8 +381,11 @@ class LanguageModel(
     async def remote_async_execute_model_call(self, user_prompt, system_prompt):
         """Execute the model call and returns the result as a coroutine, using Coop."""
         from edsl.coop import Coop
+
         client = Coop()
-        response_data = await client.remote_async_execute_model_call(self.to_dict(), user_prompt, system_prompt)
+        response_data = await client.remote_async_execute_model_call(
+            self.to_dict(), user_prompt, system_prompt
+        )
         return response_data
 
     @jupyter_nb_handler
@@ -418,7 +421,6 @@ class LanguageModel(
         response["cached_response"] = cached_response
         response["cache_key"] = cache_key
         return response
-            
 
     async def async_get_raw_response(
         self,
@@ -460,9 +462,13 @@ class LanguageModel(
             # print("Cache not used")
             # print(f"Cache data is: {cache.data}")
             if hasattr(self, "remote") and self.remote:
-                response = await self.remote_async_execute_model_call(user_prompt, system_prompt)
+                response = await self.remote_async_execute_model_call(
+                    user_prompt, system_prompt
+                )
             else:
-                response = await self.async_execute_model_call(user_prompt, system_prompt)
+                response = await self.async_execute_model_call(
+                    user_prompt, system_prompt
+                )
 
         if not cache_used:
             cache_key = cache.store(
@@ -486,7 +492,7 @@ class LanguageModel(
 
     def simple_ask(
         self,
-        question: 'QuestionBase',
+        question: "QuestionBase",
         system_prompt="You are a helpful agent pretending to be a human.",
         top_logprobs=2,
     ):
@@ -560,6 +566,7 @@ class LanguageModel(
         """Return a string representation of the object."""
         from rich import print_json
         import json
+
         print_json(json.dumps(self.to_dict()))
         param_string = ", ".join(f"{key} = {value}" for key, value in self.parameters.items())
         return f"Model(model_name = '{self.model}'" + (f", {param_string}" if param_string else "") + ")"

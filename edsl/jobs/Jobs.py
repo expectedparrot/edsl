@@ -53,7 +53,6 @@ class Jobs(Base):
 
         self.__bucket_collection = None
 
-
     def by(
         self,
         *args: Union[
@@ -166,7 +165,7 @@ class Jobs(Base):
         Generate interviews.
 
         Note that this sets the agents, model and scenarios if they have not been set. This is a side effect of the method.
-        This is useful because a user can create a job without setting the agents, models, or scenarios, and the job will still run, 
+        This is useful because a user can create a job without setting the agents, models, or scenarios, and the job will still run,
         with us filling in defaults.
         """
         self.agents = self.agents or [Agent()]
@@ -182,7 +181,7 @@ class Jobs(Base):
 
     def create_bucket_collection(self) -> BucketCollection:
         """
-        Create a collection of buckets for each model. 
+        Create a collection of buckets for each model.
 
         These buckets are used to track API calls and token usage.
         """
@@ -205,7 +204,9 @@ class Jobs(Base):
         progress_bar: bool = False,
         stop_on_exception: bool = False,
         cache: Optional[Cache] = None,
-        remote: bool = False if os.getenv('DEFAULT_RUN_MODE', 'local') == 'local' else True,
+        remote: bool = False
+        if os.getenv("DEFAULT_RUN_MODE", "local") == "local"
+        else True,
         check_api_keys=True,
         sidecar_model=None,
         batch_mode=False,
@@ -229,17 +230,19 @@ class Jobs(Base):
         if self.remote:
             if os.getenv("EXPECTED_PARROT_API_KEY", None) is None:
                 raise MissingRemoteInferenceError()
-    
+
         # only check API keys is the user is not running remotely
         if check_api_keys and not self.remote:
             for model in self.models + [Model()]:
                 if not model.has_valid_api_key():
-                    raise MissingAPIKeyError(model_name = str(model.model), 
-                                             inference_service = model._inference_service_)
+                    raise MissingAPIKeyError(
+                        model_name=str(model.model),
+                        inference_service=model._inference_service_,
+                    )
 
         if cache is None:
             cache = CacheHandler().get_cache()
-        
+
         results = self._run_local(
             n=n,
             debug=debug,
@@ -249,7 +252,7 @@ class Jobs(Base):
             sidecar_model=sidecar_model,
             batch_mode=batch_mode,
         )
-        
+
         return results
 
     def _run_local(self, *args, **kwargs):
@@ -271,14 +274,15 @@ class Jobs(Base):
         """Return an eval-able string representation of the Jobs instance."""
         from rich import print_json
         import json
+
         print_json(json.dumps(self.to_dict()))
         return f"Jobs(survey={repr(self.survey)}, agents={repr(self.agents)}, models={repr(self.models)}, scenarios={repr(self.scenarios)})"
 
     def _repr_html_(self) -> str:
         from rich import print_json
         import json
-        print_json(json.dumps(self.to_dict()))
 
+        print_json(json.dumps(self.to_dict()))
 
     def __len__(self) -> int:
         """Return the number of questions that will be asked while running this job."""
