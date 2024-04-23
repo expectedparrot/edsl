@@ -23,24 +23,20 @@ def test_coop_client_questions():
     """
     coop = Coop()
     assert coop.api_key == "b"
-
     # make sure we start fresh
     for question in coop.questions:
-        coop.delete_question(question.get("uuid"))
+        coop.delete("question", question.get("uuid"))
     assert coop.questions == []
-
     # cannot get an object that does not exist
     with pytest.raises(Exception):
         coop.get(object_type="question", uuid=uuid.uuid4())
-
     # create
     question_examples = [
         (QuestionMultipleChoice.example(), True),
         (QuestionCheckBox.example(), False),
         (QuestionFreeText.example(), True),
     ]
-
-    # Test creation and retrieval
+    # ..test creation and retrieval
     responses = []
     for question, public in question_examples:
         response = coop.create(question, public=public)
@@ -49,10 +45,8 @@ def test_coop_client_questions():
             coop.get(object_type="question", uuid=response.get("uuid")) == question
         ), "Question retrieval mismatch"
         responses.append(response)
-
-    # check
+    # ..check length
     assert len(coop.questions) == 3
-
     # other client..
     coop2 = Coop(api_key="a")
     # ..should be able to get public but not private questions
@@ -68,11 +62,10 @@ def test_coop_client_questions():
     # ..should not be able to delete another client's questions
     for response in responses:
         with pytest.raises(Exception):
-            coop2.delete_question(response.get("uuid"))
-
+            coop2.delete("question", response.get("uuid"))
     # cleanup
     for question in coop.questions:
-        x = coop.delete_question(question.get("uuid"))
+        x = coop.delete("question", question.get("uuid"))
         assert x.get("status") == "success"
     assert coop.questions == []
 
@@ -84,52 +77,49 @@ def test_coop_client_surveys():
     """
     coop = Coop()
     assert coop.api_key == "b"
-
     # make sure we start fresh
     for survey in coop.surveys:
-        coop.delete_survey(survey.get("id"))
+        coop.delete("survey", survey.get("uuid"))
     assert coop.surveys == []
-
     # cannot get an object that does not exist
     with pytest.raises(Exception):
-        coop.get(object_type="survey", id=100)
-
+        coop.get(object_type="survey", uuid=uuid.uuid4())
     # create
-    response = coop.create(Survey.example())
-    assert response.get("id") == 2
-    assert response.get("type") == "survey"
-    assert response.get("url") is not None
-    response = coop.create(Survey.example(), public=False)
-    assert response.get("id") == 3
-    assert response.get("type") == "survey"
-    assert response.get("url") is not None
-    response = coop.create(Survey.example(), public=True)
-    assert response.get("id") == 4
-    assert response.get("type") == "survey"
-    assert response.get("url") is not None
-    #  can't create an empty survey
+    survey_examples = [
+        (Survey.example(), True),
+        (Survey.example(), False),
+        (Survey.example(), True),
+    ]
+    # ..test creation and retrieval
+    responses = []
+    for survey, public in survey_examples:
+        response = coop.create(survey, public=public)
+        assert response.get("type") == "survey", "Expected type 'survey'"
+        assert coop.get(object_type="survey", uuid=response.get("uuid")) == survey
+        responses.append(response)
+    # ..can't create an empty survey
     with pytest.raises(Exception):
         response = coop.create(Survey(), public=True)
-    # check
+    # ..check length
     assert len(coop.surveys) == 3
-    assert coop.surveys[0].get("id") == 2
-    assert coop.surveys[0].get("survey") == Survey.example()
-
     # other client..
     coop2 = Coop(api_key="a")
     # ..should be able to get public but not private surveys
-    assert coop2.get(object_type="survey", id=4) == Survey.example()
-    with pytest.raises(Exception):
-        coop2.get(object_type="survey", id=3)
+    for i, response in enumerate(responses):
+        survey, public = survey_examples[i]
+        if public:
+            assert coop2.get(object_type="survey", uuid=response.get("uuid")) == survey
+        else:
+            with pytest.raises(Exception):
+                coop2.get(object_type="survey", uuid=response.get("uuid"))
     # ..should not be able to delete another client's surveys
-    for i in range(2, 5):
+    for response in responses:
         with pytest.raises(Exception):
-            coop2.delete_survey(i)
-
+            coop2.delete("survey", response.get("uuid"))
     # cleanup
     for survey in coop.surveys:
-        coop.delete_survey(survey.get("id"))
-    assert coop.surveys == []
+        x = coop.delete("survey", survey.get("uuid"))
+        assert x.get("status") == "success"
 
 
 @pytest.mark.coop
