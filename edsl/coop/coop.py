@@ -151,9 +151,9 @@ class Coop:
     # OBJECT METHODS
     ################
 
-    # -----------------
-    # A. CREATE METHODS
-    # -----------------
+    # ----------
+    # A. CREATE
+    # ----------
     def _create(
         self,
         object: Union[Type[QuestionBase], Survey, Agent, AgentList, Results],
@@ -194,9 +194,9 @@ class Coop:
         """
         return self._create(object, public)
 
-    # -----------------
-    # B. GET METHODS
-    # -----------------
+    # ----------
+    # B. GET
+    # ----------
     def _get(self, object_type_uri: str, uuid: Union[str, UUID]) -> dict:
         """
         Retrieve an EDSL object from the Coop server.
@@ -255,9 +255,9 @@ class Coop:
         else:
             raise ValueError("Class type not recognized")
 
-    # -----------------
-    # C. GET ALL METHODS
-    # -----------------
+    # ----------
+    # C. GET ALL
+    # ----------
     @property
     def questions(self) -> list[dict[str, Union[int, QuestionBase]]]:
         """Retrieve all Questions."""
@@ -280,9 +280,9 @@ class Coop:
         self._resolve_server_response(response)
         surveys = [
             {
-                "id": s.get("id"),
-                "survey": Survey.from_dict(json.loads(s.get("json_string"))),
-                "version": s.get("version"),
+                "survey": Survey.from_dict(json.loads(s["json_string"])),
+                "uuid": s["uuid"],
+                "version": s["version"],
             }
             for s in response.json()
         ]
@@ -324,9 +324,35 @@ class Coop:
         ]
         return results
 
-    # -----------------
-    # D. DELETE METHODS
-    # -----------------
+    # ----------
+    # D. DELETE
+    # ----------
+    def delete(self, object_type: str, uuid: Union[str, UUID]) -> dict:
+        """
+        Delete an EDSL object from the Coop server.
+
+        :param object_type: the type of object to delete.
+        :param uuid: the uuid of the object either in str or UUID format.
+        """
+        type_map = {
+            "question": "questions",
+            "survey": "surveys",
+            "agent": "agents",
+            "results": "results",
+        }
+
+        if object_type is None:
+            raise ValueError("Please provide an `object_type`.")
+        elif object_type not in type_map:
+            raise ValueError(f"Object type {object_type} not recognized")
+
+        object_type_uri = type_map[object_type]
+        response = self._send_server_request(
+            uri=f"api/v0/{object_type_uri}/{uuid}", method="DELETE"
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
     def delete_question(self, uuid: Union[str, UUID]) -> dict:
         """Delete a question from the Coop."""
         response = self._send_server_request(
@@ -456,27 +482,21 @@ if __name__ == "__main__":
     # check questions on server (should be an empty list)
     coop.questions
     for item in coop.questions:
-        coop.delete_question(uuid=item.get("uuid"))
-
-    # get a question that does not exist
+        coop.delete(object_type="question", uuid=item.get("uuid"))
+    # try to get a question that does not exist - should get an error
     coop.get(object_type="question", uuid=uuid.uuid4())
     coop.get(object_type="question", uuid=str(uuid.uuid4()))
-
-    # now post a Question
+    # now post some questions
     response = coop.create(QuestionMultipleChoice.example())
     coop.create(QuestionCheckBox.example(), public=False)
     coop.create(QuestionFreeText.example(), public=True)
-
-    # check all questions
+    # check all questions - there must be three
     coop.questions
-
-    # or get a question by its id
+    # or get a question by its uuid
     coop.get(object_type="question", uuid=response.get("uuid"))
-
     # delete the question
-    coop.delete_question(uuid=response.get("uuid"))
-
-    # check all questions
+    coop.delete(object_type="question", uuid=response.get("uuid"))
+    # check all questions - there must be two left
     coop.questions
 
     ##############
@@ -487,35 +507,27 @@ if __name__ == "__main__":
     # check surveys on server (should be an empty list)
     coop.surveys
     for survey in coop.surveys:
-        coop.delete_survey(survey.get("id"))
-
-    # get a survey that does not exist (should return None)
-    coop.get(object_type="survey", id=1)
-
-    # now post a Survey
+        coop.delete(object_type="survey", uuid=survey.get("uuid"))
+    # try to get a survey that does not exist - should get an error
+    coop.get(object_type="survey", uuid=uuid.uuid4())
+    coop.get(object_type="survey", uuid=str(uuid.uuid4()))
+    # now post some surveys
     response = coop.create(Survey.example())
     coop.create(Survey.example(), public=False)
     coop.create(Survey.example(), public=True)
-    coop.create(Survey(), public=True)
     s = Survey().example()
     for i in range(10):
         q = QuestionFreeText.example()
         q.question_name = f"question_{i}"
         s.add_question(q)
     coop.create(s, public=True)
-
-    # check all surveys
+    # check all surveys - there must be three
     coop.surveys
-
-    # or get survey by id
-    coop.get(object_type="survey", id=response.get("id"))
-    # or by its url
-    coop.get(url=response.get("url"))
-
+    # or get survey by uuid
+    coop.get(object_type="survey", uuid=response.get("uuid"))
     # delete the survey
-    coop.delete_survey(id=1)
-
-    # check all surveys
+    coop.delete(object_type="survey", uuid=response.get("uuid"))
+    # check all surveys - there must be two left
     coop.surveys
 
     ##############
