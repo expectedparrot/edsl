@@ -302,7 +302,7 @@ class Coop:
                 agent = Agent.from_dict(agent_dict)
             agents.append(
                 {
-                    "id": a.get("id"),
+                    "uuid": a.get("uuid"),
                     "agent": agent,
                     "version": a.get("version"),
                 }
@@ -316,7 +316,7 @@ class Coop:
         self._resolve_server_response(response)
         results = [
             {
-                "id": r.get("id"),
+                "uuid": r.get("uuid"),
                 "results": Results.from_dict(json.loads(r.get("json_string"))),
                 "version": r.get("version"),
             }
@@ -349,36 +349,6 @@ class Coop:
         object_type_uri = type_map[object_type]
         response = self._send_server_request(
             uri=f"api/v0/{object_type_uri}/{uuid}", method="DELETE"
-        )
-        self._resolve_server_response(response)
-        return response.json()
-
-    def delete_question(self, uuid: Union[str, UUID]) -> dict:
-        """Delete a question from the Coop."""
-        response = self._send_server_request(
-            uri=f"api/v0/questions/{uuid}", method="DELETE"
-        )
-        self._resolve_server_response(response)
-        return response.json()
-
-    def delete_survey(self, id: int) -> dict:
-        """Delete a Survey from the coop."""
-        response = self._send_server_request(
-            uri=f"api/v0/surveys/{id}", method="DELETE"
-        )
-        self._resolve_server_response(response)
-        return response.json()
-
-    def delete_agent(self, id: int) -> dict:
-        """Delete an Agent or AgentList from the coop."""
-        response = self._send_server_request(uri=f"api/v0/agents/{id}", method="DELETE")
-        self._resolve_server_response(response)
-        return response.json()
-
-    def delete_results(self, id: int) -> dict:
-        """Delete a Results object from the coop."""
-        response = self._send_server_request(
-            uri=f"api/v0/results/{id}", method="DELETE"
         )
         self._resolve_server_response(response)
         return response.json()
@@ -538,13 +508,12 @@ if __name__ == "__main__":
     # check agents on server (should be an empty list)
     coop.agents
     for agent in coop.agents:
-        coop.delete_agent(agent.get("id"))
-
-    # get an agent that does not exist (should return None)
-    coop.get(object_type="agent", id=2)
-
-    # now post an Agent
-    result = coop.create(Agent.example())
+        coop.delete(object_type="agent", uuid=agent.get("uuid"))
+    # try to get an agent that does not exist - should get an error
+    coop.get(object_type="agent", uuid=uuid.uuid4())
+    coop.get(object_type="agent", uuid=str(uuid.uuid4()))
+    # now post some agents
+    response = coop.create(Agent.example())
     coop.create(Agent.example(), public=False)
     coop.create(Agent.example(), public=True)
     coop.create(
@@ -553,18 +522,12 @@ if __name__ == "__main__":
     coop.create(AgentList.example())
     coop.create(AgentList.example(), public=False)
     coop.create(AgentList.example(), public=True)
-
-    # check all agents
+    # check all agents - there must be a few
     coop.agents
-
-    # or get agent by id
-    coop.get(object_type="agent", id=result.get("id"))
-    # or by its url
-    coop.get(url=result.get("url"))
-
+    # or get agent by uuid
+    coop.get(object_type="agent", uuid=response.get("uuid"))
     # delete the agent
-    coop.delete_agent(id=1)
-
+    coop.delete(object_type="agent", uuid=response.get("uuid"))
     # check all agents
     coop.agents
 
@@ -574,29 +537,22 @@ if __name__ == "__main__":
     from edsl.results import Results
 
     # check results on server (should be an empty list)
-    len(coop.results)
+    coop.results
     for results in coop.results:
-        coop.delete_results(results.get("id"))
-
-    # get a result that does not exist (should return None)
-    coop.get(object_type="results", id=2)
-
-    # now post a Results
+        coop.delete(object_type="results", uuid=results.get("uuid"))
+    # try to get a results that does not exist - should get an error
+    coop.get(object_type="results", uuid=uuid.uuid4())
+    coop.get(object_type="results", uuid=str(uuid.uuid4()))
+    # now post some Results
     response = coop.create(Results.example())
     coop.create(Results.example(), public=False)
     coop.create(Results.example(), public=True)
-
-    # check all results
+    # check all results - there must be a few
     coop.results
-
-    # or get results by id
-    coop.get(object_type="results", id=response.get("id"))
-    # or by its url
-    coop.get(url=response.get("url"))
-
+    # or get results by uuid
+    coop.get(object_type="results", uuid=response.get("uuid"))
     # delete the results
-    coop.delete_results(id=1)
-
+    coop.delete(object_type="results", uuid=response.get("uuid"))
     # check all results
     coop.results
 

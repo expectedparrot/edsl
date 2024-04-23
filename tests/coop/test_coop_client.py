@@ -129,50 +129,46 @@ def test_coop_client_agents():
     """
     coop = Coop()
     assert coop.api_key == "b"
-
     # make sure we start fresh
     for agent in coop.agents:
-        coop.delete_agent(agent.get("id"))
+        coop.delete("agent", agent.get("uuid"))
     assert coop.agents == []
-
     # cannot get an object that does not exist
     with pytest.raises(Exception):
-        coop.get(object_type="agent", id=100)
-
+        coop.get(object_type="agent", uuid=uuid.uuid4())
     # create
-    response = coop.create(Agent.example())
-    assert response.get("id") == 2
-    assert response.get("type") == "agent"
-    assert response.get("url") is not None
-    response = coop.create(Agent.example(), public=False)
-    assert response.get("id") == 3
-    assert response.get("type") == "agent"
-    assert response.get("url") is not None
-    response = coop.create(Agent.example(), public=True)
-    assert response.get("id") == 4
-    assert response.get("type") == "agent"
-    assert response.get("url") is not None
-
-    # check
+    agent_examples = [
+        (Agent.example(), True),
+        (Agent.example(), False),
+        (Agent.example(), True),
+    ]
+    # ..test creation and retrieval
+    responses = []
+    for agent, public in agent_examples:
+        response = coop.create(agent, public=public)
+        assert response.get("type") == "agent", "Expected type 'agent'"
+        assert coop.get(object_type="agent", uuid=response.get("uuid")) == agent
+        responses.append(response)
+    # ..check length
     assert len(coop.agents) == 3
-    assert coop.agents[0].get("id") == 2
-    assert coop.agents[0].get("agent") == Agent.example()
-
     # other client..
     coop2 = Coop(api_key="a")
     # ..should be able to get public but not private agents
-    assert coop2.get(object_type="agent", id=4) == Agent.example()
-    with pytest.raises(Exception):
-        coop2.get(object_type="agent", id=3)
+    for i, response in enumerate(responses):
+        agent, public = agent_examples[i]
+        if public:
+            assert coop2.get(object_type="agent", uuid=response.get("uuid")) == agent
+        else:
+            with pytest.raises(Exception):
+                coop2.get(object_type="agent", uuid=response.get("uuid"))
     # ..should not be able to delete another client's agents
-    for i in range(2, 5):
+    for response in responses:
         with pytest.raises(Exception):
-            coop2.delete_agent(i)
-
+            coop2.delete("agent", response.get("uuid"))
     # cleanup
     for agent in coop.agents:
-        coop.delete_agent(agent.get("id"))
-    assert coop.agents == []
+        x = coop.delete("agent", agent.get("uuid"))
+        assert x.get("status") == "success"
 
 
 @pytest.mark.coop
@@ -182,47 +178,45 @@ def test_coop_client_results():
     """
     coop = Coop()
     assert coop.api_key == "b"
-
     # make sure we start fresh
     for results in coop.results:
-        coop.delete_results(results.get("id"))
+        coop.delete("results", results.get("uuid"))
     assert coop.results == []
-
     # cannot get an object that does not exist
     with pytest.raises(Exception):
-        coop.get(object_type="results", id=100)
-
+        coop.get(object_type="results", uuid=uuid.uuid4())
     # create
-    response = coop.create(Results.example())
-    assert response.get("id") == 2
-    assert response.get("type") == "results"
-    assert response.get("url") is not None
-    response = coop.create(Results.example(), public=False)
-    assert response.get("id") == 3
-    assert response.get("type") == "results"
-    assert response.get("url") is not None
-    response = coop.create(Results.example(), public=True)
-    assert response.get("id") == 4
-    assert response.get("type") == "results"
-    assert response.get("url") is not None
-
-    # check
+    results_examples = [
+        (Results.example(), True),
+        (Results.example(), False),
+        (Results.example(), True),
+    ]
+    # ..test creation and retrieval
+    responses = []
+    for results, public in results_examples:
+        response = coop.create(results, public=public)
+        assert response.get("type") == "results", "Expected type 'results'"
+        assert coop.get(object_type="results", uuid=response.get("uuid")) == results
+        responses.append(response)
+    # ..check length
     assert len(coop.results) == 3
-    assert coop.results[0].get("id") == 2
-    assert coop.results[0].get("results") == Results.example()
-
     # other client..
     coop2 = Coop(api_key="a")
     # ..should be able to get public but not private results
-    assert coop2.get(object_type="results", id=4) == Results.example()
-    with pytest.raises(Exception):
-        coop2.get(object_type="results", id=3)
+    for i, response in enumerate(responses):
+        results, public = results_examples[i]
+        if public:
+            assert (
+                coop2.get(object_type="results", uuid=response.get("uuid")) == results
+            )
+        else:
+            with pytest.raises(Exception):
+                coop2.get(object_type="results", uuid=response.get("uuid"))
     # ..should not be able to delete another client's results
-    for i in range(2, 5):
+    for response in responses:
         with pytest.raises(Exception):
-            coop2.delete_results(i)
-
+            coop2.delete("results", response.get("uuid"))
     # cleanup
     for results in coop.results:
-        coop.delete_results(results.get("id"))
-    assert coop.results == []
+        x = coop.delete("results", results.get("uuid"))
+        assert x.get("status") == "success"
