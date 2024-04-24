@@ -3,7 +3,7 @@ import textwrap
 
 def get_model_class(model_name, registry=None):
     from edsl.inference_services.registry import default
-    registry = registry or collection
+    registry = registry or default
     factory = registry.create_model_factory(model_name)
     return factory
 
@@ -31,14 +31,14 @@ class Model(metaclass=Meta):
         if model_name is None:
             model_name = cls.default_model
         from edsl.inference_services.registry import default
-        registry = registry or collection
+        registry = registry or default
         factory = registry.create_model_factory(model_name)
         return factory(*args, **kwargs)
 
     @classmethod
     def available(cls, search_term = None, name_only = False, registry=None):
         from edsl.inference_services.registry import default
-        registry = registry or collection
+        registry = registry or default
         full_list = registry.available()
         if search_term is None:
             if name_only:
