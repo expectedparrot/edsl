@@ -55,7 +55,7 @@ For example:
 
 .. code-block:: python
 
-    def dynamic_traits_function(self, question):
+    def dynamic_traits_function(question):
         if question.question_name == "age":
             return {"age": 10}
         elif question.question_name == "hair":
@@ -66,6 +66,7 @@ For example:
 When the agent is asked a question about age, the agent will return an age of 10. 
 When asked about hair, the agent will return "brown".
 This can be useful for creating agents that can answer questions about different topics without including potentially irrelevant traits in the agent's traits dictionary.
+Note that the traits returned by the function are *mot* added to the agent's traits dictionary.
 
 Agent direct-answering methods
 ------------------------------

@@ -9,15 +9,11 @@ from edsl.exceptions.agents import (
     AgentDynamicTraitsFunctionError,
 )
 from edsl.jobs import Jobs
-from edsl.language_models import LanguageModelOpenAIThreeFiveTurbo
 from edsl.questions import QuestionMultipleChoice
 from edsl.surveys import Survey
 
 from edsl.exceptions.agents import AgentNameError
 from edsl.exceptions.agents import AgentTraitKeyError
-
-
-# from edsl.agents.Agent import Agent as Agent
 
 
 def test_agent_creation_valid():
@@ -106,71 +102,6 @@ def test_agent_serialization_with_name():
     assert agent2.traits == {"age": 10}
     assert agent2.name == "Peter"
     assert agent2 == agent
-
-
-# def test_agent_forward_methods():
-#     agent = Agent(traits={"age": 10})
-#     # to Question
-#     question = QuestionMultipleChoice(
-#         question_text="How are you?",
-#         question_options=["Good", "Bad"],
-#         question_name="how_are_you",
-#     )
-#     job = agent.to(question)
-#     assert type(job) == Jobs
-#     # to Survey
-#     survey = Survey(questions=[question])
-#     job = agent.to(survey)
-#     assert type(job) == Jobs
-#     # set value
-#     comparison = [Agent(traits={"age": 10})]
-#     # breakpoint()
-#     assert all([agent in comparison for agent in job.agents])
-
-
-# def test_agent_llm_construct_prompt():
-#     # prompt construction
-#     agent = Agent(traits={"age": 10})
-#     question = QuestionMultipleChoice(
-#         question_text="How are you?",
-#         question_options=["Good", "Bad"],
-#         question_name="how_are_you",
-#     )
-#     prompt = agent.construct_system_prompt()
-#     assert "You are answering" in prompt
-#     assert "{'age': 10}" in prompt
-#     # get response - valid
-#     mock_response = {"some_key": "some_value"}
-#     with patch.object(
-#         LanguageModelOpenAIThreeFiveTurbo, "get_response", return_value=mock_response
-#     ):
-#         response = agent.get_response("prompt", "system prompt", None)
-#     assert response == mock_response
-#     # get response - invalid
-#     with patch.object(
-#         LanguageModelOpenAIThreeFiveTurbo,
-#         "get_response",
-#         side_effect=json.JSONDecodeError("msg", "doc", 0),
-#     ):
-#         with pytest.raises(AgentRespondedWithBadJSONError):
-#             agent.get_response("prompt", "system prompt", None)
-#     # answer_question
-#     question = QuestionMultipleChoice(
-#         question_text="Could you defeat a goose in mortal combat?",
-#         question_options=["yes", "no"],
-#         question_name="goose_fight",
-#     )
-#     answer = agent.answer_question(question, debug=True)
-#     assert "answer" in answer
-#     assert "comment" in answer
-#     mock_response = {"answer": 0, "comment": "I am a comment"}
-#     with patch.object(
-#         LanguageModelOpenAIThreeFiveTurbo, "get_response", return_value=mock_response
-#     ):
-#         answer = agent.answer_question(question, debug=False)
-#     assert "answer" in answer
-#     assert "comment" in answer
-#     assert "I am a comment" in answer.get("comment")
 
 
 def test_adding_direct_question_answering_method():

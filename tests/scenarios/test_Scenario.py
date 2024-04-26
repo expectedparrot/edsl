@@ -4,7 +4,6 @@ from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 from edsl.jobs.Jobs import Jobs
 from edsl.agents.Agent import Agent
 from edsl.surveys.Survey import Survey
-from edsl.language_models import LanguageModelOpenAIThreeFiveTurbo
 
 import doctest
 import edsl.scenarios

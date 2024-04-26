@@ -3,7 +3,6 @@ from __future__ import annotations
 import warnings
 from functools import wraps
 import asyncio
-import aiohttp
 import json
 import time
 import inspect
@@ -16,11 +15,10 @@ from abc import ABC, abstractmethod, ABCMeta
 from rich.table import Table
 
 from edsl.config import CONFIG
-from edsl.language_models.schemas import model_prices
 from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
 from edsl.language_models.repair import repair
 from edsl.exceptions.language_models import LanguageModelAttributeTypeError
-from edsl.enums import LanguageModelType, InferenceServiceType
+from edsl.enums import InferenceServiceType
 from edsl.Base import RichPrintingMixin, PersistenceMixin
 from edsl.data.Cache import Cache
 from edsl.enums import service_to_api_keyname
@@ -59,12 +57,12 @@ class RegisterLanguageModelsMeta(ABCMeta):
             )
 
             ## Check that model name is valid
-            if not LanguageModelType.is_value_valid(model_name):
-                acceptable_values = [item.value for item in LanguageModelType]
-                raise LanguageModelAttributeTypeError(
-                    f"""A LanguageModel's model must be one of {LanguageModelType} values, which are
-                    {acceptable_values}. You passed {model_name}."""
-                )
+            # if not LanguageModelType.is_value_valid(model_name):
+            #     acceptable_values = [item.value for item in LanguageModelType]
+            #     raise LanguageModelAttributeTypeError(
+            #         f"""A LanguageModel's model must be one of {LanguageModelType} values, which are
+            #         {acceptable_values}. You passed {model_name}."""
+            #     )
 
             if not InferenceServiceType.is_value_valid(
                 inference_service := getattr(cls, "_inference_service_", None)
@@ -269,17 +267,20 @@ class LanguageModel(
 
         if skip_api_key_check := kwargs.get("skip_api_key_check", False):
             # Skip the API key check. Sometimes this is useful for testing.
-            self.api_token = None
+            self._api_token = None
 
-        # if not hasattr(self, "api_token"):
-        #     key_name = service_to_api_keyname.get(self._inference_service_, "NOT FOUND")
-        #     self.api_token = os.getenv(key_name)
-        #     if self.api_token is None and self._inference_service_ != "test" and not self.remote:
-        #         raise MissingAPIKeyError(
-        #             f"""The key for service: `{self._inference_service_}` is not set.
-        #             Need a key with name {key_name} in your .env file.
-        #             """
-        #         )
+    @property
+    def api_token(self):
+        if not hasattr(self, "_api_token"):
+            key_name = service_to_api_keyname.get(self._inference_service_, "NOT FOUND")
+            self._api_token = os.getenv(key_name)
+            if self._api_token is None and self._inference_service_ != "test" and not self.remote:
+                raise MissingAPIKeyError(
+                    f"""The key for service: `{self._inference_service_}` is not set.
+                    Need a key with name {key_name} in your .env file.
+                    """
+                )
+        return self._api_token
 
     def __getitem__(self, key):
         return getattr(self, key)
@@ -289,7 +290,7 @@ class LanguageModel(
 
         return data_to_html(self.to_dict())
 
-    def hello(self, verbose=True):
+    def hello(self, verbose=False):
         """Runs a simple test to check if the model is working."""
         token = self.api_token
         masked = token[: min(8, len(token))] + "..."
@@ -307,7 +308,7 @@ class LanguageModel(
         from edsl.enums import service_to_api_keyname
         import os
 
-        if self._model_ == LanguageModelType.TEST.value:
+        if self._model_ == "test":
             return True
 
         key_name = service_to_api_keyname.get(self._inference_service_, "NOT FOUND")
@@ -537,9 +538,10 @@ class LanguageModel(
 
     def cost(self, raw_response: dict[str, Any]) -> float:
         """Return the dollar cost of a raw response."""
-        keys = raw_response["usage"].keys()
-        prices = model_prices.get(self.model)
-        return sum([prices.get(key, 0.0) * raw_response["usage"][key] for key in keys])
+        raise NotImplementedError
+        # keys = raw_response["usage"].keys()
+        # prices = model_prices.get(self.model)
+        # return sum([prices.get(key, 0.0) * raw_response["usage"][key] for key in keys])
 
     #######################
     # SERIALIZATION METHODS
@@ -566,8 +568,8 @@ class LanguageModel(
         import json
 
         print_json(json.dumps(self.to_dict()))
-
-        return f"{self.__class__.__name__}(model = '{self.model}', parameters={self.parameters})"
+        param_string = ", ".join(f"{key} = {value}" for key, value in self.parameters.items())
+        return f"Model(model_name = '{self.model}'" + (f", {param_string}" if param_string else "") + ")"
 
     def __add__(self, other_model: Type[LanguageModel]) -> Type[LanguageModel]:
         """Combine two models into a single model (other_model takes precedence over self)."""
@@ -594,7 +596,7 @@ class LanguageModel(
         """Return a default instance of the class."""
         from edsl import Model
 
-        return Model(Model.available()[0], skip_api_key_check=True)
+        return Model(skip_api_key_check=True)
 
 
 if __name__ == "__main__":
