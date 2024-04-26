@@ -59,6 +59,18 @@ clean-all: ## Clean everything (including the venv)
 	@[ ! -d .venv ] || rm -rf .venv
 	@echo "Done!"
 
+publish: ## Publish the package to PyPI (requires credentials)
+	@version=$$(grep "^version =" pyproject.toml | head -1 | sed 's/version = "\(.*\)"/\1/'); \
+	echo "You are about to publish EDSL version '$$version' to PyPI."
+	@read -p "Are you sure you want to continue? (y/n) " answer; \
+	if [ "$$answer" != "y" ]; then \
+		echo "Publish canceled."; \
+		exit 1; \
+	fi
+	poetry build
+	poetry publish
+
+
 ###############
 ##@Development 🛠️  
 ###############
