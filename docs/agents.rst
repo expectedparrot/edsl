@@ -55,7 +55,7 @@ For example:
 
 .. code-block:: python
 
-    def dynamic_traits_function(self, question):
+    def dynamic_traits_function(question):
         if question.question_name == "age":
             return {"age": 10}
         elif question.question_name == "hair":
