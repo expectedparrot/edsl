@@ -4,15 +4,15 @@ import textwrap
 from edsl.prompts.Prompt import PromptBase
 from edsl.prompts.prompt_config import ComponentTypes
 
-#from edsl.enums import LanguageModelType
+# from edsl.enums import LanguageModelType
 
 
 class AgentInstruction(PromptBase):
     """Agent instructions for a human agent."""
 
-    #model = LanguageModelType.GPT_3_5_Turbo.value
-    #from edsl import Model
-    #model = Model().model
+    # model = LanguageModelType.GPT_3_5_Turbo.value
+    # from edsl import Model
+    # model = Model().model
     model = "gpt-3.5-turbo"
     component_type = ComponentTypes.AGENT_INSTRUCTIONS
     default_instructions = textwrap.dedent(

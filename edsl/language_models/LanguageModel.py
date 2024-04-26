@@ -274,7 +274,11 @@ class LanguageModel(
         if not hasattr(self, "_api_token"):
             key_name = service_to_api_keyname.get(self._inference_service_, "NOT FOUND")
             self._api_token = os.getenv(key_name)
-            if self._api_token is None and self._inference_service_ != "test" and not self.remote:
+            if (
+                self._api_token is None
+                and self._inference_service_ != "test"
+                and not self.remote
+            ):
                 raise MissingAPIKeyError(
                     f"""The key for service: `{self._inference_service_}` is not set.
                     Need a key with name {key_name} in your .env file.
@@ -568,8 +572,14 @@ class LanguageModel(
         import json
 
         print_json(json.dumps(self.to_dict()))
-        param_string = ", ".join(f"{key} = {value}" for key, value in self.parameters.items())
-        return f"Model(model_name = '{self.model}'" + (f", {param_string}" if param_string else "") + ")"
+        param_string = ", ".join(
+            f"{key} = {value}" for key, value in self.parameters.items()
+        )
+        return (
+            f"Model(model_name = '{self.model}'"
+            + (f", {param_string}" if param_string else "")
+            + ")"
+        )
 
     def __add__(self, other_model: Type[LanguageModel]) -> Type[LanguageModel]:
         """Combine two models into a single model (other_model takes precedence over self)."""

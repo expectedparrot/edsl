@@ -3,9 +3,11 @@ import textwrap
 
 def get_model_class(model_name, registry=None):
     from edsl.inference_services.registry import default
+
     registry = registry or default
     factory = registry.create_model_factory(model_name)
     return factory
+
 
 class Meta(type):
     def __repr__(cls):
@@ -22,8 +24,8 @@ class Meta(type):
         """
         )
 
-class Model(metaclass=Meta):
 
+class Model(metaclass=Meta):
     default_model = "gpt-4-1106-preview"
 
     def __new__(cls, model_name=None, registry=None, *args, **kwargs):
@@ -31,13 +33,15 @@ class Model(metaclass=Meta):
         if model_name is None:
             model_name = cls.default_model
         from edsl.inference_services.registry import default
+
         registry = registry or default
         factory = registry.create_model_factory(model_name)
         return factory(*args, **kwargs)
 
     @classmethod
-    def available(cls, search_term = None, name_only = False, registry=None):
+    def available(cls, search_term=None, name_only=False, registry=None):
         from edsl.inference_services.registry import default
+
         registry = registry or default
         full_list = registry.available()
         if search_term is None:
@@ -46,7 +50,9 @@ class Model(metaclass=Meta):
             else:
                 return full_list
         else:
-            filtered_results = [m for m in full_list if search_term in m[0] or search_term in m[1]]
+            filtered_results = [
+                m for m in full_list if search_term in m[0] or search_term in m[1]
+            ]
             if name_only:
                 return [m[0] for m in filtered_results]
             else:

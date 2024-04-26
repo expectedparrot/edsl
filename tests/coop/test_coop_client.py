@@ -63,6 +63,22 @@ def test_coop_client_questions():
     for response in responses:
         with pytest.raises(Exception):
             coop2.delete("question", response.get("uuid"))
+
+    # client without api key or with invalid api key
+    coop_anon = Coop()
+    coop_anon.api_key = None
+    # .. should be able to get public put not private questions
+    for i, response in enumerate(responses):
+        question, public = question_examples[i]
+        if public:
+            assert (
+                coop_anon.get(object_type="question", uuid=response.get("uuid"))
+                == question
+            )
+        else:
+            with pytest.raises(Exception):
+                x = coop_anon.get(object_type="question", uuid=response.get("uuid"))
+
     # cleanup
     for question in coop.questions:
         x = coop.delete("question", question.get("uuid"))
@@ -116,6 +132,21 @@ def test_coop_client_surveys():
     for response in responses:
         with pytest.raises(Exception):
             coop2.delete("survey", response.get("uuid"))
+
+    # client without api key
+    coop_anon = Coop()
+    coop_anon.api_key = None
+    # .. should be able to get public put not private surveys
+    for i, response in enumerate(responses):
+        survey, public = survey_examples[i]
+        if public:
+            assert (
+                coop_anon.get(object_type="survey", uuid=response.get("uuid")) == survey
+            )
+        else:
+            with pytest.raises(Exception):
+                x = coop_anon.get(object_type="survey", uuid=response.get("uuid"))
+
     # cleanup
     for survey in coop.surveys:
         x = coop.delete("survey", survey.get("uuid"))
@@ -165,6 +196,21 @@ def test_coop_client_agents():
     for response in responses:
         with pytest.raises(Exception):
             coop2.delete("agent", response.get("uuid"))
+
+    # client without api key
+    coop_anon = Coop()
+    coop_anon.api_key = None
+    # .. should be able to get public put not private agents
+    for i, response in enumerate(responses):
+        agent, public = agent_examples[i]
+        if public:
+            assert (
+                coop_anon.get(object_type="agent", uuid=response.get("uuid")) == agent
+            )
+        else:
+            with pytest.raises(Exception):
+                x = coop_anon.get(object_type="agent", uuid=response.get("uuid"))
+
     # cleanup
     for agent in coop.agents:
         x = coop.delete("agent", agent.get("uuid"))
@@ -216,6 +262,22 @@ def test_coop_client_results():
     for response in responses:
         with pytest.raises(Exception):
             coop2.delete("results", response.get("uuid"))
+
+    # client without api key
+    coop_anon = Coop()
+    coop_anon.api_key = None
+    # .. should be able to get public put not private results
+    for i, response in enumerate(responses):
+        results, public = results_examples[i]
+        if public:
+            assert (
+                coop_anon.get(object_type="results", uuid=response.get("uuid"))
+                == results
+            )
+        else:
+            with pytest.raises(Exception):
+                x = coop_anon.get(object_type="results", uuid=response.get("uuid"))
+
     # cleanup
     for results in coop.results:
         x = coop.delete("results", results.get("uuid"))
