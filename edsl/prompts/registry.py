@@ -12,7 +12,7 @@ from edsl.prompts.prompt_config import (
     NEGATIVE_INFINITY,
 )
 
-from edsl.enums import QuestionType #, LanguageModelType
+from edsl.enums import QuestionType  # , LanguageModelType
 
 from edsl.exceptions.prompts import (
     PromptBadQuestionTypeError,
@@ -91,7 +91,7 @@ class RegisterPromptsMeta(ABCMeta):
         #         acceptable_values = [item.value for item in LanguageModelType]
         #         raise PromptBadLanguageModelTypeError(
         #             f"""
-        #         A Prompt's model must be one of {LanguageModelType} values, which are 
+        #         A Prompt's model must be one of {LanguageModelType} values, which are
         #         currently {acceptable_values}. You passed {cls.model}."""
         #         )
 

@@ -1,6 +1,7 @@
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
 
-class InferenceServicesCollection():
+
+class InferenceServicesCollection:
     def __init__(self, services: list[InferenceServiceABC] = None):
         self.services = services or []
 
@@ -24,7 +25,7 @@ class InferenceServicesCollection():
     def register(self, service):
         self.services.append(service)
 
-    def create_model_factory(self, model_name:str, service_name = None, index = None):
+    def create_model_factory(self, model_name: str, service_name=None, index=None):
         for service in self.services:
             if model_name in service.available():
                 if service_name is None or service_name == service._inference_service_:
