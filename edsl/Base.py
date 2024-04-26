@@ -38,20 +38,27 @@ class RichPrintingMixin:
 class PersistenceMixin:
     """Mixin for saving and loading objects to and from files."""
 
-    def push(self, public=False):
+    def push(self, public=True):
         """Post the object to coop."""
         from edsl.coop import Coop
 
         c = Coop()
-        _ = c.create(self, public)
-        print(_)
+        details = c.create(self, public)
+        object_uuid = details["uuid"]
+        coop_url = c.url + "/explore/questions/" +  f"{object_uuid}"
+        print(f"Object pushed to coop - available at {coop_url}")
+        return details
 
     @classmethod
-    def pull(cls, id):
+    def pull(cls, id_or_url: str):
         """Pull the object from coop."""
         from edsl.coop import Coop
 
         c = Coop()
+        if c.url in id_or_url:
+            id = id_or_url.split("/")[-1]
+        else:
+            id = id_or_url
         return c._get_base(cls, id)
 
     @classmethod
