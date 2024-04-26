@@ -27,7 +27,8 @@ from edsl.agents.Invigilator import (
 
 from edsl.language_models.registry import Model
 from edsl.scenarios import Scenario
-#from edsl.enums import LanguageModelType
+
+# from edsl.enums import LanguageModelType
 
 from edsl.agents.descriptors import (
     TraitsDescriptor,

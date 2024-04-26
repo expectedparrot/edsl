@@ -151,8 +151,13 @@ pricing = {
     ),
 }
 
+
 def get_token_pricing(model_name):
     if model_name in pricing:
         return pricing[model_name]
     else:
-        return TokenPricing(model_name=model_name, prompt_token_price_per_k=0.0, completion_token_price_per_k=0.0)
+        return TokenPricing(
+            model_name=model_name,
+            prompt_token_price_per_k=0.0,
+            completion_token_price_per_k=0.0,
+        )

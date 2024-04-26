@@ -5,6 +5,7 @@ from anthropic import AsyncAnthropic
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
 from edsl.language_models.LanguageModel import LanguageModel
 
+
 class AnthropicService(InferenceServiceABC):
     """Anthropic service class."""
 
@@ -13,12 +14,17 @@ class AnthropicService(InferenceServiceABC):
 
     @classmethod
     def available(cls):
-        # TODO - replace with an API call 
-        return ["claude-3-opus-20240229", "claude-3-sonnet-20240229", "claude-3-haiku-20240307"]
-    
-    @classmethod
-    def create_model(cls, model_name:str = "claude-3-opus-20240229", model_class_name = None) -> LanguageModel:
+        # TODO - replace with an API call
+        return [
+            "claude-3-opus-20240229",
+            "claude-3-sonnet-20240229",
+            "claude-3-haiku-20240307",
+        ]
 
+    @classmethod
+    def create_model(
+        cls, model_name: str = "claude-3-opus-20240229", model_class_name=None
+    ) -> LanguageModel:
         if model_class_name is None:
             model_class_name = cls.to_class_name(model_name)
 
@@ -53,7 +59,7 @@ class AnthropicService(InferenceServiceABC):
                     temperature=self.temperature,
                     system=system_prompt,
                     messages=[
-#                        {"role": "system", "content": system_prompt},
+                        #                        {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt},
                     ],
                 )
