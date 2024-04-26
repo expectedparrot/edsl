@@ -3,7 +3,7 @@ import pytest
 from typing import Any
 from edsl import Survey
 from edsl.config import CONFIG
-from edsl.enums import LanguageModelType, InferenceServiceType
+from edsl.enums import InferenceServiceType
 from edsl.language_models.LanguageModel import LanguageModel
 from edsl.questions import QuestionFreeText
 
@@ -12,8 +12,8 @@ def create_language_model(
     exception: Exception, fail_at_number: int, never_ending=False
 ):
     class TestLanguageModel(LanguageModel):
-        _model_ = LanguageModelType.TEST.value
-        _parameters_ = {"temperature": 0.5, "use_cache": False}
+        _model_ = "test"
+        _parameters_ = {"temperature": 0.5}
         _inference_service_ = InferenceServiceType.TEST.value
 
         async def async_execute_model_call(
@@ -61,7 +61,7 @@ def test_token_usage(create_survey):
     from edsl.data.Cache import Cache
 
     cache = Cache()
-    results = jobs.run(cache=cache, batch_mode = True)
+    results = jobs.run(cache=cache, batch_mode = True, remote=False)
     token_usage = jobs.interviews()[0].token_usage
 
     # from edsl.jobs.tokens.TokenUsage import TokenUsage
@@ -81,7 +81,7 @@ def test_task_management(create_survey):
     from edsl.data.Cache import Cache
 
     cache = Cache()
-    results = jobs.run(cache=cache, batch_mode = True)
+    results = jobs.run(cache=cache, batch_mode = True, remote=False)
 
     from edsl.jobs.interviews.InterviewStatusDictionary import InterviewStatusDictionary
 
@@ -98,7 +98,7 @@ def test_bucket_collection(create_survey):
 
     cache = Cache()
 
-    results = jobs.run(cache=cache)
+    results = jobs.run(cache=cache, remote=False, batch_mode = True)
 
     bc = jobs.bucket_collection
     bucket_list = list(bc.values())
@@ -115,7 +115,7 @@ def test_handle_model_exceptions(create_survey, fail_at_number, chained):
 
     cache = Cache()
 
-    results = jobs.run(cache=cache, batch_mode = True)
+    results = jobs.run(cache=cache, batch_mode = True, remote=False)
 
     # breakpoint()
 
@@ -136,7 +136,7 @@ def test_handle_timeout_exception(create_survey, capsys):
     from edsl.data.Cache import Cache
 
     cache = Cache()
-    results = survey.by(model).run(cache=cache, batch_mode = True)
+    results = survey.by(model).run(cache=cache, batch_mode = True, remote=False)
     captured = capsys.readouterr()
     # assert (
     #     "WARNING: At least one question in the survey was not answered." in captured.out

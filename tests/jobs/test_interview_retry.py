@@ -1,7 +1,6 @@
 import pytest
 import asyncio
 
-from edsl.language_models import LanguageModelOpenAIThreeFiveTurbo
 from edsl.agents import Agent
 from edsl.surveys import Survey
 from edsl.scenarios import Scenario
@@ -46,7 +45,8 @@ def test_retry():
 
     a.add_direct_question_answering_method(direct_question_answering_method)
     scenario = Scenario()
-    m = LanguageModelOpenAIThreeFiveTurbo(use_cache=False)
+    from edsl import Model
+    m = Model()
     I = Interview(agent=a, survey=s, scenario=scenario, model=m)
 
     result = asyncio.run(I.async_conduct_interview())

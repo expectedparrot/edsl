@@ -189,3 +189,11 @@ integration-visuals:
 	cd integration/printing && python check_printing.py
 
 	#pytest --log-cli-level=INFO tests/test_JobRunning.p
+
+env-chick:
+	@echo "Setting up the environment"
+	cp .env_chick .env
+
+env-local-coop: 
+	@echo "Setting up the environment"
+	cp .env_local_coop .env
