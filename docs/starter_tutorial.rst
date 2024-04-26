@@ -2,67 +2,44 @@
 
 Starter Tutorial
 ================
-This tutorial will guide you through the initial steps required to run your first project using EDSL. 
+This tutorial will guide you through the steps required to run your first project using EDSL. 
+
+
+Prerequisites
+-------------
+<mark>Before you begin, ensure that you have already completed the :ref:`installation` steps and stored your :ref:`api_keys` for the language models that you plan to use.</mark>
+
 If you encounter any issues or have questions, feel free to reach out via email at info@expectedparrot.com or join the discussion in our `Discord channel <https://discord.com/invite/mxAYkjfy9m>`_.
 You can also view the contents of this tutorial in an `interactive notebook <https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Tutorial%20-%20Starter%20Tutorial-e080f5883d764931960d3920782baf34>`_.
 
-Part 1: Using API Keys for LLMs
+
+Conducting an AI-powered survey
 -------------------------------
-Large language models (LLMs) are at the heart of AI-powered research. 
-EDSL allows you to easily conduct research with popular LLMs, including OpenAI's GPTs, Google's Gemini, Anthropic's Claude, Llama 2 and others. 
-To interact with these models with EDSL, you'll need to authenticate using API keys provided by the LLM services.
+In the steps below we show how to create and run a simple survey, and then explore a more complex survey design with AI agents and various models.
 
-There are two recommended methods to securely provide your API keys to EDSL:
+1. **Create a simple survey**:
+    - Import the desired question types from the `edsl.questions` module.
+    - Construct a question using the desired question type.
+    - Prompt the default model to answer the question.
+    - Inspect the results.
 
-1. Using a .env file (*recommended*)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Create a `.env` file in your working directory and populate it with your API keys. 
-Replace `your_key_here` with your actual API keys for each service you plan to use:
+2. **Create a proper survey**:
+    - Select the desired question types and survey components.
+    - Construct questions that take parameters.
+    - Add values for the question scenarios.
+    - Combine the questions in a survey.
+    - Create personas for AI agents to use with the survey.
+    - Select language models.
+    - Run the survey with the scenarios, agents, and models.
+    - Select components of the results to review.
 
-.. code-block:: python
-
-   ANTHROPIC_API_KEY=your_key_here
-   DEEP_INFRA_API_KEY=your_key_here
-   GOOGLE_API_KEY=your_key_here
-   OPENAI_API_KEY=your_key_here
-
-By using a .env file, you avoid the need to repeatedly enter your API keys each time you start a session with EDSL. 
-Comment out the API keys for any services you do not plan to use to avoid runtime errors:
-
-.. code-block:: python
-
-   ANTHROPIC_API_KEY=your_key_here
-   # DEEP_INFRA_API_KEY=your_key_here
-   # GOOGLE_API_KEY=your_key_here
-   # OPENAI_API_KEY=your_key_here
-   
-
-2. Setting API keys in your Python code
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Alternatively, you can directly set your API keys in your Python script before importing any EDSL objects. 
-This method stores the keys in your system's memory only for the duration of the session:
-
-.. code-block:: python
-
-   import os
-   os.environ['ANTHROPIC_API_KEY'] = 'your_key_here'
-   os.environ['DEEP_INFRA_API_KEY'] = 'your_key_here'
-   os.environ['GOOGLE_API_KEY'] = 'your_key_here'
-   os.environ['OPENAI_API_KEY'] = 'your_key_here'
+3. **Explore your results**:
+    - Analyze and visualize your results using built-in methods.
+    - Convert the `Results` object to a Pandas dataframe.
+    - Display a list of all the components of your results.
+    - Execute an SQL-like query on the results.
 
 
-Remember, if you restart your session, you will need to re-enter your API keys.
-
-Caution
-~~~~~~~
-Treat your API keys as sensitive information, akin to passwords. 
-Never share them publicly or upload files containing your API keys to public repositories.
-
-
-Part 2: Conducting AI-powered research
---------------------------------------
-With your API keys in place, we can move on to conducting AI-powered research!
-In the steps below we show how to create and run a simple survey, and then explore a more detailed survey setup with AI agents and models.
 
 Quickstart Example
 ~~~~~~~~~~~~~~~~~~
