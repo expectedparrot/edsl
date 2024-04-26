@@ -1,3 +1,5 @@
+.. _overview:
+
 Overview
 ========
 
@@ -174,8 +176,9 @@ Links
    <br><br>
    Get the latest updates at GitHub: <a href="https://github.com/expectedparrot/edsl" target="_blank">https://github.com/expectedparrot/edsl</a>
    <br><br>
-   Join our Discord to connect with other users! <a href="https://discord.com/invite/mxAYkjfy9m" target="_blank">https://discord.com/invite/mxAYkjfy9m</a>
+   Join our Discord to connect with other users: <a href="https://discord.com/invite/mxAYkjfy9m" target="_blank">https://discord.com/invite/mxAYkjfy9m</a>
    <br><br>
-   Contact us for support: *info@expectedparrot.com*
+   Contact us for support: <b>info@expectedparrot.com</b>
+   <br><br><br>
 
 

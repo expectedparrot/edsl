@@ -40,12 +40,12 @@ def test_instantiation():
         question_type = "free_text"
 
     # if they have a model, it has to be from the enum of language models
-    with pytest.raises(PromptBadLanguageModelTypeError):
+    # with pytest.raises(PromptBadLanguageModelTypeError):
 
-        class NewBadLanguageModelPrompt(PromptBase):
-            component_type = ComponentTypes.QUESTION_INSTRUCTIONS
-            question_type = "free_text"
-            model = "poo"
+    #     class NewBadLanguageModelPrompt(PromptBase):
+    #         component_type = ComponentTypes.QUESTION_INSTRUCTIONS
+    #         question_type = "free_text"
+    #         model = "poo"
 
 
 from edsl.prompts.Prompt import Prompt

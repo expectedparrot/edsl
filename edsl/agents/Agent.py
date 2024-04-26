@@ -27,7 +27,7 @@ from edsl.agents.Invigilator import (
 
 from edsl.language_models.registry import Model
 from edsl.scenarios import Scenario
-from edsl.enums import LanguageModelType
+#from edsl.enums import LanguageModelType
 
 from edsl.agents.descriptors import (
     TraitsDescriptor,
@@ -217,7 +217,7 @@ class Agent(Base):
         """
         cache = cache
         self.current_question = question
-        model = model or Model(LanguageModelType.GPT_4.value, use_cache=True)
+        model = model or Model()
         scenario = scenario or Scenario()
         invigilator = self._create_invigilator(
             question=question,
@@ -287,7 +287,7 @@ class Agent(Base):
         sidecar_model=None,
     ) -> InvigilatorBase:
         """Create an Invigilator."""
-        model = model or Model(LanguageModelType.GPT_4.value, use_cache=True)
+        model = model or Model()
         scenario = scenario or Scenario()
 
         if cache is None:

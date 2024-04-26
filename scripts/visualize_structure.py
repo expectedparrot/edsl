@@ -14,7 +14,6 @@ projects = [
     ("utilities", "edsl/utilities"),
     ("coop", "edsl/coop"),
     ("prompts", "edsl/prompts"),
-    ("report", "edsl/report"),
     ("questions", "edsl/questions"),
     ("data_transfer_models", "edsl/data_transfer_models"),
     ("enums", "edsl/enums"),
