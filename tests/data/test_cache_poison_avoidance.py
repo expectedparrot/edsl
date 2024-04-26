@@ -7,13 +7,13 @@ from edsl.agents.Invigilator import InvigilatorAI
 
 from edsl import Agent
 from edsl.language_models import LanguageModel
-from edsl.enums import LanguageModelType, InferenceServiceType
+from edsl.enums import InferenceServiceType
 
 def create_language_model(
     exception: Exception, fail_at_number: int, never_ending=False, invalid_json = False
 ):
     class TestLanguageModel(LanguageModel):
-        _model_ = LanguageModelType.TEST.value
+        _model_ = "gpt-4-1106-preview"
         _parameters_ = {"temperature": 0.5, "use_cache": False}
         _inference_service_ = InferenceServiceType.TEST.value
 

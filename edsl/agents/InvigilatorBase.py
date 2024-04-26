@@ -62,12 +62,12 @@ class InvigilatorBase(ABC):
         from edsl.scenarios.Scenario import Scenario
         from edsl.language_models import LanguageModel
 
-        from edsl.enums import LanguageModelType, InferenceServiceType
+        from edsl.enums import InferenceServiceType
 
         class TestLanguageModelGood(LanguageModel):
             """A test language model."""
 
-            _model_ = LanguageModelType.TEST.value
+            _model_ = "test"
             _parameters_ = {"temperature": 0.5}
             _inference_service_ = InferenceServiceType.TEST.value
 

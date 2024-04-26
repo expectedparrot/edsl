@@ -8,8 +8,8 @@ from edsl.data.CacheEntry import CacheEntry
 from edsl.data.SQLiteDict import SQLiteDict
 
 
-EDSL_DATABASE_PATH = CONFIG.get("EDSL_DATABASE_PATH")
-EXPECTED_PARROT_CACHE_URL = os.getenv("EXPECTED_PARROT_CACHE_URL")
+#EDSL_DATABASE_PATH = CONFIG.get("EDSL_DATABASE_PATH")
+#EXPECTED_PARROT_CACHE_URL = os.getenv("EXPECTED_PARROT_CACHE_URL")
 
 # TODO: What do we want to do if & when there is a mismatch
 #       -- if two keys are the same but the values are different?

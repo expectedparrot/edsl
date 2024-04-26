@@ -12,7 +12,7 @@ from edsl.prompts.prompt_config import (
     NEGATIVE_INFINITY,
 )
 
-from edsl.enums import QuestionType, LanguageModelType
+from edsl.enums import QuestionType #, LanguageModelType
 
 from edsl.exceptions.prompts import (
     PromptBadQuestionTypeError,
@@ -86,14 +86,14 @@ class RegisterPromptsMeta(ABCMeta):
                 )
 
         ## Make sure that if the prompt has a model class attribute, it's valid
-        if hasattr(cls, "model"):
-            if not LanguageModelType.is_value_valid(cls.model):
-                acceptable_values = [item.value for item in LanguageModelType]
-                raise PromptBadLanguageModelTypeError(
-                    f"""
-                A Prompt's model must be one of {LanguageModelType} values, which are 
-                currently {acceptable_values}. You passed {cls.model}."""
-                )
+        # if hasattr(cls, "model"):
+        #     if not LanguageModelType.is_value_valid(cls.model):
+        #         acceptable_values = [item.value for item in LanguageModelType]
+        #         raise PromptBadLanguageModelTypeError(
+        #             f"""
+        #         A Prompt's model must be one of {LanguageModelType} values, which are 
+        #         currently {acceptable_values}. You passed {cls.model}."""
+        #         )
 
         key = cls._create_prompt_class_key(dct, component_type)
         cls.data = key

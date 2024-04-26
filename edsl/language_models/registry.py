@@ -1,36 +1,11 @@
 import textwrap
-import pkgutil
-import importlib
 
-DEFAULT_MODEL_CLASS = "edsl.language_models.LanguageModelOpenAIFour"
 
-from edsl.language_models.LanguageModel import RegisterLanguageModelsMeta
-from edsl.exceptions.language_models import LanguageModelNotFound
-
-import edsl.language_models.model_interfaces as model_interfaces
-
-# Dynamically import all modules in the model_interfaces package
-for loader, module_name, is_pkg in pkgutil.iter_modules(model_interfaces.__path__):
-    full_module_name = f"{model_interfaces.__name__}.{module_name}"
-    if not is_pkg:
-        module = importlib.import_module(full_module_name)
-        globals().update(
-            {
-                name: getattr(module, name)
-                for name in dir(module)
-                if not name.startswith("_")
-            }
-        )
-
-meta_class_registry = RegisterLanguageModelsMeta.get_registered_classes()
-
-# For compatibility with older versions of EDSL
-get_model_class = (
-    lambda model_name: RegisterLanguageModelsMeta.model_names_to_classes().get(
-        model_name
-    )
-)
-
+def get_model_class(model_name, registry=None):
+    from edsl.inference_services.registry import default
+    registry = registry or default
+    factory = registry.create_model_factory(model_name)
+    return factory
 
 class Meta(type):
     def __repr__(cls):
@@ -47,37 +22,40 @@ class Meta(type):
         """
         )
 
-
 class Model(metaclass=Meta):
+
     default_model = "gpt-4-1106-preview"
 
-    def __new__(cls, model_name=None, *args, **kwargs):
+    def __new__(cls, model_name=None, registry=None, *args, **kwargs):
         # Map index to the respective subclass
-        get_model_classes = RegisterLanguageModelsMeta.model_names_to_classes()
-
-        if cls.default_model not in get_model_classes:
-            raise ValueError(f"Default model {cls.default_model} not found")
-
         if model_name is None:
             model_name = cls.default_model
-
-        subclass = get_model_classes.get(model_name, None)
-        if subclass is None:
-            raise LanguageModelNotFound(model_name)
-
-        # Create an instance of the selected subclass
-        instance = object.__new__(subclass)
-        instance.__init__(*args, **kwargs)
-        return instance
+        from edsl.inference_services.registry import default
+        registry = registry or default
+        factory = registry.create_model_factory(model_name)
+        return factory(*args, **kwargs)
 
     @classmethod
-    def available(cls):
-        return sorted(list(RegisterLanguageModelsMeta.model_names_to_classes().keys()))
+    def available(cls, search_term = None, name_only = False, registry=None):
+        from edsl.inference_services.registry import default
+        registry = registry or default
+        full_list = registry.available()
+        if search_term is None:
+            if name_only:
+                return [m[0] for m in full_list]
+            else:
+                return full_list
+        else:
+            filtered_results = [m for m in full_list if search_term in m[0] or search_term in m[1]]
+            if name_only:
+                return [m[0] for m in filtered_results]
+            else:
+                return filtered_results
 
     @classmethod
     def check_models(cls, verbose=False):
         print("Checking all available models...\n")
-        for model in cls.available():
+        for model in cls.available(name_only=True):
             print(f"Now checking: {model}")
             try:
                 m = cls(model)

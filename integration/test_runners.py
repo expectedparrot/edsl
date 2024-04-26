@@ -1,8 +1,9 @@
 import random
 import time
-from edsl.language_models import LanguageModelOpenAIThreeFiveTurbo
 from edsl.questions import QuestionMultipleChoice
 from edsl.scenarios.ScenarioList import ScenarioList
+from edsl import Model
+from edsl.data import Cache
 
 serial_time = 1000
 async_time = 1000
@@ -13,7 +14,7 @@ def get_job():
     NUM_FLIPS = 5
     random.seed("agents are cool")
 
-    m = LanguageModelOpenAIThreeFiveTurbo(use_cache=False)
+    m = Model()
 
     flip_results = [
         {"coin_flip_observed": random.choice(["heads", "tails"])}
@@ -33,8 +34,9 @@ def get_job():
 def test_async():
     global async_time
     job = get_job()
+    c = Cache()
     start = time.time()
-    results = job.run()
+    results = job.run(cache = c)
     end = time.time()
     async_time = end - start
     if verbose:

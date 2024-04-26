@@ -1,8 +1,5 @@
 import pytest
-from edsl.enums import LanguageModelType
 from edsl.agents.Agent import Agent
-
-# Import other necessary modules and classes
 
 from edsl.prompts.Prompt import Prompt
 from edsl.prompts.registry import get_classes
@@ -13,7 +10,7 @@ from edsl.agents.Invigilator import InvigilatorAI
 
 
 class MockModel:
-    model = LanguageModelType.GPT_4.value
+    model = "gpt-4-1106-preview"
 
 
 class MockQuestion:
