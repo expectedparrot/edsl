@@ -5,29 +5,44 @@ from openai import AsyncOpenAI
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
 from edsl.language_models import LanguageModel
 
+
 class OpenAIService(InferenceServiceABC):
     """OpenAI service class."""
 
     _inference_service_ = "openai"
     _env_key_name_ = "OPENAI_API_KEY"
 
-    #TODO: Make this a coop call 
-    model_exclude_list = ['whisper-1', 'davinci-002', 'dall-e-2', 'tts-1-hd-1106', 'tts-1-hd', 'dall-e-3', 
-                    'tts-1', 'babbage-002', 'tts-1-1106', 'text-embedding-3-large', 
-                    'text-embedding-3-small', 'text-embedding-ada-002', 'ft:davinci-002:mit-horton-lab::8OfuHgoo']
+    # TODO: Make this a coop call
+    model_exclude_list = [
+        "whisper-1",
+        "davinci-002",
+        "dall-e-2",
+        "tts-1-hd-1106",
+        "tts-1-hd",
+        "dall-e-3",
+        "tts-1",
+        "babbage-002",
+        "tts-1-1106",
+        "text-embedding-3-large",
+        "text-embedding-3-small",
+        "text-embedding-ada-002",
+        "ft:davinci-002:mit-horton-lab::8OfuHgoo",
+    ]
 
     @classmethod
     def available(cls):
         try:
             from openai import OpenAI
+
             client = OpenAI()
-            return [m.id for m in client.models.list() if m.id not in cls.model_exclude_list]
+            return [
+                m.id for m in client.models.list() if m.id not in cls.model_exclude_list
+            ]
         except Exception as e:
-            return ['gpt-3.5-turbo', 'gpt-4-1106-preview', 'gpt-4']
+            return ["gpt-3.5-turbo", "gpt-4-1106-preview", "gpt-4"]
 
     @classmethod
-    def create_model(cls, model_name, model_class_name = None) -> LanguageModel:
-
+    def create_model(cls, model_name, model_class_name=None) -> LanguageModel:
         if model_class_name is None:
             model_class_name = cls.to_class_name(model_name)
 
@@ -35,6 +50,7 @@ class OpenAIService(InferenceServiceABC):
             """
             Child class of LanguageModel for interacting with OpenAI models
             """
+
             _inference_service_ = cls._inference_service_
             _model_ = model_name
             _parameters_ = {
@@ -51,7 +67,7 @@ class OpenAIService(InferenceServiceABC):
             def available(cls) -> list[str]:
                 client = openai.OpenAI()
                 return client.models.list()
-            
+
             def get_headers(self) -> dict[str, Any]:
                 from openai import OpenAI
 
