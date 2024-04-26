@@ -2,4 +2,4 @@
 
 Whitepaper
 ==========
-Add whitepaper here.
+Coming soon.

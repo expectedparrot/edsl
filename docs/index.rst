@@ -45,6 +45,7 @@ This page contains documentation for the Expected Parrot Domain-Specific Languag
    notebooks/tutorial_getting_started
    notebooks/data_labeling_example.ipynb
    notebooks/data_labeling_agent.ipynb
+   notebooks/example_agent_dynamic_traits.ipynb
    notebooks/export_survey_updates.ipynb
    notebooks/explore_llm_biases.ipynb
    notebooks/research_methods
