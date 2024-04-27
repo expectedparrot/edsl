@@ -43,6 +43,10 @@ Notebooks
 A variety of templates and examples for using the package to conduct different kinds of research.
 *We're happy to create a new notebook for your use case!*
 
+Developers
+----------
+Information about additional functionality for developers.
+
 Links
 -----
 *Updates*
