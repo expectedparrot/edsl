@@ -87,7 +87,7 @@ The following illustrations provide a visual representation of how these compone
 .. image:: static/survey_graphic4.png
    :alt: Select AI models to simulate results
    :align: center
-
+   
 
 
 Key operations
@@ -107,10 +107,7 @@ The operation is typically structured as follows:
 
 Key features 
 ------------
-*Python Integration*
-
-
-EDSL leverages Python's robust ecosystem, seamlessly integrating with existing Python tools. 
+*Python Integration*: EDSL leverages Python's robust ecosystem, seamlessly integrating with existing Python tools. 
 It is ideally used within a notebook environment, facilitating the execution and detailed analysis of research outcomes. 
 Key features include:
 
@@ -123,7 +120,7 @@ Key features include:
 
 Coop: Collaborative Research Platform
 -------------------------------------
-*(Coming soon!)*
+*Coming soon!*
 
 *Enhancing Research Collaboration*: EDSL promotes not only the creation of research but also the sharing of insights, code, and results. 
 `Coop` is a platform designed to enhance collaborative research efforts. 
@@ -164,21 +161,33 @@ For example, to see an example of a multiple choice question, you can run:
 
    QuestionMultipleChoice.example()
 
-
-Please also see the notebooks listed here for help getting started and example code for applications and research ideas.
+See our :ref:`starter_tutorial`, how-to guides and notebooks for examples as well.
 
 
 Links
 -----
+*Updates*
+
 .. raw:: html
 
-   Download the latest version of EDSL at PyPI: <a href="https://pypi.org/project/edsl" target="_blank">https://pypi.org/project/edsl/</a>     
+   <a href="https://pypi.org/project/edsl" target="_blank"><i class="fab fa-python"></i></a>&nbsp;&nbsp;Download the latest version of EDSL at <a href="https://pypi.org/project/edsl" target="_blank">PyPI</a>.     
    <br><br>
-   Get the latest updates at GitHub: <a href="https://github.com/expectedparrot/edsl" target="_blank">https://github.com/expectedparrot/edsl</a>
+
+   <a href="https://github.com/expectedparrot/edsl" target="_blank"><i class="fab fa-github"></i></a>&nbsp;&nbsp;Get the latest EDSL updates at <a href="https://github.com/expectedparrot/edsl" target="_blank">GitHub</a>.
    <br><br>
-   Join our Discord to connect with other users: <a href="https://discord.com/invite/mxAYkjfy9m" target="_blank">https://discord.com/invite/mxAYkjfy9m</a>
+
+*Community*
+
+.. raw:: html
+
+   <a href="https://discord.com/invite/mxAYkjfy9m" target="_blank"><i class="fab fa-discord"></i></a>&nbsp;&nbsp;Join our <a href="https://discord.com/invite/mxAYkjfy9m" target="_blank">Discord</a> channel to connect with other users and ask questions.
    <br><br>
-   Contact us for support: <b>info@expectedparrot.com</b>
-   <br><br><br>
+
+*Support*
+
+.. raw:: html
+
+   <i class="far fa-envelope"></i>&nbsp;&nbsp;Send us an email at <b>info@expectedparrot.com</b>.    
+   <br><br>
 
 
