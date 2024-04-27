@@ -155,7 +155,7 @@ class Coop:
 
     def _resolve_object_type(self, object_type: str) -> tuple[str, Type]:
         """
-        Resolve an object type to the API URI and object class.
+        Resolve an object_type string to an (API_URI: str, object_type: Type) tuple.
         """
         TYPE_MAP = {
             "question": ("questions", QuestionBase),
@@ -167,9 +167,30 @@ class Coop:
         if object_type is None:
             raise ValueError("Please provide an `object_type`.")
         elif object_type not in TYPE_MAP:
-            raise ValueError(f"Object type {object_type} not recognized")
+            raise ValueError(
+                f"Object type {object_type} not recognized. "
+                f"Valid object types are: {', '.join(TYPE_MAP.keys())}"
+            )
 
         return TYPE_MAP[object_type]
+
+    def _resolve_uri(self, uri: str) -> tuple[str, Type]:
+        """
+        Resolve an API URI to an (API_URI: str, object_type: Type) tuple.
+        """
+        URI_MAP = {
+            "questions": ("question", QuestionBase),
+            "surveys": ("survey", Survey),
+            "agents": ("agent", Agent),
+            "results": ("results", Results),
+        }
+
+        if uri is None:
+            raise ValueError("Please provide a URI.")
+        elif uri not in URI_MAP:
+            raise ValueError(f"URI {uri} not recognized")
+
+        return URI_MAP[uri]
 
     ################
     # OBJECT METHODS
@@ -239,16 +260,27 @@ class Coop:
         return json.loads(response.json().get("json_string"))
 
     def get(
-        self, object_type: str, uuid: Union[str, UUID]
+        self, object_type: str = None, uuid: Union[str, UUID] = None, url: str = None
     ) -> Union[Type[QuestionBase], Survey, Agent, AgentList, Results]:
         """
-        Retrieve an EDSL object by its UUID and object type.
+        Retrieve an EDSL object by its object type and UUID, or by its url.
 
         :param object_type: the type of object to retrieve.
         :param uuid: the uuid of the object either in str or UUID format.
+        :param url: the url of the object.
         """
-        object_type_uri, cls = self._resolve_object_type(object_type)
-        json_dict = self._get(object_type_uri=object_type_uri, uuid=uuid)
+        if url:
+            uri = url.split("/")[-2]
+            object_type, cls = self._resolve_uri(uri)
+            uuid = url.split("/")[-1]
+        elif object_type and uuid:
+            uri, cls = self._resolve_object_type(object_type)
+        else:
+            raise ValueError(
+                "Please provide either an object type and a UUID, or a url."
+            )
+
+        json_dict = self._get(object_type_uri=uri, uuid=uuid)
         if object_type == "agent" and "agent_list" in json_dict:
             return AgentList.from_dict(json_dict)
         else:
@@ -278,6 +310,7 @@ class Coop:
                 "question": QuestionBase.from_dict(json.loads(q["json_string"])),
                 "uuid": q["uuid"],
                 "version": q["version"],
+                "url": f"{self.url}/explore/questions/{q['uuid']}",
             }
             for q in response.json()
         ]
@@ -293,6 +326,7 @@ class Coop:
                 "survey": Survey.from_dict(json.loads(s["json_string"])),
                 "uuid": s["uuid"],
                 "version": s["version"],
+                "url": f"{self.url}/explore/surveys/{s['uuid']}",
             }
             for s in response.json()
         ]
@@ -315,6 +349,7 @@ class Coop:
                     "uuid": a.get("uuid"),
                     "agent": agent,
                     "version": a.get("version"),
+                    "url": f"{self.url}/explore/agents/{a['uuid']}",
                 }
             )
         return agents
@@ -329,6 +364,7 @@ class Coop:
                 "uuid": r.get("uuid"),
                 "results": Results.from_dict(json.loads(r.get("json_string"))),
                 "version": r.get("version"),
+                "url": f"{self.url}/explore/results/{r['uuid']}",
             }
             for r in response.json()
         ]
@@ -463,6 +499,8 @@ if __name__ == "__main__":
     coop.questions
     # or get a question by its uuid
     coop.get(object_type="question", uuid=response.get("uuid"))
+    # or by its url
+    coop.get(url=response.get("url"))
     # delete the question
     coop.delete(object_type="question", uuid=response.get("uuid"))
     # check all questions - there must be two left
