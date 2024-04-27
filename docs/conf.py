@@ -14,7 +14,7 @@ import inspect
 from sphinx.application import Sphinx
 
 project = "edsl"
-copyright = "2024 Expected Parrot, Inc."
+copyright = "2024 Expected Parrot, Inc"
 author = "Expected Parrot, Inc."
 
 print("Current working directory:")
@@ -87,10 +87,15 @@ html_theme = "sphinx_rtd_theme"  # "alabaster"
 
 html_theme_options = {
     "fixed_sidebar": True,
+    "display_version": False
 }
 
 html_show_sphinx = False 
 
+html_show_sourcelink = False
+
 html_logo = "static/logo.png"
 
 html_favicon = "static/favicon.ico"
+
+
