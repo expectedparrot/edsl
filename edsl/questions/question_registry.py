@@ -62,9 +62,8 @@ class Question(metaclass=Meta):
         else:
             id = id_or_url
         from edsl.questions.QuestionBase import QuestionBase
-        return c._get_base(QuestionBase, id)
 
-   
+        return c._get_base(QuestionBase, id)
 
     @classmethod
     def available(cls, show_class_names: bool = False) -> Union[list, dict]:
