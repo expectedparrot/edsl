@@ -29,6 +29,12 @@ def test_fetch_nonexistent_entry():
         iteration=1,
     ) == None
 
+def test_new_entries(cache_empty):
+    cache = cache_empty
+    input = CacheEntry.store_input_example()
+    cache.store(**input)
+    len(cache.new_entries_cache()) == 1
+
 def test_fetch_existing_entry(cache_example):
     cache = cache_example
     assert cache.fetch(**cache.fetch_input_example()) == "The fox says 'hello'"

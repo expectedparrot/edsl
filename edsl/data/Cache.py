@@ -1,6 +1,7 @@
 from __future__ import annotations
 import json
 import os
+import copy
 import warnings
 from typing import Optional, Union
 from edsl.config import CONFIG
@@ -43,10 +44,10 @@ class Cache(Base):
         """
         Create two dictionaries to store the cache data.
 
-        :param new_entries: Entries that are created during a __enter__ block.
-        :param new_entries_to_write_later: Entries that will be written to the cache later.
         """
         self.data = data or {}
+        self.data_at_init = data or {}
+        self.fetched_data = {}
         self.remote = remote
         self.immediate_write = immediate_write
         self.method = method
@@ -68,6 +69,12 @@ class Cache(Base):
 
     def values(self):
         return list(self.data.values())
+    
+    def new_entries_cache(self) -> Cache:
+        """Return a new Cache object with the new entries."""
+        new_entries = {k: v for k, v in self.data.items() if k not in self.data_at_init}
+        new_entries.update(self.fetched_data)
+        return Cache(data=new_entries)
 
     def _perform_checks(self):
         """Perform checks on the cache."""
@@ -104,6 +111,8 @@ class Cache(Base):
             iteration=iteration,
         )
         entry = self.data.get(key, None)
+        if entry is not None:
+            self.fetched_data[key] = entry
         return None if entry is None else entry.output
 
     def store(

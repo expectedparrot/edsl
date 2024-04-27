@@ -253,6 +253,7 @@ class Jobs(Base):
             sidecar_model=sidecar_model,
             batch_mode=batch_mode,
         )
+        results.cache = cache.new_entries_cache()
 
         return results
 
