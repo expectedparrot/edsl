@@ -3,7 +3,7 @@
 EDSL Docs
 =========
 
-This page contains documentation, tutorials and demo notebooks for the __Expected Parrot Domain-Specific Language (EDSL)__ library, an open-source Python package for conducting AI-powered research. 
+This page contains documentation, tutorials and demo notebooks for the <b><i>Expected Parrot Domain-Specific Language</i></b> (EDSL) library, an open-source Python package for conducting AI-powered research. 
 The contents are organized into the following sections:
 
 Introduction
@@ -34,8 +34,28 @@ Examples of special methods and use cases, such as data labeling tasks, cognitiv
 Notebooks
 ---------
 A variety of templates and examples for using the package to conduct different kinds of research.
-
 *We're happy to create a new notebook for your use case!*
+
+Links
+-----
+.. raw:: html
+
+   <b><a href="https://pypi.org/project/edsl" target="_blank">PyPI:</a></b> Download the latest version of EDSL at PyPI.     
+
+   <br><br>
+
+   <b><a href="https://github.com/expectedparrot/edsl" target="_blank">GitHub:</a></b> Get the latest EDSL updates at GitHub.
+
+   <br><br>
+
+   <b><a href="https://discord.com/invite/mxAYkjfy9m" target="_blank">Discord:</a></b> Join our Discord channel to ask questions and connect with other users.
+
+   <br><br>
+
+   <b>Contact:</b> Send us an email at info@expectedparrot.com
+
+
+
 
 
 

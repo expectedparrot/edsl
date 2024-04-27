@@ -172,13 +172,19 @@ Links
 -----
 .. raw:: html
 
-   Download the latest version of EDSL at PyPI: <a href="https://pypi.org/project/edsl" target="_blank">https://pypi.org/project/edsl/</a>     
+   <b><a href="https://pypi.org/project/edsl" target="_blank">PyPI:</a></b> Download the latest version of EDSL at PyPI.     
+
    <br><br>
-   Get the latest updates at GitHub: <a href="https://github.com/expectedparrot/edsl" target="_blank">https://github.com/expectedparrot/edsl</a>
+
+   <b><a href="https://github.com/expectedparrot/edsl" target="_blank">GitHub:</a></b> Get the latest EDSL updates at GitHub.
+
    <br><br>
-   Join our Discord to connect with other users: <a href="https://discord.com/invite/mxAYkjfy9m" target="_blank">https://discord.com/invite/mxAYkjfy9m</a>
+
+   <b><a href="https://discord.com/invite/mxAYkjfy9m" target="_blank">Discord:</a></b> Join our Discord channel to ask questions and connect with other users.
+
    <br><br>
-   Contact us for support: <b>info@expectedparrot.com</b>
-   <br><br><br>
+
+   <b>Contact:</b> Send us an email at info@expectedparrot.com
+
 
 
