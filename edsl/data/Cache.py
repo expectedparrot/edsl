@@ -46,7 +46,7 @@ class Cache(Base):
 
         """
         self.data = data or {}
-        self.data_at_init = data or {}
+        #self.data_at_init = data or {}
         self.fetched_data = {}
         self.remote = remote
         self.immediate_write = immediate_write
@@ -72,9 +72,7 @@ class Cache(Base):
     
     def new_entries_cache(self) -> Cache:
         """Return a new Cache object with the new entries."""
-        new_entries = {k: v for k, v in self.data.items() if k not in self.data_at_init}
-        new_entries.update(self.fetched_data)
-        return Cache(data=new_entries)
+        return Cache(data={**self.new_entries, **self.fetched_data})
 
     def _perform_checks(self):
         """Perform checks on the cache."""
@@ -208,6 +206,18 @@ class Cache(Base):
         Construct a Cache from a SQLite database.
         """
         return cls(data=SQLiteDict(db_path))
+    
+    @classmethod
+    def from_local_cache(cls) -> Cache:
+        """
+        Construct a Cache from a local cache file.
+        """
+        from edsl.config import CONFIG
+        CACHE_PATH = CONFIG.get("EDSL_DATABASE_PATH")
+        path = CACHE_PATH.replace("sqlite:///", "")
+        db_path = os.path.join(os.path.dirname(path), "data.db")
+        return cls.from_sqlite_db(db_path=db_path)
+
 
     @classmethod
     def from_jsonl(cls, jsonlfile: str, db_path: str = None) -> Cache:
