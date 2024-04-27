@@ -2,6 +2,7 @@ import aiohttp
 import json
 import os
 import requests
+from inspect import isclass
 from requests.exceptions import ConnectionError
 from typing import Any, Optional, Type, Union, Literal
 from uuid import UUID
@@ -130,20 +131,25 @@ class Coop:
             version = None
         return version
 
-    def _edsl_object_to_uri(
-        self, object: Union[Type[QuestionBase], Survey, Agent, Results]
-    ) -> str:
+    def _resolve_edsl_object(
+        self,
+        object: Union[
+            Type[QuestionBase], QuestionBase, Survey, Agent, AgentList, Results
+        ],
+    ) -> dict[str, str]:
         """
-        Return the URI for an object type.
+        Gets an EDSL object or class and returns a dict with API URI and type of the object.
         """
-        if isinstance(object, QuestionBase):
-            return "questions"
-        elif isinstance(object, Survey):
-            return "surveys"
-        elif isinstance(object, Agent) or isinstance(object, AgentList):
-            return "agents"
-        elif isinstance(object, Results):
-            return "results"
+        object_type = type(object) if not isclass(object) else object
+
+        if issubclass(object_type, QuestionBase):
+            return {"uri": "questions", "object_type": "question"}
+        elif issubclass(object_type, Survey):
+            return {"uri": "surveys", "object_type": "survey"}
+        elif issubclass(object_type, Agent) or issubclass(object_type, AgentList):
+            return {"uri": "agents", "object_type": "agent"}
+        elif issubclass(object_type, Results):
+            return {"uri": "results", "object_type": "results"}
         else:
             raise ValueError("Incorrect or not supported object type")
 
@@ -166,7 +172,7 @@ class Coop:
         :param public: whether the object should be public (defaults to False).
         """
 
-        uri = self._edsl_object_to_uri(object)
+        uri = self._resolve_edsl_object(object).get("uri")
         response = self._send_server_request(
             uri=f"api/v0/{uri}",
             method="POST",
@@ -251,16 +257,8 @@ class Coop:
         """
         Used by the Base class to offer a get functionality.
         """
-        if issubclass(cls, QuestionBase):
-            return self.get("question", uuid)
-        elif cls == Survey:
-            return self.get("survey", uuid)
-        elif cls == Agent or cls == AgentList:
-            return self.get("agent", uuid)
-        elif cls == Results:
-            return self.get("results", uuid)
-        else:
-            raise ValueError("Class type not recognized")
+        object_type = self._resolve_edsl_object(cls).get("object_type")
+        return self.get(object_type, uuid)
 
     # ----------
     # C. GET ALL
