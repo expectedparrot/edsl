@@ -19,7 +19,7 @@ You can download Python from the `official website <https://www.python.org/downl
 Use `pip <https://pip.pypa.io/en/stable/installation/>`_ to install EDSL on your system (a package installer for Python).
 
 
-Quickstart installation
+Quickstart Installation
 -----------------------
 Open your terminal and verify that you have not previously installed EDSL by entering the following command:
 
@@ -28,14 +28,7 @@ Open your terminal and verify that you have not previously installed EDSL by ent
     pip show edsl
 
 
-If EDSL is not installed (`WARNING: Package(s) not found: edsl`), enter the following command to install the latest version of EDSL through pip:
-
-.. code:: 
-
-    pip install edsl
-
-
-If EDSL is already installed, you will see the following output:
+If EDSL is already installed, you will see the following output, including the actual version number:
 
 .. code::
 
@@ -44,7 +37,14 @@ If EDSL is already installed, you will see the following output:
     ...
 
 
-To confirm that your version is the latest, compare the version number with the latest version on the `EDSL PyPI page <https://pypi.org/project/edsl/>`_.
+If EDSL is not installed (`WARNING: Package(s) not found: edsl`), enter the following command to install the latest version with pip:
+
+.. code:: 
+
+    pip install edsl
+
+
+To confirm that your version is up to date, compare your version number with the latest version on the `EDSL PyPI page <https://pypi.org/project/edsl/>`_.
 
 
 Updating your version
@@ -69,8 +69,7 @@ To create a virtual environment, open your terminal and run the following comman
     python -m venv myenv
 
 
-This will create a folder called myenv. Next, activate your virtual
-environment:
+This will create a folder called myenv. Next, activate your virtual environment:
 
 .. code:: 
 
