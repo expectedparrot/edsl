@@ -49,11 +49,14 @@ from edsl.results.ResultsDBMixin import ResultsDBMixin
 class Mixins(ResultsExportMixin, ResultsDBMixin):
     pass
 
+
 from edsl.Base import Base
 from edsl.results.ResultsFetchMixin import ResultsFetchMixin
 
+
 class Mixins(ResultsExportMixin, ResultsDBMixin, ResultsFetchMixin):
     pass
+
 
 class Results(UserList, Mixins, Base):
     """
@@ -185,7 +188,7 @@ class Results(UserList, Mixins, Base):
             survey=Survey.from_dict(data["survey"]),
             data=[Result.from_dict(r) for r in data["data"]],
             created_columns=data.get("created_columns", None),
-            cache = Cache.from_dict(data.get("cache")) if "cache" in data else Cache()
+            cache=Cache.from_dict(data.get("cache")) if "cache" in data else Cache(),
         )
         return results
 

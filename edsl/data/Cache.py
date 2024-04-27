@@ -18,6 +18,7 @@ from edsl.data.SQLiteDict import SQLiteDict
 
 from edsl.Base import Base
 
+
 class Cache(Base):
     """
     A class that represents a cache of responses from a language model.
@@ -46,7 +47,7 @@ class Cache(Base):
 
         """
         self.data = data or {}
-        #self.data_at_init = data or {}
+        # self.data_at_init = data or {}
         self.fetched_data = {}
         self.remote = remote
         self.immediate_write = immediate_write
@@ -58,18 +59,18 @@ class Cache(Base):
 
     def rich_print(sefl):
         pass
-        #raise NotImplementedError("This method is not implemented yet.")
+        # raise NotImplementedError("This method is not implemented yet.")
 
     def code(sefl):
         pass
-        #raise NotImplementedError("This method is not implemented yet.")
+        # raise NotImplementedError("This method is not implemented yet.")
 
     def keys(self):
         return list(self.data.keys())
 
     def values(self):
         return list(self.data.values())
-    
+
     def new_entries_cache(self) -> Cache:
         """Return a new Cache object with the new entries."""
         return Cache(data={**self.new_entries, **self.fetched_data})
@@ -206,18 +207,18 @@ class Cache(Base):
         Construct a Cache from a SQLite database.
         """
         return cls(data=SQLiteDict(db_path))
-    
+
     @classmethod
     def from_local_cache(cls) -> Cache:
         """
         Construct a Cache from a local cache file.
         """
         from edsl.config import CONFIG
+
         CACHE_PATH = CONFIG.get("EDSL_DATABASE_PATH")
         path = CACHE_PATH.replace("sqlite:///", "")
         db_path = os.path.join(os.path.dirname(path), "data.db")
         return cls.from_sqlite_db(db_path=db_path)
-
 
     @classmethod
     def from_jsonl(cls, jsonlfile: str, db_path: str = None) -> Cache:
