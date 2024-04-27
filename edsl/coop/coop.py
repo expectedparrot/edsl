@@ -10,6 +10,7 @@ import edsl
 from edsl import CONFIG
 from edsl.agents import Agent, AgentList
 from edsl.config import CONFIG
+from edsl.data.Cache import Cache
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.results import Results
 from edsl.surveys import Survey
@@ -150,6 +151,8 @@ class Coop:
             return ("agents", "agent")
         elif issubclass(object_type, Results):
             return ("results", "results")
+        elif issubclass(object_type, Cache):
+            return ("caches", "cache")
         else:
             raise ValueError("Incorrect or not supported object type")
 
@@ -162,6 +165,7 @@ class Coop:
             "survey": ("surveys", Survey),
             "agent": ("agents", Agent),
             "results": ("results", Results),
+            "cache": ("caches", Cache),
         }
 
         if object_type is None:
@@ -183,6 +187,7 @@ class Coop:
             "surveys": ("survey", Survey),
             "agents": ("agent", Agent),
             "results": ("results", Results),
+            "caches": ("cache", Cache),
         }
 
         if uri is None:
