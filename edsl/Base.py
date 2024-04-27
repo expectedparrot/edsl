@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod, ABCMeta
 import gzip
 import io
 import json
+from typing import Union
 from uuid import UUID
 from IPython.display import display
 from rich.console import Console
@@ -47,7 +48,7 @@ class PersistenceMixin:
         return c.create(self, public, verbose=True)
 
     @classmethod
-    def pull(cls, id_or_url: str | UUID):
+    def pull(cls, id_or_url: Union[str, UUID]):
         """Pull the object from coop."""
         from edsl.coop import Coop
 
