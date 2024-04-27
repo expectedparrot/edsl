@@ -95,7 +95,7 @@ Memory
 When an agent is taking a survey, they can be prompted to "remember" answers to previous questions.
 This can be done in several ways:
 
-<b>Full memory:</b> 
+**Full memory:**
 The agent is given all of the answers to the questions in the survey.
 
 .. code-block:: python
@@ -105,7 +105,7 @@ The agent is given all of the answers to the questions in the survey.
 Note that this is slow and token-intensive, as the questions must be answered serially and requires the agent to remember all of the answers to the questions in the survey.
 In contrast, if the agent does not need to remember all of the answers to the questions in the survey, execution can proceed in parallel.
     
-<b>Lagged memory:</b>
+**Lagged memory:**
 With each question, the agent is given the answers to the specified number of lagged (prior) questions.
 In this example, the agent is given the answers to the 2 previous questions in the survey:
 
@@ -113,7 +113,7 @@ In this example, the agent is given the answers to the 2 previous questions in t
 
    s.set_lagged_memory(2)
 
-<b>Targeted memory:</b>
+**Targeted memory:**
 The agent is given the answers to specific targeted prior questions.
 In this example, the agent is given the answer to q1 when prompted to to answer q2:
 
@@ -180,7 +180,7 @@ Or to export to Google Forms:
 
    survey.web(platform="google_forms")
 
-<i>Note: This feature is in launching soon! This page will be updated when it is live. 
+*Note:* This feature is in launching soon! This page will be updated when it is live. 
 If you would like to sign up for alpha testing this and other new features, please complete the following survey which was created with this new method: [EDSL signup survey ](https://survey.expectedparrot.com/index.php/132345).</i>
 
 
