@@ -52,12 +52,19 @@ class Question(metaclass=Meta):
         return instance
 
     @classmethod
-    def pull(cls, id: int) -> "QuestionBase":
+    def pull(cls, id_or_url: str):
         """Pull the object from coop."""
         from edsl.coop import Coop
 
         c = Coop()
-        return c.get("question", id)
+        if c.url in id_or_url:
+            id = id_or_url.split("/")[-1]
+        else:
+            id = id_or_url
+        from edsl.questions.QuestionBase import QuestionBase
+        return c._get_base(QuestionBase, id)
+
+   
 
     @classmethod
     def available(cls, show_class_names: bool = False) -> Union[list, dict]:
