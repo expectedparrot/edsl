@@ -1,10 +1,17 @@
 .. _index:
 
-EDSL Docs
-=========
+EDSL: AI-Powered Research
+=========================
 
-This page contains documentation, tutorials and demo notebooks for the __Expected Parrot Domain-Specific Language (EDSL)__ library, an open-source Python package for conducting AI-powered research. 
-The contents are organized into the following sections:
+*Expected Parrot Domain-Specific Language* (EDSL) is an open-source Python package for conducting AI-powered research.
+   
+.. raw:: html
+
+   EDSL is developed by <a href="https://www.expectedparrot.com" target="_blank">Expected Parrot</a> and available under the MIT License.
+   <br><br>
+
+This page provides documentation, tutorials and demo notebooks for the EDSL package.
+The contents are organized into several key sections to help you get started using it:
 
 Introduction
 ------------
@@ -34,9 +41,35 @@ Examples of special methods and use cases, such as data labeling tasks, cognitiv
 Notebooks
 ---------
 A variety of templates and examples for using the package to conduct different kinds of research.
-
 *We're happy to create a new notebook for your use case!*
 
+Links
+-----
+*Updates*
+
+.. raw:: html
+
+   <a href="https://pypi.org/project/edsl" target="_blank"><i class="fab fa-python"></i></a>&nbsp;&nbsp;Download the latest version of EDSL at <a href="https://pypi.org/project/edsl" target="_blank">PyPI</a>.     
+   <br><br>
+
+   <a href="https://github.com/expectedparrot/edsl" target="_blank"><i class="fab fa-github"></i></a>&nbsp;&nbsp;Get the latest EDSL updates at <a href="https://github.com/expectedparrot/edsl" target="_blank">GitHub</a>.
+   <br><br>
+
+*Community*
+
+.. raw:: html
+
+   <a href="https://discord.com/invite/mxAYkjfy9m" target="_blank"><i class="fab fa-discord"></i></a>&nbsp;&nbsp;Join our <a href="https://discord.com/invite/mxAYkjfy9m" target="_blank">Discord</a> channel to connect with other users and ask questions.
+   <br><br>
+
+*Support*
+
+.. raw:: html
+
+   <i class="far fa-envelope"></i>&nbsp;&nbsp;Send us an email at <b>info@expectedparrot.com</b>.    
+   <br><br>
+
+ 
 
 
 .. toctree::

@@ -64,6 +64,7 @@ extensions = [
     "sphinx_copybutton",
     "sphinx.ext.linkcode",
     "nbsphinx",
+    "sphinx_fontawesome"
 ]
 nbsphinx_notebooks = ["../examples/*.ipynb"]
 import glob
