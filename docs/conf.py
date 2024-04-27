@@ -90,3 +90,7 @@ html_theme_options = {
 }
 
 html_show_sphinx = False 
+
+html_logo = "static/logo.png"
+
+html_favicon = "static/favicon.ico"
