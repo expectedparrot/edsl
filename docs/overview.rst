@@ -107,10 +107,7 @@ The operation is typically structured as follows:
 
 Key features 
 ------------
-*Python Integration*
-
-
-EDSL leverages Python's robust ecosystem, seamlessly integrating with existing Python tools. 
+*Python Integration*: EDSL leverages Python's robust ecosystem, seamlessly integrating with existing Python tools. 
 It is ideally used within a notebook environment, facilitating the execution and detailed analysis of research outcomes. 
 Key features include:
 
@@ -123,7 +120,7 @@ Key features include:
 
 Coop: Collaborative Research Platform
 -------------------------------------
-*(Coming soon!)*
+*Coming soon!*
 
 *Enhancing Research Collaboration*: EDSL promotes not only the creation of research but also the sharing of insights, code, and results. 
 `Coop` is a platform designed to enhance collaborative research efforts. 
@@ -172,19 +169,19 @@ Links
 -----
 .. raw:: html
 
-   <b><a href="https://pypi.org/project/edsl" target="_blank">PyPI:</a></b> Download the latest version of EDSL at PyPI.     
+   <a href="https://pypi.org/project/edsl" target="_blank"><i class="fab fa-python"></i></a> Download the latest version of EDSL at <a href="https://pypi.org/project/edsl" target="_blank">PyPI</a>.     
 
    <br><br>
 
-   <b><a href="https://github.com/expectedparrot/edsl" target="_blank">GitHub:</a></b> Get the latest EDSL updates at GitHub.
+   <a href="https://github.com/expectedparrot/edsl" target="_blank"><i class="fab fa-github"></i></a> Get the latest EDSL updates at <a href="https://github.com/expectedparrot/edsl" target="_blank">GitHub</a>.
 
    <br><br>
 
-   <b><a href="https://discord.com/invite/mxAYkjfy9m" target="_blank">Discord:</a></b> Join our Discord channel to ask questions and connect with other users.
+   <a href="https://discord.com/invite/mxAYkjfy9m" target="_blank"><i class="fab fa-discord"></i></a> Join our <a href="https://discord.com/invite/mxAYkjfy9m" target="_blank">Discord</a> channel to connect with other users and ask questions.
 
    <br><br>
 
-   <b>Contact:</b> Send us an email at info@expectedparrot.com
+   <i class="far fa-envelope"></i> Send us an email at <b>info@expectedparrot.com</b>.    
 
 
 
