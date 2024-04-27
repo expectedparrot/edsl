@@ -26,6 +26,7 @@ class TestBaseModels:
                 "ScenarioList",
                 "AgentList",
                 "Jobs",
+                "Cache"
             ]
 
         methods = [

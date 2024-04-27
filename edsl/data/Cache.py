@@ -15,8 +15,9 @@ from edsl.data.SQLiteDict import SQLiteDict
 #       -- if two keys are the same but the values are different?
 # TODO: In the read methods, if the file already exists, make sure it is valid.
 
+from edsl.Base import Base
 
-class Cache:
+class Cache(Base):
     """
     A class that represents a cache of responses from a language model.
 
@@ -53,6 +54,14 @@ class Cache:
         self.new_entries_to_write_later = {}
         self.coop = None
         self._perform_checks()
+
+    def rich_print(sefl):
+        pass
+        #raise NotImplementedError("This method is not implemented yet.")
+
+    def code(sefl):
+        pass
+        #raise NotImplementedError("This method is not implemented yet.")
 
     def keys(self):
         return list(self.data.keys())
@@ -281,8 +290,8 @@ class Cache:
     @classmethod
     def from_dict(cls, data) -> Cache:
         """Construct a Cache from a dictionary."""
-        data = {k: CacheEntry.from_dict(v) for k, v in data}
-        return cls(data=data)
+        newdata = {k: CacheEntry.from_dict(v) for k, v in data.items()}
+        return cls(data=newdata)
 
     def __len__(self):
         """Return the number of CacheEntry objects in the Cache."""

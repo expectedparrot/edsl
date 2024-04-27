@@ -42,10 +42,23 @@ class PersistenceMixin:
         """Post the object to coop."""
         from edsl.coop import Coop
 
+        # TODO: Do something smarter here so this doesn't break if we add a new question
+        # or a coopable object.  
+        directory_lookup = {
+            'QuestionMultipleChoice': 'questions',
+            'QuestionFreeText': 'questions',
+            'QuestionYesNo': 'questions',
+            'QuestionBudget': 'questions',
+            'Survey': 'surveys',
+            'Results': 'results', 
+            'Agent': 'agents',
+        }
+        directory = directory_lookup.get(self.__class__.__name__, 'misc')
+
         c = Coop()
         details = c.create(self, public)
         object_uuid = details["uuid"]
-        coop_url = c.url + "/explore/questions/" +  f"{object_uuid}"
+        coop_url = c.url + "/explore/"  + directory +  f"/{object_uuid}"
         print(f"Object pushed to coop - available at {coop_url}")
         return details
 
