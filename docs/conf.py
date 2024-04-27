@@ -51,6 +51,9 @@ def print_directory_tree(startpath):
         for f in files:
             print(f"{subindent}{f}")
 
+def setup(app):
+    app.add_css_file("https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css")
+
 
 # Example usage:
 print_directory_tree(os.getcwd())
@@ -66,6 +69,7 @@ extensions = [
     "nbsphinx",
     "sphinx_fontawesome"
 ]
+
 nbsphinx_notebooks = ["../examples/*.ipynb"]
 import glob
 
@@ -86,7 +90,3 @@ html_theme_options = {
 }
 
 html_show_sphinx = False 
-
-html_logo = "static/logo.png"
-
-html_favicon = "static/favicon.ico"
