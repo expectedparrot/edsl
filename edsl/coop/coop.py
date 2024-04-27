@@ -179,20 +179,27 @@ class Coop:
             },
         )
         self._resolve_server_response(response)
-        return response.json()
+        response_json = response.json()
+        url = f"{self.url}/explore/{uri}/{response_json['uuid']}"
+        response_json["url"] = url
+        return response_json
 
     def create(
         self,
         object: Union[Type[QuestionBase], Survey, Agent, AgentList, Results],
-        public: bool = False,
-    ):
+        public: bool = True,
+        verbose: bool = False,
+    ) -> dict:
         """
         Create an EDSL object in the Coop server.
 
         :param object: the EDSL object to be sent.
-        :param public: whether the object should be public (defaults to False)
+        :param public: whether the object should be public (defaults to True)
         """
-        return self._create(object, public)
+        response = self._create(object, public)
+        if verbose:
+            print(f"Object pushed to Coop - available at {response['url']}")
+        return response
 
     # ----------
     # B. GET
