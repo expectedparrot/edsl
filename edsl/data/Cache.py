@@ -1,6 +1,7 @@
 from __future__ import annotations
 import json
 import os
+import copy
 import warnings
 from typing import Optional, Union
 from edsl.config import CONFIG
@@ -15,8 +16,9 @@ from edsl.data.SQLiteDict import SQLiteDict
 #       -- if two keys are the same but the values are different?
 # TODO: In the read methods, if the file already exists, make sure it is valid.
 
+from edsl.Base import Base
 
-class Cache:
+class Cache(Base):
     """
     A class that represents a cache of responses from a language model.
 
@@ -42,10 +44,10 @@ class Cache:
         """
         Create two dictionaries to store the cache data.
 
-        :param new_entries: Entries that are created during a __enter__ block.
-        :param new_entries_to_write_later: Entries that will be written to the cache later.
         """
         self.data = data or {}
+        #self.data_at_init = data or {}
+        self.fetched_data = {}
         self.remote = remote
         self.immediate_write = immediate_write
         self.method = method
@@ -54,11 +56,23 @@ class Cache:
         self.coop = None
         self._perform_checks()
 
+    def rich_print(sefl):
+        pass
+        #raise NotImplementedError("This method is not implemented yet.")
+
+    def code(sefl):
+        pass
+        #raise NotImplementedError("This method is not implemented yet.")
+
     def keys(self):
         return list(self.data.keys())
 
     def values(self):
         return list(self.data.values())
+    
+    def new_entries_cache(self) -> Cache:
+        """Return a new Cache object with the new entries."""
+        return Cache(data={**self.new_entries, **self.fetched_data})
 
     def _perform_checks(self):
         """Perform checks on the cache."""
@@ -95,6 +109,8 @@ class Cache:
             iteration=iteration,
         )
         entry = self.data.get(key, None)
+        if entry is not None:
+            self.fetched_data[key] = entry
         return None if entry is None else entry.output
 
     def store(
@@ -190,6 +206,18 @@ class Cache:
         Construct a Cache from a SQLite database.
         """
         return cls(data=SQLiteDict(db_path))
+    
+    @classmethod
+    def from_local_cache(cls) -> Cache:
+        """
+        Construct a Cache from a local cache file.
+        """
+        from edsl.config import CONFIG
+        CACHE_PATH = CONFIG.get("EDSL_DATABASE_PATH")
+        path = CACHE_PATH.replace("sqlite:///", "")
+        db_path = os.path.join(os.path.dirname(path), "data.db")
+        return cls.from_sqlite_db(db_path=db_path)
+
 
     @classmethod
     def from_jsonl(cls, jsonlfile: str, db_path: str = None) -> Cache:
@@ -281,8 +309,8 @@ class Cache:
     @classmethod
     def from_dict(cls, data) -> Cache:
         """Construct a Cache from a dictionary."""
-        data = {k: CacheEntry.from_dict(v) for k, v in data}
-        return cls(data=data)
+        newdata = {k: CacheEntry.from_dict(v) for k, v in data.items()}
+        return cls(data=newdata)
 
     def __len__(self):
         """Return the number of CacheEntry objects in the Cache."""

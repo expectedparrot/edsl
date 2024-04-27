@@ -27,6 +27,7 @@ from edsl.results.Result import Result
 from edsl.results.ResultsExportMixin import ResultsExportMixin
 from edsl.scenarios import Scenario
 from edsl.surveys import Survey
+from edsl.data.Cache import Cache
 from edsl.utilities import (
     is_gzipped,
     is_valid_variable_name,
@@ -48,38 +49,11 @@ from edsl.results.ResultsDBMixin import ResultsDBMixin
 class Mixins(ResultsExportMixin, ResultsDBMixin):
     pass
 
-
-# These are only made available if the user has installed
-# our package from pip with the [report] option
-# try:
-#     from edsl.report.RegressionMixin import RegressionMixin
-
-#     Mixins = type("Mixins", (RegressionMixin, Mixins), {})
-# except (ImportError, ModuleNotFoundError):
-#     pass
-
-# try:
-#     from edsl.results.ResultsFetchMixin import ResultsFetchMixin
-
-#     Mixins = type("Mixins", (ResultsFetchMixin, Mixins), {})
-# except (ImportError, ModuleNotFoundError):
-#     pass
-
-# try:
-#     from edsl.report.ResultsOutputMixin import ResultsOutputMixin
-
-#     Mixins = type("Mixins", (ResultsOutputMixin, Mixins), {})
-# except (ImportError, ModuleNotFoundError):
-#     pass
-
-
 from edsl.Base import Base
 from edsl.results.ResultsFetchMixin import ResultsFetchMixin
 
-
 class Mixins(ResultsExportMixin, ResultsDBMixin, ResultsFetchMixin):
     pass
-
 
 class Results(UserList, Mixins, Base):
     """
@@ -105,6 +79,7 @@ class Results(UserList, Mixins, Base):
         survey: Optional[Survey] = None,
         data: Optional[list[Result]] = None,
         created_columns: Optional[list[str]] = None,
+        cache: Optional[Cache] = None,
         job_uuid: Optional[str] = None,
         total_results: Optional[int] = None,
     ):
@@ -121,6 +96,7 @@ class Results(UserList, Mixins, Base):
         self.created_columns = created_columns or []
         self._job_uuid = job_uuid
         self._total_results = total_results
+        self.cache = cache or Cache()
 
         if hasattr(self, "_add_output_functions"):
             self._add_output_functions()
@@ -188,6 +164,7 @@ class Results(UserList, Mixins, Base):
             "data": [result.to_dict() for result in self.data],
             "survey": self.survey.to_dict(),
             "created_columns": self.created_columns,
+            "cache": Cache() if not hasattr(self, "cache") else self.cache.to_dict(),
         }
 
     @classmethod
@@ -208,6 +185,7 @@ class Results(UserList, Mixins, Base):
             survey=Survey.from_dict(data["survey"]),
             data=[Result.from_dict(r) for r in data["data"]],
             created_columns=data.get("created_columns", None),
+            cache = Cache.from_dict(data.get("cache")) if "cache" in data else Cache()
         )
         return results
 

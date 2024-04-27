@@ -2,6 +2,7 @@ import aiohttp
 import json
 import os
 import requests
+from inspect import isclass
 from requests.exceptions import ConnectionError
 from typing import Any, Optional, Type, Union, Literal
 from uuid import UUID
@@ -130,22 +131,66 @@ class Coop:
             version = None
         return version
 
-    def _edsl_object_to_uri(
-        self, object: Union[Type[QuestionBase], Survey, Agent, Results]
-    ) -> str:
+    def _resolve_edsl_object(
+        self,
+        object: Union[
+            Type[QuestionBase], QuestionBase, Survey, Agent, AgentList, Results
+        ],
+    ) -> tuple[str, str]:
         """
-        Return the URI for an object type.
+        Resolves an EDSL object or class to an (API_URI: str, object_type: str) tuple.
         """
-        if isinstance(object, QuestionBase):
-            return "questions"
-        elif isinstance(object, Survey):
-            return "surveys"
-        elif isinstance(object, Agent) or isinstance(object, AgentList):
-            return "agents"
-        elif isinstance(object, Results):
-            return "results"
+        object_type = type(object) if not isclass(object) else object
+
+        if issubclass(object_type, QuestionBase):
+            return ("questions", "question")
+        elif issubclass(object_type, Survey):
+            return ("surveys", "survey")
+        elif issubclass(object_type, Agent) or issubclass(object_type, AgentList):
+            return ("agents", "agent")
+        elif issubclass(object_type, Results):
+            return ("results", "results")
         else:
             raise ValueError("Incorrect or not supported object type")
+
+    def _resolve_object_type(self, object_type: str) -> tuple[str, Type]:
+        """
+        Resolve an object_type string to an (API_URI: str, object_type: Type) tuple.
+        """
+        TYPE_MAP = {
+            "question": ("questions", QuestionBase),
+            "survey": ("surveys", Survey),
+            "agent": ("agents", Agent),
+            "results": ("results", Results),
+        }
+
+        if object_type is None:
+            raise ValueError("Please provide an `object_type`.")
+        elif object_type not in TYPE_MAP:
+            raise ValueError(
+                f"Object type {object_type} not recognized. "
+                f"Valid object types are: {', '.join(TYPE_MAP.keys())}"
+            )
+
+        return TYPE_MAP[object_type]
+
+    def _resolve_uri(self, uri: str) -> tuple[str, Type]:
+        """
+        Resolve an API URI to an (API_URI: str, object_type: Type) tuple.
+        """
+        URI_MAP = {
+            "questions": ("question", QuestionBase),
+            "surveys": ("survey", Survey),
+            "agents": ("agent", Agent),
+            "results": ("results", Results),
+        }
+
+        if uri is None:
+            raise ValueError("Please provide a URI.")
+        elif uri not in URI_MAP:
+            raise ValueError(f"URI {uri} not recognized")
+
+        return URI_MAP[uri]
 
     ################
     # OBJECT METHODS
@@ -166,7 +211,7 @@ class Coop:
         :param public: whether the object should be public (defaults to False).
         """
 
-        uri = self._edsl_object_to_uri(object)
+        uri, _ = self._resolve_edsl_object(object)
         response = self._send_server_request(
             uri=f"api/v0/{uri}",
             method="POST",
@@ -179,20 +224,27 @@ class Coop:
             },
         )
         self._resolve_server_response(response)
-        return response.json()
+        response_json = response.json()
+        url = f"{self.url}/explore/{uri}/{response_json['uuid']}"
+        response_json["url"] = url
+        return response_json
 
     def create(
         self,
         object: Union[Type[QuestionBase], Survey, Agent, AgentList, Results],
-        public: bool = False,
-    ):
+        public: bool = True,
+        verbose: bool = False,
+    ) -> dict:
         """
         Create an EDSL object in the Coop server.
 
         :param object: the EDSL object to be sent.
-        :param public: whether the object should be public (defaults to False)
+        :param public: whether the object should be public (defaults to True)
         """
-        return self._create(object, public)
+        response = self._create(object, public)
+        if verbose:
+            print(f"Object pushed to Coop - available at {response['url']}")
+        return response
 
     # ----------
     # B. GET
@@ -208,29 +260,27 @@ class Coop:
         return json.loads(response.json().get("json_string"))
 
     def get(
-        self, object_type: str, uuid: Union[str, UUID]
+        self, object_type: str = None, uuid: Union[str, UUID] = None, url: str = None
     ) -> Union[Type[QuestionBase], Survey, Agent, AgentList, Results]:
         """
-        Retrieve an EDSL object by its UUID and object type.
+        Retrieve an EDSL object by its object type and UUID, or by its url.
 
         :param object_type: the type of object to retrieve.
         :param uuid: the uuid of the object either in str or UUID format.
+        :param url: the url of the object.
         """
+        if url:
+            uri = url.split("/")[-2]
+            object_type, cls = self._resolve_uri(uri)
+            uuid = url.split("/")[-1]
+        elif object_type and uuid:
+            uri, cls = self._resolve_object_type(object_type)
+        else:
+            raise ValueError(
+                "Please provide either an object type and a UUID, or a url."
+            )
 
-        type_map = {
-            "question": ("questions", QuestionBase),
-            "survey": ("surveys", Survey),
-            "agent": ("agents", Agent),
-            "results": ("results", Results),
-        }
-
-        if object_type is None:
-            raise ValueError("Please provide an `object_type`.")
-        elif object_type not in type_map:
-            raise ValueError(f"Object type {object_type} not recognized")
-
-        object_type_uri, cls = type_map[object_type]
-        json_dict = self._get(object_type_uri=object_type_uri, uuid=uuid)
+        json_dict = self._get(object_type_uri=uri, uuid=uuid)
         if object_type == "agent" and "agent_list" in json_dict:
             return AgentList.from_dict(json_dict)
         else:
@@ -244,16 +294,8 @@ class Coop:
         """
         Used by the Base class to offer a get functionality.
         """
-        if issubclass(cls, QuestionBase):
-            return self.get("question", uuid)
-        elif cls == Survey:
-            return self.get("survey", uuid)
-        elif cls == Agent or cls == AgentList:
-            return self.get("agent", uuid)
-        elif cls == Results:
-            return self.get("results", uuid)
-        else:
-            raise ValueError("Class type not recognized")
+        _, object_type = self._resolve_edsl_object(cls)
+        return self.get(object_type, uuid)
 
     # ----------
     # C. GET ALL
@@ -268,6 +310,7 @@ class Coop:
                 "question": QuestionBase.from_dict(json.loads(q["json_string"])),
                 "uuid": q["uuid"],
                 "version": q["version"],
+                "url": f"{self.url}/explore/questions/{q['uuid']}",
             }
             for q in response.json()
         ]
@@ -283,6 +326,7 @@ class Coop:
                 "survey": Survey.from_dict(json.loads(s["json_string"])),
                 "uuid": s["uuid"],
                 "version": s["version"],
+                "url": f"{self.url}/explore/surveys/{s['uuid']}",
             }
             for s in response.json()
         ]
@@ -305,6 +349,7 @@ class Coop:
                     "uuid": a.get("uuid"),
                     "agent": agent,
                     "version": a.get("version"),
+                    "url": f"{self.url}/explore/agents/{a['uuid']}",
                 }
             )
         return agents
@@ -319,6 +364,7 @@ class Coop:
                 "uuid": r.get("uuid"),
                 "results": Results.from_dict(json.loads(r.get("json_string"))),
                 "version": r.get("version"),
+                "url": f"{self.url}/explore/results/{r['uuid']}",
             }
             for r in response.json()
         ]
@@ -334,21 +380,10 @@ class Coop:
         :param object_type: the type of object to delete.
         :param uuid: the uuid of the object either in str or UUID format.
         """
-        type_map = {
-            "question": "questions",
-            "survey": "surveys",
-            "agent": "agents",
-            "results": "results",
-        }
 
-        if object_type is None:
-            raise ValueError("Please provide an `object_type`.")
-        elif object_type not in type_map:
-            raise ValueError(f"Object type {object_type} not recognized")
-
-        object_type_uri = type_map[object_type]
+        uri, _ = self._resolve_object_type(object_type)
         response = self._send_server_request(
-            uri=f"api/v0/{object_type_uri}/{uuid}", method="DELETE"
+            uri=f"api/v0/{uri}/{uuid}", method="DELETE"
         )
         self._resolve_server_response(response)
         return response.json()
@@ -464,6 +499,8 @@ if __name__ == "__main__":
     coop.questions
     # or get a question by its uuid
     coop.get(object_type="question", uuid=response.get("uuid"))
+    # or by its url
+    coop.get(url=response.get("url"))
     # delete the question
     coop.delete(object_type="question", uuid=response.get("uuid"))
     # check all questions - there must be two left

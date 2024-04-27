@@ -156,6 +156,17 @@ class SQLiteDict:
             for instance in db.query(Data).all():
                 yield (instance.key, CacheEntry.from_dict(json.loads(instance.value)))
 
+    def to_dict(self):
+        """
+        Returns the cache as a dictionary.
+
+        >>> d = SQLiteDict.example()
+        >>> d["foo"] = CacheEntry.example()
+        >>> d.to_dict() == {"foo": CacheEntry.example()}
+        True
+        """
+        return dict(self.items())
+
     def __delitem__(self, key: str) -> None:
         """
         Deletes the value for a given key.
