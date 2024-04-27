@@ -87,7 +87,7 @@ The following illustrations provide a visual representation of how these compone
 .. image:: static/survey_graphic4.png
    :alt: Select AI models to simulate results
    :align: center
-
+   
 
 
 Key operations
@@ -161,27 +161,33 @@ For example, to see an example of a multiple choice question, you can run:
 
    QuestionMultipleChoice.example()
 
-
-Please also see the notebooks listed here for help getting started and example code for applications and research ideas.
+See our :ref:`starter_tutorial`, how-to guides and notebooks for examples as well.
 
 
 Links
 -----
+*Updates*
+
 .. raw:: html
 
-   <a href="https://pypi.org/project/edsl" target="_blank"><i class="fab fa-python"></i></a> Download the latest version of EDSL at <a href="https://pypi.org/project/edsl" target="_blank">PyPI</a>.     
-
+   <a href="https://pypi.org/project/edsl" target="_blank"><i class="fab fa-python"></i></a>&nbsp;&nbsp;Download the latest version of EDSL at <a href="https://pypi.org/project/edsl" target="_blank">PyPI</a>.     
    <br><br>
 
-   <a href="https://github.com/expectedparrot/edsl" target="_blank"><i class="fab fa-github"></i></a> Get the latest EDSL updates at <a href="https://github.com/expectedparrot/edsl" target="_blank">GitHub</a>.
-
+   <a href="https://github.com/expectedparrot/edsl" target="_blank"><i class="fab fa-github"></i></a>&nbsp;&nbsp;Get the latest EDSL updates at <a href="https://github.com/expectedparrot/edsl" target="_blank">GitHub</a>.
    <br><br>
 
-   <a href="https://discord.com/invite/mxAYkjfy9m" target="_blank"><i class="fab fa-discord"></i></a> Join our <a href="https://discord.com/invite/mxAYkjfy9m" target="_blank">Discord</a> channel to connect with other users and ask questions.
+*Community*
 
+.. raw:: html
+
+   <a href="https://discord.com/invite/mxAYkjfy9m" target="_blank"><i class="fab fa-discord"></i></a>&nbsp;&nbsp;Join our <a href="https://discord.com/invite/mxAYkjfy9m" target="_blank">Discord</a> channel to connect with other users and ask questions.
    <br><br>
 
-   <i class="far fa-envelope"></i> Send us an email at <b>info@expectedparrot.com</b>.    
+*Support*
 
+.. raw:: html
+
+   <i class="far fa-envelope"></i>&nbsp;&nbsp;Send us an email at <b>info@expectedparrot.com</b>.    
+   <br><br>
 
 
