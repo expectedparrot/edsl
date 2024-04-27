@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod, ABCMeta
 import gzip
 import io
 import json
+from uuid import UUID
 from IPython.display import display
 from rich.console import Console
 from edsl.utilities import is_notebook
@@ -46,16 +47,16 @@ class PersistenceMixin:
         return c.create(self, public, verbose=True)
 
     @classmethod
-    def pull(cls, id_or_url: str):
+    def pull(cls, id_or_url: str | UUID):
         """Pull the object from coop."""
         from edsl.coop import Coop
 
         c = Coop()
-        if c.url in id_or_url:
-            id = id_or_url.split("/")[-1]
+        if isinstance(id_or_url, str) and c.url in id_or_url:
+            return c.get(url=id_or_url)
         else:
-            id = id_or_url
-        return c._get_base(cls, id)
+            _, object_type = c._resolve_edsl_object(cls)
+            return c.get(object_type, id_or_url)
 
     @classmethod
     def search(cls, query):
