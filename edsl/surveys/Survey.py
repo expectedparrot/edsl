@@ -245,11 +245,11 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
                 f"Cannot skip to a question before the first question in the survey."
             )
         prior_question = self._questions[prior_question_index]
-        skipped_to_question = self._questions[question_index + 1]
-        self.add_rule(prior_question, expression, skipped_to_question)
+        # TODO: This is tricky because we don't actually know the name of the question yet. 
+        # We 
+        skipped_to_question_index = question_index + 1
+        self.add_rule(prior_question, expression, skipped_to_question_index)
         return self
-        #self.add_rule(question, expression, EndOfSurvey)
-        #return self
 
     def _get_question_index(
         self, q: Union[QuestionBase, str, EndOfSurvey.__class__]
@@ -269,7 +269,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
             return self.question_name_to_index[question_name]
 
     def add_rule(
-        self, question: QuestionBase, expression: str, next_question: QuestionBase
+        self, question: QuestionBase, expression: str, next_question: Union[QuestionBase, int]
     ) -> Survey:
         """
         Add a rule to a Question of the Survey with the appropriate priority.
@@ -278,7 +278,11 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         - If there are no rules, the rule added gets priority -1.
         """
         question_index = self._get_question_index(question)
-        next_question_index = self._get_question_index(next_question)
+        # Might not have the name of the next question yet
+        if isinstance(next_question, int):
+            next_question_index = next_question
+        else:
+            next_question_index = self._get_question_index(next_question)
 
         def get_new_rule_priority(question_index):
             """Return the priority for the new rule."""
