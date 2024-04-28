@@ -7,7 +7,7 @@ from edsl.results import Results
 from edsl.surveys import Survey
 
 
-def test_coop_object_workflows(object_type, object_examples):
+def coop_object_api_workflows(object_type, object_examples):
     coop = Coop(api_key="b")
 
     # 1. Ensure we are starting with a clean state
@@ -52,7 +52,7 @@ def test_coop_client_questions():
         (QuestionCheckBox.example(), False),
         (QuestionFreeText.example(), True),
     ]
-    test_coop_object_workflows("question", question_examples)
+    coop_object_api_workflows("question", question_examples)
 
 
 @pytest.mark.coop
@@ -62,7 +62,7 @@ def test_coop_client_surveys():
         (Survey.example(), False),
         (Survey.example(), True),
     ]
-    test_coop_object_workflows("survey", survey_examples)
+    coop_object_api_workflows("survey", survey_examples)
 
 
 @pytest.mark.coop
@@ -72,7 +72,7 @@ def test_coop_client_agents():
         (Agent.example(), False),
         (Agent.example(), True),
     ]
-    test_coop_object_workflows("agent", agent_examples)
+    coop_object_api_workflows("agent", agent_examples)
 
 
 @pytest.mark.coop
@@ -82,7 +82,7 @@ def test_coop_client_results():
         (Results.example(), False),
         (Results.example(), True),
     ]
-    test_coop_object_workflows("results", results_examples)
+    coop_object_api_workflows("results", results_examples)
 
 
 @pytest.mark.coop
@@ -92,4 +92,4 @@ def test_coop_client_cache():
         (Cache.example(), False),
         (Cache.example(), True),
     ]
-    test_coop_object_workflows("cache", cache_examples)
+    coop_object_api_workflows("cache", cache_examples)
