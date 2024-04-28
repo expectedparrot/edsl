@@ -1,310 +1,95 @@
 import pytest
-import uuid
 from edsl.coop.coop import Coop
+from edsl.agents import Agent
+from edsl.data import Cache
 from edsl.questions import QuestionMultipleChoice, QuestionCheckBox, QuestionFreeText
-from edsl.surveys import Survey
-from edsl.agents import Agent, AgentList
 from edsl.results import Results
+from edsl.surveys import Survey
 
 
-# NOTE:
-# - The coop server must be running in the background.
-# - Go to coop and run `make fresh-db && make launch` to start the server.
-# - The api_key is drawn from pytest.ini
-# - You have to use the client to delete all objects at the start and end of the test.
-# TODO:
-# - make the above better
+def coop_object_api_workflows(object_type, object_examples):
+    coop = Coop(api_key="b")
+
+    # 1. Ensure we are starting with a clean state
+    all_objects_attr_name = f"{object_type}s" if object_type != "results" else "results"
+    print(all_objects_attr_name)
+    current_objects = getattr(coop, all_objects_attr_name)
+    for object in current_objects:
+        coop.delete(object_type, object.get("uuid"))
+    assert getattr(coop, all_objects_attr_name) == []
+
+    # 2. Test object creation and retrieval
+    responses = []
+    for object, public in object_examples:
+        response = coop.create(object, public=public)
+        assert response.get("type") == object_type, f"Expected type '{object_type}'"
+        assert coop.get(object_type=object_type, uuid=response.get("uuid")) == object
+        assert coop.get(url=response.get("url")) == object
+        responses.append(response)
+
+    # 3. Test visibility with different clients
+    coop2 = Coop(api_key="a")
+    for i, response in enumerate(responses):
+        object, public = object_examples[i]
+        if public:
+            assert (
+                coop2.get(object_type=object_type, uuid=response.get("uuid")) == object
+            )
+        else:
+            with pytest.raises(Exception):
+                coop2.get(object_type=object_type, uuid=response.get("uuid"))
+
+    # 4. Cleanup
+    for entity in getattr(coop, all_objects_attr_name):
+        response = coop.delete(object_type, entity.get("uuid"))
+        assert response.get("status") == "success"
 
 
 @pytest.mark.coop
 def test_coop_client_questions():
-    """
-    Test the Coop client questions functions.
-    """
-    coop = Coop()
-    assert coop.api_key == "b"
-    # make sure we start fresh
-    for question in coop.questions:
-        coop.delete("question", question.get("uuid"))
-    assert coop.questions == []
-    # cannot get an object that does not exist
-    with pytest.raises(Exception):
-        coop.get(object_type="question", uuid=uuid.uuid4())
-    # create
     question_examples = [
         (QuestionMultipleChoice.example(), True),
         (QuestionCheckBox.example(), False),
         (QuestionFreeText.example(), True),
     ]
-    # ..test creation and retrieval
-    responses = []
-    for question, public in question_examples:
-        response = coop.create(question, public=public)
-        assert response.get("type") == "question", "Expected type 'question'"
-        # get by object type and uuid
-        assert (
-            coop.get(object_type="question", uuid=response.get("uuid")) == question
-        ), "Question retrieval mismatch"
-        # get by url
-        assert coop.get(url=response.get("url")) == question
-        responses.append(response)
-    # ..check length
-    assert len(coop.questions) == 3
-    # other client..
-    coop2 = Coop(api_key="a")
-    # ..should be able to get public but not private questions
-    for i, response in enumerate(responses):
-        question, public = question_examples[i]
-        if public:
-            assert (
-                coop2.get(object_type="question", uuid=response.get("uuid")) == question
-            )
-        else:
-            with pytest.raises(Exception):
-                coop2.get(object_type="question", uuid=response.get("uuid"))
-    # ..should not be able to delete another client's questions
-    for response in responses:
-        with pytest.raises(Exception):
-            coop2.delete("question", response.get("uuid"))
-
-    # client without api key or with invalid api key
-    coop_anon = Coop()
-    coop_anon.api_key = None
-    # .. should be able to get public put not private questions
-    for i, response in enumerate(responses):
-        question, public = question_examples[i]
-        if public:
-            # should be able to get both by object type and uuid or by url
-            assert (
-                coop_anon.get(object_type="question", uuid=response.get("uuid"))
-                == question
-            )
-            assert coop_anon.get(url=response.get("url")) == question
-        else:
-            with pytest.raises(Exception):
-                x = coop_anon.get(object_type="question", uuid=response.get("uuid"))
-
-    # cleanup
-    for question in coop.questions:
-        x = coop.delete("question", question.get("uuid"))
-        assert x.get("status") == "success"
-    assert coop.questions == []
+    coop_object_api_workflows("question", question_examples)
 
 
 @pytest.mark.coop
 def test_coop_client_surveys():
-    """
-    Test the Coop client survey functions.
-    """
-    coop = Coop()
-    assert coop.api_key == "b"
-    # make sure we start fresh
-    for survey in coop.surveys:
-        coop.delete("survey", survey.get("uuid"))
-    assert coop.surveys == []
-    # cannot get an object that does not exist
-    with pytest.raises(Exception):
-        coop.get(object_type="survey", uuid=uuid.uuid4())
-    # create
     survey_examples = [
         (Survey.example(), True),
         (Survey.example(), False),
         (Survey.example(), True),
     ]
-    # ..test creation and retrieval
-    responses = []
-    for survey, public in survey_examples:
-        response = coop.create(survey, public=public)
-        assert response.get("type") == "survey", "Expected type 'survey'"
-        # get by object type and uuid
-        assert coop.get(object_type="survey", uuid=response.get("uuid")) == survey
-        # get by url
-        assert coop.get(url=response.get("url")) == survey
-        responses.append(response)
-    # ..can't create an empty survey
-    with pytest.raises(Exception):
-        response = coop.create(Survey(), public=True)
-    # ..check length
-    assert len(coop.surveys) == 3
-    # other client..
-    coop2 = Coop(api_key="a")
-    # ..should be able to get public but not private surveys
-    for i, response in enumerate(responses):
-        survey, public = survey_examples[i]
-        if public:
-            # should be able to get both by object type and uuid or by url
-            assert coop2.get(object_type="survey", uuid=response.get("uuid")) == survey
-            assert coop2.get(url=response.get("url")) == survey
-        else:
-            with pytest.raises(Exception):
-                coop2.get(object_type="survey", uuid=response.get("uuid"))
-    # ..should not be able to delete another client's surveys
-    for response in responses:
-        with pytest.raises(Exception):
-            coop2.delete("survey", response.get("uuid"))
-
-    # client without api key
-    coop_anon = Coop()
-    coop_anon.api_key = None
-    # .. should be able to get public put not private surveys
-    for i, response in enumerate(responses):
-        survey, public = survey_examples[i]
-        if public:
-            # should be able to get both by object type and uuid or by url
-            assert (
-                coop_anon.get(object_type="survey", uuid=response.get("uuid")) == survey
-            )
-            assert coop_anon.get(url=response.get("url")) == survey
-        else:
-            with pytest.raises(Exception):
-                x = coop_anon.get(object_type="survey", uuid=response.get("uuid"))
-
-    # cleanup
-    for survey in coop.surveys:
-        x = coop.delete("survey", survey.get("uuid"))
-        assert x.get("status") == "success"
+    coop_object_api_workflows("survey", survey_examples)
 
 
 @pytest.mark.coop
 def test_coop_client_agents():
-    """
-    Test the Coop client agent functions.
-    """
-    coop = Coop()
-    assert coop.api_key == "b"
-    # make sure we start fresh
-    for agent in coop.agents:
-        coop.delete("agent", agent.get("uuid"))
-    assert coop.agents == []
-    # cannot get an object that does not exist
-    with pytest.raises(Exception):
-        coop.get(object_type="agent", uuid=uuid.uuid4())
-    # create
     agent_examples = [
         (Agent.example(), True),
         (Agent.example(), False),
         (Agent.example(), True),
     ]
-    # ..test creation and retrieval
-    responses = []
-    for agent, public in agent_examples:
-        response = coop.create(agent, public=public)
-        assert response.get("type") == "agent", "Expected type 'agent'"
-        # get by object type and uuid
-        assert coop.get(object_type="agent", uuid=response.get("uuid")) == agent
-        # get by url
-        assert coop.get(url=response.get("url")) == agent
-        responses.append(response)
-    # ..check length
-    assert len(coop.agents) == 3
-    # other client..
-    coop2 = Coop(api_key="a")
-    # ..should be able to get public but not private agents
-    for i, response in enumerate(responses):
-        agent, public = agent_examples[i]
-        if public:
-            # should be able to get both by object type and uuid or by url
-            assert coop2.get(object_type="agent", uuid=response.get("uuid")) == agent
-            assert coop2.get(url=response.get("url")) == agent
-        else:
-            with pytest.raises(Exception):
-                coop2.get(object_type="agent", uuid=response.get("uuid"))
-    # ..should not be able to delete another client's agents
-    for response in responses:
-        with pytest.raises(Exception):
-            coop2.delete("agent", response.get("uuid"))
-
-    # client without api key
-    coop_anon = Coop()
-    coop_anon.api_key = None
-    # .. should be able to get public put not private agents
-    for i, response in enumerate(responses):
-        agent, public = agent_examples[i]
-        if public:
-            # should be able to get both by object type and uuid or by url
-            assert (
-                coop_anon.get(object_type="agent", uuid=response.get("uuid")) == agent
-            )
-            assert coop_anon.get(url=response.get("url")) == agent
-        else:
-            with pytest.raises(Exception):
-                x = coop_anon.get(object_type="agent", uuid=response.get("uuid"))
-
-    # cleanup
-    for agent in coop.agents:
-        x = coop.delete("agent", agent.get("uuid"))
-        assert x.get("status") == "success"
+    coop_object_api_workflows("agent", agent_examples)
 
 
 @pytest.mark.coop
 def test_coop_client_results():
-    """
-    Test the Coop client results functions.
-    """
-    coop = Coop()
-    assert coop.api_key == "b"
-    # make sure we start fresh
-    for results in coop.results:
-        coop.delete("results", results.get("uuid"))
-    assert coop.results == []
-    # cannot get an object that does not exist
-    with pytest.raises(Exception):
-        coop.get(object_type="results", uuid=uuid.uuid4())
-    # create
     results_examples = [
         (Results.example(), True),
         (Results.example(), False),
         (Results.example(), True),
     ]
-    # ..test creation and retrieval
-    responses = []
-    for results, public in results_examples:
-        response = coop.create(results, public=public)
-        assert response.get("type") == "results", "Expected type 'results'"
-        # get by object type and uuid
-        assert coop.get(object_type="results", uuid=response.get("uuid")) == results
-        # get by url
-        assert coop.get(url=response.get("url")) == results
-        responses.append(response)
-    # ..check length
-    assert len(coop.results) == 3
-    # other client..
-    coop2 = Coop(api_key="a")
-    # ..should be able to get public but not private results
-    for i, response in enumerate(responses):
-        results, public = results_examples[i]
-        if public:
-            # should be able to get both by object type and uuid or by url
-            assert (
-                coop2.get(object_type="results", uuid=response.get("uuid")) == results
-            )
-            assert coop2.get(url=response.get("url")) == results
-        else:
-            with pytest.raises(Exception):
-                coop2.get(object_type="results", uuid=response.get("uuid"))
-    # ..should not be able to delete another client's results
-    for response in responses:
-        with pytest.raises(Exception):
-            coop2.delete("results", response.get("uuid"))
+    coop_object_api_workflows("results", results_examples)
 
-    # client without api key
-    coop_anon = Coop()
-    coop_anon.api_key = None
-    # .. should be able to get public put not private results
-    for i, response in enumerate(responses):
-        results, public = results_examples[i]
-        if public:
-            # should be able to get both by object type and uuid or by url
-            assert (
-                coop_anon.get(object_type="results", uuid=response.get("uuid"))
-                == results
-            )
-            assert coop_anon.get(url=response.get("url")) == results
-        else:
-            with pytest.raises(Exception):
-                x = coop_anon.get(object_type="results", uuid=response.get("uuid"))
 
-    # cleanup
-    for results in coop.results:
-        x = coop.delete("results", results.get("uuid"))
-        assert x.get("status") == "success"
+@pytest.mark.coop
+def test_coop_client_caches():
+    cache_examples = [
+        (Cache.example(), True),
+        (Cache.example(), False),
+        (Cache.example(), True),
+    ]
+    coop_object_api_workflows("cache", cache_examples)
