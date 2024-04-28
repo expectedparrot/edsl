@@ -86,7 +86,7 @@ def test_coop_client_results():
 
 
 @pytest.mark.coop
-def test_coop_client_cache():
+def test_coop_client_caches():
     cache_examples = [
         (Cache.example(), True),
         (Cache.example(), False),
