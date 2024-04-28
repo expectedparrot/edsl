@@ -373,7 +373,7 @@ class Coop:
             }
             for r in response.json()
         ]
-        return
+        return results
 
     @property
     def caches(self) -> list[dict[str, Union[int, Cache]]]:
