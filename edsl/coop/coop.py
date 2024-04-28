@@ -10,6 +10,7 @@ import edsl
 from edsl import CONFIG
 from edsl.agents import Agent, AgentList
 from edsl.config import CONFIG
+from edsl.data.Cache import Cache
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.results import Results
 from edsl.surveys import Survey
@@ -150,6 +151,8 @@ class Coop:
             return ("agents", "agent")
         elif issubclass(object_type, Results):
             return ("results", "results")
+        elif issubclass(object_type, Cache):
+            return ("caches", "cache")
         else:
             raise ValueError("Incorrect or not supported object type")
 
@@ -162,6 +165,7 @@ class Coop:
             "survey": ("surveys", Survey),
             "agent": ("agents", Agent),
             "results": ("results", Results),
+            "cache": ("caches", Cache),
         }
 
         if object_type is None:
@@ -183,6 +187,7 @@ class Coop:
             "surveys": ("survey", Survey),
             "agents": ("agent", Agent),
             "results": ("results", Results),
+            "caches": ("cache", Cache),
         }
 
         if uri is None:
@@ -370,6 +375,22 @@ class Coop:
         ]
         return results
 
+    @property
+    def caches(self) -> list[dict[str, Union[int, Cache]]]:
+        """Retrieve all Caches."""
+        response = self._send_server_request(uri="api/v0/caches", method="GET")
+        self._resolve_server_response(response)
+        caches = [
+            {
+                "uuid": c.get("uuid"),
+                "cache": Cache.from_dict(json.loads(c.get("json_string"))),
+                "version": c.get("version"),
+                "url": f"{self.url}/explore/caches/{c['uuid']}",
+            }
+            for c in response.json()
+        ]
+        return caches
+
     # ----------
     # D. DELETE
     # ----------
@@ -389,7 +410,7 @@ class Coop:
         return response.json()
 
     ################
-    # CACHE METHODS
+    # CacheEntry Methods
     ################
     def create_cache_entry(self, cache_entry: CacheEntry) -> dict:
         """
@@ -445,7 +466,7 @@ class Coop:
         return response.json()
 
     ################
-    # ERROR MESSAGE METHODS
+    # Error Message Methods
     ################
     def send_error_message(self, error_data: str) -> dict:
         """
@@ -478,8 +499,12 @@ if __name__ == "__main__":
     coop
 
     ##############
-    # A. QUESTIONS
+    # A. Objects
     ##############
+
+    # ------------
+    # A.1 Questions
+    # ------------
     from edsl.questions import QuestionMultipleChoice
     from edsl.questions import QuestionCheckBox
     from edsl.questions import QuestionFreeText
@@ -506,9 +531,9 @@ if __name__ == "__main__":
     # check all questions - there must be two left
     coop.questions
 
-    ##############
-    # B. Surveys
-    ##############
+    # ------------
+    # A.2 Surveys
+    # ------------
     from edsl.surveys import Survey
 
     # check surveys on server (should be an empty list)
@@ -532,14 +557,16 @@ if __name__ == "__main__":
     coop.surveys
     # or get survey by uuid
     coop.get(object_type="survey", uuid=response.get("uuid"))
+    # or by its url
+    coop.get(url=response.get("url"))
     # delete the survey
     coop.delete(object_type="survey", uuid=response.get("uuid"))
     # check all surveys - there must be two left
     coop.surveys
 
-    ##############
-    # C. Agents and AgentLists
-    ##############
+    # ------------
+    # A.3 Agents
+    # ------------
     from edsl.agents import Agent, AgentList
 
     # check agents on server (should be an empty list)
@@ -563,14 +590,16 @@ if __name__ == "__main__":
     coop.agents
     # or get agent by uuid
     coop.get(object_type="agent", uuid=response.get("uuid"))
+    # or by its url
+    coop.get(url=response.get("url"))
     # delete the agent
     coop.delete(object_type="agent", uuid=response.get("uuid"))
     # check all agents
     coop.agents
 
-    ##############
-    # D. Results
-    ##############
+    # ------------
+    # A.4 Results
+    # ------------
     from edsl.results import Results
 
     # check results on server (should be an empty list)
@@ -588,35 +617,64 @@ if __name__ == "__main__":
     coop.results
     # or get results by uuid
     coop.get(object_type="results", uuid=response.get("uuid"))
+    # or by its url
+    coop.get(url=response.get("url"))
     # delete the results
     coop.delete(object_type="results", uuid=response.get("uuid"))
     # check all results
     coop.results
 
-    ##############
-    # E. CACHE
-    ##############
-    from edsl.data.CacheEntry import CacheEntry
+    # ------------
+    # A.5 Caches
+    # ------------
+    from edsl.data import Cache
 
-    # should be empty in the beginning
-    coop.get_cache_entries()
-    # now create one cache entry
-    cache_entry = CacheEntry.example()
-    coop.create_cache_entry(cache_entry)
-    # see that if you try to create it again, you'll get the same id
-    coop.create_cache_entry(cache_entry)
-    # now get all your cache entries
-    coop.get_cache_entries()
-    coop.get_cache_entries(exclude_keys=[])
-    coop.get_cache_entries(exclude_keys=["a"])
-    # this will be empty
-    coop.get_cache_entries(exclude_keys=[cache_entry.key])
-    # now send many cache entries
-    cache_entries = {}
-    for i in range(10):
-        cache_entry = CacheEntry.example(randomize=True)
-        cache_entries[cache_entry.key] = cache_entry
-    coop.send_cache_entries(cache_entries)
+    # check caches on server (should be an empty list)
+    coop.caches
+    for cache in coop.caches:
+        coop.delete(object_type="cache", uuid=cache.get("uuid"))
+    # try to get a cache that does not exist - should get an error
+    coop.get(object_type="cache", uuid=uuid.uuid4())
+    coop.get(object_type="cache", uuid=str(uuid.uuid4()))
+    # now post some Caches
+    response = coop.create(Cache.example())
+    coop.create(Cache.example(), public=False)
+    coop.create(Cache.example(), public=True)
+    # check all caches - there must be a few
+    coop.caches
+    # or get cache by uuid
+    coop.get(object_type="cache", uuid=response.get("uuid"))
+    # or by its url
+    coop.get(url=response.get("url"))
+    # delete the cache
+    coop.delete(object_type="cache", uuid=response.get("uuid"))
+    # check all caches
+    coop.caches
+
+    # ##############
+    # # E. CacheEntries
+    # ##############
+    # from edsl.data.CacheEntry import CacheEntry
+
+    # # should be empty in the beginning
+    # coop.get_cache_entries()
+    # # now create one cache entry
+    # cache_entry = CacheEntry.example()
+    # coop.create_cache_entry(cache_entry)
+    # # see that if you try to create it again, you'll get the same id
+    # coop.create_cache_entry(cache_entry)
+    # # now get all your cache entries
+    # coop.get_cache_entries()
+    # coop.get_cache_entries(exclude_keys=[])
+    # coop.get_cache_entries(exclude_keys=["a"])
+    # # this will be empty
+    # coop.get_cache_entries(exclude_keys=[cache_entry.key])
+    # # now send many cache entries
+    # cache_entries = {}
+    # for i in range(10):
+    #     cache_entry = CacheEntry.example(randomize=True)
+    #     cache_entries[cache_entry.key] = cache_entry
+    # coop.send_cache_entries(cache_entries)
 
     ##############
     # E. ERROR MESSAGE
