@@ -231,6 +231,26 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         self.add_rule(question, expression, EndOfSurvey)
         return self
 
+    def add_skip_rule(
+        self, question: Union[QuestionBase, str], expression: str
+    ) -> Survey:
+        """
+        The standard 'add_rule' is evaluated when we reach a question and we have the answer.    
+        If the rule is true, we go to the question specicfied.
+        """
+        question_index = self._get_question_index(question)
+        prior_question_index = question_index - 1
+        if prior_question_index < 0:
+            raise ValueError(
+                f"Cannot skip to a question before the first question in the survey."
+            )
+        prior_question = self._questions[prior_question_index]
+        skipped_to_question = self._questions[question_index + 1]
+        self.add_rule(prior_question, expression, skipped_to_question)
+        return self
+        #self.add_rule(question, expression, EndOfSurvey)
+        #return self
+
     def _get_question_index(
         self, q: Union[QuestionBase, str, EndOfSurvey.__class__]
     ) -> int:
