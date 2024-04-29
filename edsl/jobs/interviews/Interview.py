@@ -175,7 +175,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
 
 if __name__ == "__main__":
     """Test the Interview class."""
-    from edsl.language_models import LanguageModelOpenAIThreeFiveTurbo
+    from edsl import Model
     from edsl.agents import Agent
     from edsl.surveys import Survey
     from edsl.scenarios import Scenario
@@ -212,7 +212,7 @@ if __name__ == "__main__":
 
     a.add_direct_question_answering_method(direct_question_answering_method)
     scenario = Scenario()
-    m = LanguageModelOpenAIThreeFiveTurbo()
+    m = Model() 
     I = Interview(agent=a, survey=s, scenario=scenario, model=m)
 
     result = asyncio.run(I.async_conduct_interview())
