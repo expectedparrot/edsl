@@ -212,7 +212,7 @@ if __name__ == "__main__":
 
     a.add_direct_question_answering_method(direct_question_answering_method)
     scenario = Scenario()
-    m = Model() 
+    m = Model()
     I = Interview(agent=a, survey=s, scenario=scenario, model=m)
 
     result = asyncio.run(I.async_conduct_interview())
