@@ -120,7 +120,7 @@ There is one for each question. The key is the question_name + `_raw_response_mo
 ### Removed
 
 
-## [0.1.16] - TBD
+## [0.1.16] - 2024-04-11
 
 ### Added
 - <b>New documentation:</b> https://docs.expectedparrot.com
@@ -221,3 +221,10 @@ For more details see new documentation on <a href="https://docs.expectedparrot.c
 - `.run(n = ...)` now works and will run your survey with fresh results the specified number of times.
 
 
+## [0.1.16] - 2024-04-29
+
+### Added
+- <b>New models:</b> Run `Model.available()` to see a complete current list.
+
+### Fixed
+- A bug in json repair methods.
