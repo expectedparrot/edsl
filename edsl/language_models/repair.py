@@ -3,9 +3,9 @@ import asyncio
 
 
 async def async_repair(bad_json, error_message=""):
-    from edsl.language_models import LanguageModelOpenAIFour
+    from edsl import Model
 
-    m = LanguageModelOpenAIFour()
+    m = Model()
 
     prompt = f"""This is the output from a less capable language model.  
     It was supposed to respond with just a JSON object with an answer to a question and some commentary, 

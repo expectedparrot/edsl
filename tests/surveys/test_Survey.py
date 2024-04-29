@@ -36,6 +36,18 @@ class TestSurvey(unittest.TestCase):
         s.add_rule(q1, "like_school == 'no'", q3)
         self.assertEqual(q3, s.next_question("like_school", {"like_school": "no"}))
 
+    def test_skip_question(self):
+        s = self.gen_survey()
+        q1, q2, q3 = s._questions
+        s = s.add_skip_rule(q2, "True")
+        self.assertEqual(q3, s.next_question("like_school", {"like_school": "no"}))
+        s = self.gen_survey()
+        with self.assertRaises(ValueError):
+            # can't skip the first question in the survey
+            s.add_skip_rule(q1, "True")
+
+
+
     def test_add_memory(self):
         survey = self.gen_survey()
         # breakpoint()
