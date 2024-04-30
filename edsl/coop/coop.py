@@ -412,19 +412,42 @@ class Coop:
     ################
     # CacheEntry Methods
     ################
-    def create_cache_entry(self, cache_entry: CacheEntry) -> dict:
+    def create_cache_entry(self, cache_entry: CacheEntry, public: bool = False) -> dict:
         """
         Create a CacheEntry object.
         """
         response = self._send_server_request(
-            uri="api/v0/cache/create-cache-entry",
+            uri="api/v0/cache-entries",
             method="POST",
             payload={
+                "public": public,
+                "version": self._get_edsl_version(),
                 "json_string": json.dumps(
                     {"key": cache_entry.key, "value": json.dumps(cache_entry.to_dict())}
-                )
+                ),
             },
         )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def create_cache_entries(
+        self, cache_entries: dict[str, CacheEntry], public: bool = False
+    ) -> None:
+        """
+        Send a dictionary of CacheEntry objects to the server.
+        """
+        response = self._send_server_request(
+            uri="api/v0/cache-entries/many",
+            method="POST",
+            payload={
+                "public": public,
+                "version": self._get_edsl_version(),
+                "json_string": json.dumps(
+                    {k: json.dumps(v.to_dict()) for k, v in cache_entries.items()}
+                ),
+            },
+        )
+        # print(response.json())
         self._resolve_server_response(response)
         return response.json()
 
@@ -439,31 +462,15 @@ class Coop:
         if exclude_keys is None:
             exclude_keys = []
         response = self._send_server_request(
-            uri="api/v0/cache/get-cache-entries",
+            uri="api/v0/cache-entries/get-many",
             method="POST",
-            payload={"json_string": json.dumps(exclude_keys)},
+            payload={"keys": exclude_keys},
         )
         self._resolve_server_response(response)
         return [
             CacheEntry.from_dict(json.loads(v.get("json_string")))
             for v in response.json()
         ]
-
-    def send_cache_entries(self, cache_entries: dict[str, CacheEntry]) -> None:
-        """
-        Send a dictionary of CacheEntry objects to the server.
-        """
-        response = self._send_server_request(
-            uri="api/v0/cache/create-cache-entries",
-            method="POST",
-            payload={
-                "json_string": json.dumps(
-                    {k: json.dumps(v.to_dict()) for k, v in cache_entries.items()}
-                )
-            },
-        )
-        self._resolve_server_response(response)
-        return response.json()
 
     ################
     # Error Message Methods
@@ -651,30 +658,30 @@ if __name__ == "__main__":
     # check all caches
     coop.caches
 
-    # ##############
-    # # E. CacheEntries
-    # ##############
-    # from edsl.data.CacheEntry import CacheEntry
+    ##############
+    # B. CacheEntries
+    ##############
+    from edsl.data.CacheEntry import CacheEntry
 
-    # # should be empty in the beginning
-    # coop.get_cache_entries()
-    # # now create one cache entry
-    # cache_entry = CacheEntry.example()
-    # coop.create_cache_entry(cache_entry)
-    # # see that if you try to create it again, you'll get the same id
-    # coop.create_cache_entry(cache_entry)
-    # # now get all your cache entries
-    # coop.get_cache_entries()
-    # coop.get_cache_entries(exclude_keys=[])
-    # coop.get_cache_entries(exclude_keys=["a"])
-    # # this will be empty
-    # coop.get_cache_entries(exclude_keys=[cache_entry.key])
-    # # now send many cache entries
-    # cache_entries = {}
-    # for i in range(10):
-    #     cache_entry = CacheEntry.example(randomize=True)
-    #     cache_entries[cache_entry.key] = cache_entry
-    # coop.send_cache_entries(cache_entries)
+    # should be empty in the beginning
+    coop.get_cache_entries()
+    # now create one cache entry
+    cache_entry = CacheEntry.example()
+    coop.create_cache_entry(cache_entry)
+    # see that if you try to create it again, you'll get the same uuid
+    coop.create_cache_entry(cache_entry)
+    # now get all your cache entries
+    coop.get_cache_entries()
+    coop.get_cache_entries(exclude_keys=[])
+    coop.get_cache_entries(exclude_keys=["a"])
+    # this will be empty
+    coop.get_cache_entries(exclude_keys=[cache_entry.key])
+    # now send many cache entries
+    cache_entries = {}
+    for i in range(10):
+        cache_entry = CacheEntry.example(randomize=True)
+        cache_entries[cache_entry.key] = cache_entry
+    coop.create_cache_entries(cache_entries)
 
     ##############
     # E. ERROR MESSAGE
