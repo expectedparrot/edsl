@@ -77,11 +77,11 @@ A current list is also viewable at :py:class:`edsl.enums.LanguageModelType`.
 
 Check models 
 ------------
-We can check the models that for which we have already properly stored API keys by calling the `show_available()` method:
+We can check the models that for which we have already properly stored API keys by calling the `check_models()` method:
 
 .. code-block:: python
 
-   Model.show_available()
+   Model.check_models()
 
 This will return a list of the available models and a confirmation message whether a valid key exists.
 

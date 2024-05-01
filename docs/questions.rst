@@ -257,7 +257,7 @@ We can also check the models for which we have already added API keys:
 
 .. code-block:: python 
 
-   Model.show_available()
+   Model.check_models()
 
 (See instructions on storing :ref:`api_keys` for the models that you want to use in your `.env` file.)
 
