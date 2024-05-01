@@ -293,7 +293,7 @@ class Cache(Base):
         for key, entry in self.new_entries_to_write_later.items():
             self.data[key] = entry
         if self.remote:
-            _ = self.coop.send_cache_entries(cache_dict=self.new_entries)
+            _ = self.coop.create_cache_entries(cache_dict=self.new_entries)
 
     ####################
     # DUNDER / USEFUL
