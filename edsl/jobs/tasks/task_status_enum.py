@@ -3,7 +3,7 @@ from collections import UserDict
 import enum
 import time
 
-from edsl.jobs.tasks.TaskStatusLogEntry import TaskStatusLogEntry
+# from edsl.jobs.tasks.TaskStatusLogEntry import TaskStatusLogEntry
 
 
 class TaskStatus(enum.Enum):
@@ -17,6 +17,12 @@ class TaskStatus(enum.Enum):
     API_CALL_IN_PROGRESS = enum.auto()
     SUCCESS = enum.auto()
     FAILED = enum.auto()
+
+
+class TaskStatusLogEntry(UserDict):
+    def __init__(self, log_time, value):
+        self.data = {"log_time": log_time, "value": value}
+        super().__init__(self.data)
 
 
 class TaskStatusDescriptor:
