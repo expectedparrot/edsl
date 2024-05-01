@@ -34,21 +34,23 @@ The formats are defined in the `questions` module. Here we define some questions
 
 .. code-block:: python
 
-   from edsl.questions import QuestionMultipleChoice, 
-   QuestionNumerical, QuestionFreeText
+   from edsl.questions import QuestionYesNo, QuestionFreeText
 
-   q1 = QuestionMultipleChoice(
-      question_name = "student",
-      question_text = "Are you a student?",
-      question_options = ["yes", "no"]
+   q1 = QuestionYesNo(
+      question_name = "high_school_student",
+      question_text = "Are you a high school student?"
    )
    q2 = QuestionNumerical(
-      question_name = "years",
-      question_text = "How many years have you been in school?"
+      question_name = "age",
+      question_text = "How old are you?"
    )
    q3 = QuestionFreeText(
-      question_name = "weekends",
-      question_text = "What do you do on weekends?"
+      question_name = "favorite_class",
+      question_text = "What is your favorite class?"
+   )
+   q4 = QuestionFreeText(
+      question_name = "favorite_sport",
+      question_text = "What is your favorite sport?"
    )
 
 Adding questions to a survey
@@ -59,13 +61,13 @@ Questions are passed to a `Survey` object as a list of question ids:
 
    from edsl.surveys import Survey
 
-   survey = Survey(questions = [q1, q2, q3])
+   survey = Survey(questions = [q1, q2, q3, q4])
 
 Alternatively, questions can be added to a survey one at a time:
 
 .. code-block:: python
 
-   survey = Survey().add_question(q1).add_question(q2)
+   survey = Survey().add_question(q1).add_question(q2).add_question(q3).add_question(q4)
     
 Applying survey rules
 ^^^^^^^^^^^^^^^^^^^^^
@@ -73,22 +75,68 @@ Rules are applied to a survey with the `add_rule` and `add_stop_rule` methods, w
 For example, the following rule specifies that if the response to q1 is "no" then the next question is q3 (a skip rule):
 
 .. code-block:: python
-    
-   survey = survey.add_rule(q1, "student == 'no'", q3)
+   
+   survey = Survey(questions = [q1, q2, q3, q4])
+   survey = survey.add_rule(q1, "high_school_student == 'No'", q4)
 
-Here we apply a stop rule instead of a skip rule. If the response to q1 is "no", the survey will end after q1 is answered:
+
+We can run the survey and verify that the rule was applied:
+
+.. code-block:: python
+    
+   results = survey.run()
+   # results.select("answer.*").print(format="rich") # We can select all the answers or specific ones:
+   results.select("high_school_student", "age", "favorite_class", "favorite_sport").print(format="rich")
+
+
+This will print a table of the answers and we can see that q2 was skipped because the answer to q1 was "No":
+
+.. code-block:: text
+    
+   ┏━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+   ┃ answer               ┃ answer ┃ answer          ┃ answer                                                        ┃
+   ┃ .high_school_student ┃ .age   ┃ .favorite_class ┃ .favorite_sport                                               ┃
+   ┡━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+   │ No                   │ None   │ None            │ My favorite sport is basketball. I love the fast-paced action │
+   │                      │        │                 │ and the skill involved in shooting and teamwork.              │
+   └──────────────────────┴────────┴─────────────────┴───────────────────────────────────────────────────────────────┘
+
+
+Here we apply a stop rule instead of a skip rule. If the response to q1 is "No", the survey will end after q1 is answered:
 
 .. code-block:: python
 
-   survey = survey.add_stop_rule(q1, "student == 'no'")
+   survey = Survey(questions = [q1, q2, q3, q4])
+
+   survey = survey.add_stop_rule(q1, "high_school_student == 'No'")
+
+
+This time when we print the results we see that the survey ended after q1 was answered "No":
+
+.. code-block:: python
+    
+   results = survey.run()
+   results.select("high_school_student", "age", "favorite_class", "favorite_sport").print(format="rich")
+
+.. code-block:: python
+    
+   ┏━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┓
+   ┃ answer               ┃ answer ┃ answer          ┃ answer          ┃
+   ┃ .high_school_student ┃ .age   ┃ .favorite_class ┃ .favorite_sport ┃
+   ┡━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━┩
+   │ No                   │ None   │ None            │ None            │
+   └──────────────────────┴────────┴─────────────────┴─────────────────┘
+
+
 
 Conditional expressions
 ^^^^^^^^^^^^^^^^^^^^^^^
-The expressions themselves (`"student == 'no'"`) are written in Python.
+The expressions themselves (`"student == 'No'"`) are written in Python.
 An expression is evaluated to True or False, with the answer substituted into the expression. 
 The placeholder for this answer is the name of the question itself. 
-In the examples, the answer to q1 is substituted into the expression `"student == 'no'"`, 
+In the examples, the answer to q1 is substituted into the expression `"student == 'No'"`, 
 as the name of q1 is "student".
+
 
 Memory
 ^^^^^^
@@ -100,7 +148,8 @@ The agent is given all of the answers to the questions in the survey.
 
 .. code-block:: python
 
-   s.set_full_memory_mode()
+   survey = Survey(questions = [q1, q2, q3, q4])
+   survey.set_full_memory_mode()
 
 Note that this is slow and token-intensive, as the questions must be answered serially and requires the agent to remember all of the answers to the questions in the survey.
 In contrast, if the agent does not need to remember all of the answers to the questions in the survey, execution can proceed in parallel.
@@ -111,7 +160,8 @@ In this example, the agent is given the answers to the 2 previous questions in t
 
 .. code-block:: python
 
-   s.set_lagged_memory(2)
+   survey = Survey(questions = [q1, q2, q3, q4])
+   survey.set_lagged_memory(2)
 
 **Targeted memory:**
 The agent is given the answers to specific targeted prior questions.
@@ -119,21 +169,24 @@ In this example, the agent is given the answer to q1 when prompted to to answer 
 
 .. code-block:: python
 
-   survey.add_targeted_memory(q2, q1)
+   survey = Survey(questions = [q1, q2, q3, q4])
+   survey.add_targeted_memory(q4, q1)
 
 We can also use question names instead of question ids. The following example is equivalent to the previous one:
 
 .. code-block:: python
 
-   survey.add_targeted_memory("years", "student")
+   survey = Survey(questions = [q1, q2, q3, q4])
+   survey.add_targeted_memory("favorite_sport", "high_school_student")
 
 This method can be applied multiple times to add prior answers to a given question.
 For example, we can add answers to both q1 and q2 when answering q3:
 
 .. code-block:: python
 
-   survey.add_memory_collection(q3, q1)
-   survey.add_memory_collection(q3, q2)
+   survey = Survey(questions = [q1, q2, q3, q4])
+   survey.add_memory_collection(q4, q1)
+   survey.add_memory_collection(q4, q2)
 
     
 Running a survey
