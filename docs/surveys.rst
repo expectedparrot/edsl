@@ -34,17 +34,15 @@ The formats are defined in the `questions` module. Here we define some questions
 
 .. code-block:: python
 
-   from edsl.questions import QuestionMultipleChoice, 
-   QuestionNumerical, QuestionFreeText
+   from edsl.questions import QuestionYesNo, QuestionNumerical, QuestionFreeText
 
-   q1 = QuestionMultipleChoice(
+   q1 = QuestionYesNo(
       question_name = "student",
-      question_text = "Are you a student?",
-      question_options = ["yes", "no"]
+      question_text = "Are you a high school student?"
    )
    q2 = QuestionNumerical(
-      question_name = "years",
-      question_text = "How many years have you been in school?"
+      question_name = "grade",
+      question_text = "What grade are you in?"
    )
    q3 = QuestionFreeText(
       question_name = "weekends",
@@ -65,7 +63,7 @@ Alternatively, questions can be added to a survey one at a time:
 
 .. code-block:: python
 
-   survey = Survey().add_question(q1).add_question(q2)
+   survey = Survey().add_question(q1).add_question(q2).add_question(q3)
     
 Applying survey rules
 ^^^^^^^^^^^^^^^^^^^^^
@@ -74,21 +72,66 @@ For example, the following rule specifies that if the response to q1 is "no" the
 
 .. code-block:: python
     
-   survey = survey.add_rule(q1, "student == 'no'", q3)
+   survey = survey.add_rule(q1, "student == 'No'", q3)
 
-Here we apply a stop rule instead of a skip rule. If the response to q1 is "no", the survey will end after q1 is answered:
+
+We can run the survey and verify that the rule was applied:
+
+.. code-block:: python
+    
+   results = survey.run()
+   results.select("student", "grade", "weekends").print(format="rich")
+
+
+This will print a table of the answers and we can see that q2 was skipped because the answer to q1 was "No":
+
+.. code-block:: text
+    
+   ┏━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+   ┃ answer   ┃ answer ┃ answer                                                                                      ┃
+   ┃ .student ┃ .grade ┃ .weekends                                                                                   ┃
+   ┡━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+   │ No       │ None   │ On weekends, I enjoy a mix of relaxation and activities. I might catch up on reading, spend │
+   │          │        │ time with friends and family, go for a hike, or explore a new hobby. It's also a good time  │
+   │          │        │ to unwind and recharge for the upcoming week.                                               │
+   └──────────┴────────┴─────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+Here we apply a stop rule instead of a skip rule. If the response to q1 is "No", the survey will end after q1 is answered:
 
 .. code-block:: python
 
-   survey = survey.add_stop_rule(q1, "student == 'no'")
+   survey = Survey(questions = [q1, q2, q3])
+
+   survey = survey.add_stop_rule(q1, "student == 'No'")
+
+
+This time when we print the results we see that the survey ended after q1 was answered "No":
+
+.. code-block:: python
+    
+   results = survey.run()
+   results.select("student", "grade", "weekends").print(format="rich")
+
+.. code-block:: python
+    
+   ┏━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━┓
+   ┃ answer   ┃ answer ┃ answer    ┃
+   ┃ .student ┃ .grade ┃ .weekends ┃
+   ┡━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━┩
+   │ No       │ None   │ None      │
+   └──────────┴────────┴───────────┘
+
+
 
 Conditional expressions
 ^^^^^^^^^^^^^^^^^^^^^^^
-The expressions themselves (`"student == 'no'"`) are written in Python.
+The expressions themselves (`"student == 'No'"`) are written in Python.
 An expression is evaluated to True or False, with the answer substituted into the expression. 
 The placeholder for this answer is the name of the question itself. 
-In the examples, the answer to q1 is substituted into the expression `"student == 'no'"`, 
+In the examples, the answer to q1 is substituted into the expression `"student == 'No'"`, 
 as the name of q1 is "student".
+
 
 Memory
 ^^^^^^
