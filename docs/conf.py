@@ -1,13 +1,12 @@
 # Configuration file for the Sphinx documentation builder.
-#
-# For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
+
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
+import glob
 import os
 import sys
-
 import sphinx
 import sphinx_rtd_theme
 import inspect
@@ -17,17 +16,10 @@ project = "edsl"
 copyright = "2024 Expected Parrot, Inc"
 author = "Expected Parrot, Inc."
 
-print("Current working directory:")
-print(os.getcwd())
-
-print("System path:")
-print(sys.path)
-
-
+print(f"Current working directory: {os.getcwd()}")
+print(f"System path: {sys.path}")
 sys.path.insert(0, os.path.abspath("../"))
-print("System path after insert:")
-print(sys.path)
-
+print(f"System path after insert: {sys.path}")
 
 username = "expectedparrot"
 projectname = "edsl"
@@ -51,51 +43,36 @@ def print_directory_tree(startpath):
         for f in files:
             print(f"{subindent}{f}")
 
-def setup(app):
-    app.add_css_file("https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css")
-
 
 # Example usage:
-print_directory_tree(os.getcwd())
+# print_directory_tree(os.getcwd())
+
+
+def setup(app):
+    app.add_css_file(
+        "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+    )
+
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
-
-# extensions = []
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx_copybutton",
     "sphinx.ext.linkcode",
     "nbsphinx",
     "sphinx_fontawesome",
-    "myst_parser" # for markdown support
+    "myst_parser",
 ]
-
 nbsphinx_notebooks = ["../examples/*.ipynb"]
-import glob
-
 nbsphinx_notebooks = glob.glob("notebooks/*.ipynb")
-
-# templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
-
-html_theme = "sphinx_rtd_theme"  # "alabaster"
-# html_static_path = ["_static"]
-# html_theme_path = [sphinx_rtd_theme.get_html_theme_path()] # not needed, causes issue with search bar
-
-html_theme_options = {
-    # "fixed_sidebar": True,
-    "display_version": False
-}
-
-html_show_sphinx = False 
-
+html_theme = "sphinx_rtd_theme"
+html_theme_options = {"display_version": False}
+html_show_sphinx = False
 html_show_sourcelink = False
-
 html_logo = "static/logo.png"
-
 html_favicon = "static/favicon.ico"
-
