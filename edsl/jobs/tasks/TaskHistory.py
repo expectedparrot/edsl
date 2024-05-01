@@ -52,6 +52,11 @@ class TaskHistory:
                 updates.append(logs)
         return updates
 
+    def print(self):
+        from rich import print
+
+        print(self.get_updates())
+
     def plot_completion_times(self):
         """Plot the completion times for each task."""
         updates = self.get_updates()
