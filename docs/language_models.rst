@@ -81,7 +81,7 @@ We can check the models that for which we have already properly stored API keys 
 
 .. code-block:: python
 
-   Mode.show_available()
+   Model.show_available()
 
 This will return a list of the available models and a confirmation message whether a valid key exists.
 
