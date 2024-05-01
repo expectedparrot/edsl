@@ -67,7 +67,8 @@ extensions = [
     "sphinx_copybutton",
     "sphinx.ext.linkcode",
     "nbsphinx",
-    "sphinx_fontawesome"
+    "sphinx_fontawesome",
+    "myst_parser" # for markdown support
 ]
 
 nbsphinx_notebooks = ["../examples/*.ipynb"]
@@ -97,5 +98,4 @@ html_show_sourcelink = False
 html_logo = "static/logo.png"
 
 html_favicon = "static/favicon.ico"
-
 
