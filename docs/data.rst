@@ -8,6 +8,8 @@ The `Cache` class is used to store responses from a language model.
 
    <i>What is a cache?</i> (<a href="https://en.wikipedia.org/wiki/Cache_(computing)" target="_blank">Wikipedia</a>)
 
+
+
 Why caching?
 ^^^^^^^^^^^^
 Language model outputs are expensive to create, both in terms of time and money. 
