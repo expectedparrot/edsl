@@ -152,16 +152,18 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         return self
 
-    def set_full_memory_mode(self) -> None:
+    def set_full_memory_mode(self) -> Survey:
         """Add instructions to a survey that the agent should remember all of the answers to the questions in the survey."""
         self._set_memory_plan(lambda i: self.question_names[:i])
+        return self
 
-    def set_lagged_memory(self, lags: int):
+    def set_lagged_memory(self, lags: int) -> Survey:
         """Add instructions to a survey that the agent should remember the answers to the questions in the survey.
 
         The agent should remember the answers to the questions in the survey from the previous lags.
         """
         self._set_memory_plan(lambda i: self.question_names[max(0, i - lags) : i])
+        return self
 
     def _set_memory_plan(self, prior_questions_func):
         """Set memory plan based on a provided function determining prior questions."""
@@ -198,7 +200,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         self,
         focal_question: Union[QuestionBase, str],
         prior_questions: List[Union[QuestionBase, str]],
-    ):
+    ) -> Survey:
         """Add prior questions and responses so the agent has them when answering.
 
         This adds instructions to a survey than when answering focal_question, the agent should also remember the answers to prior_questions listed in prior_questions.
@@ -223,6 +225,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         self.memory_plan.add_memory_collection(
             focal_question=focal_question_name, prior_questions=prior_question_names
         )
+        return self
 
     def add_stop_rule(
         self, question: Union[QuestionBase, str], expression: str
