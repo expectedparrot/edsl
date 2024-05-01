@@ -15,20 +15,21 @@ You can also view the contents of this tutorial in an `interactive notebook <htt
 
 Conducting an AI-powered survey
 -------------------------------
-In the steps below we show how to create and run a simple survey in EDSL, and then explore a more complex survey design with AI agents and various models.
+In the steps below we show how to create and run a simple survey in EDSL. 
+Then we show how to create a more complex survey design with AI agents and different language models.
 The steps are as follows:
 
 1. **Run a simple survey**:
     - Import a question type.
     - Construct a question in the question type template.
-    - Prompt the default language model to answer the question.
+    - Run the question using the default language model.
     - Inspect the results.
 
 2. **Design a survey with agents and models**:
     - Import question types and survey components.
-    - Construct questions in the relevant templates.
-    - Use parameters to create different versions of the questions.
-    - Combine the questions in a survey.
+    - Construct a variety of questions in the relevant templates.
+    - Use parameters to create versions of the questions with different inputs.
+    - Combine questions in a survey.
     - Create personas for AI agents that will answer the questions.
     - Select language models.
     - Run the survey with the agents and models.
@@ -71,7 +72,9 @@ Output:
 
 
 Note: The default language model is currently GPT 4; you will need an API key for OpenAI to use this model and run this example.
-In the example below we will show how to use different models to generate responses.
+(See instructions on storing your :ref:`api_keys`.)
+
+In the next example we show how to use different models to generate responses.
 
 
 A Survey with Agents and Models
