@@ -99,11 +99,15 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         self.sidecar_model = sidecar_model
         # if no model bucket is passed, create an 'infinity' bucket with no rate limits
         model_buckets = model_buckets or ModelBuckets.infinity_bucket()
-        # build the tasks using the InterviewTaskBuildingMixin
+
+        ## build the tasks using the InterviewTaskBuildingMixin
+        ## This is the key part---it creates a task for each question,
+        ## with dependencies on the questions that must be answered before this one can be answered.
         self.tasks = self._build_question_tasks(
             debug=debug, model_buckets=model_buckets
         )
-        # 'Invigilators' are used to administer the survey
+
+        ## 'Invigilators' are used to administer the survey
         self.invigilators = list(self._build_invigilators(debug=debug))
         # await the tasks being conducted
         await asyncio.gather(*self.tasks, return_exceptions=not stop_on_exception)
@@ -112,7 +116,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         return self.answers, valid_results
 
     def _extract_valid_results(
-        self, print_traceback=False
+        self, print_traceback: bool = False
     ) -> Generator["Answers", None, None]:
         """Extract the valid results from the list of results.
 
@@ -150,12 +154,12 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
                         time=time.time(),
                         traceback=traceback.format_exc(),
                     )
-                    self.exceptions.add(task.edsl_name, exception_entry)
+                    self.exceptions.add(task.get_name(), exception_entry)
                     # if not warning_printed:
                     #     warning_printed = True
                     #     print(warning_header)
 
-                    error_message = f"Task `{task.edsl_name}` failed with `{e.__class__.__name__}`:`{e}`."
+                    error_message = f"Task `{task.get_name()}` failed with `{e.__class__.__name__}`:`{e}`."
                     # print(error_message)
                     # if print_traceback:
                     #    traceback.print_exc()
