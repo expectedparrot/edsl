@@ -1,8 +1,10 @@
-from edsl.language_models import LanguageModelOpenAIFour
+#from edsl.language_models import LanguageModelOpenAIFour
 from edsl.questions import QuestionMultipleChoice, QuestionList
 from edsl.surveys import Survey
+from edsl import Model
 
-m = LanguageModelOpenAIFour()
+#m = LanguageModelOpenAIFour()
+m = Model()
 
 q1 = QuestionList(
     question_text="Please return a list of 10 fast food restaurants",
