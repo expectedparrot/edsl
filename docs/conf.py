@@ -86,7 +86,7 @@ html_theme = "sphinx_rtd_theme"  # "alabaster"
 # html_theme_path = [sphinx_rtd_theme.get_html_theme_path()] # not needed, causes issue with search bar
 
 html_theme_options = {
-    "fixed_sidebar": True,
+    # "fixed_sidebar": True,
     "display_version": False
 }
 
