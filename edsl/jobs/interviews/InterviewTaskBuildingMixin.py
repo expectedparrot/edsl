@@ -202,13 +202,8 @@ class InterviewTaskBuildingMixin:
         def cancel_between(start, end):
             """Cancel the tasks between the start and end indices."""
             for i in range(start, end):
-                # print(self.tasks)
-                # print("Now cancelling task", i, "-", self.tasks[i].get_name())
                 task_to_cancel = self.tasks[i]
-                # breakpoint()
-                # print(f"Name of task to cancel: {task_to_cancel.get_name()}")
                 task_to_cancel.cancel()
-                # print(self.tasks)
 
         if next_question_index == EndOfSurvey:
             cancel_between(current_question_index + 1, len(self.survey.questions))
