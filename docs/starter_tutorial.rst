@@ -9,7 +9,7 @@ Prerequisites
 -------------
 Before you begin, ensure that you have already completed the :ref:`installation` steps and stored your :ref:`api_keys` for the language models that you plan to use.
 
-If you encounter any issues or have questions, please email us at info@expectedparrot.com or send post a question at our `Discord channel <https://discord.com/invite/mxAYkjfy9m>`_.
+If you encounter any issues or have questions, please email us at info@expectedparrot.com or post a question at our `Discord channel <https://discord.com/invite/mxAYkjfy9m>`_.
 You can also view the contents of this tutorial in an `interactive notebook <https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Tutorial%20-%20Starter%20Tutorial-e080f5883d764931960d3920782baf34>`_.
 
 
