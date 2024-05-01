@@ -8,6 +8,8 @@ The `Cache` class is used to store responses from a language model.
 
    <i>What is a cache?</i> (<a href="https://en.wikipedia.org/wiki/Cache_(computing)" target="_blank">Wikipedia</a>)
 
+
+
 Why caching?
 ^^^^^^^^^^^^
 Language model outputs are expensive to create, both in terms of time and money. 
@@ -55,8 +57,7 @@ It can then be passed as an object to a `run` method:
     q = QuestionFreeText.example()
     results = q.run(cache = my_in_memory_cache)
 
-If an in-memory cache is not stored explicitly, the data will be lost when the session is over _unles_ it is written to a file OR
-remote caching in instantiated.
+If an in-memory cache is not stored explicitly, the data will be lost when the session is over--<i>unless</i> it is written to a file <b>or</b> remote caching in instantiated.
 More on this later. 
 
 Local persistence for an in-memory cache

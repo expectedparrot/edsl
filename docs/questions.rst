@@ -203,24 +203,63 @@ This will return a list of names of models that we can choose from:
 
 .. code-block:: python
 
-   ['claude-3-haiku-20240307',
-   'claude-3-opus-20240229',
-   'claude-3-sonnet-20240229',
-   'dbrx-instruct',
-   'gpt-3.5-turbo',
-   'gpt-4-1106-preview',
-   'gemini_pro',
-   'llama-2-13b-chat-hf',
-   'llama-2-70b-chat-hf',
-   'mixtral-8x7B-instruct-v0.1']
+   [['01-ai/Yi-34B-Chat', 'deep_infra', 0],
+   ['Austism/chronos-hermes-13b-v2', 'deep_infra', 1],
+   ['Gryphe/MythoMax-L2-13b', 'deep_infra', 2],
+   ['HuggingFaceH4/zephyr-orpo-141b-A35b-v0.1', 'deep_infra', 3],
+   ['Phind/Phind-CodeLlama-34B-v2', 'deep_infra', 4],
+   ['bigcode/starcoder2-15b', 'deep_infra', 5],
+   ['claude-3-haiku-20240307', 'anthropic', 6],
+   ['claude-3-opus-20240229', 'anthropic', 7],
+   ['claude-3-sonnet-20240229', 'anthropic', 8],
+   ['codellama/CodeLlama-34b-Instruct-hf', 'deep_infra', 9],
+   ['codellama/CodeLlama-70b-Instruct-hf', 'deep_infra', 10],
+   ['cognitivecomputations/dolphin-2.6-mixtral-8x7b', 'deep_infra', 11],
+   ['databricks/dbrx-instruct', 'deep_infra', 12],
+   ['deepinfra/airoboros-70b', 'deep_infra', 13],
+   ['gemini-pro', 'google', 14],
+   ['google/gemma-1.1-7b-it', 'deep_infra', 15],
+   ['gpt-3.5-turbo', 'openai', 16],
+   ['gpt-3.5-turbo-0125', 'openai', 17],
+   ['gpt-3.5-turbo-0301', 'openai', 18],
+   ['gpt-3.5-turbo-0613', 'openai', 19],
+   ['gpt-3.5-turbo-1106', 'openai', 20],
+   ['gpt-3.5-turbo-16k', 'openai', 21],
+   ['gpt-3.5-turbo-16k-0613', 'openai', 22],
+   ['gpt-3.5-turbo-instruct', 'openai', 23],
+   ['gpt-3.5-turbo-instruct-0914', 'openai', 24],
+   ['gpt-4', 'openai', 25],
+   ['gpt-4-0125-preview', 'openai', 26],
+   ['gpt-4-0613', 'openai', 27],
+   ['gpt-4-1106-preview', 'openai', 28],
+   ['gpt-4-1106-vision-preview', 'openai', 29],
+   ['gpt-4-turbo', 'openai', 30],
+   ['gpt-4-turbo-2024-04-09', 'openai', 31],
+   ['gpt-4-turbo-preview', 'openai', 32],
+   ['gpt-4-vision-preview', 'openai', 33],
+   ['lizpreciatior/lzlv_70b_fp16_hf', 'deep_infra', 34],
+   ['llava-hf/llava-1.5-7b-hf', 'deep_infra', 35],
+   ['meta-llama/Llama-2-13b-chat-hf', 'deep_infra', 36],
+   ['meta-llama/Llama-2-70b-chat-hf', 'deep_infra', 37],
+   ['meta-llama/Llama-2-7b-chat-hf', 'deep_infra', 38],
+   ['meta-llama/Meta-Llama-3-70B-Instruct', 'deep_infra', 39],
+   ['meta-llama/Meta-Llama-3-8B-Instruct', 'deep_infra', 40],
+   ['microsoft/WizardLM-2-7B', 'deep_infra', 41],
+   ['microsoft/WizardLM-2-8x22B', 'deep_infra', 42],
+   ['mistralai/Mistral-7B-Instruct-v0.1', 'deep_infra', 43],
+   ['mistralai/Mistral-7B-Instruct-v0.2', 'deep_infra', 44],
+   ['mistralai/Mixtral-8x22B-Instruct-v0.1', 'deep_infra', 45],
+   ['mistralai/Mixtral-8x22B-v0.1', 'deep_infra', 46],
+   ['mistralai/Mixtral-8x7B-Instruct-v0.1', 'deep_infra', 47],
+   ['openchat/openchat_3.5', 'deep_infra', 48]]
 
 We can also check the models for which we have already added API keys:
 
 .. code-block:: python 
 
-   Model.show_available()
+   Model.check_models()
 
-(See instructions on adding API keys for models to your `.env` file in the :ref:`starter_tutorial`.)
+(See instructions on storing :ref:`api_keys` for the models that you want to use in your `.env` file.)
 
 To specify models for a survey we first create `Model` objects:
 
