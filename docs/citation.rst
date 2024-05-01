@@ -5,7 +5,7 @@ Citation
 
 If you use the EDSL package in your research or projects, please use the following citation:
 
-.. text::
+.. code-block:: text
 
     @techreport{Horton2024EDSL,
     title = {EDSL: Expected Parrot Domain Specific Language for AI Powered Social Science},
