@@ -107,10 +107,18 @@ This will return the following:
 
 .. code-block:: python
 
-   ClaudeOpus(
-      model = 'claude-3-opus-20240229', 
-      parameters={'temperature': 0.5, 'max_tokens': 1000, 'top_p': 1, 'frequency_penalty': 0, 'presence_penalty': 0, 'logprobs': False, 'top_logprobs': 3}
-   )
+   {
+   "model": "claude-3-opus-20240229",
+   "parameters": {
+      "temperature": 0.5,
+      "max_tokens": 1000,
+      "top_p": 1,
+      "frequency_penalty": 0,
+      "presence_penalty": 0,
+      "logprobs": false,
+      "top_logprobs": 3
+   }
+   }
 
 We can also print the model name and parameters in a readable table with the `print()` method:
 
@@ -220,14 +228,22 @@ For example, we can verify the default model when running a survey without speci
 
    results.models
 
-This will return the following:
+This will return the following information about the default model that was used:
 
 .. code-block:: python
 
-   [LanguageModelOpenAIFour(
-      model = 'gpt-4-1106-preview', 
-      parameters={'temperature': 0.5, 'max_tokens': 1000, 'top_p': 1, 'frequency_penalty': 0, 'presence_penalty': 0, 'logprobs': False, 'top_logprobs': 3}
-   )]
+   {
+   "model": "gpt-4-1106-preview",
+   "parameters": {
+      "temperature": 0.5,
+      "max_tokens": 1000,
+      "top_p": 1,
+      "frequency_penalty": 0,
+      "presence_penalty": 0,
+      "logprobs": false,
+      "top_logprobs": 3
+   }
+   }
 
 To learn more about all the components of a `Results` object, please see the :ref:`results` section.
 
