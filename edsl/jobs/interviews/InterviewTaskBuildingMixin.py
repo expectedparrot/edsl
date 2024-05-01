@@ -75,7 +75,7 @@ class InterviewTaskBuildingMixin:
                 iteration=self.iteration,
             )
             tasks.append(question_task)
-        return TasksList(tasks)  # , invigilators
+        return tuple(tasks)  # , invigilators
 
     def _get_tasks_that_must_be_completed_before(
         self, *, tasks: list[asyncio.Task], question: QuestionBase
@@ -146,7 +146,7 @@ class InterviewTaskBuildingMixin:
         """Answer a question and records the task.
 
         This in turn calls the the passed-in agent's async_answer_question method, which returns a response dictionary.
-        Note that is updates answers with the response.
+        Note that is updates answers dictionary with the response.
         """
         invigilator = self.get_invigilator(question, debug=debug)
 
@@ -184,7 +184,7 @@ class InterviewTaskBuildingMixin:
 
         return AgentResponseDict(**response)
 
-    def _cancel_skipped_questions(self, current_question: Question) -> None:
+    def _cancel_skipped_questions(self, current_question: QuestionBase) -> None:
         """Cancel the tasks for questions that are skipped.
 
         It first determines the next question, given the current question and the current answers.
@@ -192,15 +192,23 @@ class InterviewTaskBuildingMixin:
         If the next question is after the current question, it cancels all tasks between the current question and the next question.
         """
         current_question_index = self.to_index[current_question.question_name]
+
         next_question = self.survey.rule_collection.next_question(
             q_now=current_question_index, answers=self.answers
         )
+
         next_question_index = next_question.next_q
 
         def cancel_between(start, end):
             """Cancel the tasks between the start and end indices."""
             for i in range(start, end):
-                self.tasks[i].cancel()
+                # print(self.tasks)
+                # print("Now cancelling task", i, "-", self.tasks[i].get_name())
+                task_to_cancel = self.tasks[i]
+                # breakpoint()
+                # print(f"Name of task to cancel: {task_to_cancel.get_name()}")
+                task_to_cancel.cancel()
+                # print(self.tasks)
 
         if next_question_index == EndOfSurvey:
             cancel_between(current_question_index + 1, len(self.survey.questions))
@@ -208,3 +216,5 @@ class InterviewTaskBuildingMixin:
 
         if next_question_index > (current_question_index + 1):
             cancel_between(current_question_index + 1, next_question_index)
+
+        # breakpoint()

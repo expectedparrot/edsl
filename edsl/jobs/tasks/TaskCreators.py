@@ -7,7 +7,10 @@ from edsl.jobs.tokens.InterviewTokenUsage import InterviewTokenUsage
 
 
 class TaskCreators(UserDict):
-    "A dictionary of task creators. A task is one question being answered."
+    """A dictionary of task creators. A task is one question being answered.
+
+    This is used to track the status of the tasks within an interview.
+    """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -24,6 +27,11 @@ class TaskCreators(UserDict):
         return InterviewTokenUsage(
             new_token_usage=new_tokens, cached_token_usage=cached_tokens
         )
+
+    def print(self):
+        from rich import print
+
+        print({task.get_name(): task.task_status for task in self.values()})
 
     @property
     def interview_status(self) -> InterviewStatusDictionary:
