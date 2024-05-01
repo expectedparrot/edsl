@@ -173,7 +173,8 @@ If scenarios and/or models are also specified for a survey, each component type 
 
     results = survey.by(scenarios).by(agents).by(models).run()
 
-To learn more about <a href="https://docs.expectedparrot.com/en/latest/scenarios.html">scenarios</a>, <a href="https://docs.expectedparrot.com/en/latest/models.html">models</a> and <a href="https://docs.expectedparrot.com/en/latest/results.html">results</a>, please see those of the docs.
+
+Learn more about :ref:`scenarios`, :ref:`language_models` and :ref:`results`.
 
 Agent class
 -----------
