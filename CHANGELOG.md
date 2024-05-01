@@ -230,7 +230,7 @@ For more details see new documentation on <a href="https://docs.expectedparrot.c
 - A bug in json repair methods.
 
 
-## [0.1.17] - 2024-05-01
+## [0.1.18] - 2024-05-01
 
 ### Fixed
 - A bug in in `Survey.add_rule()` method that caused an additional question to be skipped when used to apply a skip rule.
