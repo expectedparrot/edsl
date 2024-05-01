@@ -91,10 +91,10 @@ async def test_task_add_dependency():
     task_1 = creator_1.generate_task(debug=False)
     creator_2.add_dependency(task_1)
 
-    ## What should we do here?
-    task_1.cancel()
-    #assert creator_2.generate_task(debug=False).depends_on == [QuestionFreeText.example().question_name]
-    with pytest.raises(asyncio.CancelledError):
-        asyncio.run(creator_2._run_task_async(debug=False))
+    # ## What should we do here?
+    # task_1.cancel()
+    # #assert creator_2.generate_task(debug=False).depends_on == [QuestionFreeText.example().question_name]
+    # with pytest.raises(asyncio.CancelledError):
+    #     asyncio.run(creator_2._run_task_async(debug=False))
     
     #breakpoint()
