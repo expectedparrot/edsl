@@ -259,7 +259,7 @@ We can also check the models for which we have already added API keys:
 
    Model.show_available()
 
-(See instructions on adding API keys for models to your `.env` file in the :ref:`starter_tutorial`.)
+(See instructions on storing :ref:`api_keys` for the models that you want to use in your `.env` file.)
 
 To specify models for a survey we first create `Model` objects:
 
