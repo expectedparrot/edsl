@@ -34,23 +34,31 @@ The formats are defined in the `questions` module. Here we define some questions
 
 .. code-block:: python
 
-   from edsl.questions import QuestionYesNo, QuestionNumerical, QuestionFreeText
+   from edsl.questions import QuestionMultipleChoice, QuestionLinearScale, QuestionTopK
+   from edsl import Survey
 
-   q1 = QuestionYesNo(
-      question_name = "high_school_student",
-      question_text = "Are you a high school student?"
+   q1 = QuestionMultipleChoice(
+      question_name = "color",
+      question_text = "What is your favorite color?",
+      question_options = ["Red", "Orange", "Yellow", "Green", "Blue", "Purple"]
    )
-   q2 = QuestionNumerical(
-      question_name = "age",
-      question_text = "How old are you?"
+   q2 = QuestionMultipleChoice(
+      question_name = "day",
+      question_text = "What is your favorite day of the week?",
+      question_options = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
    )
-   q3 = QuestionFreeText(
-      question_name = "favorite_class",
-      question_text = "What is your favorite class?"
+   q3 = QuestionLinearScale(
+      question_name = "winter",
+      question_text = "How much do you enjoy winter?",
+      question_options = [0,1,2,3,4,5],
+      option_labels = {0: "Hate it", 5: "Love it"}
    )
-   q4 = QuestionFreeText(
-      question_name = "favorite_sport",
-      question_text = "What is your favorite sport?"
+   q4 = QuestionTopK(
+      question_name = "birds",
+      question_text = "Which birds do you like best?",
+      question_options = ["Parrot", "Osprey", "Falcon", "Eagle", "First Robin of Spring"],
+      min_selections = 2,
+      max_selections = 2
    )
 
 Adding questions to a survey
@@ -78,21 +86,19 @@ Rules can be applied to a survey with the `add_skip_rule()`, `add_stop_rule()` a
 The `add_skip_rule()` method skips a question if a condition is met. 
 The (2) required parameters are the question to skip and the condition to evaluate.
 
-Here we use `add_skip_rule()` to skip q2 if the response to "high_school_student" is "No".
-Note that we can refer to the question to be skipped using either the question name or the question id:
+Here we use `add_skip_rule()` to skip q2 if the response to "color" is "Blue".
+Note that we can refer to the question to be skipped using either the id ("q2") or question_name ("day"):
 
 .. code-block:: python
 
-   survey = Survey(questions = [q1, q2, q3, q4])
-   survey = survey.add_skip_rule(q2, "high_school_student == 'No'")
+   survey = Survey(questions = [q1, q2, q3, q4]).add_skip_rule(q2, "color == 'Blue'")
 
 
 This is equivalent:
 
 .. code-block:: python
 
-   survey = Survey(questions = [q1, q2, q3, q4])
-   survey = survey.add_skip_rule("age", "high_school_student == 'No'")
+   survey = Survey(questions = [q1, q2, q3, q4]).add_skip_rule("day", "color == 'Blue'")
 
 
 We can run the survey and verify that the rule was applied:
@@ -100,54 +106,47 @@ We can run the survey and verify that the rule was applied:
 .. code-block:: python
     
    results = survey.run()
-   results.select("high_school_student", "age", "favorite_class", "favorite_sport").print(format="rich")
+   results.select("color", "day", "winter", "birds").print(format="rich")
 
 
-This will print the answers, showing that q2 was skipped:
+This will print the answers, showing that q2 was skipped ("None"):
 
 .. code-block:: text
     
-   ┏━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-   ┃ answer               ┃ answer ┃ answer                                 ┃ answer                                 ┃
-   ┃ .high_school_student ┃ .age   ┃ .favorite_class                        ┃ .favorite_sport                        ┃
-   ┡━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-   │ No                   │ None   │ My favorite class is literature        │ My favorite sport is basketball. I     │
-   │                      │        │ because it allows me to explore        │ love the fast-paced action and the     │
-   │                      │        │ diverse perspectives and immerse       │ skill involved in shooting and         │
-   │                      │        │ myself in different cultures through   │ teamwork.                              │
-   │                      │        │ the power of storytelling.             │                                        │
-   └──────────────────────┴────────┴────────────────────────────────────────┴────────────────────────────────────────┘
-
-(To learn about accessing and analyzing all components of the `Results` object, not just the answers, see the :ref:`results` module.)
+   ┏━━━━━━━━┳━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┓
+   ┃ answer ┃ answer ┃ answer  ┃ answer              ┃
+   ┃ .color ┃ .day   ┃ .winter ┃ .birds              ┃
+   ┡━━━━━━━━╇━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━┩
+   │ Blue   │ None   │ 3       │ ['Falcon', 'Eagle'] │
+   └────────┴────────┴─────────┴─────────────────────┘
 
 
 **Stop rules:**
 The `add_stop_rule()` method stops the survey if a condition is met.
 The (2) required parameters are the question to stop at and the condition to evaluate.
 
-Here we use `add_stop_rule()` to end the survey if the response to "high_school_student" is "No":
+Here we use `add_stop_rule()` to end the survey at q1 if the response is Blue:
 
 .. code-block:: python
 
-   survey = Survey(questions = [q1, q2, q3, q4])
-   survey = survey.add_stop_rule(q1, "high_school_student == 'No'")
+   survey = Survey(questions = [q1, q2, q3, q4]).add_stop_rule(q1, "color == 'Blue'")
 
 
-This time we see that the survey ended when the response to "high_school_student" was "No":
+This time we see that the survey ended when the response to "color" was "Blue":
 
 .. code-block:: python
     
    results = survey.run()
-   results.select("high_school_student", "age", "favorite_class", "favorite_sport").print(format="rich")
+   results.select("color", "day", "winter", "birds").print(format="rich")
 
-.. code-block:: python
+.. code-block:: text
     
-   ┏━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┓
-   ┃ answer               ┃ answer ┃ answer          ┃ answer          ┃
-   ┃ .high_school_student ┃ .age   ┃ .favorite_class ┃ .favorite_sport ┃
-   ┡━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━┩
-   │ No                   │ None   │ None            │ None            │
-   └──────────────────────┴────────┴─────────────────┴─────────────────┘
+   ┏━━━━━━━━┳━━━━━━━━┳━━━━━━━━━┳━━━━━━━━┓
+   ┃ answer ┃ answer ┃ answer  ┃ answer ┃
+   ┃ .color ┃ .day   ┃ .winter ┃ .birds ┃
+   ┡━━━━━━━━╇━━━━━━━━╇━━━━━━━━━╇━━━━━━━━┩
+   │ Blue   │ None   │ None    │ None   │
+   └────────┴────────┴─────────┴────────┘
 
 
 **Rules:**
@@ -158,8 +157,7 @@ Here we use `add_rule()` to specify that if the response to "high_school_student
 
 .. code-block:: python
    
-   survey = Survey(questions = [q1, q2, q3, q4])
-   survey = survey.add_rule(q1, "high_school_student == 'No'", q4)
+   survey = Survey(questions = [q1, q2, q3, q4]).add_rule(q1, "color == 'Blue'", q4)
 
 
 We can run the survey and verify that the rule was applied:
@@ -167,20 +165,19 @@ We can run the survey and verify that the rule was applied:
 .. code-block:: python
     
    results = survey.run()
-   results.select("high_school_student", "age", "favorite_class", "favorite_sport").print(format="rich")
+   results.select("color", "day", "winter", "birds").print(format="rich")
 
 
-We can see that q2 and q3 were skipped because the response to "high_school_student" was "No":
+We can see that q2 and q3 were skipped because the response to "color" was "Blue":
 
 .. code-block:: text
     
-   ┏━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-   ┃ answer               ┃ answer ┃ answer          ┃ answer                                                        ┃
-   ┃ .high_school_student ┃ .age   ┃ .favorite_class ┃ .favorite_sport                                               ┃
-   ┡━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-   │ No                   │ None   │ None            │ My favorite sport is basketball. I love the fast-paced action │
-   │                      │        │                 │ and the skill involved in shooting and teamwork.              │
-   └──────────────────────┴────────┴─────────────────┴───────────────────────────────────────────────────────────────┘
+   ┏━━━━━━━━┳━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┓
+   ┃ answer ┃ answer ┃ answer  ┃ answer              ┃
+   ┃ .color ┃ .day   ┃ .winter ┃ .birds              ┃
+   ┡━━━━━━━━╇━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━┩
+   │ Blue   │ None   │ None    │ ['Falcon', 'Eagle'] │
+   └────────┴────────┴─────────┴─────────────────────┘
 
 
 Conditional expressions
@@ -198,33 +195,179 @@ When an agent is taking a survey, they can be prompted to "remember" answers to 
 This can be done in several ways:
 
 **Full memory:**
-The agent is given all of the answers to the questions in the survey.
+The method `set_full_memory_mode()` gives the agent all of the prior questions and answers at each new question in the survey,
+i.e., question 1 is included in the memory when answering question 2, question 1 and 2 are included in the memory when answering question 3, etc.
+It is called on the survey object:
 
 .. code-block:: python
 
    survey = Survey(questions = [q1, q2, q3, q4])
    survey.set_full_memory_mode()
 
+
+In the results, we can inspect the `_user_prompt` for each question to see that the agent was prompted to remember all of the prior questions:
+
+.. code-block:: python
+
+   results = survey.run()
+   results.select("color_user_prompt", "day_user_prompt", "winter_user_prompt", "birds_user_prompt").print(format="rich")
+
+
+This will print the prompt that was used for each question, as we can see that each successive prompt references all prior questions and answers that were given:
+
+.. code-block:: text
+
+   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+   ┃ prompt                     ┃ prompt                    ┃ prompt                     ┃ prompt                    ┃
+   ┃ .color_user_prompt         ┃ .day_user_prompt          ┃ .winter_user_prompt        ┃ .birds_user_prompt        ┃
+   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+   │ {'text': 'You are being    │ {'text': 'You are being   │ {'text': 'You are being    │ {'text': 'You are being   │
+   │ asked the following        │ asked the following       │ asked the following        │ asked the following       │
+   │ question: What is your     │ question: What is your    │ question: How much do you  │ question: Which birds do  │
+   │ favorite color?\nThe       │ favorite day of the       │ enjoy winter?\nThe options │ you like best?\nThe       │
+   │ options are\n\n0:          │ week?\nThe options        │ are\n\n0: 0\n\n1: 1\n\n2:  │ options are\n\n0:         │
+   │ Red\n\n1: Orange\n\n2:     │ are\n\n0: Sun\n\n1:       │ 2\n\n3: 3\n\n4: 4\n\n5:    │ Parrot\n\n1: Osprey\n\n2: │
+   │ Yellow\n\n3: Green\n\n4:   │ Mon\n\n2: Tue\n\n3:       │ 5\n\nReturn a valid JSON   │ Falcon\n\n3: Eagle\n\n4:  │
+   │ Blue\n\n5:                 │ Wed\n\n4: Thu\n\n5:       │ formatted like this,       │ First Robin of            │
+   │ Purple\n\nReturn a valid   │ Fri\n\n6: Sat\n\nReturn a │ selecting only the code of │ Spring\n\nReturn a valid  │
+   │ JSON formatted like this,  │ valid JSON formatted like │ the option (codes start at │ JSON formatted like this, │
+   │ selecting only the number  │ this, selecting only the  │ 0):\n{"answer": <put       │ selecting only the number │
+   │ of the option:\n{"answer": │ number of the             │ answer code here>,         │ of the                    │
+   │ <put answer code here>,    │ option:\n{"answer": <put  │ "comment": "<put           │ option:\n{"answer": [<put │
+   │ "comment": "<put           │ answer code here>,        │ explanation here>"}\nOnly  │ comma-separated list of   │
+   │ explanation here>"}\nOnly  │ "comment": "<put          │ 1 option may be            │ answer codes here>],      │
+   │ 1 option may be            │ explanation here>"}\nOnly │ selected.\n        Before  │ "comment": "<put          │
+   │ selected.', 'class_name':  │ 1 option may be           │ the question you are now   │ explanation               │
+   │ 'MultipleChoice'}          │ selected.\n        Before │ answering, you already     │ here>"}\n\nYou must       │
+   │                            │ the question you are now  │ answered the following     │ select exactly 2          │
+   │                            │ answering, you already    │ question(s):\n             │ options.\n        Before  │
+   │                            │ answered the following    │ \tQuestion: What is your   │ the question you are now  │
+   │                            │ question(s):\n            │ favorite color?\n\tAnswer: │ answering, you already    │
+   │                            │ \tQuestion: What is your  │ Blue\n\n Prior questions   │ answered the following    │
+   │                            │ favorite                  │ and answers:\tQuestion:    │ question(s):\n            │
+   │                            │ color?\n\tAnswer: Blue',  │ What is your favorite day  │ \tQuestion: What is your  │
+   │                            │ 'class_name':             │ of the week?\n\tAnswer:    │ favorite                  │
+   │                            │ 'MultipleChoice'}         │ Fri', 'class_name':        │ color?\n\tAnswer:         │
+   │                            │                           │ 'LinearScale'}             │ Blue\n\n Prior questions  │
+   │                            │                           │                            │ and answers:\tQuestion:   │
+   │                            │                           │                            │ What is your favorite day │
+   │                            │                           │                            │ of the week?\n\tAnswer:   │
+   │                            │                           │                            │ Fri\n\n Prior questions   │
+   │                            │                           │                            │ and answers:\tQuestion:   │
+   │                            │                           │                            │ How much do you enjoy     │
+   │                            │                           │                            │ winter?\n\tAnswer: 3',    │
+   │                            │                           │                            │ 'class_name': 'TopK'}     │
+   └────────────────────────────┴───────────────────────────┴────────────────────────────┴───────────────────────────┘
+
+
 Note that this is slow and token-intensive, as the questions must be answered serially and requires the agent to remember all of the answers to the questions in the survey.
 In contrast, if the agent does not need to remember all of the answers to the questions in the survey, execution can proceed in parallel.
     
+
 **Lagged memory:**
-With each question, the agent is given the answers to the specified number of lagged (prior) questions.
-In this example, the agent is given the answers to the 2 previous questions in the survey:
+The method `set_lagged_memory()` gives the agent a specified number of prior questions and answers at each new question in the survey,
+Here we use it to give the agent just 1 prior question/answer at each question:
 
 .. code-block:: python
 
    survey = Survey(questions = [q1, q2, q3, q4])
-   survey.set_lagged_memory(2)
+   survey.set_lagged_memory(1)
+
+
+We can inspect each `_user_prompt` again and see that the agent is only prompted to remember the last prior question/answer:
+
+.. code-block:: python
+
+   results = survey.run()
+   results.select("color_user_prompt", "day_user_prompt", "winter_user_prompt", "birds_user_prompt").print(format="rich")
+
+
+This will print the prompts for each question:
+
+.. code-block:: text
+
+   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+   ┃ prompt                     ┃ prompt                    ┃ prompt                     ┃ prompt                    ┃
+   ┃ .color_user_prompt         ┃ .day_user_prompt          ┃ .winter_user_prompt        ┃ .birds_user_prompt        ┃
+   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+   │ {'text': 'You are being    │ {'text': 'You are being   │ {'text': 'You are being    │ {'text': 'You are being   │
+   │ asked the following        │ asked the following       │ asked the following        │ asked the following       │
+   │ question: What is your     │ question: What is your    │ question: How much do you  │ question: Which birds do  │
+   │ favorite color?\nThe       │ favorite day of the       │ enjoy winter?\nThe options │ you like best?\nThe       │
+   │ options are\n\n0:          │ week?\nThe options        │ are\n\n0: 0\n\n1: 1\n\n2:  │ options are\n\n0:         │
+   │ Red\n\n1: Orange\n\n2:     │ are\n\n0: Sun\n\n1:       │ 2\n\n3: 3\n\n4: 4\n\n5:    │ Parrot\n\n1: Osprey\n\n2: │
+   │ Yellow\n\n3: Green\n\n4:   │ Mon\n\n2: Tue\n\n3:       │ 5\n\nReturn a valid JSON   │ Falcon\n\n3: Eagle\n\n4:  │
+   │ Blue\n\n5:                 │ Wed\n\n4: Thu\n\n5:       │ formatted like this,       │ First Robin of            │
+   │ Purple\n\nReturn a valid   │ Fri\n\n6: Sat\n\nReturn a │ selecting only the code of │ Spring\n\nReturn a valid  │
+   │ JSON formatted like this,  │ valid JSON formatted like │ the option (codes start at │ JSON formatted like this, │
+   │ selecting only the number  │ this, selecting only the  │ 0):\n{"answer": <put       │ selecting only the number │
+   │ of the option:\n{"answer": │ number of the             │ answer code here>,         │ of the                    │
+   │ <put answer code here>,    │ option:\n{"answer": <put  │ "comment": "<put           │ option:\n{"answer": [<put │
+   │ "comment": "<put           │ answer code here>,        │ explanation here>"}\nOnly  │ comma-separated list of   │
+   │ explanation here>"}\nOnly  │ "comment": "<put          │ 1 option may be            │ answer codes here>],      │
+   │ 1 option may be            │ explanation here>"}\nOnly │ selected.\n        Before  │ "comment": "<put          │
+   │ selected.', 'class_name':  │ 1 option may be           │ the question you are now   │ explanation               │
+   │ 'MultipleChoice'}          │ selected.\n        Before │ answering, you already     │ here>"}\n\nYou must       │
+   │                            │ the question you are now  │ answered the following     │ select exactly 2          │
+   │                            │ answering, you already    │ question(s):\n             │ options.\n        Before  │
+   │                            │ answered the following    │ \tQuestion: What is your   │ the question you are now  │
+   │                            │ question(s):\n            │ favorite day of the        │ answering, you already    │
+   │                            │ \tQuestion: What is your  │ week?\n\tAnswer: Fri',     │ answered the following    │
+   │                            │ favorite                  │ 'class_name':              │ question(s):\n            │
+   │                            │ color?\n\tAnswer: Blue',  │ 'LinearScale'}             │ \tQuestion: How much do   │
+   │                            │ 'class_name':             │                            │ you enjoy                 │
+   │                            │ 'MultipleChoice'}         │                            │ winter?\n\tAnswer: 0',    │
+   │                            │                           │                            │ 'class_name': 'TopK'}     │
+   └────────────────────────────┴───────────────────────────┴────────────────────────────┴───────────────────────────┘
+
 
 **Targeted memory:**
-The agent is given the answers to specific targeted prior questions.
-In this example, the agent is given the answer to q1 when prompted to to answer q2:
+The method `add_targeted_memory()` gives the agent specific targeted prior questions and answers.
+Here we use it to give the agent question/answer to q1 when prompting it to answer q4:
 
 .. code-block:: python
 
    survey = Survey(questions = [q1, q2, q3, q4])
    survey.add_targeted_memory(q4, q1)
+
+
+.. code-block:: text
+
+   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+   ┃ prompt                     ┃ prompt                    ┃ prompt                     ┃ prompt                    ┃
+   ┃ .color_user_prompt         ┃ .day_user_prompt          ┃ .winter_user_prompt        ┃ .birds_user_prompt        ┃
+   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+   │ {'text': 'You are being    │ {'text': 'You are being   │ {'text': 'You are being    │ {'text': 'You are being   │
+   │ asked the following        │ asked the following       │ asked the following        │ asked the following       │
+   │ question: What is your     │ question: What is your    │ question: How much do you  │ question: Which birds do  │
+   │ favorite color?\nThe       │ favorite day of the       │ enjoy winter?\nThe options │ you like best?\nThe       │
+   │ options are\n\n0:          │ week?\nThe options        │ are\n\n0: 0\n\n1: 1\n\n2:  │ options are\n\n0:         │
+   │ Red\n\n1: Orange\n\n2:     │ are\n\n0: Sun\n\n1:       │ 2\n\n3: 3\n\n4: 4\n\n5:    │ Parrot\n\n1: Osprey\n\n2: │
+   │ Yellow\n\n3: Green\n\n4:   │ Mon\n\n2: Tue\n\n3:       │ 5\n\nReturn a valid JSON   │ Falcon\n\n3: Eagle\n\n4:  │
+   │ Blue\n\n5:                 │ Wed\n\n4: Thu\n\n5:       │ formatted like this,       │ First Robin of            │
+   │ Purple\n\nReturn a valid   │ Fri\n\n6: Sat\n\nReturn a │ selecting only the code of │ Spring\n\nReturn a valid  │
+   │ JSON formatted like this,  │ valid JSON formatted like │ the option (codes start at │ JSON formatted like this, │
+   │ selecting only the number  │ this, selecting only the  │ 0):\n{"answer": <put       │ selecting only the number │
+   │ of the option:\n{"answer": │ number of the             │ answer code here>,         │ of the                    │
+   │ <put answer code here>,    │ option:\n{"answer": <put  │ "comment": "<put           │ option:\n{"answer": [<put │
+   │ "comment": "<put           │ answer code here>,        │ explanation here>"}\nOnly  │ comma-separated list of   │
+   │ explanation here>"}\nOnly  │ "comment": "<put          │ 1 option may be            │ answer codes here>],      │
+   │ 1 option may be            │ explanation here>"}\nOnly │ selected.', 'class_name':  │ "comment": "<put          │
+   │ selected.', 'class_name':  │ 1 option may be           │ 'LinearScale'}             │ explanation               │
+   │ 'MultipleChoice'}          │ selected.', 'class_name': │                            │ here>"}\n\nYou must       │
+   │                            │ 'MultipleChoice'}         │                            │ select exactly 2          │
+   │                            │                           │                            │ options.\n        Before  │
+   │                            │                           │                            │ the question you are now  │
+   │                            │                           │                            │ answering, you already    │
+   │                            │                           │                            │ answered the following    │
+   │                            │                           │                            │ question(s):\n            │
+   │                            │                           │                            │ \tQuestion: What is your  │
+   │                            │                           │                            │ favorite                  │
+   │                            │                           │                            │ color?\n\tAnswer: Blue',  │
+   │                            │                           │                            │ 'class_name': 'TopK'}     │
+   └────────────────────────────┴───────────────────────────┴────────────────────────────┴───────────────────────────┘
+
+
 
 We can also use question names instead of question ids. The following example is equivalent to the previous one:
 
