@@ -69,15 +69,30 @@ Alternatively, questions can be added to a survey one at a time:
 
    survey = Survey().add_question(q1).add_question(q2).add_question(q3).add_question(q4)
     
+
 Applying survey rules
 ^^^^^^^^^^^^^^^^^^^^^
-Rules are applied to a survey with the `add_rule` and `add_stop_rule` methods, which take a logical expression and the relevant questions.
-For example, the following rule specifies that if the response to q1 is "no" then the next question is q3 (a skip rule):
+Rules can be applied to a survey with the `add_skip_rule()`, `add_stop_rule()` and `add_rule()` methods, which take a logical expression and the relevant questions.
+
+**Skip rules:**
+The `add_skip_rule()` method skips a question if a condition is met. 
+The (2) required parameters are the question to skip and the condition to evaluate.
+
+Here we use `add_skip_rule()` to skip q2 if the response to "high_school_student" is "No".
+Note that we can refer to the question to be skipped using either the question name or the question id:
 
 .. code-block:: python
-   
+
    survey = Survey(questions = [q1, q2, q3, q4])
-   survey = survey.add_rule(q1, "high_school_student == 'No'", q4)
+   survey = survey.add_skip_rule(q2, "high_school_student == 'No'")
+
+
+This is equivalent:
+
+.. code-block:: python
+
+   survey = Survey(questions = [q1, q2, q3, q4])
+   survey = survey.add_skip_rule("age", "high_school_student == 'No'")
 
 
 We can run the survey and verify that the rule was applied:
@@ -85,33 +100,40 @@ We can run the survey and verify that the rule was applied:
 .. code-block:: python
     
    results = survey.run()
-   # results.select("answer.*").print(format="rich") # We can select all the answers or specific ones:
    results.select("high_school_student", "age", "favorite_class", "favorite_sport").print(format="rich")
 
 
-This will print a table of the answers and we can see that q2 was skipped because the answer to q1 was "No":
+This will print the answers, showing that q2 was skipped:
 
 .. code-block:: text
     
-   ┏━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-   ┃ answer               ┃ answer ┃ answer          ┃ answer                                                        ┃
-   ┃ .high_school_student ┃ .age   ┃ .favorite_class ┃ .favorite_sport                                               ┃
-   ┡━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-   │ No                   │ None   │ None            │ My favorite sport is basketball. I love the fast-paced action │
-   │                      │        │                 │ and the skill involved in shooting and teamwork.              │
-   └──────────────────────┴────────┴─────────────────┴───────────────────────────────────────────────────────────────┘
+   ┏━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+   ┃ answer               ┃ answer ┃ answer                                 ┃ answer                                 ┃
+   ┃ .high_school_student ┃ .age   ┃ .favorite_class                        ┃ .favorite_sport                        ┃
+   ┡━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+   │ No                   │ None   │ My favorite class is literature        │ My favorite sport is basketball. I     │
+   │                      │        │ because it allows me to explore        │ love the fast-paced action and the     │
+   │                      │        │ diverse perspectives and immerse       │ skill involved in shooting and         │
+   │                      │        │ myself in different cultures through   │ teamwork.                              │
+   │                      │        │ the power of storytelling.             │                                        │
+   └──────────────────────┴────────┴────────────────────────────────────────┴────────────────────────────────────────┘
+
+(To learn about accessing and analyzing all components of the `Results` object, not just the answers, see the :ref:`results` module.)
 
 
-Here we apply a stop rule instead of a skip rule. If the response to q1 is "No", the survey will end after q1 is answered:
+**Stop rules:**
+The `add_stop_rule()` method stops the survey if a condition is met.
+The (2) required parameters are the question to stop at and the condition to evaluate.
+
+Here we use `add_stop_rule()` to end the survey if the response to "high_school_student" is "No":
 
 .. code-block:: python
 
    survey = Survey(questions = [q1, q2, q3, q4])
-
    survey = survey.add_stop_rule(q1, "high_school_student == 'No'")
 
 
-This time when we print the results we see that the survey ended after q1 was answered "No":
+This time we see that the survey ended when the response to "high_school_student" was "No":
 
 .. code-block:: python
     
@@ -127,6 +149,38 @@ This time when we print the results we see that the survey ended after q1 was an
    │ No                   │ None   │ None            │ None            │
    └──────────────────────┴────────┴─────────────────┴─────────────────┘
 
+
+**Rules:**
+The `add_rule()` method specifies that if a condition is met, a specific question should be administered next.
+The (3) required parameters are the question to evaluate, the condition to evaluate, and the question to administer next.
+
+Here we use `add_rule()` to specify that if the response to "high_school_student" is "No" then q4 should be administered next:
+
+.. code-block:: python
+   
+   survey = Survey(questions = [q1, q2, q3, q4])
+   survey = survey.add_rule(q1, "high_school_student == 'No'", q4)
+
+
+We can run the survey and verify that the rule was applied:
+
+.. code-block:: python
+    
+   results = survey.run()
+   results.select("high_school_student", "age", "favorite_class", "favorite_sport").print(format="rich")
+
+
+We can see that q2 and q3 were skipped because the response to "high_school_student" was "No":
+
+.. code-block:: text
+    
+   ┏━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+   ┃ answer               ┃ answer ┃ answer          ┃ answer                                                        ┃
+   ┃ .high_school_student ┃ .age   ┃ .favorite_class ┃ .favorite_sport                                               ┃
+   ┡━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+   │ No                   │ None   │ None            │ My favorite sport is basketball. I love the fast-paced action │
+   │                      │        │                 │ and the skill involved in shooting and teamwork.              │
+   └──────────────────────┴────────┴─────────────────┴───────────────────────────────────────────────────────────────┘
 
 
 Conditional expressions
