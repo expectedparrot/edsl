@@ -20,8 +20,8 @@ def coop_object_api_workflows(object_type, object_examples):
 
     # 2. Test object creation and retrieval
     responses = []
-    for object, public in object_examples:
-        response = coop.create(object, public=public)
+    for object, visibility in object_examples:
+        response = coop.create(object, visibility=visibility)
         assert response.get("type") == object_type, f"Expected type '{object_type}'"
         assert coop.get(object_type=object_type, uuid=response.get("uuid")) == object
         assert coop.get(url=response.get("url")) == object
@@ -30,8 +30,8 @@ def coop_object_api_workflows(object_type, object_examples):
     # 3. Test visibility with different clients
     coop2 = Coop(api_key="a")
     for i, response in enumerate(responses):
-        object, public = object_examples[i]
-        if public:
+        object, visibility = object_examples[i]
+        if visibility != "private":
             assert (
                 coop2.get(object_type=object_type, uuid=response.get("uuid")) == object
             )
@@ -48,9 +48,10 @@ def coop_object_api_workflows(object_type, object_examples):
 @pytest.mark.coop
 def test_coop_client_questions():
     question_examples = [
-        (QuestionMultipleChoice.example(), True),
-        (QuestionCheckBox.example(), False),
-        (QuestionFreeText.example(), True),
+        (QuestionMultipleChoice.example(), "public"),
+        (QuestionCheckBox.example(), "private"),
+        (QuestionFreeText.example(), "public"),
+        (QuestionFreeText.example(), "unlisted"),
     ]
     coop_object_api_workflows("question", question_examples)
 
@@ -58,9 +59,10 @@ def test_coop_client_questions():
 @pytest.mark.coop
 def test_coop_client_surveys():
     survey_examples = [
-        (Survey.example(), True),
-        (Survey.example(), False),
-        (Survey.example(), True),
+        (Survey.example(), "public"),
+        (Survey.example(), "private"),
+        (Survey.example(), "public"),
+        (Survey.example(), "unlisted"),
     ]
     coop_object_api_workflows("survey", survey_examples)
 
@@ -68,9 +70,10 @@ def test_coop_client_surveys():
 @pytest.mark.coop
 def test_coop_client_agents():
     agent_examples = [
-        (Agent.example(), True),
-        (Agent.example(), False),
-        (Agent.example(), True),
+        (Agent.example(), "public"),
+        (Agent.example(), "private"),
+        (Agent.example(), "public"),
+        (Agent.example(), "unlisted"),
     ]
     coop_object_api_workflows("agent", agent_examples)
 
@@ -78,9 +81,10 @@ def test_coop_client_agents():
 @pytest.mark.coop
 def test_coop_client_results():
     results_examples = [
-        (Results.example(), True),
-        (Results.example(), False),
-        (Results.example(), True),
+        (Results.example(), "public"),
+        (Results.example(), "private"),
+        (Results.example(), "public"),
+        (Results.example(), "unlisted"),
     ]
     coop_object_api_workflows("results", results_examples)
 
@@ -88,8 +92,9 @@ def test_coop_client_results():
 @pytest.mark.coop
 def test_coop_client_caches():
     cache_examples = [
-        (Cache.example(), True),
-        (Cache.example(), False),
-        (Cache.example(), True),
+        (Cache.example(), "public"),
+        (Cache.example(), "private"),
+        (Cache.example(), "public"),
+        (Cache.example(), "unlisted"),
     ]
     coop_object_api_workflows("cache", cache_examples)
