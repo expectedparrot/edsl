@@ -273,7 +273,8 @@ In contrast, if the agent does not need to remember all of the answers to the qu
 
 Lagged memory
 ^^^^^^^^^^^^^
-The method `set_lagged_memory()` gives the agent a specified number of prior questions and answers at each new question in the survey,
+The method `set_lagged_memory()` gives the agent a specified number of prior questions and answers at each new question in the survey;
+we pass it the number of prior questions and answers to remember.
 Here we use it to give the agent just 1 prior question/answer at each question:
 
 .. code-block:: python
@@ -331,8 +332,9 @@ This will print the prompts for each question:
 
 Targeted memory 
 ^^^^^^^^^^^^^^^
-The method `add_targeted_memory()` gives the agent specific targeted prior questions and answers.
-Here we use it to give the agent question/answer to q1 when prompting it to answer q4:
+The method `add_targeted_memory()` gives the agent a targeted prior question and answer when answering another specified question.
+We pass it the question to answer and the prior question/answer to remember when answering it.
+Here we use it to give the agent the question/answer to q1 when prompting it to answer q4:
 
 .. code-block:: python
 
@@ -377,14 +379,18 @@ Here we use it to give the agent question/answer to q1 when prompting it to answ
    └────────────────────────────┴───────────────────────────┴────────────────────────────┴───────────────────────────┘
 
 
-This method can be applied multiple times to add prior answers to a given question.
-For example, we can add answers to both q1 and q2 when answering q4:
+
+Memory collection 
+^^^^^^^^^^^^^^^^^
+The `add_memory_collection()` method is used to add sets of prior questions and answers to a given question.
+We pass it the question to be answered and the list of questions/answers to be remembered when answering it.
+For example, we can add the questions/answers for both q1 and q2 when prompting the agent to answer q4:
 
 .. code-block:: python
 
    survey = Survey(questions = [q1, q2, q3, q4])
-   survey.add_memory_collection(q4, q1)
-   survey.add_memory_collection(q4, q2)
+   survey.add_memory_collection(q4, [q1, q2])
+
 
     
 Running a survey
