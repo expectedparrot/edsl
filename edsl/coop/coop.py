@@ -315,6 +315,7 @@ class Coop:
                 "question": QuestionBase.from_dict(json.loads(q["json_string"])),
                 "uuid": q["uuid"],
                 "version": q["version"],
+                "visibility": q.get("visibility"),
                 "url": f"{self.url}/explore/questions/{q['uuid']}",
             }
             for q in response.json()
@@ -331,6 +332,7 @@ class Coop:
                 "survey": Survey.from_dict(json.loads(s["json_string"])),
                 "uuid": s["uuid"],
                 "version": s["version"],
+                "visibility": s.get("visibility"),
                 "url": f"{self.url}/explore/surveys/{s['uuid']}",
             }
             for s in response.json()
@@ -354,6 +356,7 @@ class Coop:
                     "uuid": a.get("uuid"),
                     "agent": agent,
                     "version": a.get("version"),
+                    "visibility": a.get("visibility"),
                     "url": f"{self.url}/explore/agents/{a['uuid']}",
                 }
             )
@@ -369,6 +372,7 @@ class Coop:
                 "uuid": r.get("uuid"),
                 "results": Results.from_dict(json.loads(r.get("json_string"))),
                 "version": r.get("version"),
+                "visibility": r.get("visibility"),
                 "url": f"{self.url}/explore/results/{r['uuid']}",
             }
             for r in response.json()
@@ -385,6 +389,7 @@ class Coop:
                 "uuid": c.get("uuid"),
                 "cache": Cache.from_dict(json.loads(c.get("json_string"))),
                 "version": c.get("version"),
+                "visibility": c.get("visibility"),
                 "url": f"{self.url}/explore/caches/{c['uuid']}",
             }
             for c in response.json()
