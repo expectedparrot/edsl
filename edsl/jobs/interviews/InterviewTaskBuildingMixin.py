@@ -211,5 +211,3 @@ class InterviewTaskBuildingMixin:
 
         if next_question_index > (current_question_index + 1):
             cancel_between(current_question_index + 1, next_question_index)
-
-        # breakpoint()

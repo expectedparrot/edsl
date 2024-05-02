@@ -251,6 +251,8 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         # TODO: This is tricky because we don't actually know the name of the question yet.
         # We
         skipped_to_question_index = question_index + 1
+        if skipped_to_question_index >= len(self.questions):
+            skipped_to_question_index = EndOfSurvey
         self.add_rule(prior_question, expression, skipped_to_question_index)
         return self
 
@@ -429,7 +431,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
                 text_dag[child_name] = parent_names
             return text_dag
         except IndexError:
-            breakpoint()
+            raise
 
     def dag(self, textify=False) -> DAG:
         """Return the DAG of the survey, which reflects both skip-logic and memory."""
