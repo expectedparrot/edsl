@@ -9,13 +9,17 @@ import matplotlib.image as mpimg
 class ResultsGGMixin:
     """Mixin class for ggplot2 plotting."""
 
-    def ggplot2(self, ggplot_code: str, filename=None, shape="wide"):
+    def ggplot2(self, ggplot_code: str, filename=None, shape="wide", sql = None):
         """Create a ggplot2 plot from a DataFrame."""
         # Fetching DataFrame based on shape
+
+        if sql == None:
+            sql = "select * from self"
+
         if shape == "long":
-            df = self.sql("select * from self", shape="long")
+            df = self.sql(sql, shape="long")
         elif shape == "wide":
-            df = self.sql("select * from self", shape="wide", remove_prefix=True)
+            df = self.sql(sql, shape="wide", remove_prefix=True)
 
         # Convert DataFrame to CSV format
         csv_data = df.to_csv(index=False)

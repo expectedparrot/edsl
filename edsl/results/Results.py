@@ -4,11 +4,8 @@ It is not typically instantiated directly, but is returned by the run method of 
 """
 from __future__ import annotations
 import json
-import io
-import sys
 from collections import UserList, defaultdict
 from typing import Optional
-from rich.console import Console
 
 from simpleeval import EvalWithCompoundTypes
 from typing import Any, Type, Union
@@ -42,21 +39,14 @@ from pygments.lexers import JsonLexer
 from pygments.formatters import HtmlFormatter
 from IPython.display import HTML
 
-
 from edsl.results.ResultsDBMixin import ResultsDBMixin
-
-
-class Mixins(ResultsExportMixin, ResultsDBMixin):
-    pass
-
+from edsl.results.ResultsGGMixin import ResultsGGMixin
 
 from edsl.Base import Base
 from edsl.results.ResultsFetchMixin import ResultsFetchMixin
 
-
-class Mixins(ResultsExportMixin, ResultsDBMixin, ResultsFetchMixin):
+class Mixins(ResultsExportMixin, ResultsDBMixin, ResultsFetchMixin, ResultsGGMixin):
     pass
-
 
 class Results(UserList, Mixins, Base):
     """
