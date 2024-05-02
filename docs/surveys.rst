@@ -82,7 +82,9 @@ Applying survey rules
 ^^^^^^^^^^^^^^^^^^^^^
 Rules can be applied to a survey with the `add_skip_rule()`, `add_stop_rule()` and `add_rule()` methods, which take a logical expression and the relevant questions.
 
-**Skip rules:**
+
+Skip rules
+^^^^^^^^^^
 The `add_skip_rule()` method skips a question if a condition is met. 
 The (2) required parameters are the question to skip and the condition to evaluate.
 
@@ -121,7 +123,8 @@ This will print the answers, showing that q2 was skipped ("None"):
    └────────┴────────┴─────────┴─────────────────────┘
 
 
-**Stop rules:**
+Stop rules
+^^^^^^^^^^
 The `add_stop_rule()` method stops the survey if a condition is met.
 The (2) required parameters are the question to stop at and the condition to evaluate.
 
@@ -149,11 +152,12 @@ This time we see that the survey ended when the response to "color" was "Blue":
    └────────┴────────┴─────────┴────────┘
 
 
-**Rules:**
-The `add_rule()` method specifies that if a condition is met, a specific question should be administered next.
+Other rules
+^^^^^^^^^^^
+The generalizable `add_rule()` method is used to specify the next question to administer based on a condition.
 The (3) required parameters are the question to evaluate, the condition to evaluate, and the question to administer next.
 
-Here we use `add_rule()` to specify that if the response to "high_school_student" is "No" then q4 should be administered next:
+Here we use `add_rule()` to specify that if the response to "color" is "Blue" then q4 should be administered next:
 
 .. code-block:: python
    
@@ -168,7 +172,7 @@ We can run the survey and verify that the rule was applied:
    results.select("color", "day", "winter", "birds").print(format="rich")
 
 
-We can see that q2 and q3 were skipped because the response to "color" was "Blue":
+We can see that both q2 and q3 were skipped because the response to "color" was "Blue":
 
 .. code-block:: text
     
@@ -180,13 +184,14 @@ We can see that q2 and q3 were skipped because the response to "color" was "Blue
    └────────┴────────┴─────────┴─────────────────────┘
 
 
+
 Conditional expressions
 ^^^^^^^^^^^^^^^^^^^^^^^
-The expressions themselves (`"student == 'No'"`) are written in Python.
+The rule expressions themselves (`"student == 'No'"`) are written in Python.
 An expression is evaluated to True or False, with the answer substituted into the expression. 
 The placeholder for this answer is the name of the question itself. 
-In the examples, the answer to q1 is substituted into the expression `"student == 'No'"`, 
-as the name of q1 is "student".
+In the examples, the answer to q1 is substituted into the expression `"color == 'Blue'"`, 
+as the name of q1 is "color".
 
 
 Memory
@@ -194,10 +199,12 @@ Memory
 When an agent is taking a survey, they can be prompted to "remember" answers to previous questions.
 This can be done in several ways:
 
-**Full memory:**
+
+Full memory
+^^^^^^^^^^^
 The method `set_full_memory_mode()` gives the agent all of the prior questions and answers at each new question in the survey,
-i.e., question 1 is included in the memory when answering question 2, question 1 and 2 are included in the memory when answering question 3, etc.
-It is called on the survey object:
+i.e., the first question and answer are included in the memory when answering the second question, both the first and second questions and answers are included in the memory when answering the third question, and so on.
+The method is called on the survey object:
 
 .. code-block:: python
 
@@ -264,7 +271,8 @@ Note that this is slow and token-intensive, as the questions must be answered se
 In contrast, if the agent does not need to remember all of the answers to the questions in the survey, execution can proceed in parallel.
     
 
-**Lagged memory:**
+Lagged memory
+^^^^^^^^^^^^^
 The method `set_lagged_memory()` gives the agent a specified number of prior questions and answers at each new question in the survey,
 Here we use it to give the agent just 1 prior question/answer at each question:
 
@@ -321,7 +329,8 @@ This will print the prompts for each question:
    └────────────────────────────┴───────────────────────────┴────────────────────────────┴───────────────────────────┘
 
 
-**Targeted memory:**
+Targeted memory 
+^^^^^^^^^^^^^^^
 The method `add_targeted_memory()` gives the agent specific targeted prior questions and answers.
 Here we use it to give the agent question/answer to q1 when prompting it to answer q4:
 
@@ -368,16 +377,8 @@ Here we use it to give the agent question/answer to q1 when prompting it to answ
    └────────────────────────────┴───────────────────────────┴────────────────────────────┴───────────────────────────┘
 
 
-
-We can also use question names instead of question ids. The following example is equivalent to the previous one:
-
-.. code-block:: python
-
-   survey = Survey(questions = [q1, q2, q3, q4])
-   survey.add_targeted_memory("favorite_sport", "high_school_student")
-
 This method can be applied multiple times to add prior answers to a given question.
-For example, we can add answers to both q1 and q2 when answering q3:
+For example, we can add answers to both q1 and q2 when answering q4:
 
 .. code-block:: python
 
