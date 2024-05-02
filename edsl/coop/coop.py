@@ -207,13 +207,13 @@ class Coop:
     def _create(
         self,
         object: Union[Type[QuestionBase], Survey, Agent, AgentList, Results],
-        public: bool = False,
+        visibility: Literal["public", "unlisted", "private"] = "unlisted",
     ) -> dict:
         """
         Create an EDSL object in the Coop server.
 
         :param object: the EDSL object to be sent.
-        :param public: whether the object should be public (defaults to False).
+        :param visibility: the object's visibility (defaults to "unlisted").
         """
 
         uri, _ = self._resolve_edsl_object(object)
@@ -224,7 +224,7 @@ class Coop:
                 "json_string": json.dumps(
                     object.to_dict(), default=self._json_handle_none
                 ),
-                "public": public,
+                "visibility": visibility,
                 "version": self._get_edsl_version(),
             },
         )
@@ -237,16 +237,16 @@ class Coop:
     def create(
         self,
         object: Union[Type[QuestionBase], Survey, Agent, AgentList, Results],
-        public: bool = True,
+        visibility: Literal["public", "unlisted", "private"] = "unlisted",
         verbose: bool = False,
     ) -> dict:
         """
         Create an EDSL object in the Coop server.
 
         :param object: the EDSL object to be sent.
-        :param public: whether the object should be public (defaults to True)
+        :param visibility: the object's visibility (defaults to "unlisted").
         """
-        response = self._create(object, public)
+        response = self._create(object, visibility)
         if verbose:
             print(f"Object pushed to Coop - available at {response['url']}")
         return response
@@ -315,6 +315,7 @@ class Coop:
                 "question": QuestionBase.from_dict(json.loads(q["json_string"])),
                 "uuid": q["uuid"],
                 "version": q["version"],
+                "visibility": q.get("visibility"),
                 "url": f"{self.url}/explore/questions/{q['uuid']}",
             }
             for q in response.json()
@@ -331,6 +332,7 @@ class Coop:
                 "survey": Survey.from_dict(json.loads(s["json_string"])),
                 "uuid": s["uuid"],
                 "version": s["version"],
+                "visibility": s.get("visibility"),
                 "url": f"{self.url}/explore/surveys/{s['uuid']}",
             }
             for s in response.json()
@@ -354,6 +356,7 @@ class Coop:
                     "uuid": a.get("uuid"),
                     "agent": agent,
                     "version": a.get("version"),
+                    "visibility": a.get("visibility"),
                     "url": f"{self.url}/explore/agents/{a['uuid']}",
                 }
             )
@@ -369,6 +372,7 @@ class Coop:
                 "uuid": r.get("uuid"),
                 "results": Results.from_dict(json.loads(r.get("json_string"))),
                 "version": r.get("version"),
+                "visibility": r.get("visibility"),
                 "url": f"{self.url}/explore/results/{r['uuid']}",
             }
             for r in response.json()
@@ -385,6 +389,7 @@ class Coop:
                 "uuid": c.get("uuid"),
                 "cache": Cache.from_dict(json.loads(c.get("json_string"))),
                 "version": c.get("version"),
+                "visibility": c.get("visibility"),
                 "url": f"{self.url}/explore/caches/{c['uuid']}",
             }
             for c in response.json()
@@ -412,7 +417,9 @@ class Coop:
     ################
     # CacheEntry Methods
     ################
-    def create_cache_entry(self, cache_entry: CacheEntry, public: bool = False) -> dict:
+    def create_cache_entry(
+        self, cache_entry: CacheEntry, visibility: str = "unlisted"
+    ) -> dict:
         """
         Create a CacheEntry object.
         """
@@ -420,7 +427,7 @@ class Coop:
             uri="api/v0/cache-entries",
             method="POST",
             payload={
-                "public": public,
+                "visibility": visibility,
                 "version": self._get_edsl_version(),
                 "json_string": json.dumps(
                     {"key": cache_entry.key, "value": json.dumps(cache_entry.to_dict())}
@@ -431,7 +438,7 @@ class Coop:
         return response.json()
 
     def create_cache_entries(
-        self, cache_entries: dict[str, CacheEntry], public: bool = False
+        self, cache_entries: dict[str, CacheEntry], visibility: str = "unlisted"
     ) -> None:
         """
         Send a dictionary of CacheEntry objects to the server.
@@ -440,7 +447,7 @@ class Coop:
             uri="api/v0/cache-entries/many",
             method="POST",
             payload={
-                "public": public,
+                "visibility": visibility,
                 "version": self._get_edsl_version(),
                 "json_string": json.dumps(
                     {k: json.dumps(v.to_dict()) for k, v in cache_entries.items()}
@@ -525,8 +532,8 @@ if __name__ == "__main__":
     coop.get(object_type="question", uuid=str(uuid.uuid4()))
     # now post some questions
     response = coop.create(QuestionMultipleChoice.example())
-    coop.create(QuestionCheckBox.example(), public=False)
-    coop.create(QuestionFreeText.example(), public=True)
+    coop.create(QuestionCheckBox.example(), visibility="private")
+    coop.create(QuestionFreeText.example(), visibility="public")
     # check all questions - there must be three
     coop.questions
     # or get a question by its uuid
@@ -552,14 +559,14 @@ if __name__ == "__main__":
     coop.get(object_type="survey", uuid=str(uuid.uuid4()))
     # now post some surveys
     response = coop.create(Survey.example())
-    coop.create(Survey.example(), public=False)
-    coop.create(Survey.example(), public=True)
+    coop.create(Survey.example(), visibility="private")
+    coop.create(Survey.example(), visibility="public")
     s = Survey().example()
     for i in range(10):
         q = QuestionFreeText.example()
         q.question_name = f"question_{i}"
         s.add_question(q)
-    coop.create(s, public=True)
+    coop.create(s, visibility="public")
     # check all surveys - there must be three
     coop.surveys
     # or get survey by uuid
@@ -585,14 +592,14 @@ if __name__ == "__main__":
     coop.get(object_type="agent", uuid=str(uuid.uuid4()))
     # now post some agents
     response = coop.create(Agent.example())
-    coop.create(Agent.example(), public=False)
-    coop.create(Agent.example(), public=True)
+    coop.create(Agent.example(), visibility="private")
+    coop.create(Agent.example(), visibility="public")
     coop.create(
-        Agent(traits={"hair_type": "curly", "skil_color": "white"}), public=True
+        Agent(traits={"hair_type": "curly", "skil_color": "white"}), visibility="public"
     )
     coop.create(AgentList.example())
-    coop.create(AgentList.example(), public=False)
-    coop.create(AgentList.example(), public=True)
+    coop.create(AgentList.example(), visibility="private")
+    coop.create(AgentList.example(), visibility="public")
     # check all agents - there must be a few
     coop.agents
     # or get agent by uuid
@@ -618,8 +625,8 @@ if __name__ == "__main__":
     coop.get(object_type="results", uuid=str(uuid.uuid4()))
     # now post some Results
     response = coop.create(Results.example())
-    coop.create(Results.example(), public=False)
-    coop.create(Results.example(), public=True)
+    coop.create(Results.example(), visibility="private")
+    coop.create(Results.example(), visibility="public")
     # check all results - there must be a few
     coop.results
     # or get results by uuid
@@ -645,8 +652,8 @@ if __name__ == "__main__":
     coop.get(object_type="cache", uuid=str(uuid.uuid4()))
     # now post some Caches
     response = coop.create(Cache.example())
-    coop.create(Cache.example(), public=False)
-    coop.create(Cache.example(), public=True)
+    coop.create(Cache.example(), visibility="private")
+    coop.create(Cache.example(), visibility="public")
     # check all caches - there must be a few
     coop.caches
     # or get cache by uuid
