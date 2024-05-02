@@ -34,7 +34,7 @@ The formats are defined in the `questions` module. Here we define some questions
 
 .. code-block:: python
 
-   from edsl.questions import QuestionYesNo, QuestionFreeText
+   from edsl.questions import QuestionYesNo, QuestionNumerical, QuestionFreeText
 
    q1 = QuestionYesNo(
       question_name = "high_school_student",
