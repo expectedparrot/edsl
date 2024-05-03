@@ -413,6 +413,7 @@ class Coop:
                 "version": j.get("version"),
                 "visibility": j.get("visibility"),
                 "status": j.get("status"),
+                "results_uuid": j.get("results_uuid"),
                 "url": f"{self.url}/explore/jobs/{j['uuid']}",
             }
             for j in response.json()
@@ -708,7 +709,9 @@ if __name__ == "__main__":
     coop.jobs
     # get job by uuid
     for job in coop.jobs:
-        print(f"Job: {job.get('uuid')}, Status: {job.get('status')}")
+        print(
+            f"Job: {job.get('uuid')}, Status: {job.get('status')}, Results: {job.get('results_uuid')}"
+        )
 
     ##############
     # B. CacheEntries
