@@ -234,3 +234,14 @@ For more details see new documentation on <a href="https://docs.expectedparrot.c
 
 ### Fixed
 - A bug in in `Survey.add_rule()` method that caused an additional question to be skipped when used to apply a skip rule.
+
+
+## [0.1.19] - 2024-05-03
+
+### Added
+- `Results` objects now include columns for question components. Call the `.columns` method on your results to see a list of all components. Run `results.select("question_type.*", "question_text.*", "question_options.*").print()` to see them.
+
+- `Survey` objects now also have a `.to_csv()` method.
+
+### Changed 
+- Increased the maximum number of multiple choice answer options to 200 (previously 20) to facilitate large codebooks / data labels.
