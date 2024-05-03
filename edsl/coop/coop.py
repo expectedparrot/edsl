@@ -706,6 +706,9 @@ if __name__ == "__main__":
     coop.create(Jobs.example(), visibility="public")
     # check all jobs - there must be a few
     coop.jobs
+    # get job by uuid
+    for job in coop.jobs:
+        print(f"Job: {job.get('uuid')}, Status: {job.get('status')}")
 
     ##############
     # B. CacheEntries
