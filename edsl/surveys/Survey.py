@@ -529,6 +529,20 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
             codebook[question.question_name] = question.question_text
         return codebook
 
+    def to_csv(self, filename: str = None):
+        raw_data = []
+        for index, question in enumerate(self._questions):
+            d = {"index": index}
+            d.update(question.to_dict())
+            raw_data.append(d)
+        from pandas import DataFrame
+
+        df = DataFrame(raw_data)
+        if filename:
+            df.to_csv(filename, index=False)
+        else:
+            return df
+
     def web(
         self,
         platform: Literal[
