@@ -112,12 +112,13 @@ Links
    :caption: How-to Guides
    :hidden:
 
-   notebooks/edsl_components
+   notebooks/edsl_components.ipynb
+   notebooks/survey_methods.ipynb
    notebooks/export_survey_updates.ipynb
-   notebooks/question_extract_example
+   notebooks/question_extract_example.ipynb
    notebooks/data_labeling_example.ipynb
    notebooks/example_agent_dynamic_traits.ipynb
-   notebooks/research_methods
+   notebooks/research_methods.ipynb
 
 .. toctree::
    :maxdepth: 2
@@ -126,12 +127,12 @@ Links
 
    notebooks/data_labeling_agent.ipynb
    notebooks/explore_llm_biases.ipynb
-   notebooks/research_random_silicon_sampling
-   notebooks/explore_survey_contexts
-   notebooks/free_responses
-   notebooks/qualitative_research
-   notebooks/digital_twin
-   notebooks/grading_experiment
+   notebooks/research_random_silicon_sampling.ipynb
+   notebooks/explore_survey_contexts.ipynb
+   notebooks/free_responses.ipynb
+   notebooks/qualitative_research.ipynb
+   notebooks/digital_twin.ipynb
+   notebooks/grading_experiment.ipynb
 
 .. toctree::
    :maxdepth: 2
