@@ -204,7 +204,7 @@ class Jobs(Base):
         debug: bool = False,
         progress_bar: bool = False,
         stop_on_exception: bool = False,
-        cache: Optional[Cache] = None,
+        cache: Union[Cache, bool] = None,
         remote: bool = False
         if os.getenv("DEFAULT_RUN_MODE", "local") == "local"
         else True,
@@ -243,6 +243,9 @@ class Jobs(Base):
 
         if cache is None:
             cache = CacheHandler().get_cache()
+
+        if cache is False:
+            cache = Cache()
 
         results = self._run_local(
             n=n,
