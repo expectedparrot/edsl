@@ -445,6 +445,8 @@ For example, we can add the questions/answers for both q1 and q2 when prompting 
    │                            │                           │                            │ 'TopK'}                   │
    └────────────────────────────┴───────────────────────────┴────────────────────────────┴───────────────────────────┘
     
+
+    
 Running a survey
 ----------------
 Once constructed, a Survey can be `run`, creating a `Results` object:
