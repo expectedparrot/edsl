@@ -75,6 +75,7 @@ def test_results_example():
         "select * from self where id = 1 and data_type = 'model'",
         shape="long",
         csv=True,
+        remove_prefix=False,
     )
     try:
         assert actual_output_string == desired_output_string
@@ -93,6 +94,7 @@ def test_results_example_group_by():
         "select * from self where id = 1 and data_type = 'model'",
         shape="long",
         csv=True,
+        remove_prefix=False,
     )
     assert sql_output == output_string
 
@@ -105,6 +107,7 @@ def test_results_example_group_by():
         shape="long",
         transpose=True,
         csv=True,
+        remove_prefix=False,
     ) == output_string
 
 
@@ -112,7 +115,7 @@ def test_wide_format():
     from edsl.results import Results
 
     r = Results.example()
-    sql_results = r.sql('select "answer.how_feeling" from self', shape="wide", csv=True)
+    sql_results = r.sql('select "answer.how_feeling" from self', shape="wide", csv=True, remove_prefix=False)
     output_string = "answer.how_feeling\nOK\nGreat\nTerrible\nOK\n"
     assert sql_results == output_string
 
