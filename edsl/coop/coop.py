@@ -700,6 +700,12 @@ if __name__ == "__main__":
     # try to get a job that does not exist - should get an error
     coop.get(object_type="job", uuid=uuid.uuid4())
     coop.get(object_type="job", uuid=str(uuid.uuid4()))
+    # now post some Jobs
+    response = coop.create(Jobs.example())
+    coop.create(Jobs.example(), visibility="private")
+    coop.create(Jobs.example(), visibility="public")
+    # check all jobs - there must be a few
+    coop.jobs
 
     ##############
     # B. CacheEntries
