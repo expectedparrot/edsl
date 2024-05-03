@@ -103,9 +103,7 @@ class QuestionTaskCreator(UserList):
         self.task_status = TaskStatus.API_CALL_IN_PROGRESS
         try:
             results = await self.answer_question_func(
-                question=self.question, 
-                debug=debug, 
-                task=None #self
+                question=self.question, debug=debug, task=None  # self
             )
             self.task_status = TaskStatus.SUCCESS
         except Exception as e:
@@ -133,8 +131,8 @@ class QuestionTaskCreator(UserList):
 
     async def _run_task_async(self, debug) -> None:
         """Run the task asynchronously, awaiting the tasks that must be completed before this one can be run.
-        
-        
+
+
         The method follows these steps:
             1. Set the task_status to TaskStatus.WAITING_FOR_DEPENDENCIES, indicating that the task is waiting for its dependencies to complete.
             2. Await asyncio.gather(*self, return_exceptions=True) to run all the dependent tasks concurrently.
@@ -164,15 +162,15 @@ class QuestionTaskCreator(UserList):
             self.task_status = TaskStatus.WAITING_FOR_DEPENDENCIES
             # If this were set to 'return_exceptions=False', then the first exception would be raised immediately.
             # and it would cancel all the other tasks. This is not the behavior we want.
-         
+
             gather_results = await asyncio.gather(*self, return_exceptions=True)
 
             for result in gather_results:
                 if isinstance(result, Exception):
                     raise result
-                
+
             return await self._run_focal_task(debug)
-                    
+
         except asyncio.CancelledError:
             self.task_status = TaskStatus.CANCELLED
             raise
@@ -184,8 +182,8 @@ class QuestionTaskCreator(UserList):
             raise InterviewErrorPriorTaskCanceled(
                 f"Required tasks failed for {self.question.question_name}"
             ) from e
-        #else:
-        #@    # This is the actual task that we want to run.
+        # else:
+        # @    # This is the actual task that we want to run.
         #    # it never runs if the dependencies fail
         #    return await self._run_focal_task(debug)
 
