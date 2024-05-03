@@ -45,8 +45,10 @@ from edsl.results.ResultsGGMixin import ResultsGGMixin
 from edsl.Base import Base
 from edsl.results.ResultsFetchMixin import ResultsFetchMixin
 
+
 class Mixins(ResultsExportMixin, ResultsDBMixin, ResultsFetchMixin, ResultsGGMixin):
     pass
+
 
 class Results(UserList, Mixins, Base):
     """
@@ -65,6 +67,9 @@ class Results(UserList, Mixins, Base):
         "prompt",
         "raw_model_response",
         "iteration",
+        "question_text",
+        "question_options",
+        "question_type",
     ]
 
     def __init__(

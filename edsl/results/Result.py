@@ -118,6 +118,9 @@ class Result(Base, UserDict):
                 q.question_name: {
                     "question_text": q.question_text,
                     "question_type": q.question_type,
+                    "question_options": None
+                    if not hasattr(q, "question_options")
+                    else q.question_options,
                 }
                 for q in survey.questions
             }
@@ -136,11 +139,21 @@ class Result(Base, UserDict):
             agent_name = self.agent.name
 
         question_text_dict = {}
+        question_options_dict = {}
+        question_type_dict = {}
         for key, _ in self.answer.items():
             if key in self.question_to_attributes:
+                # You might be tempted to just use the naked key
+                # but this is a bad idea because it pollutes the namespace
                 question_text_dict[
                     key + "_question_text"
                 ] = self.question_to_attributes[key]["question_text"]
+                question_options_dict[
+                    key + "_question_options"
+                ] = self.question_to_attributes[key]["question_options"]
+                question_type_dict[
+                    key + "_question_type"
+                ] = self.question_to_attributes[key]["question_type"]
 
         return {
             "agent": self.agent.traits | {"agent_name": agent_name},
@@ -151,6 +164,8 @@ class Result(Base, UserDict):
             "raw_model_response": self.raw_model_response,
             "iteration": {"iteration": self.iteration},
             "question_text": question_text_dict,
+            "question_options": question_options_dict,
+            "question_type": question_type_dict,
         }
 
     def code(self):
@@ -179,15 +194,8 @@ class Result(Base, UserDict):
     def key_to_data_type(self) -> dict[str, str]:
         """Return a dictionary where keys are object attributes and values are the data type (object) that the attribute is associated with."""
         d = {}
-        for data_type in [
-            "agent",
-            "scenario",
-            "model",
-            "answer",
-            "prompt",
-            "raw_model_response",
-            "iteration",
-        ]:
+        data_types = self.sub_dicts.keys()
+        for data_type in data_types:
             for key in self.sub_dicts[data_type]:
                 d[key] = data_type
         return d
