@@ -225,7 +225,7 @@ In the results, we can inspect the `_user_prompt` for each question to see that 
    results.select("color_user_prompt", "day_user_prompt", "winter_user_prompt", "birds_user_prompt").print(format="rich")
 
 
-This will print the prompt that was used for each question, as we can see that each successive prompt references all prior questions and answers that were given:
+This will print the prompt that was used for each question, and we can see that each successive prompt references all prior questions and answers that were given:
 
 .. code-block:: text
 
@@ -346,6 +346,9 @@ Here we use it to give the agent the question/answer to q1 when prompting it to 
    survey = Survey(questions = [q1, q2, q3, q4])
    survey = survey.add_targeted_memory(q4, q1)
 
+   results = survey.run()
+   results.select("color_user_prompt", "day_user_prompt", "winter_user_prompt", "birds_user_prompt").print(format="rich")
+
 
 .. code-block:: text
 
@@ -396,7 +399,51 @@ For example, we can add the questions/answers for both q1 and q2 when prompting 
    survey = Survey(questions = [q1, q2, q3, q4])
    survey = survey.add_memory_collection(q4, [q1, q2])
 
+.. code-block:: python
 
+   results = survey.run()
+   results.select("color_user_prompt", "day_user_prompt", "winter_user_prompt", "birds_user_prompt").print(format="rich")
+
+.. code-block:: text
+
+   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+   ┃ prompt                     ┃ prompt                    ┃ prompt                     ┃ prompt                    ┃
+   ┃ .color_user_prompt         ┃ .day_user_prompt          ┃ .winter_user_prompt        ┃ .birds_user_prompt        ┃
+   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+   │ {'text': 'You are being    │ {'text': 'You are being   │ {'text': 'You are being    │ {'text': 'You are being   │
+   │ asked the following        │ asked the following       │ asked the following        │ asked the following       │
+   │ question: What is your     │ question: What is your    │ question: How much do you  │ question: Which birds do  │
+   │ favorite color?\nThe       │ favorite day of the       │ enjoy winter?\nThe options │ you like best?\nThe       │
+   │ options are\n\n0:          │ week?\nThe options        │ are\n\n0: 0\n\n1: 1\n\n2:  │ options are\n\n0:         │
+   │ Red\n\n1: Orange\n\n2:     │ are\n\n0: Sun\n\n1:       │ 2\n\n3: 3\n\n4: 4\n\n5:    │ Parrot\n\n1: Osprey\n\n2: │
+   │ Yellow\n\n3: Green\n\n4:   │ Mon\n\n2: Tue\n\n3:       │ 5\n\nReturn a valid JSON   │ Falcon\n\n3: Eagle\n\n4:  │
+   │ Blue\n\n5:                 │ Wed\n\n4: Thu\n\n5:       │ formatted like this,       │ First Robin of            │
+   │ Purple\n\nReturn a valid   │ Fri\n\n6: Sat\n\nReturn a │ selecting only the code of │ Spring\n\nReturn a valid  │
+   │ JSON formatted like this,  │ valid JSON formatted like │ the option (codes start at │ JSON formatted like this, │
+   │ selecting only the number  │ this, selecting only the  │ 0):\n{"answer": <put       │ selecting only the number │
+   │ of the option:\n{"answer": │ number of the             │ answer code here>,         │ of the                    │
+   │ <put answer code here>,    │ option:\n{"answer": <put  │ "comment": "<put           │ option:\n{"answer": [<put │
+   │ "comment": "<put           │ answer code here>,        │ explanation here>"}\nOnly  │ comma-separated list of   │
+   │ explanation here>"}\nOnly  │ "comment": "<put          │ 1 option may be            │ answer codes here>],      │
+   │ 1 option may be            │ explanation here>"}\nOnly │ selected.', 'class_name':  │ "comment": "<put          │
+   │ selected.', 'class_name':  │ 1 option may be           │ 'LinearScale'}             │ explanation               │
+   │ 'MultipleChoice'}          │ selected.', 'class_name': │                            │ here>"}\n\nYou must       │
+   │                            │ 'MultipleChoice'}         │                            │ select exactly 2          │
+   │                            │                           │                            │ options.\n        Before  │
+   │                            │                           │                            │ the question you are now  │
+   │                            │                           │                            │ answering, you already    │
+   │                            │                           │                            │ answered the following    │
+   │                            │                           │                            │ question(s):\n            │
+   │                            │                           │                            │ \tQuestion: What is your  │
+   │                            │                           │                            │ favorite                  │
+   │                            │                           │                            │ color?\n\tAnswer:         │
+   │                            │                           │                            │ Blue\n\n Prior questions  │
+   │                            │                           │                            │ and answers:\tQuestion:   │
+   │                            │                           │                            │ What is your favorite day │
+   │                            │                           │                            │ of the week?\n\tAnswer:   │
+   │                            │                           │                            │ Fri', 'class_name':       │
+   │                            │                           │                            │ 'TopK'}                   │
+   └────────────────────────────┴───────────────────────────┴────────────────────────────┴───────────────────────────┘
     
 Running a survey
 ----------------
