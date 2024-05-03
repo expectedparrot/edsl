@@ -411,6 +411,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         """Convert the DAG of question indices to a DAG of question names.
 
         Example:
+
         >>> s = Survey.example()
         >>> d = s.dag()
         >>> d
@@ -434,7 +435,14 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
             raise
 
     def dag(self, textify=False) -> DAG:
-        """Return the DAG of the survey, which reflects both skip-logic and memory."""
+        """Return the DAG of the survey, which reflects both skip-logic and memory.
+
+        >>> s = Survey.example()
+        >>> d = s.dag()
+        >>> d
+        {1: {0}, 2: {0}}
+
+        """
         memory_dag = self.memory_plan.dag
         rule_dag = self.rule_collection.dag
         if textify:
@@ -449,7 +457,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         """Return the number of questions in the survey."""
         return len(self._questions)
 
-    def __getitem__(self, index) -> Question:
+    def __getitem__(self, index) -> QuestionBase:
         """Return the question object given the question index."""
         if isinstance(index, int):
             return self._questions[index]
