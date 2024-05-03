@@ -11,6 +11,7 @@ from edsl import CONFIG
 from edsl.agents import Agent, AgentList
 from edsl.config import CONFIG
 from edsl.data.Cache import Cache
+from edsl.jobs import Jobs
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.results import Results
 from edsl.surveys import Survey
@@ -135,7 +136,7 @@ class Coop:
     def _resolve_edsl_object(
         self,
         object: Union[
-            Type[QuestionBase], QuestionBase, Survey, Agent, AgentList, Results
+            Type[QuestionBase], QuestionBase, Survey, Agent, AgentList, Results, Jobs
         ],
     ) -> tuple[str, str]:
         """
@@ -153,6 +154,8 @@ class Coop:
             return ("results", "results")
         elif issubclass(object_type, Cache):
             return ("caches", "cache")
+        elif issubclass(object_type, Jobs):
+            return ("jobs", "job")
         else:
             raise ValueError("Incorrect or not supported object type")
 
@@ -166,6 +169,7 @@ class Coop:
             "agent": ("agents", Agent),
             "results": ("results", Results),
             "cache": ("caches", Cache),
+            "job": ("jobs", Jobs),
         }
 
         if object_type is None:
@@ -188,6 +192,7 @@ class Coop:
             "agents": ("agent", Agent),
             "results": ("results", Results),
             "caches": ("cache", Cache),
+            "jobs": ("job", Jobs),
         }
 
         if uri is None:
@@ -395,6 +400,24 @@ class Coop:
             for c in response.json()
         ]
         return caches
+
+    @property
+    def jobs(self) -> list[dict[str, Union[int, Jobs]]]:
+        """Retrieve all Jobs."""
+        response = self._send_server_request(uri="api/v0/jobs", method="GET")
+        self._resolve_server_response(response)
+        jobs = [
+            {
+                "uuid": j.get("uuid"),
+                "job": Jobs.from_dict(json.loads(j.get("json_string"))),
+                "version": j.get("version"),
+                "visibility": j.get("visibility"),
+                "status": j.get("status"),
+                "url": f"{self.url}/explore/jobs/{j['uuid']}",
+            }
+            for j in response.json()
+        ]
+        return jobs
 
     # ----------
     # D. DELETE
@@ -664,6 +687,19 @@ if __name__ == "__main__":
     coop.delete(object_type="cache", uuid=response.get("uuid"))
     # check all caches
     coop.caches
+
+    # ------------
+    # A.6 Jobs
+    # ------------
+    from edsl.jobs import Jobs
+
+    # check jobs on server (should be an empty list)
+    coop.jobs
+    for job in coop.jobs:
+        coop.delete(object_type="job", uuid=job.get("uuid"))
+    # try to get a job that does not exist - should get an error
+    coop.get(object_type="job", uuid=uuid.uuid4())
+    coop.get(object_type="job", uuid=str(uuid.uuid4()))
 
     ##############
     # B. CacheEntries
