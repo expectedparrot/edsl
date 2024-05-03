@@ -1,4 +1,4 @@
-"""Mixin for working with SQL databases."""
+"""Mixin for working with SQLite respresentation of a 'Results' object."""
 import pandas as pd
 import sqlite3
 from sqlalchemy import create_engine
@@ -112,8 +112,8 @@ class ResultsDBMixin:
     def sql(
         self,
         query: str,
-        shape: Literal["wide", "long"] = "long",
-        remove_prefix: bool = False,
+        shape: Literal["wide", "long"] = "wide",
+        remove_prefix: bool = True,
         transpose: bool = None,
         transpose_by: str = None,
         csv: bool = False,
@@ -143,14 +143,12 @@ class ResultsDBMixin:
         Note the use of single quotes to escape the column names, as required by sql.
 
         >>> from edsl.results import Results
-        >>> r = Results.example()
-        >>> r.sql("select 'agent.agent_name', 'agent.status', 'answer.how_feeling' from self", shape="wide")
-        'agent.agent_name' 'agent.status' 'answer.how_feeling'
-        0   agent.agent_name   agent.status   answer.how_feeling
-        1   agent.agent_name   agent.status   answer.how_feeling
-        2   agent.agent_name   agent.status   answer.how_feeling
-        3   agent.agent_name   agent.status   answer.how_feeling
-
+        >>> Results.example().sql("select how_feeling from self", shape = 'wide', remove_prefix=True)
+        how_feeling
+        0          OK
+        1       Great
+        2    Terrible
+        3          OK
         """
         shape_enum = self._get_shape_enum(shape)
 
