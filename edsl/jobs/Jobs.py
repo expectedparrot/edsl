@@ -1,27 +1,19 @@
 # """The Jobs class is a collection of agents, scenarios and models and one survey."""
 from __future__ import annotations
-
 import os
-from textwrap import dedent
-from typing import Optional, Union, Sequence, Generator
 from itertools import product
-
-from edsl.config import CONFIG
+from typing import Optional, Union, Sequence, Generator
 from edsl import Model
 from edsl.agents import Agent
 from edsl.Base import Base
 from edsl.data.Cache import Cache
-from edsl.data.SQLiteDict import SQLiteDict
 from edsl.data.CacheHandler import CacheHandler
-
 from edsl.exceptions.jobs import MissingRemoteInferenceError
 from edsl.exceptions import MissingAPIKeyError
-
-# from edsl.enums import LanguageModelType
 from edsl.jobs.buckets.BucketCollection import BucketCollection
 from edsl.jobs.interviews.Interview import Interview
-from edsl.results import Results
 from edsl.language_models import LanguageModel
+from edsl.results import Results
 from edsl.scenarios import Scenario
 from edsl.surveys import Survey
 
@@ -51,7 +43,6 @@ class Jobs(Base):
         self.agents = agents or []
         self.models = models or []
         self.scenarios = scenarios or []
-
         self.__bucket_collection = None
 
     def by(
@@ -205,13 +196,13 @@ class Jobs(Base):
         progress_bar: bool = False,
         stop_on_exception: bool = False,
         cache: Union[Cache, bool] = None,
-        remote: bool = False
-        if os.getenv("DEFAULT_RUN_MODE", "local") == "local"
-        else True,
+        remote: bool = (
+            False if os.getenv("DEFAULT_RUN_MODE", "local") == "local" else True
+        ),
         check_api_keys=True,
         sidecar_model=None,
         batch_mode=False,
-    ) -> Union[Results, ResultsAPI, None]:
+    ) -> Union[Results, None]:
         """
         Runs the Job: conducts Interviews and returns their results.
 
@@ -232,18 +223,18 @@ class Jobs(Base):
             if os.getenv("EXPECTED_PARROT_API_KEY", None) is None:
                 raise MissingRemoteInferenceError()
 
-        # only check API keys is the user is not running remotely
-        if check_api_keys and not self.remote:
-            for model in self.models + [Model()]:
-                if not model.has_valid_api_key():
-                    raise MissingAPIKeyError(
-                        model_name=str(model.model),
-                        inference_service=model._inference_service_,
-                    )
+        if not self.remote:
+            if check_api_keys:
+                for model in self.models + [Model()]:
+                    if not model.has_valid_api_key():
+                        raise MissingAPIKeyError(
+                            model_name=str(model.model),
+                            inference_service=model._inference_service_,
+                        )
 
+        # handle cache
         if cache is None:
             cache = CacheHandler().get_cache()
-
         if cache is False:
             cache = Cache()
 
