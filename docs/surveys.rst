@@ -30,7 +30,8 @@ Constructing a survey
 Defining questions
 ^^^^^^^^^^^^^^^^^^
 Questions can be defined as various types, including multiple choice, checkbox, free text, linear scale, numerical and other types.
-The formats are defined in the `questions` module. Here we define some questions: 
+The formats are defined in the `questions` module. 
+Here we define some questions that we use to create a `Survey` object and demonstrate methods for applying survey rules and memory: 
 
 .. code-block:: python
 
