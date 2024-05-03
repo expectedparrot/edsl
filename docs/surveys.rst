@@ -94,14 +94,16 @@ Note that we can refer to the question to be skipped using either the id ("q2") 
 
 .. code-block:: python
 
-   survey = Survey(questions = [q1, q2, q3, q4]).add_skip_rule(q2, "color == 'Blue'")
+   survey = Survey(questions = [q1, q2, q3, q4])
+   survey = survey.add_skip_rule(q2, "color == 'Blue'")
 
 
 This is equivalent:
 
 .. code-block:: python
 
-   survey = Survey(questions = [q1, q2, q3, q4]).add_skip_rule("day", "color == 'Blue'")
+   survey = Survey(questions = [q1, q2, q3, q4])
+   survey = survey.add_skip_rule("day", "color == 'Blue'")
 
 
 We can run the survey and verify that the rule was applied:
@@ -112,7 +114,7 @@ We can run the survey and verify that the rule was applied:
    results.select("color", "day", "winter", "birds").print(format="rich")
 
 
-This will print the answers, showing that q2 was skipped ("None"):
+This will print the answers, showing that q2 was skipped (the response is "None"):
 
 .. code-block:: text
     
@@ -133,7 +135,8 @@ Here we use `add_stop_rule()` to end the survey at q1 if the response is Blue:
 
 .. code-block:: python
 
-   survey = Survey(questions = [q1, q2, q3, q4]).add_stop_rule(q1, "color == 'Blue'")
+   survey = Survey(questions = [q1, q2, q3, q4])
+   survey = survey.add_stop_rule(q1, "color == 'Blue'")
 
 
 This time we see that the survey ended when the response to "color" was "Blue":
@@ -162,7 +165,8 @@ Here we use `add_rule()` to specify that if the response to "color" is "Blue" th
 
 .. code-block:: python
    
-   survey = Survey(questions = [q1, q2, q3, q4]).add_rule(q1, "color == 'Blue'", q4)
+   survey = Survey(questions = [q1, q2, q3, q4])
+   survey = survey.add_rule(q1, "color == 'Blue'", q4)
 
 
 We can run the survey and verify that the rule was applied:
@@ -210,7 +214,7 @@ The method is called on the survey object:
 .. code-block:: python
 
    survey = Survey(questions = [q1, q2, q3, q4])
-   survey.set_full_memory_mode()
+   survey = survey.set_full_memory_mode()
 
 
 In the results, we can inspect the `_user_prompt` for each question to see that the agent was prompted to remember all of the prior questions:
@@ -281,7 +285,7 @@ Here we use it to give the agent just 1 prior question/answer at each question:
 .. code-block:: python
 
    survey = Survey(questions = [q1, q2, q3, q4])
-   survey.set_lagged_memory(1)
+   survey = survey.set_lagged_memory(1)
 
 
 We can inspect each `_user_prompt` again and see that the agent is only prompted to remember the last prior question/answer:
@@ -340,7 +344,7 @@ Here we use it to give the agent the question/answer to q1 when prompting it to 
 .. code-block:: python
 
    survey = Survey(questions = [q1, q2, q3, q4])
-   survey.add_targeted_memory(q4, q1)
+   survey = survey.add_targeted_memory(q4, q1)
 
 
 .. code-block:: text
@@ -390,7 +394,7 @@ For example, we can add the questions/answers for both q1 and q2 when prompting 
 .. code-block:: python
 
    survey = Survey(questions = [q1, q2, q3, q4])
-   survey.add_memory_collection(q4, [q1, q2])
+   survey = survey.add_memory_collection(q4, [q1, q2])
 
 
     
