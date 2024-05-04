@@ -34,8 +34,6 @@ The methods for adding survey rules and memory include the following, which are 
 * `add_targeted_memory()` - Include a memory of a specific question/answer at another question in the survey.
 * `add_memory_collection()` - Include memories of a set of prior questions/answers at any other question in the survey.
 
-This returns a `Results` object containing the responses to the survey.
-
 
 *Coming soon:*
 An EDSL survey can also be exported to other platforms such as LimeSurvey, Google Forms, Qualtrics and SurveyMonkey. 
