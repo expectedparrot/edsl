@@ -21,7 +21,7 @@ class NameDescriptor:
 
 
 class TraitsDescriptor:
-    """ABC for something."""
+    """Traits descriptor."""
 
     def __get__(self, instance, owner):
         """Return the value of the attribute."""
