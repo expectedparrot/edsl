@@ -151,7 +151,9 @@ class ResultsExportMixin:
         if max_rows is not None:
             for entry in new_data:
                 for key in entry:
+                    actual_rows = len(entry[key])
                     entry[key] = entry[key][:max_rows]
+            print(f"Showing only the first {max_rows} rows of {actual_rows} rows.")
 
         if format == "rich":
             print_list_of_dicts_with_rich(
@@ -227,6 +229,19 @@ class ResultsExportMixin:
         df_sorted = df.sort_index(axis=1)  # Sort columns alphabetically
         return df_sorted
         # return df
+
+    @_convert_decorator
+    def to_scenario_list(self, remove_prefix: bool = False) -> list[dict]:
+        """Convert the results to a list of dictionaries, one per scenario.
+
+        :param remove_prefix: Whether to remove the prefix from the column names.
+
+        >>> r = create_example_results()
+        >>> r.select('how_feeling').to_scenario_list()
+        [{'how_feeling': 'Bad'}, {'how_feeling': 'Bad'}, {'how_feeling': 'Great'}, {'how_feeling': 'Great'}]
+        """
+        from edsl import ScenarioList, Scenario
+        return ScenarioList([Scenario(x) for x in self.to_dicts(remove_prefix=remove_prefix)])
 
     @_convert_decorator
     def to_dicts(self, remove_prefix: bool = False) -> list[dict]:
