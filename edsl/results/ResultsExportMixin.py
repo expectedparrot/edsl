@@ -230,6 +230,7 @@ class ResultsExportMixin:
         return df_sorted
         # return df
 
+
     @_convert_decorator
     def to_scenario_list(self, remove_prefix: bool = False) -> list[dict]:
         """Convert the results to a list of dictionaries, one per scenario.
@@ -238,11 +239,22 @@ class ResultsExportMixin:
 
         >>> r = create_example_results()
         >>> r.select('how_feeling').to_scenario_list()
-        [{'how_feeling': 'Bad'}, {'how_feeling': 'Bad'}, {'how_feeling': 'Great'}, {'how_feeling': 'Great'}]
+        #[{'how_feeling': 'Bad'}, {'how_feeling': 'Bad'}, {'how_feeling': 'Great'}, {'how_feeling': 'Great'}]
         """
         from edsl import ScenarioList, Scenario
-        return ScenarioList([Scenario(x) for x in self.to_dicts(remove_prefix=remove_prefix)])
+        list_of_dicts = self.to_dicts(remove_prefix=remove_prefix)
+        # list_of_keys = []
+        # list_of_values = []
+        # for entry in self:
+        #     key, values = list(entry.items())[0]
+        #     list_of_keys.append(key)
+        #     list_of_values.append(values)
 
+        # list_of_dicts = []
+        # for entries in zip(*list_of_values):
+        #     list_of_dicts.append(dict(zip(list_of_keys, entries)))
+        return ScenarioList([Scenario(d) for d in list_of_dicts])
+    
     @_convert_decorator
     def to_dicts(self, remove_prefix: bool = False) -> list[dict]:
         """Convert the results to a list of dictionaries.
@@ -255,15 +267,29 @@ class ResultsExportMixin:
         [{'answer.how_feeling': 'OK'}, {'answer.how_feeling': 'Great'}, {'answer.how_feeling': 'Terrible'}, {'answer.how_feeling': 'OK'}]
 
         """
-        df = self.to_pandas(remove_prefix=remove_prefix)
-        df = df.convert_dtypes()
-        list_of_dicts = df.to_dict(orient="records")
-        # Convert any pd.NA values to None
-        list_of_dicts = [
-            {k: (None if pd.isna(v) else v) for k, v in record.items()}
-            for record in list_of_dicts
-        ]
+        from edsl import ScenarioList, Scenario
+        list_of_keys = []
+        list_of_values = []
+        for entry in self:
+            key, values = list(entry.items())[0]
+            list_of_keys.append(key)
+            list_of_values.append(values)
+
+        list_of_dicts = []
+        for entries in zip(*list_of_values):
+            list_of_dicts.append(dict(zip(list_of_keys, entries)))
+
         return list_of_dicts
+
+        # df = self.to_pandas(remove_prefix=remove_prefix)
+        # df = df.convert_dtypes()
+        # list_of_dicts = df.to_dict(orient="records")
+        # # Convert any pd.NA values to None
+        # list_of_dicts = [
+        #     {k: (None if pd.isna(v) else v) for k, v in record.items()}
+        #     for record in list_of_dicts
+        # ]
+        # return list_of_dicts
 
     @_convert_decorator
     def to_list(self, flatten = False, remove_none = False) -> list[list]:
