@@ -6,15 +6,15 @@ A `Scenario` is a dictionary containing a single key/value pair that is used to 
 
 Purpose 
 -------
-Scenarios are used to easily create variations and versions of questions with one or more parameters that can be replaced with different values.
+Scenarios are used to create variations and versions of questions with parameters that can be replaced with different values.
 For example, we could create a question `"What is your favorite {{ item }}?"` and replace the parameter `item` with `color` or `food` or other items.
-This allows us to straightforwardly administer variations of the question all at once, or according to some other desired logic.
+This allows us to straightforwardly administer multiple versions of the question, either asynchronously or according to other specified :ref:`surveys` rules.
 
 Data labeling tasks
 ^^^^^^^^^^^^^^^^^^^
-Scenarios are particularly useful for conducting data labeling tasks, where a task is designed as questions about the data.
+Scenarios are particularly useful for conducting data labeling or data coding tasks, where we can design the task as a question or series of questions that we prompt an agent to answer about each piece of data in our dataset.
 For example, say we have a dataset of messages from users that we want to sort by topic.
-We could create multiple choice questions such as `"What is the primary topic of this message: {{ message }}?"` or `"Does this message mention a safety issue? {{ message }}"` and replace the parameter `message` with each message in the dataset, generating a dataset of results that can be readily analyzed.
+We could perform this task by running multiple choice questions such as `"What is the primary topic of this message: {{ message }}?"` or `"Does this message mention a safety issue? {{ message }}"` where each message is inserted in the `message` placeholder of the question text, generating a dataset of results that can be readily analyzed.
 
 The following code demonstrates how to use scenarios to create a survey for this task.
 For more step-by-step details, please also see `Constructing a Scenario` below it.
@@ -28,13 +28,13 @@ For more step-by-step details, please also see `Constructing a Scenario` below i
     q1 = QuestionMultipleChoice(
         question_name = "topic",
         question_text = "What is the topic of this message: {{ message }}?",
-        choices = ["Safety", "Product support", "Billing", "Login issue", "Other"]
+        question_options = ["Safety", "Product support", "Billing", "Login issue", "Other"]
     )
 
     q2 = QuestionMultipleChoice(
         question_name = "safety",
         question_text = "Does this message mention a safety issue? {{ message }}?",
-        choices = ["Yes", "No", "Unclear"]
+        question_options = ["Yes", "No", "Unclear"]
     )
 
     # Create a list of scenarios for the parameter
@@ -52,7 +52,34 @@ For more step-by-step details, please also see `Constructing a Scenario` below i
     # Run the survey with the scenarios
     results = survey.by(scenarios).run()
 
+
+We can then analyze the results to see how the agent answered the questions for each scenario:
+
+.. code-block:: python
+
+    results.select("message", "topic", "safety").print(format="rich")
+
+
+This will print a table of the scenarios and the answers to the questions for each scenario:
+
+.. code-block:: text
+
+    ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━┓
+    ┃ scenario                      ┃ answer          ┃ answer  ┃
+    ┃ .message                      ┃ .topic          ┃ .safety ┃
+    ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━┩
+    │ I need help with my bill...   │ Billing         │ No      │
+    ├───────────────────────────────┼─────────────────┼─────────┤
+    │ I need help with a product... │ Product support │ Unclear │
+    ├───────────────────────────────┼─────────────────┼─────────┤
+    │ I can't log in...             │ Login issue     │ No      │
+    ├───────────────────────────────┼─────────────────┼─────────┤
+    │ I have a safety concern...    │ Safety          │ Yes     │
+    └───────────────────────────────┴─────────────────┴─────────┘
+
+
 To learn more about accessing, analyzing and visualizing survey results, please see the :ref:`results` section.
+
 
 Constructing a Scenario
 -----------------------
@@ -67,7 +94,8 @@ To use scenarios, we start by creating a question that takes a parameter in doub
         question_text = "What is your favorite {{ item }}?",
     )
 
-Next we create a dictionary for the value that will replace the parameter and store it in a `Scenario` object: 
+
+Next we create a dictionary for a value that will replace the parameter and store it in a `Scenario` object: 
 
 .. code-block:: python
 
@@ -75,32 +103,112 @@ Next we create a dictionary for the value that will replace the parameter and st
 
     scenario = Scenario({"item": "color"})
 
+
 If multiple values will be used, we can create a list of `Scenario` objects: 
 
 .. code-block:: python
 
     scenarios = [Scenario({"item": item}) for item in ["color", "food"]]
 
+
 Using Scenarios
 ---------------
-`Scenario` objects are used by adding them to a question or survey with the `by` method when the question or survey is run:.
-A scenario can be appended to a single question, for example:
+`Scenario` objects are used by adding them to a question or survey with the `by()` method when the question or survey is run.
+Here we add a single scenario to our question, run it, and inspect the response:
 
 .. code-block:: python
 
-    from edsl import Survey
-    
-    survey = Survey(questions = [q])
-    
-    results = survey.by(scenario).run()
+    results = q.by(scenario).run()
+
+    results.select("item", "favorite_item").print(format="rich")
+
+
+This will print a table of the selected components of the results:
+
+.. code-block:: text
+
+    ┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+    ┃ scenario ┃ answer                                                                                               ┃
+    ┃ .item    ┃ .favorite_item                                                                                       ┃
+    ┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+    │ color    │ Blue is my favorite color for its calming and serene qualities.                                      │
+    ├──────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────┤
+    │ food     │ My favorite food is a classic Italian pizza with a thin crust, topped with mozzarella, fresh basil,  │
+    │          │ and a rich tomato sauce.                                                                             │
+    └──────────┴──────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+If we have multiple scenarios, we can add them to the survey in the same way:
 
 As with other survey components (agents and language models), multiple `Scenario` objects should be added together as a list in the same `by` method:
 
 .. code-block:: python
 
+    results = q.by(scenarios).run()
+
+    results.select("item", "favorite_item").print(format="rich")
+
+
+Now we will see both scenarios in our results table:
+
+.. code-block:: text
+
+    ┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+    ┃ scenario ┃ answer                                                                                               ┃
+    ┃ .item    ┃ .favorite_item                                                                                       ┃
+    ┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+    │ color    │ Blue is my favorite color for its calming and serene qualities.                                      │
+    ├──────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────┤
+    │ food     │ My favorite food is a classic Italian pizza with a thin crust, topped with mozzarella, fresh basil,  │
+    │          │ and a rich tomato sauce.                                                                             │
+    └──────────┴──────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+If we have multiple questions in a survey, we can add scenarios to the survey in the same way:
+
+.. code-block:: python
+
+    from edsl.questions import QuestionFreeText, QuestionList
+    from edsl import Survey, Scenario
+
+    q1 = QuestionFreeText(
+        question_name = "favorite_item",
+        question_text = "What is your favorite {{ item }}?",
+    )
+    q2 = QuestionList(
+        question_name = "items_list",
+        question_text = "What are some of your favorite {{ item }} preferences?",
+        
+    )
+
+    survey = Survey(questions = [q1, q2])
+
+    scenarios = [Scenario({"item": item}) for item in ["color", "food"]]
+
     results = survey.by(scenarios).run()
 
+    results.select("item", "favorite_item", "items_list").print(format="rich")
+
+
+This will print a table of the responses for each scenario for each question:
+
+.. code-block:: text
+
+    ┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+    ┃ scenario ┃ answer                                            ┃ answer                                           ┃
+    ┃ .item    ┃ .favorite_item                                    ┃ .items_list                                      ┃
+    ┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+    │ color    │ Blue is my favorite color for its calming and     │ ['Blue', 'Green', 'Burgundy']                    │
+    │          │ serene qualities.                                 │                                                  │
+    ├──────────┼───────────────────────────────────────────────────┼──────────────────────────────────────────────────┤
+    │ food     │ My favorite food is a classic Italian pizza with  │ ['Italian cuisine', 'Sushi', 'Mexican food',     │
+    │          │ a thin crust, topped with mozzarella, fresh       │ 'Dark chocolate', 'Avocado toast']               │
+    │          │ basil, and a rich tomato sauce.                   │                                                  │
+    └──────────┴───────────────────────────────────────────────────┴──────────────────────────────────────────────────┘
+
+
 To learn more about constructing surveys, please see the :ref:`surveys` module.
+
 
 Scenario class
 --------------
