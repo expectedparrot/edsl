@@ -243,16 +243,6 @@ class ResultsExportMixin:
         """
         from edsl import ScenarioList, Scenario
         list_of_dicts = self.to_dicts(remove_prefix=remove_prefix)
-        # list_of_keys = []
-        # list_of_values = []
-        # for entry in self:
-        #     key, values = list(entry.items())[0]
-        #     list_of_keys.append(key)
-        #     list_of_values.append(values)
-
-        # list_of_dicts = []
-        # for entries in zip(*list_of_values):
-        #     list_of_dicts.append(dict(zip(list_of_keys, entries)))
         return ScenarioList([Scenario(d) for d in list_of_dicts])
     
     @_convert_decorator
@@ -267,7 +257,6 @@ class ResultsExportMixin:
         [{'answer.how_feeling': 'OK'}, {'answer.how_feeling': 'Great'}, {'answer.how_feeling': 'Terrible'}, {'answer.how_feeling': 'OK'}]
 
         """
-        from edsl import ScenarioList, Scenario
         list_of_keys = []
         list_of_values = []
         for entry in self:
@@ -275,21 +264,14 @@ class ResultsExportMixin:
             list_of_keys.append(key)
             list_of_values.append(values)
 
+        if remove_prefix:
+            list_of_keys = [key.split(".")[-1] for key in list_of_keys]
+
         list_of_dicts = []
         for entries in zip(*list_of_values):
             list_of_dicts.append(dict(zip(list_of_keys, entries)))
 
         return list_of_dicts
-
-        # df = self.to_pandas(remove_prefix=remove_prefix)
-        # df = df.convert_dtypes()
-        # list_of_dicts = df.to_dict(orient="records")
-        # # Convert any pd.NA values to None
-        # list_of_dicts = [
-        #     {k: (None if pd.isna(v) else v) for k, v in record.items()}
-        #     for record in list_of_dicts
-        # ]
-        # return list_of_dicts
 
     @_convert_decorator
     def to_list(self, flatten = False, remove_none = False) -> list[list]:
