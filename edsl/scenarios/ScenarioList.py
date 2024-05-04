@@ -27,7 +27,6 @@ class ScenarioList(Base, UserList):
         for scenario in self:
             values = scenario[expand_field]
             if not isinstance(values, Iterable) or isinstance(values, str):
-                # If the value is not iterable, make it a list
                 values = [values]
             for value in values:
                 new_scenario = scenario.copy()
