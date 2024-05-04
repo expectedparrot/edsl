@@ -3,20 +3,24 @@
 Results
 =======
 A `Results` object is the result of running a survey. 
-It is a list of individual `Result` objects, each of which represents a response to a `Survey` for each combination of `Agent`, `Model` and `Scenario` objects used with the survey.
+It is a list of individual `Result` objects, each of which represents a response to a `Survey` for each combination of `Agent`, `Model` and `Scenario` objects that were used with the survey.
 For example, the `Results` of a survey administered to 2 agents and 2 models (with no question scenarios) will contain 4 individual `Result` objects.
 If the survey questions are parameterized with 2 scenarios then 8 `Result` objects are generated.
 
-A `Results` object is not typically instantiated directly, but is returned by calling the `run` method of a survey after optionally specifying agents, models and scenarios. 
-To see example `Results` we can call the `example` method:
+A `Results` object is not typically instantiated directly, but is returned by calling the `run()` method of a survey after optionally specifying agents, models and scenarios. 
+To inspect the form of an example `Results` we can call the `example()` method (it is long -- we show it at the end of this page):
 
 .. code-block:: python
 
    from edsl import Results
 
-   results = Results.example()
+   example_results = Results.example()
 
-For purposes of showing how to unpack and interact with results, we'll use the following code to generate results for a simply survey:
+
+<i>Note: You must have API keys set up to generate results. Please see the :ref:`api_keys` section for instructions on storing your keys.</i>
+
+For purposes of demonstrating how to unpack and interact with results, we'll use the following code to generate results for a simple survey.
+Note that specifying agent traits, scenarios (question parameter values) and language models is optional, and we include those steps here for illustrative purposes:
 
 .. code-block:: python
 
@@ -39,7 +43,7 @@ For purposes of showing how to unpack and interact with results, we'll use the f
 
    scenarios = [Scenario({"period": period}) for period in ["morning", "evening"]]
 
-   # Optionally create agents with traits
+   # Optionally create agent traits
    from edsl import Agent 
 
    agents = [Agent(traits = {"status": status}) for status in ["happy", "sad"]]
@@ -47,7 +51,7 @@ For purposes of showing how to unpack and interact with results, we'll use the f
    # Optionally specify language models
    from edsl import Model 
 
-   models = [Model(model) for model in ['llama-2-70b-chat-hf', 'mixtral-8x7B-instruct-v0.1']]
+   models = [Model(model) for model in ['gpt-4-0125-preview', 'gemini-pro']]
 
    # Create a survey with the questions
    from edsl import Survey 
@@ -57,7 +61,9 @@ For purposes of showing how to unpack and interact with results, we'll use the f
    # Run the survey with the scenarios, agents and models 
    results = survey.by(scenarios).by(agents).by(models).run()
 
+
 For more details on each of the above steps, please see the relevant sections of the docs.
+
 
 Result objects 
 ^^^^^^^^^^^^^^
@@ -69,7 +75,31 @@ We can check the number of `Result` objects created by inspecting the length of 
 
 This will count 2 (scenarios) x 2 (agents) x 2 (models) = 8 `Result` objects:
 
+.. code-block:: text
+
    8
+
+
+Generating multiple results
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+If we want to generate multiple results for a survey--i.e., more than 1 result for each combination of `Agent`, `Model` and `Scenario` objects used--we can pass the desired number of iterations when calling the `run()` method.
+For example, the following code will generate 3 results for our survey (n=3):
+
+.. code-block:: python
+
+   results = survey.by(scenarios).by(agents).by(models).run(n=3)
+
+
+We can verify that the number of `Result` objects created is now 24 = 3 iterations x 2 scenarios x 2 agents x 2 models:
+
+.. code-block:: python
+
+   len(results)
+
+.. code-block:: text
+
+   24
+
 
 We can readily inspect a result:
 
@@ -79,26 +109,6 @@ We can readily inspect a result:
 
 .. code-block:: text
 
-   Result(
-      agent=Agent(traits = {'status': 'happy'}), 
-      scenario={'period': 'morning'}, 
-      model=Mixtral8x7B(
-         model = 'mixtral-8x7B-instruct-v0.1', 
-         parameters={'temperature': 0.5, 'top_p': 1, 'top_k': 1, 'max_new_tokens': 2048, 'stopSequences': [], 'use_cache': True}), 
-      iteration=1, 
-      answer={
-         'yesterday': 'Good', 
-         'yesterday_comment': 'I felt good yesterday morning, thank you for asking!', 
-         'tomorrow': 'I expect to feel happy and refreshed tomorrow morning, ready to start a new day with enthusiasm and positivity!'
-         }, 
-      prompt={
-         'tomorrow_user_prompt': {'text': 'You are being asked the following question: How do you expect to feel tomorrow morning?\nReturn a valid JSON formatted like this:\n{"answer": "<put free text answer here>"}', 'class_name': 'FreeText'}, 
-         'tomorrow_system_prompt': {'text': "You are answering questions as if you were a human. Do not break character. You are an agent with the following persona:\n{'status': 'happy'}", 'class_name': 'AgentInstruction'}, 
-         'yesterday_user_prompt': {'text': 'You are being asked the following question: How did you feel yesterday morning?\nThe options are\n\n0: Good\n\n1: OK\n\n2: Terrible\n\nReturn a valid JSON formatted like this, selecting only the number of the option:\n{"answer": <put answer code here>, "comment": "<put explanation here>"}\nOnly 1 option may be selected.', 'class_name': 'MultipleChoiceTurbo'}, 
-         'yesterday_system_prompt': {'text': "You are answering questions as if you were a human. Do not break character. You are an agent with the following persona:\n{'status': 'happy'}", 'class_name': 'AgentInstruction'}
-         }
-   )
-
 We can use the `rich_print` method to display the `Result` object in a more readable format:
 
 .. code-block:: python
@@ -107,103 +117,6 @@ We can use the `rich_print` method to display the `Result` object in a more read
 
 .. code-block:: text
 
-                                                         Result                                                       
-   ┏━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-   ┃ Attribute          ┃ Value                                                                                      ┃
-   ┡━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-   │ agent              │                                      Agent Attributes                                      │
-   │                    │ ┏━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
-   │                    │ ┃ Attribute               ┃ Value                                                        ┃ │
-   │                    │ ┡━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩ │
-   │                    │ │ _name                   │ None                                                         │ │
-   │                    │ │ _traits                 │ {'status': 'happy'}                                          │ │
-   │                    │ │ _codebook               │ {}                                                           │ │
-   │                    │ │ _instruction            │ 'You are answering questions as if you were a human. Do not  │ │
-   │                    │ │                         │ break character.'                                            │ │
-   │                    │ │ set_instructions        │ False                                                        │ │
-   │                    │ │ dynamic_traits_function │ None                                                         │ │
-   │                    │ │ current_question        │ QuestionFreeText(question_text = 'How do you expect to feel  │ │
-   │                    │ │                         │ tomorrow {{ period }}?', question_name = 'tomorrow',         │ │
-   │                    │ │                         │ allow_nonresponse = False)                                   │ │
-   │                    │ └─────────────────────────┴──────────────────────────────────────────────────────────────┘ │
-   │ scenario           │          Scenario Attributes                                                               │
-   │                    │ ┏━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━┓                                                      │
-   │                    │ ┃ Attribute ┃ Value                 ┃                                                      │
-   │                    │ ┡━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━┩                                                      │
-   │                    │ │ data      │ {'period': 'morning'} │                                                      │
-   │                    │ └───────────┴───────────────────────┘                                                      │
-   │ model              │                                       Language Model                                       │
-   │                    │ ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
-   │                    │ ┃ Attribute                   ┃ Value                                                    ┃ │
-   │                    │ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩ │
-   │                    │ │ model                       │ 'mixtral-8x7B-instruct-v0.1'                             │ │
-   │                    │ │ parameters                  │ {'temperature': 0.5, 'top_p': 1, 'top_k': 1,             │ │
-   │                    │ │                             │ 'max_new_tokens': 2048, 'stopSequences': [],             │ │
-   │                    │ │                             │ 'use_cache': True}                                       │ │
-   │                    │ │ temperature                 │ 0.5                                                      │ │
-   │                    │ │ top_p                       │ 1                                                        │ │
-   │                    │ │ top_k                       │ 1                                                        │ │
-   │                    │ │ max_new_tokens              │ 2048                                                     │ │
-   │                    │ │ stopSequences               │ []                                                       │ │
-   │                    │ │ use_cache                   │ True                                                     │ │
-   │                    │ │ api_queue                   │ <queue.Queue object at 0x7f48b86c0400>                   │ │
-   │                    │ │ crud                        │ <edsl.data.crud.CRUDOperations object at 0x7f48b2c4c9d0> │ │
-   │                    │ │ _LanguageModel__rate_limits │ {'rpm': 10000, 'tpm': 2000000}                           │ │
-   │                    │ │ url                         │ 'https://api.deepinfra.com/v1/inference/mistralai/Mixtr… │ │
-   │                    │ └─────────────────────────────┴──────────────────────────────────────────────────────────┘ │
-   │ iteration          │ 1                                                                                          │
-   │ answer             │                                          Answers                                           │
-   │                    │ ┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
-   │                    │ ┃ Attribute         ┃ Value                                                              ┃ │
-   │                    │ ┡━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩ │
-   │                    │ │ yesterday         │ 'Good'                                                             │ │
-   │                    │ │ yesterday_comment │ 'I felt good yesterday morning, thank you for asking!'             │ │
-   │                    │ │ tomorrow          │ 'I expect to feel happy and refreshed tomorrow morning, ready to   │ │
-   │                    │ │                   │ start a new day with enthusiasm and positivity!'                   │ │
-   │                    │ └───────────────────┴────────────────────────────────────────────────────────────────────┘ │
-   │ prompt             │ ┏━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
-   │                    │ ┃ Attribute               ┃ Value                                                        ┃ │
-   │                    │ ┡━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩ │
-   │                    │ │ tomorrow_user_prompt    │ {'text': 'You are being asked the following question: How do │ │
-   │                    │ │                         │ you expect to feel tomorrow morning?\nReturn a valid JSON    │ │
-   │                    │ │                         │ formatted like this:\n{"answer": "<put free text answer      │ │
-   │                    │ │                         │ here>"}', 'class_name': 'FreeText'}                          │ │
-   │                    │ │ tomorrow_system_prompt  │ {'text': "You are answering questions as if you were a       │ │
-   │                    │ │                         │ human. Do not break character. You are an agent with the     │ │
-   │                    │ │                         │ following persona:\n{'status': 'happy'}", 'class_name':      │ │
-   │                    │ │                         │ 'AgentInstruction'}                                          │ │
-   │                    │ │ yesterday_user_prompt   │ {'text': 'You are being asked the following question: How    │ │
-   │                    │ │                         │ did you feel yesterday morning?\nThe options are\n\n0:       │ │
-   │                    │ │                         │ Good\n\n1: OK\n\n2: Terrible\n\nReturn a valid JSON          │ │
-   │                    │ │                         │ formatted like this, selecting only the number of the        │ │
-   │                    │ │                         │ option:\n{"answer": <put answer code here>, "comment": "<put │ │
-   │                    │ │                         │ explanation here>"}\nOnly 1 option may be selected.',        │ │
-   │                    │ │                         │ 'class_name': 'MultipleChoiceTurbo'}                         │ │
-   │                    │ │ yesterday_system_prompt │ {'text': "You are answering questions as if you were a       │ │
-   │                    │ │                         │ human. Do not break character. You are an agent with the     │ │
-   │                    │ │                         │ following persona:\n{'status': 'happy'}", 'class_name':      │ │
-   │                    │ │                         │ 'AgentInstruction'}                                          │ │
-   │                    │ └─────────────────────────┴──────────────────────────────────────────────────────────────┘ │
-   │ raw_model_response │ ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
-   │                    │ ┃ Attribute                    ┃ Value                                                   ┃ │
-   │                    │ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩ │
-   │                    │ │ yesterday_raw_model_response │ {'inference_status': {'runtime_ms': 500, 'cost':        │ │
-   │                    │ │                              │ 4.563e-05, 'tokens_generated': 23, 'tokens_input':      │ │
-   │                    │ │                              │ 146}, 'results': [{'generated_text': ' {"answer": 0,    │ │
-   │                    │ │                              │ "comment": "I felt good yesterday morning, thank you    │ │
-   │                    │ │                              │ for asking!"}'}], 'num_tokens': 23, 'num_input_tokens': │ │
-   │                    │ │                              │ 146, 'elapsed_time': 1.6693482398986816, 'timestamp':   │ │
-   │                    │ │                              │ 1712429824.1722908, 'cached_response': False}           │ │
-   │                    │ │ tomorrow_raw_model_response  │ {'inference_status': {'runtime_ms': 747, 'cost':        │ │
-   │                    │ │                              │ 3.564e-05, 'tokens_generated': 29, 'tokens_input':      │ │
-   │                    │ │                              │ 103}, 'results': [{'generated_text': ' {"answer": "I    │ │
-   │                    │ │                              │ expect to feel happy and refreshed tomorrow morning,    │ │
-   │                    │ │                              │ ready to start a new day with enthusiasm and            │ │
-   │                    │ │                              │ positivity!"}'}], 'num_tokens': 29, 'num_input_tokens': │ │
-   │                    │ │                              │ 103, 'elapsed_time': 2.170380115509033, 'timestamp':    │ │
-   │                    │ │                              │ 1712429824.6782303, 'cached_response': False}           │ │
-   │                    │ └──────────────────────────────┴─────────────────────────────────────────────────────────┘ │
-   └────────────────────┴────────────────────────────────────────────────────────────────────────────────────────────┘
 
 Results components
 ^^^^^^^^^^^^^^^^^^
@@ -223,26 +136,33 @@ The following list will be returned for the results generated by the above code:
    'answer.tomorrow',
    'answer.yesterday',
    'answer.yesterday_comment',
-   'iteration.iteration', 
-   'model.frequency_penalty', 
-   'model.logprobs', 
-   'model.max_new_tokens', 
-   'model.max_tokens', 
-   'model.model', 
-   'model.presence_penalty', 
-   'model.stopSequences', 
-   'model.temperature', 
-   'model.top_k', 
-   'model.top_logprobs', 
-   'model.top_p', 
-   'model.use_cache', 
+   'iteration.iteration',
+   'model.frequency_penalty',
+   'model.logprobs',
+   'model.maxOutputTokens',
+   'model.max_tokens',
+   'model.model',
+   'model.presence_penalty',
+   'model.stopSequences',
+   'model.temperature',
+   'model.topK',
+   'model.topP',
+   'model.top_logprobs',
+   'model.top_p',
    'prompt.tomorrow_system_prompt',
    'prompt.tomorrow_user_prompt',
    'prompt.yesterday_system_prompt',
    'prompt.yesterday_user_prompt',
+   'question_options.tomorrow_question_options',
+   'question_options.yesterday_question_options',
+   'question_text.tomorrow_question_text',
+   'question_text.yesterday_question_text',
+   'question_type.tomorrow_question_type',
+   'question_type.yesterday_question_type',
    'raw_model_response.tomorrow_raw_model_response',
    'raw_model_response.yesterday_raw_model_response',
    'scenario.period']
+
 
 The columns include information about each *agent*, *model* and corresponding *prompts* that were used to simulate an *answer* to each question in the survey and for any question *scenario*, together with the *raw model response*.
 
