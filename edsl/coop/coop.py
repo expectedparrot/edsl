@@ -539,159 +539,72 @@ if __name__ == "__main__":
     ##############
     # A. Objects
     ##############
-
-    # ------------
-    # A.1 Questions
-    # ------------
-    from edsl.questions import QuestionMultipleChoice
-    from edsl.questions import QuestionCheckBox
-    from edsl.questions import QuestionFreeText
-
-    # check questions on server (should be an empty list)
-    coop.questions
-    for item in coop.questions:
-        coop.delete(object_type="question", uuid=item.get("uuid"))
-    # try to get a question that does not exist - should get an error
-    coop.get(object_type="question", uuid=uuid.uuid4())
-    coop.get(object_type="question", uuid=str(uuid.uuid4()))
-    # now post some questions
-    response = coop.create(QuestionMultipleChoice.example())
-    coop.create(QuestionCheckBox.example(), visibility="private")
-    coop.create(QuestionFreeText.example(), visibility="public")
-    # check all questions - there must be three
-    coop.questions
-    # or get a question by its uuid
-    coop.get(object_type="question", uuid=response.get("uuid"))
-    # or by its url
-    coop.get(url=response.get("url"))
-    # delete the question
-    coop.delete(object_type="question", uuid=response.get("uuid"))
-    # check all questions - there must be two left
-    coop.questions
-
-    # ------------
-    # A.2 Surveys
-    # ------------
+    from uuid import uuid4
+    from edsl.agents import Agent, AgentList
+    from edsl.data import Cache
+    from edsl.questions import QuestionMultipleChoice, QuestionFreeText
+    from edsl.results import Results
     from edsl.surveys import Survey
 
-    # check surveys on server (should be an empty list)
-    coop.surveys
-    for survey in coop.surveys:
-        coop.delete(object_type="survey", uuid=survey.get("uuid"))
-    # try to get a survey that does not exist - should get an error
-    coop.get(object_type="survey", uuid=uuid.uuid4())
-    coop.get(object_type="survey", uuid=str(uuid.uuid4()))
-    # now post some surveys
-    response = coop.create(Survey.example())
-    coop.create(Survey.example(), visibility="private")
-    coop.create(Survey.example(), visibility="public")
-    s = Survey().example()
-    for i in range(10):
-        q = QuestionFreeText.example()
-        q.question_name = f"question_{i}"
-        s.add_question(q)
-    coop.create(s, visibility="public")
-    # check all surveys - there must be three
-    coop.surveys
-    # or get survey by uuid
-    coop.get(object_type="survey", uuid=response.get("uuid"))
-    # or by its url
-    coop.get(url=response.get("url"))
-    # delete the survey
-    coop.delete(object_type="survey", uuid=response.get("uuid"))
-    # check all surveys - there must be two left
-    coop.surveys
+    def simple_object_operations(object_type, edsl_class, additional_setup=None):
+        # 1. Check existing objects
+        existing_objects = getattr(
+            coop, object_type + "s" if not object_type.endswith("s") else object_type
+        )
+        for item in existing_objects:
+            coop.delete(object_type=object_type, uuid=item.get("uuid"))
 
-    # ------------
-    # A.3 Agents
-    # ------------
-    from edsl.agents import Agent, AgentList
+        # 2. Create new items
+        example = edsl_class.example()
+        response = coop.create(example)
+        coop.create(edsl_class.example(), visibility="private")
+        coop.create(edsl_class.example(), visibility="public")
 
-    # check agents on server (should be an empty list)
-    coop.agents
-    for agent in coop.agents:
-        coop.delete(object_type="agent", uuid=agent.get("uuid"))
-    # try to get an agent that does not exist - should get an error
-    coop.get(object_type="agent", uuid=uuid.uuid4())
-    coop.get(object_type="agent", uuid=str(uuid.uuid4()))
-    # now post some agents
-    response = coop.create(Agent.example())
-    coop.create(Agent.example(), visibility="private")
-    coop.create(Agent.example(), visibility="public")
-    coop.create(
-        Agent(traits={"hair_type": "curly", "skil_color": "white"}), visibility="public"
-    )
-    coop.create(AgentList.example())
-    coop.create(AgentList.example(), visibility="private")
-    coop.create(AgentList.example(), visibility="public")
-    # check all agents - there must be a few
-    coop.agents
-    # or get agent by uuid
-    coop.get(object_type="agent", uuid=response.get("uuid"))
-    # or by its url
-    coop.get(url=response.get("url"))
-    # delete the agent
-    coop.delete(object_type="agent", uuid=response.get("uuid"))
-    # check all agents
-    coop.agents
+        # 3. Additional setup
+        if additional_setup:
+            additional_setup()
 
-    # ------------
-    # A.4 Results
-    # ------------
-    from edsl.results import Results
+        # 4. Retrieve items
+        try:
+            coop.get(object_type=object_type, uuid=str(uuid4()))
+        except Exception as e:
+            print(e)
+        try:
+            coop.get(object_type=object_type, uuid=response.get("uuid"))
+        except Exception as e:
+            print(e)
+        coop.get(object_type=object_type, uuid=response.get("uuid"))
+        # 5. Delete items
+        existing_objects = getattr(
+            coop, object_type + "s" if not object_type.endswith("s") else object_type
+        )
+        for item in existing_objects:
+            coop.delete(object_type=object_type, uuid=item.get("uuid"))
 
-    # check results on server (should be an empty list)
-    coop.results
-    for results in coop.results:
-        coop.delete(object_type="results", uuid=results.get("uuid"))
-    # try to get a results that does not exist - should get an error
-    coop.get(object_type="results", uuid=uuid.uuid4())
-    coop.get(object_type="results", uuid=str(uuid.uuid4()))
-    # now post some Results
-    response = coop.create(Results.example())
-    coop.create(Results.example(), visibility="private")
-    coop.create(Results.example(), visibility="public")
-    # check all results - there must be a few
-    coop.results
-    # or get results by uuid
-    coop.get(object_type="results", uuid=response.get("uuid"))
-    # or by its url
-    coop.get(url=response.get("url"))
-    # delete the results
-    coop.delete(object_type="results", uuid=response.get("uuid"))
-    # check all results
-    coop.results
+    def additional_survey_setup():
+        s = Survey().example()
+        for i in range(10):
+            q = QuestionFreeText.example()
+            q.question_name = f"question_{i}"
+            s.add_question(q)
+        coop.create(s, visibility="public")
 
-    # ------------
-    # A.5 Caches
-    # ------------
-    from edsl.data import Cache
+    # Define the object types and their corresponding classes
+    SETUP = [
+        ("question", QuestionMultipleChoice, None),
+        ("survey", Survey, additional_survey_setup),
+        ("agent", Agent, None),
+        ("results", Results, None),
+        ("cache", Cache, None),
+    ]
 
-    # check caches on server (should be an empty list)
-    coop.caches
-    for cache in coop.caches:
-        coop.delete(object_type="cache", uuid=cache.get("uuid"))
-    # try to get a cache that does not exist - should get an error
-    coop.get(object_type="cache", uuid=uuid.uuid4())
-    coop.get(object_type="cache", uuid=str(uuid.uuid4()))
-    # now post some Caches
-    response = coop.create(Cache.example())
-    coop.create(Cache.example(), visibility="private")
-    coop.create(Cache.example(), visibility="public")
-    # check all caches - there must be a few
-    coop.caches
-    # or get cache by uuid
-    coop.get(object_type="cache", uuid=response.get("uuid"))
-    # or by its url
-    coop.get(url=response.get("url"))
-    # delete the cache
-    coop.delete(object_type="cache", uuid=response.get("uuid"))
-    # check all caches
-    coop.caches
+    # Execute CRUD operations for each type
+    for object_type, cls, setup in SETUP:
+        simple_object_operations(object_type, cls, setup)
 
-    # ------------
-    # A.6 Jobs
-    # ------------
+    ##############
+    # B. Jobs
+    ##############
     from edsl.jobs import Jobs
 
     # check jobs on server (should be an empty list)
@@ -714,7 +627,7 @@ if __name__ == "__main__":
         )
 
     ##############
-    # B. CacheEntries
+    # C. CacheEntries
     ##############
     from edsl.data.CacheEntry import CacheEntry
 
@@ -739,7 +652,7 @@ if __name__ == "__main__":
     coop.create_cache_entries(cache_entries)
 
     ##############
-    # E. ERROR MESSAGE
+    # D. Errors
     ##############
     coop = Coop()
     coop.api_key = "a"
