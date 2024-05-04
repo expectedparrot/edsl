@@ -147,7 +147,7 @@ As with other survey components (agents and language models), multiple `Scenario
     results = q.by(scenarios).run()
 
     results.select("item", "favorite_item").print(format="rich")
-    
+
 
 Now we will see both scenarios in our results table:
 
@@ -164,7 +164,51 @@ Now we will see both scenarios in our results table:
     └──────────┴──────────────────────────────────────────────────────────────────────────────────────────────────────┘
 
 
+If we have multiple questions in a survey, we can add scenarios to the survey in the same way:
+
+.. code-block:: python
+
+    from edsl.questions import QuestionFreeText, QuestionList
+    from edsl import Survey, Scenario
+
+    q1 = QuestionFreeText(
+        question_name = "favorite_item",
+        question_text = "What is your favorite {{ item }}?",
+    )
+    q2 = QuestionList(
+        question_name = "items_list",
+        question_text = "What are some of your favorite {{ item }} preferences?",
+        
+    )
+
+    survey = Survey(questions = [q1, q2])
+
+    scenarios = [Scenario({"item": item}) for item in ["color", "food"]]
+
+    results = survey.by(scenarios).run()
+
+    results.select("item", "favorite_item", "items_list").print(format="rich")
+
+
+This will print a table of the responses for each scenario for each question:
+
+.. code-block:: text
+
+    ┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+    ┃ scenario ┃ answer                                            ┃ answer                                           ┃
+    ┃ .item    ┃ .favorite_item                                    ┃ .items_list                                      ┃
+    ┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+    │ color    │ Blue is my favorite color for its calming and     │ ['Blue', 'Green', 'Burgundy']                    │
+    │          │ serene qualities.                                 │                                                  │
+    ├──────────┼───────────────────────────────────────────────────┼──────────────────────────────────────────────────┤
+    │ food     │ My favorite food is a classic Italian pizza with  │ ['Italian cuisine', 'Sushi', 'Mexican food',     │
+    │          │ a thin crust, topped with mozzarella, fresh       │ 'Dark chocolate', 'Avocado toast']               │
+    │          │ basil, and a rich tomato sauce.                   │                                                  │
+    └──────────┴───────────────────────────────────────────────────┴──────────────────────────────────────────────────┘
+
+
 To learn more about constructing surveys, please see the :ref:`surveys` module.
+
 
 Scenario class
 --------------
