@@ -267,7 +267,7 @@ class Coop:
             uri=f"api/v0/{object_type_uri}/{uuid}", method="GET"
         )
         self._resolve_server_response(response)
-        return json.loads(response.json().get("json_string"))
+        return response.json()
 
     def get(
         self, object_type: str = None, uuid: Union[str, UUID] = None, url: str = None
@@ -290,9 +290,16 @@ class Coop:
                 "Please provide either an object type and a UUID, or a url."
             )
 
-        json_dict = self._get(object_type_uri=uri, uuid=uuid)
+        response = self._get(object_type_uri=uri, uuid=uuid)
+        json_dict = json.loads(response.get("json_string"))
         if object_type == "agent" and "agent_list" in json_dict:
             return AgentList.from_dict(json_dict)
+        elif object_type == "job":
+            return {
+                "job": Jobs.from_dict(json_dict),
+                "status": response.get("status"),
+                "results_uuid": response.get("results_uuid"),
+            }
         else:
             return cls.from_dict(json_dict)
 
