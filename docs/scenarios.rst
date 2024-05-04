@@ -6,13 +6,13 @@ A `Scenario` is a dictionary containing a single key/value pair that is used to 
 
 Purpose 
 -------
-Scenarios are used to easily create variations and versions of questions with one or more parameters that can be replaced with different values.
+Scenarios are used to create variations and versions of questions with parameters that can be replaced with different values.
 For example, we could create a question `"What is your favorite {{ item }}?"` and replace the parameter `item` with `color` or `food` or other items.
-This allows us to straightforwardly administer variations of the question all at once, or according to some other desired logic.
+This allows us to straightforwardly administer multiple versions of the question, either asynchronously or according to other specified [survey rules](https://docs.expectedparrot.com/en/latest/surveys.html#applying-survey-rules).
 
 Data labeling tasks
 ^^^^^^^^^^^^^^^^^^^
-Scenarios are particularly useful for conducting data labeling tasks, where a task is designed as questions about the data.
+Scenarios are particularly useful for conducting data labeling or data coding tasks, where we can design the task as a question or series of questions that we prompt an agent to answer about each piece of data in our dataset.
 For example, say we have a dataset of messages from users that we want to sort by topic.
 We could create multiple choice questions such as `"What is the primary topic of this message: {{ message }}?"` or `"Does this message mention a safety issue? {{ message }}"` and replace the parameter `message` with each message in the dataset, generating a dataset of results that can be readily analyzed.
 
