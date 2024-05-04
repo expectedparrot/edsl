@@ -106,6 +106,7 @@ Links
    prompts
    language_models
    results
+   data
 
 .. toctree::
    :maxdepth: 2
@@ -138,7 +139,6 @@ Links
    :caption: Developers
    :hidden:
 
-   data
    enums
 
 .. image:: https://colab.research.google.com/assets/colab-badge.svg
