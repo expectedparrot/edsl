@@ -113,7 +113,6 @@ Links
    :hidden:
 
    notebooks/edsl_components.ipynb
-   notebooks/survey_methods.ipynb
    notebooks/export_survey_updates.ipynb
    notebooks/question_extract_example.ipynb
    notebooks/data_labeling_example.ipynb
