@@ -176,18 +176,22 @@ If the survey was run multiple times (`run(n=<integer>)`) then the `iteration.it
 *Agent* information:
 
 * **agent.agent_name**: This field is always included in any `Results` object. It contains a unique identifier for each `Agent` that can be specified when an agent is is created (`Agent(name=<name>, traits={<traits_dict>})`). If not specified, it is added automatically when results are generated (in the form `Agent_0`, etc.).
-* **agent.persona**: Each of the `traits` passed to an agent is represented in a columns of the results. Our example code created a "persona" trait for each of 2 agents, so our results include a "persona" column for this information. Each agent trait created has its own column in results. (The key for the trait in the traits dict should be a valid Python key.)
-For example, if we also specified an agent "persona" there would be a corresponding **agent.persona** column in the results. 
+* **agent.persona**: Each of the `traits` that we pass to an agent is represented in a column of the results. Our example code created a "persona" trait for each agent, so our results include a "persona" column for this information. Note that the keys for the traits dictionary should be a valid Python keys.
 
 *Answer* information:
 
-* **answer.tomorrow**: The agent's answer to the `tomorrow` question.
-* **answer.yesterday**: The agent's answer to the `yesterday` question.
-* **answer.yesterday_comment**: An additional comment for the answer to the `yesterday` question.
-A comment field is automatically included for every question in a survey other than free text questions, to allow the LLM to optionally provide additional information about its response to the question.
+* **answer.feel**: Agent responses to the `feel` question.
+* **answer.important**: Agent responses to the `important` question.
+* **answer.important_comment**: Agent commentary on reponses to the `important` question.
+A comment field is automatically included for every question in a survey other than free text questions, to allow the agent to optionally provide additional information about its response to the question.
+* **answer.read**: Agent responses to the `read` question.
+* **answer.read_comment**: Agent commentary on responses to the `read` question.
+
+*Iteration* information:
+The `iteration` column shows the number of the run (`run(n=<integer>)`) for the combination of components used (scenarios, agents and models).
 
 *Model* information:
-Each of `model` columns is a modifiable parameter of the model used to generate a response.
+Each of `model` columns is a modifiable parameter of the models used to generate the responses.
 
 * **model.frequency_penalty**: The frequency penalty for the model.
 * **model.max_tokens**: The maximum number of tokens for the model.
@@ -199,20 +203,35 @@ Each of `model` columns is a modifiable parameter of the model used to generate 
 
 *Prompt* information:
 
-* **prompt.tomorrow_system_prompt**: The system prompt for the `tomorrow` question.
-* **prompt.tomorrow_user_prompt**: The user prompt for the `tomorrow` question.
-* **prompt.yesterday_system_prompt**: The system prompt for the `yesterday` question.
-* **prompt.yesterday_user_prompt**: The user prompt for the `yesterday` question.
+* **prompt.feel_system_prompt**: The system prompt for the `feel` question.
+* **prompt.feel_user_prompt**: The user prompt for the `feel` question.
+* **prompt.important_system_prompt**: The system prompt for the `important` question.
+* **prompt.important_user_prompt**: The user prompt for the `important` question.
+* **prompt.read_system_prompt**: The system prompt for the `read` question.
+* **prompt.read_user_prompt**: The user prompt for the `read` question.
 For more details about prompts, please see the :ref:`prompts` section.
+
+*Question* information:
+
+* **question_options.feel_question_options**: The options for the `feel` question, if any.
+* **question_options.important_question_options**: The options for the `important` question, if any.
+* **question_options.read_question_options**: The options for the `read` question, if any.
+* **question_text.feel_question_text**: The text of the `feel` question.
+* **question_text.important_question_text**: The text of the `important` question.
+* **question_text.read_question_text**: The text of the `read` question.
+* **question_type.feel_question_type**: The type of the `feel` question.
+* **question_type.important_question_type**: The type of the `important` question.
+* **question_type.read_question_type**: The type of the `read` question.
 
 *Raw model response* information:
 
-* **raw_model_response.tomorrow_raw_model_response**: The raw model response for the `tomorrow` question.
-* **raw_model_response.yesterday_raw_model_response**: The raw model response for the `yesterday` question.
+* **raw_model_response.feel_raw_model_response**: The raw model response for the `feel` question.
+* **raw_model_response.important_raw_model_response**: The raw model response for the `important` question.
+* **raw_model_response.read_raw_model_response**: The raw model response for the `read` question.
 
 *Scenario* information:
 
-* **scenario.period**: The values provided for the "period" scenario for the questions.
+* **scenario.topic**: The values provided for the "topic" scenario for the questions.
 
 
 Creating tables by selecting and printing
