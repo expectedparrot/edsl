@@ -69,7 +69,7 @@ class Rule:
         self.question_name_to_index = question_name_to_index
         self.priority = priority
 
-        if not next_q == EndOfSurvey and current_q > next_q:
+        if not self.next_q == EndOfSurvey and self.current_q > self.next_q:
             raise SurveyRuleSendsYouBackwardsError
 
         # get the AST for the expression - used to extract
@@ -100,7 +100,11 @@ class Rule:
         # so the named questions in the expression should not be higher than the current question
         if self.named_questions_by_index:
             if max(self.named_questions_by_index) > self.current_q:
+                print("A rule refers to a future question, the answer to which would not be available here.")
                 raise SurveyRuleRefersToFutureStateError
+            
+    def _checks(self):
+        pass
 
     def to_dict(self):
         """Convert the rule to a dictionary for serialization."""
@@ -169,9 +173,12 @@ class Rule:
             to_evaluate = substitute_in_answers(self.expression, answers)
             return EvalWithCompoundTypes().eval(to_evaluate)
         except Exception as e:
-            print(f"Exception in evaluation: {e}")
+            print(f"""Exception in evaluation: {e}. 
+                  The expression was: {self.expression}.
+                  The answers trying to substitute in were: {answers}.
+                  The the substition, the expression was {to_evaluate}.
+                  """)
             raise SurveyRuleCannotEvaluateError
-
 
 if __name__ == "__main__":
     r = Rule(

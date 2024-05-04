@@ -1,6 +1,6 @@
 """A mixin class for exporting surveys to different formats."""
 from docx import Document
-
+import black
 
 class SurveyExportMixin:
     """A mixin class for exporting surveys to different formats."""
@@ -25,34 +25,30 @@ class SurveyExportMixin:
                         doc.add_paragraph(str(option), style="ListBullet")
         return doc
 
-    def code(self) -> list[str]:
+    def code(self, filename: str = None) -> list[str]:
         ## TODO: Refactor to only use the questions actually in the survey
         """Create the Python code representation of a survey."""
         header_lines = ["from edsl.surveys.Survey import Survey"]
         header_lines.append(
-            "from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice"
-        )
-        header_lines.append(
-            "from edsl.questions.QuestionFreeText import QuestionFreeText"
-        )
-        header_lines.append(
-            "from edsl.questions.derived.QuestionLinearScale import QuestionLinearScale"
-        )
-        header_lines.append(
-            "from edsl.questions.QuestionNumerical import QuestionNumerical"
-        )
-        header_lines.append(
-            "from edsl.questions.QuestionCheckBox import QuestionCheckBox"
-        )
-        header_lines.append(
-            "from edsl.questions.derived.QuestionYesNo import QuestionYesNo"
+            "from edsl import Question"
         )
         lines = ["\n".join(header_lines)]
         for question in self._questions:
             lines.append(f"{question.question_name} = " + repr(question))
         lines.append(f"survey = Survey(questions = [{', '.join(self.question_names)}])")
-        return lines
+        #return lines
+        code_string = "\n".join(lines)
+        formatted_code = black.format_str(code_string, mode=black.FileMode())
+        
+        if filename:
+            print("The code has been saved to", filename)
+            print("The survey itself is saved to 'survey' object")
+            with open(filename, "w") as file:
+                file.write(formatted_code)
+            return
 
+        return formatted_code
+    
     def html(self) -> str:
         """Generate the html for the survey."""
         html_text = []

@@ -196,6 +196,12 @@ class QuestionBase(
     ############################
     # Dunder methods
     ############################
+    def print(self):
+        from rich import print_json
+        import json
+
+        print_json(json.dumps(self.to_dict()))
+        
     def __repr__(self) -> str:
         """Return a string representation of the question. Should be able to be used to reconstruct the question."""
         class_name = self.__class__.__name__
@@ -204,11 +210,8 @@ class QuestionBase(
             for k, v in self.data.items()
             if k != "question_type"
         ]
-        from rich import print_json
-        import json
-
-        print_json(json.dumps(self.to_dict()))
-        return f"{class_name}({', '.join(items)})"
+        question_type = self.to_dict().get("question_type", "None")
+        return f"Question('{question_type}', {', '.join(items)})"
 
     def __eq__(self, other: Type[QuestionBase]) -> bool:
         """Check if two questions are equal. Equality is defined as having the .to_dict()."""
