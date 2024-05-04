@@ -1,23 +1,16 @@
+"""
+The `Cache` class is used to store responses from a language model.
+"""
 from __future__ import annotations
 import json
 import os
-import copy
 import warnings
 from typing import Optional, Union
+
 from edsl.config import CONFIG
 from edsl.data.CacheEntry import CacheEntry
 from edsl.data.SQLiteDict import SQLiteDict
-
-
-# EDSL_DATABASE_PATH = CONFIG.get("EDSL_DATABASE_PATH")
-# EXPECTED_PARROT_CACHE_URL = os.getenv("EXPECTED_PARROT_CACHE_URL")
-
-# TODO: What do we want to do if & when there is a mismatch
-#       -- if two keys are the same but the values are different?
-# TODO: In the read methods, if the file already exists, make sure it is valid.
-
 from edsl.Base import Base
-
 
 class Cache(Base):
     """
@@ -100,7 +93,20 @@ class Cache(Base):
     ) -> Union[None, str]:
         """
         Fetch a value (LLM output) from the cache.
+
+        :param model: The name of the language model.
+        :param parameters: The model parameters.
+        :param system_prompt: The system prompt.
+        :param user_prompt: The user prompt.
+        :param iteration: The iteration number.
+
         Return None if the response is not found.
+
+        >>> c = Cache()
+        >>> c.fetch(model="gpt-3", parameters="default", system_prompt="Hello", user_prompt="Hi", iteration=1) is None
+        True
+        
+
         """
         key = CacheEntry.gen_key(
             model=model,
@@ -221,32 +227,35 @@ class Cache(Base):
         return cls.from_sqlite_db(db_path=db_path)
 
     @classmethod
-    def from_jsonl(cls, jsonlfile: str, db_path: str = None) -> Cache:
+    def from_jsonl(cls, jsonlfile: str, db_path: Optional[str] = None) -> Cache:
         """
         Construct a Cache from a JSONL file.
+
+        :param jsonlfile: The path to the JSONL file of cache entries.
+        :param db_path: The path to the SQLite database used to store the cache.
 
         * If `db_path` is None, the cache will be stored in memory, as a dictionary.
         * If `db_path` is provided, the cache will be stored in an SQLite database.
         """
+        # if a file doesn't exist at jsonfile, throw an error
+        if not os.path.exists(jsonlfile):
+            raise FileNotFoundError(f"File {jsonlfile} not found")
+
         if db_path is None:
             data = {}
         else:
             data = SQLiteDict(db_path)
 
-        # if a file doesn't exist at jsonfile, throw an error
-        if not os.path.exists(jsonlfile):
-            raise FileNotFoundError(f"File {jsonlfile} not found")
-
         cache = Cache(data=data)
         cache.add_from_jsonl(jsonlfile)
         return cache
 
-    ## TODO: Check to make sure not over-writing (?)
-    ## Should be added to SQLiteDict constructor (?)
     def write_sqlite_db(self, db_path: str) -> None:
         """
         Write the cache to an SQLite database.
         """
+        ## TODO: Check to make sure not over-writing (?)
+        ## Should be added to SQLiteDict constructor (?)
         new_data = SQLiteDict(db_path)
         for key, value in self.data.items():
             new_data[key] = value
