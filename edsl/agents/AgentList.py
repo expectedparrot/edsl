@@ -12,15 +12,14 @@ Example usage:
 from __future__ import annotations
 from collections import UserList
 from typing import Optional, Union
-
+from rich import print_json
 from rich.table import Table
+import json
 
 from edsl.Base import Base
 from edsl.agents import Agent
-from edsl.agents.AgentListExportMixin import AgentListExportMixin
 
-
-class AgentList(UserList, Base, AgentListExportMixin):
+class AgentList(UserList, Base):
     """A list of Agents."""
 
     def __init__(self, data: Optional[list[Agent]] = None):
@@ -33,13 +32,17 @@ class AgentList(UserList, Base, AgentListExportMixin):
         else:
             super().__init__()
 
-    def to(self, question_or_survey: Union["Question", "Survey"]) -> "Jobs":
-        """Return a Job with a question or survey taken by the agent."""
-        return question_or_survey.by(*self)
-
     def to_dict(self):
         """Return dictionary of AgentList to serialization."""
         return {"agent_list": [agent.to_dict() for agent in self.data]}
+
+    def __repr__(self):
+        return f"AgentList({self.data})"
+    
+    def print(self, format: Optional[str] = None):
+        """Print the AgentList."""
+        print_json(json.dumps(self.to_dict()))
+
 
     def _repr_html_(self):
         """Return an HTML representation of the AgentList."""
@@ -81,5 +84,4 @@ class AgentList(UserList, Base, AgentListExportMixin):
 
 if __name__ == "__main__":
     import doctest
-
     doctest.testmod(optionflags=doctest.ELLIPSIS)

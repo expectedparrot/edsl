@@ -1,6 +1,6 @@
 """Module for creating Invigilators, which are objects to administer a question to an Agent."""
 import json
-from typing import Coroutine, Dict, Any, Optional
+from typing import Dict, Any, Optional
 
 from edsl.exceptions import AgentRespondedWithBadJSONError
 from edsl.prompts.Prompt import Prompt
@@ -256,103 +256,6 @@ class InvigilatorFunctional(InvigilatorBase):
 
 
 if __name__ == "__main__":
-    pass
-#    from edsl.enums import LanguageModelType
+    import doctest
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
 
-# from edsl.agents.Agent import Agent
-
-# a = Agent(
-#     instruction="You are a happy-go lucky agent.",
-#     traits={"feeling": "happy", "age": "Young at heart"},
-#     codebook={"feeling": "Feelings right now", "age": "Age in years"},
-#     trait_presentation_template="",
-# )
-
-# class MockModel:
-#     """Mock model for testing."""
-
-#     model = LanguageModelType.GPT_4.value
-
-# class MockQuestion:
-#     """Mock question for testing."""
-
-#     question_type = "free_text"
-#     question_text = "How are you feeling?"
-#     question_name = "feelings_question"
-#     data = {
-#         "question_name": "feelings",
-#         "question_text": "How are you feeling?",
-#         "question_type": "feelings_question",
-#     }
-
-# i = InvigilatorAI(
-#     agent=a,
-#     question=MockQuestion(),
-#     scenario={},
-#     model=MockModel(),
-#     memory_plan=None,
-#     current_answers=None,
-# )
-# print(i.get_prompts()["system_prompt"])
-# assert i.get_prompts()["system_prompt"].text == "You are a happy-go lucky agent."
-
-# ###############
-# ## Render one
-# ###############
-
-# a = Agent(
-#     instruction="You are a happy-go lucky agent.",
-#     traits={"feeling": "happy", "age": "Young at heart"},
-#     codebook={"feeling": "Feelings right now", "age": "Age in years"},
-#     trait_presentation_template="You are feeling {{ feeling }}.",
-# )
-
-# i = InvigilatorAI(
-#     agent=a,
-#     question=MockQuestion(),
-#     scenario={},
-#     model=MockModel(),
-#     memory_plan=None,
-#     current_answers=None,
-# )
-# print(i.get_prompts()["system_prompt"])
-
-# assert (
-#     i.get_prompts()["system_prompt"].text
-#     == "You are a happy-go lucky agent. You are feeling happy."
-# )
-# try:
-#     assert i.get_prompts()["system_prompt"].unused_traits(a.traits) == ["age"]
-# except AssertionError:
-#     unused_traits = i.get_prompts()["system_prompt"].unused_traits(a.traits)
-#     print(f"System prompt: {i.get_prompts()['system_prompt']}")
-#     print(f"Agent traits: {a.traits}")
-#     print(f"Unused_traits: {unused_traits}")
-#     # breakpoint()
-
-# ###############
-# ## Render one
-# ###############
-
-# a = Agent(
-#     instruction="You are a happy-go lucky agent.",
-#     traits={"feeling": "happy", "age": "Young at heart"},
-#     codebook={"feeling": "Feelings right now", "age": "Age in years"},
-#     trait_presentation_template="You are feeling {{ feeling }}. You eat lots of {{ food }}.",
-# )
-
-# i = InvigilatorAI(
-#     agent=a,
-#     question=MockQuestion(),
-#     scenario={},
-#     model=MockModel(),
-#     memory_plan=None,
-#     current_answers=None,
-# )
-# print(i.get_prompts()["system_prompt"])
-
-# ## Should raise a QuestionScenarioRenderError
-# assert (
-#     i.get_prompts()["system_prompt"].text
-#     == "You are a happy-go lucky agent. You are feeling happy."
-# )
