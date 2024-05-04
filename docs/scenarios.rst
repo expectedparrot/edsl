@@ -8,7 +8,7 @@ Purpose
 -------
 Scenarios are used to create variations and versions of questions with parameters that can be replaced with different values.
 For example, we could create a question `"What is your favorite {{ item }}?"` and replace the parameter `item` with `color` or `food` or other items.
-This allows us to straightforwardly administer multiple versions of the question, either asynchronously or according to other specified [survey rules](https://docs.expectedparrot.com/en/latest/surveys.html#applying-survey-rules).
+This allows us to straightforwardly administer multiple versions of the question, either asynchronously or according to other specified :ref:`surveys` rules.
 
 Data labeling tasks
 ^^^^^^^^^^^^^^^^^^^
