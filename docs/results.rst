@@ -468,40 +468,115 @@ This will return a table of the selected components of the first 4 results:
 Interacting via SQL
 ^^^^^^^^^^^^^^^^^^^
 We can also interact with the results via SQL using the `sql` method.
+This is done by passing a SQL query and a `shape` ("long" or "wide") for the resulting table, where the table name in the query is "self".
+
+The "wide" shape will return a table with each result as a row and columns for the selected columns of the results.
+For example, the following code will return a table showing the `model`, `persona`, `read` and `important` columns for the first 4 results:
 
 .. code-block:: python
 
-   results.sql("select data_type, key, value from self where data_type = 'answer' limit 3", shape="long")
+   results.sql("select model, persona, read, important from self limit 4", shape="wide")
+
+
+This following table will be displayed:
+
+.. code-block:: text
+
+      model	               persona	read	important
+   0	gpt-4-0125-preview	student	Yes	5
+   1	gpt-3.5-turbo	      student	Yes	3
+   2	gpt-4-0125-preview	student	Yes	4
+   3	gpt-3.5-turbo	      student	Yes	4
+
+
+The "long" shape lets us instead treat the components of the results as rows.
+There are 4 columns in the resulting table: 
+
+* **data_type**: The component type within the results (i.e., the column prefixes referred to above).
+* **key**: The name of the component (e.g., the prefix `question_text`).
+* **value**: The actual component (e.g., the individual question texts).
+* **id**: The number of the `Result` object within the `Results`. 
+Because a `Result` includes answers for all of the questions in a survey, the all of the questions of a `Result` share the same `id`.
+
+For example, the following code will return a table showing the `question_text` data for all of the results:
+
+.. code-block:: python
+
+   results.sql("select * from self where data_type = 'question_text'", shape="long")
+
+
+This following table will be displayed:
+
+.. code-block:: text
+
+      id	data_type	   key	                  value
+   0	0	question_text	important_question_text	How much do you care about {{ topic }}?
+   1	0	question_text	feel_question_text	   How do you feel about {{ topic }}?
+   2	0	question_text	read_question_text	   Have you read any books about {{ topic }}?
+   3	1	question_text	important_question_text	How much do you care about {{ topic }}?
+   4	1	question_text	feel_question_text	   How do you feel about {{ topic }}?
+   5	1	question_text	read_question_text	   Have you read any books about {{ topic }}?
+   6	2	question_text	important_question_text	How much do you care about {{ topic }}?
+   7	2	question_text	feel_question_text	   How do you feel about {{ topic }}?
+   8	2	question_text	read_question_text	   Have you read any books about {{ topic }}?
+   9	3	question_text	important_question_text	How much do you care about {{ topic }}?
+   10	3	question_text	feel_question_text	   How do you feel about {{ topic }}?
+   11	3	question_text	read_question_text	   Have you read any books about {{ topic }}?
+   12	4	question_text	important_question_text	How much do you care about {{ topic }}?
+   13	4	question_text	feel_question_text	   How do you feel about {{ topic }}?
+   14	4	question_text	read_question_text	   Have you read any books about {{ topic }}?
+   15	5	question_text	important_question_text	How much do you care about {{ topic }}?
+   16	5	question_text	feel_question_text	   How do you feel about {{ topic }}?
+   17	5	question_text	read_question_text	   Have you read any books about {{ topic }}?
+   18	6	question_text	important_question_text	How much do you care about {{ topic }}?
+   19	6	question_text	feel_question_text	   How do you feel about {{ topic }}?
+   20	6	question_text	read_question_text	   Have you read any books about {{ topic }}?
+   21	7	question_text	important_question_text	How much do you care about {{ topic }}?
+   22	7	question_text	feel_question_text	   How do you feel about {{ topic }}?
+   23	7	question_text	read_question_text	   Have you read any books about {{ topic }}?
 
 
 
-Exporting to other formats
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-We can also export results to other formats, such as pandas DataFrames or CSV files.
-The `to_pandas` method will return a pandas DataFrame:
+Dataframes
+^^^^^^^^^^
+We can also export results to other formats.
+The `to_pandas` method will turn our results into a Pandas dataframe:
 
 .. code-block:: python
 
    results.to_pandas()
 
-For example, here we use it to inspect the first set of (default) prompts used in the results:
+
+For example, here we use it to create a dataframe consisting of the models, personas and the answers to the `important` question:
 
 .. code-block:: python
 
-   results.to_pandas()[["prompt.tomorrow_user_prompt", "prompt.tomorrow_system_prompt"]].iloc[0]
+   results.to_pandas()[["model.model", "agent.persona", "answer.important"]]
+
+
+This will display our new dataframe:
 
 .. code-block:: text
 
-   prompt.tomorrow_user_prompt    {'text': 'You are being asked the following question: How do you expect to feel tomorrow morning?\nReturn a valid JSON formatted like this:\n{"answer": "<put free text answer here>"}', 'class_name': 'FreeText'}
-   prompt.tomorrow_system_prompt  {'text': "You are answering questions as if you were a human. Do not break character. You are an agent with the following persona:\n{'status': 'happy'}", 'class_name': 'AgentInstruction'}
-   Name: 0, dtype: object
+      model.model	         agent.persona	answer.important
+   0	gpt-4-0125-preview	student	      5
+   1	gpt-3.5-turbo	      student	      3
+   2	gpt-4-0125-preview	student	      4
+   3	gpt-3.5-turbo	      student	      4
+   4	gpt-4-0125-preview	celebrity	   5
+   5	gpt-3.5-turbo	      celebrity	   5
+   6	gpt-4-0125-preview	celebrity	   5
+   7	gpt-3.5-turbo	      celebrity	   4
 
 
+Exporting to CSV or JSON
+^^^^^^^^^^^^^^^^^^^^^^^^
 The `to_csv` method will write the results to a CSV file:
 
 .. code-block:: python
 
    results.to_pandas().to_csv("results.csv")
+
 
 The `to_json` method will write the results to a JSON file:
 
