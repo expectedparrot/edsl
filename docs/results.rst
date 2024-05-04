@@ -25,40 +25,46 @@ Note that specifying agent traits, scenarios (question parameter values) and lan
 .. code-block:: python
 
    # Create questions
-   from edsl.questions import QuestionMultipleChoice, QuestionFreeText
+   from edsl.questions import QuestionLinearScale, QuestionFreeText, QuestionYesNo
 
-   q1 = QuestionMultipleChoice(
-      question_name = "yesterday", 
-      question_text = "How did you feel yesterday {{ period }}?", 
-      question_options = ["Good", "OK", "Terrible"]
+   q1 = QuestionLinearScale(
+      question_name = "important",
+      question_text = "How much do you care about {{ topic }}?",
+      question_options = [0,1,2,3,4,5],
+      option_labels = {0:"Not at all", 5:"A lot"}
    )
 
    q2 = QuestionFreeText(
-      question_name = "tomorrow", 
-      question_text = "How do you expect to feel tomorrow {{ period }}?"
+      question_name = "feel",
+      question_text = "How do you feel about {{ topic }}?"
+   )
+
+   q3 = QuestionYesNo(
+      question_name = "read",
+      question_text = "Have you read any books about {{ topic }}?"
    )
 
    # Optionally parameterize the questions with scenarios
-   from edsl import Scenario 
+   from edsl import Scenario
 
-   scenarios = [Scenario({"period": period}) for period in ["morning", "evening"]]
+   scenarios = [Scenario({"topic": t}) for t in ["climate change", "data privacy"]]
 
-   # Optionally create agent traits
-   from edsl import Agent 
+   # Optionally create agents with traits
+   from edsl import Agent
 
-   agents = [Agent(traits = {"status": status}) for status in ["happy", "sad"]]
+   agents = [Agent(traits = {"persona": p}) for p in ["student", "celebrity"]]
 
    # Optionally specify language models
-   from edsl import Model 
+   from edsl import Model
 
-   models = [Model(model) for model in ['gpt-4-0125-preview', 'gemini-pro']]
+   models = [Model(model) for model in ['gpt-4-0125-preview', 'gpt-3.5-turbo']]
 
    # Create a survey with the questions
-   from edsl import Survey 
+   from edsl import Survey
 
-   survey = Survey([q1, q2])
+   survey = Survey([q1, q2, q3])
 
-   # Run the survey with the scenarios, agents and models 
+   # Run the survey with the scenarios, agents and models
    results = survey.by(scenarios).by(agents).by(models).run()
 
 
@@ -236,38 +242,40 @@ For more details about prompts, please see the :ref:`prompts` section.
 
 Creating tables by selecting and printing
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Each of these columns can be accessed directly by calling the `select` method, and then printed by appending the `print` method.
-For example, the following code will print a table showing `answer.yesterday` together with `model.model`, `agent.status` and `scenario.period` columns
+Each of these columns can be accessed directly by calling the `select()` method, and then printed by appending the `print()` method.
+For example, the following code will print a table showing the answers for `read` and `important` together with `model`, `persona` and `topic` columns
 (because the column names are unique we can drop the `model`, `agent`, `scenario` and `answer` prefixes when selecting them):
 
 .. code-block:: python
 
-   results.select("model", "status", "period", "yesterday").print()
+   results.select("model", "persona", "topic", "read", "important").print()
+
 
 The following table will be printed:
 
 .. code-block:: text
 
-   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━┓
-   ┃ model                      ┃ agent   ┃ scenario ┃ answer     ┃
-   ┃ .model                     ┃ .status ┃ .period  ┃ .yesterday ┃
-   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━┩
-   │ mixtral-8x7B-instruct-v0.1 │ happy   │ morning  │ Good       │
-   ├────────────────────────────┼─────────┼──────────┼────────────┤
-   │ mixtral-8x7B-instruct-v0.1 │ happy   │ evening  │ Good       │
-   ├────────────────────────────┼─────────┼──────────┼────────────┤
-   │ mixtral-8x7B-instruct-v0.1 │ sad     │ morning  │ Terrible   │
-   ├────────────────────────────┼─────────┼──────────┼────────────┤
-   │ mixtral-8x7B-instruct-v0.1 │ sad     │ evening  │ Terrible   │
-   ├────────────────────────────┼─────────┼──────────┼────────────┤
-   │ llama-2-70b-chat-hf        │ happy   │ morning  │ Good       │
-   ├────────────────────────────┼─────────┼──────────┼────────────┤
-   │ llama-2-70b-chat-hf        │ happy   │ evening  │ Good       │
-   ├────────────────────────────┼─────────┼──────────┼────────────┤
-   │ llama-2-70b-chat-hf        │ sad     │ morning  │ Terrible   │
-   ├────────────────────────────┼─────────┼──────────┼────────────┤
-   │ llama-2-70b-chat-hf        │ sad     │ evening  │ Terrible   │
-   └────────────────────────────┴─────────┴──────────┴────────────┘
+   ┏━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━┓
+   ┃ model              ┃ agent     ┃ scenario       ┃ answer ┃ answer     ┃
+   ┃ .model             ┃ .persona  ┃ .topic         ┃ .read  ┃ .important ┃
+   ┡━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━┩
+   │ gpt-4-0125-preview │ student   │ climate change │ Yes    │ 5          │
+   ├────────────────────┼───────────┼────────────────┼────────┼────────────┤
+   │ gpt-3.5-turbo      │ student   │ climate change │ Yes    │ 3          │
+   ├────────────────────┼───────────┼────────────────┼────────┼────────────┤
+   │ gpt-4-0125-preview │ student   │ data privacy   │ Yes    │ 4          │
+   ├────────────────────┼───────────┼────────────────┼────────┼────────────┤
+   │ gpt-3.5-turbo      │ student   │ data privacy   │ Yes    │ 4          │
+   ├────────────────────┼───────────┼────────────────┼────────┼────────────┤
+   │ gpt-4-0125-preview │ celebrity │ climate change │ Yes    │ 5          │
+   ├────────────────────┼───────────┼────────────────┼────────┼────────────┤
+   │ gpt-3.5-turbo      │ celebrity │ climate change │ Yes    │ 5          │
+   ├────────────────────┼───────────┼────────────────┼────────┼────────────┤
+   │ gpt-4-0125-preview │ celebrity │ data privacy   │ Yes    │ 5          │
+   ├────────────────────┼───────────┼────────────────┼────────┼────────────┤
+   │ gpt-3.5-turbo      │ celebrity │ data privacy   │ Yes    │ 4          │
+   └────────────────────┴───────────┴────────────────┴────────┴────────────┘
+
 
 We can sort the columns by calling the `sort_by` method and passing it the column name to sort by:
 
@@ -275,32 +283,33 @@ We can sort the columns by calling the `sort_by` method and passing it the colum
 
    (results
    .sort_by("model", reverse=False)
-   .select("model", "status", "period", "yesterday")
-   .print()
+   .select("model", "persona", "topic", "read", "important")
+   .print(format="rich")
    )
 
 .. code-block:: text
    
-   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━┓
-   ┃ model                      ┃ agent   ┃ scenario ┃ answer     ┃
-   ┃ .model                     ┃ .status ┃ .period  ┃ .yesterday ┃
-   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━┩
-   │ llama-2-70b-chat-hf        │ happy   │ morning  │ Good       │
-   ├────────────────────────────┼─────────┼──────────┼────────────┤
-   │ llama-2-70b-chat-hf        │ happy   │ evening  │ Good       │
-   ├────────────────────────────┼─────────┼──────────┼────────────┤
-   │ llama-2-70b-chat-hf        │ sad     │ morning  │ Terrible   │
-   ├────────────────────────────┼─────────┼──────────┼────────────┤
-   │ llama-2-70b-chat-hf        │ sad     │ evening  │ Terrible   │
-   ├────────────────────────────┼─────────┼──────────┼────────────┤
-   │ mixtral-8x7B-instruct-v0.1 │ happy   │ morning  │ Good       │
-   ├────────────────────────────┼─────────┼──────────┼────────────┤
-   │ mixtral-8x7B-instruct-v0.1 │ happy   │ evening  │ Good       │
-   ├────────────────────────────┼─────────┼──────────┼────────────┤
-   │ mixtral-8x7B-instruct-v0.1 │ sad     │ morning  │ Terrible   │
-   ├────────────────────────────┼─────────┼──────────┼────────────┤
-   │ mixtral-8x7B-instruct-v0.1 │ sad     │ evening  │ Terrible   │
-   └────────────────────────────┴─────────┴──────────┴────────────┘
+   ┏━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━┓
+   ┃ model              ┃ agent     ┃ scenario       ┃ answer ┃ answer     ┃
+   ┃ .model             ┃ .persona  ┃ .topic         ┃ .read  ┃ .important ┃
+   ┡━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━┩
+   │ gpt-3.5-turbo      │ student   │ climate change │ Yes    │ 3          │
+   ├────────────────────┼───────────┼────────────────┼────────┼────────────┤
+   │ gpt-3.5-turbo      │ student   │ data privacy   │ Yes    │ 4          │
+   ├────────────────────┼───────────┼────────────────┼────────┼────────────┤
+   │ gpt-3.5-turbo      │ celebrity │ climate change │ Yes    │ 5          │
+   ├────────────────────┼───────────┼────────────────┼────────┼────────────┤
+   │ gpt-3.5-turbo      │ celebrity │ data privacy   │ Yes    │ 4          │
+   ├────────────────────┼───────────┼────────────────┼────────┼────────────┤
+   │ gpt-4-0125-preview │ student   │ climate change │ Yes    │ 5          │
+   ├────────────────────┼───────────┼────────────────┼────────┼────────────┤
+   │ gpt-4-0125-preview │ student   │ data privacy   │ Yes    │ 4          │
+   ├────────────────────┼───────────┼────────────────┼────────┼────────────┤
+   │ gpt-4-0125-preview │ celebrity │ climate change │ Yes    │ 5          │
+   ├────────────────────┼───────────┼────────────────┼────────┼────────────┤
+   │ gpt-4-0125-preview │ celebrity │ data privacy   │ Yes    │ 5          │
+   └────────────────────┴───────────┴────────────────┴────────┴────────────┘
+
 
 The `sort_by` method can be applied multiple times:
 
@@ -308,71 +317,76 @@ The `sort_by` method can be applied multiple times:
 
    (results
    .sort_by("model", reverse=False)
-   .sort_by("status", reverse=True)
-   .select("model", "status", "period", "yesterday")
-   .print()
+   .sort_by("persona", reverse=True)
+   .select("model", "persona", "topic", "read", "important")
+   .print(format="rich")
    )
 
 .. code-block:: text
-   
-   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━┓
-   ┃ model                      ┃ agent   ┃ scenario ┃ answer     ┃
-   ┃ .model                     ┃ .status ┃ .period  ┃ .yesterday ┃
-   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━┩
-   │ llama-2-70b-chat-hf        │ sad     │ morning  │ Good       │
-   ├────────────────────────────┼─────────┼──────────┼────────────┤
-   │ llama-2-70b-chat-hf        │ sad     │ evening  │ Good       │
-   ├────────────────────────────┼─────────┼──────────┼────────────┤
-   │ llama-2-70b-chat-hf        │ happy   │ morning  │ Terrible   │
-   ├────────────────────────────┼─────────┼──────────┼────────────┤
-   │ llama-2-70b-chat-hf        │ happy   │ evening  │ Terrible   │
-   ├────────────────────────────┼─────────┼──────────┼────────────┤
-   │ mixtral-8x7B-instruct-v0.1 │ sad     │ morning  │ Good       │
-   ├────────────────────────────┼─────────┼──────────┼────────────┤
-   │ mixtral-8x7B-instruct-v0.1 │ sad     │ evening  │ Good       │
-   ├────────────────────────────┼─────────┼──────────┼────────────┤
-   │ mixtral-8x7B-instruct-v0.1 │ happy   │ morning  │ Terrible   │
-   ├────────────────────────────┼─────────┼──────────┼────────────┤
-   │ mixtral-8x7B-instruct-v0.1 │ happy   │ evening  │ Terrible   │
-   └────────────────────────────┴─────────┴──────────┴────────────┘
 
-We can also add some table labels by passing a dictionary to the `pretty_labels` argument of the `print` method:
+   ┏━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━┓
+   ┃ model              ┃ agent     ┃ scenario       ┃ answer ┃ answer     ┃
+   ┃ .model             ┃ .persona  ┃ .topic         ┃ .read  ┃ .important ┃
+   ┡━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━┩
+   │ gpt-3.5-turbo      │ student   │ climate change │ Yes    │ 3          │
+   ├────────────────────┼───────────┼────────────────┼────────┼────────────┤
+   │ gpt-3.5-turbo      │ student   │ data privacy   │ Yes    │ 4          │
+   ├────────────────────┼───────────┼────────────────┼────────┼────────────┤
+   │ gpt-4-0125-preview │ student   │ climate change │ Yes    │ 5          │
+   ├────────────────────┼───────────┼────────────────┼────────┼────────────┤
+   │ gpt-4-0125-preview │ student   │ data privacy   │ Yes    │ 4          │
+   ├────────────────────┼───────────┼────────────────┼────────┼────────────┤
+   │ gpt-3.5-turbo      │ celebrity │ climate change │ Yes    │ 5          │
+   ├────────────────────┼───────────┼────────────────┼────────┼────────────┤
+   │ gpt-3.5-turbo      │ celebrity │ data privacy   │ Yes    │ 4          │
+   ├────────────────────┼───────────┼────────────────┼────────┼────────────┤
+   │ gpt-4-0125-preview │ celebrity │ climate change │ Yes    │ 5          │
+   ├────────────────────┼───────────┼────────────────┼────────┼────────────┤
+   │ gpt-4-0125-preview │ celebrity │ data privacy   │ Yes    │ 5          │
+   └────────────────────┴───────────┴────────────────┴────────┴────────────┘
+
+
+We can also add some table labels by passing a dictionary to the `pretty_labels` argument of the `print` method
+(note that we do need to include the column prefixes when specifying the table labels, as shown below):
 
 .. code-block:: python
 
    (results
    .sort_by("model", reverse=False)
-   .sort_by("status", reverse=True)
-   .select("model", "status", "period", "yesterday")
+   .sort_by("persona", reverse=True)
+   .select("model", "persona", "topic", "read", "important")
    .print(pretty_labels={
-      "model": "LLM", 
-      "status": "Agent", 
-      "period": "Period", 
-      "yesterday": q1.question_text
-      })
+      "model.model": "LLM", 
+      "agent.persona": "Agent", 
+      "scenario.topic": "Topic", 
+      "answer.read": q3.question_text,
+      "answer.important": q1.question_text
+      }, format="rich")
    )
 
 .. code-block:: text
    
-   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-   ┃ LLM                        ┃ Agent   ┃ scenario ┃ How did you feel yesterday {{ period }}?   ┃
-   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-   │ llama-2-70b-chat-hf        │ sad     │ morning  │ Good                                       │
-   ├────────────────────────────┼─────────┼──────────┼────────────────────────────────────────────┤
-   │ llama-2-70b-chat-hf        │ sad     │ evening  │ Good                                       │
-   ├────────────────────────────┼─────────┼──────────┼────────────────────────────────────────────┤
-   │ llama-2-70b-chat-hf        │ happy   │ morning  │ Terrible                                   │
-   ├────────────────────────────┼─────────┼──────────┼────────────────────────────────────────────┤
-   │ llama-2-70b-chat-hf        │ happy   │ evening  │ Terrible                                   │
-   ├────────────────────────────┼─────────┼──────────┼────────────────────────────────────────────┤
-   │ mixtral-8x7B-instruct-v0.1 │ sad     │ morning  │ Good                                       │
-   ├────────────────────────────┼─────────┼──────────┼────────────────────────────────────────────┤
-   │ mixtral-8x7B-instruct-v0.1 │ sad     │ evening  │ Good                                       │
-   ├────────────────────────────┼─────────┼──────────┼────────────────────────────────────────────┤
-   │ mixtral-8x7B-instruct-v0.1 │ happy   │ morning  │ Terrible                                   │
-   ├────────────────────────────┼─────────┼──────────┼────────────────────────────────────────────┤
-   │ mixtral-8x7B-instruct-v0.1 │ happy   │ evening  │ Terrible                                   │
-   └────────────────────────────┴─────────┴──────────┴────────────────────────────────────────────┘
+   ┏━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━┓
+   ┃                    ┃           ┃                ┃ Have you read any books ┃ How much do you care ┃
+   ┃ LLM                ┃ Agent     ┃ Topic          ┃ about {{ topic }}?      ┃ about {{ topic }}?   ┃
+   ┡━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━┩
+   │ gpt-3.5-turbo      │ student   │ climate change │ Yes                     │ 3                    │
+   ├────────────────────┼───────────┼────────────────┼─────────────────────────┼──────────────────────┤
+   │ gpt-3.5-turbo      │ student   │ data privacy   │ Yes                     │ 4                    │
+   ├────────────────────┼───────────┼────────────────┼─────────────────────────┼──────────────────────┤
+   │ gpt-4-0125-preview │ student   │ climate change │ Yes                     │ 5                    │
+   ├────────────────────┼───────────┼────────────────┼─────────────────────────┼──────────────────────┤
+   │ gpt-4-0125-preview │ student   │ data privacy   │ Yes                     │ 4                    │
+   ├────────────────────┼───────────┼────────────────┼─────────────────────────┼──────────────────────┤
+   │ gpt-3.5-turbo      │ celebrity │ climate change │ Yes                     │ 5                    │
+   ├────────────────────┼───────────┼────────────────┼─────────────────────────┼──────────────────────┤
+   │ gpt-3.5-turbo      │ celebrity │ data privacy   │ Yes                     │ 4                    │
+   ├────────────────────┼───────────┼────────────────┼─────────────────────────┼──────────────────────┤
+   │ gpt-4-0125-preview │ celebrity │ climate change │ Yes                     │ 5                    │
+   ├────────────────────┼───────────┼────────────────┼─────────────────────────┼──────────────────────┤
+   │ gpt-4-0125-preview │ celebrity │ data privacy   │ Yes                     │ 5                    │
+   └────────────────────┴───────────┴────────────────┴─────────────────────────┴──────────────────────┘
+
 
 Filtering
 ^^^^^^^^^
