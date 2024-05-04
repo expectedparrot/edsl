@@ -237,7 +237,7 @@ class InvigilatorFunctional(InvigilatorBase):
         }
         try:
             answer = func(scenario=self.scenario, agent_traits=self.agent.traits)
-            return AgentResponseDict(**(data | {"answer": answer}))
+            return AgentResponseDict(**(data | answer))
         except Exception as e:
             agent_response_dict = AgentResponseDict(
                 **(data | {"answer": None, "comment": str(e)})
