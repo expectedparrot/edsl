@@ -17,6 +17,24 @@ class ScenarioList(Base, UserList):
         if data is not None:
             super().__init__(data)
 
+    def __repr__(self):
+        return f"ScenarioList({self.data})"
+    
+    def expand(self, expand_field) -> ScenarioList:
+        """Expand the ScenarioList by a field."""
+        from collections.abc import Iterable
+        new_scenarios = []
+        for scenario in self:
+            values = scenario[expand_field]
+            if not isinstance(values, Iterable) or isinstance(values, str):
+                # If the value is not iterable, make it a list
+                values = [values]
+            for value in values:
+                new_scenario = scenario.copy()
+                new_scenario[expand_field] = value
+                new_scenarios.append(new_scenario)
+        return ScenarioList(new_scenarios)
+
     @classmethod
     def from_csv(cls, filename):
         """Create a ScenarioList from a CSV file."""

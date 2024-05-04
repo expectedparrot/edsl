@@ -86,7 +86,7 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
             "answer": answer,
             "comment": comment,
             "question_name": question.question_name,
-            "prompts": {k: v.to_dict() for k, v in self.get_prompts().items()},
+            "prompts": self.get_prompts(), #{k: v.to_dict() for k, v in self.get_prompts().items()},
             "cached_response": raw_response["cached_response"],
             "usage": raw_response.get("usage", {}),
             "raw_model_response": raw_model_response,
@@ -195,8 +195,8 @@ class InvigilatorDebug(InvigilatorBase):
     def get_prompts(self) -> Dict[str, Prompt]:
         """Return the prompts used."""
         return {
-            "user_prompt": Prompt("NA").text,
-            "system_prompt": Prompt("NA").text,
+            "user_prompt": Prompt("NA"),
+            "system_prompt": Prompt("NA"),
         }
 
 
@@ -250,8 +250,8 @@ class InvigilatorFunctional(InvigilatorBase):
     def get_prompts(self) -> Dict[str, Prompt]:
         """Return the prompts used."""
         return {
-            "user_prompt": Prompt("NA").text,
-            "system_prompt": Prompt("NA").text,
+            "user_prompt": Prompt("NA"),
+            "system_prompt": Prompt("NA"),
         }
 
 
