@@ -94,7 +94,8 @@ To use scenarios, we start by creating a question that takes a parameter in doub
         question_text = "What is your favorite {{ item }}?",
     )
 
-Next we create a dictionary for the value that will replace the parameter and store it in a `Scenario` object: 
+
+Next we create a dictionary for a value that will replace the parameter and store it in a `Scenario` object: 
 
 .. code-block:: python
 
@@ -102,30 +103,66 @@ Next we create a dictionary for the value that will replace the parameter and st
 
     scenario = Scenario({"item": "color"})
 
+
 If multiple values will be used, we can create a list of `Scenario` objects: 
 
 .. code-block:: python
 
     scenarios = [Scenario({"item": item}) for item in ["color", "food"]]
 
+
 Using Scenarios
 ---------------
-`Scenario` objects are used by adding them to a question or survey with the `by` method when the question or survey is run:.
-A scenario can be appended to a single question, for example:
+`Scenario` objects are used by adding them to a question or survey with the `by()` method when the question or survey is run.
+Here we add a single scenario to our question, run it, and inspect the response:
 
 .. code-block:: python
 
-    from edsl import Survey
-    
-    survey = Survey(questions = [q])
-    
-    results = survey.by(scenario).run()
+    results = q.by(scenario).run()
+
+    results.select("item", "favorite_item").print(format="rich")
+
+
+This will print a table of the selected components of the results:
+
+.. code-block:: text
+
+    ┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+    ┃ scenario ┃ answer                                                                                               ┃
+    ┃ .item    ┃ .favorite_item                                                                                       ┃
+    ┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+    │ color    │ Blue is my favorite color for its calming and serene qualities.                                      │
+    ├──────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────┤
+    │ food     │ My favorite food is a classic Italian pizza with a thin crust, topped with mozzarella, fresh basil,  │
+    │          │ and a rich tomato sauce.                                                                             │
+    └──────────┴──────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+If we have multiple scenarios, we can add them to the survey in the same way:
 
 As with other survey components (agents and language models), multiple `Scenario` objects should be added together as a list in the same `by` method:
 
 .. code-block:: python
 
-    results = survey.by(scenarios).run()
+    results = q.by(scenarios).run()
+
+    results.select("item", "favorite_item").print(format="rich")
+    
+
+Now we will see both scenarios in our results table:
+
+.. code-block:: text
+
+    ┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+    ┃ scenario ┃ answer                                                                                               ┃
+    ┃ .item    ┃ .favorite_item                                                                                       ┃
+    ┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+    │ color    │ Blue is my favorite color for its calming and serene qualities.                                      │
+    ├──────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────┤
+    │ food     │ My favorite food is a classic Italian pizza with a thin crust, topped with mozzarella, fresh basil,  │
+    │          │ and a rich tomato sauce.                                                                             │
+    └──────────┴──────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
 
 To learn more about constructing surveys, please see the :ref:`surveys` module.
 
