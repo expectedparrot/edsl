@@ -277,6 +277,8 @@ The following table will be printed:
    └────────────────────┴───────────┴────────────────┴────────┴────────────┘
 
 
+Sorting results
+^^^^^^^^^^^^^^^
 We can sort the columns by calling the `sort_by` method and passing it the column name to sort by:
 
 .. code-block:: python
@@ -346,6 +348,8 @@ The `sort_by` method can be applied multiple times:
    └────────────────────┴───────────┴────────────────┴────────┴────────────┘
 
 
+Labeling results
+^^^^^^^^^^^^^^^^
 We can also add some table labels by passing a dictionary to the `pretty_labels` argument of the `print` method
 (note that we do need to include the column prefixes when specifying the table labels, as shown below):
 
@@ -388,47 +392,78 @@ We can also add some table labels by passing a dictionary to the `pretty_labels`
    └────────────────────┴───────────┴────────────────┴─────────────────────────┴──────────────────────┘
 
 
-Filtering
-^^^^^^^^^
+Filtering results
+^^^^^^^^^^^^^^^^^
 Results can be filtered by using the `filter` method and passing it a logical expression identifying the results that should be selected.
-For example, the following code will filter results where the answer to `yesterday` is "Good" and then just print the `yesterday_comment` and `tomorrow` columns:
+For example, the following code will filter results where the answer to `important` is "5" and then just print the `topic` and `important_comment` columns:
 
 .. code-block:: python
 
    (results
-   .filter("yesterday == 'Good'")
-   .select("yesterday_comment", "tomorrow")
-   .print()
+   .filter("important == 5")
+   .select("topic", "important_comment")
+   .print(format="rich")
    )
+
+This will return an abbreviated table:
 
 .. code-block:: text
 
-   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-   ┃ answer                                                 ┃ answer                                                 ┃
-   ┃ .yesterday_comment                                     ┃ .tomorrow                                              ┃
-   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-   │ I felt good yesterday morning, thank you for asking!   │ I expect to feel happy and refreshed tomorrow morning, │
-   │                                                        │ ready to start a new day with enthusiasm and           │
-   │                                                        │ positivity!                                            │
-   ├────────────────────────────────────────────────────────┼────────────────────────────────────────────────────────┤
-   │ I woke up feeling refreshed and ready to take on the   │ I expect to feel refreshed and ready to tackle the day │
-   │ day!                                                   │ with a positive attitude tomorrow morning!             │
-   ├────────────────────────────────────────────────────────┼────────────────────────────────────────────────────────┤
-   │ I felt good yesterday evening. I had a productive day  │ I expect to feel happy and content tomorrow evening.   │
-   │ and was able to help many users with their questions.  │                                                        │
-   │ I am looking forward to continuing to assist users     │                                                        │
-   │ today!                                                 │                                                        │
-   ├────────────────────────────────────────────────────────┼────────────────────────────────────────────────────────┤
-   │ I'm always happy, so yesterday evening was great!      │ I expect to feel content and fulfilled tomorrow        │
-   │                                                        │ evening, with a sense of accomplishment from a         │
-   │                                                        │ productive day. I will have had a chance to help many  │
-   │                                                        │ people and make a positive impact in their lives,      │
-   │                                                        │ which will give me a feeling of purpose and            │
-   │                                                        │ satisfaction. I will also have had time to relax and   │
-   │                                                        │ unwind, enjoying the company of my loved ones and      │
-   │                                                        │ engaging in activities that bring me joy. Overall, I   │
-   │                                                        │ am looking forward to a wonderful tomorrow evening!    │
-   └────────────────────────────────────────────────────────┴────────────────────────────────────────────────────────┘
+   ┏━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+   ┃ scenario       ┃ answer                                                                                         ┃
+   ┃ .topic         ┃ .important_comment                                                                             ┃
+   ┡━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+   │ climate change │ I believe climate change is one of the most pressing issues of our time, affecting ecosystems, │
+   │                │ weather patterns, and global living conditions. It's crucial to address it with urgency to     │
+   │                │ ensure a sustainable future for all.                                                           │
+   ├────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────┤
+   │ climate change │ As a celebrity, I believe I have a responsibility to use my platform to advocate for urgent    │
+   │                │ issues, and climate change is one of the most critical challenges we face today. It's          │
+   │                │ imperative that we all contribute to solutions and raise awareness to protect our planet for   │
+   │                │ future generations.                                                                            │
+   ├────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────┤
+   │ climate change │ I care deeply about climate change and believe it is crucial for us to take action to protect  │
+   │                │ our planet for future generations.                                                             │
+   ├────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────┤
+   │ data privacy   │ As a celebrity, data privacy is paramount to me. It's not just about protecting personal       │
+   │                │ information but also about safeguarding the privacy of my family, friends, and fans. In an era │
+   │                │ where information can be easily accessed and shared, taking steps to ensure data privacy is    │
+   │                │ crucial. It helps in maintaining personal security and preventing unauthorized access to       │
+   │                │ sensitive information.                                                                         │
+   └────────────────┴────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+Limiting results
+^^^^^^^^^^^^^^^^
+We can also select and print a limited number of results by passing the desired number of `max_rows` to the `print()` method.
+This can be useful for quickly checking the first few results:
+
+.. code-block:: python
+
+   (results
+   .select("model", "persona", "topic", "read", "important")
+   .print(max_rows=4, format="rich")
+   )
+
+
+This will return a table of the selected components of the first 4 results:
+
+.. code-block:: text
+
+   ┏━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━┓
+   ┃ model              ┃ agent    ┃ scenario       ┃ answer ┃ answer     ┃
+   ┃ .model             ┃ .persona ┃ .topic         ┃ .read  ┃ .important ┃
+   ┡━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━┩
+   │ gpt-4-0125-preview │ student  │ climate change │ Yes    │ 5          │
+   ├────────────────────┼──────────┼────────────────┼────────┼────────────┤
+   │ gpt-3.5-turbo      │ student  │ climate change │ Yes    │ 3          │
+   ├────────────────────┼──────────┼────────────────┼────────┼────────────┤
+   │ gpt-4-0125-preview │ student  │ data privacy   │ Yes    │ 4          │
+   ├────────────────────┼──────────┼────────────────┼────────┼────────────┤
+   │ gpt-3.5-turbo      │ student  │ data privacy   │ Yes    │ 4          │
+   └────────────────────┴──────────┴────────────────┴────────┴────────────┘
+
+
 
 Interacting via SQL
 ^^^^^^^^^^^^^^^^^^^
