@@ -4,6 +4,7 @@ from collections import UserList
 from typing import Any, Optional, Union
 
 from rich.table import Table
+from simpleeval import EvalWithCompoundTypes
 
 from edsl.scenarios.Scenario import Scenario
 from edsl.Base import Base
@@ -33,6 +34,31 @@ class ScenarioList(Base, UserList):
                 new_scenario[expand_field] = value
                 new_scenarios.append(new_scenario)
         return ScenarioList(new_scenarios)
+    
+    
+    def filter(self, expression: str) -> ScenarioList:
+        """
+        Filter a list of scenarios based on an expression.
+        """
+        def create_evaluator(scenario: Scenario):
+            """Create an evaluator for the given result.
+            The 'combined_dict' is a mapping of all values for that Result object.
+            """
+            return EvalWithCompoundTypes(names=scenario)
+
+        try:
+            # iterates through all the results and evaluates the expression
+            new_data = [
+                scenario
+                for scenario in self.data
+                if create_evaluator(scenario).eval(expression)
+            ]
+        except Exception as e:
+            print(f"Exception:{e}")
+            raise Exception(f"Error in filter. Exception:{e}")
+
+        return ScenarioList(new_data)
+
 
     @classmethod
     def from_csv(cls, filename):
