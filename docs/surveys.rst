@@ -97,8 +97,8 @@ Alternatively, questions can be added to a survey one at a time:
    survey = Survey().add_question(q1).add_question(q2).add_question(q3).add_question(q4)
     
 
-Applying survey rules
-^^^^^^^^^^^^^^^^^^^^^
+Survey rules & logic
+--------------------
 Rules can be applied to a survey with the `add_skip_rule()`, `add_stop_rule()` and `add_rule()` methods, which take a logical expression and the relevant questions.
 
 
@@ -217,8 +217,8 @@ In the examples, the answer to q1 is substituted into the expression `"color == 
 as the name of q1 is "color".
 
 
-Memory
-^^^^^^
+Question memory
+---------------
 When an agent is taking a survey, they can be prompted to "remember" answers to previous questions.
 This can be done in several ways:
 
