@@ -9,13 +9,33 @@ The key steps to creating and conducting a survey are:
 
 * Creating `Question` objects of any type (multiple choice, free text, linear scale, etc.)
 * Passing questions to a `Survey` 
-* Running the survey by sending it to a language `Model` 
+* Running the survey by sending it to a language `Model`
 
-Before running the survey you can optionally:
+When running a survey you can optionally:
 
 * Add traits for an AI `Agent` (or `AgentList`) that will respond to the survey 
-* Add conditional rules or "memory" of responses to other questions
 * Add values for parameterized questions (`Scenario` objects) 
+* Add conditional rules or "memory" of responses to other questions
+
+Running a survey automatically generates a `Results` object containing the responses to the survey.
+See the :ref:`results` module for more information on working with `Results` objects.
+
+
+Key methods 
+-----------
+A survey is administered by calling the `run()` method on the `Survey` object, after adding any agents, scenarios and models with the `by()` method and any survey rules or memory with the appropriate methods.
+The methods for adding survey rules and memory include the following, which are each discussed in more detail below:
+
+* `add_skip_rule()` - Skip a question based on a conditional expression (e.g., the response to another question).
+* `add_stop_rule()` - End the survey based on a conditional expression.
+* `add_rule()` - Administer a specified question next based on a conditional expression.
+* `set_full_memory_mode()` - Include a memory of all prior questions/answers at each new question in the survey.
+* `set_lagged_memory()` - Include a memory of a specified number of prior questions/answers at each new question in the survey.
+* `add_targeted_memory()` - Include a memory of a specific question/answer at another question in the survey.
+* `add_memory_collection()` - Include memories of a set of prior questions/answers at any other question in the survey.
+
+This returns a `Results` object containing the responses to the survey.
+
 
 *Coming soon:*
 An EDSL survey can also be exported to other platforms such as LimeSurvey, Google Forms, Qualtrics and SurveyMonkey. 
@@ -492,14 +512,16 @@ Or to export to Google Forms:
    survey.web(platform="google_forms")
 
 *Note:* This feature is in launching soon! This page will be updated when it is live. 
-If you would like to sign up for alpha testing this and other new features, please complete the following survey which was created with this new method: [EDSL signup survey ](https://survey.expectedparrot.com/index.php/132345).</i>
+If you would like to sign up for alpha testing this and other new features, please complete the following survey which was created with this new method: [EDSL signup survey ](https://survey.expectedparrot.com/index.php/132345).
 
 
-Learn more about specifying question scenarios, agents and language models in their respective modules:
+Learn more about specifying question scenarios, agents and language models and working with results in their respective modules:
 
 * :ref:`scenarios`
 * :ref:`agents`
 * :ref:`language_models`
+* :ref:`results`
+
 
 Survey class
 ------------
