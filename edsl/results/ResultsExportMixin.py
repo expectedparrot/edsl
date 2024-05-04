@@ -251,8 +251,10 @@ class ResultsExportMixin:
         return list_of_dicts
 
     @_convert_decorator
-    def to_list(self) -> list[list]:
+    def to_list(self, flatten = False, remove_none = False) -> list[list]:
         """Convert the results to a list of lists.
+
+        Updates.
 
         >>> from edsl.results import Results
         >>> r = Results.example()
@@ -260,10 +262,18 @@ class ResultsExportMixin:
         ['OK', 'Great', 'Terrible', 'OK']
         """
         if len(self) == 1:
-            return list(self[0].values())[0]
+            # if only one 'column' is selected (which is typical for this method
+            list_to_return = list(self[0].values())[0]
         else:
-            return tuple([list(x.values())[0] for x in self])
+            list_to_return = tuple([list(x.values())[0] for x in self])
+            
+        if remove_none:
+            list_to_return = [item for item in list_to_return if item is not None]
+        if flatten:
+            list_to_return = [item for sublist in list_to_return for item in sublist]
 
+        return list_to_return
+      
 
 if __name__ == "__main__":
     import doctest

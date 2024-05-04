@@ -19,13 +19,13 @@ class TestScenario(unittest.TestCase):
 
     def test_valid_case(self):
         try:
-            a = Scenario(**self.example_scenario)
+            a = Scenario(self.example_scenario)
             self.assertTrue(True)
         except Exception as e:
             self.assertTrue(False, f"Exception occurred: {e}")
 
     def test_add(self):
-        s1 = Scenario(**self.example_scenario)
+        s1 = Scenario(self.example_scenario)
         s2 = Scenario({"color": "red"})
         self.assertEqual(s1 + s2, {"price": 100, "quantity": 2, "color": "red"})
         self.assertIsInstance(s1 + s2, Scenario)

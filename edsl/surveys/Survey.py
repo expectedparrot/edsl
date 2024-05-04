@@ -494,13 +494,14 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     ###################
     # DISPLAY METHODS
     ###################
-    def __repr__(self) -> str:
-        """Return a string representation of the survey."""
+    def print(self):
         from rich import print_json
         import json
-
         print_json(json.dumps(self.to_dict()))
 
+    def __repr__(self) -> str:
+        """Return a string representation of the survey."""
+        
         questions_string = ", ".join([repr(q) for q in self._questions])
         question_names_string = ", ".join([repr(name) for name in self.question_names])
         return f"Survey(questions=[{questions_string}], name={repr(self.name)})"

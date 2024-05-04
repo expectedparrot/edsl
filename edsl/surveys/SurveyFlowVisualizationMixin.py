@@ -9,7 +9,7 @@ from edsl.surveys.base import RulePriority, EndOfSurvey
 class SurveyFlowVisualizationMixin:
     """A mixin for visualizing the flow of a survey."""
 
-    def show_flow(self):
+    def show_flow(self, filename:str = None):
         """Create an image showing the flow of users through the survey."""
         # Create a graph object
         graph = pydot.Dot(graph_type="digraph")
@@ -66,6 +66,11 @@ class SurveyFlowVisualizationMixin:
                 source_node, target_node, label=edge_label, color=color, fontcolor=color
             )
             graph.add_edge(edge)
+
+        if filename is not None:
+            graph.write_png(filename)
+            print(f"Flowchart saved to {filename}")
+            return
 
         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp_file:
             try:

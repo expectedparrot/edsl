@@ -9,6 +9,16 @@ from edsl.Base import Base
 class Scenario(Base, UserDict):
     """A Scenario is a dictionary of keys/values for parameterizing questions."""
 
+    def __init__(self, data: Union[dict, None] = None, name: str = None):
+        """Initialize a new Scenario.
+
+        :param data: A dictionary of keys/values for parameterizing questions.
+        """
+        if data is None:
+            data = {}
+        self.data = data
+        self.name = name
+
     def __add__(self, other_scenario: "Scenario") -> "Scenario":
         """Combine two scenarios.
 
@@ -53,27 +63,6 @@ class Scenario(Base, UserDict):
             else:
                 new_scenario[key] = value
         return new_scenario
-
-    # def make_question(self, question_class: type) -> "Question":
-    #     """Make a question from a scenario.
-
-    #     :param question_class: The question class to use.
-    #     Note it takes a QuestionClass (not a question) as an input.
-
-    #     Examples:
-    #     These do some stuff.
-
-    #     >>> from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
-    #     >>> from edsl.agents.Agent import Agent
-
-    #     >>> s = Scenario({"question_name": "feelings",
-    #     ...               "question_text": "How are you feeling?",
-    #     ...               "question_options": ["Very sad.", "Sad.", "Neutral.", "Happy.", "Very happy."]})
-    #     >>> q = s.make_question(QuestionMultipleChoice)
-    #     >>> q.by(Agent(traits = {'feeling': 'Very sad'})).run().select("feelings")
-    #     [{'answer.feelings': ['Very sad.']}]
-    #     """
-    #     return question_class(**self)
 
     def to_dict(self) -> dict:
         """Convert a scenario to a dictionary.

@@ -566,12 +566,13 @@ class LanguageModel(
     #######################
     # DUNDER METHODS
     #######################
-    def __repr__(self) -> str:
-        """Return a string representation of the object."""
+    def print(self):
         from rich import print_json
         import json
-
         print_json(json.dumps(self.to_dict()))
+
+    def __repr__(self) -> str:
+        """Return a string representation of the object."""
         param_string = ", ".join(
             f"{key} = {value}" for key, value in self.parameters.items()
         )
