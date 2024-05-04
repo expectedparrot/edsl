@@ -25,9 +25,12 @@ class SurveyExportMixin:
                         doc.add_paragraph(str(option), style="ListBullet")
         return doc
 
-    def code(self, filename: str = None) -> list[str]:
-        ## TODO: Refactor to only use the questions actually in the survey
-        """Create the Python code representation of a survey."""
+    def code(self, filename: str = None, survey_var_name:str = "survey") -> list[str]:
+        """Create the Python code representation of a survey.
+        
+        :param filename: The name of the file to save the code to.
+        :param survey_var_name: The name of the survey variable.
+        """
         header_lines = ["from edsl.surveys.Survey import Survey"]
         header_lines.append(
             "from edsl import Question"
@@ -35,7 +38,7 @@ class SurveyExportMixin:
         lines = ["\n".join(header_lines)]
         for question in self._questions:
             lines.append(f"{question.question_name} = " + repr(question))
-        lines.append(f"survey = Survey(questions = [{', '.join(self.question_names)}])")
+        lines.append(f"{survey_var_name} = Survey(questions = [{', '.join(self.question_names)}])")
         #return lines
         code_string = "\n".join(lines)
         formatted_code = black.format_str(code_string, mode=black.FileMode())

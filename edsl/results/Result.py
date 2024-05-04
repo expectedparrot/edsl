@@ -2,6 +2,7 @@
 from __future__ import annotations
 from collections import UserDict
 from typing import Any, Type
+from collections import UserDict
 
 from rich.table import Table
 
@@ -10,12 +11,9 @@ from IPython.display import display
 from edsl.agents import Agent
 from edsl.language_models import LanguageModel
 from edsl.scenarios import Scenario
-
 from edsl.utilities import is_notebook
-
 from edsl.Base import Base
-
-from collections import UserDict
+from edsl.prompts import Prompt
 
 
 class PromptDict(UserDict):
@@ -222,20 +220,34 @@ class Result(Base, UserDict):
     ###############
     def to_dict(self) -> dict[str, Any]:
         """Return a dictionary representation of the Result object."""
-        return {
-            k: v if not hasattr(v, "to_dict") else v.to_dict() for k, v in self.items()
-        }
+        d = {}
+        for key, value in self.items():
+            if hasattr(value, "to_dict"):
+                d[key] = value.to_dict()
+            else:
+                d[key] = value
+            if key == "prompt":
+                new_prompt_dict = {}
+                for prompt_name, prompt_obj in value.items():
+                    new_prompt_dict[prompt_name] = prompt_obj if not hasattr(prompt_obj, "to_dict") else prompt_obj.to_dict()
+                d[key] = new_prompt_dict
+        return d
 
     @classmethod
     def from_dict(self, json_dict: dict) -> Result:
         """Return a Result object from a dictionary representation."""
+        prompt_data = json_dict.get("prompt", {})
+        prompt_d = {}
+        for prompt_name, prompt_obj in prompt_data.items():
+            prompt_d[prompt_name] = Prompt.from_dict(prompt_obj)
+
         result = Result(
             agent=Agent.from_dict(json_dict["agent"]),
             scenario=Scenario.from_dict(json_dict["scenario"]),
             model=LanguageModel.from_dict(json_dict["model"]),
             iteration=json_dict["iteration"],
             answer=json_dict["answer"],
-            prompt=json_dict["prompt"],
+            prompt=prompt_d, #json_dict["prompt"],
             raw_model_response=json_dict.get(
                 "raw_model_response", {"raw_model_response": "No raw model response"}
             ),

@@ -131,10 +131,10 @@ class Results(UserList, Mixins, Base):
             ]
             self.data = results
 
-    def print(self):
-        from rich import print_json
-        import json
-        print_json(json.dumps(self.to_dict()["data"]))
+    # def print(self):
+    #     from rich import print_json
+    #     import json
+    #     print_json(json.dumps(self.to_dict()["data"]))
         
     def __repr__(self) -> str:
         return f"Results(data = {self.data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"

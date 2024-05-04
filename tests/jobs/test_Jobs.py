@@ -7,6 +7,7 @@ from edsl.questions import QuestionMultipleChoice
 from edsl.scenarios import Scenario
 from edsl.surveys import Survey
 from edsl import Model
+from edsl import Question # needed for the eval() of the repr() of the Job
 
 @pytest.fixture(scope="function")
 def valid_job():
