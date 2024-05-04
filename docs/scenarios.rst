@@ -14,7 +14,7 @@ Data labeling tasks
 ^^^^^^^^^^^^^^^^^^^
 Scenarios are particularly useful for conducting data labeling or data coding tasks, where we can design the task as a question or series of questions that we prompt an agent to answer about each piece of data in our dataset.
 For example, say we have a dataset of messages from users that we want to sort by topic.
-We could create multiple choice questions such as `"What is the primary topic of this message: {{ message }}?"` or `"Does this message mention a safety issue? {{ message }}"` and replace the parameter `message` with each message in the dataset, generating a dataset of results that can be readily analyzed.
+We could perform this task by running multiple choice questions such as `"What is the primary topic of this message: {{ message }}?"` or `"Does this message mention a safety issue? {{ message }}"` where each message is inserted in the `message` placeholder of the question text, generating a dataset of results that can be readily analyzed.
 
 The following code demonstrates how to use scenarios to create a survey for this task.
 For more step-by-step details, please also see `Constructing a Scenario` below it.
@@ -28,13 +28,13 @@ For more step-by-step details, please also see `Constructing a Scenario` below i
     q1 = QuestionMultipleChoice(
         question_name = "topic",
         question_text = "What is the topic of this message: {{ message }}?",
-        choices = ["Safety", "Product support", "Billing", "Login issue", "Other"]
+        question_options = ["Safety", "Product support", "Billing", "Login issue", "Other"]
     )
 
     q2 = QuestionMultipleChoice(
         question_name = "safety",
         question_text = "Does this message mention a safety issue? {{ message }}?",
-        choices = ["Yes", "No", "Unclear"]
+        question_options = ["Yes", "No", "Unclear"]
     )
 
     # Create a list of scenarios for the parameter
@@ -52,7 +52,34 @@ For more step-by-step details, please also see `Constructing a Scenario` below i
     # Run the survey with the scenarios
     results = survey.by(scenarios).run()
 
+
+We can then analyze the results to see how the agent answered the questions for each scenario:
+
+.. code-block:: python
+
+    results.select("message", "topic", "safety").print(format="rich")
+
+
+This will print a table of the scenarios and the answers to the questions for each scenario:
+
+.. code-block:: text
+
+    ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━┓
+    ┃ scenario                      ┃ answer          ┃ answer  ┃
+    ┃ .message                      ┃ .topic          ┃ .safety ┃
+    ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━┩
+    │ I need help with my bill...   │ Billing         │ No      │
+    ├───────────────────────────────┼─────────────────┼─────────┤
+    │ I need help with a product... │ Product support │ Unclear │
+    ├───────────────────────────────┼─────────────────┼─────────┤
+    │ I can't log in...             │ Login issue     │ No      │
+    ├───────────────────────────────┼─────────────────┼─────────┤
+    │ I have a safety concern...    │ Safety          │ Yes     │
+    └───────────────────────────────┴─────────────────┴─────────┘
+
+
 To learn more about accessing, analyzing and visualizing survey results, please see the :ref:`results` section.
+
 
 Constructing a Scenario
 -----------------------
