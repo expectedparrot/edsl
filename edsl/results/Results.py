@@ -70,6 +70,7 @@ class Results(UserList, Mixins, Base):
         "question_text",
         "question_options",
         "question_type",
+        "comment"
     ]
 
     def __init__(

@@ -136,6 +136,7 @@ class Result(Base, UserDict):
         else:
             agent_name = self.agent.name
 
+        comments_dict = {k:v for k,v in self.answer.items() if k.endswith("_comment")}   
         question_text_dict = {}
         question_options_dict = {}
         question_type_dict = {}
@@ -164,6 +165,7 @@ class Result(Base, UserDict):
             "question_text": question_text_dict,
             "question_options": question_options_dict,
             "question_type": question_type_dict,
+            "comment": comments_dict
         }
 
     def code(self):
