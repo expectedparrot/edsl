@@ -125,6 +125,7 @@ Links
    :hidden:
 
    notebooks/data_labeling_agent.ipynb
+   notebooks/testing_training_data.ipynb
    notebooks/explore_llm_biases.ipynb
    notebooks/research_random_silicon_sampling.ipynb
    notebooks/explore_survey_contexts.ipynb
