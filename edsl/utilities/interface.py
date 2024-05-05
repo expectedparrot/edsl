@@ -8,12 +8,6 @@ from rich.console import Console
 from rich.table import Table
 
 
-def heartbeat_generator():
-    """Generate a heartbeat animation."""
-    while True:
-        for c in "|/-\\":
-            yield c
-
 
 def gen_html_sandwich(html_inner, interactive=False):
     """Wrap the inner HTML content in a header and footer to make a complete HTML document."""
@@ -163,16 +157,16 @@ def get_multiline_textsize(text, font):
 #     image.save(image_filename)
 
 
-# def display(console, table, filename):
-#     """Display the table using the rich library and save it to a file if a filename is provided."""
-#     if filename is not None:
-#         with open(filename, "w") as f:
-#             with console.capture() as capture:
-#                 console.print(table)
-#             f.write(capture.get())
-#         create_image(console, filename + ".png")
-#     else:
-#         console.print(table)
+def display(console, table, filename):
+    """Display the table using the rich library and save it to a file if a filename is provided."""
+    if filename is not None:
+        with open(filename, "w") as f:
+            with console.capture() as capture:
+                console.print(table)
+            f.write(capture.get())
+        create_image(console, filename + ".png")
+    else:
+        console.print(table)
 
 
 def print_dict_with_rich(d, key_name="Key", value_name="Value", filename=None):
