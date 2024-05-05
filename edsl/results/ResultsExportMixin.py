@@ -60,12 +60,14 @@ class ResultsExportMixin:
 
     def print_long(self) -> None:
         """Print the results in long format."""
-        for result in self:
-            if hasattr(result, "combined_dict"):
-                d = result.combined_dict
-            else:
-                d = result
-            print_dict_with_rich(d)
+        from edsl.utilities.interface import print_results_long
+        print_results_long(self)
+        # for result in self:
+        #     if hasattr(result, "combined_dict"):
+        #         d = result.combined_dict
+        #     else:
+        #         d = result
+        #     print_dict_with_rich(d)
 
     @_convert_decorator
     def print(

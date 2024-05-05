@@ -151,7 +151,7 @@ class InterviewTaskBuildingMixin:
         invigilator = self.get_invigilator(question, debug=debug)
 
         if skip := self._skip_this_question(question):
-            print("Skipping question", question.question_name)
+            #print("Skipping question", question.question_name)
             return invigilator.get_failed_task_result()
 
         async def attempt_to_answer_question(invigilator):
