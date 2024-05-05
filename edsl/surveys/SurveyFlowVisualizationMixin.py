@@ -62,9 +62,28 @@ class SurveyFlowVisualizationMixin:
             target_node = (
                 f"Q{rule.next_q}" if rule.next_q != EndOfSurvey else "EndOfSurvey"
             )
-            edge = pydot.Edge(
-                source_node, target_node, label=edge_label, color=color, fontcolor=color
-            )
+            if rule.before_rule:  # Assume skip rules have an attribute `is_skip`
+                edge = pydot.Edge(
+                    source_node,
+                    target_node,
+                    label=edge_label,
+                    color=color,
+                    fontcolor=color,
+                    tailport='n',
+                    headport='n',
+                )
+            else:
+                edge = pydot.Edge(
+                    source_node,
+                    target_node,
+                    label=edge_label,
+                    color=color,
+                    fontcolor=color,
+                )
+
+            # edge = pydot.Edge(
+            #     source_node, target_node, label=edge_label, color=color, fontcolor=color
+            # )
             graph.add_edge(edge)
 
         if filename is not None:
