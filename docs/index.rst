@@ -82,7 +82,6 @@ Links
    :hidden:
 
    overview
-   whitepaper
    citation
 
 .. toctree::
