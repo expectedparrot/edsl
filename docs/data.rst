@@ -2,7 +2,7 @@
 
 Caching LLM Calls
 =================
-The `Cache` class is used to store responses from a language model.
+The `Cache` class is used to store responses from a language model so that they can easily be retrieved, reused and shared.
 
 .. raw:: html
 
