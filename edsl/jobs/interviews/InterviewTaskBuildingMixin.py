@@ -218,7 +218,7 @@ class InterviewTaskBuildingMixin:
             """Cancel the tasks between the start and end indices."""
             for i in range(start, end):
                 task_to_cancel = self.tasks[i]
-                verbose = True
+                verbose = False
                 if verbose:
                     print(f"Cancelling task {task_to_cancel.get_name()}")
                 task_to_cancel.cancel()
