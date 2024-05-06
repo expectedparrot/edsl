@@ -17,6 +17,10 @@ class TaskHistory:
             index for index, i in enumerate(self.total_interviews) if i.exceptions != {}
         ]
 
+    def __repr__(self):
+        """Return a string representation of the TaskHistory."""
+        return f"TaskHistory(interviews={self.total_interviews})."
+
     def to_dict(self):
         """Return the TaskHistory as a dictionary."""
         return {

@@ -8,7 +8,6 @@ from rich.console import Console
 
 from edsl.results import Results, Result
 
-# from edsl.jobs.runners.JobsRunner import JobsRunner
 from edsl.jobs.interviews.Interview import Interview
 from edsl.utilities.decorators import jupyter_nb_handler
 from edsl.jobs.Jobs import Jobs
@@ -236,38 +235,28 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                     live.update(generate_table())
 
         results = Results(survey=self.jobs.survey, data=self.results)
-        results.task_history = TaskHistory(
-            self.total_interviews, include_traceback=False
-        )
+        task_history = TaskHistory(self.total_interviews, include_traceback=False)
+        results.task_history = task_history
 
         if results.task_history.has_exceptions and not batch_mode:
             if len(results.task_history.indices) > 5:
                 msg = "Exceptions were raised in multiple interviews (> 5)."
             else:
                 msg = f"Exceptions were raised in the following interviews: {results.task_history.indices}"
-            globals()["edsl_runner_excetions"] = results.task_history
+            from edsl import shared_globals
+            shared_globals['edsl_runner_exceptions'] = task_history
             print(
                 textwrap.dedent(
                     f"""\
                         Exceptions were raised in the following interviews: {msg}.
                         The object results.task_history contains the exceptions.             
-                        Exceptions are also available in the global variable 'edsl_runner_exceptions'"
-                        Run "edsl_runner_exceptions.show_exceptions()" to see them.
+                        Exceptions are also available here: 
+                        >>> from edsl import shared_globals
+                        >>> shared_globals['edsl_runner_exceptions'].show_exceptions()
                 """
                 )
             )
-            # show = input("Print exceptions? (y/n): ")
-            # if show == "y":
-            #     if is_notebook():
-            #         from IPython.display import HTML, display
-
-            #         display(HTML(results.task_history._repr_html_()))
-            #     else:
-            #         results.task_history.show_exceptions()
-
-            #     try:
             #         from edsl.jobs.interviews.ReportErrors import ReportErrors
-
             #         full_task_history = TaskHistory(
             #             self.total_interviews, include_traceback=True
             #         )
