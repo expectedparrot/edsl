@@ -52,6 +52,7 @@ class Rule:
         next_q: Union[int, EndOfSurvey.__class__],
         question_name_to_index: dict[str, int],
         priority: int,
+        before_rule: bool = False,
     ):
         """Represent a rule for determining the next question presented to an agent.
 
@@ -68,8 +69,9 @@ class Rule:
         self.next_q = next_q
         self.question_name_to_index = question_name_to_index
         self.priority = priority
+        self.before_rule = before_rule
 
-        if not next_q == EndOfSurvey and current_q > next_q:
+        if not self.next_q == EndOfSurvey and self.current_q > self.next_q:
             raise SurveyRuleSendsYouBackwardsError
 
         # get the AST for the expression - used to extract
@@ -87,20 +89,31 @@ class Rule:
         try:
             assert all([q in question_name_to_index for q in extracted_question_names])
         except AssertionError:
-            print(f"Question name to index: {question_name_to_index}")
-            print(f"Extracted question names: {extracted_question_names}")
-            raise SurveyRuleReferenceInRuleToUnknownQuestionError
+            pass
+            # import warnings
+            # warnings.warn(f"There is an extracted field in the expression that is not a known question. It could be a scenario variable. That's fine! But it also could be a typo or mistake.")
+            # print(f"Question name to index: {question_name_to_index}")
+            # print(f"Extracted question names: {extracted_question_names}")
+            # raise SurveyRuleReferenceInRuleToUnknownQuestionError
 
         # get the indices of the questions mentioned in the expression
         self.named_questions_by_index = [
-            question_name_to_index[q] for q in extracted_question_names
+            question_name_to_index[q]
+            for q in extracted_question_names
+            if q in question_name_to_index
         ]
 
         # A rule should only refer to questions that have already been asked.
         # so the named questions in the expression should not be higher than the current question
         if self.named_questions_by_index:
             if max(self.named_questions_by_index) > self.current_q:
+                print(
+                    "A rule refers to a future question, the answer to which would not be available here."
+                )
                 raise SurveyRuleRefersToFutureStateError
+
+    def _checks(self):
+        pass
 
     def to_dict(self):
         """Convert the rule to a dictionary for serialization."""
@@ -110,6 +123,7 @@ class Rule:
             "next_q": "EndOfSurvey" if self.next_q == EndOfSurvey else self.next_q,
             "priority": self.priority,
             "question_name_to_index": self.question_name_to_index,
+            "before_rule": self.before_rule,
         }
 
     @classmethod
@@ -118,12 +132,16 @@ class Rule:
         if rule_dict["next_q"] == "EndOfSurvey":
             rule_dict["next_q"] = EndOfSurvey
 
+        if "before_rule" not in rule_dict:
+            rule_dict["before_rule"] = False
+
         return Rule(
             current_q=rule_dict["current_q"],
             expression=rule_dict["expression"],
             next_q=rule_dict["next_q"],
             priority=rule_dict["priority"],
             question_name_to_index=rule_dict["question_name_to_index"],
+            before_rule=rule_dict["before_rule"],
         )
 
     def __repr__(self):
@@ -169,7 +187,13 @@ class Rule:
             to_evaluate = substitute_in_answers(self.expression, answers)
             return EvalWithCompoundTypes().eval(to_evaluate)
         except Exception as e:
-            print(f"Exception in evaluation: {e}")
+            print(
+                f"""Exception in evaluation: {e}. 
+                  The expression was: {self.expression}.
+                  The answers trying to substitute in were: {answers}.
+                  The the substition, the expression was {to_evaluate}.
+                  """
+            )
             raise SurveyRuleCannotEvaluateError
 
 

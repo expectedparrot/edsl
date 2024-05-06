@@ -13,9 +13,12 @@ class Dataset(UserList, ResultsExportMixin):
         """Initialize the dataset with the given data."""
         super().__init__(data)
 
-    def relevant_columns(self) -> set:
+    def relevant_columns(self, remove_prefix=False) -> set:
         """Return the set of keys that are present in the dataset."""
-        return set([list(result.keys())[0] for result in self.data])
+        columns = set([list(result.keys())[0] for result in self.data])
+        if remove_prefix:
+            columns = set([column.split(".")[-1] for column in columns])
+        return columns
 
     def _key_to_value(self, key: str) -> Any:
         """Retrieve the value associated with the given key from the dataset."""

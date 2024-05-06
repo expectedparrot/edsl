@@ -51,6 +51,16 @@ class PromptBase(
                 text = ""
         self._text = text
 
+    @classmethod
+    def from_txt(cls, filename: str) -> PromptBase:
+        """Create a `Prompt` from text.
+
+        :param text: The text of the prompt.
+        """
+        with open(filename, "r") as f:
+            text = f.read()
+        return cls(text=text)
+
     @property
     def text(self):
         """Return the `Prompt` text."""

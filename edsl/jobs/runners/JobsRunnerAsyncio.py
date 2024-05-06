@@ -245,40 +245,44 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                 msg = "Exceptions were raised in multiple interviews (> 5)."
             else:
                 msg = f"Exceptions were raised in the following interviews: {results.task_history.indices}"
+            globals()["edsl_runner_excetions"] = results.task_history
             print(
                 textwrap.dedent(
-                    f"""\Exceptions were raised in the following interviews: {msg}.
-                The object results.task_history contains the exceptions.                
+                    f"""\
+                        Exceptions were raised in the following interviews: {msg}.
+                        The object results.task_history contains the exceptions.             
+                        Exceptions are also available in the global variable 'edsl_runner_exceptions'"
+                        Run "edsl_runner_exceptions.show_exceptions()" to see them.
                 """
                 )
             )
-            show = input("Print exceptions? (y/n): ")
-            if show == "y":
-                if is_notebook():
-                    from IPython.display import HTML, display
+            # show = input("Print exceptions? (y/n): ")
+            # if show == "y":
+            #     if is_notebook():
+            #         from IPython.display import HTML, display
 
-                    display(HTML(results.task_history._repr_html_()))
-                else:
-                    results.task_history.show_exceptions()
+            #         display(HTML(results.task_history._repr_html_()))
+            #     else:
+            #         results.task_history.show_exceptions()
 
-                try:
-                    from edsl.jobs.interviews.ReportErrors import ReportErrors
+            #     try:
+            #         from edsl.jobs.interviews.ReportErrors import ReportErrors
 
-                    full_task_history = TaskHistory(
-                        self.total_interviews, include_traceback=True
-                    )
-                    report = ReportErrors(full_task_history)
-                    upload = input(
-                        "Ok to upload errors to us? We can potentially help! (y/n): "
-                    )
-                    if upload == "y":
-                        report.get_email()
-                        report.upload()
-                        print("Errors are reported here: ", report.url)
-                except Exception as e:
-                    pass
+            #         full_task_history = TaskHistory(
+            #             self.total_interviews, include_traceback=True
+            #         )
+            #         report = ReportErrors(full_task_history)
+            #         upload = input(
+            #             "Ok to upload errors to us? We can potentially help! (y/n): "
+            #         )
+            #         if upload == "y":
+            #             report.get_email()
+            #             report.upload()
+            #             print("Errors are reported here: ", report.url)
+        #         except Exception as e:
+        #             pass
 
-        if results.task_history.has_exceptions and batch_mode:
-            results.task_history.show_exceptions()
+        # if results.task_history.has_exceptions and batch_mode:
+        #     results.task_history.show_exceptions()
 
         return results

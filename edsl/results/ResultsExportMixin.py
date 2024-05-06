@@ -38,6 +38,15 @@ class ResultsExportMixin:
 
         return wrapper
 
+    # @_convert_decorator
+    # def shuffle(self):
+    #     """Shuffle the results."""
+    #     from random import shuffle
+
+    #     shuffled_data = self.data.copy()
+    #     shuffle(shuffled_data)
+    #     return shuffled_data
+
     @_convert_decorator
     def _make_tabular(self, remove_prefix) -> tuple[list, list]:
         """Turn the results into a tabular format."""
@@ -58,14 +67,17 @@ class ResultsExportMixin:
             rows.append(row)
         return header, rows
 
-    def print_long(self) -> None:
+    def print_long(self, max_rows=None) -> None:
         """Print the results in long format."""
-        for result in self:
-            if hasattr(result, "combined_dict"):
-                d = result.combined_dict
-            else:
-                d = result
-            print_dict_with_rich(d)
+        from edsl.utilities.interface import print_results_long
+
+        print_results_long(self, max_rows=max_rows)
+        # for result in self:
+        #     if hasattr(result, "combined_dict"):
+        #         d = result.combined_dict
+        #     else:
+        #         d = result
+        #     print_dict_with_rich(d)
 
     @_convert_decorator
     def print(
@@ -151,7 +163,9 @@ class ResultsExportMixin:
         if max_rows is not None:
             for entry in new_data:
                 for key in entry:
+                    actual_rows = len(entry[key])
                     entry[key] = entry[key][:max_rows]
+            print(f"Showing only the first {max_rows} rows of {actual_rows} rows.")
 
         if format == "rich":
             print_list_of_dicts_with_rich(
@@ -229,6 +243,21 @@ class ResultsExportMixin:
         # return df
 
     @_convert_decorator
+    def to_scenario_list(self, remove_prefix: bool = False) -> list[dict]:
+        """Convert the results to a list of dictionaries, one per scenario.
+
+        :param remove_prefix: Whether to remove the prefix from the column names.
+
+        >>> r = create_example_results()
+        >>> r.select('how_feeling').to_scenario_list()
+        #[{'how_feeling': 'Bad'}, {'how_feeling': 'Bad'}, {'how_feeling': 'Great'}, {'how_feeling': 'Great'}]
+        """
+        from edsl import ScenarioList, Scenario
+
+        list_of_dicts = self.to_dicts(remove_prefix=remove_prefix)
+        return ScenarioList([Scenario(d) for d in list_of_dicts])
+
+    @_convert_decorator
     def to_dicts(self, remove_prefix: bool = False) -> list[dict]:
         """Convert the results to a list of dictionaries.
 
@@ -240,19 +269,27 @@ class ResultsExportMixin:
         [{'answer.how_feeling': 'OK'}, {'answer.how_feeling': 'Great'}, {'answer.how_feeling': 'Terrible'}, {'answer.how_feeling': 'OK'}]
 
         """
-        df = self.to_pandas(remove_prefix=remove_prefix)
-        df = df.convert_dtypes()
-        list_of_dicts = df.to_dict(orient="records")
-        # Convert any pd.NA values to None
-        list_of_dicts = [
-            {k: (None if pd.isna(v) else v) for k, v in record.items()}
-            for record in list_of_dicts
-        ]
+        list_of_keys = []
+        list_of_values = []
+        for entry in self:
+            key, values = list(entry.items())[0]
+            list_of_keys.append(key)
+            list_of_values.append(values)
+
+        if remove_prefix:
+            list_of_keys = [key.split(".")[-1] for key in list_of_keys]
+
+        list_of_dicts = []
+        for entries in zip(*list_of_values):
+            list_of_dicts.append(dict(zip(list_of_keys, entries)))
+
         return list_of_dicts
 
     @_convert_decorator
-    def to_list(self) -> list[list]:
+    def to_list(self, flatten=False, remove_none=False) -> list[list]:
         """Convert the results to a list of lists.
+
+        Updates.
 
         >>> from edsl.results import Results
         >>> r = Results.example()
@@ -260,9 +297,17 @@ class ResultsExportMixin:
         ['OK', 'Great', 'Terrible', 'OK']
         """
         if len(self) == 1:
-            return list(self[0].values())[0]
+            # if only one 'column' is selected (which is typical for this method
+            list_to_return = list(self[0].values())[0]
         else:
-            return tuple([list(x.values())[0] for x in self])
+            list_to_return = tuple([list(x.values())[0] for x in self])
+
+        if remove_none:
+            list_to_return = [item for item in list_to_return if item is not None]
+        if flatten:
+            list_to_return = [item for sublist in list_to_return for item in sublist]
+
+        return list_to_return
 
 
 if __name__ == "__main__":
