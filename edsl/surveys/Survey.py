@@ -238,22 +238,10 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         self, question: Union[QuestionBase, str], expression: str
     ) -> Survey:
         """
-        The standard 'add_rule' is evaluated when we reach a question and we have the answer.
         If the rule is true, we go to the question specicfied.
         """
         question_index = self._get_question_index(question)
-        prior_question_index = question_index - 1
-        if prior_question_index < 0:
-            raise ValueError(
-                f"Cannot skip to a question before the first question in the survey."
-            )
-        prior_question = self._questions[prior_question_index]
-        # TODO: This is tricky because we don't actually know the name of the question yet.
-        # We
-        skipped_to_question_index = question_index + 1
-        if skipped_to_question_index >= len(self.questions):
-            skipped_to_question_index = EndOfSurvey
-        self.add_rule(prior_question, expression, skipped_to_question_index)
+        self._add_rule(question, expression, question_index + 1, before_rule=True)
         return self
 
     def _get_question_index(
@@ -273,11 +261,46 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
                 )
             return self.question_name_to_index[question_name]
 
+    def _get_new_rule_priority(self, question_index, before_rule: bool = False) -> int:
+        """Return the priority for the new rule."""
+        current_priorities = [
+            rule.priority
+            for rule in self.rule_collection.applicable_rules(
+                question_index, before_rule
+            )
+        ]
+        if len(current_priorities) == 0:
+            return RulePriority.DEFAULT.value + 1
+
+        max_priority = max(current_priorities)
+        # newer rules take priority over older rules
+        new_priority = (
+            RulePriority.DEFAULT.value
+            if len(current_priorities) == 0
+            else max_priority + 1
+        )
+        return new_priority
+
     def add_rule(
         self,
         question: QuestionBase,
         expression: str,
         next_question: Union[QuestionBase, int],
+        before_rule: bool = False,
+    ) -> Survey:
+        """
+        Add a rule to a Question of the Survey with the appropriate priority.
+        """
+        return self._add_rule(
+            question, expression, next_question, before_rule=before_rule
+        )
+
+    def _add_rule(
+        self,
+        question: QuestionBase,
+        expression: str,
+        next_question: Union[QuestionBase, int],
+        before_rule: bool = False,
     ) -> Survey:
         """
         Add a rule to a Question of the Survey with the appropriate priority.
@@ -286,26 +309,14 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         - If there are no rules, the rule added gets priority -1.
         """
         question_index = self._get_question_index(question)
+
         # Might not have the name of the next question yet
         if isinstance(next_question, int):
             next_question_index = next_question
         else:
             next_question_index = self._get_question_index(next_question)
 
-        def get_new_rule_priority(question_index):
-            """Return the priority for the new rule."""
-            current_priorities = [
-                rule.priority
-                for rule in self.rule_collection.applicable_rules(question_index)
-            ]
-            max_priority = max(current_priorities)
-            # newer rules take priority over older rules
-            new_priority = (
-                RulePriority.DEFAULT.value
-                if len(current_priorities) == 0
-                else max_priority + 1
-            )
-            return new_priority
+        new_priority = self._get_new_rule_priority(question_index, before_rule)
 
         self.rule_collection.add_rule(
             Rule(
@@ -313,7 +324,8 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
                 expression=expression,
                 next_q=next_question_index,
                 question_name_to_index=self.question_name_to_index,
-                priority=get_new_rule_priority(question_index),
+                priority=new_priority,
+                before_rule=before_rule,
             )
         )
 
@@ -375,23 +387,23 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
             else:
                 return self.questions[next_question_object.next_q]
 
-    def gen_path_through_survey(self) -> Generator[QuestionBase, dict, None]:
-        """
-        Generate a coroutine that can be used to conduct an Interview.
+    # def gen_path_through_survey(self) -> Generator[QuestionBase, dict, None]:
+    #     """
+    #     Generate a coroutine that can be used to conduct an Interview.
 
-        - The coroutine is a generator that yields a question and receives answers.
-        - The coroutine starts with the first question in the survey.
-        - The coroutine ends when an EndOfSurvey object is returned.
+    #     - The coroutine is a generator that yields a question and receives answers.
+    #     - The coroutine starts with the first question in the survey.
+    #     - The coroutine ends when an EndOfSurvey object is returned.
 
-        E.g., in Interview.py
+    #     E.g., in Interview.py
 
-        path_through_survey = self.survey.gen_path_through_survey()
-        question = path_through_survey.send({question.question_name: answer})
-        """
-        question = self.first_question()
-        while not question == EndOfSurvey:
-            self.answers = yield question
-            question = self.next_question(question, self.answers)
+    #     path_through_survey = self.survey.gen_path_through_survey()
+    #     question = path_through_survey.send({question.question_name: answer})
+    #     """
+    #     question = self.first_question()
+    #     while not question == EndOfSurvey:
+    #         self.answers = yield question
+    #         question = self.next_question(question, self.answers)
 
     @property
     def scenario_attributes(self) -> list[str]:
@@ -420,9 +432,17 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         {'q1': {'q0'}, 'q2': {'q0'}}
         """
 
-        def get_name(index):
+        def get_name(index: int):
             """Return the name of the question given the index."""
-            return self.questions[index].question_name
+            if index >= len(self.questions):
+                return EndOfSurvey
+            try:
+                return self.questions[index].question_name
+            except IndexError:
+                print(
+                    f"The index is {index} but the length of the questions is {len(self.questions)}"
+                )
+                raise
 
         try:
             text_dag = {}
@@ -494,12 +514,14 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     ###################
     # DISPLAY METHODS
     ###################
-    def __repr__(self) -> str:
-        """Return a string representation of the survey."""
+    def print(self):
         from rich import print_json
         import json
 
         print_json(json.dumps(self.to_dict()))
+
+    def __repr__(self) -> str:
+        """Return a string representation of the survey."""
 
         questions_string = ", ".join([repr(q) for q in self._questions])
         question_names_string = ", ".join([repr(name) for name in self.question_names])

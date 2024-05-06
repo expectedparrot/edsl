@@ -150,6 +150,10 @@ class InterviewTaskBuildingMixin:
         """
         invigilator = self.get_invigilator(question, debug=debug)
 
+        if skip := self._skip_this_question(question):
+            # print("Skipping question", question.question_name)
+            return invigilator.get_failed_task_result()
+
         async def attempt_to_answer_question(invigilator):
             try:
                 return await asyncio.wait_for(
@@ -180,9 +184,21 @@ class InterviewTaskBuildingMixin:
         response: AgentResponseDict = await attempt_to_answer_question(invigilator)
 
         self.answers.add_answer(response=response, question=question)
+        # With the answer to the question, we can now cancel any skipped questions
+        # This is how the skip logic is implemented
         self._cancel_skipped_questions(question)
 
         return AgentResponseDict(**response)
+
+    def _skip_this_question(self, current_question: QuestionBase) -> bool:
+        current_question_index = self.to_index[current_question.question_name]
+
+        answers = self.answers | self.scenario | self.agent["traits"]
+
+        skip = self.survey.rule_collection.skip_question_before_running(
+            current_question_index, answers
+        )
+        return skip
 
     def _cancel_skipped_questions(self, current_question: QuestionBase) -> None:
         """Cancel the tasks for questions that are skipped.
@@ -194,7 +210,8 @@ class InterviewTaskBuildingMixin:
         current_question_index = self.to_index[current_question.question_name]
 
         next_question = self.survey.rule_collection.next_question(
-            q_now=current_question_index, answers=self.answers
+            q_now=current_question_index,
+            answers=self.answers | self.scenario | self.agent["traits"],
         )
 
         next_question_index = next_question.next_q
@@ -203,6 +220,9 @@ class InterviewTaskBuildingMixin:
             """Cancel the tasks between the start and end indices."""
             for i in range(start, end):
                 task_to_cancel = self.tasks[i]
+                verbose = False
+                if verbose:
+                    print(f"Cancelling task {task_to_cancel.get_name()}")
                 task_to_cancel.cancel()
 
         if next_question_index == EndOfSurvey:

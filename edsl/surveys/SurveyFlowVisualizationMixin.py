@@ -9,12 +9,12 @@ from edsl.surveys.base import RulePriority, EndOfSurvey
 class SurveyFlowVisualizationMixin:
     """A mixin for visualizing the flow of a survey."""
 
-    def show_flow(self):
+    def show_flow(self, filename: str = None):
         """Create an image showing the flow of users through the survey."""
         # Create a graph object
         graph = pydot.Dot(graph_type="digraph")
 
-        # Add nodes
+        # Add nodes for each question
         for index, question in enumerate(self.questions):
             graph.add_node(
                 pydot.Node(
@@ -27,7 +27,7 @@ class SurveyFlowVisualizationMixin:
             pydot.Node("EndOfSurvey", label="End of Survey", shape="rectangle")
         )
 
-        # Add edges for normal flow
+        # Add edges for normal flow through the survey
         num_questions = len(self.questions)
         for index in range(num_questions - 1):  # From Q1 to Q3
             graph.add_edge(pydot.Edge(f"Q{index}", f"Q{index+1}"))
@@ -40,14 +40,13 @@ class SurveyFlowVisualizationMixin:
             if rule.priority > RulePriority.DEFAULT.value
         ]
 
+        # edge-colors to cycle through
         colors = [
             "blue",
             "red",
-            "purple",
             "orange",
-            "pink",
+            "purple",
             "brown",
-            "grey",
             "cyan",
             "green",
         ]
@@ -60,12 +59,35 @@ class SurveyFlowVisualizationMixin:
             edge_label = f"if {rule.expression}"
             source_node = f"Q{rule.current_q}"
             target_node = (
-                f"Q{rule.next_q}" if rule.next_q != EndOfSurvey else "EndOfSurvey"
+                f"Q{rule.next_q}"
+                if rule.next_q != EndOfSurvey and rule.next_q < num_questions
+                else "EndOfSurvey"
             )
-            edge = pydot.Edge(
-                source_node, target_node, label=edge_label, color=color, fontcolor=color
-            )
+            if rule.before_rule:  # Assume skip rules have an attribute `is_skip`
+                edge = pydot.Edge(
+                    source_node,
+                    target_node,
+                    label=edge_label,
+                    color=color,
+                    fontcolor=color,
+                    tailport="n",
+                    headport="n",
+                )
+            else:
+                edge = pydot.Edge(
+                    source_node,
+                    target_node,
+                    label=edge_label,
+                    color=color,
+                    fontcolor=color,
+                )
+
             graph.add_edge(edge)
+
+        if filename is not None:
+            graph.write_png(filename)
+            print(f"Flowchart saved to {filename}")
+            return
 
         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp_file:
             try:

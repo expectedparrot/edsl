@@ -34,6 +34,7 @@ pydot = "^2.0.0"
 anthropic = "^0.23.1"
 pygments = "^2.17.2"
 matplotlib = "^3.8.4"
+black = {extras = ["jupyter"], version = "^24.4.2"}
 
 [tool.poetry.group.dev.dependencies]
 coverage = "^7.3.3"
@@ -56,10 +57,6 @@ sphinx-fontawesome = "^0.0.6"
 sphinx-rtd-theme = "^2.0.0"
 toml = "^0.10.2"
 toml-sort = "^0.23.1"
-
-[tool.poetry.group.dev.dependencies.black]
-extras = ["jupyter"]
-version = "^23.12.0"
 
 [[tool.poetry.packages]]
 include = "edsl"

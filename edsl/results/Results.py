@@ -70,6 +70,7 @@ class Results(UserList, Mixins, Base):
         "question_text",
         "question_options",
         "question_type",
+        "comment",
     ]
 
     def __init__(
@@ -131,12 +132,14 @@ class Results(UserList, Mixins, Base):
             ]
             self.data = results
 
-    def __repr__(self) -> str:
-        from rich import print_json
-        import json
+    # def print(self):
+    #     from rich import print_json
+    #     import json
+    #     print_json(json.dumps(self.to_dict()["data"]))
 
-        print_json(json.dumps(self.to_dict()["data"]))
+    def __repr__(self) -> str:
         return f"Results(data = {self.data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
+        # return f"Results(data = {self.data})"
 
     def _repr_html_(self) -> str:
         json_str = json.dumps(self.to_dict()["data"], indent=4)
