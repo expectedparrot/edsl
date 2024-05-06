@@ -8,7 +8,6 @@ from rich.console import Console
 from rich.table import Table
 
 
-
 def gen_html_sandwich(html_inner, interactive=False):
     """Wrap the inner HTML content in a header and footer to make a complete HTML document."""
     return html_inner
@@ -168,7 +167,8 @@ def display(console, table, filename):
     else:
         console.print(table)
 
-def print_results_long(results, max_rows = None):
+
+def print_results_long(results, max_rows=None):
     console = Console(record=True)
     table = Table(show_header=True, header_style="bold magenta")
     table.add_column("Result index", style="dim")

@@ -67,10 +67,11 @@ class ResultsExportMixin:
             rows.append(row)
         return header, rows
 
-    def print_long(self, max_rows = None) -> None:
+    def print_long(self, max_rows=None) -> None:
         """Print the results in long format."""
         from edsl.utilities.interface import print_results_long
-        print_results_long(self, max_rows = max_rows)
+
+        print_results_long(self, max_rows=max_rows)
         # for result in self:
         #     if hasattr(result, "combined_dict"):
         #         d = result.combined_dict
@@ -241,7 +242,6 @@ class ResultsExportMixin:
         return df_sorted
         # return df
 
-
     @_convert_decorator
     def to_scenario_list(self, remove_prefix: bool = False) -> list[dict]:
         """Convert the results to a list of dictionaries, one per scenario.
@@ -253,9 +253,10 @@ class ResultsExportMixin:
         #[{'how_feeling': 'Bad'}, {'how_feeling': 'Bad'}, {'how_feeling': 'Great'}, {'how_feeling': 'Great'}]
         """
         from edsl import ScenarioList, Scenario
+
         list_of_dicts = self.to_dicts(remove_prefix=remove_prefix)
         return ScenarioList([Scenario(d) for d in list_of_dicts])
-    
+
     @_convert_decorator
     def to_dicts(self, remove_prefix: bool = False) -> list[dict]:
         """Convert the results to a list of dictionaries.
@@ -285,7 +286,7 @@ class ResultsExportMixin:
         return list_of_dicts
 
     @_convert_decorator
-    def to_list(self, flatten = False, remove_none = False) -> list[list]:
+    def to_list(self, flatten=False, remove_none=False) -> list[list]:
         """Convert the results to a list of lists.
 
         Updates.
@@ -300,14 +301,14 @@ class ResultsExportMixin:
             list_to_return = list(self[0].values())[0]
         else:
             list_to_return = tuple([list(x.values())[0] for x in self])
-            
+
         if remove_none:
             list_to_return = [item for item in list_to_return if item is not None]
         if flatten:
             list_to_return = [item for sublist in list_to_return for item in sublist]
 
         return list_to_return
-      
+
 
 if __name__ == "__main__":
     import doctest

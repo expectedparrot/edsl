@@ -57,7 +57,8 @@ class QuestionBase(
 
         if "func" in candidate_data:
             func = candidate_data.pop("func")
-            import inspect 
+            import inspect
+
             candidate_data["function_source_code"] = inspect.getsource(func)
 
         return candidate_data
@@ -170,7 +171,10 @@ class QuestionBase(
         function_source_code = local_data.pop("function_source_code", None)
         if function_source_code:
             import warnings
-            warnings.warn("Function source code is not being used in the deserialization process.")
+
+            warnings.warn(
+                "Function source code is not being used in the deserialization process."
+            )
             local_data["func"] = lambda question, scenario: None
         try:
             question_type = local_data.pop("question_type")
@@ -211,7 +215,7 @@ class QuestionBase(
         import json
 
         print_json(json.dumps(self.to_dict()))
-        
+
     def __repr__(self) -> str:
         """Return a string representation of the question. Should be able to be used to reconstruct the question."""
         class_name = self.__class__.__name__

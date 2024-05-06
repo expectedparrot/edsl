@@ -151,7 +151,7 @@ class InterviewTaskBuildingMixin:
         invigilator = self.get_invigilator(question, debug=debug)
 
         if skip := self._skip_this_question(question):
-            #print("Skipping question", question.question_name)
+            # print("Skipping question", question.question_name)
             return invigilator.get_failed_task_result()
 
         async def attempt_to_answer_question(invigilator):
@@ -189,13 +189,15 @@ class InterviewTaskBuildingMixin:
         self._cancel_skipped_questions(question)
 
         return AgentResponseDict(**response)
-    
+
     def _skip_this_question(self, current_question: QuestionBase) -> bool:
         current_question_index = self.to_index[current_question.question_name]
 
-        answers = self.answers | self.scenario | self.agent['traits']
+        answers = self.answers | self.scenario | self.agent["traits"]
 
-        skip = self.survey.rule_collection.skip_question_before_running(current_question_index, answers)
+        skip = self.survey.rule_collection.skip_question_before_running(
+            current_question_index, answers
+        )
         return skip
 
     def _cancel_skipped_questions(self, current_question: QuestionBase) -> None:
@@ -208,8 +210,8 @@ class InterviewTaskBuildingMixin:
         current_question_index = self.to_index[current_question.question_name]
 
         next_question = self.survey.rule_collection.next_question(
-            q_now=current_question_index, 
-            answers=self.answers | self.scenario | self.agent['traits']
+            q_now=current_question_index,
+            answers=self.answers | self.scenario | self.agent["traits"],
         )
 
         next_question_index = next_question.next_q

@@ -12,6 +12,7 @@ from edsl.data.CacheEntry import CacheEntry
 from edsl.data.SQLiteDict import SQLiteDict
 from edsl.Base import Base
 
+
 class Cache(Base):
     """
     A class that represents a cache of responses from a language model.
@@ -105,7 +106,7 @@ class Cache(Base):
         >>> c = Cache()
         >>> c.fetch(model="gpt-3", parameters="default", system_prompt="Hello", user_prompt="Hi", iteration=1) is None
         True
-        
+
 
         """
         key = CacheEntry.gen_key(

@@ -9,6 +9,7 @@ from edsl.data.Cache import Cache
 from edsl.data.CacheEntry import CacheEntry
 from edsl.data.SQLiteDict import SQLiteDict
 
+
 def set_session_cache(cache: Cache) -> None:
     """
     Set the session cache.
@@ -56,9 +57,9 @@ class CacheHandler:
         """
         if self.test:
             return Cache(data={})
-        
-        if '_CACHE' in globals() and _CACHE is not None:
-            #print("Using globally-set cache.")
+
+        if "_CACHE" in globals() and _CACHE is not None:
+            # print("Using globally-set cache.")
             return _CACHE
 
         cache = Cache(data=SQLiteDict(self.CACHE_PATH))

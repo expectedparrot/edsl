@@ -72,10 +72,11 @@ class Scenario(Base, UserDict):
         {'food': 'wood chips'}
         """
         return self.data
-    
+
     def print(self):
         from rich import print_json
         import json
+
         print_json(json.dumps(self.to_dict()))
 
     def __repr__(self):

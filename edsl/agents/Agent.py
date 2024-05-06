@@ -49,7 +49,7 @@ class Agent(Base):
 
     def __init__(
         self,
-        #*,
+        # *,
         traits: Optional[dict] = None,
         name: Optional[str] = None,
         codebook: Optional[dict] = None,

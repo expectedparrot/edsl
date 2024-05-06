@@ -19,6 +19,7 @@ import json
 from edsl.Base import Base
 from edsl.agents import Agent
 
+
 class AgentList(UserList, Base):
     """A list of Agents."""
 
@@ -38,11 +39,10 @@ class AgentList(UserList, Base):
 
     def __repr__(self):
         return f"AgentList({self.data})"
-    
+
     def print(self, format: Optional[str] = None):
         """Print the AgentList."""
         print_json(json.dumps(self.to_dict()))
-
 
     def _repr_html_(self):
         """Return an HTML representation of the AgentList."""
@@ -84,4 +84,5 @@ class AgentList(UserList, Base):
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)

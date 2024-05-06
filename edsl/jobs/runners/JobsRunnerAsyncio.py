@@ -245,7 +245,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                 msg = "Exceptions were raised in multiple interviews (> 5)."
             else:
                 msg = f"Exceptions were raised in the following interviews: {results.task_history.indices}"
-            globals()['edsl_runner_excetions'] = results.task_history
+            globals()["edsl_runner_excetions"] = results.task_history
             print(
                 textwrap.dedent(
                     f"""\
