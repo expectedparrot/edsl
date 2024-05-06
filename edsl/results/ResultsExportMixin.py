@@ -38,6 +38,15 @@ class ResultsExportMixin:
 
         return wrapper
 
+    # @_convert_decorator
+    # def shuffle(self):
+    #     """Shuffle the results."""
+    #     from random import shuffle
+
+    #     shuffled_data = self.data.copy()
+    #     shuffle(shuffled_data)
+    #     return shuffled_data
+
     @_convert_decorator
     def _make_tabular(self, remove_prefix) -> tuple[list, list]:
         """Turn the results into a tabular format."""
@@ -58,10 +67,10 @@ class ResultsExportMixin:
             rows.append(row)
         return header, rows
 
-    def print_long(self) -> None:
+    def print_long(self, max_rows = None) -> None:
         """Print the results in long format."""
         from edsl.utilities.interface import print_results_long
-        print_results_long(self)
+        print_results_long(self, max_rows = max_rows)
         # for result in self:
         #     if hasattr(result, "combined_dict"):
         #         d = result.combined_dict

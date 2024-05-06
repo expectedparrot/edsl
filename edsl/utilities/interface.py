@@ -168,16 +168,20 @@ def display(console, table, filename):
     else:
         console.print(table)
 
-def print_results_long(results):
+def print_results_long(results, max_rows = None):
     console = Console(record=True)
     table = Table(show_header=True, header_style="bold magenta")
     table.add_column("Result index", style="dim")
     table.add_column("Key", style="dim")
     table.add_column("Value", style="dim")
     list_of_dicts = results.to_dicts()
+    num_rows = 0
     for i, results_dict in enumerate(list_of_dicts):
         for key, value in results_dict.items():
             table.add_row(str(i), key, str(value))
+            num_rows += 1
+        if max_rows is not None and num_rows >= max_rows:
+            break
     console.print(table)
 
 

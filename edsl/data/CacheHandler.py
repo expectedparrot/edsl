@@ -58,7 +58,7 @@ class CacheHandler:
             return Cache(data={})
         
         if '_CACHE' in globals() and _CACHE is not None:
-            print("Using globally-set cache.")
+            #print("Using globally-set cache.")
             return _CACHE
 
         cache = Cache(data=SQLiteDict(self.CACHE_PATH))
