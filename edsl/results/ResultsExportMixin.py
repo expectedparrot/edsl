@@ -2,6 +2,7 @@
 import base64
 import csv
 import io
+import random
 from functools import wraps
 
 from typing import Literal, Optional
@@ -38,14 +39,43 @@ class ResultsExportMixin:
 
         return wrapper
 
-    # @_convert_decorator
-    # def shuffle(self):
-    #     """Shuffle the results."""
-    #     from random import shuffle
+    @_convert_decorator
+    def sample(self, n: int) -> "Results":
+        """Return a random sample of the results.
 
-    #     shuffled_data = self.data.copy()
-    #     shuffle(shuffled_data)
-    #     return shuffled_data
+        :param n: The number of samples to return.
+
+        >>> r = create_example_results()
+        >>> r.sample(2)
+        [{'answer.how_feeling': 'Great'}, {'answer.how_feeling': 'OK'}]
+        """
+        indices = None
+
+        for entry in self:
+            key, values = list(entry.items())[0]
+            if indices is None:
+                indices = list(range(len(values)))
+                sampled_indices = random.sample(indices, n)
+                if n > len(indices):
+                    raise ValueError(
+                        f"Cannot sample {n} items from a list of length {len(indices)}."
+                    )
+            entry[key] = [values[i] for i in sampled_indices]
+        
+        return self
+
+    @_convert_decorator
+    def shuffle(self):      
+        indices = None
+
+        for entry in self:
+            key, values = list(entry.items())[0]
+            if indices is None:
+                indices = list(range(len(values)))
+                random.shuffle(indices)
+            entry[key] = [values[i] for i in indices]
+        
+        return self
 
     @_convert_decorator
     def _make_tabular(self, remove_prefix) -> tuple[list, list]:
