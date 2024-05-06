@@ -136,7 +136,7 @@ class Result(Base, UserDict):
         else:
             agent_name = self.agent.name
 
-        comments_dict = {k:v for k,v in self.answer.items() if k.endswith("_comment")}   
+        comments_dict = {k: v for k, v in self.answer.items() if k.endswith("_comment")}
         question_text_dict = {}
         question_options_dict = {}
         question_type_dict = {}
@@ -165,7 +165,7 @@ class Result(Base, UserDict):
             "question_text": question_text_dict,
             "question_options": question_options_dict,
             "question_type": question_type_dict,
-            "comment": comments_dict
+            "comment": comments_dict,
         }
 
     def code(self):
@@ -231,7 +231,11 @@ class Result(Base, UserDict):
             if key == "prompt":
                 new_prompt_dict = {}
                 for prompt_name, prompt_obj in value.items():
-                    new_prompt_dict[prompt_name] = prompt_obj if not hasattr(prompt_obj, "to_dict") else prompt_obj.to_dict()
+                    new_prompt_dict[prompt_name] = (
+                        prompt_obj
+                        if not hasattr(prompt_obj, "to_dict")
+                        else prompt_obj.to_dict()
+                    )
                 d[key] = new_prompt_dict
         return d
 
@@ -249,7 +253,7 @@ class Result(Base, UserDict):
             model=LanguageModel.from_dict(json_dict["model"]),
             iteration=json_dict["iteration"],
             answer=json_dict["answer"],
-            prompt=prompt_d, #json_dict["prompt"],
+            prompt=prompt_d,  # json_dict["prompt"],
             raw_model_response=json_dict.get(
                 "raw_model_response", {"raw_model_response": "No raw model response"}
             ),

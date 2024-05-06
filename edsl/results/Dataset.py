@@ -13,7 +13,7 @@ class Dataset(UserList, ResultsExportMixin):
         """Initialize the dataset with the given data."""
         super().__init__(data)
 
-    def relevant_columns(self, remove_prefix = False) -> set:
+    def relevant_columns(self, remove_prefix=False) -> set:
         """Return the set of keys that are present in the dataset."""
         columns = set([list(result.keys())[0] for result in self.data])
         if remove_prefix:

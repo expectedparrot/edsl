@@ -278,8 +278,9 @@ class Jobs(Base):
     def print(self):
         from rich import print_json
         import json
+
         print_json(json.dumps(self.to_dict()))
-    
+
     def __repr__(self) -> str:
         """Return an eval-able string representation of the Jobs instance."""
         return f"Jobs(survey={repr(self.survey)}, agents={repr(self.agents)}, models={repr(self.models)}, scenarios={repr(self.scenarios)})"
@@ -287,6 +288,7 @@ class Jobs(Base):
     def _repr_html_(self) -> str:
         from rich import print_json
         import json
+
         print_json(json.dumps(self.to_dict()))
 
     def __len__(self) -> int:

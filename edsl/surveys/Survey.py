@@ -233,8 +233,10 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         """Add a rule that stops the survey."""
         self.add_rule(question, expression, EndOfSurvey)
         return self
-    
-    def add_skip_rule(self, question: Union[QuestionBase, str], expression: str) -> Survey:
+
+    def add_skip_rule(
+        self, question: Union[QuestionBase, str], expression: str
+    ) -> Survey:
         """
         If the rule is true, we go to the question specicfied.
         """
@@ -263,11 +265,13 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         """Return the priority for the new rule."""
         current_priorities = [
             rule.priority
-            for rule in self.rule_collection.applicable_rules(question_index, before_rule)
+            for rule in self.rule_collection.applicable_rules(
+                question_index, before_rule
+            )
         ]
         if len(current_priorities) == 0:
             return RulePriority.DEFAULT.value + 1
-        
+
         max_priority = max(current_priorities)
         # newer rules take priority over older rules
         new_priority = (
@@ -287,8 +291,9 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         """
         Add a rule to a Question of the Survey with the appropriate priority.
         """
-        return self._add_rule(question, expression, next_question, before_rule=before_rule)
-    
+        return self._add_rule(
+            question, expression, next_question, before_rule=before_rule
+        )
 
     def _add_rule(
         self,
@@ -434,7 +439,9 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
             try:
                 return self.questions[index].question_name
             except IndexError:
-                print(f"The index is {index} but the length of the questions is {len(self.questions)}")
+                print(
+                    f"The index is {index} but the length of the questions is {len(self.questions)}"
+                )
                 raise
 
         try:
@@ -510,11 +517,12 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     def print(self):
         from rich import print_json
         import json
+
         print_json(json.dumps(self.to_dict()))
 
     def __repr__(self) -> str:
         """Return a string representation of the survey."""
-        
+
         questions_string = ", ".join([repr(q) for q in self._questions])
         question_names_string = ", ".join([repr(name) for name in self.question_names])
         return f"Survey(questions=[{questions_string}], name={repr(self.name)})"

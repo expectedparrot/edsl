@@ -86,7 +86,7 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
             "answer": answer,
             "comment": comment,
             "question_name": question.question_name,
-            "prompts": self.get_prompts(), #{k: v.to_dict() for k, v in self.get_prompts().items()},
+            "prompts": self.get_prompts(),  # {k: v.to_dict() for k, v in self.get_prompts().items()},
             "cached_response": raw_response["cached_response"],
             "usage": raw_response.get("usage", {}),
             "raw_model_response": raw_model_response,
@@ -257,5 +257,5 @@ class InvigilatorFunctional(InvigilatorBase):
 
 if __name__ == "__main__":
     import doctest
-    doctest.testmod(optionflags=doctest.ELLIPSIS)
 
+    doctest.testmod(optionflags=doctest.ELLIPSIS)

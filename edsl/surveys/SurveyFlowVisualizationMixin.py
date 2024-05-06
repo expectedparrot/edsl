@@ -9,7 +9,7 @@ from edsl.surveys.base import RulePriority, EndOfSurvey
 class SurveyFlowVisualizationMixin:
     """A mixin for visualizing the flow of a survey."""
 
-    def show_flow(self, filename:str = None):
+    def show_flow(self, filename: str = None):
         """Create an image showing the flow of users through the survey."""
         # Create a graph object
         graph = pydot.Dot(graph_type="digraph")
@@ -59,7 +59,9 @@ class SurveyFlowVisualizationMixin:
             edge_label = f"if {rule.expression}"
             source_node = f"Q{rule.current_q}"
             target_node = (
-                f"Q{rule.next_q}" if rule.next_q != EndOfSurvey and rule.next_q < num_questions else "EndOfSurvey"
+                f"Q{rule.next_q}"
+                if rule.next_q != EndOfSurvey and rule.next_q < num_questions
+                else "EndOfSurvey"
             )
             if rule.before_rule:  # Assume skip rules have an attribute `is_skip`
                 edge = pydot.Edge(
@@ -68,8 +70,8 @@ class SurveyFlowVisualizationMixin:
                     label=edge_label,
                     color=color,
                     fontcolor=color,
-                    tailport='n',
-                    headport='n',
+                    tailport="n",
+                    headport="n",
                 )
             else:
                 edge = pydot.Edge(

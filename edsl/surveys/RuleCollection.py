@@ -55,7 +55,7 @@ class RuleCollection(UserList):
     @classmethod
     def from_dict(cls, rule_collection_dict):
         """Create a RuleCollection object from a dictionary.
-        
+
         >>> rule_collection = RuleCollection.example()
         >>> rule_collection_dict = rule_collection.to_dict()
         >>> new_rule_collection = RuleCollection.from_dict(rule_collection_dict)
@@ -72,7 +72,7 @@ class RuleCollection(UserList):
 
     def add_rule(self, rule: Rule) -> None:
         """Add a rule to a survey.
-        
+
         >>> rule_collection = RuleCollection()
         >>> rule_collection.add_rule(Rule(current_q=1, expression="q1 == 'yes'", next_q=3, priority=1, question_name_to_index={'q1': 1, 'q2': 2, 'q3': 3, 'q4': 4}))
         >>> len(rule_collection)
@@ -92,7 +92,7 @@ class RuleCollection(UserList):
 
     def show_rules(self) -> None:
         """Print the rules in a table.
-        
+
 
         .. code-block:: python
 
@@ -103,7 +103,7 @@ class RuleCollection(UserList):
         ┡━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━┩
         │ 1         │ q1 == 'yes' │ 3      │ 1        │ False       │
         │ 1         │ q1 == 'no'  │ 2      │ 1        │ False       │
-        └───────────┴─────────────┴────────┴──────────┴─────────────┘        
+        └───────────┴─────────────┴────────┴──────────┴─────────────┘
         """
         keys = ["current_q", "expression", "next_q", "priority", "before_rule"]
         rule_list = []
@@ -120,13 +120,13 @@ class RuleCollection(UserList):
 
         >>> rule_collection = RuleCollection()
         >>> r = Rule(current_q=1, expression="True", next_q=1, priority=1, question_name_to_index={}, before_rule = True)
-        >>> rule_collection.add_rule(r) 
+        >>> rule_collection.add_rule(r)
         >>> rule_collection.skip_question_before_running(1, {})
         True
 
         >>> rule_collection = RuleCollection()
         >>> r = Rule(current_q=1, expression="False", next_q=1, priority=1, question_name_to_index={}, before_rule = True)
-        >>> rule_collection.add_rule(r) 
+        >>> rule_collection.add_rule(r)
         >>> rule_collection.skip_question_before_running(1, {})
         False
 
@@ -136,7 +136,7 @@ class RuleCollection(UserList):
                 return True
         return False
 
-    def applicable_rules(self, q_now: int, before_rule:bool = False) -> list:
+    def applicable_rules(self, q_now: int, before_rule: bool = False) -> list:
         """Show the rules that apply at the current node.
 
         :param q_now: The current question index.
@@ -148,9 +148,9 @@ class RuleCollection(UserList):
         >>> rule_collection.applicable_rules(1)
         [Rule(current_q=1, expression="q1 == 'yes'", next_q=3, priority=1, question_name_to_index={'q1': 1, 'q2': 2, 'q3': 3, 'q4': 4}), Rule(current_q=1, expression="q1 == 'no'", next_q=2, priority=1, question_name_to_index={'q1': 1, 'q2': 2, 'q3': 3, 'q4': 4})]
 
-        The default is that the rule is applied after the question is asked. 
+        The default is that the rule is applied after the question is asked.
         If we want to see the rules that apply before the question is asked, we can set before_rule=True.
-        
+
         .. code-block:: python
 
             rule_collection = RuleCollection.example()
@@ -163,8 +163,12 @@ class RuleCollection(UserList):
         2. "q1 == 'b' ==> 4
         3. "q1 == 'c' ==> 5
         """
-        return [rule for rule in self if rule.current_q == q_now and rule.before_rule == before_rule]
-    
+        return [
+            rule
+            for rule in self
+            if rule.current_q == q_now and rule.before_rule == before_rule
+        ]
+
     def next_question(self, q_now: int, answers: dict[str, Any]) -> NextQuestion:
         """Find the next question by index, given the rule collection.
         This rule is applied after the question is asked.
