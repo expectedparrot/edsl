@@ -60,34 +60,52 @@ The following illustrations provide a visual representation of how these compone
 
 1. Construct questions of various types:
 
-.. image:: static/survey_graphic1.png
+.. image:: static/edsl1.png
    :alt: Construct questions
    :align: center
+   <br><br>
+   
 
+2. Parameterize questions with context or data:
 
-
-2. Parameterize questions with content or data:
-
-.. image:: static/survey_graphic2.png
+.. image:: static/edsl2.png
    :alt: Optionally parameterize questions
    :align: center
+   <br><br>
+   
 
+3. Combine questions into a survey:
 
-
-3. Create AI agents to answer the questions:
-
-.. image:: static/survey_graphic3.png
+.. image:: static/edsl3.png
    :alt: Create AI agents to answer the questions
    :align: center
+   <br><br>
+   
+
+4. Create AI agents to answer the questions:
+
+.. image:: static/edsl4.png
+   :alt: Create AI agents to answer the questions
+   :align: center
+   <br><br>
 
 
+5. Select language models to generate results:
 
-4. Select AI models to generate results:
-
-.. image:: static/survey_graphic4.png
+.. image:: static/edsl5.png
    :alt: Select AI models to simulate results
    :align: center
-   
+   <br><br>
+
+
+6. Use built-in methods for working with results:
+
+.. image:: static/edsl6.png
+   :alt: Use built-in methods for working with results
+   :align: center
+   <br><br>
+
+
 
 
 Key operations
