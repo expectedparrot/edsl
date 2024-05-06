@@ -23,3 +23,4 @@ from edsl.results.Results import Results
 from edsl.data.Cache import Cache
 from edsl.data.CacheHandler import set_session_cache, unset_session_cache
 from edsl.coop.coop import Coop
+from edsl.shared import shared_globals
