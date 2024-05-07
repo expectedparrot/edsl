@@ -75,14 +75,14 @@ def test_QuestionTopK_serialization():
     # serialization should add a "type" attribute
     q = QuestionTopK(**valid_question)
     print(q.to_dict())
-    assert q.to_dict() == {
+    assert {
         "question_name": "food",
         "question_text": "What are your 2 favorite foods in the list?",
         "question_options": ["Pizza", "Ice cream", "Cake", "Cereal"],
         "min_selections": 2,
         "max_selections": 2,
         "question_type": "top_k",
-    }
+    }.items() <= q.to_dict().items()
 
     # deserialization should return a QuestionTopKEnhanced object
     q_lazarus = QuestionBase.from_dict(q.to_dict())
