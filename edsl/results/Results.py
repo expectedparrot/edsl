@@ -32,6 +32,7 @@ from edsl.utilities import (
     shorten_string,
     is_notebook,
 )
+from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
 import json
 from pygments import highlight
@@ -150,6 +151,7 @@ class Results(UserList, Mixins, Base):
         )
         return HTML(formatted_json).data
 
+    @add_edsl_version
     def to_dict(self) -> dict[str, Any]:
         """Convert the Results object to a dictionary.
 
@@ -169,6 +171,7 @@ class Results(UserList, Mixins, Base):
         }
 
     @classmethod
+    @remove_edsl_version
     def from_dict(cls, data: dict[str, Any]) -> Results:
         """Convert a dictionary to a Results object.
 

@@ -14,6 +14,7 @@ from edsl.scenarios import Scenario
 from edsl.utilities import is_notebook
 from edsl.Base import Base
 from edsl.prompts import Prompt
+from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
 
 class PromptDict(UserDict):
@@ -220,6 +221,7 @@ class Result(Base, UserDict):
     ###############
     # Serialization
     ###############
+    @add_edsl_version
     def to_dict(self) -> dict[str, Any]:
         """Return a dictionary representation of the Result object."""
         d = {}
@@ -240,6 +242,7 @@ class Result(Base, UserDict):
         return d
 
     @classmethod
+    @remove_edsl_version
     def from_dict(self, json_dict: dict) -> Result:
         """Return a Result object from a dictionary representation."""
         prompt_data = json_dict.get("prompt", {})

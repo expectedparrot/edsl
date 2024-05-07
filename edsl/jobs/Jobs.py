@@ -25,6 +25,7 @@ from edsl.language_models import LanguageModel
 from edsl.scenarios import Scenario
 from edsl.surveys import Survey
 
+from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
 class Jobs(Base):
     """
@@ -304,6 +305,7 @@ class Jobs(Base):
     #######################
     # Serialization methods
     #######################
+    @add_edsl_version
     def to_dict(self) -> dict:
         """Convert the Jobs instance to a dictionary."""
         return {
@@ -314,6 +316,7 @@ class Jobs(Base):
         }
 
     @classmethod
+    @remove_edsl_version
     def from_dict(cls, data: dict) -> Jobs:
         """Creates a Jobs instance from a dictionary."""
         return cls(
