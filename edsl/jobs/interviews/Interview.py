@@ -174,7 +174,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
     #######################
     def __repr__(self) -> str:
         """Return a string representation of the Interview instance."""
-        return f"Interview(agent = {self.agent}, survey = {self.survey}, scenario = {self.scenario}, model = {self.model})"
+        return f"Interview(agent = {repr(self.agent)}, survey = {repr(self.survey)}, scenario = {repr(self.scenario)}, model = {repr(self.model)})"
 
 
 if __name__ == "__main__":

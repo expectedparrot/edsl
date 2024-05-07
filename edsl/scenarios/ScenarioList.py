@@ -9,6 +9,7 @@ from simpleeval import EvalWithCompoundTypes
 from edsl.scenarios.Scenario import Scenario
 from edsl.Base import Base
 
+from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
 class ScenarioList(Base, UserList):
     """Class for creating a list of scenarios to be used in a survey."""
@@ -73,6 +74,7 @@ class ScenarioList(Base, UserList):
                 observations.append(Scenario(dict(zip(header, row))))
         return cls(observations)
 
+    @add_edsl_version
     def to_dict(self):
         """Return the `ScenarioList` as a dictionary."""
         return {"scenarios": [s.to_dict() for s in self]}
@@ -83,6 +85,7 @@ class ScenarioList(Base, UserList):
         return cls([Scenario(s) for s in scenario_dicts_list])
 
     @classmethod
+    @remove_edsl_version
     def from_dict(cls, data):
         """Create a `ScenarioList` from a dictionary."""
         return cls([Scenario.from_dict(s) for s in data["scenarios"]])

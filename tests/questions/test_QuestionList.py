@@ -79,18 +79,18 @@ def test_QuestionList_serialization():
     q = QuestionList(**valid_question)
     valid_question_w_type = valid_question.copy()
     valid_question_w_type.update({"question_type": "list"})
-    assert q.to_dict() == valid_question_w_type
+    assert valid_question_w_type.items() <= q.to_dict().items() 
     q = QuestionList(**valid_question_w_extras)
     valid_question_w_type = valid_question_w_extras.copy()
     valid_question_w_type.update({"question_type": "list"})
-    assert q.to_dict() == valid_question_w_type
+    assert valid_question_w_type.items() <= q.to_dict().items()
     # and optional attributes if not present
     q = QuestionList(**valid_question_wo_extras)
     valid_question_w_type = valid_question_wo_extras.copy()
     valid_question_w_type.update(
         {"question_type": "list", "max_list_items": None}
     )
-    assert q.to_dict() == valid_question_w_type
+    assert valid_question_w_type.items() <= q.to_dict().items()
 
     # deserialization should return a QuestionListEnhanced object
     q_lazarus = QuestionBase.from_dict(q.to_dict())

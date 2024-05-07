@@ -78,7 +78,7 @@ def test_agent_dunder_methods():
 def test_agent_serialization():
     agent = Agent(traits={"age": 10})
     agent_dict = agent.to_dict()
-    assert agent_dict == {"traits": {"age": 10}}
+    assert {"traits": {"age": 10}}.items() <= agent_dict.items() 
     agent2 = Agent.from_dict(agent_dict)
     assert agent2.traits == {"age": 10}
     assert agent2 == agent
@@ -97,7 +97,7 @@ def test_agent_invalid_trait_key():
 def test_agent_serialization_with_name():
     agent = Agent(traits={"age": 10}, name="Peter")
     agent_dict = agent.to_dict()
-    assert agent_dict == {"traits": {"age": 10}, "name": "Peter"}
+    assert {"traits": {"age": 10}, "name": "Peter"}.items() <= agent_dict.items()
     agent2 = Agent.from_dict(agent_dict)
     assert agent2.traits == {"age": 10}
     assert agent2.name == "Peter"

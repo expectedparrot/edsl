@@ -86,13 +86,14 @@ def test_QuestionLinearScale_serialization():
     # serialization should add a "type" attribute
     q = QuestionLinearScale(**valid_question)
     print(q.to_dict())
-    assert q.to_dict() == {
+    
+    assert  {
         "question_text": "On a scale from 1 to 5, how much do you like pizza?",
         "question_options": [1, 2, 3, 4, 5],
         "question_name": "pizza",
         "option_labels": None,
         "question_type": "linear_scale",
-    }
+    }.items() <= q.to_dict().items()
 
     # deserialization should return a QuestionLinearScaleEnhanced object
     q_lazarus = QuestionBase.from_dict(q.to_dict())

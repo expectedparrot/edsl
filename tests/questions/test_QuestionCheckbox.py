@@ -130,22 +130,22 @@ def test_QuestionCheckBox_serialization():
     q_noextras = QuestionCheckBox(**valid_question_wo_extras)
 
     # serialization should add a "type" attribute
-    assert q.to_dict() == {
+    assert {
         "question_name": "weekdays",
         "question_text": "Which weekdays do you like? Select 2 or 3.",
         "question_options": ["Mon", "Tue", "Wed", "Thu", "Fri"],
         "min_selections": 2,
         "max_selections": 3,
         "question_type": "checkbox",
-    }
-    assert q_noextras.to_dict() == {
+    }.items() <= q.to_dict().items() 
+    assert {
         "question_name": "weekdays",
         "question_text": "Which weekdays do you like? Select 2 or 3.",
         "question_options": ["Mon", "Tue", "Wed", "Thu", "Fri"],
         "min_selections": None,
         "max_selections": None,
         "question_type": "checkbox",
-    }
+    }.items() <= q_noextras.to_dict().items()
 
     # deserialization should return a QuestionCheckBoxEnhanced object
     q_lazarus = QuestionBase.from_dict(q.to_dict())

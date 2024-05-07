@@ -94,11 +94,11 @@ def test_QuestionRank_serialization():
     q = QuestionRank(**valid_question)
     valid_question_w_type = valid_question.copy()
     valid_question_w_type.update({"question_type": "rank"})
-    assert q.to_dict() == valid_question_w_type
+    assert valid_question_w_type.items() <= q.to_dict().items() 
     q = QuestionRank(**valid_question_wo_extras)
     valid_question_w_type = valid_question_wo_extras.copy()
     valid_question_w_type.update({"question_type": "rank", "num_selections": 4})
-    assert q.to_dict() == valid_question_w_type
+    assert valid_question_w_type.items() <= q.to_dict().items()
 
     # deserialization should return a QuestionRankEnhanced object
     q_lazarus = QuestionBase.from_dict(q.to_dict())
