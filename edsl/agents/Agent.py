@@ -31,7 +31,7 @@ from edsl.agents.descriptors import (
     InstructionDescriptor,
     NameDescriptor,
 )
-from edsl.utilities.decorators import sync_wrapper
+from edsl.utilities.decorators import sync_wrapper, add_edsl_version, remove_edsl_version
 from edsl.data_transfer_models import AgentResponseDict
 from edsl.prompts.library.agent_persona import AgentPersona
 from edsl.data.Cache import Cache
@@ -430,6 +430,7 @@ class Agent(Base):
             raw_data.pop("name")
         return raw_data
 
+    @add_edsl_version
     def to_dict(self) -> dict[str, Union[dict, bool]]:
         """Serialize to a dictionary.
 
@@ -442,6 +443,7 @@ class Agent(Base):
         return self.data
 
     @classmethod
+    @remove_edsl_version
     def from_dict(cls, agent_dict: dict[str, Union[dict, bool]]) -> Agent:
         """Deserialize from a dictionary.
 
