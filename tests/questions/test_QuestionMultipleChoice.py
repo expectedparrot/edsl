@@ -115,12 +115,12 @@ def test_QuestionMultipleChoice_serialization():
     # serialization should add a "type" attribute
     q = QuestionMultipleChoice(**valid_question)
     print(q.to_dict())
-    assert q.to_dict() == {
+    assert {
         "question_name": "how_are_you",
         "question_text": "How are you?",
         "question_options": ["OK", "Bad"],
         "question_type": "multiple_choice",
-    }
+    }.items() <= q.to_dict().items()
 
     # deserialization should return a QuestionMultipleChoiceEnhanced object
     q_lazarus = QuestionBase.from_dict(q.to_dict())

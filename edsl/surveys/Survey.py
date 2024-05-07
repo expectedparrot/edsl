@@ -21,7 +21,7 @@ from edsl.surveys.MemoryPlan import MemoryPlan
 from edsl.surveys.DAG import DAG
 
 from edsl.utilities import is_notebook
-
+from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
 @dataclass
 class SurveyMetaData:
@@ -493,6 +493,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     ###################
     # SERIALIZATION METHODS
     ###################
+    @add_edsl_version
     def to_dict(self) -> dict[str, Any]:
         """Serialize the Survey object to a dictionary."""
         return {
@@ -503,6 +504,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         }
 
     @classmethod
+    @remove_edsl_version
     def from_dict(cls, data: dict) -> Survey:
         """Deserialize the dictionary back to a Survey object."""
         questions = [QuestionBase.from_dict(q_dict) for q_dict in data["questions"]]

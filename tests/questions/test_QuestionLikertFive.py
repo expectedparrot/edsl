@@ -48,12 +48,12 @@ def test_QuestionLikertFive_serialization():
     # serialization should add a "type" attribute
     q = QuestionLikertFive(**valid_question)
     default_options = q.question_options
-    assert q.to_dict() == {
+    assert {
         "question_text": valid_question["question_text"],
         "question_options": default_options,
         "question_name": "pizza_love",
         "question_type": "likert_five",
-    }
+    }.items() <= q.to_dict().items()
 
     # deserialization should return a QuestionLikertFiveEnhanced object
     q_lazarus = QuestionBase.from_dict(q.to_dict())
