@@ -144,6 +144,7 @@ Information about additional functionality for developers.
    :hidden:
 
    notebooks/data_labeling_agent.ipynb
+   notebooks/concept_induction.ipynb
    notebooks/testing_training_data.ipynb
    notebooks/explore_llm_biases.ipynb
    notebooks/research_random_silicon_sampling.ipynb
