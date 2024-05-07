@@ -16,7 +16,7 @@ from edsl.questions.RegisterQuestionsMeta import RegisterQuestionsMeta
 from edsl.Base import PersistenceMixin, RichPrintingMixin
 
 from edsl.questions.SimpleAskMixin import SimpleAskMixin
-
+from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
 class QuestionBase(
     PersistenceMixin,
@@ -158,6 +158,7 @@ class QuestionBase(
     ############################
     # Serialization methods
     ############################
+    @add_edsl_version
     def to_dict(self) -> dict[str, Any]:
         """Convert the question to a dictionary that includes the question type (used in deserialization)."""
         candidate_data = self.data.copy()
@@ -165,6 +166,7 @@ class QuestionBase(
         return candidate_data
 
     @classmethod
+    @remove_edsl_version
     def from_dict(cls, data: dict) -> Type[QuestionBase]:
         """Construct a question object from a dictionary created by that question's `to_dict` method."""
         local_data = data.copy()
