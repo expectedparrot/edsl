@@ -676,6 +676,14 @@ class Results(UserList, Mixins, Base):
     def __str__(self):
         data = self.to_dict()["data"]
         return json.dumps(data, indent=4)
+    
+
+    def show_exceptions(self, traceback = False):
+        """Print the exceptions."""
+        if hasattr(self, "task_history"):
+            self.task_history.show_exceptions(traceback)
+        else:
+            print("No exceptions to show.")
 
 
 def main():  # pragma: no cover
