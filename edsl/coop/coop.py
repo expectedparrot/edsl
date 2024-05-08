@@ -526,6 +526,17 @@ class Coop:
         return response.json()
 
     ################
+    # EDSL SETTINGS
+    ################
+    def get_edsl_settings(self) -> dict:
+        """
+        Retrieve the EDSL settings.
+        """
+        response = self._send_server_request(uri="api/v0/edsl-settings", method="GET")
+        self._resolve_server_response(response)
+        return response.json()
+
+    ################
     # DUNDER METHODS
     ################
     def __repr__(self):
@@ -542,6 +553,7 @@ if __name__ == "__main__":
 
     # basics
     coop
+    coop.get_edsl_settings()
 
     ##############
     # A. Objects
