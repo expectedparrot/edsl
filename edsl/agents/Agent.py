@@ -31,7 +31,11 @@ from edsl.agents.descriptors import (
     InstructionDescriptor,
     NameDescriptor,
 )
-from edsl.utilities.decorators import sync_wrapper, add_edsl_version, remove_edsl_version
+from edsl.utilities.decorators import (
+    sync_wrapper,
+    add_edsl_version,
+    remove_edsl_version,
+)
 from edsl.data_transfer_models import AgentResponseDict
 from edsl.prompts.library.agent_persona import AgentPersona
 from edsl.data.Cache import Cache

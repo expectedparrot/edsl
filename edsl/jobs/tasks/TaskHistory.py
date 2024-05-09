@@ -43,7 +43,7 @@ class TaskHistory:
         newdata = self.to_dict()["exceptions"]
         return data_to_html(newdata, replace_new_lines=True)
 
-    def show_exceptions(self, tracebacks = False):
+    def show_exceptions(self, tracebacks=False):
         """Print the exceptions."""
         for index in self.indices:
             self.total_interviews[index].exceptions.print(tracebacks)
