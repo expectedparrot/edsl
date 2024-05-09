@@ -11,6 +11,7 @@ from edsl.Base import Base
 
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
+
 class ScenarioList(Base, UserList):
     """Class for creating a list of scenarios to be used in a survey."""
 

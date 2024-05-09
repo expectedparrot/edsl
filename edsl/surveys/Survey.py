@@ -23,6 +23,7 @@ from edsl.surveys.DAG import DAG
 from edsl.utilities import is_notebook
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
+
 @dataclass
 class SurveyMetaData:
     """Metadata for a survey. This is a dataclass that holds the name, description, and version of a survey."""

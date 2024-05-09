@@ -61,11 +61,11 @@ class ResultsExportMixin:
                         f"Cannot sample {n} items from a list of length {len(indices)}."
                     )
             entry[key] = [values[i] for i in sampled_indices]
-        
+
         return self
 
     @_convert_decorator
-    def shuffle(self):      
+    def shuffle(self):
         indices = None
 
         for entry in self:
@@ -74,7 +74,7 @@ class ResultsExportMixin:
                 indices = list(range(len(values)))
                 random.shuffle(indices)
             entry[key] = [values[i] for i in indices]
-        
+
         return self
 
     @_convert_decorator

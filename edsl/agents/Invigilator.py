@@ -67,7 +67,7 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
         try:
             response = question._validate_answer(raw_response)
         except Exception as e:
-            #print("Purging the cache key")
+            # print("Purging the cache key")
             # Remove the cache key from the cache
             if (
                 "raw_model_response" in raw_response
