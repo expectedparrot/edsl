@@ -8,7 +8,7 @@ The Expected Parrot Domain-Specific Language (EDSL) package lets you conduct com
 ## 🔗 Links
 - PyPI: https://pypi.org/project/edsl/
 - Documentation: https://docs.expectedparrot.com
-- Getting started: https://www.expectedparrot.com/getting-started/
+- Getting started: https://docs.expectedparrot.com/en/latest/starter_tutorial.html
 - Discord: https://discord.com/invite/mxAYkjfy9m
 
 
@@ -22,8 +22,8 @@ EDSL is compatible with Python 3.9 - 3.11.
 pip install edsl
 ```
 
-See https://www.expectedparrot.com/getting-started/ for examples and tutorials.
-Read the docs at http://docs.expectedparrot.com.
+- Read the docs at http://docs.expectedparrot.com.
+- See https://docs.expectedparrot.com/en/latest/starter_tutorial.html for examples and tutorials.
 
 ## 🔧 Dependencies
 API keys for LLMs that you want to use, stored in a `.env` file
