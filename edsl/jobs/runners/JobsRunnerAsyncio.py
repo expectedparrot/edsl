@@ -6,7 +6,7 @@ from typing import Coroutine, List, AsyncGenerator
 from rich.live import Live
 from rich.console import Console
 
-from edsl import shared_globals     
+from edsl import shared_globals
 from edsl.results import Results, Result
 
 from edsl.jobs.interviews.Interview import Interview
@@ -19,6 +19,7 @@ from edsl.data.Cache import Cache
 
 from edsl.jobs.tasks.TaskHistory import TaskHistory
 from edsl.jobs.buckets.BucketCollection import BucketCollection
+
 
 class JobsRunnerAsyncio(JobsRunnerStatusMixin):
     def __init__(self, jobs: Jobs):
@@ -244,8 +245,8 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                 msg = "Exceptions were raised in multiple interviews (> 5)."
             else:
                 msg = f"Exceptions were raised in the following interviews: {results.task_history.indices}"
-            
-            shared_globals['edsl_runner_exceptions'] = task_history
+
+            shared_globals["edsl_runner_exceptions"] = task_history
             print(
                 textwrap.dedent(
                     f"""\

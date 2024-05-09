@@ -18,6 +18,7 @@ from edsl.Base import PersistenceMixin, RichPrintingMixin
 from edsl.questions.SimpleAskMixin import SimpleAskMixin
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
+
 class QuestionBase(
     PersistenceMixin,
     RichPrintingMixin,
