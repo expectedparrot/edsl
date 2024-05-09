@@ -10,6 +10,7 @@ The `Cache` class is used to store responses from a language model so that they 
 
 
 
+
 Why caching?
 ^^^^^^^^^^^^
 Language model outputs are expensive to create, both in terms of time and money. 
@@ -23,20 +24,23 @@ Use cases:
 * Build up training data to train or fine-tune a smaller model.
 * Build up a public repository of queries and responses so others can learn from them.
 
+
 How it works
 ^^^^^^^^^^^^
-The `Cache` is a dictionary-like object that stores the inputs and outputs of a language model.
-Specifically, the cache has an attribute, `data`, that is dictionary-like. 
+A `Cache` is a dictionary-like object that stores the inputs and outputs of a language model.
+Specifically, a cache has an attribute, `data`, that is dictionary-like. 
 
-The keys of the cache are hashes of the unique inputs to the language model.
-The values are `CacheEntry` objects, which store the inputs and outputs of the language model.
+The keys of a cache are hashes of the unique inputs to a language model.
+The values are `CacheEntry` objects, which store the inputs and outputs of a language model.
 
-It can either be a Python in-memory dictionary or dictionary tied to a SQLite3 database.
+A cache can be stored as either a Python in-memory dictionary or a dictionary connected to a SQLite3 database.
 The default constructor is an in-memory dictionary.
-If an SQLite3 database is used, the cache will persist automatically between sessions.
+If a SQLite3 database is used, a cache will persist automatically between sessions.
+You can also specify that a cache be used for a specific session, in which case it will not persist between sessions.
 
 After a session, the cache will have new entries. 
 These can be written to a local SQLite3 database, a JSONL file, or a remote server.
+
 
 Instantiating a new cache
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -49,6 +53,7 @@ In-memory usage
     from edsl.data.Cache import Cache
     my_in_memory_cache = Cache()
 
+
 It can then be passed as an object to a `run` method:
 
 .. code-block:: python
@@ -57,8 +62,10 @@ It can then be passed as an object to a `run` method:
     q = QuestionFreeText.example()
     results = q.run(cache = my_in_memory_cache)
 
+
 If an in-memory cache is not stored explicitly, the data will be lost when the session is over--<i>unless</i> it is written to a file <b>or</b> remote caching in instantiated.
 More on this later. 
+
 
 Local persistence for an in-memory cache
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -70,6 +77,7 @@ Local persistence for an in-memory cache
    # or 
    c.write_jsonl("example.jsonl")
 
+
 You can then load the cache from the SQLite3 database or JSONL file using Cache methods.
 
 .. code-block:: python
@@ -77,6 +85,7 @@ You can then load the cache from the SQLite3 database or JSONL file using Cache 
    c = Cache.from_sqlite_db("example.db")
    # or
    c = Cache.from_jsonl("example.jsonl")
+
 
 SQLite3Dict for transactions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -90,8 +99,11 @@ This is the "normal" way that a cache is used for runs where no specic cache is 
    from edsl.data.SQLiteDict import SQLiteDict
    my_sqlite_cache = Cache(data = SQLiteDict("example.db"))
 
+
+
 This will leave a SQLite3 database on the user's machine at the file, in this case `example.db` in the current directory.
 It will persist between sessions and can be loaded using the `from_sqlite_db` method shown above.
+
 
 The default SQLite Cache: .edsl_cache/data.db
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -101,6 +113,42 @@ You can interact with this cache directly, e.g.,
 .. code-block:: bash 
 
     sqlite3 .edsl_cache/data.db
+
+
+
+Setting a session cache 
+^^^^^^^^^^^^^^^^^^^^^^^
+The `set_session_cache` function is used to set the cache for a session:
+
+.. code-block:: python
+
+   from edsl import set_session_cache
+   from edsl.data import Cache
+   set_session_cache(Cache())
+
+
+The cache can be set to a specific cache object, or it can be set to a dictionary or SQLite3Dict object.
+
+.. code-block:: python
+
+   from edsl import set_session_cache
+   from edsl.data import Cache, SQLiteDict
+   set_session_cache(Cache(data = SQLiteDict("example.db")))
+   # or
+   set_session_cache(Cache(data = {}))
+
+
+This will set the cache for the current session, and you do not need to pass the cache object to the `run` method during the session.
+
+The `unset_session_cache` function is used to unset the cache for a session:
+
+.. code-block:: python
+
+   from edsl import unset_session_cache
+   unset_session_cache()
+
+
+This will unset the cache for the current session, and you will need to pass the cache object to the `run` method during the session.
 
 
 For developers
