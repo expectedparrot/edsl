@@ -273,11 +273,13 @@ unset_session_cache()
 ```
 This will unset the cache for the current session, and you will need to pass the cache object to the run method during the session.
 
+Details: https://docs.expectedparrot.com/en/latest/data.html#setting-a-session-cache
+
 
 ### Changed
 
 - <b>Answer comments are now a separate component of results</b>
-The "comment" field that it automatically added to each question (other than free text) is now stored in `Results` as `comment.<question_name>`. Prior to this change, the comment for each question was stored as `answer.<question_name>_comment`, i.e., if you ran `results.columns` the list of columns would include `answer.<question_name>` and `answer.<question_name>_comment` for each question. With this change, the columns will now be `answer.<question_name>` and `comment.<question_name>_comment`. This change is meant to make it easier to select only the answers, e.g., running `results.select('answer.*').print()` will no longer also include all the comments, which you may not want to display.
+The "comment" field that is automatically added to each question (other than free text) is now stored in `Results` as `comment.<question_name>`. Prior to this change, the comment for each question was stored as `answer.<question_name>_comment`, i.e., if you ran `results.columns` the list of columns would include `answer.<question_name>` and `answer.<question_name>_comment` for each question. With this change, the columns will now be `answer.<question_name>` and `comment.<question_name>_comment`. This change is meant to make it easier to select only the answers, e.g., running `results.select('answer.*').print()` will no longer also include all the comments, which you may not want to display.
 (The purpose of the comments field is to allow the model to add any information about its response to a question, which can help avoid problems with JSON formatting when the model does not want to return <i>just</i> the properly formatted response.)
 
 - <b>Exceptions</b>
