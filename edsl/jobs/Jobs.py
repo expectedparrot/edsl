@@ -27,6 +27,7 @@ from edsl.surveys import Survey
 
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
+
 class Jobs(Base):
     """
     A collection of agents, scenarios and models and one survey.
