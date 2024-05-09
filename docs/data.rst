@@ -8,7 +8,7 @@ The `Cache` class is used to store responses from a language model so that they 
 
    <i>What is a cache?</i> (<a href="https://en.wikipedia.org/wiki/Cache_(computing)" target="_blank">Wikipedia</a>)
 
-
+   <br><br>
 
 
 Why caching?
@@ -63,8 +63,8 @@ It can then be passed as an object to a `run` method:
     results = q.run(cache = my_in_memory_cache)
 
 
-If an in-memory cache is not stored explicitly, the data will be lost when the session is over--<i>unless</i> it is written to a file <b>or</b> remote caching in instantiated.
-More on this later. 
+If an in-memory cache is not stored explicitly, the data will be lost when the session is over--unless it is written to a file or remote caching is instantiated.
+More on this below. 
 
 
 Local persistence for an in-memory cache
