@@ -283,7 +283,7 @@ The "comment" field that is automatically added to each question (other than fre
 (The purpose of the comments field is to allow the model to add any information about its response to a question, which can help avoid problems with JSON formatting when the model does not want to return <i>just</i> the properly formatted response.)
 
 - <b>Exceptions</b>
-We modified exception messages. If you survey run generates exceptions, run `results.show_exceptions()` to print them in a table.
+We modified exception messages. If your survey run generates exceptions, run `results.show_exceptions()` to print them in a table.
 
 
 ### Fixed
