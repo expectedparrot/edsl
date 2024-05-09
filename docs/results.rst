@@ -17,8 +17,8 @@ To inspect the form of an example `Results` we can call the `example()` method (
    example_results = Results.example()
 
 
-*Note: You must have API keys for language models in order to generate results. 
-Please see the :ref:`api_keys` section for instructions on storing your API keys.*
+Note: You must have API keys for language models in order to generate results. 
+Please see the :ref:`api_keys` section for instructions on storing your API keys.
 
 For purposes of demonstrating how to unpack and interact with results, we'll use the following code to generate results for a simple survey.
 Note that specifying agent traits, scenarios (question parameter values) and language models is optional, and we include those steps here for illustrative purposes:
@@ -276,6 +276,7 @@ We can use the `rich_print` method to display the `Result` object in a more read
 
 
 .. code-block:: text
+
                                                          Result                                                       
    ┏━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
    ┃ Attribute              ┃ Value                                                                                  ┃
@@ -485,6 +486,7 @@ We can use the `rich_print` method to display the `Result` object in a more read
    │                        │ │           │ 'question_type': 'yes_no', 'question_options': ['Yes', 'No']}          │ │
    │                        │ └───────────┴────────────────────────────────────────────────────────────────────────┘ │
    └────────────────────────┴────────────────────────────────────────────────────────────────────────────────────────┘
+
 
 Results columns
 ^^^^^^^^^^^^^^^
