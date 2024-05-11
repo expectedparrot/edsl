@@ -61,6 +61,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         self.cache = cache
         # will get filled in as interview progresses
         self.answers: dict[str, str] = Answers()
+        self.sidecar_model = sidecar_model
 
         # Trackers
         self.task_creators = TaskCreators()  # tracks the task creators

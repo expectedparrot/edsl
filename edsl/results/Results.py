@@ -736,57 +736,57 @@ class Results(UserList, Mixins, Base):
     #     )
     #     return Results(survey=self.survey, data=new_data, created_columns=None)
 
-    # def filter(self, expression: str) -> Results:
-    #     """
-    #     Filter based on the given expression and returns the filtered `Results`.
+    def filter(self, expression: str) -> Results:
+        """
+        Filter based on the given expression and returns the filtered `Results`.
 
-    #     :param expression: A string expression that evaluates to a boolean. The expression is applied to each element in `Results` to determine whether it should be included in the filtered results.
+        :param expression: A string expression that evaluates to a boolean. The expression is applied to each element in `Results` to determine whether it should be included in the filtered results.
 
-    #     The `expression` parameter is a string that must resolve to a boolean value when evaluated against each element in `Results`.
-    #     This expression is used to determine which elements to include in the returned `Results`.
+        The `expression` parameter is a string that must resolve to a boolean value when evaluated against each element in `Results`.
+        This expression is used to determine which elements to include in the returned `Results`.
 
-    #     Example usage: Create an example `Results` instance and apply filters to it:
+        Example usage: Create an example `Results` instance and apply filters to it:
 
-    #     >>> r = Results.example()
-    #     >>> r.filter("how_feeling == 'Great'").select('how_feeling').print()
-    #     ┏━━━━━━━━━━━━━━┓
-    #     ┃ answer       ┃
-    #     ┃ .how_feeling ┃
-    #     ┡━━━━━━━━━━━━━━┩
-    #     │ Great        │
-    #     └──────────────┘
+        >>> r = Results.example()
+        >>> r.filter("how_feeling == 'Great'").select('how_feeling').print()
+        ┏━━━━━━━━━━━━━━┓
+        ┃ answer       ┃
+        ┃ .how_feeling ┃
+        ┡━━━━━━━━━━━━━━┩
+        │ Great        │
+        └──────────────┘
 
-    #     Example usage: Using an OR operator in the filter expression.
+        Example usage: Using an OR operator in the filter expression.
 
-    #     >>> r.filter("how_feeling == 'Great' or how_feeling == 'Terrible'").select('how_feeling').print()
-    #     ┏━━━━━━━━━━━━━━┓
-    #     ┃ answer       ┃
-    #     ┃ .how_feeling ┃
-    #     ┡━━━━━━━━━━━━━━┩
-    #     │ Great        │
-    #     ├──────────────┤
-    #     │ Terrible     │
-    #     └──────────────┘
-    #     """
+        >>> r.filter("how_feeling == 'Great' or how_feeling == 'Terrible'").select('how_feeling').print()
+        ┏━━━━━━━━━━━━━━┓
+        ┃ answer       ┃
+        ┃ .how_feeling ┃
+        ┡━━━━━━━━━━━━━━┩
+        │ Great        │
+        ├──────────────┤
+        │ Terrible     │
+        └──────────────┘
+        """
 
-    #     def create_evaluator(result):
-    #         """Create an evaluator for the given result.
-    #         The 'combined_dict' is a mapping of all values for that Result object.
-    #         """
-    #         return EvalWithCompoundTypes(names=result.combined_dict)
+        def create_evaluator(result):
+            """Create an evaluator for the given result.
+            The 'combined_dict' is a mapping of all values for that Result object.
+            """
+            return EvalWithCompoundTypes(names=result.combined_dict)
 
-    #     try:
-    #         # iterates through all the results and evaluates the expression
-    #         new_data = [
-    #             result
-    #             for result in self.data
-    #             if create_evaluator(result).eval(expression)
-    #         ]
-    #     except Exception as e:
-    #         print(f"Exception:{e}")
-    #         raise ResultsFilterError(f"Error in filter. Exception:{e}")
+        try:
+            # iterates through all the results and evaluates the expression
+            new_data = [
+                result
+                for result in self.data
+                if create_evaluator(result).eval(expression)
+            ]
+        except Exception as e:
+            print(f"Exception:{e}")
+            raise ResultsFilterError(f"Error in filter. Exception:{e}")
 
-    #     return Results(survey=self.survey, data=new_data, created_columns=None)
+        return Results(survey=self.survey, data=new_data, created_columns=None)
 
     @classmethod
     def example(cls, debug: bool = False) -> Results:
