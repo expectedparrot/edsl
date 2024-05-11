@@ -158,6 +158,14 @@ class TestResults(unittest.TestCase):
             output = buf.getvalue()
         self.assertIn("Never", output)
 
+    def test_add(self):
+        # just check that no exceptions are thrown
+        r1 = self.example_results 
+        r2 = self.example_results
+        r3 = r1 + r2
+        assert len(r3) == len(r1) + len(r2)
+
+
     # def test_stefan(self):
     #     from edsl.questions import QuestionBase
     #     from edsl.results import Results
