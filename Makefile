@@ -132,7 +132,7 @@ test-coop: ## Run coop tests (no regular tests, requires coop server running)
 
 test-coverage: ## Run regular tests and get a coverage report
 	make clean-test
-	poetry run coverage run -m pytest tests --ignore=tests/stress && poetry run coverage html
+	poetry run coverage run -m pytest tests --ignore=tests/stress --ignore=tests/coop && poetry run coverage html
 	@UNAME=`uname`; if [ "$$UNAME" = "Darwin" ]; then \
 		open htmlcov/index.html; \
 	else \
