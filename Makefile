@@ -151,6 +151,9 @@ test-doctests: ## Run doctests
 	pytest --doctest-modules edsl/language_models
 	pytest --doctest-modules edsl/data
 
+update-serialization-dataset:
+	python tests/serialization/create_data.py
+
 integration: ## Run integration tests via pytest **consumes API credits**
 	## pytest -v -s integration/
 	make integration-memory
