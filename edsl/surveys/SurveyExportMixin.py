@@ -1,15 +1,16 @@
 """A mixin class for exporting surveys to different formats."""
 from docx import Document
+from typing import Union
 import black
 
 
 class SurveyExportMixin:
     """A mixin class for exporting surveys to different formats."""
 
-    def docx(self) -> "Document":
+    def docx(self, filename = None) -> Union["Document", None]:
         """Generate a docx document for the survey."""
         doc = Document()
-        doc.add_heading("EDSL Auto-Generated Survey")
+        doc.add_heading("EDSL Survey")
         doc.add_paragraph(f"\n")
         for index, question in enumerate(self._questions):
             h = doc.add_paragraph()  # Add question as a paragraph
@@ -24,6 +25,10 @@ class SurveyExportMixin:
                 if hasattr(question, "question_options"):
                     for option in getattr(question, "question_options", []):
                         doc.add_paragraph(str(option), style="ListBullet")
+        if filename:
+            doc.save(filename)
+            print("The survey has been saved to", filename)
+            return
         return doc
 
     def code(self, filename: str = None, survey_var_name: str = "survey") -> list[str]:
@@ -53,7 +58,7 @@ class SurveyExportMixin:
 
         return formatted_code
 
-    def html(self) -> str:
+    def html(self, filename = None) -> str:
         """Generate the html for the survey."""
         html_text = []
         for question in self._questions:
@@ -64,4 +69,10 @@ class SurveyExportMixin:
             for option in getattr(question, "question_options", []):
                 html_text.append(f"<li>{option}</li>")
             html_text.append("</ul>")
-        return "\n".join(html_text)
+        lines = "\n".join(html_text)
+        if filename:
+            print("The survey has been saved to", filename)
+            with open(filename, "w") as file:
+                file.write(lines)
+            return
+        return lines

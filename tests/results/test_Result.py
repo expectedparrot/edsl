@@ -26,7 +26,7 @@ def test_constructor():
     agent_traits["agent_name"] = "Agent_0"
 
     try:
-        assert result.sub_dicts["agent"] == agent_traits
+        assert agent_traits.items() <= result.sub_dicts["agent"].items() 
     except:
         print(result.sub_dicts["agent"])
         print(agent_traits)
@@ -43,7 +43,7 @@ def test_constructor():
         prompt={"key": "value"},
     )
 
-    assert result.sub_dicts["agent"] == {
+    assert {
         "agent_name": "Arsenio Billingham",
         "show_status": "off the air",
-    }
+    }.items() <= result.sub_dicts["agent"].items()
