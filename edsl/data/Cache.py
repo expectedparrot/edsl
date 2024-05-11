@@ -12,6 +12,11 @@ from edsl.data.CacheEntry import CacheEntry
 from edsl.data.SQLiteDict import SQLiteDict
 from edsl.Base import Base
 
+from edsl.utilities.decorators import (
+    add_edsl_version,
+    remove_edsl_version,
+)
+
 
 class Cache(Base):
     """
@@ -308,6 +313,7 @@ class Cache(Base):
     ####################
     # DUNDER / USEFUL
     ####################
+    @add_edsl_version
     def to_dict(self) -> dict:
         """Return the Cache as a dictionary."""
         return {k: v.to_dict() for k, v in self.data.items()}
@@ -318,6 +324,7 @@ class Cache(Base):
         return data_to_html(self.to_dict())
 
     @classmethod
+    @remove_edsl_version
     def from_dict(cls, data) -> Cache:
         """Construct a Cache from a dictionary."""
         newdata = {k: CacheEntry.from_dict(v) for k, v in data.items()}

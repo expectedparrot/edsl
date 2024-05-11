@@ -18,6 +18,10 @@ import json
 
 from edsl.Base import Base
 from edsl.agents import Agent
+from edsl.utilities.decorators import (
+    add_edsl_version,
+    remove_edsl_version,
+)
 
 
 class AgentList(UserList, Base):
@@ -33,6 +37,7 @@ class AgentList(UserList, Base):
         else:
             super().__init__()
 
+    @add_edsl_version
     def to_dict(self):
         """Return dictionary of AgentList to serialization."""
         return {"agent_list": [agent.to_dict() for agent in self.data]}
@@ -51,6 +56,7 @@ class AgentList(UserList, Base):
         return data_to_html(self.to_dict()["agent_list"])
 
     @classmethod
+    @remove_edsl_version
     def from_dict(cls, data: dict) -> "AgentList":
         """Deserialize the dictionary back to an AgentList object.
 
