@@ -64,18 +64,18 @@ class ResultsExportMixin:
 
         return self
 
-    @_convert_decorator
-    def shuffle(self):
-        indices = None
+    # @_convert_decorator
+    # def shuffle(self):
+    #     indices = None
 
-        for entry in self:
-            key, values = list(entry.items())[0]
-            if indices is None:
-                indices = list(range(len(values)))
-                random.shuffle(indices)
-            entry[key] = [values[i] for i in indices]
+    #     for entry in self:
+    #         key, values = list(entry.items())[0]
+    #         if indices is None:
+    #             indices = list(range(len(values)))
+    #             random.shuffle(indices)
+    #         entry[key] = [values[i] for i in indices]
 
-        return self
+    #     return self
 
     @_convert_decorator
     def _make_tabular(self, remove_prefix) -> tuple[list, list]:
