@@ -610,18 +610,18 @@ class Results(UserList, Mixins, Base):
 
         return Dataset(new_data)
 
-    def sort_by(self, column, reverse: bool = False) -> Results:
-        """Sort the results by a column.
+    def sort_by(self, columns, reverse: bool = False) -> Results:
+        """Sort the results by one or more columns.
 
-        :param column: A string that is a column name.
+        :param columns: A string or a list of strings that are column names.
         :param reverse: A boolean that determines whether to sort in reverse order.
 
-        The column name can be a single key, e.g. "how_feeling", or a dot-separated string, e.g. "answer.how_feeling".
+        Each column name can be a single key, e.g. "how_feeling", or a dot-separated string, e.g. "answer.how_feeling".
 
         Example:
 
         >>> r = Results.example()
-        >>> r.sort_by('how_feeling', reverse = False).select('how_feeling').print()
+        >>> r.sort_by(['how_feeling'], reverse=False).select('how_feeling').print()
         ┏━━━━━━━━━━━━━━┓
         ┃ answer       ┃
         ┃ .how_feeling ┃
@@ -634,7 +634,7 @@ class Results(UserList, Mixins, Base):
         ├──────────────┤
         │ Terrible     │
         └──────────────┘
-        >>> r.sort_by('how_feeling', reverse = True).select('how_feeling').print()
+        >>> r.sort_by(['how_feeling'], reverse=True).select('how_feeling').print()
         ┏━━━━━━━━━━━━━━┓
         ┃ answer       ┃
         ┃ .how_feeling ┃
@@ -648,7 +648,8 @@ class Results(UserList, Mixins, Base):
         │ Great        │
         └──────────────┘
         """
-        data_type, key = self._parse_column(column)
+        if isinstance(columns, str):
+            columns = [columns]
 
         def to_numeric_if_possible(v):
             try:
@@ -656,64 +657,136 @@ class Results(UserList, Mixins, Base):
             except:
                 return v
 
+        def sort_key(item):
+            # Create an empty list to store the key components for sorting
+            key_components = []
+
+            # Loop through each column specified in the sort
+            for col in columns:
+                # Parse the column into its data type and key
+                data_type, key = self._parse_column(col)
+                
+                # Retrieve the value from the item based on the parsed data type and key
+                value = item.get_value(data_type, key)
+                
+                # Convert the value to numeric if possible, and append it to the key components
+                key_components.append(to_numeric_if_possible(value))
+            
+            # Convert the list of key components into a tuple to serve as the sorting key
+            return tuple(key_components)
+
         new_data = sorted(
             self.data,
-            key=lambda x: to_numeric_if_possible(x.get_value(data_type, key)),
+            key=sort_key,
             reverse=reverse,
         )
         return Results(survey=self.survey, data=new_data, created_columns=None)
 
-    def filter(self, expression: str) -> Results:
-        """
-        Filter based on the given expression and returns the filtered `Results`.
 
-        :param expression: A string expression that evaluates to a boolean. The expression is applied to each element in `Results` to determine whether it should be included in the filtered results.
+    # def sort_by(self, column, reverse: bool = False) -> Results:
+    #     """Sort the results by a column.
 
-        The `expression` parameter is a string that must resolve to a boolean value when evaluated against each element in `Results`.
-        This expression is used to determine which elements to include in the returned `Results`.
+    #     :param column: A string that is a column name.
+    #     :param reverse: A boolean that determines whether to sort in reverse order.
 
-        Example usage: Create an example `Results` instance and apply filters to it:
+    #     The column name can be a single key, e.g. "how_feeling", or a dot-separated string, e.g. "answer.how_feeling".
 
-        >>> r = Results.example()
-        >>> r.filter("how_feeling == 'Great'").select('how_feeling').print()
-        ┏━━━━━━━━━━━━━━┓
-        ┃ answer       ┃
-        ┃ .how_feeling ┃
-        ┡━━━━━━━━━━━━━━┩
-        │ Great        │
-        └──────────────┘
+    #     Example:
 
-        Example usage: Using an OR operator in the filter expression.
+    #     >>> r = Results.example()
+    #     >>> r.sort_by('how_feeling', reverse = False).select('how_feeling').print()
+    #     ┏━━━━━━━━━━━━━━┓
+    #     ┃ answer       ┃
+    #     ┃ .how_feeling ┃
+    #     ┡━━━━━━━━━━━━━━┩
+    #     │ Great        │
+    #     ├──────────────┤
+    #     │ OK           │
+    #     ├──────────────┤
+    #     │ OK           │
+    #     ├──────────────┤
+    #     │ Terrible     │
+    #     └──────────────┘
+    #     >>> r.sort_by('how_feeling', reverse = True).select('how_feeling').print()
+    #     ┏━━━━━━━━━━━━━━┓
+    #     ┃ answer       ┃
+    #     ┃ .how_feeling ┃
+    #     ┡━━━━━━━━━━━━━━┩
+    #     │ Terrible     │
+    #     ├──────────────┤
+    #     │ OK           │
+    #     ├──────────────┤
+    #     │ OK           │
+    #     ├──────────────┤
+    #     │ Great        │
+    #     └──────────────┘
+    #     """
+    #     data_type, key = self._parse_column(column)
 
-        >>> r.filter("how_feeling == 'Great' or how_feeling == 'Terrible'").select('how_feeling').print()
-        ┏━━━━━━━━━━━━━━┓
-        ┃ answer       ┃
-        ┃ .how_feeling ┃
-        ┡━━━━━━━━━━━━━━┩
-        │ Great        │
-        ├──────────────┤
-        │ Terrible     │
-        └──────────────┘
-        """
+    #     def to_numeric_if_possible(v):
+    #         try:
+    #             return float(v)
+    #         except:
+    #             return v
 
-        def create_evaluator(result):
-            """Create an evaluator for the given result.
-            The 'combined_dict' is a mapping of all values for that Result object.
-            """
-            return EvalWithCompoundTypes(names=result.combined_dict)
+    #     new_data = sorted(
+    #         self.data,
+    #         key=lambda x: to_numeric_if_possible(x.get_value(data_type, key)),
+    #         reverse=reverse,
+    #     )
+    #     return Results(survey=self.survey, data=new_data, created_columns=None)
 
-        try:
-            # iterates through all the results and evaluates the expression
-            new_data = [
-                result
-                for result in self.data
-                if create_evaluator(result).eval(expression)
-            ]
-        except Exception as e:
-            print(f"Exception:{e}")
-            raise ResultsFilterError(f"Error in filter. Exception:{e}")
+    # def filter(self, expression: str) -> Results:
+    #     """
+    #     Filter based on the given expression and returns the filtered `Results`.
 
-        return Results(survey=self.survey, data=new_data, created_columns=None)
+    #     :param expression: A string expression that evaluates to a boolean. The expression is applied to each element in `Results` to determine whether it should be included in the filtered results.
+
+    #     The `expression` parameter is a string that must resolve to a boolean value when evaluated against each element in `Results`.
+    #     This expression is used to determine which elements to include in the returned `Results`.
+
+    #     Example usage: Create an example `Results` instance and apply filters to it:
+
+    #     >>> r = Results.example()
+    #     >>> r.filter("how_feeling == 'Great'").select('how_feeling').print()
+    #     ┏━━━━━━━━━━━━━━┓
+    #     ┃ answer       ┃
+    #     ┃ .how_feeling ┃
+    #     ┡━━━━━━━━━━━━━━┩
+    #     │ Great        │
+    #     └──────────────┘
+
+    #     Example usage: Using an OR operator in the filter expression.
+
+    #     >>> r.filter("how_feeling == 'Great' or how_feeling == 'Terrible'").select('how_feeling').print()
+    #     ┏━━━━━━━━━━━━━━┓
+    #     ┃ answer       ┃
+    #     ┃ .how_feeling ┃
+    #     ┡━━━━━━━━━━━━━━┩
+    #     │ Great        │
+    #     ├──────────────┤
+    #     │ Terrible     │
+    #     └──────────────┘
+    #     """
+
+    #     def create_evaluator(result):
+    #         """Create an evaluator for the given result.
+    #         The 'combined_dict' is a mapping of all values for that Result object.
+    #         """
+    #         return EvalWithCompoundTypes(names=result.combined_dict)
+
+    #     try:
+    #         # iterates through all the results and evaluates the expression
+    #         new_data = [
+    #             result
+    #             for result in self.data
+    #             if create_evaluator(result).eval(expression)
+    #         ]
+    #     except Exception as e:
+    #         print(f"Exception:{e}")
+    #         raise ResultsFilterError(f"Error in filter. Exception:{e}")
+
+    #     return Results(survey=self.survey, data=new_data, created_columns=None)
 
     @classmethod
     def example(cls, debug: bool = False) -> Results:
