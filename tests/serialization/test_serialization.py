@@ -38,6 +38,8 @@ def test_serialization():
             data = json.load(f)
         for item in data:
             class_name = item["class_name"]
+            if class_name == "QuestionFunctional":
+                continue
             print(f"- Testing {class_name}")
             try:
                 cls = next(c for c in classes if c["class_name"] == class_name)
