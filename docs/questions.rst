@@ -694,7 +694,9 @@ Example usage:
 
 .. code-block:: python
 
-    from edsl.questions import QuestionFunctional
+   from edsl.questions import QuestionFunctional
+
+
 
 
 .. automodule:: edsl.questions.QuestionFunctional
