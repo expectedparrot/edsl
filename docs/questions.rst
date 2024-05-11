@@ -704,7 +704,7 @@ Other classes & methods
    :undoc-members:
    :show-inheritance:
 
-.. automodule:: edsl.questions.compose_questions
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. .. automodule:: edsl.questions.compose_questions
+..    :members:
+..    :undoc-members:
+..    :show-inheritance:
