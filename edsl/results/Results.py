@@ -4,6 +4,7 @@ It is not typically instantiated directly, but is returned by the run method of 
 """
 from __future__ import annotations
 import json
+import random
 from collections import UserList, defaultdict
 from typing import Optional
 
@@ -492,6 +493,53 @@ class Results(UserList, Mixins, Base):
             data=new_data,
             created_columns=self.created_columns + [var_name],
         )
+    
+    def shuffle(self, seed = None) -> Results:
+        """Shuffle the results.
+
+        Example:
+
+        >>> r = Results.example()
+        >>> r.shuffle()
+        """
+        if seed is not None:
+            seed = random.seed(seed)
+
+        new_data = self.data.copy()
+        random.shuffle(new_data)
+        return Results(survey=self.survey, data=new_data, created_columns=None)
+    
+    def sample(self, n:int = None, frac:float = None, with_replacement:bool = True, seed = None) -> Results:
+        """Sample the results.
+
+        :param n: An integer representing the number of samples to take.
+        :param frac: A float representing the fraction of samples to take.
+        :param with_replacement: A boolean representing whether to sample with replacement.
+        :param seed: An integer representing the seed for the random number generator.
+
+        Example:
+
+        >>> r = Results.example()
+        >>> r.sample(2)
+        """
+        if seed is not None:
+            random.seed(seed)
+
+        if n is None and frac is None:
+            raise Exception("You must specify either n or frac.")
+        
+        if n is not None and frac is not None:
+            raise Exception("You cannot specify both n and frac.")
+        
+        if frac is not None and n is None:
+            n = int(frac * len(self.data))
+        
+        if with_replacement:
+            new_data = random.choices(self.data, k = n)
+        else:
+            new_data = random.sample(self.data, n)
+            
+        return Results(survey=self.survey, data=new_data, created_columns=None)
 
     def select(self, *columns: Union[str, list[str]]) -> Dataset:
         """
