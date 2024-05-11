@@ -289,3 +289,27 @@ We modified exception messages. If your survey run generates exceptions, run `re
 ### Fixed
 
 - A package that was missing for working with Anthropic models.
+
+
+
+## [0.1.21] - 2024-05-TBD
+
+### Added 
+
+- Prompt visibility features.
+
+- Methods for piping responses to questions into other questions.
+
+- Methods for adding, sampling and shuffling `Results` objects.
+
+### Changed
+
+- Agent `name` and `instructions` are now accessible columns in results.
+
+### Fixed
+
+### Deprecated
+
+- Questions method `compose_questions()` has been deprecated. Please use new piping methods instead.
+
+### Removed
