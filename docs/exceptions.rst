@@ -40,7 +40,7 @@ This is the initial exception message that will be displayed:
     >>> from edsl import shared_globals
     >>> shared_globals['edsl_runner_exceptions'].show_exceptions()
 
-    For more details see documentation. 
+    For more details see documentation: https://docs.expectedparrot.com/en/latest/exceptions.html
 
 
 We can then call `results.show_exceptions()` to see the details of the exceptions that were raised:
