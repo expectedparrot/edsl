@@ -686,6 +686,16 @@ An example can also be created using the `example` method:
    :exclude-members: question_type, answer_template, main
 
 
+
+.. automodule:: edsl.questions.QuestionFunctional
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :special-members: __init__
+   :exclude-members: question_type, answer_template, main
+
+
+
 Other classes & methods
 -----------------------
 
