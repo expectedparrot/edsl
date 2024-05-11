@@ -156,7 +156,7 @@ class Result(Base, UserDict):
                 ] = self.question_to_attributes[key]["question_type"]
 
         return {
-            "agent": self.agent.traits | {"agent_name": agent_name},
+            "agent": self.agent.traits | {"agent_name": agent_name} | {"agent_instruction": self.agent.instruction},
             "scenario": self.scenario,
             "model": self.model.parameters | {"model": self.model.model},
             "answer": self.answer,
