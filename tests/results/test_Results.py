@@ -120,6 +120,19 @@ class TestResults(unittest.TestCase):
             [result.answer.get("how_feeling") for result in self.example_results.data],
         )
 
+    def test_shuffle(self):
+        # Just check that no exceptions are thrown
+        shuffled = self.example_results.shuffle()
+        shuffled2 = self.example_results.select('answer.*').shuffle()
+
+    def test_sample(self):
+        shuffled = self.example_results.sample(n = 1)
+        assert len(shuffled) == 1
+        shuffled2 = self.example_results.select('answer.*').sample(n = 1)
+        assert len(shuffled2) == 1
+        #with self.assertRaises(Exception):
+        #    shuffled3 = self.example_results.sample(frac = 1.1, with_replacement = False)
+
     # def test_fetch_answer_data(self):
     #     self.assertEqual(
     #         self.example_results._fetch_answer_data(
@@ -157,6 +170,14 @@ class TestResults(unittest.TestCase):
             results.select("answer.*").print_long()
             output = buf.getvalue()
         self.assertIn("Never", output)
+
+    def test_add(self):
+        # just check that no exceptions are thrown
+        r1 = self.example_results 
+        r2 = self.example_results
+        r3 = r1 + r2
+        assert len(r3) == len(r1) + len(r2)
+
 
     # def test_stefan(self):
     #     from edsl.questions import QuestionBase
