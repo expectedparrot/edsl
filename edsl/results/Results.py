@@ -138,6 +138,30 @@ class Results(UserList, Mixins, Base):
     #     import json
     #     print_json(json.dumps(self.to_dict()["data"]))
 
+    def __add__(self, other: Results) -> Results:
+        """Add two Results objects together.
+        They must have the same survey and created columns.
+        :param other: A Results object.
+
+        Example:
+
+        >>> r = Results.example()
+        >>> r2 = Results.example()
+        >>> r3 = r + r2
+        """
+        if self.survey != other.survey:
+            raise Exception("The surveys are not the same so they cannot be added together.")
+        if self.created_columns != other.created_columns:
+            raise Exception(
+                "The created columns are not the same so they cannot be added together."
+            )
+
+        return Results(
+            survey=self.survey,
+            data=self.data + other.data,
+            created_columns=self.created_columns,
+        )
+
     def __repr__(self) -> str:
         return f"Results(data = {self.data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
         # return f"Results(data = {self.data})"
