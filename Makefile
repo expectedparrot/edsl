@@ -139,6 +139,9 @@ test-coverage: ## Run regular tests and get a coverage report
 		firefox htmlcov/index.html; \
 	fi
 
+test-data: ## Creates serialization test data for the current EDSL version
+	python scripts/create_serialization_test_data.py
+
 test-doctests: ## Run doctests
 	make clean-test
 	pytest --doctest-modules edsl/surveys
