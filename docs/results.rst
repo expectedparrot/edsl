@@ -961,6 +961,21 @@ The `to_json` method will write the results to a JSON file:
 
 
 
+Exceptions
+^^^^^^^^^^
+If any exceptions are raised when the survey is run, the `Results` object will store the exception information.
+This can be accessed by calling the `show_exceptions()` method:
+
+.. code-block:: python
+
+   results.show_exceptions()
+
+
+This will return a table of information about the exceptions that were raised during the survey run.
+See the :ref:`exceptions` section for more information on viewing exceptions.
+
+
+
 Result class
 ------------
 .. automodule:: edsl.results.Result
