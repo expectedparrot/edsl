@@ -4,6 +4,7 @@ It is not typically instantiated directly, but is returned by the run method of 
 """
 from __future__ import annotations
 import json
+import random
 from collections import UserList, defaultdict
 from typing import Optional
 
@@ -137,6 +138,30 @@ class Results(UserList, Mixins, Base):
     #     from rich import print_json
     #     import json
     #     print_json(json.dumps(self.to_dict()["data"]))
+
+    def __add__(self, other: Results) -> Results:
+        """Add two Results objects together.
+        They must have the same survey and created columns.
+        :param other: A Results object.
+
+        Example:
+
+        >>> r = Results.example()
+        >>> r2 = Results.example()
+        >>> r3 = r + r2
+        """
+        if self.survey != other.survey:
+            raise Exception("The surveys are not the same so they cannot be added together.")
+        if self.created_columns != other.created_columns:
+            raise Exception(
+                "The created columns are not the same so they cannot be added together."
+            )
+
+        return Results(
+            survey=self.survey,
+            data=self.data + other.data,
+            created_columns=self.created_columns,
+        )
 
     def __repr__(self) -> str:
         return f"Results(data = {self.data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
@@ -468,6 +493,53 @@ class Results(UserList, Mixins, Base):
             data=new_data,
             created_columns=self.created_columns + [var_name],
         )
+    
+    def shuffle(self, seed = None) -> Results:
+        """Shuffle the results.
+
+        Example:
+
+        >>> r = Results.example()
+        >>> r.shuffle()
+        """
+        if seed is not None:
+            seed = random.seed(seed)
+
+        new_data = self.data.copy()
+        random.shuffle(new_data)
+        return Results(survey=self.survey, data=new_data, created_columns=None)
+    
+    def sample(self, n:int = None, frac:float = None, with_replacement:bool = True, seed = None) -> Results:
+        """Sample the results.
+
+        :param n: An integer representing the number of samples to take.
+        :param frac: A float representing the fraction of samples to take.
+        :param with_replacement: A boolean representing whether to sample with replacement.
+        :param seed: An integer representing the seed for the random number generator.
+
+        Example:
+
+        >>> r = Results.example()
+        >>> r.sample(2)
+        """
+        if seed is not None:
+            random.seed(seed)
+
+        if n is None and frac is None:
+            raise Exception("You must specify either n or frac.")
+        
+        if n is not None and frac is not None:
+            raise Exception("You cannot specify both n and frac.")
+        
+        if frac is not None and n is None:
+            n = int(frac * len(self.data))
+        
+        if with_replacement:
+            new_data = random.choices(self.data, k = n)
+        else:
+            new_data = random.sample(self.data, n)
+            
+        return Results(survey=self.survey, data=new_data, created_columns=None)
 
     def select(self, *columns: Union[str, list[str]]) -> Dataset:
         """
@@ -538,18 +610,18 @@ class Results(UserList, Mixins, Base):
 
         return Dataset(new_data)
 
-    def sort_by(self, column, reverse: bool = False) -> Results:
-        """Sort the results by a column.
+    def sort_by(self, columns, reverse: bool = False) -> Results:
+        """Sort the results by one or more columns.
 
-        :param column: A string that is a column name.
+        :param columns: A string or a list of strings that are column names.
         :param reverse: A boolean that determines whether to sort in reverse order.
 
-        The column name can be a single key, e.g. "how_feeling", or a dot-separated string, e.g. "answer.how_feeling".
+        Each column name can be a single key, e.g. "how_feeling", or a dot-separated string, e.g. "answer.how_feeling".
 
         Example:
 
         >>> r = Results.example()
-        >>> r.sort_by('how_feeling', reverse = False).select('how_feeling').print()
+        >>> r.sort_by(['how_feeling'], reverse=False).select('how_feeling').print()
         ┏━━━━━━━━━━━━━━┓
         ┃ answer       ┃
         ┃ .how_feeling ┃
@@ -562,7 +634,7 @@ class Results(UserList, Mixins, Base):
         ├──────────────┤
         │ Terrible     │
         └──────────────┘
-        >>> r.sort_by('how_feeling', reverse = True).select('how_feeling').print()
+        >>> r.sort_by(['how_feeling'], reverse=True).select('how_feeling').print()
         ┏━━━━━━━━━━━━━━┓
         ┃ answer       ┃
         ┃ .how_feeling ┃
@@ -576,7 +648,8 @@ class Results(UserList, Mixins, Base):
         │ Great        │
         └──────────────┘
         """
-        data_type, key = self._parse_column(column)
+        if isinstance(columns, str):
+            columns = [columns]
 
         def to_numeric_if_possible(v):
             try:
@@ -584,12 +657,84 @@ class Results(UserList, Mixins, Base):
             except:
                 return v
 
+        def sort_key(item):
+            # Create an empty list to store the key components for sorting
+            key_components = []
+
+            # Loop through each column specified in the sort
+            for col in columns:
+                # Parse the column into its data type and key
+                data_type, key = self._parse_column(col)
+                
+                # Retrieve the value from the item based on the parsed data type and key
+                value = item.get_value(data_type, key)
+                
+                # Convert the value to numeric if possible, and append it to the key components
+                key_components.append(to_numeric_if_possible(value))
+            
+            # Convert the list of key components into a tuple to serve as the sorting key
+            return tuple(key_components)
+
         new_data = sorted(
             self.data,
-            key=lambda x: to_numeric_if_possible(x.get_value(data_type, key)),
+            key=sort_key,
             reverse=reverse,
         )
         return Results(survey=self.survey, data=new_data, created_columns=None)
+
+
+    # def sort_by(self, column, reverse: bool = False) -> Results:
+    #     """Sort the results by a column.
+
+    #     :param column: A string that is a column name.
+    #     :param reverse: A boolean that determines whether to sort in reverse order.
+
+    #     The column name can be a single key, e.g. "how_feeling", or a dot-separated string, e.g. "answer.how_feeling".
+
+    #     Example:
+
+    #     >>> r = Results.example()
+    #     >>> r.sort_by('how_feeling', reverse = False).select('how_feeling').print()
+    #     ┏━━━━━━━━━━━━━━┓
+    #     ┃ answer       ┃
+    #     ┃ .how_feeling ┃
+    #     ┡━━━━━━━━━━━━━━┩
+    #     │ Great        │
+    #     ├──────────────┤
+    #     │ OK           │
+    #     ├──────────────┤
+    #     │ OK           │
+    #     ├──────────────┤
+    #     │ Terrible     │
+    #     └──────────────┘
+    #     >>> r.sort_by('how_feeling', reverse = True).select('how_feeling').print()
+    #     ┏━━━━━━━━━━━━━━┓
+    #     ┃ answer       ┃
+    #     ┃ .how_feeling ┃
+    #     ┡━━━━━━━━━━━━━━┩
+    #     │ Terrible     │
+    #     ├──────────────┤
+    #     │ OK           │
+    #     ├──────────────┤
+    #     │ OK           │
+    #     ├──────────────┤
+    #     │ Great        │
+    #     └──────────────┘
+    #     """
+    #     data_type, key = self._parse_column(column)
+
+    #     def to_numeric_if_possible(v):
+    #         try:
+    #             return float(v)
+    #         except:
+    #             return v
+
+    #     new_data = sorted(
+    #         self.data,
+    #         key=lambda x: to_numeric_if_possible(x.get_value(data_type, key)),
+    #         reverse=reverse,
+    #     )
+    #     return Results(survey=self.survey, data=new_data, created_columns=None)
 
     def filter(self, expression: str) -> Results:
         """
