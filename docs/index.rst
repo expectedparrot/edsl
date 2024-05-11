@@ -125,6 +125,7 @@ Information about additional functionality for developers.
    language_models
    results
    data
+   exceptions
 
 .. toctree::
    :maxdepth: 2
