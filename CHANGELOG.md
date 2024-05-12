@@ -300,13 +300,15 @@ We modified exception messages. If your survey run generates exceptions, run `re
 
 - Methods for piping responses to questions into other questions.
 
-- Optional parameter `survey.run(cache=False)` if you do not want to access any cached results in running a survey.
-
 - Methods for adding, sampling and shuffling `Results` objects.
 
 ### Changed
 
+- Optional parameter `survey.run(cache=False)` if you do not want to access any cached results in running a survey.
+
 - Agent `name` and `instructions` are now accessible columns in results.
+
+- [In progress] `QuestionMultipleChoice` will allow non-responsive answers. Previously, an error was thrown if the agent did not select one of the given options. Details TBD.
 
 ### Fixed
 
