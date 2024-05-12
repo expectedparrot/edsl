@@ -302,6 +302,8 @@ We modified exception messages. If your survey run generates exceptions, run `re
 
 - Methods for adding, sampling and shuffling `Results` objects.
 
+- Option to flatten lists of lists in `Results` - eg, responses to `QuestionList` 
+
 ### Changed
 
 - Optional parameter `survey.run(cache=False)` if you do not want to access any cached results in running a survey.
