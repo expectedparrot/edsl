@@ -5,6 +5,10 @@ from rich.table import Table
 from typing import Union, List
 from edsl.Base import Base
 
+from edsl.utilities.decorators import (
+    add_edsl_version,
+    remove_edsl_version,
+)
 
 class Scenario(Base, UserDict):
     """A Scenario is a dictionary of keys/values for parameterizing questions."""
@@ -64,6 +68,7 @@ class Scenario(Base, UserDict):
                 new_scenario[key] = value
         return new_scenario
 
+    @add_edsl_version
     def to_dict(self) -> dict:
         """Convert a scenario to a dictionary.
 
@@ -88,6 +93,7 @@ class Scenario(Base, UserDict):
         return data_to_html(self.to_dict())
 
     @classmethod
+    @remove_edsl_version
     def from_dict(cls, d: dict) -> "Scenario":
         """Convert a dictionary to a scenario.
 

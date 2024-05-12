@@ -553,7 +553,7 @@ If the survey was run multiple times (`run(n=<integer>)`) then the `iteration.it
 
 * **answer.feel**: Agent responses to the `feel` question.
 * **answer.important**: Agent responses to the `important` question.
-* **answer.important_comment**: Agent commentary on reponses to the `important` question.
+* **answer.important_comment**: Agent commentary on responses to the `important` question.
 A comment field is automatically included for every question in a survey other than free text questions, to allow the agent to optionally provide additional information about its response to the question.
 
 * **answer.read**: Agent responses to the `read` question.
