@@ -35,6 +35,35 @@ def test_new_entries(cache_empty):
     cache.store(**input)
     len(cache.new_entries_cache()) == 1
 
+def test_to_dict(cache_example):
+    cache = cache_example
+    assert cache.to_dict() == {
+        "5513286eb6967abc0511211f0402587d": CacheEntry.example().to_dict()
+    }
+
+def test_equal(cache_example):
+    cache = cache_example
+    assert cache == cache
+    assert cache != "poo"
+
+def test_jsonl(cache_example):
+    cache = cache_example
+    cache.write_jsonl("cache.jsonl")
+    cache_from_jsonl = Cache.from_jsonl("cache.jsonl")
+    assert cache == cache_from_jsonl
+
+def test_write_to_db(cache_example):
+    import tempfile
+    with tempfile.TemporaryDirectory() as tempdir:
+        cache_example.write_sqlite_db(db_path = os.path.join(tempdir, "cache.db"))
+        cache_example_from_db = Cache.from_sqlite_db(os.path.join(tempdir, "cache.db"))
+        assert cache_example == cache_example_from_db
+    #assert os.path.exists(CONFIG.get("EDSL_DATABASE_PATH").replace("sqlite:///", ""))
+
+def test_html(cache_example):
+    cache = cache_example
+    assert cache._repr_html_() == cache_example._repr_html_()
+
 def test_fetch_existing_entry(cache_example):
     cache = cache_example
     assert cache.fetch(**cache.fetch_input_example()) == "The fox says 'hello'"
