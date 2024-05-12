@@ -108,7 +108,7 @@ class Dataset(UserList, ResultsExportMixin):
 
         return self
     
-    def sample(self, n:int = None, frac:float = None, with_replacement:bool = True, seed = Union[str, int, float]) -> Dataset:
+    def sample(self, n:int = None, frac:float = None, with_replacement:bool = True, seed: Union[str, int, float] = None) -> Dataset:
         """Return a new dataset with a sample of the observations.
         
         :param n: The number of samples to take.
