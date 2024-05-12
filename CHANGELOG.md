@@ -289,3 +289,33 @@ We modified exception messages. If your survey run generates exceptions, run `re
 ### Fixed
 
 - A package that was missing for working with Anthropic models.
+
+
+
+## [0.1.21] - 2024-05-TBD ['In progress' indicates changes that are not live yet.]
+
+### Added 
+
+- [In progress] Prompt visibility features.
+
+- [In progress] Methods for piping responses to questions into other questions. Details TBD.
+
+- Methods for adding, sampling and shuffling `Results` objects.
+
+- Option to flatten lists of lists in `Results` - eg, responses to `QuestionList` 
+
+### Changed
+
+- Optional parameter `survey.run(cache=False)` if you do not want to access any cached results in running a survey.
+
+- Instructions passed to an agent at creation are now a column of results: `agent_instruction`
+
+- [In progress] `QuestionMultipleChoice` will allow non-responsive answers. Previously, an error was thrown if the agent did not select one of the given options. Details TBD.
+
+### Fixed
+
+### Deprecated
+
+- [In progress] Questions method `compose_questions()` has been deprecated. Please use new piping methods instead. Details TBD.
+
+### Removed
