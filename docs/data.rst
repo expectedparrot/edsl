@@ -150,6 +150,20 @@ The `unset_session_cache` function is used to unset the cache for a session:
 This will unset the cache for the current session, and you will need to pass the cache object to the `run` method during the session.
 
 
+
+Avoiding cache persistence 
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+We can avoid cache persistence by passing `cache=False` to the `run` method:
+
+.. code-block:: python
+
+   from edsl import QuestionFreeText
+   q = QuestionFreeText.example()
+   results = q.run(cache = False)
+
+
+
+
 For developers
 ^^^^^^^^^^^^^^
 
