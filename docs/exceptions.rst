@@ -3,10 +3,8 @@
 Exceptions
 ==========
 
-EDSL provides a number of exceptions that can be raised during the execution of a survey.
-
 Details on exceptions raised during the execution of a survey can be found in the `Results` object that is returned when a survey is run. 
-The `Results` object has a method called `show_exceptions()` that can be called to display the exceptions that were raised during the execution of the survey.
+The `Results` method `show_exceptions()` can be called to display these exceptions in a table.
 
 Here's an example of a poorly written question that is likely to raise an exception:
 
