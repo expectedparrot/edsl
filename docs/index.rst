@@ -144,6 +144,7 @@ Information about additional functionality for developers.
    :caption: Notebooks
    :hidden:
 
+   notebooks/random_numbers.ipynb
    notebooks/data_labeling_agent.ipynb
    notebooks/concept_induction.ipynb
    notebooks/testing_training_data.ipynb
