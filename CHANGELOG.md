@@ -300,6 +300,8 @@ We modified exception messages. If your survey run generates exceptions, run `re
 
 - Methods for piping responses to questions into other questions.
 
+- Optional parameter `survey.run(cache=False)` if you do not want to access any cached results in running a survey.
+
 - Methods for adding, sampling and shuffling `Results` objects.
 
 ### Changed
