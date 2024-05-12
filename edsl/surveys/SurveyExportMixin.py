@@ -7,7 +7,7 @@ import black
 class SurveyExportMixin:
     """A mixin class for exporting surveys to different formats."""
 
-    def docx(self, filename = None) -> Union["Document", None]:
+    def docx(self, filename=None) -> Union["Document", None]:
         """Generate a docx document for the survey."""
         doc = Document()
         doc.add_heading("EDSL Survey")
@@ -58,7 +58,7 @@ class SurveyExportMixin:
 
         return formatted_code
 
-    def html(self, filename = None) -> str:
+    def html(self, filename=None) -> str:
         """Generate the html for the survey."""
         html_text = []
         for question in self._questions:
