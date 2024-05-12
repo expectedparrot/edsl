@@ -292,13 +292,13 @@ We modified exception messages. If your survey run generates exceptions, run `re
 
 
 
-## [0.1.21] - 2024-05-TBD
+## [0.1.21] - 2024-05-TBD ['In progress' indicates changes that are not live yet.]
 
 ### Added 
 
 - Prompt visibility features.
 
-- Methods for piping responses to questions into other questions.
+- [In progress] Methods for piping responses to questions into other questions. Details TBD.
 
 - Methods for adding, sampling and shuffling `Results` objects.
 
@@ -314,6 +314,6 @@ We modified exception messages. If your survey run generates exceptions, run `re
 
 ### Deprecated
 
-- Questions method `compose_questions()` has been deprecated. Please use new piping methods instead.
+- [In progress] Questions method `compose_questions()` has been deprecated. Please use new piping methods instead. Details TBD.
 
 ### Removed
