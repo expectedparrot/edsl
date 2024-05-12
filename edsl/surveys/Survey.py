@@ -23,16 +23,6 @@ from edsl.surveys.DAG import DAG
 from edsl.utilities import is_notebook
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
-
-@dataclass
-class SurveyMetaData:
-    """Metadata for a survey. This is a dataclass that holds the name, description, and version of a survey."""
-
-    name: str = None
-    description: str = None
-    version: str = None
-
-
 from edsl.surveys.SurveyFlowVisualizationMixin import SurveyFlowVisualizationMixin
 
 
@@ -59,25 +49,37 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         self,
         questions: list[QuestionBase] = None,
         memory_plan: MemoryPlan = None,
+        rule_collection: RuleCollection = None,
+        question_groups: dict[str, tuple[int, int]] = None,
         name: str = None,
-        description: str = None,
-        version: str = None,
     ):
         """Create a new survey."""
         self.rule_collection = RuleCollection(
             num_questions=len(questions) if questions else None
         )
-        self.meta_data = SurveyMetaData(
-            name=name, description=description, version=version
-        )
+        # the RuleCollection needs to be present while we add the questions; we might override this later
+        # if a rule_collection is provided. This allows us to serialize the survey with the rule_collection.
         self.questions = questions or []
         self.memory_plan = memory_plan or MemoryPlan(self)
+        if question_groups is not None:
+            self.question_groups = question_groups
+        else:
+            self.question_groups = {}
 
-    @property
-    def name(self):
-        """Return the name of the survey."""
-        # print("WARNING: name is deprecated. Please use meta_data.name instead.")
-        return self.meta_data.name
+        # if a rule collection is provided, use it instead
+        if rule_collection is not None:
+            self.rule_collection = rule_collection
+
+        if name is not None:
+            import warnings
+
+            warnings.warn("name is deprecated.")
+
+    # @property
+    # def name(self):
+    #     """Return the name of the survey."""
+    #     # print("WARNING: name is deprecated. Please use meta_data.name instead.")
+    #     return self.meta_data.name
 
     def get_question(self, question_name) -> QuestionBase:
         """Return the question object given the question name."""
@@ -173,6 +175,53 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
                 focal_question=question_name,
                 prior_questions=prior_questions_func(i),
             )
+
+    def add_question_group(
+        self,
+        start_question: Union[QuestionBase, str],
+        end_question: Union[QuestionBase, str],
+        group_name: str,
+    ) -> None:
+        """Add a group of questions to the survey."""
+
+        if not group_name.isidentifier():
+            raise ValueError(f"Group name {group_name} is not a valid identifier.")
+
+        if group_name in self.question_groups:
+            raise ValueError(f"Group name {group_name} already exists in the survey.")
+
+        if group_name in self.question_name_to_index:
+            raise ValueError(
+                f"Group name {group_name} already exists as a question name in the survey."
+            )
+
+        start_index = self._get_question_index(start_question)
+        end_index = self._get_question_index(end_question)
+
+        if start_index > end_index:
+            raise ValueError(
+                f"Start index {start_index} is greater than end index {end_index}."
+            )
+
+        for existing_group_name, (
+            existing_start_index,
+            existing_end_index,
+        ) in self.question_groups.items():
+            if start_index < existing_start_index and end_index > existing_end_index:
+                raise ValueError(
+                    f"Group {group_name} contains the questions in the new group."
+                )
+            if start_index > existing_start_index and end_index < existing_end_index:
+                raise ValueError(f"Group {group_name} is contained in the new group.")
+            if start_index < existing_start_index and end_index > existing_start_index:
+                raise ValueError(f"Group {group_name} overlaps with the new group.")
+            if start_index < existing_end_index and end_index > existing_end_index:
+                raise ValueError(f"Group {group_name} overlaps with the new group.")
+
+        self.question_groups[group_name] = (start_index, end_index)
+        # print("Added group")
+        # print(self.question_groups)
+        return self
 
     def add_targeted_memory(
         self,
@@ -388,23 +437,24 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
             else:
                 return self.questions[next_question_object.next_q]
 
-    # def gen_path_through_survey(self) -> Generator[QuestionBase, dict, None]:
-    #     """
-    #     Generate a coroutine that can be used to conduct an Interview.
+    def gen_path_through_survey(self) -> Generator[QuestionBase, dict, None]:
+        """
+        Generate a coroutine that can be used to conduct an Interview.
 
-    #     - The coroutine is a generator that yields a question and receives answers.
-    #     - The coroutine starts with the first question in the survey.
-    #     - The coroutine ends when an EndOfSurvey object is returned.
+        - The coroutine is a generator that yields a question and receives answers.
+        - The coroutine starts with the first question in the survey.
+        - The coroutine ends when an EndOfSurvey object is returned.
 
-    #     E.g., in Interview.py
+        E.g., in Interview.py
 
-    #     path_through_survey = self.survey.gen_path_through_survey()
-    #     question = path_through_survey.send({question.question_name: answer})
-    #     """
-    #     question = self.first_question()
-    #     while not question == EndOfSurvey:
-    #         self.answers = yield question
-    #         question = self.next_question(question, self.answers)
+        path_through_survey = self.survey.gen_path_through_survey()
+        question = path_through_survey.send({question.question_name: answer})
+        """
+        question = self.first_question()
+        while not question == EndOfSurvey:
+            self.answers = yield question
+            ## TODO: This should also include survey and agent attributes
+            question = self.next_question(question, self.answers)
 
     @property
     def scenario_attributes(self) -> list[str]:
@@ -485,6 +535,18 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         elif isinstance(index, str):
             return getattr(self, index)
 
+    def diff(self, other):
+        from rich import print
+
+        for key, value in self.to_dict().items():
+            if value != other.to_dict()[key]:
+                print(f"Key: {key}")
+                print("\n")
+                print(f"Self: {value}")
+                print("\n")
+                print(f"Other: {other.to_dict()[key]}")
+                print("\n\n")
+
     def __eq__(self, other):
         """Return True if the two surveys have the same to_dict."""
         if not isinstance(other, Survey):
@@ -499,9 +561,9 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         """Serialize the Survey object to a dictionary."""
         return {
             "questions": [q.to_dict() for q in self._questions],
-            "name": self.name,
             "memory_plan": self.memory_plan.to_dict(),
             "rule_collection": self.rule_collection.to_dict(),
+            "question_groups": self.question_groups,
         }
 
     @classmethod
@@ -510,8 +572,12 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         """Deserialize the dictionary back to a Survey object."""
         questions = [QuestionBase.from_dict(q_dict) for q_dict in data["questions"]]
         memory_plan = MemoryPlan.from_dict(data["memory_plan"])
-        survey = cls(questions=questions, name=data["name"], memory_plan=memory_plan)
-        survey.rule_collection = RuleCollection.from_dict(data["rule_collection"])
+        survey = cls(
+            questions=questions,
+            memory_plan=memory_plan,
+            rule_collection=RuleCollection.from_dict(data["rule_collection"]),
+            question_groups=data["question_groups"],
+        )
         return survey
 
     ###################
@@ -528,7 +594,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         questions_string = ", ".join([repr(q) for q in self._questions])
         question_names_string = ", ".join([repr(name) for name in self.question_names])
-        return f"Survey(questions=[{questions_string}], name={repr(self.name)})"
+        return f"Survey(questions=[{questions_string}])"
 
     def _repr_html_(self) -> str:
         from edsl.utilities.utilities import data_to_html
