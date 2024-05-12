@@ -30,4 +30,5 @@ venv
 # exceptions
 !edsl/utilities/data/*.json
 !.vscode/settings.json
+!tests/serialization/data/*.json
 .env*

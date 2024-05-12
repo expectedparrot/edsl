@@ -1,5 +1,6 @@
 # Schemas
 from edsl.questions.settings import Settings
+from edsl.questions.RegisterQuestionsMeta import RegisterQuestionsMeta
 
 # Base Class
 from edsl.questions.QuestionBase import QuestionBase
