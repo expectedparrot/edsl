@@ -296,7 +296,7 @@ We modified exception messages. If your survey run generates exceptions, run `re
 
 ### Added 
 
-- Prompt visibility features.
+- [In progress] Prompt visibility features.
 
 - [In progress] Methods for piping responses to questions into other questions. Details TBD.
 
@@ -306,7 +306,7 @@ We modified exception messages. If your survey run generates exceptions, run `re
 
 - Optional parameter `survey.run(cache=False)` if you do not want to access any cached results in running a survey.
 
-- Agent `name` and `instructions` are now accessible columns in results.
+- Instructions passed to an agent at creation are now a column of results: `agent_instruction`
 
 - [In progress] `QuestionMultipleChoice` will allow non-responsive answers. Previously, an error was thrown if the agent did not select one of the given options. Details TBD.
 
