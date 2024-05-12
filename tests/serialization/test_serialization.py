@@ -52,4 +52,5 @@ def test_serialization():
             try:
                 _ = cls["class"].from_dict(item["dict"])
             except Exception as e:
+                print("The data is:", item["dict"])
                 raise ValueError(f"Error in class {class_name}: {e}")
