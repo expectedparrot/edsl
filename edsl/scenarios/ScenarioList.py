@@ -25,6 +25,10 @@ class ScenarioList(Base, UserList):
     def __repr__(self):
         return f"ScenarioList({self.data})"
 
+    def _repr_html_(self) -> str:
+        from edsl.utilities.utilities import data_to_html
+        return data_to_html(self.to_dict())
+
     def expand(self, expand_field:str) -> ScenarioList:
         """Expand the ScenarioList by a field.
         
@@ -103,7 +107,12 @@ class ScenarioList(Base, UserList):
 
     @add_edsl_version
     def to_dict(self) -> dict[str, Any]:
-        """Return the `ScenarioList` as a dictionary."""
+        """Return the `ScenarioList` as a dictionary.
+        
+        >>> s = ScenarioList([Scenario({'food': 'wood chips'}), Scenario({'food': 'wood-fired pizza'})])
+        >>> s.to_dict()
+        {'scenarios': [{'food': 'wood chips', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}, {'food': 'wood-fired pizza', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}], 'edsl_version': '...', 'edsl_class_name': 'ScenarioList'}
+        """
         return {"scenarios": [s.to_dict() for s in self]}
 
     @classmethod
