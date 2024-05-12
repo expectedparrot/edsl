@@ -99,6 +99,9 @@ For example:
 
 When the agent is assigned to a survey, the special instruction will be added to the prompts for generating responses.
 
+The instructions are stored in the `instruction` field of the agent and can be accessed directly in results.
+
+
 Controlling the presentation of the persona
 -------------------------------------------
 The `traits_presentation_template` parameter can be used to create a narrative persona for an agent.
