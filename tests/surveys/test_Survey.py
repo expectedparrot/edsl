@@ -156,7 +156,11 @@ class TestSurvey(unittest.TestCase):
         survey.add_targeted_memory(q2, q1)
         d = survey.to_dict()
         newsurvey = Survey.from_dict(d)
-        assert survey == newsurvey
+        try:
+            assert survey == newsurvey
+        except AssertionError:
+            survey.diff(newsurvey)
+            raise AssertionError
 
     def test_export_code(self):
         survey = self.gen_survey()
