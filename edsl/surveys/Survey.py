@@ -72,6 +72,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         if name is not None:
             import warnings
+
             warnings.warn("name is deprecated.")
 
     # @property
@@ -175,30 +176,41 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
                 prior_questions=prior_questions_func(i),
             )
 
-    def add_question_group(self, 
-                              start_question: Union[QuestionBase, str], 
-                              end_question: Union[QuestionBase, str], 
-                              group_name: str) -> None:
+    def add_question_group(
+        self,
+        start_question: Union[QuestionBase, str],
+        end_question: Union[QuestionBase, str],
+        group_name: str,
+    ) -> None:
         """Add a group of questions to the survey."""
-     
+
         if not group_name.isidentifier():
             raise ValueError(f"Group name {group_name} is not a valid identifier.")
-        
+
         if group_name in self.question_groups:
             raise ValueError(f"Group name {group_name} already exists in the survey.")
-        
+
         if group_name in self.question_name_to_index:
-            raise ValueError(f"Group name {group_name} already exists as a question name in the survey.")
+            raise ValueError(
+                f"Group name {group_name} already exists as a question name in the survey."
+            )
 
         start_index = self._get_question_index(start_question)
         end_index = self._get_question_index(end_question)
 
         if start_index > end_index:
-            raise ValueError(f"Start index {start_index} is greater than end index {end_index}.")
+            raise ValueError(
+                f"Start index {start_index} is greater than end index {end_index}."
+            )
 
-        for existing_group_name, (existing_start_index, existing_end_index) in self.question_groups.items():
+        for existing_group_name, (
+            existing_start_index,
+            existing_end_index,
+        ) in self.question_groups.items():
             if start_index < existing_start_index and end_index > existing_end_index:
-                raise ValueError(f"Group {group_name} contains the questions in the new group.")
+                raise ValueError(
+                    f"Group {group_name} contains the questions in the new group."
+                )
             if start_index > existing_start_index and end_index < existing_end_index:
                 raise ValueError(f"Group {group_name} is contained in the new group.")
             if start_index < existing_start_index and end_index > existing_start_index:
@@ -207,8 +219,8 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
                 raise ValueError(f"Group {group_name} overlaps with the new group.")
 
         self.question_groups[group_name] = (start_index, end_index)
-        #print("Added group")
-        #print(self.question_groups) 
+        # print("Added group")
+        # print(self.question_groups)
         return self
 
     def add_targeted_memory(
@@ -441,7 +453,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         question = self.first_question()
         while not question == EndOfSurvey:
             self.answers = yield question
-            ## TODO: This should also include survey and agent attributes 
+            ## TODO: This should also include survey and agent attributes
             question = self.next_question(question, self.answers)
 
     @property
@@ -525,6 +537,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
     def diff(self, other):
         from rich import print
+
         for key, value in self.to_dict().items():
             if value != other.to_dict()[key]:
                 print(f"Key: {key}")
@@ -559,11 +572,12 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         """Deserialize the dictionary back to a Survey object."""
         questions = [QuestionBase.from_dict(q_dict) for q_dict in data["questions"]]
         memory_plan = MemoryPlan.from_dict(data["memory_plan"])
-        survey = cls(questions=questions, 
-                     memory_plan=memory_plan, 
-                     rule_collection=RuleCollection.from_dict(data["rule_collection"]),
-                     question_groups = data["question_groups"]
-                     )
+        survey = cls(
+            questions=questions,
+            memory_plan=memory_plan,
+            rule_collection=RuleCollection.from_dict(data["rule_collection"]),
+            question_groups=data["question_groups"],
+        )
         return survey
 
     ###################
