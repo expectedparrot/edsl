@@ -8,6 +8,7 @@ import numpy as np
 
 from edsl.results.ResultsExportMixin import ResultsExportMixin
 
+
 class Dataset(UserList, ResultsExportMixin):
     """A class to represent a dataset of observations."""
 
@@ -15,11 +16,10 @@ class Dataset(UserList, ResultsExportMixin):
         """Initialize the dataset with the given data."""
         super().__init__(data)
 
-
     def __len__(self) -> int:
         """Return the number of observations in the dataset.
-        
-        Need to override the __len__ method to return the number of observations in the dataset because 
+
+        Need to override the __len__ method to return the number of observations in the dataset because
         otherwise, the UserList class would return the number of dictionaries in the dataset.
 
         >>> d = Dataset([{'a.b':[1,2,3,4]}])
@@ -95,8 +95,8 @@ class Dataset(UserList, ResultsExportMixin):
         Dataset([{'a.b': [3, 1, 2, 4]}])
         """
         if seed is not None:
-           random.seed(seed)
-    
+            random.seed(seed)
+
         indices = None
 
         for entry in self:
@@ -127,39 +127,39 @@ class Dataset(UserList, ResultsExportMixin):
         """
         if seed is not None:
             random.seed(seed)
-        
+
         # Validate the input for sampling parameters
         if n is None and frac is None:
             raise ValueError("Either 'n' or 'frac' must be provided for sampling.")
 
         if n is not None and frac is not None:
             raise ValueError("Only one of 'n' or 'frac' should be specified.")
-        
+
         # Get the length of the lists from the first entry
         first_key, first_values = list(self[0].items())[0]
         total_length = len(first_values)
-        
+
         # Determine the number of samples based on 'n' or 'frac'
         if n is None:
             n = int(total_length * frac)
-        
+
         if not with_replacement and n > total_length:
-            raise ValueError("Sample size cannot be greater than the number of available elements when sampling without replacement.")
-        
+            raise ValueError(
+                "Sample size cannot be greater than the number of available elements when sampling without replacement."
+            )
+
         # Sample indices based on the method chosen
         if with_replacement:
             indices = [random.randint(0, total_length - 1) for _ in range(n)]
         else:
             indices = random.sample(range(total_length), k=n)
-        
+
         # Apply the same indices to all entries
         for entry in self:
             key, values = list(entry.items())[0]
             entry[key] = [values[i] for i in indices]
 
         return self
-
-    
 
     def order_by(self, sort_key: str, reverse: bool = False) -> Dataset:
         """Return a new dataset with the observations sorted by the given key.

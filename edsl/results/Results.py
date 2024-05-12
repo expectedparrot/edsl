@@ -151,7 +151,9 @@ class Results(UserList, Mixins, Base):
         >>> r3 = r + r2
         """
         if self.survey != other.survey:
-            raise Exception("The surveys are not the same so they cannot be added together.")
+            raise Exception(
+                "The surveys are not the same so they cannot be added together."
+            )
         if self.created_columns != other.created_columns:
             raise Exception(
                 "The created columns are not the same so they cannot be added together."
@@ -493,8 +495,8 @@ class Results(UserList, Mixins, Base):
             data=new_data,
             created_columns=self.created_columns + [var_name],
         )
-    
-    def shuffle(self, seed = None) -> Results:
+
+    def shuffle(self, seed=None) -> Results:
         """Shuffle the results.
 
         Example:
@@ -508,8 +510,14 @@ class Results(UserList, Mixins, Base):
         new_data = self.data.copy()
         random.shuffle(new_data)
         return Results(survey=self.survey, data=new_data, created_columns=None)
-    
-    def sample(self, n:int = None, frac:float = None, with_replacement:bool = True, seed = None) -> Results:
+
+    def sample(
+        self,
+        n: int = None,
+        frac: float = None,
+        with_replacement: bool = True,
+        seed=None,
+    ) -> Results:
         """Sample the results.
 
         :param n: An integer representing the number of samples to take.
@@ -528,18 +536,18 @@ class Results(UserList, Mixins, Base):
 
         if n is None and frac is None:
             raise Exception("You must specify either n or frac.")
-        
+
         if n is not None and frac is not None:
             raise Exception("You cannot specify both n and frac.")
-        
+
         if frac is not None and n is None:
             n = int(frac * len(self.data))
-        
+
         if with_replacement:
-            new_data = random.choices(self.data, k = n)
+            new_data = random.choices(self.data, k=n)
         else:
             new_data = random.sample(self.data, n)
-            
+
         return Results(survey=self.survey, data=new_data, created_columns=None)
 
     def select(self, *columns: Union[str, list[str]]) -> Dataset:
@@ -666,13 +674,13 @@ class Results(UserList, Mixins, Base):
             for col in columns:
                 # Parse the column into its data type and key
                 data_type, key = self._parse_column(col)
-                
+
                 # Retrieve the value from the item based on the parsed data type and key
                 value = item.get_value(data_type, key)
-                
+
                 # Convert the value to numeric if possible, and append it to the key components
                 key_components.append(to_numeric_if_possible(value))
-            
+
             # Convert the list of key components into a tuple to serve as the sorting key
             return tuple(key_components)
 

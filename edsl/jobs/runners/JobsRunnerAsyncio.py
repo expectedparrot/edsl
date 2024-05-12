@@ -261,7 +261,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                         >>> from edsl import shared_globals
                         >>> shared_globals['edsl_runner_exceptions'].show_exceptions()
 
-                        For more details see documentation. 
+                        For more details see documentation: https://docs.expectedparrot.com/en/latest/exceptions.html
                 """
                 )
             )

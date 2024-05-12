@@ -92,11 +92,12 @@ class Jobs(Base):
 
         setattr(self, objects_key, new_objects)  # update the job
         return self
-    
+
     def prompts(self):
         from edsl.results.Dataset import Dataset
-        interviews = self.interviews() 
-        #data = []
+
+        interviews = self.interviews()
+        # data = []
         interview_indices = []
         question_indices = []
         user_prompts = []
@@ -104,7 +105,7 @@ class Jobs(Base):
         scenario_indices = []
 
         for interview_index, interview in enumerate(interviews):
-            invigilators = list(interview._build_invigilators(debug = False))
+            invigilators = list(interview._build_invigilators(debug=False))
             for question_index, invigilator in enumerate(invigilators):
                 prompts = invigilator.get_prompts()
                 user_prompts.append(prompts["user_prompt"])
@@ -112,15 +113,17 @@ class Jobs(Base):
                 interview_indices.append(interview_index)
                 scenario_indices.append(invigilator.scenario)
                 question_indices.append(invigilator.question.question_name)
-        #breakpoint()
-        return Dataset([
-            {'interview_index': interview_indices}, 
-            {'question_index': question_indices}, 
-            {'user_prompt': user_prompts}, 
-            {'scenario_index': scenario_indices},
-            {'system_prompt': system_prompts}])
+        # breakpoint()
+        return Dataset(
+            [
+                {"interview_index": interview_indices},
+                {"question_index": question_indices},
+                {"user_prompt": user_prompts},
+                {"scenario_index": scenario_indices},
+                {"system_prompt": system_prompts},
+            ]
+        )
 
-    
     @staticmethod
     def _turn_args_to_list(args):
         """Return a list of the first argument if it is a sequence, otherwise returns a list of all the arguments."""
