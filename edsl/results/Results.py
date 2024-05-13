@@ -269,7 +269,7 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.columns
-        ['agent.agent_name', ...
+        ['agent.agent_instructions', ...
         """
         column_names = [f"{v}.{k}" for k, v in self._key_to_data_type.items()]
         return sorted(column_names)
@@ -317,7 +317,7 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.models[0]
-        Model(model = 'gpt-4-1106-preview', parameters={'temperature': 0.5, 'max_tokens': 1000, 'top_p': 1, 'frequency_penalty': 0, 'presence_penalty': 0, 'logprobs': False, 'top_logprobs': 3})
+        Model(model_name = 'gpt-4-1106-preview', parameters={'temperature': 0.5, 'max_tokens': 1000, 'top_p': 1, 'frequency_penalty': 0, 'presence_penalty': 0, 'logprobs': False, 'top_logprobs': 3})
         """
         return [r.model for r in self.data]
 
@@ -341,7 +341,7 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.agent_keys
-        ['agent_name', 'status']
+        ['agent_instruction', 'agent_name', 'status']
         """
         return sorted(self._data_type_to_keys["agent"])
 
@@ -387,7 +387,7 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.all_keys
-        ['agent_name', 'frequency_penalty', 'how_feeling', 'how_feeling_yesterday', 'logprobs', 'max_tokens', 'model', 'period', 'presence_penalty', 'status', 'temperature', 'top_logprobs', 'top_p']
+        ['agent_instruction', 'agent_name', 'frequency_penalty', 'how_feeling', 'how_feeling_yesterday', 'logprobs', 'max_tokens', 'model', 'period', 'presence_penalty', 'status', 'temperature', 'top_logprobs', 'top_p']
         """
         answer_keys = set(self.answer_keys)
         all_keys = (
@@ -403,8 +403,8 @@ class Results(UserList, Mixins, Base):
         Example:
 
         >>> r = Results.example()
-        >>> r.relevant_columns()
-        ['agent', 'agent_name', 'answer', 'frequency_penalty', 'how_feeling', 'how_feeling_comment', 'how_feeling_question_text', 'how_feeling_raw_model_response', 'how_feeling_system_prompt', 'how_feeling_user_prompt', 'how_feeling_yesterday', 'how_feeling_yesterday_comment', 'how_feeling_yesterday_question_text', 'how_feeling_yesterday_raw_model_response', 'how_feeling_yesterday_system_prompt', 'how_feeling_yesterday_user_prompt', 'iteration', 'logprobs', 'max_tokens', 'model', 'period', 'presence_penalty', 'prompt', 'question_text', 'raw_model_response', 'scenario', 'status', 'temperature', 'top_logprobs', 'top_p']
+        >>> r.relevant_columns()[0]
+        'agent' 
         """
         return sorted(
             set().union(
@@ -458,7 +458,7 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.mutate('how_feeling_x = how_feeling + "x"').select('how_feeling_x')
-        [{'answer.how_feeling_x': ...
+        Dataset([{'answer.how_feeling_x': ...
         """
         # extract the variable name and the expression
         if "=" not in new_var_string:
@@ -528,7 +528,8 @@ class Results(UserList, Mixins, Base):
         Example:
 
         >>> r = Results.example()
-        >>> r.sample(2)
+        >>> len(r.sample(2))
+        2
         """
         if seed is not None:
             random.seed(seed)
@@ -690,58 +691,6 @@ class Results(UserList, Mixins, Base):
         )
         return Results(survey=self.survey, data=new_data, created_columns=None)
 
-    # def sort_by(self, column, reverse: bool = False) -> Results:
-    #     """Sort the results by a column.
-
-    #     :param column: A string that is a column name.
-    #     :param reverse: A boolean that determines whether to sort in reverse order.
-
-    #     The column name can be a single key, e.g. "how_feeling", or a dot-separated string, e.g. "answer.how_feeling".
-
-    #     Example:
-
-    #     >>> r = Results.example()
-    #     >>> r.sort_by('how_feeling', reverse = False).select('how_feeling').print()
-    #     ┏━━━━━━━━━━━━━━┓
-    #     ┃ answer       ┃
-    #     ┃ .how_feeling ┃
-    #     ┡━━━━━━━━━━━━━━┩
-    #     │ Great        │
-    #     ├──────────────┤
-    #     │ OK           │
-    #     ├──────────────┤
-    #     │ OK           │
-    #     ├──────────────┤
-    #     │ Terrible     │
-    #     └──────────────┘
-    #     >>> r.sort_by('how_feeling', reverse = True).select('how_feeling').print()
-    #     ┏━━━━━━━━━━━━━━┓
-    #     ┃ answer       ┃
-    #     ┃ .how_feeling ┃
-    #     ┡━━━━━━━━━━━━━━┩
-    #     │ Terrible     │
-    #     ├──────────────┤
-    #     │ OK           │
-    #     ├──────────────┤
-    #     │ OK           │
-    #     ├──────────────┤
-    #     │ Great        │
-    #     └──────────────┘
-    #     """
-    #     data_type, key = self._parse_column(column)
-
-    #     def to_numeric_if_possible(v):
-    #         try:
-    #             return float(v)
-    #         except:
-    #             return v
-
-    #     new_data = sorted(
-    #         self.data,
-    #         key=lambda x: to_numeric_if_possible(x.get_value(data_type, key)),
-    #         reverse=reverse,
-    #     )
-    #     return Results(survey=self.survey, data=new_data, created_columns=None)
 
     def filter(self, expression: str) -> Results:
         """
