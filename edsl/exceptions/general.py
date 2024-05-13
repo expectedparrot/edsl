@@ -24,7 +24,7 @@ class MissingAPIKeyError(GeneralErrors):
     def __init__(self, model_name, inference_service):
         full_message = dedent(
             f"""
-        An API Key for modle `{model_name}` is missing from the .env file.
+        An API Key for model `{model_name}` is missing from the .env file.
         This key is associated with the inference service `{inference_service}`.
         Please see https://docs.expectedparrot.com/en/latest/starter_tutorial.html#part-1-using-api-keys-for-llms.
         """
