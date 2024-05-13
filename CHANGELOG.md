@@ -327,6 +327,4 @@ We modified exception messages. If your survey run generates exceptions, run `re
 
 ### Deprecated
 
-- [In progress] Questions method `compose_questions()` is being deprecated. Please use new piping methods instead. Details TBD.
-
 ### Removed
