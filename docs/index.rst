@@ -162,6 +162,9 @@ Information about additional functionality for developers.
    :hidden:
 
    enums
+   jobs 
+   interviews
+   answers
 
 .. image:: https://colab.research.google.com/assets/colab-badge.svg
    :target: https://colab.research.google.com/github/expectedparrot/edsl/blob/main/examples/create_agents.ipynb 
