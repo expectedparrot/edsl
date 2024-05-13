@@ -1,14 +1,16 @@
 """A mixin class for exporting surveys to different formats."""
 from docx import Document
+from typing import Union
+import black
 
 
 class SurveyExportMixin:
     """A mixin class for exporting surveys to different formats."""
 
-    def docx(self) -> "Document":
+    def docx(self, filename=None) -> Union["Document", None]:
         """Generate a docx document for the survey."""
         doc = Document()
-        doc.add_heading("EDSL Auto-Generated Survey")
+        doc.add_heading("EDSL Survey")
         doc.add_paragraph(f"\n")
         for index, question in enumerate(self._questions):
             h = doc.add_paragraph()  # Add question as a paragraph
@@ -23,37 +25,40 @@ class SurveyExportMixin:
                 if hasattr(question, "question_options"):
                     for option in getattr(question, "question_options", []):
                         doc.add_paragraph(str(option), style="ListBullet")
+        if filename:
+            doc.save(filename)
+            print("The survey has been saved to", filename)
+            return
         return doc
 
-    def code(self) -> list[str]:
-        ## TODO: Refactor to only use the questions actually in the survey
-        """Create the Python code representation of a survey."""
+    def code(self, filename: str = None, survey_var_name: str = "survey") -> list[str]:
+        """Create the Python code representation of a survey.
+
+        :param filename: The name of the file to save the code to.
+        :param survey_var_name: The name of the survey variable.
+        """
         header_lines = ["from edsl.surveys.Survey import Survey"]
-        header_lines.append(
-            "from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice"
-        )
-        header_lines.append(
-            "from edsl.questions.QuestionFreeText import QuestionFreeText"
-        )
-        header_lines.append(
-            "from edsl.questions.derived.QuestionLinearScale import QuestionLinearScale"
-        )
-        header_lines.append(
-            "from edsl.questions.QuestionNumerical import QuestionNumerical"
-        )
-        header_lines.append(
-            "from edsl.questions.QuestionCheckBox import QuestionCheckBox"
-        )
-        header_lines.append(
-            "from edsl.questions.derived.QuestionYesNo import QuestionYesNo"
-        )
+        header_lines.append("from edsl import Question")
         lines = ["\n".join(header_lines)]
         for question in self._questions:
             lines.append(f"{question.question_name} = " + repr(question))
-        lines.append(f"survey = Survey(questions = [{', '.join(self.question_names)}])")
-        return lines
+        lines.append(
+            f"{survey_var_name} = Survey(questions = [{', '.join(self.question_names)}])"
+        )
+        # return lines
+        code_string = "\n".join(lines)
+        formatted_code = black.format_str(code_string, mode=black.FileMode())
 
-    def html(self) -> str:
+        if filename:
+            print("The code has been saved to", filename)
+            print("The survey itself is saved to 'survey' object")
+            with open(filename, "w") as file:
+                file.write(formatted_code)
+            return
+
+        return formatted_code
+
+    def html(self, filename=None) -> str:
         """Generate the html for the survey."""
         html_text = []
         for question in self._questions:
@@ -64,4 +69,10 @@ class SurveyExportMixin:
             for option in getattr(question, "question_options", []):
                 html_text.append(f"<li>{option}</li>")
             html_text.append("</ul>")
-        return "\n".join(html_text)
+        lines = "\n".join(html_text)
+        if filename:
+            print("The survey has been saved to", filename)
+            with open(filename, "w") as file:
+                file.write(lines)
+            return
+        return lines

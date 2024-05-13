@@ -4,6 +4,7 @@ It is not typically instantiated directly, but is returned by the run method of 
 """
 from __future__ import annotations
 import json
+import random
 from collections import UserList, defaultdict
 from typing import Optional
 
@@ -32,6 +33,7 @@ from edsl.utilities import (
     shorten_string,
     is_notebook,
 )
+from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
 import json
 from pygments import highlight
@@ -45,8 +47,10 @@ from edsl.results.ResultsGGMixin import ResultsGGMixin
 from edsl.Base import Base
 from edsl.results.ResultsFetchMixin import ResultsFetchMixin
 
+
 class Mixins(ResultsExportMixin, ResultsDBMixin, ResultsFetchMixin, ResultsGGMixin):
     pass
+
 
 class Results(UserList, Mixins, Base):
     """
@@ -65,6 +69,10 @@ class Results(UserList, Mixins, Base):
         "prompt",
         "raw_model_response",
         "iteration",
+        "question_text",
+        "question_options",
+        "question_type",
+        "comment",
     ]
 
     def __init__(
@@ -126,12 +134,40 @@ class Results(UserList, Mixins, Base):
             ]
             self.data = results
 
-    def __repr__(self) -> str:
-        from rich import print_json
-        import json
+    # def print(self):
+    #     from rich import print_json
+    #     import json
+    #     print_json(json.dumps(self.to_dict()["data"]))
 
-        print_json(json.dumps(self.to_dict()["data"]))
+    def __add__(self, other: Results) -> Results:
+        """Add two Results objects together.
+        They must have the same survey and created columns.
+        :param other: A Results object.
+
+        Example:
+
+        >>> r = Results.example()
+        >>> r2 = Results.example()
+        >>> r3 = r + r2
+        """
+        if self.survey != other.survey:
+            raise Exception(
+                "The surveys are not the same so they cannot be added together."
+            )
+        if self.created_columns != other.created_columns:
+            raise Exception(
+                "The created columns are not the same so they cannot be added together."
+            )
+
+        return Results(
+            survey=self.survey,
+            data=self.data + other.data,
+            created_columns=self.created_columns,
+        )
+
+    def __repr__(self) -> str:
         return f"Results(data = {self.data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
+        # return f"Results(data = {self.data})"
 
     def _repr_html_(self) -> str:
         json_str = json.dumps(self.to_dict()["data"], indent=4)
@@ -142,6 +178,7 @@ class Results(UserList, Mixins, Base):
         )
         return HTML(formatted_json).data
 
+    @add_edsl_version
     def to_dict(self) -> dict[str, Any]:
         """Convert the Results object to a dictionary.
 
@@ -161,6 +198,7 @@ class Results(UserList, Mixins, Base):
         }
 
     @classmethod
+    @remove_edsl_version
     def from_dict(cls, data: dict[str, Any]) -> Results:
         """Convert a dictionary to a Results object.
 
@@ -231,7 +269,7 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.columns
-        ['agent.agent_name', ...
+        ['agent.agent_instructions', ...
         """
         column_names = [f"{v}.{k}" for k, v in self._key_to_data_type.items()]
         return sorted(column_names)
@@ -279,7 +317,7 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.models[0]
-        Model(model = 'gpt-4-1106-preview', parameters={'temperature': 0.5, 'max_tokens': 1000, 'top_p': 1, 'frequency_penalty': 0, 'presence_penalty': 0, 'logprobs': False, 'top_logprobs': 3})
+        Model(model_name = 'gpt-4-1106-preview', parameters={'temperature': 0.5, 'max_tokens': 1000, 'top_p': 1, 'frequency_penalty': 0, 'presence_penalty': 0, 'logprobs': False, 'top_logprobs': 3})
         """
         return [r.model for r in self.data]
 
@@ -303,7 +341,7 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.agent_keys
-        ['agent_name', 'status']
+        ['agent_instruction', 'agent_name', 'status']
         """
         return sorted(self._data_type_to_keys["agent"])
 
@@ -349,7 +387,7 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.all_keys
-        ['agent_name', 'frequency_penalty', 'how_feeling', 'how_feeling_yesterday', 'logprobs', 'max_tokens', 'model', 'period', 'presence_penalty', 'status', 'temperature', 'top_logprobs', 'top_p']
+        ['agent_instruction', 'agent_name', 'frequency_penalty', 'how_feeling', 'how_feeling_yesterday', 'logprobs', 'max_tokens', 'model', 'period', 'presence_penalty', 'status', 'temperature', 'top_logprobs', 'top_p']
         """
         answer_keys = set(self.answer_keys)
         all_keys = (
@@ -365,8 +403,8 @@ class Results(UserList, Mixins, Base):
         Example:
 
         >>> r = Results.example()
-        >>> r.relevant_columns()
-        ['agent', 'agent_name', 'answer', 'frequency_penalty', 'how_feeling', 'how_feeling_comment', 'how_feeling_question_text', 'how_feeling_raw_model_response', 'how_feeling_system_prompt', 'how_feeling_user_prompt', 'how_feeling_yesterday', 'how_feeling_yesterday_comment', 'how_feeling_yesterday_question_text', 'how_feeling_yesterday_raw_model_response', 'how_feeling_yesterday_system_prompt', 'how_feeling_yesterday_user_prompt', 'iteration', 'logprobs', 'max_tokens', 'model', 'period', 'presence_penalty', 'prompt', 'question_text', 'raw_model_response', 'scenario', 'status', 'temperature', 'top_logprobs', 'top_p']
+        >>> r.relevant_columns()[0]
+        'agent'
         """
         return sorted(
             set().union(
@@ -420,7 +458,7 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.mutate('how_feeling_x = how_feeling + "x"').select('how_feeling_x')
-        [{'answer.how_feeling_x': ...
+        Dataset([{'answer.how_feeling_x': ...
         """
         # extract the variable name and the expression
         if "=" not in new_var_string:
@@ -457,6 +495,60 @@ class Results(UserList, Mixins, Base):
             data=new_data,
             created_columns=self.created_columns + [var_name],
         )
+
+    def shuffle(self, seed=None) -> Results:
+        """Shuffle the results.
+
+        Example:
+
+        >>> r = Results.example()
+        >>> r.shuffle()
+        """
+        if seed is not None:
+            seed = random.seed(seed)
+
+        new_data = self.data.copy()
+        random.shuffle(new_data)
+        return Results(survey=self.survey, data=new_data, created_columns=None)
+
+    def sample(
+        self,
+        n: int = None,
+        frac: float = None,
+        with_replacement: bool = True,
+        seed=None,
+    ) -> Results:
+        """Sample the results.
+
+        :param n: An integer representing the number of samples to take.
+        :param frac: A float representing the fraction of samples to take.
+        :param with_replacement: A boolean representing whether to sample with replacement.
+        :param seed: An integer representing the seed for the random number generator.
+
+        Example:
+
+        >>> r = Results.example()
+        >>> len(r.sample(2))
+        2
+        """
+        if seed is not None:
+            random.seed(seed)
+
+        if n is None and frac is None:
+            raise Exception("You must specify either n or frac.")
+
+        if n is not None and frac is not None:
+            raise Exception("You cannot specify both n and frac.")
+
+        if frac is not None and n is None:
+            n = int(frac * len(self.data))
+
+        if with_replacement:
+            new_data = random.choices(self.data, k=n)
+        else:
+            new_data = random.sample(self.data, n)
+
+        return Results(survey=self.survey, data=new_data, created_columns=None)
 
     def select(self, *columns: Union[str, list[str]]) -> Dataset:
         """
@@ -527,18 +619,18 @@ class Results(UserList, Mixins, Base):
 
         return Dataset(new_data)
 
-    def sort_by(self, column, reverse: bool = False) -> Results:
-        """Sort the results by a column.
+    def sort_by(self, columns, reverse: bool = False) -> Results:
+        """Sort the results by one or more columns.
 
-        :param column: A string that is a column name.
+        :param columns: A string or a list of strings that are column names.
         :param reverse: A boolean that determines whether to sort in reverse order.
 
-        The column name can be a single key, e.g. "how_feeling", or a dot-separated string, e.g. "answer.how_feeling".
+        Each column name can be a single key, e.g. "how_feeling", or a dot-separated string, e.g. "answer.how_feeling".
 
         Example:
 
         >>> r = Results.example()
-        >>> r.sort_by('how_feeling', reverse = False).select('how_feeling').print()
+        >>> r.sort_by(['how_feeling'], reverse=False).select('how_feeling').print()
         ┏━━━━━━━━━━━━━━┓
         ┃ answer       ┃
         ┃ .how_feeling ┃
@@ -551,7 +643,7 @@ class Results(UserList, Mixins, Base):
         ├──────────────┤
         │ Terrible     │
         └──────────────┘
-        >>> r.sort_by('how_feeling', reverse = True).select('how_feeling').print()
+        >>> r.sort_by(['how_feeling'], reverse=True).select('how_feeling').print()
         ┏━━━━━━━━━━━━━━┓
         ┃ answer       ┃
         ┃ .how_feeling ┃
@@ -565,7 +657,8 @@ class Results(UserList, Mixins, Base):
         │ Great        │
         └──────────────┘
         """
-        data_type, key = self._parse_column(column)
+        if isinstance(columns, str):
+            columns = [columns]
 
         def to_numeric_if_possible(v):
             try:
@@ -573,9 +666,27 @@ class Results(UserList, Mixins, Base):
             except:
                 return v
 
+        def sort_key(item):
+            # Create an empty list to store the key components for sorting
+            key_components = []
+
+            # Loop through each column specified in the sort
+            for col in columns:
+                # Parse the column into its data type and key
+                data_type, key = self._parse_column(col)
+
+                # Retrieve the value from the item based on the parsed data type and key
+                value = item.get_value(data_type, key)
+
+                # Convert the value to numeric if possible, and append it to the key components
+                key_components.append(to_numeric_if_possible(value))
+
+            # Convert the list of key components into a tuple to serve as the sorting key
+            return tuple(key_components)
+
         new_data = sorted(
             self.data,
-            key=lambda x: to_numeric_if_possible(x.get_value(data_type, key)),
+            key=sort_key,
             reverse=reverse,
         )
         return Results(survey=self.survey, data=new_data, created_columns=None)
@@ -665,6 +776,13 @@ class Results(UserList, Mixins, Base):
     def __str__(self):
         data = self.to_dict()["data"]
         return json.dumps(data, indent=4)
+
+    def show_exceptions(self, traceback=False):
+        """Print the exceptions."""
+        if hasattr(self, "task_history"):
+            self.task_history.show_exceptions(traceback)
+        else:
+            print("No exceptions to show.")
 
 
 def main():  # pragma: no cover

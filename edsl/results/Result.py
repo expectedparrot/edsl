@@ -2,6 +2,7 @@
 from __future__ import annotations
 from collections import UserDict
 from typing import Any, Type
+from collections import UserDict
 
 from rich.table import Table
 
@@ -10,12 +11,10 @@ from IPython.display import display
 from edsl.agents import Agent
 from edsl.language_models import LanguageModel
 from edsl.scenarios import Scenario
-
 from edsl.utilities import is_notebook
-
 from edsl.Base import Base
-
-from collections import UserDict
+from edsl.prompts import Prompt
+from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
 
 class PromptDict(UserDict):
@@ -66,8 +65,6 @@ class Result(Base, UserDict):
     Its main data is an Agent, a Scenario, a Model, an Iteration, and an Answer.
     These are stored both in the UserDict and as attributes.
 
-    >>> results.select('question_text.how_feeling')
-    >>> results.select('question_type.how_feeling')
 
     """
 
@@ -118,6 +115,9 @@ class Result(Base, UserDict):
                 q.question_name: {
                     "question_text": q.question_text,
                     "question_type": q.question_type,
+                    "question_options": None
+                    if not hasattr(q, "question_options")
+                    else q.question_options,
                 }
                 for q in survey.questions
             }
@@ -135,15 +135,28 @@ class Result(Base, UserDict):
         else:
             agent_name = self.agent.name
 
+        comments_dict = {k: v for k, v in self.answer.items() if k.endswith("_comment")}
         question_text_dict = {}
+        question_options_dict = {}
+        question_type_dict = {}
         for key, _ in self.answer.items():
             if key in self.question_to_attributes:
+                # You might be tempted to just use the naked key
+                # but this is a bad idea because it pollutes the namespace
                 question_text_dict[
                     key + "_question_text"
                 ] = self.question_to_attributes[key]["question_text"]
+                question_options_dict[
+                    key + "_question_options"
+                ] = self.question_to_attributes[key]["question_options"]
+                question_type_dict[
+                    key + "_question_type"
+                ] = self.question_to_attributes[key]["question_type"]
 
         return {
-            "agent": self.agent.traits | {"agent_name": agent_name},
+            "agent": self.agent.traits
+            | {"agent_name": agent_name}
+            | {"agent_instruction": self.agent.instruction},
             "scenario": self.scenario,
             "model": self.model.parameters | {"model": self.model.model},
             "answer": self.answer,
@@ -151,6 +164,9 @@ class Result(Base, UserDict):
             "raw_model_response": self.raw_model_response,
             "iteration": {"iteration": self.iteration},
             "question_text": question_text_dict,
+            "question_options": question_options_dict,
+            "question_type": question_type_dict,
+            "comment": comments_dict,
         }
 
     def code(self):
@@ -169,30 +185,32 @@ class Result(Base, UserDict):
     def get_value(self, data_type: str, key: str) -> Any:
         """Return the value for a given data type and key.
 
+        >>> r = Result.example()
+        >>> r.get_value("answer", "how_feeling")
+        'OK'
+
         - data types can be "agent", "scenario", "model", or "answer"
         - keys are relevant attributes of the Objects the data types represent
-        results.get_value("answer", "how_feeling") will return "Good" or "Bad" or whatnot
         """
         return self.sub_dicts[data_type][key]
 
     @property
     def key_to_data_type(self) -> dict[str, str]:
-        """Return a dictionary where keys are object attributes and values are the data type (object) that the attribute is associated with."""
+        """Return a dictionary where keys are object attributes and values are the data type (object) that the attribute is associated with.
+
+        >>> r = Result.example()
+        >>> r.key_to_data_type["how_feeling"]
+        'answer'
+
+        """
         d = {}
-        for data_type in [
-            "agent",
-            "scenario",
-            "model",
-            "answer",
-            "prompt",
-            "raw_model_response",
-            "iteration",
-        ]:
+        data_types = self.sub_dicts.keys()
+        for data_type in data_types:
             for key in self.sub_dicts[data_type]:
                 d[key] = data_type
         return d
 
-    def rows(self, index):
+    def rows(self, index) -> tuple[int, str, str, str]:
         """Return a generator of rows for the Result object."""
         for data_type, subdict in self.sub_dicts.items():
             for key, value in subdict.items():
@@ -205,36 +223,61 @@ class Result(Base, UserDict):
         """Return a copy of the Result object."""
         return Result.from_dict(self.to_dict())
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         """Return True if the Result object is equal to another Result object."""
         return self.to_dict() == other.to_dict()
 
     ###############
     # Serialization
     ###############
+    @add_edsl_version
     def to_dict(self) -> dict[str, Any]:
-        """Return a dictionary representation of the Result object."""
-        return {
-            k: v if not hasattr(v, "to_dict") else v.to_dict() for k, v in self.items()
-        }
+        """Return a dictionary representation of the Result object.
+
+        >>> r = Result.example()
+        >>> r.to_dict()['scenario']
+        {'period': 'morning', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}
+        """
+        d = {}
+        for key, value in self.items():
+            if hasattr(value, "to_dict"):
+                d[key] = value.to_dict()
+            else:
+                d[key] = value
+            if key == "prompt":
+                new_prompt_dict = {}
+                for prompt_name, prompt_obj in value.items():
+                    new_prompt_dict[prompt_name] = (
+                        prompt_obj
+                        if not hasattr(prompt_obj, "to_dict")
+                        else prompt_obj.to_dict()
+                    )
+                d[key] = new_prompt_dict
+        return d
 
     @classmethod
+    @remove_edsl_version
     def from_dict(self, json_dict: dict) -> Result:
         """Return a Result object from a dictionary representation."""
+        prompt_data = json_dict.get("prompt", {})
+        prompt_d = {}
+        for prompt_name, prompt_obj in prompt_data.items():
+            prompt_d[prompt_name] = Prompt.from_dict(prompt_obj)
+
         result = Result(
             agent=Agent.from_dict(json_dict["agent"]),
             scenario=Scenario.from_dict(json_dict["scenario"]),
             model=LanguageModel.from_dict(json_dict["model"]),
             iteration=json_dict["iteration"],
             answer=json_dict["answer"],
-            prompt=json_dict["prompt"],
+            prompt=prompt_d,  # json_dict["prompt"],
             raw_model_response=json_dict.get(
                 "raw_model_response", {"raw_model_response": "No raw model response"}
             ),
         )
         return result
 
-    def rich_print(self):
+    def rich_print(self) -> None:
         """Display an object as a table."""
         # from edsl.utilities import print_dict_with_rich
         from rich import print
@@ -319,4 +362,7 @@ def main():
 
 
 if __name__ == "__main__":
-    print(Result.example())
+    # print(Result.example())
+    import doctest
+
+    doctest.testmod(optionflags=doctest.ELLIPSIS)

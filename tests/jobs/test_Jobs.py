@@ -7,6 +7,7 @@ from edsl.questions import QuestionMultipleChoice
 from edsl.scenarios import Scenario
 from edsl.surveys import Survey
 from edsl import Model
+from edsl import Question # needed for the eval() of the repr() of the Job
 
 @pytest.fixture(scope="function")
 def valid_job():
@@ -15,7 +16,7 @@ def valid_job():
         question_options=["Good", "Great", "OK", "Bad"],
         question_name="how_feeling",
     )
-    survey = Survey(name="Test Survey", questions=[q])
+    survey = Survey(questions=[q])
     agent = Agent(traits={"trait1": "value1"})
     model = Model()
     scenario = Scenario({"price": 100, "quantity": 2})
@@ -30,7 +31,9 @@ def valid_job():
 
 def test_jobs_simple_stuf(valid_job):
     # simple stuff
-    assert valid_job.survey.name == "Test Survey"
+    #assert valid_job.survey.name == "Test Survey"
+    from edsl.surveys.RuleCollection import RuleCollection  
+    from edsl.surveys.Rule import Rule
     assert valid_job.agents[0].traits == {"trait1": "value1"}
     assert valid_job.models[0].model == 'gpt-4-1106-preview'
     assert valid_job.scenarios[0].get("price") == 100

@@ -91,6 +91,14 @@ def test_prompt_has_variables():
     p = Prompt("Hello, person")
     assert p.has_variables is False
 
+def test_class_method_from_txt():
+    import tempfile
+    with tempfile.NamedTemporaryFile("w", delete=False, suffix=".txt") as f:
+        f.write("Hello, {{person}}")
+        f.seek(0)
+        p = Prompt.from_txt(f.name)
+        assert p.text == "Hello, {{person}}"
+
 
 # Testing render method
 def test_prompt_render():

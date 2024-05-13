@@ -5,9 +5,24 @@ from rich.table import Table
 from typing import Union, List
 from edsl.Base import Base
 
+from edsl.utilities.decorators import (
+    add_edsl_version,
+    remove_edsl_version,
+)
+
 
 class Scenario(Base, UserDict):
     """A Scenario is a dictionary of keys/values for parameterizing questions."""
+
+    def __init__(self, data: Union[dict, None] = None, name: str = None):
+        """Initialize a new Scenario.
+
+        :param data: A dictionary of keys/values for parameterizing questions.
+        """
+        if data is None:
+            data = {}
+        self.data = data
+        self.name = name
 
     def __add__(self, other_scenario: "Scenario") -> "Scenario":
         """Combine two scenarios.
@@ -54,27 +69,7 @@ class Scenario(Base, UserDict):
                 new_scenario[key] = value
         return new_scenario
 
-    # def make_question(self, question_class: type) -> "Question":
-    #     """Make a question from a scenario.
-
-    #     :param question_class: The question class to use.
-    #     Note it takes a QuestionClass (not a question) as an input.
-
-    #     Examples:
-    #     These do some stuff.
-
-    #     >>> from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
-    #     >>> from edsl.agents.Agent import Agent
-
-    #     >>> s = Scenario({"question_name": "feelings",
-    #     ...               "question_text": "How are you feeling?",
-    #     ...               "question_options": ["Very sad.", "Sad.", "Neutral.", "Happy.", "Very happy."]})
-    #     >>> q = s.make_question(QuestionMultipleChoice)
-    #     >>> q.by(Agent(traits = {'feeling': 'Very sad'})).run().select("feelings")
-    #     [{'answer.feelings': ['Very sad.']}]
-    #     """
-    #     return question_class(**self)
-
+    @add_edsl_version
     def to_dict(self) -> dict:
         """Convert a scenario to a dictionary.
 
@@ -84,12 +79,13 @@ class Scenario(Base, UserDict):
         """
         return self.data
 
-    def __repr__(self):
+    def print(self):
         from rich import print_json
         import json
 
         print_json(json.dumps(self.to_dict()))
 
+    def __repr__(self):
         return "Scenario(" + repr(self.data) + ")"
 
     def _repr_html_(self):
@@ -98,6 +94,7 @@ class Scenario(Base, UserDict):
         return data_to_html(self.to_dict())
 
     @classmethod
+    @remove_edsl_version
     def from_dict(cls, d: dict) -> "Scenario":
         """Convert a dictionary to a scenario.
 
