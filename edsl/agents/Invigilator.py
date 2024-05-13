@@ -15,27 +15,24 @@ from edsl.agents.InvigilatorBase import InvigilatorBase
 
 class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
     """An invigilator that uses an AI model to answer questions."""
-
-    async def async_answer_question(self, failed: bool = False) -> AgentResponseDict:
+    
+    async def async_answer_question(self) -> AgentResponseDict:
         """Answer a question using the AI model."""
         params = self.get_prompts() | {"iteration": self.iteration}
         raw_response = await self.async_get_response(**params)
-        assert "raw_model_response" in raw_response
         data = {
             "agent": self.agent,
             "question": self.question,
             "scenario": self.scenario,
-        }
-        raw_response_data = {
             "raw_response": raw_response,
             "raw_model_response": raw_response["raw_model_response"],
         }
-        params = data | raw_response_data
-        response = self._format_raw_response(**params)
+        response = self._format_raw_response(**data)
         return AgentResponseDict(**response)
 
+
     async def async_get_response(
-        self, user_prompt: Prompt, system_prompt: Prompt, iteration: int = 1
+        self, user_prompt: Prompt, system_prompt: Prompt, iteration: int = 0
     ) -> dict:
         """Call the LLM and gets a response. Used in the `answer_question` method."""
         try:
@@ -56,6 +53,17 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
             )
 
         return response
+    
+    def _remove_from_cache(self, raw_response) -> None:
+        """Remove an entry from the cache."""
+        if (
+            "raw_model_response" in raw_response
+            and "cache_key" in raw_response["raw_model_response"]
+        ):
+            cache_key = raw_response["raw_model_response"]["cache_key"]
+        else:
+            cache_key = None
+        del self.cache.data[cache_key]
 
     def _format_raw_response(
         self, *, agent, question, scenario, raw_response, raw_model_response
@@ -64,30 +72,20 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
 
         This cleans up the raw response to make it suitable to pass to AgentResponseDict.
         """
+        # not actually used, but this removes the temptation to delete agent from the signature
+        _ = agent
         try:
             response = question._validate_answer(raw_response)
         except Exception as e:
-            # print("Purging the cache key")
-            # Remove the cache key from the cache
-            if (
-                "raw_model_response" in raw_response
-                and "cache_key" in raw_response["raw_model_response"]
-            ):
-                cache_key = raw_response["raw_model_response"]["cache_key"]
-            else:
-                cache_key = None
-            del self.cache.data[cache_key]
+            self._remove_from_cache(raw_response)
             raise e
 
-        comment = response.get("comment", "")
-        answer_code = response["answer"]
-        answer = question._translate_answer_code_to_answer(answer_code, scenario)
-        raw_model_response = raw_model_response
+        answer = question._translate_answer_code_to_answer(response['answer'], scenario)
         data = {
             "answer": answer,
-            "comment": comment,
+            "comment": response.get("comment", ""), # not all question have comment fields,
             "question_name": question.question_name,
-            "prompts": self.get_prompts(),  # {k: v.to_dict() for k, v in self.get_prompts().items()},
+            "prompts": self.get_prompts(),  
             "cached_response": raw_response["cached_response"],
             "usage": raw_response.get("usage", {}),
             "raw_model_response": raw_model_response,
