@@ -27,17 +27,18 @@ class ScenarioList(Base, UserList):
 
     def _repr_html_(self) -> str:
         from edsl.utilities.utilities import data_to_html
+
         return data_to_html(self.to_dict())
 
-    def expand(self, expand_field:str) -> ScenarioList:
+    def expand(self, expand_field: str) -> ScenarioList:
         """Expand the ScenarioList by a field.
-        
+
         Example usage:
-        
-        >>> s = ScenarioList( [ Scenario({'a':1, 'b':[1,2]}) ] ) 
+
+        >>> s = ScenarioList( [ Scenario({'a':1, 'b':[1,2]}) ] )
         >>> s.expand('b')
         ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
-        
+
         """
 
         new_scenarios = []
@@ -81,7 +82,7 @@ class ScenarioList(Base, UserList):
 
     @classmethod
     def from_csv(cls, filename: str) -> ScenarioList:
-        """Create a ScenarioList from a CSV file.        
+        """Create a ScenarioList from a CSV file.
 
         >>> import tempfile
         >>> import os
@@ -108,7 +109,7 @@ class ScenarioList(Base, UserList):
     @add_edsl_version
     def to_dict(self) -> dict[str, Any]:
         """Return the `ScenarioList` as a dictionary.
-        
+
         >>> s = ScenarioList([Scenario({'food': 'wood chips'}), Scenario({'food': 'wood-fired pizza'})])
         >>> s.to_dict()
         {'scenarios': [{'food': 'wood chips', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}, {'food': 'wood-fired pizza', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}], 'edsl_version': '...', 'edsl_class_name': 'ScenarioList'}
@@ -182,4 +183,5 @@ if __name__ == "__main__":
     # print(scenario_list.code())
 
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)

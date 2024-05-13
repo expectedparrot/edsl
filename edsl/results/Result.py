@@ -197,11 +197,11 @@ class Result(Base, UserDict):
     @property
     def key_to_data_type(self) -> dict[str, str]:
         """Return a dictionary where keys are object attributes and values are the data type (object) that the attribute is associated with.
-        
+
         >>> r = Result.example()
         >>> r.key_to_data_type["how_feeling"]
         'answer'
-        
+
         """
         d = {}
         data_types = self.sub_dicts.keys()
@@ -233,7 +233,7 @@ class Result(Base, UserDict):
     @add_edsl_version
     def to_dict(self) -> dict[str, Any]:
         """Return a dictionary representation of the Result object.
-        
+
         >>> r = Result.example()
         >>> r.to_dict()['scenario']
         {'period': 'morning', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}
@@ -362,7 +362,7 @@ def main():
 
 
 if __name__ == "__main__":
-    #print(Result.example())
-    import doctest 
-    doctest.testmod(optionflags=doctest.ELLIPSIS)
+    # print(Result.example())
+    import doctest
 
+    doctest.testmod(optionflags=doctest.ELLIPSIS)

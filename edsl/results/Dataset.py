@@ -28,18 +28,18 @@ class Dataset(UserList, ResultsExportMixin):
         """
         _, values = list(self.data[0].items())[0]
         return len(values)
-    
+
     def __repr__(self) -> str:
         """Return a string representation of the dataset."""
         return f"Dataset({self.data})"
 
     def relevant_columns(self, remove_prefix=False) -> set:
         """Return the set of keys that are present in the dataset.
-        
+
         >>> d = Dataset([{'a.b':[1,2,3,4]}])
         >>> d.relevant_columns()
         {'a.b'}
-        
+
         >>> d.relevant_columns(remove_prefix=True)
         {'b'}
         """
@@ -50,7 +50,7 @@ class Dataset(UserList, ResultsExportMixin):
 
     def _key_to_value(self, key: str) -> Any:
         """Retrieve the value associated with the given key from the dataset.
-        
+
         >>> d = Dataset([{'a.b':[1,2,3,4]}])
         >>> d._key_to_value('a.b')
         [1, 2, 3, 4]
@@ -69,7 +69,7 @@ class Dataset(UserList, ResultsExportMixin):
 
     def first(self) -> dict[str, Any]:
         """Get the first value of the first key in the first dictionary.
-        
+
         >>> d = Dataset([{'a.b':[1,2,3,4]}])
         >>> d.first()
         1
@@ -87,9 +87,9 @@ class Dataset(UserList, ResultsExportMixin):
 
         return data_to_html(self.data)
 
-    def shuffle(self, seed = None) -> Dataset:
+    def shuffle(self, seed=None) -> Dataset:
         """Return a new dataset with the observations shuffled.
-        
+
         >>> d = Dataset([{'a.b':[1,2,3,4]}])
         >>> d.shuffle(seed=0)
         Dataset([{'a.b': [3, 1, 2, 4]}])
@@ -107,10 +107,16 @@ class Dataset(UserList, ResultsExportMixin):
             entry[key] = [values[i] for i in indices]
 
         return self
-    
-    def sample(self, n:int = None, frac:float = None, with_replacement:bool = True, seed: Union[str, int, float] = None) -> Dataset:
+
+    def sample(
+        self,
+        n: int = None,
+        frac: float = None,
+        with_replacement: bool = True,
+        seed: Union[str, int, float] = None,
+    ) -> Dataset:
         """Return a new dataset with a sample of the observations.
-        
+
         :param n: The number of samples to take.
         :param frac: The fraction of samples to take.
         :param with_replacement: Whether to sample with replacement.
@@ -163,7 +169,7 @@ class Dataset(UserList, ResultsExportMixin):
 
     def order_by(self, sort_key: str, reverse: bool = False) -> Dataset:
         """Return a new dataset with the observations sorted by the given key.
-        
+
         :param sort_key: The key to sort the observations by.
         :param reverse: Whether to sort in reverse order.
 
@@ -195,13 +201,15 @@ class Dataset(UserList, ResultsExportMixin):
         sort_indices_list = sort_indices(relevant_values)
         new_data = []
         for observation in self.data:
-            #print(observation)
+            # print(observation)
             key, values = list(observation.items())[0]
             new_values = [values[i] for i in sort_indices_list]
             new_data.append({key: new_values})
 
         return Dataset(new_data)
 
+
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)
