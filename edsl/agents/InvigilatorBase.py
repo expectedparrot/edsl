@@ -3,28 +3,51 @@ import asyncio
 from typing import Coroutine, Dict, Any, Optional
 
 from edsl.prompts.Prompt import Prompt
-from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
-from edsl.prompts.registry import get_classes as prompt_lookup
+from edsl.utilities.decorators import jupyter_nb_handler
 from edsl.data_transfer_models import AgentResponseDict
 
 from edsl.data.Cache import Cache
-
+#from edsl.agents.Agent import Agent
+from edsl.questions.QuestionBase import QuestionBase
+from edsl.scenarios.Scenario import Scenario
+from edsl.surveys.MemoryPlan import MemoryPlan
+from edsl.language_models.LanguageModel import LanguageModel
 
 class InvigilatorBase(ABC):
-    """An invigiator (someone who administers an exam) is a class that is responsible for administering a question to an agent."""
+    """An invigiator (someone who administers an exam) is a class that is responsible for administering a question to an agent.
+    
+    >>> InvigilatorBase.example().answer_question()
+    {'message': '{"answer": "SPAM!"}'}
+
+    >>> InvigilatorBase.example().get_failed_task_result()
+    {'answer': None, 'comment': 'Failed to get response', ...
+
+    This returns an empty prompt because there is no memory the agent needs to have at q0.
+
+    >>> InvigilatorBase.example().create_memory_prompt("q0")
+    Prompt(text='')
+
+    >>> i = InvigilatorBase.example()
+    >>> i.current_answers = {"q0": "Prior answer"}
+    >>> i.memory_plan.add_single_memory("q1", "q0")
+    >>> i.create_memory_prompt("q1")
+    Prompt(text='
+            Before the question you are now answering, you already answered the following question(s):
+    ...
+    """
 
     def __init__(
         self,
-        agent,
-        question,
-        scenario,
-        model,
-        memory_plan,
+        agent: 'Agent',
+        question: QuestionBase,
+        scenario: Scenario,
+        model: LanguageModel,
+        memory_plan: MemoryPlan,
         current_answers: dict,
-        cache=None,
-        iteration: int = 1,
+        cache: Optional[Cache] = None,
+        iteration: Optional[int] = 1,
         additional_prompt_data: Optional[dict] = None,
-        sidecar_model=None,
+        sidecar_model: Optional[LanguageModel] =None,
     ):
         """Initialize a new Invigilator."""
         self.agent = agent
@@ -39,7 +62,7 @@ class InvigilatorBase(ABC):
         self.sidecar_model = sidecar_model
 
     def get_failed_task_result(self) -> AgentResponseDict:
-        """Return an AgentResponseDict used in case the question-askinf fails."""
+        """Return an AgentResponseDict used in case the question-asking fails."""
         return AgentResponseDict(
             answer=None,
             comment="Failed to get response",
@@ -53,50 +76,6 @@ class InvigilatorBase(ABC):
             "user_prompt": Prompt("NA"),
             "system_prompt": Prompt("NA"),
         }
-
-    @classmethod
-    def example(cls):
-        """Return an example invigilator."""
-        from edsl.agents.Agent import Agent
-        from edsl.questions import QuestionMultipleChoice
-        from edsl.scenarios.Scenario import Scenario
-        from edsl.language_models import LanguageModel
-
-        from edsl.enums import InferenceServiceType
-
-        class TestLanguageModelGood(LanguageModel):
-            """A test language model."""
-
-            _model_ = "test"
-            _parameters_ = {"temperature": 0.5}
-            _inference_service_ = InferenceServiceType.TEST.value
-
-            async def async_execute_model_call(
-                self, user_prompt: str, system_prompt: str
-            ) -> dict[str, Any]:
-                await asyncio.sleep(0.1)
-                return {"message": """{"answer": "SPAM!"}"""}
-                """Return a response from the model."""
-
-            def parse_response(self, raw_response: dict[str, Any]) -> str:
-                """Parse the response from the model."""
-                return raw_response["message"]
-
-        model = TestLanguageModelGood()
-        agent = Agent.example()
-        question = QuestionMultipleChoice.example()
-        scenario = Scenario.example()
-        #        model = LanguageModel.example()
-        memory_plan = None
-        current_answers = None
-        return cls(
-            agent=agent,
-            question=question,
-            scenario=scenario,
-            model=model,
-            memory_plan=memory_plan,
-            current_answers=current_answers,
-        )
 
     @abstractmethod
     async def async_answer_question(self):
@@ -117,5 +96,71 @@ class InvigilatorBase(ABC):
     def create_memory_prompt(self, question_name):
         """Create a memory for the agent."""
         return self.memory_plan.get_memory_prompt_fragment(
-            question_name, self.current_answers
+            question_name, 
+            self.current_answers
         )
+    
+    @classmethod
+    def example(cls, throw_an_exception = False):
+        """Return an example invigilator."""
+        from edsl.agents.Agent import Agent
+        from edsl.questions import QuestionMultipleChoice
+        from edsl.scenarios.Scenario import Scenario
+        from edsl.language_models import LanguageModel
+        from edsl.surveys.MemoryPlan import MemoryPlan
+
+        from edsl.enums import InferenceServiceType
+
+        class TestLanguageModelGood(LanguageModel):
+            """A test language model."""
+
+            _model_ = "test"
+            _parameters_ = {"temperature": 0.5}
+            _inference_service_ = InferenceServiceType.TEST.value
+
+            async def async_execute_model_call(
+                self, 
+                user_prompt: str, 
+                system_prompt: str
+            ) -> dict[str, Any]:
+                await asyncio.sleep(0.1)
+                if hasattr(self, "throw_an_exception"):
+                    raise Exception("Error!")
+                return {"message": """{"answer": "SPAM!"}"""}
+
+            def parse_response(self, raw_response: dict[str, Any]) -> str:
+                """Parse the response from the model."""
+                return raw_response["message"]
+            
+        model = TestLanguageModelGood()
+        if throw_an_exception:
+            model.throw_an_exception = True
+        agent = Agent.example()
+        question = QuestionMultipleChoice.example()
+        scenario = Scenario.example()
+        #memory_plan = None #memory_plan = MemoryPlan()
+        from edsl import Survey
+        memory_plan = MemoryPlan(survey = Survey.example())
+        current_answers = None
+
+        class ExampleInvigilator(InvigilatorBase):
+            """An example invigilator."""
+
+            async def async_answer_question(self):
+                """Answer a question."""
+                return await self.model.async_execute_model_call(
+                    user_prompt="Hello", system_prompt="Hi"
+                )
+
+        return ExampleInvigilator(
+            agent=agent,
+            question=question,
+            scenario=scenario,
+            model=model,
+            memory_plan=memory_plan,
+            current_answers=current_answers,
+        )
+
+if __name__ == "__main__":
+    import doctest 
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
