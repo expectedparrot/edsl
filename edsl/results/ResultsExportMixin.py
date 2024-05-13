@@ -330,12 +330,19 @@ class ResultsExportMixin:
             # if only one 'column' is selected (which is typical for this method
             list_to_return = list(self[0].values())[0]
         else:
-            list_to_return = tuple([list(x.values())[0] for x in self])
+            list_to_return = [list(x.values())[0] for x in self][0]
 
         if remove_none:
             list_to_return = [item for item in list_to_return if item is not None]
+        
         if flatten:
-            list_to_return = [item for sublist in list_to_return for item in sublist]
+            new_list = [] 
+            for item in list_to_return:
+                if isinstance(item, list):
+                    new_list.extend(item)
+                else:
+                    new_list.append(item)
+            list_to_return = new_list
 
         return list_to_return
 
