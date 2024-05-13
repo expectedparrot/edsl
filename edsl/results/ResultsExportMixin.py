@@ -334,9 +334,9 @@ class ResultsExportMixin:
 
         if remove_none:
             list_to_return = [item for item in list_to_return if item is not None]
-        
+
         if flatten:
-            new_list = [] 
+            new_list = []
             for item in list_to_return:
                 if isinstance(item, list):
                     new_list.extend(item)

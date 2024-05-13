@@ -22,6 +22,7 @@ from edsl.utilities import is_notebook
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 from edsl.surveys.SurveyFlowVisualizationMixin import SurveyFlowVisualizationMixin
 
+
 class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     """A collection of questions that supports skip logic."""
 
@@ -68,6 +69,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         if name is not None:
             import warnings
+
             warnings.warn("name is deprecated.")
 
     def get_question(self, question_name) -> QuestionBase:
@@ -95,7 +97,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         """Return a dictionary mapping question names to question indices.
 
         Example:
-        
+
         >>> s = Survey.example()
         >>> s.question_name_to_index
         {'q0': 0, 'q1': 1, 'q2': 2}
@@ -274,7 +276,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         """Add a rule that stops the survey.
 
         The rule is evaluated *after* the question is answered. If the rule is true, the survey ends.
-        
+
         >>> s = Survey.example().add_stop_rule("q0", "q0 == 'yes'")
         >>> s.next_question("q0", {"q0": "yes"})
         EndOfSurvey
@@ -289,12 +291,12 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         self, question: Union[QuestionBase, str], expression: str
     ) -> Survey:
         """
-        Adds a skip rule to the survey. 
+        Adds a skip rule to the survey.
 
         :param question: The question to add the skip rule to.
         :param expression: The expression to evaluate.
-        
-        If the expression evaluates to True, the question is skipped. This is evaluated *before* the question is answered. 
+
+        If the expression evaluates to True, the question is skipped. This is evaluated *before* the question is answered.
         """
         question_index = self._get_question_index(question)
         self._add_rule(question, expression, question_index + 1, before_rule=True)
@@ -327,7 +329,9 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
                 )
             return self.question_name_to_index[question_name]
 
-    def _get_new_rule_priority(self, question_index:int, before_rule: bool = False) -> int:
+    def _get_new_rule_priority(
+        self, question_index: int, before_rule: bool = False
+    ) -> int:
         """Return the priority for the new rule."""
         current_priorities = [
             rule.priority
@@ -356,7 +360,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     ) -> Survey:
         """
         Add a rule to a Question of the Survey with the appropriate priority.
-        
+
         :param question: The question to add the rule to.
         :param expression: The expression to evaluate.
         :param next_question: The next question to go to if the rule is true.
@@ -433,9 +437,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         return self.questions[0]
 
     def next_question(
-        self, 
-        current_question: Union[str, QuestionBase], 
-        answers: dict
+        self, current_question: Union[str, QuestionBase], answers: dict
     ) -> Union[QuestionBase, EndOfSurvey.__class__]:
         """
         Return the next question in a survey.
@@ -552,7 +554,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     ###################
     def __len__(self) -> int:
         """Return the number of questions in the survey.
-        
+
         >>> s = Survey.example()
         >>> len(s)
         3
@@ -629,11 +631,12 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
     def _repr_html_(self) -> str:
         from edsl.utilities.utilities import data_to_html
+
         return data_to_html(self.to_dict())
 
     def show_rules(self) -> None:
         """Print out the rules in the survey.
-        
+
         >>> s = Survey.example()
         >>> s.show_rules()
         ┏━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━┓
@@ -659,7 +662,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
     def codebook(self) -> dict[str, str]:
         """Create a codebook for the survey, mapping question names to question text.
-        
+
         >>> s = Survey.example()
         >>> s.codebook()
         {'q0': 'Do you like school?', 'q1': 'Why not?', 'q2': 'Why?'}
@@ -673,7 +676,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         """Export the survey to a CSV file.
 
         :param filename: The name of the file to save the CSV to.
-         
+
         >>> s = Survey.example()
         >>> s.to_csv()
            index question_name        question_text                                question_options    question_type edsl_version edsl_class_name
@@ -768,10 +771,9 @@ def main():
 
 
 if __name__ == "__main__":
-
     import doctest
-    doctest.testmod(optionflags=doctest.ELLIPSIS)
 
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
 
     # def example_survey():
     #     """Return an example survey."""
@@ -798,8 +800,6 @@ if __name__ == "__main__":
     #         q1, "why_not == 'other'"
     #     )
     #     return s
-
-
 
     # s = example_survey()
     # s.show_flow()

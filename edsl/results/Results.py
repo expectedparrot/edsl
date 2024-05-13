@@ -404,7 +404,7 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.relevant_columns()[0]
-        'agent' 
+        'agent'
         """
         return sorted(
             set().union(
@@ -690,7 +690,6 @@ class Results(UserList, Mixins, Base):
             reverse=reverse,
         )
         return Results(survey=self.survey, data=new_data, created_columns=None)
-
 
     def filter(self, expression: str) -> Results:
         """
