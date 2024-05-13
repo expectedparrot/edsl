@@ -62,11 +62,11 @@ def test_QuestionFreeText_serialization():
 
     # serialization should add a "type" attribute
     q = QuestionFreeText(**valid_question)
-    assert q.to_dict() == {
+    assert {
         "question_name": "how_are_you",
         "question_text": "How are you?",
         "question_type": "free_text",
-    }
+    }.items() <= q.to_dict().items()
 
     # deserialization should return a QuestionFreeTextEnhanced object
     q_lazarus = QuestionBase.from_dict(q.to_dict())

@@ -61,6 +61,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         self.cache = cache
         # will get filled in as interview progresses
         self.answers: dict[str, str] = Answers()
+        self.sidecar_model = sidecar_model
 
         # Trackers
         self.task_creators = TaskCreators()  # tracks the task creators
@@ -174,7 +175,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
     #######################
     def __repr__(self) -> str:
         """Return a string representation of the Interview instance."""
-        return f"Interview(agent = {self.agent}, survey = {self.survey}, scenario = {self.scenario}, model = {self.model})"
+        return f"Interview(agent = {repr(self.agent)}, survey = {repr(self.survey)}, scenario = {repr(self.scenario)}, model = {repr(self.model)})"
 
 
 if __name__ == "__main__":

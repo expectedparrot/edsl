@@ -10,6 +10,24 @@ EDSL: AI-Powered Research
    EDSL is developed by <a href="https://www.expectedparrot.com" target="_blank">Expected Parrot</a> and available under the MIT License.
    <br><br>
 
+Links
+-----
+.. raw:: html
+
+   <a href="https://pypi.org/project/edsl" target="_blank"><i class="fab fa-python"></i></a>&nbsp;&nbsp;Download the latest version of EDSL at <a href="https://pypi.org/project/edsl" target="_blank">PyPI</a>.     
+   <br><br>
+
+.. raw:: html
+
+   <a href="https://github.com/expectedparrot/edsl" target="_blank"><i class="fab fa-github"></i></a>&nbsp;&nbsp;Get the latest EDSL updates at <a href="https://github.com/expectedparrot/edsl" target="_blank">GitHub</a>.
+   <br><br>
+
+.. raw:: html
+
+   <a href="https://discord.com/invite/mxAYkjfy9m" target="_blank"><i class="fab fa-discord"></i></a>&nbsp;&nbsp;<a href="https://discord.com/invite/mxAYkjfy9m" target="_blank">Join our Discord channel</a> to connect with other users and ask questions.
+   <br><br>
+
+
 This page provides documentation, tutorials and demo notebooks for the EDSL package.
 The contents are organized into several key sections to help you get started using it:
 
@@ -47,31 +65,32 @@ Developers
 ----------
 Information about additional functionality for developers.
 
-Links
------
-*Updates*
 
-.. raw:: html
+.. Links
+.. -----
+.. *Updates*
 
-   <a href="https://pypi.org/project/edsl" target="_blank"><i class="fab fa-python"></i></a>&nbsp;&nbsp;Download the latest version of EDSL at <a href="https://pypi.org/project/edsl" target="_blank">PyPI</a>.     
-   <br><br>
+.. .. raw:: html
 
-   <a href="https://github.com/expectedparrot/edsl" target="_blank"><i class="fab fa-github"></i></a>&nbsp;&nbsp;Get the latest EDSL updates at <a href="https://github.com/expectedparrot/edsl" target="_blank">GitHub</a>.
-   <br><br>
+..    <a href="https://pypi.org/project/edsl" target="_blank"><i class="fab fa-python"></i></a>&nbsp;&nbsp;Download the latest version of EDSL at <a href="https://pypi.org/project/edsl" target="_blank">PyPI</a>.     
+..    <br><br>
 
-*Community*
+..    <a href="https://github.com/expectedparrot/edsl" target="_blank"><i class="fab fa-github"></i></a>&nbsp;&nbsp;Get the latest EDSL updates at <a href="https://github.com/expectedparrot/edsl" target="_blank">GitHub</a>.
+..    <br><br>
 
-.. raw:: html
+.. *Community*
 
-   <a href="https://discord.com/invite/mxAYkjfy9m" target="_blank"><i class="fab fa-discord"></i></a>&nbsp;&nbsp;Join our <a href="https://discord.com/invite/mxAYkjfy9m" target="_blank">Discord</a> channel to connect with other users and ask questions.
-   <br><br>
+.. .. raw:: html
 
-*Support*
+..    <a href="https://discord.com/invite/mxAYkjfy9m" target="_blank"><i class="fab fa-discord"></i></a>&nbsp;&nbsp;Join our <a href="https://discord.com/invite/mxAYkjfy9m" target="_blank">Discord</a> channel to connect with other users and ask questions.
+..    <br><br>
 
-.. raw:: html
+.. *Support*
 
-   <i class="far fa-envelope"></i>&nbsp;&nbsp;Send us an email at <b>info@expectedparrot.com</b>.    
-   <br><br>
+.. .. raw:: html
+
+..    <i class="far fa-envelope"></i>&nbsp;&nbsp;Send us an email at <b>info@expectedparrot.com</b>.    
+..    <br><br>
 
  
 
@@ -82,7 +101,6 @@ Links
    :hidden:
 
    overview
-   whitepaper
    citation
 
 .. toctree::
@@ -106,6 +124,8 @@ Links
    prompts
    language_models
    results
+   data
+   exceptions
 
 .. toctree::
    :maxdepth: 2
@@ -113,7 +133,6 @@ Links
    :hidden:
 
    notebooks/edsl_components.ipynb
-   notebooks/survey_methods.ipynb
    notebooks/export_survey_updates.ipynb
    notebooks/question_extract_example.ipynb
    notebooks/data_labeling_example.ipynb
@@ -125,7 +144,10 @@ Links
    :caption: Notebooks
    :hidden:
 
+   notebooks/random_numbers.ipynb
    notebooks/data_labeling_agent.ipynb
+   notebooks/concept_induction.ipynb
+   notebooks/testing_training_data.ipynb
    notebooks/explore_llm_biases.ipynb
    notebooks/research_random_silicon_sampling.ipynb
    notebooks/explore_survey_contexts.ipynb
@@ -139,8 +161,10 @@ Links
    :caption: Developers
    :hidden:
 
-   data
    enums
+   jobs 
+   interviews
+   answers
 
 .. image:: https://colab.research.google.com/assets/colab-badge.svg
    :target: https://colab.research.google.com/github/expectedparrot/edsl/blob/main/examples/create_agents.ipynb 

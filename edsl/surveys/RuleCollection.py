@@ -11,7 +11,7 @@ from edsl.surveys.Rule import Rule
 from edsl.surveys.base import EndOfSurvey
 from edsl.surveys.DAG import DAG
 
-from graphlib import TopologicalSorter
+# from graphlib import TopologicalSorter
 
 from collections import namedtuple
 
@@ -54,7 +54,14 @@ class RuleCollection(UserList):
 
     @classmethod
     def from_dict(cls, rule_collection_dict):
-        """Create a RuleCollection object from a dictionary."""
+        """Create a RuleCollection object from a dictionary.
+
+        >>> rule_collection = RuleCollection.example()
+        >>> rule_collection_dict = rule_collection.to_dict()
+        >>> new_rule_collection = RuleCollection.from_dict(rule_collection_dict)
+        >>> repr(new_rule_collection) == repr(rule_collection)
+        True
+        """
         rules = [
             Rule.from_dict(rule_dict) for rule_dict in rule_collection_dict["rules"]
         ]
@@ -63,23 +70,86 @@ class RuleCollection(UserList):
         new_rc.num_questions = num_questions
         return new_rc
 
-    def add_rule(self, rule: Rule):
-        """Add a rule to a survey."""
+    def add_rule(self, rule: Rule) -> None:
+        """Add a rule to a survey.
+
+        >>> rule_collection = RuleCollection()
+        >>> rule_collection.add_rule(Rule(current_q=1, expression="q1 == 'yes'", next_q=3, priority=1, question_name_to_index={'q1': 1, 'q2': 2, 'q3': 3, 'q4': 4}))
+        >>> len(rule_collection)
+        1
+
+        >>> rule_collection = RuleCollection()
+        >>> r = Rule(current_q=1, expression="True", next_q=3, priority=1, question_name_to_index={'q1': 1, 'q2': 2, 'q3': 3, 'q4': 4}, before_rule = True)
+        >>> rule_collection.add_rule(r)
+        >>> rule_collection[0] == r
+        True
+        >>> len(rule_collection.applicable_rules(1, before_rule=True))
+        1
+        >>> len(rule_collection.applicable_rules(1, before_rule=False))
+        0
+        """
         self.append(rule)
 
     def show_rules(self) -> None:
-        """Print the rules in a table."""
-        keys = ["current_q", "expression", "next_q", "priority"]
+        """Print the rules in a table.
+
+
+        .. code-block:: python
+
+        rule_collection = RuleCollection.example()
+        rule_collection.show_rules()
+        ┏━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━┓
+        ┃ current_q ┃ expression  ┃ next_q ┃ priority ┃ before_rule ┃
+        ┡━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━┩
+        │ 1         │ q1 == 'yes' │ 3      │ 1        │ False       │
+        │ 1         │ q1 == 'no'  │ 2      │ 1        │ False       │
+        └───────────┴─────────────┴────────┴──────────┴─────────────┘
+        """
+        keys = ["current_q", "expression", "next_q", "priority", "before_rule"]
         rule_list = []
         for rule in sorted(self, key=lambda r: r.current_q):
             rule_list.append({k: getattr(rule, k) for k in keys})
 
         print_table_with_rich(rule_list)
 
-    def applicable_rules(self, q_now: int) -> list:
+    def skip_question_before_running(self, q_now: int, answers: dict[str, Any]) -> bool:
+        """Determine if a question should be skipped before running the question.
+
+        :param q_now: The current question index.
+        :param answers: The answers to the survey questions.
+
+        >>> rule_collection = RuleCollection()
+        >>> r = Rule(current_q=1, expression="True", next_q=1, priority=1, question_name_to_index={}, before_rule = True)
+        >>> rule_collection.add_rule(r)
+        >>> rule_collection.skip_question_before_running(1, {})
+        True
+
+        >>> rule_collection = RuleCollection()
+        >>> r = Rule(current_q=1, expression="False", next_q=1, priority=1, question_name_to_index={}, before_rule = True)
+        >>> rule_collection.add_rule(r)
+        >>> rule_collection.skip_question_before_running(1, {})
+        False
+
+        """
+        for rule in self.applicable_rules(q_now, before_rule=True):
+            if rule.evaluate(answers):
+                return True
+        return False
+
+    def applicable_rules(self, q_now: int, before_rule: bool = False) -> list:
         """Show the rules that apply at the current node.
 
+        :param q_now: The current question index.
+        :param before_rule: If True, return rules that are of the type that apply before the question is asked.
+
         Example usage:
+
+        >>> rule_collection = RuleCollection.example()
+        >>> rule_collection.applicable_rules(1)
+        [Rule(current_q=1, expression="q1 == 'yes'", next_q=3, priority=1, question_name_to_index={'q1': 1, 'q2': 2, 'q3': 3, 'q4': 4}), Rule(current_q=1, expression="q1 == 'no'", next_q=2, priority=1, question_name_to_index={'q1': 1, 'q2': 2, 'q3': 3, 'q4': 4})]
+
+        The default is that the rule is applied after the question is asked.
+        If we want to see the rules that apply before the question is asked, we can set before_rule=True.
 
         .. code-block:: python
 
@@ -93,19 +163,32 @@ class RuleCollection(UserList):
         2. "q1 == 'b' ==> 4
         3. "q1 == 'c' ==> 5
         """
-        return [rule for rule in self if rule.current_q == q_now]
+        return [
+            rule
+            for rule in self
+            if rule.current_q == q_now and rule.before_rule == before_rule
+        ]
 
     def next_question(self, q_now: int, answers: dict[str, Any]) -> NextQuestion:
-        """Find the next question by index, given the rule collection."""
+        """Find the next question by index, given the rule collection.
+        This rule is applied after the question is asked.
+
+        :param q_now: The current question index.
+        :param answers: The answers to the survey questions so far, including the current question.
+
+        >>> rule_collection = RuleCollection.example()
+        >>> rule_collection.next_question(1, {'q1': 'yes'})
+        NextQuestion(next_q=3, num_rules_found=2, expressions_evaluating_to_true=1, priority=1)
+
+        """
         # What rules apply at the current node?
 
-        # tracking
         expressions_evaluating_to_true = 0
         next_q = None
         highest_priority = -2  # start with -2 to 'pick up' the default rule added
         num_rules_found = 0
 
-        for rule in self.applicable_rules(q_now):
+        for rule in self.applicable_rules(q_now, before_rule=False):
             num_rules_found += 1
             try:
                 if rule.evaluate(answers):  # evaluates to True

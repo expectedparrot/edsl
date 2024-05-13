@@ -50,12 +50,12 @@ def test_QuestionYesNo_serialization():
     # serialization should add a "type" attribute
     q = QuestionYesNo(**valid_question)
     print(q.to_dict())
-    assert q.to_dict() == {
+    assert {
         "question_name": valid_question["question_name"],
         "question_text": valid_question["question_text"],
         "question_options": ["Yes", "No"],
         "question_type": "yes_no",
-    }
+    }.items() <= q.to_dict().items()
 
     # deserialization should return a QuestionYesNoEnhanced object
     q_lazarus = QuestionBase.from_dict(q.to_dict())

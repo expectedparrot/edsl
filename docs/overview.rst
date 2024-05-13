@@ -59,36 +59,82 @@ The following illustrations provide a visual representation of how these compone
 
 
 1. Construct questions of various types:
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. image:: static/survey_graphic1.png
+.. image:: static/edsl1.png
    :alt: Construct questions
    :align: center
 
 
+.. raw:: html
 
-2. Parameterize questions with content or data:
+   <br>
 
-.. image:: static/survey_graphic2.png
+
+2. Parameterize questions with context or data:
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. image:: static/edsl2.png
    :alt: Optionally parameterize questions
    :align: center
 
 
+.. raw:: html
 
-3. Create AI agents to answer the questions:
+   <br>
 
-.. image:: static/survey_graphic3.png
+
+3. Combine questions into a survey:
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. image:: static/edsl3.png
    :alt: Create AI agents to answer the questions
    :align: center
 
 
+.. raw:: html
 
-4. Select AI models to generate results:
+   <br>
 
-.. image:: static/survey_graphic4.png
+
+4. Create AI agents to answer the questions:
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. image:: static/edsl4.png
+   :alt: Create AI agents to answer the questions
+   :align: center
+
+
+.. raw:: html
+
+   <br>
+
+
+5. Select language models to generate results:
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. image:: static/edsl5.png
    :alt: Select AI models to simulate results
    :align: center
    
 
+.. raw:: html
+
+   <br>
+
+
+6. Use built-in methods for working with results:
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. image:: static/edsl6.png
+   :alt: Use built-in methods for working with results
+   :align: center
+
+
+.. raw:: html
+
+   <br>
+   
 
 Key operations
 --------------

@@ -132,12 +132,15 @@ test-coop: ## Run coop tests (no regular tests, requires coop server running)
 
 test-coverage: ## Run regular tests and get a coverage report
 	make clean-test
-	poetry run coverage run -m pytest tests --ignore=tests/stress && poetry run coverage html
+	poetry run coverage run -m pytest tests --ignore=tests/stress --ignore=tests/coop && poetry run coverage html
 	@UNAME=`uname`; if [ "$$UNAME" = "Darwin" ]; then \
 		open htmlcov/index.html; \
 	else \
 		firefox htmlcov/index.html; \
 	fi
+
+test-data: ## Creates serialization test data for the current EDSL version
+	python scripts/create_serialization_test_data.py
 
 test-doctests: ## Run doctests
 	make clean-test
@@ -150,6 +153,9 @@ test-doctests: ## Run doctests
 	## pytest --doctest-modules edsl/reports	
 	pytest --doctest-modules edsl/language_models
 	pytest --doctest-modules edsl/data
+
+update-serialization-dataset:
+	python tests/serialization/create_data.py
 
 integration: ## Run integration tests via pytest **consumes API credits**
 	## pytest -v -s integration/

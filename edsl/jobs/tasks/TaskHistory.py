@@ -17,6 +17,10 @@ class TaskHistory:
             index for index, i in enumerate(self.total_interviews) if i.exceptions != {}
         ]
 
+    def __repr__(self):
+        """Return a string representation of the TaskHistory."""
+        return f"TaskHistory(interviews={self.total_interviews})."
+
     def to_dict(self):
         """Return the TaskHistory as a dictionary."""
         return {
@@ -39,10 +43,10 @@ class TaskHistory:
         newdata = self.to_dict()["exceptions"]
         return data_to_html(newdata, replace_new_lines=True)
 
-    def show_exceptions(self):
+    def show_exceptions(self, tracebacks=False):
         """Print the exceptions."""
         for index in self.indices:
-            self.total_interviews[index].exceptions.print()
+            self.total_interviews[index].exceptions.print(tracebacks)
 
     def get_updates(self):
         """Return a list of all the updates."""

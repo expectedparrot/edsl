@@ -50,8 +50,8 @@ class InvigilatorBase(ABC):
     def get_prompts(self) -> Dict[str, Prompt]:
         """Return the prompt used."""
         return {
-            "user_prompt": Prompt("NA").text,
-            "system_prompt": Prompt("NA").text,
+            "user_prompt": Prompt("NA"),
+            "system_prompt": Prompt("NA"),
         }
 
     @classmethod

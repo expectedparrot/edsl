@@ -17,6 +17,8 @@ from edsl.results import Results
 from edsl.scenarios import Scenario
 from edsl.surveys import Survey
 
+from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
+
 
 class Jobs(Base):
     """
@@ -81,6 +83,37 @@ class Jobs(Base):
 
         setattr(self, objects_key, new_objects)  # update the job
         return self
+
+    def prompts(self):
+        from edsl.results.Dataset import Dataset
+
+        interviews = self.interviews()
+        # data = []
+        interview_indices = []
+        question_indices = []
+        user_prompts = []
+        system_prompts = []
+        scenario_indices = []
+
+        for interview_index, interview in enumerate(interviews):
+            invigilators = list(interview._build_invigilators(debug=False))
+            for question_index, invigilator in enumerate(invigilators):
+                prompts = invigilator.get_prompts()
+                user_prompts.append(prompts["user_prompt"])
+                system_prompts.append(prompts["system_prompt"])
+                interview_indices.append(interview_index)
+                scenario_indices.append(invigilator.scenario)
+                question_indices.append(invigilator.question.question_name)
+        # breakpoint()
+        return Dataset(
+            [
+                {"interview_index": interview_indices},
+                {"question_index": question_indices},
+                {"user_prompt": user_prompts},
+                {"scenario_index": scenario_indices},
+                {"system_prompt": system_prompts},
+            ]
+        )
 
     @staticmethod
     def _turn_args_to_list(args):
@@ -266,12 +299,14 @@ class Jobs(Base):
     #######################
     # Dunder methods
     #######################
-    def __repr__(self) -> str:
-        """Return an eval-able string representation of the Jobs instance."""
+    def print(self):
         from rich import print_json
         import json
 
         print_json(json.dumps(self.to_dict()))
+
+    def __repr__(self) -> str:
+        """Return an eval-able string representation of the Jobs instance."""
         return f"Jobs(survey={repr(self.survey)}, agents={repr(self.agents)}, models={repr(self.models)}, scenarios={repr(self.scenarios)})"
 
     def _repr_html_(self) -> str:
@@ -293,6 +328,7 @@ class Jobs(Base):
     #######################
     # Serialization methods
     #######################
+    @add_edsl_version
     def to_dict(self) -> dict:
         """Convert the Jobs instance to a dictionary."""
         return {
@@ -303,6 +339,7 @@ class Jobs(Base):
         }
 
     @classmethod
+    @remove_edsl_version
     def from_dict(cls, data: dict) -> Jobs:
         """Creates a Jobs instance from a dictionary."""
         return cls(

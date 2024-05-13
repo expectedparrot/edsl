@@ -29,7 +29,7 @@ def test_scenario_render_in_user_prompt():
     q = QuestionFreeText(
         question_text="How are you today {{name}}?", question_name="name"
     )
-    s = Scenario(name="Peter")
+    s = Scenario({'name': 'Peter'})
     i = agent._create_invigilator(question=q, scenario=s)
     user_prompt = i.construct_user_prompt()
     assert "Peter" in user_prompt

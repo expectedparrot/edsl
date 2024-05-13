@@ -61,7 +61,7 @@ class InterviewExceptionCollection(UserDict):
 
         print(tabulate(data, headers=headers, tablefmt="grid"))
 
-    def print(self):
+    def print(self, traceback=False):
         """Print the collection of exceptions."""
         console = Console()
         table = Table(show_header=True, header_style="bold magenta")
@@ -72,13 +72,15 @@ class InterviewExceptionCollection(UserDict):
 
         for queue, exceptions in self.data.items():
             for exception in exceptions:
+                if traceback:
+                    traceback_string = exception["traceback"].replace("\n", "\n\n")
+                else:
+                    traceback_string = ""
                 table.add_row(
                     queue,
                     exception["exception"],
                     str(exception["time"]),
-                    exception["traceback"].replace(
-                        "\n", "\n\n"
-                    ),  # Adding extra newlines for better readability
+                    traceback_string,  # Adding extra newlines for better readability
                 )
 
         console.print(table)
