@@ -1,4 +1,5 @@
 """A Survey is collection of questions that can be administered to an Agent."""
+
 from __future__ import annotations
 import re
 from rich import print
