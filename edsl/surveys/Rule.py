@@ -146,7 +146,7 @@ class Rule:
 
     def __repr__(self):
         """Pretty-print the rule."""
-        return f'Rule(current_q={self.current_q}, expression="{self.expression}", next_q={self.next_q}, priority={self.priority}, question_name_to_index={self.question_name_to_index})'
+        return f'Rule(current_q={self.current_q}, expression="{self.expression}", next_q={self.next_q}, priority={self.priority}, question_name_to_index={self.question_name_to_index}, before_rule={self.before_rule})'
 
     def __str__(self):
         """Return a string representation of the rule."""
@@ -191,7 +191,7 @@ class Rule:
                 f"""Exception in evaluation: {e}. 
                   The expression was: {self.expression}.
                   The answers trying to substitute in were: {answers}.
-                  The the substition, the expression was {to_evaluate}.
+                  The the substition, the expression was: {to_evaluate}.
                   """
             )
             raise SurveyRuleCannotEvaluateError
