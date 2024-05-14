@@ -41,8 +41,8 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         model: Type[LanguageModel],
         debug: bool = False,
         iteration: int = 0,
-        cache=None,
-        sidecar_model=None,
+        cache: 'Cache' = None,
+        sidecar_model: LanguageModel= None,
     ):
         """Initialize the Interview instance.
 
@@ -59,8 +59,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         self.debug = debug
         self.iteration = iteration
         self.cache = cache
-        # will get filled in as interview progresses
-        self.answers: dict[str, str] = Answers()
+        self.answers: dict[str, str] = Answers()   # will get filled in as interview progresses
         self.sidecar_model = sidecar_model
 
         # Trackers
@@ -98,6 +97,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
 
         """
         self.sidecar_model = sidecar_model
+        
         # if no model bucket is passed, create an 'infinity' bucket with no rate limits
         model_buckets = model_buckets or ModelBuckets.infinity_bucket()
 
@@ -105,7 +105,8 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         ## This is the key part---it creates a task for each question,
         ## with dependencies on the questions that must be answered before this one can be answered.
         self.tasks = self._build_question_tasks(
-            debug=debug, model_buckets=model_buckets
+            debug=debug, 
+            model_buckets=model_buckets
         )
 
         ## 'Invigilators' are used to administer the survey
@@ -116,39 +117,20 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         valid_results = list(self._extract_valid_results())
         return self.answers, valid_results
 
-    def _extract_valid_results(
-        self, print_traceback: bool = False
-    ) -> Generator["Answers", None, None]:
+    def _extract_valid_results(self) -> Generator["Answers", None, None]:
         """Extract the valid results from the list of results.
 
         :param print_traceback: if True, print the traceback of any exceptions.
         """
-        # we only need to print the warning once if a task failed.
-        # warning_printed = False
-        # warning_header = textwrap.dedent(
-        #     """\
-        #     WARNING: At least one question in the survey was not answered.
-        #     """
-        # )
-        # # there should be one one invigilator for each task
         assert len(self.tasks) == len(self.invigilators)
 
         for task, invigilator in zip(self.tasks, self.invigilators):
             if task.done():
-                try:  # task worked
+                try:
                     result = task.result()
                 except asyncio.CancelledError as e:  # task was cancelled
                     result = invigilator.get_failed_task_result()
 
-                # We don't want to log cancelled tasks, as this is expected behavior
-                ## TODO: Currently, we only log errors at the question-answering phase
-                ## Do we want to log exceptions here as well?
-                #     exception_entry = InterviewExceptionEntry(
-                #         exception=repr(e),
-                #         time=time.time(),
-                #         traceback=traceback.format_exc(),
-                #     )
-                #     self.exceptions.add(task.edsl_name, exception_entry)
                 except Exception as e:  # any other kind of exception in the task
                     exception_entry = InterviewExceptionEntry(
                         exception=repr(e),
@@ -156,19 +138,22 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
                         traceback=traceback.format_exc(),
                     )
                     self.exceptions.add(task.get_name(), exception_entry)
-                    # if not warning_printed:
-                    #     warning_printed = True
-                    #     print(warning_header)
-
-                    error_message = f"Task `{task.get_name()}` failed with `{e.__class__.__name__}`:`{e}`."
-                    # print(error_message)
-                    # if print_traceback:
-                    #    traceback.print_exc()
                     result = invigilator.get_failed_task_result()
 
                 yield result
             else:
-                raise ValueError(f"Task {task.edsl_name} is not done.")
+                raise ValueError(f"Task {task.get_name()} is not done.")
+
+    @property
+    def dag(self) -> "DAG":
+        """Return the directed acyclic graph for the survey.
+
+        The DAG, or directed acyclic graph, is a dictionary that maps question names to their dependencies.
+        It is used to determine the order in which questions should be answered.
+        This reflects both agent 'memory' considerations and 'skip' logic.
+        The 'textify' parameter is set to True, so that the question names are returned as strings rather than integer indices.
+        """
+        return self.survey.dag(textify=True)
 
     #######################
     # Dunder methods
@@ -176,7 +161,6 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
     def __repr__(self) -> str:
         """Return a string representation of the Interview instance."""
         return f"Interview(agent = {repr(self.agent)}, survey = {repr(self.survey)}, scenario = {repr(self.scenario)}, model = {repr(self.model)})"
-
 
 if __name__ == "__main__":
     """Test the Interview class."""
