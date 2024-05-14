@@ -34,6 +34,8 @@ The methods for adding survey rules and memory include the following, which are 
 * `add_targeted_memory()` - Include a memory of a specific question/answer at another question in the survey.
 * `add_memory_collection()` - Include memories of a set of prior questions/answers at any other question in the survey.
 
+A special method `show_flow()` will display the flow of the survey, showing the order of questions and any rules that have been applied.
+
 
 *Coming soon:*
 An EDSL survey can also be exported to other platforms such as LimeSurvey, Google Forms, Qualtrics and SurveyMonkey. 
@@ -142,6 +144,23 @@ This will print the answers, showing that q2 was skipped (the response is "None"
    ┡━━━━━━━━╇━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━┩
    │ Blue   │ None   │ 3       │ ['Falcon', 'Eagle'] │
    └────────┴────────┴─────────┴─────────────────────┘
+
+
+We can call the `show_flow()` method to display a graphic of the flow of the survey and see that q2 was skipped:
+
+.. code-block:: python
+
+   survey.show_flow()
+
+
+.. image:: static/survey_flow.png
+   :alt: Survey Flow Diagram
+   :align: center
+
+
+.. raw:: html
+
+   <br>
 
 
 Stop rules
