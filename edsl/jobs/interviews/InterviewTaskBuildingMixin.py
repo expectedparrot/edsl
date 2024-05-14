@@ -16,23 +16,26 @@ from edsl.jobs.interviews.retry_management import retry_strategy
 from edsl.jobs.tasks.task_status_enum import TaskStatus
 from edsl.jobs.tasks.QuestionTaskCreator import QuestionTaskCreator
 from edsl.agents.InvigilatorBase import InvigilatorBase
+
 TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
 
 
 class InterviewTaskBuildingMixin:
-    def _build_invigilators(self, debug: bool) -> Generator[InvigilatorBase, None, None]:
+    def _build_invigilators(
+        self, debug: bool
+    ) -> Generator[InvigilatorBase, None, None]:
         """Create an invigilator for each question.
-        
+
         :param debug: whether to use debug mode, in which case `InvigilatorDebug` is used.
 
-        An invigilator is responsible for answering a particular question in the survey.    
+        An invigilator is responsible for answering a particular question in the survey.
         """
         for question in self.survey.questions:
             yield self._get_invigilator(question=question, debug=debug)
 
-    def _get_invigilator(self, question: QuestionBase, debug: bool) -> 'Invigilator':
+    def _get_invigilator(self, question: QuestionBase, debug: bool) -> "Invigilator":
         """Return an invigilator for the given question.
-        
+
         :param question: the question to be answered
         :param debug: whether to use debug mode, in which case `InvigilatorDebug` is used.
         """
@@ -50,14 +53,13 @@ class InterviewTaskBuildingMixin:
         """Return an invigilator for the given question."""
         return invigilator
 
-
     def _build_question_tasks(
         self,
         debug: bool,
         model_buckets: ModelBuckets,
     ) -> list[asyncio.Task]:
         """Create a task for each question, with dependencies on the questions that must be answered before this one can be answered.
-        
+
         :param debug: whether to use debug mode, in which case `InvigilatorDebug` is used.
         :param model_buckets: the model buckets used to track and control usage rates.
         """
@@ -79,9 +81,7 @@ class InterviewTaskBuildingMixin:
         return tuple(tasks)  # , invigilators
 
     def _get_tasks_that_must_be_completed_before(
-        self, *, 
-        tasks: list[asyncio.Task], 
-        question: QuestionBase
+        self, *, tasks: list[asyncio.Task], question: QuestionBase
     ) -> Generator[asyncio.Task, None, None]:
         """Return the tasks that must be completed before the given question can be answered.
 
@@ -93,7 +93,7 @@ class InterviewTaskBuildingMixin:
         parents_of_focal_question = self.dag.get(question.question_name, [])
         for parent_question_name in parents_of_focal_question:
             yield tasks[self.to_index[parent_question_name]]
-   
+
     def _create_question_task(
         self,
         *,
@@ -163,17 +163,19 @@ class InterviewTaskBuildingMixin:
         if self._skip_this_question(question):
             return invigilator.get_failed_task_result()
 
-        response: AgentResponseDict = await self._attempt_to_answer_question(invigilator, task)
+        response: AgentResponseDict = await self._attempt_to_answer_question(
+            invigilator, task
+        )
 
         self._add_answer(response=response, question=question)
-        
+
         # With the answer to the question, we can now cancel any skipped questions
         self._cancel_skipped_questions(question)
         return AgentResponseDict(**response)
-    
+
     def _add_answer(self, response: AgentResponseDict, question: QuestionBase) -> None:
         """Add the answer to the answers dictionary.
-        
+
         :param response: the response to the question.
         :param question: the question that was answered.
         """
@@ -181,21 +183,22 @@ class InterviewTaskBuildingMixin:
 
     def _skip_this_question(self, current_question: QuestionBase) -> bool:
         """Determine if the current question should be skipped.
-        
+
         :param current_question: the question to be answered.
         """
         current_question_index = self.to_index[current_question.question_name]
 
         answers = self.answers | self.scenario | self.agent["traits"]
         skip = self.survey.rule_collection.skip_question_before_running(
-            current_question_index, 
-            answers
+            current_question_index, answers
         )
         return skip
 
-    async def _attempt_to_answer_question(self, invigilator: InvigilatorBase, task: asyncio.Task) -> AgentResponseDict:
+    async def _attempt_to_answer_question(
+        self, invigilator: InvigilatorBase, task: asyncio.Task
+    ) -> AgentResponseDict:
         """Attempt to answer the question, and handle exceptions.
-        
+
         :param invigilator: the invigilator that will answer the question.
         :param task: the task that is being run.
         """
@@ -225,7 +228,6 @@ class InterviewTaskBuildingMixin:
             self.exceptions.add(question.question_name, exception_entry)
             raise e
 
-
     def _cancel_skipped_questions(self, current_question: QuestionBase) -> None:
         """Cancel the tasks for questions that are skipped.
 
@@ -248,11 +250,11 @@ class InterviewTaskBuildingMixin:
             """Cancel the tasks between the start and end indices."""
             for i in range(start, end):
                 self.tasks[i].cancel()
-                #task_to_cancel = self.tasks[i]
-                #verbose = False
-                #if verbose:
+                # task_to_cancel = self.tasks[i]
+                # verbose = False
+                # if verbose:
                 #    print(f"Cancelling task {task_to_cancel.get_name()}")
-                #task_to_cancel.cancel()
+                # task_to_cancel.cancel()
 
         if next_question_index == EndOfSurvey:
             cancel_between(current_question_index + 1, len(self.survey.questions))
