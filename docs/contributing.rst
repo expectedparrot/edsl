@@ -66,11 +66,11 @@ If you would like to contribute a new documentation page to the project, please 
 1. Fork the project on GitHub.
 2. Create a new branch for your documentation page.
 3. Add the new documentation page to the `docs/` directory.
-4. Add a link to the new documentation page in the `docs/index.rst` file.
+4. Add a link to the new documentation page in the `docs/index.rst` file. 
 5. Submit a pull request with your changes.
 
-Please follow the project's documentation conventions when writing documentation. 
-(For example, use the `reStructuredText` markup language and consider copying this or other pages as a template.)
+Please follow the project's documentation conventions when writing documentation (header styles, code blocks, links, etc.). 
+For example, use the `reStructuredText` markup language and consider copying this or other pages as a template.
 
 
 Contributing code
