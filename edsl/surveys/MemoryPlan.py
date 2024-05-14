@@ -6,6 +6,7 @@ from edsl.surveys.Memory import Memory
 from edsl.prompts.Prompt import Prompt
 from edsl.surveys.DAG import DAG
 
+
 class MemoryPlan(UserDict):
     """A survey has a memory plan that specifies what the agent should remember when answering a question.
 
@@ -14,9 +15,9 @@ class MemoryPlan(UserDict):
     {focal_question1: [prior_question1, prior_question2, ...], focal_question: [prior_question3]}
     """
 
-    def __init__(self, survey: Optional['Survey'] = None, data: Optional[dict]=None):
+    def __init__(self, survey: Optional["Survey"] = None, data: Optional[dict] = None):
         """Initialize a memory plan.
-        
+
         The actual 'data' attributes of the memory plan are a dictionary of focal questions to memories.
         """
         if survey is not None:
@@ -30,7 +31,7 @@ class MemoryPlan(UserDict):
         """Return a dictionary mapping question names to question texts."""
         return dict(zip(self.survey_question_names, self.question_texts))
 
-    def add_question(self, question: 'QuestionBase') -> None:
+    def add_question(self, question: "QuestionBase") -> None:
         """Add a question to the survey.
 
         :param question: A question to add to the survey
@@ -51,10 +52,8 @@ class MemoryPlan(UserDict):
             )
 
     def get_memory_prompt_fragment(
-        self, 
-        focal_question: str, 
-        answers: dict
-    ) -> 'Prompt':
+        self, focal_question: str, answers: dict
+    ) -> "Prompt":
         """Generate the prompt fragment descripting that past question and answer.
 
         :param focal_question: The current question being answered.
@@ -142,7 +141,7 @@ class MemoryPlan(UserDict):
 
     def to_dict(self) -> dict:
         """Serialize the memory plan to a dictionary.
-        
+
         >>> mp = MemoryPlan.example()
         >>> mp.to_dict()
         {'survey_question_names': ['q0', 'q1', 'q2'], 'survey_question_texts': ['Do you like school?', 'Why not?', 'Why?'], 'data': {'q1': {'prior_questions': ['q0']}}}
@@ -158,7 +157,7 @@ class MemoryPlan(UserDict):
         }
 
     @classmethod
-    def from_dict(cls, data) -> 'MemoryPlan':
+    def from_dict(cls, data) -> "MemoryPlan":
         """Deserialize a memory plan from a dictionary."""
         newdata = {}
         for question_name, memory in data["data"].items():
@@ -184,7 +183,7 @@ class MemoryPlan(UserDict):
     @property
     def dag(self) -> DAG:
         """Return a directed acyclic graph of the memory plan.
-        
+
         >>> mp = MemoryPlan.example()
         >>> mp.dag
         {1: {0}}
@@ -194,16 +193,18 @@ class MemoryPlan(UserDict):
             for prior_question in memory:
                 d[focal_question].add(prior_question)
         return DAG(self._indexify(d))
-    
+
     @classmethod
     def example(cls):
         """Return an example memory plan."""
         from edsl import Survey
-        mp =  cls(survey=Survey.example())
+
+        mp = cls(survey=Survey.example())
         mp.add_single_memory("q1", "q0")
         return mp
 
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)
