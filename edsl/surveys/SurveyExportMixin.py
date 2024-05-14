@@ -41,6 +41,9 @@ class SurveyExportMixin:
         header_lines.append("from edsl import Question")
         lines = ["\n".join(header_lines)]
         for question in self._questions:
+            question.question_text = question["question_text"].replace("\n", " ")
+            # remove dublicate spaces
+            question.question_text = " ".join(question.question_text.split())
             lines.append(f"{question.question_name} = " + repr(question))
         lines.append(
             f"{survey_var_name} = Survey(questions = [{', '.join(self.question_names)}])"
