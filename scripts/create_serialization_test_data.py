@@ -41,20 +41,27 @@ def create_serialization_test_data():
             }
         )
 
-    # Add anything else you'd like here
-
-    #
-    #
-    #
-
-    logging.info(f"Found {len(data)} classes")
-
-    # C. Check if all classes have edsl_version in the dict
+    logging.info(f"Found {len(data)} registerd classes")
+    # check if all registered have edsl_version in the dict
     for item in data:
         if "edsl_version" not in item["dict"]:
             logging.warning(
                 f"Class: {item['class_name']} does not have edsl_version in the dict"
             )
+
+    # C. Create custom / more complex examples
+
+    # 1. a simple survey that has been run
+    s = RegisterSubclassesMeta.get_registry()["Survey"].example()
+    r = s.run()
+    data.append(
+        {
+            "class_name": "Results",
+            "class": RegisterSubclassesMeta.get_registry()["Results"],
+            "example": r,
+            "dict": r.to_dict(),
+        }
+    )
 
     # D. Write data to the file
     data_to_write = [

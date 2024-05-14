@@ -65,8 +65,6 @@ class Result(Base, UserDict):
     Its main data is an Agent, a Scenario, a Model, an Iteration, and an Answer.
     These are stored both in the UserDict and as attributes.
 
-    >>> results.select('question_text.how_feeling')
-    >>> results.select('question_type.how_feeling')
 
     """
 
@@ -187,15 +185,24 @@ class Result(Base, UserDict):
     def get_value(self, data_type: str, key: str) -> Any:
         """Return the value for a given data type and key.
 
+        >>> r = Result.example()
+        >>> r.get_value("answer", "how_feeling")
+        'OK'
+
         - data types can be "agent", "scenario", "model", or "answer"
         - keys are relevant attributes of the Objects the data types represent
-        results.get_value("answer", "how_feeling") will return "Good" or "Bad" or whatnot
         """
         return self.sub_dicts[data_type][key]
 
     @property
     def key_to_data_type(self) -> dict[str, str]:
-        """Return a dictionary where keys are object attributes and values are the data type (object) that the attribute is associated with."""
+        """Return a dictionary where keys are object attributes and values are the data type (object) that the attribute is associated with.
+
+        >>> r = Result.example()
+        >>> r.key_to_data_type["how_feeling"]
+        'answer'
+
+        """
         d = {}
         data_types = self.sub_dicts.keys()
         for data_type in data_types:
@@ -203,7 +210,7 @@ class Result(Base, UserDict):
                 d[key] = data_type
         return d
 
-    def rows(self, index):
+    def rows(self, index) -> tuple[int, str, str, str]:
         """Return a generator of rows for the Result object."""
         for data_type, subdict in self.sub_dicts.items():
             for key, value in subdict.items():
@@ -216,7 +223,7 @@ class Result(Base, UserDict):
         """Return a copy of the Result object."""
         return Result.from_dict(self.to_dict())
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         """Return True if the Result object is equal to another Result object."""
         return self.to_dict() == other.to_dict()
 
@@ -225,7 +232,12 @@ class Result(Base, UserDict):
     ###############
     @add_edsl_version
     def to_dict(self) -> dict[str, Any]:
-        """Return a dictionary representation of the Result object."""
+        """Return a dictionary representation of the Result object.
+
+        >>> r = Result.example()
+        >>> r.to_dict()['scenario']
+        {'period': 'morning', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}
+        """
         d = {}
         for key, value in self.items():
             if hasattr(value, "to_dict"):
@@ -265,7 +277,7 @@ class Result(Base, UserDict):
         )
         return result
 
-    def rich_print(self):
+    def rich_print(self) -> None:
         """Display an object as a table."""
         # from edsl.utilities import print_dict_with_rich
         from rich import print
@@ -350,4 +362,7 @@ def main():
 
 
 if __name__ == "__main__":
-    print(Result.example())
+    # print(Result.example())
+    import doctest
+
+    doctest.testmod(optionflags=doctest.ELLIPSIS)

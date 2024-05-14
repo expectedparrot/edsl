@@ -292,17 +292,14 @@ We modified exception messages. If your survey run generates exceptions, run `re
 
 
 
-## [0.1.21] - 2024-05-TBD ['In progress' indicates changes that are not live yet.]
+## [0.1.21] - 2024-05-13
 
 ### Added 
 
-- [In progress] Prompt visibility features.
-
-- [In progress] Methods for piping responses to questions into other questions. Details TBD.
-
-- Methods for adding, sampling and shuffling `Results` objects.
-
-- Option to flatten lists of lists in `Results` - eg, responses to `QuestionList`: `results.to_list(flatten=True)`
+- New methods for adding, sampling and shuffling `Results` objects: 
+   `dup_results = results + results`
+   `results.shuffle()`
+   `results.sample(n=5)`
 
 ### Changed
 
@@ -310,12 +307,24 @@ We modified exception messages. If your survey run generates exceptions, run `re
 
 - Instructions passed to an agent at creation are now a column of results: `agent_instruction`
 
+
+
+## [0.1.22] - 2024-05-TBD - These changes are not live
+
+### Added 
+
+- [In progress] New prompt visibility features.
+
+- [In progress] New methods for piping responses to questions into other questions. 
+
+- [In progress] Optional parameter in `Results` method `to_list()` to flatten a list of lists (eg, responses to `QuestionList`): `results.to_list(flatten=True)`
+
+### Changed
+
 - [In progress] `QuestionMultipleChoice` is being modified allow non-responsive answers. Previously, an error was thrown if the agent did not select one of the given options. Details TBD.
 
 ### Fixed
 
 ### Deprecated
-
-- [In progress] Questions method `compose_questions()` is being deprecated. Please use new piping methods instead. Details TBD.
 
 ### Removed

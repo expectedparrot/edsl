@@ -14,10 +14,10 @@ Replace `your_key_here` with your actual API keys for each service you plan to u
 
 .. code-block:: python
 
-   ANTHROPIC_API_KEY=your_key_here
-   DEEP_INFRA_API_KEY=your_key_here
-   GOOGLE_API_KEY=your_key_here
-   OPENAI_API_KEY=your_key_here
+   ANTHROPIC_API_KEY='your_key_here'
+   DEEP_INFRA_API_KEY='your_key_here'
+   GOOGLE_API_KEY='your_key_here'
+   OPENAI_API_KEY='your_key_here'
 
 
 By using a .env file, you avoid the need to repeatedly enter your API keys each time you start a session with EDSL.
@@ -45,3 +45,59 @@ Caution
 Treat your API keys as sensitive information, akin to passwords. 
 Never share them publicly or upload files containing your API keys to public repositories.
 
+
+Troubleshooting
+~~~~~~~~~~~~~~~
+API keys are required in order to run surveys with language models.
+You also must have credits available on your account with a model provider to run surveys with some models.
+
+If you do not specify a model to use for a survey, EDSL will attempt to run it with the default model; currently, this is GPT 4 Preview.
+In practice, this means that the following sets of commands are equivalent:
+
+*Version 1*:
+
+.. code-block:: python
+
+   results = survey.run()
+
+
+*Version 1*:
+
+.. code-block:: python
+
+   from edsl import Model 
+
+   results = survey.by(Model('gpt-4-1106-preview')).run()
+
+
+*Version 1*:
+
+.. code-block:: python
+
+   from edsl import Model 
+
+   model = Model('gpt-4-1106-preview')
+
+   results = survey.by(model).run()
+
+
+If you have not provided an API key for the default model you will receive an error message about an exception.
+(You may also receive an error message if you do not have credits on your account with the model provider.)
+The message will instruct you to call the `show_exceptions()` method on your results object to see the full error message:
+
+.. code-block:: python
+
+   results.show_exceptions()
+
+
+This will print a table of exceptions that occurred when the survey was run, including an `AuthenticationError` about API keys: `Incorrect API key provided...`
+
+To resolve this issue, you can either provide the correct API key for the default model (and ensure that you have credits from the provider) or specify a different model to use for the survey.
+
+See more information on the available models in the  :ref:`language_models` section of the documentation.
+
+
+Please also feel free to reach out to us to help you troubleshoot:
+
+* Discord channel: https://discord.com/invite/mxAYkjfy9m
+* Email: info@expectedparrot.com
