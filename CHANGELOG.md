@@ -311,6 +311,10 @@ We modified exception messages. If your survey run generates exceptions, run `re
 
 ## [0.1.22] - 2024-05-14
 
+### Added
+
+- New `Survey` method to export a survey to file. Usage: `generated_code = survey.code("example.py")`
+
 ### Fixed
 
 - A bug in `Survey` method `add_skip_logic()`
