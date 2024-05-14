@@ -132,12 +132,12 @@ Information about additional functionality for developers.
    :caption: How-to Guides
    :hidden:
 
-   notebooks/edsl_components.ipynb
-   notebooks/export_survey_updates.ipynb
-   notebooks/question_extract_example.ipynb
    notebooks/data_labeling_example.ipynb
    notebooks/example_agent_dynamic_traits.ipynb
    notebooks/research_methods.ipynb
+   notebooks/edsl_components.ipynb
+   notebooks/export_survey_updates.ipynb
+   notebooks/question_extract_example.ipynb
 
 .. toctree::
    :maxdepth: 2
@@ -148,6 +148,7 @@ Information about additional functionality for developers.
    notebooks/random_numbers.ipynb
    notebooks/concept_induction.ipynb
    notebooks/testing_training_data.ipynb
+   notebooks/comparing_agent_responses.ipynb
    notebooks/analyze_evaluations.ipynb
    notebooks/explore_llm_biases.ipynb
    notebooks/research_random_silicon_sampling.ipynb
