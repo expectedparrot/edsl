@@ -25,7 +25,6 @@ from edsl.jobs.buckets.BucketCollection import BucketCollection
 
 
 class JobsRunnerAsyncio(JobsRunnerStatusMixin):
-
     def __init__(self, jobs: Jobs):
         self.jobs = jobs
 
@@ -39,7 +38,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         n: int = 1,
         debug: bool = False,
         stop_on_exception: bool = False,
-        sidecar_model: 'LanguageModel' = None,
+        sidecar_model: "LanguageModel" = None,
     ) -> AsyncGenerator[Result, None]:
         """Creates the tasks, runs them asynchronously, and returns the results as a Results object.
 
@@ -50,7 +49,9 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         :param stop_on_exception:
         """
         tasks = []
-        self._populate_total_interviews(n=n)  # Populate self.total_interviews before creating tasks
+        self._populate_total_interviews(
+            n=n
+        )  # Populate self.total_interviews before creating tasks
 
         for interview in self.total_interviews:
             interviewing_task = self._build_interview_task(
@@ -65,7 +66,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             result = await task
             yield result
 
-    def _populate_total_interviews(self, n:int=1) -> None:
+    def _populate_total_interviews(self, n: int = 1) -> None:
         """Populates self.total_interviews with n copies of each interview.
 
         :param n: how many times to run each interview.
@@ -74,10 +75,14 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         for interview in self.interviews:
             for iteration in range(n):
                 if iteration > 0:
-                    new_interview = interview.duplicate(iteration=iteration, cache=self.cache)
+                    new_interview = interview.duplicate(
+                        iteration=iteration, cache=self.cache
+                    )
                     self.total_interviews.append(new_interview)
                 else:
-                    interview.cache = self.cache # set the cache for the first interview
+                    interview.cache = (
+                        self.cache
+                    )  # set the cache for the first interview
                     self.total_interviews.append(interview)
 
     async def _build_interview_task(
@@ -158,7 +163,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         debug: bool = False,
         stop_on_exception: bool = False,
         progress_bar=False,
-        sidecar_model: Optional[LanguageModel]=None,
+        sidecar_model: Optional[LanguageModel] = None,
         batch_mode=False,
     ) -> "Coroutine":
         """Runs a collection of interviews, handling both async and sync contexts."""

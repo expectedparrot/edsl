@@ -41,8 +41,8 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         model: Type[LanguageModel],
         debug: bool = False,
         iteration: int = 0,
-        cache: 'Cache' = None,
-        sidecar_model: LanguageModel= None,
+        cache: "Cache" = None,
+        sidecar_model: LanguageModel = None,
     ):
         """Initialize the Interview instance.
 
@@ -59,7 +59,9 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         self.debug = debug
         self.iteration = iteration
         self.cache = cache
-        self.answers: dict[str, str] = Answers()   # will get filled in as interview progresses
+        self.answers: dict[
+            str, str
+        ] = Answers()  # will get filled in as interview progresses
         self.sidecar_model = sidecar_model
 
         # Trackers
@@ -97,7 +99,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
 
         """
         self.sidecar_model = sidecar_model
-        
+
         # if no model bucket is passed, create an 'infinity' bucket with no rate limits
         model_buckets = model_buckets or ModelBuckets.infinity_bucket()
 
@@ -105,8 +107,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         ## This is the key part---it creates a task for each question,
         ## with dependencies on the questions that must be answered before this one can be answered.
         self.tasks = self._build_question_tasks(
-            debug=debug, 
-            model_buckets=model_buckets
+            debug=debug, model_buckets=model_buckets
         )
 
         ## 'Invigilators' are used to administer the survey
@@ -161,7 +162,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
     def __repr__(self) -> str:
         """Return a string representation of the Interview instance."""
         return f"Interview(agent = {repr(self.agent)}, survey = {repr(self.survey)}, scenario = {repr(self.scenario)}, model = {repr(self.model)})"
-    
+
     def duplicate(self, iteration: int, cache: Cache) -> Interview:
         """Duplicate the interview, but with a new iteration number and cache."""
         return Interview(
@@ -172,6 +173,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
             iteration=iteration,
             cache=cache,
         )
+
 
 if __name__ == "__main__":
     """Test the Interview class."""

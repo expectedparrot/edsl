@@ -284,8 +284,8 @@ class RuleCollection(UserList):
         # We are only interested in non-default rules. Default rules are those
         # that just go to the next question, so they don't add any dependencies
 
-        ## I think for a skip-question, the potenially-skippable question 
-        ## depends on all the other questions bein answered first. 
+        ## I think for a skip-question, the potenially-skippable question
+        ## depends on all the other questions bein answered first.
         for rule in self.non_default_rules:
             if not rule.before_rule:
                 # for a regular rule, the next question depends on the current question answer
@@ -293,7 +293,7 @@ class RuleCollection(UserList):
                 for q in self.keys_between(current_q, next_q):
                     children_to_parents[q].add(current_q)
             else:
-                # for the 'before rule' skipping depends on all previous answers. 
+                # for the 'before rule' skipping depends on all previous answers.
                 focal_q = rule.current_q
                 for q in range(0, focal_q):
                     children_to_parents[focal_q].add(q)
