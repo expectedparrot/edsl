@@ -153,9 +153,9 @@ We can call the `show_flow()` method to display a graphic of the flow of the sur
    survey.show_flow()
 
 
-.. image:: static/survey_flow.png
+.. image:: static/survey_show_flow.png
    :alt: Survey Flow Diagram
-   :align: center
+   :align: left
 
 
 .. raw:: html
