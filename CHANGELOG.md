@@ -309,7 +309,14 @@ We modified exception messages. If your survey run generates exceptions, run `re
 
 
 
-## [0.1.22] - 2024-05-TBD - These changes are not live
+## [0.1.22] - 2024-05-14
+
+### Fixed
+
+- A bug in `Survey` method `add_skip_logic()`
+
+
+## [0.1.23] - 2024-05-TBD - These changes are not live
 
 ### Added 
 
