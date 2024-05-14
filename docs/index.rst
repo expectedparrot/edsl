@@ -166,6 +166,7 @@ Information about additional functionality for developers.
    jobs 
    interviews
    answers
+   contributing
 
 .. image:: https://colab.research.google.com/assets/colab-badge.svg
    :target: https://colab.research.google.com/github/expectedparrot/edsl/blob/main/examples/create_agents.ipynb 
