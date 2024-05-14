@@ -150,8 +150,7 @@ class InterviewTaskBuildingMixin:
         """
         invigilator = self.get_invigilator(question, debug=debug)
 
-        if skip := self._skip_this_question(question):
-            # print("Skipping question", question.question_name)
+        if self._skip_this_question(question):
             return invigilator.get_failed_task_result()
 
         async def attempt_to_answer_question(invigilator):
@@ -182,21 +181,20 @@ class InterviewTaskBuildingMixin:
                 raise e
 
         response: AgentResponseDict = await attempt_to_answer_question(invigilator)
-
         self.answers.add_answer(response=response, question=question)
         # With the answer to the question, we can now cancel any skipped questions
         # This is how the skip logic is implemented
         self._cancel_skipped_questions(question)
-
         return AgentResponseDict(**response)
 
     def _skip_this_question(self, current_question: QuestionBase) -> bool:
+        """Determine if the current question should be skipped."""
         current_question_index = self.to_index[current_question.question_name]
 
         answers = self.answers | self.scenario | self.agent["traits"]
-
         skip = self.survey.rule_collection.skip_question_before_running(
-            current_question_index, answers
+            current_question_index, 
+            answers
         )
         return skip
 
