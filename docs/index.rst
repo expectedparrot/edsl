@@ -144,10 +144,11 @@ Information about additional functionality for developers.
    :caption: Notebooks
    :hidden:
 
-   notebooks/random_numbers.ipynb
    notebooks/data_labeling_agent.ipynb
+   notebooks/random_numbers.ipynb
    notebooks/concept_induction.ipynb
    notebooks/testing_training_data.ipynb
+   notebooks/analyze_evaluations.ipynb
    notebooks/explore_llm_biases.ipynb
    notebooks/research_random_silicon_sampling.ipynb
    notebooks/explore_survey_contexts.ipynb
