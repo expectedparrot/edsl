@@ -15,7 +15,7 @@ from edsl.agents.InvigilatorBase import InvigilatorBase
 
 class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
     """An invigilator that uses an AI model to answer questions."""
-    
+
     async def async_answer_question(self) -> AgentResponseDict:
         """Answer a question using the AI model."""
         params = self.get_prompts() | {"iteration": self.iteration}
@@ -29,7 +29,6 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
         }
         response = self._format_raw_response(**data)
         return AgentResponseDict(**response)
-
 
     async def async_get_response(
         self, user_prompt: Prompt, system_prompt: Prompt, iteration: int = 0
@@ -53,7 +52,7 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
             )
 
         return response
-    
+
     def _remove_from_cache(self, raw_response) -> None:
         """Remove an entry from the cache."""
         if (
@@ -80,12 +79,14 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
             self._remove_from_cache(raw_response)
             raise e
 
-        answer = question._translate_answer_code_to_answer(response['answer'], scenario)
+        answer = question._translate_answer_code_to_answer(response["answer"], scenario)
         data = {
             "answer": answer,
-            "comment": response.get("comment", ""), # not all question have comment fields,
+            "comment": response.get(
+                "comment", ""
+            ),  # not all question have comment fields,
             "question_name": question.question_name,
-            "prompts": self.get_prompts(),  
+            "prompts": self.get_prompts(),
             "cached_response": raw_response["cached_response"],
             "usage": raw_response.get("usage", {}),
             "raw_model_response": raw_model_response,
