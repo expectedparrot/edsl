@@ -288,7 +288,8 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         self, question: Union[QuestionBase, str], expression: str
     ) -> Survey:
         """
-        If the rule is true, we go to the question specicfied.
+        A skip-rule is evaluated *before* the question is asked.
+        If the skip-rule is true, the question is skipped.
         """
         question_index = self._get_question_index(question)
         self._add_rule(question, expression, question_index + 1, before_rule=True)
@@ -406,7 +407,8 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         return self.questions[0]
 
     def next_question(
-        self, current_question: "Question", answers: dict
+        self, current_question: QuestionBase, 
+        answers: dict
     ) -> Union[QuestionBase, EndOfSurvey.__class__]:
         """
         Return the next question in a survey.
