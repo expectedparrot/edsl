@@ -2,20 +2,11 @@ import aiohttp
 import json
 import os
 import requests
-from inspect import isclass
-from requests.exceptions import ConnectionError
-from typing import Any, Optional, Type, Union, Literal
+from typing import Any, Optional, Union, Literal
 from uuid import UUID
 import edsl
 from edsl import CONFIG
-from edsl.agents import Agent, AgentList
-from edsl.config import CONFIG
-from edsl.data.Cache import Cache
-from edsl.jobs import Jobs
-from edsl.questions.QuestionBase import QuestionBase
-from edsl.results import Results
-from edsl.surveys import Survey
-from edsl.data.CacheEntry import CacheEntry
+from edsl.coop.utils import EDSLObject, ObjectRegistry, ObjectType, VisibilityType
 
 
 class Coop:
@@ -29,6 +20,7 @@ class Coop:
         """
         self.api_key = api_key or os.getenv("EXPECTED_PARROT_API_KEY")
         self.url = url or CONFIG.EXPECTED_PARROT_URL
+        self._edsl_version = edsl.__version__
 
     ################
     # BASIC METHODS
@@ -63,8 +55,8 @@ class Coop:
                 response = requests.request(
                     method, url, json=payload, headers=self.headers
                 )
-        except ConnectionError:
-            raise ConnectionError("Could not connect to the server.")
+        except requests.ConnectionError:
+            raise requests.ConnectionError("Could not connect to the server.")
 
         return response
 
@@ -78,141 +70,33 @@ class Coop:
                 message = "Please provide an Expected Parrot API key."
             raise Exception(message)
 
-    ################
-    # HELPER METHODS
-    ################
-    async def remote_async_execute_model_call(
-        self, model_dict: dict, user_prompt: str, system_prompt: str
-    ) -> dict:
-        url = self.url + "/inference/"
-        # print("Now using url: ", url)
-        data = {
-            "model_dict": model_dict,
-            "user_prompt": user_prompt,
-            "system_prompt": system_prompt,
-        }
-        # Use aiohttp to send a POST request asynchronously
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, json=data) as response:
-                response_data = await response.json()
-        return response_data
-
-    def web(
-        self,
-        survey: dict,
-        platform: Literal[
-            "google_forms", "lime_survey", "survey_monkey"
-        ] = "lime_survey",
-        email=None,
-    ):
-        url = f"{self.url}/api/v0/export_to_{platform}"
-        if email:
-            data = {"json_string": json.dumps({"survey": survey, "email": email})}
-        else:
-            data = {"json_string": json.dumps({"survey": survey, "email": email})}
-
-        response_json = requests.post(url, data=json.dumps(data))
-
-        return response_json
-
     def _json_handle_none(self, value: Any) -> Any:
         """
-        Helper function to handle None values in JSON serialization.
+        Handles None values in JSON serialization.
         - Returns "null" if value is None. If not, doesn't return anything else.
         """
         if value is None:
             return "null"
 
-    def _get_edsl_version(self) -> str:
+    @property
+    def edsl_settings(self) -> dict:
         """
-        Return the version of the EDSL.
+        Retrieves the EDSL settings stored on Coop.
         """
-        try:
-            version = edsl.__version__
-        except:
-            version = None
-        return version
-
-    def _resolve_edsl_object(
-        self,
-        object: Union[
-            Type[QuestionBase], QuestionBase, Survey, Agent, AgentList, Results, Jobs
-        ],
-    ) -> tuple[str, str]:
-        """
-        Resolves an EDSL object or class to an (API_URI: str, object_type: str) tuple.
-        """
-        object_type = type(object) if not isclass(object) else object
-
-        if issubclass(object_type, QuestionBase):
-            return ("questions", "question")
-        elif issubclass(object_type, Survey):
-            return ("surveys", "survey")
-        elif issubclass(object_type, Agent) or issubclass(object_type, AgentList):
-            return ("agents", "agent")
-        elif issubclass(object_type, Results):
-            return ("results", "results")
-        elif issubclass(object_type, Cache):
-            return ("caches", "cache")
-        elif issubclass(object_type, Jobs):
-            return ("jobs", "job")
-        else:
-            raise ValueError("Incorrect or not supported object type")
-
-    def _resolve_object_type(self, object_type: str) -> tuple[str, Type]:
-        """
-        Resolve an object_type string to an (API_URI: str, object_type: Type) tuple.
-        """
-        TYPE_MAP = {
-            "question": ("questions", QuestionBase),
-            "survey": ("surveys", Survey),
-            "agent": ("agents", Agent),
-            "results": ("results", Results),
-            "cache": ("caches", Cache),
-            "job": ("jobs", Jobs),
-        }
-
-        if object_type is None:
-            raise ValueError("Please provide an `object_type`.")
-        elif object_type not in TYPE_MAP:
-            raise ValueError(
-                f"Object type {object_type} not recognized. "
-                f"Valid object types are: {', '.join(TYPE_MAP.keys())}"
-            )
-
-        return TYPE_MAP[object_type]
-
-    def _resolve_uri(self, uri: str) -> tuple[str, Type]:
-        """
-        Resolve an API URI to an (API_URI: str, object_type: Type) tuple.
-        """
-        URI_MAP = {
-            "questions": ("question", QuestionBase),
-            "surveys": ("survey", Survey),
-            "agents": ("agent", Agent),
-            "results": ("results", Results),
-            "caches": ("cache", Cache),
-            "jobs": ("job", Jobs),
-        }
-
-        if uri is None:
-            raise ValueError("Please provide a URI.")
-        elif uri not in URI_MAP:
-            raise ValueError(f"URI {uri} not recognized")
-
-        return URI_MAP[uri]
+        response = self._send_server_request(uri="api/v0/edsl-settings", method="GET")
+        self._resolve_server_response(response)
+        return response.json()
 
     ################
-    # OBJECT METHODS
+    # Objects
     ################
 
-    # ----------
-    # A. CREATE
-    # ----------
-    def _create(
+    # TODO: add URL to get and get_all methods
+
+    def create(
         self,
-        object: Union[Type[QuestionBase], Survey, Agent, AgentList, Results],
-        visibility: Literal["public", "unlisted", "private"] = "unlisted",
+        object: EDSLObject,
+        visibility: VisibilityType = "unlisted",
     ) -> dict:
         """
         Create an EDSL object in the Coop server.
@@ -220,234 +104,110 @@ class Coop:
         :param object: the EDSL object to be sent.
         :param visibility: the object's visibility (defaults to "unlisted").
         """
-
-        uri, _ = self._resolve_edsl_object(object)
+        object_type = ObjectRegistry.get_object_type_by_edsl_class(object)
         response = self._send_server_request(
-            uri=f"api/v0/{uri}",
+            uri=f"api/v0/object",
             method="POST",
             payload={
+                "object_type": object_type,
                 "json_string": json.dumps(
-                    object.to_dict(), default=self._json_handle_none
+                    object.to_dict(),
+                    default=self._json_handle_none,
                 ),
                 "visibility": visibility,
-                "version": self._get_edsl_version(),
+                "version": self._edsl_version,
             },
         )
         self._resolve_server_response(response)
         response_json = response.json()
-        url = f"{self.url}/explore/{uri}/{response_json['uuid']}"
-        response_json["url"] = url
-        return response_json
-
-    def create(
-        self,
-        object: Union[Type[QuestionBase], Survey, Agent, AgentList, Results],
-        visibility: Literal["public", "unlisted", "private"] = "unlisted",
-        verbose: bool = False,
-    ) -> dict:
-        """
-        Create an EDSL object in the Coop server.
-
-        :param object: the EDSL object to be sent.
-        :param visibility: the object's visibility (defaults to "unlisted").
-        """
-        response = self._create(object, visibility)
-        if verbose:
-            print(f"Object pushed to Coop - available at {response['url']}")
-        return response
-
-    # ----------
-    # B. GET
-    # ----------
-    def _get(self, object_type_uri: str, uuid: Union[str, UUID]) -> dict:
-        """
-        Retrieve an EDSL object from the Coop server.
-        """
-        response = self._send_server_request(
-            uri=f"api/v0/{object_type_uri}/{uuid}", method="GET"
-        )
-        self._resolve_server_response(response)
-        return response.json()
+        return {
+            "uuid": response_json.get("uuid"),
+            "version": self._edsl_version,
+            "visibility": response_json.get("visibility"),
+            "url": "TO BE ADDED",
+        }
 
     def get(
-        self, object_type: str = None, uuid: Union[str, UUID] = None, url: str = None
-    ) -> Union[Type[QuestionBase], Survey, Agent, AgentList, Results]:
+        self,
+        object_type: ObjectType = None,
+        uuid: Union[str, UUID] = None,
+        url: str = None,
+    ) -> EDSLObject:
         """
-        Retrieve an EDSL object by its object type and UUID, or by its url.
+        Retrieve an EDSL object either by object type & UUID, or by its url.
+        - The object has to belong to the user or not be private.
+        - Returns the initialized object class instance.
 
         :param object_type: the type of object to retrieve.
         :param uuid: the uuid of the object either in str or UUID format.
         :param url: the url of the object.
         """
         if url:
-            uri = url.split("/")[-2]
-            object_type, cls = self._resolve_uri(uri)
+            object_type = url.split("/")[-2]
             uuid = url.split("/")[-1]
-        elif object_type and uuid:
-            uri, cls = self._resolve_object_type(object_type)
-        else:
-            raise ValueError(
-                "Please provide either an object type and a UUID, or a url."
-            )
-
-        response = self._get(object_type_uri=uri, uuid=uuid)
-        json_dict = json.loads(response.get("json_string"))
-        if object_type == "agent" and "agent_list" in json_dict:
-            return AgentList.from_dict(json_dict)
-        elif object_type == "job":
-            return {
-                "job": Jobs.from_dict(json_dict),
-                "status": response.get("status"),
-                "results_uuid": response.get("results_uuid"),
-            }
-        else:
-            return cls.from_dict(json_dict)
+        elif not object_type and not uuid:
+            raise Exception("Provide either object_type & UUID, or a url.")
+        edsl_class = ObjectRegistry.object_type_to_edsl_class.get(object_type)
+        response = self._send_server_request(
+            uri=f"api/v0/object",
+            method="GET",
+            params={"type": object_type, "uuid": uuid},
+        )
+        self._resolve_server_response(response)
+        json_string = response.json().get("json_string")
+        return edsl_class.from_dict(json.loads(json_string))
 
     def _get_base(
         self,
-        cls: Union[Type[QuestionBase], Survey, Agent, AgentList, Results],
+        cls: EDSLObject,
         uuid: Union[str, UUID],
-    ):
+    ) -> EDSLObject:
         """
         Used by the Base class to offer a get functionality.
         """
-        _, object_type = self._resolve_edsl_object(cls)
+        object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
         return self.get(object_type, uuid)
 
-    # ----------
-    # C. GET ALL
-    # ----------
-    @property
-    def questions(self) -> list[dict[str, Union[int, QuestionBase]]]:
-        """Retrieve all Questions."""
-        response = self._send_server_request(uri="api/v0/questions", method="GET")
+    def get_all(self, object_type: ObjectType) -> list[EDSLObject]:
+        """
+        Retrieve all objects of a certain type associated with the user.
+        """
+        edsl_class = ObjectRegistry.object_type_to_edsl_class.get(object_type)
+        response = self._send_server_request(
+            uri=f"api/v0/objects",
+            method="GET",
+            params={"type": object_type},
+        )
         self._resolve_server_response(response)
-        questions = [
+        objects = [
             {
-                "question": QuestionBase.from_dict(json.loads(q["json_string"])),
-                "uuid": q["uuid"],
-                "version": q["version"],
-                "visibility": q.get("visibility"),
-                "url": f"{self.url}/explore/questions/{q['uuid']}",
+                "object": edsl_class.from_dict(json.loads(o.get("json_string"))),
+                "uuid": o.get("uuid"),
+                "version": o.get("version"),
+                "visibility": o.get("visibility"),
+                "url": "TO BE ADDED",
             }
-            for q in response.json()
+            for o in response.json()
         ]
-        return questions
+        return objects
 
-    @property
-    def surveys(self) -> list[dict[str, Union[int, Survey]]]:
-        """Retrieve all Surveys."""
-        response = self._send_server_request(uri="api/v0/surveys", method="GET")
-        self._resolve_server_response(response)
-        surveys = [
-            {
-                "survey": Survey.from_dict(json.loads(s["json_string"])),
-                "uuid": s["uuid"],
-                "version": s["version"],
-                "visibility": s.get("visibility"),
-                "url": f"{self.url}/explore/surveys/{s['uuid']}",
-            }
-            for s in response.json()
-        ]
-        return surveys
-
-    @property
-    def agents(self) -> list[dict[str, Union[int, Agent, AgentList]]]:
-        """Retrieve all Agents and AgentLists."""
-        response = self._send_server_request(uri="api/v0/agents", method="GET")
-        self._resolve_server_response(response)
-        agents = []
-        for a in response.json():
-            agent_dict = json.loads(a.get("json_string"))
-            if "agent_list" in agent_dict:
-                agent = AgentList.from_dict(agent_dict)
-            else:
-                agent = Agent.from_dict(agent_dict)
-            agents.append(
-                {
-                    "uuid": a.get("uuid"),
-                    "agent": agent,
-                    "version": a.get("version"),
-                    "visibility": a.get("visibility"),
-                    "url": f"{self.url}/explore/agents/{a['uuid']}",
-                }
-            )
-        return agents
-
-    @property
-    def results(self) -> list[dict[str, Union[int, Results]]]:
-        """Retrieve all Results."""
-        response = self._send_server_request(uri="api/v0/results", method="GET")
-        self._resolve_server_response(response)
-        results = [
-            {
-                "uuid": r.get("uuid"),
-                "results": Results.from_dict(json.loads(r.get("json_string"))),
-                "version": r.get("version"),
-                "visibility": r.get("visibility"),
-                "url": f"{self.url}/explore/results/{r['uuid']}",
-            }
-            for r in response.json()
-        ]
-        return results
-
-    @property
-    def caches(self) -> list[dict[str, Union[int, Cache]]]:
-        """Retrieve all Caches."""
-        response = self._send_server_request(uri="api/v0/caches", method="GET")
-        self._resolve_server_response(response)
-        caches = [
-            {
-                "uuid": c.get("uuid"),
-                "cache": Cache.from_dict(json.loads(c.get("json_string"))),
-                "version": c.get("version"),
-                "visibility": c.get("visibility"),
-                "url": f"{self.url}/explore/caches/{c['uuid']}",
-            }
-            for c in response.json()
-        ]
-        return caches
-
-    @property
-    def jobs(self) -> list[dict[str, Union[int, Jobs]]]:
-        """Retrieve all Jobs."""
-        response = self._send_server_request(uri="api/v0/jobs", method="GET")
-        self._resolve_server_response(response)
-        jobs = [
-            {
-                "uuid": j.get("uuid"),
-                "job": Jobs.from_dict(json.loads(j.get("json_string"))),
-                "version": j.get("version"),
-                "visibility": j.get("visibility"),
-                "status": j.get("status"),
-                "results_uuid": j.get("results_uuid"),
-                "url": f"{self.url}/explore/jobs/{j['uuid']}",
-            }
-            for j in response.json()
-        ]
-        return jobs
-
-    # ----------
-    # D. DELETE
-    # ----------
     def delete(self, object_type: str, uuid: Union[str, UUID]) -> dict:
         """
-        Delete an EDSL object from the Coop server.
-
-        :param object_type: the type of object to delete.
-        :param uuid: the uuid of the object either in str or UUID format.
+        Delete an object from the server.
         """
-
-        uri, _ = self._resolve_object_type(object_type)
         response = self._send_server_request(
-            uri=f"api/v0/{uri}/{uuid}", method="DELETE"
+            uri=f"api/v0/object",
+            method="DELETE",
+            params={"type": object_type, "uuid": uuid},
         )
         self._resolve_server_response(response)
         return response.json()
 
     ################
-    # CacheEntry Methods
+    # Remote Caching
     ################
+    from edsl.data.CacheEntry import CacheEntry
+
     def create_cache_entry(
         self, cache_entry: CacheEntry, visibility: str = "unlisted"
     ) -> dict:
@@ -459,7 +219,7 @@ class Coop:
             method="POST",
             payload={
                 "visibility": visibility,
-                "version": self._get_edsl_version(),
+                "version": self._edsl_version,
                 "json_string": json.dumps(
                     {"key": cache_entry.key, "value": json.dumps(cache_entry.to_dict())}
                 ),
@@ -479,13 +239,12 @@ class Coop:
             method="POST",
             payload={
                 "visibility": visibility,
-                "version": self._get_edsl_version(),
+                "version": self._edsl_version,
                 "json_string": json.dumps(
                     {k: json.dumps(v.to_dict()) for k, v in cache_entries.items()}
                 ),
             },
         )
-        # print(response.json())
         self._resolve_server_response(response)
         return response.json()
 
@@ -526,100 +285,103 @@ class Coop:
         return response.json()
 
     ################
-    # EDSL SETTINGS
-    ################
-    def get_edsl_settings(self) -> dict:
-        """
-        Retrieve the EDSL settings.
-        """
-        response = self._send_server_request(uri="api/v0/edsl-settings", method="GET")
-        self._resolve_server_response(response)
-        return response.json()
-
-    ################
     # DUNDER METHODS
     ################
     def __repr__(self):
         """Return a string representation of the client."""
         return f"Client(api_key='{self.api_key}', url='{self.url}')"
 
+    ################
+    # EXPERIMENTAL
+    ################
+    async def remote_async_execute_model_call(
+        self, model_dict: dict, user_prompt: str, system_prompt: str
+    ) -> dict:
+        url = self.url + "/inference/"
+        # print("Now using url: ", url)
+        data = {
+            "model_dict": model_dict,
+            "user_prompt": user_prompt,
+            "system_prompt": system_prompt,
+        }
+        # Use aiohttp to send a POST request asynchronously
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json=data) as response:
+                response_data = await response.json()
+        return response_data
+
+    def web(
+        self,
+        survey: dict,
+        platform: Literal[
+            "google_forms", "lime_survey", "survey_monkey"
+        ] = "lime_survey",
+        email=None,
+    ):
+        url = f"{self.url}/api/v0/export_to_{platform}"
+        if email:
+            data = {"json_string": json.dumps({"survey": survey, "email": email})}
+        else:
+            data = {"json_string": json.dumps({"survey": survey, "email": email})}
+
+        response_json = requests.post(url, data=json.dumps(data))
+
+        return response_json
+
 
 if __name__ == "__main__":
     from edsl.coop import Coop
     import uuid
 
+    # init
     API_KEY = "b"
     coop = Coop(api_key=API_KEY)
-
     # basics
     coop
-    coop.get_edsl_settings()
+    coop.edsl_settings
 
     ##############
     # A. Objects
     ##############
     from uuid import uuid4
-    from edsl.agents import Agent, AgentList
-    from edsl.data import Cache
-    from edsl.questions import QuestionMultipleChoice, QuestionFreeText
-    from edsl.results import Results
-    from edsl.surveys import Survey
+    from edsl import Agent, Cache, Jobs, QuestionMultipleChoice, Results, Survey
 
-    def simple_object_operations(object_type, edsl_class, additional_setup=None):
-        # 1. Check existing objects
-        existing_objects = getattr(
-            coop, object_type + "s" if not object_type.endswith("s") else object_type
-        )
-        for item in existing_objects:
-            coop.delete(object_type=object_type, uuid=item.get("uuid"))
-
-        # 2. Create new items
-        example = edsl_class.example()
-        response = coop.create(example)
-        coop.create(edsl_class.example(), visibility="private")
-        coop.create(edsl_class.example(), visibility="public")
-
-        # 3. Additional setup
-        if additional_setup:
-            additional_setup()
-
-        # 4. Retrieve items
-        try:
-            coop.get(object_type=object_type, uuid=str(uuid4()))
-        except Exception as e:
-            print(e)
-        try:
-            coop.get(object_type=object_type, uuid=response.get("uuid"))
-        except Exception as e:
-            print(e)
-        coop.get(object_type=object_type, uuid=response.get("uuid"))
-        # 5. Delete items
-        existing_objects = getattr(
-            coop, object_type + "s" if not object_type.endswith("s") else object_type
-        )
-        for item in existing_objects:
-            coop.delete(object_type=object_type, uuid=item.get("uuid"))
-
-    def additional_survey_setup():
-        s = Survey().example()
-        for i in range(10):
-            q = QuestionFreeText.example()
-            q.question_name = f"question_{i}"
-            s.add_question(q)
-        coop.create(s, visibility="public")
-
-    # Define the object types and their corresponding classes
-    SETUP = [
-        ("question", QuestionMultipleChoice, None),
-        ("survey", Survey, additional_survey_setup),
-        ("agent", Agent, None),
-        ("results", Results, None),
-        ("cache", Cache, None),
+    OBJECTS = [
+        ("agent", Agent),
+        ("cache", Cache),
+        ("job", Jobs),
+        ("question", QuestionMultipleChoice),
+        ("results", Results),
+        ("survey", Survey),
     ]
 
-    # Execute CRUD operations for each type
-    for object_type, cls, setup in SETUP:
-        simple_object_operations(object_type, cls, setup)
+    for object_type, cls in OBJECTS:
+        print(f"Testing {object_type} objects")
+        # 1. Delete existing objects
+        existing_objects = coop.get_all(object_type)
+        for item in existing_objects:
+            coop.delete(object_type=object_type, uuid=item.get("uuid"))
+        # 2. Create new objects
+        example = cls.example()
+        response_1 = coop.create(example)
+        response_2 = coop.create(cls.example(), visibility="private")
+        response_3 = coop.create(cls.example(), visibility="public")
+        response_4 = coop.create(cls.example(), visibility="unlisted")
+        # 3. Retrieve all objects
+        objects = coop.get_all(object_type)
+        assert len(objects) == 4
+        # 4. Try to retrieve an item that does not exist
+        try:
+            coop.get(object_type=object_type, uuid=uuid4())
+        except Exception as e:
+            print(e)
+        # 5. Try to retrieve all test objects by their uuids
+        for response in [response_1, response_2, response_3, response_4]:
+            coop.get(object_type=object_type, uuid=response.get("uuid"))
+        # 6. Delete all objects
+        for item in objects:
+            coop.delete(object_type=object_type, uuid=item.get("uuid"))
+        assert len(coop.get_all(object_type)) == 0
 
     ##############
     # B. Jobs
