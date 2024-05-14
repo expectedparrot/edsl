@@ -161,6 +161,17 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
     def __repr__(self) -> str:
         """Return a string representation of the Interview instance."""
         return f"Interview(agent = {repr(self.agent)}, survey = {repr(self.survey)}, scenario = {repr(self.scenario)}, model = {repr(self.model)})"
+    
+    def duplicate(self, iteration: int, cache: Cache) -> Interview:
+        """Duplicate the interview, but with a new iteration number and cache."""
+        return Interview(
+            agent=self.agent,
+            survey=self.survey,
+            scenario=self.scenario,
+            model=self.model,
+            iteration=iteration,
+            cache=cache,
+        )
 
 if __name__ == "__main__":
     """Test the Interview class."""
