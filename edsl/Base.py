@@ -53,11 +53,12 @@ class PersistenceMixin:
         from edsl.coop import Coop
 
         c = Coop()
-        if isinstance(id_or_url, str) and c.url in id_or_url:
-            return c.get(url=id_or_url)
-        else:
-            _, object_type = c._resolve_edsl_object(cls)
-            return c.get(object_type, id_or_url)
+        return c._get_base(cls, id_or_url)
+        # if isinstance(id_or_url, str) and c.url in id_or_url:
+        #     return c.get(url=id_or_url)
+        # else:
+        #     _, object_type = c._resolve_edsl_object(cls)
+        #     return c.get(object_type, id_or_url)
 
     @classmethod
     def search(cls, query):
