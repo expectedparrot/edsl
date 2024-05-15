@@ -146,6 +146,7 @@ Information about additional functionality for developers.
 
    notebooks/data_labeling_agent.ipynb
    notebooks/random_numbers.ipynb
+   notebooks/model_walkoff.ipynb
    notebooks/concept_induction.ipynb
    notebooks/testing_training_data.ipynb
    notebooks/comparing_model_responses.ipynb
