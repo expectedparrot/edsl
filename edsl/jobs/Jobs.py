@@ -278,7 +278,8 @@ class Jobs(Base):
         if os.getenv("DEFAULT_RUN_MODE", "local") == "local"
         else True,
         check_api_keys:bool=True,
-        sidecar_model: Optional[LanguageModel]=None
+        sidecar_model: Optional[LanguageModel]=None,
+        batch_mode: Optional[bool] = None,
     ) -> Results:
         """
         Runs the Job: conducts Interviews and returns their results.
@@ -294,6 +295,11 @@ class Jobs(Base):
         :batch_mode: run the job in batch mode i.e., no expecation of interaction with the user
 
         """
+        if batch_mode is not None:
+            raise NotImplementedError(
+                "Batch mode is deprecated. Please update your code to not include 'batch_mode' in the 'run' method."
+            )
+        
         self.remote = remote
 
         if self.remote:
