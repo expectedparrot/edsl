@@ -163,11 +163,12 @@ Information about additional functionality for developers.
    :caption: Developers
    :hidden:
 
-   enums
+   contributing
+   interview
    jobs 
    interviews
    answers
-   contributing
+   enums
 
 .. image:: https://colab.research.google.com/assets/colab-badge.svg
    :target: https://colab.research.google.com/github/expectedparrot/edsl/blob/main/examples/create_agents.ipynb 

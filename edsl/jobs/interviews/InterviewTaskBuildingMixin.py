@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 import time
 import traceback
-from typing import Generator
+from typing import Generator, Union
 from edsl import CONFIG
 from edsl.exceptions import InterviewTimeoutError
 from edsl.data_transfer_models import AgentResponseDict
@@ -22,7 +22,8 @@ TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
 
 class InterviewTaskBuildingMixin:
     def _build_invigilators(
-        self, debug: bool
+        self, 
+        debug: bool
     ) -> Generator[InvigilatorBase, None, None]:
         """Create an invigilator for each question.
 
@@ -237,9 +238,9 @@ class InterviewTaskBuildingMixin:
         If the next question is the end of the survey, it cancels all remaining tasks.
         If the next question is after the current question, it cancels all tasks between the current question and the next question.
         """
-        current_question_index = self.to_index[current_question.question_name]
+        current_question_index:int = self.to_index[current_question.question_name]
 
-        next_question = self.survey.rule_collection.next_question(
+        next_question: Union[int, EndOfSurvey] = self.survey.rule_collection.next_question(
             q_now=current_question_index,
             answers=self.answers | self.scenario | self.agent["traits"],
         )
@@ -250,11 +251,6 @@ class InterviewTaskBuildingMixin:
             """Cancel the tasks between the start and end indices."""
             for i in range(start, end):
                 self.tasks[i].cancel()
-                # task_to_cancel = self.tasks[i]
-                # verbose = False
-                # if verbose:
-                #    print(f"Cancelling task {task_to_cancel.get_name()}")
-                # task_to_cancel.cancel()
 
         if next_question_index == EndOfSurvey:
             cancel_between(current_question_index + 1, len(self.survey.questions))

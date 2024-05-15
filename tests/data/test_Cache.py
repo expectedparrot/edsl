@@ -147,7 +147,7 @@ def test_caching(language_model_good):
     results = (
         QuestionFreeText.example()
         .by(m)
-        .run(cache=c, batch_mode=True, check_api_keys=False, remote=False)
+        .run(cache=c, check_api_keys=False, remote=False)
     )
     assert not results.select(
         "raw_model_response.how_are_you_raw_model_response"
@@ -155,7 +155,7 @@ def test_caching(language_model_good):
     results = (
         QuestionFreeText.example()
         .by(m)
-        .run(cache=c, batch_mode=True, check_api_keys=False)
+        .run(cache=c, check_api_keys=False)
     )
     assert results.select("raw_model_response.how_are_you_raw_model_response").first()[
         "cached_response"
