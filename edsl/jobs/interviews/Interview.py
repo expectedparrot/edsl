@@ -3,7 +3,7 @@ from __future__ import annotations
 import traceback
 import asyncio
 import time
-from typing import Any, Type, List, Generator
+from typing import Any, Type, List, Generator, Optional
 
 from edsl.agents import Agent
 from edsl.language_models import LanguageModel
@@ -81,7 +81,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         model_buckets: ModelBuckets = None,
         debug: bool = False,
         stop_on_exception: bool = False,
-        sidecar_model=None,
+        sidecar_model:Optional[LanguageModel]=None,
     ) -> tuple["Answers", List[dict[str, Any]]]:
         """
         Conduct an Interview asynchronously.
@@ -101,7 +101,8 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         self.sidecar_model = sidecar_model
 
         # if no model bucket is passed, create an 'infinity' bucket with no rate limits
-        model_buckets = model_buckets or ModelBuckets.infinity_bucket()
+        if model_buckets is None:
+            model_buckets = ModelBuckets.infinity_bucket()
 
         ## build the tasks using the InterviewTaskBuildingMixin
         ## This is the key part---it creates a task for each question,
@@ -120,31 +121,35 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
 
     def _extract_valid_results(self) -> Generator["Answers", None, None]:
         """Extract the valid results from the list of results.
-
-        :param print_traceback: if True, print the traceback of any exceptions.
+        
+        It iterates through the tasks and invigilators, and yields the results of the tasks that are done.
+        If a task is not done, it raises a ValueError.
+        If an exception is raised in the task, it records the exception in the Interview instance except if the task was cancelled, which is expected behavior.
         """
         assert len(self.tasks) == len(self.invigilators)
 
         for task, invigilator in zip(self.tasks, self.invigilators):
-            if task.done():
-                try:
-                    result = task.result()
-                except asyncio.CancelledError as e:  # task was cancelled
-                    result = invigilator.get_failed_task_result()
-
-                except Exception as e:  # any other kind of exception in the task
-                    exception_entry = InterviewExceptionEntry(
-                        exception=repr(e),
-                        time=time.time(),
-                        traceback=traceback.format_exc(),
-                    )
-                    self.exceptions.add(task.get_name(), exception_entry)
-                    result = invigilator.get_failed_task_result()
-
-                yield result
-            else:
+            if not task.done():
                 raise ValueError(f"Task {task.get_name()} is not done.")
 
+            try:
+                result = task.result()
+            except asyncio.CancelledError as e:  # task was cancelled
+                result = invigilator.get_failed_task_result()
+            except Exception as e:  # any other kind of exception in the task
+                result = invigilator.get_failed_task_result()
+                self._record_exception(task, e) 
+            yield result
+    
+    def _record_exception(self, task, exception: Exception) -> None:
+        """Record an exception in the Interview instance."""
+        exception_entry = InterviewExceptionEntry(
+            exception=repr(exception),
+            time=time.time(),
+            traceback=traceback.format_exc(),
+        )
+        self.exceptions.add(task.get_name(), exception_entry)
+                
     @property
     def dag(self) -> "DAG":
         """Return the directed acyclic graph for the survey.
