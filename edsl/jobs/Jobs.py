@@ -13,6 +13,7 @@ from edsl.Base import Base
 from edsl.data.Cache import Cache
 from edsl.data.SQLiteDict import SQLiteDict
 from edsl.data.CacheHandler import CacheHandler
+from edsl.results.Dataset import Dataset
 
 from edsl.exceptions.jobs import MissingRemoteInferenceError
 from edsl.exceptions import MissingAPIKeyError
@@ -93,8 +94,7 @@ class Jobs(Base):
         setattr(self, objects_key, new_objects)  # update the job
         return self
 
-    def prompts(self):
-        from edsl.results.Dataset import Dataset
+    def prompts(self) -> Dataset:
 
         interviews = self.interviews()
         # data = []
@@ -113,7 +113,6 @@ class Jobs(Base):
                 interview_indices.append(interview_index)
                 scenario_indices.append(invigilator.scenario)
                 question_indices.append(invigilator.question.question_name)
-        # breakpoint()
         return Dataset(
             [
                 {"interview_index": interview_indices},
@@ -241,9 +240,9 @@ class Jobs(Base):
         remote: bool = False
         if os.getenv("DEFAULT_RUN_MODE", "local") == "local"
         else True,
-        check_api_keys=True,
-        sidecar_model=None,
-        batch_mode=False,
+        check_api_keys:bool=True,
+        sidecar_model: Optional[LanguageModel]=None,
+        batch_mode:bool=False,
     ) -> Union[Results, ResultsAPI, None]:
         """
         Runs the Job: conducts Interviews and returns their results.
@@ -286,8 +285,7 @@ class Jobs(Base):
             progress_bar=progress_bar,
             cache=cache,
             stop_on_exception=stop_on_exception,
-            sidecar_model=sidecar_model,
-            batch_mode=batch_mode,
+            sidecar_model=sidecar_model
         )
         results.cache = cache.new_entries_cache()
 
@@ -299,11 +297,6 @@ class Jobs(Base):
 
         results = JobsRunnerAsyncio(self).run(*args, **kwargs)
         return results
-
-    # def _run_remote(self, *args, **kwargs):
-    #     """Run the job remotely."""
-    #     results = JobRunnerAPI(*args, **kwargs)
-    #     return results
 
     #######################
     # Dunder methods
