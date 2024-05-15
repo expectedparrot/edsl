@@ -1,20 +1,21 @@
 """This module contains the Question class, which is the base class for all questions in EDSL."""
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from rich.table import Table
+import copy
+import itertools
 from typing import Any, Type, Optional
+
+from rich.table import Table
 
 from edsl.exceptions import (
     QuestionResponseValidationError,
     QuestionSerializationError,
 )
 from edsl.questions.descriptors import QuestionNameDescriptor, QuestionTextDescriptor
-
 from edsl.prompts.registry import get_classes as prompt_lookup
 from edsl.questions.AnswerValidatorMixin import AnswerValidatorMixin
 from edsl.questions.RegisterQuestionsMeta import RegisterQuestionsMeta
 from edsl.Base import PersistenceMixin, RichPrintingMixin
-
 from edsl.questions.SimpleAskMixin import SimpleAskMixin
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
@@ -43,7 +44,14 @@ class QuestionBase(
 
     @property
     def data(self) -> dict:
-        """Return a dictionary of question attributes **except** for question_type."""
+        """Return a dictionary of question attributes **except** for question_type.
+        
+        >>> from edsl.questions import QuestionFreeText
+        >>> q = QuestionFreeText(question_name = "color", question_text = "What is your favorite color?")
+        >>> q.data
+        {'question_name': 'color', 'question_text': 'What is your favorite color?'}
+        
+        """
         candidate_data = {
             k.replace("_", "", 1): v
             for k, v in self.__dict__.items()
@@ -66,7 +74,8 @@ class QuestionBase(
 
     @classmethod
     def applicable_prompts(
-        cls, model: Optional[str] = None
+        cls, 
+        model: Optional[str] = None
     ) -> list[type["PromptBase"]]:
         """Get the prompts that are applicable to the question type.
 
@@ -75,8 +84,6 @@ class QuestionBase(
         >>> from edsl.questions import QuestionFreeText
         >>> QuestionFreeText.applicable_prompts()
         [<class 'edsl.prompts.library.question_freetext.FreeText'>]
-
-        :param model: The language model to use. If None, assumes does not matter.
 
         """
         applicable_prompts = prompt_lookup(
@@ -94,8 +101,16 @@ class QuestionBase(
         return self._model_instructions
 
     @model_instructions.setter
-    def model_instructions(self, data: dict):
-        """Set the model-specific instructions for the question."""
+    def model_instructions(self, data) -> None:
+        """Set the model-specific instructions for the question.
+        
+        :param data: The model-specific instructions for the question.
+        
+        >>> from edsl.questions import QuestionFreeText
+        >>> q = QuestionFreeText(question_name = "color", question_text = "What is your favorite color?")
+        >>> q.model_instructions = {'gpt-3-turbo': 'Answer in valid JSON like so {"answer": "comment: <>"}
+
+        """
         self._model_instructions = data
 
     def add_model_instructions(
@@ -142,9 +157,6 @@ class QuestionBase(
 
         if not hasattr(self, "question_options"):
             return [self]
-
-        import copy
-        import itertools
 
         questions = []
         for index, permutation in enumerate(
@@ -221,7 +233,6 @@ class QuestionBase(
 
     def __repr__(self) -> str:
         """Return a string representation of the question. Should be able to be used to reconstruct the question."""
-        class_name = self.__class__.__name__
         items = [
             f"{k} = '{v}'" if isinstance(v, str) else f"{k} = {v}"
             for k, v in self.data.items()
@@ -231,10 +242,11 @@ class QuestionBase(
         return f"Question('{question_type}', {', '.join(items)})"
 
     def __eq__(self, other: Type[QuestionBase]) -> bool:
-        """Check if two questions are equal. Equality is defined as having the .to_dict()."""
+        """Check if two questions are equal. Equality is defined as having the same .to_dict() value."""
         if not isinstance(other, QuestionBase):
             return False
-        return self.to_dict() == other.to_dict()
+        else:
+            return self.to_dict() == other.to_dict()
 
     # TODO: Throws an error that should be addressed at QuestionFunctional
     def __add__(self, other_question):
@@ -279,28 +291,53 @@ class QuestionBase(
     # Forward methods
     ############################
     def add_question(self, other: Question) -> "Survey":
-        """Add a question to this question by turning them into a survey with two questions."""
+        """Add a question to this question by turning them into a survey with two questions.
+        
+        >>> from edsl.questions import QuestionFreeText, QuestionNumerical
+        >>> q1 = QuestionFreeText(question_text = "What is the capital of {{country}}", question_name = "capital")
+        >>> q2 = QuestionNumerical(question_text = "What is the population of {{country}}, in millions. Please round", question_name = "population")
+        >>> survey = q1.add_question(q2) 
+        """
         from edsl.surveys.Survey import Survey
-
         s = Survey([self, other])
         return s
 
-    def run(self, *args, **kwargs):
-        """Turn a single question into a survey and run it."""
+    def run(self, *args, **kwargs) -> 'Results':
+        """Turn a single question into a survey and then runts that survey.
+        
+        >>> from edsl.questions import QuestionFreeText
+        >>> q = QuestionFreeText(question_text = "What is the capital of France", question_name = "capital")
+        >>> q.run(debug = True).select('capital')
+        Dataset([{'answer.capital': ['...']}])
+        """
         from edsl.surveys.Survey import Survey
-
         s = Survey([self])
         return s.run(*args, **kwargs)
 
-    def by(self, *args):
-        """Turn a single question into a survey and run it."""
+    def by(self, *args) -> 'Jobs':
+        """Turn a single question into a Jobs.
+        
+        >>> from edsl.questions import QuestionFreeText
+        >>> q = QuestionFreeText(question_text = "What is the capital of {{country}}", question_name = "capital")
+        >>> from edsl import Scenario
+        >>> scenarios = [Scenario({'country':c}) for c in ['USA', 'Canada', 'Mexico']]
+        >>> q.by(scenarios)
+        Jobs(survey=Survey(questions=[Question('free_text', question_name = 'capital', question_text = 'What is the capital of {{country}}')], memory_plan={}, rule_collection=RuleCollection(rules=[Rule(current_q=0, expression="True", next_q=1, priority=-1, question_name_to_index={'capital': 0}, before_rule=False)], num_questions=1), question_groups={}), agents=[], models=[], scenarios=[Scenario({'country': 'USA'}), Scenario({'country': 'Canada'}), Scenario({'country': 'Mexico'})])
+        """
         from edsl.surveys.Survey import Survey
 
         s = Survey([self])
         return s.by(*args)
 
-    def human_readable(self):
-        """Print the question in a human readable format."""
+    def human_readable(self) -> str:
+        """Return the question in a human readable format.
+        
+        >>> from edsl.questions import QuestionFreeText
+        >>> q = QuestionFreeText(question_text = "What is the capital of {{country}}", question_name = "capital")
+        >>> q.human_readable()
+        'Question Type: free_text\\nQuestion: What is the capital of {{country}}'
+        
+        """
         lines = []
         lines.append(f"Question Type: {self.question_type}")
         lines.append(f"Question: {self.question_text}")
@@ -311,7 +348,7 @@ class QuestionBase(
         return "\n".join(lines)
 
     def rich_print(self):
-        """Print the question in a rich format."""
+        """Returns a rich-formatted table version of the question."""
         table = Table(show_header=True, header_style="bold magenta")
         table.add_column("Question Name", style="dim")
         table.add_column("Question Type")

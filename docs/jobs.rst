@@ -5,10 +5,14 @@ Jobs
 The `Jobs` class is a collection of agents, scenarios and models and one survey.
 It is used to run a collection of interviews.
 
-Methods:
-* `by()`: Adds agents, scenarios or models to the job. 
-* `interviews()`: Creates a collection of interviews.
-* `run()`: Runs a collection of interviews.
+
+Base Question
+-------------
+.. automodule:: edsl.questions.QuestionBase
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 
 
 Jobs class
