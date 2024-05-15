@@ -4,7 +4,7 @@ import asyncio
 import textwrap
 from contextlib import contextmanager
 
-from typing import Coroutine, List, AsyncGenerator, Optional
+from typing import Coroutine, List, AsyncGenerator, Optional, Union
 
 from rich.live import Live
 from rich.console import Console
@@ -91,12 +91,14 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         interview: Interview,
         debug: bool,
         stop_on_exception: bool = False,
-        sidecar_model=None,
+        sidecar_model: Optional[LanguageModel] =None,
     ) -> Result:
         """Conducts an interview and returns the result.
 
         :param interview: the interview to conduct
         :param debug: prints debug messages
+        :param stop_on_exception: stops the interview if an exception is raised
+        :param sidecar_model: a language model to use in addition to the interview's model
         """
         # the model buckets are used to track usage rates
         model_buckets = self.bucket_collection[interview.model]
@@ -158,13 +160,12 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
     @jupyter_nb_handler
     async def run(
         self,
-        cache,
+        cache: Union[Cache, False, None],
         n: int = 1,
         debug: bool = False,
         stop_on_exception: bool = False,
-        progress_bar=False,
+        progress_bar:bool=False,
         sidecar_model: Optional[LanguageModel] = None,
-        batch_mode=False,
     ) -> "Coroutine":
         """Runs a collection of interviews, handling both async and sync contexts."""
         console = Console()
@@ -217,7 +218,6 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                         live.update(generate_table())
                     self.completed = True
 
-                # logger_task = asyncio.create_task(self.periodic_logger(period=0.01))
                 progress_task = asyncio.create_task(update_progress_bar())
 
                 try:
@@ -237,7 +237,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         task_history = TaskHistory(self.total_interviews, include_traceback=False)
         results.task_history = task_history
 
-        if results.task_history.has_exceptions and not batch_mode:
+        if results.task_history.has_exceptions:
             if len(results.task_history.indices) > 5:
                 msg = "Exceptions were raised in multiple interviews (> 5)."
             else:

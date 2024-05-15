@@ -7,7 +7,7 @@ repos:
     rev: v4.5.0
     hooks:
       - id: check-added-large-files
-        args: ['--maxkb=2048']
+        args: ['--maxkb=4096']
       - id: check-merge-conflict
       - id: check-symlinks
       - id: check-toml
