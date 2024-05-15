@@ -2,6 +2,7 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 import copy
+import json
 import itertools
 from typing import Any, Type, Optional
 
@@ -28,7 +29,7 @@ class QuestionBase(
     AnswerValidatorMixin,
     metaclass=RegisterQuestionsMeta,
 ):
-    """ABC for the Question class. All questions should inherit from this class."""
+    """ABC for Questions. All questions should inherit from this class."""
 
     question_name: str = QuestionNameDescriptor()
     question_text: str = QuestionTextDescriptor()
@@ -153,7 +154,21 @@ class QuestionBase(
             return self.applicable_prompts(model)[0]()
 
     def option_permutations(self) -> list[QuestionBase]:
-        """Return a list of questions with all possible permutations of the options."""
+        """Return a list of questions with all possible permutations of the options.
+
+        It modifies the question_name to include the index of the permutation.
+        
+        >>> from edsl.questions import QuestionMultipleChoice
+        >>> q = QuestionMultipleChoice(question_name = "color", question_text = "What is your favorite color?", question_options = ["red", "blue"])
+        >>> question_list = q.option_permutations()
+        >>> question_list
+        [Question('multiple_choice', question_name = 'color_0', question_text = 'What is your favorite color?', question_options = ['red', 'blue']), Question('multiple_choice', question_name = 'color_1', question_text = 'What is your favorite color?', question_options = ['blue', 'red'])]
+
+        >>> [newq.question_options for newq in question_list]
+        [['red', 'blue'], ['blue', 'red']]
+        >>> [newq.question_name for newq in question_list]
+        ['color_0', 'color_1']
+        """
 
         if not hasattr(self, "question_options"):
             return [self]
@@ -173,7 +188,16 @@ class QuestionBase(
     ############################
     @add_edsl_version
     def to_dict(self) -> dict[str, Any]:
-        """Convert the question to a dictionary that includes the question type (used in deserialization)."""
+        """Convert the question to a dictionary that includes the question type (used in deserialization).
+
+        Note that the function is decorated with `add_edsl_version` to add the version of EDSL to the dictionary.
+        This is used to ensure that the deserialization process is compatible with the version of EDSL that serialized the object.
+
+        >>> from edsl.questions import QuestionFreeText
+        >>> q = QuestionFreeText(question_name = "color", question_text = "What is your favorite color?")
+        >>> q.to_dict()
+        {'question_name': 'color', 'question_text': 'What is your favorite color?', 'question_type': 'free_text', 'edsl_version': '...', 'edsl_class_name': 'QuestionBase'}
+        """
         candidate_data = self.data.copy()
         candidate_data["question_type"] = self.question_type
         return candidate_data
@@ -227,8 +251,6 @@ class QuestionBase(
     ############################
     def print(self):
         from rich import print_json
-        import json
-
         print_json(json.dumps(self.to_dict()))
 
     def __repr__(self) -> str:
@@ -242,14 +264,24 @@ class QuestionBase(
         return f"Question('{question_type}', {', '.join(items)})"
 
     def __eq__(self, other: Type[QuestionBase]) -> bool:
-        """Check if two questions are equal. Equality is defined as having the same .to_dict() value."""
+        """Check if two questions are equal. Equality is defined as having the same .to_dict() value.
+        
+        >>> from edsl.questions import QuestionFreeText
+        >>> q1 = QuestionFreeText(question_name = "color", question_text = "What is your favorite color?")
+        >>> q2 = QuestionFreeText(question_name = "color", question_text = "What is your favorite color?")
+        >>> q1 == q2
+        True
+        >>> q3 = QuestionFreeText(question_name = "color", question_text = "What is your favorite COLOR?")
+        >>> q1 == q3
+        False
+        """
         if not isinstance(other, QuestionBase):
             return False
         else:
             return self.to_dict() == other.to_dict()
 
     # TODO: Throws an error that should be addressed at QuestionFunctional
-    def __add__(self, other_question):
+    def __add__(self, other_question) -> Type[QuestionBase]:
         """
         Compose two questions into a single question.
 
@@ -265,11 +297,11 @@ class QuestionBase(
         return compose_questions(self, other_question)
 
     @abstractmethod
-    def _validate_answer(self, answer: dict[str, str]):
+    def _validate_answer(self, answer: dict[str, str]): # pragma: no cover
         """Validate the answer from the LLM. Behavior depends on the question type."""
         pass
 
-    def _validate_response(self, response):
+    def _validate_response(self, response: dict):
         """Validate the response from the LLM. Behavior depends on the question type."""
         if "answer" not in response:
             raise QuestionResponseValidationError(
@@ -283,14 +315,14 @@ class QuestionBase(
         pass
 
     @abstractmethod
-    def _simulate_answer(self, human_readable=True) -> dict:  # pragma: no cover
+    def _simulate_answer(self, human_readable:bool=True) -> dict:  # pragma: no cover
         """Simulate a valid answer for debugging purposes (what the validator expects)."""
         pass
 
     ############################
     # Forward methods
     ############################
-    def add_question(self, other: Question) -> "Survey":
+    def add_question(self, other: QuestionBase) -> "Survey":
         """Add a question to this question by turning them into a survey with two questions.
         
         >>> from edsl.questions import QuestionFreeText, QuestionNumerical

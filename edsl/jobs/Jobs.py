@@ -71,8 +71,17 @@ class Jobs(Base):
 
         This 'by' is intended to create a fluent interface.
 
-        Arguments:
-        - objects or a sequence (list, tuple, ...) of objects of the same type
+        >>> from edsl import Survey
+        >>> from edsl import QuestionFreeText 
+        >>> q = QuestionFreeText(question_name="name", question_text="What is your name?")
+        >>> j = Jobs(survey = Survey(questions=[q]))
+        >>> j
+        Jobs(survey=Survey(...), agents=[], models=[], scenarios=[])
+        >>> from edsl import Agent; a = Agent(traits = {"status": "Sad"})
+        >>> j.by(a).agents
+        [Agent(traits = {'status': 'Sad'})]
+        
+        :param args: objects or a sequence (list, tuple, ...) of objects of the same type
 
         Notes:
         - all objects must implement the 'get_value', 'set_value', and `__add__` methods
@@ -95,6 +104,13 @@ class Jobs(Base):
         return self
 
     def prompts(self) -> Dataset:
+        """Return a Dataset of prompts that will be used.
+
+        
+        >>> from edsl.jobs import Jobs
+        >>> Jobs.example().prompts()
+        Dataset([{'interview_index': [0, 0, 1, 1, 2, 2, 3, 3]}, {'question_index': ['how_feeling', 'how_feeling_yesterday', 'how_feeling', 'how_feeling_yesterday', 'how_feeling', 'how_feeling_yesterday', 'how_feeling', 'how_feeling_yesterday']}, {'user_prompt': [Prompt(text='NA'), Prompt(text='NA'), Prompt(text='NA'), Prompt(text='NA'), Prompt(text='NA'), Prompt(text='NA'), Prompt(text='NA'), Prompt(text='NA')]}, {'scenario_index': [Scenario({'period': 'morning'}), Scenario({'period': 'morning'}), Scenario({'period': 'afternoon'}), Scenario({'period': 'afternoon'}), Scenario({'period': 'morning'}), Scenario({'period': 'morning'}), Scenario({'period': 'afternoon'}), Scenario({'period': 'afternoon'})]}, {'system_prompt': [Prompt(text='NA'), Prompt(text='NA'), Prompt(text='NA'), Prompt(text='NA'), Prompt(text='NA'), Prompt(text='NA'), Prompt(text='NA'), Prompt(text='NA')]}])
+        """
 
         interviews = self.interviews()
         # data = []
@@ -106,7 +122,7 @@ class Jobs(Base):
 
         for interview_index, interview in enumerate(interviews):
             invigilators = list(interview._build_invigilators(debug=False))
-            for question_index, invigilator in enumerate(invigilators):
+            for _, invigilator in enumerate(invigilators):
                 prompts = invigilator.get_prompts()
                 user_prompts.append(prompts["user_prompt"])
                 system_prompts.append(prompts["system_prompt"])
@@ -148,7 +164,13 @@ class Jobs(Base):
     def _get_current_objects_of_this_type(
         self, object: Union[Agent, Scenario, LanguageModel]
     ) -> tuple[list, str]:
-        """Return the current objects of the same type as the first argument."""
+        """Return the current objects of the same type as the first argument.
+        
+        >>> from edsl.jobs import Jobs
+        >>> j = Jobs.example()
+        >>> j._get_current_objects_of_this_type(j.agents[0])
+        ([Agent(traits = {'status': 'Joyful'}), Agent(traits = {'status': 'Sad'})], 'agents')
+        """
         class_to_key = {
             Agent: "agents",
             Scenario: "scenarios",
@@ -186,10 +208,17 @@ class Jobs(Base):
 
     def interviews(self) -> list[Interview]:
         """
-        Return a list of Interviews, that will eventually be used by the JobRunner.
+        Return a list of :class:`edsl.jobs.interviews.Interview` objects.
 
-        - Returns one Interview for each combination of Agent, Scenario, and LanguageModel.
-        - If any of Agents, Scenarios, or LanguageModels are missing, fills in with defaults. Note that this will change the corresponding class attributes.
+        It returns one Interview for each combination of Agent, Scenario, and LanguageModel.
+        If any of Agents, Scenarios, or LanguageModels are missing, it fills in with defaults. 
+
+        >>> from edsl.jobs import Jobs
+        >>> j = Jobs.example()
+        >>> len(j.interviews())
+        4
+        >>> j.interviews()[0]
+        Interview(agent = Agent(traits = {'status': 'Joyful'}), survey = Survey(...), scenario = Scenario({'period': 'morning'}), model = Model(...))
         """
         return list(self._create_interviews())
 
@@ -201,8 +230,10 @@ class Jobs(Base):
         This is useful because a user can create a job without setting the agents, models, or scenarios, and the job will still run,
         with us filling in defaults.
         """
+        # if no agents, models, or scenarios are set, set them to defaults
         self.agents = self.agents or [Agent()]
         self.models = self.models or [Model()]
+        # if remote, set all the models to remote
         if hasattr(self, "remote") and self.remote:
             for model in self.models:
                 model.remote = True
@@ -217,6 +248,12 @@ class Jobs(Base):
         Create a collection of buckets for each model.
 
         These buckets are used to track API calls and token usage.
+
+        >>> from edsl.jobs import Jobs
+        >>> j = Jobs.example().by(Model(temperature = 1), Model(temperature = 0.5))
+        >>> bc = j.create_bucket_collection()
+        >>> bc
+        BucketCollection(...)
         """
         bucket_collection = BucketCollection()
         for model in self.models:
@@ -241,9 +278,8 @@ class Jobs(Base):
         if os.getenv("DEFAULT_RUN_MODE", "local") == "local"
         else True,
         check_api_keys:bool=True,
-        sidecar_model: Optional[LanguageModel]=None,
-        batch_mode:bool=False,
-    ) -> Union[Results, ResultsAPI, None]:
+        sidecar_model: Optional[LanguageModel]=None
+    ) -> Results:
         """
         Runs the Job: conducts Interviews and returns their results.
 
@@ -261,6 +297,7 @@ class Jobs(Base):
         self.remote = remote
 
         if self.remote:
+            ## TODO: This should be a coop check
             if os.getenv("EXPECTED_PARROT_API_KEY", None) is None:
                 raise MissingRemoteInferenceError()
 
@@ -318,7 +355,13 @@ class Jobs(Base):
         print_json(json.dumps(self.to_dict()))
 
     def __len__(self) -> int:
-        """Return the number of questions that will be asked while running this job."""
+        """Return the maximum number of questions that will be asked while running this job.
+        Note that this is the maximum number of questions, not the actual number of questions that will be asked, as some questions may be skipped.
+
+        >>> from edsl.jobs import Jobs
+        >>> len(Jobs.example())
+        8
+        """
         number_of_questions = (
             len(self.agents or [1])
             * len(self.scenarios or [1])
@@ -431,12 +474,12 @@ def main():
 if __name__ == "__main__":
     """Run the module's doctests."""
     import doctest
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
 
-    doctest.testmod()
-    from edsl.jobs import Jobs
+    # from edsl.jobs import Jobs
 
-    job = Jobs.example()
-    len(job) == 8
-    results, info = job.run(debug=True)
-    len(results) == 8
-    results
+    # job = Jobs.example()
+    # len(job) == 8
+    # results, info = job.run(debug=True)
+    # len(results) == 8
+    # results
