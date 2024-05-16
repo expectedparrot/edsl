@@ -17,10 +17,12 @@ When a question is added with index, it is always given a rule the next question
 with a low (-1) priority.
 """
 import ast
-from collections import namedtuple
+from typing import Any, Union, List
+
+from jinja2 import Template
 from rich import print
 from simpleeval import EvalWithCompoundTypes
-from typing import Any, Union, List
+
 from edsl.exceptions import (
     SurveyRuleCannotEvaluateError,
     SurveyRuleCollectionHasNoRulesAtNodeError,
@@ -31,8 +33,7 @@ from edsl.exceptions import (
 )
 from edsl.surveys.base import EndOfSurvey
 from edsl.utilities.ast_utilities import extract_variable_names
-from edsl.utilities.interface import print_table_with_rich
-
+from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
 class Rule:
     """The Rule class defines a "rule" for determining the next question presented to an agent."""
@@ -74,8 +75,7 @@ class Rule:
         if not self.next_q == EndOfSurvey and self.current_q > self.next_q:
             raise SurveyRuleSendsYouBackwardsError
 
-        # get the AST for the expression - used to extract
-        # the variables referenced in the expression
+        # get the AST for the expression - used to extract the variables referenced in the expression
         try:
             self.ast_tree = ast.parse(self.expression)
         except SyntaxError:
@@ -115,8 +115,14 @@ class Rule:
     def _checks(self):
         pass
 
+    @add_edsl_version
     def to_dict(self):
-        """Convert the rule to a dictionary for serialization."""
+        """Convert the rule to a dictionary for serialization.
+        
+        >>> r = Rule.example()
+        >>> r.to_dict()
+        {'current_q': 1, 'expression': "q1 == 'yes'", 'next_q': 2, 'priority': 0, 'question_name_to_index': {'q1': 1}, 'before_rule': False, 'edsl_version': '...', 'edsl_class_name': 'Rule'}
+        """
         return {
             "current_q": self.current_q,
             "expression": self.expression,
@@ -127,6 +133,7 @@ class Rule:
         }
 
     @classmethod
+    @remove_edsl_version
     def from_dict(self, rule_dict):
         """Create a rule from a dictionary."""
         if rule_dict["next_q"] == "EndOfSurvey":
@@ -154,54 +161,127 @@ class Rule:
 
     @property
     def question_index_to_name(self):
-        """Reverse the dictionary do we can look up questions by name."""
+        """Reverse the dictionary do we can look up questions by name.
+
+        >>> r = Rule.example()
+        >>> r.question_index_to_name
+        {1: 'q1'}
+
+        """
         return {v: k for k, v in self.question_name_to_index.items()}
 
     def show_ast_tree(self):
-        """Pretty-print the AST tree to the terminal."""
+        """Pretty-print the AST tree to the terminal.
+        
+        >>> r = Rule.example()
+        >>> r.show_ast_tree()
+        Module(...)
+        """
         print(
             ast.dump(
                 self.ast_tree, annotate_fields=True, indent=4, include_attributes=True
             )
         )
 
-    def evaluate(self, answers: dict[int, Any]):
+    @staticmethod
+    def _prepare_replacement(current_info_env: dict[int, Any]):
+        d = {}
+        for var, value in current_info_env.items():
+            if isinstance(value, str):
+                replacement = f"'{value}'"
+            else:
+                replacement = str(value)
+            d[var] = replacement
+        return d
+
+    def evaluate(self, current_info_env: dict[int, Any]):
         """Compute the value of the expression, given a dictionary of known questions answers.
 
+        :param current_info_env: A dictionary mapping question, scenario, and agent names to their values.
+
         If the expression cannot be evaluated, it raises a CannotEvaluate exception.
+
+        >>> r = Rule.example()
+        >>> r.evaluate({'q1' : 'yes'})
+        True
+        >>> r.evaluate({'q1' : 'no'})
+        False
+
+        >>> r = Rule.example(jinja2=True)
+        >>> r.evaluate({'q1' : 'yes'})
+        True
+
+        >>> r = Rule.example(jinja2=True)
+        >>> r.evaluate({'q1' : 'This is q1'})
+        False
+
+        >>> r = Rule.example(jinja2=False, bad = True)
+        >>> r.evaluate({'q1' : 'yes'})
+        Traceback (most recent call last):
+        ...
+        edsl.exceptions.surveys.SurveyRuleCannotEvaluateError...
         """
 
-        def substitute_in_answers(expression, answers):
+        def substitute_in_answers(expression, current_info_env):
             """Take the dictionary of answers and substitute them into the expression."""
-            for var, value in answers.items():
-                # If it is a string, add quotes; otherwise, just convert to string.
-                if isinstance(value, str):
-                    replacement = f"'{value}'"
-                else:
-                    replacement = str(value)
 
-                expression = expression.replace(var, replacement)
-            return expression
+            current_info = self._prepare_replacement(current_info_env)
+
+            if "{{" in expression and "}}" in expression:
+                template_expression = Template(self.expression)
+                to_evaluate = template_expression.render(current_info)
+            else:
+                import warnings
+                import textwrap
+                warnings.warn(textwrap.dedent("""\
+                The expression is not a Jinja2 template with {{ }}. This is not recommended.
+                You can re-write your expression say "q1 == 'yes'" as "{{ q1 }} == 'yes'".              
+                """))     
+                to_evaluate = expression
+                for var, value in current_info.items():
+                    to_evaluate = to_evaluate.replace(var, value)
+            
+            return to_evaluate
+
+
+        try: 
+            to_evaluate = substitute_in_answers(self.expression, current_info_env)
+        except Exception as e:
+            msg = f"""Exception in evaluation: {e}. The expression is: {self.expression}. The current info env trying to substitute in is: {current_info_env}. After the substition, the expression was: {to_evaluate}."""
+            raise SurveyRuleCannotEvaluateError(msg)
 
         try:
-            to_evaluate = substitute_in_answers(self.expression, answers)
             return EvalWithCompoundTypes().eval(to_evaluate)
         except Exception as e:
-            print(
-                f"""Exception in evaluation: {e}. 
-                  The expression was: {self.expression}.
-                  The answers trying to substitute in were: {answers}.
-                  The the substition, the expression was: {to_evaluate}.
-                  """
-            )
-            raise SurveyRuleCannotEvaluateError
+            msg = f"""Exception in evaluation: {e}. The expression is: {self.expression}. The current info env trying to substitute in is: {current_info_env}. After the substition, the expression was: {to_evaluate}."""
+            raise SurveyRuleCannotEvaluateError(msg)
+        
+    @classmethod
+    def example(cls, jinja2 = False, bad = False):
+        if jinja2: 
+            # a rule written in jinja2 style with {{ }}
+            expression = "{{ q1 }} == 'yes'"
+        else:
+            expression = "q1 == 'yes'"
+
+        if bad and jinja2:
+            # a rule written in jinja2 style with {{ }} but with a 'bad' expression
+            expression = "{{ q1 }} == 'This is q1'"
+
+        if bad and not jinja2:
+            expression = "q1 == 'This is q1'"
+
+        r = Rule(
+            current_q=1,
+            expression=expression,
+            next_q=2,
+            question_name_to_index={"q1": 1},
+            priority=0,
+        )
+        return r
+
 
 
 if __name__ == "__main__":
-    r = Rule(
-        current_q=1,
-        expression="q1 == 'yes'",
-        next_q=2,
-        question_name_to_index={"q1": 1},
-        priority=0,
-    )
+    import doctest
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
