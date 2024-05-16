@@ -1,13 +1,14 @@
 import asyncio
 from typing import Callable, Union, List
-from collections import UserList
+from collections import UserList, UserDict
+
 
 from edsl.jobs.buckets import ModelBuckets
 from edsl.exceptions import InterviewErrorPriorTaskCanceled
 
 from edsl.jobs.interviews.InterviewStatusDictionary import InterviewStatusDictionary
 from edsl.jobs.tasks.task_status_enum import TaskStatus, TaskStatusDescriptor
-from edsl.jobs.tasks.task_management import TokensUsed
+#from edsl.jobs.tasks.task_management import TokensUsed
 from edsl.jobs.tasks.TaskStatusLog import TaskStatusLog
 from edsl.jobs.tokens.InterviewTokenUsage import InterviewTokenUsage
 from edsl.jobs.tokens.TokenUsage import TokenUsage
@@ -15,11 +16,20 @@ from edsl.jobs.Answers import Answers
 
 from edsl.questions.QuestionBase import QuestionBase
 
+class TokensUsed(UserDict):
+    """ "Container for tokens used by a task."""
+
+    def __init__(self, cached_tokens, new_tokens):
+        d = {"cached_tokens": cached_tokens, "new_tokens": new_tokens}
+        super().__init__(d)
+
 
 class QuestionTaskCreator(UserList):
     """Class to create and manage a single question and its dependencies.
+    The class is an instance of a UserList of tasks that must be completed before the focal task can be run.
 
     It is a UserList with all the tasks that must be completed before the focal task can be run.
+    The focal task is the question that we are interested in answering. 
     """
 
     task_status = TaskStatusDescriptor()
@@ -33,6 +43,15 @@ class QuestionTaskCreator(UserList):
         token_estimator: Union[Callable, None] = None,
         iteration: int = 0,
     ):
+        """Initialize the QuestionTaskCreator instance.
+
+        :param question: the question that we are interested in answering.
+        :param answer_question_func: the function that will answer the question.
+        :param model_buckets: the bucket collection that contains the requests and tokens buckets which control the rate of API calls and token usage.
+        :param token_estimator: a function that estimates the number of tokens required to answer the question.
+        :param iteration: the iteration number of the question.
+    
+        """
         super().__init__([])
         self.answer_question_func = answer_question_func
         self.question = question
@@ -56,11 +75,19 @@ class QuestionTaskCreator(UserList):
         self.task_status = TaskStatus.NOT_STARTED
 
     def add_dependency(self, task: asyncio.Task) -> None:
-        """Adds a task dependency to the list of dependencies."""
+        """Adds a task dependency to the list of dependencies.
+        
+        >>> qt1 = QuestionTaskCreator.example()
+        >>> qt2 = QuestionTaskCreator.example()
+        >>> qt2.add_dependency(qt1)
+        >>> len(qt2)
+        1
+        """
         self.append(task)
 
     def generate_task(self, debug: bool) -> asyncio.Task:
-        """Create a task that depends on the passed-in dependencies."""
+        """Create a task that depends on the passed-in dependencies.    
+        """
         task = asyncio.create_task(
             self._run_task_async(debug), name=self.question.question_name
         )
@@ -72,7 +99,13 @@ class QuestionTaskCreator(UserList):
         return self.token_estimator(self.question)
 
     def token_usage(self) -> TokensUsed:
-        """Returns the token usage for the task."""
+        """Returns the token usage for the task.
+        
+        >>> qt = QuestionTaskCreator.example()
+        >>> answers = asyncio.run(qt._run_focal_task(debug=False))
+        >>> qt.token_usage()
+        {'cached_tokens': TokenUsage(from_cache=True, prompt_tokens=0, completion_tokens=0), 'new_tokens': TokenUsage(from_cache=False, prompt_tokens=0, completion_tokens=0)}
+        """
         return TokensUsed(
             cached_tokens=self.cached_token_usage, new_tokens=self.new_token_usage
         )
@@ -81,6 +114,11 @@ class QuestionTaskCreator(UserList):
         """Run the focal task i.e., the question that we are interested in answering.
 
         It is only called after all the dependency tasks are completed.
+
+        >>> qt = QuestionTaskCreator.example()
+        >>> answers = asyncio.run(qt._run_focal_task(debug=False))
+        >>> answers["answer"]
+        'Yo!'
         """
 
         requested_tokens = self.estimated_tokens()
@@ -124,8 +162,30 @@ class QuestionTaskCreator(UserList):
 
         return results
 
+    @classmethod
+    def example(cls):
+        """Return an example instance of the class."""
+        from edsl import QuestionFreeText
+        from edsl.jobs.buckets.ModelBuckets import ModelBuckets
+        m = ModelBuckets.infinity_bucket()
+
+        async def answer_question_func(question, debug, task): 
+            return {"answer": "Yo!"}
+        
+        return cls(
+            question=QuestionFreeText.example(),
+            answer_question_func=answer_question_func,
+            model_buckets=m,
+            token_estimator=None,
+            iteration=0,
+        )
+
     async def _run_task_async(self, debug) -> None:
         """Run the task asynchronously, awaiting the tasks that must be completed before this one can be run.
+
+        >>> qt1 = QuestionTaskCreator.example()
+        >>> qt2 = QuestionTaskCreator.example()
+        >>> qt2.add_dependency(qt1)
 
         The method follows these steps:
             1. Set the task_status to TaskStatus.WAITING_FOR_DEPENDENCIES, indicating that the task is waiting for its dependencies to complete.
@@ -175,6 +235,9 @@ class QuestionTaskCreator(UserList):
             raise InterviewErrorPriorTaskCanceled(
                 f"Required tasks failed for {self.question.question_name}"
             ) from e
+        
+
 
 if __name__ == "__main__":
-    pass
+    import doctest 
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
