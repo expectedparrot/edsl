@@ -35,3 +35,17 @@ JobsRunnerStatusMixin class
    :members:
    :undoc-members:
    :show-inheritance:
+
+
+QuestionTaskCreator
+-------------
+.. automodule:: edsl.jobs.tasks
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+
+.. automodule:: edsl.jobs.buckets
+   :members:
+   :undoc-members:
+   :show-inheritance:
