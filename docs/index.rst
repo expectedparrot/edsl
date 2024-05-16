@@ -151,6 +151,7 @@ Information about additional functionality for developers.
    notebooks/testing_training_data.ipynb
    notebooks/comparing_model_responses.ipynb
    notebooks/analyze_evaluations.ipynb
+   notebooks/evaluating_job_posts.ipynb
    notebooks/explore_llm_biases.ipynb
    notebooks/research_random_silicon_sampling.ipynb
    notebooks/explore_survey_contexts.ipynb
