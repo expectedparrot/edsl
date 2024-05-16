@@ -53,22 +53,17 @@ class QuestionTaskCreator(UserList):
 
         self.cached_token_usage = TokenUsage(from_cache=True)
         self.new_token_usage = TokenUsage(from_cache=False)
-
         self.task_status = TaskStatus.NOT_STARTED
 
     def add_dependency(self, task: asyncio.Task) -> None:
         """Adds a task dependency to the list of dependencies."""
         self.append(task)
 
-    # def __repr__(self):
-    #     return f"QuestionTaskCreator(question = {repr(self.question)})"
-
     def generate_task(self, debug: bool) -> asyncio.Task:
         """Create a task that depends on the passed-in dependencies."""
         task = asyncio.create_task(
             self._run_task_async(debug), name=self.question.question_name
         )
-        #        task.set_name(self.question.question_name)
         task.depends_on = [t.get_name() for t in self]
         return task
 
@@ -132,7 +127,6 @@ class QuestionTaskCreator(UserList):
     async def _run_task_async(self, debug) -> None:
         """Run the task asynchronously, awaiting the tasks that must be completed before this one can be run.
 
-
         The method follows these steps:
             1. Set the task_status to TaskStatus.WAITING_FOR_DEPENDENCIES, indicating that the task is waiting for its dependencies to complete.
             2. Await asyncio.gather(*self, return_exceptions=True) to run all the dependent tasks concurrently.
@@ -177,16 +171,10 @@ class QuestionTaskCreator(UserList):
         except Exception as e:
             # one of the dependencies failed
             self.task_status = TaskStatus.PARENT_FAILED
-            # turns the parent exception into a custom exception
-            # So the task gets canceled but this InterviewErrorPriorTaskCanceled exception
+            # turns the parent exception into a custom exception so the task gets canceled but this InterviewErrorPriorTaskCanceled exception
             raise InterviewErrorPriorTaskCanceled(
                 f"Required tasks failed for {self.question.question_name}"
             ) from e
-        # else:
-        # @    # This is the actual task that we want to run.
-        #    # it never runs if the dependencies fail
-        #    return await self._run_focal_task(debug)
-
 
 if __name__ == "__main__":
     pass
