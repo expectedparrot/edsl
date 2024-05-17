@@ -180,6 +180,11 @@ class Dataset(UserList, ResultsExportMixin):
         >>> d.order_by('a', reverse=True)
         Dataset([{'a': [4, 3, 2, 1]}, {'b': [1, 2, 3, 4]}])
 
+        >>> d = Dataset([{'X.a':[1,2,3,4]}, {'X.b':[4,3,2,1]}])
+        >>> d.order_by('a')
+        Dataset([{'X.a': [1, 2, 3, 4]}, {'X.b': [4, 3, 2, 1]}])
+
+
         """
 
         def sort_indices(lst: list[Any]) -> list[int]:
@@ -195,9 +200,12 @@ class Dataset(UserList, ResultsExportMixin):
             return indices
         
         number_found = 0 
-        for key in self.data:
-            if sort_key in key: # e.g., "age" in "scenario.age"
-                relevant_values = self.data[key]
+        for obs in self.data:
+            key, values = list(obs.items())[0]
+            # an obseration is {'a':[1,2,3,4]}
+            #key = list(obs.keys())[0]
+            if sort_key == key or sort_key == key.split(".")[-1]: # e.g., "age" in "scenario.age"
+                relevant_values = values
                 number_found += 1
         
         if number_found == 0:
