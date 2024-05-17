@@ -11,7 +11,6 @@ from IPython.display import display
 from edsl.agents import Agent
 from edsl.language_models import LanguageModel
 from edsl.scenarios import Scenario
-from edsl.utilities import is_notebook
 from edsl.Base import Base
 from edsl.prompts import Prompt
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
@@ -300,7 +299,7 @@ class Result(Base, UserDict):
 
     def __repr__(self):
         """Return a string representation of the Result object."""
-        return f"Result(agent={repr(self.agent)}, scenario={repr(self.scenario)}, model={repr(self.model)}, iteration={self.iteration}, answer={repr(self.answer)}, prompt={repr(self.prompt)}"
+        return f"Result(agent={repr(self.agent)}, scenario={repr(self.scenario)}, model={repr(self.model)}, iteration={self.iteration}, answer={repr(self.answer)}, prompt={repr(self.prompt)})"
 
     @classmethod
     def example(cls):

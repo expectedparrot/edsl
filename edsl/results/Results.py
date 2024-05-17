@@ -134,10 +134,6 @@ class Results(UserList, Mixins, Base):
             ]
             self.data = results
 
-    # def print(self):
-    #     from rich import print_json
-    #     import json
-    #     print_json(json.dumps(self.to_dict()["data"]))
 
     def __add__(self, other: Results) -> Results:
         """Add two Results objects together.
@@ -167,7 +163,6 @@ class Results(UserList, Mixins, Base):
 
     def __repr__(self) -> str:
         return f"Results(data = {self.data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
-        # return f"Results(data = {self.data})"
 
     def _repr_html_(self) -> str:
         json_str = json.dumps(self.to_dict()["data"], indent=4)
@@ -188,7 +183,7 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.to_dict().keys()
-        dict_keys(['data', 'survey', 'created_columns'])
+        dict_keys(['data', 'survey', 'created_columns', 'cache', 'edsl_version', 'edsl_class_name'])
         """
         return {
             "data": [result.to_dict() for result in self.data],
@@ -269,7 +264,7 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.columns
-        ['agent.agent_instructions', ...
+        ['agent.agent_instruction', ...]
         """
         column_names = [f"{v}.{k}" for k, v in self._key_to_data_type.items()]
         return sorted(column_names)
@@ -317,7 +312,7 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.models[0]
-        Model(model_name = 'gpt-4-1106-preview', parameters={'temperature': 0.5, 'max_tokens': 1000, 'top_p': 1, 'frequency_penalty': 0, 'presence_penalty': 0, 'logprobs': False, 'top_logprobs': 3})
+        Model(model_name = 'gpt-4-1106-preview', temperature = 0.5, max_tokens = 1000, top_p = 1, frequency_penalty = 0, presence_penalty = 0, logprobs = False, top_logprobs = 3)
         """
         return [r.model for r in self.data]
 
@@ -329,7 +324,7 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.scenarios
-        [{'period': 'morning'}, {'period': 'afternoon'}, {'period': 'morning'}, {'period': 'afternoon'}]
+        [Scenario({'period': 'morning'}), Scenario({'period': 'afternoon'}), Scenario({'period': 'morning'}), Scenario({'period': 'afternoon'})]
         """
         return [r.scenario for r in self.data]
 
@@ -502,7 +497,8 @@ class Results(UserList, Mixins, Base):
         Example:
 
         >>> r = Results.example()
-        >>> r.shuffle()
+        >>> r.shuffle(seed = 1)[0]
+        Result(...)
         """
         if seed is not None:
             seed = random.seed(seed)
@@ -560,7 +556,7 @@ class Results(UserList, Mixins, Base):
 
         >>> results = Results.example()
         >>> results.select('how_feeling')
-        [{'answer.how_feeling': ...
+        Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}])
         """
 
         if not columns or columns == ("*",) or columns == (None,):

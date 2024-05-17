@@ -14,7 +14,6 @@ import pandas as pd
 from edsl.utilities import (
     print_list_of_dicts_with_rich,
     print_list_of_dicts_as_html_table,
-    print_dict_with_rich,
     print_list_of_dicts_as_markdown_table,
 )
 
@@ -64,19 +63,6 @@ class ResultsExportMixin:
 
         return self
 
-    # @_convert_decorator
-    # def shuffle(self):
-    #     indices = None
-
-    #     for entry in self:
-    #         key, values = list(entry.items())[0]
-    #         if indices is None:
-    #             indices = list(range(len(values)))
-    #             random.shuffle(indices)
-    #         entry[key] = [values[i] for i in indices]
-
-    #     return self
-
     @_convert_decorator
     def _make_tabular(self, remove_prefix) -> tuple[list, list]:
         """Turn the results into a tabular format."""
@@ -98,16 +84,15 @@ class ResultsExportMixin:
         return header, rows
 
     def print_long(self, max_rows=None) -> None:
-        """Print the results in long format."""
+        """Print the results in long format.
+        
+        >>> r = create_example_results()
+        >>> r.print_long()
+        
+        """
         from edsl.utilities.interface import print_results_long
 
         print_results_long(self, max_rows=max_rows)
-        # for result in self:
-        #     if hasattr(result, "combined_dict"):
-        #         d = result.combined_dict
-        #     else:
-        #         d = result
-        #     print_dict_with_rich(d)
 
     @_convert_decorator
     def print(
@@ -270,7 +255,6 @@ class ResultsExportMixin:
         df = pd.read_csv(csv_buffer)
         df_sorted = df.sort_index(axis=1)  # Sort columns alphabetically
         return df_sorted
-        # return df
 
     @_convert_decorator
     def to_scenario_list(self, remove_prefix: bool = False) -> list[dict]:
