@@ -25,7 +25,7 @@ class InterviewExceptionCollection(UserDict):
             self.data[question_name] = []
         self.data[question_name].append(entry)
 
-    def to_dict(self, include_traceback=False) -> dict:
+    def to_dict(self, include_traceback=True) -> dict:
         """Return the collection of exceptions as a dictionary."""
         newdata = {k: [e.to_dict() for e in v] for k, v in self.data.items()}
         if not include_traceback:
