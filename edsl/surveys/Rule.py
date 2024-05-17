@@ -231,12 +231,12 @@ class Rule:
                 template_expression = Template(self.expression)
                 to_evaluate = template_expression.render(current_info)
             else:
-                import warnings
-                import textwrap
-                warnings.warn(textwrap.dedent("""\
-                The expression is not a Jinja2 template with {{ }}. This is not recommended.
-                You can re-write your expression say "q1 == 'yes'" as "{{ q1 }} == 'yes'".              
-                """))     
+                #import warnings
+                #import textwrap
+                # warnings.warn(textwrap.dedent("""\
+                # The expression is not a Jinja2 template with {{ }}. This is not recommended.
+                # You can re-write your expression say "q1 == 'yes'" as "{{ q1 }} == 'yes'".              
+                # """))     
                 to_evaluate = expression
                 for var, value in current_info.items():
                     to_evaluate = to_evaluate.replace(var, value)

@@ -193,11 +193,19 @@ class Dataset(UserList, ResultsExportMixin):
             if reverse:
                 indices.reverse()
             return indices
-
-        if not any(sort_key in d for d in self.data):
+        
+        number_found = 0 
+        for key in self.data:
+            if sort_key in key: # e.g., "age" in "scenario.age"
+                relevant_values = self.data[key]
+                number_found += 1
+        
+        if number_found == 0:
             raise ValueError(f"Key '{sort_key}' not found in any of the dictionaries.")
+        elif number_found > 1:
+            raise ValueError(f"Key '{sort_key}' found in more than one dictionary.")
 
-        relevant_values = self._key_to_value(sort_key)
+        #relevant_values = self._key_to_value(sort_key)
         sort_indices_list = sort_indices(relevant_values)
         new_data = []
         for observation in self.data:
