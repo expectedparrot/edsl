@@ -159,6 +159,7 @@ Information about additional functionality for developers.
    notebooks/qualitative_research.ipynb
    notebooks/digital_twin.ipynb
    notebooks/grading_experiment.ipynb
+   notebooks/river_problem.ipynb
 
 .. toctree::
    :maxdepth: 2
