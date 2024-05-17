@@ -47,7 +47,7 @@ class Coop:
         """
         url = f"{self.url}/{uri}"
         try:
-            if method.upper() in ["GET", "DELETE"]:
+            if method.lower() in ["GET", "DELETE"]:
                 response = requests.request(
                     method, url, params=params, headers=self.headers
                 )
@@ -62,7 +62,7 @@ class Coop:
 
     def _resolve_server_response(self, response: requests.Response) -> None:
         """
-        Check the response from the server and raise appropriate errors.
+        Check the response from the server and raise errors as appropriate.
         """
         if response.status_code >= 400:
             message = response.json().get("detail")
@@ -72,8 +72,8 @@ class Coop:
 
     def _json_handle_none(self, value: Any) -> Any:
         """
-        Handles None values in JSON serialization.
-        - Returns "null" if value is None. If not, doesn't return anything else.
+        Handle None values during JSON serialization.
+        - Return "null" if the value is None. Otherwise, don't return anything.
         """
         if value is None:
             return "null"
@@ -81,7 +81,7 @@ class Coop:
     @property
     def edsl_settings(self) -> dict:
         """
-        Retrieves the EDSL settings stored on Coop.
+        Retrieve and return the EDSL settings stored on Coop.
         """
         response = self._send_server_request(uri="api/v0/edsl-settings", method="GET")
         self._resolve_server_response(response)
@@ -100,9 +100,6 @@ class Coop:
     ) -> dict:
         """
         Create an EDSL object in the Coop server.
-
-        :param object: the EDSL object to be sent.
-        :param visibility: the object's visibility (defaults to "unlisted").
         """
         object_type = ObjectRegistry.get_object_type_by_edsl_class(object)
         response = self._send_server_request(
