@@ -38,21 +38,22 @@ class ResultsExportMixin:
 
         return wrapper
 
-    @_convert_decorator
+    #@_convert_decorator
     def sample(self, n: int) -> "Results":
         """Return a random sample of the results.
 
         :param n: The number of samples to return.
 
-        >>> r = create_example_results()
-        >>> r.sample(2)
-        [{'answer.how_feeling': 'Great'}, {'answer.how_feeling': 'OK'}]
+        >>> from edsl.results import Results
+        >>> r = Results.example()
+        >>> len(r.sample(2))
+        2
         """
         indices = None
 
         for entry in self:
             key, values = list(entry.items())[0]
-            if indices is None:
+            if indices is None: # gets the indices for the first time
                 indices = list(range(len(values)))
                 sampled_indices = random.sample(indices, n)
                 if n > len(indices):
@@ -86,9 +87,15 @@ class ResultsExportMixin:
     def print_long(self, max_rows=None) -> None:
         """Print the results in long format.
         
-        >>> r = create_example_results()
-        >>> r.print_long()
-        
+        >>> from edsl.results import Results
+        >>> r = Results.example()
+        >>> r.select('how_feeling').print_long(max_rows = 2)
+        ┏━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━┳━━━━━━━┓
+        ┃ Result index ┃ Key                ┃ Value ┃
+        ┡━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━╇━━━━━━━┩
+        │ 0            │ answer.how_feeling │ OK    │
+        │ 1            │ answer.how_feeling │ Great │
+        └──────────────┴────────────────────┴───────┘
         """
         from edsl.utilities.interface import print_results_long
 
@@ -116,7 +123,6 @@ class ResultsExportMixin:
 
         >>> from edsl.results import Results
         >>> r = Results.example()
-        >>> r.print()
         >>> r.select('how_feeling').print(format = "rich")
         ┏━━━━━━━━━━━━━━┓
         ┃ answer       ┃
@@ -155,8 +161,7 @@ class ResultsExportMixin:
         | Great |
         | Terrible |
         | OK |
-
-
+        ...
         """
         if format is None:
             if is_notebook():
@@ -211,9 +216,10 @@ class ResultsExportMixin:
 
         Example:
 
-        >>> r = create_example_results()
+        >>> from edsl.results import Results
+        >>> r = Results.example()
         >>> r.select('how_feeling').to_csv()
-        'result.how_feeling\\r\\nBad\\r\\nBad\\r\\nGreat\\r\\nGreat\\r\\n'
+        'answer.how_feeling\\r\\nOK\\r\\nGreat\\r\\nTerrible\\r\\nOK\\r\\n'
         """
         header, rows = self._make_tabular(remove_prefix)
 
@@ -242,13 +248,14 @@ class ResultsExportMixin:
 
         :param remove_prefix: Whether to remove the prefix from the column names.
 
+        >>> from edsl.results import Results
+        >>> r = Results.example()
         >>> r.select('how_feeling').to_pandas()
-        answer.how_feeling
+          answer.how_feeling
         0                 OK
         1              Great
         2           Terrible
         3                 OK
-
         """
         csv_string = self.to_csv(remove_prefix=remove_prefix)
         csv_buffer = io.StringIO(csv_string)
@@ -262,9 +269,10 @@ class ResultsExportMixin:
 
         :param remove_prefix: Whether to remove the prefix from the column names.
 
-        >>> r = create_example_results()
+        >>> from edsl.results import Results
+        >>> r = Results.example()
         >>> r.select('how_feeling').to_scenario_list()
-        #[{'how_feeling': 'Bad'}, {'how_feeling': 'Bad'}, {'how_feeling': 'Great'}, {'how_feeling': 'Great'}]
+        ScenarioList([Scenario({'answer.how_feeling': 'OK'}), Scenario({'answer.how_feeling': 'Great'}), Scenario({'answer.how_feeling': 'Terrible'}), Scenario({'answer.how_feeling': 'OK'})])
         """
         from edsl import ScenarioList, Scenario
 
@@ -303,18 +311,32 @@ class ResultsExportMixin:
     def to_list(self, flatten=False, remove_none=False) -> list[list]:
         """Convert the results to a list of lists.
 
-        Updates.
-
         >>> from edsl.results import Results
+        >>> Results.example().select('how_feeling', 'how_feeling_yesterday')
+        Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}, {'answer.how_feeling_yesterday': ['Great', 'Good', 'OK', 'Terrible']}])
+
+        >>> Results.example().select('how_feeling', 'how_feeling_yesterday').to_list()
+        [('OK', 'Great'), ('Great', 'Good'), ('Terrible', 'OK'), ('OK', 'Terrible')]
+
         >>> r = Results.example()
         >>> r.select('how_feeling').to_list()
         ['OK', 'Great', 'Terrible', 'OK']
         """
-        if len(self) == 1:
+        if len(self.relevant_columns()) > 1 and flatten:
+            raise ValueError(
+                "Cannot flatten a list of lists when there are multiple columns selected."
+            )
+        
+
+        if len(self.relevant_columns()) == 1:
             # if only one 'column' is selected (which is typical for this method
             list_to_return = list(self[0].values())[0]
         else:
-            list_to_return = [list(x.values())[0] for x in self][0]
+            keys = self.relevant_columns()
+            data = self.to_dicts()
+            list_to_return = []
+            for d in data:
+                list_to_return.append(tuple([d[key] for key in keys]))
 
         if remove_none:
             list_to_return = [item for item in list_to_return if item is not None]
@@ -334,4 +356,4 @@ class ResultsExportMixin:
 if __name__ == "__main__":
     import doctest
 
-    doctest.testmod()
+    doctest.testmod(optionflags=doctest.ELLIPSIS)

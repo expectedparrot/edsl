@@ -28,12 +28,12 @@ class InterviewExceptionCollection(UserDict):
     def to_dict(self, include_traceback=True) -> dict:
         """Return the collection of exceptions as a dictionary."""
         newdata = {k: [e.to_dict() for e in v] for k, v in self.data.items()}
-        if not include_traceback:
-            for question in newdata:
-                for exception in newdata[question]:
-                    exception[
-                        "traceback"
-                    ] = "Traceback removed. Set include_traceback=True to include."
+        # if not include_traceback:
+        #     for question in newdata:
+        #         for exception in newdata[question]:
+        #             exception[
+        #                 "traceback"
+        #             ] = "Traceback removed. Set include_traceback=True to include."
         return newdata
 
     def _repr_html_(self) -> str:
