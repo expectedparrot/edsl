@@ -47,7 +47,7 @@ class Dataset(UserList, ResultsExportMixin):
         {'answer.how_feeling', 'answer.how_feeling_yesterday'}
         """
         columns = [list(x.keys())[0] for x in self]
-        #columns = set([list(result.keys())[0] for result in self.data])
+        # columns = set([list(result.keys())[0] for result in self.data])
         if remove_prefix:
             columns = [column.split(".")[-1] for column in columns]
         return columns
@@ -202,22 +202,24 @@ class Dataset(UserList, ResultsExportMixin):
             if reverse:
                 indices.reverse()
             return indices
-        
-        number_found = 0 
+
+        number_found = 0
         for obs in self.data:
             key, values = list(obs.items())[0]
             # an obseration is {'a':[1,2,3,4]}
-            #key = list(obs.keys())[0]
-            if sort_key == key or sort_key == key.split(".")[-1]: # e.g., "age" in "scenario.age"
+            # key = list(obs.keys())[0]
+            if (
+                sort_key == key or sort_key == key.split(".")[-1]
+            ):  # e.g., "age" in "scenario.age"
                 relevant_values = values
                 number_found += 1
-        
+
         if number_found == 0:
             raise ValueError(f"Key '{sort_key}' not found in any of the dictionaries.")
         elif number_found > 1:
             raise ValueError(f"Key '{sort_key}' found in more than one dictionary.")
 
-        #relevant_values = self._key_to_value(sort_key)
+        # relevant_values = self._key_to_value(sort_key)
         sort_indices_list = sort_indices(relevant_values)
         new_data = []
         for observation in self.data:

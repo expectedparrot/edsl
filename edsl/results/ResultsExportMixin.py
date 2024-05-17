@@ -38,7 +38,7 @@ class ResultsExportMixin:
 
         return wrapper
 
-    #@_convert_decorator
+    # @_convert_decorator
     def sample(self, n: int) -> "Results":
         """Return a random sample of the results.
 
@@ -53,7 +53,7 @@ class ResultsExportMixin:
 
         for entry in self:
             key, values = list(entry.items())[0]
-            if indices is None: # gets the indices for the first time
+            if indices is None:  # gets the indices for the first time
                 indices = list(range(len(values)))
                 sampled_indices = random.sample(indices, n)
                 if n > len(indices):
@@ -86,7 +86,7 @@ class ResultsExportMixin:
 
     def print_long(self, max_rows=None) -> None:
         """Print the results in long format.
-        
+
         >>> from edsl.results import Results
         >>> r = Results.example()
         >>> r.select('how_feeling').print_long(max_rows = 2)
@@ -326,7 +326,6 @@ class ResultsExportMixin:
             raise ValueError(
                 "Cannot flatten a list of lists when there are multiple columns selected."
             )
-        
 
         if len(self.relevant_columns()) == 1:
             # if only one 'column' is selected (which is typical for this method

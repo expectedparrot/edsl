@@ -72,7 +72,7 @@ class Jobs(Base):
         This 'by' is intended to create a fluent interface.
 
         >>> from edsl import Survey
-        >>> from edsl import QuestionFreeText 
+        >>> from edsl import QuestionFreeText
         >>> q = QuestionFreeText(question_name="name", question_text="What is your name?")
         >>> j = Jobs(survey = Survey(questions=[q]))
         >>> j
@@ -80,7 +80,7 @@ class Jobs(Base):
         >>> from edsl import Agent; a = Agent(traits = {"status": "Sad"})
         >>> j.by(a).agents
         [Agent(traits = {'status': 'Sad'})]
-        
+
         :param args: objects or a sequence (list, tuple, ...) of objects of the same type
 
         Notes:
@@ -106,7 +106,7 @@ class Jobs(Base):
     def prompts(self) -> Dataset:
         """Return a Dataset of prompts that will be used.
 
-        
+
         >>> from edsl.jobs import Jobs
         >>> Jobs.example().prompts()
         Dataset([{'interview_index': [0, 0, 1, 1, 2, 2, 3, 3]}, {'question_index': ['how_feeling', 'how_feeling_yesterday', 'how_feeling', 'how_feeling_yesterday', 'how_feeling', 'how_feeling_yesterday', 'how_feeling', 'how_feeling_yesterday']}, {'user_prompt': [Prompt(text='NA'), Prompt(text='NA'), Prompt(text='NA'), Prompt(text='NA'), Prompt(text='NA'), Prompt(text='NA'), Prompt(text='NA'), Prompt(text='NA')]}, {'scenario_index': [Scenario({'period': 'morning'}), Scenario({'period': 'morning'}), Scenario({'period': 'afternoon'}), Scenario({'period': 'afternoon'}), Scenario({'period': 'morning'}), Scenario({'period': 'morning'}), Scenario({'period': 'afternoon'}), Scenario({'period': 'afternoon'})]}, {'system_prompt': [Prompt(text='NA'), Prompt(text='NA'), Prompt(text='NA'), Prompt(text='NA'), Prompt(text='NA'), Prompt(text='NA'), Prompt(text='NA'), Prompt(text='NA')]}])
@@ -165,7 +165,7 @@ class Jobs(Base):
         self, object: Union[Agent, Scenario, LanguageModel]
     ) -> tuple[list, str]:
         """Return the current objects of the same type as the first argument.
-        
+
         >>> from edsl.jobs import Jobs
         >>> j = Jobs.example()
         >>> j._get_current_objects_of_this_type(j.agents[0])
@@ -211,7 +211,7 @@ class Jobs(Base):
         Return a list of :class:`edsl.jobs.interviews.Interview` objects.
 
         It returns one Interview for each combination of Agent, Scenario, and LanguageModel.
-        If any of Agents, Scenarios, or LanguageModels are missing, it fills in with defaults. 
+        If any of Agents, Scenarios, or LanguageModels are missing, it fills in with defaults.
 
         >>> from edsl.jobs import Jobs
         >>> j = Jobs.example()
@@ -277,8 +277,8 @@ class Jobs(Base):
         remote: bool = False
         if os.getenv("DEFAULT_RUN_MODE", "local") == "local"
         else True,
-        check_api_keys:bool=True,
-        sidecar_model: Optional[LanguageModel]=None,
+        check_api_keys: bool = True,
+        sidecar_model: Optional[LanguageModel] = None,
         batch_mode: Optional[bool] = None,
     ) -> Results:
         """
@@ -299,7 +299,7 @@ class Jobs(Base):
             raise NotImplementedError(
                 "Batch mode is deprecated. Please update your code to not include 'batch_mode' in the 'run' method."
             )
-        
+
         self.remote = remote
 
         if self.remote:
@@ -328,7 +328,7 @@ class Jobs(Base):
             progress_bar=progress_bar,
             cache=cache,
             stop_on_exception=stop_on_exception,
-            sidecar_model=sidecar_model
+            sidecar_model=sidecar_model,
         )
         results.cache = cache.new_entries_cache()
 
@@ -480,6 +480,7 @@ def main():
 if __name__ == "__main__":
     """Run the module's doctests."""
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)
 
     # from edsl.jobs import Jobs

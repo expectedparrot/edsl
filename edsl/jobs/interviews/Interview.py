@@ -81,7 +81,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         model_buckets: ModelBuckets = None,
         debug: bool = False,
         stop_on_exception: bool = False,
-        sidecar_model:Optional[LanguageModel]=None,
+        sidecar_model: Optional[LanguageModel] = None,
     ) -> tuple["Answers", List[dict[str, Any]]]:
         """
         Conduct an Interview asynchronously.
@@ -120,7 +120,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
 
     def _extract_valid_results(self) -> Generator["Answers", None, None]:
         """Extract the valid results from the list of results.
-        
+
         It iterates through the tasks and invigilators, and yields the results of the tasks that are done.
         If a task is not done, it raises a ValueError.
         If an exception is raised in the task, it records the exception in the Interview instance except if the task was cancelled, which is expected behavior.
@@ -137,9 +137,9 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
                 result = invigilator.get_failed_task_result()
             except Exception as e:  # any other kind of exception in the task
                 result = invigilator.get_failed_task_result()
-                self._record_exception(task, e) 
+                self._record_exception(task, e)
             yield result
-    
+
     def _record_exception(self, task, exception: Exception) -> None:
         """Record an exception in the Interview instance."""
         exception_entry = InterviewExceptionEntry(
@@ -148,7 +148,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
             traceback=traceback.format_exc(),
         )
         self.exceptions.add(task.get_name(), exception_entry)
-                
+
     @property
     def dag(self) -> "DAG":
         """Return the directed acyclic graph for the survey.
@@ -177,7 +177,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
             iteration=iteration,
             cache=cache,
         )
-    
+
     @classmethod
     def example(self):
         """Return an example Interview instance."""
@@ -186,7 +186,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         from edsl.scenarios import Scenario
         from edsl.language_models import LanguageModel
 
-        def f(self, question, scenario): 
+        def f(self, question, scenario):
             return "yes"
 
         agent = Agent.example()
