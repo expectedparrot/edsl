@@ -2,21 +2,27 @@
 
 Scenarios
 =========
-A `Scenario` is a dictionary containing a single key/value pair that is used to parameterize a question.
+A `Scenario` is a dictionary containing a key/value pair that is used to parameterize one or more questions (it replaces a parameter in a question with a specific value).
 
 Purpose 
 -------
 Scenarios are used to create variations and versions of questions with parameters that can be replaced with different values.
 For example, we could create a question `"What is your favorite {{ item }}?"` and replace the parameter `item` with `color` or `food` or other items.
-This allows us to straightforwardly administer multiple versions of the question, either asynchronously or according to other specified :ref:`surveys` rules.
+This allows us to straightforwardly administer multiple versions of a question in a survey, either asynchronously or according to other specified :ref:`surveys` rules.
+
+Scenarios also allow us to keep track of the metadata about the data we are working with, such as the source of the data or the context in which it was collected.
+For example, we could create a scenario for each data point in a dataset, where the scenario contains the data point itself as well as metadata about the data point.
+We can parameterize questions with the data point alone, and the results will include columns for the metadata, eliminating the need for post-survey data matchup.
+We explore this feature as well in examples below.
+
 
 Data labeling tasks
 ^^^^^^^^^^^^^^^^^^^
-Scenarios are particularly useful for conducting data labeling or data coding tasks, where we can design the task as a question or series of questions that we prompt an agent to answer about each piece of data in our dataset.
-For example, say we have a dataset of messages from users that we want to sort by topic.
-We could perform this task by running multiple choice questions such as `"What is the primary topic of this message: {{ message }}?"` or `"Does this message mention a safety issue? {{ message }}"` where each message is inserted in the `message` placeholder of the question text, generating a dataset of results that can be readily analyzed.
+Scenarios are particularly useful for conducting data labeling or data coding tasks, where we can design the task as a question or series of questions about each piece of data in our dataset.
+For example, say we have a dataset of text messages that we want to sort by topic.
+We could perform this task by running multiple choice questions such as `"What is the primary topic of this message: {{ message }}?"` or `"Does this message mention a safety issue? {{ message }}"` where each text message is inserted in the `message` placeholder of the question text.
 
-The following code demonstrates how to use scenarios to create a survey for this task.
+The following code demonstrates how to use scenarios to conduct this task.
 For more step-by-step details, please also see `Constructing a Scenario` below it.
 
 .. code-block:: python
