@@ -215,7 +215,7 @@ class InterviewTaskBuildingMixin:
             )
             if task:
                 task.task_status = TaskStatus.FAILED
-            self.exceptions.add(question.question_name, exception_entry)
+            self.exceptions.add(invigilator.question.question_name, exception_entry)
 
             raise InterviewTimeoutError(f"Task timed out after {TIMEOUT} seconds.")
         except Exception as e:
@@ -226,7 +226,7 @@ class InterviewTaskBuildingMixin:
             )
             if task:
                 task.task_status = TaskStatus.FAILED
-            self.exceptions.add(question.question_name, exception_entry)
+            self.exceptions.add(invigilator.question.question_name, exception_entry)
             raise e
 
     def _cancel_skipped_questions(self, current_question: QuestionBase) -> None:

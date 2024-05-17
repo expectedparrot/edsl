@@ -33,7 +33,7 @@ class Dataset(UserList, ResultsExportMixin):
         """Return a string representation of the dataset."""
         return f"Dataset({self.data})"
 
-    def relevant_columns(self, remove_prefix=False) -> set:
+    def relevant_columns(self, remove_prefix=False) -> list:
         """Return the set of keys that are present in the dataset.
 
         >>> d = Dataset([{'a.b':[1,2,3,4]}])
@@ -42,10 +42,14 @@ class Dataset(UserList, ResultsExportMixin):
 
         >>> d.relevant_columns(remove_prefix=True)
         {'b'}
+
+        >>> from edsl.results import Results; Results.example().select('how_feeling', 'how_feeling_yesterday').relevant_columns()
+        {'answer.how_feeling', 'answer.how_feeling_yesterday'}
         """
-        columns = set([list(result.keys())[0] for result in self.data])
+        columns = [list(x.keys())[0] for x in self]
+        #columns = set([list(result.keys())[0] for result in self.data])
         if remove_prefix:
-            columns = set([column.split(".")[-1] for column in columns])
+            columns = [column.split(".")[-1] for column in columns]
         return columns
 
     def _key_to_value(self, key: str) -> Any:
