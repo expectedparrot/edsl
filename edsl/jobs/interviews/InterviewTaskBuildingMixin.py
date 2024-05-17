@@ -22,8 +22,7 @@ TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
 
 class InterviewTaskBuildingMixin:
     def _build_invigilators(
-        self, 
-        debug: bool
+        self, debug: bool
     ) -> Generator[InvigilatorBase, None, None]:
         """Create an invigilator for each question.
 
@@ -238,9 +237,11 @@ class InterviewTaskBuildingMixin:
         If the next question is the end of the survey, it cancels all remaining tasks.
         If the next question is after the current question, it cancels all tasks between the current question and the next question.
         """
-        current_question_index:int = self.to_index[current_question.question_name]
+        current_question_index: int = self.to_index[current_question.question_name]
 
-        next_question: Union[int, EndOfSurvey] = self.survey.rule_collection.next_question(
+        next_question: Union[
+            int, EndOfSurvey
+        ] = self.survey.rule_collection.next_question(
             q_now=current_question_index,
             answers=self.answers | self.scenario | self.agent["traits"],
         )

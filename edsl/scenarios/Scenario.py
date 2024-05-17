@@ -11,6 +11,7 @@ from edsl.utilities.decorators import (
     remove_edsl_version,
 )
 
+
 class Scenario(Base, UserDict):
     """A Scenario is a dictionary of keys/values for parameterizing questions."""
 

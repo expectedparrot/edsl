@@ -134,7 +134,6 @@ class Results(UserList, Mixins, Base):
             ]
             self.data = results
 
-
     def __add__(self, other: Results) -> Results:
         """Add two Results objects together.
         They must have the same survey and created columns.
