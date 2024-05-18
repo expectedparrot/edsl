@@ -36,7 +36,7 @@ class TaskCreators(UserDict):
     @property
     def interview_status(self) -> InterviewStatusDictionary:
         """Returns a dictionary, InterviewStatusDictionary, mapping task status codes to counts of tasks in that state.
-        
+
         >>> t = TaskCreators()
         >>> t.interview_status
         InterviewStatusDictionary({<TaskStatus.NOT_STARTED: 1>: 0, <TaskStatus.WAITING_FOR_DEPENDENCIES: 2>: 0, <TaskStatus.CANCELLED: 3>: 0, <TaskStatus.PARENT_FAILED: 4>: 0, <TaskStatus.WAITING_FOR_REQUEST_CAPACITY: 5>: 0, <TaskStatus.WAITING_FOR_TOKEN_CAPACITY: 6>: 0, <TaskStatus.API_CALL_IN_PROGRESS: 7>: 0, <TaskStatus.SUCCESS: 8>: 0, <TaskStatus.FAILED: 9>: 0, 'number_from_cache': 0})
@@ -50,8 +50,9 @@ class TaskCreators(UserDict):
     def status_logs(self):
         """Returns a list of status logs for each task."""
         return [task_creator.status_log for task_creator in self.values()]
-    
+
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)

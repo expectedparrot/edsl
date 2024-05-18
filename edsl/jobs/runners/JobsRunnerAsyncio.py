@@ -91,7 +91,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         interview: Interview,
         debug: bool,
         stop_on_exception: bool = False,
-        sidecar_model: Optional[LanguageModel] =None,
+        sidecar_model: Optional[LanguageModel] = None,
     ) -> Result:
         """Conducts an interview and returns the result.
 
@@ -164,7 +164,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         n: int = 1,
         debug: bool = False,
         stop_on_exception: bool = False,
-        progress_bar:bool=False,
+        progress_bar: bool = False,
         sidecar_model: Optional[LanguageModel] = None,
     ) -> "Coroutine":
         """Runs a collection of interviews, handling both async and sync contexts."""

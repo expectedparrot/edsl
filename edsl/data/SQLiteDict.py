@@ -19,9 +19,10 @@ class SQLiteDict:
     def __init__(self, db_path: Optional[str] = None):
         """
 
-        >>> temp_db_path = self._get_temp_path()
+        >>> temp_db_path = SQLiteDict._get_temp_path()
         >>> SQLiteDict(f"sqlite:///{temp_db_path}")  # Use the temp file for SQLite
-        >>> os.unlink(temp_db_path)  # Clean up the temp file after the test
+        SQLiteDict(db_path='...')
+        >>> import os; os.unlink(temp_db_path)  # Clean up the temp file after the test
 
         """
         self.db_path = db_path or CONFIG.get("EDSL_DATABASE_PATH")
@@ -36,6 +37,7 @@ class SQLiteDict:
                 f"""Database initialization error: {e}. The attempted DB path was {db_path}"""
             ) from e
 
+    @classmethod
     def _get_temp_path(self):
         import tempfile
         import os

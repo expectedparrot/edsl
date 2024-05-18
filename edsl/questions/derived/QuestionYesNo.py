@@ -34,7 +34,7 @@ class QuestionYesNo(QuestionMultipleChoice):
     @classmethod
     def example(cls) -> QuestionYesNo:
         """Return an example of a yes/no question."""
-        return cls(question_name="is_it_raining", question_text="Is it raining?")
+        return cls(question_name="is_it_equal", question_text="Is 5 + 5 equal to 11?")
 
 
 def main():
