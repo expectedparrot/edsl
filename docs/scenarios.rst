@@ -18,7 +18,6 @@ For example, say we are using scenarios to parameterize questions with pieces of
 In our scenarios for the `content` parameter, we could also include metadata about the source of the content, such as the `{{ author }}`, the `{{ publication_date }}`, or the `{{ source }}`.
 This will create columns for the additional data in the survey results without passing them to the question texts if there is no corresponding parameter in the question texts.
 This allows us to analyze the responses in the context of the metadata without needing to match up the data with the metadata post-survey.
-We show an example of this feature in examples below.
 
 Data labeling tasks
 ^^^^^^^^^^^^^^^^^^^
