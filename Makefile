@@ -144,13 +144,14 @@ test-data: ## Creates serialization test data for the current EDSL version
 
 test-doctests: ## Run doctests
 	make clean-test
+	pytest --doctest-modules edsl/results
+	pytest --doctest-modules edsl/jobs
 	pytest --doctest-modules edsl/surveys
 	pytest --doctest-modules edsl/agents
 	pytest --doctest-modules edsl/scenarios
 	pytest --doctest-modules edsl/questions
 	pytest --doctest-modules edsl/utilities
 	## pytest --doctest-modules edsl/prompts
-	## pytest --doctest-modules edsl/reports	
 	pytest --doctest-modules edsl/language_models
 	pytest --doctest-modules edsl/data
 

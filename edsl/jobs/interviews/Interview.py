@@ -81,7 +81,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         model_buckets: ModelBuckets = None,
         debug: bool = False,
         stop_on_exception: bool = False,
-        sidecar_model:Optional[LanguageModel]=None,
+        sidecar_model: Optional[LanguageModel] = None,
     ) -> tuple["Answers", List[dict[str, Any]]]:
         """
         Conduct an Interview asynchronously.
@@ -93,10 +93,9 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         Example usage:
 
         >>> i = Interview.example()
-        >>> answers = asyncio.run(i.async_conduct_interview())
-        >>> answers['q0']
+        >>> result, _ = asyncio.run(i.async_conduct_interview())
+        >>> result['q0']
         'yes'
-
         """
         self.sidecar_model = sidecar_model
 
@@ -121,7 +120,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
 
     def _extract_valid_results(self) -> Generator["Answers", None, None]:
         """Extract the valid results from the list of results.
-        
+
         It iterates through the tasks and invigilators, and yields the results of the tasks that are done.
         If a task is not done, it raises a ValueError.
         If an exception is raised in the task, it records the exception in the Interview instance except if the task was cancelled, which is expected behavior.
@@ -138,9 +137,9 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
                 result = invigilator.get_failed_task_result()
             except Exception as e:  # any other kind of exception in the task
                 result = invigilator.get_failed_task_result()
-                self._record_exception(task, e) 
+                self._record_exception(task, e)
             yield result
-    
+
     def _record_exception(self, task, exception: Exception) -> None:
         """Record an exception in the Interview instance."""
         exception_entry = InterviewExceptionEntry(
@@ -149,7 +148,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
             traceback=traceback.format_exc(),
         )
         self.exceptions.add(task.get_name(), exception_entry)
-                
+
     @property
     def dag(self) -> "DAG":
         """Return the directed acyclic graph for the survey.
@@ -179,62 +178,82 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
             cache=cache,
         )
 
+    @classmethod
+    def example(self):
+        """Return an example Interview instance."""
+        from edsl.agents import Agent
+        from edsl.surveys import Survey
+        from edsl.scenarios import Scenario
+        from edsl.language_models import LanguageModel
+
+        def f(self, question, scenario):
+            return "yes"
+
+        agent = Agent.example()
+        agent.add_direct_question_answering_method(f)
+        survey = Survey.example()
+        scenario = Scenario.example()
+        model = LanguageModel.example()
+        return Interview(agent=agent, survey=survey, scenario=scenario, model=model)
+
 
 if __name__ == "__main__":
-    """Test the Interview class."""
-    from edsl import Model
-    from edsl.agents import Agent
-    from edsl.surveys import Survey
-    from edsl.scenarios import Scenario
-    from edsl.questions import QuestionMultipleChoice
+    import doctest
 
-    # from edsl.jobs.Interview import Interview
+    doctest.testmod()
+    # from edsl import Model
+    # from edsl.agents import Agent
+    # from edsl.surveys import Survey
+    # from edsl.scenarios import Scenario
+    # from edsl.questions import QuestionMultipleChoice
 
-    #  a survey with skip logic
-    q0 = QuestionMultipleChoice(
-        question_text="Do you like school?",
-        question_options=["yes", "no"],
-        question_name="q0",
-    )
-    q1 = QuestionMultipleChoice(
-        question_text="Why not?",
-        question_options=["killer bees in cafeteria", "other"],
-        question_name="q1",
-    )
-    q2 = QuestionMultipleChoice(
-        question_text="Why?",
-        question_options=["**lack*** of killer bees in cafeteria", "other"],
-        question_name="q2",
-    )
-    s = Survey(questions=[q0, q1, q2])
-    s = s.add_rule(q0, "q0 == 'yes'", q2)
+    # # from edsl.jobs.Interview import Interview
 
-    # create an interview
-    a = Agent(traits=None)
+    # #  a survey with skip logic
+    # q0 = QuestionMultipleChoice(
+    #     question_text="Do you like school?",
+    #     question_options=["yes", "no"],
+    #     question_name="q0",
+    # )
+    # q1 = QuestionMultipleChoice(
+    #     question_text="Why not?",
+    #     question_options=["killer bees in cafeteria", "other"],
+    #     question_name="q1",
+    # )
+    # q2 = QuestionMultipleChoice(
+    #     question_text="Why?",
+    #     question_options=["**lack*** of killer bees in cafeteria", "other"],
+    #     question_name="q2",
+    # )
+    # s = Survey(questions=[q0, q1, q2])
+    # s = s.add_rule(q0, "q0 == 'yes'", q2)
 
-    def direct_question_answering_method(self, question, scenario):
-        """Answer a question directly."""
-        raise Exception("Error!")
-        # return "yes"
+    # # create an interview
+    # a = Agent(traits=None)
 
-    a.add_direct_question_answering_method(direct_question_answering_method)
-    scenario = Scenario()
-    m = Model()
-    I = Interview(agent=a, survey=s, scenario=scenario, model=m)
+    # def direct_question_answering_method(self, question, scenario):
+    #     """Answer a question directly."""
+    #     raise Exception("Error!")
+    #     # return "yes"
 
-    result = asyncio.run(I.async_conduct_interview())
-    # # conduct five interviews
-    # for _ in range(5):
-    #     I.conduct_interview(debug=True)
+    # a.add_direct_question_answering_method(direct_question_answering_method)
+    # scenario = Scenario()
+    # m = Model()
+    # I = Interview(agent=a, survey=s, scenario=scenario, model=m)
 
-    # # replace missing answers
-    # I
-    # repr(I)
-    # eval(repr(I))
-    # print(I.task_status_logs.status_matrix(20))
-    status_matrix = I.task_status_logs.status_matrix(20)
-    numerical_matrix = I.task_status_logs.numerical_matrix(20)
-    I.task_status_logs.visualize()
+    # result = asyncio.run(I.async_conduct_interview())
+    # # # conduct five interviews
+    # # for _ in range(5):
+    # #     I.conduct_interview(debug=True)
 
-    I.exceptions.print()
-    I.exceptions.ascii_table()
+    # # # replace missing answers
+    # # I
+    # # repr(I)
+    # # eval(repr(I))
+    # # print(I.task_status_logs.status_matrix(20))
+    # status_matrix = I.task_status_logs.status_matrix(20)
+    # numerical_matrix = I.task_status_logs.numerical_matrix(20)
+    # I.task_status_logs.visualize()
+
+    # I.exceptions.print()
+    # I.exceptions.ascii_table()

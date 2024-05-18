@@ -20,6 +20,11 @@ from IPython.display import HTML
 
 
 def data_to_html(data, replace_new_lines=False):
+    if "edsl_version" in data:
+        _ = data.pop("edsl_version")
+    if "edsl_class_name" in data:
+        _ = data.pop("edsl_class_name")
+
     json_str = json.dumps(data, indent=4)
     formatted_json = highlight(
         json_str,
