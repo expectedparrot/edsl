@@ -3,6 +3,7 @@ import copy
 from collections import UserDict
 from rich.table import Table
 from typing import Union, List
+
 from edsl.Base import Base
 
 from edsl.utilities.decorators import (
@@ -37,17 +38,16 @@ class Scenario(Base, UserDict):
         >>> s1 = Scenario({"price": 100, "quantity": 2})
         >>> s2 = Scenario({"color": "red"})
         >>> s1 + s2
-        {'price': 100, 'quantity': 2, 'color': 'red'}
+        Scenario({'price': 100, 'quantity': 2, 'color': 'red'})
         >>> (s1 + s2).__class__.__name__
         'Scenario'
         """
         if other_scenario is None:
             return self
         else:
-            new_scenario = Scenario()
-            new_scenario.data = copy.deepcopy(self.data)
-            new_scenario.update(copy.deepcopy(other_scenario))
-            return Scenario(new_scenario)
+            data1 = copy.deepcopy(self.data)
+            data2 = copy.deepcopy(other_scenario.data)
+            return Scenario(data1 | data2)
 
     def rename(self, replacement_dict: dict) -> "Scenario":
         """Rename the keys of a scenario.
@@ -59,7 +59,7 @@ class Scenario(Base, UserDict):
 
         >>> s = Scenario({"food": "wood chips"})
         >>> s.rename({"food": "food_preference"})
-        {'food_preference': 'wood chips'}
+        Scenario({'food_preference': 'wood chips'})
         """
         new_scenario = Scenario()
         for key, value in self.items():
@@ -75,7 +75,7 @@ class Scenario(Base, UserDict):
 
         >>> s = Scenario({"food": "wood chips"})
         >>> s.to_dict()
-        {'food': 'wood chips'}
+        {'food': 'wood chips', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}
         """
         return self.data
 
@@ -99,7 +99,7 @@ class Scenario(Base, UserDict):
         """Convert a dictionary to a scenario.
 
         >>> Scenario.from_dict({"food": "wood chips"})
-        {'food': 'wood chips'}
+        Scenario({'food': 'wood chips'})
         """
         return cls(d)
 
@@ -129,7 +129,7 @@ class Scenario(Base, UserDict):
         """Return an example scenario.
 
         >>> Scenario.example()
-        {'persona': 'A reseacher studying whether LLMs can be used to generate surveys.'}
+        Scenario({'persona': 'A reseacher studying whether LLMs can be used to generate surveys.'})
         """
         return cls(
             {

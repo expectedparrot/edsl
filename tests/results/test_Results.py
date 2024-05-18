@@ -159,7 +159,7 @@ class TestResults(unittest.TestCase):
             question_text="How often do you typically exercise each week?",
             question_options=["Never", "Sometimes", "Often"],
         )
-        results = q.by(agent).run(cache = cache, batch_mode = True)
+        results = q.by(agent).run(cache = cache)
 
         with StringIO() as buf, redirect_stdout(buf):
             results.select("answer.*").print()

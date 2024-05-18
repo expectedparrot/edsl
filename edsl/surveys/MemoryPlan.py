@@ -1,7 +1,8 @@
 """A survey has a memory plan that specifies what the agent should remember when answering a question."""
 from collections import UserDict, defaultdict
-from edsl.surveys.Memory import Memory
+from typing import Optional
 
+from edsl.surveys.Memory import Memory
 from edsl.prompts.Prompt import Prompt
 from edsl.surveys.DAG import DAG
 
@@ -9,11 +10,16 @@ from edsl.surveys.DAG import DAG
 class MemoryPlan(UserDict):
     """A survey has a memory plan that specifies what the agent should remember when answering a question.
 
-    {focal_question: [prior_questions], focal_question: [prior_questions]}
+    The basic structure of a memory plan is a dictionary of focal questions to memories.
+
+    {focal_question1: [prior_question1, prior_question2, ...], focal_question: [prior_question3]}
     """
 
-    def __init__(self, survey: "Survey" = None, data=None):
-        """Initialize a memory plan."""
+    def __init__(self, survey: Optional["Survey"] = None, data: Optional[dict] = None):
+        """Initialize a memory plan.
+
+        The actual 'data' attributes of the memory plan are a dictionary of focal questions to memories.
+        """
         if survey is not None:
             self.survey = survey
             self.survey_question_names = [q.question_name for q in survey.questions]
@@ -21,11 +27,11 @@ class MemoryPlan(UserDict):
         super().__init__(data or {})
 
     @property
-    def name_to_text(self):
+    def name_to_text(self) -> dict:
         """Return a dictionary mapping question names to question texts."""
         return dict(zip(self.survey_question_names, self.question_texts))
 
-    def add_question(self, question: "Question") -> None:
+    def add_question(self, question: "QuestionBase") -> None:
         """Add a question to the survey.
 
         :param question: A question to add to the survey
@@ -92,6 +98,24 @@ class MemoryPlan(UserDict):
 
         :param focal_question: The current question being answered.
         :param prior_question: The question that was answered before the focal question that should be remembered.
+
+        >>> mp = MemoryPlan.example()
+        >>> mp.add_single_memory("q0", "q1")
+        Traceback (most recent call last):
+        ...
+        ValueError: q1 must come before q0.
+
+        >>> mp = MemoryPlan.example()
+        >>> mp.add_single_memory("q0", "crap")
+        Traceback (most recent call last):
+        ...
+        ValueError: crap is not in the survey. Current names are ['q0', 'q1', 'q2']
+
+        >>> mp = MemoryPlan.example()
+        >>> mp.add_single_memory("crap", "q0")
+        Traceback (most recent call last):
+        ...
+        ValueError: crap is not in the survey. Current names are ['q0', 'q1', 'q2']
         """
         self._check_valid_question_name(focal_question)
         self._check_valid_question_name(prior_question)
@@ -116,7 +140,12 @@ class MemoryPlan(UserDict):
             self.add_single_memory(focal_question, question)
 
     def to_dict(self) -> dict:
-        """Serialize the memory plan to a dictionary."""
+        """Serialize the memory plan to a dictionary.
+
+        >>> mp = MemoryPlan.example()
+        >>> mp.to_dict()
+        {'survey_question_names': ['q0', 'q1', 'q2'], 'survey_question_texts': ['Do you like school?', 'Why not?', 'Why?'], 'data': {'q1': {'prior_questions': ['q0']}}}
+        """
         newdata = {}
         for question_name, memory in self.items():
             newdata[question_name] = memory.to_dict()
@@ -153,9 +182,29 @@ class MemoryPlan(UserDict):
 
     @property
     def dag(self) -> DAG:
-        """Return a directed acyclic graph of the memory plan."""
+        """Return a directed acyclic graph of the memory plan.
+
+        >>> mp = MemoryPlan.example()
+        >>> mp.dag
+        {1: {0}}
+        """
         d = defaultdict(set)
         for focal_question, memory in self.items():
             for prior_question in memory:
                 d[focal_question].add(prior_question)
         return DAG(self._indexify(d))
+
+    @classmethod
+    def example(cls):
+        """Return an example memory plan."""
+        from edsl import Survey
+
+        mp = cls(survey=Survey.example())
+        mp.add_single_memory("q1", "q0")
+        return mp
+
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod(optionflags=doctest.ELLIPSIS)

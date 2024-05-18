@@ -1,4 +1,5 @@
 """A Survey is collection of questions that can be administered to an Agent."""
+
 from __future__ import annotations
 import re
 from rich import print
@@ -679,15 +680,18 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         >>> s = Survey.example()
         >>> s.to_csv()
-           index question_name        question_text                                question_options    question_type edsl_version edsl_class_name
-        0      0            q0  Do you like school?                                       [yes, no]  multiple_choice       0.1.21    QuestionBase
-        1      1            q1             Why not?               [killer bees in cafeteria, other]  multiple_choice       0.1.21    QuestionBase
-        2      2            q2                 Why?  [**lack*** of killer bees in cafeteria, other]  multiple_choice       0.1.21    QuestionBase
+           index question_name        question_text                                question_options    question_type
+        0      0            q0  Do you like school?                                       [yes, no]  multiple_choice
+        1      1            q1             Why not?               [killer bees in cafeteria, other]  multiple_choice
+        2      2            q2                 Why?  [**lack*** of killer bees in cafeteria, other]  multiple_choice
         """
         raw_data = []
         for index, question in enumerate(self._questions):
             d = {"index": index}
-            d.update(question.to_dict())
+            question_dict = question.to_dict()
+            _ = question_dict.pop("edsl_version")
+            _ = question_dict.pop("edsl_class_name")
+            d.update(question_dict)
             raw_data.append(d)
         from pandas import DataFrame
 

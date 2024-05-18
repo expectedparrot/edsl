@@ -144,7 +144,7 @@ class ResultsDBMixin:
 
         >>> from edsl.results import Results
         >>> Results.example().sql("select how_feeling from self", shape = 'wide', remove_prefix=True)
-        how_feeling
+          how_feeling
         0          OK
         1       Great
         2    Terrible
@@ -181,10 +181,12 @@ class ResultsDBMixin:
         >>> r = Results.example()
         >>> r.show_schema(shape="long")
         Type: table, Name: self, SQL: CREATE TABLE self (
-                id INTEGER,
-                data_type TEXT,
-                key TEXT,
-                value TEXT
+                        id INTEGER,
+                        data_type TEXT,
+                        key TEXT,
+                        value TEXT
+                    )
+        <BLANKLINE>
         """
         shape_enum = self._get_shape_enum(shape)
         conn = self._db(shape=shape_enum, remove_prefix=remove_prefix)
@@ -205,10 +207,11 @@ class ResultsDBMixin:
         elif shape_enum == SQLDataShape.WIDE:
             query = f"PRAGMA table_info(self)"
             schema = pd.read_sql(query, conn)
-            print(schema)
+            # print(schema)
+            return schema
 
 
 if __name__ == "__main__":
     import doctest
 
-    doctest.testmod()
+    doctest.testmod(optionflags=doctest.ELLIPSIS)

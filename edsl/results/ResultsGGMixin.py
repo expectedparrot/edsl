@@ -17,6 +17,9 @@ class ResultsGGMixin:
         sql: str = None,
         remove_prefix: bool = True,
         debug: bool = False,
+        height=4,
+        width=6,
+        format="png",
     ):
         """Create a ggplot2 plot from a DataFrame.
 
@@ -50,13 +53,13 @@ class ResultsGGMixin:
 
         # Check if a filename is provided for the plot, if not create a temporary one
         if not filename:
-            filename = tempfile.mktemp(suffix=".png")
+            filename = tempfile.mktemp(suffix=f".{format}")
 
         # Combine all R script parts
         full_r_code = load_ggplot2 + read_csv_code + ggplot_code
 
         # Add command to save the plot to a file
-        full_r_code += f'\nggsave("{filename}", plot = last_plot(), width = 6, height = 4, device = "png")'
+        full_r_code += f'\nggsave("{filename}", plot = last_plot(), width = {width}, height = {height}, device = "{format}")'
 
         if debug:
             print(full_r_code)
@@ -83,11 +86,21 @@ class ResultsGGMixin:
         if result.stderr:
             print("Error in R script:", result.stderr)
         else:
-            self._display_plot(filename)
+            self._display_plot(filename, width, height)
 
-    def _display_plot(self, filename):
+    def _display_plot(self, filename: str, width: float, height: float):
         """Display the plot in the notebook."""
-        img = mpimg.imread(filename)
-        plt.imshow(img)
-        plt.axis("off")
-        plt.show()
+        if filename.endswith(".png"):
+            img = mpimg.imread(filename)
+            plt.figure(
+                figsize=(width, height)
+            )  # Set the figure size (width, height) in inches
+            plt.imshow(img)
+            plt.axis("off")
+            plt.show()
+        elif filename.endswith(".svg"):
+            from IPython.display import SVG, display
+
+            display(SVG(filename=filename))
+        else:
+            print("Unsupported file format. Please provide a PNG or SVG file.")

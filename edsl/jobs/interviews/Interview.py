@@ -3,7 +3,7 @@ from __future__ import annotations
 import traceback
 import asyncio
 import time
-from typing import Any, Type, List, Generator
+from typing import Any, Type, List, Generator, Optional
 
 from edsl.agents import Agent
 from edsl.language_models import LanguageModel
@@ -41,8 +41,8 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         model: Type[LanguageModel],
         debug: bool = False,
         iteration: int = 0,
-        cache=None,
-        sidecar_model=None,
+        cache: "Cache" = None,
+        sidecar_model: LanguageModel = None,
     ):
         """Initialize the Interview instance.
 
@@ -59,8 +59,9 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         self.debug = debug
         self.iteration = iteration
         self.cache = cache
-        # will get filled in as interview progresses
-        self.answers: dict[str, str] = Answers()
+        self.answers: dict[
+            str, str
+        ] = Answers()  # will get filled in as interview progresses
         self.sidecar_model = sidecar_model
 
         # Trackers
@@ -80,7 +81,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         model_buckets: ModelBuckets = None,
         debug: bool = False,
         stop_on_exception: bool = False,
-        sidecar_model=None,
+        sidecar_model: Optional[LanguageModel] = None,
     ) -> tuple["Answers", List[dict[str, Any]]]:
         """
         Conduct an Interview asynchronously.
@@ -92,14 +93,15 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         Example usage:
 
         >>> i = Interview.example()
-        >>> answers = asyncio.run(i.async_conduct_interview())
-        >>> answers['q0']
+        >>> result, _ = asyncio.run(i.async_conduct_interview())
+        >>> result['q0']
         'yes'
-
         """
         self.sidecar_model = sidecar_model
+
         # if no model bucket is passed, create an 'infinity' bucket with no rate limits
-        model_buckets = model_buckets or ModelBuckets.infinity_bucket()
+        if model_buckets is None:
+            model_buckets = ModelBuckets.infinity_bucket()
 
         ## build the tasks using the InterviewTaskBuildingMixin
         ## This is the key part---it creates a task for each question,
@@ -116,59 +118,47 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         valid_results = list(self._extract_valid_results())
         return self.answers, valid_results
 
-    def _extract_valid_results(
-        self, print_traceback: bool = False
-    ) -> Generator["Answers", None, None]:
+    def _extract_valid_results(self) -> Generator["Answers", None, None]:
         """Extract the valid results from the list of results.
 
-        :param print_traceback: if True, print the traceback of any exceptions.
+        It iterates through the tasks and invigilators, and yields the results of the tasks that are done.
+        If a task is not done, it raises a ValueError.
+        If an exception is raised in the task, it records the exception in the Interview instance except if the task was cancelled, which is expected behavior.
         """
-        # we only need to print the warning once if a task failed.
-        # warning_printed = False
-        # warning_header = textwrap.dedent(
-        #     """\
-        #     WARNING: At least one question in the survey was not answered.
-        #     """
-        # )
-        # # there should be one one invigilator for each task
         assert len(self.tasks) == len(self.invigilators)
 
         for task, invigilator in zip(self.tasks, self.invigilators):
-            if task.done():
-                try:  # task worked
-                    result = task.result()
-                except asyncio.CancelledError as e:  # task was cancelled
-                    result = invigilator.get_failed_task_result()
+            if not task.done():
+                raise ValueError(f"Task {task.get_name()} is not done.")
 
-                # We don't want to log cancelled tasks, as this is expected behavior
-                ## TODO: Currently, we only log errors at the question-answering phase
-                ## Do we want to log exceptions here as well?
-                #     exception_entry = InterviewExceptionEntry(
-                #         exception=repr(e),
-                #         time=time.time(),
-                #         traceback=traceback.format_exc(),
-                #     )
-                #     self.exceptions.add(task.edsl_name, exception_entry)
-                except Exception as e:  # any other kind of exception in the task
-                    exception_entry = InterviewExceptionEntry(
-                        exception=repr(e),
-                        time=time.time(),
-                        traceback=traceback.format_exc(),
-                    )
-                    self.exceptions.add(task.get_name(), exception_entry)
-                    # if not warning_printed:
-                    #     warning_printed = True
-                    #     print(warning_header)
+            try:
+                result = task.result()
+            except asyncio.CancelledError as e:  # task was cancelled
+                result = invigilator.get_failed_task_result()
+            except Exception as e:  # any other kind of exception in the task
+                result = invigilator.get_failed_task_result()
+                self._record_exception(task, e)
+            yield result
 
-                    error_message = f"Task `{task.get_name()}` failed with `{e.__class__.__name__}`:`{e}`."
-                    # print(error_message)
-                    # if print_traceback:
-                    #    traceback.print_exc()
-                    result = invigilator.get_failed_task_result()
+    def _record_exception(self, task, exception: Exception) -> None:
+        """Record an exception in the Interview instance."""
+        exception_entry = InterviewExceptionEntry(
+            exception=repr(exception),
+            time=time.time(),
+            traceback=traceback.format_exc(),
+        )
+        self.exceptions.add(task.get_name(), exception_entry)
 
-                yield result
-            else:
-                raise ValueError(f"Task {task.edsl_name} is not done.")
+    @property
+    def dag(self) -> "DAG":
+        """Return the directed acyclic graph for the survey.
+
+        The DAG, or directed acyclic graph, is a dictionary that maps question names to their dependencies.
+        It is used to determine the order in which questions should be answered.
+        This reflects both agent 'memory' considerations and 'skip' logic.
+        The 'textify' parameter is set to True, so that the question names are returned as strings rather than integer indices.
+        """
+        return self.survey.dag(textify=True)
 
     #######################
     # Dunder methods
@@ -177,62 +167,93 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         """Return a string representation of the Interview instance."""
         return f"Interview(agent = {repr(self.agent)}, survey = {repr(self.survey)}, scenario = {repr(self.scenario)}, model = {repr(self.model)})"
 
+    def duplicate(self, iteration: int, cache: Cache) -> Interview:
+        """Duplicate the interview, but with a new iteration number and cache."""
+        return Interview(
+            agent=self.agent,
+            survey=self.survey,
+            scenario=self.scenario,
+            model=self.model,
+            iteration=iteration,
+            cache=cache,
+        )
+
+    @classmethod
+    def example(self):
+        """Return an example Interview instance."""
+        from edsl.agents import Agent
+        from edsl.surveys import Survey
+        from edsl.scenarios import Scenario
+        from edsl.language_models import LanguageModel
+
+        def f(self, question, scenario):
+            return "yes"
+
+        agent = Agent.example()
+        agent.add_direct_question_answering_method(f)
+        survey = Survey.example()
+        scenario = Scenario.example()
+        model = LanguageModel.example()
+        return Interview(agent=agent, survey=survey, scenario=scenario, model=model)
+
 
 if __name__ == "__main__":
-    """Test the Interview class."""
-    from edsl import Model
-    from edsl.agents import Agent
-    from edsl.surveys import Survey
-    from edsl.scenarios import Scenario
-    from edsl.questions import QuestionMultipleChoice
+    import doctest
 
-    # from edsl.jobs.Interview import Interview
+    doctest.testmod()
+    # from edsl import Model
+    # from edsl.agents import Agent
+    # from edsl.surveys import Survey
+    # from edsl.scenarios import Scenario
+    # from edsl.questions import QuestionMultipleChoice
 
-    #  a survey with skip logic
-    q0 = QuestionMultipleChoice(
-        question_text="Do you like school?",
-        question_options=["yes", "no"],
-        question_name="q0",
-    )
-    q1 = QuestionMultipleChoice(
-        question_text="Why not?",
-        question_options=["killer bees in cafeteria", "other"],
-        question_name="q1",
-    )
-    q2 = QuestionMultipleChoice(
-        question_text="Why?",
-        question_options=["**lack*** of killer bees in cafeteria", "other"],
-        question_name="q2",
-    )
-    s = Survey(questions=[q0, q1, q2])
-    s = s.add_rule(q0, "q0 == 'yes'", q2)
+    # # from edsl.jobs.Interview import Interview
 
-    # create an interview
-    a = Agent(traits=None)
+    # #  a survey with skip logic
+    # q0 = QuestionMultipleChoice(
+    #     question_text="Do you like school?",
+    #     question_options=["yes", "no"],
+    #     question_name="q0",
+    # )
+    # q1 = QuestionMultipleChoice(
+    #     question_text="Why not?",
+    #     question_options=["killer bees in cafeteria", "other"],
+    #     question_name="q1",
+    # )
+    # q2 = QuestionMultipleChoice(
+    #     question_text="Why?",
+    #     question_options=["**lack*** of killer bees in cafeteria", "other"],
+    #     question_name="q2",
+    # )
+    # s = Survey(questions=[q0, q1, q2])
+    # s = s.add_rule(q0, "q0 == 'yes'", q2)
 
-    def direct_question_answering_method(self, question, scenario):
-        """Answer a question directly."""
-        raise Exception("Error!")
-        # return "yes"
+    # # create an interview
+    # a = Agent(traits=None)
 
-    a.add_direct_question_answering_method(direct_question_answering_method)
-    scenario = Scenario()
-    m = Model()
-    I = Interview(agent=a, survey=s, scenario=scenario, model=m)
+    # def direct_question_answering_method(self, question, scenario):
+    #     """Answer a question directly."""
+    #     raise Exception("Error!")
+    #     # return "yes"
 
-    result = asyncio.run(I.async_conduct_interview())
-    # # conduct five interviews
-    # for _ in range(5):
-    #     I.conduct_interview(debug=True)
+    # a.add_direct_question_answering_method(direct_question_answering_method)
+    # scenario = Scenario()
+    # m = Model()
+    # I = Interview(agent=a, survey=s, scenario=scenario, model=m)
 
-    # # replace missing answers
-    # I
-    # repr(I)
-    # eval(repr(I))
-    # print(I.task_status_logs.status_matrix(20))
-    status_matrix = I.task_status_logs.status_matrix(20)
-    numerical_matrix = I.task_status_logs.numerical_matrix(20)
-    I.task_status_logs.visualize()
+    # result = asyncio.run(I.async_conduct_interview())
+    # # # conduct five interviews
+    # # for _ in range(5):
+    # #     I.conduct_interview(debug=True)
 
-    I.exceptions.print()
-    I.exceptions.ascii_table()
+    # # # replace missing answers
+    # # I
+    # # repr(I)
+    # # eval(repr(I))
+    # # print(I.task_status_logs.status_matrix(20))
+    # status_matrix = I.task_status_logs.status_matrix(20)
+    # numerical_matrix = I.task_status_logs.numerical_matrix(20)
+    # I.task_status_logs.visualize()
+
+    # I.exceptions.print()
+    # I.exceptions.ascii_table()
