@@ -17,9 +17,9 @@ class ResultsGGMixin:
         sql: str = None,
         remove_prefix: bool = True,
         debug: bool = False,
-        height = 4,
-        width = 6,
-        format = "png"
+        height=4,
+        width=6,
+        format="png",
     ):
         """Create a ggplot2 plot from a DataFrame.
 
@@ -88,16 +88,19 @@ class ResultsGGMixin:
         else:
             self._display_plot(filename, width, height)
 
-    def _display_plot(self, filename:str, width:float, height:float):
+    def _display_plot(self, filename: str, width: float, height: float):
         """Display the plot in the notebook."""
-        if filename.endswith('.png'):
+        if filename.endswith(".png"):
             img = mpimg.imread(filename)
-            plt.figure(figsize=(width, height))  # Set the figure size (width, height) in inches
+            plt.figure(
+                figsize=(width, height)
+            )  # Set the figure size (width, height) in inches
             plt.imshow(img)
             plt.axis("off")
             plt.show()
-        elif filename.endswith('.svg'):
+        elif filename.endswith(".svg"):
             from IPython.display import SVG, display
+
             display(SVG(filename=filename))
         else:
             print("Unsupported file format. Please provide a PNG or SVG file.")
