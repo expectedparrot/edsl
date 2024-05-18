@@ -1,7 +1,10 @@
+from __future__ import annotations
 import time
 import asyncio
 import textwrap
-from typing import Coroutine, List, AsyncGenerator
+from contextlib import contextmanager
+
+from typing import Coroutine, List, AsyncGenerator, Optional, Union
 
 from rich.live import Live
 from rich.console import Console
@@ -14,7 +17,7 @@ from edsl.utilities.decorators import jupyter_nb_handler
 from edsl.jobs.Jobs import Jobs
 from edsl.utilities.utilities import is_notebook
 from edsl.jobs.runners.JobsRunnerStatusMixin import JobsRunnerStatusMixin
-
+from edsl.language_models import LanguageModel
 from edsl.data.Cache import Cache
 
 from edsl.jobs.tasks.TaskHistory import TaskHistory
@@ -29,36 +32,13 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         self.bucket_collection: "BucketCollection" = jobs.bucket_collection
         self.total_interviews: List["Interview"] = []
 
-    def populate_total_interviews(self, n=1) -> None:
-        """Populates self.total_interviews with n copies of each interview.
-
-        :param n: how many times to run each interview.
-        """
-        self.total_interviews = []
-        for interview in self.interviews:
-            for iteration in range(n):
-                if iteration > 0:
-                    new_interview = Interview(
-                        agent=interview.agent,
-                        survey=interview.survey,
-                        scenario=interview.scenario,
-                        model=interview.model,
-                        debug=interview.debug,
-                        iteration=iteration,
-                        cache=self.cache,
-                    )
-                    self.total_interviews.append(new_interview)
-                else:
-                    interview.cache = self.cache
-                    self.total_interviews.append(interview)
-
     async def run_async(
         self,
-        cache,
+        cache: Cache,
         n: int = 1,
         debug: bool = False,
         stop_on_exception: bool = False,
-        sidecar_model=None,
+        sidecar_model: "LanguageModel" = None,
     ) -> AsyncGenerator[Result, None]:
         """Creates the tasks, runs them asynchronously, and returns the results as a Results object.
 
@@ -69,12 +49,12 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         :param stop_on_exception:
         """
         tasks = []
-        self.populate_total_interviews(
+        self._populate_total_interviews(
             n=n
         )  # Populate self.total_interviews before creating tasks
 
         for interview in self.total_interviews:
-            interviewing_task = self._interview_task(
+            interviewing_task = self._build_interview_task(
                 interview=interview,
                 debug=debug,
                 stop_on_exception=stop_on_exception,
@@ -86,18 +66,39 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             result = await task
             yield result
 
-    async def _interview_task(
+    def _populate_total_interviews(self, n: int = 1) -> None:
+        """Populates self.total_interviews with n copies of each interview.
+
+        :param n: how many times to run each interview.
+        """
+        self.total_interviews = []
+        for interview in self.interviews:
+            for iteration in range(n):
+                if iteration > 0:
+                    new_interview = interview.duplicate(
+                        iteration=iteration, cache=self.cache
+                    )
+                    self.total_interviews.append(new_interview)
+                else:
+                    interview.cache = (
+                        self.cache
+                    )  # set the cache for the first interview
+                    self.total_interviews.append(interview)
+
+    async def _build_interview_task(
         self,
         *,
         interview: Interview,
         debug: bool,
         stop_on_exception: bool = False,
-        sidecar_model=None,
+        sidecar_model: Optional[LanguageModel] = None,
     ) -> Result:
         """Conducts an interview and returns the result.
 
         :param interview: the interview to conduct
         :param debug: prints debug messages
+        :param stop_on_exception: stops the interview if an exception is raised
+        :param sidecar_model: a language model to use in addition to the interview's model
         """
         # the model buckets are used to track usage rates
         model_buckets = self.bucket_collection[interview.model]
@@ -159,13 +160,12 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
     @jupyter_nb_handler
     async def run(
         self,
-        cache,
+        cache: Union[Cache, False, None],
         n: int = 1,
         debug: bool = False,
         stop_on_exception: bool = False,
-        progress_bar=False,
-        sidecar_model=None,
-        batch_mode=False,
+        progress_bar: bool = False,
+        sidecar_model: Optional[LanguageModel] = None,
     ) -> "Coroutine":
         """Runs a collection of interviews, handling both async and sync contexts."""
         console = Console()
@@ -177,8 +177,6 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
 
         def generate_table():
             return self.status_table(self.results, self.elapsed_time)
-
-        from contextlib import contextmanager
 
         @contextmanager
         def no_op_cm():
@@ -220,7 +218,6 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                         live.update(generate_table())
                     self.completed = True
 
-                # logger_task = asyncio.create_task(self.periodic_logger(period=0.01))
                 progress_task = asyncio.create_task(update_progress_bar())
 
                 try:
@@ -240,7 +237,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         task_history = TaskHistory(self.total_interviews, include_traceback=False)
         results.task_history = task_history
 
-        if results.task_history.has_exceptions and not batch_mode:
+        if results.task_history.has_exceptions:
             if len(results.task_history.indices) > 5:
                 msg = "Exceptions were raised in multiple interviews (> 5)."
             else:

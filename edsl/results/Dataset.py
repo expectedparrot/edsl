@@ -33,19 +33,23 @@ class Dataset(UserList, ResultsExportMixin):
         """Return a string representation of the dataset."""
         return f"Dataset({self.data})"
 
-    def relevant_columns(self, remove_prefix=False) -> set:
+    def relevant_columns(self, remove_prefix=False) -> list:
         """Return the set of keys that are present in the dataset.
 
         >>> d = Dataset([{'a.b':[1,2,3,4]}])
         >>> d.relevant_columns()
-        {'a.b'}
+        ['a.b']
 
         >>> d.relevant_columns(remove_prefix=True)
-        {'b'}
+        ['b']
+
+        >>> from edsl.results import Results; Results.example().select('how_feeling', 'how_feeling_yesterday').relevant_columns()
+        ['answer.how_feeling', 'answer.how_feeling_yesterday']
         """
-        columns = set([list(result.keys())[0] for result in self.data])
+        columns = [list(x.keys())[0] for x in self]
+        # columns = set([list(result.keys())[0] for result in self.data])
         if remove_prefix:
-            columns = set([column.split(".")[-1] for column in columns])
+            columns = [column.split(".")[-1] for column in columns]
         return columns
 
     def _key_to_value(self, key: str) -> Any:
@@ -180,6 +184,11 @@ class Dataset(UserList, ResultsExportMixin):
         >>> d.order_by('a', reverse=True)
         Dataset([{'a': [4, 3, 2, 1]}, {'b': [1, 2, 3, 4]}])
 
+        >>> d = Dataset([{'X.a':[1,2,3,4]}, {'X.b':[4,3,2,1]}])
+        >>> d.order_by('a')
+        Dataset([{'X.a': [1, 2, 3, 4]}, {'X.b': [4, 3, 2, 1]}])
+
+
         """
 
         def sort_indices(lst: list[Any]) -> list[int]:
@@ -194,10 +203,23 @@ class Dataset(UserList, ResultsExportMixin):
                 indices.reverse()
             return indices
 
-        if not any(sort_key in d for d in self.data):
-            raise ValueError(f"Key '{sort_key}' not found in any of the dictionaries.")
+        number_found = 0
+        for obs in self.data:
+            key, values = list(obs.items())[0]
+            # an obseration is {'a':[1,2,3,4]}
+            # key = list(obs.keys())[0]
+            if (
+                sort_key == key or sort_key == key.split(".")[-1]
+            ):  # e.g., "age" in "scenario.age"
+                relevant_values = values
+                number_found += 1
 
-        relevant_values = self._key_to_value(sort_key)
+        if number_found == 0:
+            raise ValueError(f"Key '{sort_key}' not found in any of the dictionaries.")
+        elif number_found > 1:
+            raise ValueError(f"Key '{sort_key}' found in more than one dictionary.")
+
+        # relevant_values = self._key_to_value(sort_key)
         sort_indices_list = sort_indices(relevant_values)
         new_data = []
         for observation in self.data:

@@ -146,7 +146,7 @@ class RuleCollection(UserList):
 
         >>> rule_collection = RuleCollection.example()
         >>> rule_collection.applicable_rules(1)
-        [Rule(current_q=1, expression="q1 == 'yes'", next_q=3, priority=1, question_name_to_index={'q1': 1, 'q2': 2, 'q3': 3, 'q4': 4}), Rule(current_q=1, expression="q1 == 'no'", next_q=2, priority=1, question_name_to_index={'q1': 1, 'q2': 2, 'q3': 3, 'q4': 4})]
+        [Rule(current_q=1, expression="q1 == 'yes'", next_q=3, priority=1, question_name_to_index={'q1': 1, 'q2': 2, 'q3': 3, 'q4': 4}, before_rule=False), Rule(current_q=1, expression="q1 == 'no'", next_q=2, priority=1, question_name_to_index={'q1': 1, 'q2': 2, 'q3': 3, 'q4': 4}, before_rule=False)]
 
         The default is that the rule is applied after the question is asked.
         If we want to see the rules that apply before the question is asked, we can set before_rule=True.
@@ -211,6 +211,10 @@ class RuleCollection(UserList):
     @property
     def non_default_rules(self) -> List[Rule]:
         """Return all rules that are not the default rule.
+
+        >>> rule_collection = RuleCollection.example()
+        >>> len(rule_collection.non_default_rules)
+        2
 
         Example usage:
 
@@ -283,10 +287,21 @@ class RuleCollection(UserList):
         children_to_parents = defaultdict(set)
         # We are only interested in non-default rules. Default rules are those
         # that just go to the next question, so they don't add any dependencies
+
+        ## I think for a skip-question, the potenially-skippable question
+        ## depends on all the other questions bein answered first.
         for rule in self.non_default_rules:
-            current_q, next_q = rule.current_q, rule.next_q
-            for q in self.keys_between(current_q, next_q):
-                children_to_parents[q].add(current_q)
+            if not rule.before_rule:
+                # for a regular rule, the next question depends on the current question answer
+                current_q, next_q = rule.current_q, rule.next_q
+                for q in self.keys_between(current_q, next_q):
+                    children_to_parents[q].add(current_q)
+            else:
+                # for the 'before rule' skipping depends on all previous answers.
+                focal_q = rule.current_q
+                for q in range(0, focal_q):
+                    children_to_parents[focal_q].add(q)
+
         return DAG(dict(sorted(children_to_parents.items())))
 
     @classmethod
@@ -318,4 +333,4 @@ if __name__ == "__main__":
     # pass
     import doctest
 
-    doctest.testmod()
+    doctest.testmod(optionflags=doctest.ELLIPSIS)

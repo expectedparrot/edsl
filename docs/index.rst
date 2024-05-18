@@ -132,22 +132,26 @@ Information about additional functionality for developers.
    :caption: How-to Guides
    :hidden:
 
-   notebooks/edsl_components.ipynb
-   notebooks/export_survey_updates.ipynb
-   notebooks/question_extract_example.ipynb
    notebooks/data_labeling_example.ipynb
    notebooks/example_agent_dynamic_traits.ipynb
    notebooks/research_methods.ipynb
+   notebooks/edsl_components.ipynb
+   notebooks/export_survey_updates.ipynb
+   notebooks/question_extract_example.ipynb
 
 .. toctree::
    :maxdepth: 2
    :caption: Notebooks
    :hidden:
 
-   notebooks/random_numbers.ipynb
    notebooks/data_labeling_agent.ipynb
+   notebooks/random_numbers.ipynb
+   notebooks/model_walkoff.ipynb
    notebooks/concept_induction.ipynb
    notebooks/testing_training_data.ipynb
+   notebooks/comparing_model_responses.ipynb
+   notebooks/analyze_evaluations.ipynb
+   notebooks/evaluating_job_posts.ipynb
    notebooks/explore_llm_biases.ipynb
    notebooks/research_random_silicon_sampling.ipynb
    notebooks/explore_survey_contexts.ipynb
@@ -155,16 +159,19 @@ Information about additional functionality for developers.
    notebooks/qualitative_research.ipynb
    notebooks/digital_twin.ipynb
    notebooks/grading_experiment.ipynb
+   notebooks/river_problem.ipynb
 
 .. toctree::
    :maxdepth: 2
    :caption: Developers
    :hidden:
 
-   enums
+   contributing
+   interview
    jobs 
    interviews
    answers
+   enums
 
 .. image:: https://colab.research.google.com/assets/colab-badge.svg
    :target: https://colab.research.google.com/github/expectedparrot/edsl/blob/main/examples/create_agents.ipynb 

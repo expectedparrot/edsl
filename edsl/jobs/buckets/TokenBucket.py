@@ -42,7 +42,17 @@ class TokenBucket:
         return f"TokenBucket(bucket_name={self.bucket_name}, bucket_type='{self.bucket_type}', capacity={self.capacity}, refill_rate={self.refill_rate})"
 
     def add_tokens(self, tokens: Union[int, float]) -> None:
-        """Add tokens to the bucket, up to the maximum capacity."""
+        """Add tokens to the bucket, up to the maximum capacity.
+
+        :param tokens: The number of tokens to add to the bucket.
+
+        >>> bucket = TokenBucket(bucket_name="test", bucket_type="test", capacity=10, refill_rate=1)
+        >>> bucket.tokens
+        10
+        >>> bucket.add_tokens(5)
+        >>> bucket.tokens
+        10
+        """
         self.tokens = min(self.capacity, self.tokens + tokens)
         self.log.append((time.monotonic(), self.tokens))
 
@@ -64,9 +74,26 @@ class TokenBucket:
         available_tokens = min(self.capacity, self.tokens + refill_amount)
         return max(0, requested_tokens - available_tokens) / self.refill_rate
 
-    async def get_tokens(self, amount: Union[int, float] = 1, warn=True) -> None:
+    async def get_tokens(self, amount: Union[int, float] = 1) -> None:
         """Wait for the specified number of tokens to become available.
-        Note that this method is a coroutine.
+
+
+        :param amount: The number of tokens
+        :param warn: If True, warn if the requested amount exceeds the bucket capacity.
+
+        >>> bucket = TokenBucket(bucket_name="test", bucket_type="test", capacity=10, refill_rate=1)
+        >>> asyncio.run(bucket.get_tokens(5))
+        >>> bucket.tokens
+        5
+        >>> asyncio.run(bucket.get_tokens(9))
+        >>> bucket.tokens < 1
+        True
+
+        >>> bucket = TokenBucket(bucket_name="test", bucket_type="test", capacity=10, refill_rate=1)
+        >>> asyncio.run(bucket.get_tokens(11))
+        Traceback (most recent call last):
+        ...
+        ValueError: Requested amount exceeds bucket capacity. Bucket capacity: 10, requested amount: 11. As the bucket never overflows, the requested amount will never be available.
         """
         if amount > self.capacity:
             msg = f"Requested amount exceeds bucket capacity. Bucket capacity: {self.capacity}, requested amount: {amount}. As the bucket never overflows, the requested amount will never be available."
@@ -99,3 +126,9 @@ class TokenBucket:
         plt.grid(True)
         plt.tight_layout()
         plt.show()
+
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
