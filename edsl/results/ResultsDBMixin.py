@@ -183,10 +183,10 @@ class ResultsDBMixin:
         Type: table, Name: self, SQL: CREATE TABLE self (
                         id INTEGER,
                         data_type TEXT,
-                        key TEXT, 
+                        key TEXT,
                         value TEXT
                     )
-        <BLANKLINE>   
+        <BLANKLINE>
         """
         shape_enum = self._get_shape_enum(shape)
         conn = self._db(shape=shape_enum, remove_prefix=remove_prefix)
@@ -207,8 +207,9 @@ class ResultsDBMixin:
         elif shape_enum == SQLDataShape.WIDE:
             query = f"PRAGMA table_info(self)"
             schema = pd.read_sql(query, conn)
-            #print(schema)
+            # print(schema)
             return schema
+
 
 if __name__ == "__main__":
     import doctest
