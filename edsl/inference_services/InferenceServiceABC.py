@@ -16,6 +16,13 @@ class InferenceServiceABC(ABC):
 
     @staticmethod
     def to_class_name(s):
+        """Convert a string to a valid class name.
+        
+        >>> InferenceServiceABC.to_class_name("hello world")
+        'HelloWorld'
+        """
+        
+
         s = re.sub(r"[^a-zA-Z0-9 ]", "", s)
         s = "".join(word.title() for word in s.split())
         if s and s[0].isdigit():
