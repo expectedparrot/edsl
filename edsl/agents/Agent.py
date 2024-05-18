@@ -442,7 +442,7 @@ class Agent(Base):
 
         >>> a = Agent(name = "Steve", traits = {"age": 10, "hair": "brown", "height": 5.5})
         >>> a.to_dict()
-        {'name': 'Steve', 'traits': {'age': 10, 'hair': 'brown', 'height': 5.5}}
+        {'name': 'Steve', 'traits': {'age': 10, 'hair': 'brown', 'height': 5.5}, 'edsl_version': '...', 'edsl_class_name': 'Agent'}
         """
         return self.data
 

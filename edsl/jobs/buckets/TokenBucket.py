@@ -43,7 +43,7 @@ class TokenBucket:
 
     def add_tokens(self, tokens: Union[int, float]) -> None:
         """Add tokens to the bucket, up to the maximum capacity.
-        
+
         :param tokens: The number of tokens to add to the bucket.
 
         >>> bucket = TokenBucket(bucket_name="test", bucket_type="test", capacity=10, refill_rate=1)
@@ -78,9 +78,9 @@ class TokenBucket:
         """Wait for the specified number of tokens to become available.
 
 
-        :param amount: The number of tokens 
+        :param amount: The number of tokens
         :param warn: If True, warn if the requested amount exceeds the bucket capacity.
-        
+
         >>> bucket = TokenBucket(bucket_name="test", bucket_type="test", capacity=10, refill_rate=1)
         >>> asyncio.run(bucket.get_tokens(5))
         >>> bucket.tokens
@@ -130,4 +130,5 @@ class TokenBucket:
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)
