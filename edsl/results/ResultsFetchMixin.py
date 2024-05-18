@@ -6,14 +6,14 @@ from itertools import chain
 class ResultsFetchMixin:
     """Mixin for fetching data from results."""
 
-    def _fetch_list(self, data_type:str, key:str) -> list:
+    def _fetch_list(self, data_type: str, key: str) -> list:
         """
         Return a list of values from the data for a given data type and key.
 
         Uses the filtered data, not the original data.
 
         Example:
-        
+
         >>> from edsl.results import Results
         >>> r = Results.example()
         >>> r._fetch_list('answer', 'how_feeling')
