@@ -6,7 +6,7 @@ A `Scenario` is a dictionary containing a key/value pair that is used to paramet
 
 Purpose 
 -------
-Scenarios let you create variations and versions of questions efficiently.
+Scenarios allow you create variations and versions of questions efficiently.
 For example, we could create a question `"What is your favorite {{ item }}?"` and use scenarios to replace the parameter `item` with `color` or `food` or other items.
 When we add the scenarios to the question, the question will be asked multiple times, once for each scenario, with the parameter replaced by the value in the scenario.
 This allows us to straightforwardly administer multiple versions of the question together in a survey, either asynchronously (by default) or according to :ref:`surveys` rules that we can specify (e.g., skip/stop logic).
@@ -73,18 +73,80 @@ This will print a table of the scenarios and the answers to the questions for ea
 
 .. code-block:: text
 
-    ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━┓
-    ┃ scenario                      ┃ answer          ┃ answer  ┃
-    ┃ .message                      ┃ .topic          ┃ .safety ┃
-    ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━┩
-    │ I need help with my bill...   │ Billing         │ No      │
-    ├───────────────────────────────┼─────────────────┼─────────┤
-    │ I need help with a product... │ Product support │ Unclear │
-    ├───────────────────────────────┼─────────────────┼─────────┤
-    │ I can't log in...             │ Login issue     │ No      │
-    ├───────────────────────────────┼─────────────────┼─────────┤
-    │ I have a safety concern...    │ Safety          │ Yes     │
-    └───────────────────────────────┴─────────────────┴─────────┘
+    ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━━┓
+    ┃ scenario                      ┃ answer  ┃ answer          ┃
+    ┃ .message                      ┃ .safety ┃ .topic          ┃
+    ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━━┩
+    │ I can't log in...             │ No      │ Login issue     │
+    ├───────────────────────────────┼─────────┼─────────────────┤
+    │ I need help with my bill...   │ No      │ Billing         │
+    ├───────────────────────────────┼─────────┼─────────────────┤
+    │ I have a safety concern...    │ Yes     │ Safety          │
+    ├───────────────────────────────┼─────────┼─────────────────┤
+    │ I need help with a product... │ Unclear │ Product support │
+    └───────────────────────────────┴─────────┴─────────────────┘
+
+
+Adding metadata
+^^^^^^^^^^^^^^^
+If we have metadata about the messages that we want to keep track of, we can add it to the scenarios as well.
+This will create additional columns for the metadata in the results dataset, but without the need to include it in our question texts.
+Here we modify the above example to use a dataset of messages with metadata. 
+Note that the question texts are unchanged:
+
+.. code-block:: python
+
+    from edsl.questions import QuestionMultipleChoice
+    from edsl import Survey, Scenario
+
+    # Create a question with a parameter
+    q1 = QuestionMultipleChoice(
+        question_name = "topic",
+        question_text = "What is the topic of this message: {{ message }}?",
+        question_options = ["Safety", "Product support", "Billing", "Login issue", "Other"]
+    )
+
+    q2 = QuestionMultipleChoice(
+        question_name = "safety",
+        question_text = "Does this message mention a safety issue? {{ message }}?",
+        question_options = ["Yes", "No", "Unclear"]
+    )
+
+    # Create scenarios for the sets of parameters
+    user_messages = [
+        {"message": "I can't log in...", "user": "Alice", "source": "Customer support", "date": "2022-01-01"}, 
+        {"message": "I need help with my bill...", "user": "Bob", "source": "Phone", "date": "2022-01-02"}, 
+        {"message": "I have a safety concern...", "user": "Charlie", "source": "Email", "date": "2022-01-03"}, 
+        {"message": "I need help with a product...", "user": "David", "source": "Chat", "date": "2022-01-04"}
+        ]
+    scenarios = [Scenario({"message": msg["message"], 
+                        "user": msg["user"],
+                        "source": msg["source"],
+                        "date": msg["date"]}) for msg in user_messages]
+
+    # Create a survey with the question
+    survey = Survey(questions = [q1, q2])
+
+    # Run the survey with the scenarios
+    results = survey.by(scenarios).run()
+
+
+We can then analyze the results to see how the agent answered the questions for each scenario, including the metadata:
+
+.. code-block:: text
+
+    ┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━━┓
+    ┃ scenario ┃ scenario         ┃ scenario   ┃ scenario                      ┃ answer  ┃ answer          ┃
+    ┃ .user    ┃ .source          ┃ .date      ┃ .message                      ┃ .safety ┃ .topic          ┃
+    ┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━━┩
+    │ Alice    │ Customer support │ 2022-01-01 │ I can't log in...             │ No      │ Login issue     │
+    ├──────────┼──────────────────┼────────────┼───────────────────────────────┼─────────┼─────────────────┤
+    │ Bob      │ Phone            │ 2022-01-02 │ I need help with my bill...   │ No      │ Billing         │
+    ├──────────┼──────────────────┼────────────┼───────────────────────────────┼─────────┼─────────────────┤
+    │ Charlie  │ Email            │ 2022-01-03 │ I have a safety concern...    │ Yes     │ Safety          │
+    ├──────────┼──────────────────┼────────────┼───────────────────────────────┼─────────┼─────────────────┤
+    │ David    │ Chat             │ 2022-01-04 │ I need help with a product... │ Unclear │ Product support │
+    └──────────┴──────────────────┴────────────┴───────────────────────────────┴─────────┴─────────────────┘
 
 
 To learn more about accessing, analyzing and visualizing survey results, please see the :ref:`results` section.
