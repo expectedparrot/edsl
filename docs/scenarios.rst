@@ -13,13 +13,11 @@ This allows us to straightforwardly administer multiple versions of the question
 
 Metadata
 ^^^^^^^^
-Scenarios are also a convenient way to keep track of metadata or other information relating to our survey questions that is important to our analysis of survey results.
-, such as the source of the data or the context in which it was collected.
-
-For example, say we are using scenarios to parameterize some questions with pieces of `{{ content }}` from a dataset.
+Scenarios are also a convenient way to keep track of metadata or other information relating to our survey questions that is important to our analysis of the results.
+For example, say we are using scenarios to parameterize questions with pieces of `{{ content }}` from a dataset.
 In our scenarios for the `content` parameter, we could also include metadata about the source of the content, such as the `{{ author }}`, the `{{ publication_date }}`, or the `{{ source }}`.
-These additional information are stored in the scenarios but only passed to the question texts if there is a corresponding parameter in the question text.
-When we run the survey, the information in the scenarios are included in the results, allowing us to readily analyze the responses in the context of the metadata without needing to match up the data with the metadata post-survey.
+This will create columns for the additional data in the survey results without passing them to the question texts if there is no corresponding parameter in the question texts.
+This allows us to analyze the responses in the context of the metadata without needing to match up the data with the metadata post-survey.
 We show an example of this feature in examples below.
 
 Data labeling tasks
