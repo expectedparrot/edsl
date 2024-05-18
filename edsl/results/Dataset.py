@@ -38,13 +38,13 @@ class Dataset(UserList, ResultsExportMixin):
 
         >>> d = Dataset([{'a.b':[1,2,3,4]}])
         >>> d.relevant_columns()
-        {'a.b'}
+        ['a.b']
 
         >>> d.relevant_columns(remove_prefix=True)
-        {'b'}
+        ['b']
 
         >>> from edsl.results import Results; Results.example().select('how_feeling', 'how_feeling_yesterday').relevant_columns()
-        {'answer.how_feeling', 'answer.how_feeling_yesterday'}
+        ['answer.how_feeling', 'answer.how_feeling_yesterday']
         """
         columns = [list(x.keys())[0] for x in self]
         # columns = set([list(result.keys())[0] for result in self.data])
