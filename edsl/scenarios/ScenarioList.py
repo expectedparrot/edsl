@@ -12,9 +12,9 @@ from simpleeval import EvalWithCompoundTypes
 from edsl.scenarios.Scenario import Scenario
 from edsl.Base import Base
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
+from edsl.scenarios.ScenarioListPdfMixin import ScenarioListPdfMixin
 
-
-class ScenarioList(Base, UserList):
+class ScenarioList(Base, UserList, ScenarioListPdfMixin):
     """Class for creating a list of scenarios to be used in a survey."""
 
     def __init__(self, data: Optional[list] = None):
@@ -24,7 +24,7 @@ class ScenarioList(Base, UserList):
 
     def __repr__(self):
         return f"ScenarioList({self.data})"
-
+    
     def _repr_html_(self) -> str:
         from edsl.utilities.utilities import data_to_html
 
