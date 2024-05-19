@@ -360,7 +360,7 @@ To learn more about methods of inspecting and printing results, please see the :
 
 
 LanguageModel class
---------------
+-------------------
 
 .. automodule:: edsl.language_models.LanguageModel
    :members:
