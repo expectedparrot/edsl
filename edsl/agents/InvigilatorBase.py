@@ -121,7 +121,12 @@ class InvigilatorBase(ABC):
 
     @classmethod
     def example(cls, throw_an_exception=False):
-        """Return an example invigilator."""
+        """Return an example invigilator.
+        
+        >>> InvigilatorBase.example()
+        <InvigilatorBase object at ...>
+        
+        """
         from edsl.agents.Agent import Agent
         from edsl.questions import QuestionMultipleChoice
         from edsl.scenarios.Scenario import Scenario
