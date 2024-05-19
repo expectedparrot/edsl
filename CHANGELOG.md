@@ -320,7 +320,18 @@ We modified exception messages. If your survey run generates exceptions, run `re
 - A bug in `Survey` method `add_skip_logic()`
 
 
-## [0.1.23] - 2024-05-18 - These changes are not live
+## [0.1.23] - 2024-05-18 
+
+### Added 
+
+- Optional parameter in `Results` method `to_list()` to flatten a list of lists (eg, responses to `QuestionList`): `results.to_list(flatten=True)`
+
+### Fixed
+
+- Erroneous error messages about adding rules to a survey.
+
+
+## [0.1.24] - 2024-TBD - These changes are not live
 
 ### Added 
 
@@ -328,23 +339,9 @@ We modified exception messages. If your survey run generates exceptions, run `re
 
 - [In progress] New methods for piping responses to questions into other questions. 
 
-- [In progress] Optional parameter in `Results` method `to_list()` to flatten a list of lists (eg, responses to `QuestionList`): `results.to_list(flatten=True)`
-
 ### Changed
 
 - [In progress] `QuestionMultipleChoice` is being modified allow non-responsive answers. Previously, an error was thrown if the agent did not select one of the given options. Details TBD.
-
-### Fixed
-
-### Deprecated
-
-### Removed
-
-## [0.1.24] - 2024-TBD
-
-### Added 
-
-### Changed
 
 ### Fixed
 
