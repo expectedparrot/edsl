@@ -392,6 +392,10 @@ class Jobs(Base):
             scenarios=[Scenario.from_dict(scenario) for scenario in data["scenarios"]],
         )
 
+    def __eq__(self, other: Jobs) -> bool:
+        """Return True if the Jobs instance is equal to another Jobs instance."""
+        return self.to_dict() == other.to_dict()
+
     #######################
     # Example methods
     #######################
