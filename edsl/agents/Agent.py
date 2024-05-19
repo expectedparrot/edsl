@@ -230,8 +230,8 @@ class Agent(Base):
 
         >>> a = Agent(traits = {})
         >>> a.create_invigilator(question = None, cache = False)
-        <edsl.agents.Invigilator.InvigilatorAI object at ...>
-
+        InvigilatorAI(...)
+        
         An invigator is an object that is responsible for administering a question to an agent and
         recording the responses.
         """
