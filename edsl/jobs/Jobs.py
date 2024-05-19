@@ -422,7 +422,7 @@ class Jobs(Base):
         """Return an example Jobs instance.
         
         >>> Jobs.example()
-        Jobs(survey=Survey(...), agents=[], models=[], scenarios=[])
+        Jobs(...)
         
         """
         import random

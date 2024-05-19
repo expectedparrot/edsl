@@ -63,6 +63,15 @@ class InvigilatorBase(ABC):
         self.cache = cache
         self.sidecar_model = sidecar_model
 
+    def __repr__(self) -> str:
+        """Return a string representation of the Invigilator.
+        
+        >>> InvigilatorBase.example().__repr__()
+        "InvigilatorExample(...)"
+        
+        """
+        return f"{self.__class__.__name__}(agent={repr(self.agent)}, question={repr(self.question)}, scneario={repr(self.scenario)}, model={repr(self.model)}, memory_plan={repr(self.memory_plan)}, current_answers={repr(self.current_answers)}, iteration{repr(self.iteration)}, additional_prompt_data={repr(self.additional_prompt_data)}, cache={repr(self.cache)}, sidecarmodel={repr(self.sidecar_model)})"
+
     def get_failed_task_result(self) -> AgentResponseDict:
         """Return an AgentResponseDict used in case the question-asking fails.
         
@@ -124,7 +133,7 @@ class InvigilatorBase(ABC):
         """Return an example invigilator.
         
         >>> InvigilatorBase.example()
-        <InvigilatorBase object at ...>
+        InvigilatorExample(agent=Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}), question=Question('multiple_choice', question_name = 'how_feeling', question_text = 'How are you?', question_options = ['Good', 'Great', 'OK', 'Bad']), scneario=Scenario({'persona': 'A reseacher studying whether LLMs can be used to generate surveys.'}), model=Model(model_name = 'test', temperature = 0.5), memory_plan={}, current_answers=None, iteration1, additional_prompt_data=None, cache=None, sidecarmodel=None)
         
         """
         from edsl.agents.Agent import Agent
@@ -166,7 +175,7 @@ class InvigilatorBase(ABC):
         memory_plan = MemoryPlan(survey=Survey.example())
         current_answers = None
 
-        class ExampleInvigilator(InvigilatorBase):
+        class InvigilatorExample(InvigilatorBase):
             """An example invigilator."""
 
             async def async_answer_question(self):
@@ -175,7 +184,7 @@ class InvigilatorBase(ABC):
                     user_prompt="Hello", system_prompt="Hi"
                 )
 
-        return ExampleInvigilator(
+        return InvigilatorExample(
             agent=agent,
             question=question,
             scenario=scenario,
