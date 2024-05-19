@@ -21,6 +21,13 @@ class AnswerValidatorMixin:
     def _validate_answer_template_basic(self, answer: Any) -> None:
         """Check that the answer (i) is a dictionary (ii) has an 'answer' key.
 
+        >>> avm = AnswerValidatorMixin()
+        >>> avm._validate_answer_template_basic({'answer': 1})
+        >>> avm._validate_answer_template_basic([])
+        Traceback (most recent call last):
+        ...
+        edsl.exceptions.questions.QuestionAnswerValidationError: Answer must be a dictionary (got []).
+
         - E.g., both {'answer': 1} and {'answer': {'a': 1}, 'other_key'=[1,2,3]} are valid
         """
         if not isinstance(answer, dict):
@@ -38,7 +45,9 @@ class AnswerValidatorMixin:
     def _validate_answer_key_value(
         self, answer: dict[str, Any], key: str, of_type: Type
     ) -> None:
-        """Check that the value of a key is of the specified type."""
+        """Check that the value of a key is of the specified type.
+                
+        """
         if not isinstance(answer.get(key), of_type):
             raise QuestionAnswerValidationError(
                 f"""Answer key '{key}' must be of type {of_type.__name__};
@@ -46,10 +55,21 @@ class AnswerValidatorMixin:
             )
 
     def _validate_answer_key_value_numeric(
-        self, answer: dict[str, Any], key: str
+        self, 
+        answer: dict[str, Any], 
+        key: str
     ) -> None:
-        """Check that the value of a key is numeric (int or float)."""
+        """Check that the value of a key is numeric (int or float).
+        
+        >>> avm = AnswerValidatorMixin()
+        >>> avm._validate_answer_key_value_numeric({'answer': 1}, 'answer')        
+        >>> avm._validate_answer_key_value_numeric({'answer': 'poo'}, 'answer')
+        Traceback (most recent call last):
+        ...
+        edsl.exceptions.questions.QuestionAnswerValidationError: Answer should be numerical (int or float). Got 'poo'
+        """
         value = answer.get(key)
+        initial_value = value
         if type(value) == str:
             value = value.replace(",", "")
             value = "".join(re.findall(r"[-+]?\d*\.\d+|\d+", value))
@@ -61,7 +81,7 @@ class AnswerValidatorMixin:
                     value = float(value)
                 except ValueError:
                     raise QuestionAnswerValidationError(
-                        f"Answer should be numerical (int or float)."
+                        f"Answer should be numerical (int or float). Got '{initial_value}'"
                     )
             return None
         elif type(value) == int or type(value) == float:
@@ -109,6 +129,18 @@ class AnswerValidatorMixin:
     def _validate_answer_checkbox(self, answer: dict[str, Union[str, int]]) -> None:
         """Validate QuestionCheckbox-specific answer.
 
+        :param answer: Answer to validate
+
+        >>> avm = AnswerValidatorMixin()
+        >>> avm.question_options = ["a", "b", "c"]
+        >>> avm.min_selections = 1
+        >>> avm.max_selections = 2
+        >>> avm._validate_answer_checkbox({"answer": ["0", "1"]})
+        >>> avm._validate_answer_checkbox({"answer": []})
+        Traceback (most recent call last):
+        ...
+        edsl.exceptions.questions.QuestionAnswerValidationError:...
+
         Check that answer["answer"]:
         - has elements that are strings, bytes-like objects or real numbers evaluating to integers
         - has elements that are in the range of the number of options
@@ -130,11 +162,11 @@ class AnswerValidatorMixin:
                 )
         if self.min_selections is not None and len(answer_codes) < self.min_selections:
             raise QuestionAnswerValidationError(
-                f"Answer {answer_codes} has fewer than {self.min_selections} options selected."
+                f"Answer codes, {answer_codes}, has fewer than {self.min_selections} options selected."
             )
         if self.max_selections is not None and len(answer_codes) > self.max_selections:
             raise QuestionAnswerValidationError(
-                f"Answer {answer_codes} has more than {self.max_selections} options selected."
+                f"Answer codes, {answer_codes}, has more than {self.max_selections} options selected."
             )
 
     def _validate_answer_extract(self, answer: dict[str, Any]) -> None:
@@ -255,3 +287,8 @@ class AnswerValidatorMixin:
             raise QuestionAnswerValidationError(
                 f"Rank answer {value}, but exactly {self.num_selections} selections required."
             )
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod(optionflags=doctest.ELLIPSIS)

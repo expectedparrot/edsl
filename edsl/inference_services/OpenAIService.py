@@ -121,7 +121,11 @@ class OpenAIService(InferenceServiceABC):
             @staticmethod
             def parse_response(raw_response: dict[str, Any]) -> str:
                 """Parses the API response and returns the response text."""
-                response = raw_response["choices"][0]["message"]["content"]
+                try:
+                    response = raw_response["choices"][0]["message"]["content"]
+                except KeyError:
+                    print("Tried to parse response but failed:")
+                    print(raw_response)
                 pattern = r"^```json(?:\\n|\n)(.+?)(?:\\n|\n)```$"
                 match = re.match(pattern, response, re.DOTALL)
                 if match:

@@ -110,8 +110,8 @@ def run_complex_survey():
     models = [Model("gpt-3.5-turbo"),Model("gpt-4-1106-preview")]
 
     # Run the survey with agents, and models
-    scenario = Scenario(scenarios)
-    results = survey.by(scenarios).by(agents).by(models).run()
+    #scenario = Scenario(scenarios)
+    results = survey.by(scenarios).by(agents).by(models).run(cache = False)
     #results.select("answer.*").print(format = "rich")
 
     return results
@@ -149,7 +149,7 @@ def create_serialization_test_data():
             }
         )
 
-    logging.info(f"Found {len(data)} registerd classes")
+    logging.info(f"Found {len(data)} registered classes")
     # check if all registered have edsl_version in the dict
     for item in data:
         if "edsl_version" not in item["dict"]:
@@ -161,7 +161,7 @@ def create_serialization_test_data():
 
     # 1. a simple survey that has been run
     s = RegisterSubclassesMeta.get_registry()["Survey"].example()
-    r = s.run()
+    r = s.run(cache = False)
     data.append(
         {
             "class_name": "Results",

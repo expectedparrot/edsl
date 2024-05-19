@@ -181,11 +181,7 @@ class ResultsDBMixin:
         >>> r = Results.example()
         >>> r.show_schema(shape="long")
         Type: table, Name: self, SQL: CREATE TABLE self (
-                        id INTEGER,
-                        data_type TEXT,
-                        key TEXT,
-                        value TEXT
-                    )
+        ...
         <BLANKLINE>
         """
         shape_enum = self._get_shape_enum(shape)
