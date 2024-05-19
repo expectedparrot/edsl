@@ -17,6 +17,8 @@ class Coop:
     def __init__(self, api_key: str = None, url: str = None) -> None:
         """
         Initialize the client.
+        - Provide an API key directly, or through an env variable.
+        - Provide a URL directly, or use the default one.
         """
         self.api_key = api_key or os.getenv("EXPECTED_PARROT_API_KEY")
         self.url = url or CONFIG.EXPECTED_PARROT_URL
@@ -47,14 +49,17 @@ class Coop:
         """
         url = f"{self.url}/{uri}"
         try:
-            if method.lower() in ["GET", "DELETE"]:
+            method = method.upper()
+            if method in ["GET", "DELETE"]:
                 response = requests.request(
                     method, url, params=params, headers=self.headers
                 )
-            else:
+            elif method in ["POST", "PATCH"]:
                 response = requests.request(
                     method, url, json=payload, headers=self.headers
                 )
+            else:
+                raise Exception(f"Invalid {method=}.")
         except requests.ConnectionError:
             raise requests.ConnectionError("Could not connect to the server.")
 
@@ -175,6 +180,7 @@ class Coop:
             method="GET",
             params={"type": object_type},
         )
+        print(response.json())
         self._resolve_server_response(response)
         objects = [
             {
