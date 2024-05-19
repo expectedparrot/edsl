@@ -1089,7 +1089,7 @@ Results class
 .. automodule:: edsl.results.Results
    :members:
    :inherited-members:
-   :exclude-members: append, clear, copy, count, extend, index, insert, pop, remove, reverse, sort, known_data_types, Mixins, main
+   :exclude-members: append, clear, copy, count, extend, index, insert, pop, remove, reverse, sort, known_data_types, Mixins, main, PromptDict
    :undoc-members:
    :special-members: __init__
 
