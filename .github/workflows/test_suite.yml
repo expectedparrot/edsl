@@ -40,7 +40,7 @@ jobs:
 
       - name: Install dependencies
         shell: bash
-        run: poetry install --with dev
+        run: poetry install --with dev,optional
 
       - name: Run edsl tests
         shell: bash
