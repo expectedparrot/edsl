@@ -357,3 +357,25 @@ The table will look like this:
      - My favorite color is blue. It reminds me of the ocean on a clear summer day, full of possibilities and mystery.
 
 To learn more about methods of inspecting and printing results, please see the :ref:`results` section.
+
+
+LanguageModel class
+-------------------
+
+.. automodule:: edsl.language_models.LanguageModel
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :special-members: __init__
+   :exclude-members: 
+
+
+Other methods
+-------------
+
+.. automodule:: edsl.language_models.registry
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :special-members: __init__
+   :exclude-members: 
