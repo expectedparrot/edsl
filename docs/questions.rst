@@ -49,11 +49,21 @@ We can combine questions into a survey by passing a list of questions to a `Surv
 
 .. code-block:: python 
 
+   from edsl.questions import QuestionFreeText
    from edsl import Survey 
 
-   q1 = <question_here>
-   q2 = <question_here>
-   q3 = <question_here>
+   q1 = QuestionFreeText(
+      question_name = "favorite_color",
+      question_text = "Which is your favorite color?"
+   )
+   q2 = QuestionFreeText(
+      question_name = "favorite_pet",
+      question_text = "Which is your favorite pet?"
+   )
+   q3 = QuestionFreeText(
+      question_name = "favorite_movie",
+      question_text = "Which is your favorite movie?"
+   )
 
    survey = Survey(questions = [q1, q2, q3])
 

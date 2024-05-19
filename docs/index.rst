@@ -159,7 +159,6 @@ Information about additional functionality for developers.
    notebooks/explore_survey_contexts.ipynb
    notebooks/free_responses.ipynb
    notebooks/digital_twin.ipynb
-   notebooks/grading_experiment.ipynb
    notebooks/river_problem.ipynb
 
 .. toctree::
