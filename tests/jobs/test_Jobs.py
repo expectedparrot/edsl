@@ -258,7 +258,7 @@ def test_jobs_bucket_creator(valid_job):
 
 def test_bad_jobs():
     from edsl.jobs import Jobs
-    j = Jobs.example(throw_exception=True)
+    j = Jobs.example(throw_exception_probability = 1.0)
     results = j.run()
     assert hasattr(results, "failed_jobs")
 
