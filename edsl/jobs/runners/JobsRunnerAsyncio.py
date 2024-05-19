@@ -15,7 +15,6 @@ from edsl.results import Results, Result
 from edsl.jobs.interviews.Interview import Interview
 from edsl.utilities.decorators import jupyter_nb_handler
 from edsl.jobs.Jobs import Jobs
-from edsl.utilities.utilities import is_notebook
 from edsl.jobs.runners.JobsRunnerStatusMixin import JobsRunnerStatusMixin
 from edsl.language_models import LanguageModel
 from edsl.data.Cache import Cache
@@ -25,6 +24,11 @@ from edsl.jobs.buckets.BucketCollection import BucketCollection
 
 
 class JobsRunnerAsyncio(JobsRunnerStatusMixin):
+    """A class for running a collection of interviews asynchronously.
+    
+    It gets instaniated from a Jobs object. 
+    The Jobs object is a collection of interviews that are to be run.
+    """
     def __init__(self, jobs: Jobs):
         self.jobs = jobs
 
@@ -39,6 +43,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         debug: bool = False,
         stop_on_exception: bool = False,
         sidecar_model: "LanguageModel" = None,
+        total_interviews: Optional[List["Interview"]] = None,
     ) -> AsyncGenerator[Result, None]:
         """Creates the tasks, runs them asynchronously, and returns the results as a Results object.
 
@@ -49,9 +54,12 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         :param stop_on_exception:
         """
         tasks = []
-        self._populate_total_interviews(
-            n=n
-        )  # Populate self.total_interviews before creating tasks
+        if total_interviews:
+            self.total_interviews = total_interviews
+        else:
+            self._populate_total_interviews(
+                n=n
+            )  # Populate self.total_interviews before creating tasks
 
         for interview in self.total_interviews:
             interviewing_task = self._build_interview_task(
@@ -71,6 +79,8 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
 
         :param n: how many times to run each interview.
         """
+        # TODO: Why not return a list of interviews instead of modifying the object?
+
         self.total_interviews = []
         for interview in self.interviews:
             for iteration in range(n):
@@ -238,6 +248,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         results.task_history = task_history
 
         if results.task_history.has_exceptions:
+            results.failed_jobs = Jobs.from_interviews([interview for interview in self.total_interviews if interview.has_exceptions])
             if len(results.task_history.indices) > 5:
                 msg = "Exceptions were raised in multiple interviews (> 5)."
             else:
