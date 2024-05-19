@@ -34,6 +34,7 @@ pydot = "^2.0.0"
 anthropic = "^0.23.1"
 pygments = "^2.17.2"
 matplotlib = "^3.8.4"
+pymupdf = "^1.24.4"
 
 [tool.poetry.dependencies.black]
 extras = ["jupyter"]
@@ -60,9 +61,6 @@ sphinx-fontawesome = "^0.0.6"
 sphinx-rtd-theme = "^2.0.0"
 toml = "^0.10.2"
 toml-sort = "^0.23.1"
-
-[tool.poetry.group.optional.dependencies]
-pymupdf = "^1.24.4"
 
 [[tool.poetry.packages]]
 include = "edsl"
