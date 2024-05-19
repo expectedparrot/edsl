@@ -418,8 +418,14 @@ class Jobs(Base):
     # Example methods
     #######################
     @classmethod
-    def example(cls, throw_exception = False) -> Jobs:
-        """Return an example Jobs instance."""
+    def example(cls, throw_exception_probability = 0) -> Jobs:
+        """Return an example Jobs instance.
+        
+        >>> Jobs.example()
+        Jobs(survey=Survey(...), agents=[], models=[], scenarios=[])
+        
+        """
+        import random
         from edsl.questions import QuestionMultipleChoice
         from edsl import Agent
 
@@ -438,7 +444,7 @@ class Jobs(Base):
         def answer_question_directly(self, question, scenario):
             """Return the answer to a question. This is a method that can be added to an agent."""
 
-            if throw_exception:
+            if random.random() < throw_exception_probability:
                 raise Exception("Error!")
             return agent_answers[
                 (self.traits["status"], question.question_name, scenario["period"])
