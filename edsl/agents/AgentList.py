@@ -39,7 +39,11 @@ class AgentList(UserList, Base):
 
     @add_edsl_version
     def to_dict(self):
-        """Return dictionary of AgentList to serialization."""
+        """Return dictionary of AgentList to serialization.
+        
+        >>> AgentList.example().to_dict()
+        {'agent_list': [{'traits': {'age': 22, 'hair': 'brown', 'height': 5.5}, 'edsl_version': '...', 'edsl_class_name': 'Agent'}, {'traits': {'age': 22, 'hair': 'brown', 'height': 5.5}, 'edsl_version': '...', 'edsl_class_name': 'Agent'}], 'edsl_version': '...', 'edsl_class_name': 'AgentList'}
+        """
         return {"agent_list": [agent.to_dict() for agent in self.data]}
 
     def __repr__(self):
@@ -61,22 +65,42 @@ class AgentList(UserList, Base):
         """Deserialize the dictionary back to an AgentList object.
 
         :param: data: A dictionary representing an AgentList.
+
+        >>> al = AgentList([Agent.example(), Agent.example()])
+        >>> al2 = AgentList.from_dict(al.to_dict())
+        >>> al2 == al
+        True
         """
         agents = [Agent.from_dict(agent_dict) for agent_dict in data["agent_list"]]
         return cls(agents)
 
     @classmethod
     def example(cls) -> "AgentList":
-        """Return an example AgentList."""
+        """Return an example AgentList.
+        
+        >>> al = AgentList.example()
+        >>> len(al)
+        2
+        
+        """
         return cls([Agent.example(), Agent.example()])
 
-    def code(self) -> list[str]:
-        """Return code to construct an AgentList."""
+    def code(self, string = True) -> Union[str, list[str]]:
+        """Return code to construct an AgentList.
+        
+        >>> al = AgentList.example()
+        >>> print(al.code())
+        from edsl.agents.Agent import Agent
+        from edsl.agents.AgentList import AgentList
+        agent_list = AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
+        """
         lines = [
             "from edsl.agents.Agent import Agent",
             "from edsl.agents.AgentList import AgentList",
         ]
         lines.append(f"agent_list = AgentList({self.data})")
+        if string:
+            return "\n".join(lines)
         return lines
 
     def rich_print(self) -> Table:

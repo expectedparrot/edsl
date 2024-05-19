@@ -224,6 +224,14 @@ class Agent(Base):
     ) -> InvigilatorBase:
         """Create an Invigilator.
 
+        An invigilator is an object that is responsible for administering a question to an agent. 
+        There are several different types of invigilators, depending on the type of question and the agent.
+        For example, there are invigilators for functional questions (i.e., question is of type :class:`edsl.questions.QuestionFunctional`:), for direct questions, and for LLM questions.
+
+        >>> a = Agent(traits = {})
+        >>> a.create_invigilator(question = None, cache = False)
+        <edsl.agents.Invigilator.InvigilatorAI object at ...>
+
         An invigator is an object that is responsible for administering a question to an agent and
         recording the responses.
         """
@@ -267,9 +275,16 @@ class Agent(Base):
         :param current_answers: The current answers.
         :param iteration: The iteration number.
 
+        >>> a = Agent(traits = {})
+        >>> a.add_direct_question_answering_method(lambda self, question, scenario: "I am a direct answer.")
+        >>> from edsl import QuestionFreeText
+        >>> q = QuestionFreeText.example()
+        >>> a.answer_question(question = q, cache = False)
+        {'answer': 'I am a direct answer.', 'comment': 'This is a real survey response from a human.', 'question_name': 'how_are_you', 'prompts': {'user_prompt': Prompt(text='NA'), 'system_prompt': Prompt(text='NA')}, 'usage': {'prompt_tokens': 0, 'completion_tokens': 0}, 'cached_response': None, 'raw_model_response': None, 'simple_model_raw_response': None}
+
         This is a function where an agent returns an answer to a particular question.
         However, there are several different ways an agent can answer a question, so the
-        actual functionality is delegated to an Invigilator object.
+        actual functionality is delegated to an :class:`edsl.agents.InvigilatorBase`: object.
         """
         invigilator = self.create_invigilator(
             question=question,
@@ -390,7 +405,7 @@ class Agent(Base):
 
         print_json(json.dumps(self.to_dict()))
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """Return representation of Agent."""
         class_name = self.__class__.__name__
         items = [
@@ -409,7 +424,7 @@ class Agent(Base):
     # SERIALIZATION METHODS
     #######################
     @property
-    def data(self):
+    def data(self) -> dict:
         """Format the data for serialization.
 
         TODO: Warn if has dynamic traits function or direct answer function that cannot be serialized.
@@ -472,7 +487,14 @@ class Agent(Base):
         return table_data, column_names
 
     def rich_print(self):
-        """Display an object as a rich table."""
+        """Display an object as a rich table.
+        
+        Example usage:
+
+        >>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
+        >>> a.rich_print()
+        <rich.table.Table object at ...>
+        """
         table_data, column_names = self._table()
         table = Table(title=f"{self.__class__.__name__} Attributes")
         for column in column_names:
@@ -495,9 +517,15 @@ class Agent(Base):
 
     def code(self) -> str:
         """Return the code for the agent.
-        TODO: Add code for dynamic traits function.
+
+        Example usage:
+
+        >>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
+        >>> print(a.code())
+        from edsl import Agent
+        agent = Agent(traits={'age': 10, 'hair': 'brown', 'height': 5.5})
         """
-        return f"from edsl import Agent\nAgent(traits={self.traits})"
+        return f"from edsl import Agent\nagent = Agent(traits={self.traits})"
 
 
 def main():
