@@ -14,7 +14,7 @@ help: ## Show this helpful message
 install: ## Install all project deps and create a venv (local)
 	make clean-all
 	@echo "Creating a venv from pyproject.toml and installing deps using poetry..."
-	poetry install --with dev,optional
+	poetry install --with dev
 	@echo "All deps installed and venv created."
 
 find: ## Search for a pattern. Use `make find term="pattern"`
