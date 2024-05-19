@@ -145,6 +145,8 @@ Information about additional functionality for developers.
    :hidden:
 
    notebooks/data_labeling_agent.ipynb
+   notebooks/conduct_interview.ipynb
+   notebooks/qualitative_research.ipynb
    notebooks/random_numbers.ipynb
    notebooks/model_walkoff.ipynb
    notebooks/concept_induction.ipynb
@@ -156,7 +158,6 @@ Information about additional functionality for developers.
    notebooks/research_random_silicon_sampling.ipynb
    notebooks/explore_survey_contexts.ipynb
    notebooks/free_responses.ipynb
-   notebooks/qualitative_research.ipynb
    notebooks/digital_twin.ipynb
    notebooks/grading_experiment.ipynb
    notebooks/river_problem.ipynb
