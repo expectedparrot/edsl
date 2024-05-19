@@ -386,6 +386,10 @@ if __name__ == "__main__":
             coop.delete(object_type=object_type, uuid=item.get("uuid"))
         assert len(coop.get_all(object_type)) == 0
 
+    response = QuestionMultipleChoice.example().push()
+    QuestionMultipleChoice.pull(response.get("uuid"))
+    coop.delete(object_type="question", uuid=response.get("uuid"))
+
     ##############
     # B. Jobs
     ##############
