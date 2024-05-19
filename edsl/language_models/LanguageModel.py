@@ -307,6 +307,9 @@ class LanguageModel(
     def has_valid_api_key(self) -> bool:
         """Check if the model has a valid API key.
 
+        >>> LanguageModel.example().has_valid_api_key()
+        True
+
         This method is used to check if the model has a valid API key.
         """
         from edsl.enums import service_to_api_keyname
@@ -334,6 +337,17 @@ class LanguageModel(
         """
         return self.model == other.model and self.parameters == other.parameters
 
+    def set_rate_limits(self, rpm=None, tpm=None) -> None:
+        """Set the rate limits for the model.
+
+
+        >>> m = LanguageModel.example()
+        >>> m.set_rate_limits(rpm=100, tpm=1000)
+        >>> m.RPM
+        80.0
+        """
+        self._set_rate_limits(rpm=rpm, tpm=tpm)
+
     def _set_rate_limits(self, rpm=None, tpm=None) -> None:
         """Set the rate limits for the model.
 
@@ -356,7 +370,12 @@ class LanguageModel(
 
     @property
     def TPM(self):
-        """Model's tokens-per-minute limit."""
+        """Model's tokens-per-minute limit.
+        
+        >>> m = LanguageModel.example()
+        >>> m.TPM
+        1600000.0
+        """
         self._set_rate_limits()
         return self._safety_factor * self.__rate_limits["tpm"]
 
@@ -394,7 +413,12 @@ class LanguageModel(
 
     @jupyter_nb_handler
     def execute_model_call(self, *args, **kwargs) -> Coroutine:
-        """Execute the model call and returns the result as a coroutine."""
+        """Execute the model call and returns the result as a coroutine.
+        
+        >>> m = LanguageModel.example()
+        >>> m.execute_model_call("Hello, model!", "You are a helpful agent.")
+        
+        """
 
         async def main():
             results = await asyncio.gather(
@@ -617,6 +641,5 @@ if __name__ == "__main__":
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)
 
-    from edsl.language_models import LanguageModel
-
-    print(LanguageModel.example())
+    #from edsl.language_models import LanguageModel
+    #print(LanguageModel.example())
