@@ -40,12 +40,12 @@ class RichPrintingMixin:
 class PersistenceMixin:
     """Mixin for saving and loading objects to and from files."""
 
-    def push(self, public=True):
+    def push(self, visibility="unlisted"):
         """Post the object to coop."""
         from edsl.coop import Coop
 
         c = Coop()
-        return c.create(self, public, verbose=True)
+        return c.create(self, visibility)
 
     @classmethod
     def pull(cls, id_or_url: Union[str, UUID]):
