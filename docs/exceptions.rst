@@ -97,6 +97,12 @@ This will display a table showing the question name, the exception that was rais
     └──────────────┴──────────────────────────────────┴────────────────────┴──────────────────────┘
 
 
+Missing packages
+----------------
+A `ModuleNotFoundError` exception will be raised if a required package is not installed. 
+This is more likely to occur when cloning the repository instead of installing the package using `pip install edsl`.
+It can typically be remedied by reinstalling your virtual environment or installing the missing package using `pip install <package_name>`.
+
 
 .. .. automodule:: edsl.results.Results
 ..    :members: show_exceptions
