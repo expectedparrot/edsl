@@ -35,6 +35,7 @@ anthropic = "^0.23.1"
 pygments = "^2.17.2"
 matplotlib = "^3.8.4"
 pymupdf = "^1.24.4"
+restrictedpython = "^7.1"
 
 [tool.poetry.dependencies.black]
 extras = ["jupyter"]
