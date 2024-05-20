@@ -3,13 +3,13 @@ from edsl import (
     Agent,
     Cache,
     Coop,
+    Jobs,
     QuestionCheckBox,
     QuestionFreeText,
     QuestionMultipleChoice,
     Results,
     Survey,
 )
-from edsl.jobs import Jobs
 
 
 def coop_object_api_workflows(object_type, object_examples):

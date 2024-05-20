@@ -5,7 +5,7 @@ import requests
 from typing import Any, Optional, Union, Literal
 from uuid import UUID
 import edsl
-from edsl import CONFIG
+from edsl import CONFIG, CacheEntry
 from edsl.coop.utils import EDSLObject, ObjectRegistry, ObjectType, VisibilityType
 
 
@@ -194,7 +194,7 @@ class Coop:
         ]
         return objects
 
-    def delete(self, object_type: str, uuid: Union[str, UUID]) -> dict:
+    def delete(self, object_type: ObjectType, uuid: Union[str, UUID]) -> dict:
         """
         Delete an object from the server.
         """
@@ -209,8 +209,6 @@ class Coop:
     ################
     # Remote Caching
     ################
-    from edsl.data.CacheEntry import CacheEntry
-
     def create_cache_entry(
         self, cache_entry: CacheEntry, visibility: str = "unlisted"
     ) -> dict:
