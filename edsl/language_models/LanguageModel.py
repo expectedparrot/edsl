@@ -390,6 +390,29 @@ class LanguageModel(
 
     get_response = sync_wrapper(async_get_response)
 
+    async def _repair_json_response(answer: str, full_model_response: dict) -> dict:
+        """
+        Attempt to parse a JSON string and repair if parsing fails.
+
+        :param answer: The JSON string to parse.
+        :param full_model_response: The full model response for logging purposes.
+        :return: A dictionary containing the parsed JSON or a repaired version.
+        :raises: Exception if both parsing and repair fail.
+        """
+        try:
+            dict_answer = json.loads(answer)
+        except json.JSONDecodeError as e:
+            print("JSON decoding failed: %s", e)
+            print("Raw model response: %s", full_model_response)
+            print("Parsed response: %s", answer)
+
+            # TODO: Turn into logs to generate issues
+            dict_answer, success = await repair(answer, str(e))
+            if not success:
+                raise Exception("Even the repair failed.")
+        return dict_answer
+
+
     def cost(self, raw_response: dict[str, Any]) -> float:
         """Return the dollar cost of a raw response."""
         raise NotImplementedError
