@@ -172,6 +172,15 @@ class QuestionFunctional(QuestionBase):
             "function_name": self.function_name,
         }
 
+    @classmethod
+    def example(cls):
+        return cls(
+            question_name="sum_and_multiply",
+            func=calculate_sum_and_multiply,
+            question_text="Calculate the sum of the list and multiply it by the agent trait multiplier.",
+            requires_loop=True,
+        )
+
 
 def calculate_sum_and_multiply(scenario, agent_traits):
     numbers = scenario.get("numbers", [])
@@ -182,27 +191,16 @@ def calculate_sum_and_multiply(scenario, agent_traits):
     return sum * multiplier
 
 
-if __name__ == "__main__":
+def main():
     from edsl import Scenario, Agent
+    from edsl.questions.QuestionFunctional import QuestionFunctional
 
     # Create an instance of QuestionFunctional with the new function
-    question = QuestionFunctional(
-        question_name="sum_and_multiply",
-        func=calculate_sum_and_multiply,
-        question_text="Calculate the sum of the list and multiply it by the agent trait multiplier.",
-    )
+    question = QuestionFunctional.example()
 
     # Activate and test the function
-    question.activate_loop()
+    question.activate()
     scenario = Scenario({"numbers": [1, 2, 3, 4, 5]})
     agent = Agent(traits={"multiplier": 10})
     results = question.by(scenario).by(agent).run()
-    print(results)
-
-    dict_q = question.to_dict()
-    print("#####")
-    new_q = QuestionFunctional.from_dict(dict_q)
-
-    new_q.activate()
-    results = new_q.by(scenario).by(agent).run()
     print(results)
