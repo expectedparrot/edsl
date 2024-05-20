@@ -399,7 +399,13 @@ class LanguageModel(
 
     @abstractmethod
     async def async_execute_model_call(user_prompt: str, system_prompt:str):
-        """Execute the model call and returns the result as a coroutine."""
+        """Execute the model call and returns the result as a coroutine.
+        
+        >>> m = LanguageModel.example(test_model = True)
+        >>> m.execute_model_call("Hello, model!", "You are a helpful agent.")
+        {'message': '{"answer": "Hello world"}'}
+    
+        """
         pass
 
     async def remote_async_execute_model_call(self, user_prompt:str, system_prompt:str):
@@ -416,8 +422,8 @@ class LanguageModel(
     def execute_model_call(self, *args, **kwargs) -> Coroutine:
         """Execute the model call and returns the result as a coroutine.
         
-        >>> m = LanguageModel.example()
-        >>> m.execute_model_call("Hello, model!", "You are a helpful agent.")
+        >>> m = LanguageModel.example(test_model = True)
+        >>> m.execute_model_call(user_prompt = "Hello, model!", system_prompt = "You are a helpful agent.")
         
         """
 
@@ -433,7 +439,9 @@ class LanguageModel(
     def parse_response(raw_response: dict[str, Any]) -> str:
         """Parse the response and returns the response text.
 
-        >>> m = LanguageModel.example()
+        >>> m = LanguageModel.example(test_model = True)
+        >>> m
+        Model(model_name = 'test', temperature = 0.5)
 
         What is returned by the API is model-specific and often includes meta-data that we do not need.
         For example, here is the results from a call to GPT-4:
@@ -451,6 +459,7 @@ class LanguageModel(
         >>> m._update_response_with_tracking(response={"response": "Hello"}, start_time=0, cached_response=False, cache_key=None)
         {'response': 'Hello', 'elapsed_time': ..., 'timestamp': ..., 'cached_response': False, 'cache_key': None}
         
+
         """
         end_time = time.time()
         response["elapsed_time"] = end_time - start_time
@@ -481,6 +490,11 @@ class LanguageModel(
 
         If self.use_cache is True, then attempts to retrieve the response from the database;
         if not in the DB, calls the LLM and writes the response to the DB.
+
+        >>> from edsl import Cache
+        >>> m = LanguageModel.example(test_model = True)
+        >>> m.get_raw_response(user_prompt = "Hello", system_prompt = "hello", cache = Cache())
+        {'message': '{"answer": "Hello world"}', 'elapsed_time': ..., 'timestamp': ..., 'cached_response': False, 'cache_key': '24ff6ac2bc2f1729f817f261e0792577'}
         """
         start_time = time.time()
 
@@ -669,7 +683,6 @@ if __name__ == "__main__":
     doctest.testmod(optionflags=doctest.ELLIPSIS)
 
     #from edsl.language_models import LanguageModel
-    m = LanguageModel.example(test_model = True)
 
     #from edsl.language_models import LanguageModel
     #print(LanguageModel.example())
