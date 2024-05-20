@@ -46,13 +46,32 @@ def handle_key_error(func):
 class LanguageModel(
     RichPrintingMixin, PersistenceMixin, ABC, metaclass=RegisterLanguageModelsMeta
 ):
-    """ABC for LLM subclasses."""
+    """ABC for LLM subclasses.
+    
+    TODO: 
+
+    1) Need better, more descriptive names for functions
+
+    get_model_response_no_cache  (currently called async_execute_model_call)
+    
+    get_model_response (currently called async_get_raw_response; uses cache & adds tracking info)
+      Calls:
+        - async_execute_model_call
+        - _updated_model_response_with_tracking
+
+    get_answer (currently called async_get_response)
+        This parses out the answer block and does some error-handling.
+        Calls:
+            - async_get_raw_response
+            - parse_response
+
+    
+    """
 
     _model_ = None
 
     __rate_limits = None
-    # TODO: Use the OpenAI Teir 1 rate limits
-    __default_rate_limits = {"rpm": 10_000, "tpm": 2_000_000}
+    __default_rate_limits = {"rpm": 10_000, "tpm": 2_000_000} # TODO: Use the OpenAI Teir 1 rate limits
     _safety_factor = 0.8
 
     def __init__(self, **kwargs):
@@ -80,7 +99,7 @@ class LanguageModel(
             self._api_token = None
 
     @property
-    def api_token(self):
+    def api_token(self) -> str:
         if not hasattr(self, "_api_token"):
             key_name = service_to_api_keyname.get(self._inference_service_, "NOT FOUND")
             self._api_token = os.getenv(key_name)
@@ -149,7 +168,6 @@ class LanguageModel(
 
     def set_rate_limits(self, rpm=None, tpm=None) -> None:
         """Set the rate limits for the model.
-
 
         >>> m = LanguageModel.example()
         >>> m.set_rate_limits(rpm=100, tpm=1000)
@@ -382,36 +400,15 @@ class LanguageModel(
             dict_response, success = await repair(response, str(e))
             if not success:
                 raise Exception("Even the repair failed.")
-
-        dict_response["cached_response"] = raw_response["cached_response"]
-        dict_response["usage"] = raw_response.get("usage", {})
-        dict_response["raw_model_response"] = raw_response
+            
+        dict_response.update({
+            'cached_response': raw_response["cached_response"],
+            'usage': raw_response.get("usage", {}),
+            'raw_model_response': raw_response,
+        })
         return dict_response
 
     get_response = sync_wrapper(async_get_response)
-
-    async def _repair_json_response(answer: str, full_model_response: dict) -> dict:
-        """
-        Attempt to parse a JSON string and repair if parsing fails.
-
-        :param answer: The JSON string to parse.
-        :param full_model_response: The full model response for logging purposes.
-        :return: A dictionary containing the parsed JSON or a repaired version.
-        :raises: Exception if both parsing and repair fail.
-        """
-        try:
-            dict_answer = json.loads(answer)
-        except json.JSONDecodeError as e:
-            print("JSON decoding failed: %s", e)
-            print("Raw model response: %s", full_model_response)
-            print("Parsed response: %s", answer)
-
-            # TODO: Turn into logs to generate issues
-            dict_answer, success = await repair(answer, str(e))
-            if not success:
-                raise Exception("Even the repair failed.")
-        return dict_answer
-
 
     def cost(self, raw_response: dict[str, Any]) -> float:
         """Return the dollar cost of a raw response."""
