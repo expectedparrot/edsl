@@ -63,41 +63,62 @@ from edsl.questions.descriptors import FunctionDescriptor
 class QuestionFunctional(QuestionBase):
     """A special type of question that is *not* answered by an LLM."""
 
-    func: Callable = FunctionDescriptor()
     question_type = "functional"
     default_instructions = ""
     activated = False
-    source_code = ""
+    function_source_code = ""
     function_name = ""
 
     def __init__(
         self,
         question_name: str,
-        func: Callable,
+        func: Optional[Callable] = None,
         question_text: Optional[str] = "Functional question",
+        requires_loop: Optional[bool] = False,
+        function_source_code: Optional[str] = None,
+        function_name: Optional[str] = None,
     ):
         super().__init__()
+        if func:
+            self.function_source_code = inspect.getsource(func)
+            self.function_name = func.__name__
+        else:
+            self.function_source_code = function_source_code
+            self.function_name = function_name
+
+        self.requires_loop = requires_loop
+
+        self.func = self.create_restricted_function()
+
         self.question_name = question_name
-        self.func = func
         self.question_text = question_text
         self.instructions = self.default_instructions
-        self.source_code = inspect.getsource(func)
-        self.function_name = func.__name__
 
-    def activate(self):
+    def create_restricted_function(self):
         """Activate the function using RestrictedPython with basic restrictions."""
         safe_env = safe_globals.copy()
         safe_env["__builtins__"] = {**safe_builtins}
         safe_env["_getitem_"] = default_guarded_getitem
-        byte_code = compile_restricted(self.source_code, "<string>", "exec")
+
+        if self.requires_loop:
+            safe_env["_getiter_"] = guarded_iter
+            safe_env["_iter_unpack_sequence_"] = guarded_iter_unpack_sequence
+
+        byte_code = compile_restricted(self.function_source_code, "<string>", "exec")
         loc = {}
         try:
             exec(byte_code, safe_env, loc)
-            self.func = loc[self.function_name]
-            self.activated = True
+            func = loc[self.function_name]
         except Exception as e:
-            print("Activation error:", e)
-            raise QuestionFunctionActivatedException("Activation failed.")
+            print("Creating restricted funtion error", e)
+            raise QuestionFunctionActivatedException(
+                "Creating restricted funtion failed"
+            )
+
+        return func
+
+    def activate(self):
+        self.activated = True
 
     def activate_loop(self):
         """Activate the function with loop logic using RestrictedPython."""
@@ -105,12 +126,15 @@ class QuestionFunctional(QuestionBase):
         safe_env["__builtins__"] = {**safe_builtins}
         safe_env["_getiter_"] = guarded_iter
         safe_env["_iter_unpack_sequence_"] = guarded_iter_unpack_sequence
-        byte_code = compile_restricted(self.source_code, "<string>", "exec")
+        byte_code = compile_restricted(self.function_source_code, "<string>", "exec")
         loc = {}
+
+        self.requires_loop = True
+        self.activated = True
+
         try:
             exec(byte_code, safe_env, loc)
             self.func = loc[self.function_name]
-            self.activated = True
         except Exception as e:
             print("Loop activation error:", e)
             raise QuestionFunctionRunningException("Activation with loops failed.")
@@ -141,9 +165,11 @@ class QuestionFunctional(QuestionBase):
 
     def to_dict(self):
         return {
-            "function_source_code": self.source_code,
-            "function_name": self.function_name,
+            "question_name": self.question_name,
+            "function_source_code": self.function_source_code,
             "question_type": "functional",
+            "requires_loop": self.requires_loop,
+            "function_name": self.function_name,
         }
 
 
@@ -171,4 +197,12 @@ if __name__ == "__main__":
     scenario = Scenario({"numbers": [1, 2, 3, 4, 5]})
     agent = Agent(traits={"multiplier": 10})
     results = question.by(scenario).by(agent).run()
+    print(results)
+
+    dict_q = question.to_dict()
+    print("#####")
+    new_q = QuestionFunctional.from_dict(dict_q)
+
+    new_q.activate()
+    results = new_q.by(scenario).by(agent).run()
     print(results)
