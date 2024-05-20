@@ -48,7 +48,7 @@ class TestAgentList(unittest.TestCase):
 
     def test_code_method(self):
         agent_list = AgentList(self.example_agents)
-        code_lines = agent_list.code()
+        code_lines = agent_list.code(string = False)
         self.assertIsInstance(code_lines, list)
         # Test if the code lines are as expected
         # ...

@@ -63,8 +63,21 @@ class InvigilatorBase(ABC):
         self.cache = cache
         self.sidecar_model = sidecar_model
 
+    def __repr__(self) -> str:
+        """Return a string representation of the Invigilator.
+        
+        >>> InvigilatorBase.example().__repr__()
+        "InvigilatorExample(...)"
+        
+        """
+        return f"{self.__class__.__name__}(agent={repr(self.agent)}, question={repr(self.question)}, scneario={repr(self.scenario)}, model={repr(self.model)}, memory_plan={repr(self.memory_plan)}, current_answers={repr(self.current_answers)}, iteration{repr(self.iteration)}, additional_prompt_data={repr(self.additional_prompt_data)}, cache={repr(self.cache)}, sidecarmodel={repr(self.sidecar_model)})"
+
     def get_failed_task_result(self) -> AgentResponseDict:
-        """Return an AgentResponseDict used in case the question-asking fails."""
+        """Return an AgentResponseDict used in case the question-asking fails.
+        
+        >>> InvigilatorBase.example().get_failed_task_result()
+        {'answer': None, 'comment': 'Failed to get response', 'question_name': 'how_feeling', ...}
+        """
         return AgentResponseDict(
             answer=None,
             comment="Failed to get response",
@@ -73,7 +86,11 @@ class InvigilatorBase(ABC):
         )
 
     def get_prompts(self) -> Dict[str, Prompt]:
-        """Return the prompt used."""
+        """Return the prompt used.
+        
+        >>> InvigilatorBase.example().get_prompts()
+        {'user_prompt': Prompt(text='NA'), 'system_prompt': Prompt(text='NA')}
+        """
         return {
             "user_prompt": Prompt("NA"),
             "system_prompt": Prompt("NA"),
@@ -95,15 +112,30 @@ class InvigilatorBase(ABC):
 
         return main()
 
-    def create_memory_prompt(self, question_name):
-        """Create a memory for the agent."""
+    def create_memory_prompt(self, question_name: str) -> Prompt:
+        """Create a memory for the agent.
+        
+        The returns a memory prompt for the agent. 
+
+        >>> i = InvigilatorBase.example()
+        >>> i.current_answers = {"q0": "Prior answer"}
+        >>> i.memory_plan.add_single_memory("q1", "q0")
+        >>> p = i.create_memory_prompt("q1")
+        >>> p.text.strip().replace("\\n", " ").replace("\\t", " ")
+        'Before the question you are now answering, you already answered the following question(s):          Question: Do you like school?  Answer: Prior answer'
+        """
         return self.memory_plan.get_memory_prompt_fragment(
             question_name, self.current_answers
         )
 
     @classmethod
     def example(cls, throw_an_exception=False):
-        """Return an example invigilator."""
+        """Return an example invigilator.
+        
+        >>> InvigilatorBase.example()
+        InvigilatorExample(agent=Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}), question=Question('multiple_choice', question_name = 'how_feeling', question_text = 'How are you?', question_options = ['Good', 'Great', 'OK', 'Bad']), scneario=Scenario({'persona': 'A reseacher studying whether LLMs can be used to generate surveys.'}), model=Model(model_name = 'test', temperature = 0.5), memory_plan={}, current_answers=None, iteration1, additional_prompt_data=None, cache=None, sidecarmodel=None)
+        
+        """
         from edsl.agents.Agent import Agent
         from edsl.questions import QuestionMultipleChoice
         from edsl.scenarios.Scenario import Scenario
@@ -143,7 +175,7 @@ class InvigilatorBase(ABC):
         memory_plan = MemoryPlan(survey=Survey.example())
         current_answers = None
 
-        class ExampleInvigilator(InvigilatorBase):
+        class InvigilatorExample(InvigilatorBase):
             """An example invigilator."""
 
             async def async_answer_question(self):
@@ -152,7 +184,7 @@ class InvigilatorBase(ABC):
                     user_prompt="Hello", system_prompt="Hi"
                 )
 
-        return ExampleInvigilator(
+        return InvigilatorExample(
             agent=agent,
             question=question,
             scenario=scenario,

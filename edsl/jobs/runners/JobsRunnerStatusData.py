@@ -19,26 +19,43 @@ from edsl.jobs.interviews.InterviewStatisticsCollection import (
 
 
 class JobsRunnerStatusData:
-    # pricing = pricing
 
-    def status_dict(self, interviews):
+    def status_dict(self, interviews: List[Type["Interview"]]) -> List[Type[InterviewStatusDictionary]]:
+        """
+        >>> from edsl.jobs.interviews.Interview import Interview
+        >>> interviews = [Interview.example()]
+        >>> JobsRunnerStatusData().status_dict(interviews)
+        [InterviewStatusDictionary({<TaskStatus.NOT_STARTED: 1>: 0, <TaskStatus.WAITING_FOR_DEPENDENCIES: 2>: 0, <TaskStatus.CANCELLED: 3>: 0, <TaskStatus.PARENT_FAILED: 4>: 0, <TaskStatus.WAITING_FOR_REQUEST_CAPACITY: 5>: 0, <TaskStatus.WAITING_FOR_TOKEN_CAPACITY: 6>: 0, <TaskStatus.API_CALL_IN_PROGRESS: 7>: 0, <TaskStatus.SUCCESS: 8>: 0, <TaskStatus.FAILED: 9>: 0, 'number_from_cache': 0})]
+        """
         status = []
         for interview in interviews:
-            # model = interview.model
             status.append(interview.interview_status)
 
         return status
-        # return model_to_status
 
-    def status_counts(self, interviews):
+    def status_counts(self, interviews: List[Type["Interview"]]):
+        """
+        Takes a collection of interviews and returns a dictionary of the counts of each status.
+
+        :param interviews: a collection of interviews.
+
+        This creates a dictionary of the counts of each status in the collection of interviews.
+
+        >>> from edsl.jobs.interviews.Interview import Interview
+        >>> interviews = [Interview.example() for _ in range(100)]
+        >>> jd = JobsRunnerStatusData()
+        >>> jd.status_counts(interviews)
+        dict_values([InterviewStatusDictionary({<TaskStatus.NOT_STARTED: 1>: 0, <TaskStatus.WAITING_FOR_DEPENDENCIES: 2>: 0, <TaskStatus.CANCELLED: 3>: 0, <TaskStatus.PARENT_FAILED: 4>: 0, <TaskStatus.WAITING_FOR_REQUEST_CAPACITY: 5>: 0, <TaskStatus.WAITING_FOR_TOKEN_CAPACITY: 6>: 0, <TaskStatus.API_CALL_IN_PROGRESS: 7>: 0, <TaskStatus.SUCCESS: 8>: 0, <TaskStatus.FAILED: 9>: 0, 'number_from_cache': 0})])
+        >>> len(jd.status_counts(interviews))
+        1
+        """
         model_to_status = defaultdict(InterviewStatusDictionary)
 
         for interview in interviews:
-            model = interview.model
-            model_to_status[model] += interview.interview_status
+            model = interview.model # get the model for the interview
+            model_to_status[model] += interview.interview_status  # InterviewStatusDictionary objects can be added together
 
-        # breakpoint()
-        return model_to_status.values()
+        return model_to_status.values() # return the values of the dictionary, which is a list of dictionaries
 
     def generate_status_summary(
         self,
@@ -51,6 +68,13 @@ class JobsRunnerStatusData:
         :param completed_tasks: list of completed tasks
         :param elapsed_time: time elapsed since the start of the job
         :param interviews: list of interviews to be conducted
+
+        >>> from edsl.jobs.interviews.Interview import Interview
+        >>> interviews = [Interview.example()]
+        >>> completed_tasks = []
+        >>> elapsed_time = 0
+        >>> JobsRunnerStatusData().generate_status_summary(completed_tasks, elapsed_time, interviews)
+        {'Elapsed time': '0.0 sec.', 'Total interviews requested': '1 ', 'Completed interviews': '0 ', 'Percent complete': '0 %', 'Average time per interview': 'NA', 'Task remaining': '1 ', 'Estimated time remaining': 'NA', 'model_queues': [{'model_name': 'gpt-4-1106-preview', 'TPM_limit_k': 1600.0, 'RPM_limit_k': 8.0, 'num_tasks_waiting': 0, 'token_usage_info': [{'cache_status': 'new_token_usage', 'details': [{'type': 'prompt_tokens', 'tokens': 0}, {'type': 'completion_tokens', 'tokens': 0}], 'cost': '$0.00000'}, {'cache_status': 'cached_token_usage', 'details': [{'type': 'prompt_tokens', 'tokens': 0}, {'type': 'completion_tokens', 'tokens': 0}], 'cost': '$0.00000'}]}]}
         """
 
         models_to_tokens = defaultdict(InterviewTokenUsage)
@@ -134,12 +158,17 @@ class JobsRunnerStatusData:
         model: str,
         num_waiting: int,
         models_to_tokens: InterviewTokenUsageMapping,
-    ):
-        """Get the status of a model."""
-        # if model.model not in self.pricing:
-        #     #raise ValueError(f"Model {model.model} not found in pricing")
-        #     import warning
-        #     warning.warn(f"Model {model.model} not found in pricing")
+    ) -> dict:
+        """Get the status of a model.
+        
+        >>> from edsl.jobs.interviews.Interview import Interview
+        >>> interviews = [Interview.example()]
+        >>> models_to_tokens = defaultdict(InterviewTokenUsage)
+        >>> model = interviews[0].model
+        >>> num_waiting = 0
+        >>> JobsRunnerStatusData()._get_model_info(model, num_waiting, models_to_tokens)
+        {'model_name': 'gpt-4-1106-preview', 'TPM_limit_k': 1600.0, 'RPM_limit_k': 8.0, 'num_tasks_waiting': 0, 'token_usage_info': [{'cache_status': 'new_token_usage', 'details': [{'type': 'prompt_tokens', 'tokens': 0}, {'type': 'completion_tokens', 'tokens': 0}], 'cost': '$0.00000'}, {'cache_status': 'cached_token_usage', 'details': [{'type': 'prompt_tokens', 'tokens': 0}, {'type': 'completion_tokens', 'tokens': 0}], 'cost': '$0.00000'}]}
+        """
 
         prices = get_token_pricing(model.model)
 
@@ -166,7 +195,19 @@ class JobsRunnerStatusData:
         models_to_tokens: InterviewTokenUsageMapping,
         model: str,
         prices: "TokenPricing",
-    ):
+    ) -> dict:
+        """Get the token usage info for a model.
+        
+        >>> from edsl.jobs.interviews.Interview import Interview
+        >>> interviews = [Interview.example()]
+        >>> models_to_tokens = defaultdict(InterviewTokenUsage)
+        >>> model = interviews[0].model
+        >>> prices = get_token_pricing(model.model)
+        >>> cache_status = "new_token_usage"
+        >>> JobsRunnerStatusData()._get_token_usage_info(cache_status, models_to_tokens, model, prices)
+        {'cache_status': 'new_token_usage', 'details': [{'type': 'prompt_tokens', 'tokens': 0}, {'type': 'completion_tokens', 'tokens': 0}], 'cost': '$0.00000'}
+        
+        """
         cache_info = {"cache_status": cache_status, "details": []}
         token_usage = getattr(models_to_tokens[model], cache_status)
         for token_type in ["prompt_tokens", "completion_tokens"]:
@@ -179,3 +220,7 @@ class JobsRunnerStatusData:
             )
         cache_info["cost"] = f"${token_usage.cost(prices):.5f}"
         return cache_info
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()
