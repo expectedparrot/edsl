@@ -1,28 +1,21 @@
 # """The Jobs class is a collection of agents, scenarios and models and one survey."""
 from __future__ import annotations
-
 import os
-from textwrap import dedent
-from typing import Optional, Union, Sequence, Generator
 from itertools import product
-
-from edsl.config import CONFIG
+from typing import Optional, Union, Sequence, Generator
 from edsl import Model
 from edsl.agents import Agent
 from edsl.Base import Base
 from edsl.data.Cache import Cache
-from edsl.data.SQLiteDict import SQLiteDict
 from edsl.data.CacheHandler import CacheHandler
 from edsl.results.Dataset import Dataset
 
 from edsl.exceptions.jobs import MissingRemoteInferenceError
 from edsl.exceptions import MissingAPIKeyError
-
-# from edsl.enums import LanguageModelType
 from edsl.jobs.buckets.BucketCollection import BucketCollection
 from edsl.jobs.interviews.Interview import Interview
-from edsl.results import Results
 from edsl.language_models import LanguageModel
+from edsl.results import Results
 from edsl.scenarios import Scenario
 from edsl.surveys import Survey
 
@@ -54,7 +47,6 @@ class Jobs(Base):
         self.agents = agents or []
         self.models = models or []
         self.scenarios = scenarios or []
-
         self.__bucket_collection = None
 
     def by(
@@ -220,7 +212,21 @@ class Jobs(Base):
         >>> j.interviews()[0]
         Interview(agent = Agent(traits = {'status': 'Joyful'}), survey = Survey(...), scenario = Scenario({'period': 'morning'}), model = Model(...))
         """
-        return list(self._create_interviews())
+        if hasattr(self, "_interviews"):
+            return self._interviews
+        else:
+            return list(self._create_interviews())
+        
+    @classmethod
+    def from_interviews(cls, interview_list):
+        """Return a Jobs instance from a list of interviews."""
+        survey = interview_list[0].survey
+        # get all the models 
+        models = list(set([interview.model for interview in interview_list]))
+        jobs = cls(survey)
+        jobs.models = models
+        jobs._interviews = interview_list
+        return jobs
 
     def _create_interviews(self) -> Generator[Interview, None, None]:
         """
@@ -274,9 +280,9 @@ class Jobs(Base):
         progress_bar: bool = False,
         stop_on_exception: bool = False,
         cache: Union[Cache, bool] = None,
-        remote: bool = False
-        if os.getenv("DEFAULT_RUN_MODE", "local") == "local"
-        else True,
+        remote: bool = (
+            False if os.getenv("DEFAULT_RUN_MODE", "local") == "local" else True
+        ),
         check_api_keys: bool = True,
         sidecar_model: Optional[LanguageModel] = None,
         batch_mode: Optional[bool] = None,
@@ -307,18 +313,18 @@ class Jobs(Base):
             if os.getenv("EXPECTED_PARROT_API_KEY", None) is None:
                 raise MissingRemoteInferenceError()
 
-        # only check API keys is the user is not running remotely
-        if check_api_keys and not self.remote:
-            for model in self.models + [Model()]:
-                if not model.has_valid_api_key():
-                    raise MissingAPIKeyError(
-                        model_name=str(model.model),
-                        inference_service=model._inference_service_,
-                    )
+        if not self.remote:
+            if check_api_keys:
+                for model in self.models + [Model()]:
+                    if not model.has_valid_api_key():
+                        raise MissingAPIKeyError(
+                            model_name=str(model.model),
+                            inference_service=model._inference_service_,
+                        )
 
+        # handle cache
         if cache is None:
             cache = CacheHandler().get_cache()
-
         if cache is False:
             cache = Cache()
 
@@ -400,12 +406,22 @@ class Jobs(Base):
             scenarios=[Scenario.from_dict(scenario) for scenario in data["scenarios"]],
         )
 
+    def __eq__(self, other: Jobs) -> bool:
+        """Return True if the Jobs instance is equal to another Jobs instance."""
+        return self.to_dict() == other.to_dict()
+
     #######################
     # Example methods
     #######################
     @classmethod
-    def example(cls) -> Jobs:
-        """Return an example Jobs instance."""
+    def example(cls, throw_exception_probability = 0) -> Jobs:
+        """Return an example Jobs instance.
+        
+        >>> Jobs.example()
+        Jobs(...)
+        
+        """
+        import random
         from edsl.questions import QuestionMultipleChoice
         from edsl import Agent
 
@@ -423,6 +439,9 @@ class Jobs(Base):
 
         def answer_question_directly(self, question, scenario):
             """Return the answer to a question. This is a method that can be added to an agent."""
+
+            if random.random() < throw_exception_probability:
+                raise Exception("Error!")
             return agent_answers[
                 (self.traits["status"], question.question_name, scenario["period"])
             ]
