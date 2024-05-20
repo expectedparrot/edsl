@@ -18,11 +18,42 @@ class QuestionFunctionActivatedException(Exception):
     """Exception for function not activated yet."""
 
 
+class QuestionFunctionAForbiddenAttributeException(Exception):
+    """Exception for errors during function execution when forbidden key is used."""
+
+
 def guarded_iter(obj, allowed_types=(list, tuple, set, dict, range)):
     """Ensures iteration is only performed on safe, allowable types."""
     if not isinstance(obj, allowed_types):
         raise TypeError(f"Iteration over {type(obj).__name__} not allowed.")
     return iter(obj)
+
+
+def default_guarded_getitem(ob, key):
+    sensitive_python_keys = [
+        "__dict__",
+        "__class__",
+        "__module__",
+        "__bases__",
+        "__mro__",
+        "__subclasses__",
+        "__func__",
+        "__self__",
+        "__closure__",
+        "__code__",
+        "__globals__",
+        "__call__",
+        "__getattr__",
+        "__getattribute__",
+        "__delattr__",
+        "__setattr__",
+    ]
+    if key in sensitive_python_keys:
+        raise QuestionFunctionAForbiddenAttributeException(
+            f"Access denied for attribute: {key}"
+        )
+
+    return ob[key]
 
 
 from edsl.questions.QuestionBase import QuestionBase
@@ -57,6 +88,7 @@ class QuestionFunctional(QuestionBase):
         """Activate the function using RestrictedPython with basic restrictions."""
         safe_env = safe_globals.copy()
         safe_env["__builtins__"] = {**safe_builtins}
+        safe_env["_getitem_"] = default_guarded_getitem
         byte_code = compile_restricted(self.source_code, "<string>", "exec")
         loc = {}
         try:
@@ -111,6 +143,7 @@ class QuestionFunctional(QuestionBase):
         return {
             "function_source_code": self.source_code,
             "function_name": self.function_name,
+            "question_type": "functional",
         }
 
 
