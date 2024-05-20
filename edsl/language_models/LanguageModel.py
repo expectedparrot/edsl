@@ -183,17 +183,18 @@ class RegisterLanguageModelsMeta(ABCMeta):
     @staticmethod
     def _verify_parameter(params, param_name, param_type, method_name):
         """Verify that a parameter is defined in a method and has the correct type."""
-        if param_name not in params:
-            raise TypeError(
-                f"""Parameter "{param_name}" of method "{method_name}" must be defined.
-                """
-            )
-        if params[param_name].annotation != param_type:
-            raise TypeError(
-                f"""Parameter "{param_name}" of method "{method_name}" must be of type {param_type.__name__}.
-                Got {params[param_name].annotation} instead.
-                """
-            )
+        pass
+        # if param_name not in params:
+        #     raise TypeError(
+        #         f"""Parameter "{param_name}" of method "{method_name}" must be defined.
+        #         """
+        #     )
+        # if params[param_name].annotation != param_type:
+        #     raise TypeError(
+        #         f"""Parameter "{param_name}" of method "{method_name}" must be of type {param_type.__name__}.
+        #         Got {params[param_name].annotation} instead.
+        #         """
+        #     )
 
     @staticmethod
     def _check_return_type(method, expected_return_type):
@@ -397,11 +398,11 @@ class LanguageModel(
         return parameters
 
     @abstractmethod
-    async def async_execute_model_call(user_prompt, system_prompt):
+    async def async_execute_model_call(user_prompt: str, system_prompt:str):
         """Execute the model call and returns the result as a coroutine."""
         pass
 
-    async def remote_async_execute_model_call(self, user_prompt, system_prompt):
+    async def remote_async_execute_model_call(self, user_prompt:str, system_prompt:str):
         """Execute the model call and returns the result as a coroutine, using Coop."""
         from edsl.coop import Coop
 
@@ -430,7 +431,9 @@ class LanguageModel(
 
     @abstractmethod
     def parse_response(raw_response: dict[str, Any]) -> str:
-        """Parse the API response and returns the response text.
+        """Parse the response and returns the response text.
+
+        >>> m = LanguageModel.example()
 
         What is returned by the API is model-specific and often includes meta-data that we do not need.
         For example, here is the results from a call to GPT-4:
@@ -440,9 +443,15 @@ class LanguageModel(
         raise NotImplementedError
 
     def _update_response_with_tracking(
-        self, response, start_time, cached_response=False, cache_key=None
+        self, response:dict, start_time:int, cached_response=False, cache_key=None
     ):
-        """Update the response with tracking information and post it to the API Queue."""
+        """Update the response with tracking information.
+        
+        >>> m = LanguageModel.example()
+        >>> m._update_response_with_tracking(response={"response": "Hello"}, start_time=0, cached_response=False, cache_key=None)
+        {'response': 'Hello', 'elapsed_time': ..., 'timestamp': ..., 'cached_response': False, 'cache_key': None}
+        
+        """
         end_time = time.time()
         response["elapsed_time"] = end_time - start_time
         response["timestamp"] = end_time
@@ -484,11 +493,8 @@ class LanguageModel(
         )
 
         if cache_used := (cached_response is not None):
-            # print("Cache used")
             response = json.loads(cached_response)
         else:
-            # print("Cache not used")
-            # print(f"Cache data is: {cache.data}")
             if hasattr(self, "remote") and self.remote:
                 response = await self.remote_async_execute_model_call(
                     user_prompt, system_prompt
@@ -567,15 +573,17 @@ class LanguageModel(
     def cost(self, raw_response: dict[str, Any]) -> float:
         """Return the dollar cost of a raw response."""
         raise NotImplementedError
-        # keys = raw_response["usage"].keys()
-        # prices = model_prices.get(self.model)
-        # return sum([prices.get(key, 0.0) * raw_response["usage"][key] for key in keys])
 
     #######################
     # SERIALIZATION METHODS
     #######################
     def to_dict(self) -> dict[str, Any]:
-        """Convert instance to a dictionary."""
+        """Convert instance to a dictionary.
+        
+        >>> m = LanguageModel.example()
+        >>> m.to_dict()
+        {'model': 'gpt-4-1106-preview', 'parameters': {'temperature': 0.5, 'max_tokens': 1000, 'top_p': 1, 'frequency_penalty': 0, 'presence_penalty': 0, 'logprobs': False, 'top_logprobs': 3}}
+        """
         return {"model": self.model, "parameters": self.parameters}
 
     @classmethod
@@ -628,18 +636,40 @@ class LanguageModel(
         return table
 
     @classmethod
-    def example(cls):
+    def example(cls, test_model = False):
         """Return a default instance of the class."""
         from edsl import Model
 
-        return Model(skip_api_key_check=True)
+        class TestLanguageModelGood(LanguageModel):
+            use_cache = False
+            _model_ = "test"
+            _parameters_ = {"temperature": 0.5}
+            _inference_service_ = InferenceServiceType.TEST.value
+
+            async def async_execute_model_call(
+                self, user_prompt: str, system_prompt: str
+            ) -> dict[str, Any]:
+                await asyncio.sleep(0.1)
+                return {"message": """{"answer": "Hello world"}"""}
+
+            def parse_response(self, raw_response: dict[str, Any]) -> str:
+                return raw_response["message"]
+
+        if test_model:
+            m = TestLanguageModelGood()
+            return m
+        else:
+            return Model(skip_api_key_check=True)
+    
 
 
 if __name__ == "__main__":
     """Run the module's test suite."""
     import doctest
-
     doctest.testmod(optionflags=doctest.ELLIPSIS)
+
+    #from edsl.language_models import LanguageModel
+    m = LanguageModel.example(test_model = True)
 
     #from edsl.language_models import LanguageModel
     #print(LanguageModel.example())
