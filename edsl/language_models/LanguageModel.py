@@ -315,19 +315,14 @@ class LanguageModel(
             iteration=iteration,
         )
 
-        if cache_used := (cached_response is not None):
+        if cached_response:
             response = json.loads(cached_response)
+            cache_used = True
+            cache_key = None
         else:
-            if hasattr(self, "remote") and self.remote:
-                response = await self.remote_async_execute_model_call(
-                    user_prompt, system_prompt
-                )
-            else:
-                response = await self.async_execute_model_call(
-                    user_prompt, system_prompt
-                )
-
-        if not cache_used:
+            remote_call = hasattr(self, "remote") and self.remote
+            f = self.remote_async_execute_model_call if remote_call else self.async_execute_model_call
+            response = await f(user_prompt, system_prompt)
             cache_key = cache.store(
                 user_prompt=user_prompt,
                 model=str(self.model),
@@ -336,8 +331,8 @@ class LanguageModel(
                 response=response,
                 iteration=iteration,
             )
-        else:
-            cache_key = None
+            cache_used = False
+
         return self._update_response_with_tracking(
             response=response,
             start_time=start_time,
