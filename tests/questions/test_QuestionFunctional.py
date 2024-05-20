@@ -6,13 +6,14 @@ from edsl.questions.compose_questions import compose_questions
 from edsl.jobs.Jobs import Jobs
 from edsl.scenarios.Scenario import Scenario
 
+def SillyFunction(scenario, agent_traits):
+        "Makes no use of the agent traits"
+        return scenario["a"] + scenario["b"]
+
 
 def test_QuestionFunctional_construction_from_function():
     """Test QuestionFunctional construction from a function"""
 
-    def SillyFunction(scenario, agent_traits):
-        "Makes no use of the agent traits"
-        return scenario["a"] + scenario["b"]
 
     scenario_valid = Scenario({"a": 10, "b": 2})
     scenario_wrong = Scenario({"a": 10, "c": 2})
@@ -26,6 +27,8 @@ def test_QuestionFunctional_construction_from_function():
     assert "functional" in q.to_dict()["question_type"]
     # unnecessary methods are not implemented
     assert q._translate_answer_code_to_answer(None, None) is None
+    q.activate()
+
     with pytest.raises(NotImplementedError):
         q._simulate_answer()
     # answer_question_directly works well
