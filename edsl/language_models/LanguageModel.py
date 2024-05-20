@@ -271,10 +271,12 @@ class LanguageModel(
 
         """
         end_time = time.time()
-        response["elapsed_time"] = end_time - start_time
-        response["timestamp"] = end_time
-        response["cached_response"] = cached_response
-        response["cache_key"] = cache_key
+        response.update({
+            "elapsed_time": end_time - start_time,
+            "timestamp": end_time,
+            "cached_response": cached_response,
+            "cache_key": cache_key,
+        })
         return response
 
     async def async_get_raw_response(
