@@ -35,6 +35,8 @@ class Coop:
         headers = {}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
+        else:
+            headers["Authorization"] = f"Bearer None"
         return headers
 
     def _send_server_request(
@@ -72,6 +74,7 @@ class Coop:
         if response.status_code >= 400:
             message = response.json().get("detail")
             if "Authorization" in message:
+                print(message)
                 message = "Please provide an Expected Parrot API key."
             raise Exception(message)
 
@@ -288,14 +291,17 @@ class Coop:
     ################
     # Error Message Methods
     ################
-    def send_error_message(self, error_data: str) -> dict:
+    def error_create(self, error_data: str) -> dict:
         """
         Send an error message to the server.
         """
         response = self._send_server_request(
             uri="api/v0/errors",
             method="POST",
-            payload={"json_string": json.dumps(error_data)},
+            payload={
+                "json_string": json.dumps(error_data),
+                "version": self._edsl_version,
+            },
         )
         self._resolve_server_response(response)
         return response.json()
@@ -429,7 +435,7 @@ if __name__ == "__main__":
     coop.remote_cache_get()
 
     ##############
-    # B. Jobs
+    # C. Remote Inference
     ##############
     from edsl.jobs import Jobs
 
@@ -455,8 +461,10 @@ if __name__ == "__main__":
     ##############
     # D. Errors
     ##############
+    from edsl import Coop
+
     coop = Coop()
     coop.api_key = "a"
-    coop.send_error_message({"something": "This is an error message"})
+    coop.error_create({"something": "This is an error message"})
     coop.api_key = None
-    coop.send_error_message({"something": "This is an error message"})
+    coop.error_create({"something": "This is an error message"})
