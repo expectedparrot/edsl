@@ -335,6 +335,8 @@ We modified exception messages. If your survey run generates exceptions, run `re
 
 ### Added 
 
+- New `ScenarioList` method for importing a PDF and turning pages into a scenario list.
+
 - [In progress] New prompt visibility features.
 
 - [In progress] New methods for piping responses to questions into other questions. 
