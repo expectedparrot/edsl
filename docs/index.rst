@@ -51,6 +51,9 @@ Core Concepts
 - :ref:`agents`:  Understand the design and implementation of AI agents that respond to surveys.
 - :ref:`language_models`:  Examine the selection and application of language models for generating results.
 - :ref:`results`:  Investigate methods for analyzing and utilizing survey results.
+- :ref:`data`:  Learn about caching and sharing your survey results.
+- :ref:`exceptions`:  Understand how to identify and handle exceptions in your survey design.
+- :ref:`coop`:  Learn how to use the EDSL package in a collaborative research environment. *Coming soon!*
 
 How-to Guides
 -------------
@@ -126,6 +129,7 @@ Information about additional functionality for developers.
    results
    data
    exceptions
+   coop
 
 .. toctree::
    :maxdepth: 2
