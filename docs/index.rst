@@ -133,6 +133,8 @@ Information about additional functionality for developers.
    :hidden:
 
    notebooks/data_labeling_example.ipynb
+   notebooks/batching_results.ipynb
+   notebooks/adding_metadata.ipynb
    notebooks/example_agent_dynamic_traits.ipynb
    notebooks/research_methods.ipynb
    notebooks/edsl_components.ipynb
