@@ -335,7 +335,7 @@ We modified exception messages. If your survey run generates exceptions, run `re
 
 ### Added 
 
-- New `ScenarioList` method for importing a PDF and turning pages into a scenario list.
+- New `ScenarioList` method `from_pdf()` allows you to import a PDF and automatically turn the pages into a scenario list.
 
 - [In progress] New prompt visibility features.
 
