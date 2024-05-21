@@ -137,6 +137,7 @@ Information about additional functionality for developers.
    :hidden:
 
    notebooks/data_labeling_example.ipynb
+   notebooks/scenario_from_pdf.ipynb
    notebooks/batching_results.ipynb
    notebooks/adding_metadata.ipynb
    notebooks/survey_memories.ipynb
