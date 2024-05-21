@@ -281,6 +281,13 @@ This will print a table of the responses for each scenario for each question:
 To learn more about constructing surveys, please see the :ref:`surveys` module.
 
 
+Turning PDF pages into scenarios
+--------------------------------
+
+The `ScenarioList` method `from_pdf()` is a convenient way to automatically create scenarios from the pages of a PDF file.
+
+
+
 Scenario class
 --------------
 
