@@ -65,7 +65,7 @@ class QuestionFunctional(QuestionBase):
 
     question_type = "functional"
     default_instructions = ""
-    activated = False
+    activated = True
     function_source_code = ""
     function_name = ""
 
