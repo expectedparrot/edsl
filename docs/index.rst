@@ -53,7 +53,7 @@ Core Concepts
 - :ref:`results`:  Investigate methods for analyzing and utilizing survey results.
 - :ref:`data`:  Learn about caching and sharing your survey results.
 - :ref:`exceptions`:  Understand how to identify and handle exceptions in your survey design.
-- :ref:`coop`:  Learn how to use the EDSL package in a collaborative research environment. *Coming soon!*
+- :ref:`coop`:  A platform for storing and sharing your work, projects and ideas with other researchers. *Coming soon!*
 
 How-to Guides
 -------------
