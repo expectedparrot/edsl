@@ -207,60 +207,64 @@ class Coop:
         return response.json()
 
     ################
-    # Remote Caching
+    # Remote Cache
     ################
-    def create_cache_entry(
-        self, cache_entry: CacheEntry, visibility: str = "unlisted"
+    def remote_cache_create(
+        self,
+        cache_entry: CacheEntry,
+        visibility: VisibilityType = "private",
     ) -> dict:
         """
-        Create a CacheEntry object.
+        Create a single remote cache entry.
         """
         response = self._send_server_request(
-            uri="api/v0/cache-entries",
+            uri="api/v0/remote-cache",
             method="POST",
             payload={
-                "visibility": visibility,
+                "json_string": json.dumps(cache_entry.to_dict()),
                 "version": self._edsl_version,
-                "json_string": json.dumps(
-                    {"key": cache_entry.key, "value": json.dumps(cache_entry.to_dict())}
-                ),
+                "visibility": visibility,
             },
         )
         self._resolve_server_response(response)
         return response.json()
 
-    def create_cache_entries(
-        self, cache_entries: dict[str, CacheEntry], visibility: str = "unlisted"
-    ) -> None:
+    def remote_cache_create_many(
+        self,
+        cache_entries: list[CacheEntry],
+        visibility: VisibilityType = "private",
+    ) -> dict:
         """
-        Send a dictionary of CacheEntry objects to the server.
+        Create many remote cache entries.
         """
-        response = self._send_server_request(
-            uri="api/v0/cache-entries/many",
-            method="POST",
-            payload={
-                "visibility": visibility,
+        payload = [
+            {
+                "json_string": json.dumps(c.to_dict()),
                 "version": self._edsl_version,
-                "json_string": json.dumps(
-                    {k: json.dumps(v.to_dict()) for k, v in cache_entries.items()}
-                ),
-            },
+                "visibility": visibility,
+            }
+            for c in cache_entries
+        ]
+        response = self._send_server_request(
+            uri="api/v0/remote-cache/many",
+            method="POST",
+            payload=payload,
         )
         self._resolve_server_response(response)
         return response.json()
 
-    def get_cache_entries(
-        self, exclude_keys: Optional[list[str]] = None
+    def remote_cache_get(
+        self,
+        exclude_keys: Optional[list[str]] = None,
     ) -> list[CacheEntry]:
         """
-        Return CacheEntry objects from the server.
-
-        :param exclude_keys: exclude CacheEntry objects with these keys.
+        Get all remote cache entries.
+        - optional exclude_keys: exclude CacheEntry objects with these keys.
         """
         if exclude_keys is None:
             exclude_keys = []
         response = self._send_server_request(
-            uri="api/v0/cache-entries/get-many",
+            uri="api/v0/remote-cache/get-many",
             method="POST",
             payload={"keys": exclude_keys},
         )
@@ -269,6 +273,17 @@ class Coop:
             CacheEntry.from_dict(json.loads(v.get("json_string")))
             for v in response.json()
         ]
+
+    def remote_cache_clear(self) -> dict:
+        """
+        Clear all remote cache entries.
+        """
+        response = self._send_server_request(
+            uri="api/v0/remote-cache/delete-all",
+            method="DELETE",
+        )
+        self._resolve_server_response(response)
+        return response.json()
 
     ################
     # Error Message Methods
@@ -389,6 +404,31 @@ if __name__ == "__main__":
     coop.delete(object_type="question", uuid=response.get("uuid"))
 
     ##############
+    # B. Remote Cache
+    ##############
+    from edsl.data.CacheEntry import CacheEntry
+
+    # clear
+    coop.remote_cache_clear()
+    assert coop.remote_cache_get() == []
+    # create one remote cache entry
+    cache_entry = CacheEntry.example()
+    cache_entry.to_dict()
+    coop.remote_cache_create(cache_entry)
+    # create many remote cache entries
+    cache_entries = [CacheEntry.example(randomize=True) for _ in range(10)]
+    coop.remote_cache_create_many(cache_entries)
+    # get all remote cache entries
+    coop.remote_cache_get()
+    coop.remote_cache_get(exclude_keys=[])
+    coop.remote_cache_get(exclude_keys=["a"])
+    exclude_keys = [cache_entry.key for cache_entry in cache_entries]
+    coop.remote_cache_get(exclude_keys)
+    # clear
+    coop.remote_cache_clear()
+    coop.remote_cache_get()
+
+    ##############
     # B. Jobs
     ##############
     from edsl.jobs import Jobs
@@ -411,31 +451,6 @@ if __name__ == "__main__":
         print(
             f"Job: {job.get('uuid')}, Status: {job.get('status')}, Results: {job.get('results_uuid')}"
         )
-
-    ##############
-    # C. CacheEntries
-    ##############
-    from edsl.data.CacheEntry import CacheEntry
-
-    # should be empty in the beginning
-    coop.get_cache_entries()
-    # now create one cache entry
-    cache_entry = CacheEntry.example()
-    coop.create_cache_entry(cache_entry)
-    # see that if you try to create it again, you'll get the same uuid
-    coop.create_cache_entry(cache_entry)
-    # now get all your cache entries
-    coop.get_cache_entries()
-    coop.get_cache_entries(exclude_keys=[])
-    coop.get_cache_entries(exclude_keys=["a"])
-    # this will be empty
-    coop.get_cache_entries(exclude_keys=[cache_entry.key])
-    # now send many cache entries
-    cache_entries = {}
-    for i in range(10):
-        cache_entry = CacheEntry.example(randomize=True)
-        cache_entries[cache_entry.key] = cache_entry
-    coop.create_cache_entries(cache_entries)
 
     ##############
     # D. Errors
