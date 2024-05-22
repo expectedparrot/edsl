@@ -51,6 +51,9 @@ Core Concepts
 - :ref:`agents`:  Understand the design and implementation of AI agents that respond to surveys.
 - :ref:`language_models`:  Examine the selection and application of language models for generating results.
 - :ref:`results`:  Investigate methods for analyzing and utilizing survey results.
+- :ref:`data`:  Learn about caching and sharing your survey results.
+- :ref:`exceptions`:  Understand how to identify and handle exceptions in your survey design.
+- :ref:`coop`:  A platform for storing and sharing your work, projects and ideas with other researchers. *Coming soon!*
 
 How-to Guides
 -------------
@@ -126,6 +129,7 @@ Information about additional functionality for developers.
    results
    data
    exceptions
+   coop
 
 .. toctree::
    :maxdepth: 2
@@ -133,6 +137,7 @@ Information about additional functionality for developers.
    :hidden:
 
    notebooks/data_labeling_example.ipynb
+   notebooks/scenario_from_pdf.ipynb
    notebooks/batching_results.ipynb
    notebooks/adding_metadata.ipynb
    notebooks/survey_memories.ipynb
@@ -141,6 +146,7 @@ Information about additional functionality for developers.
    notebooks/edsl_components.ipynb
    notebooks/export_survey_updates.ipynb
    notebooks/question_extract_example.ipynb
+   notebooks/data_cleaning.ipynb
 
 .. toctree::
    :maxdepth: 2
