@@ -183,7 +183,6 @@ class Coop:
             method="GET",
             params={"type": object_type},
         )
-        print(response.json())
         self._resolve_server_response(response)
         objects = [
             {
@@ -289,7 +288,31 @@ class Coop:
         return response.json()
 
     ################
-    # Error Message Methods
+    # Remote Inference
+    ################
+    def remote_inference_get(self, job_uuid: str) -> dict:
+        """
+        Get the results of a remote inference job.
+        """
+        response = self._send_server_request(
+            uri="api/v0/remote-inference",
+            method="GET",
+            params={"uuid": job_uuid},
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {
+            "jobs_uuid": data.get("jobs_uuid"),
+            "results_uuid": data.get("results_uuid"),
+            "results_url": "TO BE ADDED",
+            "status": data.get("status"),
+            "reason": data.get("reason"),
+            "price": data.get("price"),
+            "version": data.get("version"),
+        }
+
+    ################
+    # Remote Errors
     ################
     def error_create(self, error_data: str) -> dict:
         """
@@ -440,23 +463,17 @@ if __name__ == "__main__":
     from edsl.jobs import Jobs
 
     # check jobs on server (should be an empty list)
-    coop.jobs
-    for job in coop.jobs:
+    coop.get_all("job")
+    for job in coop.get_all("job"):
         coop.delete(object_type="job", uuid=job.get("uuid"))
-    # try to get a job that does not exist - should get an error
-    coop.get(object_type="job", uuid=uuid.uuid4())
-    coop.get(object_type="job", uuid=str(uuid.uuid4()))
-    # now post some Jobs
+    # post a job
     response = coop.create(Jobs.example())
-    coop.create(Jobs.example(), visibility="private")
-    coop.create(Jobs.example(), visibility="public")
-    # check all jobs - there must be a few
-    coop.jobs
-    # get job by uuid
-    for job in coop.jobs:
-        print(
-            f"Job: {job.get('uuid')}, Status: {job.get('status')}, Results: {job.get('results_uuid')}"
-        )
+    # get job and results
+    coop.remote_inference_get(response.get("uuid"))
+    coop.get(
+        object_type="results",
+        uuid=coop.remote_inference_get(response.get("uuid")).get("results_uuid"),
+    )
 
     ##############
     # D. Errors
