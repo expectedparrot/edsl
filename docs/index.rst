@@ -146,6 +146,7 @@ Information about additional functionality for developers.
    notebooks/edsl_components.ipynb
    notebooks/export_survey_updates.ipynb
    notebooks/question_extract_example.ipynb
+   notebooks/data_cleaning.ipynb
 
 .. toctree::
    :maxdepth: 2
