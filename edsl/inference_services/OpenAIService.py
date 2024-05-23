@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, List
 import re
 from openai import AsyncOpenAI
 
@@ -28,18 +28,28 @@ class OpenAIService(InferenceServiceABC):
         "text-embedding-ada-002",
         "ft:davinci-002:mit-horton-lab::8OfuHgoo",
     ]
+    _models_list_cache: List[str] = []
 
     @classmethod
-    def available(cls):
-        try:
-            from openai import OpenAI
+    def available(cls) -> List[str]:
+        from openai import OpenAI
 
-            client = OpenAI()
-            return [
-                m.id for m in client.models.list() if m.id not in cls.model_exclude_list
-            ]
-        except Exception as e:
-            return ["gpt-3.5-turbo", "gpt-4-1106-preview", "gpt-4"]
+        if not cls._models_list_cache:
+            try:
+                client = OpenAI()
+                cls._models_list_cache = [
+                    m.id
+                    for m in client.models.list()
+                    if m.id not in cls.model_exclude_list
+                ]
+            except Exception as e:
+                print(f"Error retrieving models: {e}")
+                cls._models_list_cache = [
+                    "gpt-3.5-turbo",
+                    "gpt-4-1106-preview",
+                    "gpt-4",
+                ]  # Fallback list
+        return cls._models_list_cache
 
     @classmethod
     def create_model(cls, model_name, model_class_name=None) -> LanguageModel:
