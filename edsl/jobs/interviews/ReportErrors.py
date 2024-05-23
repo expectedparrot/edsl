@@ -37,7 +37,7 @@ class ReportErrors:
 
     def upload(self):
         coop = Coop()
-        coop.send_error_message(error_data=self.data)
+        coop.error_create(error_data=self.data)
 
 
 def main():
