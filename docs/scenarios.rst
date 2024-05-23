@@ -284,8 +284,11 @@ To learn more about constructing surveys, please see the :ref:`surveys` module.
 Turning PDF pages into scenarios
 --------------------------------
 
-The `ScenarioList` method `from_pdf()` is a convenient way to automatically create scenarios from the pages of a PDF file.
-This can be use for extracting information from a PDF file while staying within the context window.
+The `ScenarioList` method `from_pdf()` is a convenient way to extract information from large files.
+It allows you to read in a PDF and automatically create a list of scenarios for the pages the file.
+Each scenario has the following keys: `filename`, `page`, `text`, `edsl_version` and `edsl_class_name`.
+Adding a placeholder `{{ text }}` to a question text will allow you to use the text of the PDF page as a parameter in the question.
+This can be use for extracting information from a large file while staying within the context window.
 
 Example usage:
 
@@ -297,12 +300,12 @@ Example usage:
     # Create a survey of questions parameterized by the {{ text }} of the PDF pages
     q1 = QuestionFreeText(
         question_name = "themes",
-        question_text = "Identify the key themes of this paper: {{ text }}",
+        question_text = "Identify the key themes mentioned on this page: {{ text }}",
     )
 
     q2 = QuestionFreeText(
-        question_name = "summary",
-        question_text = "Summarize the purpose of this paper: {{ text }}",
+        question_name = "idea",
+        question_text = "Identify the most important idea on this page: {{ text }}",
     )
 
     survey = Survey([q1, q2])
@@ -316,6 +319,7 @@ Example usage:
     results.select("text", "answers.*").print(format="rich")
 
 
+See a demo notebook of this method in the :ref:`notebooks` section ("Extracting information from PDFs").
 
 
 Scenario class
