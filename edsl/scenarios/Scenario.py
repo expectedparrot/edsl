@@ -70,14 +70,17 @@ class Scenario(Base, UserDict):
         return new_scenario
 
     @add_edsl_version
-    def to_dict(self) -> dict:
+    def to_dict(self, remove_edsl_version = False) -> dict:
         """Convert a scenario to a dictionary.
 
         >>> s = Scenario({"food": "wood chips"})
         >>> s.to_dict()
         {'food': 'wood chips', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}
         """
-        return self.data
+        if remove_edsl_version:
+            return {k:v for k,v in self.data if k not in ["edsl_version", "edsl_class_name"]}
+        else:
+            return self.data
 
     def print(self):
         from rich import print_json

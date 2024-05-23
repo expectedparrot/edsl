@@ -28,7 +28,44 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
     def _repr_html_(self) -> str:
         from edsl.utilities.utilities import data_to_html
 
-        return data_to_html(self.to_dict())
+        return data_to_html(self.to_dict(remove_edsl_version=True))
+    
+    def remove(self, field_name) -> ScenarioList:
+        """Remove a field from all scenarios in the list.
+        
+        >>> s = ScenarioList([Scenario({'a':1, 'b':2}), Scenario({'a':3, 'b':4})])
+        >>> s.remove('a')
+        ScenarioList([Scenario({'b': 2}), Scenario({'b': 4})])
+        """
+        for scenario in self:
+            _ = scenario.pop(field_name)
+        return self
+    
+    def rename(self, replacement_dict: dict) -> ScenarioList:
+        """Rename the keys of all scenarios in the list.
+        
+        >>> s = ScenarioList([Scenario({'food': 'wood chips'}), Scenario({'food': 'wood-fired pizza'})])
+        >>> s.rename({'food': 'food_preference'})
+        ScenarioList([Scenario({'food_preference': 'wood chips'}), Scenario({'food_preference': 'wood-fired pizza'})])
+        """
+        new_scenarios = []
+        for scenario in self:
+            new_scenarios.append(scenario.rename(replacement_dict))
+        return ScenarioList(new_scenarios)
+    
+    def pop(self, field_name:str) -> list:
+        """Remove a field from all scenarios, returning the values. This modifies the original ScenarioList.
+        
+        >>> s = ScenarioList([Scenario({'a':1, 'b':2}), Scenario({'a':3, 'b':4})])
+        >>> s.pop('a')
+        [1, 3]
+        >>> s
+        ScenarioList([Scenario({'b': 2}), Scenario({'b': 4})])
+        """
+        data = []
+        for scenario in self:
+            data.append(scenario.pop(field_name))
+        return data
 
     def expand(self, expand_field: str) -> ScenarioList:
         """Expand the ScenarioList by a field.
@@ -107,14 +144,14 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         return cls(observations)
 
     @add_edsl_version
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self, remove_edsl_version = False) -> dict[str, Any]:
         """Return the `ScenarioList` as a dictionary.
 
         >>> s = ScenarioList([Scenario({'food': 'wood chips'}), Scenario({'food': 'wood-fired pizza'})])
         >>> s.to_dict()
         {'scenarios': [{'food': 'wood chips', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}, {'food': 'wood-fired pizza', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}], 'edsl_version': '...', 'edsl_class_name': 'ScenarioList'}
         """
-        return {"scenarios": [s.to_dict() for s in self]}
+        return {"scenarios": [s.to_dict(remove_edsl_version=remove_edsl_version) for s in self]}
 
     @classmethod
     def gen(cls, scenario_dicts_list: List[dict]) -> ScenarioList:
