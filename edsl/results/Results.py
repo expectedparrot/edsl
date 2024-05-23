@@ -557,6 +557,9 @@ class Results(UserList, Mixins, Base):
         >>> results.select('how_feeling')
         Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}])
         """
+        if len(self) == 0:
+            raise Exception("No data to select from---the Results object is empty.")
+            
 
         if not columns or columns == ("*",) or columns == (None,):
             columns = ("*.*",)
@@ -733,8 +736,18 @@ class Results(UserList, Mixins, Base):
                 if create_evaluator(result).eval(expression)
             ]
         except Exception as e:
-            print(f"Exception:{e}")
-            raise ResultsFilterError(f"Error in filter. Exception:{e}")
+            raise ResultsFilterError(f"""Error in filter. Exception:{e}.
+            The expression you provided was: {expression}. 
+            Please make sure that the expression is a valid Python expression that evaluates to a boolean.
+            For example, 'how_feeling == "Great"' is a valid expression, as is 'how_feeling in ["Great", "Terrible"]'.
+            However, 'how_feeling = "Great"' is not a valid expression.
+
+            See https://docs.expectedparrot.com/en/latest/results.html#filtering-results for more details.
+            """)
+        
+        if len(new_data) == 0:
+            import warnings
+            warnings.warn("No results remain after applying the filter.")
 
         return Results(survey=self.survey, data=new_data, created_columns=None)
 
