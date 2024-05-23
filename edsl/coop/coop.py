@@ -35,6 +35,8 @@ class Coop:
         headers = {}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
+        else:
+            headers["Authorization"] = f"Bearer None"
         return headers
 
     def _send_server_request(
@@ -72,6 +74,7 @@ class Coop:
         if response.status_code >= 400:
             message = response.json().get("detail")
             if "Authorization" in message:
+                print(message)
                 message = "Please provide an Expected Parrot API key."
             raise Exception(message)
 
@@ -180,7 +183,6 @@ class Coop:
             method="GET",
             params={"type": object_type},
         )
-        print(response.json())
         self._resolve_server_response(response)
         objects = [
             {
@@ -207,60 +209,64 @@ class Coop:
         return response.json()
 
     ################
-    # Remote Caching
+    # Remote Cache
     ################
-    def create_cache_entry(
-        self, cache_entry: CacheEntry, visibility: str = "unlisted"
+    def remote_cache_create(
+        self,
+        cache_entry: CacheEntry,
+        visibility: VisibilityType = "private",
     ) -> dict:
         """
-        Create a CacheEntry object.
+        Create a single remote cache entry.
         """
         response = self._send_server_request(
-            uri="api/v0/cache-entries",
+            uri="api/v0/remote-cache",
             method="POST",
             payload={
-                "visibility": visibility,
+                "json_string": json.dumps(cache_entry.to_dict()),
                 "version": self._edsl_version,
-                "json_string": json.dumps(
-                    {"key": cache_entry.key, "value": json.dumps(cache_entry.to_dict())}
-                ),
+                "visibility": visibility,
             },
         )
         self._resolve_server_response(response)
         return response.json()
 
-    def create_cache_entries(
-        self, cache_entries: dict[str, CacheEntry], visibility: str = "unlisted"
-    ) -> None:
+    def remote_cache_create_many(
+        self,
+        cache_entries: list[CacheEntry],
+        visibility: VisibilityType = "private",
+    ) -> dict:
         """
-        Send a dictionary of CacheEntry objects to the server.
+        Create many remote cache entries.
         """
-        response = self._send_server_request(
-            uri="api/v0/cache-entries/many",
-            method="POST",
-            payload={
-                "visibility": visibility,
+        payload = [
+            {
+                "json_string": json.dumps(c.to_dict()),
                 "version": self._edsl_version,
-                "json_string": json.dumps(
-                    {k: json.dumps(v.to_dict()) for k, v in cache_entries.items()}
-                ),
-            },
+                "visibility": visibility,
+            }
+            for c in cache_entries
+        ]
+        response = self._send_server_request(
+            uri="api/v0/remote-cache/many",
+            method="POST",
+            payload=payload,
         )
         self._resolve_server_response(response)
         return response.json()
 
-    def get_cache_entries(
-        self, exclude_keys: Optional[list[str]] = None
+    def remote_cache_get(
+        self,
+        exclude_keys: Optional[list[str]] = None,
     ) -> list[CacheEntry]:
         """
-        Return CacheEntry objects from the server.
-
-        :param exclude_keys: exclude CacheEntry objects with these keys.
+        Get all remote cache entries.
+        - optional exclude_keys: exclude CacheEntry objects with these keys.
         """
         if exclude_keys is None:
             exclude_keys = []
         response = self._send_server_request(
-            uri="api/v0/cache-entries/get-many",
+            uri="api/v0/remote-cache/get-many",
             method="POST",
             payload={"keys": exclude_keys},
         )
@@ -270,17 +276,55 @@ class Coop:
             for v in response.json()
         ]
 
+    def remote_cache_clear(self) -> dict:
+        """
+        Clear all remote cache entries.
+        """
+        response = self._send_server_request(
+            uri="api/v0/remote-cache/delete-all",
+            method="DELETE",
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
     ################
-    # Error Message Methods
+    # Remote Inference
     ################
-    def send_error_message(self, error_data: str) -> dict:
+    def remote_inference_get(self, job_uuid: str) -> dict:
+        """
+        Get the results of a remote inference job.
+        """
+        response = self._send_server_request(
+            uri="api/v0/remote-inference",
+            method="GET",
+            params={"uuid": job_uuid},
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return {
+            "jobs_uuid": data.get("jobs_uuid"),
+            "results_uuid": data.get("results_uuid"),
+            "results_url": "TO BE ADDED",
+            "status": data.get("status"),
+            "reason": data.get("reason"),
+            "price": data.get("price"),
+            "version": data.get("version"),
+        }
+
+    ################
+    # Remote Errors
+    ################
+    def error_create(self, error_data: str) -> dict:
         """
         Send an error message to the server.
         """
         response = self._send_server_request(
             uri="api/v0/errors",
             method="POST",
-            payload={"json_string": json.dumps(error_data)},
+            payload={
+                "json_string": json.dumps(error_data),
+                "version": self._edsl_version,
+            },
         )
         self._resolve_server_response(response)
         return response.json()
@@ -389,59 +433,55 @@ if __name__ == "__main__":
     coop.delete(object_type="question", uuid=response.get("uuid"))
 
     ##############
-    # B. Jobs
+    # B. Remote Cache
+    ##############
+    from edsl.data.CacheEntry import CacheEntry
+
+    # clear
+    coop.remote_cache_clear()
+    assert coop.remote_cache_get() == []
+    # create one remote cache entry
+    cache_entry = CacheEntry.example()
+    cache_entry.to_dict()
+    coop.remote_cache_create(cache_entry)
+    # create many remote cache entries
+    cache_entries = [CacheEntry.example(randomize=True) for _ in range(10)]
+    coop.remote_cache_create_many(cache_entries)
+    # get all remote cache entries
+    coop.remote_cache_get()
+    coop.remote_cache_get(exclude_keys=[])
+    coop.remote_cache_get(exclude_keys=["a"])
+    exclude_keys = [cache_entry.key for cache_entry in cache_entries]
+    coop.remote_cache_get(exclude_keys)
+    # clear
+    coop.remote_cache_clear()
+    coop.remote_cache_get()
+
+    ##############
+    # C. Remote Inference
     ##############
     from edsl.jobs import Jobs
 
     # check jobs on server (should be an empty list)
-    coop.jobs
-    for job in coop.jobs:
+    coop.get_all("job")
+    for job in coop.get_all("job"):
         coop.delete(object_type="job", uuid=job.get("uuid"))
-    # try to get a job that does not exist - should get an error
-    coop.get(object_type="job", uuid=uuid.uuid4())
-    coop.get(object_type="job", uuid=str(uuid.uuid4()))
-    # now post some Jobs
+    # post a job
     response = coop.create(Jobs.example())
-    coop.create(Jobs.example(), visibility="private")
-    coop.create(Jobs.example(), visibility="public")
-    # check all jobs - there must be a few
-    coop.jobs
-    # get job by uuid
-    for job in coop.jobs:
-        print(
-            f"Job: {job.get('uuid')}, Status: {job.get('status')}, Results: {job.get('results_uuid')}"
-        )
-
-    ##############
-    # C. CacheEntries
-    ##############
-    from edsl.data.CacheEntry import CacheEntry
-
-    # should be empty in the beginning
-    coop.get_cache_entries()
-    # now create one cache entry
-    cache_entry = CacheEntry.example()
-    coop.create_cache_entry(cache_entry)
-    # see that if you try to create it again, you'll get the same uuid
-    coop.create_cache_entry(cache_entry)
-    # now get all your cache entries
-    coop.get_cache_entries()
-    coop.get_cache_entries(exclude_keys=[])
-    coop.get_cache_entries(exclude_keys=["a"])
-    # this will be empty
-    coop.get_cache_entries(exclude_keys=[cache_entry.key])
-    # now send many cache entries
-    cache_entries = {}
-    for i in range(10):
-        cache_entry = CacheEntry.example(randomize=True)
-        cache_entries[cache_entry.key] = cache_entry
-    coop.create_cache_entries(cache_entries)
+    # get job and results
+    coop.remote_inference_get(response.get("uuid"))
+    coop.get(
+        object_type="results",
+        uuid=coop.remote_inference_get(response.get("uuid")).get("results_uuid"),
+    )
 
     ##############
     # D. Errors
     ##############
+    from edsl import Coop
+
     coop = Coop()
     coop.api_key = "a"
-    coop.send_error_message({"something": "This is an error message"})
+    coop.error_create({"something": "This is an error message"})
     coop.api_key = None
-    coop.send_error_message({"something": "This is an error message"})
+    coop.error_create({"something": "This is an error message"})
