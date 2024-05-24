@@ -169,6 +169,7 @@ Information about additional functionality for developers.
    notebooks/free_responses.ipynb
    notebooks/digital_twin.ipynb
    notebooks/river_problem.ipynb
+   notebooks/writing_style.ipynb
 
 .. toctree::
    :maxdepth: 2
