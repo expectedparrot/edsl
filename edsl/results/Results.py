@@ -6,10 +6,9 @@ from __future__ import annotations
 import json
 import random
 from collections import UserList, defaultdict
-from typing import Optional
+from typing import Optional, Callable, Any, Type, Union
 
 from simpleeval import EvalWithCompoundTypes
-from typing import Any, Type, Union
 
 from edsl.exceptions.results import (
     ResultsBadMutationstringError,
@@ -791,6 +790,18 @@ class Results(UserList, Mixins, Base):
             self.task_history.show_exceptions(traceback)
         else:
             print("No exceptions to show.")
+
+    def score(self, f: Callable) -> list:
+        """Score the results using in a function.
+
+        :param f: A function that takes values from a Resul object and returns a score.
+        
+        >>> r = Results.example()
+        >>> def f(status): return 1 if status == 'Joyful' else 0
+        >>> r.score(f)
+        [1, 1, 0, 0]
+        """
+        return [r.score(f) for r in self.data]
 
 
 def main():  # pragma: no cover
