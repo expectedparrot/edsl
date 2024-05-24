@@ -709,25 +709,108 @@ A subclass of the `Question` class for creating questions where the response is 
 The question type is not intended to be used directly in a survey, but rather to generate responses for other questions.
 This can be useful where a model is not needed for part of a survey, for questions that require some kind of initial computation, or for questions that are the result of a multi-step process.
 The question type lets us define a function `func` that takes in a scenario and (optional) agent traits and returns an answer.
-It takes the following general form:
+
+Example usage:
+
+Say we have some survey results where we asked some agents to pick a random number:
+
+.. code-block:: python
+
+   from edsl.questions import QuestionNumerical
+   from edsl import Agent
+
+   q_random = QuestionNumerical(
+      question_name = "random",
+      question_text = "Choose a random number between 1 and 1000."
+   )
+
+   agents = [Agent({"persona":p}) for p in ["Dog catcher", "Magician", "Spy"]]
+
+   results = q_random.by(agents).run()
+   results.select("persona", "random").print(format="rich")
+
+
+The results are:
+
+.. code-block:: text
+
+   ┏━━━━━━━━━━━━━┳━━━━━━━━━┓
+   ┃ agent       ┃ answer  ┃
+   ┃ .persona    ┃ .random ┃
+   ┡━━━━━━━━━━━━━╇━━━━━━━━━┩
+   │ Dog catcher │ 472     │
+   ├─────────────┼─────────┤
+   │ Magician    │ 537     │
+   ├─────────────┼─────────┤
+   │ Spy         │ 528     │
+   └─────────────┴─────────┘
+
+
+We can use `QuestionFunctional` to evaluate the responses using a function instead of calling the language model to answer another question.
+The responses are passed to the function as scenarios, and then the function is passed to the `QuestionFunctional` object:
 
 .. code-block:: python
 
    from edsl.questions import QuestionFunctional
 
    def my_function(scenario, agent_traits):
-      <some function>
+      if scenario.get("persona") == "Magician":
+         return "Magicians never pick randomly!"
+      elif scenario.get("random") > 500:
+         return "Top half"
+      else:
+         return "Bottom half"
 
-   q = QuestionFunctional(
-      question_name = "example",
+   q_evaluate = QuestionFunctional(
+      question_name = "evaluate",
       func = my_function
    )
 
 
-A general use case for `QuestionFunctional` is evaluating the responses to other questions in a survey, which are passed to the function as scenarios.
-An example of this can be seen in the following notebook, where we give agents different instructions for generating random numbers and then use a function to identify whether the responses are identical.
+Next we turn the responses into scenarios for the function:
+
+.. code-block:: python
+
+   scenarios = results.select("persona", "random").to_scenarios()
+   scenarios
+
+We can inspect the scenarios:
+
+.. code-block:: python
+
+   [Scenario({'persona': 'Dog catcher', 'random': 472}),
+   Scenario({'persona': 'Magician', 'random': 537}),
+   Scenario({'persona': 'Spy', 'random': 528})]
+
+
+Finally, we run the function with the scenarios:
+
+.. code-block:: python
+
+   results = q_evaluate.by(scenarios).run()
+   results.select("persona", "random", "evaluate").print(format="rich")
+
+
+The results are:
+
+.. code-block:: text
+
+   ┏━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+   ┃ scenario    ┃ scenario ┃ answer                         ┃
+   ┃ .persona    ┃ .random  ┃ .evaluate                      ┃
+   ┡━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+   │ Dog catcher │ 472      │ Bottom half                    │
+   ├─────────────┼──────────┼────────────────────────────────┤
+   │ Magician    │ 537      │ Magicians never pick randomly! │
+   ├─────────────┼──────────┼────────────────────────────────┤
+   │ Spy         │ 528      │ Top half                       │
+   └─────────────┴──────────┴────────────────────────────────┘
+
+
+Another example of `QuestionFunctional` can be seen in the following notebook, where we give agents different instructions for generating random numbers and then use a function to identify whether the responses are identical.
 
 Example notebook: `Simulating randomness <https://docs.expectedparrot.com/en/latest/notebooks/random_numbers.html>`_ 
+
 
 
 .. automodule:: edsl.questions.QuestionFunctional
