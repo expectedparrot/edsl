@@ -997,6 +997,30 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         s = cls(questions=[q0, q1, q2])
         s = s.add_rule(q0, "q0 == 'yes'", q2)
         return s
+    
+    def __call__(self, *args, **kwargs):
+        """Run the survey with default model, taking the required survey as arguments.
+        
+        >>> from edsl.questions import QuestionFunctional
+        >>> def f(scenario, agent_traits): return "yes" if scenario["period"] == "morning" else "no"
+        >>> q = QuestionFunctional(question_name = "q0", func = f)
+        >>> s = Survey([q])
+        >>> s(period = "morning").select("answer.q0").first()
+        'yes'
+        >>> s(period = "evening").select("answer.q0").first()
+        'no'
+        """
+        if 'model' in kwargs:
+            model = kwargs['model']
+            del kwargs['model']
+        else:
+            from edsl import Model
+            model = Model()
+        from edsl.scenarios.Scenario import Scenario
+
+        s = Scenario(kwargs)
+
+        return self.by(s).by(model).run()
 
 
 def main():
