@@ -19,138 +19,6 @@ In our scenarios for the `content` parameter, we could also include metadata abo
 This will create columns for the additional data in the survey results without passing them to the question texts if there is no corresponding parameter in the question texts.
 This allows us to analyze the responses in the context of the metadata without needing to match up the data with the metadata post-survey.
 
-Data labeling tasks
-^^^^^^^^^^^^^^^^^^^
-Scenarios are particularly useful for conducting data labeling or data coding tasks, where we can design the task as a question or series of questions about each piece of data in our dataset.
-For example, say we have a dataset of text messages that we want to sort by topic.
-We could perform this task by running multiple choice questions such as `"What is the primary topic of this message: {{ message }}?"` or `"Does this message mention a safety issue? {{ message }}"` where each text message is inserted in the `message` placeholder of the question text.
-
-The following code demonstrates how to use scenarios to conduct this task.
-For more step-by-step details, please also see `Constructing a Scenario` below it.
-
-.. code-block:: python
-
-    from edsl.questions import QuestionMultipleChoice
-    from edsl import Survey, Scenario
-
-    # Create a question with a parameter
-    q1 = QuestionMultipleChoice(
-        question_name = "topic",
-        question_text = "What is the topic of this message: {{ message }}?",
-        question_options = ["Safety", "Product support", "Billing", "Login issue", "Other"]
-    )
-
-    q2 = QuestionMultipleChoice(
-        question_name = "safety",
-        question_text = "Does this message mention a safety issue? {{ message }}?",
-        question_options = ["Yes", "No", "Unclear"]
-    )
-
-    # Create a list of scenarios for the parameter
-    messages = [
-        "I can't log in...", 
-        "I need help with my bill...", 
-        "I have a safety concern...", 
-        "I need help with a product..."
-        ]
-    scenarios = [Scenario({"message": message}) for message in messages]
-
-    # Create a survey with the question
-    survey = Survey(questions = [q1, q2])
-
-    # Run the survey with the scenarios
-    results = survey.by(scenarios).run()
-
-
-We can then analyze the results to see how the agent answered the questions for each scenario:
-
-.. code-block:: python
-
-    results.select("message", "topic", "safety").print(format="rich")
-
-
-This will print a table of the scenarios and the answers to the questions for each scenario:
-
-.. code-block:: text
-
-    ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━━┓
-    ┃ scenario                      ┃ answer  ┃ answer          ┃
-    ┃ .message                      ┃ .safety ┃ .topic          ┃
-    ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━━┩
-    │ I can't log in...             │ No      │ Login issue     │
-    ├───────────────────────────────┼─────────┼─────────────────┤
-    │ I need help with my bill...   │ No      │ Billing         │
-    ├───────────────────────────────┼─────────┼─────────────────┤
-    │ I have a safety concern...    │ Yes     │ Safety          │
-    ├───────────────────────────────┼─────────┼─────────────────┤
-    │ I need help with a product... │ Unclear │ Product support │
-    └───────────────────────────────┴─────────┴─────────────────┘
-
-
-Adding metadata
-^^^^^^^^^^^^^^^
-If we have metadata about the messages that we want to keep track of, we can add it to the scenarios as well.
-This will create additional columns for the metadata in the results dataset, but without the need to include it in our question texts.
-Here we modify the above example to use a dataset of messages with metadata. 
-Note that the question texts are unchanged:
-
-.. code-block:: python
-
-    from edsl.questions import QuestionMultipleChoice
-    from edsl import Survey, Scenario
-
-    # Create a question with a parameter
-    q1 = QuestionMultipleChoice(
-        question_name = "topic",
-        question_text = "What is the topic of this message: {{ message }}?",
-        question_options = ["Safety", "Product support", "Billing", "Login issue", "Other"]
-    )
-
-    q2 = QuestionMultipleChoice(
-        question_name = "safety",
-        question_text = "Does this message mention a safety issue? {{ message }}?",
-        question_options = ["Yes", "No", "Unclear"]
-    )
-
-    # Create scenarios for the sets of parameters
-    user_messages = [
-        {"message": "I can't log in...", "user": "Alice", "source": "Customer support", "date": "2022-01-01"}, 
-        {"message": "I need help with my bill...", "user": "Bob", "source": "Phone", "date": "2022-01-02"}, 
-        {"message": "I have a safety concern...", "user": "Charlie", "source": "Email", "date": "2022-01-03"}, 
-        {"message": "I need help with a product...", "user": "David", "source": "Chat", "date": "2022-01-04"}
-        ]
-    scenarios = [Scenario({"message": msg["message"], 
-                        "user": msg["user"],
-                        "source": msg["source"],
-                        "date": msg["date"]}) for msg in user_messages]
-
-    # Create a survey with the question
-    survey = Survey(questions = [q1, q2])
-
-    # Run the survey with the scenarios
-    results = survey.by(scenarios).run()
-
-
-We can then analyze the results to see how the agent answered the questions for each scenario, including the metadata:
-
-.. code-block:: text
-
-    ┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━━┓
-    ┃ scenario ┃ scenario         ┃ scenario   ┃ scenario                      ┃ answer  ┃ answer          ┃
-    ┃ .user    ┃ .source          ┃ .date      ┃ .message                      ┃ .safety ┃ .topic          ┃
-    ┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━━┩
-    │ Alice    │ Customer support │ 2022-01-01 │ I can't log in...             │ No      │ Login issue     │
-    ├──────────┼──────────────────┼────────────┼───────────────────────────────┼─────────┼─────────────────┤
-    │ Bob      │ Phone            │ 2022-01-02 │ I need help with my bill...   │ No      │ Billing         │
-    ├──────────┼──────────────────┼────────────┼───────────────────────────────┼─────────┼─────────────────┤
-    │ Charlie  │ Email            │ 2022-01-03 │ I have a safety concern...    │ Yes     │ Safety          │
-    ├──────────┼──────────────────┼────────────┼───────────────────────────────┼─────────┼─────────────────┤
-    │ David    │ Chat             │ 2022-01-04 │ I need help with a product... │ Unclear │ Product support │
-    └──────────┴──────────────────┴────────────┴───────────────────────────────┴─────────┴─────────────────┘
-
-
-To learn more about accessing, analyzing and visualizing survey results, please see the :ref:`results` section.
-
 
 Constructing a Scenario
 -----------------------
@@ -281,6 +149,198 @@ This will print a table of the responses for each scenario for each question:
 To learn more about constructing surveys, please see the :ref:`surveys` module.
 
 
+Turning results into scenarios 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The method `to_scenario_list()` can be used to turn the results of a survey into a list of scenarios.
+
+Example usage:
+
+Say we have some results from a survey where we asked agents to choose a random number between 1 and 1000:
+
+.. code-block:: python
+
+    from edsl.questions import QuestionNumerical
+    from edsl import Agent
+
+    q_random = QuestionNumerical(
+        question_name = "random",
+        question_text = "Choose a random number between 1 and 1000."
+    )
+
+    agents = [Agent({"persona":p}) for p in ["Dog catcher", "Magician", "Spy"]]
+
+    results = q_random.by(agents).run()
+    results.select("persona", "random").print(format="rich")
+
+
+Our results are:
+
+.. code-block:: text
+
+    ┏━━━━━━━━━━━━━┳━━━━━━━━━┓
+    ┃ agent       ┃ answer  ┃
+    ┃ .persona    ┃ .random ┃
+    ┡━━━━━━━━━━━━━╇━━━━━━━━━┩
+    │ Dog catcher │ 472     │
+    ├─────────────┼─────────┤
+    │ Magician    │ 537     │
+    ├─────────────┼─────────┤
+    │ Spy         │ 528     │
+    └─────────────┴─────────┘
+
+
+We can use the `to_scenario_list()` method turn components of the results into a list of scenarios to use in a new survey:
+
+.. code-block:: python
+
+    scenarios = results.to_scenario_list()
+
+    scenarios 
+
+
+We can inspect the scenarios to see that they have been created correctly:
+
+.. code-block:: text
+
+    [Scenario({'persona': 'Dog catcher', 'random': 472}),
+    Scenario({'persona': 'Magician', 'random': 537}),
+    Scenario({'persona': 'Spy', 'random': 528})]
+
+
+
+Data labeling tasks
+-------------------
+Scenarios are particularly useful for conducting data labeling or data coding tasks, where we can design the task as a question or series of questions about each piece of data in our dataset.
+For example, say we have a dataset of text messages that we want to sort by topic.
+We could perform this task by running multiple choice questions such as `"What is the primary topic of this message: {{ message }}?"` or `"Does this message mention a safety issue? {{ message }}"` where each text message is inserted in the `message` placeholder of the question text.
+
+The following code demonstrates how to use scenarios to conduct this task.
+For more step-by-step details, please see the next section below: `Constructing a Scenario`.
+
+.. code-block:: python
+
+    from edsl.questions import QuestionMultipleChoice
+    from edsl import Survey, Scenario
+
+    # Create a question with a parameter
+    q1 = QuestionMultipleChoice(
+        question_name = "topic",
+        question_text = "What is the topic of this message: {{ message }}?",
+        question_options = ["Safety", "Product support", "Billing", "Login issue", "Other"]
+    )
+
+    q2 = QuestionMultipleChoice(
+        question_name = "safety",
+        question_text = "Does this message mention a safety issue? {{ message }}?",
+        question_options = ["Yes", "No", "Unclear"]
+    )
+
+    # Create a list of scenarios for the parameter
+    messages = [
+        "I can't log in...", 
+        "I need help with my bill...", 
+        "I have a safety concern...", 
+        "I need help with a product..."
+        ]
+    scenarios = [Scenario({"message": message}) for message in messages]
+
+    # Create a survey with the question
+    survey = Survey(questions = [q1, q2])
+
+    # Run the survey with the scenarios
+    results = survey.by(scenarios).run()
+
+
+We can then analyze the results to see how the agent answered the questions for each scenario:
+
+.. code-block:: python
+
+    results.select("message", "topic", "safety").print(format="rich")
+
+
+This will print a table of the scenarios and the answers to the questions for each scenario:
+
+.. code-block:: text
+
+    ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━━┓
+    ┃ scenario                      ┃ answer  ┃ answer          ┃
+    ┃ .message                      ┃ .safety ┃ .topic          ┃
+    ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━━┩
+    │ I can't log in...             │ No      │ Login issue     │
+    ├───────────────────────────────┼─────────┼─────────────────┤
+    │ I need help with my bill...   │ No      │ Billing         │
+    ├───────────────────────────────┼─────────┼─────────────────┤
+    │ I have a safety concern...    │ Yes     │ Safety          │
+    ├───────────────────────────────┼─────────┼─────────────────┤
+    │ I need help with a product... │ Unclear │ Product support │
+    └───────────────────────────────┴─────────┴─────────────────┘
+
+
+Adding metadata
+^^^^^^^^^^^^^^^
+If we have metadata about the messages that we want to keep track of, we can add it to the scenarios as well.
+This will create additional columns for the metadata in the results dataset, but without the need to include it in our question texts.
+Here we modify the above example to use a dataset of messages with metadata. 
+Note that the question texts are unchanged:
+
+.. code-block:: python
+
+    from edsl.questions import QuestionMultipleChoice
+    from edsl import Survey, Scenario
+
+    # Create a question with a parameter
+    q1 = QuestionMultipleChoice(
+        question_name = "topic",
+        question_text = "What is the topic of this message: {{ message }}?",
+        question_options = ["Safety", "Product support", "Billing", "Login issue", "Other"]
+    )
+
+    q2 = QuestionMultipleChoice(
+        question_name = "safety",
+        question_text = "Does this message mention a safety issue? {{ message }}?",
+        question_options = ["Yes", "No", "Unclear"]
+    )
+
+    # Create scenarios for the sets of parameters
+    user_messages = [
+        {"message": "I can't log in...", "user": "Alice", "source": "Customer support", "date": "2022-01-01"}, 
+        {"message": "I need help with my bill...", "user": "Bob", "source": "Phone", "date": "2022-01-02"}, 
+        {"message": "I have a safety concern...", "user": "Charlie", "source": "Email", "date": "2022-01-03"}, 
+        {"message": "I need help with a product...", "user": "David", "source": "Chat", "date": "2022-01-04"}
+        ]
+    scenarios = [Scenario({"message": msg["message"], 
+                        "user": msg["user"],
+                        "source": msg["source"],
+                        "date": msg["date"]}) for msg in user_messages]
+
+    # Create a survey with the question
+    survey = Survey(questions = [q1, q2])
+
+    # Run the survey with the scenarios
+    results = survey.by(scenarios).run()
+
+
+We can then analyze the results to see how the agent answered the questions for each scenario, including the metadata:
+
+.. code-block:: text
+
+    ┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━━┓
+    ┃ scenario ┃ scenario         ┃ scenario   ┃ scenario                      ┃ answer  ┃ answer          ┃
+    ┃ .user    ┃ .source          ┃ .date      ┃ .message                      ┃ .safety ┃ .topic          ┃
+    ┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━━┩
+    │ Alice    │ Customer support │ 2022-01-01 │ I can't log in...             │ No      │ Login issue     │
+    ├──────────┼──────────────────┼────────────┼───────────────────────────────┼─────────┼─────────────────┤
+    │ Bob      │ Phone            │ 2022-01-02 │ I need help with my bill...   │ No      │ Billing         │
+    ├──────────┼──────────────────┼────────────┼───────────────────────────────┼─────────┼─────────────────┤
+    │ Charlie  │ Email            │ 2022-01-03 │ I have a safety concern...    │ Yes     │ Safety          │
+    ├──────────┼──────────────────┼────────────┼───────────────────────────────┼─────────┼─────────────────┤
+    │ David    │ Chat             │ 2022-01-04 │ I need help with a product... │ Unclear │ Product support │
+    └──────────┴──────────────────┴────────────┴───────────────────────────────┴─────────┴─────────────────┘
+
+
+To learn more about accessing, analyzing and visualizing survey results, please see the :ref:`results` section.
+
+
 Turning PDF pages into scenarios
 --------------------------------
 
@@ -319,7 +379,8 @@ Example usage:
     results.select("text", "answers.*").print(format="rich")
 
 
-See a demo notebook of this method in the :ref:`notebooks` section ("Extracting information from PDFs").
+See a demo notebook of this method in the notebooks section of the docs index: "Extracting information from PDFs".
+
 
 
 Scenario class
