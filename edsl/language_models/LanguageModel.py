@@ -5,7 +5,6 @@ from functools import wraps
 import asyncio
 import json
 import time
-import inspect
 import os
 
 from typing import Coroutine, Any, Callable, Type, List, get_type_hints
@@ -16,12 +15,14 @@ from rich.table import Table
 
 from edsl.config import CONFIG
 from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
+from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 from edsl.language_models.repair import repair
 from edsl.exceptions.language_models import LanguageModelAttributeTypeError
 from edsl.enums import InferenceServiceType
 from edsl.Base import RichPrintingMixin, PersistenceMixin
 from edsl.data.Cache import Cache
 from edsl.enums import service_to_api_keyname
+
 
 from edsl.exceptions import MissingAPIKeyError
 from edsl.language_models.RegisterLanguageModelsMeta import RegisterLanguageModelsMeta
@@ -417,6 +418,7 @@ class LanguageModel(
     #######################
     # SERIALIZATION METHODS
     #######################
+    @add_edsl_version
     def to_dict(self) -> dict[str, Any]:
         """Convert instance to a dictionary.
         
@@ -427,12 +429,13 @@ class LanguageModel(
         return {"model": self.model, "parameters": self.parameters}
 
     @classmethod
+    @remove_edsl_version
     def from_dict(cls, data: dict) -> Type[LanguageModel]:
         """Convert dictionary to a LanguageModel child instance."""
         from edsl.language_models.registry import get_model_class
 
         model_class = get_model_class(data["model"])
-        data["use_cache"] = True
+        #data["use_cache"] = True
         return model_class(**data)
 
     #######################
