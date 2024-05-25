@@ -239,10 +239,16 @@ class QuestionNameDescriptor(BaseDescriptor):
 class QuestionOptionsDescriptor(BaseDescriptor):
     """Validate that `question_options` is a list, does not exceed the min/max lengths, and has unique items."""
 
-    def __init__(self, num_choices: int = None, linear_scale: bool = False):
+    def __init__(
+        self,
+        num_choices: int = None,
+        linear_scale: bool = False,
+        q_budget: bool = False,
+    ):
         """Initialize the descriptor."""
         self.num_choices = num_choices
         self.linear_scale = linear_scale
+        self.q_budget = q_budget
 
     def validate(self, value: Any, instance) -> None:
         """Validate the question options."""
@@ -258,18 +264,31 @@ class QuestionOptionsDescriptor(BaseDescriptor):
             raise QuestionCreationValidationError(
                 f"Too few question options (got {value})."
             )
-        if len(value) != len(set(value)):
+        # handle the case when question_options is a list of lists (a list of list can be converted to set)
+        tmp_value = [str(x) for x in value]
+        if len(tmp_value) != len(set(tmp_value)):
             raise QuestionCreationValidationError(
                 f"Question options must be unique (got {value})."
             )
         if not self.linear_scale:
-            if not all(isinstance(x, str) for x in value):
-                raise QuestionCreationValidationError(
-                    "Question options must be strings (got {value}).)"
-                )
+            if not self.q_budget:
+                if not (
+                    value
+                    and all(type(x) == type(value[0]) for x in value)
+                    and isinstance(value[0], (str, list, int, float))
+                ):
+                    raise QuestionCreationValidationError(
+                        f"Question options must be all same type (got {value}).)"
+                    )
+            else:
+                if not all(isinstance(x, (str)) for x in value):
+                    raise QuestionCreationValidationError(
+                        f"Question options must be strings (got {value}).)"
+                    )
             if not all(
                 [
-                    len(option) >= 1 and len(option) < Settings.MAX_OPTION_LENGTH
+                    type(option) != str
+                    or (len(option) >= 1 and len(option) < Settings.MAX_OPTION_LENGTH)
                     for option in value
                 ]
             ):

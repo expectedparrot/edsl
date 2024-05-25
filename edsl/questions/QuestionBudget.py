@@ -13,7 +13,7 @@ class QuestionBudget(QuestionBase):
 
     question_type = "budget"
     budget_sum: int = IntegerDescriptor(none_allowed=False)
-    question_options: list[str] = QuestionOptionsDescriptor()
+    question_options: list[str] = QuestionOptionsDescriptor(q_budget=True)
 
     def __init__(
         self,
