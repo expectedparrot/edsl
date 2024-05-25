@@ -278,11 +278,18 @@ class QuestionBase(
         s = Survey([self, other])
         return s
 
+    def to_survey(self):
+        """Turn a single question into a survey."""
+        from edsl.surveys.Survey import Survey
+
+        s = Survey([self])
+        return s
+
     def run(self, *args, **kwargs):
         """Turn a single question into a survey and run it."""
         from edsl.surveys.Survey import Survey
 
-        s = Survey([self])
+        s = self.to_survey()
         return s.run(*args, **kwargs)
 
     def by(self, *args):
