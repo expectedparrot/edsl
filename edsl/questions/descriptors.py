@@ -239,10 +239,16 @@ class QuestionNameDescriptor(BaseDescriptor):
 class QuestionOptionsDescriptor(BaseDescriptor):
     """Validate that `question_options` is a list, does not exceed the min/max lengths, and has unique items."""
 
-    def __init__(self, num_choices: int = None, linear_scale: bool = False):
+    def __init__(
+        self,
+        num_choices: int = None,
+        linear_scale: bool = False,
+        q_budget: bool = False,
+    ):
         """Initialize the descriptor."""
         self.num_choices = num_choices
         self.linear_scale = linear_scale
+        self.q_budget = q_budget
 
     def validate(self, value: Any, instance) -> None:
         """Validate the question options."""
@@ -265,10 +271,20 @@ class QuestionOptionsDescriptor(BaseDescriptor):
                 f"Question options must be unique (got {value})."
             )
         if not self.linear_scale:
-            if not all(isinstance(x, (str, list, int, float)) for x in value):
-                raise QuestionCreationValidationError(
-                    "Question options must be strings (got {value}).)"
-                )
+            if not self.q_budget:
+                if not (
+                    value
+                    and all(type(x) == type(value[0]) for x in value)
+                    and isinstance(value[0], (str, list, int, float))
+                ):
+                    raise QuestionCreationValidationError(
+                        f"Question options must be all same type (got {value}).)"
+                    )
+            else:
+                if not all(isinstance(x, (str)) for x in value):
+                    raise QuestionCreationValidationError(
+                        f"Question options must be strings (got {value}).)"
+                    )
             if not all(
                 [
                     type(option) != str
