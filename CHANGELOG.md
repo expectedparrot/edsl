@@ -345,6 +345,8 @@ We modified exception messages. If your survey run generates exceptions, run `re
 
 ### Changed
 
+- You can now use numbers and lists as `question_options` for `QuestionMultipleChoice`. Previously the options had to be a list of strings.
+
 - [In progress] `QuestionMultipleChoice` is being modified allow non-responsive answers. Previously, an error was thrown if the agent did not select one of the given options. Details TBD.
 
 ### Fixed
