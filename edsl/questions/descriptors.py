@@ -258,18 +258,21 @@ class QuestionOptionsDescriptor(BaseDescriptor):
             raise QuestionCreationValidationError(
                 f"Too few question options (got {value})."
             )
-        if len(value) != len(set(value)):
+        # handle the case when question_options is a list of lists (a list of list can be converted to set)
+        tmp_value = [str(x) for x in value]
+        if len(tmp_value) != len(set(tmp_value)):
             raise QuestionCreationValidationError(
                 f"Question options must be unique (got {value})."
             )
         if not self.linear_scale:
-            if not all(isinstance(x, str) for x in value):
+            if not all(isinstance(x, (str, list, int, float)) for x in value):
                 raise QuestionCreationValidationError(
                     "Question options must be strings (got {value}).)"
                 )
             if not all(
                 [
-                    len(option) >= 1 and len(option) < Settings.MAX_OPTION_LENGTH
+                    type(option) != str
+                    or (len(option) >= 1 and len(option) < Settings.MAX_OPTION_LENGTH)
                     for option in value
                 ]
             ):
