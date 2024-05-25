@@ -15,13 +15,15 @@ class QuestionMultipleChoice(QuestionBase):
 
     question_type = "multiple_choice"
     purpose = "When options are known and limited"
-    question_options: list[str] = QuestionOptionsDescriptor()
+    question_options: Union[
+        list[str], list[list], list[float], list[int]
+    ] = QuestionOptionsDescriptor()
 
     def __init__(
         self,
         question_name: str,
         question_text: str,
-        question_options: list[str],
+        question_options: Union[list[str], list[list], list[float], list[int]],
     ):
         """Instantiate a new QuestionMultipleChoice.
 
