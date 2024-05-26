@@ -24,7 +24,7 @@ def test_simple_job_integration():
     print("-------------------------")
     print("Running job without cache?")
     job_no_cache = survey.by(agents).by(scenarios).by(models)
-    results_no_cache = job_no_cache.run(batch_mode = True)
+    results_no_cache = job_no_cache.run(cache=False)
     results_no_cache
 
     # TODO: ADD OPTION THAT SPECIFIES CACHE

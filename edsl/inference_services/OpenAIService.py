@@ -108,15 +108,20 @@ class OpenAIService(InferenceServiceABC):
                     }
 
             async def async_execute_model_call(
-                self, user_prompt: str, system_prompt: str = ""
+                self, user_prompt: str, system_prompt: str = "", encoded_image = None,
             ) -> dict[str, Any]:
                 """Calls the OpenAI API and returns the API response."""
+                content = [{"type": "text", "text": user_prompt}]
+                if encoded_image:
+                    content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encoded_image}"}})
                 self.client = AsyncOpenAI()
                 response = await self.client.chat.completions.create(
                     model=self.model,
                     messages=[
                         {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt},
+                        {"role": "user", 
+                         "content": content
+                         },
                     ],
                     temperature=self.temperature,
                     max_tokens=self.max_tokens,
