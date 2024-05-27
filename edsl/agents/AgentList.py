@@ -15,6 +15,7 @@ from typing import Optional, Union
 from rich import print_json
 from rich.table import Table
 import json
+import csv
 
 from edsl.Base import Base
 from edsl.agents import Agent
@@ -36,6 +37,62 @@ class AgentList(UserList, Base):
             super().__init__(data)
         else:
             super().__init__()
+
+    @classmethod
+    def from_csv(cls, file_path: str):
+        """Load AgentList from a CSV file.
+
+        >>> import csv 
+        >>> import os
+        >>> with open('/tmp/agents.csv', 'w') as f:
+        ...     writer = csv.writer(f)
+        ...     _ = writer.writerow(['age', 'hair', 'height'])
+        ...     _ = writer.writerow([22, 'brown', 5.5])
+        >>> al = AgentList.from_csv('/tmp/agents.csv')
+        >>> al
+        AgentList([Agent(traits = {'age': '22', 'hair': 'brown', 'height': '5.5'})])
+        >>> os.remove('/tmp/agents.csv')
+
+        :param file_path: The path to the CSV file.
+        """
+        agent_list = []
+        with open(file_path, "r") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                agent_list.append(Agent(row))
+        return cls(agent_list)
+    
+    def translate_traits(self, values_codebook: dict[str, str]):
+        """Translate traits to a new codebook.
+
+        :param codebook: The new codebook.
+        """
+        for agent in self.data:
+            agent.translate_traits(codebook)
+        return self
+    
+    def remove_trait(self, trait: str):
+        """Remove traits from the AgentList.
+
+        :param traits: The traits to remove.
+
+        >>> al = AgentList([Agent({'age': 22, 'hair': 'brown', 'height': 5.5}), Agent({'age': 22, 'hair': 'brown', 'height': 5.5})])
+        >>> al.remove_trait('age')
+        AgentList([Agent(traits = {'hair': 'brown', 'height': 5.5}), Agent(traits = {'hair': 'brown', 'height': 5.5})])
+        """
+        for agent in self.data:
+            _ = agent.remove_trait(trait)
+        return self
+
+    @staticmethod
+    def get_codebook(file_path: str):
+        """Return the codebook for a CSV file.
+
+        :param file_path: The path to the CSV file.
+        """
+        with open(file_path, "r") as f:
+            reader = csv.DictReader(f)
+            return {field: None for field in reader.fieldnames}
 
     @add_edsl_version
     def to_dict(self):
