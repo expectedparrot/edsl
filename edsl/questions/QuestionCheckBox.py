@@ -93,6 +93,25 @@ class QuestionCheckBox(QuestionBase):
                 "comment": random_string(),
             }
         return answer
+    
+    @property
+    def question_html_content(self) -> str:
+        instructions = ""
+        if self.min_selections is not None:
+            instructions += f"Select at least {self.min_selections} option(s). "
+        if self.max_selections is not None:
+            instructions += f"Select at most {self.max_selections} option(s)."
+        question_html_content = Template("""
+        <p>{{ instructions }}</p>
+        {% for option in question_options %} 
+        <div>
+        <input type="checkbox" id="{{ option }}" name="{{ question_name }}" value="{{ option }}">
+        <label for="{{ option }}">{{ option }}</label>
+        </div>
+        {% endfor %}
+        """).render(instructions = instructions, question_name=self.question_name, question_options=self.question_options)
+        return question_html_content
+
 
     ################
     # Helpful methods

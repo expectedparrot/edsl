@@ -50,12 +50,21 @@ class QuestionFreeText(QuestionBase):
     def _simulate_answer(self, human_readable: bool = True) -> dict[str, str]:
         """Simulate a valid answer for debugging purposes."""
         return {"answer": random_string()}
+    
+    @property
+    def question_html_content(self) -> str:
+        from jinja2 import Template
+        question_html_content = Template("""
+        <div>
+        <textarea id="{{ question_name }}" name="{{ question_name }}"></textarea>
+        </div>
+        """).render(question_name=self.question_name)
+        return question_html_content
 
     @classmethod
     def example(cls) -> QuestionFreeText:
         """Return an example instance of a free text question."""
         return cls(question_name="how_are_you", question_text="How are you?")
-
 
 def main():
     """Create an example question and demonstrate its functionality."""
