@@ -105,10 +105,13 @@ class PromptConstructorMixin:
         """Get both prompts for the LLM call."""
         system_prompt = self.construct_system_prompt()
         user_prompt = self.construct_user_prompt()
-        return {
+        prompts = {
             "user_prompt": user_prompt,
             "system_prompt": system_prompt,
         }
+        if hasattr(self.scenario, "has_image") and self.scenario.has_image:
+            prompts["encoded_image"] = self.scenario["encoded_image"]
+        return prompts 
 
 
 if __name__ == "__main__":

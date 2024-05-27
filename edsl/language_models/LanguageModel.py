@@ -304,6 +304,7 @@ class LanguageModel(
         system_prompt: str,
         cache,
         iteration: int = 0,
+        encoded_image = None,
     ) -> dict[str, Any]:
         """Handle caching of responses.
 
@@ -328,13 +329,20 @@ class LanguageModel(
         """
         start_time = time.time()
 
-        cached_response = cache.fetch(
-            model=str(self.model),
-            parameters=self.parameters,
-            system_prompt=system_prompt,
-            user_prompt=user_prompt,
-            iteration=iteration,
-        )
+        cache_call_params = {
+            'model':str(self.model),
+            'parameters':self.parameters,
+            'system_prompt':system_prompt,
+            'user_prompt':user_prompt,
+            'iteration':iteration,
+        }
+
+        if encoded_image:
+            import hashlib
+            image_hash = hashlib.md5(encoded_image.encode()).hexdigest()
+            cache_call_params['user_prompt'] = f"{user_prompt} {image_hash}"
+
+        cached_response = cache.fetch(**cache_call_params)
 
         if cached_response:
             response = json.loads(cached_response)
@@ -343,7 +351,10 @@ class LanguageModel(
         else:
             remote_call = hasattr(self, "remote") and self.remote
             f = self.remote_async_execute_model_call if remote_call else self.async_execute_model_call
-            response = await f(user_prompt, system_prompt)
+            params = {'user_prompt':user_prompt, 'system_prompt':system_prompt}
+            if encoded_image:
+                params['encoded_image'] = encoded_image
+            response = await f(**params)
             cache_key = cache.store(
                 user_prompt=user_prompt,
                 model=str(self.model),
@@ -377,7 +388,7 @@ class LanguageModel(
         )
 
     async def async_get_response(
-        self, user_prompt: str, system_prompt: str, cache: Cache, iteration: int = 1
+        self, user_prompt: str, system_prompt: str, cache: Cache, iteration: int = 1, encoded_image = None
     ) -> dict:
         """Get response, parse, and return as string.
 
@@ -385,14 +396,19 @@ class LanguageModel(
         :param system_prompt: The system's prompt.
         :param iteration: The iteration number.
         :param cache: The cache to use.
+        :param encoded_image: The encoded image to use.
 
         """
-        raw_response = await self.async_get_raw_response(
-            user_prompt=user_prompt,
-            system_prompt=system_prompt,
-            iteration=iteration,
-            cache=cache,
-        )
+        params =  {
+            'user_prompt':user_prompt,
+            'system_prompt':system_prompt,
+            'iteration':iteration,
+            'cache':cache
+            }
+        if encoded_image:
+            params['encoded_image'] = encoded_image
+       
+        raw_response = await self.async_get_raw_response(**params)
         response = self.parse_response(raw_response)
         try:
             dict_response = json.loads(response)

@@ -3,8 +3,11 @@ import copy
 from collections import UserDict
 from rich.table import Table
 from typing import Union, List
+import base64
 
 from edsl.Base import Base
+
+from edsl.scenarios.ScenarioImageMixin import ScenarioImageMixin
 
 from edsl.utilities.decorators import (
     add_edsl_version,
@@ -12,7 +15,7 @@ from edsl.utilities.decorators import (
 )
 
 
-class Scenario(Base, UserDict):
+class Scenario(Base, UserDict, ScenarioImageMixin):
     """A Scenario is a dictionary of keys/values for parameterizing questions."""
 
     def __init__(self, data: Union[dict, None] = None, name: str = None):
@@ -24,6 +27,17 @@ class Scenario(Base, UserDict):
             data = {}
         self.data = data
         self.name = name
+ 
+    @property
+    def has_image(self) -> bool:
+        """Return whether the scenario has an image."""
+        if not hasattr(self, "_has_image"):
+            self._has_image = False
+        return self._has_image
+    
+    @has_image.setter
+    def has_image(self, value):
+        self._has_image = value
 
     def __add__(self, other_scenario: "Scenario") -> "Scenario":
         """Combine two scenarios.
@@ -47,7 +61,10 @@ class Scenario(Base, UserDict):
         else:
             data1 = copy.deepcopy(self.data)
             data2 = copy.deepcopy(other_scenario.data)
-            return Scenario(data1 | data2)
+            s = Scenario(data1 | data2)
+            if self.has_image or other_scenario.has_image:
+                s._has_image = True
+            return s
 
     def rename(self, replacement_dict: dict) -> "Scenario":
         """Rename the keys of a scenario.
@@ -92,6 +109,24 @@ class Scenario(Base, UserDict):
         from edsl.utilities.utilities import data_to_html
 
         return data_to_html(self.to_dict())
+     
+    @classmethod
+    def from_image(cls, image_path: str) -> str:
+        """Creates a scenario with a base64 encoding of an image.
+
+        >>> s = Scenario.from_image(Scenario.example_image())
+        >>> s
+        Scenario({'file_path': '...', 'encoded_image': '...'})
+        """
+
+        with open(image_path, "rb") as image_file:
+            s = cls({
+                'file_path':image_path,
+                'encoded_image':base64.b64encode(image_file.read()).decode('utf-8')})
+            s.has_image = True
+            return s
+
+#chicken = encode_image("/Users/john/tools/edsl/edsl/inference_services/chicken.jpeg")
 
     @classmethod
     @remove_edsl_version
