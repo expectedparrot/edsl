@@ -272,6 +272,13 @@ class Jobs(Base):
         if self.__bucket_collection is None:
             self.__bucket_collection = self.create_bucket_collection()
         return self.__bucket_collection
+    
+    def html(self):
+        """Return the HTML representations for each scenario"""
+        links = []
+        for index, scenario in enumerate(self.scenarios):
+            links.append(self.survey.html(scenario=scenario, return_link = True, cta = f"Scenario {index}"))
+        return links
 
     def run(
         self,

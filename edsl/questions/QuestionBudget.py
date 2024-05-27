@@ -83,6 +83,44 @@ class QuestionBudget(QuestionBase):
             "answer": answer,
             "comment": random_string(),
         }
+    
+    @property
+    def question_html_content(self) -> str:
+        from jinja2 import Template
+
+        question_html_content = Template("""
+        <form id="budgetForm">
+        <p>Total Budget: {{ budget_sum }}</p>
+        <p>Remaining Budget: <span id="remainingBudget">{{ budget_sum }}</span></p>
+        {% for option in question_options %}
+        <div>
+            <label for="{{ option }}">{{ option }}</label>
+            <input type="number" id="{{ option }}" name="{{ question_name }}[{{ option }}]" value="0" min="0" max="{{ budget_sum }}" oninput="updateRemainingBudget()">
+        </div>
+        {% endfor %}
+        </form>
+        <script>
+        function updateRemainingBudget() {
+            let totalBudget = {{ budget_sum }};
+            let allocated = 0;
+
+            {% for option in question_options %}
+            allocated += parseInt(document.getElementById("{{ option }}").value) || 0;
+            {% endfor %}
+
+            let remaining = totalBudget - allocated;
+            document.getElementById('remainingBudget').innerText = remaining;
+
+            {% for option in question_options %}
+            document.getElementById("{{ option }}").max = remaining + parseInt(document.getElementById("{{ option }}").value);
+            {% endfor %}
+        }
+        </script>
+        """).render(question_name=self.question_name, 
+                    budget_sum = self.budget_sum,
+                    question_options=self.question_options)
+        return question_html_content 
+
 
     ################
     # Helpful methods

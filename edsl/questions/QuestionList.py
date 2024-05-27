@@ -51,6 +51,30 @@ class QuestionList(QuestionBase):
         num_items = random.randint(1, self.max_list_items or 2)
         return {"answer": [random_string() for _ in range(num_items)]}
 
+
+    @property
+    def question_html_content(self) -> str:
+        from jinja2 import Template
+        question_html_content = Template("""
+        <div id="question-list-container">
+            <div>
+                <textarea name="{{ question_name }}[]" rows="1" placeholder="Enter item"></textarea>
+            </div>
+        </div>
+        <button type="button" onclick="addNewLine()">Add another line</button>
+
+        <script>
+            function addNewLine() {
+                var container = document.getElementById('question-list-container');
+                var newLine = document.createElement('div');
+                newLine.innerHTML = '<textarea name="{{ question_name }}[]" rows="1" placeholder="Enter item"></textarea>';
+                container.appendChild(newLine);
+            }
+        </script>
+        """).render(question_name=self.question_name)
+        return question_html_content
+
+
     ################
     # Helpful methods
     ################
