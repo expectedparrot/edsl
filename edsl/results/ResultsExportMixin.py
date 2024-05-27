@@ -90,12 +90,12 @@ class ResultsExportMixin:
         >>> from edsl.results import Results
         >>> r = Results.example()
         >>> r.select('how_feeling').print_long(max_rows = 2)
-        ┏━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━┳━━━━━━━┓
-        ┃ Result index ┃ Key                ┃ Value ┃
-        ┡━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━╇━━━━━━━┩
-        │ 0            │ answer.how_feeling │ OK    │
-        │ 1            │ answer.how_feeling │ Great │
-        └──────────────┴────────────────────┴───────┘
+        ┏━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━┓
+        ┃ Result index ┃ Key         ┃ Value ┃
+        ┡━━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━┩
+        │ 0            │ how_feeling │ OK    │
+        │ 1            │ how_feeling │ Great │
+        └──────────────┴─────────────┴───────┘
         """
         from edsl.utilities.interface import print_results_long
 
@@ -272,7 +272,7 @@ class ResultsExportMixin:
         >>> from edsl.results import Results
         >>> r = Results.example()
         >>> r.select('how_feeling').to_scenario_list()
-        ScenarioList([Scenario({'answer.how_feeling': 'OK'}), Scenario({'answer.how_feeling': 'Great'}), Scenario({'answer.how_feeling': 'Terrible'}), Scenario({'answer.how_feeling': 'OK'})])
+        ScenarioList([Scenario({'how_feeling': 'OK'}), Scenario({'how_feeling': 'Great'}), Scenario({'how_feeling': 'Terrible'}), Scenario({'how_feeling': 'OK'})])
         """
         from edsl import ScenarioList, Scenario
 
@@ -288,7 +288,7 @@ class ResultsExportMixin:
         >>> from edsl.results import Results
         >>> r = Results.example()
         >>> r.select('how_feeling').to_dicts()
-        [{'answer.how_feeling': 'OK'}, {'answer.how_feeling': 'Great'}, {'answer.how_feeling': 'Terrible'}, {'answer.how_feeling': 'OK'}]
+        [{'how_feeling': 'OK'}, {'how_feeling': 'Great'}, {'how_feeling': 'Terrible'}, {'how_feeling': 'OK'}]
 
         """
         list_of_keys = []
@@ -300,8 +300,8 @@ class ResultsExportMixin:
 
         if remove_prefix:
             list_of_keys = [key.split(".")[-1] for key in list_of_keys]
-        else:
-            list_of_keys = [key.replace(".", "_") for key in list_of_keys]
+#        else:
+#            list_of_keys = [key.replace(".", "_") for key in list_of_keys]
 
         list_of_dicts = []
         for entries in zip(*list_of_values):
@@ -334,7 +334,7 @@ class ResultsExportMixin:
             list_to_return = list(self[0].values())[0]
         else:
             keys = self.relevant_columns()
-            data = self.to_dicts()
+            data = self.to_dicts(remove_prefix=False)
             list_to_return = []
             for d in data:
                 list_to_return.append(tuple([d[key] for key in keys]))
