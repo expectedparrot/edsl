@@ -1,6 +1,6 @@
 """A mixin class for exporting surveys to different formats."""
 from docx import Document
-from typing import Union
+from typing import Union, Optional
 import black
 
 
@@ -122,19 +122,27 @@ class SurveyExportMixin:
 
         return formatted_code
     
-    def html(self, filename = None, css = None): 
+    def html(self, 
+             scenario: Optional[dict] = None, 
+             filename:Optional[str] = None, 
+             return_link = False,
+             css:Optional[str] = None, 
+             cta:Optional[str] = "Open HTML file"): 
 
         from IPython.display import display, HTML
         import tempfile
         import os
+        from edsl.utilities.utilities import is_notebook
+
+        if scenario is None:
+            scenario = {}
 
         if css is None:
             css = self.css()
 
         if filename is None:
-            filename = "survey.html"
-
-        current_directory = os.getcwd()
+            current_directory = os.getcwd()
+            filename = tempfile.NamedTemporaryFile("w", delete=False, suffix=".html", dir=current_directory).name
 
         html_header = f"""<html>
         <head><title></title>
@@ -155,14 +163,16 @@ class SurveyExportMixin:
             with open(filename, 'w') as f:
                 f.write(html_header)
                 for question in self._questions:
-                    f.write(question.html())
+                    f.write(question.html(scenario = scenario))
                 f.write(html_footer)
 
-        from edsl.utilities.utilities import is_notebook
         if is_notebook():
             html_url = f'/files/{filename}'
-            html_link = f'<a href="{html_url}" target="_blank">Open HTML file</a>'
+            html_link = f'<a href="{html_url}" target="_blank">{cta}</a>'
             display(HTML(html_link))
         else:
             print(f"Survey saved to {filename}")
+
+        if return_link:
+            return filename
 
