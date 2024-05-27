@@ -264,7 +264,7 @@ class ResultsExportMixin:
         return df_sorted
 
     @_convert_decorator
-    def to_scenario_list(self, remove_prefix: bool = False) -> list[dict]:
+    def to_scenario_list(self, remove_prefix: bool = True) -> list[dict]:
         """Convert the results to a list of dictionaries, one per scenario.
 
         :param remove_prefix: Whether to remove the prefix from the column names.
@@ -280,7 +280,7 @@ class ResultsExportMixin:
         return ScenarioList([Scenario(d) for d in list_of_dicts])
 
     @_convert_decorator
-    def to_dicts(self, remove_prefix: bool = False) -> list[dict]:
+    def to_dicts(self, remove_prefix: bool = True) -> list[dict]:
         """Convert the results to a list of dictionaries.
 
         :param remove_prefix: Whether to remove the prefix from the column names.
@@ -300,6 +300,8 @@ class ResultsExportMixin:
 
         if remove_prefix:
             list_of_keys = [key.split(".")[-1] for key in list_of_keys]
+        else:
+            list_of_keys = [key.replace(".", "_") for key in list_of_keys]
 
         list_of_dicts = []
         for entries in zip(*list_of_values):
