@@ -253,10 +253,10 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             failed_interviews = [interview.duplicate(iteration = interview.iteration, cache = interview.cache) for interview in self.total_interviews if interview.has_exceptions]
             results.failed_jobs = Jobs.from_interviews([interview for interview in failed_interviews])
 
+            msg = f"Exceptions were raised in {len(results.task_history.indices)} out of {len(self.total_interviews)} interviews.\n."
+
             if len(results.task_history.indices) > 5:
-                msg = "Exceptions were raised in multiple interviews (> 5)."
-            else:
-                msg = f"Exceptions were raised in the following interviews: {results.task_history.indices}"
+                msg += f"Exceptions were raised in the following interviews: {results.task_history.indices}"
 
             shared_globals["edsl_runner_exceptions"] = task_history
             print(

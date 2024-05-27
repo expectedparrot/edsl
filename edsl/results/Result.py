@@ -1,7 +1,7 @@
 # """This module contains the Result class, which captures the result of one interview."""
 from __future__ import annotations
 from collections import UserDict
-from typing import Any, Type
+from typing import Any, Type, Callable
 from collections import UserDict
 
 from rich.table import Table
@@ -307,6 +307,25 @@ class Result(Base, UserDict):
         from edsl.results import Results
 
         return Results.example()[0]
+    
+    def score(self, scoring_function:Callable) -> Any:
+        """Score the result using a passed-in scoring function.
+        
+        >>> def f(status): return 1 if status == 'Joyful' else 0
+        >>> Result.example().score(f)
+        1
+        """
+        import inspect
+        signature = inspect.signature(scoring_function)
+        params = {}
+        for k, v in signature.parameters.items():
+            if k in self.combined_dict:
+                params[k] = self.combined_dict[k]
+            elif v.default is not v.empty:
+                params[k] = v.default
+            else:
+                raise ValueError(f"Parameter {k} not found in Result object")
+        return scoring_function(**params)
 
 
 def main():
