@@ -309,6 +309,32 @@ class QuestionBase(
             for index, option in enumerate(self.question_options):
                 lines.append(f"{option}")
         return "\n".join(lines)
+    
+    def html(self):
+        from jinja2 import Template
+        base_template = """
+        <div id="{{ question_name }}" class="survey_question" data-type="{{ question_type }}">
+            <p class="question_text">{{ question_text }}</p>
+            {{ question_content }}
+        </div>
+        """
+        if not hasattr(self, "question_type"):
+            self.question_type = "unknown"
+
+        if hasattr(self, "question_html_content"):
+            question_content = self.question_html_content
+        else:
+            question_content = Template("").render()
+
+        base_template = Template(base_template)
+        rendered_html = base_template.render(
+            question_name=self.question_name,
+            question_text=self.question_text,
+            question_type=self.question_type,
+            question_content=question_content,
+        )
+        return rendered_html
+
 
     def rich_print(self):
         """Print the question in a rich format."""

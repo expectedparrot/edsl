@@ -7,6 +7,67 @@ import black
 class SurveyExportMixin:
     """A mixin class for exporting surveys to different formats."""
 
+    def css(self):
+        return """
+    /* General styles for the survey container */
+    .survey_container {
+        width: 80%;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f9f9f9;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Styles for individual survey questions */
+    .survey_question {
+        margin-bottom: 20px;
+        padding: 15px;
+        background-color: #fff;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+    }
+
+    /* Styles for the question text */
+    .question_text {
+        font-size: 18px;
+        font-weight: bold;
+        margin-bottom: 10px;
+        color: #333;
+    }
+
+    /* Styles for the question options list */
+    .question_options {
+        list-style-type: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    /* Styles for each option item */
+    .question_options li {
+        margin-bottom: 10px;
+        font-size: 16px;
+        color: #555;
+    }
+
+    /* Styles for radio buttons and checkboxes */
+    .question_options input[type="radio"],
+    .question_options input[type="checkbox"] {
+        margin-right: 10px;
+    }
+
+    /* Styles for text input questions */
+    input[type="text"] {
+        width: 100%;
+        padding: 10px;
+        font-size: 16px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        box-sizing: border-box;
+    }
+    """
+
     def docx(self, filename=None) -> Union["Document", None]:
         """Generate a docx document for the survey."""
         doc = Document()
@@ -60,22 +121,48 @@ class SurveyExportMixin:
             return
 
         return formatted_code
+    
+    def html(self, filename = None, css = None): 
 
-    def html(self, filename=None) -> str:
-        """Generate the html for the survey."""
-        html_text = []
-        for question in self._questions:
-            html_text.append(
-                f"<p><b>{question.question_name}</b> ({question.question_type}): {question.question_text}</p>"
-            )
-            html_text.append("<ul>")
-            for option in getattr(question, "question_options", []):
-                html_text.append(f"<li>{option}</li>")
-            html_text.append("</ul>")
-        lines = "\n".join(html_text)
-        if filename:
-            print("The survey has been saved to", filename)
-            with open(filename, "w") as file:
-                file.write(lines)
-            return
-        return lines
+        from IPython.display import display, HTML
+        import tempfile
+        import os
+
+        if css is None:
+            css = self.css()
+
+        if filename is None:
+            filename = "survey.html"
+
+        current_directory = os.getcwd()
+
+        html_header = f"""<html>
+        <head><title></title>
+        <style>
+        { css }
+        </style>
+        </head>
+        <body>
+        <div class="survey_container">
+        """
+
+        html_footer = """
+        </div>
+        </body>
+        </html>"""
+
+        with open(filename, 'w') as f:
+            with open(filename, 'w') as f:
+                f.write(html_header)
+                for question in self._questions:
+                    f.write(question.html())
+                f.write(html_footer)
+
+        from edsl.utilities.utilities import is_notebook
+        if is_notebook():
+            html_url = f'/files/{filename}'
+            html_link = f'<a href="{html_url}" target="_blank">Open HTML file</a>'
+            display(HTML(html_link))
+        else:
+            print(f"Survey saved to {filename}")
+
