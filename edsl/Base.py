@@ -136,15 +136,15 @@ class Base(RichPrintingMixin, PersistenceMixin, ABC, metaclass=RegisterSubclasse
 
         return data_to_html(self.to_dict())
 
-    def html(self):
-        html_string = self._repr_html_()
-        import tempfile
-        import webbrowser
+    # def html(self):
+    #     html_string = self._repr_html_()
+    #     import tempfile
+    #     import webbrowser
 
-        with tempfile.NamedTemporaryFile("w", delete=False, suffix=".html") as f:
-            # print("Writing HTML to", f.name)
-            f.write(html_string)
-            webbrowser.open(f.name)
+    #     with tempfile.NamedTemporaryFile("w", delete=False, suffix=".html") as f:
+    #         # print("Writing HTML to", f.name)
+    #         f.write(html_string)
+    #         webbrowser.open(f.name)
 
     @abstractmethod
     def example():

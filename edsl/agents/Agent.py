@@ -63,7 +63,7 @@ class Agent(Base):
     ):
         """Initialize a new instance of Agent.
 
-        :param traits: A dictionary of traits that the agent has. The keys need to be
+        :param traits: A dictionary of traits that the agent has. The keys need to be valid identifiers.
         :param name: A name for the agent
         :param codebook: A codebook mapping trait keys to trait descriptions.
         :param instruction: Instructions for the agent in how to answer questions.
@@ -485,6 +485,32 @@ class Agent(Base):
             table_data.append({"Attribute": attr_name, "Value": repr(attr_value)})
         column_names = ["Attribute", "Value"]
         return table_data, column_names
+    
+    def remove_trait(self, trait: str) -> Agent:
+        """Remove a trait from the agent.
+
+        Example usage:
+
+        >>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
+        >>> a.remove_trait("age")
+        Agent(traits = {'hair': 'brown', 'height': 5.5})
+        """
+        _ = self.traits.pop(trait)
+        return self
+
+    def translate_traits(self, values_codebook: dict) -> Agent:
+        """Translate traits to a new codebook.
+
+        >>> a = Agent(traits = {"age": 10, "hair": 1, "height": 5.5})
+        >>> a.translate_traits({"hair": {1:"brown"}})
+        Agent(traits = {'age': 10, 'hair': 'brown', 'height': 5.5})
+
+        :param values_codebook: The new codebook.
+        """
+        for key, value in self.traits.items():
+            if key in values_codebook:
+                self.traits[key] = values_codebook[key][value]
+        return self
 
     def rich_print(self):
         """Display an object as a rich table.
