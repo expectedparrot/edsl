@@ -77,6 +77,49 @@ class QuestionRank(QuestionBase):
             "comment": random_string(),
         }
         return answer
+    
+    @property
+    def question_html_content(self) -> str:
+        from jinja2 import Template
+
+        question_html_content = Template("""
+        <form id="rankForm">
+            <p>{{ question_text }}</p>
+            {% for option in question_options %}
+            <div>
+                <label for="{{ option }}">{{ option }}</label>
+                <input type="number" id="{{ option }}" name="{{ question_name }}[{{ option }}]" value="0" min="1" max="{{ question_options|length }}" oninput="updateRankings()">
+            </div>
+            {% endfor %}
+        </form>
+        <script>
+        function updateRankings() {
+            let options = {{ question_options|length }};
+            let values = [];
+            let isValid = true;
+
+            {% for option in question_options %}
+            let value = parseInt(document.getElementById("{{ option }}").value) || 0;
+            if (value > 0 && value <= options && !values.includes(value)) {
+                values.push(value);
+            } else if (value !== 0) {
+                isValid = false;
+            }
+            {% endfor %}
+
+            if (!isValid || values.length !== new Set(values).size) {
+                document.getElementById("error").innerText = "Please enter unique and valid ranks for each option.";
+            } else {
+                document.getElementById("error").innerText = "";
+            }
+        }
+        </script>
+        <p id="error" style="color: red;"></p>
+        """).render(question_name=self.question_name, 
+                    question_text=self.question_text,
+                    question_options=self.question_options)
+        return question_html_content
+
 
     ################
     # Helpful methods
