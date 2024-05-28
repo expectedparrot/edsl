@@ -67,14 +67,15 @@ class QuestionMultipleChoice(QuestionBase):
             "answer": answer,
             "comment": random_string(),
         }
-    
+
     @property
     def question_html_content(self) -> str:
         if hasattr(self, "option_labels"):
             option_labels = self.option_labels
         else:
             option_labels = {}
-        question_html_content = Template("""
+        question_html_content = Template(
+            """
         {% for option in question_options %} 
         <div>
         <input type="radio" id="{{ option }}" name="{{ question_name }}" value="{{ option }}">
@@ -86,10 +87,14 @@ class QuestionMultipleChoice(QuestionBase):
         </label>
         </div>
         {% endfor %}
-        """).render(question_name=self.question_name, question_options=self.question_options, option_labels = option_labels)
+        """
+        ).render(
+            question_name=self.question_name,
+            question_options=self.question_options,
+            option_labels=option_labels,
+        )
         return question_html_content
-    
-    
+
     ################
     # Example
     ################

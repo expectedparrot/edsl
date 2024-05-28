@@ -77,12 +77,13 @@ class QuestionRank(QuestionBase):
             "comment": random_string(),
         }
         return answer
-    
+
     @property
     def question_html_content(self) -> str:
         from jinja2 import Template
 
-        question_html_content = Template("""
+        question_html_content = Template(
+            """
         <form id="rankForm">
             <p>{{ question_text }}</p>
             {% for option in question_options %}
@@ -115,11 +116,13 @@ class QuestionRank(QuestionBase):
         }
         </script>
         <p id="error" style="color: red;"></p>
-        """).render(question_name=self.question_name, 
-                    question_text=self.question_text,
-                    question_options=self.question_options)
+        """
+        ).render(
+            question_name=self.question_name,
+            question_text=self.question_text,
+            question_options=self.question_options,
+        )
         return question_html_content
-
 
     ################
     # Helpful methods

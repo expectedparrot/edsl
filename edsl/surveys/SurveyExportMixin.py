@@ -121,14 +121,15 @@ class SurveyExportMixin:
             return
 
         return formatted_code
-    
-    def html(self, 
-             scenario: Optional[dict] = None, 
-             filename:Optional[str] = None, 
-             return_link = False,
-             css:Optional[str] = None, 
-             cta:Optional[str] = "Open HTML file"): 
 
+    def html(
+        self,
+        scenario: Optional[dict] = None,
+        filename: Optional[str] = None,
+        return_link=False,
+        css: Optional[str] = None,
+        cta: Optional[str] = "Open HTML file",
+    ):
         from IPython.display import display, HTML
         import tempfile
         import os
@@ -142,7 +143,9 @@ class SurveyExportMixin:
 
         if filename is None:
             current_directory = os.getcwd()
-            filename = tempfile.NamedTemporaryFile("w", delete=False, suffix=".html", dir=current_directory).name
+            filename = tempfile.NamedTemporaryFile(
+                "w", delete=False, suffix=".html", dir=current_directory
+            ).name
 
         html_header = f"""<html>
         <head><title></title>
@@ -159,15 +162,15 @@ class SurveyExportMixin:
         </body>
         </html>"""
 
-        with open(filename, 'w') as f:
-            with open(filename, 'w') as f:
+        with open(filename, "w") as f:
+            with open(filename, "w") as f:
                 f.write(html_header)
                 for question in self._questions:
-                    f.write(question.html(scenario = scenario))
+                    f.write(question.html(scenario=scenario))
                 f.write(html_footer)
 
         if is_notebook():
-            html_url = f'/files/{filename}'
+            html_url = f"/files/{filename}"
             html_link = f'<a href="{html_url}" target="_blank">{cta}</a>'
             display(HTML(html_link))
         else:
@@ -175,4 +178,3 @@ class SurveyExportMixin:
 
         if return_link:
             return filename
-

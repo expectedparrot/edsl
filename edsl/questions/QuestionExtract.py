@@ -54,24 +54,25 @@ class QuestionExtract(QuestionBase):
             "answer": {key: random_string() for key in self.answer_template.keys()},
             "comment": random_string(),
         }
-    
+
     @property
     def question_html_content(self) -> str:
         from jinja2 import Template
 
-        question_html_content = Template("""
+        question_html_content = Template(
+            """
         {% for field, placeholder in answer_template.items() %}
         <div>
         <label for="{{ field }}">{{ field }}</label>
         <input type="text" id="{{ field }}" name="{{ question_name }}[{{ field }}]" placeholder="{{ placeholder }}">
         </div>
         {% endfor %}
-        """).render(question_name=self.question_name, 
-                    answer_template=self.answer_template, 
-                    )
+        """
+        ).render(
+            question_name=self.question_name,
+            answer_template=self.answer_template,
+        )
         return question_html_content
-
-
 
     ################
     # Helpful methods
