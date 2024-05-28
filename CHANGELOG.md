@@ -337,29 +337,35 @@ We modified exception messages. If your survey run generates exceptions, run `re
 
 - New html methods
 
-- New `Agent` method `remove_trait()` allows you to remove a trait by name. This can be useful you want to compare results for combinations of traits.
+- `Agent` method `remove_trait()` allows you to remove a trait by name. This can be useful you want to compare results for combinations of traits.
 
-- New `Agent` method `translate_traits()` allows you to modify traits based on a codebook passed as dictionary. Example:
+- `Agent` method `translate_traits(<codebook_dict>)` allows you to modify traits based on a codebook passed as dictionary. Example:
 ```
 agent = Agent(traits = {"age": 45, "hair": 1, "height": 5.5})
 agent.translate_traits({"hair": {1:"brown"}})
 ```
 This will return: `Agent(traits = {'age': 10, 'hair': 'brown', 'height': 5.5})`
 
-- New `AgentList` method `from_csv()` loads an `AgentList` from a CSV file. Example:
+- `AgentList` method `from_csv(<filename>)` loads an `AgentList` from a CSV file with the column names as `traits` keys. Note that the CSV column names must be valid Python identifiers (e.g., `current_age` and not `current age`).
 
-- New `AgentList` method `to_agent_list()` converts a `ScenarioList` into an `AgentList`. Example:
+- `AgentList` method `get_codebook(<filename>)` returns the codebook for a CSV file.
 
+- `AgentList` method `to_agent_list()` converts a `ScenarioList` into an `AgentList`. Example:
 
-- New `Results` method `to_scenario_list()` allows you to turn any components of results into a list of scenarios to use with other questions. A default parameter `remove_prefixes=True` will remove the results component prefixes `agent.`, `answer.`, `comment.`, etc., so that you don't have to modify placeholder names for the new scenarios. Example: https://docs.expectedparrot.com/en/latest/scenarios.html#turning-results-into-scenarios
+- `Results` method `to_scenario_list()` allows you to turn any components of results into a list of scenarios to use with other questions. A default parameter `remove_prefixes=True` will remove the results component prefixes `agent.`, `answer.`, `comment.`, etc., so that you don't have to modify placeholder names for the new scenarios. Example: https://docs.expectedparrot.com/en/latest/scenarios.html#turning-results-into-scenarios
 
-- New `ScenarioList` method `from_pdf()` allows you to import a PDF and automatically turn the pages into a scenario list. Example: https://docs.expectedparrot.com/en/latest/scenarios.html#turning-pdf-pages-into-scenarios
+- `ScenarioList` method `from_pdf(<filename>)` allows you to import a PDF and automatically turn the pages into a list of scenarios. Example: https://docs.expectedparrot.com/en/latest/scenarios.html#turning-pdf-pages-into-scenarios
+
+- `ScenarioList` method `from_csv(<filename>)` allows you to import a CSV and automatically turn the rows into a list of scenarios. 
+
+- `ScenarioList` method `from_pandas(<dataframe>)` allows you to import a pandas dataframe and automatically turn the rows into a list of scenarios. 
+
+- `Scenario` method `from_image(<image_path>)` creates a scenario with a base64 encoding of an image. The scenario is formatted as follows: `"file_path": <filname / url>, "encoded_image": <generated_encoding>`
 
 
 ### Changed
 
 - `QuestionMultipleChoice` now takes numbers and lists as `question_options` (e.g., `question_options = [[1,2,3], [4,5,6]]` is allowed). Previously options had to be a list of strings (i.e., `question_options = ['1','2','3']` is still allowed but not required). 
-
 
 
 
