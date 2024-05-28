@@ -335,9 +335,9 @@ We modified exception messages. If your survey run generates exceptions, run `re
 
 ### Added 
 
-- `Agent` method `remove_trait(<trait_key>)` allows you to remove a trait by name. This can be useful for comparing combinations of traits.
+- `Agent`/`AgentList` method `remove_trait(<trait_key>)` allows you to remove a trait by name. This can be useful for comparing combinations of traits.
 
-- `Agent` method `translate_traits(<codebook_dict>)` allows you to modify traits based on a codebook passed as dictionary. Example:
+- `Agent`/`AgentList` method `translate_traits(<codebook_dict>)` allows you to modify traits based on a codebook passed as dictionary. Example:
 ```
 agent = Agent(traits = {"age": 45, "hair": 1, "height": 5.5})
 agent.translate_traits({"hair": {1:"brown"}})
@@ -362,7 +362,7 @@ This will return: `Agent(traits = {'age': 10, 'hair': 'brown', 'height': 5.5})`
 
 ### Changed
 
-- `Question` and `Survey` method `html()` now gives you a link to an html page representation of the object. You can optionally specify the filename and css.
+- `Question` and `Survey` method `html()` generates an improved html page representation of the object. You can optionally specify the filename and css. See default css: https://github.com/expectedparrot/edsl/blob/9d981fa25a0dd83e6cca4d17bcb9316a3d452a64/edsl/surveys/SurveyExportMixin.py#L10
 
 - `QuestionMultipleChoice` now takes numbers and lists as `question_options` (e.g., `question_options = [[1,2,3], [4,5,6]]` is allowed). Previously options had to be a list of strings (i.e., `question_options = ['1','2','3']` is still allowed but not required). 
 
