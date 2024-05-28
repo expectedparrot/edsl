@@ -331,21 +331,35 @@ We modified exception messages. If your survey run generates exceptions, run `re
 - Erroneous error messages about adding rules to a survey.
 
 
-## [0.1.24] - 2024-TBD - These changes are not live
+## [0.1.24] - 2024-05-28
 
 ### Added 
 
-- New `Results` method `to_scenario_list()` allows you to turn components of results into a list of scenarios to use with other questions.
+- New html methods
 
-- New `ScenarioList` method `from_pdf()` allows you to import a PDF and automatically turn the pages into a scenario list.
+- New `AgentList` methods
+
+- New `Results` method `to_scenario_list()` allows you to turn any components of results into a list of scenarios to use with other questions. A default parameter `remove_prefixes=True` will remove the results component prefixes `agent.`, `answer.`, `comment.`, etc., so that you don't have to modify placeholder names for the new scenarios. Example: https://docs.expectedparrot.com/en/latest/scenarios.html#turning-results-into-scenarios
+
+- New `ScenarioList` method `from_pdf()` allows you to import a PDF and automatically turn the pages into a scenario list. Example: https://docs.expectedparrot.com/en/latest/scenarios.html#turning-pdf-pages-into-scenarios
+
+
+### Changed
+
+- `QuestionMultipleChoice` now takes numbers and lists as `question_options` (e.g., `question_options = [[1,2,3], [4,5,6]]` is allowed). Previously options had to be a list of strings (i.e., `question_options = ['1','2','3']` is still allowed but not required). 
+
+
+
+
+## [0.1.25] - 2024-TBD
+
+### Added
+
+### Changed
 
 - [In progress] New prompt visibility features.
 
 - [In progress] New methods for piping responses to questions into other questions. 
-
-### Changed
-
-- You can now use numbers and lists as `question_options` for `QuestionMultipleChoice`. Previously the options had to be a list of strings.
 
 - [In progress] `QuestionMultipleChoice` is being modified allow non-responsive answers. Previously, an error was thrown if the agent did not select one of the given options. Details TBD.
 
