@@ -25,10 +25,11 @@ from edsl.jobs.buckets.BucketCollection import BucketCollection
 
 class JobsRunnerAsyncio(JobsRunnerStatusMixin):
     """A class for running a collection of interviews asynchronously.
-    
-    It gets instaniated from a Jobs object. 
+
+    It gets instaniated from a Jobs object.
     The Jobs object is a collection of interviews that are to be run.
     """
+
     def __init__(self, jobs: Jobs):
         self.jobs = jobs
 
@@ -250,8 +251,16 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         results.has_exceptions = task_history.has_exceptions
 
         if results.has_exceptions:
-            failed_interviews = [interview.duplicate(iteration = interview.iteration, cache = interview.cache) for interview in self.total_interviews if interview.has_exceptions]
-            results.failed_jobs = Jobs.from_interviews([interview for interview in failed_interviews])
+            failed_interviews = [
+                interview.duplicate(
+                    iteration=interview.iteration, cache=interview.cache
+                )
+                for interview in self.total_interviews
+                if interview.has_exceptions
+            ]
+            results.failed_jobs = Jobs.from_interviews(
+                [interview for interview in failed_interviews]
+            )
 
             msg = f"Exceptions were raised in {len(results.task_history.indices)} out of {len(self.total_interviews)} interviews.\n."
 

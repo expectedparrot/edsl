@@ -111,7 +111,7 @@ class PromptConstructorMixin:
         }
         if hasattr(self.scenario, "has_image") and self.scenario.has_image:
             prompts["encoded_image"] = self.scenario["encoded_image"]
-        return prompts 
+        return prompts
 
 
 if __name__ == "__main__":

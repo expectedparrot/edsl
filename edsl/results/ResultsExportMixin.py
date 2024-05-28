@@ -300,8 +300,8 @@ class ResultsExportMixin:
 
         if remove_prefix:
             list_of_keys = [key.split(".")[-1] for key in list_of_keys]
-#        else:
-#            list_of_keys = [key.replace(".", "_") for key in list_of_keys]
+        #        else:
+        #            list_of_keys = [key.replace(".", "_") for key in list_of_keys]
 
         list_of_dicts = []
         for entries in zip(*list_of_values):

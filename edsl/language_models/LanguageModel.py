@@ -27,6 +27,7 @@ from edsl.enums import service_to_api_keyname
 from edsl.exceptions import MissingAPIKeyError
 from edsl.language_models.RegisterLanguageModelsMeta import RegisterLanguageModelsMeta
 
+
 def handle_key_error(func):
     """Handle KeyError exceptions."""
 
@@ -42,19 +43,17 @@ def handle_key_error(func):
     return wrapper
 
 
-
-
 class LanguageModel(
     RichPrintingMixin, PersistenceMixin, ABC, metaclass=RegisterLanguageModelsMeta
 ):
     """ABC for LLM subclasses.
-    
-    TODO: 
+
+    TODO:
 
     1) Need better, more descriptive names for functions
 
     get_model_response_no_cache  (currently called async_execute_model_call)
-    
+
     get_model_response (currently called async_get_raw_response; uses cache & adds tracking info)
       Calls:
         - async_execute_model_call
@@ -66,13 +65,16 @@ class LanguageModel(
             - async_get_raw_response
             - parse_response
 
-    
+
     """
 
     _model_ = None
 
     __rate_limits = None
-    __default_rate_limits = {"rpm": 10_000, "tpm": 2_000_000} # TODO: Use the OpenAI Teir 1 rate limits
+    __default_rate_limits = {
+        "rpm": 10_000,
+        "tpm": 2_000_000,
+    }  # TODO: Use the OpenAI Teir 1 rate limits
     _safety_factor = 0.8
 
     def __init__(self, **kwargs):
@@ -200,7 +202,7 @@ class LanguageModel(
     @property
     def TPM(self):
         """Model's tokens-per-minute limit.
-        
+
         >>> m = LanguageModel.example()
         >>> m.TPM
         1600000.0
@@ -226,17 +228,19 @@ class LanguageModel(
         return parameters
 
     @abstractmethod
-    async def async_execute_model_call(user_prompt: str, system_prompt:str):
+    async def async_execute_model_call(user_prompt: str, system_prompt: str):
         """Execute the model call and returns the result as a coroutine.
-        
+
         >>> m = LanguageModel.example(test_model = True)
         >>> m.execute_model_call("Hello, model!", "You are a helpful agent.")
         {'message': '{"answer": "Hello world"}'}
-    
+
         """
         pass
 
-    async def remote_async_execute_model_call(self, user_prompt:str, system_prompt:str):
+    async def remote_async_execute_model_call(
+        self, user_prompt: str, system_prompt: str
+    ):
         """Execute the model call and returns the result as a coroutine, using Coop."""
         from edsl.coop import Coop
 
@@ -249,10 +253,10 @@ class LanguageModel(
     @jupyter_nb_handler
     def execute_model_call(self, *args, **kwargs) -> Coroutine:
         """Execute the model call and returns the result as a coroutine.
-        
+
         >>> m = LanguageModel.example(test_model = True)
         >>> m.execute_model_call(user_prompt = "Hello, model!", system_prompt = "You are a helpful agent.")
-        
+
         """
 
         async def main():
@@ -279,23 +283,25 @@ class LanguageModel(
         raise NotImplementedError
 
     def _update_response_with_tracking(
-        self, response:dict, start_time:int, cached_response=False, cache_key=None
+        self, response: dict, start_time: int, cached_response=False, cache_key=None
     ):
         """Update the response with tracking information.
-        
+
         >>> m = LanguageModel.example()
         >>> m._update_response_with_tracking(response={"response": "Hello"}, start_time=0, cached_response=False, cache_key=None)
         {'response': 'Hello', 'elapsed_time': ..., 'timestamp': ..., 'cached_response': False, 'cache_key': None}
-        
+
 
         """
         end_time = time.time()
-        response.update({
-            "elapsed_time": end_time - start_time,
-            "timestamp": end_time,
-            "cached_response": cached_response,
-            "cache_key": cache_key,
-        })
+        response.update(
+            {
+                "elapsed_time": end_time - start_time,
+                "timestamp": end_time,
+                "cached_response": cached_response,
+                "cache_key": cache_key,
+            }
+        )
         return response
 
     async def async_get_raw_response(
@@ -304,7 +310,7 @@ class LanguageModel(
         system_prompt: str,
         cache,
         iteration: int = 0,
-        encoded_image = None,
+        encoded_image=None,
     ) -> dict[str, Any]:
         """Handle caching of responses.
 
@@ -330,17 +336,18 @@ class LanguageModel(
         start_time = time.time()
 
         cache_call_params = {
-            'model':str(self.model),
-            'parameters':self.parameters,
-            'system_prompt':system_prompt,
-            'user_prompt':user_prompt,
-            'iteration':iteration,
+            "model": str(self.model),
+            "parameters": self.parameters,
+            "system_prompt": system_prompt,
+            "user_prompt": user_prompt,
+            "iteration": iteration,
         }
 
         if encoded_image:
             import hashlib
+
             image_hash = hashlib.md5(encoded_image.encode()).hexdigest()
-            cache_call_params['user_prompt'] = f"{user_prompt} {image_hash}"
+            cache_call_params["user_prompt"] = f"{user_prompt} {image_hash}"
 
         cached_response = cache.fetch(**cache_call_params)
 
@@ -350,10 +357,14 @@ class LanguageModel(
             cache_key = None
         else:
             remote_call = hasattr(self, "remote") and self.remote
-            f = self.remote_async_execute_model_call if remote_call else self.async_execute_model_call
-            params = {'user_prompt':user_prompt, 'system_prompt':system_prompt}
+            f = (
+                self.remote_async_execute_model_call
+                if remote_call
+                else self.async_execute_model_call
+            )
+            params = {"user_prompt": user_prompt, "system_prompt": system_prompt}
             if encoded_image:
-                params['encoded_image'] = encoded_image
+                params["encoded_image"] = encoded_image
             response = await f(**params)
             cache_key = cache.store(
                 user_prompt=user_prompt,
@@ -388,7 +399,12 @@ class LanguageModel(
         )
 
     async def async_get_response(
-        self, user_prompt: str, system_prompt: str, cache: Cache, iteration: int = 1, encoded_image = None
+        self,
+        user_prompt: str,
+        system_prompt: str,
+        cache: Cache,
+        iteration: int = 1,
+        encoded_image=None,
     ) -> dict:
         """Get response, parse, and return as string.
 
@@ -399,15 +415,15 @@ class LanguageModel(
         :param encoded_image: The encoded image to use.
 
         """
-        params =  {
-            'user_prompt':user_prompt,
-            'system_prompt':system_prompt,
-            'iteration':iteration,
-            'cache':cache
-            }
+        params = {
+            "user_prompt": user_prompt,
+            "system_prompt": system_prompt,
+            "iteration": iteration,
+            "cache": cache,
+        }
         if encoded_image:
-            params['encoded_image'] = encoded_image
-       
+            params["encoded_image"] = encoded_image
+
         raw_response = await self.async_get_raw_response(**params)
         response = self.parse_response(raw_response)
         try:
@@ -417,12 +433,14 @@ class LanguageModel(
             dict_response, success = await repair(response, str(e))
             if not success:
                 raise Exception("Even the repair failed.")
-            
-        dict_response.update({
-            'cached_response': raw_response["cached_response"],
-            'usage': raw_response.get("usage", {}),
-            'raw_model_response': raw_response,
-        })
+
+        dict_response.update(
+            {
+                "cached_response": raw_response["cached_response"],
+                "usage": raw_response.get("usage", {}),
+                "raw_model_response": raw_response,
+            }
+        )
         return dict_response
 
     get_response = sync_wrapper(async_get_response)
@@ -437,7 +455,7 @@ class LanguageModel(
     @add_edsl_version
     def to_dict(self) -> dict[str, Any]:
         """Convert instance to a dictionary.
-        
+
         >>> m = LanguageModel.example()
         >>> m.to_dict()
         {'model': 'gpt-4-1106-preview', 'parameters': {'temperature': 0.5, 'max_tokens': 1000, 'top_p': 1, 'frequency_penalty': 0, 'presence_penalty': 0, 'logprobs': False, 'top_logprobs': 3}}
@@ -451,7 +469,7 @@ class LanguageModel(
         from edsl.language_models.registry import get_model_class
 
         model_class = get_model_class(data["model"])
-        #data["use_cache"] = True
+        # data["use_cache"] = True
         return model_class(**data)
 
     #######################
@@ -495,7 +513,7 @@ class LanguageModel(
         return table
 
     @classmethod
-    def example(cls, test_model = False):
+    def example(cls, test_model=False):
         """Return a default instance of the class."""
         from edsl import Model
 
@@ -519,15 +537,15 @@ class LanguageModel(
             return m
         else:
             return Model(skip_api_key_check=True)
-    
 
 
 if __name__ == "__main__":
     """Run the module's test suite."""
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)
 
-    #from edsl.language_models import LanguageModel
+    # from edsl.language_models import LanguageModel
 
-    #from edsl.language_models import LanguageModel
-    #print(LanguageModel.example())
+    # from edsl.language_models import LanguageModel
+    # print(LanguageModel.example())

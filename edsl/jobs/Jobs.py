@@ -216,12 +216,12 @@ class Jobs(Base):
             return self._interviews
         else:
             return list(self._create_interviews())
-        
+
     @classmethod
     def from_interviews(cls, interview_list):
         """Return a Jobs instance from a list of interviews."""
         survey = interview_list[0].survey
-        # get all the models 
+        # get all the models
         models = list(set([interview.model for interview in interview_list]))
         jobs = cls(survey)
         jobs.models = models
@@ -272,12 +272,16 @@ class Jobs(Base):
         if self.__bucket_collection is None:
             self.__bucket_collection = self.create_bucket_collection()
         return self.__bucket_collection
-    
+
     def html(self):
         """Return the HTML representations for each scenario"""
         links = []
         for index, scenario in enumerate(self.scenarios):
-            links.append(self.survey.html(scenario=scenario, return_link = True, cta = f"Scenario {index}"))
+            links.append(
+                self.survey.html(
+                    scenario=scenario, return_link=True, cta=f"Scenario {index}"
+                )
+            )
         return links
 
     def run(
@@ -421,12 +425,12 @@ class Jobs(Base):
     # Example methods
     #######################
     @classmethod
-    def example(cls, throw_exception_probability = 0) -> Jobs:
+    def example(cls, throw_exception_probability=0) -> Jobs:
         """Return an example Jobs instance.
-        
+
         >>> Jobs.example()
         Jobs(...)
-        
+
         """
         import random
         from edsl.questions import QuestionMultipleChoice
