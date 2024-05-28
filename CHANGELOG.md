@@ -335,8 +335,6 @@ We modified exception messages. If your survey run generates exceptions, run `re
 
 ### Added 
 
-- New html methods
-
 - `Agent` method `remove_trait()` allows you to remove a trait by name. This can be useful you want to compare results for combinations of traits.
 
 - `Agent` method `translate_traits(<codebook_dict>)` allows you to modify traits based on a codebook passed as dictionary. Example:
@@ -350,9 +348,9 @@ This will return: `Agent(traits = {'age': 10, 'hair': 'brown', 'height': 5.5})`
 
 - `AgentList` method `get_codebook(<filename>)` returns the codebook for a CSV file.
 
-- `AgentList` method `to_agent_list()` converts a `ScenarioList` into an `AgentList`. Example:
-
 - `Results` method `to_scenario_list()` allows you to turn any components of results into a list of scenarios to use with other questions. A default parameter `remove_prefixes=True` will remove the results component prefixes `agent.`, `answer.`, `comment.`, etc., so that you don't have to modify placeholder names for the new scenarios. Example: https://docs.expectedparrot.com/en/latest/scenarios.html#turning-results-into-scenarios
+
+- `ScenarioList` method `to_agent_list()` converts a `ScenarioList` into an `AgentList`. 
 
 - `ScenarioList` method `from_pdf(<filename>)` allows you to import a PDF and automatically turn the pages into a list of scenarios. Example: https://docs.expectedparrot.com/en/latest/scenarios.html#turning-pdf-pages-into-scenarios
 
@@ -362,8 +360,9 @@ This will return: `Agent(traits = {'age': 10, 'hair': 'brown', 'height': 5.5})`
 
 - `Scenario` method `from_image(<image_path>)` creates a scenario with a base64 encoding of an image. The scenario is formatted as follows: `"file_path": <filname / url>, "encoded_image": <generated_encoding>`
 
-
 ### Changed
+
+- `Question` and `Survey` method `html()` now gives you a link to an html page representation of the object. You can optionally specify the filename and css.
 
 - `QuestionMultipleChoice` now takes numbers and lists as `question_options` (e.g., `question_options = [[1,2,3], [4,5,6]]` is allowed). Previously options had to be a list of strings (i.e., `question_options = ['1','2','3']` is still allowed but not required). 
 
@@ -374,6 +373,8 @@ This will return: `Agent(traits = {'age': 10, 'hair': 'brown', 'height': 5.5})`
 ### Added
 
 ### Changed
+
+- [In progress] Survey run exceptions are now optionally displayed in an html report.
 
 - [In progress] New prompt visibility features.
 
