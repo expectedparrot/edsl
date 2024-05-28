@@ -335,7 +335,7 @@ We modified exception messages. If your survey run generates exceptions, run `re
 
 ### Added 
 
-- `Agent` method `remove_trait()` allows you to remove a trait by name. This can be useful you want to compare results for combinations of traits.
+- `Agent` method `remove_trait(<trait_key>)` allows you to remove a trait by name. This can be useful for comparing combinations of traits.
 
 - `Agent` method `translate_traits(<codebook_dict>)` allows you to modify traits based on a codebook passed as dictionary. Example:
 ```
