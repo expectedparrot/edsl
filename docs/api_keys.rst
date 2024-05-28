@@ -10,7 +10,7 @@ There are two methods for securely providing your API keys to EDSL:
 1. Using a .env file (*recommended*)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Create a `.env` file in your working directory and populate it with your API keys.
-Replace `your_key_here` with your actual API keys for each service you plan to use:
+Replace `your_key_here` with your actual API key for each service that you plan to use:
 
 .. code-block:: python
 
@@ -20,7 +20,7 @@ Replace `your_key_here` with your actual API keys for each service you plan to u
    OPENAI_API_KEY='your_key_here'
 
 
-By using a .env file, you avoid the need to repeatedly enter your API keys each time you start a session with EDSL.
+Using a `.env file` allows you to store your keys once and avoid repeatedly enter your API keys each time you start a session with EDSL.
 
 
 2. Setting API keys in your Python code
