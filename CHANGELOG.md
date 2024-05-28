@@ -337,7 +337,19 @@ We modified exception messages. If your survey run generates exceptions, run `re
 
 - New html methods
 
-- New `AgentList` methods
+- New `Agent` method `remove_trait()` allows you to remove a trait by name. This can be useful you want to compare results for combinations of traits.
+
+- New `Agent` method `translate_traits()` allows you to modify traits based on a codebook passed as dictionary. Example:
+```
+agent = Agent(traits = {"age": 45, "hair": 1, "height": 5.5})
+agent.translate_traits({"hair": {1:"brown"}})
+```
+This will return: `Agent(traits = {'age': 10, 'hair': 'brown', 'height': 5.5})`
+
+- New `AgentList` method `from_csv()` loads an `AgentList` from a CSV file. Example:
+
+- New `AgentList` method `to_agent_list()` converts a `ScenarioList` into an `AgentList`. Example:
+
 
 - New `Results` method `to_scenario_list()` allows you to turn any components of results into a list of scenarios to use with other questions. A default parameter `remove_prefixes=True` will remove the results component prefixes `agent.`, `answer.`, `comment.`, etc., so that you don't have to modify placeholder names for the new scenarios. Example: https://docs.expectedparrot.com/en/latest/scenarios.html#turning-results-into-scenarios
 
