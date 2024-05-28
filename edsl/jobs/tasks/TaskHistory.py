@@ -314,9 +314,16 @@ class TaskHistory:
                 #f.write(html_footer)
 
         if is_notebook():
+            import html
             html_url = f'/files/{filename}'
             html_link = f'<a href="{html_url}" target="_blank">{cta}</a>'
             display(HTML(html_link))
+            escaped_output = html.escape(output)
+            iframe = f""""
+            <iframe srcdoc="{ escaped_output }" style="width: 800px; height: 600px;"></iframe>
+            """
+            display(HTML(iframe))
+            #display(HTML(output))
         else:
             print(f"Exception report saved to {filename}")
 
