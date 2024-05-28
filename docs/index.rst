@@ -154,6 +154,7 @@ Information about additional functionality for developers.
    :hidden:
 
    notebooks/agentifying_responses.ipynb
+   notebooks/summarizing_transcripts.ipynb
    notebooks/data_labeling_agent.ipynb
    notebooks/conduct_interview.ipynb
    notebooks/qualitative_research.ipynb
