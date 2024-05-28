@@ -346,9 +346,9 @@ agent.translate_traits({"hair": {1:"brown"}})
 ```
 This will return: `Agent(traits = {'age': 10, 'hair': 'brown', 'height': 5.5})`
 
-- `AgentList` method `from_csv(<filename>)` loads an `AgentList` from a CSV file with the column names as `traits` keys. Note that the CSV column names must be valid Python identifiers (e.g., `current_age` and not `current age`).
-
 - `AgentList` method `get_codebook(<filename>)` returns the codebook for a CSV file.
+
+- `AgentList` method `from_csv(<filename>)` loads an `AgentList` from a CSV file with the column names as `traits` keys. Note that the CSV column names must be valid Python identifiers (e.g., `current_age` and not `current age`).
 
 - `Results` method `to_scenario_list()` allows you to turn any components of results into a list of scenarios to use with other questions. A default parameter `remove_prefixes=True` will remove the results component prefixes `agent.`, `answer.`, `comment.`, etc., so that you don't have to modify placeholder names for the new scenarios. Example: https://docs.expectedparrot.com/en/latest/scenarios.html#turning-results-into-scenarios
 
