@@ -309,7 +309,7 @@ class QuestionBase(
             for index, option in enumerate(self.question_options):
                 lines.append(f"{option}")
         return "\n".join(lines)
-    
+
     def html(self, scenario: Optional[dict] = None):
         """Return the question in HTML format."""
         from jinja2 import Template
@@ -341,7 +341,6 @@ class QuestionBase(
         }
         rendered_html = base_template.render(**params)
         return rendered_html
-
 
     def rich_print(self):
         """Print the question in a rich format."""
