@@ -335,6 +335,8 @@ We modified exception messages. If your survey run generates exceptions, run `re
 
 ### Added 
 
+- We started a blog! https://blog.expectedparrot.com
+
 - `Agent`/`AgentList` method `remove_trait(<trait_key>)` allows you to remove a trait by name. This can be useful for comparing combinations of traits.
 
 - `Agent`/`AgentList` method `translate_traits(<codebook_dict>)` allows you to modify traits based on a codebook passed as dictionary. Example:
@@ -359,6 +361,39 @@ This will return: `Agent(traits = {'age': 10, 'hair': 'brown', 'height': 5.5})`
 - `ScenarioList` method `from_pandas(<dataframe>)` allows you to import a pandas dataframe and automatically turn the rows into a list of scenarios. 
 
 - `Scenario` method `from_image(<image_path>)` creates a scenario with a base64 encoding of an image. The scenario is formatted as follows: `"file_path": <filname / url>, "encoded_image": <generated_encoding>`
+Note that you need to use a vision model (e.g., `model = Model('gpt-4o')`) and you do *not* need to add a `{{ placeholder }}` for the scenario (for now--this might change!).
+Example:
+```
+from edsl.questions import QuestionFreeText
+from edsl import Scenario, Model
+
+model = Model('gpt-4o')
+
+scenario = Scenario.from_image('general_survey.png') # Image from this notebook: https://docs.expectedparrot.com/en/latest/notebooks/data_labeling_agent.html 
+# scenario
+
+q = QuestionFreeText(
+    question_name = "example",
+    question_text = "What is this image showing?" # We do not need a {{ placeholder }} for this kind of scenario
+)
+
+results = q.by(scenario).by(model).run(cache=False)
+
+results.select("example").print(format="rich")
+```
+Returns:
+```
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ answer                                                                                                          ┃
+┃ .example                                                                                                        ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ This image is a flowchart showing the process of creating and administering a survey for data labeling tasks.   │
+│ The steps include importing data, creating data labeling tasks as questions about the data, combining the       │
+│ questions into a survey, inserting the data as scenarios of the questions, and administering the same survey to │
+│ all agents.                                                                                                     │
+└─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
 
 ### Changed
 
