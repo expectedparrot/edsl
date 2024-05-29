@@ -191,6 +191,25 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         from edsl.agents.Agent import Agent
 
         return AgentList([Agent(traits=s.data) for s in self])
+    
+    def chunk(self, field, 
+            num_words:Optional[int] = None, 
+            num_lines:Optional[int] = None, 
+            include_original = False, 
+            hash_original = False) -> 'ScenarioList':
+        """Chunk the scenarios based on a field.
+
+        >>> s = ScenarioList([Scenario({'text': 'The quick brown fox jumps over the lazy dog.'})])
+        >>> s.chunk('text', num_words=3)
+        ScenarioList([Scenario({'text': 'The quick brown', 'text_chunk': 0}), Scenario({'text': 'fox jumps over', 'text_chunk': 1}), Scenario({'text': 'the lazy dog.', 'text_chunk': 2})])
+
+        """
+
+        new_scenarios = []
+        for scenario in self:
+            replacement_scenarios = scenario.chunk(field, num_words=num_words, num_lines=num_lines, include_original=include_original, hash_original=hash_original)
+            new_scenarios.extend(replacement_scenarios)
+        return ScenarioList(new_scenarios)
 
 
 if __name__ == "__main__":
