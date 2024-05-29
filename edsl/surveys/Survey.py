@@ -51,13 +51,13 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         name: str = None,
     ):
         """Create a new survey.
-        
+
         :param questions: The questions in the survey.
         :param memory_plan: The memory plan for the survey.
         :param rule_collection: The rule collection for the survey.
         :param question_groups: The groups of questions in the survey.
         :param name: The name of the survey - DEPRECATED.
-        
+
         """
         self.rule_collection = RuleCollection(
             num_questions=len(questions) if questions else None
@@ -82,13 +82,13 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
     def get_question(self, question_name) -> QuestionBase:
         """Return the question object given the question name.
-        
+
         :param question_name: The name of the question to get.
 
         >>> s = Survey.example()
         >>> s.get_question("q0")
         Question('multiple_choice', question_name = 'q0', question_text = 'Do you like school?', question_options = ['yes', 'no'])
-        
+
         """
         if question_name not in self.question_name_to_index:
             raise KeyError(f"Question name {question_name} not found in survey.")
@@ -169,9 +169,9 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
     def set_full_memory_mode(self) -> Survey:
         """Add instructions to a survey that the agent should remember all of the answers to the questions in the survey.
-        
+
         >>> s = Survey.example().set_full_memory_mode()
-        
+
         """
         self._set_memory_plan(lambda i: self.question_names[:i])
         return self
@@ -186,9 +186,9 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
     def _set_memory_plan(self, prior_questions_func: Callable):
         """Set memory plan based on a provided function determining prior questions.
-        
+
         :param prior_questions_func: A function that takes the index of the current question and returns a list of prior questions to remember.
-        
+
         >>> s = Survey.example()
         >>> s._set_memory_plan(lambda i: s.question_names[:i])
 
@@ -210,7 +210,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         :param start_question: The first question in the group.
         :param end_question: The last question in the group.
         :param group_name: The name of the group.
-        
+
         Example:
 
         >>> s = Survey.example().add_question_group("q0", "q1", "group1")
@@ -286,7 +286,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         :param focal_question: The question that the agent is answering.
         :param prior_question: The question that the agent should remember when answering the focal question.
 
-        Here we add instructions to a survey than when answering q2 they should remember q1: 
+        Here we add instructions to a survey than when answering q2 they should remember q1:
 
         >>> s = Survey.example().add_targeted_memory("q2", "q0")
         >>> s.memory_plan
@@ -375,7 +375,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         This adds a rule that skips 'q0' always, before the question is answered:
 
-        >>> from edsl import QuestionFreeText 
+        >>> from edsl import QuestionFreeText
         >>> q0 = QuestionFreeText.example()
         >>> q0.question_name = "q0"
         >>> q1 = QuestionFreeText.example()
@@ -428,7 +428,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         :param question_index: The index of the question to add the rule to.
         :param before_rule: Whether the rule is evaluated before the question is answered.
-        
+
         >>> s = Survey.example()
         >>> s._get_new_rule_priority(0)
         1
@@ -524,7 +524,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     ###################
     def by(self, *args: Union[Agent, Scenario, LanguageModel]) -> Jobs:
         """Add Agents, Scenarios, and LanguageModels to a survey and returns a runnable Jobs object.
-        
+
         :param args: The Agents, Scenarios, and LanguageModels to add to the survey.
 
         This takes the survey and adds an Agent and a Scenario via 'by' which converts to a Jobs object:
@@ -538,11 +538,11 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         job = Jobs(survey=self)
         return job.by(*args)
 
-    def run(self, *args, **kwargs) -> 'Results':
+    def run(self, *args, **kwargs) -> "Results":
         """Turn the survey into a Job and runs it.
 
         Here we run a survey but with debug mode on (so LLM calls are not made)
-         
+
         >>> from edsl import QuestionFreeText
         >>> s = Survey([QuestionFreeText.example()])
         >>> results = s.run(debug = True)
@@ -611,7 +611,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         """
         Generate a coroutine that can be used to conduct an Interview.
 
-        The coroutine is a generator that yields a question and receives answers. 
+        The coroutine is a generator that yields a question and receives answers.
         It starts with the first question in the survey.
         The coroutine ends when an EndOfSurvey object is returned.
 
@@ -631,7 +631,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         Note that q0 has a rule that if the answer is 'yes', the next question is q2. If the answer is 'no', the next question is q1.
 
         Here is the path through the survey if the answer to q0 is 'yes':
-        
+
         >>> i = s.gen_path_through_survey()
         >>> next(i)
         Question('multiple_choice', question_name = 'q0', question_text = 'Do you like school?', question_options = ['yes', 'no'])
@@ -656,10 +656,10 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     @property
     def scenario_attributes(self) -> list[str]:
         """Return a list of attributes that admissible Scenarios should have.
-        
+
         Here we have a survey with a question that uses a jinja2 style {{ }} template:
 
-        >>> from edsl import QuestionFreeText 
+        >>> from edsl import QuestionFreeText
         >>> s = Survey().add_question(QuestionFreeText(question_text="{{ greeting }}. What is your name?", question_name="name"))
         >>> s.scenario_attributes
         ['greeting']
@@ -718,7 +718,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         except IndexError:
             raise
 
-    def dag(self, textify:bool=False) -> DAG:
+    def dag(self, textify: bool = False) -> DAG:
         """Return the DAG of the survey, which reflects both skip-logic and memory.
 
         :param textify: Whether to return the DAG with question names instead of indices.
@@ -750,13 +750,13 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
     def __getitem__(self, index) -> QuestionBase:
         """Return the question object given the question index.
-        
+
         :param index: The index of the question to get.
 
         >>> s = Survey.example()
         >>> s[0]
         Question('multiple_choice', question_name = 'q0', question_text = 'Do you like school?', question_options = ['yes', 'no'])
-        
+
         """
         if isinstance(index, int):
             return self._questions[index]
@@ -778,7 +778,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
     def __eq__(self, other) -> bool:
         """Return True if the two surveys have the same to_dict.
-        
+
         :param other: The other survey to compare to.
 
         >>> s = Survey.example()
@@ -787,7 +787,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         >>> s == "poop"
         False
-        
+
         """
         if not isinstance(other, Survey):
             return False
@@ -799,11 +799,11 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     @add_edsl_version
     def to_dict(self) -> dict[str, Any]:
         """Serialize the Survey object to a dictionary.
-        
+
         >>> s = Survey.example()
         >>> s.to_dict().keys()
         dict_keys(['questions', 'memory_plan', 'rule_collection', 'question_groups', 'edsl_version', 'edsl_class_name'])
-        
+
         """
         return {
             "questions": [q.to_dict() for q in self._questions],
@@ -818,12 +818,12 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         """Deserialize the dictionary back to a Survey object.
 
         :param data: The dictionary to deserialize.
-        
+
         >>> d = Survey.example().to_dict()
         >>> s = Survey.from_dict(d)
         >>> s == Survey.example()
         True
-        
+
         """
         questions = [QuestionBase.from_dict(q_dict) for q_dict in data["questions"]]
         memory_plan = MemoryPlan.from_dict(data["memory_plan"])
@@ -840,7 +840,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     ###################
     def print(self):
         """Print the survey in a rich format.
-        
+
         >>> s = Survey.example()
         >>> s.print()
         {
@@ -854,11 +854,10 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         print_json(json.dumps(self.to_dict()))
 
     def __repr__(self) -> str:
-        """Return a string representation of the survey.        
-        """
+        """Return a string representation of the survey."""
 
         questions_string = ", ".join([repr(q) for q in self._questions])
-        #question_names_string = ", ".join([repr(name) for name in self.question_names])
+        # question_names_string = ", ".join([repr(name) for name in self.question_names])
         return f"Survey(questions=[{questions_string}], memory_plan={self.memory_plan}, rule_collection={self.rule_collection}, question_groups={self.question_groups})"
 
     def _repr_html_(self) -> str:
@@ -884,7 +883,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
     def rich_print(self) -> Table:
         """Print the survey in a rich format.
-        
+
         >>> t = Survey.example().rich_print()
         >>> print(t)
         ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
@@ -972,7 +971,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     @classmethod
     def example(cls) -> Survey:
         """Return an example survey.
-        
+
         >>> s = Survey.example()
         >>> [q.question_text for q in s.questions]
         ['Do you like school?', 'Why not?', 'Why?']
@@ -997,10 +996,10 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         s = cls(questions=[q0, q1, q2])
         s = s.add_rule(q0, "q0 == 'yes'", q2)
         return s
-    
+
     def __call__(self, *args, **kwargs):
         """Run the survey with default model, taking the required survey as arguments.
-        
+
         >>> from edsl.questions import QuestionFunctional
         >>> def f(scenario, agent_traits): return "yes" if scenario["period"] == "morning" else "no"
         >>> q = QuestionFunctional(question_name = "q0", func = f)
@@ -1010,11 +1009,12 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         >>> s(period = "evening").select("answer.q0").first()
         'no'
         """
-        if 'model' in kwargs:
-            model = kwargs['model']
-            del kwargs['model']
+        if "model" in kwargs:
+            model = kwargs["model"]
+            del kwargs["model"]
         else:
             from edsl import Model
+
             model = Model()
         from edsl.scenarios.Scenario import Scenario
 
@@ -1061,4 +1061,3 @@ if __name__ == "__main__":
     import doctest
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)
-

@@ -14,6 +14,7 @@ from edsl.Base import Base
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 from edsl.scenarios.ScenarioListPdfMixin import ScenarioListPdfMixin
 
+
 class ScenarioList(Base, UserList, ScenarioListPdfMixin):
     """Class for creating a list of scenarios to be used in a survey."""
 
@@ -24,7 +25,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
 
     def __repr__(self):
         return f"ScenarioList({self.data})"
-    
+
     def _repr_html_(self) -> str:
         from edsl.utilities.utilities import data_to_html
 
@@ -83,12 +84,12 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
     @classmethod
     def from_pandas(cls, df) -> ScenarioList:
         """Create a ScenarioList from a pandas DataFrame.
-        
+
         >>> import pandas as pd
         >>> df = pd.DataFrame({'name': ['Alice', 'Bob'], 'age': [30, 25], 'location': ['New York', 'Los Angeles']})
         >>> ScenarioList.from_pandas(df)
         ScenarioList([Scenario({'name': 'Alice', 'age': 30, 'location': 'New York'}), Scenario({'name': 'Bob', 'age': 25, 'location': 'Los Angeles'})])
-        
+
         """
         return cls([Scenario(row) for row in df.to_dict(orient="records")])
 
@@ -176,20 +177,20 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
             return super().__getitem__(key)
         else:
             return self.to_dict()[key]
-        
+
     def to_agent_list(self):
         """Convert the ScenarioList to an AgentList.
-        
+
         >>> s = ScenarioList([Scenario({'age': 22, 'hair': 'brown', 'height': 5.5}), Scenario({'age': 22, 'hair': 'brown', 'height': 5.5})])
         >>> s.to_agent_list()
         AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
 
-        
+
         """
         from edsl.agents.AgentList import AgentList
         from edsl.agents.Agent import Agent
 
-        return AgentList([Agent(traits = s.data) for s in self])
+        return AgentList([Agent(traits=s.data) for s in self])
 
 
 if __name__ == "__main__":

@@ -65,16 +65,16 @@ class InvigilatorBase(ABC):
 
     def __repr__(self) -> str:
         """Return a string representation of the Invigilator.
-        
+
         >>> InvigilatorBase.example().__repr__()
         "InvigilatorExample(...)"
-        
+
         """
         return f"{self.__class__.__name__}(agent={repr(self.agent)}, question={repr(self.question)}, scneario={repr(self.scenario)}, model={repr(self.model)}, memory_plan={repr(self.memory_plan)}, current_answers={repr(self.current_answers)}, iteration{repr(self.iteration)}, additional_prompt_data={repr(self.additional_prompt_data)}, cache={repr(self.cache)}, sidecarmodel={repr(self.sidecar_model)})"
 
     def get_failed_task_result(self) -> AgentResponseDict:
         """Return an AgentResponseDict used in case the question-asking fails.
-        
+
         >>> InvigilatorBase.example().get_failed_task_result()
         {'answer': None, 'comment': 'Failed to get response', 'question_name': 'how_feeling', ...}
         """
@@ -87,7 +87,7 @@ class InvigilatorBase(ABC):
 
     def get_prompts(self) -> Dict[str, Prompt]:
         """Return the prompt used.
-        
+
         >>> InvigilatorBase.example().get_prompts()
         {'user_prompt': Prompt(text='NA'), 'system_prompt': Prompt(text='NA')}
         """
@@ -114,8 +114,8 @@ class InvigilatorBase(ABC):
 
     def create_memory_prompt(self, question_name: str) -> Prompt:
         """Create a memory for the agent.
-        
-        The returns a memory prompt for the agent. 
+
+        The returns a memory prompt for the agent.
 
         >>> i = InvigilatorBase.example()
         >>> i.current_answers = {"q0": "Prior answer"}
@@ -131,10 +131,10 @@ class InvigilatorBase(ABC):
     @classmethod
     def example(cls, throw_an_exception=False):
         """Return an example invigilator.
-        
+
         >>> InvigilatorBase.example()
         InvigilatorExample(agent=Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}), question=Question('multiple_choice', question_name = 'how_feeling', question_text = 'How are you?', question_options = ['Good', 'Great', 'OK', 'Bad']), scneario=Scenario({'persona': 'A reseacher studying whether LLMs can be used to generate surveys.'}), model=Model(model_name = 'test', temperature = 0.5), memory_plan={}, current_answers=None, iteration1, additional_prompt_data=None, cache=None, sidecarmodel=None)
-        
+
         """
         from edsl.agents.Agent import Agent
         from edsl.questions import QuestionMultipleChoice

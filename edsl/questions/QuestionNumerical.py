@@ -62,11 +62,14 @@ class QuestionNumerical(QuestionBase):
     @property
     def question_html_content(self) -> str:
         from jinja2 import Template
-        question_html_content = Template("""
+
+        question_html_content = Template(
+            """
         <div>
         <input type="number" id="{{ question_name }}" name="{{ question_name }}">
         </div>
-        """).render(question_name=self.question_name)
+        """
+        ).render(question_name=self.question_name)
         return question_html_content
 
     ################
@@ -81,8 +84,6 @@ class QuestionNumerical(QuestionBase):
             min_value=0,
             max_value=86.7,
         )
-    
-
 
 
 def main():

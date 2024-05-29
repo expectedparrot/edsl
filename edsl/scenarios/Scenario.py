@@ -27,14 +27,14 @@ class Scenario(Base, UserDict, ScenarioImageMixin):
             data = {}
         self.data = data
         self.name = name
- 
+
     @property
     def has_image(self) -> bool:
         """Return whether the scenario has an image."""
         if not hasattr(self, "_has_image"):
             self._has_image = False
         return self._has_image
-    
+
     @has_image.setter
     def has_image(self, value):
         self._has_image = value
@@ -109,7 +109,7 @@ class Scenario(Base, UserDict, ScenarioImageMixin):
         from edsl.utilities.utilities import data_to_html
 
         return data_to_html(self.to_dict())
-     
+
     @classmethod
     def from_image(cls, image_path: str) -> str:
         """Creates a scenario with a base64 encoding of an image.
@@ -120,13 +120,18 @@ class Scenario(Base, UserDict, ScenarioImageMixin):
         """
 
         with open(image_path, "rb") as image_file:
-            s = cls({
-                'file_path':image_path,
-                'encoded_image':base64.b64encode(image_file.read()).decode('utf-8')})
+            s = cls(
+                {
+                    "file_path": image_path,
+                    "encoded_image": base64.b64encode(image_file.read()).decode(
+                        "utf-8"
+                    ),
+                }
+            )
             s.has_image = True
             return s
 
-#chicken = encode_image("/Users/john/tools/edsl/edsl/inference_services/chicken.jpeg")
+    # chicken = encode_image("/Users/john/tools/edsl/edsl/inference_services/chicken.jpeg")
 
     @classmethod
     @remove_edsl_version
