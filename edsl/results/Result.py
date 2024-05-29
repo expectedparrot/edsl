@@ -307,15 +307,16 @@ class Result(Base, UserDict):
         from edsl.results import Results
 
         return Results.example()[0]
-    
-    def score(self, scoring_function:Callable) -> Any:
+
+    def score(self, scoring_function: Callable) -> Any:
         """Score the result using a passed-in scoring function.
-        
+
         >>> def f(status): return 1 if status == 'Joyful' else 0
         >>> Result.example().score(f)
         1
         """
         import inspect
+
         signature = inspect.signature(scoring_function)
         params = {}
         for k, v in signature.parameters.items():

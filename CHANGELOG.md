@@ -331,21 +331,89 @@ We modified exception messages. If your survey run generates exceptions, run `re
 - Erroneous error messages about adding rules to a survey.
 
 
-## [0.1.24] - 2024-TBD - These changes are not live
+## [0.1.24] - 2024-05-28
 
 ### Added 
 
-- New `Results` method `to_scenario_list()` allows you to turn components of results into a list of scenarios to use with other questions.
+- We started a blog! https://blog.expectedparrot.com
 
-- New `ScenarioList` method `from_pdf()` allows you to import a PDF and automatically turn the pages into a scenario list.
+- `Agent`/`AgentList` method `remove_trait(<trait_key>)` allows you to remove a trait by name. This can be useful for comparing combinations of traits.
+
+- `Agent`/`AgentList` method `translate_traits(<codebook_dict>)` allows you to modify traits based on a codebook passed as dictionary. Example:
+```
+agent = Agent(traits = {"age": 45, "hair": 1, "height": 5.5})
+agent.translate_traits({"hair": {1:"brown"}})
+```
+This will return: `Agent(traits = {'age': 10, 'hair': 'brown', 'height': 5.5})`
+
+- `AgentList` method `get_codebook(<filename>)` returns the codebook for a CSV file.
+
+- `AgentList` method `from_csv(<filename>)` loads an `AgentList` from a CSV file with the column names as `traits` keys. Note that the CSV column names must be valid Python identifiers (e.g., `current_age` and not `current age`).
+
+- `Results` method `to_scenario_list()` allows you to turn any components of results into a list of scenarios to use with other questions. A default parameter `remove_prefixes=True` will remove the results component prefixes `agent.`, `answer.`, `comment.`, etc., so that you don't have to modify placeholder names for the new scenarios. Example: https://docs.expectedparrot.com/en/latest/scenarios.html#turning-results-into-scenarios
+
+- `ScenarioList` method `to_agent_list()` converts a `ScenarioList` into an `AgentList`. 
+
+- `ScenarioList` method `from_pdf(<filename>)` allows you to import a PDF and automatically turn the pages into a list of scenarios. Example: https://docs.expectedparrot.com/en/latest/scenarios.html#turning-pdf-pages-into-scenarios
+
+- `ScenarioList` method `from_csv(<filename>)` allows you to import a CSV and automatically turn the rows into a list of scenarios. 
+
+- `ScenarioList` method `from_pandas(<dataframe>)` allows you to import a pandas dataframe and automatically turn the rows into a list of scenarios. 
+
+- `Scenario` method `from_image(<image_path>)` creates a scenario with a base64 encoding of an image. The scenario is formatted as follows: `"file_path": <filname / url>, "encoded_image": <generated_encoding>`
+Note that you need to use a vision model (e.g., `model = Model('gpt-4o')`) and you do *not* need to add a `{{ placeholder }}` for the scenario (for now--this might change!).
+Example:
+```
+from edsl.questions import QuestionFreeText
+from edsl import Scenario, Model
+
+model = Model('gpt-4o')
+
+scenario = Scenario.from_image('general_survey.png') # Image from this notebook: https://docs.expectedparrot.com/en/latest/notebooks/data_labeling_agent.html 
+# scenario
+
+q = QuestionFreeText(
+    question_name = "example",
+    question_text = "What is this image showing?" # We do not need a {{ placeholder }} for this kind of scenario
+)
+
+results = q.by(scenario).by(model).run(cache=False)
+
+results.select("example").print(format="rich")
+```
+Returns:
+```
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ answer                                                                                                          ┃
+┃ .example                                                                                                        ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ This image is a flowchart showing the process of creating and administering a survey for data labeling tasks.   │
+│ The steps include importing data, creating data labeling tasks as questions about the data, combining the       │
+│ questions into a survey, inserting the data as scenarios of the questions, and administering the same survey to │
+│ all agents.                                                                                                     │
+└─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+
+### Changed
+
+- `Question` and `Survey` method `html()` generates an improved html page representation of the object. You can optionally specify the filename and css. See default css: https://github.com/expectedparrot/edsl/blob/9d981fa25a0dd83e6cca4d17bcb9316a3d452a64/edsl/surveys/SurveyExportMixin.py#L10
+
+- `QuestionMultipleChoice` now takes numbers and lists as `question_options` (e.g., `question_options = [[1,2,3], [4,5,6]]` is allowed). Previously options had to be a list of strings (i.e., `question_options = ['1','2','3']` is still allowed but not required). 
+
+
+
+## [0.1.25] - 2024-TBD
+
+### Added
+
+### Changed
+
+- [In progress] Survey run exceptions are now optionally displayed in an html report.
 
 - [In progress] New prompt visibility features.
 
 - [In progress] New methods for piping responses to questions into other questions. 
-
-### Changed
-
-- You can now use numbers and lists as `question_options` for `QuestionMultipleChoice`. Previously the options had to be a list of strings.
 
 - [In progress] `QuestionMultipleChoice` is being modified allow non-responsive answers. Previously, an error was thrown if the agent did not select one of the given options. Details TBD.
 
