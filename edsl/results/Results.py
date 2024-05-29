@@ -5,6 +5,7 @@ It is not typically instantiated directly, but is returned by the run method of 
 from __future__ import annotations
 import json
 import random
+import re
 from collections import UserList, defaultdict
 from typing import Optional, Callable, Any, Type, Union
 
@@ -709,6 +710,11 @@ class Results(UserList, Mixins, Base):
 
         Example usage: Using an OR operator in the filter expression.
 
+        >>> r = Results.example().filter("how_feeling = 'Great'").select('how_feeling').print()
+        Traceback (most recent call last):
+        ...
+        edsl.exceptions.results.ResultsFilterError: You must use '==' instead of '=' in the filter expression.
+
         >>> r.filter("how_feeling == 'Great' or how_feeling == 'Terrible'").select('how_feeling').print()
         ┏━━━━━━━━━━━━━━┓
         ┃ answer       ┃
@@ -719,7 +725,17 @@ class Results(UserList, Mixins, Base):
         │ Terrible     │
         └──────────────┘
         """
-
+        def has_single_equals(string):
+            # Regex pattern to find a single equals sign but ignore double equals signs
+            pattern = re.compile(r'(?<!\=)\=(?!\=)')
+            # Search the pattern in the given string
+            match = pattern.search(string)
+            # Return True if a match is found, otherwise False
+            return match is not None
+        
+        if has_single_equals(expression):
+            raise ResultsFilterError("You must use '==' instead of '=' in the filter expression.")
+        
         def create_evaluator(result):
             """Create an evaluator for the given result.
             The 'combined_dict' is a mapping of all values for that Result object.
