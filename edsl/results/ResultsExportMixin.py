@@ -65,8 +65,19 @@ class ResultsExportMixin:
         return self
 
     @_convert_decorator
-    def _make_tabular(self, remove_prefix) -> tuple[list, list]:
-        """Turn the results into a tabular format."""
+    def _make_tabular(self, remove_prefix:bool, pretty_labels: Optional[dict] = None):
+        """Turn the results into a tabular format.
+        
+        :param remove_prefix: Whether to remove the prefix from the column names.
+        
+        >>> from edsl.results import Results
+        >>> r = Results.example()
+        >>> r.select('how_feeling')._make_tabular(remove_prefix = True)
+        (['how_feeling'], [['OK'], ['Great'], ['Terrible'], ['OK']])
+
+        >>> r.select('how_feeling')._make_tabular(remove_prefix = True, pretty_labels = {'how_feeling': "How are you feeling"})
+        (['How are you feeling'], [['OK'], ['Great'], ['Terrible'], ['OK']])
+        """
         d = {}
         full_header = sorted(list(self.relevant_columns()))
         for entry in self.data:
@@ -82,6 +93,8 @@ class ResultsExportMixin:
         for i in range(num_observations):
             row = [d[h][i] for h in full_header]
             rows.append(row)
+        if pretty_labels is not None:
+            header = [pretty_labels.get(h, h) for h in header]
         return header, rows
 
     def print_long(self, max_rows=None) -> None:
@@ -139,9 +152,9 @@ class ResultsExportMixin:
 
         Example: using the pretty_labels parameter
 
-        >>> r.select('how_feeling').print(format="rich", pretty_labels = {'answer.how_feeling': "How you are feeling"})
+        >>> r.select('how_feeling').print(format="rich", pretty_labels = {'answer.how_feeling': "How are you feeling"})
         ┏━━━━━━━━━━━━━━━━━━━━━┓
-        ┃ How you are feeling ┃
+        ┃ How are you feeling ┃
         ┡━━━━━━━━━━━━━━━━━━━━━┩
         │ OK                  │
         ├─────────────────────┤
@@ -207,6 +220,7 @@ class ResultsExportMixin:
         filename: Optional[str] = None,
         remove_prefix: bool = False,
         download_link: bool = False,
+        pretty_labels: Optional[dict] = None,
     ):
         """Export the results to a CSV file.
 
@@ -221,7 +235,9 @@ class ResultsExportMixin:
         >>> r.select('how_feeling').to_csv()
         'answer.how_feeling\\r\\nOK\\r\\nGreat\\r\\nTerrible\\r\\nOK\\r\\n'
         """
-        header, rows = self._make_tabular(remove_prefix)
+        if pretty_labels is None:
+            pretty_labels = {}
+        header, rows = self._make_tabular(remove_prefix = remove_prefix, pretty_labels=pretty_labels)
 
         if filename is not None:
             with open(filename, "w") as f:
