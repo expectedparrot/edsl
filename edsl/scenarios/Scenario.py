@@ -8,6 +8,7 @@ import base64
 from edsl.Base import Base
 
 from edsl.scenarios.ScenarioImageMixin import ScenarioImageMixin
+from edsl.scenarios.ScenarioHtmlMixin import ScenarioHtmlMixin
 
 from edsl.utilities.decorators import (
     add_edsl_version,
@@ -15,7 +16,7 @@ from edsl.utilities.decorators import (
 )
 
 
-class Scenario(Base, UserDict, ScenarioImageMixin):
+class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
     """A Scenario is a dictionary of keys/values for parameterizing questions."""
 
     def __init__(self, data: Union[dict, None] = None, name: str = None):
@@ -130,8 +131,37 @@ class Scenario(Base, UserDict, ScenarioImageMixin):
             )
             s.has_image = True
             return s
+        
+    def chunk(self, field, chunk_size):
+        """Split a field into chunks of a given size.
 
-    # chicken = encode_image("/Users/john/tools/edsl/edsl/inference_services/chicken.jpeg")
+        :param field: The field to split.
+        :param chunk_size: The size of each chunk, in characters.
+        
+        TODO: Add more chunking options, like splitting by words or lines
+
+        Examples:
+        This splits a field into chunks.
+
+        >>> s = Scenario({"text": "This is a test."})
+        >>> s.chunk("text", 4)
+        ScenarioList([Scenario({'text': 'This', 'text_chunk': 0}), Scenario({'text': ' is ', 'text_chunk': 1}), Scenario({'text': 'a te', 'text_chunk': 2}), Scenario({'text': 'st.', 'text_chunk': 3})])
+        """
+        from edsl.scenarios.ScenarioList import ScenarioList
+        new_scenario = Scenario()
+        new_scenario.data = copy.deepcopy(self.data)
+        chunks = [
+            self[field][i : i + chunk_size]
+            for i in range(0, len(self[field]), chunk_size)
+        ]
+        scenarios = []
+        for i, chunk in enumerate(chunks):
+            new_scenario = copy.deepcopy(self)
+            new_scenario[field] = chunk
+            new_scenario[field + "_chunk"] = i
+            scenarios.append(new_scenario)
+        return ScenarioList(scenarios)
+
 
     @classmethod
     @remove_edsl_version
