@@ -407,6 +407,10 @@ Returns:
 
 ### Added
 
+- `Scenario` method `from_html()` allows you to turn the contents of a website into a scenario.
+
+- [In progress] `ScenarioList` method for automatically chunking contents into a list of scenarios
+
 ### Changed
 
 - [In progress] Survey run exceptions are now optionally displayed in an html report.
