@@ -132,6 +132,38 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
             )
             s.has_image = True
             return s
+        
+    @classmethod
+    def from_docx(cls, docx_path: str) -> 'Scenario':
+        """Creates a scenario from the text of a docx file.
+        
+        :param docx_path: The path to the docx file.
+        >>> from docx import Document
+        >>> doc = Document()
+        >>> _ = doc.add_heading("EDSL Survey")
+        >>> _ = doc.add_paragraph("This is a test.")
+        >>> doc.save("test.docx")
+        >>> s = Scenario.from_docx("test.docx")
+        >>> s
+        Scenario({'file_path': 'test.docx', 'text': 'EDSL Survey\\nThis is a test.'})
+        >>> import os; os.remove("test.docx")
+        
+        """
+
+        from docx import Document
+
+        doc = Document(docx_path)
+    
+        # Extract all text
+        full_text = []
+        for para in doc.paragraphs:
+            full_text.append(para.text)
+        
+        # Join the text from all paragraphs
+        text = '\n'.join(full_text)
+        return Scenario({"file_path": docx_path, "text": text})
+
+
 
     @staticmethod
     def _line_chunks(text, num_lines: int) -> Generator[str, None, None]:
