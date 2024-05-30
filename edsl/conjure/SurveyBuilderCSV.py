@@ -1,14 +1,11 @@
-import textwrap
 from typing import Dict
-import json
 
 import pandas as pd
 
 from edsl.conjure.SurveyBuilder import SurveyBuilder
 from edsl.conjure.utilities import RCodeSnippet
 
-
-class SurveyBuilderGoogleForms(SurveyBuilder):
+class SurveyBuilderCSV(SurveyBuilder):
     
     def get_responses(self) -> Dict:
         """Returns a dataframe of responses by reading the datafile_name.
@@ -19,7 +16,6 @@ class SurveyBuilderGoogleForms(SurveyBuilder):
         For example, {"Q1": [1, 2, 3], "Q2": [4, 5, 6]}
         """
         df = pd.read_csv(self.datafile_name)
-        # df = self.get_responses_r_code(self.datafile_name)
         df.fillna("", inplace=True)
         df = df.astype(str)
         data_dict = df.to_dict(orient="list")
@@ -49,4 +45,5 @@ class SurveyBuilderGoogleForms(SurveyBuilder):
 
 
 if __name__ == "__main__":
-    google_form_builder = SurveyBuilderGoogleForms("responses.csv", 100)
+    sb = SurveyBuilderCSV("responses.csv")
+    sb.save("podcast_survey")

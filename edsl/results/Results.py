@@ -390,22 +390,7 @@ class Results(UserList, Mixins, Base):
             .union(self.model_keys)
         )
         return sorted(list(all_keys))
-
-    def relevant_columns(self) -> list[str]:
-        """Return all of the columns that are in the Results.
-
-        Example:
-
-        >>> r = Results.example()
-        >>> r.relevant_columns()[0]
-        'agent'
-        """
-        return sorted(
-            set().union(
-                *(observation.combined_dict.keys() for observation in self.data)
-            )
-        )
-
+    
     def _parse_column(self, column: str) -> tuple[str, str]:
         """
         Parses a column name into a tuple containing a data type and a key.
@@ -423,7 +408,15 @@ class Results(UserList, Mixins, Base):
             try:
                 data_type, key = self._key_to_data_type[column], column
             except KeyError:
-                raise ResultsColumnNotFoundError(f"Column {column} not found in data")
+                import difflib
+                close_matches = difflib.get_close_matches(column, self._key_to_data_type.keys())
+                if close_matches:
+                    suggestions = ", ".join(close_matches)
+                    raise ResultsColumnNotFoundError(
+                        f"Column '{column}' not found in data. Did you mean: {suggestions}?"
+                    )
+                else:
+                    raise ResultsColumnNotFoundError(f"Column {column} not found in data")
         return data_type, key
 
     def first(self) -> Result:

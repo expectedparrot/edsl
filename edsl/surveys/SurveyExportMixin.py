@@ -110,11 +110,10 @@ class SurveyExportMixin:
         </html>"""
 
         with open(filename, "w") as f:
-            with open(filename, "w") as f:
-                f.write(html_header)
-                for question in self._questions:
-                    f.write(question.html(scenario=scenario))
-                f.write(html_footer)
+            f.write(html_header)
+            for question in self._questions:
+                f.write(question.html(scenario=scenario))
+            f.write(html_footer)
 
         if is_notebook():
             html_url = f"/files/{filename}"
@@ -122,6 +121,10 @@ class SurveyExportMixin:
             display(HTML(html_link))
         else:
             print(f"Survey saved to {filename}")
+            import webbrowser
+            import os
+            webbrowser.open(f"file://{os.path.abspath(filename)}")
+            #webbrowser.open(filename)
 
         if return_link:
             return filename
