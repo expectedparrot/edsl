@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 from collections import UserList
 from collections.abc import Iterable
+from collections import Counter
 
 from typing import Any, Optional, Union, List
 
@@ -30,6 +31,16 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         from edsl.utilities.utilities import data_to_html
 
         return data_to_html(self.to_dict())
+    
+    def tally(self, field) -> dict:
+        """Return a tally of the values in the field.
+
+        >>> s = ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
+        >>> s.tally('b')
+        {1: 1, 2: 1}
+        
+        """
+        return dict(Counter([scenario[field] for scenario in self]))
 
     def expand(self, expand_field: str) -> ScenarioList:
         """Expand the ScenarioList by a field.
