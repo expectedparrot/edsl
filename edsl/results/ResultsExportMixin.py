@@ -459,25 +459,6 @@ class ResultsExportMixin:
         else:
             values = list(zip(*(self._key_to_value(field) for field in fields)))
             return dict(Counter(values))
-    # def tally(self, field: Optional[str] = None):
-    #     """Tally the values of a field.
-
-    #     :param field: The field to tally.
-
-    #     >>> from edsl.results import Results
-    #     >>> r = Results.example()
-    #     >>> r.select('how_feeling').tally('answer.how_feeling')
-    #     {'OK': 2, 'Great': 1, 'Terrible': 1}
-    #     """
-    #     from collections import Counter
-
-    #     if field is None and len(self.relevant_columns()) == 1:
-    #         field = self.relevant_columns()[0]
-    #     elif field is None and len(self.relevant_columns()) > 1:
-    #         raise ValueError("You must specify a specific field to tally when dataset has more than two columns.")
-        
-    #     values = self._key_to_value(field)
-    #     return dict(Counter(values))
 
 
 if __name__ == "__main__":
