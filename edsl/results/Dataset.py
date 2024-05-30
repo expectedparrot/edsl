@@ -65,11 +65,21 @@ class Dataset(UserList, ResultsExportMixin):
         KeyError: "Key 'a' not found in any of the dictionaries."
 
         """
-        for d in self.data:
-            if key in d:
-                return d[key]
-        else:
-            raise KeyError(f"Key '{key}' not found in any of the dictionaries.")
+        potential_matches = []
+        for data_dict in self.data:
+            data_key, data_values = list(data_dict.items())[0]
+            if key == data_key:
+                return data_values
+            if key in data_key:
+                potential_matches.append((data_key, data_values))
+        
+        if len(potential_matches) == 1:
+            return potential_matches[0][1]
+        elif len(potential_matches) > 1:
+            raise KeyError(f"Key '{key}' found in more than one location: {[m[0] for m in potential_matches]}")
+
+                
+        raise KeyError(f"Key '{key}' not found in any of the dictionaries.")
 
     def first(self) -> dict[str, Any]:
         """Get the first value of the first key in the first dictionary.
