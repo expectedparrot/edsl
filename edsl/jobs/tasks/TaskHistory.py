@@ -326,6 +326,10 @@ class TaskHistory:
             #display(HTML(output))
         else:
             print(f"Exception report saved to {filename}")
+            import webbrowser
+            import os
+            webbrowser.open(f"file://{os.path.abspath(filename)}")
+
 
         if return_link:
             return filename
