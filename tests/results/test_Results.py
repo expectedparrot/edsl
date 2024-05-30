@@ -82,7 +82,7 @@ class TestResults(unittest.TestCase):
         )
 
     def test_relevant_columns(self):
-        self.assertIn("how_feeling", self.example_results.relevant_columns())
+        self.assertIn("answer.how_feeling", self.example_results.relevant_columns())
 
     def test_answer_keys(self):
         self.assertIn("how_feeling", self.example_results.answer_keys.keys())
