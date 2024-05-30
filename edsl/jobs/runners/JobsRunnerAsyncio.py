@@ -262,36 +262,15 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                 [interview for interview in failed_interviews]
             )
 
-            msg = f"Exceptions were raised in {len(results.task_history.indices)} out of {len(self.total_interviews)} interviews.\n."
+            msg = f"Exceptions were raised in {len(results.task_history.indices)} out of {len(self.total_interviews)} interviews.\n"
 
             if len(results.task_history.indices) > 5:
-                msg += f"Exceptions were raised in the following interviews: {results.task_history.indices}"
-
+                msg += f"Exceptions were raised in the following interviews: {results.task_history.indices}.\n"
+                
             shared_globals["edsl_runner_exceptions"] = task_history
-            print(
-                textwrap.dedent(
-                    f"""\
-                        {msg}
-                        The returned results have a ".show_exceptions()" attribute e.g., 
+            print(msg)
+            task_history.html(cta = "Open report to see details.")
+            print("Also see: https://docs.expectedparrot.com/en/latest/exceptions.html")            
 
-                        >>> results = suvey.by(agents).by(scenarios).run() 
-                        >>> results.show_exceptions()
-
-                        Exceptions details are available here: 
-
-                        >>> from edsl import shared_globals
-                        >>> shared_globals['edsl_runner_exceptions'].show_exceptions()
-
-                        For more details see documentation: https://docs.expectedparrot.com/en/latest/exceptions.html
-
-                        There is also a ".failed_jobs" attribute that contains the interviews that failed, as a job. 
-                        This can be used to re-run the failed interviews.
-
-
-                        >>> results.failed_jobs.run()
-
-                """
-                )
-            )
 
         return results
