@@ -52,7 +52,7 @@ class SurveyBuilder(ABC, UserDict):
         
         """
         self.datafile_name = datafile_name
-
+        self.sample_size = sample_size
         self.responses = CustomDict(self.get_responses())
         self.question_name_to_text = CustomDict(self.get_question_name_to_text())
         self.question_name_to_answer_book = CustomDict(
@@ -74,6 +74,9 @@ class SurveyBuilder(ABC, UserDict):
         if compute_results:
             self.agents, self.agent_failures = self.create_agents(sample_size)
             self.results = self.create_results()
+        else:
+            self.agents = None
+            self.results = None
 
     @property
     def list_of_dicts(self):
@@ -87,7 +90,8 @@ class SurveyBuilder(ABC, UserDict):
         return observations
 
     def create_agents(
-        self, sample_size=None, question_keys_as_traits: List[str] = None
+        self, sample_size: Optional[int] =None, 
+        question_keys_as_traits: List[str] = None
     ):
         """Returns a list of agents, and a dictionary of failures.
 
@@ -166,6 +170,42 @@ class SurveyBuilder(ABC, UserDict):
     @abstractmethod
     def get_question_name_to_answer_book(self) -> Dict[str, Dict[str, str]]:
         pass
+
+    def to_dict(self):
+        return {
+            'datafile_name': self.datafile_name,
+            'survey': self.survey.to_dict(), 
+            'agents': None if self.agents is None else self.agents.to_dict(), 
+            'results': None if self.results is None else self.results.to_dict(), 
+            'sample_size': self.sample_size,
+            "num_survey_failures": len(self.survey_failures)
+            }
+    
+    def save(self, filename: str):
+        if self.survey is None:
+            import warnings
+            warnings.warn("The survey has not been created yet.")
+        else:
+            full_filename = filename + "_survey.json.gz"
+            print("Saving survey to", full_filename)
+            self.survey.save(full_filename)
+        
+        if self.agents is None:
+            import warnings
+            warnings.warn("The agents have not been created yet.")
+        else:
+            full_filename = filename + "_agents.json.gz"
+            print("Saving agents to", full_filename)
+            self.agents.save(full_filename)
+
+        if self.results is None:
+            import warnings
+            warnings.warn("The results have not been created yet.")
+        else:
+            full_filename = filename + "_results.json.gz"
+            print("Saving results to", full_filename)
+            self.results.save(full_filename)
+
 
 
 if __name__ == "__main__":
