@@ -83,12 +83,13 @@ class QuestionBudget(QuestionBase):
             "answer": answer,
             "comment": random_string(),
         }
-    
+
     @property
     def question_html_content(self) -> str:
         from jinja2 import Template
 
-        question_html_content = Template("""
+        question_html_content = Template(
+            """
         <form id="budgetForm">
         <p>Total Budget: {{ budget_sum }}</p>
         <p>Remaining Budget: <span id="remainingBudget">{{ budget_sum }}</span></p>
@@ -116,11 +117,13 @@ class QuestionBudget(QuestionBase):
             {% endfor %}
         }
         </script>
-        """).render(question_name=self.question_name, 
-                    budget_sum = self.budget_sum,
-                    question_options=self.question_options)
-        return question_html_content 
-
+        """
+        ).render(
+            question_name=self.question_name,
+            budget_sum=self.budget_sum,
+            question_options=self.question_options,
+        )
+        return question_html_content
 
     ################
     # Helpful methods

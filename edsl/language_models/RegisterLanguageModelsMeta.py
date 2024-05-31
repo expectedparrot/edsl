@@ -5,6 +5,7 @@ from typing import get_type_hints
 from edsl.exceptions.language_models import LanguageModelAttributeTypeError
 from edsl.enums import InferenceServiceType
 
+
 class RegisterLanguageModelsMeta(ABCMeta):
     """Metaclass to register output elements in a registry i.e., those that have a parent."""
 
@@ -62,7 +63,7 @@ class RegisterLanguageModelsMeta(ABCMeta):
 
     @staticmethod
     def check_required_class_variables(
-        candidate_class: 'LanguageModel', required_attributes: List[str] = None
+        candidate_class: "LanguageModel", required_attributes: List[str] = None
     ):
         """Check if a class has the required attributes.
 
@@ -86,7 +87,7 @@ class RegisterLanguageModelsMeta(ABCMeta):
 
     @staticmethod
     def verify_method(
-        candidate_class: 'LanguageModel',
+        candidate_class: "LanguageModel",
         method_name: str,
         expected_return_type: Any,
         required_parameters: List[tuple[str, Any]] = None,

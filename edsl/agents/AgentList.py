@@ -42,7 +42,7 @@ class AgentList(UserList, Base):
     def from_csv(cls, file_path: str):
         """Load AgentList from a CSV file.
 
-        >>> import csv 
+        >>> import csv
         >>> import os
         >>> with open('/tmp/agents.csv', 'w') as f:
         ...     writer = csv.writer(f)
@@ -61,7 +61,7 @@ class AgentList(UserList, Base):
             for row in reader:
                 agent_list.append(Agent(row))
         return cls(agent_list)
-    
+
     def translate_traits(self, values_codebook: dict[str, str]):
         """Translate traits to a new codebook.
 
@@ -70,7 +70,7 @@ class AgentList(UserList, Base):
         for agent in self.data:
             agent.translate_traits(codebook)
         return self
-    
+
     def remove_trait(self, trait: str):
         """Remove traits from the AgentList.
 
@@ -97,7 +97,7 @@ class AgentList(UserList, Base):
     @add_edsl_version
     def to_dict(self):
         """Return dictionary of AgentList to serialization.
-        
+
         >>> AgentList.example().to_dict()
         {'agent_list': [{'traits': {'age': 22, 'hair': 'brown', 'height': 5.5}, 'edsl_version': '...', 'edsl_class_name': 'Agent'}, {'traits': {'age': 22, 'hair': 'brown', 'height': 5.5}, 'edsl_version': '...', 'edsl_class_name': 'Agent'}], 'edsl_version': '...', 'edsl_class_name': 'AgentList'}
         """
@@ -134,17 +134,17 @@ class AgentList(UserList, Base):
     @classmethod
     def example(cls) -> "AgentList":
         """Return an example AgentList.
-        
+
         >>> al = AgentList.example()
         >>> len(al)
         2
-        
+
         """
         return cls([Agent.example(), Agent.example()])
 
-    def code(self, string = True) -> Union[str, list[str]]:
+    def code(self, string=True) -> Union[str, list[str]]:
         """Return code to construct an AgentList.
-        
+
         >>> al = AgentList.example()
         >>> print(al.code())
         from edsl.agents.Agent import Agent

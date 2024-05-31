@@ -45,9 +45,7 @@ class AnswerValidatorMixin:
     def _validate_answer_key_value(
         self, answer: dict[str, Any], key: str, of_type: Type
     ) -> None:
-        """Check that the value of a key is of the specified type.
-                
-        """
+        """Check that the value of a key is of the specified type."""
         if not isinstance(answer.get(key), of_type):
             raise QuestionAnswerValidationError(
                 f"""Answer key '{key}' must be of type {of_type.__name__};
@@ -55,14 +53,12 @@ class AnswerValidatorMixin:
             )
 
     def _validate_answer_key_value_numeric(
-        self, 
-        answer: dict[str, Any], 
-        key: str
+        self, answer: dict[str, Any], key: str
     ) -> None:
         """Check that the value of a key is numeric (int or float).
-        
+
         >>> avm = AnswerValidatorMixin()
-        >>> avm._validate_answer_key_value_numeric({'answer': 1}, 'answer')        
+        >>> avm._validate_answer_key_value_numeric({'answer': 1}, 'answer')
         >>> avm._validate_answer_key_value_numeric({'answer': 'poo'}, 'answer')
         Traceback (most recent call last):
         ...
@@ -287,6 +283,7 @@ class AnswerValidatorMixin:
             raise QuestionAnswerValidationError(
                 f"Rank answer {value}, but exactly {self.num_selections} selections required."
             )
+
 
 if __name__ == "__main__":
     import doctest

@@ -19,8 +19,9 @@ from edsl.jobs.interviews.InterviewStatisticsCollection import (
 
 
 class JobsRunnerStatusData:
-
-    def status_dict(self, interviews: List[Type["Interview"]]) -> List[Type[InterviewStatusDictionary]]:
+    def status_dict(
+        self, interviews: List[Type["Interview"]]
+    ) -> List[Type[InterviewStatusDictionary]]:
         """
         >>> from edsl.jobs.interviews.Interview import Interview
         >>> interviews = [Interview.example()]
@@ -52,10 +53,16 @@ class JobsRunnerStatusData:
         model_to_status = defaultdict(InterviewStatusDictionary)
 
         for interview in interviews:
-            model = interview.model # get the model for the interview
-            model_to_status[model] += interview.interview_status  # InterviewStatusDictionary objects can be added together
+            model = interview.model  # get the model for the interview
+            model_to_status[
+                model
+            ] += (
+                interview.interview_status
+            )  # InterviewStatusDictionary objects can be added together
 
-        return model_to_status.values() # return the values of the dictionary, which is a list of dictionaries
+        return (
+            model_to_status.values()
+        )  # return the values of the dictionary, which is a list of dictionaries
 
     def generate_status_summary(
         self,
@@ -160,7 +167,7 @@ class JobsRunnerStatusData:
         models_to_tokens: InterviewTokenUsageMapping,
     ) -> dict:
         """Get the status of a model.
-        
+
         >>> from edsl.jobs.interviews.Interview import Interview
         >>> interviews = [Interview.example()]
         >>> models_to_tokens = defaultdict(InterviewTokenUsage)
@@ -197,7 +204,7 @@ class JobsRunnerStatusData:
         prices: "TokenPricing",
     ) -> dict:
         """Get the token usage info for a model.
-        
+
         >>> from edsl.jobs.interviews.Interview import Interview
         >>> interviews = [Interview.example()]
         >>> models_to_tokens = defaultdict(InterviewTokenUsage)
@@ -206,7 +213,7 @@ class JobsRunnerStatusData:
         >>> cache_status = "new_token_usage"
         >>> JobsRunnerStatusData()._get_token_usage_info(cache_status, models_to_tokens, model, prices)
         {'cache_status': 'new_token_usage', 'details': [{'type': 'prompt_tokens', 'tokens': 0}, {'type': 'completion_tokens', 'tokens': 0}], 'cost': '$0.00000'}
-        
+
         """
         cache_info = {"cache_status": cache_status, "details": []}
         token_usage = getattr(models_to_tokens[model], cache_status)
@@ -221,6 +228,8 @@ class JobsRunnerStatusData:
         cache_info["cost"] = f"${token_usage.cost(prices):.5f}"
         return cache_info
 
+
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod()
