@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 from collections import UserList
 from collections.abc import Iterable
+from collections import Counter
 
 from typing import Any, Optional, Union, List
 
@@ -14,6 +15,7 @@ from edsl.Base import Base
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 from edsl.scenarios.ScenarioListPdfMixin import ScenarioListPdfMixin
 
+
 class ScenarioList(Base, UserList, ScenarioListPdfMixin):
     """Class for creating a list of scenarios to be used in a survey."""
 
@@ -24,11 +26,21 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
 
     def __repr__(self):
         return f"ScenarioList({self.data})"
-    
+
     def _repr_html_(self) -> str:
         from edsl.utilities.utilities import data_to_html
 
         return data_to_html(self.to_dict())
+    
+    def tally(self, field) -> dict:
+        """Return a tally of the values in the field.
+
+        >>> s = ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
+        >>> s.tally('b')
+        {1: 1, 2: 1}
+        
+        """
+        return dict(Counter([scenario[field] for scenario in self]))
 
     def expand(self, expand_field: str) -> ScenarioList:
         """Expand the ScenarioList by a field.
@@ -83,12 +95,12 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
     @classmethod
     def from_pandas(cls, df) -> ScenarioList:
         """Create a ScenarioList from a pandas DataFrame.
-        
+
         >>> import pandas as pd
         >>> df = pd.DataFrame({'name': ['Alice', 'Bob'], 'age': [30, 25], 'location': ['New York', 'Los Angeles']})
         >>> ScenarioList.from_pandas(df)
         ScenarioList([Scenario({'name': 'Alice', 'age': 30, 'location': 'New York'}), Scenario({'name': 'Bob', 'age': 25, 'location': 'Los Angeles'})])
-        
+
         """
         return cls([Scenario(row) for row in df.to_dict(orient="records")])
 
@@ -176,20 +188,39 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
             return super().__getitem__(key)
         else:
             return self.to_dict()[key]
-        
+
     def to_agent_list(self):
         """Convert the ScenarioList to an AgentList.
-        
+
         >>> s = ScenarioList([Scenario({'age': 22, 'hair': 'brown', 'height': 5.5}), Scenario({'age': 22, 'hair': 'brown', 'height': 5.5})])
         >>> s.to_agent_list()
         AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
 
-        
+
         """
         from edsl.agents.AgentList import AgentList
         from edsl.agents.Agent import Agent
 
-        return AgentList([Agent(traits = s.data) for s in self])
+        return AgentList([Agent(traits=s.data) for s in self])
+    
+    def chunk(self, field, 
+            num_words:Optional[int] = None, 
+            num_lines:Optional[int] = None, 
+            include_original = False, 
+            hash_original = False) -> 'ScenarioList':
+        """Chunk the scenarios based on a field.
+
+        >>> s = ScenarioList([Scenario({'text': 'The quick brown fox jumps over the lazy dog.'})])
+        >>> s.chunk('text', num_words=3)
+        ScenarioList([Scenario({'text': 'The quick brown', 'text_chunk': 0}), Scenario({'text': 'fox jumps over', 'text_chunk': 1}), Scenario({'text': 'the lazy dog.', 'text_chunk': 2})])
+
+        """
+
+        new_scenarios = []
+        for scenario in self:
+            replacement_scenarios = scenario.chunk(field, num_words=num_words, num_lines=num_lines, include_original=include_original, hash_original=hash_original)
+            new_scenarios.extend(replacement_scenarios)
+        return ScenarioList(new_scenarios)
 
 
 if __name__ == "__main__":

@@ -224,14 +224,14 @@ class Agent(Base):
     ) -> InvigilatorBase:
         """Create an Invigilator.
 
-        An invigilator is an object that is responsible for administering a question to an agent. 
+        An invigilator is an object that is responsible for administering a question to an agent.
         There are several different types of invigilators, depending on the type of question and the agent.
         For example, there are invigilators for functional questions (i.e., question is of type :class:`edsl.questions.QuestionFunctional`:), for direct questions, and for LLM questions.
 
         >>> a = Agent(traits = {})
         >>> a.create_invigilator(question = None, cache = False)
         InvigilatorAI(...)
-        
+
         An invigator is an object that is responsible for administering a question to an agent and
         recording the responses.
         """
@@ -485,7 +485,7 @@ class Agent(Base):
             table_data.append({"Attribute": attr_name, "Value": repr(attr_value)})
         column_names = ["Attribute", "Value"]
         return table_data, column_names
-    
+
     def remove_trait(self, trait: str) -> Agent:
         """Remove a trait from the agent.
 
@@ -514,7 +514,7 @@ class Agent(Base):
 
     def rich_print(self):
         """Display an object as a rich table.
-        
+
         Example usage:
 
         >>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})

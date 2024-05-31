@@ -2,7 +2,7 @@
 from __future__ import annotations
 import random
 from collections import UserList
-from typing import Any, Union
+from typing import Any, Union, Optional
 
 import numpy as np
 
@@ -33,24 +33,6 @@ class Dataset(UserList, ResultsExportMixin):
         """Return a string representation of the dataset."""
         return f"Dataset({self.data})"
 
-    def relevant_columns(self, remove_prefix=False) -> list:
-        """Return the set of keys that are present in the dataset.
-
-        >>> d = Dataset([{'a.b':[1,2,3,4]}])
-        >>> d.relevant_columns()
-        ['a.b']
-
-        >>> d.relevant_columns(remove_prefix=True)
-        ['b']
-
-        >>> from edsl.results import Results; Results.example().select('how_feeling', 'how_feeling_yesterday').relevant_columns()
-        ['answer.how_feeling', 'answer.how_feeling_yesterday']
-        """
-        columns = [list(x.keys())[0] for x in self]
-        # columns = set([list(result.keys())[0] for result in self.data])
-        if remove_prefix:
-            columns = [column.split(".")[-1] for column in columns]
-        return columns
 
     def _key_to_value(self, key: str) -> Any:
         """Retrieve the value associated with the given key from the dataset.
@@ -65,11 +47,21 @@ class Dataset(UserList, ResultsExportMixin):
         KeyError: "Key 'a' not found in any of the dictionaries."
 
         """
-        for d in self.data:
-            if key in d:
-                return d[key]
-        else:
-            raise KeyError(f"Key '{key}' not found in any of the dictionaries.")
+        potential_matches = []
+        for data_dict in self.data:
+            data_key, data_values = list(data_dict.items())[0]
+            if key == data_key:
+                return data_values
+            if key == data_key.split(".")[-1]:
+                potential_matches.append((data_key, data_values))
+        
+        if len(potential_matches) == 1:
+            return potential_matches[0][1]
+        elif len(potential_matches) > 1:
+            raise KeyError(f"Key '{key}' found in more than one location: {[m[0] for m in potential_matches]}")
+
+                
+        raise KeyError(f"Key '{key}' not found in any of the dictionaries.")
 
     def first(self) -> dict[str, Any]:
         """Get the first value of the first key in the first dictionary.

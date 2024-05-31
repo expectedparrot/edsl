@@ -31,18 +31,22 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
         return AgentResponseDict(**response)
 
     async def async_get_response(
-        self, user_prompt: Prompt, system_prompt: Prompt, iteration: int = 0, encoded_image = None
+        self,
+        user_prompt: Prompt,
+        system_prompt: Prompt,
+        iteration: int = 0,
+        encoded_image=None,
     ) -> dict:
         """Call the LLM and gets a response. Used in the `answer_question` method."""
         try:
             params = {
-                'user_prompt':user_prompt.text,
-                'system_prompt':system_prompt.text,
-                'iteration':iteration,
-                'cache':self.cache,
+                "user_prompt": user_prompt.text,
+                "system_prompt": system_prompt.text,
+                "iteration": iteration,
+                "cache": self.cache,
             }
             if encoded_image:
-                params['encoded_image'] = encoded_image
+                params["encoded_image"] = encoded_image
             response = await self.model.async_get_response(**params)
 
         # TODO: I *don't* think we need to delete the cache key here because I think

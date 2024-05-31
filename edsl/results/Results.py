@@ -5,6 +5,7 @@ It is not typically instantiated directly, but is returned by the run method of 
 from __future__ import annotations
 import json
 import random
+import re
 from collections import UserList, defaultdict
 from typing import Optional, Callable, Any, Type, Union
 
@@ -389,22 +390,7 @@ class Results(UserList, Mixins, Base):
             .union(self.model_keys)
         )
         return sorted(list(all_keys))
-
-    def relevant_columns(self) -> list[str]:
-        """Return all of the columns that are in the Results.
-
-        Example:
-
-        >>> r = Results.example()
-        >>> r.relevant_columns()[0]
-        'agent'
-        """
-        return sorted(
-            set().union(
-                *(observation.combined_dict.keys() for observation in self.data)
-            )
-        )
-
+    
     def _parse_column(self, column: str) -> tuple[str, str]:
         """
         Parses a column name into a tuple containing a data type and a key.
@@ -422,7 +408,15 @@ class Results(UserList, Mixins, Base):
             try:
                 data_type, key = self._key_to_data_type[column], column
             except KeyError:
-                raise ResultsColumnNotFoundError(f"Column {column} not found in data")
+                import difflib
+                close_matches = difflib.get_close_matches(column, self._key_to_data_type.keys())
+                if close_matches:
+                    suggestions = ", ".join(close_matches)
+                    raise ResultsColumnNotFoundError(
+                        f"Column '{column}' not found in data. Did you mean: {suggestions}?"
+                    )
+                else:
+                    raise ResultsColumnNotFoundError(f"Column {column} not found in data")
         return data_type, key
 
     def first(self) -> Result:
@@ -558,7 +552,6 @@ class Results(UserList, Mixins, Base):
         """
         if len(self) == 0:
             raise Exception("No data to select from---the Results object is empty.")
-            
 
         if not columns or columns == ("*",) or columns == (None,):
             columns = ("*.*",)
@@ -710,6 +703,11 @@ class Results(UserList, Mixins, Base):
 
         Example usage: Using an OR operator in the filter expression.
 
+        >>> r = Results.example().filter("how_feeling = 'Great'").select('how_feeling').print()
+        Traceback (most recent call last):
+        ...
+        edsl.exceptions.results.ResultsFilterError: You must use '==' instead of '=' in the filter expression.
+
         >>> r.filter("how_feeling == 'Great' or how_feeling == 'Terrible'").select('how_feeling').print()
         ┏━━━━━━━━━━━━━━┓
         ┃ answer       ┃
@@ -720,7 +718,17 @@ class Results(UserList, Mixins, Base):
         │ Terrible     │
         └──────────────┘
         """
-
+        def has_single_equals(string):
+            # Regex pattern to find a single equals sign but ignore double equals signs
+            pattern = re.compile(r'(?<!\=)\=(?!\=)')
+            # Search the pattern in the given string
+            match = pattern.search(string)
+            # Return True if a match is found, otherwise False
+            return match is not None
+        
+        if has_single_equals(expression):
+            raise ResultsFilterError("You must use '==' instead of '=' in the filter expression.")
+        
         def create_evaluator(result):
             """Create an evaluator for the given result.
             The 'combined_dict' is a mapping of all values for that Result object.
@@ -735,17 +743,20 @@ class Results(UserList, Mixins, Base):
                 if create_evaluator(result).eval(expression)
             ]
         except Exception as e:
-            raise ResultsFilterError(f"""Error in filter. Exception:{e}.
+            raise ResultsFilterError(
+                f"""Error in filter. Exception:{e}.
             The expression you provided was: {expression}. 
             Please make sure that the expression is a valid Python expression that evaluates to a boolean.
             For example, 'how_feeling == "Great"' is a valid expression, as is 'how_feeling in ["Great", "Terrible"]'.
             However, 'how_feeling = "Great"' is not a valid expression.
 
             See https://docs.expectedparrot.com/en/latest/results.html#filtering-results for more details.
-            """)
-        
+            """
+            )
+
         if len(new_data) == 0:
             import warnings
+
             warnings.warn("No results remain after applying the filter.")
 
         return Results(survey=self.survey, data=new_data, created_columns=None)
@@ -795,7 +806,7 @@ class Results(UserList, Mixins, Base):
         """Score the results using in a function.
 
         :param f: A function that takes values from a Resul object and returns a score.
-        
+
         >>> r = Results.example()
         >>> def f(status): return 1 if status == 'Joyful' else 0
         >>> r.score(f)
