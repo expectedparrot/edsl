@@ -40,8 +40,31 @@ class SurveyBuilder(ABC, UserDict):
     def lookup_dict(self):
         return get_replacement_name.lookup_dict
 
+    @classmethod
+    def from_url(cls, url: str):
+        """Create a SurveyBuilder from a URL."""
+        import tempfile
+        import requests
+
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3",
+            "Accept": "text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/csv;q=0.9,application/excel;q=0.8"
+        }
+
+        with tempfile.NamedTemporaryFile(delete=False, mode='wb') as localfile:
+            response = requests.get(url, headers=headers)
+            if response.status_code == 200:
+                localfile.write(response.content)
+                localfile_path = localfile.name
+            else:
+                raise Exception(f"Failed to fetch the file from {url}, status code: {response.status_code}")
+            
+        print("Data saved to", localfile_path)
+        return cls(localfile_path)
+
     def __init__(
-        self, datafile_name: str, 
+        self, 
+        datafile_name: str, 
         sample_size: Optional[int] = None, 
         compute_results=True
     ):
