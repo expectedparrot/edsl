@@ -22,7 +22,7 @@ async def async_repair(bad_json, error_message=""):
     except json.JSONDecodeError:
         valid_dict = {}
         success = False
-        print("Replacing control characters didn't work. Trying with the model.")
+        #print("Replacing control characters didn't work. Trying with the model.")
     else:
         return valid_dict, success
 

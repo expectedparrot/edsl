@@ -91,6 +91,37 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
             raise Exception(f"Error in filter. Exception:{e}")
 
         return ScenarioList(new_data)
+    
+    @classmethod 
+    def from_list(cls, name, values) -> ScenarioList:
+        """Create a ScenarioList from a list of values.
+
+        >>> ScenarioList.from_list('name', ['Alice', 'Bob'])
+        ScenarioList([Scenario({'name': 'Alice'}), Scenario({'name': 'Bob'})])
+        """
+        return cls([Scenario({name: value}) for value in values])
+    
+    def add_list(self, name, values) -> ScenarioList:
+        """Add a list of values to a ScenarioList.
+
+        >>> s = ScenarioList([Scenario({'name': 'Alice'}), Scenario({'name': 'Bob'})])
+        >>> s.add_list('age', [30, 25])
+        ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
+        """
+        for i, value in enumerate(values):
+            self[i][name] = value
+        return self
+    
+    def add_value(self, name, value):
+        """Add a value to all scenarios in a ScenarioList.
+
+        >>> s = ScenarioList([Scenario({'name': 'Alice'}), Scenario({'name': 'Bob'})])
+        >>> s.add_value('age', 30)
+        ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 30})])
+        """
+        for scenario in self:
+            scenario[name] = value
+        return self
 
     @classmethod
     def from_pandas(cls, df) -> ScenarioList:

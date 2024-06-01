@@ -35,6 +35,8 @@ from edsl.utilities import (
 )
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
+from edsl.results.ResultsToolsMixin import ResultsToolsMixin
+
 import json
 from pygments import highlight
 from pygments.lexers import JsonLexer
@@ -48,7 +50,7 @@ from edsl.Base import Base
 from edsl.results.ResultsFetchMixin import ResultsFetchMixin
 
 
-class Mixins(ResultsExportMixin, ResultsDBMixin, ResultsFetchMixin, ResultsGGMixin):
+class Mixins(ResultsExportMixin, ResultsDBMixin, ResultsFetchMixin, ResultsGGMixin, ResultsToolsMixin):
     pass
 
 
@@ -111,14 +113,15 @@ class Results(UserList, Mixins, Base):
 
     def __getitem__(self, i):
         if isinstance(i, int):
-            if isinstance(i, slice):
-                # Return a sliced view of the list
-                return self.__class__(survey=self.survey, data=self.data[i])
-            else:
-                # Return a single item
-                return self.data[i]
-        else:
+            return self.data[i]
+        
+        if isinstance(i, slice):
+            return self.__class__(survey=self.survey, data=self.data[i])
+        
+        if isinstance(i, str):
             return self.to_dict()[i]
+        
+        raise TypeError("Invalid argument type")
 
     def _update_results(self) -> None:
         if self._job_uuid and len(self.data) < self._total_results:
