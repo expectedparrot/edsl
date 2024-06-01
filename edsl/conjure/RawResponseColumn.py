@@ -34,11 +34,15 @@ class ReplacementFinder:
         self.lookup_dict = lookup_dict
 
     def __call__(self, bad_question_name):
+        """Finds a replacement name for a bad question name.
+        TODO: We should add a check to see if the new name is already in use.
+        """
         q = QuestionFreeText(
             question_text=f"""We have a survey with a question name: {bad_question_name}. 
             The question name is not a valid Python identifier.
             We need a valid Python identifier to use as a column name in a dataframe.
             What would be a better name for this question?
+            Shorter is better.
             Just return the proposed identifier with no other text.
             """,
             question_name="identifier",
@@ -64,8 +68,9 @@ get_replacement_name = ReplacementFinder({})
 class CustomDict(UserDict):
     key_validator = KeyValidator()
 
-    def __init__(self, data=None):
+    def __init__(self, data=None, verbose = False):
         super().__init__()
+        self.verbose = verbose
         if data:
             for key, value in data.items():
                 self[key] = value
@@ -74,13 +79,14 @@ class CustomDict(UserDict):
         if key != key.lower():
             key = key.lower()
         while not self.key_validator.validate_key(key):
-            print(f"Column heading incable of being a key: {key}")
+            if self.verbose:
+                print(f"Column heading incapable of being a key: {key}")
             if key in get_replacement_name.lookup_dict:
                 key = get_replacement_name.lookup_dict[key]
             else:
                 key = get_replacement_name(key)
-            print(f"New key: {key}")
-            # print(f"Current lookup dict:{get_replacement_name.lookup_dict}")
+            if self.verbose:
+                print(f"New key: {key}")
         super().__setitem__(key, value)
 
 
@@ -94,6 +100,21 @@ class RawResponseColumn:
         answer_codebook: Dict[str, str],
         question_text: str,
     ):
+        """
+        :param question_name: The name of the question.
+        :param raw_responses: A list of responses to the question.
+        :param answer_codebook: A dictionary mapping the raw responses to the actual responses.
+        :param question_text: The text of the question.
+
+        >>> r = RawResponseColumn(question_name="Q1", raw_responses=["1", "2", "3"], answer_codebook={"1": "Yes", "2": "No"}, question_text="Do you like ice cream?")
+        >>> r.responses
+        ['Yes', 'No', '3']
+
+        >>> r = RawResponseColumn(question_name="Q1", raw_responses=["1", "2", "3"], answer_codebook={"1": "Yes", "2": "No"}, question_text="Do you like ice cream?")
+        >>> r.inferred_question_type
+        'multiple_choice'
+
+        """
         d = CustomDict({question_name: ""})
         self.question_name = list(d.keys())[0]
         self.raw_responses = raw_responses
@@ -103,23 +124,47 @@ class RawResponseColumn:
         else:
             self.question_text = question_text
 
+    @staticmethod
+    def edsl_question_inference(question_text, responses):
+        """Infer the question type from the responses.
+        
+        >>> from edsl import QuestionFreeText
+        >>> q = QuestionFreeText(question_text="Tell me about your childhood.", question_name = 'color')
+        >>> r = RawResponseColumn.edsl_question_inference(q.question_text, ["Rather not say", "Happy!", "luge lessons and meat helmets"])
+        >>> r
+        'free_text'
+        
+        """
+        from edsl.questions import QuestionMultipleChoice
+        q = QuestionMultipleChoice(
+            question_text = """We have a survey question and we are trying to infer its type.
+                               The question text is: '{{question_text}}'.                                   
+                               The first few responses are: '{{responses}}'.
+                                """,
+                                question_name = 'infer_question_type',
+                                   question_options = ['budget', 'checkbox', 'extract', 'free_text', 'likert_five', 'linear_scale', 'list', 'multiple_choice', 'numerical', 'rank', 'top_k', 'yes_no']
+        )
+        response = q.to_survey()(question_text = question_text, responses = responses).select("infer_question_type").first()
+        return response
+
     @property
     def responses(self):
         """Returns the responses, with the answer codebook applied."""
-        converted_responses = [convert_value(x) for x in self.raw_responses]
         if hasattr(self, "answer_codebook") is None:
+            converted_responses = [convert_value(x) for x in self.raw_responses]
             return converted_responses
         else:
-            return [self.answer_codebook.get(x, x) for x in converted_responses]
+            return [self.answer_codebook.get(x, x) for x in self.raw_responses]
 
     @property
     def inferred_question_type(self):
         "Tries to infer the type of question from the responses and other information"
         max_items = 15
-        options = list(self.unique_responses)
+        options = list(self.unique_responses.keys())
         if len(options) > max_items or len(options) <= 1:
             return "free_text"
         else:
+            cv = [convert_value(o) for o in options]
             return "multiple_choice"
         
     def get_ordering(self, options_list):
@@ -143,12 +188,13 @@ class RawResponseColumn:
     @property
     def unique_responses(self) -> set:
         """Returns the unique responses for a given question; useful to build up mulitple choice questions."""
-        s = set({})
+        from collections import defaultdict
+        s = defaultdict(int)
         for response in self.responses:
             if isinstance(response, Missing):
                 continue
             else:
-                s.add(str(response))
+                s[str(response)] += 1
         return s
 
     def response_category(self):
@@ -189,6 +235,9 @@ class RawResponseColumn:
 
 
 if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod()
     # d = CustomDict()
     # d = CustomDict({"7asdf": 123, "FAMILY": 12})
     # d["a"] = 123
@@ -197,11 +246,11 @@ if __name__ == "__main__":
     # d["FAMILY_MEMBERS"] = 12
     # d["0x1389"] = 123
     # print(d)
-    r = RawResponseColumn(
-        question_name="_x family MeMbers",
-        raw_responses=["1", "2", "3"],
-        question_text="fake",
-        answer_codebook={},
-    )
+    # r = RawResponseColumn(
+    #     question_name="_x family MeMbers",
+    #     raw_responses=["1", "2", "3"],
+    #     question_text="fake",
+    #     answer_codebook={},
+    # )
 
-    get_replacement_name
+    # get_replacement_name

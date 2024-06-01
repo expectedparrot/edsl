@@ -718,16 +718,16 @@ class Results(UserList, Mixins, Base):
         │ Terrible     │
         └──────────────┘
         """
-        def has_single_equals(string):
-            # Regex pattern to find a single equals sign but ignore double equals signs
-            pattern = re.compile(r'(?<!\=)\=(?!\=)')
-            # Search the pattern in the given string
-            match = pattern.search(string)
-            # Return True if a match is found, otherwise False
-            return match is not None
+        # def has_single_equals(string):
+        #     # Regex pattern to find a single equals sign but ignore double equals signs
+        #     pattern = re.compile(r'(?<!\=)\=(?!\=)')
+        #     # Search the pattern in the given string
+        #     match = pattern.search(string)
+        #     # Return True if a match is found, otherwise False
+        #     return match is not None
         
-        if has_single_equals(expression):
-            raise ResultsFilterError("You must use '==' instead of '=' in the filter expression.")
+        # if has_single_equals(expression):
+        #     raise ResultsFilterError("You must use '==' instead of '=' in the filter expression.")
         
         def create_evaluator(result):
             """Create an evaluator for the given result.

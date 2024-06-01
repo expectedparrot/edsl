@@ -455,10 +455,12 @@ class ResultsExportMixin:
         if len(fields) == 1:
             field = fields[0]
             values = self._key_to_value(field)
-            return dict(Counter(values))
         else:
             values = list(zip(*(self._key_to_value(field) for field in fields)))
-            return dict(Counter(values))
+                
+        tally = dict(Counter(values))
+        sorted_tally = dict(sorted(tally.items(), key=lambda item: -item[1]))
+        return sorted_tally
 
 
 if __name__ == "__main__":
