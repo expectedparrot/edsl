@@ -76,6 +76,7 @@ class SurveyExportMixin:
         return_link=False,
         css: Optional[str] = None,
         cta: Optional[str] = "Open HTML file",
+        include_question_name = False
     ):
         from IPython.display import display, HTML
         import tempfile
@@ -109,16 +110,29 @@ class SurveyExportMixin:
         </body>
         </html>"""
 
+        output = html_header
+
         with open(filename, "w") as f:
             f.write(html_header)
             for question in self._questions:
-                f.write(question.html(scenario=scenario))
+                f.write(question.html(scenario=scenario, include_question_name=include_question_name))
+                output += question.html(scenario=scenario, include_question_name=include_question_name)
             f.write(html_footer)
+            output += html_footer
+
 
         if is_notebook():
             html_url = f"/files/{filename}"
             html_link = f'<a href="{html_url}" target="_blank">{cta}</a>'
             display(HTML(html_link))
+            
+            import html
+            escaped_output = html.escape(output)
+            iframe = f""""
+            <iframe srcdoc="{ escaped_output }" style="width: 800px; height: 600px;"></iframe>
+            """
+            display(HTML(iframe))
+
         else:
             print(f"Survey saved to {filename}")
             import webbrowser

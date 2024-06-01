@@ -247,8 +247,8 @@ class TaskHistory:
         </head>
         <body>
             {% for index, interview in interviews.items() %}
-                <div class="interview">Interview: {{ index }} </div>
                 {% if interview.exceptions != {} %}
+                   <div class="interview">Interview: {{ index }} </div>
                     <h1>Failing questions</h1>
                 {% endif %}
                 {% for question, exceptions in interview.exceptions.items() %}

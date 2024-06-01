@@ -310,7 +310,7 @@ class QuestionBase(
                 lines.append(f"{option}")
         return "\n".join(lines)
 
-    def html(self, scenario: Optional[dict] = None):
+    def html(self, scenario: Optional[dict] = None, include_question_name: bool = False):
         """Return the question in HTML format."""
         from jinja2 import Template
 
@@ -319,6 +319,9 @@ class QuestionBase(
 
         base_template = """
         <div id="{{ question_name }}" class="survey_question" data-type="{{ question_type }}">
+            {% if include_question_name %}
+            <p>question_name: {{ question_name }}</p>
+            {% endif %}
             <p class="question_text">{{ question_text }}</p>
             {{ question_content }}
         </div>
@@ -338,6 +341,7 @@ class QuestionBase(
             "question_text": Template(self.question_text).render(scenario),
             "question_type": self.question_type,
             "question_content": Template(question_content).render(scenario),
+            "include_question_name": include_question_name,
         }
         rendered_html = base_template.render(**params)
         return rendered_html
