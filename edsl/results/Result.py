@@ -1,7 +1,7 @@
 # """This module contains the Result class, which captures the result of one interview."""
 from __future__ import annotations
 from collections import UserDict
-from typing import Any, Type, Callable
+from typing import Any, Type, Callable, Optional
 from collections import UserDict
 
 from rich.table import Table
@@ -76,7 +76,8 @@ class Result(Base, UserDict):
         answer: str,
         prompt: dict[str, str] = None,
         raw_model_response=None,
-        survey=None,
+        survey: Optional['Survey'] =None,
+        question_to_attributes: Optional[dict] = None,
     ):
         """Initialize a Result object.
 
@@ -89,6 +90,23 @@ class Result(Base, UserDict):
         :param raw_model_response: The raw model response.
 
         """
+        if question_to_attributes is not None:
+            question_to_attributes = question_to_attributes
+        else:
+            question_to_attributes = {}
+
+        if survey is not None:
+            question_to_attributes = {
+                q.question_name: {
+                    "question_text": q.question_text,
+                    "question_type": q.question_type,
+                    "question_options": None
+                    if not hasattr(q, "question_options")
+                    else q.question_options,
+                }
+                for q in survey.questions
+            }
+
         data = {
             "agent": agent,
             "scenario": scenario,
@@ -97,6 +115,7 @@ class Result(Base, UserDict):
             "answer": answer,
             "prompt": prompt or {},
             "raw_model_response": raw_model_response or {},
+            "question_to_attributes": question_to_attributes,
         }
         super().__init__(**data)
         # but also store the data as attributes
@@ -108,21 +127,8 @@ class Result(Base, UserDict):
         self.prompt = prompt or {}
         self.raw_model_response = raw_model_response or {}
         self.survey = survey
-
-        if survey is not None:
-            self.question_to_attributes = {
-                q.question_name: {
-                    "question_text": q.question_text,
-                    "question_type": q.question_type,
-                    "question_options": None
-                    if not hasattr(q, "question_options")
-                    else q.question_options,
-                }
-                for q in survey.questions
-            }
-        else:
-            self.question_to_attributes = {}
-
+        self.question_to_attributes = question_to_attributes
+        
     ###############
     # Used in Results
     ###############
@@ -273,6 +279,7 @@ class Result(Base, UserDict):
             raw_model_response=json_dict.get(
                 "raw_model_response", {"raw_model_response": "No raw model response"}
             ),
+            question_to_attributes=json_dict.get("question_to_attributes", None),
         )
         return result
 

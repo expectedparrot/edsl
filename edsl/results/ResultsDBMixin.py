@@ -117,6 +117,7 @@ class ResultsDBMixin:
         transpose: bool = None,
         transpose_by: str = None,
         csv: bool = False,
+        to_list = False,
     ) -> Union[pd.DataFrame, str]:
         """Execute a SQL query and return the results as a DataFrame.
 
@@ -164,10 +165,16 @@ class ResultsDBMixin:
                 df = df.set_index(df.columns[0])
             df = df.transpose()
 
+        if csv and to_list:
+            raise Exception("Cannot return both CSV and list")
+
         if csv:
             return df.to_csv(index=False)
-        else:
-            return df
+        
+        if to_list:
+            return df.values.tolist()
+        
+        return df
 
     def show_schema(
         self, shape: Literal["wide", "long"], remove_prefix: bool = False
