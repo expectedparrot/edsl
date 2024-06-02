@@ -1,4 +1,5 @@
 """This module contains the Question class, which is the base class for all questions in EDSL."""
+
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from rich.table import Table
@@ -310,7 +311,9 @@ class QuestionBase(
                 lines.append(f"{option}")
         return "\n".join(lines)
 
-    def html(self, scenario: Optional[dict] = None, include_question_name: bool = False):
+    def html(
+        self, scenario: Optional[dict] = None, include_question_name: bool = False
+    ):
         """Return the question in HTML format."""
         from jinja2 import Template
 

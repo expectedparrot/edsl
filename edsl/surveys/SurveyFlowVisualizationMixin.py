@@ -1,4 +1,5 @@
 """A mixin for visualizing the flow of a survey."""
+
 import pydot
 import tempfile
 from IPython.display import Image

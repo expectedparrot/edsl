@@ -1,4 +1,5 @@
 """Mixin for working with SQLite respresentation of a 'Results' object."""
+
 import pandas as pd
 import sqlite3
 from sqlalchemy import create_engine
@@ -117,7 +118,7 @@ class ResultsDBMixin:
         transpose: bool = None,
         transpose_by: str = None,
         csv: bool = False,
-        to_list = False,
+        to_list=False,
     ) -> Union[pd.DataFrame, str]:
         """Execute a SQL query and return the results as a DataFrame.
 
@@ -170,10 +171,10 @@ class ResultsDBMixin:
 
         if csv:
             return df.to_csv(index=False)
-        
+
         if to_list:
             return df.values.tolist()
-        
+
         return df
 
     def show_schema(

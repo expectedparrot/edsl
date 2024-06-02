@@ -9,6 +9,7 @@ Example usage:
     2
     
 """
+
 from __future__ import annotations
 from collections import UserList
 from typing import Optional, Union

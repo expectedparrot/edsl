@@ -1,4 +1,5 @@
 """An Agent is an AI agent that can reference a set of traits in answering questions."""
+
 from __future__ import annotations
 import copy
 import inspect
@@ -178,7 +179,7 @@ class Agent(Base):
 
         """
         return getattr(self, key)
-    
+
     def remove_direct_question_answering_method(self) -> None:
         """Remove the direct question answering method.
 

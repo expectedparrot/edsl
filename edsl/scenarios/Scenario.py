@@ -1,11 +1,12 @@
 """A Scenario is a dictionary with a key/value to parameterize a question."""
+
 import copy
 from collections import UserDict
 from typing import Union, List, Optional, Generator
 import base64
 import hashlib
 from rich.table import Table
-    
+
 from edsl.Base import Base
 
 from edsl.scenarios.ScenarioImageMixin import ScenarioImageMixin
@@ -132,11 +133,11 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
             )
             s.has_image = True
             return s
-        
+
     @classmethod
-    def from_docx(cls, docx_path: str) -> 'Scenario':
+    def from_docx(cls, docx_path: str) -> "Scenario":
         """Creates a scenario from the text of a docx file.
-        
+
         :param docx_path: The path to the docx file.
         >>> from docx import Document
         >>> doc = Document()
@@ -147,23 +148,21 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         >>> s
         Scenario({'file_path': 'test.docx', 'text': 'EDSL Survey\\nThis is a test.'})
         >>> import os; os.remove("test.docx")
-        
+
         """
 
         from docx import Document
 
         doc = Document(docx_path)
-    
+
         # Extract all text
         full_text = []
         for para in doc.paragraphs:
             full_text.append(para.text)
-        
+
         # Join the text from all paragraphs
-        text = '\n'.join(full_text)
+        text = "\n".join(full_text)
         return Scenario({"file_path": docx_path, "text": text})
-
-
 
     @staticmethod
     def _line_chunks(text, num_lines: int) -> Generator[str, None, None]:
@@ -200,11 +199,14 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
             chunk = " ".join(words[i : i + num_words])
             yield chunk
 
-    def chunk(self, field, 
-              num_words:Optional[int] = None, 
-              num_lines:Optional[int] = None, 
-              include_original = False, 
-              hash_original = False) -> 'ScenarioList': 
+    def chunk(
+        self,
+        field,
+        num_words: Optional[int] = None,
+        num_lines: Optional[int] = None,
+        include_original=False,
+        hash_original=False,
+    ) -> "ScenarioList":
         """Split a field into chunks of a given size.
 
         :param field: The field to split.
@@ -213,23 +215,23 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         :param include_original: Whether to include the original field in the new scenarios.
         :param hash_original: Whether to hash the original field in the new scenarios.
 
-        
+
         If you specify include_original, the original field will be included in the new scenarios with an "_original" suffix.
-    
+
         Either num_words or num_lines must be specified, but not both.
         The hash_original is useful if you do not want to store the original text, but still want a unique identifier for it.
 
         TODO: Add more chunking options, like splitting by words or lines
 
         Example:
- 
+
         >>> s = Scenario({"text": "This is a test.\\nThis is a test.\\n\\nThis is a test."})
         >>> s.chunk("text", num_lines = 1)
         ScenarioList([Scenario({'text': 'This is a test.', 'text_chunk': 0}), Scenario({'text': 'This is a test.', 'text_chunk': 1}), Scenario({'text': '', 'text_chunk': 2}), Scenario({'text': 'This is a test.', 'text_chunk': 3})])
 
         >>> s.chunk("text", num_words = 2)
         ScenarioList([Scenario({'text': 'This is', 'text_chunk': 0}), Scenario({'text': 'a test.', 'text_chunk': 1}), Scenario({'text': 'This is', 'text_chunk': 2}), Scenario({'text': 'a test.', 'text_chunk': 3}), Scenario({'text': 'This is', 'text_chunk': 4}), Scenario({'text': 'a test.', 'text_chunk': 5})])
-        
+
         >>> s = Scenario({"text": "Hello World"})
         >>> s.chunk("text", num_words = 1, include_original = True)
         ScenarioList([Scenario({'text': 'Hello', 'text_chunk': 0, 'text_original': 'Hello World'}), Scenario({'text': 'World', 'text_chunk': 1, 'text_original': 'Hello World'})])
@@ -249,7 +251,7 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         ValueError: You must specify either num_words or num_lines, but not both.
         """
         from edsl.scenarios.ScenarioList import ScenarioList
-        
+
         if num_words is not None:
             chunks = list(self._word_chunks(self[field], num_words))
 
@@ -260,8 +262,10 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
             raise ValueError("You must specify either num_words or num_lines.")
 
         if num_words is not None and num_lines is not None:
-            raise ValueError("You must specify either num_words or num_lines, but not both.")
-          
+            raise ValueError(
+                "You must specify either num_words or num_lines, but not both."
+            )
+
         scenarios = []
         for i, chunk in enumerate(chunks):
             new_scenario = copy.deepcopy(self)
@@ -269,12 +273,13 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
             new_scenario[field + "_chunk"] = i
             if include_original:
                 if hash_original:
-                    new_scenario[field + "_original"] = hashlib.md5(self[field].encode()).hexdigest()
+                    new_scenario[field + "_original"] = hashlib.md5(
+                        self[field].encode()
+                    ).hexdigest()
                 else:
                     new_scenario[field + "_original"] = self[field]
             scenarios.append(new_scenario)
         return ScenarioList(scenarios)
-
 
     @classmethod
     @remove_edsl_version

@@ -2,6 +2,7 @@
 The Results object is the result of running a survey. 
 It is not typically instantiated directly, but is returned by the run method of a `Job` object.
 """
+
 from __future__ import annotations
 import json
 import random
@@ -50,7 +51,13 @@ from edsl.Base import Base
 from edsl.results.ResultsFetchMixin import ResultsFetchMixin
 
 
-class Mixins(ResultsExportMixin, ResultsDBMixin, ResultsFetchMixin, ResultsGGMixin, ResultsToolsMixin):
+class Mixins(
+    ResultsExportMixin,
+    ResultsDBMixin,
+    ResultsFetchMixin,
+    ResultsGGMixin,
+    ResultsToolsMixin,
+):
     pass
 
 
@@ -114,13 +121,13 @@ class Results(UserList, Mixins, Base):
     def __getitem__(self, i):
         if isinstance(i, int):
             return self.data[i]
-        
+
         if isinstance(i, slice):
             return self.__class__(survey=self.survey, data=self.data[i])
-        
+
         if isinstance(i, str):
             return self.to_dict()[i]
-        
+
         raise TypeError("Invalid argument type")
 
     def _update_results(self) -> None:
@@ -393,7 +400,7 @@ class Results(UserList, Mixins, Base):
             .union(self.model_keys)
         )
         return sorted(list(all_keys))
-    
+
     def _parse_column(self, column: str) -> tuple[str, str]:
         """
         Parses a column name into a tuple containing a data type and a key.
@@ -412,14 +419,19 @@ class Results(UserList, Mixins, Base):
                 data_type, key = self._key_to_data_type[column], column
             except KeyError:
                 import difflib
-                close_matches = difflib.get_close_matches(column, self._key_to_data_type.keys())
+
+                close_matches = difflib.get_close_matches(
+                    column, self._key_to_data_type.keys()
+                )
                 if close_matches:
                     suggestions = ", ".join(close_matches)
                     raise ResultsColumnNotFoundError(
                         f"Column '{column}' not found in data. Did you mean: {suggestions}?"
                     )
                 else:
-                    raise ResultsColumnNotFoundError(f"Column {column} not found in data")
+                    raise ResultsColumnNotFoundError(
+                        f"Column {column} not found in data"
+                    )
         return data_type, key
 
     def first(self) -> Result:
@@ -728,10 +740,10 @@ class Results(UserList, Mixins, Base):
         #     match = pattern.search(string)
         #     # Return True if a match is found, otherwise False
         #     return match is not None
-        
+
         # if has_single_equals(expression):
         #     raise ResultsFilterError("You must use '==' instead of '=' in the filter expression.")
-        
+
         def create_evaluator(result):
             """Create an evaluator for the given result.
             The 'combined_dict' is a mapping of all values for that Result object.

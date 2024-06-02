@@ -1,4 +1,5 @@
 """Enums for the different types of questions, language models, and inference services."""
+
 from enum import Enum
 
 

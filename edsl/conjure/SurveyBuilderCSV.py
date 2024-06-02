@@ -5,8 +5,8 @@ import pandas as pd
 from edsl.conjure.SurveyBuilder import SurveyBuilder
 from edsl.conjure.utilities import RCodeSnippet
 
-class SurveyBuilderCSV(SurveyBuilder):
 
+class SurveyBuilderCSV(SurveyBuilder):
 
     @staticmethod
     def get_dataframe(datafile_name):
@@ -14,7 +14,7 @@ class SurveyBuilderCSV(SurveyBuilder):
 
     def get_responses(self) -> Dict:
         """Returns a dataframe of responses by reading the datafile_name.
-        
+
         The structure should be a dictionary, where the keys are the question codes,
         and the values are the responses.
 
@@ -51,16 +51,14 @@ class SurveyBuilderCSV(SurveyBuilder):
         return d
 
     def get_question_name_to_answer_book(self):
-        """Returns a dictionary mapping question codes to a dictionary mapping answer codes to answer text.
-
-        """
+        """Returns a dictionary mapping question codes to a dictionary mapping answer codes to answer text."""
         d = self.get_question_name_to_text()
         return {k: {} for k, v in d.items()}
-    
 
     @classmethod
     def example(cls):
         import tempfile
+
         named_temp_file = tempfile.NamedTemporaryFile(delete=False)
         named_temp_file.write(b"Q1,Q2,Q3\n1,2,3\n4,5,6\n")
         named_temp_file.close()
@@ -73,8 +71,10 @@ class SurveyBuilderStata(SurveyBuilderCSV):
     def get_dataframe(datafile_name):
         return pd.read_stata(datafile_name)
 
+
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod()
-    #sb = SurveyBuilderCSV("responses.csv")
-    #sb.save("podcast_survey")
+    # sb = SurveyBuilderCSV("responses.csv")
+    # sb.save("podcast_survey")
