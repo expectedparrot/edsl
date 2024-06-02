@@ -1,4 +1,5 @@
 """This module contains the data transfer models for the application."""
+
 from collections import UserDict
 
 

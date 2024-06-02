@@ -1,4 +1,5 @@
 """A list of Scenarios to be used in a survey."""
+
 from __future__ import annotations
 import csv
 from collections import UserList
@@ -34,14 +35,14 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         _ = data.pop("edsl_version")
         _ = data.pop("edsl_class_name")
         return data_to_html(data)
-    
+
     def tally(self, field) -> dict:
         """Return a tally of the values in the field.
 
         >>> s = ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
         >>> s.tally('b')
         {1: 1, 2: 1}
-        
+
         """
         return dict(Counter([scenario[field] for scenario in self]))
 
@@ -94,8 +95,8 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
             raise Exception(f"Error in filter. Exception:{e}")
 
         return ScenarioList(new_data)
-    
-    @classmethod 
+
+    @classmethod
     def from_list(cls, name, values) -> ScenarioList:
         """Create a ScenarioList from a list of values.
 
@@ -103,7 +104,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         ScenarioList([Scenario({'name': 'Alice'}), Scenario({'name': 'Bob'})])
         """
         return cls([Scenario({name: value}) for value in values])
-    
+
     def add_list(self, name, values) -> ScenarioList:
         """Add a list of values to a ScenarioList.
 
@@ -114,7 +115,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         for i, value in enumerate(values):
             self[i][name] = value
         return self
-    
+
     def add_value(self, name, value):
         """Add a value to all scenarios in a ScenarioList.
 
@@ -236,12 +237,15 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         from edsl.agents.Agent import Agent
 
         return AgentList([Agent(traits=s.data) for s in self])
-    
-    def chunk(self, field, 
-            num_words:Optional[int] = None, 
-            num_lines:Optional[int] = None, 
-            include_original = False, 
-            hash_original = False) -> 'ScenarioList':
+
+    def chunk(
+        self,
+        field,
+        num_words: Optional[int] = None,
+        num_lines: Optional[int] = None,
+        include_original=False,
+        hash_original=False,
+    ) -> "ScenarioList":
         """Chunk the scenarios based on a field.
 
         >>> s = ScenarioList([Scenario({'text': 'The quick brown fox jumps over the lazy dog.'})])
@@ -252,7 +256,13 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
 
         new_scenarios = []
         for scenario in self:
-            replacement_scenarios = scenario.chunk(field, num_words=num_words, num_lines=num_lines, include_original=include_original, hash_original=hash_original)
+            replacement_scenarios = scenario.chunk(
+                field,
+                num_words=num_words,
+                num_lines=num_lines,
+                include_original=include_original,
+                hash_original=hash_original,
+            )
             new_scenarios.extend(replacement_scenarios)
         return ScenarioList(new_scenarios)
 

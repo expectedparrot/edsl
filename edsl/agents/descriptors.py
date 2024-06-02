@@ -1,4 +1,5 @@
 """This module contains the descriptors used to set the attributes of the Agent class."""
+
 from typing import Dict
 from edsl.utilities.utilities import is_valid_variable_name
 from edsl.exceptions.agents import AgentNameError, AgentTraitKeyError

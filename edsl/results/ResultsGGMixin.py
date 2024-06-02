@@ -1,4 +1,5 @@
 """Mixin class for ggplot2 plotting."""
+
 import subprocess
 import pandas as pd
 import tempfile
@@ -21,7 +22,7 @@ class ResultsGGMixin:
         height=4,
         width=6,
         format="svg",
-        factor_orders: Optional[dict] = None
+        factor_orders: Optional[dict] = None,
     ):
         """Create a ggplot2 plot from a DataFrame.
 
@@ -54,10 +55,12 @@ class ResultsGGMixin:
 
         if factor_orders is not None:
             for factor, order in factor_orders.items():
-                #read_csv_code += f"""self${{{factor}}} <- factor(self${{{factor}}}, levels=c({','.join(['"{}"'.format(x) for x in order])}))"""
+                # read_csv_code += f"""self${{{factor}}} <- factor(self${{{factor}}}, levels=c({','.join(['"{}"'.format(x) for x in order])}))"""
 
                 level_string = ", ".join([f'"{x}"' for x in order])
-                read_csv_code += f"self${factor} <- factor(self${factor}, levels=c({level_string}))"
+                read_csv_code += (
+                    f"self${factor} <- factor(self${factor}, levels=c({level_string}))"
+                )
                 read_csv_code += "\n"
 
         # Load ggplot2 library

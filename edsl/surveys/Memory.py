@@ -1,4 +1,5 @@
 """This module contains the Memory class, which is a list of prior questions."""
+
 from collections import UserList
 
 

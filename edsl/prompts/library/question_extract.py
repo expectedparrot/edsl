@@ -1,4 +1,5 @@
 """Extract question type."""
+
 import textwrap
 
 from edsl.prompts.QuestionInstructionsBase import QuestionInstuctionsBase

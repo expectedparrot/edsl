@@ -1,13 +1,16 @@
 """A mixin class for exporting surveys to different formats."""
+
 from docx import Document
 from typing import Union, Optional
 import black
+
 
 class SurveyExportMixin:
     """A mixin class for exporting surveys to different formats."""
 
     def css(self):
         from edsl.surveys.SurveyCSS import SurveyCSS
+
         return SurveyCSS.default_style().generate_css()
 
     def docx(self, filename=None) -> Union["Document", None]:
@@ -76,7 +79,7 @@ class SurveyExportMixin:
         return_link=False,
         css: Optional[str] = None,
         cta: Optional[str] = "Open HTML file",
-        include_question_name = False
+        include_question_name=False,
     ):
         from IPython.display import display, HTML
         import tempfile
@@ -115,18 +118,24 @@ class SurveyExportMixin:
         with open(filename, "w") as f:
             f.write(html_header)
             for question in self._questions:
-                f.write(question.html(scenario=scenario, include_question_name=include_question_name))
-                output += question.html(scenario=scenario, include_question_name=include_question_name)
+                f.write(
+                    question.html(
+                        scenario=scenario, include_question_name=include_question_name
+                    )
+                )
+                output += question.html(
+                    scenario=scenario, include_question_name=include_question_name
+                )
             f.write(html_footer)
             output += html_footer
-
 
         if is_notebook():
             html_url = f"/files/{filename}"
             html_link = f'<a href="{html_url}" target="_blank">{cta}</a>'
             display(HTML(html_link))
-            
+
             import html
+
             escaped_output = html.escape(output)
             iframe = f""""
             <iframe srcdoc="{ escaped_output }" style="width: 800px; height: 600px;"></iframe>
@@ -137,8 +146,9 @@ class SurveyExportMixin:
             print(f"Survey saved to {filename}")
             import webbrowser
             import os
+
             webbrowser.open(f"file://{os.path.abspath(filename)}")
-            #webbrowser.open(filename)
+            # webbrowser.open(filename)
 
         if return_link:
             return filename

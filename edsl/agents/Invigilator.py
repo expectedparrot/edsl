@@ -1,4 +1,5 @@
 """Module for creating Invigilators, which are objects to administer a question to an Agent."""
+
 import json
 from typing import Dict, Any, Optional
 

@@ -3,15 +3,21 @@ import numpy as np
 from sklearn.manifold import TSNE
 from IPython.display import display_html
 
+
 def compute_tsne(embeddings, labels):
     embeddings_np = np.array(embeddings)
     tsne = TSNE(n_components=2, random_state=42)
     tsne_results = tsne.fit_transform(embeddings_np)
     data = [
-        {"x": float(tsne_results[i, 0]), "y": float(tsne_results[i, 1]), "label": labels[i]}
+        {
+            "x": float(tsne_results[i, 0]),
+            "y": float(tsne_results[i, 1]),
+            "label": labels[i],
+        }
         for i in range(len(labels))
     ]
     return data
+
 
 def plot_tsne_in_notebook(embeddings, labels):
     # Compute t-SNE
@@ -95,19 +101,18 @@ def plot_tsne_in_notebook(embeddings, labels):
     """
 
     # Write HTML content to a temporary file
-    html_file = 'tsne_plot.html'
-    with open(html_file, 'w') as file:
+    html_file = "tsne_plot.html"
+    with open(html_file, "w") as file:
         file.write(html_content)
 
     # Display the HTML content in an iframe within a Jupyter notebook
-    display_html(f'<iframe src="{html_file}" width="600" height="600"></iframe>', raw=True)
+    display_html(
+        f'<iframe src="{html_file}" width="600" height="600"></iframe>', raw=True
+    )
+
 
 # Example usage
 if __name__ == "__main__":
-    embeddings = [
-        [0.1, 0.2, 0.3],
-        [0.4, 0.5, 0.6],
-        [0.7, 0.8, 0.9]
-    ]
+    embeddings = [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6], [0.7, 0.8, 0.9]]
     labels = ["String 1", "String 2", "String 3"]
     plot_tsne_in_notebook(embeddings, labels)
