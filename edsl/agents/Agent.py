@@ -178,6 +178,21 @@ class Agent(Base):
 
         """
         return getattr(self, key)
+    
+    def remove_direct_question_answering_method(self) -> None:
+        """Remove the direct question answering method.
+
+        Example usage:
+
+        >>> a = Agent()
+        >>> def f(self, question, scenario): return "I am a direct answer."
+        >>> a.add_direct_question_answering_method(f)
+        >>> a.remove_direct_question_answering_method()
+        >>> hasattr(a, "answer_question_directly")
+        False
+        """
+        if hasattr(self, "answer_question_directly"):
+            delattr(self, "answer_question_directly")
 
     def add_direct_question_answering_method(self, method: Callable) -> None:
         """Add a method to the agent that can answer a particular question type.

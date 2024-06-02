@@ -30,7 +30,10 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
     def _repr_html_(self) -> str:
         from edsl.utilities.utilities import data_to_html
 
-        return data_to_html(self.to_dict())
+        data = self.to_dict()
+        _ = data.pop("edsl_version")
+        _ = data.pop("edsl_class_name")
+        return data_to_html(data)
     
     def tally(self, field) -> dict:
         """Return a tally of the values in the field.

@@ -1,5 +1,5 @@
 from collections import UserDict
-from typing import List, Dict
+from typing import List, Dict, Optional
 import textwrap
 import re
 
@@ -10,7 +10,15 @@ from edsl.conjure.utilities import convert_value, Missing
 
 
 class KeyValidator:
-    """A class to represent a key validator."""
+    """A class to represent a key validator.
+    
+    >>> k = KeyValidator()
+    >>> k.validate_key("asdf")
+    True
+    >>> k.validate_key("ASDF")
+    False
+    
+    """
 
     def __set_name__(self, owner, name):
         self.name = name
@@ -29,14 +37,26 @@ class KeyValidator:
 
 
 class ReplacementFinder:
-    """This class helps to find a replacement name for a bad question name."""
-    def __init__(self, lookup_dict):
+    """This class finds a replacement name for a bad question name.
+    
+    >>> r = ReplacementFinder(lookup_dict = {'Poop ': 'poop'})
+    >>> r('Poop ')
+    'poop'
+    
+    """
+    def __init__(self, lookup_dict: Optional[dict] = None):
+        if lookup_dict is None:
+            lookup_dict = {}
+        
         self.lookup_dict = lookup_dict
 
     def __call__(self, bad_question_name):
         """Finds a replacement name for a bad question name.
         TODO: We should add a check to see if the new name is already in use.
         """
+        if bad_question_name in self.lookup_dict:
+            return self.lookup_dict[bad_question_name]
+        
         q = QuestionFreeText(
             question_text=f"""We have a survey with a question name: {bad_question_name}. 
             The question name is not a valid Python identifier.
@@ -66,6 +86,13 @@ get_replacement_name = ReplacementFinder({})
 
 
 class CustomDict(UserDict):
+
+    """
+    >>> d = CustomDict()
+    >>> d = CustomDict({"7asdf": 123, "FAMILY": 12})
+    >>> d
+    {'q7asdf': 123, 'family': 12}
+    """
     key_validator = KeyValidator()
 
     def __init__(self, data=None, verbose = False):
@@ -236,7 +263,6 @@ class RawResponseColumn:
 
 if __name__ == "__main__":
     import doctest
-
     doctest.testmod()
     # d = CustomDict()
     # d = CustomDict({"7asdf": 123, "FAMILY": 12})
