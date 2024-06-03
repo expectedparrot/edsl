@@ -89,7 +89,7 @@ def default_guarded_getitem(ob, key):
             f"Access denied for attribute: {key}"
         )
 
-    return ob[key]
+    return ob.get(key)
 
 
 class Agent(Base):
@@ -184,15 +184,19 @@ class Agent(Base):
                 dynamic_traits_function_name, dynamic_traits_function
             )
         if answer_question_directly_source_code:
+            print(" inside source code ", answer_question_directly_source_code)
             self.answer_question_directly_function_name = (
                 answer_question_directly_function_name
             )
-            self.answer_question_directly = self.create_restricted_function(
+            protected_method = self.create_restricted_function(
                 answer_question_directly_function_name,
                 answer_question_directly_source_code,
             )
+            bound_method = types.MethodType(protected_method, self)
+            setattr(self, "answer_question_directly", bound_method)
 
         self._check_dynamic_traits_function()
+
         self.current_question = None
 
         if traits_presentation_template is not None:
@@ -230,6 +234,11 @@ class Agent(Base):
             safe_env["_getiter_"] = guarded_iter
             safe_env["_iter_unpack_sequence_"] = guarded_iter_unpack_sequence
 
+        print(source_code)
+        source_code = source_code.split("def ")
+        if len(source_code) >= 2:
+            source_code = "def " + source_code[1]
+        print("here", source_code)
         byte_code = compile_restricted(source_code, "<string>", "exec")
         loc = {}
         try:
@@ -468,26 +477,26 @@ class Agent(Base):
             sidecar_model=sidecar_model,
         )
         return invigilator
-    
+
     def select(self, *traits: str) -> Agent:
         """Selects agents with only the references traits
-        
+
         >>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
-        
-        
+
+
         >>> a.select("age", "height")
         Agent(traits = {'age': 10, 'height': 5.5})
-        
+
         >>> a.select("age")
         Agent(traits = {'age': 10})
-        
+
         """
 
         if len(traits) == 1:
             traits_to_select = [list(traits)[0]]
         else:
             traits_to_select = list(traits)
-        
+
         return Agent(traits={trait: self.traits[trait] for trait in traits_to_select})
 
     ################
@@ -582,6 +591,7 @@ class Agent(Base):
 
         import inspect
 
+        print(raw_data)
         if hasattr(self, "dynamic_traits_function"):
             raw_data.pop(
                 "dynamic_traits_function", None
@@ -598,7 +608,13 @@ class Agent(Base):
                 "answer_question_directly", None
             )  # in case answer_question_directly will appear with _ in self.__dict__
             answer_question_directly_func = self.answer_question_directly
-            if answer_question_directly_func:
+            # print(answer_question_directly_func)
+            print(type(answer_question_directly_func), flush=True)
+
+            if (
+                answer_question_directly_func
+                and raw_data.get("answer_question_directly_source_code", None) != None
+            ):
                 raw_data["answer_question_directly_source_code"] = inspect.getsource(
                     answer_question_directly_func
                 )
