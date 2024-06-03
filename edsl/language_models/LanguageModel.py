@@ -432,7 +432,7 @@ class LanguageModel(
             # TODO: Turn into logs to generate issues
             dict_response, success = await repair(response, str(e))
             if not success:
-                raise Exception("Even the repair failed.")
+                raise Exception(f"""Even the repair failed. The error was: {e}. The response was: {response}.""")
 
         dict_response.update(
             {
