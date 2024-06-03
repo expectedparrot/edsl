@@ -1,4 +1,5 @@
 """Directed Acyclic Graph (DAG) class."""
+
 from collections import UserDict
 from graphlib import TopologicalSorter
 

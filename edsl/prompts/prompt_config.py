@@ -1,4 +1,5 @@
 """This file contains the configuration for the prompt generation."""
+
 from enum import Enum
 
 NEGATIVE_INFINITY = float("-inf")

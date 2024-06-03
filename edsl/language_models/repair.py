@@ -7,6 +7,32 @@ async def async_repair(bad_json, error_message=""):
 
     m = Model()
 
+    # First, let's try to repair the bad JSON
+
+    replacements = [
+        ("\\", "\\\\"),
+        ("\n", "\\n"),
+        ("\r", "\\r"),
+        ("\t", "\\t"),
+        ("\b", "\\b"),
+        ("\f", "\\f"),
+    ]
+
+    s = bad_json
+    for old, new in replacements:
+        s = s.replace(old, new)
+
+    try:
+        # this is the OpenAI version, but that's fine
+        valid_dict = json.loads(s)
+        success = True
+    except json.JSONDecodeError:
+        valid_dict = {}
+        success = False
+        # print("Replacing control characters didn't work. Trying with the model.")
+    else:
+        return valid_dict, success
+
     prompt = f"""This is the output from a less capable language model.  
     It was supposed to respond with just a JSON object with an answer to a question and some commentary, 
     in a field called "comment" next to "answer".
@@ -24,6 +50,7 @@ async def async_repair(bad_json, error_message=""):
         return {}, False
 
     try:
+        # this is the OpenAI version, but that's fine
         valid_dict = json.loads(results["choices"][0]["message"]["content"])
         success = True
     except json.JSONDecodeError:

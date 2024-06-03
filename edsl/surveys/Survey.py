@@ -80,20 +80,27 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
             warnings.warn("name parameter to a survey is deprecated.")
 
-    def get_question(self, question_name) -> QuestionBase:
-        """Return the question object given the question name.
+    def get(self, question_name: str) -> QuestionBase:
+        """
+        Return the question object given the question name.
 
         :param question_name: The name of the question to get.
 
         >>> s = Survey.example()
         >>> s.get_question("q0")
         Question('multiple_choice', question_name = 'q0', question_text = 'Do you like school?', question_options = ['yes', 'no'])
-
         """
         if question_name not in self.question_name_to_index:
             raise KeyError(f"Question name {question_name} not found in survey.")
         index = self.question_name_to_index[question_name]
         return self._questions[index]
+
+    def get_question(self, question_name:str) -> QuestionBase:
+        """Return the question object given the question name.
+        """
+        #import warnings 
+        #warnings.warn("survey.get_question is deprecated. Use subscript operator instead.")
+        return self.get(question_name)
 
     @property
     def question_names(self) -> list[str]:

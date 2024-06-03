@@ -1,4 +1,5 @@
 """A survey has a memory plan that specifies what the agent should remember when answering a question."""
+
 from collections import UserDict, defaultdict
 from typing import Optional
 
