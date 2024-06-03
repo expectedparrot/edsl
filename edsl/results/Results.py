@@ -445,6 +445,51 @@ class Results(UserList, Mixins, Base):
         """
         return self.data[0]
 
+    def answer_truncate(self, column:str, top_n = 5, new_var_name=None) -> Results:
+        """Create a new variable that truncates the answers to the top_n.
+
+        :param column: The column to truncate.
+        :param top_n: The number of top answers to keep.
+        :param new_var_name: The name of the new variable. If None, it is the original name + '_truncated'.
+
+        """
+        if new_var_name is None:
+            new_var_name = column + "_truncated"
+        answers = list(self.select(column).tally().keys())
+        def f(x):
+            if x in answers[:top_n]:
+                return x
+            else:
+                return 'Other'
+        return self.recode(column, recode_function = f, new_var_name = new_var_name)
+
+
+    def recode(self, column: str, recode_function: Optional[Callable], new_var_name = None) -> Results:
+        """
+        Recode a column in the Results object.
+
+        >>> r = Results.example()
+        >>> r.recode('how_feeling', recode_function = lambda x: 1 if x == 'Great' else 0).select('how_feeling', 'how_feeling_recoded')
+        Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}, {'answer.how_feeling_recoded': [0, 1, 0, 0]}])        """
+        
+        if new_var_name is None:
+            new_var_name = column + "_recoded"
+        new_data = []
+        for result in self.data:
+            new_result = result.copy()
+            value = new_result.get_value('answer', column)
+            #breakpoint()
+            new_result["answer"][new_var_name] = recode_function(value)
+            new_data.append(new_result)
+            
+        print("Created new variable", new_var_name)
+        return Results(
+            survey=self.survey,
+            data=new_data,
+            created_columns=self.created_columns + [new_var_name],
+        )
+
+
     def mutate(
         self, new_var_string: str, functions_dict: Optional[dict] = None
     ) -> Results:
@@ -733,16 +778,14 @@ class Results(UserList, Mixins, Base):
         │ Terrible     │
         └──────────────┘
         """
-        # def has_single_equals(string):
-        #     # Regex pattern to find a single equals sign but ignore double equals signs
-        #     pattern = re.compile(r'(?<!\=)\=(?!\=)')
-        #     # Search the pattern in the given string
-        #     match = pattern.search(string)
-        #     # Return True if a match is found, otherwise False
-        #     return match is not None
+        def has_single_equals(string):
+            if "!=" in string:
+                return False
+            if "=" in string and not "==" in string:
+                return True
 
-        # if has_single_equals(expression):
-        #     raise ResultsFilterError("You must use '==' instead of '=' in the filter expression.")
+        if has_single_equals(expression):
+            raise ResultsFilterError("You must use '==' instead of '=' in the filter expression.")
 
         def create_evaluator(result):
             """Create an evaluator for the given result.
