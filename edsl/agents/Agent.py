@@ -41,6 +41,56 @@ from edsl.prompts.library.agent_persona import AgentPersona
 from edsl.data.Cache import Cache
 
 
+from RestrictedPython import compile_restricted, safe_globals
+from RestrictedPython.Guards import (
+    safe_builtins,
+    full_write_guard,
+    guarded_iter_unpack_sequence,
+)
+
+
+class FunctionAForbiddenAttributeException(Exception):
+    """Exception for errors during function execution in a restricted environment."""
+
+
+class FunctionCreationException(Exception):
+    """Function creation in restricted env failed"""
+
+
+def guarded_iter(obj, allowed_types=(list, tuple, set, dict, range)):
+    """Ensures iteration is only performed on safe, allowable types."""
+    if not isinstance(obj, allowed_types):
+        raise TypeError(f"Iteration over {type(obj).__name__} not allowed.")
+    return iter(obj)
+
+
+def default_guarded_getitem(ob, key):
+    sensitive_python_keys = [
+        "__dict__",
+        "__class__",
+        "__module__",
+        "__bases__",
+        "__mro__",
+        "__subclasses__",
+        "__func__",
+        "__self__",
+        "__closure__",
+        "__code__",
+        "__globals__",
+        "__call__",
+        "__getattr__",
+        "__getattribute__",
+        "__delattr__",
+        "__setattr__",
+    ]
+    if key in sensitive_python_keys:
+        raise FunctionAForbiddenAttributeException(
+            f"Access denied for attribute: {key}"
+        )
+
+    return ob[key]
+
+
 class Agent(Base):
     """An Agent that can answer questions."""
 
@@ -50,6 +100,8 @@ class Agent(Base):
     codebook = CodebookDescriptor()
     instruction = InstructionDescriptor()
     name = NameDescriptor()
+    dynamic_traits_function_name = ""
+    answer_question_directly_function_name = ""
 
     def __init__(
         self,
@@ -60,6 +112,10 @@ class Agent(Base):
         instruction: Optional[str] = None,
         traits_presentation_template: Optional[str] = None,
         dynamic_traits_function: Optional[Callable] = None,
+        dynamic_traits_function_source_code: Optional[str] = None,
+        dynamic_traits_function_name: Optional[str] = None,
+        answer_question_directly_source_code: Optional[str] = None,
+        answer_question_directly_function_name: Optional[str] = None,
     ):
         """Initialize a new instance of Agent.
 
@@ -116,6 +172,25 @@ class Agent(Base):
         self.codebook = codebook or dict()
         self.instruction = instruction or self.default_instruction
         self.dynamic_traits_function = dynamic_traits_function
+
+        if self.dynamic_traits_function:
+            self.dynamic_traits_function_name = self.dynamic_traits_function.__name__
+
+        if dynamic_traits_function_source_code:
+            self.dynamic_traits_function_name = dynamic_traits_function_name
+            print("here")
+            self.dynamic_traits_function = self.create_restricted_function(
+                dynamic_traits_function_name, dynamic_traits_function
+            )
+        if answer_question_directly_source_code:
+            self.answer_question_directly_function_name = (
+                answer_question_directly_function_name
+            )
+            self.answer_question_directly = self.create_restricted_function(
+                answer_question_directly_function_name,
+                answer_question_directly_source_code,
+            )
+
         self._check_dynamic_traits_function()
         self.current_question = None
 
@@ -141,6 +216,29 @@ class Agent(Base):
                         f"""The dynamic traits function {self.dynamic_traits_function} has too many parameters. It should have no parameters or 
                         just a single parameter: 'question'."""
                     )
+
+    def create_restricted_function(
+        self, function_name, source_code, loop_activated=True
+    ):
+        """Activate the function using RestrictedPython with basic restrictions."""
+        safe_env = safe_globals.copy()
+        safe_env["__builtins__"] = {**safe_builtins}
+        safe_env["_getitem_"] = default_guarded_getitem
+
+        if loop_activated:
+            safe_env["_getiter_"] = guarded_iter
+            safe_env["_iter_unpack_sequence_"] = guarded_iter_unpack_sequence
+
+        byte_code = compile_restricted(source_code, "<string>", "exec")
+        loc = {}
+        try:
+            exec(byte_code, safe_env, loc)
+            func = loc[function_name]
+        except Exception as e:
+            print("Creating restricted funtion error", e)
+            raise FunctionCreationException("Creating restricted funtion failed")
+
+        return func
 
     @property
     def traits(self) -> dict[str, str]:
@@ -208,6 +306,7 @@ class Agent(Base):
                 )
         bound_method = types.MethodType(method, self)
         setattr(self, "answer_question_directly", bound_method)
+        self.answer_question_directly_function_name = bound_method.__name__
 
     def create_invigilator(
         self,
@@ -430,10 +529,6 @@ class Agent(Base):
         TODO: Warn if has dynamic traits function or direct answer function that cannot be serialized.
         TODO: Add ability to have coop-hosted functions that are serializable.
         """
-        if self.dynamic_traits_function is not None:
-            raise NotImplementedError(
-                "Agents with dynamic traits functions are not serializable."
-            )
 
         raw_data = {
             k.replace("_", "", 1): v
@@ -447,6 +542,33 @@ class Agent(Base):
             raw_data.pop("codebook")
         if self.name == None:
             raw_data.pop("name")
+
+        import inspect
+
+        if hasattr(self, "dynamic_traits_function"):
+            raw_data.pop(
+                "dynamic_traits_function", None
+            )  # in case dynamic_traits_function will appear with _ in self.__dict__
+            dynamic_traits_func = self.dynamic_traits_function
+            if dynamic_traits_func:
+                func = inspect.getsource(dynamic_traits_func)
+                raw_data["dynamic_traits_function_source_code"] = func
+                raw_data[
+                    "dynamic_traits_function_name"
+                ] = self.dynamic_traits_function_name
+        if hasattr(self, "answer_question_directly"):
+            raw_data.pop(
+                "answer_question_directly", None
+            )  # in case answer_question_directly will appear with _ in self.__dict__
+            answer_question_directly_func = self.answer_question_directly
+            if answer_question_directly_func:
+                raw_data["answer_question_directly_source_code"] = inspect.getsource(
+                    answer_question_directly_func
+                )
+                raw_data[
+                    "answer_question_directly_function_name"
+                ] = self.answer_question_directly_function_name
+
         return raw_data
 
     @add_edsl_version
