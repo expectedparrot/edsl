@@ -1,4 +1,5 @@
 """Mixin for fetching data from results."""
+
 from functools import partial
 from itertools import chain
 

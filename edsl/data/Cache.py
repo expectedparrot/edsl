@@ -1,6 +1,7 @@
 """
 The `Cache` class is used to store responses from a language model.
 """
+
 from __future__ import annotations
 import json
 import os

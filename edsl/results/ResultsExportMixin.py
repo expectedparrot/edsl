@@ -1,4 +1,5 @@
 """Mixin class for exporting results."""
+
 import base64
 import csv
 import io
@@ -38,8 +39,10 @@ class ResultsExportMixin:
 
         return wrapper
 
-    @_convert_decorator 
-    def relevant_columns(self, data_type: Optional[str] = None, remove_prefix=False) -> list:
+    @_convert_decorator
+    def relevant_columns(
+        self, data_type: Optional[str] = None, remove_prefix=False
+    ) -> list:
         """Return the set of keys that are present in the dataset.
 
         >>> d = Dataset([{'a.b':[1,2,3,4]}])
@@ -56,12 +59,13 @@ class ResultsExportMixin:
         # columns = set([list(result.keys())[0] for result in self.data])
         if remove_prefix:
             columns = [column.split(".")[-1] for column in columns]
-        
-        if data_type:
-            columns = [column for column in columns if column.split(".")[0] == data_type]
-        
-        return columns
 
+        if data_type:
+            columns = [
+                column for column in columns if column.split(".")[0] == data_type
+            ]
+
+        return columns
 
     # @_convert_decorator
     def sample(self, n: int) -> "Results":
@@ -90,11 +94,11 @@ class ResultsExportMixin:
         return self
 
     @_convert_decorator
-    def _make_tabular(self, remove_prefix:bool, pretty_labels: Optional[dict] = None):
+    def _make_tabular(self, remove_prefix: bool, pretty_labels: Optional[dict] = None):
         """Turn the results into a tabular format.
-        
+
         :param remove_prefix: Whether to remove the prefix from the column names.
-        
+
         >>> from edsl.results import Results
         >>> r = Results.example()
         >>> r.select('how_feeling')._make_tabular(remove_prefix = True)
@@ -262,7 +266,9 @@ class ResultsExportMixin:
         """
         if pretty_labels is None:
             pretty_labels = {}
-        header, rows = self._make_tabular(remove_prefix = remove_prefix, pretty_labels=pretty_labels)
+        header, rows = self._make_tabular(
+            remove_prefix=remove_prefix, pretty_labels=pretty_labels
+        )
 
         if filename is not None:
             with open(filename, "w") as f:
@@ -393,11 +399,14 @@ class ResultsExportMixin:
             list_to_return = new_list
 
         return list_to_return
-    
+
     @_convert_decorator
-    def html(self, filename: str = None, cta: str = "Open in browser", return_link=False):
+    def html(
+        self, filename: str = None, cta: str = "Open in browser", return_link=False
+    ):
         import os
         import tempfile
+
         df = self.to_pandas()
 
         if filename is None:
@@ -417,14 +426,13 @@ class ResultsExportMixin:
             print(f"Saved to {filename}")
             import webbrowser
             import os
+
             webbrowser.open(f"file://{os.path.abspath(filename)}")
-            #webbrowser.open(filename)
+            # webbrowser.open(filename)
 
         if return_link:
             return filename
 
- 
-    
     @_convert_decorator
     def tally(self, *fields: Optional[str]):
         """Tally the values of a field or perform a cross-tab of multiple fields.
@@ -446,19 +454,26 @@ class ResultsExportMixin:
         #     fields = (self.relevant_columns()[0],)
         # elif len(fields) == 0 and len(self.relevant_columns()) > 1:
         #     raise ValueError("You must specify a specific field to tally when dataset has more than two columns.")
-        
-        relevant_columns_without_prefix = [column.split(".")[-1] for column in self.relevant_columns()]
 
-        if not all(f in self.relevant_columns() or f in relevant_columns_without_prefix for f in fields):
+        relevant_columns_without_prefix = [
+            column.split(".")[-1] for column in self.relevant_columns()
+        ]
+
+        if not all(
+            f in self.relevant_columns() or f in relevant_columns_without_prefix
+            for f in fields
+        ):
             raise ValueError("One or more specified fields are not in the dataset.")
-        
+
         if len(fields) == 1:
             field = fields[0]
             values = self._key_to_value(field)
-            return dict(Counter(values))
         else:
             values = list(zip(*(self._key_to_value(field) for field in fields)))
-            return dict(Counter(values))
+
+        tally = dict(Counter(values))
+        sorted_tally = dict(sorted(tally.items(), key=lambda item: -item[1]))
+        return sorted_tally
 
 
 if __name__ == "__main__":

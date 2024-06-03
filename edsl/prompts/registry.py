@@ -1,4 +1,5 @@
 """This module contains the RegisterPromptsMeta metaclass, which is used to register prompts."""
+
 import traceback
 from collections import defaultdict
 from typing import List, Any
