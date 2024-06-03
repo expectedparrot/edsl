@@ -74,7 +74,7 @@ class CustomDict(UserDict):
         if key != key.lower():
             key = key.lower()
         while not self.key_validator.validate_key(key):
-            print(f"Invalid key: {key}")
+            print(f"Column heading incable of being a key: {key}")
             if key in get_replacement_name.lookup_dict:
                 key = get_replacement_name.lookup_dict[key]
             else:
@@ -121,6 +121,14 @@ class RawResponseColumn:
             return "free_text"
         else:
             return "multiple_choice"
+        
+    def get_ordering(self, options_list):
+        from edsl.questions.QuestionList import QuestionList
+        q = QuestionList(question_text = """We have a survey question with the following options: '{{options_list}}'.
+                                            The options might be out of order. Please put them in the correct order.""",
+                         question_name = "ordering")
+    
+        return q.to_survey()(options_list = options_list).select("ordering").first()
 
     def to_question(self) -> QuestionBase:
         """Returns a Question object."""
@@ -129,7 +137,7 @@ class RawResponseColumn:
         d["question_text"] = self.question_text
         d["question_type"] = self.inferred_question_type
         if d["question_type"] == "multiple_choice":
-            d["question_options"] = list(self.unique_responses)
+            d["question_options"] = self.get_ordering(list(self.unique_responses))
         return QuestionBase.from_dict(d)
 
     @property
