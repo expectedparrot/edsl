@@ -1,4 +1,5 @@
 """A collection of rules for a survey."""
+
 from typing import List, Union, Any
 from collections import defaultdict, UserList
 

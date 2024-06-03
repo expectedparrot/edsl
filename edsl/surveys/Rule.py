@@ -16,6 +16,7 @@ If no rule is specified, the next question is given as the default.
 When a question is added with index, it is always given a rule the next question is index + 1, but
 with a low (-1) priority.
 """
+
 import ast
 from typing import Any, Union, List
 

@@ -1,4 +1,5 @@
 """Module to store system information."""
+
 from dataclasses import dataclass
 import getpass
 import platform

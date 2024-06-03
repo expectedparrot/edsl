@@ -427,7 +427,7 @@ class Jobs(Base):
     @classmethod
     def example(cls, throw_exception_probability=0) -> Jobs:
         """Return an example Jobs instance.
-        
+
         :param throw_exception_probability: the probability that an exception will be thrown when answering a question. This is useful for testing error handling.
 
         >>> Jobs.example()

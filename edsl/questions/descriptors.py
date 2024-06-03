@@ -1,4 +1,5 @@
 """This module contains the descriptors used to validate the attributes of the question classes."""
+
 from abc import ABC, abstractmethod
 import re
 from typing import Any, Callable

@@ -1,4 +1,5 @@
 """This module contains the Interview class, which is responsible for conducting an interview asynchronously."""
+
 from __future__ import annotations
 import traceback
 import asyncio
@@ -59,9 +60,9 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         self.debug = debug
         self.iteration = iteration
         self.cache = cache
-        self.answers: dict[
-            str, str
-        ] = Answers()  # will get filled in as interview progresses
+        self.answers: dict[str, str] = (
+            Answers()
+        )  # will get filled in as interview progresses
         self.sidecar_model = sidecar_model
 
         # Trackers
