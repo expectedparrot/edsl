@@ -2,6 +2,7 @@
 The Results object is the result of running a survey. 
 It is not typically instantiated directly, but is returned by the run method of a `Job` object.
 """
+
 from __future__ import annotations
 import json
 import random
@@ -35,6 +36,8 @@ from edsl.utilities import (
 )
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
+from edsl.results.ResultsToolsMixin import ResultsToolsMixin
+
 import json
 from pygments import highlight
 from pygments.lexers import JsonLexer
@@ -48,7 +51,13 @@ from edsl.Base import Base
 from edsl.results.ResultsFetchMixin import ResultsFetchMixin
 
 
-class Mixins(ResultsExportMixin, ResultsDBMixin, ResultsFetchMixin, ResultsGGMixin):
+class Mixins(
+    ResultsExportMixin,
+    ResultsDBMixin,
+    ResultsFetchMixin,
+    ResultsGGMixin,
+    ResultsToolsMixin,
+):
     pass
 
 
@@ -111,14 +120,15 @@ class Results(UserList, Mixins, Base):
 
     def __getitem__(self, i):
         if isinstance(i, int):
-            if isinstance(i, slice):
-                # Return a sliced view of the list
-                return self.__class__(survey=self.survey, data=self.data[i])
-            else:
-                # Return a single item
-                return self.data[i]
-        else:
+            return self.data[i]
+
+        if isinstance(i, slice):
+            return self.__class__(survey=self.survey, data=self.data[i])
+
+        if isinstance(i, str):
             return self.to_dict()[i]
+
+        raise TypeError("Invalid argument type")
 
     def _update_results(self) -> None:
         if self._job_uuid and len(self.data) < self._total_results:
@@ -390,7 +400,7 @@ class Results(UserList, Mixins, Base):
             .union(self.model_keys)
         )
         return sorted(list(all_keys))
-    
+
     def _parse_column(self, column: str) -> tuple[str, str]:
         """
         Parses a column name into a tuple containing a data type and a key.
@@ -409,14 +419,19 @@ class Results(UserList, Mixins, Base):
                 data_type, key = self._key_to_data_type[column], column
             except KeyError:
                 import difflib
-                close_matches = difflib.get_close_matches(column, self._key_to_data_type.keys())
+
+                close_matches = difflib.get_close_matches(
+                    column, self._key_to_data_type.keys()
+                )
                 if close_matches:
                     suggestions = ", ".join(close_matches)
                     raise ResultsColumnNotFoundError(
                         f"Column '{column}' not found in data. Did you mean: {suggestions}?"
                     )
                 else:
-                    raise ResultsColumnNotFoundError(f"Column {column} not found in data")
+                    raise ResultsColumnNotFoundError(
+                        f"Column {column} not found in data"
+                    )
         return data_type, key
 
     def first(self) -> Result:
@@ -429,6 +444,51 @@ class Results(UserList, Mixins, Base):
         Result(agent...
         """
         return self.data[0]
+
+    def answer_truncate(self, column:str, top_n = 5, new_var_name=None) -> Results:
+        """Create a new variable that truncates the answers to the top_n.
+
+        :param column: The column to truncate.
+        :param top_n: The number of top answers to keep.
+        :param new_var_name: The name of the new variable. If None, it is the original name + '_truncated'.
+
+        """
+        if new_var_name is None:
+            new_var_name = column + "_truncated"
+        answers = list(self.select(column).tally().keys())
+        def f(x):
+            if x in answers[:top_n]:
+                return x
+            else:
+                return 'Other'
+        return self.recode(column, recode_function = f, new_var_name = new_var_name)
+
+
+    def recode(self, column: str, recode_function: Optional[Callable], new_var_name = None) -> Results:
+        """
+        Recode a column in the Results object.
+
+        >>> r = Results.example()
+        >>> r.recode('how_feeling', recode_function = lambda x: 1 if x == 'Great' else 0).select('how_feeling', 'how_feeling_recoded')
+        Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}, {'answer.how_feeling_recoded': [0, 1, 0, 0]}])        """
+        
+        if new_var_name is None:
+            new_var_name = column + "_recoded"
+        new_data = []
+        for result in self.data:
+            new_result = result.copy()
+            value = new_result.get_value('answer', column)
+            #breakpoint()
+            new_result["answer"][new_var_name] = recode_function(value)
+            new_data.append(new_result)
+            
+        print("Created new variable", new_var_name)
+        return Results(
+            survey=self.survey,
+            data=new_data,
+            created_columns=self.created_columns + [new_var_name],
+        )
+
 
     def mutate(
         self, new_var_string: str, functions_dict: Optional[dict] = None
@@ -719,16 +779,14 @@ class Results(UserList, Mixins, Base):
         └──────────────┘
         """
         def has_single_equals(string):
-            # Regex pattern to find a single equals sign but ignore double equals signs
-            pattern = re.compile(r'(?<!\=)\=(?!\=)')
-            # Search the pattern in the given string
-            match = pattern.search(string)
-            # Return True if a match is found, otherwise False
-            return match is not None
-        
+            if "!=" in string:
+                return False
+            if "=" in string and not "==" in string:
+                return True
+
         if has_single_equals(expression):
             raise ResultsFilterError("You must use '==' instead of '=' in the filter expression.")
-        
+
         def create_evaluator(result):
             """Create an evaluator for the given result.
             The 'combined_dict' is a mapping of all values for that Result object.

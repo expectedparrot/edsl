@@ -1,7 +1,9 @@
 """Mixin class for ggplot2 plotting."""
+
 import subprocess
 import pandas as pd
 import tempfile
+from typing import Optional
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 
@@ -19,7 +21,8 @@ class ResultsGGMixin:
         debug: bool = False,
         height=4,
         width=6,
-        format="png",
+        format="svg",
+        factor_orders: Optional[dict] = None,
     ):
         """Create a ggplot2 plot from a DataFrame.
 
@@ -29,9 +32,11 @@ class ResultsGGMixin:
         :param sql: The SQL query to execute beforehand to manipulate the data.
         :param remove_prefix: Whether to remove the prefix from the column names.
         :param debug: Whether to print the R code instead of executing it.
-
+        :param height: The height of the plot in inches.
+        :param width: The width of the plot in inches.
+        :param format: The format to save the plot in (png or svg).
+        :param factor_orders: A dictionary of factor columns and their order.
         """
-        # Fetching DataFrame based on shape
 
         if sql == None:
             sql = "select * from self"
@@ -47,6 +52,16 @@ class ResultsGGMixin:
         # Embed the CSV data within the R script
         csv_data_escaped = csv_data.replace("\n", "\\n").replace("'", "\\'")
         read_csv_code = f"self <- read.csv(text = '{csv_data_escaped}', sep = ',')\n"
+
+        if factor_orders is not None:
+            for factor, order in factor_orders.items():
+                # read_csv_code += f"""self${{{factor}}} <- factor(self${{{factor}}}, levels=c({','.join(['"{}"'.format(x) for x in order])}))"""
+
+                level_string = ", ".join([f'"{x}"' for x in order])
+                read_csv_code += (
+                    f"self${factor} <- factor(self${factor}, levels=c({level_string}))"
+                )
+                read_csv_code += "\n"
 
         # Load ggplot2 library
         load_ggplot2 = "library(ggplot2)\n"

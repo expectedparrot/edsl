@@ -6,11 +6,11 @@ import matplotlib.pyplot as plt
 from io import BytesIO
 import base64
 
+
 class TaskHistory:
     def __init__(self, interviews: List["Interview"], include_traceback=False):
-
         """
-        The structure of a TaskHistory exception 
+        The structure of a TaskHistory exception
 
         [Interview.exceptions, Interview.exceptions, Interview.exceptions, ...]
 
@@ -24,7 +24,7 @@ class TaskHistory:
     @property
     def exceptions(self):
         return [i.exceptions for k, i in self._interviews.items() if i.exceptions != {}]
-    
+
     @property
     def indices(self):
         return [k for k, i in self._interviews.items() if i.exceptions != {}]
@@ -132,7 +132,9 @@ class TaskHistory:
         for i, status in enumerate(TaskStatus):
             ax = axes[i]
             x = range(len(new_counts))
-            y = [item.get(status, 0) for item in new_counts]  # Use .get() to handle missing keys safely
+            y = [
+                item.get(status, 0) for item in new_counts
+            ]  # Use .get() to handle missing keys safely
             ax.plot(x, y, marker="o", linestyle="-")
             ax.set_title(status.name)
             ax.set_xlabel("Time Periods")
@@ -141,24 +143,23 @@ class TaskHistory:
             ax.set_ylim(0, max_count)
 
         # Hide any unused subplots
-        for ax in axes[len(TaskStatus):]:
-            ax.axis('off')
+        for ax in axes[len(TaskStatus) :]:
+            ax.axis("off")
 
         plt.tight_layout()
 
         if get_embedded_html:
             buffer = BytesIO()
-            fig.savefig(buffer, format='png')
+            fig.savefig(buffer, format="png")
             plt.close(fig)
             buffer.seek(0)
-            
+
             # Encode plot to base64 string
-            img_data = base64.b64encode(buffer.getvalue()).decode('utf-8')
+            img_data = base64.b64encode(buffer.getvalue()).decode("utf-8")
             buffer.close()
             return f'<img src="data:image/png;base64,{img_data}" alt="Plot">'
         else:
             plt.show()
-
 
     def css(self):
         return """
@@ -214,27 +215,28 @@ class TaskHistory:
         }
         """
 
-    def html(self, 
-             filename:Optional[str] = None, 
-             return_link = False,
-             css = None,
-             cta = "Open Report in New Tab"
+    def html(
+        self,
+        filename: Optional[str] = None,
+        return_link=False,
+        css=None,
+        cta="Open Report in New Tab",
     ):
         """Return an HTML report."""
-     
+
         from IPython.display import display, HTML
         import tempfile
         import os
         from edsl.utilities.utilities import is_notebook
         from jinja2 import Template
 
+        performance_plot_html = self.plot(num_periods=100, get_embedded_html=True)
 
-        performance_plot_html = self.plot(num_periods=100, get_embedded_html = True)
-    
         if css is None:
             css = self.css()
 
-        template = Template("""
+        template = Template(
+            """
         <!DOCTYPE html>
         <html lang="en">
         <head>
@@ -247,8 +249,8 @@ class TaskHistory:
         </head>
         <body>
             {% for index, interview in interviews.items() %}
-                <div class="interview">Interview: {{ index }} </div>
                 {% if interview.exceptions != {} %}
+                   <div class="interview">Interview: {{ index }} </div>
                     <h1>Failing questions</h1>
                 {% endif %}
                 {% for question, exceptions in interview.exceptions.items() %}
@@ -290,13 +292,18 @@ class TaskHistory:
         {{ performance_plot_html }}
         </body>
         </html>
-        """)
+        """
+        )
 
         # Render the template with data
-        output = template.render(interviews=self._interviews, css=css, performance_plot_html=performance_plot_html)
+        output = template.render(
+            interviews=self._interviews,
+            css=css,
+            performance_plot_html=performance_plot_html,
+        )
 
         # Save the rendered output to a file
-        with open('output.html', 'w') as f:
+        with open("output.html", "w") as f:
             f.write(output)
 
         if css is None:
@@ -304,18 +311,21 @@ class TaskHistory:
 
         if filename is None:
             current_directory = os.getcwd()
-            filename = tempfile.NamedTemporaryFile("w", delete=False, suffix=".html", dir=current_directory).name
+            filename = tempfile.NamedTemporaryFile(
+                "w", delete=False, suffix=".html", dir=current_directory
+            ).name
 
-        with open(filename, 'w') as f:
-            with open(filename, 'w') as f:
-                #f.write(html_header)
-                #f.write(self._repr_html_())
+        with open(filename, "w") as f:
+            with open(filename, "w") as f:
+                # f.write(html_header)
+                # f.write(self._repr_html_())
                 f.write(output)
-                #f.write(html_footer)
+                # f.write(html_footer)
 
         if is_notebook():
             import html
-            html_url = f'/files/{filename}'
+
+            html_url = f"/files/{filename}"
             html_link = f'<a href="{html_url}" target="_blank">{cta}</a>'
             display(HTML(html_link))
             escaped_output = html.escape(output)
@@ -323,15 +333,13 @@ class TaskHistory:
             <iframe srcdoc="{ escaped_output }" style="width: 800px; height: 600px;"></iframe>
             """
             display(HTML(iframe))
-            #display(HTML(output))
+            # display(HTML(output))
         else:
             print(f"Exception report saved to {filename}")
             import webbrowser
             import os
-            webbrowser.open(f"file://{os.path.abspath(filename)}")
 
+            webbrowser.open(f"file://{os.path.abspath(filename)}")
 
         if return_link:
             return filename
-
-

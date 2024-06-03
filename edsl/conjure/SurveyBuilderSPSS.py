@@ -7,6 +7,7 @@ import pandas as pd
 from edsl.conjure.SurveyBuilder import SurveyBuilder
 from edsl.conjure.utilities import RCodeSnippet
 
+
 class SurveyBuilderSPSS(SurveyBuilder):
     header_r_code = RCodeSnippet(
         textwrap.dedent(

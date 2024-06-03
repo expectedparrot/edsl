@@ -1,4 +1,5 @@
 """A module for displaying data in various formats."""
+
 from html import escape
 from IPython.display import HTML
 from IPython.display import display as ipython_diplay

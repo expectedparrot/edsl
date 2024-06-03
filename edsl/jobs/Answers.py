@@ -1,4 +1,5 @@
 """This module contains the Answers class, which is a helper class to hold the answers to a survey."""
+
 from collections import UserDict
 from rich.table import Table
 

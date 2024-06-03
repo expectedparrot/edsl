@@ -1,4 +1,5 @@
 """Agent persona for a human agent."""
+
 import textwrap
 
 from edsl.prompts.Prompt import PromptBase

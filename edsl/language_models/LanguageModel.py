@@ -1,4 +1,5 @@
 """This module contains the LanguageModel class, which is an abstract base class for all language models."""
+
 from __future__ import annotations
 import warnings
 from functools import wraps
@@ -432,7 +433,9 @@ class LanguageModel(
             # TODO: Turn into logs to generate issues
             dict_response, success = await repair(response, str(e))
             if not success:
-                raise Exception("Even the repair failed.")
+                raise Exception(
+                    f"""Even the repair failed. The error was: {e}. The response was: {response}."""
+                )
 
         dict_response.update(
             {

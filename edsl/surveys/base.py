@@ -1,4 +1,5 @@
 """Base classes and enumerations for the surveyor package."""
+
 from enum import Enum
 
 
