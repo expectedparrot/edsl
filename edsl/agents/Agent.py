@@ -4,7 +4,7 @@ from __future__ import annotations
 import copy
 import inspect
 import types
-from typing import Any, Callable, Optional, Union, Dict
+from typing import Any, Callable, Optional, Union, Dict, Sequence
 
 from rich.table import Table
 
@@ -369,6 +369,27 @@ class Agent(Base):
             sidecar_model=sidecar_model,
         )
         return invigilator
+    
+    def select(self, *traits: str) -> Agent:
+        """Selects agents with only the references traits
+        
+        >>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
+        
+        
+        >>> a.select("age", "height")
+        Agent(traits = {'age': 10, 'height': 5.5})
+        
+        >>> a.select("age")
+        Agent(traits = {'age': 10})
+        
+        """
+
+        if len(traits) == 1:
+            traits_to_select = [list(traits)[0]]
+        else:
+            traits_to_select = list(traits)
+        
+        return Agent(traits={trait: self.traits[trait] for trait in traits_to_select})
 
     ################
     # Dunder Methods
