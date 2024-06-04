@@ -104,7 +104,12 @@ class QuestionFunctional(QuestionBase):
             safe_env["_getiter_"] = guarded_iter
             safe_env["_iter_unpack_sequence_"] = guarded_iter_unpack_sequence
 
-        byte_code = compile_restricted(self.function_source_code, "<string>", "exec")
+        source_code = self.function_source_code
+        tmp_source_code = source_code.split("def ")
+        if len(tmp_source_code) >= 2:
+            source_code = "def " + tmp_source_code[1]
+
+        byte_code = compile_restricted(source_code, "<string>", "exec")
         loc = {}
         try:
             exec(byte_code, safe_env, loc)

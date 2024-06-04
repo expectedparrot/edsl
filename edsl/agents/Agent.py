@@ -234,11 +234,10 @@ class Agent(Base):
             safe_env["_getiter_"] = guarded_iter
             safe_env["_iter_unpack_sequence_"] = guarded_iter_unpack_sequence
 
-        print(source_code)
-        source_code = source_code.split("def ")
-        if len(source_code) >= 2:
-            source_code = "def " + source_code[1]
-        print("here", source_code)
+        tmp_source_code = source_code.split("def ")
+        if len(tmp_source_code) >= 2:
+            source_code = "def " + tmp_source_code[1]
+
         byte_code = compile_restricted(source_code, "<string>", "exec")
         loc = {}
         try:
