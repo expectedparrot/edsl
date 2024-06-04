@@ -95,11 +95,10 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         index = self.question_name_to_index[question_name]
         return self._questions[index]
 
-    def get_question(self, question_name:str) -> QuestionBase:
-        """Return the question object given the question name.
-        """
-        #import warnings 
-        #warnings.warn("survey.get_question is deprecated. Use subscript operator instead.")
+    def get_question(self, question_name: str) -> QuestionBase:
+        """Return the question object given the question name."""
+        # import warnings
+        # warnings.warn("survey.get_question is deprecated. Use subscript operator instead.")
         return self.get(question_name)
 
     @property
