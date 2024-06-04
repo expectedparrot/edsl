@@ -126,9 +126,9 @@ class Base(RichPrintingMixin, PersistenceMixin, ABC, metaclass=RegisterSubclasse
     def keys(self):
         """Return the keys of the object."""
         _keys = list(self.to_dict().keys())
-        if 'edsl_version' in _keys:
+        if "edsl_version" in _keys:
             _keys.remove("edsl_version")
-        if 'edsl_class_name' in _keys:
+        if "edsl_class_name" in _keys:
             _keys.remove("edsl_class_name")
         return _keys
 
