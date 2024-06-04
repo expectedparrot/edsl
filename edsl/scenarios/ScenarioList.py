@@ -16,6 +16,17 @@ from edsl.Base import Base
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 from edsl.scenarios.ScenarioListPdfMixin import ScenarioListPdfMixin
 
+from IPython.display import HTML, display
+import pandas as pd
+from edsl.utilities import (
+    print_list_of_dicts_with_rich,
+    print_list_of_dicts_as_html_table,
+    print_list_of_dicts_as_markdown_table,
+    is_notebook
+)
+from edsl.utilities.interface import print_scenario_list
+
+from edsl.utilities import is_valid_variable_name
 
 class ScenarioList(Base, UserList, ScenarioListPdfMixin):
     """Class for creating a list of scenarios to be used in a survey."""
@@ -34,6 +45,9 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         data = self.to_dict()
         _ = data.pop("edsl_version")
         _ = data.pop("edsl_class_name")
+        for s in data['scenarios']:
+            _ = s.pop("edsl_version")
+            _ = s.pop("edsl_class_name")
         return data_to_html(data)
 
     def tally(self, field) -> dict:
@@ -67,6 +81,80 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
                 new_scenario[expand_field] = value
                 new_scenarios.append(new_scenario)
         return ScenarioList(new_scenarios)
+    
+    # def apply(self, function, field: Optional[str] = None) -> ScenarioList:
+    #     """Apply a function to the scenarios.
+
+    #     Example usage:
+
+    #     >>> s = ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
+    #     >>> s.apply(lambda x: x['b'] + 1)
+    #     ScenarioList([Scenario({'a': 1, 'b': 3}), Scenario({'a': 1, 'b': 2})])
+
+    #     """
+    #     new_scenarios = []
+    #     for scenario in self:
+    #         new_scenario = scenario.copy()
+    #         if field:
+    #             new_scenario[field] = function(scenario[field])
+    #         else:
+    #             new_scenario = function(new_scenario)
+    #         new_scenarios.append(new_scenario)
+    #     return ScenarioList(new_scenarios)
+    
+    def mutate(self, new_var_string:str, functions_dict: dict = None) -> ScenarioList:
+        """
+        Return a new ScenarioList with a new variable added.
+
+        Example usage:
+
+        >>> s = ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
+        >>> s.mutate("c = a + b")
+        ScenarioList([Scenario({'a': 1, 'b': 2, 'c': 3}), Scenario({'a': 1, 'b': 1, 'c': 2})])
+
+        """
+        if "=" not in new_var_string:
+            raise Exception(
+                f"Mutate requires an '=' in the string, but '{new_var_string}' doesn't have one."
+            )
+        raw_var_name, expression = new_var_string.split("=", 1)
+        var_name = raw_var_name.strip()
+        if not is_valid_variable_name(var_name):
+            raise Exception(f"{var_name} is not a valid variable name.")
+
+        # create the evaluator
+        functions_dict = functions_dict or {}
+
+        def create_evaluator(scenario) -> EvalWithCompoundTypes:
+            return EvalWithCompoundTypes(
+                names=scenario, 
+                functions=functions_dict
+            )
+
+        def new_scenario(old_scenario: Scenario, var_name: str) -> Scenario:
+            evaluator = create_evaluator(old_scenario)
+            value = evaluator.eval(expression)
+            new_s = old_scenario.copy()
+            new_s[var_name] = value
+            return new_s
+        
+        try:
+            new_data = [new_scenario(s, var_name) for s in self]
+        except Exception as e:
+            raise Exception(f"Error in mutate. Exception:{e}")
+
+        return ScenarioList(new_data)
+
+
+    def order_by(self, field: str, reverse: bool = False) -> ScenarioList:
+        """Order the scenarios by a field.
+
+        >>> s = ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
+        >>> s.order_by('b')
+        ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
+
+        """
+        return ScenarioList(sorted(self, key=lambda x: x[field], reverse=reverse))
 
     def filter(self, expression: str) -> ScenarioList:
         """
@@ -214,6 +302,40 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         for i, s in enumerate(self):
             table.add_row(str(i), s.rich_print())
         return table
+    
+    def print(self, format:Optional[str] = None, max_rows: Optional[int] = None, pretty_labels:Optional[dict] = None, filename:str = None):
+        print_scenario_list(self)
+        # if format is None:
+        #     if is_notebook():
+        #         format = "html"
+        #     else:
+        #         format = "rich"
+
+        # if pretty_labels is None:
+        #     pretty_labels = {}
+
+        # if format not in ["rich", "html", "markdown"]:
+        #     raise ValueError("format must be one of 'rich', 'html', or 'markdown'.")
+
+        # if max_rows is not None:
+        #     new_data = self[:max_rows]
+        # else:
+        #     new_data = self
+
+        # if format == "rich":
+        #     print_list_of_dicts_with_rich(
+        #         new_data, filename=filename, split_at_dot=False
+        #     )
+        # elif format == "html":
+        #     notebook = is_notebook()
+        #     html = print_list_of_dicts_as_html_table(
+        #         new_data, filename=None, interactive=False, notebook=notebook
+        #     )
+        #     # print(html)
+        #     display(HTML(html))
+        # elif format == "markdown":
+        #     print_list_of_dicts_as_markdown_table(new_data, filename=filename)
+
 
     def __getitem__(self, key: Union[int, slice]) -> Any:
         """Return the item at the given index."""

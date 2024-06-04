@@ -125,11 +125,18 @@ class Base(RichPrintingMixin, PersistenceMixin, ABC, metaclass=RegisterSubclasse
 
     def keys(self):
         """Return the keys of the object."""
-        return self.to_dict().keys()
+        _keys = list(self.to_dict().keys())
+        if 'edsl_version' in _keys:
+            _keys.remove("edsl_version")
+        if 'edsl_class_name' in _keys:
+            _keys.remove("edsl_class_name")
+        return _keys
 
     def values(self):
         """Return the values of the object."""
-        return self.to_dict().values()
+        data = self.to_dict()
+        keys = self.keys()
+        return {data[key] for key in keys}
 
     def _repr_html_(self):
         from edsl.utilities.utilities import data_to_html

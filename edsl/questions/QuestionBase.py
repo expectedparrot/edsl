@@ -40,7 +40,14 @@ class QuestionBase(
     def _repr_html_(self):
         from edsl.utilities.utilities import data_to_html
 
-        return data_to_html(self.to_dict())
+        data = self.to_dict()
+        try:
+            _ = data.pop("edsl_version")
+            _ = data.pop("edsl_class_name")
+        except KeyError:
+            print("Serialized question lacks edsl version, but is should have it.")
+
+        return data_to_html(data)
 
     @property
     def data(self) -> dict:
