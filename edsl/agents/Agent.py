@@ -42,54 +42,7 @@ from edsl.prompts.library.agent_persona import AgentPersona
 from edsl.data.Cache import Cache
 
 
-from RestrictedPython import compile_restricted, safe_globals
-from RestrictedPython.Guards import (
-    safe_builtins,
-    full_write_guard,
-    guarded_iter_unpack_sequence,
-)
-
-
-class FunctionAForbiddenAttributeException(Exception):
-    """Exception for errors during function execution in a restricted environment."""
-
-
-class FunctionCreationException(Exception):
-    """Function creation in restricted env failed"""
-
-
-def guarded_iter(obj, allowed_types=(list, tuple, set, dict, range)):
-    """Ensures iteration is only performed on safe, allowable types."""
-    if not isinstance(obj, allowed_types):
-        raise TypeError(f"Iteration over {type(obj).__name__} not allowed.")
-    return iter(obj)
-
-
-def default_guarded_getitem(ob, key):
-    sensitive_python_keys = [
-        "__dict__",
-        "__class__",
-        "__module__",
-        "__bases__",
-        "__mro__",
-        "__subclasses__",
-        "__func__",
-        "__self__",
-        "__closure__",
-        "__code__",
-        "__globals__",
-        "__call__",
-        "__getattr__",
-        "__getattribute__",
-        "__delattr__",
-        "__setattr__",
-    ]
-    if key in sensitive_python_keys:
-        raise FunctionAForbiddenAttributeException(
-            f"Access denied for attribute: {key}"
-        )
-
-    return ob.get(key)
+from edsl.utilities.restricted_python import create_restricted_function
 
 
 class Agent(Base):
