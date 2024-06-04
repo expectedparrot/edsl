@@ -249,25 +249,25 @@ def print_dict_as_html_table(
         else:
             return html_table
 
+
 def print_scenario_list(data):
-    
     new_data = []
     for obs in data:
         try:
             _ = obs.pop("edsl_version")
             _ = obs.pop("edsl_class_name")
         except KeyError as e:
-            #print(e) 
+            # print(e)
             pass
         new_data.append(obs)
 
     columns = list(new_data[0].keys())
     console = Console(record=True)
-    
+
     # Create a table object
     table = Table(show_header=True, header_style="bold magenta", show_lines=True)
-    for column in columns: 
-        table.add_column(column, style = "dim")
+    for column in columns:
+        table.add_column(column, style="dim")
 
     for obs in new_data:
         row = [str(obs[key]) for key in columns]
@@ -278,8 +278,7 @@ def print_scenario_list(data):
 
 def print_list_of_dicts_with_rich(data, filename=None, split_at_dot=True):
     raise Exception("print_list_of_dicts_with_rich is now called print_dataset_with_rich")
-    print_dataset_with_rich(data, filename, split_at_dot)
-    
+
 
 def print_dataset_with_rich(data, filename=None, split_at_dot=True):
     """Initialize console object."""

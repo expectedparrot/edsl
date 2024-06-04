@@ -89,7 +89,6 @@ class SurveyBuilder(ABC, UserDict):
         super().__init__(data)
 
     def process(self) -> None:
-
         self.survey, self.survey_failures = self.create_survey()
 
         if self.compute_results:
