@@ -16,6 +16,15 @@ from edsl.Base import Base
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 from edsl.scenarios.ScenarioListPdfMixin import ScenarioListPdfMixin
 
+from IPython.display import HTML, display
+import pandas as pd
+from edsl.utilities import (
+    print_list_of_dicts_with_rich,
+    print_list_of_dicts_as_html_table,
+    print_list_of_dicts_as_markdown_table,
+    is_notebook
+)
+from edsl.utilities.interface import print_scenario_list
 
 class ScenarioList(Base, UserList, ScenarioListPdfMixin):
     """Class for creating a list of scenarios to be used in a survey."""
@@ -214,6 +223,40 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         for i, s in enumerate(self):
             table.add_row(str(i), s.rich_print())
         return table
+    
+    def print(self, format:Optional[str] = None, max_rows: Optional[int] = None, pretty_labels:Optional[dict] = None, filename:str = None):
+        print_scenario_list(self)
+        # if format is None:
+        #     if is_notebook():
+        #         format = "html"
+        #     else:
+        #         format = "rich"
+
+        # if pretty_labels is None:
+        #     pretty_labels = {}
+
+        # if format not in ["rich", "html", "markdown"]:
+        #     raise ValueError("format must be one of 'rich', 'html', or 'markdown'.")
+
+        # if max_rows is not None:
+        #     new_data = self[:max_rows]
+        # else:
+        #     new_data = self
+
+        # if format == "rich":
+        #     print_list_of_dicts_with_rich(
+        #         new_data, filename=filename, split_at_dot=False
+        #     )
+        # elif format == "html":
+        #     notebook = is_notebook()
+        #     html = print_list_of_dicts_as_html_table(
+        #         new_data, filename=None, interactive=False, notebook=notebook
+        #     )
+        #     # print(html)
+        #     display(HTML(html))
+        # elif format == "markdown":
+        #     print_list_of_dicts_as_markdown_table(new_data, filename=filename)
+
 
     def __getitem__(self, key: Union[int, slice]) -> Any:
         """Return the item at the given index."""
