@@ -294,7 +294,7 @@ class Jobs(Base):
         remote: bool = (
             False if os.getenv("DEFAULT_RUN_MODE", "local") == "local" else True
         ),
-        check_api_keys: bool = True,
+        check_api_keys: bool = False,
         sidecar_model: Optional[LanguageModel] = None,
         batch_mode: Optional[bool] = None,
     ) -> Results:
