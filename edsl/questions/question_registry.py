@@ -1,4 +1,5 @@
 """This module provides a factory class for creating question objects."""
+
 import textwrap
 from typing import Union
 

@@ -1,4 +1,5 @@
 """A module to represent a dataset of observations."""
+
 from __future__ import annotations
 import random
 from collections import UserList
@@ -33,7 +34,6 @@ class Dataset(UserList, ResultsExportMixin):
         """Return a string representation of the dataset."""
         return f"Dataset({self.data})"
 
-
     def _key_to_value(self, key: str) -> Any:
         """Retrieve the value associated with the given key from the dataset.
 
@@ -54,13 +54,14 @@ class Dataset(UserList, ResultsExportMixin):
                 return data_values
             if key == data_key.split(".")[-1]:
                 potential_matches.append((data_key, data_values))
-        
+
         if len(potential_matches) == 1:
             return potential_matches[0][1]
         elif len(potential_matches) > 1:
-            raise KeyError(f"Key '{key}' found in more than one location: {[m[0] for m in potential_matches]}")
+            raise KeyError(
+                f"Key '{key}' found in more than one location: {[m[0] for m in potential_matches]}"
+            )
 
-                
         raise KeyError(f"Key '{key}' not found in any of the dictionaries.")
 
     def first(self) -> dict[str, Any]:

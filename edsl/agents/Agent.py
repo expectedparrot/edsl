@@ -1,9 +1,10 @@
 """An Agent is an AI agent that can reference a set of traits in answering questions."""
+
 from __future__ import annotations
 import copy
 import inspect
 import types
-from typing import Any, Callable, Optional, Union, Dict
+from typing import Any, Callable, Optional, Union, Dict, Sequence
 
 from rich.table import Table
 
@@ -179,6 +180,21 @@ class Agent(Base):
         """
         return getattr(self, key)
 
+    def remove_direct_question_answering_method(self) -> None:
+        """Remove the direct question answering method.
+
+        Example usage:
+
+        >>> a = Agent()
+        >>> def f(self, question, scenario): return "I am a direct answer."
+        >>> a.add_direct_question_answering_method(f)
+        >>> a.remove_direct_question_answering_method()
+        >>> hasattr(a, "answer_question_directly")
+        False
+        """
+        if hasattr(self, "answer_question_directly"):
+            delattr(self, "answer_question_directly")
+
     def add_direct_question_answering_method(self, method: Callable) -> None:
         """Add a method to the agent that can answer a particular question type.
 
@@ -353,6 +369,27 @@ class Agent(Base):
             sidecar_model=sidecar_model,
         )
         return invigilator
+    
+    def select(self, *traits: str) -> Agent:
+        """Selects agents with only the references traits
+        
+        >>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
+        
+        
+        >>> a.select("age", "height")
+        Agent(traits = {'age': 10, 'height': 5.5})
+        
+        >>> a.select("age")
+        Agent(traits = {'age': 10})
+        
+        """
+
+        if len(traits) == 1:
+            traits_to_select = [list(traits)[0]]
+        else:
+            traits_to_select = list(traits)
+        
+        return Agent(traits={trait: self.traits[trait] for trait in traits_to_select})
 
     ################
     # Dunder Methods

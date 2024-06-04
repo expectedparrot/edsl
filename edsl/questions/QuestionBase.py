@@ -1,4 +1,5 @@
 """This module contains the Question class, which is the base class for all questions in EDSL."""
+
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from rich.table import Table
@@ -39,7 +40,14 @@ class QuestionBase(
     def _repr_html_(self):
         from edsl.utilities.utilities import data_to_html
 
-        return data_to_html(self.to_dict())
+        data = self.to_dict()
+        try:
+            _ = data.pop("edsl_version")
+            _ = data.pop("edsl_class_name")
+        except KeyError:
+            print("Serialized question lacks edsl version, but is should have it.")
+
+        return data_to_html(data)
 
     @property
     def data(self) -> dict:
@@ -310,7 +318,9 @@ class QuestionBase(
                 lines.append(f"{option}")
         return "\n".join(lines)
 
-    def html(self, scenario: Optional[dict] = None):
+    def html(
+        self, scenario: Optional[dict] = None, include_question_name: bool = False
+    ):
         """Return the question in HTML format."""
         from jinja2 import Template
 
@@ -319,6 +329,9 @@ class QuestionBase(
 
         base_template = """
         <div id="{{ question_name }}" class="survey_question" data-type="{{ question_type }}">
+            {% if include_question_name %}
+            <p>question_name: {{ question_name }}</p>
+            {% endif %}
             <p class="question_text">{{ question_text }}</p>
             {{ question_content }}
         </div>
@@ -338,6 +351,7 @@ class QuestionBase(
             "question_text": Template(self.question_text).render(scenario),
             "question_type": self.question_type,
             "question_content": Template(question_content).render(scenario),
+            "include_question_name": include_question_name,
         }
         rendered_html = base_template.render(**params)
         return rendered_html
