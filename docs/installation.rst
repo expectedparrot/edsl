@@ -3,7 +3,7 @@
 Installation
 ============
 EDSL is a Python library that can be installed through pip. 
-It is compatible with Python 3.9 and above.
+It is compatible with Python 3.9 - 3.12.
 
 .. note::
 
