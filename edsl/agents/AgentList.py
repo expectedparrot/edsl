@@ -9,13 +9,16 @@ Example usage:
     2
     
 """
+
 from __future__ import annotations
 from collections import UserList
-from typing import Optional, Union
+from typing import Optional, Union, Sequence
 from rich import print_json
 from rich.table import Table
 import json
 import csv
+
+from simpleeval import EvalWithCompoundTypes
 
 from edsl.Base import Base
 from edsl.agents import Agent
@@ -37,6 +40,50 @@ class AgentList(UserList, Base):
             super().__init__(data)
         else:
             super().__init__()
+
+    def select(self, *traits) -> AgentList:
+        """Selects agents with only the references traits.
+        
+        >>> al = AgentList([Agent(traits = {'a': 1, 'b': 1}), Agent(traits = {'a': 1, 'b': 2})])
+        >>> al.select('a')
+        AgentList([Agent(traits = {'a': 1}), Agent(traits = {'a': 1})])
+        
+        """
+
+        if len(traits) == 1:
+            traits_to_select = [list(traits)[0]]
+        else:
+            traits_to_select = list(traits)
+
+        return AgentList([agent.select(*traits_to_select) for agent in self.data])
+
+    def filter(self, expression: str) -> AgentList:
+        """
+        Filter a list of agents based on an expression.
+
+        >>> al = AgentList([Agent(traits = {'a': 1, 'b': 1}), Agent(traits = {'a': 1, 'b': 2})])
+        >>> al.filter("b == 2")
+        AgentList([Agent(traits = {'a': 1, 'b': 2})])
+        """
+
+        def create_evaluator(agent: Agent):
+            """Create an evaluator for the given result.
+            The 'combined_dict' is a mapping of all values for that Result object.
+            """
+            return EvalWithCompoundTypes(names=agent.traits)
+
+        try:
+            # iterates through all the results and evaluates the expression
+            new_data = [
+                agent
+                for agent in self.data
+                if create_evaluator(agent).eval(expression)
+            ]
+        except Exception as e:
+            print(f"Exception:{e}")
+            raise Exception(f"Error in filter. Exception:{e}")
+
+        return AgentList(new_data)
 
     @classmethod
     def from_csv(cls, file_path: str):

@@ -1,4 +1,5 @@
 """Budget question instructions."""
+
 import textwrap
 
 from edsl.prompts.QuestionInstructionsBase import QuestionInstuctionsBase

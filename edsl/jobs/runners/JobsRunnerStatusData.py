@@ -115,9 +115,11 @@ class JobsRunnerStatusData:
         interview_statistics.add_stat(
             InterviewStatistic(
                 "percent_complete",
-                value=len(completed_tasks) / len(interviews) * 100
-                if len(interviews) > 0
-                else "NA",
+                value=(
+                    len(completed_tasks) / len(interviews) * 100
+                    if len(interviews) > 0
+                    else "NA"
+                ),
                 digits=0,
                 units="%",
             )
