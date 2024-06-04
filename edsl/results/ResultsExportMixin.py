@@ -12,8 +12,8 @@ from edsl.utilities.utilities import is_notebook
 
 from IPython.display import HTML, display
 import pandas as pd
-from edsl.utilities import (
-    print_list_of_dicts_with_rich,
+from edsl.utilities.interface import (
+    print_dataset_with_rich,
     print_list_of_dicts_as_html_table,
     print_list_of_dicts_as_markdown_table,
 )
@@ -230,7 +230,7 @@ class ResultsExportMixin:
             print(f"Showing only the first {max_rows} rows of {actual_rows} rows.")
 
         if format == "rich":
-            print_list_of_dicts_with_rich(
+            print_dataset_with_rich(
                 new_data, filename=filename, split_at_dot=split_at_dot
             )
         elif format == "html":

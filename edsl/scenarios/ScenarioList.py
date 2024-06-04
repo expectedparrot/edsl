@@ -16,14 +16,8 @@ from edsl.Base import Base
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 from edsl.scenarios.ScenarioListPdfMixin import ScenarioListPdfMixin
 
-from IPython.display import HTML, display
 import pandas as pd
-from edsl.utilities import (
-    print_list_of_dicts_with_rich,
-    print_list_of_dicts_as_html_table,
-    print_list_of_dicts_as_markdown_table,
-    is_notebook,
-)
+
 from edsl.utilities.interface import print_scenario_list
 
 from edsl.utilities import is_valid_variable_name

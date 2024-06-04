@@ -277,12 +277,7 @@ def print_scenario_list(data):
 
 
 def print_list_of_dicts_with_rich(data, filename=None, split_at_dot=True):
-    import warnings
-
-    warnings.warn(
-        "print_list_of_dicts_with_rich is nowe called print_dataset_with_rich"
-    )
-    print_dataset_with_rich(data, filename, split_at_dot)
+    raise Exception("print_list_of_dicts_with_rich is now called print_dataset_with_rich")
 
 
 def print_dataset_with_rich(data, filename=None, split_at_dot=True):
