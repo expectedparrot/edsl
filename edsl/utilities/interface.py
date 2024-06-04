@@ -249,12 +249,42 @@ def print_dict_as_html_table(
         else:
             return html_table
 
+def print_scenario_list(data):
+    
+    new_data = []
+    for obs in data:
+        try:
+            _ = obs.pop("edsl_version")
+            _ = obs.pop("edsl_class_name")
+        except KeyError as e:
+            #print(e) 
+            pass
+        new_data.append(obs)
+
+    columns = list(new_data[0].keys())
+    console = Console(record=True)
+    
+    # Create a table object
+    table = Table(show_header=True, header_style="bold magenta", show_lines=True)
+    for column in columns: 
+        table.add_column(column, style = "dim")
+
+    for obs in new_data:
+        row = [str(obs[key]) for key in columns]
+        table.add_row(*row)
+
+    console.print(table)
+
 
 def print_list_of_dicts_with_rich(data, filename=None, split_at_dot=True):
+    import warnings
+    warnings.warn("print_list_of_dicts_with_rich is nowe called print_dataset_with_rich")
+    print_dataset_with_rich(data, filename, split_at_dot)
+    
+
+def print_dataset_with_rich(data, filename=None, split_at_dot=True):
     """Initialize console object."""
     """
-    TODO: This is weirdly named. It's not a list of dictionaries.
-    It's a a dictionary. 
     The list seems superfluous.
     This prints a list of dictionaries as a table using the rich library.
 
