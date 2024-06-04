@@ -1,5 +1,4 @@
 class ResultsToolsMixin:
-
     def get_themes(
         self, field, context: str, max_values=100, num_themes: int = 10, seed=None
     ) -> list:
