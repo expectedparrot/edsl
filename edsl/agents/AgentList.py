@@ -43,11 +43,11 @@ class AgentList(UserList, Base):
 
     def select(self, *traits) -> AgentList:
         """Selects agents with only the references traits.
-        
+
         >>> al = AgentList([Agent(traits = {'a': 1, 'b': 1}), Agent(traits = {'a': 1, 'b': 2})])
         >>> al.select('a')
         AgentList([Agent(traits = {'a': 1}), Agent(traits = {'a': 1})])
-        
+
         """
 
         if len(traits) == 1:
@@ -75,9 +75,7 @@ class AgentList(UserList, Base):
         try:
             # iterates through all the results and evaluates the expression
             new_data = [
-                agent
-                for agent in self.data
-                if create_evaluator(agent).eval(expression)
+                agent for agent in self.data if create_evaluator(agent).eval(expression)
             ]
         except Exception as e:
             print(f"Exception:{e}")

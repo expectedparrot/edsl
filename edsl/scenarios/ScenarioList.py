@@ -17,9 +17,11 @@ from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 from edsl.scenarios.ScenarioListPdfMixin import ScenarioListPdfMixin
 
 import pandas as pd
+
 from edsl.utilities.interface import print_scenario_list
 
 from edsl.utilities import is_valid_variable_name
+
 
 class ScenarioList(Base, UserList, ScenarioListPdfMixin):
     """Class for creating a list of scenarios to be used in a survey."""
@@ -38,7 +40,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         data = self.to_dict()
         _ = data.pop("edsl_version")
         _ = data.pop("edsl_class_name")
-        for s in data['scenarios']:
+        for s in data["scenarios"]:
             _ = s.pop("edsl_version")
             _ = s.pop("edsl_class_name")
         return data_to_html(data)
@@ -74,7 +76,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
                 new_scenario[expand_field] = value
                 new_scenarios.append(new_scenario)
         return ScenarioList(new_scenarios)
-    
+
     # def apply(self, function, field: Optional[str] = None) -> ScenarioList:
     #     """Apply a function to the scenarios.
 
@@ -94,8 +96,8 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
     #             new_scenario = function(new_scenario)
     #         new_scenarios.append(new_scenario)
     #     return ScenarioList(new_scenarios)
-    
-    def mutate(self, new_var_string:str, functions_dict: dict = None) -> ScenarioList:
+
+    def mutate(self, new_var_string: str, functions_dict: dict = None) -> ScenarioList:
         """
         Return a new ScenarioList with a new variable added.
 
@@ -119,10 +121,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         functions_dict = functions_dict or {}
 
         def create_evaluator(scenario) -> EvalWithCompoundTypes:
-            return EvalWithCompoundTypes(
-                names=scenario, 
-                functions=functions_dict
-            )
+            return EvalWithCompoundTypes(names=scenario, functions=functions_dict)
 
         def new_scenario(old_scenario: Scenario, var_name: str) -> Scenario:
             evaluator = create_evaluator(old_scenario)
@@ -130,14 +129,13 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
             new_s = old_scenario.copy()
             new_s[var_name] = value
             return new_s
-        
+
         try:
             new_data = [new_scenario(s, var_name) for s in self]
         except Exception as e:
             raise Exception(f"Error in mutate. Exception:{e}")
 
         return ScenarioList(new_data)
-
 
     def order_by(self, field: str, reverse: bool = False) -> ScenarioList:
         """Order the scenarios by a field.
@@ -295,8 +293,14 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         for i, s in enumerate(self):
             table.add_row(str(i), s.rich_print())
         return table
-    
-    def print(self, format:Optional[str] = None, max_rows: Optional[int] = None, pretty_labels:Optional[dict] = None, filename:str = None):
+
+    def print(
+        self,
+        format: Optional[str] = None,
+        max_rows: Optional[int] = None,
+        pretty_labels: Optional[dict] = None,
+        filename: str = None,
+    ):
         print_scenario_list(self)
         # if format is None:
         #     if is_notebook():
@@ -328,7 +332,6 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         #     display(HTML(html))
         # elif format == "markdown":
         #     print_list_of_dicts_as_markdown_table(new_data, filename=filename)
-
 
     def __getitem__(self, key: Union[int, slice]) -> Any:
         """Return the item at the given index."""
