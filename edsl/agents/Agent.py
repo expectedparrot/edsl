@@ -132,12 +132,10 @@ class Agent(Base):
 
         if dynamic_traits_function_source_code:
             self.dynamic_traits_function_name = dynamic_traits_function_name
-            print("here")
             self.dynamic_traits_function = self.create_restricted_function(
                 dynamic_traits_function_name, dynamic_traits_function
             )
         if answer_question_directly_source_code:
-            print(" inside source code ", answer_question_directly_source_code)
             self.answer_question_directly_function_name = (
                 answer_question_directly_function_name
             )

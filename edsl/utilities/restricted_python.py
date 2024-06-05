@@ -13,6 +13,10 @@ def guarded_iter(obj, allowed_types=(list, tuple, set, dict, range)):
     return iter(obj)
 
 
+class FunctionAForbiddenAttributeException(Exception):
+    """Exception for errors during function execution when forbidden key is used."""
+
+
 def default_guarded_getitem(ob, key):
     sensitive_python_keys = [
         "__dict__",
