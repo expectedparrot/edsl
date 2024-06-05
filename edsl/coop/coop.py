@@ -237,6 +237,18 @@ class Coop:
         self._resolve_server_response(response)
         return response.json()
 
+    def _update_base(
+        self,
+        cls: EDSLObject,
+        uuid: Union[str, UUID],
+        visibility: VisibilityType,
+    ) -> dict:
+        """
+        Used by the Base class to offer an update functionality.
+        """
+        object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
+        return self.update(object_type, uuid, visibility)
+
     ################
     # Remote Cache
     ################
