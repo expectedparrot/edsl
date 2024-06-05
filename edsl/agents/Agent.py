@@ -132,14 +132,14 @@ class Agent(Base):
 
         if dynamic_traits_function_source_code:
             self.dynamic_traits_function_name = dynamic_traits_function_name
-            self.dynamic_traits_function = self.create_restricted_function(
+            self.dynamic_traits_function = create_restricted_function(
                 dynamic_traits_function_name, dynamic_traits_function
             )
         if answer_question_directly_source_code:
             self.answer_question_directly_function_name = (
                 answer_question_directly_function_name
             )
-            protected_method = self.create_restricted_function(
+            protected_method = create_restricted_function(
                 answer_question_directly_function_name,
                 answer_question_directly_source_code,
             )
@@ -172,33 +172,6 @@ class Agent(Base):
                         f"""The dynamic traits function {self.dynamic_traits_function} has too many parameters. It should have no parameters or 
                         just a single parameter: 'question'."""
                     )
-
-    def create_restricted_function(
-        self, function_name, source_code, loop_activated=True
-    ):
-        """Activate the function using RestrictedPython with basic restrictions."""
-        safe_env = safe_globals.copy()
-        safe_env["__builtins__"] = {**safe_builtins}
-        safe_env["_getitem_"] = default_guarded_getitem
-
-        if loop_activated:
-            safe_env["_getiter_"] = guarded_iter
-            safe_env["_iter_unpack_sequence_"] = guarded_iter_unpack_sequence
-
-        tmp_source_code = source_code.split("def ")
-        if len(tmp_source_code) >= 2:
-            source_code = "def " + tmp_source_code[1]
-
-        byte_code = compile_restricted(source_code, "<string>", "exec")
-        loc = {}
-        try:
-            exec(byte_code, safe_env, loc)
-            func = loc[function_name]
-        except Exception as e:
-            print("Creating restricted funtion error", e)
-            raise FunctionCreationException("Creating restricted funtion failed")
-
-        return func
 
     @property
     def traits(self) -> dict[str, str]:
