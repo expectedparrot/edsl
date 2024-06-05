@@ -67,6 +67,20 @@ class Question(metaclass=Meta):
         return c._get_base(QuestionBase, id)
 
     @classmethod
+    def delete(cls, id_or_url: str):
+        """Delete the object from coop."""
+        from edsl.coop import Coop
+
+        c = Coop()
+        if c.url in id_or_url:
+            id = id_or_url.split("/")[-1]
+        else:
+            id = id_or_url
+        from edsl.questions.QuestionBase import QuestionBase
+
+        return c._delete_base(QuestionBase, id)
+
+    @classmethod
     def available(cls, show_class_names: bool = False) -> Union[list, dict]:
         """Return a list of available question types.
 

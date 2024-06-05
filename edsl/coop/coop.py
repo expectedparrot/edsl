@@ -208,6 +208,17 @@ class Coop:
         self._resolve_server_response(response)
         return response.json()
 
+    def _delete_base(
+        self,
+        cls: EDSLObject,
+        uuid: Union[str, UUID],
+    ) -> dict:
+        """
+        Used by the Base class to offer a delete functionality.
+        """
+        object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
+        return self.delete(object_type, uuid)
+
     ################
     # Remote Cache
     ################
