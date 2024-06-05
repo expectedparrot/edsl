@@ -5,6 +5,9 @@ import asyncio
 async def async_repair(bad_json, error_message=""):
     from edsl import Model
 
+    def encode_string(input_string):
+        return input_string.encode('unicode_escape').decode('utf-8')
+    
     m = Model()
 
     # First, let's try to repair the bad JSON
@@ -18,7 +21,7 @@ async def async_repair(bad_json, error_message=""):
         ("\f", "\\f"),
     ]
 
-    s = bad_json
+    s = encode_string(bad_json)
     for old, new in replacements:
         s = s.replace(old, new)
 
