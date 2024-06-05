@@ -4,7 +4,6 @@ from requests.packages.urllib3.util.retry import Retry
 
 
 class ScenarioHtmlMixin:
-
     @classmethod
     def from_html(cls, url: str) -> "Scenario":
         """Create a scenario from HTML content.
