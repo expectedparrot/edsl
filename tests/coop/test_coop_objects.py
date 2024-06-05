@@ -1,6 +1,7 @@
 import pytest
 from edsl import (
     Agent,
+    AgentList,
     Cache,
     Coop,
     Jobs,
@@ -8,6 +9,8 @@ from edsl import (
     QuestionFreeText,
     QuestionMultipleChoice,
     Results,
+    Scenario,
+    ScenarioList,
     Survey,
 )
 
@@ -52,7 +55,7 @@ def coop_object_api_workflows(object_type, object_examples):
             change_to_visibility = "public"
         else:
             change_to_visibility = "private"
-        response = coop.update(
+        response = coop.patch(
             object_type=object_type,
             uuid=response.get("uuid"),
             visibility=change_to_visibility,
@@ -74,6 +77,17 @@ def test_coop_client_agents():
         (Agent.example(), "unlisted"),
     ]
     coop_object_api_workflows("agent", agent_examples)
+
+
+@pytest.mark.coop
+def test_coop_client_agent_lists():
+    agent_list_examples = [
+        (AgentList.example(), "public"),
+        (AgentList.example(), "private"),
+        (AgentList.example(), "public"),
+        (AgentList.example(), "unlisted"),
+    ]
+    coop_object_api_workflows("agent_list", agent_list_examples)
 
 
 @pytest.mark.coop
@@ -118,6 +132,28 @@ def test_coop_client_results():
         (Results.example(), "unlisted"),
     ]
     coop_object_api_workflows("results", results_examples)
+
+
+@pytest.mark.coop
+def test_coop_client_scenarios():
+    scenario_examples = [
+        (Scenario.example(), "public"),
+        (Scenario.example(), "private"),
+        (Scenario.example(), "public"),
+        (Scenario.example(), "unlisted"),
+    ]
+    coop_object_api_workflows("scenario", scenario_examples)
+
+
+@pytest.mark.coop
+def test_coop_client_scenario_lists():
+    scenario_list_examples = [
+        (ScenarioList.example(), "public"),
+        (ScenarioList.example(), "private"),
+        (ScenarioList.example(), "public"),
+        (ScenarioList.example(), "unlisted"),
+    ]
+    coop_object_api_workflows("scenario_list", scenario_list_examples)
 
 
 @pytest.mark.coop

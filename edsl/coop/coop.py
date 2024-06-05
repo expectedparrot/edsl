@@ -431,14 +431,27 @@ if __name__ == "__main__":
     # A. Objects
     ##############
     from uuid import uuid4
-    from edsl import Agent, Cache, Jobs, QuestionMultipleChoice, Results, Survey
+    from edsl import (
+        Agent,
+        AgentList,
+        Cache,
+        Jobs,
+        QuestionMultipleChoice,
+        Results,
+        Scenario,
+        ScenarioList,
+        Survey,
+    )
 
     OBJECTS = [
         ("agent", Agent),
+        ("agent_list", AgentList),
         ("cache", Cache),
         ("job", Jobs),
         ("question", QuestionMultipleChoice),
         ("results", Results),
+        ("scenario", Scenario),
+        ("scenario_list", ScenarioList),
         ("survey", Survey),
     ]
 
