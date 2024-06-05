@@ -29,7 +29,6 @@ def coop_object_api_workflows(object_type, object_examples):
     responses = []
     for object, visibility in object_examples:
         response = coop.create(object, visibility=visibility)
-        print(response)
         assert (
             coop.get(object_type=object_type, uuid=response.get("uuid")) == object
         ), f"Expected object to be the same as the one created. "
@@ -91,7 +90,7 @@ def test_coop_client_agent_lists():
 
 
 @pytest.mark.coop
-def test_coop_client_cache():
+def test_coop_client_caches():
     cache_examples = [
         (Cache.example(), "public"),
         (Cache.example(), "private"),
