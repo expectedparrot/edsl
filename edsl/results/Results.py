@@ -546,6 +546,8 @@ class Results(UserList, Mixins, Base):
         >>> s.rename('how_feeling', 'how_feeling_new').select('how_feeling_new')
         Dataset([{'answer.how_feeling_new': ['OK', 'Great', 'Terrible', 'OK']}])
         
+        # TODO: Should we allow renaming of scenario fields as well? Probably. 
+
         """
 
         for obs in self.data:
@@ -554,7 +556,7 @@ class Results(UserList, Mixins, Base):
             
         return self
 
-    def shuffle(self, seed=None) -> Results:
+    def shuffle(self, seed: Optional[str] ="edsl") -> Results:
         """Shuffle the results.
 
         Example:
@@ -563,7 +565,7 @@ class Results(UserList, Mixins, Base):
         >>> r.shuffle(seed = 1)[0]
         Result(...)
         """
-        if seed is not None:
+        if seed != "edsl":
             seed = random.seed(seed)
 
         new_data = self.data.copy()
@@ -575,7 +577,7 @@ class Results(UserList, Mixins, Base):
         n: int = None,
         frac: float = None,
         with_replacement: bool = True,
-        seed=None,
+        seed: Optional[str] ="edsl",
     ) -> Results:
         """Sample the results.
 
@@ -590,7 +592,7 @@ class Results(UserList, Mixins, Base):
         >>> len(r.sample(2))
         2
         """
-        if seed is not None:
+        if seed != "edsl":
             random.seed(seed)
 
         if n is None and frac is None:
