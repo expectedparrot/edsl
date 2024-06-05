@@ -58,7 +58,7 @@ class Coop:
                 )
             elif method in ["POST", "PATCH"]:
                 response = requests.request(
-                    method, url, json=payload, headers=self.headers
+                    method, url, params=params, json=payload, headers=self.headers
                 )
             else:
                 raise Exception(f"Invalid {method=}.")
@@ -218,6 +218,24 @@ class Coop:
         """
         object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
         return self.delete(object_type, uuid)
+
+    def update(
+        self,
+        object_type: ObjectType,
+        uuid: Union[str, UUID],
+        visibility: VisibilityType,
+    ) -> dict:
+        """
+        Update the visibility of an object.
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/object",
+            method="PATCH",
+            params={"type": object_type, "uuid": uuid},
+            payload={"visibility": visibility},
+        )
+        self._resolve_server_response(response)
+        return response.json()
 
     ################
     # Remote Cache
@@ -434,13 +452,19 @@ if __name__ == "__main__":
         # 5. Try to retrieve all test objects by their uuids
         for response in [response_1, response_2, response_3, response_4]:
             coop.get(object_type=object_type, uuid=response.get("uuid"))
-        # 6. Delete all objects
+        # 6. Change visibility of all objects
+        for item in objects:
+            coop.update(
+                object_type=object_type, uuid=item.get("uuid"), visibility="private"
+            )
+        # 7. Delete all objects
         for item in objects:
             coop.delete(object_type=object_type, uuid=item.get("uuid"))
         assert len(coop.get_all(object_type)) == 0
 
     response = QuestionMultipleChoice.example().push()
     QuestionMultipleChoice.pull(response.get("uuid"))
+    coop.update(object_type="question", uuid=response.get("uuid"), visibility="public")
     coop.delete(object_type="question", uuid=response.get("uuid"))
 
     ##############
