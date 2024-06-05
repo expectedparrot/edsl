@@ -45,7 +45,21 @@ def coop_object_api_workflows(object_type, object_examples):
             with pytest.raises(Exception):
                 coop2.get(object_type=object_type, uuid=response.get("uuid"))
 
-    # 4. Cleanup
+    # 4. Test changing visibility
+    for i, response in enumerate(responses):
+        object, visibility = object_examples[i]
+        if visibility == "private":
+            change_to_visibility = "public"
+        else:
+            change_to_visibility = "private"
+        response = coop.update(
+            object_type=object_type,
+            uuid=response.get("uuid"),
+            visibility=change_to_visibility,
+        )
+        assert response.get("status") == "success"
+
+    # 5. Cleanup
     for object in coop.get_all(object_type):
         response = coop.delete(object_type, object.get("uuid"))
         assert response.get("status") == "success"
