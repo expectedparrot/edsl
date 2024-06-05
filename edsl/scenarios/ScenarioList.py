@@ -33,6 +33,14 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
 
     def __repr__(self):
         return f"ScenarioList({self.data})"
+    
+    def __mul__(self, other: ScenarioList) -> ScenarioList:
+        """Return a ScenarioList with the scenarios repeated n times."""
+        from itertools import product
+        new_sl = []
+        for s1, s2 in list(product(self, other)):
+            new_sl.append(s1 + s2)
+        return ScenarioList(new_sl)
 
     def _repr_html_(self) -> str:
         from edsl.utilities.utilities import data_to_html
