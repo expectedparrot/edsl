@@ -1,127 +1,178 @@
 # Changelog
 
-## Unreleased
-
-## [0.1.0] - 2023-12-20
+## [0.1.25] - 2024-TBD
 ### Added
-- Base feature
+- `Scenario` method `from_html()` allows you to turn the contents of a website into a scenario.
 
-## [0.1.1] - 2023-12-24
-### Added
-- Changelog file
+- [In progress] `ScenarioList` method for automatically chunking contents into a list of scenarios
 
-### Fixed
-- Image display and description text in README.md
+### Changed
+- [In progerss] Add sample from scenario list & a from_sqlite class method
 
-### Removed
-- Unused files
+- [In progress] Survey run exceptions are now optionally displayed in an html report.
 
-## [0.1.4] - 2024-01-22
-### Added
-- Support for several large language models
-- Async survey running
-- Asking for API keys before they are used
+- [In progress] New prompt visibility features.
+
+- [In progress] New methods for piping responses to questions into other questions. 
+
+- [In progress] `QuestionMultipleChoice` is being modified allow non-responsive answers. Previously, an error was thrown if the agent did not select one of the given options. Details TBD.
 
 ### Fixed
-- Bugs in survey running
-- Bugs in several question types 
 
-### Removed
-- Unused files
-- Unused package dependencies
-
-## [0.1.5] - 2024-01-23
-
-### Fixed
-- Improvements in async survey running
-
-## [0.1.6] - 2024-01-24
-
-### Fixed
-- Improvements in async survey running
-
-## [0.1.7] - 2024-01-25
-
-### Fixed
-- Improvements in async survey running
-- Added logging
-
-## [0.1.8] - 2024-01-26
-
-### Fixed
-- Better handling of async failures
-- Fixed bug in survey logic
-
-## [0.1.9] - 2024-01-27
-
-### Added
-- Report functionalities are now part of the main package.
-
-### Fixed
-- Fixed a bug in the Results.print() function
-
-### Removed
-- The package no longer supports a report extras option.
-- Fixed a bug in EndofSurvey
-
-## [0.1.11] - 2024-02-01
-
-### Added
-- 
-
-### Fixed
-- Question options can now be 1 character long or more (down from 2 characters)
-- Fixed a bug where prompts displayed were incorrect (prompts sent were correct)
-
-### Removed
-- 
-
-## [0.1.12] - 2024-02-12
-
-### Added
-- Results now provides a `.sql()` method that can be used to explore data in a SQL-like manner.
-- Results now provides a `.ggplot()` method that can be used to create ggplot2 visualizations.
-- Agent now admits an optional `name` argument that can be used to identify the Agent.
-
-### Fixed
-- Fixed various issues with visualizations. They should now work better.
+### Deprecated
 
 ### Removed
 
-## [0.1.13] - 2024-03-01
+## [0.1.24] - 2024-05-28
+### Added 
+- We started a blog! https://blog.expectedparrot.com
 
-### Added
-- The `answer` component of the `Results` object is printed in a nicer format.
+- `Agent`/`AgentList` method `remove_trait(<trait_key>)` allows you to remove a trait by name. This can be useful for comparing combinations of traits.
+
+- `Agent`/`AgentList` method `translate_traits(<codebook_dict>)` allows you to modify traits based on a codebook passed as dictionary. Example:
+```
+agent = Agent(traits = {"age": 45, "hair": 1, "height": 5.5})
+agent.translate_traits({"hair": {1:"brown"}})
+```
+This will return: `Agent(traits = {'age': 10, 'hair': 'brown', 'height': 5.5})`
+
+- `AgentList` method `get_codebook(<filename>)` returns the codebook for a CSV file.
+
+- `AgentList` method `from_csv(<filename>)` loads an `AgentList` from a CSV file with the column names as `traits` keys. Note that the CSV column names must be valid Python identifiers (e.g., `current_age` and not `current age`).
+
+- `Results` method `to_scenario_list()` allows you to turn any components of results into a list of scenarios to use with other questions. A default parameter `remove_prefixes=True` will remove the results component prefixes `agent.`, `answer.`, `comment.`, etc., so that you don't have to modify placeholder names for the new scenarios. Example: https://docs.expectedparrot.com/en/latest/scenarios.html#turning-results-into-scenarios
+
+- `ScenarioList` method `to_agent_list()` converts a `ScenarioList` into an `AgentList`. 
+
+- `ScenarioList` method `from_pdf(<filename>)` allows you to import a PDF and automatically turn the pages into a list of scenarios. Example: https://docs.expectedparrot.com/en/latest/scenarios.html#turning-pdf-pages-into-scenarios
+
+- `ScenarioList` method `from_csv(<filename>)` allows you to import a CSV and automatically turn the rows into a list of scenarios. 
+
+- `ScenarioList` method `from_pandas(<dataframe>)` allows you to import a pandas dataframe and automatically turn the rows into a list of scenarios. 
+
+- `Scenario` method `from_image(<image_path>)` creates a scenario with a base64 encoding of an image. The scenario is formatted as follows: `"file_path": <filname / url>, "encoded_image": <generated_encoding>`
+Note that you need to use a vision model (e.g., `model = Model('gpt-4o')`) and you do *not* need to add a `{{ placeholder }}` for the scenario (for now--this might change!).
+Example:
+```
+from edsl.questions import QuestionFreeText
+from edsl import Scenario, Model
+
+model = Model('gpt-4o')
+
+scenario = Scenario.from_image('general_survey.png') # Image from this notebook: https://docs.expectedparrot.com/en/latest/notebooks/data_labeling_agent.html 
+# scenario
+
+q = QuestionFreeText(
+    question_name = "example",
+    question_text = "What is this image showing?" # We do not need a {{ placeholder }} for this kind of scenario
+)
+
+results = q.by(scenario).by(model).run(cache=False)
+
+results.select("example").print(format="rich")
+```
+Returns:
+```
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ answer                                                                                                          ┃
+┃ .example                                                                                                        ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ This image is a flowchart showing the process of creating and administering a survey for data labeling tasks.   │
+│ The steps include importing data, creating data labeling tasks as questions about the data, combining the       │
+│ questions into a survey, inserting the data as scenarios of the questions, and administering the same survey to │
+│ all agents.                                                                                                     │
+└─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Changed
+- `Question` and `Survey` method `html()` generates an improved html page representation of the object. You can optionally specify the filename and css. See default css: https://github.com/expectedparrot/edsl/blob/9d981fa25a0dd83e6cca4d17bcb9316a3d452a64/edsl/surveys/SurveyExportMixin.py#L10
+
+- `QuestionMultipleChoice` now takes numbers and lists as `question_options` (e.g., `question_options = [[1,2,3], [4,5,6]]` is allowed). Previously options had to be a list of strings (i.e., `question_options = ['1','2','3']` is still allowed but not required). 
+
+## [0.1.23] - 2024-05-18 
+### Added 
+- Optional parameter in `Results` method `to_list()` to flatten a list of lists (eg, responses to `QuestionList`): `results.to_list(flatten=True)`
 
 ### Fixed
-- `trait_name` descriptor was not working; it is now fixed.
-- `QuestionList` is now working properly again
+- Erroneous error messages about adding rules to a survey.
 
-### Removed
-
-## [0.1.14] - 2024-03-06
-
+## [0.1.22] - 2024-05-14
 ### Added
-- The raw model response is now available in the `Results` object, accessed via "raw_model_response" keyword. 
-There is one for each question. The key is the question_name + `_raw_response_model`
-- The `.run(progress_bar = True)` returns a much more informative real-time view of job progress.
+- New `Survey` method to export a survey to file. Usage: `generated_code = survey.code("example.py")`
 
 ### Fixed
+- A bug in `Survey` method `add_skip_logic()`
 
-### Removed
+## [0.1.21] - 2024-05-13
+### Added 
+- New methods for adding, sampling and shuffling `Results` objects: 
+   `dup_results = results + results`
+   `results.shuffle()`
+   `results.sample(n=5)`
 
-## [0.1.15] - 2024-03-09
+### Changed
+- Optional parameter `survey.run(cache=False)` if you do not want to access any cached results in running a survey.
 
-### Added
+- Instructions passed to an agent at creation are now a column of results: `agent_instruction`
+
+## [0.1.20] - 2024-05-09
+### Added 
+- <b>Methods for setting session caches</b>
+New function `set_session_cache` will set the cache for a session:
+
+```
+from edsl import Cache, set_session_cache
+set_session_cache(Cache())
+```
+The cache can be set to a specific cache object, or it can be set to a dictionary or SQLite3Dict object:
+```
+from edsl import Cache, set_session_cache
+from edsl.data import SQLiteDict
+set_session_cache(Cache(data = SQLiteDict("example.db")))
+# or
+set_session_cache(Cache(data = {}))
+```
+The `unset_session_cache` function is used to unset the cache for a session:
+```
+from edsl import unset_session_cache
+unset_session_cache()
+```
+This will unset the cache for the current session, and you will need to pass the cache object to the run method during the session.
+
+Details: https://docs.expectedparrot.com/en/latest/data.html#setting-a-session-cache
+
+### Changed
+- <b>Answer comments are now a separate component of results</b>
+The "comment" field that is automatically added to each question (other than free text) is now stored in `Results` as `comment.<question_name>`. Prior to this change, the comment for each question was stored as `answer.<question_name>_comment`, i.e., if you ran `results.columns` the list of columns would include `answer.<question_name>` and `answer.<question_name>_comment` for each question. With this change, the columns will now be `answer.<question_name>` and `comment.<question_name>_comment`. This change is meant to make it easier to select only the answers, e.g., running `results.select('answer.*').print()` will no longer also include all the comments, which you may not want to display.
+(The purpose of the comments field is to allow the model to add any information about its response to a question, which can help avoid problems with JSON formatting when the model does not want to return <i>just</i> the properly formatted response.)
+
+- <b>Exceptions</b>
+We modified exception messages. If your survey run generates exceptions, run `results.show_exceptions()` to print them in a table.
 
 ### Fixed
-- Various fixes and small improvements
+- A package that was missing for working with Anthropic models.
 
-### Removed
+## [0.1.19] - 2024-05-03
+### Added
+- `Results` objects now include columns for question components. Call the `.columns` method on your results to see a list of all components. Run `results.select("question_type.*", "question_text.*", "question_options.*").print()` to see them.
 
+- `Survey` objects now also have a `.to_csv()` method.
+
+### Changed 
+- Increased the maximum number of multiple choice answer options to 200 (previously 20) to facilitate large codebooks / data labels.
+
+## [0.1.18] - 2024-05-01
+### Fixed
+- A bug in in `Survey.add_rule()` method that caused an additional question to be skipped when used to apply a skip rule.
+
+## [0.1.17] - 2024-04-29
+### Added
+- <b>New models:</b> Run `Model.available()` to see a complete current list.
+
+### Fixed
+- A bug in json repair methods.
 
 ## [0.1.16] - 2024-04-11
-
 ### Added
 - <b>New documentation:</b> https://docs.expectedparrot.com
 
@@ -215,214 +266,94 @@ For more details see new documentation on <a href="https://docs.expectedparrot.c
 ### Deprecated
 - `Model` attribute `use_cache` is now deprecated. See details above about how caching now works.
 
-### Removed
-
 ### Fixed
 - `.run(n = ...)` now works and will run your survey with fresh results the specified number of times.
 
+## [0.1.15] - 2024-03-09
+### Fixed
+- Various fixes and small improvements
 
-## [0.1.17] - 2024-04-29
-
+## [0.1.14] - 2024-03-06
 ### Added
-- <b>New models:</b> Run `Model.available()` to see a complete current list.
+- The raw model response is now available in the `Results` object, accessed via "raw_model_response" keyword. 
+There is one for each question. The key is the question_name + `_raw_response_model`
+- The `.run(progress_bar = True)` returns a much more informative real-time view of job progress.
 
-### Fixed
-- A bug in json repair methods.
-
-
-## [0.1.18] - 2024-05-01
-
-### Fixed
-- A bug in in `Survey.add_rule()` method that caused an additional question to be skipped when used to apply a skip rule.
-
-
-## [0.1.19] - 2024-05-03
-
+## [0.1.13] - 2024-03-01
 ### Added
-- `Results` objects now include columns for question components. Call the `.columns` method on your results to see a list of all components. Run `results.select("question_type.*", "question_text.*", "question_options.*").print()` to see them.
-
-- `Survey` objects now also have a `.to_csv()` method.
-
-### Changed 
-- Increased the maximum number of multiple choice answer options to 200 (previously 20) to facilitate large codebooks / data labels.
-
-
-## [0.1.20] - 2024-05-09
-
-### Added 
-
-- <b>Methods for setting session caches</b>
-New function `set_session_cache` will set the cache for a session:
-
-```
-from edsl import Cache, set_session_cache
-set_session_cache(Cache())
-```
-The cache can be set to a specific cache object, or it can be set to a dictionary or SQLite3Dict object:
-```
-from edsl import Cache, set_session_cache
-from edsl.data import SQLiteDict
-set_session_cache(Cache(data = SQLiteDict("example.db")))
-# or
-set_session_cache(Cache(data = {}))
-```
-The `unset_session_cache` function is used to unset the cache for a session:
-```
-from edsl import unset_session_cache
-unset_session_cache()
-```
-This will unset the cache for the current session, and you will need to pass the cache object to the run method during the session.
-
-Details: https://docs.expectedparrot.com/en/latest/data.html#setting-a-session-cache
-
-
-### Changed
-
-- <b>Answer comments are now a separate component of results</b>
-The "comment" field that is automatically added to each question (other than free text) is now stored in `Results` as `comment.<question_name>`. Prior to this change, the comment for each question was stored as `answer.<question_name>_comment`, i.e., if you ran `results.columns` the list of columns would include `answer.<question_name>` and `answer.<question_name>_comment` for each question. With this change, the columns will now be `answer.<question_name>` and `comment.<question_name>_comment`. This change is meant to make it easier to select only the answers, e.g., running `results.select('answer.*').print()` will no longer also include all the comments, which you may not want to display.
-(The purpose of the comments field is to allow the model to add any information about its response to a question, which can help avoid problems with JSON formatting when the model does not want to return <i>just</i> the properly formatted response.)
-
-- <b>Exceptions</b>
-We modified exception messages. If your survey run generates exceptions, run `results.show_exceptions()` to print them in a table.
-
+- The `answer` component of the `Results` object is printed in a nicer format.
 
 ### Fixed
+- `trait_name` descriptor was not working; it is now fixed.
+- `QuestionList` is now working properly again
 
-- A package that was missing for working with Anthropic models.
-
-
-
-## [0.1.21] - 2024-05-13
-
-### Added 
-
-- New methods for adding, sampling and shuffling `Results` objects: 
-   `dup_results = results + results`
-   `results.shuffle()`
-   `results.sample(n=5)`
-
-### Changed
-
-- Optional parameter `survey.run(cache=False)` if you do not want to access any cached results in running a survey.
-
-- Instructions passed to an agent at creation are now a column of results: `agent_instruction`
-
-
-
-## [0.1.22] - 2024-05-14
-
+## [0.1.12] - 2024-02-12
 ### Added
-
-- New `Survey` method to export a survey to file. Usage: `generated_code = survey.code("example.py")`
-
-### Fixed
-
-- A bug in `Survey` method `add_skip_logic()`
-
-
-## [0.1.23] - 2024-05-18 
-
-### Added 
-
-- Optional parameter in `Results` method `to_list()` to flatten a list of lists (eg, responses to `QuestionList`): `results.to_list(flatten=True)`
+- Results now provides a `.sql()` method that can be used to explore data in a SQL-like manner.
+- Results now provides a `.ggplot()` method that can be used to create ggplot2 visualizations.
+- Agent now admits an optional `name` argument that can be used to identify the Agent.
 
 ### Fixed
+- Fixed various issues with visualizations. They should now work better.
 
-- Erroneous error messages about adding rules to a survey.
+## [0.1.11] - 2024-02-01
+### Fixed
+- Question options can now be 1 character long or more (down from 2 characters)
+- Fixed a bug where prompts displayed were incorrect (prompts sent were correct)
 
-
-## [0.1.24] - 2024-05-28
-
-### Added 
-
-- We started a blog! https://blog.expectedparrot.com
-
-- `Agent`/`AgentList` method `remove_trait(<trait_key>)` allows you to remove a trait by name. This can be useful for comparing combinations of traits.
-
-- `Agent`/`AgentList` method `translate_traits(<codebook_dict>)` allows you to modify traits based on a codebook passed as dictionary. Example:
-```
-agent = Agent(traits = {"age": 45, "hair": 1, "height": 5.5})
-agent.translate_traits({"hair": {1:"brown"}})
-```
-This will return: `Agent(traits = {'age': 10, 'hair': 'brown', 'height': 5.5})`
-
-- `AgentList` method `get_codebook(<filename>)` returns the codebook for a CSV file.
-
-- `AgentList` method `from_csv(<filename>)` loads an `AgentList` from a CSV file with the column names as `traits` keys. Note that the CSV column names must be valid Python identifiers (e.g., `current_age` and not `current age`).
-
-- `Results` method `to_scenario_list()` allows you to turn any components of results into a list of scenarios to use with other questions. A default parameter `remove_prefixes=True` will remove the results component prefixes `agent.`, `answer.`, `comment.`, etc., so that you don't have to modify placeholder names for the new scenarios. Example: https://docs.expectedparrot.com/en/latest/scenarios.html#turning-results-into-scenarios
-
-- `ScenarioList` method `to_agent_list()` converts a `ScenarioList` into an `AgentList`. 
-
-- `ScenarioList` method `from_pdf(<filename>)` allows you to import a PDF and automatically turn the pages into a list of scenarios. Example: https://docs.expectedparrot.com/en/latest/scenarios.html#turning-pdf-pages-into-scenarios
-
-- `ScenarioList` method `from_csv(<filename>)` allows you to import a CSV and automatically turn the rows into a list of scenarios. 
-
-- `ScenarioList` method `from_pandas(<dataframe>)` allows you to import a pandas dataframe and automatically turn the rows into a list of scenarios. 
-
-- `Scenario` method `from_image(<image_path>)` creates a scenario with a base64 encoding of an image. The scenario is formatted as follows: `"file_path": <filname / url>, "encoded_image": <generated_encoding>`
-Note that you need to use a vision model (e.g., `model = Model('gpt-4o')`) and you do *not* need to add a `{{ placeholder }}` for the scenario (for now--this might change!).
-Example:
-```
-from edsl.questions import QuestionFreeText
-from edsl import Scenario, Model
-
-model = Model('gpt-4o')
-
-scenario = Scenario.from_image('general_survey.png') # Image from this notebook: https://docs.expectedparrot.com/en/latest/notebooks/data_labeling_agent.html 
-# scenario
-
-q = QuestionFreeText(
-    question_name = "example",
-    question_text = "What is this image showing?" # We do not need a {{ placeholder }} for this kind of scenario
-)
-
-results = q.by(scenario).by(model).run(cache=False)
-
-results.select("example").print(format="rich")
-```
-Returns:
-```
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ answer                                                                                                          ┃
-┃ .example                                                                                                        ┃
-┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-│ This image is a flowchart showing the process of creating and administering a survey for data labeling tasks.   │
-│ The steps include importing data, creating data labeling tasks as questions about the data, combining the       │
-│ questions into a survey, inserting the data as scenarios of the questions, and administering the same survey to │
-│ all agents.                                                                                                     │
-└─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-```
-
-
-### Changed
-
-- `Question` and `Survey` method `html()` generates an improved html page representation of the object. You can optionally specify the filename and css. See default css: https://github.com/expectedparrot/edsl/blob/9d981fa25a0dd83e6cca4d17bcb9316a3d452a64/edsl/surveys/SurveyExportMixin.py#L10
-
-- `QuestionMultipleChoice` now takes numbers and lists as `question_options` (e.g., `question_options = [[1,2,3], [4,5,6]]` is allowed). Previously options had to be a list of strings (i.e., `question_options = ['1','2','3']` is still allowed but not required). 
-
-
-
-## [0.1.25] - 2024-TBD
-
+## [0.1.9] - 2024-01-27
 ### Added
-
-- `Scenario` method `from_html()` allows you to turn the contents of a website into a scenario.
-
-- [In progress] `ScenarioList` method for automatically chunking contents into a list of scenarios
-
-### Changed
-
-- [In progress] Survey run exceptions are now optionally displayed in an html report.
-
-- [In progress] New prompt visibility features.
-
-- [In progress] New methods for piping responses to questions into other questions. 
-
-- [In progress] `QuestionMultipleChoice` is being modified allow non-responsive answers. Previously, an error was thrown if the agent did not select one of the given options. Details TBD.
+- Report functionalities are now part of the main package.
 
 ### Fixed
-
-### Deprecated
+- Fixed a bug in the Results.print() function
 
 ### Removed
+- The package no longer supports a report extras option.
+- Fixed a bug in EndofSurvey
+
+## [0.1.8] - 2024-01-26
+### Fixed
+- Better handling of async failures
+- Fixed bug in survey logic
+
+## [0.1.7] - 2024-01-25
+### Fixed
+- Improvements in async survey running
+- Added logging
+
+## [0.1.6] - 2024-01-24
+### Fixed
+- Improvements in async survey running
+
+## [0.1.5] - 2024-01-23
+### Fixed
+- Improvements in async survey running
+
+## [0.1.4] - 2024-01-22
+### Added
+- Support for several large language models
+- Async survey running
+- Asking for API keys before they are used
+
+### Fixed
+- Bugs in survey running
+- Bugs in several question types 
+
+### Removed
+- Unused files
+- Unused package dependencies
+
+## [0.1.1] - 2023-12-24
+### Added
+- Changelog file
+
+### Fixed
+- Image display and description text in README.md
+
+### Removed
+- Unused files
+
+## [0.1.0] - 2023-12-20
+### Added
+- Base feature
