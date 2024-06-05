@@ -6,9 +6,13 @@ It is not typically instantiated directly, but is returned by the run method of 
 from __future__ import annotations
 import json
 import random
-import re
 from collections import UserList, defaultdict
 from typing import Optional, Callable, Any, Type, Union
+
+from pygments import highlight
+from pygments.lexers import JsonLexer
+from pygments.formatters import HtmlFormatter
+from IPython.display import HTML
 
 from simpleeval import EvalWithCompoundTypes
 
@@ -19,37 +23,28 @@ from edsl.exceptions.results import (
     ResultsMutateError,
     ResultsFilterError,
 )
-from edsl.agents import Agent
+from edsl.agents import Agent, AgentList
 from edsl.language_models.LanguageModel import LanguageModel
 from edsl.results.Dataset import Dataset
 from edsl.results.Result import Result
 from edsl.results.ResultsExportMixin import ResultsExportMixin
 from edsl.scenarios import Scenario
+from edsl.scenarios.ScenarioList import ScenarioList
 from edsl.surveys import Survey
 from edsl.data.Cache import Cache
 from edsl.utilities import (
-    is_gzipped,
     is_valid_variable_name,
-    print_public_methods_with_doc,
     shorten_string,
-    is_notebook,
 )
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
 from edsl.results.ResultsToolsMixin import ResultsToolsMixin
-
-import json
-from pygments import highlight
-from pygments.lexers import JsonLexer
-from pygments.formatters import HtmlFormatter
-from IPython.display import HTML
 
 from edsl.results.ResultsDBMixin import ResultsDBMixin
 from edsl.results.ResultsGGMixin import ResultsGGMixin
 
 from edsl.Base import Base
 from edsl.results.ResultsFetchMixin import ResultsFetchMixin
-
 
 class Mixins(
     ResultsExportMixin,
@@ -110,10 +105,6 @@ class Results(UserList, Mixins, Base):
 
         if hasattr(self, "_add_output_functions"):
             self._add_output_functions()
-
-    ######################
-    # Streaming methods
-    ######################
 
     def code(self):
         raise NotImplementedError
@@ -302,16 +293,16 @@ class Results(UserList, Mixins, Base):
         return sorted_dict
 
     @property
-    def agents(self) -> list[Agent]:
+    def agents(self) -> AgentList:
         """Return a list of all of the agents in the Results.
 
         Example:
 
         >>> r = Results.example()
         >>> r.agents
-        [Agent(traits = {'status': 'Joyful'}), Agent(traits = {'status': 'Joyful'}), Agent(traits = {'status': 'Sad'}), Agent(traits = {'status': 'Sad'})]
+        AgentList([Agent(traits = {'status': 'Joyful'}), Agent(traits = {'status': 'Joyful'}), Agent(traits = {'status': 'Sad'}), Agent(traits = {'status': 'Sad'})])
         """
-        return [r.agent for r in self.data]
+        return AgentList([r.agent for r in self.data])
 
     @property
     def models(self) -> list[Type[LanguageModel]]:
@@ -326,16 +317,16 @@ class Results(UserList, Mixins, Base):
         return [r.model for r in self.data]
 
     @property
-    def scenarios(self) -> list[Scenario]:
+    def scenarios(self) -> ScenarioList:
         """Return a list of all of the scenarios in the Results.
 
         Example:
 
         >>> r = Results.example()
         >>> r.scenarios
-        [Scenario({'period': 'morning'}), Scenario({'period': 'afternoon'}), Scenario({'period': 'morning'}), Scenario({'period': 'afternoon'})]
+        ScenarioList([Scenario({'period': 'morning'}), Scenario({'period': 'afternoon'}), Scenario({'period': 'morning'}), Scenario({'period': 'afternoon'})])
         """
-        return [r.scenario for r in self.data]
+        return ScenarioList([r.scenario for r in self.data])
 
     @property
     def agent_keys(self) -> list[str]:
@@ -452,6 +443,8 @@ class Results(UserList, Mixins, Base):
         :param top_n: The number of top answers to keep.
         :param new_var_name: The name of the new variable. If None, it is the original name + '_truncated'.
 
+
+
         """
         if new_var_name is None:
             new_var_name = column + "_truncated"
@@ -486,7 +479,7 @@ class Results(UserList, Mixins, Base):
             new_result["answer"][new_var_name] = recode_function(value)
             new_data.append(new_result)
 
-        print("Created new variable", new_var_name)
+        #print("Created new variable", new_var_name)
         return Results(
             survey=self.survey,
             data=new_data,
@@ -545,6 +538,21 @@ class Results(UserList, Mixins, Base):
             data=new_data,
             created_columns=self.created_columns + [var_name],
         )
+    
+    def rename(self, old_name: str, new_name: str) -> Results:
+        """Rename an answer column in a Results object.
+        
+        >>> s = Results.example()
+        >>> s.rename('how_feeling', 'how_feeling_new').select('how_feeling_new')
+        Dataset([{'answer.how_feeling_new': ['OK', 'Great', 'Terrible', 'OK']}])
+        
+        """
+
+        for obs in self.data:
+            obs['answer'][new_name] = obs['answer'][old_name]
+            del obs['answer'][old_name]
+            
+        return self
 
     def shuffle(self, seed=None) -> Results:
         """Shuffle the results.
