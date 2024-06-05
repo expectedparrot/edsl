@@ -219,14 +219,15 @@ class Coop:
         object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
         return self.delete(object_type, uuid)
 
-    def update(
+    def patch(
         self,
         object_type: ObjectType,
         uuid: Union[str, UUID],
         visibility: VisibilityType,
     ) -> dict:
         """
-        Update the visibility of an object.
+        Change the attributes of an uploaded object
+        - Only supports visibility for now
         """
         response = self._send_server_request(
             uri=f"api/v0/object",
@@ -237,17 +238,17 @@ class Coop:
         self._resolve_server_response(response)
         return response.json()
 
-    def _update_base(
+    def _patch_base(
         self,
         cls: EDSLObject,
         uuid: Union[str, UUID],
         visibility: VisibilityType,
     ) -> dict:
         """
-        Used by the Base class to offer an update functionality.
+        Used by the Base class to offer a patch functionality.
         """
         object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
-        return self.update(object_type, uuid, visibility)
+        return self.patch(object_type, uuid, visibility)
 
     ################
     # Remote Cache
@@ -466,7 +467,7 @@ if __name__ == "__main__":
             coop.get(object_type=object_type, uuid=response.get("uuid"))
         # 6. Change visibility of all objects
         for item in objects:
-            coop.update(
+            coop.patch(
                 object_type=object_type, uuid=item.get("uuid"), visibility="private"
             )
         # 7. Delete all objects
@@ -476,7 +477,7 @@ if __name__ == "__main__":
 
     response = QuestionMultipleChoice.example().push()
     QuestionMultipleChoice.pull(response.get("uuid"))
-    coop.update(object_type="question", uuid=response.get("uuid"), visibility="public")
+    coop.patch(object_type="question", uuid=response.get("uuid"), visibility="public")
     coop.delete(object_type="question", uuid=response.get("uuid"))
 
     ##############

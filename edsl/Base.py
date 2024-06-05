@@ -69,12 +69,15 @@ class PersistenceMixin:
         return c._delete_base(cls, id_or_url)
 
     @classmethod
-    def update(cls, id_or_url: Union[str, UUID], visibility: str):
-        """Update the object on coop."""
+    def patch(cls, id_or_url: Union[str, UUID], visibility: str):
+        """
+        Patch an uploaded objects attributes.
+        - Only supports changing visibility for now.
+        """
         from edsl.coop import Coop
 
         c = Coop()
-        return c._update_base(cls, id_or_url, visibility)
+        return c._patch_base(cls, id_or_url, visibility)
 
     @classmethod
     def search(cls, query):
