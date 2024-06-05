@@ -69,6 +69,14 @@ class PersistenceMixin:
         return c._delete_base(cls, id_or_url)
 
     @classmethod
+    def update(cls, id_or_url: Union[str, UUID], visibility: str):
+        """Update the object on coop."""
+        from edsl.coop import Coop
+
+        c = Coop()
+        return c._update_base(cls, id_or_url, visibility)
+
+    @classmethod
     def search(cls, query):
         """Search for objects on coop."""
         from edsl.coop import Coop
