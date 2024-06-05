@@ -31,6 +31,21 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         self.data = data
         self.name = name
 
+    def replicate(self, n: int) -> "ScenarioList":
+        """Replicate a scenario n times.
+
+        :param n: The number of times to replicate the scenario.
+
+        Example:
+
+        >>> s = Scenario({"food": "wood chips"})
+        >>> s.replicate(2)
+        ScenarioList([Scenario({'food': 'wood chips'}), Scenario({'food': 'wood chips'})])
+        """
+        from edsl.scenarios.ScenarioList import ScenarioList
+
+        return ScenarioList([copy.deepcopy(self) for _ in range(n)])
+
     @property
     def has_image(self) -> bool:
         """Return whether the scenario has an image."""
