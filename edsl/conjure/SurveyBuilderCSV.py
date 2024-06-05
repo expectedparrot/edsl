@@ -7,7 +7,6 @@ from edsl.conjure.utilities import RCodeSnippet
 
 
 class SurveyBuilderCSV(SurveyBuilder):
-
     @staticmethod
     def get_dataframe(datafile_name):
         return pd.read_csv(datafile_name)
@@ -66,7 +65,6 @@ class SurveyBuilderCSV(SurveyBuilder):
 
 
 class SurveyBuilderStata(SurveyBuilderCSV):
-
     @staticmethod
     def get_dataframe(datafile_name):
         return pd.read_stata(datafile_name)

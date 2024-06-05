@@ -17,7 +17,7 @@ Interested in contributing? Want us to add a new feature? Found a nasty bug that
 
 
 ## 💻 Getting started
-EDSL is compatible with Python 3.9 - 3.11.
+EDSL is compatible with Python 3.9 - 3.12.
 ```
 pip install edsl
 ```
