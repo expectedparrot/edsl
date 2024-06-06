@@ -174,17 +174,20 @@ class ResultsDBMixin:
         if to_latex:
 
             df.columns = [col.replace('_', ' ') for col in df.columns]
-            
+
             latex_output = df.to_latex(index=False)
             if filename:
                 with open(filename, 'w') as f:
                     f.write(latex_output)
                 return None
             return latex_output
+        
+        if csv:
+            if filename:
+                df.to_csv(filename, index=False)
+                return None
 
-        if filename:
-            df.to_csv(filename, index=False)
-            return None
+            return df.to_csv(index=False)
 
         return df
 
