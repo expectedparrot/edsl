@@ -204,6 +204,14 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
             scenario[name] = value
         return self
     
+    def rename(self, replacement_dict: dict) -> ScenarioList:
+        new_list = ScenarioList([])
+        for obj in self:
+            new_obj = obj.rename(replacement_dict)
+            new_list.append(new_obj)
+        return new_list 
+
+
     @classmethod
     def from_sqlite(cls, filepath: str, table: str):
         import sqlite3
