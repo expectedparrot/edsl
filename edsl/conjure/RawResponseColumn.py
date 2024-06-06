@@ -232,6 +232,11 @@ class RawResponseColumn:
         """
         from edsl.questions.QuestionList import QuestionList
 
+        if '' in options_list:
+            options_list.remove('')
+        
+        options_list = list(set(options_list))
+
         q = QuestionList(
             question_text=textwrap.dedent(
                 """\
