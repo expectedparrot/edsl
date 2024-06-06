@@ -1,5 +1,11 @@
 """A mixin class for exporting surveys to different formats."""
 
+import tempfile
+import os
+import webbrowser
+import atexit
+
+import html
 from docx import Document
 from typing import Union, Optional
 import black
@@ -76,14 +82,14 @@ class SurveyExportMixin:
         self,
         scenario: Optional[dict] = None,
         filename: Optional[str] = None,
-        return_link=False,
+        return_html=False,
         css: Optional[str] = None,
         cta: Optional[str] = "Open HTML file",
         include_question_name=False,
-    ):
+        tee = False,
+        open_in_browser = True
+    ) -> str:
         from IPython.display import display, HTML
-        import tempfile
-        import os
         from edsl.utilities.utilities import is_notebook
 
         if scenario is None:
@@ -91,12 +97,6 @@ class SurveyExportMixin:
 
         if css is None:
             css = self.css()
-
-        if filename is None:
-            current_directory = os.getcwd()
-            filename = tempfile.NamedTemporaryFile(
-                "w", delete=False, suffix=".html", dir=current_directory
-            ).name
 
         html_header = f"""<html>
         <head><title></title>
@@ -115,43 +115,57 @@ class SurveyExportMixin:
 
         output = html_header
 
-        with open(filename, "w") as f:
-            f.write(html_header)
-            for question in self._questions:
-                f.write(
-                    question.html(
-                        scenario=scenario, include_question_name=include_question_name
-                    )
-                )
-                output += question.html(
-                    scenario=scenario, include_question_name=include_question_name
-                )
-            f.write(html_footer)
-            output += html_footer
+        for question in self._questions:
+            output += question.html(scenario=scenario, include_question_name=include_question_name)
+        
+        output += html_footer
 
+        if tee and return_html:
+            raise ValueError("Cannot return link and tee at the same time")
+        
+        if return_html:
+            return output
+
+        if filename is not None:
+            with open(filename, "w") as f:
+                f.write(output)
+
+            if is_notebook():      
+                html_url = f"/files/{filename}"
+                html_link = f'<a href="{html_url}" target="_blank">{cta}</a>'
+                display(HTML(html_link))
+            else:
+                print(f"Survey saved to {filename}")
+
+            if tee:
+                return self
+            
+            return None
+            
         if is_notebook():
-            html_url = f"/files/{filename}"
-            html_link = f'<a href="{html_url}" target="_blank">{cta}</a>'
-            display(HTML(html_link))
-
-            import html
-
             escaped_output = html.escape(output)
-            iframe = f""""
-            <iframe srcdoc="{ escaped_output }" style="width: 800px; height: 600px;"></iframe>
-            """
+            iframe = f"""<iframe srcdoc="{ escaped_output }" style="width: 800px; height: 600px;"></iframe>"""
             display(HTML(iframe))
-
         else:
-            print(f"Survey saved to {filename}")
-            import webbrowser
-            import os
+            if open_in_browser:
+                temp_dir = os.getcwd()
+                filename = tempfile.NamedTemporaryFile("w", delete=False, suffix=".html", dir=temp_dir).name
+                with open(filename, "w") as f:
+                    f.write(output)
 
-            webbrowser.open(f"file://{os.path.abspath(filename)}")
-            # webbrowser.open(filename)
+                atexit.register(lambda: os.remove(filename))
 
-        if return_link:
-            return filename
+                print(f"Survey saved to {filename}")
+                file_uri = f"file://{os.path.abspath(filename)}"    
+                print(f"Opening in browser...{file_uri}")
+                 #webbrowser.open(file_uri)
+                webbrowser.open_new_tab(file_uri)
+        if tee:
+            return self
+        
+        if return_html:
+            return output
+
 
 
 if __name__ == "__main__":
