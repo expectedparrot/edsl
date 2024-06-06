@@ -70,7 +70,7 @@ Then add the following line to your `.env` file in your `edsl` working directory
   EXPECTED_PARROT_API_KEY='<your_api_key_here>'
 
 
-This will save your Expected Parrot API key as an environment variable that `edsl` can access.
+This will save your API key as an environment variable that `edsl` can access.
 You can regenerate your API key (and update your `.env` file) at any time.
 
 
@@ -101,7 +101,7 @@ By default, objects are posted as unlisted.
 See below for details and examples for setting the visibility of an object.
 
 
-7. Search for other users' content
+7. Explore other users' content
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Search for other users' public content by object type, keyword, author, topic, etc.
 Copy code and examples to your own workspace to modify or rerun them.

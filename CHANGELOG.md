@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.1.25] - 2024-TBD
+## [0.1.25] - 2024-TBD [In progress]
 ### Added
 - `Scenario` method `from_html()` allows you to turn the contents of a website into a scenario.
 
@@ -8,7 +8,13 @@
 
 - [In progress] Add LaTeX support to SQL outputs and ability to write to files
 
+- Allow renaming of `Results` answers
+
+- Feature for turning PDF file or word document into a series of images for use w/ a vision model
+
 ### Changed
+- Exception report improvements
+
 - [In progerss] Add sample from scenario list & a from_sqlite class method
 
 - [In progress] Survey run exceptions are now optionally displayed in an html report.
