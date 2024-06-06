@@ -19,6 +19,25 @@ from pygments.lexers import JsonLexer
 from pygments.formatters import HtmlFormatter
 from IPython.display import HTML
 
+def clean_json(bad_json_str):
+    """
+    Clean JSON string by replacing single quotes with double quotes
+        
+    """
+    replacements = [
+        ("\\", "\\\\"),
+        ("\n", "\\n"),
+        ("\r", "\\r"),
+        ("\t", "\\t"),
+        ("\b", "\\b"),
+        ("\f", "\\f"),
+    ]
+
+    s = bad_json_str
+    for old, new in replacements:
+        s = s.replace(old, new)
+    return s
+
 
 def data_to_html(data, replace_new_lines=False):
     if "edsl_version" in data:

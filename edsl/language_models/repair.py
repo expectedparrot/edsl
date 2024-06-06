@@ -1,29 +1,14 @@
 import json
 import asyncio
 
+from edsl.utilities.utilities import clean_json
+
 
 async def async_repair(bad_json, error_message=""):
+    s = clean_json(bad_json)
     from edsl import Model
 
-    def encode_string(input_string):
-        return input_string.encode('unicode_escape').decode('utf-8')
-    
     m = Model()
-
-    # First, let's try to repair the bad JSON
-
-    replacements = [
-        ("\\", "\\\\"),
-        ("\n", "\\n"),
-        ("\r", "\\r"),
-        ("\t", "\\t"),
-        ("\b", "\\b"),
-        ("\f", "\\f"),
-    ]
-
-    s = encode_string(bad_json)
-    for old, new in replacements:
-        s = s.replace(old, new)
 
     try:
         # this is the OpenAI version, but that's fine
