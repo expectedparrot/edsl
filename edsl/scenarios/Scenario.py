@@ -112,7 +112,7 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         >>> s.to_dict()
         {'food': 'wood chips', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}
         """
-        return self.data
+        return self.data.copy()
 
     def print(self):
         from rich import print_json

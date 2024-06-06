@@ -1,23 +1,28 @@
-from edsl import Agent, Cache, Results, Survey
-from edsl.jobs import Jobs
+from edsl import Agent, AgentList, Cache, Jobs, Results, Scenario, ScenarioList, Survey
 from edsl.questions import QuestionBase
 from typing import Literal, Type, Union
 
 EDSLObject = Union[
     Agent,
+    AgentList,
     Cache,
     Jobs,
     Type[QuestionBase],
     Results,
+    Scenario,
+    ScenarioList,
     Survey,
 ]
 
 ObjectType = Literal[
     "agent",
+    "agent_list",
     "cache",
     "job",
     "question",
     "results",
+    "scenario",
+    "scenario_list",
     "survey",
 ]
 
@@ -35,10 +40,13 @@ class ObjectRegistry:
 
     objects = [
         {"object_type": "agent", "edsl_class": Agent},
+        {"object_type": "agent_list", "edsl_class": AgentList},
         {"object_type": "cache", "edsl_class": Cache},
         {"object_type": "job", "edsl_class": Jobs},
         {"object_type": "question", "edsl_class": QuestionBase},
         {"object_type": "results", "edsl_class": Results},
+        {"object_type": "scenario", "edsl_class": Scenario},
+        {"object_type": "scenario_list", "edsl_class": ScenarioList},
         {"object_type": "survey", "edsl_class": Survey},
     ]
     object_type_to_edsl_class = {
