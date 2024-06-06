@@ -15,6 +15,7 @@ How it works
 
 1. Create an account
 ^^^^^^^^^^^^^^^^^^^^
+
 .. raw:: html
 
   Go to the <a href="https://www.expectedparrot.com/">Coop login page</a> and select **Register**.
@@ -26,7 +27,7 @@ If you create an account with your email address you will need to verify it by c
 .. image:: static/coop_register.png
   :alt: Register for an account on the Coop
   :align: center
-  :width: 400px
+  :width: 300px
   
 
 .. raw:: html
@@ -36,26 +37,30 @@ If you create an account with your email address you will need to verify it by c
 
 2. Create a username
 ^^^^^^^^^^^^^^^^^^^^
+
 .. raw:: html
 
   Go to your <a href="https://www.expectedparrot.com/home/profile">Profile</a> page and choose a username.
+
 
 Your username will be associated with content that you post on the Coop.
 (You can change this at any time, and you can also post content anonymously.)
 
 
-3. Store your API key
-^^^^^^^^^^^^^^^^^^^^^
+3. Store your Expected Parrot API key
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 .. raw:: html
 
   Go to the <a href="https://www.expectedparrot.com/home/api">API</a> page of your Account and copy your API key.
+
 
 You will need this key to post, download and update objects on the Coop.
 
 .. image:: static/coop_api_key.png
   :alt: Copy your API key
   :align: center
-  :width: 400px
+  :width: 300px
   
 
 .. raw:: html
