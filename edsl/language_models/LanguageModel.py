@@ -15,6 +15,8 @@ from abc import ABC, abstractmethod, ABCMeta
 from rich.table import Table
 
 from edsl.config import CONFIG
+
+from edsl.utilities.utilities import clean_json
 from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 from edsl.language_models.repair import repair
@@ -427,10 +429,13 @@ class LanguageModel(
 
         raw_response = await self.async_get_raw_response(**params)
         response = self.parse_response(raw_response)
+        
         try:
             dict_response = json.loads(response)
+            #breakpoint()
         except json.JSONDecodeError as e:
             # TODO: Turn into logs to generate issues
+            breakpoint()
             dict_response, success = await repair(response, str(e))
             if not success:
                 raise Exception(
