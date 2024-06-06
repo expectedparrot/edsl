@@ -434,7 +434,7 @@ class ResultsExportMixin:
             return filename
 
     @_convert_decorator
-    def tally(self, *fields: Optional[str]):
+    def tally(self, *fields: Optional[str], top_n = None):
         """Tally the values of a field or perform a cross-tab of multiple fields.
 
         :param fields: The field(s) to tally, multiple fields for cross-tabulation.
@@ -473,6 +473,8 @@ class ResultsExportMixin:
 
         tally = dict(Counter(values))
         sorted_tally = dict(sorted(tally.items(), key=lambda item: -item[1]))
+        if top_n is not None:
+            sorted_tally = dict(list(sorted_tally.items())[:top_n])
         return sorted_tally
 
 
