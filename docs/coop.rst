@@ -13,7 +13,7 @@ How it works
 
 1. Create an account
 ^^^^^^^^^^^^^^^^^^^^
-Go to the <a href="https://www.expectedparrot.com/">Coop login page</a> and select "Register".
+Go to the <a href="https://www.expectedparrot.com/">Coop login page</a> and select **Register**.
 Create an account with your email address and a password or log in with your Google/Microsoft account.
 If you create an account with your email address you will need to verify it by clicking on the link in the email that you receive.
 
