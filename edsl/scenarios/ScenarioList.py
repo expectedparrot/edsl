@@ -33,6 +33,14 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
 
     def __repr__(self):
         return f"ScenarioList({self.data})"
+    
+    def __mul__(self, other: ScenarioList) -> ScenarioList:
+        """Return a ScenarioList with the scenarios repeated n times."""
+        from itertools import product
+        new_sl = []
+        for s1, s2 in list(product(self, other)):
+            new_sl.append(s1 + s2)
+        return ScenarioList(new_sl)
 
     def _repr_html_(self) -> str:
         from edsl.utilities.utilities import data_to_html
@@ -54,6 +62,16 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
 
         """
         return dict(Counter([scenario[field] for scenario in self]))
+    
+    def sample(self, n: int, seed = "edsl") -> ScenarioList:
+        """Return a random sample from the ScenarioList"""
+
+        import random
+        if seed != "edsl":
+            random.seed(seed)
+
+        return ScenarioList(random.sample(self.data, n))
+
 
     def expand(self, expand_field: str) -> ScenarioList:
         """Expand the ScenarioList by a field.
@@ -76,26 +94,6 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
                 new_scenario[expand_field] = value
                 new_scenarios.append(new_scenario)
         return ScenarioList(new_scenarios)
-
-    # def apply(self, function, field: Optional[str] = None) -> ScenarioList:
-    #     """Apply a function to the scenarios.
-
-    #     Example usage:
-
-    #     >>> s = ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
-    #     >>> s.apply(lambda x: x['b'] + 1)
-    #     ScenarioList([Scenario({'a': 1, 'b': 3}), Scenario({'a': 1, 'b': 2})])
-
-    #     """
-    #     new_scenarios = []
-    #     for scenario in self:
-    #         new_scenario = scenario.copy()
-    #         if field:
-    #             new_scenario[field] = function(scenario[field])
-    #         else:
-    #             new_scenario = function(new_scenario)
-    #         new_scenarios.append(new_scenario)
-    #     return ScenarioList(new_scenarios)
 
     def mutate(self, new_var_string: str, functions_dict: dict = None) -> ScenarioList:
         """
@@ -205,6 +203,16 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         for scenario in self:
             scenario[name] = value
         return self
+    
+    @classmethod
+    def from_sqlite(cls, filepath: str, table: str):
+        import sqlite3
+        with sqlite3.connect(filepath) as conn:
+            cursor = conn.cursor()
+            cursor.execute(f"SELECT * FROM {table}")
+            columns = [description[0] for description in cursor.description]
+            data = cursor.fetchall()
+        return cls([Scenario(dict(zip(columns, row))) for row in data])
 
     @classmethod
     def from_pandas(cls, df) -> ScenarioList:
@@ -333,6 +341,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         # elif format == "markdown":
         #     print_list_of_dicts_as_markdown_table(new_data, filename=filename)
 
+
     def __getitem__(self, key: Union[int, slice]) -> Any:
         """Return the item at the given index."""
         if isinstance(key, slice):
@@ -386,20 +395,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
 
 
 if __name__ == "__main__":
-    # from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
-    # from edsl.scenarios.Scenario import Scenario
 
-    # q = QuestionMultipleChoice(
-    #     question_text="Do you enjoy the taste of {{food}}?",
-    #     question_options=["Yes", "No"],
-    #     question_name="food_preference",
-    # )
-
-    # scenario_list = ScenarioList(
-    #     [Scenario({"food": "wood chips"}), Scenario({"food": "wood-fired pizza"})]
-    # )
-
-    # print(scenario_list.code())
 
     import doctest
 
