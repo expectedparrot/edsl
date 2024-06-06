@@ -7,22 +7,8 @@ from edsl.utilities.utilities import clean_json
 async def async_repair(bad_json, error_message=""):
     s = clean_json(bad_json)
     from edsl import Model
+
     m = Model()
-
-    # First, let's try to repair the bad JSON
-
-    # replacements = [
-    #     ("\\", "\\\\"),
-    #     ("\n", "\\n"),
-    #     ("\r", "\\r"),
-    #     ("\t", "\\t"),
-    #     ("\b", "\\b"),
-    #     ("\f", "\\f"),
-    # ]
-
-    # s = bad_json
-    # for old, new in replacements:
-    #     s = s.replace(old, new)
 
     try:
         # this is the OpenAI version, but that's fine

@@ -58,7 +58,7 @@ class Coop:
                 )
             elif method in ["POST", "PATCH"]:
                 response = requests.request(
-                    method, url, json=payload, headers=self.headers
+                    method, url, params=params, json=payload, headers=self.headers
                 )
             else:
                 raise Exception(f"Invalid {method=}.")
@@ -207,6 +207,48 @@ class Coop:
         )
         self._resolve_server_response(response)
         return response.json()
+
+    def _delete_base(
+        self,
+        cls: EDSLObject,
+        uuid: Union[str, UUID],
+    ) -> dict:
+        """
+        Used by the Base class to offer a delete functionality.
+        """
+        object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
+        return self.delete(object_type, uuid)
+
+    def patch(
+        self,
+        object_type: ObjectType,
+        uuid: Union[str, UUID],
+        visibility: VisibilityType,
+    ) -> dict:
+        """
+        Change the attributes of an uploaded object
+        - Only supports visibility for now
+        """
+        response = self._send_server_request(
+            uri=f"api/v0/object",
+            method="PATCH",
+            params={"type": object_type, "uuid": uuid},
+            payload={"visibility": visibility},
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
+    def _patch_base(
+        self,
+        cls: EDSLObject,
+        uuid: Union[str, UUID],
+        visibility: VisibilityType,
+    ) -> dict:
+        """
+        Used by the Base class to offer a patch functionality.
+        """
+        object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
+        return self.patch(object_type, uuid, visibility)
 
     ################
     # Remote Cache
@@ -389,14 +431,27 @@ if __name__ == "__main__":
     # A. Objects
     ##############
     from uuid import uuid4
-    from edsl import Agent, Cache, Jobs, QuestionMultipleChoice, Results, Survey
+    from edsl import (
+        Agent,
+        AgentList,
+        Cache,
+        Jobs,
+        QuestionMultipleChoice,
+        Results,
+        Scenario,
+        ScenarioList,
+        Survey,
+    )
 
     OBJECTS = [
         ("agent", Agent),
+        ("agent_list", AgentList),
         ("cache", Cache),
         ("job", Jobs),
         ("question", QuestionMultipleChoice),
         ("results", Results),
+        ("scenario", Scenario),
+        ("scenario_list", ScenarioList),
         ("survey", Survey),
     ]
 
@@ -423,13 +478,19 @@ if __name__ == "__main__":
         # 5. Try to retrieve all test objects by their uuids
         for response in [response_1, response_2, response_3, response_4]:
             coop.get(object_type=object_type, uuid=response.get("uuid"))
-        # 6. Delete all objects
+        # 6. Change visibility of all objects
+        for item in objects:
+            coop.patch(
+                object_type=object_type, uuid=item.get("uuid"), visibility="private"
+            )
+        # 7. Delete all objects
         for item in objects:
             coop.delete(object_type=object_type, uuid=item.get("uuid"))
         assert len(coop.get_all(object_type)) == 0
 
     response = QuestionMultipleChoice.example().push()
     QuestionMultipleChoice.pull(response.get("uuid"))
+    coop.patch(object_type="question", uuid=response.get("uuid"), visibility="public")
     coop.delete(object_type="question", uuid=response.get("uuid"))
 
     ##############
