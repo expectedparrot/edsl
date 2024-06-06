@@ -4,7 +4,7 @@ import pandas as pd
 import sqlite3
 from sqlalchemy import create_engine
 from enum import Enum
-from typing import Literal, Union
+from typing import Literal, Union, Optional
 
 
 class SQLDataShape(Enum):
@@ -119,6 +119,8 @@ class ResultsDBMixin:
         transpose_by: str = None,
         csv: bool = False,
         to_list=False,
+        to_latex = False, 
+        filename: Optional[str] = None,
     ) -> Union[pd.DataFrame, str]:
         """Execute a SQL query and return the results as a DataFrame.
 
@@ -168,15 +170,25 @@ class ResultsDBMixin:
 
         if csv and to_list:
             raise Exception("Cannot return both CSV and list")
+        
+        if to_latex:
 
-        if csv:
-            return df.to_csv(index=False)
+            df.columns = [col.replace('_', ' ') for col in df.columns]
+            
+            latex_output = df.to_latex(index=False)
+            if filename:
+                with open(filename, 'w') as f:
+                    f.write(latex_output)
+                return None
+            return latex_output
 
-        if to_list:
-            return df.values.tolist()
+        if filename:
+            df.to_csv(filename, index=False)
+            return None
 
         return df
 
+        
     def show_schema(
         self, shape: Literal["wide", "long"], remove_prefix: bool = False
     ) -> None:
