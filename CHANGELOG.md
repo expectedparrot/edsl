@@ -6,6 +6,8 @@
 
 - [In progress] `ScenarioList` method for automatically chunking contents into a list of scenarios
 
+- [In progress] Add LaTeX support to SQL outputs and ability to write to files
+
 ### Changed
 - [In progerss] Add sample from scenario list & a from_sqlite class method
 
