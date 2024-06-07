@@ -297,6 +297,7 @@ class Jobs(Base):
         check_api_keys: bool = False,
         sidecar_model: Optional[LanguageModel] = None,
         batch_mode: Optional[bool] = None,
+        print_exceptions = False,
     ) -> Results:
         """
         Runs the Job: conducts Interviews and returns their results.
@@ -346,6 +347,7 @@ class Jobs(Base):
             cache=cache,
             stop_on_exception=stop_on_exception,
             sidecar_model=sidecar_model,
+            print_exceptions = print_exceptions,
         )
         results.cache = cache.new_entries_cache()
 
