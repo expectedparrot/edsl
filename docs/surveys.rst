@@ -157,7 +157,8 @@ We can call the `show_flow()` method to display a graphic of the flow of the sur
    :alt: Survey Flow Diagram
    :align: left
 
-
+   <br>
+   
 
 Stop rules
 ^^^^^^^^^^

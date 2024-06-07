@@ -1,12 +1,22 @@
 # Changelog
 
-## [0.1.25] - 2024-TBD
+## [0.1.25] - 2024-TBD [In progress]
 ### Added
+- Options that we think of as "terminal", such as `sql()`, `print()`, `html()`, etc., now take a `tee` boolean that causes them to return `self`. This is useful for chaining, e.g., if you run `print(format = "rich", tee = True)` it will return `self`, which allows you do also run `print(format = "rich", tee = True).print(format = "latex", filename = "stuff.tex")`, for example.
+
 - `Scenario` method `from_html()` allows you to turn the contents of a website into a scenario.
 
 - [In progress] `ScenarioList` method for automatically chunking contents into a list of scenarios
 
+- [In progress] Add LaTeX support to SQL outputs and ability to write to files
+
+- Allow renaming of `Results` answers
+
+- Feature for turning PDF file or word document into a series of images for use w/ a vision model
+
 ### Changed
+- Exception report improvements
+
 - [In progerss] Add sample from scenario list & a from_sqlite class method
 
 - [In progress] Survey run exceptions are now optionally displayed in an html report.
