@@ -5,7 +5,9 @@ Coop
 
 *Coming soon!*
 
-The <a href="https://www.expectedparrot.com/login">Coop</a> is a platform for storing, sharing and accessing research in EDSL.
+.. raw:: html
+
+  The <a href="https://www.expectedparrot.com/login">Coop</a> is a platform for storing, sharing and accessing research in EDSL.
 
 
 How it works
@@ -13,13 +15,19 @@ How it works
 
 1. Create an account
 ^^^^^^^^^^^^^^^^^^^^
-Go to the <a href="https://www.expectedparrot.com/">Coop login page</a> and select **Register**.
+
+.. raw:: html
+
+  Go to the <a href="https://www.expectedparrot.com/">Coop login page</a> and select **Register**.
+
+
 Create an account with your email address and a password or log in with your Google/Microsoft account.
 If you create an account with your email address you will need to verify it by clicking on the link in the email that you receive.
 
 .. image:: static/coop_register.png
   :alt: Register for an account on the Coop
   :align: center
+  :width: 300px
   
 
 .. raw:: html
@@ -29,19 +37,30 @@ If you create an account with your email address you will need to verify it by c
 
 2. Create a username
 ^^^^^^^^^^^^^^^^^^^^
-Go to your <a href="https://www.expectedparrot.com/home/profile">Profile</a> page and choose a username.
+
+.. raw:: html
+
+  Go to your <a href="https://www.expectedparrot.com/home/profile">Profile</a> page and choose a username.
+
+
 Your username will be associated with content that you post on the Coop.
 (You can change this at any time, and you can also post content anonymously.)
 
 
-3. Store your API key
-^^^^^^^^^^^^^^^^^^^^^
-Go to the <a href="https://www.expectedparrot.com/home/api">API</a> page of your Account and copy your API key.
+3. Store your Expected Parrot API key
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. raw:: html
+
+  Go to the <a href="https://www.expectedparrot.com/home/api">API</a> page of your Account and copy your API key.
+
+
 You will need this key to post, download and update objects on the Coop.
 
 .. image:: static/coop_api_key.png
   :alt: Copy your API key
   :align: center
+  :width: 300px
   
 
 .. raw:: html
@@ -56,7 +75,7 @@ Then add the following line to your `.env` file in your `edsl` working directory
   EXPECTED_PARROT_API_KEY='<your_api_key_here>'
 
 
-This will save your Expected Parrot API key as an environment variable that `edsl` can access.
+This will save your API key as an environment variable that `edsl` can access.
 You can regenerate your API key (and update your `.env` file) at any time.
 
 
@@ -87,7 +106,7 @@ By default, objects are posted as unlisted.
 See below for details and examples for setting the visibility of an object.
 
 
-7. Search for other users' content
+7. Explore other users' content
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Search for other users' public content by object type, keyword, author, topic, etc.
 Copy code and examples to your own workspace to modify or rerun them.
@@ -101,8 +120,8 @@ Feature requests
 If you have a feature request for the Coop, please let us know! 
 There are several ways to do this
 
-- Create an issue on GitHub: <a href="https://docs.expectedparrot.com/en/latest/contributing.html#suggesting-enhancements">submit a request</a>
-- Post a message at our <a href="https://discord.com/invite/mxAYkjfy9m">Discord</a>
+- Create an issue on GitHub: https://docs.expectedparrot.com/en/latest/contributing.html#suggesting-enhancements
+- Post a message at our Discord server: https://discord.com/invite/mxAYkjfy9m
 - Send us an email: info@expectedparrot.com
 
 
