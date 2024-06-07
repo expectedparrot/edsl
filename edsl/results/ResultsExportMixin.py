@@ -152,6 +152,7 @@ class ResultsExportMixin:
         interactive: bool = False,
         split_at_dot: bool = True,
         max_rows=None,
+        iframe: Optional[bool] = None, 
     ) -> None:
         """Print the results in a pretty format.
 
@@ -214,6 +215,8 @@ class ResultsExportMixin:
         if pretty_labels is None:
             pretty_labels = {}
 
+        iframe = iframe or False
+
         if format not in ["rich", "html", "markdown"]:
             raise ValueError("format must be one of 'rich', 'html', or 'markdown'.")
 
@@ -227,7 +230,7 @@ class ResultsExportMixin:
                 for key in entry:
                     actual_rows = len(entry[key])
                     entry[key] = entry[key][:max_rows]
-            print(f"Showing only the first {max_rows} rows of {actual_rows} rows.")
+            #print(f"Showing only the first {max_rows} rows of {actual_rows} rows.")
 
         if format == "rich":
             print_dataset_with_rich(
@@ -235,11 +238,21 @@ class ResultsExportMixin:
             )
         elif format == "html":
             notebook = is_notebook()
-            html = print_list_of_dicts_as_html_table(
+            html_source = print_list_of_dicts_as_html_table(
                 new_data, filename=None, interactive=interactive, notebook=notebook
             )
-            # print(html)
-            display(HTML(html))
+            if iframe:
+                import html
+                height = 200
+                width = 600
+                escaped_output = html.escape(html_source)
+                #escaped_output = html_source
+                iframe = f""""
+                <iframe srcdoc="{ escaped_output }" style="width: {width}px; height: {height}px;"></iframe>
+                """
+                display(HTML(iframe))
+            else:              
+                display(HTML(html_source))
         elif format == "markdown":
             print_list_of_dicts_as_markdown_table(new_data, filename=filename)
 
@@ -434,7 +447,7 @@ class ResultsExportMixin:
             return filename
 
     @_convert_decorator
-    def tally(self, *fields: Optional[str], top_n = None):
+    def tally(self, *fields: Optional[str], top_n = None, format = None):
         """Tally the values of a field or perform a cross-tab of multiple fields.
 
         :param fields: The field(s) to tally, multiple fields for cross-tabulation.
@@ -449,11 +462,6 @@ class ResultsExportMixin:
 
         if len(fields) == 0:
             fields = self.relevant_columns()
-
-        # if len(fields) == 0 and len(self.relevant_columns()) == 1:
-        #     fields = (self.relevant_columns()[0],)
-        # elif len(fields) == 0 and len(self.relevant_columns()) > 1:
-        #     raise ValueError("You must specify a specific field to tally when dataset has more than two columns.")
 
         relevant_columns_without_prefix = [
             column.split(".")[-1] for column in self.relevant_columns()
@@ -475,7 +483,16 @@ class ResultsExportMixin:
         sorted_tally = dict(sorted(tally.items(), key=lambda item: -item[1]))
         if top_n is not None:
             sorted_tally = dict(list(sorted_tally.items())[:top_n])
+
+        if format is not None:
+            if format == "rich":
+                from edsl.utilities.interface import print_tally_with_rich
+                print_tally_with_rich(sorted_tally)
+                return None
+
+
         return sorted_tally
+        
 
 
 if __name__ == "__main__":

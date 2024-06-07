@@ -171,6 +171,9 @@ class ResultsDBMixin:
         if csv and to_list:
             raise Exception("Cannot return both CSV and list")
         
+        if to_list:
+            return df.values.tolist()
+        
         if to_latex:
 
             df.columns = [col.replace('_', ' ') for col in df.columns]

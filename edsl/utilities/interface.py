@@ -331,7 +331,22 @@ def print_list_of_dicts_as_html_table(
     :param filename: The name of the file to save the HTML table to.
     :param interactive: Whether to make the table interactive using DataTables.
     """
-    html_table = '<table id="myTable" class="display">\n'
+    style = """
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        table, th, td {
+            border: 1px solid black;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+        }
+    </style>
+    """
+    html_table = style + '<table id="myTable" class="display">\n'
     html_table += "  <thead>\n"
     # Add the header row
     headers = [key for d in data for key in d.keys()]
@@ -416,6 +431,29 @@ def print_public_methods_with_doc(obj):
         if doc:
             console.print(f"[bold]{method}:[/bold]", style="green")
             console.print(f"\t{doc.strip()}", style="yellow")
+
+def print_tally_with_rich(data, filename=None):
+    """Print a tally of values in a list using the rich library.
+
+    Example:
+    >>> data = {'a':12, 'b':14, 'c':9}
+    >>> print_tally_with_rich(data)
+    """
+    # Initialize a console object
+    console = Console(record=True)
+
+    # Create a new table
+    table = Table(show_header=True, header_style="bold magenta", row_styles=["", "dim"])
+
+    # Add columns to the table
+    table.add_column("Value", style="dim")
+    table.add_column("Count", style="dim")
+
+    # Add rows to the table
+    for key, value in data.items():
+        table.add_row(key, str(value))
+
+    display(console, table, filename)
 
 
 def print_table_with_rich(data, filename=None):

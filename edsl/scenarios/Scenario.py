@@ -127,6 +127,39 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         from edsl.utilities.utilities import data_to_html
 
         return data_to_html(self.to_dict())
+    
+    def select(self, list_of_keys: List[str]) -> "Scenario":
+        """Select a subset of keys from a scenario.
+
+        :param list_of_keys: The keys to select.
+
+        Example:
+
+        >>> s = Scenario({"food": "wood chips", "drink": "water"})
+        >>> s.select(["food"])
+        Scenario({'food': 'wood chips'})
+        """
+        new_scenario = Scenario()
+        for key in list_of_keys:
+            new_scenario[key] = self[key]
+        return new_scenario
+    
+    def drop(self, list_of_keys: List[str]) -> "Scenario":
+        """Drop a subset of keys from a scenario.
+
+        :param list_of_keys: The keys to drop.
+
+        Example:
+
+        >>> s = Scenario({"food": "wood chips", "drink": "water"})
+        >>> s.drop(["food"])
+        Scenario({'drink': 'water'})
+        """
+        new_scenario = Scenario()
+        for key in self.keys():
+            if key not in list_of_keys:
+                new_scenario[key] = self[key]
+        return new_scenario
 
     @classmethod
     def from_image(cls, image_path: str) -> str:

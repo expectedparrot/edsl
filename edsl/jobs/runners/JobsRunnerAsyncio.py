@@ -177,6 +177,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         stop_on_exception: bool = False,
         progress_bar: bool = False,
         sidecar_model: Optional[LanguageModel] = None,
+        print_exceptions: bool = True,
     ) -> "Coroutine":
         """Runs a collection of interviews, handling both async and sync contexts."""
         console = Console()
@@ -261,15 +262,15 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             results.failed_jobs = Jobs.from_interviews(
                 [interview for interview in failed_interviews]
             )
+            if print_exceptions:
+                msg = f"Exceptions were raised in {len(results.task_history.indices)} out of {len(self.total_interviews)} interviews.\n"
 
-            msg = f"Exceptions were raised in {len(results.task_history.indices)} out of {len(self.total_interviews)} interviews.\n"
+                if len(results.task_history.indices) > 5:
+                    msg += f"Exceptions were raised in the following interviews: {results.task_history.indices}.\n"
 
-            if len(results.task_history.indices) > 5:
-                msg += f"Exceptions were raised in the following interviews: {results.task_history.indices}.\n"
-
-            shared_globals["edsl_runner_exceptions"] = task_history
-            print(msg)
-            task_history.html(cta="Open report to see details.")
-            print("Also see: https://docs.expectedparrot.com/en/latest/exceptions.html")
+                shared_globals["edsl_runner_exceptions"] = task_history
+                print(msg)
+                task_history.html(cta="Open report to see details.")
+                print("Also see: https://docs.expectedparrot.com/en/latest/exceptions.html")
 
         return results
