@@ -30,10 +30,13 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         """Initialize the ScenarioList class."""
         if data is not None:
             super().__init__(data)
+        else:
+            super().__init__([])
 
     def __repr__(self):
         return f"ScenarioList({self.data})"
     
+
     def __mul__(self, other: ScenarioList) -> ScenarioList:
         """Return a ScenarioList with the scenarios repeated n times."""
         from itertools import product
@@ -172,6 +175,32 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
             raise Exception(f"Error in filter. Exception:{e}")
 
         return ScenarioList(new_data)
+    
+    def select(self, *fields) -> ScenarioList:
+        """Selects scenarios with only the references fields.
+        
+        >>> s = ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
+        >>> s.select('a')
+        ScenarioList([Scenario({'a': 1}), Scenario({'a': 1})])
+        
+        """
+
+        if len(fields) == 1:
+            fields_to_select = [list(fields)[0]]
+        else:
+            fields_to_select = list(fields)
+
+        return ScenarioList([scenario.select(fields_to_select) for scenario in self.data])
+    
+    def drop(self, *fields) -> ScenarioList:
+        """Drop fields from the scenarios.
+
+        >>> s = ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
+        >>> s.drop('a')
+        ScenarioList([Scenario({'b': 1}), Scenario({'b': 2})])
+
+        """
+        return ScenarioList([scenario.drop(fields) for scenario in self.data])
 
     @classmethod
     def from_list(cls, name, values) -> ScenarioList:
