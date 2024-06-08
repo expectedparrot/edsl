@@ -1,17 +1,18 @@
+from edsl import ScenarioList
+from edsl.questions import QuestionList, QuestionCheckBox
+
 class ResultsToolsMixin:
     def get_themes(
-        self, field, context: str, max_values=100, num_themes: int = 10, seed=None
+        self, 
+        field: str, 
+        context: str, 
+        max_values=100, 
+        num_themes: int = 10, 
+        seed=None, 
+        progress_bar=False,
+        print_exceptions = False,
     ) -> list:
-        values = self.shuffle(seed=seed).select(field).to_list()
-        if len(values) > max_values:
-            print(
-                f"Warning: too many values ({len(values)}). Truncating to {max_values}."
-            )
-            import random
-
-            values = random.sample(values, max_values)
-        from edsl.questions import QuestionList
-        from edsl import ScenarioList
+        values = self.shuffle(seed=seed).select(field).to_list()[:max_values]
 
         q = QuestionList(
             question_text=f"""
@@ -23,14 +24,17 @@ class ResultsToolsMixin:
             question_name="themes",
         )
         s = ScenarioList.from_list(field, values)
-        results = q.by(s).run()
+        results = q.by(s).run(print_exceptions = print_exceptions, progress_bar = progress_bar)
         return results.select("themes").first()
 
     def answers_to_themes(
-        self, field, context: str, themes: list, progress_bar=False, 
+        self, 
+        field, 
+        context: str, 
+        themes: list, 
+        progress_bar=False, 
         print_exceptions = False, 
     ) -> dict:
-        from edsl import QuestionCheckBox, ScenarioList
 
         values = self.select(field).to_list()
         scenarios = ScenarioList.from_list("field", values).add_value(
@@ -64,14 +68,28 @@ class ResultsToolsMixin:
         self,
         field: str,
         context: str,
-        num_themes: int = 10,
-        seed=None,
+        themes: list[str],
+        newfield: str = None,
         progress_bar=False,
-        print_exceptions = False
-    ):
-        themes = self.get_themes(field, context, num_themes=num_themes, seed=seed)
+        print_exceptions = False, 
+    ) -> tuple:
+        """
+        :param field: The field to be themed.
+        :param context: The context of the field.
+        :param themes: The list of themes.
+        :param newfield: The new field name.
+
+        """
+
+        if not newfield:
+            newfield = f"{field}_themes"
 
         answers_to_themes = self.answers_to_themes(
-            field, context, themes, progress_bar=progress_bar, print_exceptions = print_exceptions
+            field = field, 
+            context = context, 
+            themes = themes, 
+            progress_bar=progress_bar, 
+            print_exceptions = print_exceptions
         )
-        return self.apply_themes(field, f"{field}_themes", answers_to_themes)
+        return self.apply_themes(field, newfield, answers_to_themes), themes
+

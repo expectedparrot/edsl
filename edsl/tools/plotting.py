@@ -68,3 +68,33 @@ def barchart(results, field: str,
         interpret_image(f"barchart_{field}.{format}", analysis)
     
     return plot
+
+
+def theme_plot(results, field, context, themes = None, progress_bar = False):
+    
+    _, themes = results.auto_theme(
+    field = field, 
+    context = context, 
+    themes = themes,  
+    progress_bar = progress_bar
+    )
+    
+    themes_query = f"""
+    SELECT theme, COUNT(*) AS mentions
+    FROM (
+          SELECT json_each.value AS theme 
+          FROM self, 
+          json_each({ field }_themes)
+          ) GROUP BY theme
+          ORDER BY mentions DESC
+             """
+    themes = results.sql(themes_query, to_list = True)
+    
+    (results.filter(f"{field} != ''")
+     .ggplot2("""ggplot(data = self, aes(x = theme, y = mentions)) + 
+    geom_bar(stat = "identity") + 
+    coord_flip() + 
+    theme_bw()""", 
+              sql = themes_query, 
+                   factor_orders = {'theme': [t[0] for t in themes]})
+    )
