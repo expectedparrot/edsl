@@ -344,7 +344,9 @@ To learn more about accessing, analyzing and visualizing survey results, please 
 Turning PDF pages into scenarios
 --------------------------------
 
-The `ScenarioList` method `from_pdf()` is a convenient way to extract information from large files.
+PDF pages as textual scenarios
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The `ScenarioList` method `from_pdf('<filename>')` is a convenient way to extract information from large files.
 It allows you to read in a PDF and automatically create a list of scenarios for the pages the file.
 Each scenario has the following keys: `filename`, `page`, `text`, `edsl_version` and `edsl_class_name`.
 Adding a placeholder `{{ text }}` to a question text will allow you to use the text of the PDF page as a parameter in the question.
@@ -376,10 +378,47 @@ Example usage:
     results = survey.by(scenarios).run()
 
     # This will print the text of each PDF page scenario and the answers to the question for each scenario
-    results.select("text", "answers.*").print(format="rich")
+    results.select("text", "answer.*").print(format="rich")
 
 
 See a demo notebook of this method in the notebooks section of the docs index: "Extracting information from PDFs".
+
+PDF pages as image scenarios
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The `ScenarioList` method `from_image('<filename>')` works similarly in turning pages of a PDF or Word document into image scenarios to be used with an image model (e.g., GPT-4o).
+A key difference is that we do not need to use a placeholder `{{ text }}` in the question text to use the text of the image as a parameter in the question.
+Instead we simply write the question with no parameters and add the scenarios to the survey as usual.
+
+Example usage:
+
+.. code-block:: python
+
+    s = Scenario.from_image(Scenario.example_image())
+
+
+.. code-block:: python
+
+    from edsl.questions import QuestionFreeText, QuestionList
+    from edsl import Scenario, Survey
+
+    # Create a survey of questions parameterized by the {{ text }} of the PDF pages
+    q1 = QuestionFreeText(
+        question_name = "show",
+        question_text = "What does this image show?",
+    )
+
+    q2 = QuestionList(
+        question_name = "topic",
+        question_text = "How many things can you identify in this image?",
+    )
+
+    survey = Survey([q1, q2])
+
+    scenario = Scenario.from_image("path/to/image_file.jpg")
+
+    results = survey.by(scenario).run()
+
+    results.select("answer.*").print(format="rich")
 
 
 
