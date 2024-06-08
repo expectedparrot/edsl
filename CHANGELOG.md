@@ -2,7 +2,17 @@
 
 ## [0.1.25] - 2024-TBD [In progress]
 ### Added
-- Options that we think of as "terminal", such as `sql()`, `print()`, `html()`, etc., now take a `tee` boolean that causes them to return `self`. This is useful for chaining, e.g., if you run `print(format = "rich", tee = True)` it will return `self`, which allows you do also run `print(format = "rich", tee = True).print(format = "latex", filename = "stuff.tex")`, for example.
+- `ScenarioList.sample()` allows you to take a sample from an existing scenario list
+
+- `Scenario.chunk()` allows you to split a field into chunks of a given size. Required parameters: `field` is the field to split; either (but not both of) `num_word` or `num_lines` specify the chunk size. Defaults: `include_original=False` can be set to `True` to include the original field in the new scenarios with an "_original" suffix; `hash_original=False` can be set to `True` to hash the original field in the new scenarios, e.g., if you do not want to store the original text but still want a unique identifier for it.
+
+- [In progress] `ScenarioList.from_sqlite` allows you to create a list of scenarios from a SQLite table.
+
+- [In progress] `ScenarioList` method for automatically chunking contents into a list of scenarios
+
+- [In progress] Added LaTeX support to SQL outputs and ability to write to files: `Results.print(format="latex", filename="example.tex")`
+
+- [In progress] Options that we think of as "terminal", such as `sql()`, `print()`, `html()`, etc., now take a `tee` boolean that causes them to return `self`. This is useful for chaining, e.g., if you run `print(format = "rich", tee = True)` it will return `self`, which allows you do also run `print(format = "rich", tee = True).print(format = "latex", filename = "example.tex")`.
 
 - `Scenario.from_html('<web_url>')` turns the contents of a website into a scenario.
 
@@ -10,13 +20,7 @@
 
 - `Results.drop(<columns>)` is a new method that complements `Results.select(<columns>)` for identifying the components that you want to print in a table: `Results.drop(<columns>).print(format="rich", max_rows=n)`
 
-- [In progress] `ScenarioList` method for automatically chunking contents into a list of scenarios
-
-- [In progress] Add LaTeX support to SQL outputs and ability to write to files
-
 - Allow renaming of `Results` answers
-
-- [In progress] Add sample from scenario list & a from_sqlite class method
 
 - Improvements to exceptions reports: Survey run exceptions now include the relevant job components and are optionally displayed in an html report.
 
