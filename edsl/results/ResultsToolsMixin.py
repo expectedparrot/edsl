@@ -27,7 +27,8 @@ class ResultsToolsMixin:
         return results.select("themes").first()
 
     def answers_to_themes(
-        self, field, context: str, themes: list, progress_bar=False
+        self, field, context: str, themes: list, progress_bar=False, 
+        print_exceptions = False, 
     ) -> dict:
         from edsl import QuestionCheckBox, ScenarioList
 
@@ -49,7 +50,7 @@ class ResultsToolsMixin:
             question_options=themes + ["None", "Other"],
             question_name="themes",
         )
-        results = q.by(scenarios).run(progress_bar=progress_bar)
+        results = q.by(scenarios).run(progress_bar=progress_bar, print_exceptions = print_exceptions)
         return {k: v for k, v in results.select("field", "themes").to_list()}
 
     def apply_themes(self, field: str, new_field: str, answers_to_themes: dict):
@@ -66,9 +67,11 @@ class ResultsToolsMixin:
         num_themes: int = 10,
         seed=None,
         progress_bar=False,
+        print_exceptions = False
     ):
         themes = self.get_themes(field, context, num_themes=num_themes, seed=seed)
+
         answers_to_themes = self.answers_to_themes(
-            field, context, themes, progress_bar=progress_bar
+            field, context, themes, progress_bar=progress_bar, print_exceptions = print_exceptions
         )
         return self.apply_themes(field, f"{field}_themes", answers_to_themes)

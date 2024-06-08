@@ -319,7 +319,11 @@ class QuestionBase(
         return "\n".join(lines)
 
     def html(
-        self, scenario: Optional[dict] = None, include_question_name: bool = False
+        self, scenario: Optional[dict] = None, 
+        include_question_name: bool = False, 
+        height: Optional[int] = None,
+        width: Optional[int] = None,
+        iframe = False
     ):
         """Return the question in HTML format."""
         from jinja2 import Template
@@ -354,6 +358,20 @@ class QuestionBase(
             "include_question_name": include_question_name,
         }
         rendered_html = base_template.render(**params)
+
+        if iframe:
+            import html
+            from IPython.display import display, HTML
+            height = height or 200
+            width = width or 600
+            escaped_output = html.escape(rendered_html)
+            #escaped_output = rendered_html
+            iframe = f""""
+            <iframe srcdoc="{ escaped_output }" style="width: {width}px; height: {height}px;"></iframe>
+            """
+            display(HTML(iframe))
+            return None
+
         return rendered_html
 
     def rich_print(self):
