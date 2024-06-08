@@ -6,7 +6,7 @@
 
 - `Scenario.from_html('<web_url>')` turns the contents of a website into a scenario.
 
-- `Scenario.from_image('<image_path>')` creates a scenario for an image to use with a vision model (e.g., GPT-4o).
+- `Scenario.from_image('<pdf_filename>')` creates an image scenario for a PDF or Word document to use with a vision model (e.g., GPT-4o).
 
 - `Results.drop(<columns>)` is a new method that complements `Results.select(<columns>)` for identifying the components that you want to print in a table: `Results.drop(<columns>).print(format="rich", max_rows=n)`
 
