@@ -338,6 +338,11 @@ class ResultsExportMixin:
 
         list_of_dicts = self.to_dicts(remove_prefix=remove_prefix)
         return ScenarioList([Scenario(d) for d in list_of_dicts])
+    
+    def to_agent_list(self, remove_prefix: bool = True): 
+        from edsl import AgentList, Agent
+        list_of_dicts = self.to_dicts(remove_prefix=remove_prefix)
+        return AgentList([Agent(d) for d in list_of_dicts])
 
     @_convert_decorator
     def to_dicts(self, remove_prefix: bool = True) -> list[dict]:
