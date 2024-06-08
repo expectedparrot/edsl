@@ -606,9 +606,12 @@ For more details about prompts, please see the :ref:`prompts` section.
 * **scenario.topic**: The values provided for the "topic" scenario for the questions.
 
 
-Creating tables by selecting and printing
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Each of these columns can be accessed directly by calling the `select()` method, and then printed by appending the `print()` method.
+Creating tables by selecting/dropping and printing
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Each of these columns can be accessed directly by calling the `select()` method and passing the column names.
+Alternatively, we can specify the columns to exclude by calling the `drop()` method.
+These methods can be chained together with the `print()` method to display the specified columns in a table format.
+
 For example, the following code will print a table showing the answers for `read` and `important` together with `model`, `persona` and `topic` columns
 (because the column names are unique we can drop the `model`, `agent`, `scenario` and `answer` prefixes when selecting them):
 

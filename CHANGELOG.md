@@ -4,7 +4,11 @@
 ### Added
 - Options that we think of as "terminal", such as `sql()`, `print()`, `html()`, etc., now take a `tee` boolean that causes them to return `self`. This is useful for chaining, e.g., if you run `print(format = "rich", tee = True)` it will return `self`, which allows you do also run `print(format = "rich", tee = True).print(format = "latex", filename = "stuff.tex")`, for example.
 
-- `Scenario` method `from_html()` allows you to turn the contents of a website into a scenario.
+- `Scenario.from_html('<web_url>')` turns the contents of a website into a scenario.
+
+- `Scenario.from_image('<image_path>')` creates a scenario for an image to use with a vision model (e.g., GPT-4o).
+
+- `Results.drop(<columns>)` is a new method that complements `Results.select(<columns>)` for identifying the components that you want to print in a table: `Results.drop(<columns>).print(format="rich", max_rows=n)`
 
 - [In progress] `ScenarioList` method for automatically chunking contents into a list of scenarios
 
@@ -12,19 +16,15 @@
 
 - Allow renaming of `Results` answers
 
-- Feature for turning PDF file or word document into a series of images for use w/ a vision model
+- [In progress] Add sample from scenario list & a from_sqlite class method
 
-### Changed
-- Exception report improvements
-
-- [In progerss] Add sample from scenario list & a from_sqlite class method
-
-- [In progress] Survey run exceptions are now optionally displayed in an html report.
+- Improvements to exceptions reports: Survey run exceptions now include the relevant job components and are optionally displayed in an html report.
 
 - [In progress] New prompt visibility features.
 
 - [In progress] New methods for piping responses to questions into other questions. 
 
+### Changed
 - [In progress] `QuestionMultipleChoice` is being modified allow non-responsive answers. Previously, an error was thrown if the agent did not select one of the given options. Details TBD.
 
 ### Fixed
