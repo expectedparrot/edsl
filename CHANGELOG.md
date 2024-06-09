@@ -8,8 +8,6 @@
 
 - [In progress] `ScenarioList.from_sqlite` allows you to create a list of scenarios from a SQLite table.
 
-- [In progress] `ScenarioList` method for automatically chunking contents into a list of scenarios
-
 - [In progress] Added LaTeX support to SQL outputs and ability to write to files: `Results.print(format="latex", filename="example.tex")`
 
 - [In progress] Options that we think of as "terminal", such as `sql()`, `print()`, `html()`, etc., now take a `tee` boolean that causes them to return `self`. This is useful for chaining, e.g., if you run `print(format = "rich", tee = True)` it will return `self`, which allows you do also run `print(format = "rich", tee = True).print(format = "latex", filename = "example.tex")`.
