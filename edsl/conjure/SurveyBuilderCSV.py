@@ -1,15 +1,16 @@
-from typing import Dict
+from typing import Dict, List
 
 import pandas as pd
 
 from edsl.conjure.SurveyBuilder import SurveyBuilder
 from edsl.conjure.utilities import RCodeSnippet
-
+from edsl.conjure.SurveyResponses import SurveyResponses
 
 class SurveyBuilderCSV(SurveyBuilder):
+ 
     @staticmethod
-    def get_dataframe(datafile_name):
-        return pd.read_csv(datafile_name)
+    def get_dataframe(datafile_name, skiprows=None):
+        return pd.read_csv(datafile_name, skiprows=skiprows)
 
     def get_responses(self) -> Dict:
         """Returns a dataframe of responses by reading the datafile_name.
@@ -17,18 +18,16 @@ class SurveyBuilderCSV(SurveyBuilder):
         The structure should be a dictionary, where the keys are the question codes,
         and the values are the responses.
 
-        For example, {"Q1": [1, 2, 3], "Q2": [4, 5, 6]}
-
         >>> sb = SurveyBuilderCSV.example()
         >>> sb.get_responses()
         {'q1': ['1', '4'], 'q2': ['2', '5'], 'q3': ['3', '6']}
 
         """
-        df = self.get_dataframe(self.datafile_name)
+        df = self.get_dataframe(self.datafile_name, skiprows = self.skiprows)
         df.fillna("", inplace=True)
         df = df.astype(str)
-        data_dict = df.to_dict(orient="list")
-        return {k.lower(): v for k, v in data_dict.items()}
+        data = {k.lower(): v for k, v in df.to_dict(orient="list").items()}
+        return SurveyResponses(data)
 
     def get_question_name_to_text(self) -> Dict:
         """

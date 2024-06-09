@@ -11,9 +11,9 @@ from edsl.surveys.Survey import Survey
 from edsl.conjure.RawResponseColumn import (
     RawResponseColumn,
     get_replacement_name,
-    CustomDict,
 )
-
+from edsl.conjure.SurveyResponses import SurveyResponses
+from edsl.conjure.DictWithIdentifierKeys import DictWithIdentifierKeys
 
 class ValidFilename:
     def __set_name__(self, owner, name):
@@ -39,14 +39,13 @@ class SurveyBuilder(ABC, UserDict):
 
     datafile_name = ValidFilename()
 
-    def lookup_dict(self):
-        return get_replacement_name.lookup_dict
-
     def __init__(
         self,
         datafile_name: str,
         sample_size: Optional[int] = None,
         compute_results: bool = True,
+        skiprows: Optional[int] = None,
+        verbose: bool = False,
     ):
         """Initialize the SurveyBuilder with the given datafile_name.
 
@@ -67,11 +66,16 @@ class SurveyBuilder(ABC, UserDict):
         """
         self.datafile_name = datafile_name
         self.sample_size = sample_size
-        self.responses = CustomDict(self.get_responses())
+        self.skiprows = skiprows
+        self.verbose = verbose
 
-        self.question_name_to_text = CustomDict(self.get_question_name_to_text())
 
-        self.question_name_to_answer_book = CustomDict(
+        raw_responses: SurveyResponses = self.get_responses()
+        self.responses = DictWithIdentifierKeys(raw_responses)
+
+        self.question_name_to_text = DictWithIdentifierKeys(self.get_question_name_to_text())
+
+        self.question_name_to_answer_book = DictWithIdentifierKeys(
             self.get_question_name_to_answer_book()
         )
         self.compute_results = compute_results
@@ -87,6 +91,9 @@ class SurveyBuilder(ABC, UserDict):
             data[question_name] = raw_question_response
 
         super().__init__(data)
+
+    def lookup_dict(self):
+        return get_replacement_name.lookup_dict
 
     def process(self) -> None:
         self.survey, self.survey_failures = self.create_survey()
