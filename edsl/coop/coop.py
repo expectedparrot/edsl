@@ -409,9 +409,9 @@ class Coop:
         if email:
             data = {"json_string": json.dumps({"survey": survey, "email": email})}
         else:
-            data = {"json_string": json.dumps({"survey": survey, "email": email})}
+            data = {"json_string": json.dumps({"survey": survey, "email": ""})}
 
-        response_json = requests.post(url, data=json.dumps(data))
+        response_json = requests.post(url, headers=self.headers, data=json.dumps(data))
 
         return response_json
 
