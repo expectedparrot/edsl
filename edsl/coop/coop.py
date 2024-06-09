@@ -420,7 +420,6 @@ class Coop:
 
 if __name__ == "__main__":
     from edsl.coop import Coop
-    import uuid
 
     # init
     API_KEY = "b"
