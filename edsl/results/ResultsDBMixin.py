@@ -119,7 +119,7 @@ class ResultsDBMixin:
         transpose_by: str = None,
         csv: bool = False,
         to_list=False,
-        to_latex = False, 
+        to_latex=False,
         filename: Optional[str] = None,
     ) -> Union[pd.DataFrame, str]:
         """Execute a SQL query and return the results as a DataFrame.
@@ -170,21 +170,20 @@ class ResultsDBMixin:
 
         if csv and to_list:
             raise Exception("Cannot return both CSV and list")
-        
+
         if to_list:
             return df.values.tolist()
-        
-        if to_latex:
 
-            df.columns = [col.replace('_', ' ') for col in df.columns]
+        if to_latex:
+            df.columns = [col.replace("_", " ") for col in df.columns]
 
             latex_output = df.to_latex(index=False)
             if filename:
-                with open(filename, 'w') as f:
+                with open(filename, "w") as f:
                     f.write(latex_output)
                 return None
             return latex_output
-        
+
         if csv:
             if filename:
                 df.to_csv(filename, index=False)
@@ -194,7 +193,6 @@ class ResultsDBMixin:
 
         return df
 
-        
     def show_schema(
         self, shape: Literal["wide", "long"], remove_prefix: bool = False
     ) -> None:

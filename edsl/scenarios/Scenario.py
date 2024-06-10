@@ -127,7 +127,7 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         from edsl.utilities.utilities import data_to_html
 
         return data_to_html(self.to_dict())
-    
+
     def select(self, list_of_keys: List[str]) -> "Scenario":
         """Select a subset of keys from a scenario.
 
@@ -143,7 +143,7 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         for key in list_of_keys:
             new_scenario[key] = self[key]
         return new_scenario
-    
+
     def drop(self, list_of_keys: List[str]) -> "Scenario":
         """Drop a subset of keys from a scenario.
 
@@ -264,7 +264,7 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         If you specify `include_original=True`, the original field will be included in the new scenarios with an "_original" suffix.
 
         Either `num_words` or `num_lines` must be specified, but not both.
-        
+
         The `hash_original` parameter is useful if you do not want to store the original text, but still want a unique identifier for it.
 
         Example:
