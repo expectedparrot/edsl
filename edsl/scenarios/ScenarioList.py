@@ -179,11 +179,8 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
     def select(self, *fields) -> ScenarioList:
         """Selects scenarios with only the references fields.
 
-<<<<<<< HEAD
         Example usage:
-        
-=======
->>>>>>> aba9cb72f80063ba15bda221c41b4d9a99095572
+
         >>> s = ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
         >>> s.select('a')
         ScenarioList([Scenario({'a': 1}), Scenario({'a': 1})])
