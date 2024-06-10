@@ -59,7 +59,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
     def tally(self, field) -> dict:
         """Return a tally of the values in the field.
 
-        Example usage:
+        Example:
 
         >>> s = ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
         >>> s.tally('b')
@@ -79,7 +79,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
     def expand(self, expand_field: str) -> ScenarioList:
         """Expand the ScenarioList by a field.
 
-        Example usage:
+        Example:
 
         >>> s = ScenarioList( [ Scenario({'a':1, 'b':[1,2]}) ] )
         >>> s.expand('b')
@@ -100,7 +100,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         """
         Return a new ScenarioList with a new variable added.
 
-        Example usage:
+        Example:
 
         >>> s = ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
         >>> s.mutate("c = a + b")
@@ -138,7 +138,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
     def order_by(self, field: str, reverse: bool = False) -> ScenarioList:
         """Order the scenarios by a field.
 
-        Example usage:
+        Example:
 
         >>> s = ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
         >>> s.order_by('b')
@@ -150,7 +150,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         """
         Filter a list of scenarios based on an expression.
 
-        Example usage:
+        Example:
 
         >>> s = ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
         >>> s.filter("b == 2")
@@ -180,7 +180,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         """
         Selects scenarios with only the references fields.
 
-        Example usage:
+        Example:
 
         >>> s = ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
         >>> s.select('a')
@@ -198,7 +198,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
     def drop(self, *fields) -> ScenarioList:
         """Drop fields from the scenarios.
 
-        Example usage:
+        Example:
 
         >>> s = ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
         >>> s.drop('a')
@@ -210,7 +210,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
     def from_list(cls, name, values) -> ScenarioList:
         """Create a ScenarioList from a list of values.
 
-        Example usage:
+        Example:
 
         >>> ScenarioList.from_list('name', ['Alice', 'Bob'])
         ScenarioList([Scenario({'name': 'Alice'}), Scenario({'name': 'Bob'})])
@@ -220,7 +220,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
     def add_list(self, name, values) -> ScenarioList:
         """Add a list of values to a ScenarioList.
 
-        Example usage:
+        Example:
 
         >>> s = ScenarioList([Scenario({'name': 'Alice'}), Scenario({'name': 'Bob'})])
         >>> s.add_list('age', [30, 25])
@@ -233,7 +233,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
     def add_value(self, name, value):
         """Add a value to all scenarios in a ScenarioList.
 
-        Example usage:
+        Example:
 
         >>> s = ScenarioList([Scenario({'name': 'Alice'}), Scenario({'name': 'Bob'})])
         >>> s.add_value('age', 30)
@@ -265,7 +265,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
     def from_pandas(cls, df) -> ScenarioList:
         """Create a ScenarioList from a pandas DataFrame.
 
-        Example usage:
+        Example:
 
         >>> import pandas as pd
         >>> df = pd.DataFrame({'name': ['Alice', 'Bob'], 'age': [30, 25], 'location': ['New York', 'Los Angeles']})
@@ -278,7 +278,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
     def from_csv(cls, filename: str) -> ScenarioList:
         """Create a ScenarioList from a CSV file.
 
-        Example usage:
+        Example:
 
         >>> import tempfile
         >>> import os
@@ -305,7 +305,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
     def to_dict(self) -> dict[str, Any]:
         """Return the `ScenarioList` as a dictionary.
 
-        Example usage:
+        Example:
 
         >>> s = ScenarioList([Scenario({'food': 'wood chips'}), Scenario({'food': 'wood-fired pizza'})])
         >>> s.to_dict()
@@ -404,7 +404,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
     def to_agent_list(self):
         """Convert the ScenarioList to an AgentList.
 
-        Example usage:
+        Example:
 
         >>> s = ScenarioList([Scenario({'age': 22, 'hair': 'brown', 'height': 5.5}), Scenario({'age': 22, 'hair': 'brown', 'height': 5.5})])
         >>> s.to_agent_list()
@@ -425,7 +425,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
     ) -> "ScenarioList":
         """Chunk the scenarios based on a field.
 
-        Example usage:
+        Example:
 
         >>> s = ScenarioList([Scenario({'text': 'The quick brown fox jumps over the lazy dog.'})])
         >>> s.chunk('text', num_words=3)
