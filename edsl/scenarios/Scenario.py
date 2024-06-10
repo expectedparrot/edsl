@@ -267,8 +267,6 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         
         The `hash_original` parameter is useful if you do not want to store the original text, but still want a unique identifier for it.
 
-        TODO: Add more chunking options, like splitting by words or lines
-
         Example:
 
         >>> s = Scenario({"text": "This is a test.\\nThis is a test.\\n\\nThis is a test."})
