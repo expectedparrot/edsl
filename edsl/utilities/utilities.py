@@ -19,10 +19,11 @@ from pygments.lexers import JsonLexer
 from pygments.formatters import HtmlFormatter
 from IPython.display import HTML
 
+
 def clean_json(bad_json_str):
     """
     Clean JSON string by replacing single quotes with double quotes
-        
+
     """
     replacements = [
         ("\\", "\\\\"),

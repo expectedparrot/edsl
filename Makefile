@@ -45,6 +45,12 @@ clean-test: ## Clean test files
 	[ ! -d tests/temp_outputs ] || rm -rf tests/temp_outputs
 	[ ! -f tests/edsl_cache_test.db ] || rm tests/edsl_cache_test.db
 	[ ! -f tests/interview.log ] || rm tests/interview.log
+	@for file in *.html; do \
+		[ ! -f "$$file" ] || rm "$$file"; \
+	done
+	@for file in *.jsonl; do \
+		[ ! -f "$$file" ] || rm "$$file"; \
+	done
 
 clean-all: ## Clean everything (including the venv)
 	@if [ -n "$$VIRTUAL_ENV" ]; then \
