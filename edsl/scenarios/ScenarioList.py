@@ -35,11 +35,11 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
 
     def __repr__(self):
         return f"ScenarioList({self.data})"
-    
 
     def __mul__(self, other: ScenarioList) -> ScenarioList:
         """Return a ScenarioList with the scenarios repeated n times."""
         from itertools import product
+
         new_sl = []
         for s1, s2 in list(product(self, other)):
             new_sl.append(s1 + s2)
@@ -66,15 +66,15 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         {1: 1, 2: 1}
         """
         return dict(Counter([scenario[field] for scenario in self]))
-    
-    def sample(self, n: int, seed = "edsl") -> ScenarioList:
+
+    def sample(self, n: int, seed="edsl") -> ScenarioList:
         """Return a random sample from the ScenarioList"""
         import random
+
         if seed != "edsl":
             random.seed(seed)
 
         return ScenarioList(random.sample(self.data, n))
-
 
     def expand(self, expand_field: str) -> ScenarioList:
         """Expand the ScenarioList by a field.
@@ -156,6 +156,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         >>> s.filter("b == 2")
         ScenarioList([Scenario({'a': 1, 'b': 2})])
         """
+
         def create_evaluator(scenario: Scenario):
             """Create an evaluator for the given result.
             The 'combined_dict' is a mapping of all values for that Result object.
@@ -174,12 +175,15 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
             raise Exception(f"Error in filter. Exception:{e}")
 
         return ScenarioList(new_data)
-    
+
     def select(self, *fields) -> ScenarioList:
         """Selects scenarios with only the references fields.
 
+<<<<<<< HEAD
         Example usage:
         
+=======
+>>>>>>> aba9cb72f80063ba15bda221c41b4d9a99095572
         >>> s = ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
         >>> s.select('a')
         ScenarioList([Scenario({'a': 1}), Scenario({'a': 1})])
@@ -189,8 +193,10 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         else:
             fields_to_select = list(fields)
 
-        return ScenarioList([scenario.select(fields_to_select) for scenario in self.data])
-    
+        return ScenarioList(
+            [scenario.select(fields_to_select) for scenario in self.data]
+        )
+
     def drop(self, *fields) -> ScenarioList:
         """Drop fields from the scenarios.
 
@@ -238,18 +244,18 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         for scenario in self:
             scenario[name] = value
         return self
-    
+
     def rename(self, replacement_dict: dict) -> ScenarioList:
         new_list = ScenarioList([])
         for obj in self:
             new_obj = obj.rename(replacement_dict)
             new_list.append(new_obj)
-        return new_list 
-
+        return new_list
 
     @classmethod
     def from_sqlite(cls, filepath: str, table: str):
         import sqlite3
+
         with sqlite3.connect(filepath) as conn:
             cursor = conn.cursor()
             cursor.execute(f"SELECT * FROM {table}")
@@ -388,7 +394,6 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         # elif format == "markdown":
         #     print_list_of_dicts_as_markdown_table(new_data, filename=filename)
 
-
     def __getitem__(self, key: Union[int, slice]) -> Any:
         """Return the item at the given index."""
         if isinstance(key, slice):
@@ -442,7 +447,6 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
 
 
 if __name__ == "__main__":
-
     import doctest
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)
