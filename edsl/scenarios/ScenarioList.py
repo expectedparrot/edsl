@@ -62,13 +62,11 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         >>> s = ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
         >>> s.tally('b')
         {1: 1, 2: 1}
-
         """
         return dict(Counter([scenario[field] for scenario in self]))
     
     def sample(self, n: int, seed = "edsl") -> ScenarioList:
         """Return a random sample from the ScenarioList"""
-
         import random
         if seed != "edsl":
             random.seed(seed)
@@ -84,9 +82,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         >>> s = ScenarioList( [ Scenario({'a':1, 'b':[1,2]}) ] )
         >>> s.expand('b')
         ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
-
         """
-
         new_scenarios = []
         for scenario in self:
             values = scenario[expand_field]
@@ -107,7 +103,6 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         >>> s = ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
         >>> s.mutate("c = a + b")
         ScenarioList([Scenario({'a': 1, 'b': 2, 'c': 3}), Scenario({'a': 1, 'b': 1, 'c': 2})])
-
         """
         if "=" not in new_var_string:
             raise Exception(
@@ -144,7 +139,6 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         >>> s = ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
         >>> s.order_by('b')
         ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
-
         """
         return ScenarioList(sorted(self, key=lambda x: x[field], reverse=reverse))
 
@@ -156,7 +150,6 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         >>> s.filter("b == 2")
         ScenarioList([Scenario({'a': 1, 'b': 2})])
         """
-
         def create_evaluator(scenario: Scenario):
             """Create an evaluator for the given result.
             The 'combined_dict' is a mapping of all values for that Result object.
@@ -182,9 +175,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         >>> s = ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
         >>> s.select('a')
         ScenarioList([Scenario({'a': 1}), Scenario({'a': 1})])
-        
         """
-
         if len(fields) == 1:
             fields_to_select = [list(fields)[0]]
         else:
@@ -198,7 +189,6 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         >>> s = ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
         >>> s.drop('a')
         ScenarioList([Scenario({'b': 1}), Scenario({'b': 2})])
-
         """
         return ScenarioList([scenario.drop(fields) for scenario in self.data])
 
@@ -259,7 +249,6 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         >>> df = pd.DataFrame({'name': ['Alice', 'Bob'], 'age': [30, 25], 'location': ['New York', 'Los Angeles']})
         >>> ScenarioList.from_pandas(df)
         ScenarioList([Scenario({'name': 'Alice', 'age': 30, 'location': 'New York'}), Scenario({'name': 'Bob', 'age': 25, 'location': 'Los Angeles'})])
-
         """
         return cls([Scenario(row) for row in df.to_dict(orient="records")])
 
@@ -280,7 +269,6 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         >>> scenario_list[1]['age']
         '25'
         """
-
         observations = []
         with open(filename, "r") as f:
             reader = csv.reader(f)
@@ -394,8 +382,6 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         >>> s = ScenarioList([Scenario({'age': 22, 'hair': 'brown', 'height': 5.5}), Scenario({'age': 22, 'hair': 'brown', 'height': 5.5})])
         >>> s.to_agent_list()
         AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}), Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})])
-
-
         """
         from edsl.agents.AgentList import AgentList
         from edsl.agents.Agent import Agent
@@ -415,9 +401,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         >>> s = ScenarioList([Scenario({'text': 'The quick brown fox jumps over the lazy dog.'})])
         >>> s.chunk('text', num_words=3)
         ScenarioList([Scenario({'text': 'The quick brown', 'text_chunk': 0}), Scenario({'text': 'fox jumps over', 'text_chunk': 1}), Scenario({'text': 'the lazy dog.', 'text_chunk': 2})])
-
         """
-
         new_scenarios = []
         for scenario in self:
             replacement_scenarios = scenario.chunk(
@@ -432,7 +416,6 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
 
 
 if __name__ == "__main__":
-
 
     import doctest
 
