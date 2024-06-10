@@ -46,6 +46,7 @@ from edsl.results.ResultsGGMixin import ResultsGGMixin
 from edsl.Base import Base
 from edsl.results.ResultsFetchMixin import ResultsFetchMixin
 
+
 class Mixins(
     ResultsExportMixin,
     ResultsDBMixin,
@@ -479,7 +480,7 @@ class Results(UserList, Mixins, Base):
             new_result["answer"][new_var_name] = recode_function(value)
             new_data.append(new_result)
 
-        #print("Created new variable", new_var_name)
+        # print("Created new variable", new_var_name)
         return Results(
             survey=self.survey,
             data=new_data,
@@ -538,25 +539,25 @@ class Results(UserList, Mixins, Base):
             data=new_data,
             created_columns=self.created_columns + [var_name],
         )
-    
+
     def rename(self, old_name: str, new_name: str) -> Results:
         """Rename an answer column in a Results object.
-        
+
         >>> s = Results.example()
         >>> s.rename('how_feeling', 'how_feeling_new').select('how_feeling_new')
         Dataset([{'answer.how_feeling_new': ['OK', 'Great', 'Terrible', 'OK']}])
-        
-        # TODO: Should we allow renaming of scenario fields as well? Probably. 
+
+        # TODO: Should we allow renaming of scenario fields as well? Probably.
 
         """
 
         for obs in self.data:
-            obs['answer'][new_name] = obs['answer'][old_name]
-            del obs['answer'][old_name]
-            
+            obs["answer"][new_name] = obs["answer"][old_name]
+            del obs["answer"][old_name]
+
         return self
 
-    def shuffle(self, seed: Optional[str] ="edsl") -> Results:
+    def shuffle(self, seed: Optional[str] = "edsl") -> Results:
         """Shuffle the results.
 
         Example:
@@ -577,7 +578,7 @@ class Results(UserList, Mixins, Base):
         n: int = None,
         frac: float = None,
         with_replacement: bool = True,
-        seed: Optional[str] ="edsl",
+        seed: Optional[str] = "edsl",
     ) -> Results:
         """Sample the results.
 
