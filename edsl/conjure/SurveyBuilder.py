@@ -53,8 +53,6 @@ class FileHandlerABC(ABC):
         pass
 
 
-
-
 class SurveyBuilder(UserDict, ABC):
     """A ABC class to represent the process of building a survey and results from an external format"""
 
