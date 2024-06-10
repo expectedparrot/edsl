@@ -1,7 +1,25 @@
 import subprocess
 from io import StringIO
-
+import os
 import pandas as pd
+
+class ValidFilename:
+    def __set_name__(self, owner, name):
+        self.name = name
+
+    def __get__(self, instance, owner):
+        return instance.__dict__.get(self.name, None)
+
+    def __set__(self, instance, value):
+        if not isinstance(value, str):
+            raise ValueError(
+                f"The filename must be a string, not {type(value).__name__}"
+            )
+
+        if not os.path.exists(value):
+            raise ValueError(f"The file '{value}' does not exist.")
+
+        instance.__dict__[self.name] = value
 
 
 class Missing:
