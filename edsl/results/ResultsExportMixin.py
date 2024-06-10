@@ -152,7 +152,7 @@ class ResultsExportMixin:
         interactive: bool = False,
         split_at_dot: bool = True,
         max_rows=None,
-        iframe: Optional[bool] = None, 
+        iframe: Optional[bool] = None,
     ) -> None:
         """Print the results in a pretty format.
 
@@ -230,7 +230,7 @@ class ResultsExportMixin:
                 for key in entry:
                     actual_rows = len(entry[key])
                     entry[key] = entry[key][:max_rows]
-            #print(f"Showing only the first {max_rows} rows of {actual_rows} rows.")
+            # print(f"Showing only the first {max_rows} rows of {actual_rows} rows.")
 
         if format == "rich":
             print_dataset_with_rich(
@@ -243,15 +243,16 @@ class ResultsExportMixin:
             )
             if iframe:
                 import html
+
                 height = 200
                 width = 600
                 escaped_output = html.escape(html_source)
-                #escaped_output = html_source
+                # escaped_output = html_source
                 iframe = f""""
                 <iframe srcdoc="{ escaped_output }" style="width: {width}px; height: {height}px;"></iframe>
                 """
                 display(HTML(iframe))
-            else:              
+            else:
                 display(HTML(html_source))
         elif format == "markdown":
             print_list_of_dicts_as_markdown_table(new_data, filename=filename)
@@ -338,9 +339,10 @@ class ResultsExportMixin:
 
         list_of_dicts = self.to_dicts(remove_prefix=remove_prefix)
         return ScenarioList([Scenario(d) for d in list_of_dicts])
-    
-    def to_agent_list(self, remove_prefix: bool = True): 
+
+    def to_agent_list(self, remove_prefix: bool = True):
         from edsl import AgentList, Agent
+
         list_of_dicts = self.to_dicts(remove_prefix=remove_prefix)
         return AgentList([Agent(d) for d in list_of_dicts])
 
@@ -452,7 +454,7 @@ class ResultsExportMixin:
             return filename
 
     @_convert_decorator
-    def tally(self, *fields: Optional[str], top_n = None, format = None):
+    def tally(self, *fields: Optional[str], top_n=None, format=None):
         """Tally the values of a field or perform a cross-tab of multiple fields.
 
         :param fields: The field(s) to tally, multiple fields for cross-tabulation.
@@ -492,12 +494,11 @@ class ResultsExportMixin:
         if format is not None:
             if format == "rich":
                 from edsl.utilities.interface import print_tally_with_rich
+
                 print_tally_with_rich(sorted_tally)
                 return None
 
-
         return sorted_tally
-        
 
 
 if __name__ == "__main__":

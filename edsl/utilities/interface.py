@@ -277,7 +277,9 @@ def print_scenario_list(data):
 
 
 def print_list_of_dicts_with_rich(data, filename=None, split_at_dot=True):
-    raise Exception("print_list_of_dicts_with_rich is now called print_dataset_with_rich")
+    raise Exception(
+        "print_list_of_dicts_with_rich is now called print_dataset_with_rich"
+    )
 
 
 def print_dataset_with_rich(data, filename=None, split_at_dot=True):
@@ -431,6 +433,7 @@ def print_public_methods_with_doc(obj):
         if doc:
             console.print(f"[bold]{method}:[/bold]", style="green")
             console.print(f"\t{doc.strip()}", style="yellow")
+
 
 def print_tally_with_rich(data, filename=None):
     """Print a tally of values in a list using the rich library.

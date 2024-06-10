@@ -36,25 +36,23 @@ class SurveyExportMixin:
             print("The survey has been saved to", filename)
             return
         return doc
-    
+
     def to_scenario_list(self) -> "ScenarioList":
         from edsl import ScenarioList, Scenario
+
         all_keys = set([])
         scenarios = ScenarioList()
         for q in self._questions:
             d = q.to_dict()
             all_keys.update(d.keys())
             scenarios.append(Scenario(d))
-        
+
         for scenario in scenarios:
             for key in all_keys:
                 if key not in scenario:
                     scenario[key] = None
 
         return scenarios
-
-
-
 
     def code(self, filename: str = None, survey_var_name: str = "survey") -> list[str]:
         """Create the Python code representation of a survey.

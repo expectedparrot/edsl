@@ -514,7 +514,7 @@ class Agent(Base):
 
         import inspect
 
-        #print(raw_data)
+        # print(raw_data)
         if hasattr(self, "dynamic_traits_function"):
             raw_data.pop(
                 "dynamic_traits_function", None
