@@ -65,7 +65,6 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         :param other_scenario: The other scenario to combine with.
 
         Example:
-        Here are some examples of usage.
 
         >>> s1 = Scenario({"price": 100, "quantity": 2})
         >>> s2 = Scenario({"color": "red"})
@@ -89,8 +88,7 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
 
         :param replacement_dict: A dictionary of old keys to new keys.
 
-        Examples:
-        This renames a key in a scenario.
+        Example:
 
         >>> s = Scenario({"food": "wood chips"})
         >>> s.rename({"food": "food_preference"})
@@ -107,6 +105,8 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
     @add_edsl_version
     def to_dict(self) -> dict:
         """Convert a scenario to a dictionary.
+
+        Example:
 
         >>> s = Scenario({"food": "wood chips"})
         >>> s.to_dict()
@@ -165,6 +165,8 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
     def from_image(cls, image_path: str) -> str:
         """Creates a scenario with a base64 encoding of an image.
 
+        Example:
+
         >>> s = Scenario.from_image(Scenario.example_image())
         >>> s
         Scenario({'file_path': '...', 'encoded_image': '...'})
@@ -186,6 +188,9 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         """Creates a scenario from the text of a docx file.
 
         :param docx_path: The path to the docx file.
+
+        Example: 
+
         >>> from docx import Document
         >>> doc = Document()
         >>> _ = doc.add_heading("EDSL Survey")
@@ -233,8 +238,7 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         :param text: The text to split.
         :param num_words: The number of words in each chunk.
 
-        Examples:
-        This splits a text into chunks.
+        Example:
 
         >>> list(Scenario._word_chunks("This is a test.", 2))
         ['This is', 'a test.']
@@ -259,7 +263,6 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         :param num_lines: The number of lines in each chunk.
         :param include_original: Whether to include the original field in the new scenarios.
         :param hash_original: Whether to hash the original field in the new scenarios.
-
 
         If you specify `include_original=True`, the original field will be included in the new scenarios with an "_original" suffix.
 
@@ -330,6 +333,8 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
     def from_dict(cls, d: dict) -> "Scenario":
         """Convert a dictionary to a scenario.
 
+        Example:
+
         >>> Scenario.from_dict({"food": "wood chips"})
         Scenario({'food': 'wood chips'})
         """
@@ -359,6 +364,8 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
     @classmethod
     def example(cls) -> "Scenario":
         """Return an example scenario.
+
+        Example:
 
         >>> Scenario.example()
         Scenario({'persona': 'A reseacher studying whether LLMs can be used to generate surveys.'})
