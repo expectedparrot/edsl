@@ -169,7 +169,6 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         >>> s
         Scenario({'file_path': '...', 'encoded_image': '...'})
         """
-
         with open(image_path, "rb") as image_file:
             s = cls(
                 {
@@ -196,9 +195,7 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         >>> s
         Scenario({'file_path': 'test.docx', 'text': 'EDSL Survey\\nThis is a test.'})
         >>> import os; os.remove("test.docx")
-
         """
-
         from docx import Document
 
         doc = Document(docx_path)
@@ -264,12 +261,11 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         :param hash_original: Whether to hash the original field in the new scenarios.
 
 
-        If you specify include_original, the original field will be included in the new scenarios with an "_original" suffix.
+        If you specify `include_original=True`, the original field will be included in the new scenarios with an "_original" suffix.
 
-        Either num_words or num_lines must be specified, but not both.
-        The hash_original is useful if you do not want to store the original text, but still want a unique identifier for it.
-
-        TODO: Add more chunking options, like splitting by words or lines
+        Either `num_words` or `num_lines` must be specified, but not both.
+        
+        The `hash_original` parameter is useful if you do not want to store the original text, but still want a unique identifier for it.
 
         Example:
 
