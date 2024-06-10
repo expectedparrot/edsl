@@ -39,11 +39,12 @@ class SurveyBuilderCSV(SurveyBuilder):
 
         """
         d = {}
-        df = self.get_dataframe(self.datafile_name)
+        df = self.get_dataframe(self.datafile_name, skiprows = self.skiprows)
         for col in df.columns:
-            if col in self.lookup_dict():
-                d[col] = self.lookup_dict()[col]
+            if col in self.replacement_finder:
+                d[col] = self.replacement_finder[col]
             else:
+                raise ValueError(f"Question name {col} not found in replacement finder.")
                 d[col] = col
 
         return d

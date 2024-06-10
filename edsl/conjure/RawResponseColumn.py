@@ -10,7 +10,7 @@ from edsl.conjure.utilities import convert_value, Missing
 from edsl.conjure.ReplacementFinder import ReplacementFinder
 from edsl.conjure.DictWithIdentifierKeys import DictWithIdentifierKeys
 
-get_replacement_name = ReplacementFinder({})
+#get_replacement_name = ReplacementFinder({})
 
 
 class RawResponseColumn:
@@ -44,7 +44,7 @@ class RawResponseColumn:
         'multiple_choice'
 
         """
-        d = CustomDict(
+        d = DictWithIdentifierKeys(
             {question_name: ""}
         )  # if the question_name is not a valid Python identifier, it will be replaced with a valid Python identifier.
         self.question_name = list(d.keys())[0]
@@ -135,7 +135,11 @@ class RawResponseColumn:
             question_name="ordering",
         )
 
-        return q.to_survey()(options_list=options_list).select("ordering").first()
+        proposed_ordering = q.to_survey()(options_list=options_list).select("ordering").first()
+        if proposed_ordering is None:
+            return options_list
+        
+        return proposed_ordering
 
     def to_question(self) -> QuestionBase:
         """Returns a Question object."""
@@ -153,7 +157,7 @@ class RawResponseColumn:
 
         >>> r = RawResponseColumn(question_name="Q1", raw_responses=["1", "2", "3"], answer_codebook={"1": "Yes", "2": "No"}, question_text="Do you like ice cream?")
         >>> r.unique_responses
-        {'Yes', 'No', '3'}
+        defaultdict(<class 'int'>, {'Yes': 1, 'No': 1, '3': 1})
         """
         from collections import defaultdict
 
