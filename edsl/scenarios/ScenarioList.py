@@ -177,7 +177,8 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         return ScenarioList(new_data)
 
     def select(self, *fields) -> ScenarioList:
-        """Selects scenarios with only the references fields.
+        """
+        Selects scenarios with only the references fields.
 
         Example usage:
 
@@ -423,7 +424,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         hash_original=False,
     ) -> "ScenarioList":
         """Chunk the scenarios based on a field.
-        
+
         Example usage:
 
         >>> s = ScenarioList([Scenario({'text': 'The quick brown fox jumps over the lazy dog.'})])
