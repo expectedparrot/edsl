@@ -132,7 +132,7 @@ test: ## Run regular tests (no Coop tests)
 	make clean-test
 	pytest -xv tests --nocoop
 
-test-coop: ## Run coop tests (no regular tests, requires coop server running)
+test-coop: ## Run Coop tests (no regular tests, requires Coop local server running)
 	make clean-test
 	pytest -xv tests --coop
 
@@ -150,7 +150,6 @@ test-data: ## Creates serialization test data for the current EDSL version
 
 test-doctests: ## Run doctests
 	make clean-test
-	## pytest --doctest-modules edsl/prompts  ## registry makes this fail at the moment
 	pytest --doctest-modules edsl/inference_services
 	pytest --doctest-modules edsl/results
 	pytest --doctest-modules edsl/jobs
@@ -162,36 +161,14 @@ test-doctests: ## Run doctests
 	pytest --doctest-modules edsl/language_models
 	pytest --doctest-modules edsl/data
 
-update-serialization-dataset:
-	python tests/serialization/create_data.py
-
-integration: ## Run integration tests via pytest **consumes API credits**
-	## pytest -v -s integration/
-	make integration-memory
-	make integration-jobs
-	make integration-runners
-	make integration-questions
-	make integration-models
-	make integration-visuals
-	make integration-notebooks
-
-integration-notebooks: ## Run integration tests via pytest **consumes API credits**
+test-integration: ## Run integration tests via pytest **consumes API credits**
+	cd integration/printing && python check_printing.py
 	pytest -v integration/test_example_notebooks.py
-
-integration-memory: ## Run integration tests via pytest **consumes API credits**
-	pytest -v integration/test_memory.py
-
-integration-jobs: ## Run integration tests via pytest **consumes API credits**
 	pytest -v integration/test_integration_jobs.py
-
-integration-runners: ## Run integration tests via pytest **consumes API credits**
-	pytest -v integration/test_runners.py
-
-integration-questions: 
-	pytest -v integration/test_questions.py
-
-integration-models: 
+	pytest -v integration/test_memory.py
 	pytest -v integration/test_models.py
+	pytest -v integration/test_questions.py
+	pytest -v integration/test_runners.py
 
 integration-job-running:
 	pytest -v --log-cli-level=INFO integration/test_job_running.py
@@ -199,11 +176,9 @@ integration-job-running:
 integration-tricky-questions:
 	pytest -v --log-cli-level=INFO integration/test_tricky_questions.py
 
-integration-visuals:
-	cd integration/printing && python check_printing.py
-
-	#pytest --log-cli-level=INFO tests/test_JobRunning.p
-
+###############
+##@COOP 🪺
+###############
 env-chick:
 	@echo "Setting up the environment"
 	cp .env_chick .env
