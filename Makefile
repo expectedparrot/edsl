@@ -117,7 +117,7 @@ format: ## Run code autoformatters (black).
 lint: ## Run code linters (flake8, pylint, mypy).
 	mypy edsl
 
-visualize: ## Visualizes the repo structure
+visualize: ## Visualize the repo structure
 	python scripts/visualize_structure.py
 	@UNAME=`uname`; if [ "$$UNAME" = "Darwin" ]; then \
 		open .temp/visualize_structure/index.html; \
@@ -145,7 +145,7 @@ test-coverage: ## Run regular tests and get a coverage report
 		firefox htmlcov/index.html; \
 	fi
 
-test-data: ## Creates serialization test data for the current EDSL version
+test-data: ## Create serialization test data for the current EDSL version
 	python scripts/create_serialization_test_data.py
 
 test-doctests: ## Run doctests
@@ -170,19 +170,19 @@ test-integration: ## Run integration tests via pytest **consumes API credits**
 	pytest -v integration/test_questions.py
 	pytest -v integration/test_runners.py
 
-integration-job-running:
+integration-job-running: # DOES NOT WORK!
 	pytest -v --log-cli-level=INFO integration/test_job_running.py
 
-integration-tricky-questions:
+integration-tricky-questions: # DOES NOT WORK!
 	pytest -v --log-cli-level=INFO integration/test_tricky_questions.py
 
-###############
-##@COOP 🪺
-###############
-env-chick:
-	@echo "Setting up the environment"
-	cp .env_chick .env
+# ###############
+# ##@COOP 🪺
+# ###############
+# env-chick:
+# 	@echo "Setting up the environment"
+# 	cp .env_chick .env
 
-env-local-coop: 
-	@echo "Setting up the environment"
-	cp .env_local_coop .env
+# env-local-coop: 
+# 	@echo "Setting up the environment"
+# 	cp .env_local_coop .env
