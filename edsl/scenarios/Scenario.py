@@ -189,7 +189,7 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
 
         :param docx_path: The path to the docx file.
 
-        Example: 
+        Example:
 
         >>> from docx import Document
         >>> doc = Document()
