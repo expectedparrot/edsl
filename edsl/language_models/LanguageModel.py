@@ -432,10 +432,8 @@ class LanguageModel(
 
         try:
             dict_response = json.loads(response)
-            # breakpoint()
         except json.JSONDecodeError as e:
             # TODO: Turn into logs to generate issues
-            breakpoint()
             dict_response, success = await repair(response, str(e))
             if not success:
                 raise Exception(
