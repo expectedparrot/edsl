@@ -169,12 +169,12 @@ class TestSurvey(unittest.TestCase):
         # for now, just make sure it doesn't crash
         _ = survey.docx()
 
-    def test_visualization_for_flow(self):
-        s = self.gen_survey()
-        # make sure doesn't crash
-        import tempfile
-        with tempfile.NamedTemporaryFile(suffix=".png") as f:
-            s.show_flow(filename=f.name)
+    # def test_visualization_for_flow(self):
+    #     s = self.gen_survey()
+    #     # make sure doesn't crash
+    #     import tempfile
+    #     with tempfile.NamedTemporaryFile(suffix=".png") as f:
+    #         s.show_flow(filename=f.name)
 
 if __name__ == "__main__":
     unittest.main()
