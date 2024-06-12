@@ -80,3 +80,36 @@ class RCodeSnippet:
             print(f"Problem running: {r_code}")
             raise Exception(stderr)
         return transform_func(StringIO(stdout))
+
+
+def infer_question_type(question_text, responses, sample_size=15):
+    from edsl.questions import QuestionMultipleChoice
+
+    q = QuestionMultipleChoice(
+        question_text="""We have a survey question and we are trying to infer its type.
+                        The question text is: '{{question_text}}'.                                   
+                        The first {{ sample_size }} responses are: '{{responses}}'.
+                        There are {{ total }} responses in total.
+                        """,
+        question_name="infer_question_type",
+        question_options=[
+            "budget",
+            "checkbox",
+            "extract",
+            "free_text",
+            "likert_five",
+            "linear_scale",
+            "list",
+            "multiple_choice",
+            "numerical",
+            "rank",
+            "top_k",
+            "yes_no",
+        ],
+    )
+    response = (
+        q.to_survey()(question_text=question_text, sample_zize = sample_size, responses=responses[:sample_size])
+        .select("infer_question_type")
+        .first()
+    )
+    return response

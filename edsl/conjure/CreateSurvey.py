@@ -1,10 +1,11 @@
 from typing import Dict, List
 from edsl.surveys.Survey import Survey
+from edsl.conjure.InputData import InputData
 
 class CreateSurvey:
 
-    def __init__(self, responses: Dict[str, List[str]]):
-        self.responses = responses
+    def __init__(self, input_data: InputData):
+        self.input_data = input_data
 
     def __call__(self):
         "Iterates through the question keys and creates a survey."

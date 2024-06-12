@@ -23,16 +23,14 @@ class RawResponseColumn:
     def __init__(
         self,
         question_name: str,
-        raw_responses: List[str],
-        answer_codebook: Dict[str, str],
         question_text: str,
+        responses: List[str],
     ):
         """
         :param question_name: The name of the question.
-        :param raw_responses: A list of responses to the question.
-        :param answer_codebook: A dictionary mapping the raw responses to the actual responses.
         :param question_text: The text of the question.
-
+        :param responses: A list of responses to the question.
+ 
         >>> r = RawResponseColumn(question_name="Q1", raw_responses=["1", "2", "3"], answer_codebook={"1": "Yes", "2": "No"}, question_text="Do you like ice cream?")
         >>> r.responses
         ['Yes', 'No', '3']
