@@ -153,11 +153,8 @@ class ResultsExportMixin:
         interactive: bool = False,
         split_at_dot: bool = True,
         max_rows=None,
-<<<<<<< HEAD
-        iframe: Optional[bool] = None,
-=======
-        tee = False
->>>>>>> b5f5ac2 (Getting latex to work)
+        tee = False, 
+        iframe = False,
     ) -> None:
         """Print the results in a pretty format.
 
@@ -220,13 +217,7 @@ class ResultsExportMixin:
         if pretty_labels is None:
             pretty_labels = {}
 
-<<<<<<< HEAD
-        iframe = iframe or False
-
-        if format not in ["rich", "html", "markdown"]:
-=======
         if format not in ["rich", "html", "markdown", "latex"]:
->>>>>>> b5f5ac2 (Getting latex to work)
             raise ValueError("format must be one of 'rich', 'html', or 'markdown'.")
 
         new_data = []
