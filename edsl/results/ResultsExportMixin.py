@@ -16,6 +16,7 @@ from edsl.utilities.interface import (
     print_dataset_with_rich,
     print_list_of_dicts_as_html_table,
     print_list_of_dicts_as_markdown_table,
+    create_latex_table_from_data
 )
 
 
@@ -148,11 +149,12 @@ class ResultsExportMixin:
         self,
         pretty_labels: Optional[dict] = None,
         filename: Optional[str] = None,
-        format: Literal["rich", "html", "markdown"] = None,
+        format: Literal["rich", "html", "markdown", "latex"] = None,
         interactive: bool = False,
         split_at_dot: bool = True,
         max_rows=None,
-        iframe: Optional[bool] = None,
+        tee = False, 
+        iframe = False,
     ) -> None:
         """Print the results in a pretty format.
 
@@ -215,9 +217,7 @@ class ResultsExportMixin:
         if pretty_labels is None:
             pretty_labels = {}
 
-        iframe = iframe or False
-
-        if format not in ["rich", "html", "markdown"]:
+        if format not in ["rich", "html", "markdown", "latex"]:
             raise ValueError("format must be one of 'rich', 'html', or 'markdown'.")
 
         new_data = []
@@ -256,6 +256,26 @@ class ResultsExportMixin:
                 display(HTML(html_source))
         elif format == "markdown":
             print_list_of_dicts_as_markdown_table(new_data, filename=filename)
+        elif format == "latex":
+            df = self.to_pandas()
+            df.columns = [col.replace("_", " ") for col in df.columns]
+            latex_string = df.to_latex()
+            if filename is not None:
+                with open(filename, "w") as f:
+                    f.write(latex_string)
+            else:
+                return latex_string
+            #raise NotImplementedError("Latex format not yet implemented.")
+            # latex_string = create_latex_table_from_data(new_data, filename=filename)
+            # if filename is None:
+            #     return latex_string
+            # Not working quite 
+
+        else:
+            raise ValueError("format not recognized.")
+        
+        if tee:
+            return self
 
     @_convert_decorator
     def to_csv(
