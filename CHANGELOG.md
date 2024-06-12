@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.1.26] - 2024-TBD [In progress]
+## [0.1.27] - 2024-TBD [In progress]
 ### Added
 - [In progress] New prompt visibility features.
 
@@ -20,6 +20,11 @@
 ### Fixed
 ### Deprecated
 ### Removed
+
+
+## [0.1.26] - 2024-06-10
+### Fixed
+- Removed an errant break point in language models module.
 
 
 ## [0.1.25] - 2024-06-10
