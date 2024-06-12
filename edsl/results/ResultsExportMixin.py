@@ -16,7 +16,7 @@ from edsl.utilities.interface import (
     print_dataset_with_rich,
     print_list_of_dicts_as_html_table,
     print_list_of_dicts_as_markdown_table,
-    create_latex_table_from_data
+    create_latex_table_from_data,
 )
 
 
@@ -153,8 +153,8 @@ class ResultsExportMixin:
         interactive: bool = False,
         split_at_dot: bool = True,
         max_rows=None,
-        tee = False, 
-        iframe = False,
+        tee=False,
+        iframe=False,
     ) -> None:
         """Print the results in a pretty format.
 
@@ -265,15 +265,15 @@ class ResultsExportMixin:
                     f.write(latex_string)
             else:
                 return latex_string
-            #raise NotImplementedError("Latex format not yet implemented.")
+            # raise NotImplementedError("Latex format not yet implemented.")
             # latex_string = create_latex_table_from_data(new_data, filename=filename)
             # if filename is None:
             #     return latex_string
-            # Not working quite 
+            # Not working quite
 
         else:
             raise ValueError("format not recognized.")
-        
+
         if tee:
             return self
 

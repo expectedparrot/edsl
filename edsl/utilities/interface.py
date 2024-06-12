@@ -324,7 +324,6 @@ def print_dataset_with_rich(data, filename=None, split_at_dot=True):
     # display(console, table, filename)
 
 
-
 def create_latex_table_from_data(data, filename=None, split_at_dot=True):
     """
     This function takes a list of dictionaries and returns a LaTeX table as a string.
@@ -345,16 +344,16 @@ def create_latex_table_from_data(data, filename=None, split_at_dot=True):
 
     def escape_latex(s):
         replacements = [
-            ('_', r'\_'),
-            ('&', r'\&'),
-            ('%', r'\%'),
-            ('$', r'\$'),
-            ('#', r'\#'),
-            ('{', r'\{'),
-            ('}', r'\}'),
-            ('~', r'\textasciitilde{}'),
-            ('^', r'\textasciicircum{}'),
-            ('\\', r'\textbackslash{}')
+            ("_", r"\_"),
+            ("&", r"\&"),
+            ("%", r"\%"),
+            ("$", r"\$"),
+            ("#", r"\#"),
+            ("{", r"\{"),
+            ("}", r"\}"),
+            ("~", r"\textasciitilde{}"),
+            ("^", r"\textasciicircum{}"),
+            ("\\", r"\textbackslash{}"),
         ]
 
         for old, new in replacements:
@@ -390,10 +389,12 @@ def create_latex_table_from_data(data, filename=None, split_at_dot=True):
                 try:
                     row.append(escape_latex(str(d[key][i])))
                 except KeyError as e:
-                    print(f"KeyError: {e} - Key '{key}' not found in data dictionary. The keys are {list(d.keys())}")
+                    print(
+                        f"KeyError: {e} - Key '{key}' not found in data dictionary. The keys are {list(d.keys())}"
+                    )
                     raise
         latex_table.append(" & ".join(row) + " \\\\")
-    
+
     latex_table.append("\\hline")
     latex_table.append("\\end{tabular}")
 
@@ -402,7 +403,7 @@ def create_latex_table_from_data(data, filename=None, split_at_dot=True):
 
     # Write to file if filename is provided
     if filename:
-        with open(filename, 'w') as f:
+        with open(filename, "w") as f:
             f.write(latex_table_str)
             print(f"Table written to {filename}")
 
