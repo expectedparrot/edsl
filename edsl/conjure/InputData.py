@@ -18,6 +18,10 @@ class InputData(ABC):
     NUM_UNIQUE_THRESHOLD = 15
     FRAC_NUMERICAL_THRESHOLD = 0.8
     MULTIPLE_CHOICE_OTHER_THRESHOLD = 0.5
+    OTHER_STRING = "Other:"
+
+    question_attributes = ["num_responses", "num_unique_responses", "missing", "unique_responses", "frac_numerical", "top_5", "frac_obs_from_top_5"]
+    QuestionStats = namedtuple("QuestionStats", question_attributes)
 
     def __init__(self, 
                  datafile_name:str, 
@@ -26,7 +30,8 @@ class InputData(ABC):
                  question_names: Optional[List[str]] = None, 
                  question_texts: Optional[List[str]] = None, 
                  answer_codebook: Optional[Dict] = None, 
-                 question_types: Optional[List[str]] = None):
+                 question_types: Optional[List[str]] = None, 
+                 question_options: Optional[Dict] = None):
         
         self.datafile_name = datafile_name
         self.config = config
@@ -37,6 +42,7 @@ class InputData(ABC):
         self.answer_codebook = answer_codebook
         self.raw_data = raw_data
         self.question_types = question_types
+        self.question_options = question_options
 
     @abstractmethod
     def get_question_texts(self) -> Dict:
@@ -106,18 +112,16 @@ class InputData(ABC):
 
     def _question_statistics(self, question_name):
         idx = self.question_names.index(question_name)
-        attributes = ["num_responses", "num_unique_responses", "missing", "frac_numerical", "top_5", "frac_obs_from_top_5"]
-        return {attr: getattr(self, attr)[idx] for attr in attributes}
+        return {attr: getattr(self, attr)[idx] for attr in self.question_attributes}
     
-    def question_statistics(self, question_name) -> 'QuestionStats':
-        QuestionStats = namedtuple("QuestionStats", ["num_responses", "num_unique_responses", "missing", "frac_numerical", "top_5", "frac_obs_from_top_5"])
-        qt = QuestionStats(**self._question_statistics(question_name))
+    def question_statistics(self, question_name) -> 'QuestionStats':    
+        qt = self.QuestionStats(**self._question_statistics(question_name))
         return qt
     
     @property
     def question_types(self):
         return self._question_types
-    
+        
     @question_types.setter
     def question_types(self, value):
         if value is None:
@@ -135,15 +139,78 @@ class InputData(ABC):
             return "free_text"
         else:
             return "multiple_choice"
-        
-        
+
+    @property
+    def question_options(self):
+        return self._question_options
+    
+    @question_options.setter
+    def question_options(self, value):
+        if value is None:
+            value = {qn: self.get_question_options(qn) for qn in self.question_names}
+        self._question_options = value
+
+    def get_question_options(self, question_name):
+        qt = self.question_statistics(question_name)
+        question_type = self.question_types[question_name]
+        if question_type == "multiple_choice":
+            return qt.unique_responses
+        else:
+            if question_type == "multiple_choice_with_other":
+                return self.unique_responses_more_than_k(2)[self.question_names.index(question_name)] + [self.OTHER_STRING]
+            else:
+                return None
+                
     @classmethod
     def from_dict(cls, d: Dict):
         return cls(**d)
     
-    def unique_reponses(self) -> dict:
-        return {k: list(set(v)) for k, v in self.raw_data.items()}
-  
+    @staticmethod
+    def filter_missing(value):
+        return [v for v in value if v != Missing().value() and v != 'missing' and v != '']
+
+    def order_options(self):
+        from edsl import QuestionList
+        from edsl import ScenarioList
+        import textwrap
+
+        scenarios = (ScenarioList
+             .from_list("example_question_name", self.question_names)
+             .add_list("example_question_text", self.question_texts)
+             .add_list("example_question_type",  self.question_types.values())
+             .add_list("example_question_options",  self.question_options.values())
+             ).filter('example_question_type == "multiple_choice" or example_question_type == "multiple_choice_with_other"')
+        
+        question = QuestionList(
+            question_text=textwrap.dedent("""\
+            We have a survey question: `{{ example_question_text }}`.
+            
+            The survey had following options: '{{ example_question_options }}'.
+            The options might be out of order. Please put them in the correct order.
+            If there is not natural order, just put then in order they were presented.
+            """)
+            ,
+            question_name="ordering",
+        )
+        proposed_ordering = question.by(scenarios).run()
+        return dict(proposed_ordering.select("example_question_name", "ordering").to_list())
+        
+        
+    @property
+    def unique_responses(self) -> dict:
+        return [list(set(self.filter_missing(v))) for k, v in self.raw_data.items()]
+    
+    def unique_responses_more_than_k(self, k, remove_missing = True):
+        counters = [Counter(value) for _ , value in self.raw_data.items()]
+        new_counters = []
+        for question in counters:
+            top_options = []
+            for option, count in question.items():
+                if count > k and (option != 'missing' or not remove_missing):
+                    top_options.append(option)
+            new_counters.append(top_options)
+        return new_counters
+     
     @property
     def raw_data(self):
         return self._raw_data
@@ -205,7 +272,7 @@ if __name__ == "__main__":
     config = {
         "skiprows": 1
     }
-    sloan = InputDataCSV("sloan_search.csv", config = {'skiprows': [0, 2]})
+    #sloan = InputDataCSV("sloan_search.csv", config = {'skiprows': [0, 2]})
 
     #id2 = InputDataCSV.from_dict(id.to_dict())
 
