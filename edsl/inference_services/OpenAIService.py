@@ -44,7 +44,8 @@ class OpenAIService(InferenceServiceABC):
                 ]
             except Exception as e:
                 print(
-                    f"Error retrieving models: {e}. /nSee instructions about storing your API keys: https://docs.expectedparrot.com/en/latest/api_keys.html"
+                    f"""Error retrieving models: {e}. 
+                    See instructions about storing your API keys: https://docs.expectedparrot.com/en/latest/api_keys.html"""
                 )
                 cls._models_list_cache = [
                     "gpt-3.5-turbo",
