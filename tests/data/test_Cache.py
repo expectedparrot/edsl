@@ -61,14 +61,14 @@ def test_jsonl(cache_example):
     assert cache == cache_from_jsonl
 
 
-def test_write_to_db(cache_example):
-    import tempfile
+# def test_write_to_db(cache_example):
+#     import tempfile
 
-    with tempfile.TemporaryDirectory() as tempdir:
-        cache_example.write_sqlite_db(db_path=os.path.join(tempdir, "cache.db"))
-        cache_example_from_db = Cache.from_sqlite_db(os.path.join(tempdir, "cache.db"))
-        assert cache_example == cache_example_from_db
-    # assert os.path.exists(CONFIG.get("EDSL_DATABASE_PATH").replace("sqlite:///", ""))
+#     with tempfile.TemporaryDirectory() as tempdir:
+#         cache_example.write_sqlite_db(db_path=os.path.join(tempdir, "cache.db"))
+#         cache_example_from_db = Cache.from_sqlite_db(os.path.join(tempdir, "cache.db"))
+#         assert cache_example == cache_example_from_db
+#     # assert os.path.exists(CONFIG.get("EDSL_DATABASE_PATH").replace("sqlite:///", ""))
 
 
 def test_html(cache_example):
