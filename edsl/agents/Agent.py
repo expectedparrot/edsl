@@ -514,7 +514,7 @@ class Agent(Base):
 
         import inspect
 
-        #print(raw_data)
+        # print(raw_data)
         if hasattr(self, "dynamic_traits_function"):
             raw_data.pop(
                 "dynamic_traits_function", None
@@ -532,7 +532,7 @@ class Agent(Base):
             )  # in case answer_question_directly will appear with _ in self.__dict__
             answer_question_directly_func = self.answer_question_directly
             # print(answer_question_directly_func)
-            print(type(answer_question_directly_func), flush=True)
+            # print(type(answer_question_directly_func), flush=True)
 
             if (
                 answer_question_directly_func

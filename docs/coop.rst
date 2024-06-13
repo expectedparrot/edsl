@@ -3,11 +3,13 @@
 Coop
 ====
 
-*Coming soon!*
+*Coming soon! The Coop is in development. Let us know if you'd like to try it!*
 
 .. raw:: html
 
   The <a href="https://www.expectedparrot.com/login">Coop</a> is a platform for storing, sharing and accessing research in EDSL.
+
+  <br>
 
 
 How it works
@@ -18,11 +20,13 @@ How it works
 
 .. raw:: html
 
-  Go to the <a href="https://www.expectedparrot.com/">Coop login page</a> and select **Register**.
+  Go to the <a href="https://www.expectedparrot.com/">Coop login page</a> and select <b>Register</b>.
+
+  <br>
 
 
-Create an account with your email address and a password or log in with your Google/Microsoft account.
-If you create an account with your email address you will need to verify it by clicking on the link in the email that you receive.
+Create an account with your email address and a password or log in with your Google or Microsoft account.
+If you create an account with your email address, verify it by clicking the link in the email that you receive.
 
 .. image:: static/coop_register.png
   :alt: Register for an account on the Coop
@@ -42,6 +46,8 @@ If you create an account with your email address you will need to verify it by c
 
   Go to your <a href="https://www.expectedparrot.com/home/profile">Profile</a> page and choose a username.
 
+  <br>
+
 
 Your username will be associated with content that you post on the Coop.
 (You can change this at any time, and you can also post content anonymously.)
@@ -55,7 +61,7 @@ Your username will be associated with content that you post on the Coop.
   Go to the <a href="https://www.expectedparrot.com/home/api">API</a> page of your Account and copy your API key.
 
 
-You will need this key to post, download and update objects on the Coop.
+You will need this key to post, download and update content on the Coop.
 
 .. image:: static/coop_api_key.png
   :alt: Copy your API key
@@ -114,25 +120,15 @@ Copy code and examples to your own workspace to modify or rerun them.
 To access objects that are unlisted you must have the object `uuid` or the link to the object.
 
 
-Feature requests
-----------------
-
-If you have a feature request for the Coop, please let us know! 
-There are several ways to do this
-
-- Create an issue on GitHub: https://docs.expectedparrot.com/en/latest/contributing.html#suggesting-enhancements
-- Post a message at our Discord server: https://discord.com/invite/mxAYkjfy9m
-- Send us an email: info@expectedparrot.com
-
 
 Methods 
 -------
 
-Uploading objects
-^^^^^^^^^^^^^^^^^
+Uploading
+^^^^^^^^^
 *API key required*
 
-There are 2 methods for posting objects to the Coop: 
+There are 2 methods for posting `edsl` objects to the Coop: 
 
 **Directly**
 
@@ -166,11 +162,11 @@ Example:
   c.create(object=q)
 
 
-Downloading objects
-^^^^^^^^^^^^^^^^^^^
+Downloading
+^^^^^^^^^^^
 *No API key required if the object is public or unlisted*
 
-There are 2 methods for downloading EDSL content from the Coop:
+There are 2 methods for downloading `edsl` objects from the Coop:
 
 **Directly**
 
@@ -202,21 +198,21 @@ Example:
   q =  c.get(object_type='question', uuid='74fd3458-ea18-4fc9-99f6-03fb76482c20')
 
 
-Updating objects
-^^^^^^^^^^^^^^^^
+Updating
+^^^^^^^^
 *API key required*
 
-To change the visibility of an object (of your own):
+To change the visibility of an `edsl` object (of your own):
 
 * Select an object on the Coop: https://www.expectedparrot.com/home 
 * Select the button to change the visibility of an object  
 
 
-Deleting objects
-^^^^^^^^^^^^^^^^ 
+Deleting
+^^^^^^^^
 *API key required*
 
-There are 3 methods for deleting your objects from the Coop:
+There are 3 methods for deleting your `edsl` objects from the Coop:
 
 **Directly**
 
@@ -255,9 +251,21 @@ Example:
 
 
 
+Feature requests
+----------------
+
+If you have a feature request for the Coop, please let us know! 
+There are several ways to do this
+
+- Create an issue on GitHub: https://docs.expectedparrot.com/en/latest/contributing.html#suggesting-enhancements
+- Post a message at our Discord server: https://discord.com/invite/mxAYkjfy9m
+- Send us an email: info@expectedparrot.com
+
+
+
 .. automodule:: edsl.coop
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :special-members: __init__
-   :exclude-members: 
+  :members:
+  :undoc-members:
+  :show-inheritance:
+  :special-members: __init__
+  :exclude-members: 

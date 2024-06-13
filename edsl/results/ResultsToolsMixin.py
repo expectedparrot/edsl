@@ -1,16 +1,17 @@
 from edsl import ScenarioList
 from edsl.questions import QuestionList, QuestionCheckBox
 
+
 class ResultsToolsMixin:
     def get_themes(
-        self, 
-        field: str, 
-        context: str, 
-        max_values=100, 
-        num_themes: int = 10, 
-        seed=None, 
+        self,
+        field: str,
+        context: str,
+        max_values=100,
+        num_themes: int = 10,
+        seed=None,
         progress_bar=False,
-        print_exceptions = False,
+        print_exceptions=False,
     ) -> list:
         values = self.shuffle(seed=seed).select(field).to_list()[:max_values]
 
@@ -24,18 +25,19 @@ class ResultsToolsMixin:
             question_name="themes",
         )
         s = ScenarioList.from_list(field, values)
-        results = q.by(s).run(print_exceptions = print_exceptions, progress_bar = progress_bar)
+        results = q.by(s).run(
+            print_exceptions=print_exceptions, progress_bar=progress_bar
+        )
         return results.select("themes").first()
 
     def answers_to_themes(
-        self, 
-        field, 
-        context: str, 
-        themes: list, 
-        progress_bar=False, 
-        print_exceptions = False, 
+        self,
+        field,
+        context: str,
+        themes: list,
+        progress_bar=False,
+        print_exceptions=False,
     ) -> dict:
-
         values = self.select(field).to_list()
         scenarios = ScenarioList.from_list("field", values).add_value(
             "context", context
@@ -54,7 +56,9 @@ class ResultsToolsMixin:
             question_options=themes + ["None", "Other"],
             question_name="themes",
         )
-        results = q.by(scenarios).run(progress_bar=progress_bar, print_exceptions = print_exceptions)
+        results = q.by(scenarios).run(
+            progress_bar=progress_bar, print_exceptions=print_exceptions
+        )
         return {k: v for k, v in results.select("field", "themes").to_list()}
 
     def apply_themes(self, field: str, new_field: str, answers_to_themes: dict):
@@ -71,7 +75,7 @@ class ResultsToolsMixin:
         themes: list[str],
         newfield: str = None,
         progress_bar=False,
-        print_exceptions = False, 
+        print_exceptions=False,
     ) -> tuple:
         """
         :param field: The field to be themed.
@@ -85,11 +89,10 @@ class ResultsToolsMixin:
             newfield = f"{field}_themes"
 
         answers_to_themes = self.answers_to_themes(
-            field = field, 
-            context = context, 
-            themes = themes, 
-            progress_bar=progress_bar, 
-            print_exceptions = print_exceptions
+            field=field,
+            context=context,
+            themes=themes,
+            progress_bar=progress_bar,
+            print_exceptions=print_exceptions,
         )
         return self.apply_themes(field, newfield, answers_to_themes), themes
-

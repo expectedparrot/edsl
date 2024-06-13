@@ -277,7 +277,9 @@ def print_scenario_list(data):
 
 
 def print_list_of_dicts_with_rich(data, filename=None, split_at_dot=True):
-    raise Exception("print_list_of_dicts_with_rich is now called print_dataset_with_rich")
+    raise Exception(
+        "print_list_of_dicts_with_rich is now called print_dataset_with_rich"
+    )
 
 
 def print_dataset_with_rich(data, filename=None, split_at_dot=True):
@@ -320,6 +322,92 @@ def print_dataset_with_rich(data, filename=None, split_at_dot=True):
 
     console.print(table)
     # display(console, table, filename)
+
+
+def create_latex_table_from_data(data, filename=None, split_at_dot=True):
+    """
+    This function takes a list of dictionaries and returns a LaTeX table as a string.
+    The table can either be printed or written to a file.
+
+    >>> data = [{"a": [1, 2, 3], "b": [4, 5, 6]}]
+    >>> print(create_latex_table_from_data(data))
+    \begin{tabular}{|c|c|}
+    \hline
+    a & b \\
+    \hline
+    1 & 4 \\
+    2 & 5 \\
+    3 & 6 \\
+    \hline
+    \end{tabular}
+    """
+
+    def escape_latex(s):
+        replacements = [
+            ("_", r"\_"),
+            ("&", r"\&"),
+            ("%", r"\%"),
+            ("$", r"\$"),
+            ("#", r"\#"),
+            ("{", r"\{"),
+            ("}", r"\}"),
+            ("~", r"\textasciitilde{}"),
+            ("^", r"\textasciicircum{}"),
+            ("\\", r"\textbackslash{}"),
+        ]
+
+        for old, new in replacements:
+            s = s.replace(old, new)
+        return s
+
+    # Start the LaTeX table
+    latex_table = ["\\begin{tabular}{|" + "c|" * len(data[0]) + "}"]
+    latex_table.append("\\hline")
+
+    # Add the header row
+    headers = []
+    for key in data[0].keys():
+        if split_at_dot:
+            value = key.replace(".", "\n.")
+        else:
+            value = key
+        headers.append(escape_latex(value))
+    latex_table.append(" & ".join(headers) + " \\\\")
+    latex_table.append("\\hline")
+
+    # Determine the number of rows
+    num_rows = len(next(iter(data[0].values())))
+
+    # Debugging: Print the keys of the dictionaries
+    print("Keys in data[0]:", list(data[0].keys()))
+
+    # Add the data rows
+    for i in range(num_rows):
+        row = []
+        for key in data[0].keys():
+            for d in data:
+                try:
+                    row.append(escape_latex(str(d[key][i])))
+                except KeyError as e:
+                    print(
+                        f"KeyError: {e} - Key '{key}' not found in data dictionary. The keys are {list(d.keys())}"
+                    )
+                    raise
+        latex_table.append(" & ".join(row) + " \\\\")
+
+    latex_table.append("\\hline")
+    latex_table.append("\\end{tabular}")
+
+    # Join all parts into a single string
+    latex_table_str = "\n".join(latex_table)
+
+    # Write to file if filename is provided
+    if filename:
+        with open(filename, "w") as f:
+            f.write(latex_table_str)
+            print(f"Table written to {filename}")
+
+    return latex_table_str
 
 
 def print_list_of_dicts_as_html_table(
@@ -431,6 +519,7 @@ def print_public_methods_with_doc(obj):
         if doc:
             console.print(f"[bold]{method}:[/bold]", style="green")
             console.print(f"\t{doc.strip()}", style="yellow")
+
 
 def print_tally_with_rich(data, filename=None):
     """Print a tally of values in a list using the rich library.
