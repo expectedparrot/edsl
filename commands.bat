@@ -90,7 +90,7 @@ goto end
 :test
 :: Run regular tests (no Coop tests) 
 call :clean-test
-pytest -xv tests --nocoop
+pytest -xv tests --nocoop --windows
 goto end
 
 :end

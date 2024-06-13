@@ -66,64 +66,67 @@ def test_show_schema(db_mixin):
     # assert "CREATE TABLE self" in schema_info
 
 
-# def test_results_example():
-#     from edsl.results import Results
+@pytest.mark.linux_only
+def test_results_example():
+    from edsl.results import Results
 
-#     r = Results.example()
-#     desired_output_string = "id,data_type,key,value\n1,model,temperature,0.5\n1,model,max_tokens,1000\n1,model,top_p,1\n1,model,frequency_penalty,0\n1,model,presence_penalty,0\n1,model,logprobs,False\n1,model,top_logprobs,3\n1,model,model,gpt-4-1106-preview\n"
-#     actual_output_string = r.sql(
-#         "select * from self where id = 1 and data_type = 'model'",
-#         shape="long",
-#         csv=True,
-#         remove_prefix=False,
-#     )
-#     try:
-#         assert actual_output_string == desired_output_string
-#     except AssertionError:
-#         print(f"actual_output_string: {actual_output_string}")
-#         print(f"desired_output_string: {desired_output_string}")
-#         raise
-
-
-# def test_results_example_group_by():
-#     from edsl.results import Results
-
-#     r = Results.example()
-#     output_string = "id,data_type,key,value\n1,model,temperature,0.5\n1,model,max_tokens,1000\n1,model,top_p,1\n1,model,frequency_penalty,0\n1,model,presence_penalty,0\n1,model,logprobs,False\n1,model,top_logprobs,3\n1,model,model,gpt-4-1106-preview\n"
-#     sql_output = r.sql(
-#         "select * from self where id = 1 and data_type = 'model'",
-#         shape="long",
-#         csv=True,
-#         remove_prefix=False,
-#     )
-#     assert sql_output == output_string
-
-#     output_string = "0,1,2,3,4\nagent,answer,model,prompt,scenario\n4,16,28,16,4\n"
-#     r.sql(
-#         """select data_type, 
-#                     count(*) as count 
-#             from self 
-#             group by data_type""",
-#         shape="long",
-#         transpose=True,
-#         csv=True,
-#         remove_prefix=False,
-#     ) == output_string
+    r = Results.example()
+    desired_output_string = "id,data_type,key,value\n1,model,temperature,0.5\n1,model,max_tokens,1000\n1,model,top_p,1\n1,model,frequency_penalty,0\n1,model,presence_penalty,0\n1,model,logprobs,False\n1,model,top_logprobs,3\n1,model,model,gpt-4-1106-preview\n"
+    actual_output_string = r.sql(
+        "select * from self where id = 1 and data_type = 'model'",
+        shape="long",
+        csv=True,
+        remove_prefix=False,
+    )
+    try:
+        assert actual_output_string == desired_output_string
+    except AssertionError:
+        print(f"actual_output_string: {actual_output_string}")
+        print(f"desired_output_string: {desired_output_string}")
+        raise
 
 
-# def test_wide_format():
-#     from edsl.results import Results
+@pytest.mark.linux_only
+def test_results_example_group_by():
+    from edsl.results import Results
 
-#     r = Results.example()
-#     sql_results = r.sql('select "answer.how_feeling" from self', shape="wide", csv=True, remove_prefix=False)
-#     output_string = "answer.how_feeling\nOK\nGreat\nTerrible\nOK\n"
-#     assert sql_results == output_string
+    r = Results.example()
+    output_string = "id,data_type,key,value\n1,model,temperature,0.5\n1,model,max_tokens,1000\n1,model,top_p,1\n1,model,frequency_penalty,0\n1,model,presence_penalty,0\n1,model,logprobs,False\n1,model,top_logprobs,3\n1,model,model,gpt-4-1106-preview\n"
+    sql_output = r.sql(
+        "select * from self where id = 1 and data_type = 'model'",
+        shape="long",
+        csv=True,
+        remove_prefix=False,
+    )
+    assert sql_output == output_string
 
-#     sql_results = r.sql(
-#         "select how_feeling from self", shape="wide", remove_prefix=True, csv=True
-#     )
-#     output_string = "how_feeling\nOK\nGreat\nTerrible\nOK\n"
-#     assert sql_results == output_string
+    output_string = "0,1,2,3,4\nagent,answer,model,prompt,scenario\n4,16,28,16,4\n"
+    r.sql(
+        """select data_type, 
+                    count(*) as count 
+            from self 
+            group by data_type""",
+        shape="long",
+        transpose=True,
+        csv=True,
+        remove_prefix=False,
+    ) == output_string
+
+
+@pytest.mark.linux_only
+def test_wide_format():
+    from edsl.results import Results
+
+    r = Results.example()
+    sql_results = r.sql('select "answer.how_feeling" from self', shape="wide", csv=True, remove_prefix=False)
+    output_string = "answer.how_feeling\nOK\nGreat\nTerrible\nOK\n"
+    assert sql_results == output_string
+
+    sql_results = r.sql(
+        "select how_feeling from self", shape="wide", remove_prefix=True, csv=True
+    )
+    output_string = "how_feeling\nOK\nGreat\nTerrible\nOK\n"
+    assert sql_results == output_string
 
 
 # Additional tests for transpose and CSV functionality can be added similarly.
