@@ -1,3 +1,6 @@
+:: ---------
+:: Analogues for makefile commands, to help our developers who use Windows
+:: ---------
 @echo off
 :: commands.bat
 
