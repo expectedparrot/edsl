@@ -110,6 +110,7 @@ class Coop:
         Create an EDSL object in the Coop server.
         """
         object_type = ObjectRegistry.get_object_type_by_edsl_class(object)
+        object_page = ObjectRegistry.get_object_page_by_object_type(object_type)
         response = self._send_server_request(
             uri=f"api/v0/object",
             method="POST",
@@ -129,7 +130,7 @@ class Coop:
             "uuid": response_json.get("uuid"),
             "version": self._edsl_version,
             "visibility": response_json.get("visibility"),
-            "url": "TO BE ADDED",
+            "url": f"{self.url}/explore/{object_page}/{response_json.get('uuid')}",
         }
 
     def get(
@@ -178,6 +179,7 @@ class Coop:
         Retrieve all objects of a certain type associated with the user.
         """
         edsl_class = ObjectRegistry.object_type_to_edsl_class.get(object_type)
+        object_page = ObjectRegistry.get_object_page_by_object_type(object_type)
         response = self._send_server_request(
             uri=f"api/v0/objects",
             method="GET",
@@ -190,7 +192,7 @@ class Coop:
                 "uuid": o.get("uuid"),
                 "version": o.get("version"),
                 "visibility": o.get("visibility"),
-                "url": "TO BE ADDED",
+                "url": f"{self.url}/explore/{object_page}/{o.get('uuid')}",
             }
             for o in response.json()
         ]
@@ -409,16 +411,15 @@ class Coop:
         if email:
             data = {"json_string": json.dumps({"survey": survey, "email": email})}
         else:
-            data = {"json_string": json.dumps({"survey": survey, "email": email})}
+            data = {"json_string": json.dumps({"survey": survey, "email": ""})}
 
-        response_json = requests.post(url, data=json.dumps(data))
+        response_json = requests.post(url, headers=self.headers, data=json.dumps(data))
 
         return response_json
 
 
 if __name__ == "__main__":
     from edsl.coop import Coop
-    import uuid
 
     # init
     API_KEY = "b"

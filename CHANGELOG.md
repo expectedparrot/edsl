@@ -1,37 +1,71 @@
 # Changelog
 
-## [0.1.25] - 2024-TBD [In progress]
+## [0.1.27] - 2024-TBD [In progress]
 ### Added
-- Options that we think of as "terminal", such as `sql()`, `print()`, `html()`, etc., now take a `tee` boolean that causes them to return `self`. This is useful for chaining, e.g., if you run `print(format = "rich", tee = True)` it will return `self`, which allows you do also run `print(format = "rich", tee = True).print(format = "latex", filename = "stuff.tex")`, for example.
-
-- `Scenario` method `from_html()` allows you to turn the contents of a website into a scenario.
-
-- [In progress] `ScenarioList` method for automatically chunking contents into a list of scenarios
-
-- [In progress] Add LaTeX support to SQL outputs and ability to write to files
-
-- Allow renaming of `Results` answers
-
-- Feature for turning PDF file or word document into a series of images for use w/ a vision model
-
-### Changed
-- Exception report improvements
-
-- [In progerss] Add sample from scenario list & a from_sqlite class method
-
-- [In progress] Survey run exceptions are now optionally displayed in an html report.
-
 - [In progress] New prompt visibility features.
 
 - [In progress] New methods for piping responses to questions into other questions. 
 
-- [In progress] `QuestionMultipleChoice` is being modified allow non-responsive answers. Previously, an error was thrown if the agent did not select one of the given options. Details TBD.
+- [In progress] `ScenarioList.from_sqlite` allows you to create a list of scenarios from a SQLite table.
+
+- [In progress] Added LaTeX support to SQL outputs and ability to write to files: `Results.print(format="latex", filename="example.tex")`
+
+- [In progress] Options that we think of as "terminal", such as `sql()`, `print()`, `html()`, etc., now take a `tee` boolean that causes them to return `self`. This is useful for chaining, e.g., if you run `print(format = "rich", tee = True)` it will return `self`, which allows you do also run `print(format = "rich", tee = True).print(format = "latex", filename = "example.tex")`.
+
+### Changed
+- Allow renaming of `Results` answers
+
+- [In progress] `QuestionMultipleChoice` may be modified to allow combined options and free response "Other" option, as well as non-responsive answers. Previously, an error was thrown if the agent did not select one of the given options. Details TBD.
 
 ### Fixed
-
 ### Deprecated
-
 ### Removed
+
+
+## [0.1.26] - 2024-06-10
+### Fixed
+- Removed an errant break point in language models module.
+
+
+## [0.1.25] - 2024-06-10
+### Added
+- `Scenario.rename()` allows you to rename fields of a scenario.
+
+- `Scenario.chunk()` allows you to split a field into chunks of a given size based on `num_word` or `num_lines`, creating a `ScenarioList`.
+
+- `Scenario.from_html()` turns the contents of a website into a scenario.
+
+- `Scenario.from_image()` creates an image scenario to use with a vision model (e.g., GPT-4o).
+
+- `ScenarioList.sample()` allows you to take a sample from a scenario list.
+
+- `ScenarioList.tally()` allows you to tally fields in scenarios.
+
+- `ScenarioList.expand()` allows you to expand a scenario by a field in it, e.g., if a scenario field contains a list the method can be used to break it into separate scenarios.
+
+- `ScenarioList.mutate()` allows you to add a key/value to each scenario.
+
+- `ScenarioList.order_by()` allows you to order the scenarios.
+
+- `ScenarioList.filter()` allows you to filter the scenarios based on a logical expression.
+
+- `ScenarioList.from_list()` allows you to create a ScenarioList from a list of values and specified key.
+
+- `ScenarioList.add_list()` allows you to use a list to add values to individual scenarios.
+
+- `ScenarioList.add_value()` allows you to add a value to all the scenarios.
+
+- `ScenarioList.to_dict()` allows you to turn a ScenarioList into a dictionary.
+
+- `ScenarioList.from_dict()` allows you to create a ScenarioList from a dictionary.
+
+- `Results.drop()` complements `Results.select()` for identifying the components that you want to print in a table. 
+
+- `ScenarioList.drop()` similarly complements `ScenarioList.select()`.
+
+### Changed
+- Improvements to exceptions reports: Survey run exceptions now include the relevant job components and are optionally displayed in an html report.
+
 
 ## [0.1.24] - 2024-05-28
 ### Added 

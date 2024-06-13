@@ -429,13 +429,11 @@ class LanguageModel(
 
         raw_response = await self.async_get_raw_response(**params)
         response = self.parse_response(raw_response)
-        
+
         try:
             dict_response = json.loads(response)
-            #breakpoint()
         except json.JSONDecodeError as e:
             # TODO: Turn into logs to generate issues
-            breakpoint()
             dict_response, success = await repair(response, str(e))
             if not success:
                 raise Exception(
