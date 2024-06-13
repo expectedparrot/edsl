@@ -61,6 +61,7 @@ def test_jsonl(cache_example):
     assert cache == cache_from_jsonl
 
 
+@pytest.mark.linux_only
 def test_write_to_db(cache_example):
     import tempfile
 
