@@ -11,6 +11,9 @@ class CreateSurvey:
         "Iterates through the question keys and creates a survey."
         questions = []
         failures = {}
+        for question_name in self.input_data.question_names:
+            question_text = self.input_data.names_to_texts[question_name]
+            
         for question_responses in self.responses.values():
             try:
                 proposed_question = question_responses.to_question()

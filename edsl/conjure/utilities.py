@@ -90,6 +90,7 @@ def infer_question_type(question_text, responses, sample_size=15):
                         The question text is: '{{question_text}}'.                                   
                         The first {{ sample_size }} responses are: '{{responses}}'.
                         There are {{ total }} responses in total.
+                        If a response is a command-separated list, it is likely a checkbox question.
                         """,
         question_name="infer_question_type",
         question_options=[

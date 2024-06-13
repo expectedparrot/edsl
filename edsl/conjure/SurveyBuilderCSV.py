@@ -12,7 +12,7 @@ class SurveyBuilderCSV(SurveyBuilder):
     def get_dataframe(datafile_name, skiprows=None):
         return pd.read_csv(datafile_name, skiprows=skiprows)
 
-    def get_responses(self) -> Dict:
+    def get_raw_data(self) -> Dict:
         """Returns a dataframe of responses by reading the datafile_name.
 
         The structure should be a dictionary, where the keys are the question codes,
@@ -26,7 +26,7 @@ class SurveyBuilderCSV(SurveyBuilder):
         df = self.get_dataframe(self.datafile_name, skiprows = self.skiprows)
         df.fillna("", inplace=True)
         df = df.astype(str)
-        data = {k.lower(): v for k, v in df.to_dict(orient="list").items()}
+        data = {k: v for k, v in df.to_dict(orient="list").items()}
         return SurveyResponses(data)
 
     def get_question_name_to_text(self) -> Dict:

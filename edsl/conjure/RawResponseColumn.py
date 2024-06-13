@@ -13,6 +13,7 @@ from edsl.conjure.DictWithIdentifierKeys import DictWithIdentifierKeys
 #get_replacement_name = ReplacementFinder({})
 
 
+
 class RawResponseColumn:
     """A class to represent a raw responses from a survey we are parsing.
 
@@ -42,19 +43,12 @@ class RawResponseColumn:
         'multiple_choice'
 
         """
-        d = DictWithIdentifierKeys(
-            {question_name: ""}
-        )  # if the question_name is not a valid Python identifier, it will be replaced with a valid Python identifier.
-        self.question_name = list(d.keys())[0]
-        self.raw_responses = raw_responses
-        self.answer_codebook = answer_codebook
-        if question_text is None or len(question_text) == 0:
-            self.question_text = "Question text not available"
-        else:
-            self.question_text = question_text
+        self.question_name = question_name
+        self.responses = responses
+        self.question_text = question_text
 
     @staticmethod
-    def edsl_question_inference(question_text, responses):
+    def edsl_question_inference(question_text, responses, sample_size=15):
         """Infer the question type from the responses.
 
         TODO: Not currently used. We should use this to infer the question type.
@@ -66,35 +60,6 @@ class RawResponseColumn:
         'free_text'
 
         """
-        from edsl.questions import QuestionMultipleChoice
-
-        q = QuestionMultipleChoice(
-            question_text="""We have a survey question and we are trying to infer its type.
-                               The question text is: '{{question_text}}'.                                   
-                               The first few responses are: '{{responses}}'.
-                                """,
-            question_name="infer_question_type",
-            question_options=[
-                "budget",
-                "checkbox",
-                "extract",
-                "free_text",
-                "likert_five",
-                "linear_scale",
-                "list",
-                "multiple_choice",
-                "numerical",
-                "rank",
-                "top_k",
-                "yes_no",
-            ],
-        )
-        response = (
-            q.to_survey()(question_text=question_text, responses=responses)
-            .select("infer_question_type")
-            .first()
-        )
-        return response
 
     @property
     def responses(self):
