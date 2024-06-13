@@ -38,50 +38,51 @@ def test_get_cache(cache_handler):
     assert isinstance(cache, Cache)
 
 
-# def test_from_old_sqlite_cache_db(cache_handler, tmp_path):
-#     # Create a temporary old-style cache database for testing
-#     old_cache_path = os.path.join(tmp_path, "old_cache.db")
-#     conn = sqlite3.connect(old_cache_path)
-#     with conn:
-#         conn.execute(
-#             """
-#             CREATE TABLE responses (
-#                 id INTEGER NOT NULL,
-#                 model VARCHAR(100) NOT NULL,
-#                 parameters TEXT NOT NULL,
-#                 system_prompt TEXT NOT NULL,
-#                 prompt TEXT NOT NULL,
-#                 output TEXT NOT NULL,
-#                 PRIMARY KEY (id)
-#             )
-#         """
-#         )
-#         conn.execute(
-#             """
-#             INSERT INTO responses (model, parameters, system_prompt, prompt, output)
-#             VALUES (?, ?, ?, ?, ?)
-#         """,
-#             (
-#                 "test_model",
-#                 str({"key": "value"}),
-#                 "test_system_prompt",
-#                 "test_prompt",
-#                 "test_output",
-#             ),
-#         )
-#     conn.close()
+@pytest.mark.linux_only
+def test_from_old_sqlite_cache_db(cache_handler, tmp_path):
+    # Create a temporary old-style cache database for testing
+    old_cache_path = os.path.join(tmp_path, "old_cache.db")
+    conn = sqlite3.connect(old_cache_path)
+    with conn:
+        conn.execute(
+            """
+            CREATE TABLE responses (
+                id INTEGER NOT NULL,
+                model VARCHAR(100) NOT NULL,
+                parameters TEXT NOT NULL,
+                system_prompt TEXT NOT NULL,
+                prompt TEXT NOT NULL,
+                output TEXT NOT NULL,
+                PRIMARY KEY (id)
+            )
+        """
+        )
+        conn.execute(
+            """
+            INSERT INTO responses (model, parameters, system_prompt, prompt, output)
+            VALUES (?, ?, ?, ?, ?)
+        """,
+            (
+                "test_model",
+                str({"key": "value"}),
+                "test_system_prompt",
+                "test_prompt",
+                "test_output",
+            ),
+        )
+    conn.close()
 
-#     # Call the from_old_sqlite_cache_db method
-#     newdata = cache_handler.from_old_sqlite_cache(old_cache_path)
+    # Call the from_old_sqlite_cache_db method
+    newdata = cache_handler.from_old_sqlite_cache(old_cache_path)
 
-#     # Assert the converted data
-#     assert len(newdata) == 1
-#     entry = list(newdata.values())[0]
-#     assert isinstance(entry, CacheEntry)
-#     assert entry.model == "test_model"
-#     assert entry.parameters == {"key": "value"}
-#     assert entry.system_prompt == "test_system_prompt"
-#     assert entry.user_prompt == "test_prompt"
+    # Assert the converted data
+    assert len(newdata) == 1
+    entry = list(newdata.values())[0]
+    assert isinstance(entry, CacheEntry)
+    assert entry.model == "test_model"
+    assert entry.parameters == {"key": "value"}
+    assert entry.system_prompt == "test_system_prompt"
+    assert entry.user_prompt == "test_prompt"
 
 
 def test_add_from_dict(cache_handler):
