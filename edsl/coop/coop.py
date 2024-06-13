@@ -22,6 +22,8 @@ class Coop:
         """
         self.api_key = api_key or os.getenv("EXPECTED_PARROT_API_KEY")
         self.url = url or CONFIG.EXPECTED_PARROT_URL
+        if self.url.endswith("/"):
+            self.url = self.url[:-1]
         self._edsl_version = edsl.__version__
 
     ################
