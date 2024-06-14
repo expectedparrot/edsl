@@ -75,7 +75,7 @@ def test_prompt_contains():
 # Testing __repr__ method
 def test_prompt_repr():
     p = Prompt("Hello, {{person}}")
-    assert repr(p) == "Prompt(text='Hello, {{person}}')"
+    assert repr(p) == "Prompt(text=\"\"\"Hello, {{person}}\"\"\")"
 
 
 # Testing template_variables method
@@ -121,4 +121,4 @@ def test_prompt_to_dict():
 def test_prompt_from_dict():
     p = Prompt("Hello, {{person}}")
     p2 = Prompt.from_dict(p.to_dict())
-    assert repr(p2) == "Prompt(text='Hello, {{person}}')"
+    assert repr(p2) == "Prompt(text=\"\"\"Hello, {{person}}\"\"\")"
