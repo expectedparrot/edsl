@@ -53,6 +53,7 @@ Core Concepts
 - :ref:`results`:  Investigate methods for analyzing and utilizing survey results.
 - :ref:`data`:  Learn about caching and sharing your survey results.
 - :ref:`exceptions`:  Understand how to identify and handle exceptions in your survey design.
+- :ref:`token_limits`:  Learn about managing token limits for language models.
 - :ref:`coop`:  A platform for storing and sharing your work, projects and ideas with other researchers. *Coming soon!*
 
 How-to Guides
@@ -129,6 +130,7 @@ Information about additional functionality for developers.
    results
    data
    exceptions
+   token_limits
    coop
 
 .. toctree::
