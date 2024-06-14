@@ -8,6 +8,36 @@ from edsl.conjure.SurveyResponses import SurveyResponses
 from edsl.conjure.naming_utilities import sanitize_string
 from edsl.conjure.utilities import convert_value, Missing
 
+from dataclasses import dataclass, field
+from typing import List
+
+@dataclass
+class RawQuestion:
+    question_type: str
+    question_name: str
+    question_text: str
+    responses: List[str] = field(default_factory=list)
+    question_options: Optional[List[str]] = None
+
+    def __post_init__(self):
+        self.responses = [convert_value(r) for r in self.responses]
+
+    def to_question(self):
+        # TODO: Remove this once we have a better way to handle multiple_choice_with_other
+        if self.question_type == "multiple_choice_with_other":
+            question_type = "multiple_choice"
+        else:
+            question_type = self.question_type
+        from edsl import Question
+        d = {k:v for k,v in {
+            "question_type": question_type,
+            "question_name": self.question_name,
+            "question_text": self.question_text,
+            "responses": self.responses,
+            "question_options": self.question_options,
+        }.items() if v is not None and k != "responses"}
+        return Question(**d)
+
 class InputDataMixinQuestionStats:
 
     def _question_statistics(self, question_name: str) -> dict:
@@ -34,7 +64,7 @@ class InputDataMixinQuestionStats:
         >>> id.num_responses
         [2, 2]
         """
-        return [len(responses) for _, responses in self.raw_data.items()]
+        return [len(responses) for responses in self.raw_data]
 
     @property
     def num_unique_responses(self) -> List[int]:
@@ -45,46 +75,46 @@ class InputDataMixinQuestionStats:
         >>> id.num_unique_responses
         [2, 2]
         """
-        return [len(set(responses)) for _, responses in self.raw_data.items()]
+        return [len(set(responses)) for responses in self.raw_data]
 
     @property
     def missing(self) -> List[int]:
         """
-        >>> input_data = InputData.example(raw_data = {'A question':[1,2,Missing().value()]}, question_texts = ['A question'])
+        >>> input_data = InputData.example(raw_data = [[1,2,Missing().value()]], question_texts = ['A question'])
         >>> input_data.missing
         [1]
         
         """
         return [
             sum([1 for x in v if x == Missing().value()])
-            for k, v in self.raw_data.items()
+            for v in self.raw_data
         ]
 
     @property
     def frac_numerical(self) -> List[float]:
         """
-        >>> input_data = InputData.example(raw_data = {'A question':[1,2,"Poop", 3]}, question_texts = ['A question'])
+        >>> input_data = InputData.example(raw_data = [[1,2,"Poop", 3]], question_texts = ['A question'])
         >>> input_data.frac_numerical
         [0.75]
         """
         return [
             sum([1 for x in v if isinstance(x, (int, float))]) / len(v)
-            for k, v in self.raw_data.items()
+            for v in self.raw_data
         ]
 
     def top_k(self, k:int) -> List[List[tuple]]:
         """
-        >>> input_data = InputData.example(raw_data = {'A question':[1,1,1,1,1,2]}, question_texts = ['A question'])
+        >>> input_data = InputData.example(raw_data = [[1,1,1,1,1,2]], question_texts = ['A question'])
         >>> input_data.top_k(1)
         [[(1, 5)]]
         >>> input_data.top_k(2)
         [[(1, 5), (2, 1)]]
         """
-        return [Counter(value).most_common(k) for _, value in self.raw_data.items()]
+        return [Counter(value).most_common(k) for value in self.raw_data]
 
     def frac_obs_from_top_k(self, k):
         """
-        >>> input_data = InputData.example(raw_data = {'A question':[1,1,1,1,1,1,1,1,2, 3]}, question_texts = ['A question'])
+        >>> input_data = InputData.example(raw_data = [[1,1,1,1,1,1,1,1,2, 3]], question_names = ['a'])
         >>> input_data.frac_obs_from_top_k(1)
         [0.8]
         """
@@ -94,7 +124,7 @@ class InputDataMixinQuestionStats:
                 / len(value),
                 2,
             )
-            for key, value in self.raw_data.items()
+            for value in self.raw_data
         ]
 
     @property
@@ -134,7 +164,7 @@ class InputData(ABC, InputDataMixinQuestionStats):
         datafile_name: str,
         config: dict,
         naming_function: Optional[Callable] = sanitize_string,
-        raw_data: Optional[Dict] = None,
+        raw_data: Optional[List] = None,
         question_names: Optional[List[str]] = None,
         question_texts: Optional[List[str]] = None,
         answer_codebook: Optional[Dict] = None,
@@ -186,7 +216,7 @@ class InputData(ABC, InputDataMixinQuestionStats):
         raise NotImplementedError
 
     @abstractmethod
-    def get_raw_data(self) -> SurveyResponses:
+    def get_raw_data(self) -> List[List[str]]:
         """Returns a dataframe of responses by reading the datafile_name."""
         raise NotImplementedError
 
@@ -323,10 +353,10 @@ class InputData(ABC, InputDataMixinQuestionStats):
         >>> id.unique_responses
         [..., ...]
         """
-        return [list(set(self.filter_missing(v))) for k, v in self.raw_data.items()]
+        return [list(set(self.filter_missing(responses))) for responses in self.raw_data]
 
     def unique_responses_more_than_k(self, k, remove_missing=True):
-        counters = [Counter(value) for _, value in self.raw_data.items()]
+        counters = [Counter(responses) for responses in self.raw_data]
         new_counters = []
         for question in counters:
             top_options = []
@@ -342,8 +372,7 @@ class InputData(ABC, InputDataMixinQuestionStats):
 
         >>> id = InputData.example()
         >>> id.raw_data
-        {'how are you doing this morning?': ['1', '4'], 'how are you feeling?': ['3', '6']}
-
+        [['1', '4'], ['3', '6']]
 
         >>> id = InputData.example(question_texts = ["A question"], question_names = ['a'], raw_data = {'A question':[1,2]})
         >>> id.raw_data
@@ -436,8 +465,26 @@ class InputData(ABC, InputDataMixinQuestionStats):
         
         """
         return {t: n for n, t in self.names_to_texts.items()}
-
     
+    def raw_questions(self):
+        for qn in self.question_names:
+            idx = self.question_names.index(qn)
+            yield RawQuestion(
+                question_type = self.question_types[idx],
+                question_name = qn,
+                question_text = self.question_texts[idx],
+                responses = self.raw_data[idx],
+                question_options = self.question_options[idx]
+            )
+    
+    def questions(self):
+        for rq in self.raw_questions():
+            yield rq.to_question()
+
+    def survey(self):
+        from edsl import Survey
+        return Survey(list(self.questions()))
+
     @classmethod
     def example(cls, **kwargs):
         class InputDataExample(InputData):
@@ -448,8 +495,7 @@ class InputData(ABC, InputDataMixinQuestionStats):
 
             def get_raw_data(self) -> SurveyResponses:
                 """Returns a dataframe of responses by reading the datafile_name."""
-                return SurveyResponses({"how are you doing this morning?": ["1", "4"], 
-                                        "how are you feeling?": ["3", "6"]})
+                return [["1", "4"], ["3", "6"]]
 
         return InputDataExample("notneeded.csv", config = {}, **kwargs)
 
@@ -462,13 +508,13 @@ class InputDataCSV(InputData):
         df = df.astype(str)
         return df
 
-    def get_raw_data(self) -> SurveyResponses:
+    def get_raw_data(self) -> List[List[str]]:
         df = self.get_df()
-        data = {
-            k: [convert_value(obs) for obs in v]
+        data = [
+            [convert_value(obs) for obs in v]
             for k, v in df.to_dict(orient="list").items()
-        }
-        return SurveyResponses(data)
+        ]
+        return data 
 
     def get_question_texts(self):
         return list(self.get_df().columns)
@@ -481,10 +527,19 @@ if __name__ == "__main__":
     # config = {"skiprows": 1}
     # # sloan = InputDataCSV("sloan_search.csv", config = {'skiprows': [0, 2]})
 
+    # q_raw = RawQuestion(question_type = "multiple_choice", 
+    #                     question_name = "morning", 
+    #                     question_text = "how are you doing this morning?",
+    #                     question_options = ["Good", "Bad"], 
+    #                     responses = ["Good", "Bad"])
+    # q = q_raw.to_question()
+
+
     # # id2 = InputDataCSV.from_dict(id.to_dict())
-    if False:
+    if True:
         lenny = InputDataCSV("lenny.csv", config={"skiprows": None})
-        lenny.print()
+        #lenny.print()
         lenny.order_options()
-        lenny.print()
+        #lenny.print()
+        survey = lenny.survey()
 
