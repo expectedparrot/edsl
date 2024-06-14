@@ -11,6 +11,7 @@ from edsl.conjure.utilities import convert_value, Missing
 from dataclasses import dataclass, field
 from typing import List
 
+    
 @dataclass
 class RawQuestion:
     question_type: str
@@ -37,6 +38,9 @@ class RawQuestion:
             "question_options": self.question_options,
         }.items() if v is not None and k != "responses"}
         return Question(**d)
+
+
+
 
 class InputDataMixinQuestionStats:
 
@@ -209,6 +213,28 @@ class InputData(ABC, InputDataMixinQuestionStats):
         self.raw_data = raw_data
         self.question_types = question_types
         self.question_options = question_options
+
+    def agent(self, index):
+        """Return an agent constructed from the data."""
+        from edsl import Agent
+        responses = [responses[index] for responses in self.raw_data]
+        traits = {qn: r for qn, r in zip(self.question_names, responses)}
+        
+        def construct_answer_dict_function(traits: dict) -> Callable:
+            def func(self, question: 'QuestionBase', scenario=None):
+                return traits.get(question.question_name, None)
+
+            return func
+        a = Agent(traits=traits)
+        a.add_direct_question_answering_method(construct_answer_dict_function(traits))
+        return a
+    
+    def agents(self):
+        for i in range(len(self.raw_data[0])):
+            yield self.agent(i)
+
+    def results(self):
+        return self.survey().by(list(self.agents())).run()
 
     @abstractmethod
     def get_question_texts(self) -> List[str]:
@@ -542,4 +568,7 @@ if __name__ == "__main__":
         lenny.order_options()
         #lenny.print()
         survey = lenny.survey()
+        a = lenny.agent(0)
+        results = lenny.results()
+        results.select('age').print()
 
