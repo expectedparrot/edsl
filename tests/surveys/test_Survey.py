@@ -1,3 +1,4 @@
+import pytest
 import unittest
 from edsl.surveys.Survey import Survey
 from edsl.questions import QuestionMultipleChoice
@@ -169,6 +170,7 @@ class TestSurvey(unittest.TestCase):
         # for now, just make sure it doesn't crash
         _ = survey.docx()
 
+    @pytest.mark.linux_only
     def test_visualization_for_flow(self):
         s = self.gen_survey()
         # make sure doesn't crash

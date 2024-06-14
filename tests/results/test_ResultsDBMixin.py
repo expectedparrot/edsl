@@ -66,6 +66,7 @@ def test_show_schema(db_mixin):
     # assert "CREATE TABLE self" in schema_info
 
 
+@pytest.mark.linux_only
 def test_results_example():
     from edsl.results import Results
 
@@ -85,6 +86,7 @@ def test_results_example():
         raise
 
 
+@pytest.mark.linux_only
 def test_results_example_group_by():
     from edsl.results import Results
 
@@ -111,6 +113,7 @@ def test_results_example_group_by():
     ) == output_string
 
 
+@pytest.mark.linux_only
 def test_wide_format():
     from edsl.results import Results
 
