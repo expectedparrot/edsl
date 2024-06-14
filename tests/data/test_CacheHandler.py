@@ -38,6 +38,7 @@ def test_get_cache(cache_handler):
     assert isinstance(cache, Cache)
 
 
+@pytest.mark.linux_only
 def test_from_old_sqlite_cache_db(cache_handler, tmp_path):
     # Create a temporary old-style cache database for testing
     old_cache_path = os.path.join(tmp_path, "old_cache.db")
