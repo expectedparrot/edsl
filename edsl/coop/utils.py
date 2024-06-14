@@ -1,4 +1,5 @@
 from edsl import Agent, AgentList, Cache, Jobs, Results, Scenario, ScenarioList, Survey
+from edsl.notebooks import Notebook
 from edsl.questions import QuestionBase
 from typing import Literal, Type, Union
 
@@ -7,6 +8,7 @@ EDSLObject = Union[
     AgentList,
     Cache,
     Jobs,
+    Notebook,
     Type[QuestionBase],
     Results,
     Scenario,
@@ -20,6 +22,7 @@ ObjectType = Literal[
     "cache",
     "job",
     "question",
+    "notebook",
     "results",
     "scenario",
     "scenario_list",
@@ -31,6 +34,7 @@ ObjectPage = Literal[
     "agentlists",
     "caches",
     "jobs",
+    "notebooks",
     "questions",
     "results",
     "scenarios",
@@ -75,6 +79,11 @@ class ObjectRegistry:
             "object_type": "question",
             "edsl_class": QuestionBase,
             "object_page": "questions",
+        },
+        {
+            "object_type": "notebook",
+            "edsl_class": Notebook,
+            "object_page": "notebooks",
         },
         {
             "object_type": "results",

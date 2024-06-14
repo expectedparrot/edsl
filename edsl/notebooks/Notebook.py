@@ -22,16 +22,15 @@ class Notebook(Base):
         """
         if data is not None:
             self.data = data
+        elif path is not None:
+            # TO BE IMPLEMENTED
+            # store in this var the data from the notebook
+            self.data = {"some": "data"}
         else:
-            if path is not None:
-                # TO BE IMPLEMENTED
-                # store in this var the data from the notebook
-                self.data = {"some": "data"}
-            else:
-                # TO BE IMPLEMENTED
-                # 1. Check you're in a notebook ...
-                # 2. get its info and store it in self.data
-                self.data = {"some": "data"}
+            # TO BE IMPLEMENTED
+            # 1. Check you're in a notebook ...
+            # 2. get its info and store it in self.data
+            self.data = {"some": "data"}
 
         # deprioritize - perhaps add sanity check function
         # 1. could check if the notebook is a valid notebook
