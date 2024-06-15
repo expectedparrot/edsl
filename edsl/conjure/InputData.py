@@ -169,7 +169,13 @@ class InputDataMixinQuestionStats:
         [..., ...]
         """
         return self.compute_unique_responses()
-    
+         
+    @staticmethod
+    def filter_missing(responses) -> List[str]:
+        return [
+            v for v in responses if v != Missing().value() and v != "missing" and v != ""
+        ]
+
     @functools.lru_cache(maxsize=1)
     def compute_unique_responses(self):
         return [list(set(self.filter_missing(responses))) for responses in self.raw_data]
@@ -211,7 +217,96 @@ class AgentConstructionMixin:
         return self.survey().by(list(self.agents())).run()
 
 
-class InputData(ABC, InputDataMixinQuestionStats, AgentConstructionMixin):
+class QuestionOptionMixin:
+
+    @property
+    def question_options(self):
+        if not hasattr(self, "_question_options"):
+            self.question_options = None
+        return self._question_options
+
+    @question_options.setter
+    def question_options(self, value):
+        if value is None:
+            value = [self._get_question_options(qn) for qn in self.question_names]
+        self._question_options = value
+
+    def _get_question_options(self, question_name):
+        qt = self.question_statistics(question_name)
+        idx = self.question_names.index(question_name)
+        question_type = self.question_types[idx]
+        if question_type == "multiple_choice":
+            return qt.unique_responses
+        else:
+            if question_type == "multiple_choice_with_other":
+                return self.unique_responses_more_than_k(2)[
+                    self.question_names.index(question_name)
+                ] + [self.OTHER_STRING]
+            else:
+                return None
+            
+    def order_options(self) -> None:
+        """Order the options for multiple choice questions using an LLM."""
+        from edsl import QuestionList, ScenarioList
+        import textwrap
+
+        scenarios = (
+            ScenarioList.from_list("example_question_name", self.question_names)
+            .add_list("example_question_text", self.question_texts)
+            .add_list("example_question_type", self.question_types)
+            .add_list("example_question_options", self.question_options)
+        ).filter(
+            'example_question_type == "multiple_choice" or example_question_type == "multiple_choice_with_other"'
+        )
+
+        question = QuestionList(
+            question_text=textwrap.dedent(
+                """\
+            We have a survey question: `{{ example_question_text }}`.
+            
+            The survey had following options: '{{ example_question_options }}'.
+            The options might be out of order. Please put them in the correct order.
+            If there is not natural order, just put then in order they were presented.
+            """
+            ),
+            question_name="ordering",
+        )
+        proposed_ordering = question.by(scenarios).run()
+        d = dict(
+            proposed_ordering.select("example_question_name", "ordering").to_list()
+        )
+        self._question_options = [d.get(qn, None) for qn in self.question_names]
+        
+
+            
+class QuestionTypeMixin:
+
+    @property
+    def question_types(self):
+        if not hasattr(self, "_question_types"):
+            self.question_types = None
+        return self._question_types
+
+    @question_types.setter
+    def question_types(self, value):
+        if value is None:
+            value = [self._infer_question_type(qn) for qn in self.question_names]
+        self._question_types = value
+
+    def _infer_question_type(self, question_name) -> str:
+
+        qt = self.question_statistics(question_name)
+        if qt.num_unique_responses > self.NUM_UNIQUE_THRESHOLD:
+            if qt.frac_numerical > self.FRAC_NUMERICAL_THRESHOLD:
+                return "numerical"
+            if qt.frac_obs_from_top_5 > self.MULTIPLE_CHOICE_OTHER_THRESHOLD:
+                return "multiple_choice_with_other"
+            return "free_text"
+        else:
+            return "multiple_choice"
+
+
+class InputData(ABC, InputDataMixinQuestionStats, AgentConstructionMixin, QuestionOptionMixin, QuestionTypeMixin):
     """A class to represent the input data for a survey.
 
     This class can take inputs that will be used or it will infer them.
@@ -386,98 +481,6 @@ class InputData(ABC, InputDataMixinQuestionStats, AgentConstructionMixin):
             value = self.get_raw_data()                
         self._raw_data = value
 
-
-    @property
-    def question_types(self):
-        if not hasattr(self, "_question_types"):
-            self.question_types = None
-        return self._question_types
-
-    @question_types.setter
-    def question_types(self, value):
-        if value is None:
-            value = [self._infer_question_type(qn) for qn in self.question_names]
-        self._question_types = value
-
-    def _infer_question_type(self, question_name) -> str:
-
-        qt = self.question_statistics(question_name)
-        if qt.num_unique_responses > self.NUM_UNIQUE_THRESHOLD:
-            if qt.frac_numerical > self.FRAC_NUMERICAL_THRESHOLD:
-                return "numerical"
-            if qt.frac_obs_from_top_5 > self.MULTIPLE_CHOICE_OTHER_THRESHOLD:
-                return "multiple_choice_with_other"
-            return "free_text"
-        else:
-            return "multiple_choice"
-
-    @property
-    def question_options(self):
-        if not hasattr(self, "_question_options"):
-            self.question_options = None
-        return self._question_options
-
-    @question_options.setter
-    def question_options(self, value):
-        if value is None:
-            value = [self._get_question_options(qn) for qn in self.question_names]
-        self._question_options = value
-
-    def _get_question_options(self, question_name):
-        qt = self.question_statistics(question_name)
-        idx = self.question_names.index(question_name)
-        question_type = self.question_types[idx]
-        if question_type == "multiple_choice":
-            return qt.unique_responses
-        else:
-            if question_type == "multiple_choice_with_other":
-                return self.unique_responses_more_than_k(2)[
-                    self.question_names.index(question_name)
-                ] + [self.OTHER_STRING]
-            else:
-                return None
-
-    @staticmethod
-    def filter_missing(responses) -> List[str]:
-        return [
-            v for v in responses if v != Missing().value() and v != "missing" and v != ""
-        ]
-
-    def order_options(self) -> None:
-        """Order the options for multiple choice questions using an LLM."""
-        from edsl import QuestionList, ScenarioList
-        import textwrap
-
-        scenarios = (
-            ScenarioList.from_list("example_question_name", self.question_names)
-            .add_list("example_question_text", self.question_texts)
-            .add_list("example_question_type", self.question_types)
-            .add_list("example_question_options", self.question_options)
-        ).filter(
-            'example_question_type == "multiple_choice" or example_question_type == "multiple_choice_with_other"'
-        )
-
-        question = QuestionList(
-            question_text=textwrap.dedent(
-                """\
-            We have a survey question: `{{ example_question_text }}`.
-            
-            The survey had following options: '{{ example_question_options }}'.
-            The options might be out of order. Please put them in the correct order.
-            If there is not natural order, just put then in order they were presented.
-            """
-            ),
-            question_name="ordering",
-        )
-        proposed_ordering = question.by(scenarios).run()
-        d = dict(
-            proposed_ordering.select("example_question_name", "ordering").to_list()
-        )
-        self._question_options = [d.get(qn, None) for qn in self.question_names]
-        
-
-
-
     
     @property
     def names_to_texts(self) -> dict:
@@ -567,17 +570,20 @@ class InputData(ABC, InputDataMixinQuestionStats, AgentConstructionMixin):
 
 class InputDataCSV(InputData):
 
+    def __init__(self, datafile_name: str, config: dict, **kwargs):
+        super().__init__(datafile_name, config, **kwargs)
+
     def get_df(self) -> pd.DataFrame:
-        df = pd.read_csv(self.datafile_name, skiprows=self.config["skiprows"])
-        df.fillna("", inplace=True)
-        df = df.astype(str)
-        return df
+        if not hasattr(self, "_df"):
+            self._df = pd.read_csv(self.datafile_name, skiprows=self.config["skiprows"])
+            self._df.fillna("", inplace=True)
+            self._df = self._df.astype(str)
+        return self._df
 
     def get_raw_data(self) -> List[List[str]]:
-        df = self.get_df()
         data = [
             [convert_value(obs) for obs in v]
-            for k, v in df.to_dict(orient="list").items()
+            for k, v in self.get_df().to_dict(orient="list").items()
         ]
         return data 
 
@@ -592,40 +598,19 @@ class InputDataCSV(InputData):
 
 class InputDataSPSS(InputData):
 
-    def get_df(self) -> pd.DataFrame:
+    def _parse(self) -> None:
         from pyreadstat import read_sav
         df, meta = read_sav(self.datafile_name)
         df.fillna("", inplace=True)
         df = df.astype(str)
-        return df
-
-    def get_raw_data(self) -> List[List[str]]:
-        df = self.get_df()
-        data = [
-            [convert_value(obs) for obs in v]
-            for k, v in df.to_dict(orient="list").items()
-        ]
-        return data 
-
-    def get_question_texts(self):
-        return list(self.get_df().columns)
-    
-    def get_question_names(self):
-        new_names = [self.naming_function(q) for q in self.question_texts]
-        if len(new_names) != len(set(new_names)):
-            new_names = [f"{q}_{i}" for i, q in enumerate(new_names)]
-        return new_names
-    
-
-class InputDataStata(InputData):
+        self._df = df
+        self._meta = meta
 
     def get_df(self) -> pd.DataFrame:
-        from pyreadstat import read_dta
-        df, self.meta = read_dta(self.datafile_name)
-        df.fillna("", inplace=True)
-        df = df.astype(str)
-        return df
-
+        if not hasattr(self, "_df"):
+            self._parse()
+        return self._df
+    
     def get_raw_data(self) -> List[List[str]]:
         df = self.get_df()
         data = [
@@ -635,15 +620,47 @@ class InputDataStata(InputData):
         return data 
 
     def get_question_texts(self):
-        _ = self.get_df()
-        return [self.meta.column_names_to_labels[qn] for qn in self.question_names]
-        #return list(self.get_df().columns)
-
+        if not hasattr(self, "_meta"):
+            self._parse()
+        return [self._meta.column_names_to_labels[qn] for qn in self.question_names]
+    
     def get_question_names(self):
         new_names = [self.naming_function(q) for q in self.question_texts]
         if len(new_names) != len(set(new_names)):
             new_names = [f"{q}_{i}" for i, q in enumerate(new_names)]
         return new_names
+    
+class InputDataStata(InputData):
+
+    def _parse(self) -> None:
+        from pyreadstat import read_dta
+        df, meta = read_dta(self.datafile_name)
+        df.fillna("", inplace=True)
+        df = df.astype(str)
+        self._df = df
+        self._meta = meta
+
+    def get_df(self) -> pd.DataFrame:
+        if not hasattr(self, "_df"):
+            self._parse()
+        return self._df
+    
+    def get_raw_data(self) -> List[List[str]]:
+        df = self.get_df()
+        data = [
+            [convert_value(obs) for obs in v]
+            for k, v in df.to_dict(orient="list").items()
+        ]
+        return data 
+
+    def get_question_texts(self):
+        if not hasattr(self, "_meta"):
+            self._parse()
+        return [self._meta.column_names_to_labels[qn] for qn in self.question_names]
+    
+    def get_question_names(self):
+        return self.get_df().columns.tolist()
+
 
 
 if __name__ == "__main__":
@@ -662,7 +679,7 @@ if __name__ == "__main__":
 
     ##gss = InputDataSPSS("GSS7218_R3.sav", config = {"skiprows": None})
 
-    #gss = InputDataStata("GSS2022.dta", config = {}, auto_infer = True)
+    gss = InputDataStata("GSS2022.dta", config = {}, auto_infer = True)
     # gss.question_texts = None
     # gss.raw_data = None
     # import time
@@ -675,7 +692,7 @@ if __name__ == "__main__":
     # end = time.time()
     # print("Second pass", end - start)
 
-    #jobs = InputDataSPSS("job_satisfaction.sav", config={"skiprows": None})
+# jobs = InputDataSPSS("job_satisfaction.sav", config={"skiprows": None})
     #jobs.survey().html()
 
     # # id2 = InputDataCSV.from_dict(id.to_dict())
