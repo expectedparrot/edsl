@@ -11,6 +11,7 @@ from edsl.conjure.utilities import convert_value, Missing
 from dataclasses import dataclass, field
 from typing import List
 
+import functools
     
 @dataclass
 class RawQuestion:
@@ -53,7 +54,9 @@ class InputDataMixinQuestionStats:
         {'num_responses': 2, 'num_unique_responses': 2, 'missing': 0, 'unique_responses': ..., 'frac_numerical': 0.0, 'top_5': [('1', 1), ('4', 1)], 'frac_obs_from_top_5': 1.0}
         """
         idx = self.question_names.index(question_name)
-        return {attr: getattr(self, attr)[idx] for attr in self.question_attributes}
+        stats =  {attr: getattr(self, attr)[idx] for attr in self.question_attributes}
+
+        return stats
 
     def question_statistics(self, question_name:str) -> "QuestionStats":
         qt = self.QuestionStats(**self._question_statistics(question_name))
@@ -68,6 +71,10 @@ class InputDataMixinQuestionStats:
         >>> id.num_responses
         [2, 2]
         """
+        return self.compute_num_responses()
+    
+    @functools.lru_cache(maxsize=1)
+    def compute_num_responses(self):
         return [len(responses) for responses in self.raw_data]
 
     @property
@@ -79,6 +86,10 @@ class InputDataMixinQuestionStats:
         >>> id.num_unique_responses
         [2, 2]
         """
+        return self.compute_num_unique_responses()
+    
+    @functools.lru_cache(maxsize=1)
+    def compute_num_unique_responses(self):
         return [len(set(responses)) for responses in self.raw_data]
 
     @property
@@ -89,6 +100,10 @@ class InputDataMixinQuestionStats:
         [1]
         
         """
+        return self.compute_missing()
+    
+    @functools.lru_cache(maxsize=1)
+    def compute_missing(self):
         return [
             sum([1 for x in v if x == Missing().value()])
             for v in self.raw_data
@@ -101,11 +116,16 @@ class InputDataMixinQuestionStats:
         >>> input_data.frac_numerical
         [0.75]
         """
+        return self.compute_frac_numerical()
+    
+    @functools.lru_cache(maxsize=1)
+    def compute_frac_numerical(self):
         return [
             sum([1 for x in v if isinstance(x, (int, float))]) / len(v)
             for v in self.raw_data
         ]
 
+    @functools.lru_cache(maxsize=1)
     def top_k(self, k:int) -> List[List[tuple]]:
         """
         >>> input_data = InputData.example(raw_data = [[1,1,1,1,1,2]], question_texts = ['A question'])
@@ -116,6 +136,7 @@ class InputDataMixinQuestionStats:
         """
         return [Counter(value).most_common(k) for value in self.raw_data]
 
+    @functools.lru_cache(maxsize=1)
     def frac_obs_from_top_k(self, k):
         """
         >>> input_data = InputData.example(raw_data = [[1,1,1,1,1,1,1,1,2, 3]], question_names = ['a'])
@@ -174,6 +195,7 @@ class InputData(ABC, InputDataMixinQuestionStats):
         answer_codebook: Optional[Dict] = None,
         question_types: Optional[List[str]] = None,
         question_options: Optional[List] = None,
+        auto_infer: bool = True,
     ):
         """Initialize the InputData object.
 
@@ -207,13 +229,15 @@ class InputData(ABC, InputDataMixinQuestionStats):
                 raise Exception("The question_names and question_texts must have the same length.")
 
         # TO BE INFERRED
-        self.question_texts = question_texts
-        self.question_names = question_names
-        self.answer_codebook = answer_codebook
-        self.raw_data = raw_data
-        self.question_types = question_types
-        self.question_options = question_options
+        if auto_infer:
+            self.question_texts = question_texts
+            self.question_names = question_names
+            self.answer_codebook = answer_codebook
+            self.raw_data = raw_data
+            self.question_types = question_types
+            self.question_options = question_options
 
+    
     def agent(self, index):
         """Return an agent constructed from the data."""
         from edsl import Agent
@@ -287,6 +311,8 @@ class InputData(ABC, InputDataMixinQuestionStats):
 
     @property
     def question_types(self):
+        if not hasattr(self, "_question_types"):
+            self.question_types = None
         return self._question_types
 
     @question_types.setter
@@ -309,6 +335,8 @@ class InputData(ABC, InputDataMixinQuestionStats):
 
     @property
     def question_options(self):
+        if not hasattr(self, "_question_options"):
+            self.question_options = None
         return self._question_options
 
     @question_options.setter
@@ -379,6 +407,10 @@ class InputData(ABC, InputDataMixinQuestionStats):
         >>> id.unique_responses
         [..., ...]
         """
+        return self.compute_unique_responses()
+    
+    @functools.lru_cache(maxsize=1)
+    def compute_unique_responses(self):
         return [list(set(self.filter_missing(responses))) for responses in self.raw_data]
 
     def unique_responses_more_than_k(self, k, remove_missing=True):
@@ -404,6 +436,8 @@ class InputData(ABC, InputDataMixinQuestionStats):
         >>> id.raw_data
         {'A question': [1, 2]}
         """
+        if not hasattr(self, "_raw_data"):
+            self.raw_data = None
         return self._raw_data
 
     @raw_data.setter
@@ -423,6 +457,8 @@ class InputData(ABC, InputDataMixinQuestionStats):
         >>> id.question_texts
         ['how are you doing this morning?', 'how are you feeling?']
         """
+        if not hasattr(self, "_question_texts"):
+            self.question_texts = None
         return self._question_texts
 
     @question_texts.setter
@@ -447,6 +483,8 @@ class InputData(ABC, InputDataMixinQuestionStats):
         ['a', 'b']
         
         """
+        if not hasattr(self, "_question_names"):
+            self.question_names = None
         return self._question_names
 
     @question_names.setter
@@ -545,6 +583,46 @@ class InputDataCSV(InputData):
     def get_question_texts(self):
         return list(self.get_df().columns)
 
+class InputDataSPSS(InputData):
+
+    def get_df(self) -> pd.DataFrame:
+        from pyreadstat import read_sav
+        df, meta = read_sav(self.datafile_name)
+        df.fillna("", inplace=True)
+        df = df.astype(str)
+        return df
+
+    def get_raw_data(self) -> List[List[str]]:
+        df = self.get_df()
+        data = [
+            [convert_value(obs) for obs in v]
+            for k, v in df.to_dict(orient="list").items()
+        ]
+        return data 
+
+    def get_question_texts(self):
+        return list(self.get_df().columns)
+
+
+class InputDataStata(InputData):
+
+    def get_df(self) -> pd.DataFrame:
+        from pyreadstat import read_dta
+        df, self.meta = read_dta(self.datafile_name)
+        df.fillna("", inplace=True)
+        df = df.astype(str)
+        return df
+
+    def get_raw_data(self) -> List[List[str]]:
+        df = self.get_df()
+        data = [
+            [convert_value(obs) for obs in v]
+            for k, v in df.to_dict(orient="list").items()
+        ]
+        return data 
+
+    def get_question_texts(self):
+        return list(self.get_df().columns)
 
 if __name__ == "__main__":
     import doctest
@@ -560,9 +638,26 @@ if __name__ == "__main__":
     #                     responses = ["Good", "Bad"])
     # q = q_raw.to_question()
 
+    ##gss = InputDataSPSS("GSS7218_R3.sav", config = {"skiprows": None})
+
+    gss = InputDataStata("GSS2022.dta", config = {}, auto_infer = True)
+    # gss.question_texts = None
+    # gss.raw_data = None
+    # import time
+    # start = time.time()
+    # gss.frac_numerical
+    # end = time.time()
+    # print("First pass", end - start)
+    # start = time.time()
+    # gss.frac_numerical
+    # end = time.time()
+    # print("Second pass", end - start)
+
+    #jobs = InputDataSPSS("job_satisfaction.sav", config={"skiprows": None})
+    #jobs.survey().html()
 
     # # id2 = InputDataCSV.from_dict(id.to_dict())
-    if True:
+    if False:
         lenny = InputDataCSV("lenny.csv", config={"skiprows": None})
         #lenny.print()
         lenny.order_options()
