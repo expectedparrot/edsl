@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod, ABCMeta
 import gzip
 import io
 import json
-from typing import Union
+from typing import Optional, Union
 from uuid import UUID
 from IPython.display import display
 from rich.console import Console
@@ -69,7 +69,12 @@ class PersistenceMixin:
         return c._delete_base(cls, id_or_url)
 
     @classmethod
-    def patch(cls, id_or_url: Union[str, UUID], visibility: str):
+    def patch(
+        cls,
+        id_or_url: Union[str, UUID],
+        description: Optional[str] = None,
+        visibility: Optional[str] = None,
+    ):
         """
         Patch an uploaded objects attributes.
         - Only supports changing visibility for now.
@@ -77,7 +82,7 @@ class PersistenceMixin:
         from edsl.coop import Coop
 
         c = Coop()
-        return c._patch_base(cls, id_or_url, visibility)
+        return c._patch_base(cls, id_or_url, description, visibility)
 
     @classmethod
     def search(cls, query):

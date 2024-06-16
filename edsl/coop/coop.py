@@ -227,12 +227,15 @@ class Coop:
         self,
         object_type: ObjectType,
         uuid: Union[str, UUID],
-        visibility: VisibilityType,
+        description: Optional[str] = None,
+        visibility: Optional[VisibilityType] = None,
     ) -> dict:
         """
         Change the attributes of an uploaded object
         - Only supports visibility for now
         """
+        if description is None and visibility is None:
+            raise Exception("No attributes to patch.")
         response = self._send_server_request(
             uri=f"api/v0/object",
             method="PATCH",
@@ -246,13 +249,14 @@ class Coop:
         self,
         cls: EDSLObject,
         uuid: Union[str, UUID],
-        visibility: VisibilityType,
+        description: Optional[str] = None,
+        visibility: Optional[VisibilityType] = None,
     ) -> dict:
         """
         Used by the Base class to offer a patch functionality.
         """
         object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
-        return self.patch(object_type, uuid, visibility)
+        return self.patch(object_type, uuid, description, visibility)
 
     ################
     # Remote Cache
@@ -486,11 +490,17 @@ if __name__ == "__main__":
             coop.patch(
                 object_type=object_type, uuid=item.get("uuid"), visibility="private"
             )
+        # 6. Change description of all objects
+        for item in objects:
+            coop.patch(
+                object_type=object_type, uuid=item.get("uuid"), description="hey"
+            )
         # 7. Delete all objects
         for item in objects:
             coop.delete(object_type=object_type, uuid=item.get("uuid"))
         assert len(coop.get_all(object_type)) == 0
 
+    # a simple example
     response = QuestionMultipleChoice.example().push()
     QuestionMultipleChoice.pull(response.get("uuid"))
     coop.patch(object_type="question", uuid=response.get("uuid"), visibility="public")
