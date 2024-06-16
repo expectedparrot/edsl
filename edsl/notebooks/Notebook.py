@@ -1,5 +1,8 @@
 """A Notebook is ...."""
 
+import json
+import nbformat
+
 from typing import Dict, List, Optional
 from rich.table import Table
 from edsl.Base import Base
@@ -14,22 +17,33 @@ class Notebook(Base):
     A Notebook is a utility class that allows you to easily share/pull ipynbs from Coop.
     """
 
-    def __init__(self, data: Optional[Dict] = None, path: Optional[str] = None):
+    default_name = "notebook"
+
+    def __init__(
+        self,
+        data: Optional[Dict] = None,
+        path: Optional[str] = None,
+        name: Optional[str] = None,
+    ):
         """
         Initialize a new Notebook.
         - if a path is provided, try to load the notebook from that path.
         - if no path is provided, assume this code is run in a notebook and try to load the current notebook.
         """
         if data is not None:
+            nbformat.validate(data)
             self.data = data
         elif path is not None:
             # TO BE IMPLEMENTED
             # store in this var the data from the notebook
-            self.data = {"some": "data"}
+            with open(path, mode="r", encoding="utf-8") as f:
+                data = nbformat.read(f, as_version=4)
+            self.data = json.loads(nbformat.writes(data))
         else:
             # TO BE IMPLEMENTED
             # 1. Check you're in a notebook ...
             # 2. get its info and store it in self.data
+            # RI: Working on this
             self.data = {"some": "data"}
 
         # deprioritize - perhaps add sanity check function
@@ -37,9 +51,12 @@ class Notebook(Base):
         # 2. could check notebook uses EDSL
         # ....
 
+        self.name = name or self.default_name
+
     def __eq__(self, other):
         """
         Check if two Notebooks are equal.
+        This should maybe only check the cells and not the metadata/nbformat?
         """
         return self.data == other.data
 
@@ -50,7 +67,7 @@ class Notebook(Base):
         AF: here you will create a dict from which self.from_dict can recreate the object.
         AF: the decorator will add the edsl_version to the dict.
         """
-        return {"data": self.data}
+        return {"name": self.name, "data": self.data}
 
     @classmethod
     @remove_edsl_version
@@ -58,7 +75,15 @@ class Notebook(Base):
         """
         Convert a dictionary representation of a Notebook to a Notebook object.
         """
-        return cls(data=d["data"])
+        return cls(data=d["data"], name=d["name"])
+
+    def to_file(self, path: str):
+        """
+        Saves the notebook at the specified filepath.
+        RI: Maybe you want to download a notebook to your local machine
+        to work with it?
+        """
+        nbformat.write(nbformat.from_dict(self.data), fp=path)
 
     def print(self):
         """
@@ -96,7 +121,33 @@ class Notebook(Base):
         Return an example Notebook.
         AF: add a simple custom example here
         """
-        return cls(data={"some": "data"})
+        cells = [
+            {
+                "cell_type": "markdown",
+                "metadata": dict(),
+                "source": ["# Test notebook"],
+            },
+            {
+                "cell_type": "code",
+                "execution_count": 1,
+                "metadata": dict(),
+                "outputs": [
+                    {
+                        "name": "stdout",
+                        "output_type": "stream",
+                        "text": ["Hello world!\n"],
+                    }
+                ],
+                "source": ['print("Hello world!")'],
+            },
+        ]
+        data = {
+            "metadata": dict(),
+            "nbformat": 4,
+            "nbformat_minor": 4,
+            "cells": cells,
+        }
+        return cls(data=data)
 
     def code(self) -> List[str]:
         """
@@ -105,7 +156,7 @@ class Notebook(Base):
         """
         lines = []
         lines.append("from edsl.notebooks import Notebook")
-        lines.append(f"s = Notebook({self.data})")
+        lines.append(f"nb = Notebook(data={self.data}, name='{self.name}')")
         return lines
 
 
