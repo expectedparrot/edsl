@@ -40,12 +40,16 @@ class RichPrintingMixin:
 class PersistenceMixin:
     """Mixin for saving and loading objects to and from files."""
 
-    def push(self, visibility="unlisted"):
+    def push(
+        self,
+        description: Optional[str] = None,
+        visibility: Optional[str] = "unlisted",
+    ):
         """Post the object to coop."""
         from edsl.coop import Coop
 
         c = Coop()
-        return c.create(self, visibility)
+        return c.create(self, description, visibility)
 
     @classmethod
     def pull(cls, id_or_url: Union[str, UUID]):
@@ -54,11 +58,6 @@ class PersistenceMixin:
 
         c = Coop()
         return c._get_base(cls, id_or_url)
-        # if isinstance(id_or_url, str) and c.url in id_or_url:
-        #     return c.get(url=id_or_url)
-        # else:
-        #     _, object_type = c._resolve_edsl_object(cls)
-        #     return c.get(object_type, id_or_url)
 
     @classmethod
     def delete(cls, id_or_url: Union[str, UUID]):
