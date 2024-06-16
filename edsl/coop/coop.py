@@ -106,7 +106,8 @@ class Coop:
     def create(
         self,
         object: EDSLObject,
-        visibility: VisibilityType = "unlisted",
+        description: Optional[str] = None,
+        visibility: Optional[VisibilityType] = "unlisted",
     ) -> dict:
         """
         Create an EDSL object in the Coop server.
@@ -117,6 +118,7 @@ class Coop:
             uri=f"api/v0/object",
             method="POST",
             payload={
+                "description": description,
                 "object_type": object_type,
                 "json_string": json.dumps(
                     object.to_dict(),
@@ -131,6 +133,7 @@ class Coop:
         return {
             "uuid": response_json.get("uuid"),
             "version": self._edsl_version,
+            "description": response_json.get("description"),
             "visibility": response_json.get("visibility"),
             "url": f"{self.url}/explore/{object_page}/{response_json.get('uuid')}",
         }
@@ -193,6 +196,7 @@ class Coop:
                 "object": edsl_class.from_dict(json.loads(o.get("json_string"))),
                 "uuid": o.get("uuid"),
                 "version": o.get("version"),
+                "description": o.get("description"),
                 "visibility": o.get("visibility"),
                 "url": f"{self.url}/explore/{object_page}/{o.get('uuid')}",
             }
