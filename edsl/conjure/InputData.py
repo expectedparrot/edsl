@@ -377,6 +377,9 @@ class InputData(ABC, InputDataMixinQuestionStats, AgentConstructionMixin, Questi
         self.question_names = question_names
         self.answer_codebook = answer_codebook
         self.raw_data = raw_data
+
+        self.apply_codebook()
+
         self.question_types = question_types
         self.question_options = question_options
     
@@ -478,7 +481,8 @@ class InputData(ABC, InputDataMixinQuestionStats, AgentConstructionMixin, Questi
         """
         """
         if value is None:
-            value = self.get_raw_data()                
+            value = self.get_raw_data()
+            #self.apply_codebook()                
         self._raw_data = value
 
     
@@ -517,11 +521,21 @@ class InputData(ABC, InputDataMixinQuestionStats, AgentConstructionMixin, Questi
     
     def questions(self):
         for rq in self.raw_questions():
-            yield rq.to_question()
+            try: 
+                yield rq.to_question()
+            except Exception as e:
+                print("Error with question", rq)
+                print(e)
+                yield None
 
     def survey(self):
         from edsl import Survey
-        return Survey(list(self.questions()))
+        s = Survey()
+        for q in self.questions():
+            if q is not None:
+                s.add_question(q)
+        return s
+        #return Survey(list(self.questions()))
     
     def print(self):
         sl = (
@@ -537,14 +551,39 @@ class InputData(ABC, InputDataMixinQuestionStats, AgentConstructionMixin, Questi
         )
         sl.print()
 
-    def print(self):
-        sl = (
-            ScenarioList.from_list("question_name", self.question_names)
-            .add_list("question_text", self.question_texts)
-            .add_list("inferred_question_type", self.question_types)
-            .add_list("question_options", self.question_options)
-        )
-        sl.print()
+    @property
+    def answer_codebook(self):
+        if not hasattr(self, "_answer_codebook"):
+            self._answer_codebook = None
+        return self._answer_codebook
+    
+    @answer_codebook.setter
+    def answer_codebook(self, value):
+        if value is None:
+            value = self.get_answer_codebook()
+        self._answer_codebook = value
+
+    def get_answer_codebook(self):
+        return {}
+    
+    def apply_codebook(self) -> None:
+        for index, qn in enumerate(self.question_names):
+            if qn in self.answer_codebook:
+                #print("Found codebook for", qn)
+                #print("Old responses:", self.raw_data[index][:5])
+                new_responses = [self.answer_codebook[qn].get(r, r) for r in self.raw_data[index]]
+                #print("New responses:", new_responses[:5])
+                self.raw_data[index] = new_responses
+                #print("Object iself", self.raw_data[index][:5])
+
+    # def print(self):
+    #     sl = (
+    #         ScenarioList.from_list("question_name", self.question_names)
+    #         .add_list("question_text", self.question_texts)
+    #         .add_list("inferred_question_type", self.question_types)
+    #         .add_list("question_options", self.question_options)
+    #     )
+    #     sl.print()
 
 
     @classmethod
@@ -644,7 +683,16 @@ class InputDataStata(InputData):
         if not hasattr(self, "_df"):
             self._parse()
         return self._df
-    
+
+    def get_answer_codebook(self):
+        if not hasattr(self, "_meta"):
+            self._parse()
+
+        question_name_to_label_name = self._meta.variable_to_label
+        label_name_to_labels = self._meta.value_labels
+        return {qn:label_name_to_labels[label_name] for qn, label_name in question_name_to_label_name.items()}
+
+        
     def get_raw_data(self) -> List[List[str]]:
         df = self.get_df()
         data = [
@@ -680,6 +728,7 @@ if __name__ == "__main__":
     ##gss = InputDataSPSS("GSS7218_R3.sav", config = {"skiprows": None})
 
     gss = InputDataStata("GSS2022.dta", config = {}, auto_infer = True)
+    results = gss.results()
     # gss.question_texts = None
     # gss.raw_data = None
     # import time
