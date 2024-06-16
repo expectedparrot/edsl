@@ -480,7 +480,9 @@ if __name__ == "__main__":
         response_1 = coop.create(example)
         response_2 = coop.create(cls.example(), visibility="private")
         response_3 = coop.create(cls.example(), visibility="public")
-        response_4 = coop.create(cls.example(), visibility="unlisted")
+        response_4 = coop.create(
+            cls.example(), visibility="unlisted", description="hey"
+        )
         # 3. Retrieve all objects
         objects = coop.get_all(object_type)
         assert len(objects) == 4
