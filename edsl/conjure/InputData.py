@@ -7,9 +7,13 @@ from edsl import ScenarioList
 from edsl.conjure.SurveyResponses import SurveyResponses
 from edsl.conjure.naming_utilities import sanitize_string
 from edsl.conjure.utilities import convert_value, Missing
+from edsl.surveys.Survey import Survey
+from edsl import AgentList
+
 
 from dataclasses import dataclass, field
 from typing import List
+from edsl.utilities.utilities import is_valid_variable_name
 
 import functools
     
@@ -205,16 +209,40 @@ class AgentConstructionMixin:
                 return traits.get(question.question_name, None)
 
             return func
-        a = Agent(traits=traits)
+        a = Agent(traits=traits, codebook=self.names_to_texts)
         a.add_direct_question_answering_method(construct_answer_dict_function(traits))
         return a
     
-    def agents(self):
-        for i in range(len(self.raw_data[0])):
-            yield self.agent(i)
+    def _agents(self, indices):
+        for idx in indices:
+            yield self.agent(idx)
+    
+    def to_agent_list(self, indices: Optional[List] = None, sample_size = None, seed = "edsl") -> 'AgentList':
+        if indices: 
+            if len(indices) == 0:
+                raise ValueError("Indices must be a non-empty list.")
+            if max(indices) >= len(self.raw_data[0]):
+                raise ValueError(f"Index {max(indices)} is greater than the number of agents {len(self.raw_data[0])}.")
+            if min(indices) < 0:
+                raise ValueError(f"Index {min(indices)} is less than 0.")
+            
+        if indices is None:     
+            num_agents = len(self.raw_data[0])
+            if sample_size > num_agents:
+                raise ValueError(f"Sample size {sample_size} is greater than the number of agents {num_agents}.")    
+            if sample_size is None:
+                sample_size = num_agents
+                indices = range(num_agents)
+            else:
+                import random
+                random.seed(seed)
+                indices = random.sample(range(num_agents), sample_size)
+        
+        return AgentList(list(self._agents(indices)))
 
     def results(self):
-        return self.survey().by(list(self.agents())).run()
+        """Return the results of the survey."""
+        return self.to_survey().by(list(self.to_agent_list())).run()
 
 
 class QuestionOptionMixin:
@@ -341,6 +369,7 @@ class InputData(ABC, InputDataMixinQuestionStats, AgentConstructionMixin, Questi
         question_types: Optional[List[str]] = None,
         question_options: Optional[List] = None,
         auto_infer: bool = True,
+        question_name_repair_func: Callable = None,
     ):
         """Initialize the InputData object.
 
@@ -364,6 +393,7 @@ class InputData(ABC, InputDataMixinQuestionStats, AgentConstructionMixin, Questi
         self.datafile_name = datafile_name
         self.config = config
         self.naming_function = naming_function
+        self.question_name_repair_func = question_name_repair_func or (lambda x: x)
 
         if answer_codebook is not None and question_names is not None:
             if set(answer_codebook.keys()) != set(question_names):
@@ -439,6 +469,15 @@ class InputData(ABC, InputDataMixinQuestionStats, AgentConstructionMixin, Questi
             value = self.get_question_names()
             if len(set(value)) != len(value):
                 raise ValueError("Question names must be unique.")
+            for i, qn in enumerate(value):
+                if not is_valid_variable_name(qn):
+                    new_name = self.question_name_repair_func(qn)
+                    if not is_valid_variable_name(new_name):
+                        raise ValueError(f"""Question names must be valid Python identifiers. '{qn}' is not.
+                                         You can pass an entry in question_name_repair_dict to fix this. 
+                                         """)
+                    else:
+                        value[i] = new_name
         self._question_names = value
 
     @property
@@ -524,18 +563,42 @@ class InputData(ABC, InputDataMixinQuestionStats, AgentConstructionMixin, Questi
             try: 
                 yield rq.to_question()
             except Exception as e:
-                print("Error with question", rq)
+                print("Error with question", rq.question_name)
                 print(e)
                 yield None
 
-    def survey(self):
-        from edsl import Survey
+    def select(self, question_names: List[str]):
+        """Select a subset of the questions."""
+        idxs = [self.question_names.index(qn) for qn in question_names]
+        new_data = [self.raw_data[i] for i in idxs]
+        new_texts = [self.question_texts[i] for i in idxs]
+        new_types = [self.question_types[i] for i in idxs]
+        new_options = [self.question_options[i] for i in idxs]
+        answer_codebook = {qn: self.answer_codebook.get(qn, {}) for qn in question_names}
+        return self.__class__(
+            self.datafile_name,
+            self.config,
+            raw_data=new_data,
+            question_names=question_names,
+            question_texts=new_texts,
+            question_types=new_types,
+            question_options=new_options,
+            answer_codebook=answer_codebook,
+            question_name_repair_func = self.question_name_repair_func
+        )
+
+    def to_survey(self) -> Survey:
+        """
+        >>> id = InputData.example()
+        >>> s = id.to_survey()
+        >>> type(s) == Survey
+        True
+        """
         s = Survey()
         for q in self.questions():
             if q is not None:
                 s.add_question(q)
         return s
-        #return Survey(list(self.questions()))
     
     def print(self):
         sl = (
@@ -699,12 +762,32 @@ class InputDataStata(InputData):
             [convert_value(obs) for obs in v]
             for k, v in df.to_dict(orient="list").items()
         ]
-        return data 
+        return data
 
+    @property
+    def question_names_to_question_texts(self):
+        """Return a dictionary of question names to question texts.
+        This will repair the question names if they are not valid Python identifiers using the 
+        same question_name_repair_func that was passed in.
+        """
+        if not hasattr(self, "_meta"):
+            self._parse()
+        d = {} 
+        for qn, label in self._meta.column_names_to_labels.items():
+            new_name = qn
+            if not is_valid_variable_name(qn):
+                new_name = self.question_name_repair_func(qn)
+                if not is_valid_variable_name(new_name):
+                    raise ValueError(f"""Question names must be valid Python identifiers. '{qn}' is not.
+                                     You can pass an entry in question_name_repair_dict to fix this. 
+                                     """)
+            d[new_name] = label
+        return d
+        
     def get_question_texts(self):
         if not hasattr(self, "_meta"):
             self._parse()
-        return [self._meta.column_names_to_labels[qn] for qn in self.question_names]
+        return [self.question_names_to_question_texts[qn] for qn in self.question_names]
     
     def get_question_names(self):
         return self.get_df().columns.tolist()
@@ -727,8 +810,11 @@ if __name__ == "__main__":
 
     ##gss = InputDataSPSS("GSS7218_R3.sav", config = {"skiprows": None})
 
-    gss = InputDataStata("GSS2022.dta", config = {}, auto_infer = True)
-    results = gss.results()
+    gss = InputDataStata("GSS2022.dta", config = {}, auto_infer = True, 
+                         question_name_repair_func = lambda x: {'class':'social_class'}.get(x, x)                         
+                         )
+    new_gss = gss.select(gss.question_names[9:10])
+    #results = gss.results(progress_bar=True)
     # gss.question_texts = None
     # gss.raw_data = None
     # import time
