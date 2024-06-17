@@ -155,7 +155,7 @@ class Notebook(Base):
         AF: Again, not sure
         """
         lines = []
-        lines.append("from edsl.notebooks import Notebook")
+        lines.append("from edsl import Notebook")
         lines.append(f"nb = Notebook(data={self.data}, name='{self.name}')")
         return lines
 
