@@ -38,7 +38,7 @@ class Notebook(Base):
             # store in this var the data from the notebook
             with open(path, mode="r", encoding="utf-8") as f:
                 data = nbformat.read(f, as_version=4)
-            self.data = json.loads(nbformat.writes(data))
+            self.data = json.loads(json.dumps(data))
         else:
             # TO BE IMPLEMENTED
             # 1. Check you're in a notebook ...
@@ -125,7 +125,7 @@ class Notebook(Base):
             {
                 "cell_type": "markdown",
                 "metadata": dict(),
-                "source": ["# Test notebook"],
+                "source": "# Test notebook",
             },
             {
                 "cell_type": "code",
@@ -135,10 +135,10 @@ class Notebook(Base):
                     {
                         "name": "stdout",
                         "output_type": "stream",
-                        "text": ["Hello world!\n"],
+                        "text": "Hello world!\n",
                     }
                 ],
-                "source": ['print("Hello world!")'],
+                "source": 'print("Hello world!")',
             },
         ]
         data = {
