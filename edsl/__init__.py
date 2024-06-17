@@ -35,4 +35,5 @@ from edsl.data.CacheEntry import CacheEntry
 from edsl.data.CacheHandler import set_session_cache, unset_session_cache
 from edsl.shared import shared_globals
 from edsl.jobs import Jobs
+from edsl.notebooks import Notebook
 from edsl.coop.coop import Coop
