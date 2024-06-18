@@ -496,6 +496,11 @@ if __name__ == "__main__":
     coop.patch(object_type="question", uuid=response.get("uuid"), visibility="public")
     coop.delete(object_type="question", uuid=response.get("uuid"))
 
+    # entropy
+    from edsl import Survey
+
+    survey = Survey.pull("23e4147e-6bae-4758-9516-ca623fea253b")
+
     ##############
     # B. Remote Cache
     ##############
