@@ -1,22 +1,24 @@
+import functools
+import random
+
 from abc import ABC, abstractmethod
-from typing import Dict, Callable, Optional, List
+from typing import Dict, Callable, Optional, List, Generator, Tuple
 from collections import namedtuple, Counter
-import pandas as pd
-
-from edsl import ScenarioList
-from edsl.conjure.SurveyResponses import SurveyResponses
-from edsl.conjure.naming_utilities import sanitize_string
-from edsl.conjure.utilities import convert_value, Missing
-from edsl.surveys.Survey import Survey
-from edsl import AgentList
-
-
 from dataclasses import dataclass, field
 from typing import List
-from edsl.utilities.utilities import is_valid_variable_name
 
-import functools
-    
+import pandas as pd
+
+from edsl.agents.AgentList import AgentList
+from edsl.agents.Agent import Agent
+
+from edsl.scenarios.ScenarioList import ScenarioList
+from edsl.surveys.Survey import Survey
+from edsl.conjure.SurveyResponses import SurveyResponses
+from edsl.conjure.naming_utilities import sanitize_string 
+from edsl.utilities.utilities import is_valid_variable_name
+from edsl.conjure.utilities import convert_value, Missing
+
 @dataclass
 class RawQuestion:
     question_type: str
@@ -45,11 +47,9 @@ class RawQuestion:
         return Question(**d)
 
 
-
-
 class InputDataMixinQuestionStats:
 
-    def _question_statistics(self, question_name: str) -> dict:
+    def _compute_question_statistics(self, question_name: str) -> dict:
         """
         Return a dictionary of statistics for a question.
 
@@ -63,7 +63,7 @@ class InputDataMixinQuestionStats:
         return stats
 
     def question_statistics(self, question_name:str) -> "QuestionStats":
-        qt = self.QuestionStats(**self._question_statistics(question_name))
+        qt = self.QuestionStats(**self._compute_question_statistics(question_name))
         return qt
 
     @property
@@ -98,7 +98,8 @@ class InputDataMixinQuestionStats:
 
     @property
     def missing(self) -> List[int]:
-        """
+        """The number of observations that are missing.
+
         >>> input_data = InputData.example(raw_data = [[1,2,Missing().value()]], question_texts = ['A question'])
         >>> input_data.missing
         [1]
@@ -116,6 +117,8 @@ class InputDataMixinQuestionStats:
     @property
     def frac_numerical(self) -> List[float]:
         """
+        The fraction of responses that are numerical.
+
         >>> input_data = InputData.example(raw_data = [[1,2,"Poop", 3]], question_texts = ['A question'])
         >>> input_data.frac_numerical
         [0.75]
@@ -200,24 +203,35 @@ class AgentConstructionMixin:
 
     def agent(self, index):
         """Return an agent constructed from the data."""
-        from edsl import Agent
         responses = [responses[index] for responses in self.raw_data]
         traits = {qn: r for qn, r in zip(self.question_names, responses)}
+        
+        a = Agent(traits=traits, codebook=self.names_to_texts)
         
         def construct_answer_dict_function(traits: dict) -> Callable:
             def func(self, question: 'QuestionBase', scenario=None):
                 return traits.get(question.question_name, None)
 
             return func
-        a = Agent(traits=traits, codebook=self.names_to_texts)
+        
         a.add_direct_question_answering_method(construct_answer_dict_function(traits))
         return a
     
-    def _agents(self, indices):
+    def _agents(self, indices) -> Generator[Agent, None, None]:
+        """Return a generator of agents, one for each index."""
         for idx in indices:
             yield self.agent(idx)
     
-    def to_agent_list(self, indices: Optional[List] = None, sample_size = None, seed = "edsl") -> 'AgentList':
+    def to_agent_list(self, indices: Optional[List] = None, sample_size:int = None, seed:str = "edsl") -> AgentList:
+        """Return an AgentList from the data.
+        
+        :param indices: The indices of the agents to include.
+        :param sample_size: The number of agents to sample.
+        :param seed: The seed for the random number generator.
+        """
+        if indices and (sample_size or seed != "edsl"):
+            raise ValueError("You cannot pass both indices and sample_size/seed, as these are mutually exclusive.")
+        
         if indices: 
             if len(indices) == 0:
                 raise ValueError("Indices must be a non-empty list.")
@@ -234,15 +248,15 @@ class AgentConstructionMixin:
                 sample_size = num_agents
                 indices = range(num_agents)
             else:
-                import random
                 random.seed(seed)
                 indices = random.sample(range(num_agents), sample_size)
         
         return AgentList(list(self._agents(indices)))
 
-    def results(self):
+    def to_results(self, indices: Optional[List] = None, sample_size:int = None, seed:str = "edsl") -> 'Results':
         """Return the results of the survey."""
-        return self.to_survey().by(list(self.to_agent_list())).run()
+        agent_list = list(self.to_agent_list(indices=indices, sample_size=sample_size, seed=seed))
+        return self.to_survey().by(agent_list).run()
 
 
 class QuestionOptionMixin:
