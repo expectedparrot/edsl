@@ -21,9 +21,9 @@ from edsl.conjure.utilities import convert_value, Missing
 
 try: 
     import pyreadstat
-except ImportError:
+except ImportError as e:
     raise ImportError(
-        "The 'requests' package is required for this feature. Please install it by running:\n"
+        "The 'pyreadstat' package is required for this feature. Please install it by running:\n"
         "pip install pyreadstat\n"
     ) from e
 
@@ -251,14 +251,15 @@ class AgentConstructionMixin:
             
         if indices is None:     
             num_agents = len(self.raw_data[0])
-            if sample_size > num_agents:
-                raise ValueError(f"Sample size {sample_size} is greater than the number of agents {num_agents}.")    
             if sample_size is None:
                 sample_size = num_agents
                 indices = range(num_agents)
             else:
                 random.seed(seed)
                 indices = random.sample(range(num_agents), sample_size)
+
+            if sample_size > num_agents:
+                raise ValueError(f"Sample size {sample_size} is greater than the number of agents {num_agents}.")    
         
         return AgentList(list(self._agents(indices)))
 
@@ -833,11 +834,12 @@ if __name__ == "__main__":
 
     ##gss = InputDataSPSS("GSS7218_R3.sav", config = {"skiprows": None})
 
-    #gss = InputDataStata("GSS2022.dta", config = {}, auto_infer = True, 
-    #                     question_name_repair_func = lambda x: {'class':'social_class'}.get(x, x)                         
-    #                     )
-    #new_gss = gss.select(gss.question_names[9:10])
-    #results = gss.results(progress_bar=True)
+    gss = InputDataStata("GSS2022.dta", config = {}, auto_infer = True, 
+                         question_name_repair_func = lambda x: {'class':'social_class'}.get(x, x)                         
+                         )
+    new_gss = gss.select(gss.question_names[9:11])
+    results = new_gss.to_results(indices = range(10))
+    results.select('answer.*').print()
     # gss.question_texts = None
     # gss.raw_data = None
     # import time
@@ -854,7 +856,7 @@ if __name__ == "__main__":
     #jobs.survey().html()
 
     # # id2 = InputDataCSV.from_dict(id.to_dict())
-    if True:
+    if False:
         lenny = InputDataCSV("lenny.csv", config={"skiprows": None})
         #lenny.print()
         lenny.order_options()
