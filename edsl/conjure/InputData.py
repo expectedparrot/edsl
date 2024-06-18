@@ -19,6 +19,15 @@ from edsl.conjure.naming_utilities import sanitize_string
 from edsl.utilities.utilities import is_valid_variable_name
 from edsl.conjure.utilities import convert_value, Missing
 
+try: 
+    import pyreadstat
+except ImportError:
+    raise ImportError(
+        "The 'requests' package is required for this feature. Please install it by running:\n"
+        "pip install pyreadstat\n"
+    ) from e
+
+
 @dataclass
 class RawQuestion:
     question_type: str
@@ -54,7 +63,7 @@ class InputDataMixinQuestionStats:
         Return a dictionary of statistics for a question.
 
         >>> id = InputData.example()
-        >>> id._question_statistics('morning')
+        >>> id._compute_question_statistics('morning')
         {'num_responses': 2, 'num_unique_responses': 2, 'missing': 0, 'unique_responses': ..., 'frac_numerical': 0.0, 'top_5': [('1', 1), ('4', 1)], 'frac_obs_from_top_5': 1.0}
         """
         idx = self.question_names.index(question_name)
@@ -824,10 +833,10 @@ if __name__ == "__main__":
 
     ##gss = InputDataSPSS("GSS7218_R3.sav", config = {"skiprows": None})
 
-    gss = InputDataStata("GSS2022.dta", config = {}, auto_infer = True, 
-                         question_name_repair_func = lambda x: {'class':'social_class'}.get(x, x)                         
-                         )
-    new_gss = gss.select(gss.question_names[9:10])
+    #gss = InputDataStata("GSS2022.dta", config = {}, auto_infer = True, 
+    #                     question_name_repair_func = lambda x: {'class':'social_class'}.get(x, x)                         
+    #                     )
+    #new_gss = gss.select(gss.question_names[9:10])
     #results = gss.results(progress_bar=True)
     # gss.question_texts = None
     # gss.raw_data = None
@@ -845,13 +854,13 @@ if __name__ == "__main__":
     #jobs.survey().html()
 
     # # id2 = InputDataCSV.from_dict(id.to_dict())
-    if False:
+    if True:
         lenny = InputDataCSV("lenny.csv", config={"skiprows": None})
         #lenny.print()
         lenny.order_options()
         #lenny.print()
-        survey = lenny.survey()
-        a = lenny.agent(0)
-        results = lenny.results()
+        survey = lenny.to_survey()
+        a = lenny.to_agent_list([0])
+        results = lenny.to_results()
         results.select('age').print()
 
