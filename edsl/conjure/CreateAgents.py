@@ -4,11 +4,48 @@ from typing import List, Optional, Callable
 from edsl.conjure.RawResponses import RawResponses
 from edsl.agents import Agent, AgentList
 
-class CreateAgents:
+class CreateAgent:
+
+    def __init__()
+
+
+class CreateAgentList:
+
+    def __init__(self, input_data: InputData):
+        self.input_data = input_data
+
+    def construct_agent(self, index):
+        question_responses = [self.]
+        if question_keys_as_traits is None:
+            question_keys_as_traits = self.question_names
+
+        failures = {}
+
+        def construct_answer_dict_function(answer_dict: dict) -> Callable:
+            def func(self, question, scenario=None):
+                return answer_dict.get(question.question_name, None)
+
+            return func
+
+        agent_list = AgentList()
+
+        for observation in self.data.get_observations():  # iterate through the observations
+            traits = {}
+            for trait_name in question_keys_as_traits:
+                if trait_name not in observation:
+                    failures[trait_name] = f"Question name {trait_name} not found."
+                    continue
+                else:
+                    traits[trait_name] = observation[trait_name]
+
+            agent = Agent(traits=traits)
+            f = construct_answer_dict_function(observation.copy())
         
-    def __init__(self, data: RawResponses, sample_size: Optional[int] = None):
-        self.data = data
-        self.sample_size = sample_size
+        
+    def __init__(self, question_names: List[str], responses: List[str]):
+        
+        self.question_names = question_names
+        self.responses = responses
 
     def __call__(self, question_keys_as_traits: List[str] = None):
         """Returns a list of agents, and a dictionary of failures.
@@ -22,7 +59,7 @@ class CreateAgents:
         bypass the LLM call.
         """
         if question_keys_as_traits is None:
-            question_keys_as_traits = list(self.data.keys())
+            question_keys_as_traits = self.question_names
 
         failures = {}
 

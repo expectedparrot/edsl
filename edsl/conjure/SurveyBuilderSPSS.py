@@ -59,6 +59,24 @@ class SurveyBuilderSPSS(SurveyBuilder):
         )
     )
 
+    def get_df(self) -> pd.DataFrame:
+        df = self.get_responses_r_code(self.datafile_name)
+        df.fillna("", inplace=True)
+        df = df.astype(str)
+        return df
+
+    def get_raw_data(self) -> List[List[str]]:
+        df = self.get_df()
+        data = [
+            [convert_value(obs) for obs in v]
+            for k, v in df.to_dict(orient="list").items()
+        ]
+        return data 
+
+    def get_question_texts(self):
+        return list(self.get_df().columns)
+
+
     def get_responses(self):
         """Returns a dataframe of responses.
         The structure should be a dictionary, where the keys are the question codes,
