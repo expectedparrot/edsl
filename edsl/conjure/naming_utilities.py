@@ -1,10 +1,17 @@
 import re
 import keyword
-from nltk.corpus import stopwords
 
 # Ensure nltk stopwords are downloaded
-import nltk
-#nltk.download('stopwords')
+try:
+    from nltk.corpus import stopwords
+    try:
+        stopwords.words('english')
+    except LookupError:
+        nltk.download('stopwords')
+except ImportError:
+    print("nltk is not installed. Please install it using 'pip install nltk'.")
+    exit(1)
+
 
 def sanitize_string(input_string):
     # Define the list of stopwords
