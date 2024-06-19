@@ -166,6 +166,33 @@ class AnswerValidatorMixin:
                 f"Answer codes, {answer_codes}, has more than {self.max_selections} options selected."
             )
 
+    def _validate_answer_matrix(self, answer: dict[str, Union[str, int]]) -> None:
+        """Validate QuestionCheckbox-specific answer.
+
+        Check that answer["answer"]:
+        - has elements that are strings, bytes-like objects or real numbers evaluating to integers
+        - has elements that are in the range of the number of options
+        - has at least `min_selections` elements, if provided
+        - has at most `max_selections` elements, if provided
+        """
+        answer_codes = answer["answer"]
+        try:
+            answer_codes = [int(k) for k in answer["answer"]]
+        except:
+            raise QuestionAnswerValidationError(
+                f"Answer codes must be a list of strings, bytes-like objects or real numbers (got {answer['answer']})."
+            )
+        acceptable_values = list(range(len(self.question_options)))
+        for answer_code in answer_codes:
+            if answer_code not in acceptable_values:
+                raise QuestionAnswerValidationError(
+                    f"Answer code {answer_code} has elements not in {acceptable_values}."
+                )
+        if len(answer_codes) < len(self.question_items):
+            raise QuestionAnswerValidationError(
+                f"Answer {answer_codes} has fewer answers than items ({len(self.question_items)})."
+            )
+
     def _validate_answer_extract(self, answer: dict[str, Any]) -> None:
         """Validate QuestionExtract-specific answer.
 
