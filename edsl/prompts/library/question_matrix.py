@@ -4,7 +4,7 @@ from edsl.prompts.QuestionInstructionsBase import QuestionInstuctionsBase
 
 
 class Matrix(QuestionInstuctionsBase):
-    """Checkbox question type."""
+    """Matrix question type."""
 
     question_type = "matrix"
     model = "gpt-4-1106-preview"
@@ -19,8 +19,9 @@ class Matrix(QuestionInstuctionsBase):
         {% for option in question_options %}
         {{ loop.index0 }}: {{option}}
         {% endfor %}
-        Return a valid JSON formatted like this, selecting only the number of the option:
-        {"answer": [<put comma-separated list of answer codes here>], "comment": "<put explanation here>"}
+        Your response should be ONLY be a valid JSON in the following format:
+        {"answer": [<list of comma-separated integer options>], "comment": "<put explanation here>"}
+        The list must contain exactly the same number of answers as items.
         """
     )
 

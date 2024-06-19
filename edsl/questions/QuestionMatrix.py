@@ -14,7 +14,7 @@ from edsl.utilities import random_string
 
 
 class QuestionMatrix(QuestionBase):
-    """This question prompts the agent to select options from a list."""
+    """This question prompts the agent to select options from a set of items."""
 
     question_type = "matrix"
     purpose = "When you have a a matrix of options per items"
@@ -102,8 +102,8 @@ class QuestionMatrix(QuestionBase):
 
 
 def main():
-    """Create an example QuestionCheckBox and test its methods."""
-    from edsl.questions.QuestionCheckBox import QuestionCheckBox
+    """Create an example QuestionMatrix and test its methods."""
+    from edsl.questions.QuestionMatrix import QuestionMatrix
 
     q = QuestionMatrix.example()
     q.question_text

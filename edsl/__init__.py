@@ -22,6 +22,7 @@ from edsl.questions import (
     QuestionRank,
     QuestionTopK,
     QuestionYesNo,
+    QuestionMatrix
 )
 from edsl.scenarios.Scenario import Scenario
 from edsl.scenarios.ScenarioList import ScenarioList

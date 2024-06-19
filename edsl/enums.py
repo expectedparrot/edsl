@@ -28,6 +28,7 @@ class QuestionType(EnumWithChecks):
     TOP_K = "top_k"
     LIKERT_FIVE = "likert_five"
     LINEAR_SCALE = "linear_scale"
+    MATRIX = "matrix"
 
 
 # https://huggingface.co/meta-llama/Llama-2-70b-chat-hf

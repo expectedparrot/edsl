@@ -302,6 +302,7 @@ from edsl.prompts.library.question_numerical import *
 from edsl.prompts.library.question_rank import *
 from edsl.prompts.library.question_extract import *
 from edsl.prompts.library.question_list import *
+from edsl.prompts.library.question_matrix import *
 
 
 if __name__ == "__main__":

@@ -98,6 +98,7 @@ class RegisterPromptsMeta(ABCMeta):
 
         key = cls._create_prompt_class_key(dct, component_type)
         cls.data = key
+
         RegisterPromptsMeta._prompts_by_component_type[component_type].append(cls)
 
     @classmethod
