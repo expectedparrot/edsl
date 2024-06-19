@@ -546,7 +546,11 @@ class Agent(Base):
                 ] = self.answer_question_directly_function_name
 
         return raw_data
-
+    
+    def _to_dict(self) -> dict[str, Union[dict, bool]]:
+        """Serialize to a dictionary."""
+        return self.data
+    
     @add_edsl_version
     def to_dict(self) -> dict[str, Union[dict, bool]]:
         """Serialize to a dictionary.
@@ -556,8 +560,8 @@ class Agent(Base):
         >>> a = Agent(name = "Steve", traits = {"age": 10, "hair": "brown", "height": 5.5})
         >>> a.to_dict()
         {'name': 'Steve', 'traits': {'age': 10, 'hair': 'brown', 'height': 5.5}, 'edsl_version': '...', 'edsl_class_name': 'Agent'}
-        """
-        return self.data
+        """            
+        return self._to_dict()
 
     @classmethod
     @remove_edsl_version
