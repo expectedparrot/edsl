@@ -523,13 +523,22 @@ if __name__ == "__main__":
         assert len(coop.get_all(object_type)) == 0
 
     # a simple example
-    from edsl import Coop, QuestionMultipleChoice
+    from edsl import Coop, QuestionMultipleChoice, QuestionFreeText
 
     coop = Coop(api_key="b")
     response = QuestionMultipleChoice.example().push()
     QuestionMultipleChoice.pull(response.get("uuid"))
     coop.patch(object_type="question", uuid=response.get("uuid"), visibility="public")
-    coop.patch(object_type="question", uuid=response.get("uuid"), description="")
+    coop.patch(
+        object_type="question",
+        uuid=response.get("uuid"),
+        description="crazy new description",
+    )
+    coop.patch(
+        object_type="question",
+        uuid=response.get("uuid"),
+        value=QuestionFreeText.example(),
+    )
     coop.delete(object_type="question", uuid=response.get("uuid"))
 
     ##############
