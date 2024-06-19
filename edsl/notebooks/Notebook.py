@@ -99,7 +99,7 @@ class Notebook(Base):
         """
         AF: not sure how this should behave for a notebook
         """
-        return f"Notebook({self.to_dict()})"
+        return f'Notebook(data={self.data}, name="""{self.name}""")'
 
     def _repr_html_(self):
         """
@@ -194,7 +194,7 @@ class Notebook(Base):
         """
         lines = []
         lines.append("from edsl import Notebook")
-        lines.append(f"nb = Notebook(data={self.data}, name='{self.name}')")
+        lines.append(f'nb = Notebook(data={self.data}, name="""{self.name}""")')
         return lines
 
 
