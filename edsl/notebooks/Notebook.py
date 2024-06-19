@@ -109,11 +109,49 @@ class Notebook(Base):
 
         return data_to_html(self.to_dict())
 
+    def _table(self) -> tuple[dict, list]:
+        """Prepare generic table data."""
+        table_data = []
+
+        notebook_preview = ""
+        for cell in self.data["cells"]:
+            if "source" in cell:
+                notebook_preview += f"{cell['source']}\n"
+            if len(notebook_preview) > 1000:
+                notebook_preview = f"{notebook_preview[:1000]} [...]"
+                break
+        notebook_preview = notebook_preview.rstrip()
+
+        table_data.append(
+            {
+                "Attribute": "name",
+                "Value": repr(self.name),
+            }
+        )
+        table_data.append(
+            {
+                "Attribute": "notebook_preview",
+                "Value": notebook_preview,
+            }
+        )
+
+        column_names = ["Attribute", "Value"]
+        return table_data, column_names
+
     def rich_print(self) -> "Table":
         """
         AF: not sure how we should implement this for a notebook
         """
-        pass
+        table_data, column_names = self._table()
+        table = Table(title=f"{self.__class__.__name__} Attributes")
+        for column in column_names:
+            table.add_column(column, style="bold")
+
+        for row in table_data:
+            row_data = [row[column] for column in column_names]
+            table.add_row(*row_data)
+
+        return table
 
     @classmethod
     def example(cls) -> "Notebook":
