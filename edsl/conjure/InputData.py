@@ -231,7 +231,7 @@ class AgentConstructionMixin:
         for idx in indices:
             yield self.agent(idx)
     
-    def to_agent_list(self, indices: Optional[List] = None, sample_size:int = None, seed:str = "edsl") -> AgentList:
+    def to_agent_list(self, indices: Optional[List] = None, sample_size:int = None, seed:str = "edsl", remove_direct_question_answering_method = True) -> AgentList:
         """Return an AgentList from the data.
         
         :param indices: The indices of the agents to include.
@@ -260,12 +260,15 @@ class AgentConstructionMixin:
 
             if sample_size > num_agents:
                 raise ValueError(f"Sample size {sample_size} is greater than the number of agents {num_agents}.")    
-        
-        return AgentList(list(self._agents(indices)))
+        agents = list(self._agents(indices))
+        if remove_direct_question_answering_method:
+            for a in agents:
+                a.remove_direct_question_answering_method()
+        return AgentList(agents)
 
     def to_results(self, indices: Optional[List] = None, sample_size:int = None, seed:str = "edsl") -> 'Results':
         """Return the results of the survey."""
-        agent_list = list(self.to_agent_list(indices=indices, sample_size=sample_size, seed=seed))
+        agent_list = list(self.to_agent_list(indices=indices, sample_size=sample_size, seed=seed, remove_direct_question_answering_method=False))
         return self.to_survey().by(agent_list).run()
 
 
@@ -548,6 +551,21 @@ class InputData(ABC, InputDataMixinQuestionStats, AgentConstructionMixin, Questi
             #self.apply_codebook()                
         self._raw_data = value
 
+
+    def to_dataset(self):
+        from edsl.results.Dataset import Dataset
+        dataset_list = []
+        for key, value in zip(self.question_names, self.raw_data):
+            dataset_list.append({key: value})
+        return Dataset(dataset_list)
+    
+    def to_scenario_list(self):
+        from edsl.scenarios.ScenarioList import ScenarioList
+        s = ScenarioList()
+        for qn in self.question_names:
+            idx = self.question_names.index(qn)
+            s = s.add_list(qn, self.raw_data[idx])
+        return s
     
     @property
     def names_to_texts(self) -> dict:
@@ -591,8 +609,9 @@ class InputData(ABC, InputDataMixinQuestionStats, AgentConstructionMixin, Questi
                 print(e)
                 yield None
 
-    def select(self, question_names: List[str]):
+    def select(self, *question_names: List[str]):
         """Select a subset of the questions."""
+
         idxs = [self.question_names.index(qn) for qn in question_names]
         new_data = [self.raw_data[i] for i in idxs]
         new_texts = [self.question_texts[i] for i in idxs]
@@ -696,12 +715,15 @@ class InputData(ABC, InputDataMixinQuestionStats, AgentConstructionMixin, Questi
 
 class InputDataCSV(InputData):
 
-    def __init__(self, datafile_name: str, config: dict, **kwargs):
+    def __init__(self, datafile_name: str, config: Optional[dict] = None, **kwargs):
+        if config is None:
+            config = {'skiprows': None, 'delimiter': ','}
+
         super().__init__(datafile_name, config, **kwargs)
 
     def get_df(self) -> pd.DataFrame:
         if not hasattr(self, "_df"):
-            self._df = pd.read_csv(self.datafile_name, skiprows=self.config["skiprows"])
+            self._df = pd.read_csv(self.datafile_name, skiprows=self.config["skiprows"], encoding_errors="ignore")
             self._df.fillna("", inplace=True)
             self._df = self._df.astype(str)
         return self._df
@@ -722,45 +744,9 @@ class InputDataCSV(InputData):
             new_names = [f"{q}_{i}" for i, q in enumerate(new_names)]
         return new_names
 
-class InputDataSPSS(InputData):
-
+class InputDataPyRead(InputData):
     def _parse(self) -> None:
-        from pyreadstat import read_sav
-        df, meta = read_sav(self.datafile_name)
-        df.fillna("", inplace=True)
-        df = df.astype(str)
-        self._df = df
-        self._meta = meta
-
-    def get_df(self) -> pd.DataFrame:
-        if not hasattr(self, "_df"):
-            self._parse()
-        return self._df
-    
-    def get_raw_data(self) -> List[List[str]]:
-        df = self.get_df()
-        data = [
-            [convert_value(obs) for obs in v]
-            for k, v in df.to_dict(orient="list").items()
-        ]
-        return data 
-
-    def get_question_texts(self):
-        if not hasattr(self, "_meta"):
-            self._parse()
-        return [self._meta.column_names_to_labels[qn] for qn in self.question_names]
-    
-    def get_question_names(self):
-        new_names = [self.naming_function(q) for q in self.question_texts]
-        if len(new_names) != len(set(new_names)):
-            new_names = [f"{q}_{i}" for i, q in enumerate(new_names)]
-        return new_names
-    
-class InputDataStata(InputData):
-
-    def _parse(self) -> None:
-        from pyreadstat import read_dta
-        df, meta = read_dta(self.datafile_name)
+        df, meta = self.pyread_function(self.datafile_name)
         df.fillna("", inplace=True)
         df = df.astype(str)
         self._df = df
@@ -802,20 +788,61 @@ class InputDataStata(InputData):
             if not is_valid_variable_name(qn):
                 new_name = self.question_name_repair_func(qn)
                 if not is_valid_variable_name(new_name):
-                    raise ValueError(f"""Question names must be valid Python identifiers. '{qn}' is not.
-                                     You can pass an entry in question_name_repair_dict to fix this. 
-                                     """)
-            d[new_name] = label
+                    raise ValueError(f"""Question names must be valid Python identifiers. '{qn}' is not.""",
+                                     """You can pass an entry in question_name_repair_dict to fix this.""")
+            if label is not None:
+                d[new_name] = label
         return d
         
     def get_question_texts(self):
         if not hasattr(self, "_meta"):
             self._parse()
-        return [self.question_names_to_question_texts[qn] for qn in self.question_names]
+        return [self.question_names_to_question_texts.get(qn, qn) for qn in self.question_names]
     
     def get_question_names(self):
         return self.get_df().columns.tolist()
 
+
+class InputDataStata(InputDataPyRead):
+    from pyreadstat import read_dta
+    pyread_function = read_dta
+
+class InputDataSPSS(InputDataPyRead):
+    from pyreadstat import read_sav
+    pyread_function = read_sav
+
+    # def _parse(self) -> None:
+    #     from pyreadstat import read_sav
+    #     df, meta = read_sav(self.datafile_name)
+    #     df.fillna("", inplace=True)
+    #     df = df.astype(str)
+    #     self._df = df
+    #     self._meta = meta
+
+    # def get_df(self) -> pd.DataFrame:
+    #     if not hasattr(self, "_df"):
+    #         self._parse()
+    #     return self._df
+    
+    # def get_raw_data(self) -> List[List[str]]:
+    #     df = self.get_df()
+    #     data = [
+    #         [convert_value(obs) for obs in v]
+    #         for k, v in df.to_dict(orient="list").items()
+    #     ]
+    #     return data 
+
+    # def get_question_texts(self):
+    #     if not hasattr(self, "_meta"):
+    #         self._parse()
+    #     return [self._meta.column_names_to_labels[qn] for qn in self.question_names]
+    
+    # def get_question_names(self):
+    #     new_names = [self.naming_function(q) for q in self.question_texts]
+    #     if len(new_names) != len(set(new_names)):
+    #         new_names = [f"{q}_{i}" for i, q in enumerate(new_names)]
+    #     return new_names
+    
 
 
 if __name__ == "__main__":
@@ -823,7 +850,9 @@ if __name__ == "__main__":
     doctest.testmod(optionflags=doctest.ELLIPSIS)
     #doctest.testmod()
     # config = {"skiprows": 1}
-    ##sloan = InputDataCSV("sloan_search.csv", config = {'skiprows': [0, 2]})
+    #brady = InputDataCSV("examples/deflate_gate.csv", config = {'skiprows': None})
+    
+    #sloan = InputDataCSV("examples/sloan_search.csv", config = {'skiprows': [0, 2]})
 
     # q_raw = RawQuestion(question_type = "multiple_choice", 
     #                     question_name = "morning", 
@@ -832,15 +861,15 @@ if __name__ == "__main__":
     #                     responses = ["Good", "Bad"])
     # q = q_raw.to_question()
 
-    ##gss = InputDataSPSS("GSS7218_R3.sav", config = {"skiprows": None})
+    #gss = InputDataSPSS("examples/GSS7218_R3.sav", config = {"skiprows": None})
 
-    gss = InputDataStata("GSS2022.dta", config = {}, auto_infer = True, 
-                         question_name_repair_func = lambda x: {'class':'social_class'}.get(x, x)                         
-                         )
-    new_gss = gss.select(gss.question_names[9:11])
-    results = new_gss.to_results(indices = range(10))
-    results.select('answer.*').print()
-    # gss.question_texts = None
+    # gss = InputDataStata("examples/GSS2022.dta", config = {}, auto_infer = True, 
+    #                      question_name_repair_func = lambda x: {'class':'social_class'}.get(x, x)                         
+    #                      )
+    # new_gss = gss.select(gss.question_names[9:11])
+    # results = new_gss.to_results(indices = range(10))
+    # results.select('answer.*').print()
+    # # gss.question_texts = None
     # gss.raw_data = None
     # import time
     # start = time.time()
@@ -852,8 +881,38 @@ if __name__ == "__main__":
     # end = time.time()
     # print("Second pass", end - start)
 
-# jobs = InputDataSPSS("job_satisfaction.sav", config={"skiprows": None})
-    #jobs.survey().html()
+    #def question_name_repair_func(x):
+    #    return x.replace("#", "_num")
+
+    #jobs = InputDataSPSS("examples/job_satisfaction.sav", 
+    #                     config={"skiprows": None}, 
+    #                     question_name_repair_func = question_name_repair_func)
+    #jobs.to_survey().html()
+
+    url = 'https://dataverse.harvard.edu/api/access/datafile/:persistentId?persistentId=doi:10.7910/DVN/9D2NAC/ZEPNV4'
+    filename = 'brady.csv'
+    from edsl.conjure.utilities import download_file
+    download_file(url, filename)
+
+    brady = InputDataCSV(download_file(url, filename))
+    fb = brady.select('favorite_team', 'state_reside')
+    from edsl import QuestionFreeText
+    q = QuestionFreeText(question_text = "Who is your favorite football player of all time?", question_name = "favorite_player")
+    al = fb.to_agent_list(sample_size=10)
+    al.to_scenario_list().print()
+    results = q.by(al).run()
+    results.select('favorite_team', 'favorite_player').print()
+
+    bfast_agents = (brady
+             .select('treatment_response', 'treatment')
+             .to_scenario_list()
+             .filter("treatment == 'Question Random Assignment - Text 1'")
+             .to_agent_list()
+    )
+    from edsl import QuestionYesNo
+    q_eggs = QuestionYesNo(question_text = "Did you eat eggs for breakfast?", question_name = "eggs")
+    egg_results = q_eggs.by(bfast_agents).run(progress_bar = True)
+
 
     # # id2 = InputDataCSV.from_dict(id.to_dict())
     if False:

@@ -138,6 +138,9 @@ class AgentList(UserList, Base):
         with open(file_path, "r") as f:
             reader = csv.DictReader(f)
             return {field: None for field in reader.fieldnames}
+        
+    def _to_dict(self):
+        return {"agent_list": [agent._to_dict() for agent in self.data]}
 
     @add_edsl_version
     def to_dict(self):
@@ -146,20 +149,26 @@ class AgentList(UserList, Base):
         >>> AgentList.example().to_dict()
         {'agent_list': [{'traits': {'age': 22, 'hair': 'brown', 'height': 5.5}, 'edsl_version': '...', 'edsl_class_name': 'Agent'}, {'traits': {'age': 22, 'hair': 'brown', 'height': 5.5}, 'edsl_version': '...', 'edsl_class_name': 'Agent'}], 'edsl_version': '...', 'edsl_class_name': 'AgentList'}
         """
-        return {"agent_list": [agent.to_dict() for agent in self.data]}
+        return self._to_dict()
 
     def __repr__(self):
         return f"AgentList({self.data})"
 
     def print(self, format: Optional[str] = None):
         """Print the AgentList."""
-        print_json(json.dumps(self.to_dict()))
+        print_json(json.dumps(self._to_dict()))
 
     def _repr_html_(self):
         """Return an HTML representation of the AgentList."""
         from edsl.utilities.utilities import data_to_html
 
         return data_to_html(self.to_dict()["agent_list"])
+    
+    def to_scenario_list(self) -> "ScenarioList":
+        """Return a list of scenarios."""
+        from edsl.scenarios.ScenarioList import ScenarioList
+        from edsl.scenarios.Scenario import Scenario
+        return ScenarioList([Scenario(agent.traits) for agent in self.data])
 
     @classmethod
     @remove_edsl_version

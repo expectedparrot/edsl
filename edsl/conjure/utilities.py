@@ -114,3 +114,37 @@ def infer_question_type(question_text, responses, sample_size=15):
         .first()
     )
     return response
+
+
+import requests
+
+def download_file(url, filename):
+    """
+    Downloads a file from a given URL and saves it to the specified filename.
+
+    Parameters:
+    url (str): The URL of the file to download.
+    filename (str): The name of the file to save the downloaded content.
+
+    Returns:
+    str: The path to the saved file.
+    """
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+    
+    # Sending the GET request
+    response = requests.get(url, headers=headers)
+    
+    # Checking if the request was successful
+    if response.status_code == 200:
+        # Writing the content to the specified file
+        with open(filename, 'wb') as file:
+            file.write(response.content)
+        print(f"File downloaded successfully and saved to {filename}")
+        return filename
+    else:
+        print(f"Failed to download file: {response.status_code}")
+        return None
+
+# Example usage
