@@ -270,13 +270,14 @@ class Coop:
         cls: EDSLObject,
         uuid: Union[str, UUID],
         description: Optional[str] = None,
+        value: Optional[EDSLObject] = None,
         visibility: Optional[VisibilityType] = None,
     ) -> dict:
         """
         Used by the Base class to offer a patch functionality.
         """
         object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
-        return self.patch(object_type, uuid, description, visibility)
+        return self.patch(object_type, uuid, description, value, visibility)
 
     ################
     # Remote Cache

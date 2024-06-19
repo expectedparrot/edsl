@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod, ABCMeta
 import gzip
 import io
 import json
-from typing import Optional, Union
+from typing import Any, Optional, Union
 from uuid import UUID
 from IPython.display import display
 from rich.console import Console
@@ -72,16 +72,19 @@ class PersistenceMixin:
         cls,
         id_or_url: Union[str, UUID],
         description: Optional[str] = None,
+        value: Optional[Any] = None,
         visibility: Optional[str] = None,
     ):
         """
         Patch an uploaded objects attributes.
-        - Only supports changing visibility for now.
+        - `description` changes the description of the object on Coop
+        - `value` changes the value of the object on Coop. **has to be an EDSL object**
+        - `visibility` changes the visibility of the object on Coop
         """
         from edsl.coop import Coop
 
         c = Coop()
-        return c._patch_base(cls, id_or_url, description, visibility)
+        return c._patch_base(cls, id_or_url, description, value, visibility)
 
     @classmethod
     def search(cls, query):
