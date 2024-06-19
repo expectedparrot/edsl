@@ -232,20 +232,33 @@ class Coop:
         object_type: ObjectType,
         uuid: Union[str, UUID],
         description: Optional[str] = None,
+        value: Optional[EDSLObject] = None,
         visibility: Optional[VisibilityType] = None,
     ) -> dict:
         """
         Change the attributes of an uploaded object
         - Only supports visibility for now
         """
-        if description is None and visibility is None:
-            raise Exception("No attributes to patch.")
+        if description is None and visibility is None and value is None:
+            raise Exception("Nothing to patch.")
+        if value is not None:
+            value_type = ObjectRegistry.get_object_type_by_edsl_class(value)
+            if value_type != object_type:
+                raise Exception(f"Object type mismatch: {object_type=} {value_type=}")
         response = self._send_server_request(
             uri=f"api/v0/object",
             method="PATCH",
             params={"type": object_type, "uuid": uuid},
             payload={
                 "description": description,
+                "json_string": (
+                    json.dumps(
+                        value.to_dict(),
+                        default=self._json_handle_none,
+                    )
+                    if value
+                    else None
+                ),
                 "visibility": visibility,
             },
         )
