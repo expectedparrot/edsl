@@ -3,6 +3,7 @@
 import json
 import nbformat
 
+from nbconvert import HTMLExporter
 from typing import Dict, List, Optional
 from rich.table import Table
 from edsl.Base import Base
@@ -105,9 +106,10 @@ class Notebook(Base):
         """
         AF: not sure how this should behave for a notebook
         """
-        from edsl.utilities.utilities import data_to_html
-
-        return data_to_html(self.to_dict())
+        notebook = nbformat.from_dict(self.data)
+        html_exporter = HTMLExporter(template_name="basic")
+        (body, _) = html_exporter.from_notebook_node(notebook)
+        return body
 
     def _table(self) -> tuple[dict, list]:
         """Prepare generic table data."""
