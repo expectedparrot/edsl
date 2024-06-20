@@ -106,7 +106,8 @@ class Coop:
     def create(
         self,
         object: EDSLObject,
-        visibility: VisibilityType = "unlisted",
+        description: Optional[str] = None,
+        visibility: Optional[VisibilityType] = "unlisted",
     ) -> dict:
         """
         Create an EDSL object in the Coop server.
@@ -117,6 +118,7 @@ class Coop:
             uri=f"api/v0/object",
             method="POST",
             payload={
+                "description": description,
                 "object_type": object_type,
                 "json_string": json.dumps(
                     object.to_dict(),
@@ -131,6 +133,7 @@ class Coop:
         return {
             "uuid": response_json.get("uuid"),
             "version": self._edsl_version,
+            "description": response_json.get("description"),
             "visibility": response_json.get("visibility"),
             "url": f"{self.url}/explore/{object_page}/{response_json.get('uuid')}",
         }
@@ -193,6 +196,7 @@ class Coop:
                 "object": edsl_class.from_dict(json.loads(o.get("json_string"))),
                 "uuid": o.get("uuid"),
                 "version": o.get("version"),
+                "description": o.get("description"),
                 "visibility": o.get("visibility"),
                 "url": f"{self.url}/explore/{object_page}/{o.get('uuid')}",
             }
@@ -227,17 +231,36 @@ class Coop:
         self,
         object_type: ObjectType,
         uuid: Union[str, UUID],
-        visibility: VisibilityType,
+        description: Optional[str] = None,
+        value: Optional[EDSLObject] = None,
+        visibility: Optional[VisibilityType] = None,
     ) -> dict:
         """
         Change the attributes of an uploaded object
         - Only supports visibility for now
         """
+        if description is None and visibility is None and value is None:
+            raise Exception("Nothing to patch.")
+        if value is not None:
+            value_type = ObjectRegistry.get_object_type_by_edsl_class(value)
+            if value_type != object_type:
+                raise Exception(f"Object type mismatch: {object_type=} {value_type=}")
         response = self._send_server_request(
             uri=f"api/v0/object",
             method="PATCH",
             params={"type": object_type, "uuid": uuid},
-            payload={"visibility": visibility},
+            payload={
+                "description": description,
+                "json_string": (
+                    json.dumps(
+                        value.to_dict(),
+                        default=self._json_handle_none,
+                    )
+                    if value
+                    else None
+                ),
+                "visibility": visibility,
+            },
         )
         self._resolve_server_response(response)
         return response.json()
@@ -246,13 +269,15 @@ class Coop:
         self,
         cls: EDSLObject,
         uuid: Union[str, UUID],
-        visibility: VisibilityType,
+        description: Optional[str] = None,
+        value: Optional[EDSLObject] = None,
+        visibility: Optional[VisibilityType] = None,
     ) -> dict:
         """
         Used by the Base class to offer a patch functionality.
         """
         object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
-        return self.patch(object_type, uuid, visibility)
+        return self.patch(object_type, uuid, description, value, visibility)
 
     ################
     # Remote Cache
@@ -469,7 +494,9 @@ if __name__ == "__main__":
         response_1 = coop.create(example)
         response_2 = coop.create(cls.example(), visibility="private")
         response_3 = coop.create(cls.example(), visibility="public")
-        response_4 = coop.create(cls.example(), visibility="unlisted")
+        response_4 = coop.create(
+            cls.example(), visibility="unlisted", description="hey"
+        )
         # 3. Retrieve all objects
         objects = coop.get_all(object_type)
         assert len(objects) == 4
@@ -486,14 +513,33 @@ if __name__ == "__main__":
             coop.patch(
                 object_type=object_type, uuid=item.get("uuid"), visibility="private"
             )
+        # 6. Change description of all objects
+        for item in objects:
+            coop.patch(
+                object_type=object_type, uuid=item.get("uuid"), description="hey"
+            )
         # 7. Delete all objects
         for item in objects:
             coop.delete(object_type=object_type, uuid=item.get("uuid"))
         assert len(coop.get_all(object_type)) == 0
 
+    # a simple example
+    from edsl import Coop, QuestionMultipleChoice, QuestionFreeText
+
+    coop = Coop(api_key="b")
     response = QuestionMultipleChoice.example().push()
     QuestionMultipleChoice.pull(response.get("uuid"))
     coop.patch(object_type="question", uuid=response.get("uuid"), visibility="public")
+    coop.patch(
+        object_type="question",
+        uuid=response.get("uuid"),
+        description="crazy new description",
+    )
+    coop.patch(
+        object_type="question",
+        uuid=response.get("uuid"),
+        value=QuestionFreeText.example(),
+    )
     coop.delete(object_type="question", uuid=response.get("uuid"))
 
     ##############
