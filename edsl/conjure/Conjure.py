@@ -38,4 +38,5 @@ if __name__ == "__main__":
     for file in glob.glob("examples/*"):
         print("Now processing", file)
         conjure_instance = Conjure(file)
+        conjure_instance.to_results(dryrun = True)
         print(conjure_instance)

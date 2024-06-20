@@ -93,8 +93,8 @@ class InputDataABC(
         self.naming_function = naming_function
 
         def default_repair_func(x):
-            return x.replace("#", "_num").replace("class", "social_class")
-
+            return x.replace("#", "_num").replace("class", "social_class").replace("name", "respondent_name")
+        
         self.question_name_repair_func = question_name_repair_func or default_repair_func
 
         if answer_codebook is not None and question_names is not None:
@@ -186,7 +186,7 @@ class InputDataABC(
             rq = self.raw_question(idx)
             q = rq.to_question()
         except Exception as e:
-            print("Error with question", question_name)
+            print(f"Error with question {question_name} in {self.datafile_name}")
             print(e)
             print("Reverting changes")
             self.question_types[idx] = old_type
@@ -368,7 +368,7 @@ class InputDataABC(
             try:
                 yield rq.to_question()
             except Exception as e:
-                print("Error with question", rq.question_name)
+                print(f"Error with question '{rq.question_name}' in '{self.datafile_name}'") 
                 print(e)
                 yield None
 
