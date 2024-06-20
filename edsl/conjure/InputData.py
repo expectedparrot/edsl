@@ -388,6 +388,7 @@ class InputDataABC(
         new_texts = [self.question_texts[i] for i in idxs]
         new_types = [self.question_types[i] for i in idxs]
         new_options = [self.question_options[i] for i in idxs]
+        new_names = [self.question_names[i] for i in idxs]
         answer_codebook = {
             qn: self.answer_codebook.get(qn, {}) for qn in question_names
         }
@@ -395,7 +396,7 @@ class InputDataABC(
             self.datafile_name,
             self.config,
             raw_data=new_data,
-            question_names=question_names,
+            question_names=new_names,
             question_texts=new_texts,
             question_types=new_types,
             question_options=new_options,
