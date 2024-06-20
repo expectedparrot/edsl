@@ -235,7 +235,7 @@ def valid_json(json_string):
 
 def is_valid_variable_name(name):
     """Check if a string is a valid variable name."""
-    return name.isidentifier() and not keyword.iskeyword(name)
+    return name.isidentifier() and not keyword.iskeyword(name) and name != 'name'
 
 
 def create_valid_var_name(s, transform_func: Callable = lambda x: x.lower()) -> str:

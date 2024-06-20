@@ -1,3 +1,4 @@
+import random
 from typing import Generator, List, Optional, Union, Callable
 from edsl.agents.Agent import Agent
 from edsl.agents.AgentList import AgentList
@@ -59,13 +60,13 @@ class AgentConstructionMixin:
             if sample_size is None:
                 indices = range(self.num_observations)
             else:
+                if sample_size > self.num_observations:
+                    raise ValueError(
+                        f"Sample size {sample_size} is greater than the number of agents {self.num_observations}."
+                    )
                 random.seed(seed)
                 indices = random.sample(range(self.num_observations), sample_size)
 
-            if sample_size > self.num_observations:
-                raise ValueError(
-                    f"Sample size {sample_size} is greater than the number of agents {self.num_observations}."
-                )
         agents = list(self._agents(indices))
         if remove_direct_question_answering_method:
             for a in agents:
@@ -102,17 +103,17 @@ class AgentConstructionMixin:
             print(f"Time to run 10 agents (s): {round(end - start, 2)}")
             time_per_agent = (end - start) / 10
             full_sample_time = time_per_agent * len(agent_list)
-            if full_sample_time > 60:
+            if full_sample_time < 60:
+                print(
+                    f"Full sample will take about {round(full_sample_time, 2)} seconds."
+                )
+            if full_sample_time > 60 and full_sample_time < 3600:
                 print(
                     f"Full sample will take about {round(full_sample_time / 60, 2)} minutes."
                 )
             if full_sample_time > 3600:
                 print(
                     f"Full sample will take about {round(full_sample_time / 3600, 2)} hours."
-                )
-            if full_sample_time < 60:
-                print(
-                    f"Full sample will take about {round(full_sample_time, 2)} seconds."
                 )
             return None
         return survey.by(agent_list).run()
