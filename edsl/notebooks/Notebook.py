@@ -31,6 +31,8 @@ class Notebook(Base):
         - if a path is provided, try to load the notebook from that path.
         - if no path is provided, assume this code is run in a notebook and try to load the current notebook.
         """
+        # Load current notebook path as fallback (VS Code only)
+        path = path or globals().get("__vsc_ipynb_file__")
         if data is not None:
             nbformat.validate(data)
             self.data = data
@@ -44,8 +46,10 @@ class Notebook(Base):
             # TO BE IMPLEMENTED
             # 1. Check you're in a notebook ...
             # 2. get its info and store it in self.data
-            # RI: Working on this
-            self.data = {"some": "data"}
+            # RI: Working on support for IDEs other than VSCode
+            raise NotImplementedError(
+                "Cannot create a notebook from within itself in this development environment"
+            )
 
         # deprioritize - perhaps add sanity check function
         # 1. could check if the notebook is a valid notebook
