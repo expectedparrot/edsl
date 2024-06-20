@@ -116,7 +116,7 @@ class PromptBase(
         >>> p
         Prompt(text='Hello, {{person}}')
         """
-        return f"Prompt(text='{self.text}')"
+        return f'Prompt(text="""{self.text}""")'
 
     def template_variables(self) -> list[str]:
         """Return the the variables in the template.

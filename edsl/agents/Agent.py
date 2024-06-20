@@ -489,7 +489,7 @@ class Agent(Base):
         """Return representation of Agent."""
         class_name = self.__class__.__name__
         items = [
-            f"{k} = '{v}'" if isinstance(v, str) else f"{k} = {v}"
+            f'{k} = """{v}"""' if isinstance(v, str) else f"{k} = {v}"
             for k, v in self.data.items()
             if k != "question_type"
         ]
