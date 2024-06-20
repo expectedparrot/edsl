@@ -1,4 +1,4 @@
-"""A Notebook is ...."""
+"""A Notebook is a utility class that allows you to easily share/pull ipynbs from Coop."""
 
 import json
 import nbformat
@@ -28,8 +28,12 @@ class Notebook(Base):
     ):
         """
         Initialize a new Notebook.
-        - if a path is provided, try to load the notebook from that path.
-        - if no path is provided, assume this code is run in a notebook and try to load the current notebook.
+
+        :param data: A dictionary representing the notebook data.
+        This dictionary must conform to the official Jupyter Notebook format, as defined by nbformat.
+        :param path: A filepath from which to load the notebook.
+        If no path is provided, assume this code is run in a notebook and try to load the current notebook from file.
+        :param name: A name for the Notebook.
         """
         # Load current notebook path as fallback (VS Code only)
         path = path or globals().get("__vsc_ipynb_file__")
@@ -37,16 +41,11 @@ class Notebook(Base):
             nbformat.validate(data)
             self.data = data
         elif path is not None:
-            # TO BE IMPLEMENTED
-            # store in this var the data from the notebook
             with open(path, mode="r", encoding="utf-8") as f:
                 data = nbformat.read(f, as_version=4)
             self.data = json.loads(json.dumps(data))
         else:
-            # TO BE IMPLEMENTED
-            # 1. Check you're in a notebook ...
-            # 2. get its info and store it in self.data
-            # RI: Working on support for IDEs other than VSCode
+            # TO BE IMPLEMENTED: Support for IDEs other than VSCode
             raise NotImplementedError(
                 "Cannot create a notebook from within itself in this development environment"
             )
@@ -61,16 +60,14 @@ class Notebook(Base):
     def __eq__(self, other):
         """
         Check if two Notebooks are equal.
-        This should maybe only check the cells and not the metadata/nbformat?
+        This only checks the notebook data.
         """
         return self.data == other.data
 
     @add_edsl_version
     def to_dict(self) -> dict:
         """
-        Convert to a dictionary.
-        AF: here you will create a dict from which self.from_dict can recreate the object.
-        AF: the decorator will add the edsl_version to the dict.
+        Convert a Notebook to a dictionary.
         """
         return {"name": self.name, "data": self.data}
 
@@ -84,16 +81,13 @@ class Notebook(Base):
 
     def to_file(self, path: str):
         """
-        Saves the notebook at the specified filepath.
-        RI: Maybe you want to download a notebook to your local machine
-        to work with it?
+        Save the notebook at the specified filepath.
         """
         nbformat.write(nbformat.from_dict(self.data), fp=path)
 
     def print(self):
         """
         Print the notebook.
-        AF: not sure how this should behave for a notebook
         """
         from rich import print_json
         import json
@@ -102,13 +96,13 @@ class Notebook(Base):
 
     def __repr__(self):
         """
-        AF: not sure how this should behave for a notebook
+        Return representation of Notebook.
         """
         return f'Notebook(data={self.data}, name="""{self.name}""")'
 
     def _repr_html_(self):
         """
-        AF: not sure how this should behave for a notebook
+        Return HTML representation of Notebook.
         """
         notebook = nbformat.from_dict(self.data)
         html_exporter = HTMLExporter(template_name="basic")
@@ -146,7 +140,7 @@ class Notebook(Base):
 
     def rich_print(self) -> "Table":
         """
-        AF: not sure how we should implement this for a notebook
+        Display a Notebook as a rich table.
         """
         table_data, column_names = self._table()
         table = Table(title=f"{self.__class__.__name__} Attributes")
@@ -163,7 +157,6 @@ class Notebook(Base):
     def example(cls) -> "Notebook":
         """
         Return an example Notebook.
-        AF: add a simple custom example here
         """
         cells = [
             {
@@ -196,7 +189,6 @@ class Notebook(Base):
     def code(self) -> List[str]:
         """
         Return the code that could be used to create this Notebook.
-        AF: Again, not sure
         """
         lines = []
         lines.append("from edsl import Notebook")
@@ -205,7 +197,7 @@ class Notebook(Base):
 
 
 if __name__ == "__main__":
-    from edsl.notebooks import Notebook
+    from edsl import Notebook
 
     notebook = Notebook.example()
     assert notebook == notebook.from_dict(notebook.to_dict())
