@@ -1,384 +1,38 @@
 import functools
-import random
 
 from abc import ABC, abstractmethod
-from typing import Dict, Callable, Optional, List, Generator, Tuple
+from typing import Dict, Callable, Optional, List, Generator, Tuple, Union
 from collections import namedtuple, Counter
-from dataclasses import dataclass, field
-from typing import List
+from typing import List, Union
 
 import pandas as pd
 
+from edsl import Question, Results
+from edsl.questions.QuestionBase import QuestionBase
 from edsl.agents.AgentList import AgentList
 from edsl.agents.Agent import Agent
 
 from edsl.scenarios.ScenarioList import ScenarioList
 from edsl.surveys.Survey import Survey
 from edsl.conjure.SurveyResponses import SurveyResponses
-from edsl.conjure.naming_utilities import sanitize_string 
+from edsl.conjure.naming_utilities import sanitize_string
 from edsl.utilities.utilities import is_valid_variable_name
 from edsl.conjure.utilities import convert_value, Missing
 
-try: 
-    import pyreadstat
-except ImportError as e:
-    raise ImportError(
-        "The 'pyreadstat' package is required for this feature. Please install it by running:\n"
-        "pip install pyreadstat\n"
-    ) from e
+from edsl.conjure.RawQuestion import RawQuestion
+from edsl.conjure.AgentConstructionMixin import AgentConstructionMixin
+   
+from edsl.conjure.QuestionOptionMixin import QuestionOptionMixin
+from edsl.conjure.InputDataMixinQuestionStats import InputDataMixinQuestionStats
+from edsl.conjure.QuestionTypeMixin import QuestionTypeMixin
 
-
-@dataclass
-class RawQuestion:
-    question_type: str
-    question_name: str
-    question_text: str
-    responses: List[str] = field(default_factory=list)
-    question_options: Optional[List[str]] = None
-
-    def __post_init__(self):
-        self.responses = [convert_value(r) for r in self.responses]
-
-    def to_question(self):
-        # TODO: Remove this once we have a better way to handle multiple_choice_with_other
-        if self.question_type == "multiple_choice_with_other":
-            question_type = "multiple_choice"
-        else:
-            question_type = self.question_type
-        from edsl import Question
-        d = {k:v for k,v in {
-            "question_type": question_type,
-            "question_name": self.question_name,
-            "question_text": self.question_text,
-            "responses": self.responses,
-            "question_options": self.question_options,
-        }.items() if v is not None and k != "responses"}
-        return Question(**d)
-
-
-class InputDataMixinQuestionStats:
-
-    def _compute_question_statistics(self, question_name: str) -> dict:
-        """
-        Return a dictionary of statistics for a question.
-
-        >>> id = InputData.example()
-        >>> id._compute_question_statistics('morning')
-        {'num_responses': 2, 'num_unique_responses': 2, 'missing': 0, 'unique_responses': ..., 'frac_numerical': 0.0, 'top_5': [('1', 1), ('4', 1)], 'frac_obs_from_top_5': 1.0}
-        """
-        idx = self.question_names.index(question_name)
-        stats =  {attr: getattr(self, attr)[idx] for attr in self.question_attributes}
-
-        return stats
-
-    def question_statistics(self, question_name:str) -> "QuestionStats":
-        qt = self.QuestionStats(**self._compute_question_statistics(question_name))
-        return qt
-
-    @property
-    def num_responses(self) -> List[int]:
-        """
-        Return the number of responses for each question.
-
-        >>> id = InputData.example()
-        >>> id.num_responses
-        [2, 2]
-        """
-        return self.compute_num_responses()
-    
-    @functools.lru_cache(maxsize=1)
-    def compute_num_responses(self):
-        return [len(responses) for responses in self.raw_data]
-
-    @property
-    def num_unique_responses(self) -> List[int]:
-        """
-        Return the number of unique responses for each question.
-
-        >>> id = InputData.example()
-        >>> id.num_unique_responses
-        [2, 2]
-        """
-        return self.compute_num_unique_responses()
-    
-    @functools.lru_cache(maxsize=1)
-    def compute_num_unique_responses(self):
-        return [len(set(responses)) for responses in self.raw_data]
-
-    @property
-    def missing(self) -> List[int]:
-        """The number of observations that are missing.
-
-        >>> input_data = InputData.example(raw_data = [[1,2,Missing().value()]], question_texts = ['A question'])
-        >>> input_data.missing
-        [1]
-        
-        """
-        return self.compute_missing()
-    
-    @functools.lru_cache(maxsize=1)
-    def compute_missing(self):
-        return [
-            sum([1 for x in v if x == Missing().value()])
-            for v in self.raw_data
-        ]
-
-    @property
-    def frac_numerical(self) -> List[float]:
-        """
-        The fraction of responses that are numerical.
-
-        >>> input_data = InputData.example(raw_data = [[1,2,"Poop", 3]], question_texts = ['A question'])
-        >>> input_data.frac_numerical
-        [0.75]
-        """
-        return self.compute_frac_numerical()
-    
-    @functools.lru_cache(maxsize=1)
-    def compute_frac_numerical(self):
-        return [
-            sum([1 for x in v if isinstance(x, (int, float))]) / len(v)
-            for v in self.raw_data
-        ]
-
-    @functools.lru_cache(maxsize=1)
-    def top_k(self, k:int) -> List[List[tuple]]:
-        """
-        >>> input_data = InputData.example(raw_data = [[1,1,1,1,1,2]], question_texts = ['A question'])
-        >>> input_data.top_k(1)
-        [[(1, 5)]]
-        >>> input_data.top_k(2)
-        [[(1, 5), (2, 1)]]
-        """
-        return [Counter(value).most_common(k) for value in self.raw_data]
-
-    @functools.lru_cache(maxsize=1)
-    def frac_obs_from_top_k(self, k):
-        """
-        >>> input_data = InputData.example(raw_data = [[1,1,1,1,1,1,1,1,2, 3]], question_names = ['a'])
-        >>> input_data.frac_obs_from_top_k(1)
-        [0.8]
-        """
-        return [
-            round(
-                sum([x[1] for x in Counter(value).most_common(k) if x[0] != "missing"])
-                / len(value),
-                2,
-            )
-            for value in self.raw_data
-        ]
-
-    @property
-    def frac_obs_from_top_5(self):
-        return self.frac_obs_from_top_k(5)
-
-    @property
-    def top_5(self):
-        return self.top_k(5)
-    
-    @property
-    def unique_responses(self) -> List[List[str]]:
-        """Return a list of unique responses for each question.
-
-        >>> id = InputData.example()
-        >>> id.unique_responses
-        [..., ...]
-        """
-        return self.compute_unique_responses()
-         
-    @staticmethod
-    def filter_missing(responses) -> List[str]:
-        return [
-            v for v in responses if v != Missing().value() and v != "missing" and v != ""
-        ]
-
-    @functools.lru_cache(maxsize=1)
-    def compute_unique_responses(self):
-        return [list(set(self.filter_missing(responses))) for responses in self.raw_data]
-
-    def unique_responses_more_than_k(self, k, remove_missing=True):
-        counters = [Counter(responses) for responses in self.raw_data]
-        new_counters = []
-        for question in counters:
-            top_options = []
-            for option, count in question.items():
-                if count > k and (option != "missing" or not remove_missing):
-                    top_options.append(option)
-            new_counters.append(top_options)
-        return new_counters
-
-
-class AgentConstructionMixin:
-
-    def agent(self, index):
-        """Return an agent constructed from the data."""
-        responses = [responses[index] for responses in self.raw_data]
-        traits = {qn: r for qn, r in zip(self.question_names, responses)}
-        
-        a = Agent(traits=traits, codebook=self.names_to_texts)
-        
-        def construct_answer_dict_function(traits: dict) -> Callable:
-            def func(self, question: 'QuestionBase', scenario=None):
-                return traits.get(question.question_name, None)
-
-            return func
-        
-        a.add_direct_question_answering_method(construct_answer_dict_function(traits))
-        return a
-    
-    def _agents(self, indices) -> Generator[Agent, None, None]:
-        """Return a generator of agents, one for each index."""
-        for idx in indices:
-            yield self.agent(idx)
-    
-    def to_agent_list(self, indices: Optional[List] = None, sample_size:int = None, seed:str = "edsl", remove_direct_question_answering_method = True) -> AgentList:
-        """Return an AgentList from the data.
-        
-        :param indices: The indices of the agents to include.
-        :param sample_size: The number of agents to sample.
-        :param seed: The seed for the random number generator.
-        """
-        if indices and (sample_size or seed != "edsl"):
-            raise ValueError("You cannot pass both indices and sample_size/seed, as these are mutually exclusive.")
-        
-        if indices: 
-            if len(indices) == 0:
-                raise ValueError("Indices must be a non-empty list.")
-            if max(indices) >= len(self.raw_data[0]):
-                raise ValueError(f"Index {max(indices)} is greater than the number of agents {len(self.raw_data[0])}.")
-            if min(indices) < 0:
-                raise ValueError(f"Index {min(indices)} is less than 0.")
-            
-        if indices is None:     
-            num_agents = len(self.raw_data[0])
-            if sample_size is None:
-                sample_size = num_agents
-                indices = range(num_agents)
-            else:
-                random.seed(seed)
-                indices = random.sample(range(num_agents), sample_size)
-
-            if sample_size > num_agents:
-                raise ValueError(f"Sample size {sample_size} is greater than the number of agents {num_agents}.")    
-        agents = list(self._agents(indices))
-        if remove_direct_question_answering_method:
-            for a in agents:
-                a.remove_direct_question_answering_method()
-        return AgentList(agents)
-
-    def to_results(self, indices: Optional[List] = None, sample_size:int = None, seed:str = "edsl", dryrun = False) -> 'Results':
-        """Return the results of the survey."""
-        agent_list = self.to_agent_list(indices=indices, sample_size=sample_size, seed=seed, remove_direct_question_answering_method=False)
-        survey = self.to_survey()
-        if dryrun:
-            import time
-            start = time.time()
-            results = survey.by(agent_list.sample(10)).run()
-            end = time.time()
-            print(f"Time to run 10 agents (s): {round(end - start, 2)}")
-            time_per_agent = (end - start) / 10
-            full_sample_time = time_per_agent * len(agent_list)
-            if full_sample_time > 60:
-                print(f"Full sample will take about {round(full_sample_time / 60, 2)} minutes.")
-            if full_sample_time > 3600:
-                print(f"Full sample will take about {round(full_sample_time / 3600, 2)} hours.")
-            if full_sample_time < 60:
-                print(f"Full sample will take about {round(full_sample_time, 2)} seconds.")
-            return None  
-        return survey.by(agent_list).run()
-
-
-class QuestionOptionMixin:
-
-    @property
-    def question_options(self):
-        if not hasattr(self, "_question_options"):
-            self.question_options = None
-        return self._question_options
-
-    @question_options.setter
-    def question_options(self, value):
-        if value is None:
-            value = [self._get_question_options(qn) for qn in self.question_names]
-        self._question_options = value
-
-    def _get_question_options(self, question_name):
-        qt = self.question_statistics(question_name)
-        idx = self.question_names.index(question_name)
-        question_type = self.question_types[idx]
-        if question_type == "multiple_choice":
-            return [str(o) for o in qt.unique_responses]
-        else:
-            if question_type == "multiple_choice_with_other":
-                options = self.unique_responses_more_than_k(2)[
-                    self.question_names.index(question_name)
-                ] + [self.OTHER_STRING]
-                return [str(o) for o in options]
-            else:
-                return None
-            
-    def order_options(self) -> None:
-        """Order the options for multiple choice questions using an LLM."""
-        from edsl import QuestionList, ScenarioList
-        import textwrap
-
-        scenarios = (
-            ScenarioList.from_list("example_question_name", self.question_names)
-            .add_list("example_question_text", self.question_texts)
-            .add_list("example_question_type", self.question_types)
-            .add_list("example_question_options", self.question_options)
-        ).filter(
-            'example_question_type == "multiple_choice" or example_question_type == "multiple_choice_with_other"'
-        )
-
-        question = QuestionList(
-            question_text=textwrap.dedent(
-                """\
-            We have a survey question: `{{ example_question_text }}`.
-            
-            The survey had following options: '{{ example_question_options }}'.
-            The options might be out of order. Please put them in the correct order.
-            If there is not natural order, just put then in order they were presented.
-            """
-            ),
-            question_name="ordering",
-        )
-        proposed_ordering = question.by(scenarios).run()
-        d = dict(
-            proposed_ordering.select("example_question_name", "ordering").to_list()
-        )
-        self._question_options = [d.get(qn, None) for qn in self.question_names]
-        
-
-            
-class QuestionTypeMixin:
-
-    @property
-    def question_types(self):
-        if not hasattr(self, "_question_types"):
-            self.question_types = None
-        return self._question_types
-
-    @question_types.setter
-    def question_types(self, value):
-        if value is None:
-            value = [self._infer_question_type(qn) for qn in self.question_names]
-        self._question_types = value
-
-    def _infer_question_type(self, question_name) -> str:
-
-        qt = self.question_statistics(question_name)
-        if qt.num_unique_responses > self.NUM_UNIQUE_THRESHOLD:
-            if qt.frac_numerical > self.FRAC_NUMERICAL_THRESHOLD:
-                return "numerical"
-            if qt.frac_obs_from_top_5 > self.MULTIPLE_CHOICE_OTHER_THRESHOLD:
-                return "multiple_choice_with_other"
-            return "free_text"
-        else:
-            return "multiple_choice"
-
-
-class InputData(ABC, InputDataMixinQuestionStats, AgentConstructionMixin, QuestionOptionMixin, QuestionTypeMixin):
+class InputDataABC(
+    ABC,
+    InputDataMixinQuestionStats,
+    AgentConstructionMixin,
+    QuestionOptionMixin,
+    QuestionTypeMixin,
+):
     """A class to represent the input data for a survey.
 
     This class can take inputs that will be used or it will infer them.
@@ -412,7 +66,7 @@ class InputData(ABC, InputDataMixinQuestionStats, AgentConstructionMixin, Questi
         answer_codebook: Optional[Dict] = None,
         question_types: Optional[List[str]] = None,
         question_options: Optional[List] = None,
-        order_options = False,
+        order_options=False,
         question_name_repair_func: Callable = None,
     ):
         """Initialize the InputData object.
@@ -426,9 +80,9 @@ class InputData(ABC, InputDataMixinQuestionStats, AgentConstructionMixin, Questi
         :param question_types: The types of the questions.
         :param question_options: The options for the questions.
 
-        >>> id = InputData.example(question_names = ['a','b'], answer_codebook = {'a': {'1':'yes', '2':'no'}, 'b': {'1':'yes', '2':'no'}})
+        >>> id = InputDataABC.example(question_names = ['a','b'], answer_codebook = {'a': {'1':'yes', '2':'no'}, 'b': {'1':'yes', '2':'no'}})
 
-        >>> id = InputData.example(question_names = ['a','b'], answer_codebook = {'a': {'1':'yes', '2':'no'}, 'c': {'1':'yes', '2':'no'}})
+        >>> id = InputDataABC.example(question_names = ['a','b'], answer_codebook = {'a': {'1':'yes', '2':'no'}, 'c': {'1':'yes', '2':'no'}})
         Traceback (most recent call last):
         ...
         Exception: The keys of the answer_codebook must match the question_names.
@@ -437,15 +91,23 @@ class InputData(ABC, InputDataMixinQuestionStats, AgentConstructionMixin, Questi
         self.datafile_name = datafile_name
         self.config = config
         self.naming_function = naming_function
-        self.question_name_repair_func = question_name_repair_func or (lambda x: x)
+
+        def default_repair_func(x):
+            return x.replace("#", "_num").replace("class", "social_class")
+
+        self.question_name_repair_func = question_name_repair_func or default_repair_func
 
         if answer_codebook is not None and question_names is not None:
             if set(answer_codebook.keys()) != set(question_names):
-                raise Exception("The keys of the answer_codebook must match the question_names.")
-            
+                raise Exception(
+                    "The keys of the answer_codebook must match the question_names."
+                )
+
         if question_names is not None and question_texts is not None:
             if len(question_names) != len(question_texts):
-                raise Exception("The question_names and question_texts must have the same length.")
+                raise Exception(
+                    "The question_names and question_texts must have the same length."
+                )
 
         self.question_texts = question_texts
         self.question_names = question_names
@@ -468,11 +130,81 @@ class InputData(ABC, InputDataMixinQuestionStats, AgentConstructionMixin, Questi
     def get_raw_data(self) -> List[List[str]]:
         """Returns a dataframe of responses by reading the datafile_name."""
         raise NotImplementedError
-    
+
     @abstractmethod
     def get_question_names(self) -> List[str]:
         """Get the names of the questions"""
         raise NotImplementedError
+    
+    def rename(self, old_name, new_name) -> 'InputData':
+        """Rename a question.
+        
+        >>> id = InputDataABC.example()
+        >>> id.rename('morning', 'evening').question_names
+        ['evening', 'feeling']
+        
+        """
+        idx = self.question_names.index(old_name)
+        self.question_names[idx] = new_name
+        self.answer_codebook[new_name] = self.answer_codebook.pop(old_name, {})
+
+        return self
+    
+    def modify_question_type(self, 
+                             question_name: str, 
+                             new_type: str,
+                             drop_options: bool = False,
+                             new_options: Optional[List[str]] = None
+                             ) -> 'InputData':
+        """Modify the question type of a question. Checks to make sure the new type is valid.
+        
+        >>> id = InputDataABC.example()
+        >>> id.modify_question_type('morning', 'numerical', drop_options = True).question_types
+        ['numerical', 'multiple_choice']
+
+        >>> id = InputDataABC.example()
+        >>> id.modify_question_type('morning', 'poop')
+        Traceback (most recent call last):
+        ...
+        ValueError: Question type poop is not available.
+        """
+        old_type = self.question_types[self.question_names.index(question_name)]
+        old_options = self.question_options[self.question_names.index(question_name)]
+
+        if new_type not in Question.available():
+            raise ValueError(f"Question type {new_type} is not available.")
+        
+        idx = self.question_names.index(question_name)
+        self.question_types[idx] = new_type
+        if drop_options:
+            self.question_options[idx] = None
+        if new_options is not None:
+            self.question_options[idx] = new_options
+
+        try:
+            idx = self.question_names.index(question_name)
+            rq = self.raw_question(idx)
+            q = rq.to_question()
+        except Exception as e:
+            print("Error with question", question_name)
+            print(e)
+            print("Reverting changes")
+            self.question_types[idx] = old_type
+            self.question_options[idx] = old_options
+        return self
+
+        
+
+    @property
+    def num_observations(self):
+        """Return the number of observations.
+        
+        >>> id = InputDataABC.example()
+        >>> id.num_observations
+        2
+        
+        """
+        return len(self.raw_data[0])
 
     def to_dict(self):
         return {
@@ -484,7 +216,7 @@ class InputData(ABC, InputDataMixinQuestionStats, AgentConstructionMixin, Questi
             "answer_codebook": self.answer_codebook,
             "question_types": self.question_types,
         }
-    
+
     @classmethod
     def from_dict(cls, d: Dict):
         return cls(**d)
@@ -492,25 +224,25 @@ class InputData(ABC, InputDataMixinQuestionStats, AgentConstructionMixin, Questi
     @property
     def question_names(self) -> List[str]:
         """
-        Return a list of question names. 
+        Return a list of question names.
 
-        >>> id = InputData.example()
+        >>> id = InputDataABC.example()
         >>> id.question_names
         ['morning', 'feeling']
-        
-        We can pass question names instead: 
 
-        >>> id = InputData.example(question_names = ['a','b'])
+        We can pass question names instead:
+
+        >>> id = InputDataABC.example(question_names = ['a','b'])
         >>> id.question_names
         ['a', 'b']
-        
+
         """
         if not hasattr(self, "_question_names"):
             self.question_names = None
         return self._question_names
 
     @question_names.setter
-    def question_names(self, value):
+    def question_names(self, value) -> None:
         if value is None:
             value = self.get_question_names()
             if len(set(value)) != len(value):
@@ -519,9 +251,10 @@ class InputData(ABC, InputDataMixinQuestionStats, AgentConstructionMixin, Questi
                 if not is_valid_variable_name(qn):
                     new_name = self.question_name_repair_func(qn)
                     if not is_valid_variable_name(new_name):
-                        raise ValueError(f"""Question names must be valid Python identifiers. '{qn}' is not.
-                                         You can pass an entry in question_name_repair_dict to fix this. 
-                                         """)
+                        raise ValueError(
+                            f"""Question names must be valid Python identifiers. '{qn}' is not.""", 
+                            """You can pass an entry in question_name_repair_func to fix this."""                
+                        )
                     else:
                         value[i] = new_name
         self._question_names = value
@@ -531,7 +264,7 @@ class InputData(ABC, InputDataMixinQuestionStats, AgentConstructionMixin, Questi
         """
         Return a list of question texts.
 
-        >>> id = InputData.example()
+        >>> id = InputDataABC.example()
         >>> id.question_texts
         ['how are you doing this morning?', 'how are you feeling?']
         """
@@ -549,13 +282,10 @@ class InputData(ABC, InputDataMixinQuestionStats, AgentConstructionMixin, Questi
     def raw_data(self):
         """
 
-        >>> id = InputData.example()
+        >>> id = InputDataABC.example()
         >>> id.raw_data
         [['1', '4'], ['3', '6']]
 
-        >>> id = InputData.example(question_texts = ["A question"], question_names = ['a'], raw_data = {'A question':[1,2]})
-        >>> id.raw_data
-        {'A question': [1, 2]}
         """
         if not hasattr(self, "_raw_data"):
             self.raw_data = None
@@ -563,35 +293,44 @@ class InputData(ABC, InputDataMixinQuestionStats, AgentConstructionMixin, Questi
 
     @raw_data.setter
     def raw_data(self, value):
-        """
-        """
+        """ """
         if value is None:
             value = self.get_raw_data()
-            #self.apply_codebook()                
+            # self.apply_codebook()
         self._raw_data = value
 
-
-    def to_dataset(self):
+    def to_dataset(self) -> 'Dataset':
         from edsl.results.Dataset import Dataset
+
         dataset_list = []
         for key, value in zip(self.question_names, self.raw_data):
             dataset_list.append({key: value})
         return Dataset(dataset_list)
-    
-    def to_scenario_list(self):
-        from edsl.scenarios.ScenarioList import ScenarioList
+
+    def to_scenario_list(self) -> ScenarioList:
+        """Return a ScenarioList object from the raw response data.
+        
+        >>> id = InputDataABC.example()
+        >>> s = id.to_scenario_list()
+        >>> type(s) == ScenarioList
+        True
+
+        >>> s
+        ScenarioList([Scenario({'morning': '1', 'feeling': '3'}), Scenario({'morning': '4', 'feeling': '6'})])
+        
+        """
         s = ScenarioList()
         for qn in self.question_names:
             idx = self.question_names.index(qn)
             s = s.add_list(qn, self.raw_data[idx])
         return s
-    
+
     @property
     def names_to_texts(self) -> dict:
         """
         Return a dictionary of question names to question texts.
 
-        >>> id = InputData.example()
+        >>> id = InputDataABC.example()
         >>> id.names_to_texts
         {'morning': 'how are you doing this morning?', 'feeling': 'how are you feeling?'}
         """
@@ -600,41 +339,48 @@ class InputData(ABC, InputDataMixinQuestionStats, AgentConstructionMixin, Questi
     @property
     def texts_to_names(self):
         """Return a dictionary of question texts to question names.
-        
-        >>> id = InputData.example()
+
+        >>> id = InputDataABC.example()
         >>> id.texts_to_names
         {'how are you doing this morning?': 'morning', 'how are you feeling?': 'feeling'}
-        
+
         """
         return {t: n for n, t in self.names_to_texts.items()}
     
-    def raw_questions(self):
+    def raw_question(self, index:int) -> RawQuestion:
+        return RawQuestion(
+            question_type=self.question_types[index],
+            question_name=self.question_names[index],
+            question_text=self.question_texts[index],
+            responses=self.raw_data[index],
+            question_options=self.question_options[index],
+        )
+
+    def raw_questions(self) -> Generator[RawQuestion, None, None]:
+        """Return a generator of RawQuestion objects."""
         for qn in self.question_names:
             idx = self.question_names.index(qn)
-            yield RawQuestion(
-                question_type = self.question_types[idx],
-                question_name = qn,
-                question_text = self.question_texts[idx],
-                responses = self.raw_data[idx],
-                question_options = self.question_options[idx]
-            )
-    
-    def questions(self):
+            yield self.raw_question(idx)
+
+    def questions(self) -> Generator[Union[QuestionBase, None], None, None]:
+        """Return a generator of Question objects."""
         for rq in self.raw_questions():
-            try: 
+            try:
                 yield rq.to_question()
             except Exception as e:
                 print("Error with question", rq.question_name)
                 print(e)
                 yield None
 
-    def select(self, *question_names: List[str]):
+    def select(self, *question_names: List[str]) -> 'InputData':
         """Select a subset of the questions.
-        
-        >>> id = InputData.example()
+
+        :param question_names: The names of the questions to select.
+
+        >>> id = InputDataABC.example()
         >>> id.select('morning').question_names
         ('morning',)
-        
+
         """
 
         idxs = [self.question_names.index(qn) for qn in question_names]
@@ -642,7 +388,9 @@ class InputData(ABC, InputDataMixinQuestionStats, AgentConstructionMixin, Questi
         new_texts = [self.question_texts[i] for i in idxs]
         new_types = [self.question_types[i] for i in idxs]
         new_options = [self.question_options[i] for i in idxs]
-        answer_codebook = {qn: self.answer_codebook.get(qn, {}) for qn in question_names}
+        answer_codebook = {
+            qn: self.answer_codebook.get(qn, {}) for qn in question_names
+        }
         return self.__class__(
             self.datafile_name,
             self.config,
@@ -652,22 +400,23 @@ class InputData(ABC, InputDataMixinQuestionStats, AgentConstructionMixin, Questi
             question_types=new_types,
             question_options=new_options,
             answer_codebook=answer_codebook,
-            question_name_repair_func = self.question_name_repair_func
+            question_name_repair_func=self.question_name_repair_func,
         )
 
     def to_survey(self) -> Survey:
         """
-        >>> id = InputData.example()
+        >>> id = InputDataABC.example()
         >>> s = id.to_survey()
         >>> type(s) == Survey
         True
+
         """
         s = Survey()
         for q in self.questions():
             if q is not None:
                 s.add_question(q)
         return s
-    
+
     def print(self):
         sl = (
             ScenarioList.from_list("question_name", self.question_names)
@@ -684,10 +433,11 @@ class InputData(ABC, InputDataMixinQuestionStats, AgentConstructionMixin, Questi
 
     @property
     def answer_codebook(self):
+        """Return the answer codebook."""
         if not hasattr(self, "_answer_codebook"):
             self._answer_codebook = None
         return self._answer_codebook
-    
+
     @answer_codebook.setter
     def answer_codebook(self, value):
         if value is None:
@@ -696,29 +446,22 @@ class InputData(ABC, InputDataMixinQuestionStats, AgentConstructionMixin, Questi
 
     def get_answer_codebook(self):
         return {}
-    
+
     def apply_codebook(self) -> None:
+        """Apply the codebook to the raw data."""
         for index, qn in enumerate(self.question_names):
             if qn in self.answer_codebook:
-                new_responses = [self.answer_codebook[qn].get(r, r) for r in self.raw_data[index]]
+                new_responses = [
+                    self.answer_codebook[qn].get(r, r) for r in self.raw_data[index]
+                ]
                 self.raw_data[index] = new_responses
-
-    # def print(self):
-    #     sl = (
-    #         ScenarioList.from_list("question_name", self.question_names)
-    #         .add_list("question_text", self.question_texts)
-    #         .add_list("inferred_question_type", self.question_types)
-    #         .add_list("question_options", self.question_options)
-    #     )
-    #     sl.print()
 
     def __repr__(self):
         return f"{self.__class__.__name__}: datafile_name:'{self.datafile_name}' num_questions:{len(self.question_names)}, num_agents:{len(self.raw_data[0])}"
 
-
     @classmethod
     def example(cls, **kwargs):
-        class InputDataExample(InputData):
+        class InputDataExample(InputDataABC):
 
             def get_question_texts(self) -> List[str]:
                 """Get the text of the questions"""
@@ -727,186 +470,55 @@ class InputData(ABC, InputDataMixinQuestionStats, AgentConstructionMixin, Questi
             def get_raw_data(self) -> SurveyResponses:
                 """Returns a dataframe of responses by reading the datafile_name."""
                 return [["1", "4"], ["3", "6"]]
-            
+
             def get_question_names(self):
                 new_names = [self.naming_function(q) for q in self.question_texts]
                 if len(new_names) != len(set(new_names)):
                     new_names = [f"{q}_{i}" for i, q in enumerate(new_names)]
                 return new_names
 
-        return InputDataExample("notneeded.csv", config = {}, **kwargs)
+        return InputDataExample("notneeded", config={}, **kwargs)
 
 
-class InputDataCSV(InputData):
+# class InputDataStata(InputDataPyRead):
 
-    def __init__(self, datafile_name: str, config: Optional[dict] = None, **kwargs):
-        if config is None:
-            config = {'skiprows': None, 'delimiter': ','}
+#     def pyread_function(self, datafile_name):
+#         from pyreadstat import read_dta
 
-        super().__init__(datafile_name, config, **kwargs)
-
-    def get_df(self) -> pd.DataFrame:
-        if not hasattr(self, "_df"):
-            self._df = pd.read_csv(self.datafile_name, skiprows=self.config["skiprows"], encoding_errors="ignore")
-            self._df.fillna("", inplace=True)
-            self._df = self._df.astype(str)
-        return self._df
-
-    def get_raw_data(self) -> List[List[str]]:
-        data = [
-            [convert_value(obs) for obs in v]
-            for k, v in self.get_df().to_dict(orient="list").items()
-        ]
-        return data 
-
-    def get_question_texts(self):
-        return list(self.get_df().columns)
-    
-    def get_question_names(self):
-        new_names = [self.naming_function(q) for q in self.question_texts]
-        if len(new_names) != len(set(new_names)):
-            new_names = [f"{q}_{i}" for i, q in enumerate(new_names)]
-        return new_names
-
-class InputDataPyRead(InputData):
-
-    def pyread_function(self, datafile_name):
-        raise NotImplementedError
-
-    def _parse(self) -> None:
-        try:
-            df, meta = self.pyread_function(self.datafile_name)
-        except Exception as e:
-            breakpoint()
-        df.fillna("", inplace=True)
-        df = df.astype(str)
-        self._df = df
-        self._meta = meta
-
-    def get_df(self) -> pd.DataFrame:
-        if not hasattr(self, "_df"):
-            self._parse()
-        return self._df
-
-    def get_answer_codebook(self):
-        if not hasattr(self, "_meta"):
-            self._parse()
-
-        question_name_to_label_name = self._meta.variable_to_label
-        label_name_to_labels = self._meta.value_labels
-        return {qn:label_name_to_labels[label_name] for qn, label_name in question_name_to_label_name.items()}
-
-        
-    def get_raw_data(self) -> List[List[str]]:
-        df = self.get_df()
-        data = [
-            [convert_value(obs) for obs in v]
-            for k, v in df.to_dict(orient="list").items()
-        ]
-        return data
-
-    @property
-    def question_names_to_question_texts(self):
-        """Return a dictionary of question names to question texts.
-        This will repair the question names if they are not valid Python identifiers using the 
-        same question_name_repair_func that was passed in.
-        """
-        if not hasattr(self, "_meta"):
-            self._parse()
-        d = {} 
-        for qn, label in self._meta.column_names_to_labels.items():
-            new_name = qn
-            if not is_valid_variable_name(qn):
-                new_name = self.question_name_repair_func(qn)
-                if not is_valid_variable_name(new_name):
-                    raise ValueError(f"""Question names must be valid Python identifiers. '{qn}' is not.""",
-                                     """You can pass an entry in question_name_repair_dict to fix this.""")
-            if label is not None:
-                d[new_name] = label
-        return d
-        
-    def get_question_texts(self):
-        if not hasattr(self, "_meta"):
-            self._parse()
-        return [self.question_names_to_question_texts.get(qn, qn) for qn in self.question_names]
-    
-    def get_question_names(self):
-        return self.get_df().columns.tolist()
+#         return read_dta(datafile_name)
 
 
-class InputDataStata(InputDataPyRead):
+# class InputDataSPSS(InputDataPyRead):
+#     def pyread_function(self, datafile_name):
+#         from pyreadstat import read_sav
 
-    def pyread_function(self, datafile_name):
-        from pyreadstat import read_dta
-        return read_dta(datafile_name)
-
-class InputDataSPSS(InputDataPyRead):
-    def pyread_function(self, datafile_name):
-        from pyreadstat import read_sav
-        return read_sav(datafile_name)
-
-    # def _parse(self) -> None:
-    #     from pyreadstat import read_sav
-    #     df, meta = read_sav(self.datafile_name)
-    #     df.fillna("", inplace=True)
-    #     df = df.astype(str)
-    #     self._df = df
-    #     self._meta = meta
-
-    # def get_df(self) -> pd.DataFrame:
-    #     if not hasattr(self, "_df"):
-    #         self._parse()
-    #     return self._df
-    
-    # def get_raw_data(self) -> List[List[str]]:
-    #     df = self.get_df()
-    #     data = [
-    #         [convert_value(obs) for obs in v]
-    #         for k, v in df.to_dict(orient="list").items()
-    #     ]
-    #     return data 
-
-    # def get_question_texts(self):
-    #     if not hasattr(self, "_meta"):
-    #         self._parse()
-    #     return [self._meta.column_names_to_labels[qn] for qn in self.question_names]
-    
-    # def get_question_names(self):
-    #     new_names = [self.naming_function(q) for q in self.question_texts]
-    #     if len(new_names) != len(set(new_names)):
-    #         new_names = [f"{q}_{i}" for i, q in enumerate(new_names)]
-    #     return new_names
-    
+#         return read_sav(datafile_name)
 
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)
 
+    #pew = InputDataSPSS("examples/pew.sav", config={})
 
-    #gamer = InputDataStata("examples/gamer.dta", config = {}, order_options = True)
-    #gamer.to_survey.push()
-
-    pew = InputDataSPSS("examples/pew.sav", config = {}, order_options = True)
-    
-
-    #doctest.testmod()
+    # doctest.testmod()
     # config = {"skiprows": 1}
-    #brady = InputDataCSV("examples/deflate_gate.csv", config = {'skiprows': None})
-    
-    #sloan = InputDataCSV("examples/sloan_search.csv", config = {'skiprows': [0, 2]})
+    # brady = InputDataCSV("examples/deflate_gate.csv", config = {'skiprows': None})
 
-    # q_raw = RawQuestion(question_type = "multiple_choice", 
-    #                     question_name = "morning", 
+    # sloan = InputDataCSV("examples/sloan_search.csv", config = {'skiprows': [0, 2]})
+
+    # q_raw = RawQuestion(question_type = "multiple_choice",
+    #                     question_name = "morning",
     #                     question_text = "how are you doing this morning?",
-    #                     question_options = ["Good", "Bad"], 
+    #                     question_options = ["Good", "Bad"],
     #                     responses = ["Good", "Bad"])
     # q = q_raw.to_question()
 
-    #gss = InputDataSPSS("examples/GSS7218_R3.sav", config = {"skiprows": None})
+    # gss = InputDataSPSS("examples/GSS7218_R3.sav", config = {"skiprows": None})
 
-    #gss = InputDataStata("examples/GSS2022.dta", config = {}, auto_infer = True, 
-    #                     question_name_repair_func = lambda x: {'class':'social_class'}.get(x, x)                         
+    # gss = InputDataStata("examples/GSS2022.dta", config = {}, auto_infer = True,
+    #                     question_name_repair_func = lambda x: {'class':'social_class'}.get(x, x)
     #                     )
     # new_gss = gss.select(gss.question_names[9:11])
     # results = new_gss.to_results(indices = range(10))
@@ -923,13 +535,13 @@ if __name__ == "__main__":
     # end = time.time()
     # print("Second pass", end - start)
 
-    #def question_name_repair_func(x):
+    # def question_name_repair_func(x):
     #    return x.replace("#", "_num")
 
-    #jobs = InputDataSPSS("examples/job_satisfaction.sav", 
-    #                     config={"skiprows": None}, 
+    # jobs = InputDataSPSS("examples/job_satisfaction.sav",
+    #                     config={"skiprows": None},
     #                     question_name_repair_func = question_name_repair_func)
-    #jobs.to_survey().html()
+    # jobs.to_survey().html()
 
     # url = 'https://dataverse.harvard.edu/api/access/datafile/:persistentId?persistentId=doi:10.7910/DVN/9D2NAC/ZEPNV4'
     # filename = 'brady.csv'
@@ -955,7 +567,6 @@ if __name__ == "__main__":
     # q_eggs = QuestionYesNo(question_text = "Did you eat eggs for breakfast?", question_name = "eggs")
     # egg_results = q_eggs.by(bfast_agents).run(progress_bar = True)
 
-
     # # # id2 = InputDataCSV.from_dict(id.to_dict())
     # if False:
     #     lenny = InputDataCSV("lenny.csv", config={"skiprows": None})
@@ -966,4 +577,3 @@ if __name__ == "__main__":
     #     a = lenny.to_agent_list([0])
     #     results = lenny.to_results()
     #     results.select('age').print()
-
