@@ -41,6 +41,27 @@ class AgentList(UserList, Base):
         else:
             super().__init__()
 
+    def sample(self, n: int, seed = "edsl") -> AgentList:
+        """Return a random sample of agents.
+
+        :param n: The number of agents to sample.
+        :param seed: The seed for the random number generator.
+        """
+        import random
+        
+        random.seed(seed)
+        return AgentList(random.sample(self.data, n))
+
+    def rename(self, old_name, new_name):
+        """Rename a trait in the AgentList.
+
+        :param old_name: The old name of the trait.
+        :param new_name: The new name of the trait.
+        """
+        for agent in self.data:
+            agent.rename(old_name, new_name)
+        return self
+
     def select(self, *traits) -> AgentList:
         """Selects agents with only the references traits.
 

@@ -266,10 +266,26 @@ class AgentConstructionMixin:
                 a.remove_direct_question_answering_method()
         return AgentList(agents)
 
-    def to_results(self, indices: Optional[List] = None, sample_size:int = None, seed:str = "edsl") -> 'Results':
+    def to_results(self, indices: Optional[List] = None, sample_size:int = None, seed:str = "edsl", dryrun = False) -> 'Results':
         """Return the results of the survey."""
-        agent_list = list(self.to_agent_list(indices=indices, sample_size=sample_size, seed=seed, remove_direct_question_answering_method=False))
-        return self.to_survey().by(agent_list).run()
+        agent_list = self.to_agent_list(indices=indices, sample_size=sample_size, seed=seed, remove_direct_question_answering_method=False)
+        survey = self.to_survey()
+        if dryrun:
+            import time
+            start = time.time()
+            results = survey.by(agent_list.sample(10)).run()
+            end = time.time()
+            print(f"Time to run 10 agents (s): {round(end - start, 2)}")
+            time_per_agent = (end - start) / 10
+            full_sample_time = time_per_agent * len(agent_list)
+            if full_sample_time > 60:
+                print(f"Full sample will take about {round(full_sample_time / 60, 2)} minutes.")
+            if full_sample_time > 3600:
+                print(f"Full sample will take about {round(full_sample_time / 3600, 2)} hours.")
+            if full_sample_time < 60:
+                print(f"Full sample will take about {round(full_sample_time, 2)} seconds.")
+            return None  
+        return survey.by(agent_list).run()
 
 
 class QuestionOptionMixin:
@@ -291,12 +307,13 @@ class QuestionOptionMixin:
         idx = self.question_names.index(question_name)
         question_type = self.question_types[idx]
         if question_type == "multiple_choice":
-            return qt.unique_responses
+            return [str(o) for o in qt.unique_responses]
         else:
             if question_type == "multiple_choice_with_other":
-                return self.unique_responses_more_than_k(2)[
+                options = self.unique_responses_more_than_k(2)[
                     self.question_names.index(question_name)
                 ] + [self.OTHER_STRING]
+                return [str(o) for o in options]
             else:
                 return None
             
@@ -387,7 +404,7 @@ class InputData(ABC, InputDataMixinQuestionStats, AgentConstructionMixin, Questi
     def __init__(
         self,
         datafile_name: str,
-        config: dict,
+        config: Optional[dict] = None,
         naming_function: Optional[Callable] = sanitize_string,
         raw_data: Optional[List] = None,
         question_names: Optional[List[str]] = None,
@@ -395,7 +412,7 @@ class InputData(ABC, InputDataMixinQuestionStats, AgentConstructionMixin, Questi
         answer_codebook: Optional[Dict] = None,
         question_types: Optional[List[str]] = None,
         question_options: Optional[List] = None,
-        auto_infer: bool = True,
+        order_options = False,
         question_name_repair_func: Callable = None,
     ):
         """Initialize the InputData object.
@@ -439,7 +456,9 @@ class InputData(ABC, InputDataMixinQuestionStats, AgentConstructionMixin, Questi
 
         self.question_types = question_types
         self.question_options = question_options
-    
+        if order_options:
+            self.order_options()
+
     @abstractmethod
     def get_question_texts(self) -> List[str]:
         """Get the text of the questions"""
@@ -610,7 +629,13 @@ class InputData(ABC, InputDataMixinQuestionStats, AgentConstructionMixin, Questi
                 yield None
 
     def select(self, *question_names: List[str]):
-        """Select a subset of the questions."""
+        """Select a subset of the questions.
+        
+        >>> id = InputData.example()
+        >>> id.select('morning').question_names
+        ('morning',)
+        
+        """
 
         idxs = [self.question_names.index(qn) for qn in question_names]
         new_data = [self.raw_data[i] for i in idxs]
@@ -675,12 +700,8 @@ class InputData(ABC, InputDataMixinQuestionStats, AgentConstructionMixin, Questi
     def apply_codebook(self) -> None:
         for index, qn in enumerate(self.question_names):
             if qn in self.answer_codebook:
-                #print("Found codebook for", qn)
-                #print("Old responses:", self.raw_data[index][:5])
                 new_responses = [self.answer_codebook[qn].get(r, r) for r in self.raw_data[index]]
-                #print("New responses:", new_responses[:5])
                 self.raw_data[index] = new_responses
-                #print("Object iself", self.raw_data[index][:5])
 
     # def print(self):
     #     sl = (
@@ -690,6 +711,9 @@ class InputData(ABC, InputDataMixinQuestionStats, AgentConstructionMixin, Questi
     #         .add_list("question_options", self.question_options)
     #     )
     #     sl.print()
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}: datafile_name:'{self.datafile_name}' num_questions:{len(self.question_names)}, num_agents:{len(self.raw_data[0])}"
 
 
     @classmethod
@@ -745,8 +769,15 @@ class InputDataCSV(InputData):
         return new_names
 
 class InputDataPyRead(InputData):
+
+    def pyread_function(self, datafile_name):
+        raise NotImplementedError
+
     def _parse(self) -> None:
-        df, meta = self.pyread_function(self.datafile_name)
+        try:
+            df, meta = self.pyread_function(self.datafile_name)
+        except Exception as e:
+            breakpoint()
         df.fillna("", inplace=True)
         df = df.astype(str)
         self._df = df
@@ -804,12 +835,15 @@ class InputDataPyRead(InputData):
 
 
 class InputDataStata(InputDataPyRead):
-    from pyreadstat import read_dta
-    pyread_function = read_dta
+
+    def pyread_function(self, datafile_name):
+        from pyreadstat import read_dta
+        return read_dta(datafile_name)
 
 class InputDataSPSS(InputDataPyRead):
-    from pyreadstat import read_sav
-    pyread_function = read_sav
+    def pyread_function(self, datafile_name):
+        from pyreadstat import read_sav
+        return read_sav(datafile_name)
 
     # def _parse(self) -> None:
     #     from pyreadstat import read_sav
@@ -848,6 +882,14 @@ class InputDataSPSS(InputDataPyRead):
 if __name__ == "__main__":
     import doctest
     doctest.testmod(optionflags=doctest.ELLIPSIS)
+
+
+    #gamer = InputDataStata("examples/gamer.dta", config = {}, order_options = True)
+    #gamer.to_survey.push()
+
+    pew = InputDataSPSS("examples/pew.sav", config = {}, order_options = True)
+    
+
     #doctest.testmod()
     # config = {"skiprows": 1}
     #brady = InputDataCSV("examples/deflate_gate.csv", config = {'skiprows': None})
@@ -863,9 +905,9 @@ if __name__ == "__main__":
 
     #gss = InputDataSPSS("examples/GSS7218_R3.sav", config = {"skiprows": None})
 
-    # gss = InputDataStata("examples/GSS2022.dta", config = {}, auto_infer = True, 
-    #                      question_name_repair_func = lambda x: {'class':'social_class'}.get(x, x)                         
-    #                      )
+    #gss = InputDataStata("examples/GSS2022.dta", config = {}, auto_infer = True, 
+    #                     question_name_repair_func = lambda x: {'class':'social_class'}.get(x, x)                         
+    #                     )
     # new_gss = gss.select(gss.question_names[9:11])
     # results = new_gss.to_results(indices = range(10))
     # results.select('answer.*').print()
@@ -889,39 +931,39 @@ if __name__ == "__main__":
     #                     question_name_repair_func = question_name_repair_func)
     #jobs.to_survey().html()
 
-    url = 'https://dataverse.harvard.edu/api/access/datafile/:persistentId?persistentId=doi:10.7910/DVN/9D2NAC/ZEPNV4'
-    filename = 'brady.csv'
-    from edsl.conjure.utilities import download_file
-    download_file(url, filename)
+    # url = 'https://dataverse.harvard.edu/api/access/datafile/:persistentId?persistentId=doi:10.7910/DVN/9D2NAC/ZEPNV4'
+    # filename = 'brady.csv'
+    # from edsl.conjure.utilities import download_file
+    # download_file(url, filename)
 
-    brady = InputDataCSV(download_file(url, filename))
-    fb = brady.select('favorite_team', 'state_reside')
-    from edsl import QuestionFreeText
-    q = QuestionFreeText(question_text = "Who is your favorite football player of all time?", question_name = "favorite_player")
-    al = fb.to_agent_list(sample_size=10)
-    al.to_scenario_list().print()
-    results = q.by(al).run()
-    results.select('favorite_team', 'favorite_player').print()
+    # brady = InputDataCSV(download_file(url, filename))
+    # fb = brady.select('favorite_team', 'state_reside')
+    # from edsl import QuestionFreeText
+    # q = QuestionFreeText(question_text = "Who is your favorite football player of all time?", question_name = "favorite_player")
+    # al = fb.to_agent_list(sample_size=10)
+    # al.to_scenario_list().print()
+    # results = q.by(al).run()
+    # results.select('favorite_team', 'favorite_player').print()
 
-    bfast_agents = (brady
-             .select('treatment_response', 'treatment')
-             .to_scenario_list()
-             .filter("treatment == 'Question Random Assignment - Text 1'")
-             .to_agent_list()
-    )
-    from edsl import QuestionYesNo
-    q_eggs = QuestionYesNo(question_text = "Did you eat eggs for breakfast?", question_name = "eggs")
-    egg_results = q_eggs.by(bfast_agents).run(progress_bar = True)
+    # bfast_agents = (brady
+    #          .select('treatment_response', 'treatment')
+    #          .to_scenario_list()
+    #          .filter("treatment == 'Question Random Assignment - Text 1'")
+    #          .to_agent_list()
+    # )
+    # from edsl import QuestionYesNo
+    # q_eggs = QuestionYesNo(question_text = "Did you eat eggs for breakfast?", question_name = "eggs")
+    # egg_results = q_eggs.by(bfast_agents).run(progress_bar = True)
 
 
-    # # id2 = InputDataCSV.from_dict(id.to_dict())
-    if False:
-        lenny = InputDataCSV("lenny.csv", config={"skiprows": None})
-        #lenny.print()
-        lenny.order_options()
-        #lenny.print()
-        survey = lenny.to_survey()
-        a = lenny.to_agent_list([0])
-        results = lenny.to_results()
-        results.select('age').print()
+    # # # id2 = InputDataCSV.from_dict(id.to_dict())
+    # if False:
+    #     lenny = InputDataCSV("lenny.csv", config={"skiprows": None})
+    #     #lenny.print()
+    #     lenny.order_options()
+    #     #lenny.print()
+    #     survey = lenny.to_survey()
+    #     a = lenny.to_agent_list([0])
+    #     results = lenny.to_results()
+    #     results.select('age').print()
 
