@@ -248,9 +248,9 @@ class InputDataABC(
             if len(set(value)) != len(value):
                 raise ValueError("Question names must be unique.")
             for i, qn in enumerate(value):
-                if not is_valid_variable_name(qn):
+                if not is_valid_variable_name(qn, allow_name = False):
                     new_name = self.question_name_repair_func(qn)
-                    if not is_valid_variable_name(new_name):
+                    if not is_valid_variable_name(new_name, allow_name = False):
                         raise ValueError(
                             f"""Question names must be valid Python identifiers. '{qn}' is not.""", 
                             """You can pass an entry in question_name_repair_func to fix this."""                
