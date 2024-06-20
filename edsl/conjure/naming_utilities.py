@@ -9,8 +9,7 @@ try:
     except LookupError:
         nltk.download('stopwords')
 except ImportError:
-    print("nltk is not installed. Please install it using 'pip install nltk'.")
-    exit(1)
+    print("nltk is not installed. Please install it using 'pip install nltk' to use these features.")
 
 
 def sanitize_string(input_string):
