@@ -1,5 +1,14 @@
-from edsl import Agent, AgentList, Cache, Jobs, Results, Scenario, ScenarioList, Survey
-from edsl.notebooks import Notebook
+from edsl import (
+    Agent,
+    AgentList,
+    Cache,
+    Jobs,
+    Notebook,
+    Results,
+    Scenario,
+    ScenarioList,
+    Survey,
+)
 from edsl.questions import QuestionBase
 from typing import Literal, Type, Union
 
