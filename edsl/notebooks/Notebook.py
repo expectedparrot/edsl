@@ -2,7 +2,6 @@
 
 import json
 import nbformat
-
 from nbconvert import HTMLExporter
 from typing import Dict, List, Optional
 from rich.table import Table
@@ -45,12 +44,12 @@ class Notebook(Base):
                 data = nbformat.read(f, as_version=4)
             self.data = json.loads(json.dumps(data))
         else:
-            # TO BE IMPLEMENTED: Support for IDEs other than VSCode
+            # TODO: Support for IDEs other than VSCode
             raise NotImplementedError(
                 "Cannot create a notebook from within itself in this development environment"
             )
 
-        # deprioritize - perhaps add sanity check function
+        # TODO: perhaps add sanity check function
         # 1. could check if the notebook is a valid notebook
         # 2. could check notebook uses EDSL
         # ....
@@ -110,7 +109,9 @@ class Notebook(Base):
         return body
 
     def _table(self) -> tuple[dict, list]:
-        """Prepare generic table data."""
+        """
+        Prepare generic table data.
+        """
         table_data = []
 
         notebook_preview = ""
