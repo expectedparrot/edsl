@@ -52,6 +52,7 @@ Core Concepts
 - :ref:`language_models`:  Examine the selection and application of language models for generating results.
 - :ref:`results`:  Investigate methods for analyzing and utilizing survey results.
 - :ref:`data`:  Learn about caching and sharing your survey results.
+- :ref:`conjure`:  Import existing surveys and respondents data as EDSL surveys and agents to simulate new results.
 - :ref:`exceptions`:  Understand how to identify and handle exceptions in your survey design.
 - :ref:`token_limits`:  Learn about managing token limits for language models.
 - :ref:`coop`:  A platform for storing and sharing your work, projects and ideas with other researchers. *Coming soon!*
@@ -129,6 +130,7 @@ Information about additional functionality for developers.
    language_models
    results
    data
+   conjure
    exceptions
    token_limits
    coop
