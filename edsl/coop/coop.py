@@ -347,6 +347,21 @@ class Coop:
             for v in response.json()
         ]
 
+    def remote_cache_get_diff(
+        self,
+        client_cacheentry_keys: list[str],
+    ) -> dict:
+        """
+        Get the difference between local and remote cache entries for a user.
+        """
+        response = self._send_server_request(
+            uri="api/v0/remote-cache/get-diff",
+            method="POST",
+            payload={"keys": client_cacheentry_keys},
+        )
+        self._resolve_server_response(response)
+        return response.json()
+
     def remote_cache_clear(self) -> dict:
         """
         Clear all remote cache entries.
