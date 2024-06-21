@@ -5,6 +5,7 @@ from edsl import (
     Cache,
     Coop,
     Jobs,
+    Notebook,
     QuestionCheckBox,
     QuestionFreeText,
     QuestionMultipleChoice,
@@ -120,6 +121,17 @@ def test_coop_client_questions():
         (QuestionFreeText.example(), "unlisted"),
     ]
     coop_object_api_workflows("question", question_examples)
+
+
+@pytest.mark.coop
+def test_coop_client_notebooks():
+    notebook_examples = [
+        (Notebook.example(), "public"),
+        (Notebook.example(), "private"),
+        (Notebook.example(), "public"),
+        (Notebook.example(), "unlisted"),
+    ]
+    coop_object_api_workflows("notebook", notebook_examples)
 
 
 @pytest.mark.coop
