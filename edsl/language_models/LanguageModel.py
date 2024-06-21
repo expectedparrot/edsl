@@ -464,7 +464,7 @@ class LanguageModel(
 
         >>> m = LanguageModel.example()
         >>> m.to_dict()
-        {'model': 'gpt-4-1106-preview', 'parameters': {'temperature': 0.5, 'max_tokens': 1000, 'top_p': 1, 'frequency_penalty': 0, 'presence_penalty': 0, 'logprobs': False, 'top_logprobs': 3}}
+        {'model': 'gpt-4-1106-preview', 'parameters': {'temperature': 0.5, 'max_tokens': 1000, 'top_p': 1, 'frequency_penalty': 0, 'presence_penalty': 0, 'logprobs': False, 'top_logprobs': 3}, 'edsl_version': '...', 'edsl_class_name': 'LanguageModel'}
         """
         return {"model": self.model, "parameters": self.parameters}
 
@@ -519,10 +519,20 @@ class LanguageModel(
         return table
 
     @classmethod
-    def example(cls, test_model=False):
-        """Return a default instance of the class."""
+    def example(cls, test_model:bool=False, canned_response: str = "Hello world"):
+        """Return a default instance of the class.
+        
+        >>> from edsl.language_models import LanguageModel
+        >>> m = LanguageModel.example(test_model = True, canned_response = "WOWZA!")
+        >>> isinstance(m, LanguageModel)
+        True
+        >>> from edsl import QuestionFreeText 
+        >>> q = QuestionFreeText(question_text = "What is your name?", question_name = 'example')
+        >>> q.by(m).run(cache = False).select('example').first()
+        'WOWZA!'
+        """
         from edsl import Model
-
+        
         class TestLanguageModelGood(LanguageModel):
             use_cache = False
             _model_ = "test"
@@ -533,8 +543,9 @@ class LanguageModel(
                 self, user_prompt: str, system_prompt: str
             ) -> dict[str, Any]:
                 await asyncio.sleep(0.1)
-                return {"message": """{"answer": "Hello world"}"""}
-
+                #return {"message": """{"answer": "Hello, world"}"""}
+                return {"message": f'{{"answer": "{canned_response}"}}'}
+            
             def parse_response(self, raw_response: dict[str, Any]) -> str:
                 return raw_response["message"]
 

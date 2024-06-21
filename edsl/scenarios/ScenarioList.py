@@ -227,7 +227,10 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
         """
         for i, value in enumerate(values):
-            self[i][name] = value
+            if i < len(self):
+                self[i][name] = value
+            else:
+                self.append(Scenario({name: value}))
         return self
 
     def add_value(self, name, value):
