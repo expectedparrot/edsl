@@ -36,7 +36,26 @@ class Conjure:
 if __name__ == "__main__":
     import glob
     for file in glob.glob("examples/*"):
-        print("Now processing", file)
+        if file.endswith(".txt"):
+            continue
+        print("\n\n")
+        print("Now processing:", file)
         conjure_instance = Conjure(file)
-        conjure_instance.to_results(dryrun = True)
         print(conjure_instance)
+        conjure_instance.to_results(dryrun = True)
+        print("\n\n")
+    # def slow_function():
+    #     conjure_instance = Conjure("examples/mayors.sav")
+    #     conjure_instance.to_results(dryrun = True)
+
+
+    # from line_profiler import LineProfiler
+
+
+    # profiler = LineProfiler()
+    # profiler.add_function(slow_function)
+    # profiler.enable_by_count()
+
+    # slow_function()
+
+    # profiler.print_stats()

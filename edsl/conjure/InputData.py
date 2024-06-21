@@ -433,7 +433,7 @@ class InputDataABC(
         sl.print()
 
     @property
-    def answer_codebook(self):
+    def answer_codebook(self) -> dict:
         """Return the answer codebook."""
         if not hasattr(self, "_answer_codebook"):
             self._answer_codebook = None
@@ -461,7 +461,7 @@ class InputDataABC(
         return f"{self.__class__.__name__}: datafile_name:'{self.datafile_name}' num_questions:{len(self.question_names)}, num_agents:{len(self.raw_data[0])}"
 
     @classmethod
-    def example(cls, **kwargs):
+    def example(cls, **kwargs) -> 'InputDataABC':
         class InputDataExample(InputDataABC):
 
             def get_question_texts(self) -> List[str]:

@@ -93,15 +93,16 @@ class AgentConstructionMixin:
             seed=seed,
             remove_direct_question_answering_method=False,
         )
+        DRYRUN_SAMPLE = 30
         survey = self.to_survey()
         if dryrun:
             import time
 
             start = time.time()
-            _ = survey.by(agent_list.sample(10)).run()
+            _ = survey.by(agent_list.sample(DRYRUN_SAMPLE)).run()
             end = time.time()
-            print(f"Time to run 10 agents (s): {round(end - start, 2)}")
-            time_per_agent = (end - start) / 10
+            print(f"Time to run {DRYRUN_SAMPLE} agents (s): {round(end - start, 2)}")
+            time_per_agent = (end - start) / DRYRUN_SAMPLE
             full_sample_time = time_per_agent * len(agent_list)
             if full_sample_time < 60:
                 print(
