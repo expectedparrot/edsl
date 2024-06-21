@@ -18,6 +18,8 @@ from edsl.language_models import LanguageModel
 from edsl.results import Results
 from edsl.scenarios import Scenario
 from edsl.surveys import Survey
+from edsl.jobs.runners.JobsRunnerAsyncio import JobsRunnerAsyncio
+
 
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
@@ -355,7 +357,6 @@ class Jobs(Base):
 
     def _run_local(self, *args, **kwargs):
         """Run the job locally."""
-        from edsl.jobs.runners.JobsRunnerAsyncio import JobsRunnerAsyncio
 
         results = JobsRunnerAsyncio(self).run(*args, **kwargs)
         return results

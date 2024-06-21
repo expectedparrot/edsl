@@ -40,7 +40,9 @@ class TraitsDescriptor:
 
             if not is_valid_variable_name(key):
                 raise AgentTraitKeyError(
-                    "Trait keys must be valid Python identifiers (must be alphanumeric, cannot start with a number and must use underscores instead of spaces)."
+                    f"""Trait keys must be valid Python identifiers (must be alphanumeric, cannot start with a number and must use underscores instead of spaces).
+                    You passed: {key}
+                    """
                 )
 
         instance.__dict__[self.name] = traits_dict

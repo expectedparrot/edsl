@@ -1,0 +1,61 @@
+from typing import List, Optional, Dict, Callable
+from edsl.conjure.naming_utilities import sanitize_string
+
+class Conjure:
+
+    def __new__(cls, datafile_name: str, *args, **kwargs):
+        if datafile_name.endswith(".csv"):
+            from edsl.conjure.InputDataCSV import InputDataCSV
+            return InputDataCSV(datafile_name, *args, **kwargs)
+        elif datafile_name.endswith(".sav"):
+            from edsl.conjure.InputDataSPSS import InputDataSPSS
+            return InputDataSPSS(datafile_name, *args, **kwargs)
+        elif datafile_name.endswith(".dta"):
+            from edsl.conjure.InputDataStata import InputDataStata
+            return InputDataStata(datafile_name, *args, **kwargs)
+        else:
+            raise ValueError("Unsupported file type")
+
+    def __init__(
+        self,
+        datafile_name: str,
+        config: Optional[dict] = None,
+        naming_function: Optional[Callable] = sanitize_string,
+        raw_data: Optional[List] = None,
+        question_names: Optional[List[str]] = None,
+        question_texts: Optional[List[str]] = None,
+        answer_codebook: Optional[Dict] = None,
+        question_types: Optional[List[str]] = None,
+        question_options: Optional[List] = None,
+        order_options=False,
+        question_name_repair_func: Callable = None,
+    ):
+        # The __init__ method in Conjure won't be called because __new__ returns a different class instance.
+        pass
+
+if __name__ == "__main__":
+    import glob
+    for file in glob.glob("examples/*"):
+        if file.endswith(".txt"):
+            continue
+        print("\n\n")
+        print("Now processing:", file)
+        conjure_instance = Conjure(file)
+        print(conjure_instance)
+        conjure_instance.to_results(dryrun = True)
+        print("\n\n")
+    # def slow_function():
+    #     conjure_instance = Conjure("examples/mayors.sav")
+    #     conjure_instance.to_results(dryrun = True)
+
+
+    # from line_profiler import LineProfiler
+
+
+    # profiler = LineProfiler()
+    # profiler.add_function(slow_function)
+    # profiler.enable_by_count()
+
+    # slow_function()
+
+    # profiler.print_stats()
