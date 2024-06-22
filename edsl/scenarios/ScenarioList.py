@@ -16,8 +16,6 @@ from edsl.Base import Base
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 from edsl.scenarios.ScenarioListPdfMixin import ScenarioListPdfMixin
 
-import pandas as pd
-
 from edsl.utilities.interface import print_scenario_list
 
 from edsl.utilities import is_valid_variable_name
@@ -33,6 +31,10 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         else:
             super().__init__([])
 
+    def __hash__(self) -> int:
+        from edsl.utilities.utilities import dict_hash
+        return dict_hash(self._to_dict())
+    
     def __repr__(self):
         return f"ScenarioList({self.data})"
 
@@ -44,6 +46,14 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         for s1, s2 in list(product(self, other)):
             new_sl.append(s1 + s2)
         return ScenarioList(new_sl)
+
+    def shuffle(self, seed: Optional[str] = "edsl") -> ScenarioList:
+        """Shuffle the ScenarioList."""
+        import random
+
+        random.seed(seed)
+        random.shuffle(self.data)
+        return self
 
     def _repr_html_(self) -> str:
         from edsl.utilities.utilities import data_to_html
@@ -303,6 +313,9 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
             for row in reader:
                 observations.append(Scenario(dict(zip(header, row))))
         return cls(observations)
+
+    def _to_dict(self) -> dict:
+        return {"scenarios": [s._to_dict() for s in self]}
 
     @add_edsl_version
     def to_dict(self) -> dict[str, Any]:

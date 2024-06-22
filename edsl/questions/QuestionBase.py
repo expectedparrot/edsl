@@ -36,7 +36,12 @@ class QuestionBase(
     def __getitem__(self, key: str) -> Any:
         """Get an attribute of the question."""
         return getattr(self, key)
-
+    
+    def __hash__(self) -> int:
+        """Return a hash of the question."""
+        from edsl.utilities.utilities import dict_hash
+        return dict_hash(self._to_dict())
+    
     def _repr_html_(self):
         from edsl.utilities.utilities import data_to_html
 
@@ -167,12 +172,16 @@ class QuestionBase(
     ############################
     # Serialization methods
     ############################
-    @add_edsl_version
-    def to_dict(self) -> dict[str, Any]:
+    def _to_dict(self):
         """Convert the question to a dictionary that includes the question type (used in deserialization)."""
         candidate_data = self.data.copy()
         candidate_data["question_type"] = self.question_type
         return candidate_data
+
+    @add_edsl_version
+    def to_dict(self) -> dict[str, Any]:
+        """Convert the question to a dictionary that includes the question type (used in deserialization)."""
+        return self._to_dict()
 
     @classmethod
     @remove_edsl_version
