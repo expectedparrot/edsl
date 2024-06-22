@@ -360,7 +360,16 @@ class Coop:
             payload={"keys": client_cacheentry_keys},
         )
         self._resolve_server_response(response)
-        return response.json()
+        response_json = response.json()
+        return {
+            "client_missing_cacheentries": [
+                CacheEntry.from_dict(json.loads(c.get("json_string")))
+                for c in response_json.get("client_missing_cacheentries", [])
+            ],
+            "server_missing_cacheentry_keys": response_json.get(
+                "server_missing_cacheentry_keys", []
+            ),
+        }
 
     def remote_cache_clear(self) -> dict:
         """
