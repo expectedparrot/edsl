@@ -1,8 +1,8 @@
 from typing import List, Optional, Dict, Callable
-from edsl.conjure.naming_utilities import sanitize_string
 
 class Conjure:
 
+    
     def __new__(cls, datafile_name: str, *args, **kwargs):
         if datafile_name.endswith(".csv"):
             from edsl.conjure.InputDataCSV import InputDataCSV
@@ -20,7 +20,7 @@ class Conjure:
         self,
         datafile_name: str,
         config: Optional[dict] = None,
-        naming_function: Optional[Callable] = sanitize_string,
+        naming_function: Optional[Callable] = None,
         raw_data: Optional[List] = None,
         question_names: Optional[List[str]] = None,
         question_texts: Optional[List[str]] = None,
@@ -32,6 +32,7 @@ class Conjure:
     ):
         # The __init__ method in Conjure won't be called because __new__ returns a different class instance.
         pass
+        
 
 if __name__ == "__main__":
     import glob
@@ -44,18 +45,10 @@ if __name__ == "__main__":
         print(conjure_instance)
         conjure_instance.to_results(dryrun = True)
         print("\n\n")
-    # def slow_function():
-    #     conjure_instance = Conjure("examples/mayors.sav")
-    #     conjure_instance.to_results(dryrun = True)
 
 
-    # from line_profiler import LineProfiler
+        # c = Conjure("mayors.sav")
+        # al = c.to_agent_list()
+        # s = c.to_survey()
+        # r = c.results()
 
-
-    # profiler = LineProfiler()
-    # profiler.add_function(slow_function)
-    # profiler.enable_by_count()
-
-    # slow_function()
-
-    # profiler.print_stats()
