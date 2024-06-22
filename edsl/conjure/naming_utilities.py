@@ -1,20 +1,25 @@
 import re
 import keyword
 
-# Ensure nltk stopwords are downloaded
-try:
-    from nltk.corpus import stopwords
-    try:
-        stopwords.words('english')
-    except LookupError:
-        nltk.download('stopwords')
-except ImportError:
-    print("nltk is not installed. Please install it using 'pip install nltk' to use these features.")
 
 
 def sanitize_string(input_string):
+    # Ensure nltk stopwords are downloaded
+    try:
+        from nltk.corpus import stopwords
+    except ImportError or ModuleNotFoundError:
+        print("nltk is not installed. Please install it using 'pip install nltk' to use these features.")
+        raise
+
+    try:
+        stop_words = set(stopwords.words('english'))
+    except LookupError:
+        nltk.download('stopwords')
+        stop_words = set(stopwords.words('english'))
+        #raise LookupError("Stopwords not found. Please download them using nltk.download('stopwords')")
+  
+
     # Define the list of stopwords
-    stop_words = set(stopwords.words('english'))
     
     # Replace special characters with spaces and split into words
     words = re.sub(r'\W+', ' ', input_string).split()
