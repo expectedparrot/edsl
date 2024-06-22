@@ -346,24 +346,56 @@ class Jobs(Base):
         if cache is False:
             cache = Cache()
 
-        if remote_cache:
-            coop = Coop(api_key=os.getenv("EXPECTED_PARROT_API_KEY"))
+        if not remote_cache:
+            results = self._run_local(
+                n=n,
+                debug=debug,
+                progress_bar=progress_bar,
+                cache=cache,
+                stop_on_exception=stop_on_exception,
+                sidecar_model=sidecar_model,
+                print_exceptions=print_exceptions,
+            )
+
+            results.cache = cache.new_entries_cache()
+        else:
+            coop = Coop()
             cache_difference = coop.remote_cache_get_diff(cache.keys())
-            client_missing_cachentries = cache_difference.get(
+            client_missing_cacheentries = cache_difference.get(
                 "client_missing_cacheentries", []
             )
-            cache.add_from_dict({c.key: c for c in client_missing_cachentries})
+            cache.add_from_dict(
+                {entry.key: entry for entry in client_missing_cacheentries}
+            )
 
-        results = self._run_local(
-            n=n,
-            debug=debug,
-            progress_bar=progress_bar,
-            cache=cache,
-            stop_on_exception=stop_on_exception,
-            sidecar_model=sidecar_model,
-            print_exceptions=print_exceptions,
-        )
-        results.cache = cache.new_entries_cache()
+            server_missing_cacheentry_keys = cache_difference.get(
+                "server_missing_cacheentry_keys", []
+            )
+            server_missing_cacheentries = [
+                entry
+                for key in server_missing_cacheentry_keys
+                if (entry := cache.data.get(key)) is not None
+            ]
+            old_entry_keys = [key for key in cache.keys()]
+
+            results = self._run_local(
+                n=n,
+                debug=debug,
+                progress_bar=progress_bar,
+                cache=cache,
+                stop_on_exception=stop_on_exception,
+                sidecar_model=sidecar_model,
+                print_exceptions=print_exceptions,
+            )
+
+            new_cache_entries = list(
+                [entry for entry in cache.values() if entry.key not in old_entry_keys]
+            )
+            new_cache_entries.extend(server_missing_cacheentries)
+            if len(new_cache_entries) > 0:
+                coop.remote_cache_create_many(new_cache_entries, visibility="private")
+
+            results.cache = cache.new_entries_cache()
 
         return results
 
