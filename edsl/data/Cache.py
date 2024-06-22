@@ -12,6 +12,7 @@ from edsl.config import CONFIG
 from edsl.data.CacheEntry import CacheEntry
 from edsl.data.SQLiteDict import SQLiteDict
 from edsl.Base import Base
+from edsl.utilities.utilities import dict_hash
 
 from edsl.utilities.decorators import (
     add_edsl_version,
@@ -314,10 +315,18 @@ class Cache(Base):
     ####################
     # DUNDER / USEFUL
     ####################
+    def __hash__(self):
+        """Return the hash of the Cache."""
+        return dict_hash(self._to_dict())
+
+    def _to_dict(self) -> dict:
+        return {k: v.to_dict() for k, v in self.data.items()}
+
+
     @add_edsl_version
     def to_dict(self) -> dict:
         """Return the Cache as a dictionary."""
-        return {k: v.to_dict() for k, v in self.data.items()}
+        return self._to_dict()
 
     def _repr_html_(self):
         from edsl.utilities.utilities import data_to_html
