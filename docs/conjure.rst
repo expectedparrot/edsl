@@ -335,15 +335,15 @@ Using your "conjured" EDSL objects
 
 Once you have created an `AgentList`, `Survey`, or `Results` object from your `Conjure` object, you can use them as you would any other EDSL object. 
 
-Here we administer a new question to the agent list that we created:
+Here we administer a new question to the agent list that we created that checks that the agent understands its traits:
 
 .. code-block:: python
 
     from edsl.questions import QuestionFreeText
 
-    q = QuestionFreeText( 
-        question_name = "how_are_you",
-        question_text = "How are you?"
+    q = QuestionFreeText(
+        question_name = "more_store",
+        question_text = "What do you love most about your favorite store?"
     )
 
     results = q.by(agentlist).run()
@@ -370,7 +370,7 @@ Output:
     'agent.preferred_shopping_day',
     'agent.satisfaction_online_shopp',
     'agent.uuid',
-    'answer.how_are_you',
+    'answer.more_store',
     'iteration.iteration',
     'model.frequency_penalty',
     'model.logprobs',
@@ -380,39 +380,76 @@ Output:
     'model.temperature',
     'model.top_logprobs',
     'model.top_p',
-    'prompt.how_are_you_system_prompt',
-    'prompt.how_are_you_user_prompt',
-    'question_options.how_are_you_question_options',
-    'question_text.how_are_you_question_text',
-    'question_type.how_are_you_question_type',
-    'raw_model_response.how_are_you_raw_model_response']
+    'prompt.more_store_system_prompt',
+    'prompt.more_store_user_prompt',
+    'question_options.more_store_question_options',
+    'question_text.more_store_question_text',
+    'question_type.more_store_question_type',
+    'raw_model_response.more_store_raw_model_response']
 
 
 We can inspect them together with the responses to the new question as usual:
 
 .. code-block:: python
 
-    results.select("uuid", "favorite_store", "payment_preference", "how_are_you").print(format="rich", max_rows=3) 
+    results.select("favorite_store", "more_store").print(format="rich").print(format="rich", max_rows=3) 
 
 
 Output:
 
 .. code-block:: text
 
-    ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-    ┃ agent                              ┃ agent           ┃ agent               ┃ answer                             ┃
-    ┃ .uuid                              ┃ .favorite_store ┃ .payment_preference ┃ .how_are_you                       ┃
-    ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-    │ 123e4567-e89b-12d3-a456-426614174… │ Walmart         │ Credit Card         │ I'm doing well, thank you! How     │
-    │                                    │                 │                     │ about yourself?                    │
-    ├────────────────────────────────────┼─────────────────┼─────────────────────┼────────────────────────────────────┤
-    │ 234f5678-f91c-23e4-b567-537725175… │ Target          │ Debit Card          │ I'm doing great, thank you for     │
-    │                                    │                 │                     │ asking! How can I assist you       │
-    │                                    │                 │                     │ today?                             │
-    ├────────────────────────────────────┼─────────────────┼─────────────────────┼────────────────────────────────────┤
-    │ 345a6789-g02d-34f5-c678-648836276… │ Amazon          │ PayPal              │ I'm doing well, thank you! How can │
-    │                                    │                 │                     │ I assist you today?                │
-    └────────────────────────────────────┴─────────────────┴─────────────────────┴────────────────────────────────────┘
+    ┏━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+    ┃ agent           ┃ answer                                                                                        ┃
+    ┃ .favorite_store ┃ .more_store                                                                                   ┃
+    ┡━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+    │ Whole Foods     │ What I love most about Whole Foods is their commitment to quality and the wide variety of     │
+    │                 │ organic products they offer. It aligns with my preference for healthy, natural foods and I    │
+    │                 │ appreciate their efforts to source environmentally sustainable goods. The store's environment │
+    │                 │ is also very pleasant, which makes the shopping experience enjoyable.                         │
+    ├─────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────┤
+    │ Amazon          │ What I love most about my favorite store, Amazon, is the vast selection of products           │
+    │                 │ available. They have everything from books to electronics, home goods, and even groceries.    │
+    │                 │ The convenience of finding almost anything I need in one place is unparalleled. Additionally, │
+    │                 │ the user reviews are incredibly helpful for making informed purchasing decisions.             │
+    ├─────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────┤
+    │ Costco          │ What I love most about my favorite store, Costco, is the combination of high-quality          │
+    │                 │ products, bulk purchasing options, and the substantial savings I get from buying in larger    │
+    │                 │ quantities. Additionally, the wide variety of items available means I can often find          │
+    │                 │ everything I need in one place, from groceries to electronics. The free samples are a fun     │
+    │                 │ perk, too!                                                                                    │
+    ├─────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────┤
+    │ Best Buy        │ What I love most about Best Buy is their wide selection of electronics and gadgets. It's like │
+    │                 │ a playground for tech enthusiasts where I can find the latest devices and accessories. I also │
+    │                 │ appreciate their price match guarantee, which gives me confidence that I'm getting a good     │
+    │                 │ deal. Plus, their staff is generally knowledgeable and can help with technical questions I    │
+    │                 │ might have.                                                                                   │
+    ├─────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────┤
+    │ Local Boutique  │ What I love most about my favorite local boutique is the unique selection of items that you   │
+    │                 │ just can't find anywhere else. They have a curated assortment of clothing and accessories     │
+    │                 │ that really stand out because of their quality and originality. The store has a personal      │
+    │                 │ touch, and the shopping experience feels intimate and special. Plus, their customer service   │
+    │                 │ is exceptional; the staff are always friendly, knowledgeable, and willing to help with        │
+    │                 │ anything I need.                                                                              │
+    ├─────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────┤
+    │ Trader Joe's    │ What I love most about Trader Joe's is their unique selection of products that you can't find │
+    │                 │ anywhere else. They offer a variety of organic and non-GMO options, which is important to me. │
+    │                 │ The store also has a friendly and welcoming atmosphere, with helpful staff who seem genuinely │
+    │                 │ happy to assist customers. Plus, their prices are reasonable for the quality of goods you     │
+    │                 │ get, making it a great value overall.                                                         │
+    ├─────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────┤
+    │ Walmart         │ What I love most about my favorite store, Walmart, is the convenience and variety it offers.  │
+    │                 │ I can find almost everything I need under one roof, from groceries to electronics, which      │
+    │                 │ saves me a lot of time. Additionally, the prices are competitive, and there's a good chance   │
+    │                 │ of finding a deal or a discount on the products I'm looking for, especially on the weekends   │
+    │                 │ when I prefer to do my shopping.                                                              │
+    ├─────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────┤
+    │ Target          │ What I love most about my favorite store, Target, is the variety of products they offer, all  │
+    │                 │ under one roof. It's incredibly convenient to find everything from clothing and electronics   │
+    │                 │ to groceries and home goods. Additionally, the store layout is well-organized, which makes    │
+    │                 │ shopping there a pleasant and efficient experience. The competitive pricing and exclusive     │
+    │                 │ brands also add to the appeal, making it a go-to for both essentials and fun finds.           │
+    └─────────────────┴───────────────────────────────────────────────────────────────────────────────────────────────┘
 
 
 
