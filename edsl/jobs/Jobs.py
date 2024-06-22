@@ -296,6 +296,7 @@ class Jobs(Base):
         remote: bool = (
             False if os.getenv("DEFAULT_RUN_MODE", "local") == "local" else True
         ),
+        remote_cache: Optional[bool] = False,
         check_api_keys: bool = False,
         sidecar_model: Optional[LanguageModel] = None,
         batch_mode: Optional[bool] = None,
@@ -311,10 +312,13 @@ class Jobs(Base):
         :param stop_on_exception: stops the job if an exception is raised
         :param cache: a cache object to store results
         :param remote: run the job remotely
+        :param remote_cache: use remote caching
         :param check_api_keys: check if the API keys are valid
         :batch_mode: run the job in batch mode i.e., no expecation of interaction with the user
 
         """
+        from edsl.coop.coop import Coop
+
         if batch_mode is not None:
             raise NotImplementedError(
                 "Batch mode is deprecated. Please update your code to not include 'batch_mode' in the 'run' method."
@@ -322,7 +326,7 @@ class Jobs(Base):
 
         self.remote = remote
 
-        if self.remote:
+        if self.remote or remote_cache:
             ## TODO: This should be a coop check
             if os.getenv("EXPECTED_PARROT_API_KEY", None) is None:
                 raise MissingRemoteInferenceError()
@@ -341,6 +345,14 @@ class Jobs(Base):
             cache = CacheHandler().get_cache()
         if cache is False:
             cache = Cache()
+
+        if remote_cache:
+            coop = Coop(api_key=os.getenv("EXPECTED_PARROT_API_KEY"))
+            cache_difference = coop.remote_cache_get_diff(cache.keys())
+            client_missing_cachentries = cache_difference.get(
+                "client_missing_cacheentries", []
+            )
+            cache.add_from_dict({c.key: c for c in client_missing_cachentries})
 
         results = self._run_local(
             n=n,
