@@ -56,8 +56,13 @@ class PersistenceMixin:
         """Pull the object from coop."""
         from edsl.coop import Coop
 
+        if id_or_url.startswith("http"):
+            uuid_value = id_or_url.split("/")[-1]
+        else:
+            uuid_value = id_or_url
+
         c = Coop()
-        return c._get_base(cls, id_or_url)
+        return c._get_base(cls, uuid_value)
 
     @classmethod
     def delete(cls, id_or_url: Union[str, UUID]):
