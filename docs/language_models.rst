@@ -4,7 +4,25 @@ Language Models
 ===============
 Language models are used to generate agent responses to questions and can be specified when running a survey.
 API keys are required in order to access the available models, and should be stored in your private `.env` file.
-See the :ref:`starter_tutorial` section for instructions on storing your API keys.
+See the :ref:`api_keys` page for instructions on storing your API keys.
+
+Available services 
+------------------
+We can see all of the available services by calling the `services()` method of the `Model` class:
+
+.. code-block:: python
+
+   from edsl import Model
+
+   Model.services()
+
+
+This will return a list of the services we can choose from:
+
+.. code-block:: python
+
+   ['openai', 'anthropic', 'deep_infra', 'google']
+
 
 Available models
 ----------------
@@ -16,6 +34,7 @@ We can see all of the available models by calling the `available()` method of th
 
    Model.available()
 
+
 This will return a list of the models we can choose from:
 
 .. code-block:: python
@@ -26,59 +45,93 @@ This will return a list of the models we can choose from:
    ['Gryphe/MythoMax-L2-13b-turbo', 'deep_infra', 3],
    ['HuggingFaceH4/zephyr-orpo-141b-A35b-v0.1', 'deep_infra', 4],
    ['Phind/Phind-CodeLlama-34B-v2', 'deep_infra', 5],
-   ['bigcode/starcoder2-15b', 'deep_infra', 6],
-   ['bigcode/starcoder2-15b-instruct-v0.1', 'deep_infra', 7],
-   ['claude-3-haiku-20240307', 'anthropic', 8],
-   ['claude-3-opus-20240229', 'anthropic', 9],
-   ['claude-3-sonnet-20240229', 'anthropic', 10],
-   ['codellama/CodeLlama-34b-Instruct-hf', 'deep_infra', 11],
-   ['codellama/CodeLlama-70b-Instruct-hf', 'deep_infra', 12],
-   ['cognitivecomputations/dolphin-2.6-mixtral-8x7b', 'deep_infra', 13],
-   ['databricks/dbrx-instruct', 'deep_infra', 14],
-   ['deepinfra/airoboros-70b', 'deep_infra', 15],
-   ['gemini-pro', 'google', 16],
-   ['google/codegemma-7b-it', 'deep_infra', 17],
-   ['google/gemma-1.1-7b-it', 'deep_infra', 18],
-   ['gpt-3.5-turbo', 'openai', 19],
-   ['gpt-3.5-turbo-0125', 'openai', 20],
-   ['gpt-3.5-turbo-0301', 'openai', 21],
-   ['gpt-3.5-turbo-0613', 'openai', 22],
-   ['gpt-3.5-turbo-1106', 'openai', 23],
-   ['gpt-3.5-turbo-16k', 'openai', 24],
-   ['gpt-3.5-turbo-16k-0613', 'openai', 25],
-   ['gpt-3.5-turbo-instruct', 'openai', 26],
-   ['gpt-3.5-turbo-instruct-0914', 'openai', 27],
-   ['gpt-4', 'openai', 28],
-   ['gpt-4-0125-preview', 'openai', 29],
-   ['gpt-4-0613', 'openai', 30],
-   ['gpt-4-1106-preview', 'openai', 31],
-   ['gpt-4-1106-vision-preview', 'openai', 32],
-   ['gpt-4-turbo', 'openai', 33],
-   ['gpt-4-turbo-2024-04-09', 'openai', 34],
-   ['gpt-4-turbo-preview', 'openai', 35],
-   ['gpt-4-vision-preview', 'openai', 36],
-   ['gpt-4o', 'openai', 37],
-   ['gpt-4o-2024-05-13', 'openai', 38],
-   ['lizpreciatior/lzlv_70b_fp16_hf', 'deep_infra', 39],
-   ['llava-hf/llava-1.5-7b-hf', 'deep_infra', 40],
-   ['meta-llama/Llama-2-13b-chat-hf', 'deep_infra', 41],
-   ['meta-llama/Llama-2-70b-chat-hf', 'deep_infra', 42],
-   ['meta-llama/Llama-2-7b-chat-hf', 'deep_infra', 43],
-   ['meta-llama/Meta-Llama-3-70B-Instruct', 'deep_infra', 44],
-   ['meta-llama/Meta-Llama-3-8B-Instruct', 'deep_infra', 45],
-   ['microsoft/WizardLM-2-7B', 'deep_infra', 46],
-   ['microsoft/WizardLM-2-8x22B', 'deep_infra', 47],
-   ['mistralai/Mistral-7B-Instruct-v0.1', 'deep_infra', 48],
-   ['mistralai/Mistral-7B-Instruct-v0.2', 'deep_infra', 49],
-   ['mistralai/Mixtral-8x22B-Instruct-v0.1', 'deep_infra', 50],
-   ['mistralai/Mixtral-8x22B-v0.1', 'deep_infra', 51],
-   ['mistralai/Mixtral-8x7B-Instruct-v0.1', 'deep_infra', 52],
-   ['openchat/openchat_3.5', 'deep_infra', 53]]
+   ['Qwen/Qwen2-72B-Instruct', 'deep_infra', 6],
+   ['Qwen/Qwen2-7B-Instruct', 'deep_infra', 7],
+   ['bigcode/starcoder2-15b', 'deep_infra', 8],
+   ['bigcode/starcoder2-15b-instruct-v0.1', 'deep_infra', 9],
+   ['claude-3-5-sonnet-20240620', 'anthropic', 10],
+   ['claude-3-haiku-20240307', 'anthropic', 11],
+   ['claude-3-opus-20240229', 'anthropic', 12],
+   ['claude-3-sonnet-20240229', 'anthropic', 13],
+   ['codellama/CodeLlama-34b-Instruct-hf', 'deep_infra', 14],
+   ['codellama/CodeLlama-70b-Instruct-hf', 'deep_infra', 15],
+   ['cognitivecomputations/dolphin-2.6-mixtral-8x7b', 'deep_infra', 16],
+   ['databricks/dbrx-instruct', 'deep_infra', 17],
+   ['deepinfra/airoboros-70b', 'deep_infra', 18],
+   ['gemini-pro', 'google', 19],
+   ['google/codegemma-7b-it', 'deep_infra', 20],
+   ['google/gemma-1.1-7b-it', 'deep_infra', 21],
+   ['gpt-3.5-turbo', 'openai', 22],
+   ['gpt-3.5-turbo-0125', 'openai', 23],
+   ['gpt-3.5-turbo-0301', 'openai', 24],
+   ['gpt-3.5-turbo-0613', 'openai', 25],
+   ['gpt-3.5-turbo-1106', 'openai', 26],
+   ['gpt-3.5-turbo-16k', 'openai', 27],
+   ['gpt-3.5-turbo-16k-0613', 'openai', 28],
+   ['gpt-3.5-turbo-instruct', 'openai', 29],
+   ['gpt-3.5-turbo-instruct-0914', 'openai', 30],
+   ['gpt-4', 'openai', 31],
+   ['gpt-4-0125-preview', 'openai', 32],
+   ['gpt-4-0613', 'openai', 33],
+   ['gpt-4-1106-preview', 'openai', 34],
+   ['gpt-4-1106-vision-preview', 'openai', 35],
+   ['gpt-4-turbo', 'openai', 36],
+   ['gpt-4-turbo-2024-04-09', 'openai', 37],
+   ['gpt-4-turbo-preview', 'openai', 38],
+   ['gpt-4-vision-preview', 'openai', 39],
+   ['gpt-4o', 'openai', 40],
+   ['gpt-4o-2024-05-13', 'openai', 41],
+   ['lizpreciatior/lzlv_70b_fp16_hf', 'deep_infra', 42],
+   ['llava-hf/llava-1.5-7b-hf', 'deep_infra', 43],
+   ['meta-llama/Llama-2-13b-chat-hf', 'deep_infra', 44],
+   ['meta-llama/Llama-2-70b-chat-hf', 'deep_infra', 45],
+   ['meta-llama/Llama-2-7b-chat-hf', 'deep_infra', 46],
+   ['meta-llama/Meta-Llama-3-70B-Instruct', 'deep_infra', 47],
+   ['meta-llama/Meta-Llama-3-8B-Instruct', 'deep_infra', 48],
+   ['microsoft/Phi-3-medium-4k-instruct', 'deep_infra', 49],
+   ['microsoft/WizardLM-2-7B', 'deep_infra', 50],
+   ['microsoft/WizardLM-2-8x22B', 'deep_infra', 51],
+   ['mistralai/Mistral-7B-Instruct-v0.1', 'deep_infra', 52],
+   ['mistralai/Mistral-7B-Instruct-v0.2', 'deep_infra', 53],
+   ['mistralai/Mistral-7B-Instruct-v0.3', 'deep_infra', 54],
+   ['mistralai/Mixtral-8x22B-Instruct-v0.1', 'deep_infra', 55],
+   ['mistralai/Mixtral-8x22B-v0.1', 'deep_infra', 56],
+   ['mistralai/Mixtral-8x7B-Instruct-v0.1', 'deep_infra', 57],
+   ['nvidia/Nemotron-4-340B-Instruct', 'deep_infra', 58],
+   ['openchat/openchat-3.6-8b', 'deep_infra', 59],
+   ['openchat/openchat_3.5', 'deep_infra', 60]]
 
-Available models are updated regularly.
+
+Adding a model
+--------------
+Available models are added automatically.
 A current list is also viewable at :py:class:`edsl.enums.LanguageModelType`.
+If you do not see a publicly available model that you want to work with, please send us a feature request to add it or add it yourself by calling the `add_model()` method:
 
-*If you don't see a model that you want to work with, please send us a feature request to add it!*
+.. code-block:: python
+
+   from edsl import Model
+
+   Model.add_model(service_name = "anthropic", model_name = "new_model")
+
+This will add the model `new_model` to the `anthropic` service.
+You can then see the model in the list of available models, and search by service name:
+
+.. code-block:: python
+
+   Model.available("anthropic")
+
+
+Output:
+
+.. code-block:: python
+
+[['claude-3-5-sonnet-20240620', 'anthropic', 10],
+ ['claude-3-haiku-20240307', 'anthropic', 11],
+ ['claude-3-opus-20240229', 'anthropic', 12],
+ ['claude-3-sonnet-20240229', 'anthropic', 13],
+ ['new_model', 'anthropic', 61]]
+
 
 Check models 
 ------------
@@ -90,17 +143,19 @@ We can check the models that for which we have already properly stored API keys 
 
 This will return a list of the available models and a confirmation message whether a valid key exists.
 
+
 Specifying a model
 ------------------
 We specify a model to use with a survey by creating a `Model` object and passing it the name of an available model.
 We can optionally set other model parameters as well (temperature, etc.). 
-For example, the following code creates a `Model` object for Claude 3 with default model parameters:
+For example, the following code creates a `Model` object for Claude 3.5 Sonnet with default model parameters:
 
 .. code-block:: python
 
    from edsl import Model
 
-   model = Model('claude-3-opus-20240229')
+   model = Model('claude-3-5-sonnet-20240620')
+
 
 We can see that the object consists of a model name and a dictionary of parameters:
 
@@ -108,67 +163,23 @@ We can see that the object consists of a model name and a dictionary of paramete
 
    model
 
-This will return the following:
+
+This will show the default parameters of the model:
 
 .. code-block:: python
 
    {
-   "model": "claude-3-opus-20240229",
-   "parameters": {
-      "temperature": 0.5,
-      "max_tokens": 1000,
-      "top_p": 1,
-      "frequency_penalty": 0,
-      "presence_penalty": 0,
-      "logprobs": false,
-      "top_logprobs": 3
+      "model": "claude-3-5-sonnet-20240620",
+      "parameters": {
+         "temperature": 0.5,
+         "max_tokens": 1000,
+         "top_p": 1,
+         "frequency_penalty": 0,
+         "presence_penalty": 0,
+         "logprobs": false,
+         "top_logprobs": 3
+      }
    }
-   }
-
-We can also print the model name and parameters in a readable table with the `print()` method:
-
-.. code-block:: python
-
-   model.print()
-
-This will print the following table:
-
-.. code-block:: text
-
-                                       Language Model                                       
-   ┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-   ┃ Attribute         ┃ Value                                                               ┃
-   ┡━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-   │ model             │ 'claude-3-opus-20240229'                                            │
-   │ parameters        │ {'temperature': 0.5, 'max_tokens': 1000, 'top_p': 1,                │
-   │                   │ 'frequency_penalty': 0, 'presence_penalty': 0, 'logprobs': False,   │
-   │                   │ 'top_logprobs': 3}                                                  │
-   │ temperature       │ 0.5                                                                 │
-   │ max_tokens        │ 1000                                                                │
-   │ top_p             │ 1                                                                   │
-   │ frequency_penalty │ 0                                                                   │
-   │ presence_penalty  │ 0                                                                   │
-   │ logprobs          │ False                                                               │
-   │ top_logprobs      │ 3                                                                   │
-   └───────────────────┴─────────────────────────────────────────────────────────────────────┘
-
-We can also inspect the default parameters of the model by calling the `parameters` method on it:
-
-.. code-block:: python
-
-   model.parameters
-
-This will return the following dictionary of parameters:
-
-.. code-block:: python
-
-   {'temperature': 0.5, 
-   'max_tokens': 1000, 
-   'top_p': 1, 
-   'frequency_penalty': 0, 
-   'presence_penalty': 0, 
-   'logprobs': False, 
-   'top_logprobs': 3}
 
 
 Running a survey with a model
@@ -207,6 +218,7 @@ If we only want to use a single model it can be passed directly to the `by()` me
 
    results = survey.by(Model('gpt-4-1106-preview')).run()
 
+
 Default model
 -------------
 If no model is specified, a survey is automatically run with the default model (GPT 4).
@@ -217,6 +229,7 @@ For example, the following code runs a survey with the default model (and no age
    from edsl import Survey
 
    results = survey.run()
+
 
 Inspecting model details in results
 -----------------------------------
@@ -233,24 +246,26 @@ For example, we can verify the default model when running a survey without speci
 
    results.models
 
+
 This will return the following information about the default model that was used:
 
 .. code-block:: python
 
    {
-   "model": "gpt-4-1106-preview",
-   "parameters": {
-      "temperature": 0.5,
-      "max_tokens": 1000,
-      "top_p": 1,
-      "frequency_penalty": 0,
-      "presence_penalty": 0,
-      "logprobs": false,
-      "top_logprobs": 3
-   }
+      "model": "gpt-4-1106-preview",
+      "parameters": {
+         "temperature": 0.5,
+         "max_tokens": 1000,
+         "top_p": 1,
+         "frequency_penalty": 0,
+         "presence_penalty": 0,
+         "logprobs": false,
+         "top_logprobs": 3
+      }
    }
 
 To learn more about all the components of a `Results` object, please see the :ref:`results` section.
+
 
 Printing model attributes
 -------------------------
@@ -283,6 +298,7 @@ For example, the following code prints a table of the model names and temperatur
    results = survey.by(models).run()
 
    results.select("model.model", "model.temperature").print()
+
 
 The table will look like this:
 
