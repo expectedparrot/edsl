@@ -39,13 +39,17 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         return f"ScenarioList({self.data})"
 
     def __mul__(self, other: ScenarioList) -> ScenarioList:
-        """Return a ScenarioList with the scenarios repeated n times."""
+        """Takes the cross product of two ScenarioLists."""
         from itertools import product
 
         new_sl = []
         for s1, s2 in list(product(self, other)):
             new_sl.append(s1 + s2)
         return ScenarioList(new_sl)
+    
+    def times(self, other: ScenarioList) -> ScenarioList:
+        """Takes the cross product of two ScenarioLists."""
+        return self.__mul__(other)
 
     def shuffle(self, seed: Optional[str] = "edsl") -> ScenarioList:
         """Shuffle the ScenarioList."""

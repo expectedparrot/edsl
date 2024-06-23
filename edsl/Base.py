@@ -134,8 +134,16 @@ class RegisterSubclassesMeta(ABCMeta):
         """Return the registry of subclasses."""
         return dict(RegisterSubclassesMeta._registry)
 
+class DiffMethodsMixin:
+    
+    def __sub__(self, other):
+        """Return the difference between two objects."""
+        from edsl.BaseDiff import BaseDiff
 
-class Base(RichPrintingMixin, PersistenceMixin, ABC, metaclass=RegisterSubclassesMeta):
+        return BaseDiff(self, other)
+
+
+class Base(RichPrintingMixin, PersistenceMixin, DiffMethodsMixin, ABC, metaclass=RegisterSubclassesMeta):
     """Base class for all classes in the package."""
 
     # def __getitem__(self, key):
