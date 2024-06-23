@@ -19,7 +19,10 @@ How to use Conjure
 3. Use the resulting EDSL objects as you would any other EDSL object, such as analyzing results or extending them with new survey questions for the agents.
 
 
-Here we demonstrate these methods using the some results from a survey about shopping preferences, stored in a CSV file:
+Example 
+^^^^^^^
+Here we demonstrate these methods using the some results from a survey about shopping preferences, stored in a CSV file.
+The file contains a respondent 'UUID' column and 5 columns of survey responses. The first row contains the column names:
 
 .. code-block:: text 
 
@@ -34,6 +37,8 @@ Here we demonstrate these methods using the some results from a survey about sho
     890f1244-l57i-89k0-h123-193481781707,Trader Joe's,Cash,4,Weekend,Better parking facilities
 
 
+Create a `Conjure` object
+^^^^^^^^^^^^^^^^^^^^^^^^^
 First, we create a `Conjure` object by passing the path to the file:
 
 .. code-block:: python
@@ -57,16 +62,44 @@ Output:
     InputDataCSV: datafile_name:'shopping_survey.csv' num_questions:6, num_agents:8
 
 
-We can use the `to_agent_list()` method to generate an `AgentList` object inspect the agent list that is created:
+Create an `AgentList`
+^^^^^^^^^^^^^^^^^^^^^
+We can use the `to_agent_list()` method to generate an `AgentList` object from the `Conjure` object:
 
 .. code-block:: python
 
     agentlist = c.to_agent_list()
 
-    agentlist
+
+We can verify the object type:
+
+    type(agentlist)
 
 
-We can see that it is a list of dictionaries, where each dictionary represents an agent and contains (1) the agent's `traits` which are the agent's responses to the original survey and (2) a codebook that maps the new trait names to the original column names in the data file:
+Output:
+
+.. code-block:: python
+
+    edsl.agents.AgentList.AgentList
+
+
+We can confirm that the components of the agent list are individual `Agent` objects:
+
+.. code-block:: python
+
+    type(agentlist[0])
+
+
+Output:
+
+.. code-block:: python
+
+    edsl.agents.Agent.Agent
+
+
+The `AgentList` is a list of dictionaries, where each dictionary represents an agent and contains (1) the individual agent's `traits` and (2) a `codebook` for the original survey.
+The `traits` are a dictionary with keys representing the original column names in the file and values that are the agent's data/responses to each question.
+The `codebook` is a dictionary mapping the new trait names to the original column names in the data file:
 
 .. code-block:: python
 
@@ -218,14 +251,23 @@ We can see that it is a list of dictionaries, where each dictionary represents a
     ]
 
 
-Here we inspect the components of the survey that was created:
+Create an `Survey`
+^^^^^^^^^^^^^^^^^^^^^
+We can use the `to_survey()` method to generate a `Survey` object from the `Conjure` object:
+
+.. code-block:: python
+
+    survey = c.to_survey()
+
+
+We can inspect the components of the survey that was created:
 
 .. code-block:: python
 
     survey.keys()
 
 
-We can see that the survey has a list of questions, a memory plan, a rule collection, and question groups.
+Output:
 
 .. code-block:: python
 
@@ -328,6 +370,96 @@ We can inspect the full survey object or individual components:
             }
         ]
     }
+
+
+
+Create a `Results` object
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+We can use the `to_results()` method to generate a `Results` object from the `Conjure` object:
+
+.. code-block:: python
+
+    results = c.to_results()
+
+
+We can review a list the components of the results that were created:
+
+.. code-block:: python
+
+    results.columns
+
+
+We can see that the columns of the original file have been stored as questions and answers in the results object:
+
+.. code-block:: python 
+
+    ['agent.agent_instruction',
+    'agent.agent_name',
+    'answer.favorite_store',
+    'answer.improvement_suggestions',
+    'answer.payment_preference',
+    'answer.preferred_shopping_day',
+    'answer.satisfaction_online_shopp',
+    'answer.uuid',
+    'comment.favorite_store_comment',
+    'comment.improvement_suggestions_comment',
+    'comment.payment_preference_comment',
+    'comment.preferred_shopping_day_comment',
+    'comment.satisfaction_online_shopp_comment',
+    'comment.uuid_comment',
+    'iteration.iteration',
+    'model.frequency_penalty',
+    'model.logprobs',
+    'model.max_tokens',
+    'model.model',
+    'model.presence_penalty',
+    'model.temperature',
+    'model.top_logprobs',
+    'model.top_p',
+    'prompt.favorite_store_system_prompt',
+    'prompt.favorite_store_user_prompt',
+    'prompt.improvement_suggestions_system_prompt',
+    'prompt.improvement_suggestions_user_prompt',
+    'prompt.payment_preference_system_prompt',
+    'prompt.payment_preference_user_prompt',
+    'prompt.preferred_shopping_day_system_prompt',
+    'prompt.preferred_shopping_day_user_prompt',
+    'prompt.satisfaction_online_shopp_system_prompt',
+    'prompt.satisfaction_online_shopp_user_prompt',
+    'prompt.uuid_system_prompt',
+    'prompt.uuid_user_prompt',
+    'question_options.favorite_store_question_options',
+    'question_options.improvement_suggestions_question_options',
+    'question_options.payment_preference_question_options',
+    'question_options.preferred_shopping_day_question_options',
+    'question_options.satisfaction_online_shopp_question_options',
+    'question_options.uuid_question_options',
+    'question_text.favorite_store_question_text',
+    'question_text.improvement_suggestions_question_text',
+    'question_text.payment_preference_question_text',
+    'question_text.preferred_shopping_day_question_text',
+    'question_text.satisfaction_online_shopp_question_text',
+    'question_text.uuid_question_text',
+    'question_type.favorite_store_question_type',
+    'question_type.improvement_suggestions_question_type',
+    'question_type.payment_preference_question_type',
+    'question_type.preferred_shopping_day_question_type',
+    'question_type.satisfaction_online_shopp_question_type',
+    'question_type.uuid_question_type',
+    'raw_model_response.favorite_store_raw_model_response',
+    'raw_model_response.improvement_suggestions_raw_model_response',
+    'raw_model_response.payment_preference_raw_model_response',
+    'raw_model_response.preferred_shopping_day_raw_model_response',
+    'raw_model_response.satisfaction_online_shopp_raw_model_response',
+    'raw_model_response.uuid_raw_model_response']
+
+
+
+Editing the "conjured" objects 
+------------------------------
+*In progress*
+
 
 
 Using your "conjured" EDSL objects
