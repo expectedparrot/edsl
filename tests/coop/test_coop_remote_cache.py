@@ -68,12 +68,12 @@ def test_coop_remote_cache_with_jobs():
         ) -> dict[str, Any]:
             await asyncio.sleep(0.1)
             if "What is the color of the sky?" in user_prompt:
-                return {"message": """{"answer": "blue"}"""}
+                return {"message": """{"answer": "2"}"""}
             else:
-                return {"message": """{"answer": "green"}"""}
+                return {"message": """{"answer": "1"}"""}
 
         def parse_response(self, raw_response: dict[str, Any]) -> str:
-            answer = json.loads(raw_response["message"]).get("answer")
+            answer = raw_response["message"]
             return answer
 
     coop = Coop(api_key="b")
