@@ -159,7 +159,8 @@ class LanguageModel(
 
     def __hash__(self):
         """Allow the model to be used as a key in a dictionary."""
-        return hash(self.model + str(self.parameters))
+        from edsl.utilities.utilities import dict_hash
+        return dict_hash(self.to_dict())
 
     def __eq__(self, other):
         """Check is two models are the same.
@@ -458,6 +459,9 @@ class LanguageModel(
     #######################
     # SERIALIZATION METHODS
     #######################
+    def _to_dict(self) -> dict[str, Any]:
+        return {"model": self.model, "parameters": self.parameters}
+
     @add_edsl_version
     def to_dict(self) -> dict[str, Any]:
         """Convert instance to a dictionary.
@@ -466,7 +470,7 @@ class LanguageModel(
         >>> m.to_dict()
         {'model': 'gpt-4-1106-preview', 'parameters': {'temperature': 0.5, 'max_tokens': 1000, 'top_p': 1, 'frequency_penalty': 0, 'presence_penalty': 0, 'logprobs': False, 'top_logprobs': 3}, 'edsl_version': '...', 'edsl_class_name': 'LanguageModel'}
         """
-        return {"model": self.model, "parameters": self.parameters}
+        return self._to_dict()
 
     @classmethod
     @remove_edsl_version
