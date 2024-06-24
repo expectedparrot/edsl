@@ -24,8 +24,7 @@ class ResultsToolsMixin:
         """,
             question_name="themes",
         )
-        s = ScenarioList.from_list(field, values)
-        results = q.by(s).run(
+        results = q.run(
             print_exceptions=print_exceptions, progress_bar=progress_bar
         )
         return results.select("themes").first()
