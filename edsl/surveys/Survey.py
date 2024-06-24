@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 import re
+    
 from typing import Any, Generator, Optional, Union, List, Literal, Callable
 
 from rich import print
@@ -100,6 +101,12 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         # import warnings
         # warnings.warn("survey.get_question is deprecated. Use subscript operator instead.")
         return self.get(question_name)
+    
+    def __hash__(self) -> int:
+        """Return a hash of the question."""
+        from edsl.utilities.utilities import dict_hash
+        return dict_hash(self._to_dict())
+        
 
     @property
     def question_names(self) -> list[str]:
@@ -802,6 +809,22 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     ###################
     # SERIALIZATION METHODS
     ###################
+
+    def _to_dict(self) -> dict[str, Any]:
+        """Serialize the Survey object to a dictionary.
+
+        >>> s = Survey.example()
+        >>> s._to_dict().keys()
+        dict_keys(['questions', 'memory_plan', 'rule_collection', 'question_groups'])
+
+        """
+        return {
+            "questions": [q._to_dict() for q in self._questions],
+            "memory_plan": self.memory_plan.to_dict(),
+            "rule_collection": self.rule_collection.to_dict(),
+            "question_groups": self.question_groups,
+        }
+    
     @add_edsl_version
     def to_dict(self) -> dict[str, Any]:
         """Serialize the Survey object to a dictionary.
@@ -811,12 +834,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         dict_keys(['questions', 'memory_plan', 'rule_collection', 'question_groups', 'edsl_version', 'edsl_class_name'])
 
         """
-        return {
-            "questions": [q.to_dict() for q in self._questions],
-            "memory_plan": self.memory_plan.to_dict(),
-            "rule_collection": self.rule_collection.to_dict(),
-            "question_groups": self.question_groups,
-        }
+        return self._to_dict()
 
     @classmethod
     @remove_edsl_version

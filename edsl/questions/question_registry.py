@@ -51,6 +51,13 @@ class Question(metaclass=Meta):
         instance = object.__new__(subclass)
         instance.__init__(*args, **kwargs)
         return instance
+    
+    @classmethod
+    def example(cls, question_type: str):
+        """Return an example question of the given type."""
+        get_question_classes = RegisterQuestionsMeta.question_types_to_classes()
+        q = get_question_classes.get(question_type, None)
+        return q.example()
 
     @classmethod
     def pull(cls, id_or_url: str):
