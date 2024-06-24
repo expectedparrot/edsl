@@ -467,7 +467,7 @@ Using your "conjured" EDSL objects
 
 Once you have created an `AgentList`, `Survey`, or `Results` object from your `Conjure` object, you can use them as you would any other EDSL object. 
 
-Here we administer a new question to the agent list that we created that checks that the agent understands its traits:
+Here we administer a new question to the agents that we created above, a follow-up to one of the original questions:
 
 .. code-block:: python
 
