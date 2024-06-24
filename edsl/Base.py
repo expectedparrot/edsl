@@ -99,14 +99,40 @@ class PersistenceMixin:
         c = Coop()
         return c.search(cls, query)
 
-    def save(self, filename):
+    def save(self, filename, compress = True):
         """Save the object to a file as zippped JSON.
 
         >>> obj.save("obj.json.gz")
 
         """
-        with gzip.open(filename, "wb") as f:
-            f.write(json.dumps(self.to_dict()).encode("utf-8"))
+        if filename.endswith("json.gz"):
+            import warnings
+            warnings.warn("Do not apply the file extensions. The filename should not end with 'json.gz'.")
+            filename = filename[:-7]
+        if filename.endswith("json"):
+            filename = filename[:-4]
+            warnings.warn("Do not apply the file extensions. The filename should not end with 'json'.")
+
+        if compress:
+            with gzip.open(filename + ".json.gz", "wb") as f:
+                f.write(json.dumps(self.to_dict()).encode("utf-8"))
+        else:
+            with open(filename + ".json", "w") as f:
+                f.write(json.dumps(self.to_dict()))
+
+    @staticmethod
+    def open_compressed_file(filename):
+        with gzip.open(filename, "rb") as f:
+            file_contents = f.read()
+            file_contents_decoded = file_contents.decode("utf-8")
+            d = json.loads(file_contents_decoded)
+        return d
+    
+    @staticmethod
+    def open_regular_file(filename):
+        with open(filename, "r") as f:
+            d = json.loads(f.read())
+        return d
 
     @classmethod
     def load(cls, filename):
@@ -115,11 +141,19 @@ class PersistenceMixin:
         >>> obj = cls.load("obj.json.gz")
 
         """
-        with gzip.open(filename, "rb") as f:
-            file_contents = f.read()
-            file_contents_decoded = file_contents.decode("utf-8")
-            d = json.loads(file_contents_decoded)
-            # d = json.loads(f.read().decode("utf-8"))
+        
+        if filename.endswith("json.gz"):
+            d = cls.open_compressed_file(filename)
+        elif filename.endswith("json"):
+            d = cls.open_regular_file(filename)
+        else:
+            try:
+                d = cls.open_compressed_file(filename)
+            except:
+                d = cls.open_regular_file(filename)
+            finally:
+                raise ValueError("File must be a json or json.gz file")
+                      
         return cls.from_dict(d)
 
 
