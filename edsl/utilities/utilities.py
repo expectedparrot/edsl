@@ -19,7 +19,9 @@ from pygments.lexers import JsonLexer
 from pygments.formatters import HtmlFormatter
 from IPython.display import HTML
 
-
+def dict_hash(data:dict):
+    return int(hashlib.md5(json.dumps(data, sort_keys = True).encode()).hexdigest(), 16)
+        
 def clean_json(bad_json_str):
     """
     Clean JSON string by replacing single quotes with double quotes

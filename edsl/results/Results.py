@@ -5,6 +5,7 @@ It is not typically instantiated directly, but is returned by the run method of 
 
 from __future__ import annotations
 import json
+import hashlib
 import random
 from collections import UserList, defaultdict
 from typing import Optional, Callable, Any, Type, Union
@@ -37,7 +38,7 @@ from edsl.utilities import (
     shorten_string,
 )
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
-
+from edsl.utilities.utilities import dict_hash
 from edsl.results.ResultsToolsMixin import ResultsToolsMixin
 
 from edsl.results.ResultsDBMixin import ResultsDBMixin
@@ -174,6 +175,14 @@ class Results(UserList, Mixins, Base):
         )
         return HTML(formatted_json).data
 
+    def _to_dict(self):    
+        return {
+            "data": [result.to_dict() for result in self.data],
+            "survey": self.survey.to_dict(),
+            "created_columns": self.created_columns,
+            "cache": Cache() if not hasattr(self, "cache") else self.cache.to_dict(),
+        }
+ 
     @add_edsl_version
     def to_dict(self) -> dict[str, Any]:
         """Convert the Results object to a dictionary.
@@ -186,13 +195,11 @@ class Results(UserList, Mixins, Base):
         >>> r.to_dict().keys()
         dict_keys(['data', 'survey', 'created_columns', 'cache', 'edsl_version', 'edsl_class_name'])
         """
-        return {
-            "data": [result.to_dict() for result in self.data],
-            "survey": self.survey.to_dict(),
-            "created_columns": self.created_columns,
-            "cache": Cache() if not hasattr(self, "cache") else self.cache.to_dict(),
-        }
+        return self._to_dict()
 
+    def __hash__(self) -> int:
+        return dict_hash(self._to_dict())
+        
     @classmethod
     @remove_edsl_version
     def from_dict(cls, data: dict[str, Any]) -> Results:

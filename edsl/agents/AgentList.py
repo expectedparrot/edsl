@@ -18,6 +18,7 @@ from rich.table import Table
 import json
 import csv
 
+
 from simpleeval import EvalWithCompoundTypes
 
 from edsl.Base import Base
@@ -40,6 +41,17 @@ class AgentList(UserList, Base):
             super().__init__(data)
         else:
             super().__init__()
+
+    def shuffle(self, seed: Optional[str] = "edsl") -> AgentList:
+        """Shuffle the AgentList.
+
+        :param seed: The seed for the random number generator.
+        """
+        import random
+
+        random.seed(seed)
+        random.shuffle(self.data)
+        return self
 
     def sample(self, n: int, seed = "edsl") -> AgentList:
         """Return a random sample of agents.
@@ -159,7 +171,11 @@ class AgentList(UserList, Base):
         with open(file_path, "r") as f:
             reader = csv.DictReader(f)
             return {field: None for field in reader.fieldnames}
-        
+
+    def __hash__(self) -> int:
+        from edsl.utilities.utilities import dict_hash
+        return dict_hash(self._to_dict())
+    
     def _to_dict(self):
         return {"agent_list": [agent._to_dict() for agent in self.data]}
 

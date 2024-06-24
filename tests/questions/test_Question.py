@@ -74,3 +74,10 @@ def test_Question_properties(capsys):
     s = q1.add_question(q2)
     assert isinstance(s, Survey)
     assert len(s) == 2
+
+def test_hashing():
+    # NB: Will break if a new question is added
+    from edsl import Question
+    examples = [Question.example(question_type) for question_type in  Question.available()]
+    hashes = [hash(q) for q in examples]
+    assert sum(hashes) == 16761523895673820409
