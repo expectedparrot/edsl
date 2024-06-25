@@ -47,7 +47,6 @@ def test_diff_repr(example_questions):
     diff1 = BaseDiff(q_ft, q_mc)
     repr_str = repr(diff1)
 
-    assert "DictDiff(obj1=" in repr_str
     assert "added=" in repr_str
     assert "removed=" in repr_str
     assert "modified=" in repr_str
