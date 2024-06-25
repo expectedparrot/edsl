@@ -298,12 +298,13 @@ class LanguageModel(
 
         """
         end_time = time.time()
+        ## TODO: This 'cached_response' field is important for some reason. 
         response.update(
             {
-                "elapsed_time": end_time - start_time,
-                "timestamp": end_time,
-                "cached_response": cached_response,
-                "cache_key": cache_key,
+                #"elapsed_time": end_time - start_time,
+                #"timestamp": end_time,
+#                "cached_response": cached_response,
+                #"cache_key": cache_key,
             }
         )
         return response
@@ -380,12 +381,13 @@ class LanguageModel(
             )
             cache_used = False
 
-        return self._update_response_with_tracking(
-            response=response,
-            start_time=start_time,
-            cached_response=cache_used,
-            cache_key=cache_key,
-        )
+        return response, cache_used, cache_key
+        # return self._update_response_with_tracking(
+        #     response=response,
+        #     start_time=start_time,
+        #     cached_response=cache_used,
+        #     cache_key=cache_key,
+        # ), cache_used
 
     get_raw_response = sync_wrapper(async_get_raw_response)
 
@@ -428,7 +430,8 @@ class LanguageModel(
         if encoded_image:
             params["encoded_image"] = encoded_image
 
-        raw_response = await self.async_get_raw_response(**params)
+        #breakpoint()
+        raw_response, cache_used, cache_key = await self.async_get_raw_response(**params)
         response = self.parse_response(raw_response)
 
         try:
@@ -443,7 +446,8 @@ class LanguageModel(
 
         dict_response.update(
             {
-                "cached_response": raw_response["cached_response"],
+                "cached_used": cache_used,
+                "cache_key": cache_key,
                 "usage": raw_response.get("usage", {}),
                 "raw_model_response": raw_response,
             }
