@@ -12,6 +12,7 @@ from edsl.config import CONFIG
 from edsl.data.CacheEntry import CacheEntry
 from edsl.data.SQLiteDict import SQLiteDict
 from edsl.Base import Base
+from edsl.utilities.utilities import dict_hash
 
 from edsl.utilities.decorators import (
     add_edsl_version,
@@ -37,6 +38,7 @@ class Cache(Base):
     def __init__(
         self,
         *,
+        filename: Optional[str] = None,
         data: Optional[Union[SQLiteDict, dict]] = None,
         remote: bool = False,
         immediate_write: bool = True,
@@ -45,8 +47,14 @@ class Cache(Base):
         """
         Create two dictionaries to store the cache data.
 
+        :param filename: The name of the file to read/write the cache from/to.
+        :param data: The data to initialize the cache with.
+        :param remote: Whether to sync the Cache with the server.
+        :param immediate_write: Whether to write to the cache immediately after storing a new entry.
+        :param method: The method of storage to use for the cache.
+
         """
-        self.data = data or {}
+        
         # self.data_at_init = data or {}
         self.fetched_data = {}
         self.remote = remote
@@ -55,7 +63,30 @@ class Cache(Base):
         self.new_entries = {}
         self.new_entries_to_write_later = {}
         self.coop = None
+
+        self.filename = filename
+        if filename and data:
+            raise ValueError("Cannot provide both filename and data")
+        if filename is None and data is None:
+            data = {}
+        if data is not None:
+            self.data = data
+        if filename is not None:
+            self.data = {}
+            if filename.endswith(".jsonl"):
+                if os.path.exists(filename):
+                    self.add_from_jsonl(filename)
+                else:
+                    print(f"File {filename} not found, but will write to this location.")
+            elif filename.endswith(".db"):
+                if os.path.exists(filename):
+                    self.add_from_sqlite(filename)                
+            else:
+                raise ValueError("Invalid file extension. Must be .jsonl or .db")
+
+
         self._perform_checks()
+
 
     def rich_print(sefl):
         pass
@@ -267,6 +298,19 @@ class Cache(Base):
         for key, value in self.data.items():
             new_data[key] = value
 
+    def write(self, filename: Optional[str] = None) -> None:
+        """
+        Write the cache to a file at the specified location.
+        """
+        if filename is None:
+            filename = self.filename
+        if filename.endswith(".jsonl"):
+            self.write_jsonl(filename)
+        elif filename.endswith(".db"):
+            self.write_sqlite_db(filename)
+        else:
+            raise ValueError("Invalid file extension. Must be .jsonl or .db")
+
     def write_jsonl(self, filename: str) -> None:
         """
         Write the cache to a JSONL file.
@@ -314,10 +358,18 @@ class Cache(Base):
     ####################
     # DUNDER / USEFUL
     ####################
+    def __hash__(self):
+        """Return the hash of the Cache."""
+        return dict_hash(self._to_dict())
+
+    def _to_dict(self) -> dict:
+        return {k: v.to_dict() for k, v in self.data.items()}
+
+
     @add_edsl_version
     def to_dict(self) -> dict:
         """Return the Cache as a dictionary."""
-        return {k: v.to_dict() for k, v in self.data.items()}
+        return self._to_dict()
 
     def _repr_html_(self):
         from edsl.utilities.utilities import data_to_html

@@ -559,6 +559,10 @@ class Agent(Base):
 
         return raw_data
     
+    def __hash__(self) -> int:
+        from edsl.utilities.utilities import dict_hash
+        return dict_hash(self._to_dict())
+    
     def _to_dict(self) -> dict[str, Union[dict, bool]]:
         """Serialize to a dictionary."""
         return self.data
