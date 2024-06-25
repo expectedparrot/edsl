@@ -9,7 +9,7 @@ from datetime import datetime
 import inspect
 #from edsl.Base import Base
 from edsl import Cache, set_session_cache, unset_session_cache
-
+from edsl.utilities.utilities import dict_hash
 from dataclasses import dataclass, field
 from collections import UserDict
 
@@ -51,19 +51,30 @@ class SnapShot:
 
 
 class Study:
-    """A class for logging and tracking EDSL studies.
+    """A study primarily used to create a context manager for a sequence of edsl steps. E.g., 
+
+    ```python
+    with Study(name = "cool_study") as study:
+        q = QuestionFreeText.example()
+        results = q.run()
+    ```
+
+    The `study` object is a context manager.
     It lets you group a series of events and objects together. 
+
+    >>> with Study(name = "cool_study") as study:
+    ...     from edsl import QuestionFreeText
+    ...     q = QuestionFreeText.example()
+    >>> len(study.objects)
+    1
+
 
     It records all the edsl objects that are created during the study. 
     On exit, is saves them to a study file. 
 
-    How it works:
-    - if there is a filename and that file exists, it will load the study from that file. 
-    - if there is no filename, it will create a new study, and then save it to the filename.
-    - if there is a descrepancy between the passed parameters and the savved parameters, an error will be raised. 
     """
     def __init__(self,
-                 name: Optional[str] = None,
+                 name: str,
                  description: Optional[str] = None, 
                  objects: Optional[Dict[str, ObjectEntry]] = None,
                  cache: Optional[Cache] = None, 
@@ -109,7 +120,7 @@ class Study:
         >>> study.save()
         Saving study to ...
         >>> study2 = Study(file_path = file_path.name)
-        Using existing study file
+        Using existing study file ...
         >>> study2.name
         'poo'
         """
@@ -138,7 +149,10 @@ class Study:
         if snapshot.edsl_objects:
             raise ValueError("You have EDSL objects in the global namespace. Please remove them before starting a study or put under the 'Study' context manager.")
         return self
-    
+
+    def __hash__(self):
+        return dict_hash(list(self.objects.keys()))
+
     def study_diff(self):
         ## Need to also report missing.
         from edsl.BaseDiff import BaseDiff
@@ -154,7 +168,8 @@ class Study:
         table.add_column("Hash")
         table.add_column("Coop info")
         for hash, obj in self.objects.items():
-            table.add_row(obj.variable_name, obj.edsl_class_name, obj.description, obj.hash, obj.coop_info['url'])
+            url = "" if not hasattr(obj, "coop_info") or obj.coop_info is None else obj.coop_info.get('url', "")
+            table.add_row(obj.variable_name, obj.edsl_class_name, obj.description, obj.hash, url)
         console.print(table)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -166,7 +181,7 @@ class Study:
             self.add_edsl_object(object = object, variable_name = variable_name)      
 
         if not self.starting_objects:
-            print(f"New study saved.")
+            print(f"New study saved to {self.file_path}.json")
             self.save()
 
         if self.starting_objects and list(self.starting_objects.keys()) == list(self.objects.keys()):
@@ -177,7 +192,7 @@ class Study:
             if self.starting_objects:
                 missing = set(self.starting_objects.keys()) - set(self.objects.keys())
                 added = set(self.objects.keys()) - set(self.starting_objects.keys())
-                print("Study not perfectly replicated.")
+                print("Study did not perfectly replicate.")
                 for hash in missing:
                     print(f"Missing object: {self.starting_objects[hash]!r}")
                 for hash in added:
@@ -221,8 +236,14 @@ class Study:
         versions = self.versions()[variable_name]
         diff = versions[index2].object - versions[index1].object
         return diff
-
     
+    @classmethod
+    def example(cls):
+        with cls(name = "cool_study") as study:
+            from edsl import QuestionFreeText
+            q = QuestionFreeText.example()
+        return study
+
     @classmethod
     def from_dict(cls, d):
         name = d['name']
@@ -271,12 +292,17 @@ class Study:
             obj.save(os.path.join(log_folder, f"{obj.__class__.__name__}_{hash}"), compress = False)
 
     def __repr__(self):
-        return f"""Study(name = {self.name}, description = {self.description})"""
+        return f"""Study(name = {self.name}, description = {self.description}, objects = {self.objects}, cache = {self.cache}, file_path = {self.file_path}, coop = {self.coop}, use_study_cache = {self.use_study_cache}, overwrite_on_change = {self.overwrite_on_change})"""
 
 
 # if __name__ == "__main__":
-#     import doctest
-#     doctest.testmod(optionflags=doctest.ELLIPSIS)
+#     with Study(name = "cool_study") as study:
+#         from edsl import QuestionFreeText
+#         q = QuestionFreeText.example()
+
+    # len(study.objects)
+    # import doctest
+    # doctest.testmod(optionflags=doctest.ELLIPSIS)
 
 if __name__ == "__main__":
     from edsl import Cache, QuestionFreeText, ScenarioList
@@ -294,3 +320,4 @@ if __name__ == "__main__":
 
 #d = study.to_dict()
 #newd = Study.from_dict(d)
+    
