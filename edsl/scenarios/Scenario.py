@@ -5,10 +5,11 @@ from collections import UserDict
 from typing import Union, List, Optional, Generator
 import base64
 import hashlib
+import json
+
 from rich.table import Table
 
 from edsl.Base import Base
-
 from edsl.scenarios.ScenarioImageMixin import ScenarioImageMixin
 from edsl.scenarios.ScenarioHtmlMixin import ScenarioHtmlMixin
 
@@ -101,7 +102,18 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
             else:
                 new_scenario[key] = value
         return new_scenario
+    
+    def _to_dict(self) -> dict:
+        """Convert a scenario to a dictionary.
 
+        Example:
+
+        >>> s = Scenario({"food": "wood chips"})
+        >>> s.to_dict()
+        {'food': 'wood chips', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}
+        """
+        return self.data.copy()
+    
     @add_edsl_version
     def to_dict(self) -> dict:
         """Convert a scenario to a dictionary.
@@ -112,7 +124,11 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         >>> s.to_dict()
         {'food': 'wood chips', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}
         """
-        return self.data.copy()
+        return self._to_dict()
+
+    def __hash__(self) -> int:
+        return int(hashlib.md5(json.dumps(self._to_dict(), sort_keys = True).encode()).hexdigest(), 16)
+
 
     def print(self):
         from rich import print_json

@@ -4,6 +4,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from rich.table import Table
 from typing import Any, Type, Optional
+import copy
 
 from edsl.exceptions import (
     QuestionResponseValidationError,
@@ -15,6 +16,7 @@ from edsl.prompts.registry import get_classes as prompt_lookup
 from edsl.questions.AnswerValidatorMixin import AnswerValidatorMixin
 from edsl.questions.RegisterQuestionsMeta import RegisterQuestionsMeta
 from edsl.Base import PersistenceMixin, RichPrintingMixin
+from edsl.BaseDiff import BaseDiff, BaseDiffCollection
 
 from edsl.questions.SimpleAskMixin import SimpleAskMixin
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
@@ -36,7 +38,12 @@ class QuestionBase(
     def __getitem__(self, key: str) -> Any:
         """Get an attribute of the question."""
         return getattr(self, key)
-
+    
+    def __hash__(self) -> int:
+        """Return a hash of the question."""
+        from edsl.utilities.utilities import dict_hash
+        return dict_hash(self._to_dict())
+    
     def _repr_html_(self):
         from edsl.utilities.utilities import data_to_html
 
@@ -167,12 +174,16 @@ class QuestionBase(
     ############################
     # Serialization methods
     ############################
-    @add_edsl_version
-    def to_dict(self) -> dict[str, Any]:
+    def _to_dict(self):
         """Convert the question to a dictionary that includes the question type (used in deserialization)."""
         candidate_data = self.data.copy()
         candidate_data["question_type"] = self.question_type
         return candidate_data
+
+    @add_edsl_version
+    def to_dict(self) -> dict[str, Any]:
+        """Convert the question to a dictionary that includes the question type (used in deserialization)."""
+        return self._to_dict()
 
     @classmethod
     @remove_edsl_version
@@ -210,6 +221,10 @@ class QuestionBase(
             return new_q
 
         return question_class(**local_data)
+    
+    def copy(self) -> Type[QuestionBase]:
+        """Return a deep copy of the question."""
+        return copy.deepcopy(self)
 
     ############################
     # Dunder methods
@@ -236,9 +251,14 @@ class QuestionBase(
         if not isinstance(other, QuestionBase):
             return False
         return self.to_dict() == other.to_dict()
+    
+    def __sub__(self, other) -> BaseDiff:
+        """Return the difference between two objects."""
+        
+        return BaseDiff(other, self)
 
     # TODO: Throws an error that should be addressed at QuestionFunctional
-    def __add__(self, other_question):
+    def __add__(self, other_question_or_diff):
         """
         Compose two questions into a single question.
 
@@ -249,9 +269,12 @@ class QuestionBase(
         >>> q2 = QuestionNumerical(question_text = "What is the population of {{capital}}, in millions. Please round", question_name = "population")
         >>> q3 = q1 + q2
         """
+        if isinstance(other_question_or_diff, BaseDiff) or isinstance(other_question_or_diff, BaseDiffCollection):
+            return other_question_or_diff.apply(self)
+
         from edsl.questions import compose_questions
 
-        return compose_questions(self, other_question)
+        return compose_questions(self, other_question_or_diff)
 
     @abstractmethod
     def _validate_answer(self, answer: dict[str, str]):
