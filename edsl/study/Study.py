@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from collections import UserDict
 
 from edsl.study.ObjectEntry import ObjectEntry
+from edsl.study.ProofOfWork import ProofOfWork
 
 class SnapShot:
 
@@ -21,8 +22,14 @@ class SnapShot:
         self.edsl_objects = dict(self._get_edsl_objects())
         self.edsl_classes = dict(self._get_edsl_classes())
 
-    def _get_edsl_classes(self) -> Generator[tuple[str, type], None, None]:
-        """Get all EDSL classes in the global namespace. 
+    def _get_edsl_classes(self, namespace: Optional[dict] = None) -> Generator[tuple[str, type], None, None]:
+        """Get all EDSL classes in the namespace. 
+
+        :param namespace: The namespace to search for EDSL classes. The default is the global namespace.
+        
+        >>> sn = SnapShot()
+        >>> list(sn._get_edsl_classes(namespace = {}))
+        []
 
         >>> sn = SnapShot()
         >>> sn.edsl_classes
@@ -30,7 +37,9 @@ class SnapShot:
         """
         from edsl.Base import RegisterSubclassesMeta
         from edsl import QuestionBase
-        for name, value in globals().items():
+        if namespace is None:
+            namespace = globals()
+        for name, value in namespace.items():
             if inspect.isclass(value) and name in RegisterSubclassesMeta.get_registry() and value != RegisterSubclassesMeta:
                 yield name, value
             if inspect.isclass(value) and issubclass(value, QuestionBase):
@@ -51,7 +60,7 @@ class SnapShot:
 
 
 class Study:
-    """A study primarily used to create a context manager for a sequence of edsl steps. E.g., 
+    """A study organizes a series of EDSL objects.
 
     ```python
     with Study(name = "cool_study") as study:
@@ -81,7 +90,9 @@ class Study:
                  file_path: Optional[str] = None,
                  coop: bool = False,
                  use_study_cache = True,
-                 overwrite_on_change = True
+                 overwrite_on_change = True,
+                 proof_of_work = None,
+                 proof_of_work_difficulty: int = None
                 ):
         
         """
@@ -103,11 +114,13 @@ class Study:
             self.description = description
             self.objects = objects or {}
             self.cache = cache or Cache()
+            self.proof_of_work = proof_of_work or ProofOfWork()
 
         # These always overwrite the saved study    
         self.coop = coop
         self.use_study_cache = use_study_cache
         self.overwrite_on_change = overwrite_on_change
+        self.proof_of_work_difficulty = proof_of_work_difficulty
 
         self.starting_objects = copy.deepcopy(self.objects)
 
@@ -127,6 +140,7 @@ class Study:
         with open(self.file_path + ".json", 'r') as f:
             d = json.load(f)
             d['cache'] = Cache.from_dict(d['cache'])
+            d['proof_of_work'] = ProofOfWork.from_dict(d['proof_of_work'])
             d['objects'] = {hash: ObjectEntry.from_dict(obj_dict) for hash, obj_dict in d['objects'].items()}
             self.__dict__.update(d)
      
@@ -150,7 +164,7 @@ class Study:
             raise ValueError("You have EDSL objects in the global namespace. Please remove them before starting a study or put under the 'Study' context manager.")
         return self
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return dict_hash(list(self.objects.keys()))
 
     def study_diff(self):
@@ -210,6 +224,17 @@ class Study:
             else:
                 raise ValueError("If you want to push to coop, you must save the study file with a new name or call study iwth 'overwrite_on_change=True' to overwrite the existing study file.")
 
+        if self.proof_of_work_difficulty:
+            print("Adding proof of work to study...")
+            from edsl.study.ProofOfWork import ProofOfWork
+            #TODO: Need to check if hashes are the same.
+            if not self.proof_of_work.input_data:
+                self.proof_of_work.add_input_data(str(self.__hash__()))
+            self.proof_of_work.add_proof(self.proof_of_work_difficulty)
+            print("Proof of work added to study with difficulty ", self.proof_of_work_difficulty)
+            print(self.proof_of_work)
+            self.save()
+
     def to_dict(self):
         return {
             'name': self.name,
@@ -217,7 +242,8 @@ class Study:
             'objects': {hash: obj.to_dict() for hash, obj in self.objects.items()},
             'cache': self.cache.to_dict(), 
             'use_study_cache': self.use_study_cache, 
-            'overwrite_on_change': self.overwrite_on_change
+            'overwrite_on_change': self.overwrite_on_change,
+            'proof_of_work': self.proof_of_work.to_dict(),
             }
 
     def versions(self):
@@ -246,13 +272,10 @@ class Study:
 
     @classmethod
     def from_dict(cls, d):
-        name = d['name']
-        description = d['description']
-        cache = Cache.from_dict(d['cache'])
-        use_study_cache = d['use_study_cache']
-        overwrite_on_change = d['overwrite_on_change']
-        objects = {str(object_hash): ObjectEntry.from_dict(obj_dict) for object_hash, obj_dict in d['objects'].items()}
-        return cls(**{'objects': objects, 'name': name, 'description': description, 'cache': cache, 'use_study_cache': use_study_cache, 'overwrite_on_change': overwrite_on_change})
+        d['cache'] = Cache.from_dict(d['cache'])
+        d['objects'] = {str(object_hash): ObjectEntry.from_dict(obj_dict) for object_hash, obj_dict in d['objects'].items()}
+        d['proof_of_work'] = ProofOfWork.from_dict(d['proof_of_work'])
+        return cls(**d)
     
     def save(self):
         print(f"Saving study to {self.file_path}.json")
@@ -305,8 +328,16 @@ class Study:
     # doctest.testmod(optionflags=doctest.ELLIPSIS)
 
 if __name__ == "__main__":
+    
     from edsl import Cache, QuestionFreeText, ScenarioList
-    with Study(name = "kktv2", description = "KKT replication", file_path="fhm_replication2", coop = True) as study:
+    
+    study = Study(name = "kktv2", 
+                  description = "KKT replication", 
+                  file_path="fhm_replication2", 
+                  coop = False, 
+                  proof_of_work_difficulty=4)
+
+    with study:
         q = QuestionFreeText.example()
         results = q.run()
     
