@@ -141,6 +141,7 @@ class TestRemoteCacheWithJobs(unittest.TestCase):
     )
     def test_coop_remote_cache_with_jobs(self, mock_edsl_settings):
         coop = Coop(api_key="b")
+        coop.remote_cache_clear_log()
         coop.remote_cache_clear()
         assert coop.remote_cache_get() == []
 
