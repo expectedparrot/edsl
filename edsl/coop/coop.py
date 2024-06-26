@@ -143,6 +143,7 @@ class Coop:
         object_type: ObjectType = None,
         uuid: Union[str, UUID] = None,
         url: str = None,
+        exec_profile=None,
     ) -> EDSLObject:
         """
         Retrieve an EDSL object either by object type & UUID, or by its url.
@@ -159,25 +160,37 @@ class Coop:
         elif not object_type and not uuid:
             raise Exception("Provide either object_type & UUID, or a url.")
         edsl_class = ObjectRegistry.object_type_to_edsl_class.get(object_type)
+        import time
+
+        start = time.time()
         response = self._send_server_request(
             uri=f"api/v0/object",
             method="GET",
             params={"type": object_type, "uuid": uuid},
         )
+        end = time.time()
+        if exec_profile:
+            print("Download exec time = ", end - start)
         self._resolve_server_response(response)
         json_string = response.json().get("json_string")
-        return edsl_class.from_dict(json.loads(json_string))
+        start = time.time()
+        res_object = edsl_class.from_dict(json.loads(json_string))
+        end = time.time()
+        if exec_profile:
+            print("Creating object exec time = ", end - start)
+        return res_object
 
     def _get_base(
         self,
         cls: EDSLObject,
         uuid: Union[str, UUID],
+        exec_profile=None,
     ) -> EDSLObject:
         """
         Used by the Base class to offer a get functionality.
         """
         object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
-        return self.get(object_type, uuid)
+        return self.get(object_type, uuid, exec_profile=exec_profile)
 
     def get_all(self, object_type: ObjectType) -> list[EDSLObject]:
         """
