@@ -1,7 +1,7 @@
 import aiohttp
 import json
 import requests
-from typing import Any
+from typing import Any, List
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
 from edsl.language_models import LanguageModel
 
@@ -12,6 +12,8 @@ class DeepInfraService(InferenceServiceABC):
     _inference_service_ = "deep_infra"
     _env_key_name_ = "DEEP_INFRA_API_KEY"
 
+    _models_list_cache: List[str] = []
+
     @classmethod
     def available(cls):
         text_models = cls.full_details_available()
@@ -19,20 +21,25 @@ class DeepInfraService(InferenceServiceABC):
 
     @classmethod
     def full_details_available(cls, verbose=False):
-        url = "https://api.deepinfra.com/models/list"
-        response = requests.get(url)
-        if response.status_code == 200:
-            text_generation_models = [
-                r for r in response.json() if r["type"] == "text-generation"
-            ]
-            from rich import print_json
-            import json
+        if not cls._models_list_cache:
+            url = "https://api.deepinfra.com/models/list"
+            response = requests.get(url)
+            if response.status_code == 200:
+                text_generation_models = [
+                    r for r in response.json() if r["type"] == "text-generation"
+                ]
+                cls._models_list_cache = text_generation_models
 
-            if verbose:
-                print_json(json.dumps(text_generation_models))
-            return text_generation_models
+                from rich import print_json
+                import json
+
+                if verbose:
+                    print_json(json.dumps(text_generation_models))
+                return text_generation_models
+            else:
+                return f"Failed to fetch data: Status code {response.status_code}"
         else:
-            return f"Failed to fetch data: Status code {response.status_code}"
+            return cls._models_list_cache
 
     @classmethod
     def create_model(cls, model_name: str, model_class_name=None) -> LanguageModel:
