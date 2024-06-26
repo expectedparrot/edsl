@@ -300,6 +300,7 @@ class Coop:
             },
         )
         self._resolve_server_response(response)
+        self.remote_cache_create_log(response, "Upload single cache entry to server")
         return response.json()
 
     def remote_cache_create_many(
@@ -324,6 +325,7 @@ class Coop:
             payload=payload,
         )
         self._resolve_server_response(response)
+        self.remote_cache_create_log(response, "Upload new cache entries to server")
         return response.json()
 
     def remote_cache_get(
@@ -360,6 +362,9 @@ class Coop:
             payload={"keys": client_cacheentry_keys},
         )
         self._resolve_server_response(response)
+        self.remote_cache_create_log(
+            response, "Download missing cache entries to client"
+        )
         response_json = response.json()
         return {
             "client_missing_cacheentries": [
@@ -377,6 +382,38 @@ class Coop:
         """
         response = self._send_server_request(
             uri="api/v0/remote-cache/delete-all",
+            method="DELETE",
+        )
+        self._resolve_server_response(response)
+        self.remote_cache_create_log(response, "Clear cache entries")
+        return response.json()
+
+    def remote_cache_create_log(
+        self, response: requests.Response, description: str
+    ) -> Union[dict, None]:
+        """
+        If a remote cache action has been completed successfully,
+        log the action.
+        """
+        if 200 <= response.status_code < 300:
+            cache_entries = self.remote_cache_get()
+            log_response = self._send_server_request(
+                uri="api/v0/remote-cache-log",
+                method="POST",
+                payload={
+                    "description": description,
+                    "cache_entry_count": len(cache_entries),
+                },
+            )
+            self._resolve_server_response(log_response)
+            return response.json()
+
+    def remote_cache_clear_log(self) -> dict:
+        """
+        Clear all remote cache log entries.
+        """
+        response = self._send_server_request(
+            uri="api/v0/remote-cache-log/delete-all",
             method="DELETE",
         )
         self._resolve_server_response(response)
