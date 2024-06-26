@@ -56,6 +56,35 @@ class QuestionBase(
 
         return data_to_html(data)
 
+    def apply_function(self, func: Callable, exclude_components = None) -> QuestionBase:
+        """Apply a function to the question parts
+        
+        >>> from edsl.questions import QuestionFreeText
+        >>> q = QuestionFreeText(question_name = "color", question_text = "What is your favorite color?")
+        >>> shouting = lambda x: x.upper()
+        >>> q.apply_function(shouting)
+        Question('free_text', question_name = \"""color\""", question_text = \"""WHAT IS YOUR FAVORITE COLOR?\""")
+        
+        """
+        if exclude_components is None:
+            exclude_components = ['question_name', 'question_type']
+
+        d = copy.deepcopy(self._to_dict())
+        for key, value in d.items():
+            if key in exclude_components:
+                continue
+            if isinstance(value, dict):
+                for k, v in value.items():
+                    value[k] = func(v)
+                d[key] = value
+                continue
+            if isinstance(value, list):
+                value = [func(v) for v in value]
+                d[key] = value
+                continue
+            d[key] = func(value)
+        return QuestionBase.from_dict(d)
+
     @property
     def data(self) -> dict:
         """Return a dictionary of question attributes **except** for question_type."""
@@ -235,6 +264,14 @@ class QuestionBase(
 
         print_json(json.dumps(self.to_dict()))
 
+    def __call__(self, *args, just_answer = True, **kwargs):
+        """Call the question."""
+        results = self.to_survey()(*args, **kwargs)
+        if just_answer:
+            return results.select(f'answer.{self.question_name}').first()
+        else:
+            return results
+         
     def __repr__(self) -> str:
         """Return a string representation of the question. Should be able to be used to reconstruct the question."""
         class_name = self.__class__.__name__
