@@ -122,6 +122,7 @@ class QuestionTaskCreator(UserList):
         'Yo!'
         """
 
+
         requested_tokens = self.estimated_tokens()
         if (estimated_wait_time := self.tokens_bucket.wait_time(requested_tokens)) > 0:
             self.task_status = TaskStatus.WAITING_FOR_TOKEN_CAPACITY
@@ -150,6 +151,8 @@ class QuestionTaskCreator(UserList):
                 self.tokens_bucket.add_tokens(requested_tokens)
                 self.requests_bucket.add_tokens(1)
                 self.from_cache = True
+
+        _ = results.pop("cached_response", None)
 
         tracker = self.cached_token_usage if self.from_cache else self.new_token_usage
 

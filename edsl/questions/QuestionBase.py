@@ -264,9 +264,10 @@ class QuestionBase(
 
         print_json(json.dumps(self.to_dict()))
 
-    def __call__(self, *args, just_answer = True, **kwargs):
+    def __call__(self, just_answer = True, model = None, agent = None, **kwargs):
         """Call the question."""
-        results = self.to_survey()(*args, **kwargs)
+        survey = self.to_survey()
+        results = survey(model = model, agent = agent, **kwargs)
         if just_answer:
             return results.select(f'answer.{self.question_name}').first()
         else:

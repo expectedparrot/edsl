@@ -63,14 +63,9 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
 
     def _remove_from_cache(self, raw_response) -> None:
         """Remove an entry from the cache."""
-        if (
-            "raw_model_response" in raw_response
-            and "cache_key" in raw_response["raw_model_response"]
-        ):
-            cache_key = raw_response["raw_model_response"]["cache_key"]
-        else:
-            cache_key = None
-        del self.cache.data[cache_key]
+        cache_key = raw_response.get("cache_key", None)
+        if cache_key:
+            del self.cache.data[cache_key]
 
     def _format_raw_response(
         self, *, agent, question, scenario, raw_response, raw_model_response
@@ -95,7 +90,7 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
             ),  # not all question have comment fields,
             "question_name": question.question_name,
             "prompts": self.get_prompts(),
-            "cached_response": raw_response["cached_response"],
+            "cached_response": raw_response.get("cached_response", None),
             "usage": raw_response.get("usage", {}),
             "raw_model_response": raw_model_response,
         }
