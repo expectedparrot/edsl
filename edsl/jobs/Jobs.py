@@ -286,6 +286,11 @@ class Jobs(Base):
             )
         return links
 
+    def _output(self, message) -> None:
+        """Check if a Job is verbose. If so, print the message."""
+        if self.verbose:
+            print(message)
+
     def run(
         self,
         n: int = 1,
@@ -299,6 +304,7 @@ class Jobs(Base):
         check_api_keys: bool = False,
         sidecar_model: Optional[LanguageModel] = None,
         batch_mode: Optional[bool] = None,
+        verbose: bool = False,
         print_exceptions=False,
     ) -> Results:
         """
@@ -306,14 +312,13 @@ class Jobs(Base):
 
         :param n: how many times to run each interview
         :param debug: prints debug messages
-        :param verbose: prints messages
         :param progress_bar: shows a progress bar
         :param stop_on_exception: stops the job if an exception is raised
         :param cache: a cache object to store results
         :param remote: run the job remotely
         :param check_api_keys: check if the API keys are valid
-        :batch_mode: run the job in batch mode i.e., no expecation of interaction with the user
-
+        :param batch_mode: run the job in batch mode i.e., no expecation of interaction with the user
+        :param verbose: prints messages
         """
         from edsl.coop.coop import Coop
 
@@ -323,6 +328,7 @@ class Jobs(Base):
             )
 
         self.remote = remote
+        self.verbose = verbose
 
         try:
             coop = Coop()
@@ -364,12 +370,23 @@ class Jobs(Base):
             results.cache = cache.new_entries_cache()
         else:
             cache_difference = coop.remote_cache_get_diff(cache.keys())
+
             client_missing_cacheentries = cache_difference.get(
                 "client_missing_cacheentries", []
             )
-            cache.add_from_dict(
-                {entry.key: entry for entry in client_missing_cacheentries}
-            )
+
+            missing_entry_count = len(client_missing_cacheentries)
+            if missing_entry_count > 0:
+                self._output(
+                    f"Updating local cache with {missing_entry_count:,} new "
+                    f"{'entry' if missing_entry_count == 1 else 'entries'} from remote..."
+                )
+                cache.add_from_dict(
+                    {entry.key: entry for entry in client_missing_cacheentries}
+                )
+                self._output("Local cache updated!")
+            else:
+                self._output("No new entries to add to local cache.")
 
             server_missing_cacheentry_keys = cache_difference.get(
                 "server_missing_cacheentry_keys", []
@@ -381,6 +398,7 @@ class Jobs(Base):
             ]
             old_entry_keys = [key for key in cache.keys()]
 
+            self._output("Running job...")
             results = self._run_local(
                 n=n,
                 debug=debug,
@@ -390,15 +408,31 @@ class Jobs(Base):
                 sidecar_model=sidecar_model,
                 print_exceptions=print_exceptions,
             )
+            self._output("Job completed!")
 
             new_cache_entries = list(
                 [entry for entry in cache.values() if entry.key not in old_entry_keys]
             )
-            new_cache_entries.extend(server_missing_cacheentries)
-            if len(new_cache_entries) > 0:
-                coop.remote_cache_create_many(new_cache_entries, visibility="private")
+            server_missing_cacheentries.extend(new_cache_entries)
+
+            new_entry_count = len(server_missing_cacheentries)
+            if new_entry_count > 0:
+                self._output(
+                    f"Updating remote cache with {new_entry_count:,} new "
+                    f"{'entry' if new_entry_count == 1 else 'entries'}..."
+                )
+                coop.remote_cache_create_many(
+                    server_missing_cacheentries, visibility="private"
+                )
+                self._output("Remote cache updated!")
+            else:
+                self._output("No new entries to add to remote cache.")
 
             results.cache = cache.new_entries_cache()
+
+            self._output(
+                f"There are {len(results.cache.keys()):,} entries in the local cache."
+            )
 
         return results
 
