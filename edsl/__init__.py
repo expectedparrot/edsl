@@ -38,3 +38,4 @@ from edsl.jobs import Jobs
 from edsl.notebooks import Notebook
 from edsl.coop.coop import Coop
 from edsl.conjure.Conjure import Conjure
+from edsl.study.Study import Study
