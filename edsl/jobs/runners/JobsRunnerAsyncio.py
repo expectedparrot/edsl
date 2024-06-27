@@ -202,6 +202,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         self.sidecar_model = sidecar_model
 
         if not progress_bar:
+            #print("Running without progress bar")
             with cache as c:
 
                 async def process_results():
@@ -220,6 +221,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                 
             results = Results(survey=self.jobs.survey, data=self.results)
         else:
+            #print("Running with progress bar")
 
             def generate_table():
                 return self.status_table(self.results, self.elapsed_time)
