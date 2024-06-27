@@ -136,6 +136,18 @@ class InputDataABC(
         """Get the names of the questions"""
         raise NotImplementedError
     
+    def rename_questions(self, rename_dict: Dict[str, str]) -> 'InputData':
+        """Rename a question.
+        
+        >>> id = InputDataABC.example()
+        >>> id.rename_question({'morning': 'evening'}).question_names
+        ['evening', 'feeling']
+        
+        """
+        for old_name, new_name in rename_dict.items():
+            self.rename(old_name, new_name)
+        return self
+    
     def rename(self, old_name, new_name) -> 'InputData':
         """Rename a question.
         
@@ -148,6 +160,43 @@ class InputDataABC(
         self.question_names[idx] = new_name
         self.answer_codebook[new_name] = self.answer_codebook.pop(old_name, {})
 
+        return self
+    
+    def _drop_question(self, question_name):
+        """Drop a question"""
+        idx = self.question_names.index(question_name)
+        self._question_names.pop(idx)
+        self._question_texts.pop(idx)
+        self.question_types.pop(idx)
+        self.question_options.pop(idx)
+        self.raw_data.pop(idx)
+        self.answer_codebook.pop(question_name, None)
+        return self
+    
+    def drop(self, *question_names_to_drop) -> 'InputData':
+        """Drop a question.
+        
+        >>> id = InputDataABC.example()
+        >>> id.drop('morning').question_names
+        ['feeling']
+        
+        """
+        for qn in question_names_to_drop:
+            self._drop_question(qn)
+        return self
+    
+    def keep(self, *question_names_to_keep) -> 'InputDataABC':
+        """Keep a question.
+        
+        >>> id = InputDataABC.example()
+        >>> id.keep('morning').question_names
+        ['morning']
+        
+        """
+        all_question_names = self._question_names[:]
+        for qn in all_question_names:
+            if qn not in question_names_to_keep:
+                self._drop_question(qn)
         return self
     
     def modify_question_type(self, 
