@@ -3,7 +3,7 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from rich.table import Table
-from typing import Any, Type, Optional
+from typing import Any, Type, Optional, List
 import copy
 
 from edsl.exceptions import (
@@ -136,6 +136,33 @@ class QuestionBase(
         if not hasattr(self, "_model_instructions"):
             self._model_instructions = {}
         return self._model_instructions
+    
+    def _all_text(self) -> str:
+        """Return the question text."""
+        txt = ""
+        for key, value in self.data.items():
+            if isinstance(value, str):
+                txt += value
+            elif isinstance(value, list):
+                txt += " ".join(value)
+        return txt 
+
+    @property
+    def parameters(self) -> set[str]:
+        """Return the parameters of the question.        
+        """
+        from jinja2 import Environment, meta
+        env = Environment()
+        # Parse the template
+        txt = self._all_text()
+        #txt = self.question_text
+        #if hasattr(self, "question_options"):
+        #    txt += " ".join(self.question_options)
+        parsed_content = env.parse(txt)
+        # Extract undeclared variables
+        variables = meta.find_undeclared_variables(parsed_content)
+        # Return as a list
+        return set(variables)
 
     @model_instructions.setter
     def model_instructions(self, data: dict):
@@ -340,7 +367,7 @@ class QuestionBase(
     ############################
     # Forward methods
     ############################
-    def add_question(self, other: Question) -> "Survey":
+    def add_question(self, other: QuestionBase) -> "Survey":
         """Add a question to this question by turning them into a survey with two questions."""
         from edsl.surveys.Survey import Survey
 
