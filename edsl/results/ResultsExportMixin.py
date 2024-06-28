@@ -505,6 +505,10 @@ class ResultsExportMixin:
             values = self._key_to_value(field)
         else:
             values = list(zip(*(self._key_to_value(field) for field in fields)))
+        
+        for value in values:
+            if isinstance(value, list):
+                value = tuple(value)
 
         tally = dict(Counter(values))
         sorted_tally = dict(sorted(tally.items(), key=lambda item: -item[1]))
