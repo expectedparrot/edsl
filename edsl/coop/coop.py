@@ -313,6 +313,14 @@ class Coop:
             },
         )
         self._resolve_server_response(response)
+        response_json = response.json()
+        created_entry_count = response_json.get("created_entry_count", 0)
+        if created_entry_count > 0:
+            self.remote_cache_create_log(
+                response,
+                description="Upload new cache entries to server",
+                cache_entry_count=created_entry_count,
+            )
         return response.json()
 
     def remote_cache_create_many(
@@ -337,6 +345,14 @@ class Coop:
             payload=payload,
         )
         self._resolve_server_response(response)
+        response_json = response.json()
+        created_entry_count = response_json.get("created_entry_count", 0)
+        if created_entry_count > 0:
+            self.remote_cache_create_log(
+                response,
+                description="Upload new cache entries to server",
+                cache_entry_count=created_entry_count,
+            )
         return response.json()
 
     def remote_cache_get(
@@ -360,12 +376,82 @@ class Coop:
             for v in response.json()
         ]
 
+    def remote_cache_get_diff(
+        self,
+        client_cacheentry_keys: list[str],
+    ) -> dict:
+        """
+        Get the difference between local and remote cache entries for a user.
+        """
+        response = self._send_server_request(
+            uri="api/v0/remote-cache/get-diff",
+            method="POST",
+            payload={"keys": client_cacheentry_keys},
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        response_dict = {
+            "client_missing_cacheentries": [
+                CacheEntry.from_dict(json.loads(c.get("json_string")))
+                for c in response_json.get("client_missing_cacheentries", [])
+            ],
+            "server_missing_cacheentry_keys": response_json.get(
+                "server_missing_cacheentry_keys", []
+            ),
+        }
+        downloaded_entry_count = len(response_dict["client_missing_cacheentries"])
+        if downloaded_entry_count > 0:
+            self.remote_cache_create_log(
+                response,
+                description="Download missing cache entries to client",
+                cache_entry_count=downloaded_entry_count,
+            )
+        return response_dict
+
     def remote_cache_clear(self) -> dict:
         """
         Clear all remote cache entries.
         """
         response = self._send_server_request(
             uri="api/v0/remote-cache/delete-all",
+            method="DELETE",
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        deleted_entry_count = response_json.get("deleted_entry_count", 0)
+        if deleted_entry_count > 0:
+            self.remote_cache_create_log(
+                response,
+                description="Clear cache entries",
+                cache_entry_count=deleted_entry_count,
+            )
+        return response.json()
+
+    def remote_cache_create_log(
+        self, response: requests.Response, description: str, cache_entry_count: int
+    ) -> Union[dict, None]:
+        """
+        If a remote cache action has been completed successfully,
+        log the action.
+        """
+        if 200 <= response.status_code < 300:
+            log_response = self._send_server_request(
+                uri="api/v0/remote-cache-log",
+                method="POST",
+                payload={
+                    "description": description,
+                    "cache_entry_count": cache_entry_count,
+                },
+            )
+            self._resolve_server_response(log_response)
+            return response.json()
+
+    def remote_cache_clear_log(self) -> dict:
+        """
+        Clear all remote cache log entries.
+        """
+        response = self._send_server_request(
+            uri="api/v0/remote-cache-log/delete-all",
             method="DELETE",
         )
         self._resolve_server_response(response)
