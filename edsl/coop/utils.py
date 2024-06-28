@@ -8,6 +8,7 @@ from edsl import (
     Scenario,
     ScenarioList,
     Survey,
+    Study,
 )
 from edsl.questions import QuestionBase
 from typing import Literal, Type, Union
@@ -23,6 +24,7 @@ EDSLObject = Union[
     Scenario,
     ScenarioList,
     Survey,
+    Study,
 ]
 
 ObjectType = Literal[
@@ -36,6 +38,7 @@ ObjectType = Literal[
     "scenario",
     "scenario_list",
     "survey",
+    "study",
 ]
 
 ObjectPage = Literal[
@@ -49,6 +52,7 @@ ObjectPage = Literal[
     "scenarios",
     "scenariolists",
     "surveys",
+    "studies",
 ]
 
 VisibilityType = Literal[
@@ -113,6 +117,11 @@ class ObjectRegistry:
             "object_type": "survey",
             "edsl_class": Survey,
             "object_page": "surveys",
+        },
+        {
+            "object_type": "study",
+            "edsl_class": Study,
+            "object_page": "studies",
         },
     ]
     object_type_to_edsl_class = {o["object_type"]: o["edsl_class"] for o in objects}

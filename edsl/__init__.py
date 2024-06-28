@@ -36,6 +36,6 @@ from edsl.data.CacheHandler import set_session_cache, unset_session_cache
 from edsl.shared import shared_globals
 from edsl.jobs import Jobs
 from edsl.notebooks import Notebook
+from edsl.study.Study import Study
 from edsl.coop.coop import Coop
 from edsl.conjure.Conjure import Conjure
-from edsl.study.Study import Study
