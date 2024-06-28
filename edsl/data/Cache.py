@@ -51,7 +51,7 @@ class Cache(Base):
         :param method: The method of storage to use for the cache.
 
         """
-        
+
         # self.data_at_init = data or {}
         self.fetched_data = {}
         self.immediate_write = immediate_write
@@ -73,16 +73,16 @@ class Cache(Base):
                 if os.path.exists(filename):
                     self.add_from_jsonl(filename)
                 else:
-                    print(f"File {filename} not found, but will write to this location.")
+                    print(
+                        f"File {filename} not found, but will write to this location."
+                    )
             elif filename.endswith(".db"):
                 if os.path.exists(filename):
-                    self.add_from_sqlite(filename)                
+                    self.add_from_sqlite(filename)
             else:
                 raise ValueError("Invalid file extension. Must be .jsonl or .db")
 
-
         self._perform_checks()
-
 
     def rich_print(sefl):
         pass
@@ -350,7 +350,6 @@ class Cache(Base):
     def _to_dict(self) -> dict:
         return {k: v.to_dict() for k, v in self.data.items()}
 
-
     @add_edsl_version
     def to_dict(self) -> dict:
         """Return the Cache as a dictionary."""
@@ -396,7 +395,9 @@ class Cache(Base):
         """
         Return a string representation of the Cache object.
         """
-        return f"Cache(data = {repr(self.data)}, immediate_write={self.immediate_write})"
+        return (
+            f"Cache(data = {repr(self.data)}, immediate_write={self.immediate_write})"
+        )
 
     ####################
     # EXAMPLES

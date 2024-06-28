@@ -122,7 +122,6 @@ class QuestionTaskCreator(UserList):
         'Yo!'
         """
 
-
         requested_tokens = self.estimated_tokens()
         if (estimated_wait_time := self.tokens_bucket.wait_time(requested_tokens)) > 0:
             self.task_status = TaskStatus.WAITING_FOR_TOKEN_CAPACITY

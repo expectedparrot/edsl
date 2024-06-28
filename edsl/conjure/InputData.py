@@ -21,10 +21,11 @@ from edsl.conjure.utilities import convert_value, Missing
 
 from edsl.conjure.RawQuestion import RawQuestion
 from edsl.conjure.AgentConstructionMixin import AgentConstructionMixin
-   
+
 from edsl.conjure.QuestionOptionMixin import QuestionOptionMixin
 from edsl.conjure.InputDataMixinQuestionStats import InputDataMixinQuestionStats
 from edsl.conjure.QuestionTypeMixin import QuestionTypeMixin
+
 
 class InputDataABC(
     ABC,
@@ -93,9 +94,15 @@ class InputDataABC(
         self.naming_function = naming_function
 
         def default_repair_func(x):
-            return x.replace("#", "_num").replace("class", "social_class").replace("name", "respondent_name")
-        
-        self.question_name_repair_func = question_name_repair_func or default_repair_func
+            return (
+                x.replace("#", "_num")
+                .replace("class", "social_class")
+                .replace("name", "respondent_name")
+            )
+
+        self.question_name_repair_func = (
+            question_name_repair_func or default_repair_func
+        )
 
         if answer_codebook is not None and question_names is not None:
             if set(answer_codebook.keys()) != set(question_names):
@@ -135,33 +142,33 @@ class InputDataABC(
     def get_question_names(self) -> List[str]:
         """Get the names of the questions"""
         raise NotImplementedError
-    
-    def rename_questions(self, rename_dict: Dict[str, str]) -> 'InputData':
+
+    def rename_questions(self, rename_dict: Dict[str, str]) -> "InputData":
         """Rename a question.
-        
+
         >>> id = InputDataABC.example()
         >>> id.rename_question({'morning': 'evening'}).question_names
         ['evening', 'feeling']
-        
+
         """
         for old_name, new_name in rename_dict.items():
             self.rename(old_name, new_name)
         return self
-    
-    def rename(self, old_name, new_name) -> 'InputData':
+
+    def rename(self, old_name, new_name) -> "InputData":
         """Rename a question.
-        
+
         >>> id = InputDataABC.example()
         >>> id.rename('morning', 'evening').question_names
         ['evening', 'feeling']
-        
+
         """
         idx = self.question_names.index(old_name)
         self.question_names[idx] = new_name
         self.answer_codebook[new_name] = self.answer_codebook.pop(old_name, {})
 
         return self
-    
+
     def _drop_question(self, question_name):
         """Drop a question"""
         idx = self.question_names.index(question_name)
@@ -172,41 +179,42 @@ class InputDataABC(
         self.raw_data.pop(idx)
         self.answer_codebook.pop(question_name, None)
         return self
-    
-    def drop(self, *question_names_to_drop) -> 'InputData':
+
+    def drop(self, *question_names_to_drop) -> "InputData":
         """Drop a question.
-        
+
         >>> id = InputDataABC.example()
         >>> id.drop('morning').question_names
         ['feeling']
-        
+
         """
         for qn in question_names_to_drop:
             self._drop_question(qn)
         return self
-    
-    def keep(self, *question_names_to_keep) -> 'InputDataABC':
+
+    def keep(self, *question_names_to_keep) -> "InputDataABC":
         """Keep a question.
-        
+
         >>> id = InputDataABC.example()
         >>> id.keep('morning').question_names
         ['morning']
-        
+
         """
         all_question_names = self._question_names[:]
         for qn in all_question_names:
             if qn not in question_names_to_keep:
                 self._drop_question(qn)
         return self
-    
-    def modify_question_type(self, 
-                             question_name: str, 
-                             new_type: str,
-                             drop_options: bool = False,
-                             new_options: Optional[List[str]] = None
-                             ) -> 'InputData':
+
+    def modify_question_type(
+        self,
+        question_name: str,
+        new_type: str,
+        drop_options: bool = False,
+        new_options: Optional[List[str]] = None,
+    ) -> "InputData":
         """Modify the question type of a question. Checks to make sure the new type is valid.
-        
+
         >>> id = InputDataABC.example()
         >>> id.modify_question_type('morning', 'numerical', drop_options = True).question_types
         ['numerical', 'multiple_choice']
@@ -222,7 +230,7 @@ class InputDataABC(
 
         if new_type not in Question.available():
             raise ValueError(f"Question type {new_type} is not available.")
-        
+
         idx = self.question_names.index(question_name)
         self.question_types[idx] = new_type
         if drop_options:
@@ -242,16 +250,14 @@ class InputDataABC(
             self.question_options[idx] = old_options
         return self
 
-        
-
     @property
     def num_observations(self):
         """Return the number of observations.
-        
+
         >>> id = InputDataABC.example()
         >>> id.num_observations
         2
-        
+
         """
         return len(self.raw_data[0])
 
@@ -297,12 +303,12 @@ class InputDataABC(
             if len(set(value)) != len(value):
                 raise ValueError("Question names must be unique.")
             for i, qn in enumerate(value):
-                if not is_valid_variable_name(qn, allow_name = False):
+                if not is_valid_variable_name(qn, allow_name=False):
                     new_name = self.question_name_repair_func(qn)
-                    if not is_valid_variable_name(new_name, allow_name = False):
+                    if not is_valid_variable_name(new_name, allow_name=False):
                         raise ValueError(
-                            f"""Question names must be valid Python identifiers. '{qn}' is not.""", 
-                            """You can pass an entry in question_name_repair_func to fix this."""                
+                            f"""Question names must be valid Python identifiers. '{qn}' is not.""",
+                            """You can pass an entry in question_name_repair_func to fix this.""",
                         )
                     else:
                         value[i] = new_name
@@ -348,7 +354,7 @@ class InputDataABC(
             # self.apply_codebook()
         self._raw_data = value
 
-    def to_dataset(self) -> 'Dataset':
+    def to_dataset(self) -> "Dataset":
         from edsl.results.Dataset import Dataset
 
         dataset_list = []
@@ -358,7 +364,7 @@ class InputDataABC(
 
     def to_scenario_list(self) -> ScenarioList:
         """Return a ScenarioList object from the raw response data.
-        
+
         >>> id = InputDataABC.example()
         >>> s = id.to_scenario_list()
         >>> type(s) == ScenarioList
@@ -366,7 +372,7 @@ class InputDataABC(
 
         >>> s
         ScenarioList([Scenario({'morning': '1', 'feeling': '3'}), Scenario({'morning': '4', 'feeling': '6'})])
-        
+
         """
         s = ScenarioList()
         for qn in self.question_names:
@@ -395,8 +401,8 @@ class InputDataABC(
 
         """
         return {t: n for n, t in self.names_to_texts.items()}
-    
-    def raw_question(self, index:int) -> RawQuestion:
+
+    def raw_question(self, index: int) -> RawQuestion:
         return RawQuestion(
             question_type=self.question_types[index],
             question_name=self.question_names[index],
@@ -417,11 +423,13 @@ class InputDataABC(
             try:
                 yield rq.to_question()
             except Exception as e:
-                print(f"Error with question '{rq.question_name}' in '{self.datafile_name}'") 
+                print(
+                    f"Error with question '{rq.question_name}' in '{self.datafile_name}'"
+                )
                 print(e)
                 yield None
 
-    def select(self, *question_names: List[str]) -> 'InputData':
+    def select(self, *question_names: List[str]) -> "InputData":
         """Select a subset of the questions.
 
         :param question_names: The names of the questions to select.
@@ -510,9 +518,8 @@ class InputDataABC(
         return f"{self.__class__.__name__}: datafile_name:'{self.datafile_name}' num_questions:{len(self.question_names)}, num_agents:{len(self.raw_data[0])}"
 
     @classmethod
-    def example(cls, **kwargs) -> 'InputDataABC':
+    def example(cls, **kwargs) -> "InputDataABC":
         class InputDataExample(InputDataABC):
-
             def get_question_texts(self) -> List[str]:
                 """Get the text of the questions"""
                 return ["how are you doing this morning?", "how are you feeling?"]
@@ -550,7 +557,7 @@ if __name__ == "__main__":
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)
 
-    #pew = InputDataSPSS("examples/pew.sav", config={})
+    # pew = InputDataSPSS("examples/pew.sav", config={})
 
     # doctest.testmod()
     # config = {"skiprows": 1}

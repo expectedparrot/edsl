@@ -1,8 +1,7 @@
-
 from typing import Union, List
 
-class QuestionOptionMixin:
 
+class QuestionOptionMixin:
     @property
     def question_options(self):
         if not hasattr(self, "_question_options"):
@@ -17,11 +16,11 @@ class QuestionOptionMixin:
 
     def _get_question_options(self, question_name) -> Union[List[str], None]:
         """Return the options for a question.
-        
+
         >>> id = InputData.example()
         >>> sorted(id._get_question_options('morning'))
         ['1', '4']
-        
+
         """
         qt = self.question_statistics(question_name)
         idx = self.question_names.index(question_name)
