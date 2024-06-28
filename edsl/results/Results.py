@@ -8,7 +8,7 @@ import json
 import hashlib
 import random
 from collections import UserList, defaultdict
-from typing import Optional, Callable, Any, Type, Union
+from typing import Optional, Callable, Any, Type, Union, List
 
 from pygments import highlight
 from pygments.lexers import JsonLexer
@@ -493,6 +493,28 @@ class Results(UserList, Mixins, Base):
             data=new_data,
             created_columns=self.created_columns + [new_var_name],
         )
+    
+    def add_column(self, column_name: str, values: list) -> Results:
+        """Adds columns to Results
+        
+        >>> r = Results.example()
+        >>> r.add_column('a', [1,2,3,]).select('a')
+        Dataset([{'answer.a': [1, 2, 3]}])
+        """
+
+        assert len(values) == len(self.data), "The number of values must match the number of results."
+        new_results = self.data.copy()
+        for i, result in enumerate(new_results):
+            result["answer"][column_name] = values[i]
+        return Results(survey=self.survey, data=new_results, created_columns=self.created_columns + [column_name])
+    
+    def add_columns_from_dict(self, columns: List[dict]) -> Results:
+        keys = list(columns[0].keys())
+        for key in keys:
+            values = [d[key] for d in columns]
+            self = self.add_column(key, values)
+        return self
+
 
     def mutate(
         self, new_var_string: str, functions_dict: Optional[dict] = None

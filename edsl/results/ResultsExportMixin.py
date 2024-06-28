@@ -155,6 +155,8 @@ class ResultsExportMixin:
         max_rows=None,
         tee=False,
         iframe=False,
+        iframe_height:int=200,
+        iframe_width:int=600,
     ) -> None:
         """Print the results in a pretty format.
 
@@ -244,8 +246,8 @@ class ResultsExportMixin:
             if iframe:
                 import html
 
-                height = 200
-                width = 600
+                height = iframe_height
+                width = iframe_width
                 escaped_output = html.escape(html_source)
                 # escaped_output = html_source
                 iframe = f""""
