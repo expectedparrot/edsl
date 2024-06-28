@@ -19,9 +19,13 @@ from pygments.lexers import JsonLexer
 from pygments.formatters import HtmlFormatter
 from IPython.display import HTML
 
-def dict_hash(data:dict):
-    return int(hashlib.md5(json.dumps(data, sort_keys = True).encode()).hexdigest(), 16)
-        
+
+def dict_hash(data: dict):
+    return hash(
+        int(hashlib.md5(json.dumps(data, sort_keys=True).encode()).hexdigest(), 16)
+    )
+
+
 def clean_json(bad_json_str):
     """
     Clean JSON string by replacing single quotes with double quotes
@@ -235,12 +239,15 @@ def valid_json(json_string):
         return False
 
 
-def is_valid_variable_name(name, allow_name = True):
+def is_valid_variable_name(name, allow_name=True):
     """Check if a string is a valid variable name."""
     if allow_name:
-        return name.isidentifier() and not keyword.iskeyword(name) 
+        return name.isidentifier() and not keyword.iskeyword(name)
     else:
-        return name.isidentifier() and not keyword.iskeyword(name) and not name == "name"
+        return (
+            name.isidentifier() and not keyword.iskeyword(name) and not name == "name"
+        )
+
 
 def create_valid_var_name(s, transform_func: Callable = lambda x: x.lower()) -> str:
     """Create a valid variable name from a string."""

@@ -1,7 +1,8 @@
-import re 
+import re
 from collections import UserDict
 
 from edsl.conjure.ReplacementFinder import ReplacementFinder
+
 
 class KeyValidator:
     """A class to represent a key validator.
@@ -29,6 +30,7 @@ class KeyValidator:
             return False
         return True
 
+
 class DictWithIdentifierKeys(UserDict):
     """
     This class is a dictionary that only allows lowercase keys that are valid Python identifiers.
@@ -42,10 +44,12 @@ class DictWithIdentifierKeys(UserDict):
 
     key_validator = KeyValidator()
 
-    def __init__(self, 
-                 data: dict = None, 
-                 verbose:bool=False, 
-                 replacement_finder: ReplacementFinder = None):
+    def __init__(
+        self,
+        data: dict = None,
+        verbose: bool = False,
+        replacement_finder: ReplacementFinder = None,
+    ):
         super().__init__()
         self.verbose = verbose
         if replacement_finder is None:
@@ -53,11 +57,11 @@ class DictWithIdentifierKeys(UserDict):
         self.replacement_finder = replacement_finder
         if data:
             for key, value in data.items():
-                self[key] = value # This will call the __setitem__ method
+                self[key] = value  # This will call the __setitem__ method
 
     def __setitem__(self, key, value):
         """Ensures that the key is a valid Python identifier. If not, it will be replaced, using the replacement_finder.
-        
+
         >>> from edsl.conjure.ReplacementFinder import ReplacementFinder
         >>> from edsl.language_models import LanguageModel
         >>> m = LanguageModel.example(test_model=True, canned_response="poop2")
@@ -68,7 +72,7 @@ class DictWithIdentifierKeys(UserDict):
         Column incapable of being a key: 'Poop '
         Finding replacement
         New key found: 'poop2'
-        
+
         >>> d['poop2']
         123
         """
@@ -92,4 +96,5 @@ class DictWithIdentifierKeys(UserDict):
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod()

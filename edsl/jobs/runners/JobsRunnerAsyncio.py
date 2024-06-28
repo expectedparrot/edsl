@@ -14,7 +14,8 @@ from edsl.results import Results, Result
 
 from edsl.jobs.interviews.Interview import Interview
 from edsl.utilities.decorators import jupyter_nb_handler
-#from edsl.jobs.Jobs import Jobs
+
+# from edsl.jobs.Jobs import Jobs
 from edsl.jobs.runners.JobsRunnerStatusMixin import JobsRunnerStatusMixin
 from edsl.language_models import LanguageModel
 from edsl.data.Cache import Cache
@@ -24,6 +25,7 @@ from edsl.jobs.buckets.BucketCollection import BucketCollection
 
 import time
 
+
 class JobsRunnerAsyncio(JobsRunnerStatusMixin):
     """A class for running a collection of interviews asynchronously.
 
@@ -32,13 +34,12 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
     """
 
     def __init__(self, jobs: Jobs):
-
-        self.jobs = jobs 
+        self.jobs = jobs
         # this creates the interviews, which can take a while
         self.interviews: List["Interview"] = jobs.interviews()
         self.bucket_collection: "BucketCollection" = jobs.bucket_collection
         self.total_interviews: List["Interview"] = []
-        
+
     async def run_async(
         self,
         cache: Cache,
@@ -101,14 +102,13 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
     async def _simple_run(self):
         self.cache = Cache()
         data = []
-        async for result in self.run_async(cache = Cache()):
+        async for result in self.run_async(cache=Cache()):
             data.append(result)
         return data
-    
+
     def simple_run(self):
         data = asyncio.run(self._simple_run())
         return Results(survey=self.jobs.survey, data=data)
-
 
     async def _build_interview_task(
         self,
@@ -202,6 +202,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         self.sidecar_model = sidecar_model
 
         if not progress_bar:
+            # print("Running without progress bar")
             with cache as c:
 
                 async def process_results():
@@ -217,9 +218,10 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                     self.completed = True
 
                 await asyncio.gather(process_results())
-                
+
             results = Results(survey=self.jobs.survey, data=self.results)
         else:
+            # print("Running with progress bar")
 
             def generate_table():
                 return self.status_table(self.results, self.elapsed_time)
@@ -295,6 +297,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                 if interview.has_exceptions
             ]
             from edsl.jobs.Jobs import Jobs
+
             results.failed_jobs = Jobs.from_interviews(
                 [interview for interview in failed_interviews]
             )
@@ -346,7 +349,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
     #             self.completed = True
 
     #         await asyncio.gather(process_results())
-        
+
     #     results = Results(survey=self.jobs.survey, data=self.results)
 
     #     task_history = TaskHistory(self.total_interviews, include_traceback=False)
@@ -378,5 +381,4 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
     #                 "Also see: https://docs.expectedparrot.com/en/latest/exceptions.html"
     #             )
 
-        
     #     return results

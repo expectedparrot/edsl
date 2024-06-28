@@ -2,18 +2,19 @@ from collections import UserDict
 from edsl.conjure.RawResponseColumn import RawResponseColumn
 from typing import Dict, List, Any
 
+
 class RawResponses(UserDict):
-                
-    def __init__(self, 
-                 responses: Dict[str, RawResponseColumn], 
-                 question_name_to_question_text: Dict[str, str], 
-                 answer_codebook: Dict[str, Dict[str, str]]
-                 ):
+    def __init__(
+        self,
+        responses: Dict[str, RawResponseColumn],
+        question_name_to_question_text: Dict[str, str],
+        answer_codebook: Dict[str, Dict[str, str]],
+    ):
         """
         :param responses: A dictionary mapping question names to RawResponseColumn objects.
         :param question_name_to_question_text: A dictionary mapping question names to question text.
         :param answer_codebook: A dictionary mapping question names to dictionaries mapping raw responses to answer text.
-        """        
+        """
         data = {}
         for question_name, raw_responses in responses.items():
             raw_question_response = RawResponseColumn(

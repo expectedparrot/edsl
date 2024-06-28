@@ -94,12 +94,12 @@ class TestLanguageModel(unittest.TestCase):
     def test_execute_model_call(self):
         from edsl.data.Cache import Cache
         m = self.good_class()
-        response = m.get_raw_response(
+        response, cached_response, cache_key = m.get_raw_response(
             user_prompt="Hello world", system_prompt="You are a helpful agent", cache = Cache()
         )
         print(response)
         self.assertEqual(response["message"], """{"answer": "Hello world"}""")
-        self.assertEqual(response["cached_response"], False)
+        self.assertEqual(cached_response, False)
 
     def test_get_response(self):
         from edsl.data.Cache import Cache
@@ -110,12 +110,11 @@ class TestLanguageModel(unittest.TestCase):
         )
         expected_response = {
             "answer": "Hello world",
-            "cached_response": False,
             "usage": {},
         }
         for key, value in expected_response.items():
             self.assertEqual(response[key], value)
-
+        
     def test_cache_write_and_read(self):
  
         m = self.good_class(

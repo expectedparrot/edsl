@@ -2,7 +2,6 @@ from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
 
 
 class InferenceServicesCollection:
-
     added_models = {}
 
     def __init__(self, services: list[InferenceServiceABC] = None):
@@ -13,7 +12,7 @@ class InferenceServicesCollection:
         if service_name not in cls.added_models:
             cls.added_models[service_name] = []
         cls.added_models[service_name].append(model_name)
-       
+
     def available(self):
         total_models = []
         for service in self.services:
@@ -25,7 +24,7 @@ class InferenceServicesCollection:
                 continue
             for model in service_models:
                 total_models.append([model, service._inference_service_, -1])
-            
+
             for model in self.added_models.get(service._inference_service_, []):
                 total_models.append([model, service._inference_service_, -1])
 

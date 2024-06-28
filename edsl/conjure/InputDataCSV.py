@@ -3,8 +3,8 @@ import pandas as pd
 from edsl.conjure.InputData import InputDataABC
 from edsl.conjure.utilities import convert_value
 
-class InputDataCSV(InputDataABC):
 
+class InputDataCSV(InputDataABC):
     def __init__(self, datafile_name: str, config: Optional[dict] = None, **kwargs):
         if config is None:
             config = {"skiprows": None, "delimiter": ","}
@@ -18,7 +18,7 @@ class InputDataCSV(InputDataABC):
                 skiprows=self.config["skiprows"],
                 encoding_errors="ignore",
             )
-            float_columns = self._df.select_dtypes(include=['float64']).columns
+            float_columns = self._df.select_dtypes(include=["float64"]).columns
             self._df[float_columns] = self._df[float_columns].astype(str)
             self._df.fillna("", inplace=True)
             self._df = self._df.astype(str)

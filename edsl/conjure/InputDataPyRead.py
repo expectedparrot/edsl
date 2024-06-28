@@ -13,8 +13,8 @@ except ImportError as e:
         "pip install pyreadstat\n"
     ) from e
 
-class InputDataPyRead(InputDataABC):
 
+class InputDataPyRead(InputDataABC):
     def pyread_function(self, datafile_name):
         raise NotImplementedError
 
@@ -25,7 +25,7 @@ class InputDataPyRead(InputDataABC):
             raise ValueError(
                 f"An error occurred while reading the file {self.datafile_name}."
             ) from e
-        float_columns = df.select_dtypes(include=['float64']).columns
+        float_columns = df.select_dtypes(include=["float64"]).columns
         df[float_columns] = df[float_columns].astype(str)
 
         df.fillna("", inplace=True)

@@ -197,7 +197,7 @@ class Agent(Base):
                 return self.dynamic_traits_function()
         else:
             return self._traits
-        
+
     def rename(self, old_name: str, new_name: str) -> Agent:
         """Rename a trait.
 
@@ -558,15 +558,16 @@ class Agent(Base):
                 ] = self.answer_question_directly_function_name
 
         return raw_data
-    
+
     def __hash__(self) -> int:
         from edsl.utilities.utilities import dict_hash
+
         return dict_hash(self._to_dict())
-    
+
     def _to_dict(self) -> dict[str, Union[dict, bool]]:
         """Serialize to a dictionary."""
         return self.data
-    
+
     @add_edsl_version
     def to_dict(self) -> dict[str, Union[dict, bool]]:
         """Serialize to a dictionary.
@@ -576,7 +577,7 @@ class Agent(Base):
         >>> a = Agent(name = "Steve", traits = {"age": 10, "hair": "brown", "height": 5.5})
         >>> a.to_dict()
         {'name': 'Steve', 'traits': {'age': 10, 'hair': 'brown', 'height': 5.5}, 'edsl_version': '...', 'edsl_class_name': 'Agent'}
-        """            
+        """
         return self._to_dict()
 
     @classmethod

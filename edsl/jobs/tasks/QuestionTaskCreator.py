@@ -151,6 +151,8 @@ class QuestionTaskCreator(UserList):
                 self.requests_bucket.add_tokens(1)
                 self.from_cache = True
 
+        _ = results.pop("cached_response", None)
+
         tracker = self.cached_token_usage if self.from_cache else self.new_token_usage
 
         # TODO: This is hacky. The 'func' call should return an object that definitely has a 'usage' key.

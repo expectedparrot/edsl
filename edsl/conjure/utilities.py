@@ -3,6 +3,7 @@ from io import StringIO
 import os
 import pandas as pd
 
+
 class ValidFilename:
     def __set_name__(self, owner, name):
         self.name = name
@@ -109,7 +110,11 @@ def infer_question_type(question_text, responses, sample_size=15):
         ],
     )
     response = (
-        q.to_survey()(question_text=question_text, sample_zize = sample_size, responses=responses[:sample_size])
+        q.to_survey()(
+            question_text=question_text,
+            sample_zize=sample_size,
+            responses=responses[:sample_size],
+        )
         .select("infer_question_type")
         .first()
     )
@@ -117,6 +122,7 @@ def infer_question_type(question_text, responses, sample_size=15):
 
 
 import requests
+
 
 def download_file(url, filename):
     """
@@ -130,21 +136,22 @@ def download_file(url, filename):
     str: The path to the saved file.
     """
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     }
-    
+
     # Sending the GET request
     response = requests.get(url, headers=headers)
-    
+
     # Checking if the request was successful
     if response.status_code == 200:
         # Writing the content to the specified file
-        with open(filename, 'wb') as file:
+        with open(filename, "wb") as file:
             file.write(response.content)
         print(f"File downloaded successfully and saved to {filename}")
         return filename
     else:
         print(f"Failed to download file: {response.status_code}")
         return None
+
 
 # Example usage
