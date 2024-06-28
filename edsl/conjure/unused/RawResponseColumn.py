@@ -10,8 +10,7 @@ from edsl.conjure.utilities import convert_value, Missing
 from edsl.conjure.ReplacementFinder import ReplacementFinder
 from edsl.conjure.DictWithIdentifierKeys import DictWithIdentifierKeys
 
-#get_replacement_name = ReplacementFinder({})
-
+# get_replacement_name = ReplacementFinder({})
 
 
 class RawResponseColumn:
@@ -31,7 +30,7 @@ class RawResponseColumn:
         :param question_name: The name of the question.
         :param question_text: The text of the question.
         :param responses: A list of responses to the question.
- 
+
         >>> r = RawResponseColumn(question_name="Q1", raw_responses=["1", "2", "3"], answer_codebook={"1": "Yes", "2": "No"}, question_text="Do you like ice cream?")
         >>> r.responses
         ['Yes', 'No', '3']
@@ -98,10 +97,12 @@ class RawResponseColumn:
             question_name="ordering",
         )
 
-        proposed_ordering = q.to_survey()(options_list=options_list).select("ordering").first()
+        proposed_ordering = (
+            q.to_survey()(options_list=options_list).select("ordering").first()
+        )
         if proposed_ordering is None:
             return options_list
-        
+
         return proposed_ordering
 
     def to_question(self) -> QuestionBase:

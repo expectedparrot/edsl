@@ -6,8 +6,8 @@ from edsl.conjure.SurveyBuilder import SurveyBuilder
 from edsl.conjure.utilities import RCodeSnippet
 from edsl.conjure.SurveyResponses import SurveyResponses
 
+
 class SurveyBuilderCSV(SurveyBuilder):
- 
     @staticmethod
     def get_dataframe(datafile_name, skiprows=None):
         return pd.read_csv(datafile_name, skiprows=skiprows)
@@ -23,7 +23,7 @@ class SurveyBuilderCSV(SurveyBuilder):
         {'q1': ['1', '4'], 'q2': ['2', '5'], 'q3': ['3', '6']}
 
         """
-        df = self.get_dataframe(self.datafile_name, skiprows = self.skiprows)
+        df = self.get_dataframe(self.datafile_name, skiprows=self.skiprows)
         df.fillna("", inplace=True)
         df = df.astype(str)
         data = {k: v for k, v in df.to_dict(orient="list").items()}
@@ -39,12 +39,14 @@ class SurveyBuilderCSV(SurveyBuilder):
 
         """
         d = {}
-        df = self.get_dataframe(self.datafile_name, skiprows = self.skiprows)
+        df = self.get_dataframe(self.datafile_name, skiprows=self.skiprows)
         for col in df.columns:
             if col in self.replacement_finder:
                 d[col] = self.replacement_finder[col]
             else:
-                raise ValueError(f"Question name {col} not found in replacement finder.")
+                raise ValueError(
+                    f"Question name {col} not found in replacement finder."
+                )
                 d[col] = col
 
         return d
