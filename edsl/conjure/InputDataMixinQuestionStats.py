@@ -3,12 +3,12 @@ from typing import List
 from edsl.conjure.utilities import Missing
 from collections import Counter
 
-class InputDataMixinQuestionStats:
 
+class InputDataMixinQuestionStats:
     def question_statistics(self, question_name: str) -> "QuestionStats":
         """Return statistics for a question."""
         return self.QuestionStats(**self._compute_question_statistics(question_name))
-    
+
     def _compute_question_statistics(self, question_name: str) -> dict:
         """
         Return a dictionary of statistics for a question.
@@ -19,7 +19,7 @@ class InputDataMixinQuestionStats:
         """
         idx = self.question_names.index(question_name)
         return {attr: getattr(self, attr)[idx] for attr in self.question_attributes}
-        
+
     @property
     def num_responses(self) -> List[int]:
         """
@@ -147,14 +147,13 @@ class InputDataMixinQuestionStats:
             if v != Missing().value() and v != "missing" and v != ""
         ]
 
-
     def unique_responses_more_than_k(self, k, remove_missing=True) -> List[List[str]]:
         """Return a list of unique responses that occur more than k times for each question.
-        
+
         >>> id = InputData.example()
         >>> id.unique_responses_more_than_k(1)
         [[...], [...]]
-        
+
         """
         counters = [Counter(responses) for responses in self.raw_data]
         new_counters = []

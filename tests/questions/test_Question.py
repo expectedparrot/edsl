@@ -20,6 +20,15 @@ valid_question_three = {
     "question_name": "capital",
 }
 
+def test_parameters():
+    from edsl import QuestionFreeText 
+    q = QuestionFreeText(question_text = "{{ poo}}", question_name = "ugly_question")
+    assert q.parameters == {'poo'}
+
+    from edsl import QuestionMultipleChoice
+    q = QuestionMultipleChoice(question_text = "{{ poo}}", question_options = ["A", "{{ B}}"], question_name = "ugly_question")
+    assert q.parameters == {'poo', 'B'}
+
 
 def test_meta():
     from edsl.questions.QuestionBase import QuestionBase

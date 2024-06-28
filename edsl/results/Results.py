@@ -175,14 +175,14 @@ class Results(UserList, Mixins, Base):
         )
         return HTML(formatted_json).data
 
-    def _to_dict(self):    
+    def _to_dict(self):
         return {
             "data": [result.to_dict() for result in self.data],
             "survey": self.survey.to_dict(),
             "created_columns": self.created_columns,
             "cache": Cache() if not hasattr(self, "cache") else self.cache.to_dict(),
         }
- 
+
     @add_edsl_version
     def to_dict(self) -> dict[str, Any]:
         """Convert the Results object to a dictionary.
@@ -199,7 +199,7 @@ class Results(UserList, Mixins, Base):
 
     def __hash__(self) -> int:
         return dict_hash(self._to_dict())
-        
+
     @classmethod
     @remove_edsl_version
     def from_dict(cls, data: dict[str, Any]) -> Results:

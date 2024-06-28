@@ -25,7 +25,6 @@ class Cache(Base):
     A class that represents a cache of responses from a language model.
 
     :param data: The data to initialize the cache with.
-    :param remote: Whether to sync the Cache with the server.
     :param immediate_write: Whether to write to the cache immediately after storing a new entry.
 
     Deprecated:
@@ -40,7 +39,6 @@ class Cache(Base):
         *,
         filename: Optional[str] = None,
         data: Optional[Union[SQLiteDict, dict]] = None,
-        remote: bool = False,
         immediate_write: bool = True,
         method=None,
     ):
@@ -49,15 +47,13 @@ class Cache(Base):
 
         :param filename: The name of the file to read/write the cache from/to.
         :param data: The data to initialize the cache with.
-        :param remote: Whether to sync the Cache with the server.
         :param immediate_write: Whether to write to the cache immediately after storing a new entry.
         :param method: The method of storage to use for the cache.
 
         """
-        
+
         # self.data_at_init = data or {}
         self.fetched_data = {}
-        self.remote = remote
         self.immediate_write = immediate_write
         self.method = method
         self.new_entries = {}
@@ -77,16 +73,16 @@ class Cache(Base):
                 if os.path.exists(filename):
                     self.add_from_jsonl(filename)
                 else:
-                    print(f"File {filename} not found, but will write to this location.")
+                    print(
+                        f"File {filename} not found, but will write to this location."
+                    )
             elif filename.endswith(".db"):
                 if os.path.exists(filename):
-                    self.add_from_sqlite(filename)                
+                    self.add_from_sqlite(filename)
             else:
                 raise ValueError("Invalid file extension. Must be .jsonl or .db")
 
-
         self._perform_checks()
-
 
     def rich_print(sefl):
         pass
@@ -112,10 +108,6 @@ class Cache(Base):
             raise Exception("Not all values are CacheEntry instances")
         if self.method is not None:
             warnings.warn("Argument `method` is deprecated", DeprecationWarning)
-        if self.remote:
-            from edsl.coop import Coop
-
-            self.coop = Coop()
 
     ####################
     # READ/WRITE
@@ -339,11 +331,6 @@ class Cache(Base):
         """
         Run when a context is entered.
         """
-        if self.remote:
-            print("Syncing local and remote caches")
-            exclude_keys = list(self.data.keys())
-            cache_entries = self.coop.get_cache_entries(exclude_keys)
-            self.add_from_dict({c.key: c for c in cache_entries}, write_now=True)
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
@@ -352,8 +339,6 @@ class Cache(Base):
         """
         for key, entry in self.new_entries_to_write_later.items():
             self.data[key] = entry
-        if self.remote:
-            _ = self.coop.create_cache_entries(cache_dict=self.new_entries)
 
     ####################
     # DUNDER / USEFUL
@@ -364,7 +349,6 @@ class Cache(Base):
 
     def _to_dict(self) -> dict:
         return {k: v.to_dict() for k, v in self.data.items()}
-
 
     @add_edsl_version
     def to_dict(self) -> dict:
@@ -411,7 +395,9 @@ class Cache(Base):
         """
         Return a string representation of the Cache object.
         """
-        return f"Cache(data = {repr(self.data)}, immediate_write={self.immediate_write}, remote={self.remote})"
+        return (
+            f"Cache(data = {repr(self.data)}, immediate_write={self.immediate_write})"
+        )
 
     ####################
     # EXAMPLES

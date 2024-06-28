@@ -5,6 +5,7 @@ from edsl import Question
 
 from edsl.conjure.utilities import convert_value
 
+
 @dataclass
 class RawQuestion:
     question_type: str
@@ -18,7 +19,7 @@ class RawQuestion:
 
     def to_question(self) -> QuestionBase:
         """Return a Question object from the RawQuestion."""
-        
+
         # TODO: Remove this once we have a better way to handle multiple_choice_with_other
         if self.question_type == "multiple_choice_with_other":
             question_type = "multiple_choice"
@@ -38,4 +39,3 @@ class RawQuestion:
             if v is not None and k != "responses"
         }
         return Question(**d)
-

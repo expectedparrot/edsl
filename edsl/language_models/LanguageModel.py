@@ -160,6 +160,7 @@ class LanguageModel(
     def __hash__(self):
         """Allow the model to be used as a key in a dictionary."""
         from edsl.utilities.utilities import dict_hash
+
         return dict_hash(self.to_dict())
 
     def __eq__(self, other):
@@ -298,12 +299,13 @@ class LanguageModel(
 
         """
         end_time = time.time()
+        ## TODO: This 'cached_response' field is important for some reason.
         response.update(
             {
-                "elapsed_time": end_time - start_time,
-                "timestamp": end_time,
-                "cached_response": cached_response,
-                "cache_key": cache_key,
+                # "elapsed_time": end_time - start_time,
+                # "timestamp": end_time,
+                #                "cached_response": cached_response,
+                # "cache_key": cache_key,
             }
         )
         return response
@@ -380,12 +382,13 @@ class LanguageModel(
             )
             cache_used = False
 
-        return self._update_response_with_tracking(
-            response=response,
-            start_time=start_time,
-            cached_response=cache_used,
-            cache_key=cache_key,
-        )
+        return response, cache_used, cache_key
+        # return self._update_response_with_tracking(
+        #     response=response,
+        #     start_time=start_time,
+        #     cached_response=cache_used,
+        #     cache_key=cache_key,
+        # ), cache_used
 
     get_raw_response = sync_wrapper(async_get_raw_response)
 
@@ -428,7 +431,10 @@ class LanguageModel(
         if encoded_image:
             params["encoded_image"] = encoded_image
 
-        raw_response = await self.async_get_raw_response(**params)
+        # breakpoint()
+        raw_response, cache_used, cache_key = await self.async_get_raw_response(
+            **params
+        )
         response = self.parse_response(raw_response)
 
         try:
@@ -443,7 +449,8 @@ class LanguageModel(
 
         dict_response.update(
             {
-                "cached_response": raw_response["cached_response"],
+                "cached_used": cache_used,
+                "cache_key": cache_key,
                 "usage": raw_response.get("usage", {}),
                 "raw_model_response": raw_response,
             }
@@ -523,20 +530,20 @@ class LanguageModel(
         return table
 
     @classmethod
-    def example(cls, test_model:bool=False, canned_response: str = "Hello world"):
+    def example(cls, test_model: bool = False, canned_response: str = "Hello world"):
         """Return a default instance of the class.
-        
+
         >>> from edsl.language_models import LanguageModel
         >>> m = LanguageModel.example(test_model = True, canned_response = "WOWZA!")
         >>> isinstance(m, LanguageModel)
         True
-        >>> from edsl import QuestionFreeText 
+        >>> from edsl import QuestionFreeText
         >>> q = QuestionFreeText(question_text = "What is your name?", question_name = 'example')
         >>> q.by(m).run(cache = False).select('example').first()
         'WOWZA!'
         """
         from edsl import Model
-        
+
         class TestLanguageModelGood(LanguageModel):
             use_cache = False
             _model_ = "test"
@@ -547,9 +554,9 @@ class LanguageModel(
                 self, user_prompt: str, system_prompt: str
             ) -> dict[str, Any]:
                 await asyncio.sleep(0.1)
-                #return {"message": """{"answer": "Hello, world"}"""}
+                # return {"message": """{"answer": "Hello, world"}"""}
                 return {"message": f'{{"answer": "{canned_response}"}}'}
-            
+
             def parse_response(self, raw_response: dict[str, Any]) -> str:
                 return raw_response["message"]
 
