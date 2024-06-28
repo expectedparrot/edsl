@@ -256,7 +256,6 @@ class Result(Base, UserDict):
                 d[key] = new_prompt_dict
         return d
 
-
     @add_edsl_version
     def to_dict(self) -> dict[str, Any]:
         """Return a dictionary representation of the Result object.
@@ -266,10 +265,11 @@ class Result(Base, UserDict):
         {'period': 'morning', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}
         """
         return self._to_dict()
-    
+
     def __hash__(self):
         """Return a hash of the Result object."""
         from edsl.utilities.utilities import dict_hash
+
         return dict_hash(self._to_dict())
 
     @classmethod

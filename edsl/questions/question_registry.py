@@ -51,7 +51,7 @@ class Question(metaclass=Meta):
         instance = object.__new__(subclass)
         instance.__init__(*args, **kwargs)
         return instance
-    
+
     @classmethod
     def example(cls, question_type: str):
         """Return an example question of the given type."""

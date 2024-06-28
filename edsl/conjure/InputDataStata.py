@@ -1,7 +1,7 @@
 from edsl.conjure.InputDataPyRead import InputDataPyRead
 
-class InputDataStata(InputDataPyRead):
 
+class InputDataStata(InputDataPyRead):
     def pyread_function(self, datafile_name):
         from pyreadstat import read_dta
 

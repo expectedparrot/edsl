@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 import re
-    
+
 from typing import Any, Generator, Optional, Union, List, Literal, Callable
 
 from rich import print
@@ -101,12 +101,12 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         # import warnings
         # warnings.warn("survey.get_question is deprecated. Use subscript operator instead.")
         return self.get(question_name)
-    
+
     def __hash__(self) -> int:
         """Return a hash of the question."""
         from edsl.utilities.utilities import dict_hash
+
         return dict_hash(self._to_dict())
-        
 
     @property
     def question_names(self) -> list[str]:
@@ -824,7 +824,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
             "rule_collection": self.rule_collection.to_dict(),
             "question_groups": self.question_groups,
         }
-    
+
     @add_edsl_version
     def to_dict(self) -> dict[str, Any]:
         """Serialize the Survey object to a dictionary.
@@ -1021,7 +1021,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         s = s.add_rule(q0, "q0 == 'yes'", q2)
         return s
 
-    def __call__(self, model = None, agent = None, **kwargs):
+    def __call__(self, model=None, agent=None, **kwargs):
         """Run the survey with default model, taking the required survey as arguments.
 
         >>> from edsl.questions import QuestionFunctional
@@ -1035,14 +1035,16 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         """
         if not model:
             from edsl import Model
+
             model = Model()
-        
 
         from edsl.scenarios.Scenario import Scenario
+
         s = Scenario(kwargs)
 
         if not agent:
             from edsl import Agent
+
             agent = Agent()
 
         return self.by(s).by(agent).by(model).run()

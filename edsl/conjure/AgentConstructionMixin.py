@@ -5,8 +5,8 @@ from edsl.agents.AgentList import AgentList
 from edsl.questions import QuestionBase
 from edsl.results.Results import Results
 
-class AgentConstructionMixin:
 
+class AgentConstructionMixin:
     def agent(self, index) -> Agent:
         """Return an agent constructed from the data."""
         responses = [responses[index] for responses in self.raw_data]
@@ -33,7 +33,7 @@ class AgentConstructionMixin:
         indices: Optional[List] = None,
         sample_size: int = None,
         seed: str = "edsl",
-        remove_direct_question_answering_method:bool=True,
+        remove_direct_question_answering_method: bool = True,
     ) -> AgentList:
         """Return an AgentList from the data.
 

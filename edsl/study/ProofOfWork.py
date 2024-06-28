@@ -2,8 +2,8 @@ import hashlib
 from typing import Optional, Any
 import time
 
-class ProofOfWork:
 
+class ProofOfWork:
     def __init__(self, input_data: Optional[Any] = None, proof: Optional[dict] = None):
         self.input_data = input_data
         if proof:
@@ -15,14 +15,11 @@ class ProofOfWork:
         self.input_data = input_data
 
     def to_dict(self):
-        return {
-            'input_data': self.input_data,
-            'proof': self.proof
-        }
-    
+        return {"input_data": self.input_data, "proof": self.proof}
+
     @classmethod
     def from_dict(cls, data):
-        return cls(data['input_data'], data['proof'])
+        return cls(data["input_data"], data["proof"])
 
     def __repr__(self):
         return f"ProofOfWork(input_data={self.input_data}, proof={self.proof})"
@@ -36,21 +33,21 @@ class ProofOfWork:
         """
         hash_input = self.input_data + str(nonce)
         return hashlib.md5(hash_input.encode()).hexdigest()
-    
+
     def verify_work(self) -> bool:
         for difficulty in self.proof:
             for proof in self.proof[difficulty]:
-                nonce = proof['nonce']
+                nonce = proof["nonce"]
                 hash_result = self.to_hash(nonce)
-                prefix = '0' * difficulty
+                prefix = "0" * difficulty
                 if not hash_result.startswith(prefix):
                     return False
-                if hash_result != proof['hash']:
+                if hash_result != proof["hash"]:
                     return False
-        
+
         return True
-    
-    def add_proof(self, difficulty: int, starting_nonce = None) -> None:
+
+    def add_proof(self, difficulty: int, starting_nonce=None) -> None:
         """
         Find a nonce that results in a hash with `difficulty` number of leading zeros.
 
@@ -58,9 +55,10 @@ class ProofOfWork:
         int, str: The nonce that solves the proof of work and the resulting hash.
         """
         # Convert the difficulty into a string of zeros for comparison
-        prefix = '0' * difficulty
+        prefix = "0" * difficulty
         if not starting_nonce:
             import random
+
             starting_nonce = random.randint(0, 1000000)
         nonce = starting_nonce
         start = time.time()
@@ -73,12 +71,27 @@ class ProofOfWork:
                 cycles = nonce - starting_nonce
                 end = time.time()
                 if difficulty in self.proof:
-                    self.proof[difficulty].append({'nonce': nonce, 'hash': hash_result, 'time': end-start, 'cycles': cycles})
+                    self.proof[difficulty].append(
+                        {
+                            "nonce": nonce,
+                            "hash": hash_result,
+                            "time": end - start,
+                            "cycles": cycles,
+                        }
+                    )
                 else:
-                    self.proof[difficulty] = [{'nonce': nonce, 'hash': hash_result, 'time': end-start, 'cycles': cycles}]
+                    self.proof[difficulty] = [
+                        {
+                            "nonce": nonce,
+                            "hash": hash_result,
+                            "time": end - start,
+                            "cycles": cycles,
+                        }
+                    ]
                 return
 
             nonce += 1
+
 
 if __name__ == "__main__":
     p = ProofOfWork("hello world")
