@@ -19,6 +19,32 @@ from pygments.lexers import JsonLexer
 from pygments.formatters import HtmlFormatter
 from IPython.display import HTML
 
+from functools import wraps
+import types
+import time
+
+
+def time_it(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        end_time = time.time()
+        execution_time = end_time - start_time
+        class_name = args[0].__class__.__name__ if args else func.__module__
+        print(
+            f"Function {class_name}.{func.__name__} took {execution_time:.4f} seconds to execute"
+        )
+        return result
+
+    return wrapper
+
+
+def time_all_functions(module_or_class):
+    for name, obj in vars(module_or_class).items():
+        if isinstance(obj, types.FunctionType):
+            setattr(module_or_class, name, time_it(obj))
+
 
 def dict_hash(data: dict):
     return hash(
