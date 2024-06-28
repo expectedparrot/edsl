@@ -2,6 +2,8 @@
 
 ## [0.1.28] - 2024-TBD [In progress]
 ### Added
+- Ability to add columns to `Results`
+
 - [In progress] New prompt visibility features.
 
 - [In progress] New methods for piping responses to questions into other questions. 
