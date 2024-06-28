@@ -101,12 +101,11 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         self.sidecar_model = sidecar_model
 
         # if no model bucket is passed, create an 'infinity' bucket with no rate limits
-        #print("model_buckets", model_buckets)
+        # print("model_buckets", model_buckets)
         if model_buckets is None or hasattr(self.agent, "answer_question_directly"):
             model_buckets = ModelBuckets.infinity_bucket()
 
-        #model_buckets = ModelBuckets.infinity_bucket()
-
+        # model_buckets = ModelBuckets.infinity_bucket()
 
         ## build the tasks using the InterviewTaskBuildingMixin
         ## This is the key part---it creates a task for each question,

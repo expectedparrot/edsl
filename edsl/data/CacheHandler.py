@@ -11,11 +11,13 @@ from edsl.data.SQLiteDict import SQLiteDict
 
 from edsl.config import CONFIG
 
+
 def set_session_cache(cache: Cache) -> None:
     """
     Set the session cache.
     """
     CONFIG.EDSL_SESSION_CACHE = cache
+
 
 def unset_session_cache() -> None:
     """
@@ -23,6 +25,7 @@ def unset_session_cache() -> None:
     """
     if hasattr(CONFIG, "EDSL_SESSION_CACHE"):
         del CONFIG.EDSL_SESSION_CACHE
+
 
 class CacheHandler:
     """
@@ -54,7 +57,7 @@ class CacheHandler:
         """
         if self.test:
             return Cache(data={})
-        
+
         if hasattr(CONFIG, "EDSL_SESSION_CACHE"):
             return CONFIG.EDSL_SESSION_CACHE
 

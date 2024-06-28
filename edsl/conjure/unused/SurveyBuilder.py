@@ -24,16 +24,17 @@ from edsl.conjure.CreateAgents import CreateAgents
 from edsl.conjure.CreateSurvey import CreateSurvey
 from edsl.conjure.CreateResults import CreateResults
 
-class FileHandlerABC(ABC):
 
+class FileHandlerABC(ABC):
     dataset_name = ValidFilename()
 
-    def __init__(self,
+    def __init__(
+        self,
         datafile_name: str,
         skiprows: Optional[int] = None,
         question_row: Optional[int] = None,
-        verbose: bool = False):
-
+        verbose: bool = False,
+    ):
         self.datafile_name = datafile_name
         self.skiprows = skiprows
         self.question_row = question_row
@@ -65,9 +66,9 @@ class SurveyBuilder(UserDict, ABC):
         question_row: Optional[int] = None,
         verbose: bool = False,
         raw_responses: Optional[dict] = None,
-        responses: Optional[dict] = None, 
+        responses: Optional[dict] = None,
         data: Optional[dict] = None,
-        ):
+    ):
         """Initialize the SurveyBuilder with the given datafile_name.
 
         :param datafile_name: The name of the datafile to be used.
@@ -91,7 +92,7 @@ class SurveyBuilder(UserDict, ABC):
         self.question_row = question_row
 
         self.replacement_finder = ReplacementFinder({})
-        
+
         self.raw_responses = raw_responses
         self.responses = responses
         self.data = data
@@ -103,32 +104,34 @@ class SurveyBuilder(UserDict, ABC):
         {'How are you?': ['Good', 'Bad', 'Ugly'], 'What is your name?': ['John', 'Jane']}
         """
         return self._raw_responses
-    
+
     @raw_responses.setter
     def raw_responses(self, value):
         if value is None:
             self._raw_responses = self.get_responses()
         else:
             self._raw_responses = value
-    
+
     @property
     def responses(self):
         """Return the responses as a dictionary with valid Python identifiers as keys.
         e.g.,
-        {'how_are_you': ['Good', 'Bad', 'Ugly'], 'what_is_your_name': ['John', 'Jane']} 
+        {'how_are_you': ['Good', 'Bad', 'Ugly'], 'what_is_your_name': ['John', 'Jane']}
         """
         return self._responses
 
     @responses.setter
     def responses(self, value):
-        if value is None: 
-            self._responses = DictWithIdentifierKeys(self.raw_responses, 
-                                                     verbose=self.verbose, 
-                                                     replacement_finder=self.replacement_finder)
+        if value is None:
+            self._responses = DictWithIdentifierKeys(
+                self.raw_responses,
+                verbose=self.verbose,
+                replacement_finder=self.replacement_finder,
+            )
         else:
             self._responses = value
         return self._responses
-    
+
     @property
     def question_names(self) -> List[str]:
         """Return the question names"""
@@ -138,42 +141,47 @@ class SurveyBuilder(UserDict, ABC):
     def question_texts(self) -> List[str]:
         """Return the the question texts"""
         return list(self.raw_responses.keys())
-    
+
     @property
     def question_text_to_question_name(self) -> dict:
         """Return a dictionary mapping question text's to question names"""
         if not hasattr(self, "_question_text_to_question_name"):
-            self._question_text_to_question_name = dict(zip(self.question_texts, self.question_names))
+            self._question_text_to_question_name = dict(
+                zip(self.question_texts, self.question_names)
+            )
         return self._question_text_to_question_name
 
     @property
     def question_name_to_question_text(self):
         if not hasattr(self, "_question_name_to_text"):
-            self._question_name_to_question_text = dict(zip(self.question_names, self.question_texts))
+            self._question_name_to_question_text = dict(
+                zip(self.question_names, self.question_texts)
+            )
         return self._question_name_to_question_text
 
     @property
     def data(self):
-        return self._data 
-    
+        return self._data
+
     @data.setter
     def data(self, value):
         if value is None:
-            self._data = RawResponses(responses = self.responses,
-                                answer_codebook={},
-                                question_name_to_question_text=self.question_name_to_question_text
-                                )
+            self._data = RawResponses(
+                responses=self.responses,
+                answer_codebook={},
+                question_name_to_question_text=self.question_name_to_question_text,
+            )
         else:
             self._data = value
 
     def generate_survey(self):
         """Generate the survey from the data."""
-        survey, survey_failures = CreateSurvey(self)() 
+        survey, survey_failures = CreateSurvey(self)()
         return survey, survey_failures
-    
+
     def generate_agents(self):
         """Generate the agents from the data."""
-    
+
         agents, agent_failures = CreateAgents(self.data)()
         return agents, agent_failures
 
@@ -181,33 +189,34 @@ class SurveyBuilder(UserDict, ABC):
         """Generate the results from the survey and agents."""
         return CreateResults(self.survey, self.agents)()
 
-            #self.results = self.create_results()
+        # self.results = self.create_results()
 
-    
     def to_dict(self):
         return {
             "datafile_name": self.datafile_name,
-#            "survey": self.survey.to_dict(),
-            #"agents": None if self.agents is None else self.agents.to_dict(),
-            #"results": None if self.results is None else self.results.to_dict(),
+            #            "survey": self.survey.to_dict(),
+            # "agents": None if self.agents is None else self.agents.to_dict(),
+            # "results": None if self.results is None else self.results.to_dict(),
             "sample_size": self.sample_size,
-            #"num_survey_failures": len(self.survey_failures),
-            "raw_responses": self.raw_responses, 
+            # "num_survey_failures": len(self.survey_failures),
+            "raw_responses": self.raw_responses,
             "responses": self.responses,
-            #"question_name_to_question_text": self.question_name_to_question_text, 
-            #"question_text_to_question_name": self.question_text_to_question_name
+            # "question_name_to_question_text": self.question_name_to_question_text,
+            # "question_text_to_question_name": self.question_text_to_question_name
         }
-    
+
     @classmethod
     def from_dict(cls, d):
         cls(**d)
-          
+
     def to_dataset(self):
         from edsl.results.Dataset import Dataset
-        return Dataset([{k:v} for k, v in self.raw_responses.items()])
 
-    def placeholder(self, datafile_name: str, compute_results: bool = True, verbose: bool = False):
+        return Dataset([{k: v} for k, v in self.raw_responses.items()])
 
+    def placeholder(
+        self, datafile_name: str, compute_results: bool = True, verbose: bool = False
+    ):
         self.replacement_finder = ReplacementFinder({})
 
         raw_responses: SurveyResponses = self.get_responses()
@@ -215,11 +224,12 @@ class SurveyBuilder(UserDict, ABC):
         if self.verbose:
             print("\n\n\nNow getting responses")
 
-        self.responses = DictWithIdentifierKeys(raw_responses, 
-                                                verbose=self.verbose, 
-                                                replacement_finder=self.replacement_finder)
-        
-        
+        self.responses = DictWithIdentifierKeys(
+            raw_responses,
+            verbose=self.verbose,
+            replacement_finder=self.replacement_finder,
+        )
+
         if self.verbose:
             print("\n\n\nResponses completed")
 
@@ -228,17 +238,19 @@ class SurveyBuilder(UserDict, ABC):
 
         if self.verbose:
             print("Now getting question name to text")
-        self.question_name_to_text = DictWithIdentifierKeys(self.get_question_name_to_text(), 
-                                                            verbose=self.verbose, 
-                                                            replacement_finder = self.replacement_finder)
-        
-        # This should be a dictionary mapping question names to question text e.g., 
+        self.question_name_to_text = DictWithIdentifierKeys(
+            self.get_question_name_to_text(),
+            verbose=self.verbose,
+            replacement_finder=self.replacement_finder,
+        )
+
+        # This should be a dictionary mapping question names to question text e.g.,
         # {'q1': 'How are you?'}
 
         self.question_name_to_answer_book = DictWithIdentifierKeys(
-            self.get_question_name_to_answer_book(), 
-            verbose=self.verbose, 
-            replacement_finder = self.replacement_finder
+            self.get_question_name_to_answer_book(),
+            verbose=self.verbose,
+            replacement_finder=self.replacement_finder,
         )
         self.compute_results = compute_results
 
@@ -314,8 +326,6 @@ class SurveyBuilder(UserDict, ABC):
             return random.sample(agent_list, self.sample_size), failures
         else:
             return agent_list, failures
-
-    
 
     @classmethod
     def from_url(cls, url: str):
@@ -396,8 +406,6 @@ class SurveyBuilder(UserDict, ABC):
         named_temp_file.write(b"Q1,Q2,Q3\n1,2,3\n4,5,6\n")
 
         return SurveyBuilderExample(named_temp_file.name)
-
-    
 
     def save(self, filename: str):
         if self.survey is None:

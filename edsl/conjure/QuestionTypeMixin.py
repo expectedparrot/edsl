@@ -1,5 +1,4 @@
 class QuestionTypeMixin:
-
     @property
     def question_types(self):
         if not hasattr(self, "_question_types"):
@@ -13,7 +12,6 @@ class QuestionTypeMixin:
         self._question_types = value
 
     def _infer_question_type(self, question_name) -> str:
-
         qt = self.question_statistics(question_name)
         if qt.num_unique_responses > self.NUM_UNIQUE_THRESHOLD:
             if qt.frac_numerical > self.FRAC_NUMERICAL_THRESHOLD:

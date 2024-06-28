@@ -486,7 +486,7 @@ def print_list_of_dicts_as_markdown_table(data, filename=None):
         return
 
     # Gather all unique headers
-    #headers = list({key for d in data for key in d.keys()})
+    # headers = list({key for d in data for key in d.keys()})
     headers = []
     for column in data:
         headers.append(list(column.keys())[0])
