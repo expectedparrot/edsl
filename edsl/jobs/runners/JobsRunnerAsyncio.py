@@ -40,7 +40,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         self.bucket_collection: "BucketCollection" = jobs.bucket_collection
         self.total_interviews: List["Interview"] = []
 
-    async def run_async(
+    async def run_async_generator(
         self,
         cache: Cache,
         n: int = 1,
@@ -99,15 +99,15 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                     )  # set the cache for the first interview
                     self.total_interviews.append(interview)
 
-    async def _simple_run(self):
+    async def run_async(self) -> Results:
         self.cache = Cache()
         data = []
-        async for result in self.run_async(cache=Cache()):
+        async for result in self.run_async_generator(cache=Cache()):
             data.append(result)
-        return data
+        return Results(survey = self.jobs.survey, data = data)
 
     def simple_run(self):
-        data = asyncio.run(self._simple_run())
+        data = asyncio.run(self.run_async())
         return Results(survey=self.jobs.survey, data=data)
 
     async def _build_interview_task(
@@ -207,7 +207,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
 
                 async def process_results():
                     """Processes results from interviews."""
-                    async for result in self.run_async(
+                    async for result in self.run_async_generator(
                         n=n,
                         debug=debug,
                         stop_on_exception=stop_on_exception,
@@ -255,7 +255,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
 
                     async def process_results():
                         """Processes results from interviews."""
-                        async for result in self.run_async(
+                        async for result in self.run_async_generator(
                             n=n,
                             debug=debug,
                             stop_on_exception=stop_on_exception,
@@ -316,69 +316,3 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
 
         return results
 
-    # @jupyter_nb_handler
-    # async def run(
-    #     self,
-    #     cache: Union[Cache, False, None],
-    #     n: int = 1,
-    #     debug: bool = False,
-    #     stop_on_exception: bool = False,
-    #     progress_bar: bool = False,
-    #     sidecar_model: Optional[LanguageModel] = None,
-    #     print_exceptions: bool = True,
-    # ) -> "Coroutine":
-    #     """Runs a collection of interviews, handling both async and sync contexts."""
-    #     self.results = []
-    #     self.start_time = time.monotonic()
-    #     self.completed = False
-    #     self.cache = cache
-    #     self.sidecar_model = sidecar_model
-
-    #     with cache as c:
-    #         async def process_results():
-    #             """Processes results from interviews."""
-    #             async for result in self.run_async(
-    #                 n=n,
-    #                 debug=debug,
-    #                 stop_on_exception=stop_on_exception,
-    #                 cache=c,
-    #                 sidecar_model=sidecar_model,
-    #             ):
-    #                 self.results.append(result)
-
-    #             self.completed = True
-
-    #         await asyncio.gather(process_results())
-
-    #     results = Results(survey=self.jobs.survey, data=self.results)
-
-    #     task_history = TaskHistory(self.total_interviews, include_traceback=False)
-    #     results.task_history = task_history
-
-    #     results.has_exceptions = task_history.has_exceptions
-
-    #     if results.has_exceptions:
-    #         failed_interviews = [
-    #             interview.duplicate(
-    #                 iteration=interview.iteration, cache=interview.cache
-    #             )
-    #             for interview in self.total_interviews
-    #             if interview.has_exceptions
-    #         ]
-    #         results.failed_jobs = Jobs.from_interviews(
-    #             [interview for interview in failed_interviews]
-    #         )
-    #         if print_exceptions:
-    #             msg = f"Exceptions were raised in {len(results.task_history.indices)} out of {len(self.total_interviews)} interviews.\n"
-
-    #             if len(results.task_history.indices) > 5:
-    #                 msg += f"Exceptions were raised in the following interviews: {results.task_history.indices}.\n"
-
-    #             shared_globals["edsl_runner_exceptions"] = task_history
-    #             print(msg)
-    #             task_history.html(cta="Open report to see details.")
-    #             print(
-    #                 "Also see: https://docs.expectedparrot.com/en/latest/exceptions.html"
-    #             )
-
-    #     return results

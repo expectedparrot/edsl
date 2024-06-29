@@ -441,6 +441,11 @@ class Jobs(Base):
 
         results = JobsRunnerAsyncio(self).run(*args, **kwargs)
         return results
+    
+    async def run_async(self, *args, **kwargs):
+        """Run the job asynchronously."""
+        results = await JobsRunnerAsyncio(self).run_async(*args, **kwargs)
+        return results
 
     #######################
     # Dunder methods
