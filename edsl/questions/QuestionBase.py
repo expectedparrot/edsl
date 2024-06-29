@@ -300,6 +300,16 @@ class QuestionBase(
             return results.select(f"answer.{self.question_name}").first()
         else:
             return results
+        
+    async def run_async(self, just_answer=True, model=None, agent=None, **kwargs):
+        """Call the question."""
+        survey = self.to_survey()
+        ## asyncio.run(survey.async_call());
+        results = await survey.run_async(model=model, agent=agent, **kwargs)
+        if just_answer:
+            return results.select(f"answer.{self.question_name}").first()
+        else:
+            return results
 
     def __repr__(self) -> str:
         """Return a string representation of the question. Should be able to be used to reconstruct the question."""
