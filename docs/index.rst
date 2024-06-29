@@ -56,6 +56,7 @@ Core Concepts
 - :ref:`exceptions`:  Understand how to identify and handle exceptions in your survey design.
 - :ref:`token_limits`:  Learn about managing token limits for language models.
 - :ref:`coop`:  A platform for storing and sharing your work, projects and ideas with other researchers. *Coming soon!*
+- :ref:`remote_caching`: Learn how to cache your results on our server. 
 
 How-to Guides
 -------------
@@ -134,6 +135,7 @@ Information about additional functionality for developers.
    exceptions
    token_limits
    coop
+   remote_caching
 
 .. toctree::
    :maxdepth: 2
@@ -202,5 +204,3 @@ Information about additional functionality for developers.
    * :ref:`genindex`
    * :ref:`modindex`
    * :ref:`search`
-
-
