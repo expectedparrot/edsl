@@ -442,9 +442,9 @@ class Jobs(Base):
         results = JobsRunnerAsyncio(self).run(*args, **kwargs)
         return results
     
-    async def run_async(self, *args, **kwargs):
+    async def run_async(self, cache = None, **kwargs):
         """Run the job asynchronously."""
-        results = await JobsRunnerAsyncio(self).run_async(*args, **kwargs)
+        results = await JobsRunnerAsyncio(self).run_async(cache = cache, **kwargs)
         return results
 
     #######################

@@ -6,6 +6,8 @@ from edsl import Agent, QuestionFreeText, Results, AgentList, ScenarioList, Scen
 from edsl.questions import QuestionBase
 from edsl.results.Result import Result
 
+from edsl.data import Cache
+
 from edsl.conversation.next_speaker_utilities import (
     default_turn_taking_generator,
     speaker_closure,
@@ -65,8 +67,13 @@ class Conversation:
         next_speaker_generator: Optional[Callable] = None,
         verbose: bool = False,
         conversation_index: Optional[int] = None,
+        cache = None
     ):
-
+        if cache is None:
+            self.cache = Cache()
+        else:
+            self.cache = cache
+        
         self.agent_list = agent_list
         self.verbose = verbose
         self.agent_statements = []
@@ -163,6 +170,7 @@ class Conversation:
             agent_name=speaker.name,
             agent = speaker,
             just_answer=False,
+            cache = self.cache
         )
         return results[0]
 
@@ -192,10 +200,19 @@ class Conversation:
 class ConversationList:
     """A collection of conversations to be run in parallel."""
 
-    def __init__(self, conversations: list[Conversation]):
+    def __init__(self, conversations: list[Conversation], cache = None):
         self.conversations = conversations
         for i, conversation in enumerate(self.conversations):
             conversation.add_index(i)
+
+        if cache is None:
+            self.cache = Cache()
+        else:
+            self.cache = cache
+        
+        for c in self.conversations:
+            c.cache = self.cache
+
 
     async def run_conversations(self):
         await asyncio.gather(*[c._converse() for c in self.conversations])

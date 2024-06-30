@@ -90,7 +90,8 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             for iteration in range(n):
                 if iteration > 0:
                     new_interview = interview.duplicate(
-                        iteration=iteration, cache=self.cache
+                        iteration=iteration, 
+                        cache=self.cache
                     )
                     self.total_interviews.append(new_interview)
                 else:
@@ -99,10 +100,13 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                     )  # set the cache for the first interview
                     self.total_interviews.append(interview)
 
-    async def run_async(self) -> Results:
-        self.cache = Cache()
+    async def run_async(self, cache = None) -> Results:
+        if cache is None:
+            self.cache = Cache()
+        else:
+            self.cache = cache
         data = []
-        async for result in self.run_async_generator(cache=Cache()):
+        async for result in self.run_async_generator(cache=self.cache):
             data.append(result)
         return Results(survey = self.jobs.survey, data = data)
 

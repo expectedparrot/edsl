@@ -1054,7 +1054,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         job = self.get_job(model, agent, **kwargs)
         return job.run()
     
-    async def run_async(self, model=None, agent=None, **kwargs):
+    async def run_async(self, model=None, agent=None, cache = None, **kwargs):
         """Run the survey with default model, taking the required survey as arguments.
 
         >>> from edsl.questions import QuestionFunctional
@@ -1067,10 +1067,13 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         'no'
         """
         # TODO: temp fix by creating a cache
-        from edsl.data import Cache
-        c = Cache()
+        if cache is None:
+            from edsl.data import Cache
+            c = Cache()
+        else:
+            c = cache
         jobs: 'Jobs' = self.get_job(model, agent, **kwargs)
-        return await jobs.run_async()
+        return await jobs.run_async(cache = c)
 
 
 
