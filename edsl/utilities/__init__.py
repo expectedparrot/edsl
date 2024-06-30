@@ -18,4 +18,5 @@ from edsl.utilities.utilities import (
     random_string,
     repair_json,
     shorten_string,
+    time_all_functions,
 )

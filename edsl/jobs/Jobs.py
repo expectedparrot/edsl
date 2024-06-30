@@ -368,6 +368,8 @@ class Jobs(Base):
             )
 
             results.cache = cache.new_entries_cache()
+
+            self._output(f"There are {len(cache.keys()):,} entries in the local cache.")
         else:
             cache_difference = coop.remote_cache_get_diff(cache.keys())
 
@@ -430,9 +432,7 @@ class Jobs(Base):
 
             results.cache = cache.new_entries_cache()
 
-            self._output(
-                f"There are {len(results.cache.keys()):,} entries in the local cache."
-            )
+            self._output(f"There are {len(cache.keys()):,} entries in the local cache.")
 
         return results
 
