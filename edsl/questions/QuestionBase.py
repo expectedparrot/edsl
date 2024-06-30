@@ -145,7 +145,7 @@ class QuestionBase(
             if isinstance(value, str):
                 txt += value
             elif isinstance(value, list):
-                txt += " ".join(value)
+                txt += " ".join(str(value))
         return txt
 
     @property
