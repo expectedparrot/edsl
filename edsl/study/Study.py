@@ -30,8 +30,13 @@ class Study:
     >>> with Study(name = "cool_study") as study:
     ...     from edsl import QuestionFreeText
     ...     q = QuestionFreeText.example()
+    New study saved to cool_study.json
+    Saving study to cool_study.json
+    Starting hashes: dict_keys([])
+    Current hashes: dict_keys(['1144312636257752766'])
     >>> len(study.objects)
     1
+    >>> _ = os.system("rm cool_study.json")
 
 
     It records all the edsl objects that are created during the study.
@@ -41,7 +46,7 @@ class Study:
 
     def __init__(
         self,
-        name: str,
+        name: Optional[str] = None,
         filename: Optional[str] = None,
         description: Optional[str] = None,
         objects: Optional[Dict[str, ObjectEntry]] = None,
@@ -63,6 +68,9 @@ class Study:
         :param use_study_cache: Whether to use the study cache.
         :param overwrite_on_change: Whether to overwrite the study file if it has changed.
         """
+        if name is None and filename is None:
+            raise ValueError("You must provide a name or a filename for the study.")
+
         if filename is None:
             self.filename = name
         else:
@@ -123,16 +131,20 @@ class Study:
 
     def __enter__(self):
         """
-        >>> s = Study(use_study_cache = True)
+        >>> s = Study(name = "temp", use_study_cache = True)
         >>> _ = s.__enter__()
         >>> from edsl.config import CONFIG
         >>> hasattr(CONFIG, "EDSL_SESSION_CACHE")
         True
-
+        >>> _ = s.__exit__(None, None, None)
+        New study saved to temp.json
+        ...
+        ...
+        >>> os.remove("temp.json")
 
         """
 
-        snapshot = SnapShot(self.namespace)
+        snapshot = SnapShot(self.namespace, exclude = [self])
         if self.use_study_cache:
             set_session_cache(self.cache)
 
@@ -172,7 +184,7 @@ class Study:
         console.print(table)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        snapshot = SnapShot(namespace = self.namespace)
+        snapshot = SnapShot(namespace = self.namespace, exclude = [self])
         if self.use_study_cache:
             unset_session_cache()
 
@@ -321,40 +333,13 @@ class Study:
     def __repr__(self):
         return f"""Study(name = {self.name}, description = {self.description}, objects = {self.objects}, cache = {self.cache}, filename = {self.filename}, coop = {self.coop}, use_study_cache = {self.use_study_cache}, overwrite_on_change = {self.overwrite_on_change})"""
 
-
-# if __name__ == "__main__":
-#     with Study(name = "cool_study") as study:
-#         from edsl import QuestionFreeText
-#         q = QuestionFreeText.example()
-
-# len(study.objects)
-# import doctest
-# doctest.testmod(optionflags=doctest.ELLIPSIS)
-
 if __name__ == "__main__":
     import doctest
     doctest.testmod(optionflags=doctest.ELLIPSIS)
-    # from edsl import Cache, QuestionFreeText, ScenarioList
 
-    # study = Study(
-    #     name="kktv2",
-    #     description="KKT replication",
-    #     filename="fhm_replication2",
-    #     coop=False,
-    #     proof_of_work_difficulty=4,
-    # )
-
-    # with study:
-    #     q = QuestionFreeText.example()
-    #     results = q.run()
-
-
-# r0 = study.versions()['results'][0].object; r1 = study.versions()['results'][1].object; diff = r1 - r0; print(diff)
-
-# c0 = study.versions()['c'][0].object
-# c1 = study.versions()['c'][1].object
-# diff = c1 - c0
-# print(diff)
-
-# d = study.to_dict()
-# newd = Study.from_dict(d)
+    # with Study(name = "cool_study") as study:
+    #      from edsl import QuestionFreeText
+    #      q = QuestionFreeText.example()
+    
+    # assert len(study.objects) == 1
+  

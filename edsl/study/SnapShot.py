@@ -2,7 +2,12 @@ from typing import Optional , Generator
 import inspect
 
 class SnapShot:
-    def __init__(self, namespace):
+    def __init__(self, namespace, exclude = None):
+        if exclude is None:
+            self.exclude = []
+        else:
+            self.exclude = exclude
+            
         self.edsl_objects = dict(self._get_edsl_objects(namespace=namespace))
         self.edsl_classes = dict(self._get_edsl_classes(namespace=namespace))
 
@@ -16,12 +21,12 @@ class SnapShot:
 
         :param namespace: The namespace to search for EDSL classes. The default is the global namespace.
 
-        >>> sn = SnapShot()
-        >>> list(sn._get_edsl_classes(namespace = {}))
-        []
+        >>> sn = SnapShot(namespace = {})
+        >>> sn.edsl_classes
+        {}
 
         >>> from edsl.data.Cache import Cache
-        >>> sn = SnapShot(globals())
+        >>> sn = SnapShot(namespace = globals())
         >>> sn.edsl_classes
         {'Cache': <class 'edsl.data.Cache.Cache'>}
         """
@@ -55,7 +60,7 @@ class SnapShot:
             if (
                 hasattr(value, "to_dict")
                 and not inspect.isclass(value)
-                and not isinstance(value, Study)
+                and value not in self.exclude
             ):
                 yield name, value
 
