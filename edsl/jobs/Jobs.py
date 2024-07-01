@@ -49,18 +49,40 @@ class Jobs(Base):
         :param scenarios: a list of scenarios
         """
         self.survey = survey
-        self.agents = agents or AgentList([])
-        self.models = models or []
-        
-        if scenarios:
-            if not isinstance(scenarios, ScenarioList):
-                self.scenarios = ScenarioList(scenarios)
-            else:
-                self.scenarios = scenarios
-        else:
-            self.scenarios = ScenarioList([])
+        self.agents:AgentList = agents
+        self.scenarios: ScenarioList = scenarios
+        self.models = models or []        
 
         self.__bucket_collection = None
+
+    @property
+    def agents(self):
+        return self._agents 
+    
+    @agents.setter
+    def agents(self, value):
+        if value:
+            if not isinstance(value, AgentList):
+                self._agents = AgentList(value)
+            else:
+                self._agents = value
+        else:
+            self._agents = AgentList([])
+
+    @property
+    def scenarios(self):
+        return self._scenarios
+
+    @scenarios.setter
+    def scenarios(self, value):
+        if value:
+            if not isinstance(value, ScenarioList):
+                self._scenarios = ScenarioList(value)
+            else:
+                self._scenarios = value
+        else:
+            self._scenarios = ScenarioList([])
+
 
     def by(
         self,
