@@ -107,6 +107,11 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         from edsl.utilities.utilities import dict_hash
 
         return dict_hash(self._to_dict())
+    
+    @property
+    def parameters(self):
+        return set.union(*[q.parameters for q in self.questions])
+
 
     @property
     def question_names(self) -> list[str]:
