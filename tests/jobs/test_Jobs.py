@@ -39,6 +39,8 @@ def test_jobs_simple_stuf(valid_job):
     assert valid_job.scenarios[0].get("price") == 100
     # eval works and returns eval-able string
     assert "Jobs(survey=Survey(" in repr(valid_job)
+    from edsl import ScenarioList
+    from edsl import AgentList
     assert isinstance(eval(repr(valid_job)), Jobs)
     # serialization
     assert isinstance(valid_job.to_dict(), dict)
