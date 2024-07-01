@@ -27,6 +27,7 @@ dist
 htmlcov
 prof
 tests/temp_outputs
+tests/assets
 venv
 # exceptions
 !edsl/utilities/data/*.json
