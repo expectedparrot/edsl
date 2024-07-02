@@ -1,4 +1,4 @@
-from typing import Optional , Generator
+from typing import Generator
 import inspect
 
 class SnapShot:
