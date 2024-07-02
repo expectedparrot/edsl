@@ -4,6 +4,7 @@ from openai import AsyncOpenAI
 
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
 from edsl.language_models import LanguageModel
+from edsl.inference_services.rate_limits_cache import rate_limits
 
 
 class OpenAIService(InferenceServiceABC):
@@ -43,15 +44,16 @@ class OpenAIService(InferenceServiceABC):
                     if m.id not in cls.model_exclude_list
                 ]
             except Exception as e:
-                print(
-                    f"""Error retrieving models: {e}. 
-                    See instructions about storing your API keys: https://docs.expectedparrot.com/en/latest/api_keys.html"""
-                )
-                cls._models_list_cache = [
-                    "gpt-3.5-turbo",
-                    "gpt-4-1106-preview",
-                    "gpt-4",
-                ]  # Fallback list
+                raise
+                # print(
+                #     f"""Error retrieving models: {e}.
+                #     See instructions about storing your API keys: https://docs.expectedparrot.com/en/latest/api_keys.html"""
+                # )
+                # cls._models_list_cache = [
+                #     "gpt-3.5-turbo",
+                #     "gpt-4-1106-preview",
+                #     "gpt-4",
+                # ]  # Fallback list
         return cls._models_list_cache
 
     @classmethod
@@ -98,7 +100,12 @@ class OpenAIService(InferenceServiceABC):
 
             def get_rate_limits(self) -> dict[str, Any]:
                 try:
-                    headers = self.get_headers()
+                    if "openai" in rate_limits:
+                        headers = rate_limits["openai"]
+
+                    else:
+                        headers = self.get_headers()
+
                 except Exception as e:
                     return {
                         "rpm": 10_000,
