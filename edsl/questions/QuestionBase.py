@@ -3,7 +3,7 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from rich.table import Table
-from typing import Any, Type, Optional, List
+from typing import Any, Type, Optional, List, Callable
 import copy
 
 from edsl.exceptions import (
@@ -112,7 +112,7 @@ class QuestionBase(
     @classmethod
     def applicable_prompts(
         cls, model: Optional[str] = None
-    ) -> list[type["PromptBase"]]:
+    ) -> list[type['PromptBase']]:
         """Get the prompts that are applicable to the question type.
 
         :param model: The language model to use.
@@ -145,7 +145,7 @@ class QuestionBase(
             if isinstance(value, str):
                 txt += value
             elif isinstance(value, list):
-                txt += " ".join(str(value))
+                txt += "".join(str(value))
         return txt
 
     @property

@@ -45,6 +45,7 @@ clean-test: ## Clean test files
 	[ ! -d tests/temp_outputs ] || rm -rf tests/temp_outputs
 	[ ! -f tests/edsl_cache_test.db ] || rm tests/edsl_cache_test.db
 	[ ! -f tests/interview.log ] || rm tests/interview.log
+	[ ! -f tests/test_pytest_report.html ] || rm tests/test_pytest_report.html
 	@for file in *.html; do \
 		[ ! -f "$$file" ] || rm "$$file"; \
 	done
@@ -143,6 +144,15 @@ test-coverage: ## Run regular tests and get a coverage report
 		open htmlcov/index.html; \
 	else \
 		firefox htmlcov/index.html; \
+	fi
+
+test-report: ## Run unit tests and view a test report
+	make clean-test
+	pytest -xv tests --nocoop --html=tests/test_pytest_report.html
+	@UNAME=`uname`; if [ "$$UNAME" = "Darwin" ]; then \
+		open tests/test_pytest_report.html; \
+	else \
+		firefox tests/test_pytest_report.html; \
 	fi
 
 test-data: ## Create serialization test data for the current EDSL version
