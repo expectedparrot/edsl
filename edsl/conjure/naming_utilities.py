@@ -32,8 +32,8 @@ def sanitize_string(input_string, max_length=25):
 
     # Ensure the length is less than 25 characters
     if len(sanitized_string) > max_length:
-        #sanitized_string = sanitized_string[:25].rstrip("_")
-        # split off the last word and remove it 
+        # sanitized_string = sanitized_string[:25].rstrip("_")
+        # split off the last word and remove it
         words = sanitized_string[:max_length].split("_")
         if len(words) == 1:
             sanitized_string = words[0]
@@ -60,7 +60,7 @@ if __name__ == "__main__":
         "How are you doing this morning, Dave? What is your favorite kind of coffee?",
         "class",
         "def",
-        "here_is_some_text"
+        "here_is_some_text",
     ]
     for name in candidate_names:
         print(f"Original: {name}")

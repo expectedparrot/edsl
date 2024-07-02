@@ -175,10 +175,20 @@ class AgentList(UserList, Base):
     def __hash__(self) -> int:
         from edsl.utilities.utilities import dict_hash
 
-        return dict_hash(self._to_dict())
+        data = self.to_dict()
+        # data['agent_list'] = sorted(data['agent_list'], key=lambda x: dict_hash(x)
+        return dict_hash(self._to_dict(sorted=True))
 
-    def _to_dict(self):
-        return {"agent_list": [agent._to_dict() for agent in self.data]}
+    def _to_dict(self, sorted=False):
+        if sorted:
+            data = self.data[:]
+            data.sort(key=lambda x: hash(x))
+        else:
+            data = self.data
+        return {"agent_list": [agent._to_dict() for agent in data]}
+
+    def __eq__(self, other: AgentList) -> bool:
+        return self._to_dict(sorted=True) == other._to_dict(sorted=True)
 
     @add_edsl_version
     def to_dict(self):

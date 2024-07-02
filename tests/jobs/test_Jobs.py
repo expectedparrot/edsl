@@ -52,6 +52,7 @@ def test_jobs_simple_stuf(valid_job):
 
 
 def test_jobs_by_agents():
+    from edsl import AgentList
     q = QuestionMultipleChoice(
         question_text="How are you?",
         question_options=["Good", "Great", "OK", "Bad"],
@@ -62,19 +63,19 @@ def test_jobs_by_agents():
     agent2 = Agent(traits={"trait2": "value2"})
     # by without existing agents
     job = survey.by(agent1)
-    assert job.agents == [agent1]
+    assert job.agents == AgentList([agent1])
     job = survey.by(agent1, agent2)
-    assert job.agents == [agent1, agent2]
+    assert job.agents == AgentList([agent1, agent2])
     assert len(job) == 2
     job = survey.by([agent1, agent2])
-    assert job.agents == [agent1, agent2]
+    assert job.agents == AgentList([agent1, agent2])
     assert len(job) == 2
     job = survey.by((agent1, agent2))
-    assert job.agents == [agent1, agent2]
+    assert job.agents == AgentList([agent1, agent2])
     assert len(job) == 2
     # by with existing agents
     job = survey.by(agent1).by(agent2)
-    assert job.agents == [agent1 + agent2]
+    assert job.agents == AgentList([agent1 + agent2])
     assert len(job) == 1
     with pytest.raises(AgentCombinationError):
         job = survey.by(agent1).by(agent1)
