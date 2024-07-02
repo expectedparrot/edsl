@@ -53,14 +53,14 @@ class AgentList(UserList, Base):
         random.shuffle(self.data)
         return self
 
-    def sample(self, n: int, seed = "edsl") -> AgentList:
+    def sample(self, n: int, seed="edsl") -> AgentList:
         """Return a random sample of agents.
 
         :param n: The number of agents to sample.
         :param seed: The seed for the random number generator.
         """
         import random
-        
+
         random.seed(seed)
         return AgentList(random.sample(self.data, n))
 
@@ -210,11 +210,12 @@ class AgentList(UserList, Base):
         from edsl.utilities.utilities import data_to_html
 
         return data_to_html(self.to_dict()["agent_list"])
-    
+
     def to_scenario_list(self) -> "ScenarioList":
         """Return a list of scenarios."""
         from edsl.scenarios.ScenarioList import ScenarioList
         from edsl.scenarios.Scenario import Scenario
+
         return ScenarioList([Scenario(agent.traits) for agent in self.data])
 
     @classmethod

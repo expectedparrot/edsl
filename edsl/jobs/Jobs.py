@@ -1,10 +1,12 @@
 # """The Jobs class is a collection of agents, scenarios and models and one survey."""
 from __future__ import annotations
 import os
+import warnings
 from itertools import product
 from typing import Optional, Union, Sequence, Generator
 from edsl import Model
 from edsl.agents import Agent
+from edsl.agents.AgentList import AgentList
 from edsl.Base import Base
 from edsl.data.Cache import Cache
 from edsl.data.CacheHandler import CacheHandler
@@ -17,6 +19,7 @@ from edsl.jobs.interviews.Interview import Interview
 from edsl.language_models import LanguageModel
 from edsl.results import Results
 from edsl.scenarios import Scenario
+from edsl import ScenarioList
 from edsl.surveys import Survey
 from edsl.jobs.runners.JobsRunnerAsyncio import JobsRunnerAsyncio
 
@@ -46,10 +49,40 @@ class Jobs(Base):
         :param scenarios: a list of scenarios
         """
         self.survey = survey
-        self.agents = agents or []
-        self.models = models or []
-        self.scenarios = scenarios or []
+        self.agents:AgentList = agents
+        self.scenarios: ScenarioList = scenarios
+        self.models = models or []        
+
         self.__bucket_collection = None
+
+    @property
+    def agents(self):
+        return self._agents 
+    
+    @agents.setter
+    def agents(self, value):
+        if value:
+            if not isinstance(value, AgentList):
+                self._agents = AgentList(value)
+            else:
+                self._agents = value
+        else:
+            self._agents = AgentList([])
+
+    @property
+    def scenarios(self):
+        return self._scenarios
+
+    @scenarios.setter
+    def scenarios(self, value):
+        if value:
+            if not isinstance(value, ScenarioList):
+                self._scenarios = ScenarioList(value)
+            else:
+                self._scenarios = value
+        else:
+            self._scenarios = ScenarioList([])
+
 
     def by(
         self,
@@ -70,10 +103,10 @@ class Jobs(Base):
         >>> q = QuestionFreeText(question_name="name", question_text="What is your name?")
         >>> j = Jobs(survey = Survey(questions=[q]))
         >>> j
-        Jobs(survey=Survey(...), agents=[], models=[], scenarios=[])
+        Jobs(survey=Survey(...), agents=AgentList([]), models=[], scenarios=ScenarioList([]))
         >>> from edsl import Agent; a = Agent(traits = {"status": "Sad"})
         >>> j.by(a).agents
-        [Agent(traits = {'status': 'Sad'})]
+        AgentList([Agent(traits = {'status': 'Sad'})])
 
         :param args: objects or a sequence (list, tuple, ...) of objects of the same type
 
@@ -103,7 +136,7 @@ class Jobs(Base):
 
         >>> from edsl.jobs import Jobs
         >>> Jobs.example().prompts()
-        Dataset([{'interview_index': [0, 0, 1, 1, 2, 2, 3, 3]}, {'question_index': ['how_feeling', 'how_feeling_yesterday', 'how_feeling', 'how_feeling_yesterday', 'how_feeling', 'how_feeling_yesterday', 'how_feeling', 'how_feeling_yesterday']}, {'user_prompt': [Prompt(text='NA'), Prompt(text='NA'), Prompt(text='NA'), Prompt(text='NA'), Prompt(text='NA'), Prompt(text='NA'), Prompt(text='NA'), Prompt(text='NA')]}, {'scenario_index': [Scenario({'period': 'morning'}), Scenario({'period': 'morning'}), Scenario({'period': 'afternoon'}), Scenario({'period': 'afternoon'}), Scenario({'period': 'morning'}), Scenario({'period': 'morning'}), Scenario({'period': 'afternoon'}), Scenario({'period': 'afternoon'})]}, {'system_prompt': [Prompt(text='NA'), Prompt(text='NA'), Prompt(text='NA'), Prompt(text='NA'), Prompt(text='NA'), Prompt(text='NA'), Prompt(text='NA'), Prompt(text='NA')]}])
+        Dataset(...)
         """
 
         interviews = self.interviews()
@@ -132,6 +165,17 @@ class Jobs(Base):
                 {"system_prompt": system_prompts},
             ]
         )
+    
+    @staticmethod
+    def _get_container_class(object):
+        from edsl import AgentList
+        if isinstance(object, Agent):
+            return AgentList
+        elif isinstance(object, Scenario):
+            return ScenarioList
+        else:
+            return list
+
 
     @staticmethod
     def _turn_args_to_list(args):
@@ -151,9 +195,11 @@ class Jobs(Base):
             return len(args) == 1 and isinstance(args[0], Sequence)
 
         if did_user_pass_a_sequence(args):
-            return list(args[0])
+            container_class = Jobs._get_container_class(args[0][0])
+            return container_class(args[0])
         else:
-            return list(args)
+            container_class = Jobs._get_container_class(args[0])
+            return container_class(args)
 
     def _get_current_objects_of_this_type(
         self, object: Union[Agent, Scenario, LanguageModel]
@@ -163,7 +209,7 @@ class Jobs(Base):
         >>> from edsl.jobs import Jobs
         >>> j = Jobs.example()
         >>> j._get_current_objects_of_this_type(j.agents[0])
-        ([Agent(traits = {'status': 'Joyful'}), Agent(traits = {'status': 'Sad'})], 'agents')
+        (AgentList([Agent(traits = {'status': 'Joyful'}), Agent(traits = {'status': 'Sad'})]), 'agents')
         """
         class_to_key = {
             Agent: "agents",
@@ -182,6 +228,16 @@ class Jobs(Base):
             )
         current_objects = getattr(self, key, None)
         return current_objects, key
+    
+    @staticmethod
+    def _get_empty_container_object(object):
+        from edsl import AgentList
+        if isinstance(object, Agent):
+            return AgentList([])
+        elif isinstance(object, Scenario):
+            return ScenarioList([])
+        else:
+            return []
 
     @staticmethod
     def _merge_objects(passed_objects, current_objects) -> list:
@@ -194,7 +250,7 @@ class Jobs(Base):
         >>> Jobs(survey = [])._merge_objects([1,2,3], [4,5,6])
         [5, 6, 7, 6, 7, 8, 7, 8, 9]
         """
-        new_objects = []
+        new_objects = Jobs._get_empty_container_object(passed_objects[0])
         for current_object in current_objects:
             for new_object in passed_objects:
                 new_objects.append(current_object + new_object)
@@ -290,6 +346,49 @@ class Jobs(Base):
         """Allow the model to be used as a key in a dictionary."""
         from edsl.utilities.utilities import dict_hash
         return dict_hash(self.to_dict())
+    
+    def _output(self, message) -> None:
+        """Check if a Job is verbose. If so, print the message."""
+        if self.verbose:
+            print(message)
+
+    def _check_parameters(self, strict = False) -> None:
+        """Check if the parameters in the survey and scenarios are consistent.
+        
+        >>> from edsl import QuestionFreeText
+        >>> q = QuestionFreeText(question_text = "{{poo}}", question_name = "ugly_question")
+        >>> j = Jobs(survey = Survey(questions=[q]))
+        >>> with warnings.catch_warnings(record=True) as w:
+        ...     j._check_parameters()
+        ...     assert len(w) == 1
+        ...     assert issubclass(w[-1].category, UserWarning)
+        ...     assert "The following parameters are in the survey but not in the scenarios" in str(w[-1].message)
+
+        >>> q = QuestionFreeText(question_text = "{{poo}}", question_name = "ugly_question")
+        >>> s = Scenario({'plop': "A", 'poo': "B"})
+        >>> j = Jobs(survey = Survey(questions=[q])).by(s)
+        >>> j._check_parameters(strict = True)  
+        Traceback (most recent call last):
+        ...
+        ValueError: The following parameters are in the scenarios but not in the survey: {'plop'}
+        """
+        survey_parameters: set = self.survey.parameters
+        scenario_parameters:set = self.scenarios.parameters
+        
+        msg1, msg2 = None, None
+
+        if (in_survey_but_not_in_scenarios := survey_parameters - scenario_parameters):
+            msg1 = f"The following parameters are in the survey but not in the scenarios: {in_survey_but_not_in_scenarios}"
+        if (in_scenarios_but_not_in_survey := scenario_parameters - survey_parameters):
+            msg2 = f"The following parameters are in the scenarios but not in the survey: {in_scenarios_but_not_in_survey}"
+        
+        if msg1 or msg2:
+            message = "\n".join(filter(None, [msg1, msg2]))
+            if strict:
+                raise ValueError(message)
+            else:
+                warnings.warn(message)
+
 
     def run(
         self,
@@ -304,6 +403,7 @@ class Jobs(Base):
         check_api_keys: bool = False,
         sidecar_model: Optional[LanguageModel] = None,
         batch_mode: Optional[bool] = None,
+        verbose: bool = False,
         print_exceptions=False,
     ) -> Results:
         """
@@ -311,21 +411,31 @@ class Jobs(Base):
 
         :param n: how many times to run each interview
         :param debug: prints debug messages
-        :param verbose: prints messages
         :param progress_bar: shows a progress bar
         :param stop_on_exception: stops the job if an exception is raised
         :param cache: a cache object to store results
         :param remote: run the job remotely
         :param check_api_keys: check if the API keys are valid
-        :batch_mode: run the job in batch mode i.e., no expecation of interaction with the user
-
+        :param batch_mode: run the job in batch mode i.e., no expecation of interaction with the user
+        :param verbose: prints messages
         """
+        from edsl.coop.coop import Coop
+
+        self._check_parameters()
+
         if batch_mode is not None:
             raise NotImplementedError(
                 "Batch mode is deprecated. Please update your code to not include 'batch_mode' in the 'run' method."
             )
 
         self.remote = remote
+        self.verbose = verbose
+
+        try:
+            coop = Coop()
+            remote_cache = coop.edsl_settings["remote_caching"]
+        except Exception:
+            remote_cache = False
 
         if self.remote:
             ## TODO: This should be a coop check
@@ -348,16 +458,83 @@ class Jobs(Base):
         if cache is False:
             cache = Cache()
 
-        results = self._run_local(
-            n=n,
-            debug=debug,
-            progress_bar=progress_bar,
-            cache=cache,
-            stop_on_exception=stop_on_exception,
-            sidecar_model=sidecar_model,
-            print_exceptions=print_exceptions,
-        )
-        results.cache = cache.new_entries_cache()
+        if not remote_cache:
+            results = self._run_local(
+                n=n,
+                debug=debug,
+                progress_bar=progress_bar,
+                cache=cache,
+                stop_on_exception=stop_on_exception,
+                sidecar_model=sidecar_model,
+                print_exceptions=print_exceptions,
+            )
+
+            results.cache = cache.new_entries_cache()
+
+            self._output(f"There are {len(cache.keys()):,} entries in the local cache.")
+        else:
+            cache_difference = coop.remote_cache_get_diff(cache.keys())
+
+            client_missing_cacheentries = cache_difference.get(
+                "client_missing_cacheentries", []
+            )
+
+            missing_entry_count = len(client_missing_cacheentries)
+            if missing_entry_count > 0:
+                self._output(
+                    f"Updating local cache with {missing_entry_count:,} new "
+                    f"{'entry' if missing_entry_count == 1 else 'entries'} from remote..."
+                )
+                cache.add_from_dict(
+                    {entry.key: entry for entry in client_missing_cacheentries}
+                )
+                self._output("Local cache updated!")
+            else:
+                self._output("No new entries to add to local cache.")
+
+            server_missing_cacheentry_keys = cache_difference.get(
+                "server_missing_cacheentry_keys", []
+            )
+            server_missing_cacheentries = [
+                entry
+                for key in server_missing_cacheentry_keys
+                if (entry := cache.data.get(key)) is not None
+            ]
+            old_entry_keys = [key for key in cache.keys()]
+
+            self._output("Running job...")
+            results = self._run_local(
+                n=n,
+                debug=debug,
+                progress_bar=progress_bar,
+                cache=cache,
+                stop_on_exception=stop_on_exception,
+                sidecar_model=sidecar_model,
+                print_exceptions=print_exceptions,
+            )
+            self._output("Job completed!")
+
+            new_cache_entries = list(
+                [entry for entry in cache.values() if entry.key not in old_entry_keys]
+            )
+            server_missing_cacheentries.extend(new_cache_entries)
+
+            new_entry_count = len(server_missing_cacheentries)
+            if new_entry_count > 0:
+                self._output(
+                    f"Updating remote cache with {new_entry_count:,} new "
+                    f"{'entry' if new_entry_count == 1 else 'entries'}..."
+                )
+                coop.remote_cache_create_many(
+                    server_missing_cacheentries, visibility="private"
+                )
+                self._output("Remote cache updated!")
+            else:
+                self._output("No new entries to add to remote cache.")
+
+            results.cache = cache.new_entries_cache()
+
+            self._output(f"There are {len(cache.keys()):,} entries in the local cache.")
 
         return results
 
@@ -366,7 +543,11 @@ class Jobs(Base):
 
         results = JobsRunnerAsyncio(self).run(*args, **kwargs)
         return results
-
+    
+    def all_question_parameters(self):
+        """Return all the fields in the questions in the survey."""
+        return set.union(*[question.parameters for question in self.survey.questions])
+    
     #######################
     # Dunder methods
     #######################
@@ -486,9 +667,8 @@ class Jobs(Base):
         )
         base_survey = Survey(questions=[q1, q2])
 
-        job = base_survey.by(
-            Scenario({"period": "morning"}), Scenario({"period": "afternoon"})
-        ).by(joy_agent, sad_agent)
+        scenario_list = ScenarioList([Scenario({"period": "morning"}), Scenario({"period": "afternoon"})])         
+        job = base_survey.by(scenario_list).by(joy_agent, sad_agent)
 
         return job
 
@@ -524,10 +704,3 @@ if __name__ == "__main__":
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)
 
-    # from edsl.jobs import Jobs
-
-    # job = Jobs.example()
-    # len(job) == 8
-    # results, info = job.run(debug=True)
-    # len(results) == 8
-    # results

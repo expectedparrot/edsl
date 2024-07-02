@@ -62,9 +62,8 @@ class PersistenceMixin:
             uuid_value = id_or_url
 
         c = Coop()
-        
+
         return c._get_base(cls, uuid_value, exec_profile=exec_profile)
-      
 
     @classmethod
     def delete(cls, id_or_url: Union[str, UUID]):
@@ -101,7 +100,7 @@ class PersistenceMixin:
         c = Coop()
         return c.search(cls, query)
 
-    def save(self, filename, compress = True):
+    def save(self, filename, compress=True):
         """Save the object to a file as zippped JSON.
 
         >>> obj.save("obj.json.gz")
@@ -109,11 +108,16 @@ class PersistenceMixin:
         """
         if filename.endswith("json.gz"):
             import warnings
-            warnings.warn("Do not apply the file extensions. The filename should not end with 'json.gz'.")
+
+            warnings.warn(
+                "Do not apply the file extensions. The filename should not end with 'json.gz'."
+            )
             filename = filename[:-7]
         if filename.endswith("json"):
             filename = filename[:-4]
-            warnings.warn("Do not apply the file extensions. The filename should not end with 'json'.")
+            warnings.warn(
+                "Do not apply the file extensions. The filename should not end with 'json'."
+            )
 
         if compress:
             with gzip.open(filename + ".json.gz", "wb") as f:
@@ -129,7 +133,7 @@ class PersistenceMixin:
             file_contents_decoded = file_contents.decode("utf-8")
             d = json.loads(file_contents_decoded)
         return d
-    
+
     @staticmethod
     def open_regular_file(filename):
         with open(filename, "r") as f:
@@ -143,7 +147,7 @@ class PersistenceMixin:
         >>> obj = cls.load("obj.json.gz")
 
         """
-        
+
         if filename.endswith("json.gz"):
             d = cls.open_compressed_file(filename)
         elif filename.endswith("json"):
@@ -155,7 +159,7 @@ class PersistenceMixin:
                 d = cls.open_regular_file(filename)
             finally:
                 raise ValueError("File must be a json or json.gz file")
-                      
+
         return cls.from_dict(d)
 
 
@@ -175,8 +179,8 @@ class RegisterSubclassesMeta(ABCMeta):
         """Return the registry of subclasses."""
         return dict(RegisterSubclassesMeta._registry)
 
+
 class DiffMethodsMixin:
-    
     def __sub__(self, other):
         """Return the difference between two objects."""
         from edsl.BaseDiff import BaseDiff
@@ -184,7 +188,13 @@ class DiffMethodsMixin:
         return BaseDiff(self, other)
 
 
-class Base(RichPrintingMixin, PersistenceMixin, DiffMethodsMixin, ABC, metaclass=RegisterSubclassesMeta):
+class Base(
+    RichPrintingMixin,
+    PersistenceMixin,
+    DiffMethodsMixin,
+    ABC,
+    metaclass=RegisterSubclassesMeta,
+):
     """Base class for all classes in the package."""
 
     # def __getitem__(self, key):

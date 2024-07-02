@@ -1,6 +1,7 @@
 from typing import Optional
-from edsl import QuestionFreeText 
+from edsl import QuestionFreeText
 from collections import UserDict
+
 
 class ReplacementFinder(UserDict):
     """This class finds a replacement name for a bad question name, and returns it.
@@ -12,7 +13,14 @@ class ReplacementFinder(UserDict):
             lookup_dict = {}
         super().__init__(lookup_dict)
 
-    def __call__(self, bad_question_name: str, model = None, cache = None, auto_increment = True, verbose = False) -> str:
+    def __call__(
+        self,
+        bad_question_name: str,
+        model=None,
+        cache=None,
+        auto_increment=True,
+        verbose=False,
+    ) -> str:
         """Find a replacement name for a bad question name and returns it.
 
         :param bad_question_name: The bad question name.
@@ -35,9 +43,10 @@ class ReplacementFinder(UserDict):
 
 
         """
-        from edsl import Model 
+        from edsl import Model
+
         if model is None:
-            if hasattr(self, 'model'):
+            if hasattr(self, "model"):
                 model = self.model
             else:
                 model = Model()
@@ -57,7 +66,7 @@ class ReplacementFinder(UserDict):
             """,
             question_name="identifier",
         )
-        results = q.by(model).run(cache = cache)
+        results = q.by(model).run(cache=cache)
         new_identifier = results.select("identifier").first().lower()
         if new_identifier in self.values():
             if auto_increment:
@@ -66,13 +75,13 @@ class ReplacementFinder(UserDict):
                 raise Exception(f"New identifier {new_identifier} is already in use.")
         self[bad_question_name] = new_identifier
         return new_identifier
-    
+
     def to_dict(self) -> dict:
         """Serialize this object to a dictionary."""
         return self
-         
+
     @classmethod
-    def from_dict(cls, d) -> 'ReplacementFinder':
+    def from_dict(cls, d) -> "ReplacementFinder":
         """Create an object from a dictionary.
 
         >>> rf = ReplacementFinder.example()
@@ -81,17 +90,17 @@ class ReplacementFinder(UserDict):
         True
         """
         return cls(d)
-    
+
     @classmethod
-    def example(cls) -> 'ReplacementFinder':
-        """Create an example object for testing.
-        """
-        return cls({'Poop ': 'poop2'})
+    def example(cls) -> "ReplacementFinder":
+        """Create an example object for testing."""
+        return cls({"Poop ": "poop2"})
 
     def __repr__(self):
         return f"ReplacementFinder({self.data})"
-    
+
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod()

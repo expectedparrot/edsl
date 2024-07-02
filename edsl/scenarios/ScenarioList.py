@@ -31,6 +31,14 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         else:
             super().__init__([])
 
+    @property
+    def parameters(self) -> set:
+        if len(self) == 0:
+            return set()
+        
+        return set.union(*[set(s.keys()) for s in self])
+
+
     def __hash__(self) -> int:
         from edsl.utilities.utilities import dict_hash
         return dict_hash(self._to_dict(sort = True))
@@ -46,7 +54,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         for s1, s2 in list(product(self, other)):
             new_sl.append(s1 + s2)
         return ScenarioList(new_sl)
-    
+
     def times(self, other: ScenarioList) -> ScenarioList:
         """Takes the cross product of two ScenarioLists."""
         return self.__mul__(other)
