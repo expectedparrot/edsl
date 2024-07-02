@@ -106,6 +106,13 @@ class Study:
 
         self.starting_objects = copy.deepcopy(self.objects)
 
+    @classmethod
+    def from_file(cls, filename: str):
+        """Load a study from a file."""
+        if filename.endswith(".json"):
+            filename = filename[:-5]
+        return cls(filename=filename)
+
     def _load_from_file(self):
         """Load the study from a file.
 
@@ -143,9 +150,11 @@ class Study:
         >>> os.remove("temp.json")
 
         """
-
+        print("Existing objects in study:")
+        self.print()
         snapshot = SnapShot(self.namespace, exclude = [self])
         if self.use_study_cache:
+            print("Using study cache.")
             set_session_cache(self.cache)
 
         if snapshot.edsl_objects:
@@ -172,7 +181,7 @@ class Study:
         table.add_column("Description")
         table.add_column("Hash")
         table.add_column("Coop info")
-        for hash, obj in self.objects.items():
+        for obj_hash, obj in self.objects.items():
             url = (
                 ""
                 if not hasattr(obj, "coop_info") or obj.coop_info is None
@@ -181,6 +190,14 @@ class Study:
             table.add_row(
                 obj.variable_name, obj.edsl_class_name, obj.description, obj.hash, url
             )
+        # Add cache at the end
+        table.add_row(
+            'N/A - Study Cache', 
+            'Cache', 
+            f'Cache of study, entries: {len(self.cache)}', 
+            str(hash(self.cache)), 
+            ''
+        )
         console.print(table)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -205,11 +222,12 @@ class Study:
             if self.starting_objects:
                 missing = set(self.starting_objects.keys()) - set(self.objects.keys())
                 added = set(self.objects.keys()) - set(self.starting_objects.keys())
+                #breakpoint()
                 print("Study did not perfectly replicate.")
                 for hash in missing:
-                    print(f"Missing object: {self.starting_objects[hash]!r}")
+                    print(f"Missing object: {self.starting_objects[hash]}")
                 for hash in added:
-                    print(f"Added object: {self.objects[hash]!r}")
+                    print(f"Added object: {self.objects[hash]}")
                 if self.overwrite_on_change:
                     print("Overwriting study file.")
                     self.save()
@@ -227,6 +245,9 @@ class Study:
                     "If you want to push to coop, you must save the study file with a new name or call study iwth 'overwrite_on_change=True' to overwrite the existing study file."
                 )
 
+        print("Objects in study now:")
+        self.print()
+
         if self.proof_of_work_difficulty:
             print("Adding proof of work to study...")
             from edsl.study.ProofOfWork import ProofOfWork
@@ -241,6 +262,7 @@ class Study:
             )
             print(self.proof_of_work)
             self.save()
+
 
     def to_dict(self):
         return {
@@ -300,8 +322,19 @@ class Study:
             "processor": platform.processor(),
             "hostname": socket.gethostname(),
         }
+    
+    @staticmethod
+    def _get_description(object):
+        text = ""
+        if hasattr(object, "__len__"):
+            text += f"Num. entries: {len(object)}"
+        if hasattr(object, "question_name"):
+            text += f"Question name: {object.question_name}"
+        return text
 
     def add_edsl_object(self, object, variable_name, description=None) -> None:
+        if description is None:
+            description = self._get_description(object)
         oe = ObjectEntry(
             variable_name=variable_name, object=object, description=description
         )

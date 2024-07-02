@@ -164,7 +164,14 @@ class Results(UserList, Mixins, Base):
         )
 
     def __repr__(self) -> str:
-        return f"Results(data = {self.data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
+        #return f"Results(data = {self.data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
+        return f"""Results object 
+                Size: {len(self.data)}. 
+                Survey questions: {[q.question_name for q in self.survey.questions]}. 
+                Created columns: {self.created_columns}
+                Hash: {hash(self)}
+            """
+
 
     def _repr_html_(self) -> str:
         json_str = json.dumps(self.to_dict()["data"], indent=4)
@@ -175,9 +182,10 @@ class Results(UserList, Mixins, Base):
         )
         return HTML(formatted_json).data
 
-    def _to_dict(self):    
+    def _to_dict(self): 
+        sorted_data =  sorted([result for result in self.data], key=lambda x: hash(x))
         return {
-            "data": [result.to_dict() for result in self.data],
+            "data": [result.to_dict() for result in sorted_data],
             "survey": self.survey.to_dict(),
             "created_columns": self.created_columns,
             "cache": Cache() if not hasattr(self, "cache") else self.cache.to_dict(),
