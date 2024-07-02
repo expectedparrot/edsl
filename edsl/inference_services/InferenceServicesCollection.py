@@ -14,14 +14,19 @@ class InferenceServicesCollection:
         cls.added_models[service_name].append(model_name)
 
     def available(self):
+        msg = "See instructions about storing your API keys: https://docs.expectedparrot.com/en/latest/api_keys.html"
+        msg_printed = False
         total_models = []
         for service in self.services:
             try:
                 service_models = service.available()
             except Exception as e:
-                print(f"Error getting models for {service._inference_service_}: {e}")
-                service_models = []
-                continue
+                if not msg_printed:
+                    print(msg)
+                    msg_printed = True
+                print(f"Error getting models for {service._inference_service_}. Relying on cache.")
+                from edsl.inference_services.models_available_cache import models_available
+                service_models = models_available.get(service._inference_service_, [])
             for model in service_models:
                 total_models.append([model, service._inference_service_, -1])
 
