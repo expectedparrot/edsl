@@ -56,6 +56,8 @@ class CacheHandler:
             return Cache(data={})
         
         if hasattr(CONFIG, "EDSL_SESSION_CACHE"):
+            print("EDSL_SESSION_CACHE exists.")
+            #breakpoint()
             return CONFIG.EDSL_SESSION_CACHE
 
         cache = Cache(data=SQLiteDict(self.CACHE_PATH))

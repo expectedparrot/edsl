@@ -33,7 +33,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
 
     def __hash__(self) -> int:
         from edsl.utilities.utilities import dict_hash
-        return dict_hash(self._to_dict())
+        return dict_hash(self._to_dict(sort = True))
     
     def __repr__(self):
         return f"ScenarioList({self.data})"
@@ -318,8 +318,12 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
                 observations.append(Scenario(dict(zip(header, row))))
         return cls(observations)
 
-    def _to_dict(self) -> dict:
-        return {"scenarios": [s._to_dict() for s in self]}
+    def _to_dict(self, sort = False) -> dict:
+        if sort: 
+            data = sorted(self, key=lambda x: hash(x))
+        else:
+            data = self
+        return {"scenarios": [s._to_dict() for s in data]}
 
     @add_edsl_version
     def to_dict(self) -> dict[str, Any]:

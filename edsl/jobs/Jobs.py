@@ -286,6 +286,11 @@ class Jobs(Base):
             )
         return links
 
+    def __hash__(self):
+        """Allow the model to be used as a key in a dictionary."""
+        from edsl.utilities.utilities import dict_hash
+        return dict_hash(self.to_dict())
+
     def run(
         self,
         n: int = 1,
@@ -326,6 +331,7 @@ class Jobs(Base):
             ## TODO: This should be a coop check
             if os.getenv("EXPECTED_PARROT_API_KEY", None) is None:
                 raise MissingRemoteInferenceError()
+
 
         if not self.remote:
             if check_api_keys:

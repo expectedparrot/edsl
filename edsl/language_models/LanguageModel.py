@@ -381,6 +381,7 @@ class LanguageModel(
             )
             cache_used = False
 
+        #print("Cached used: ", cache_used)
         return response, cache_used, cache_key
         # return self._update_response_with_tracking(
         #     response=response,
