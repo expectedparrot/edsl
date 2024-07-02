@@ -29,7 +29,7 @@ def remove_edsl_version(func):
     - Removes the EDSL version and class name from the dictionary.
     - Ensures backwards compatibility with older versions of EDSL.
     """
-    
+
     @functools.wraps(func)
     def wrapper(cls, data, *args, **kwargs):
         data_copy = dict(data)

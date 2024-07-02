@@ -3,7 +3,7 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from rich.table import Table
-from typing import Any, Type, Optional
+from typing import Any, Type, Optional, List
 import copy
 
 from edsl.exceptions import (
@@ -38,12 +38,13 @@ class QuestionBase(
     def __getitem__(self, key: str) -> Any:
         """Get an attribute of the question."""
         return getattr(self, key)
-    
+
     def __hash__(self) -> int:
         """Return a hash of the question."""
         from edsl.utilities.utilities import dict_hash
+
         return dict_hash(self._to_dict())
-    
+
     def _repr_html_(self):
         from edsl.utilities.utilities import data_to_html
 
@@ -56,18 +57,18 @@ class QuestionBase(
 
         return data_to_html(data)
 
-    def apply_function(self, func: Callable, exclude_components = None) -> QuestionBase:
+    def apply_function(self, func: Callable, exclude_components=None) -> QuestionBase:
         """Apply a function to the question parts
-        
+
         >>> from edsl.questions import QuestionFreeText
         >>> q = QuestionFreeText(question_name = "color", question_text = "What is your favorite color?")
         >>> shouting = lambda x: x.upper()
         >>> q.apply_function(shouting)
         Question('free_text', question_name = \"""color\""", question_text = \"""WHAT IS YOUR FAVORITE COLOR?\""")
-        
+
         """
         if exclude_components is None:
-            exclude_components = ['question_name', 'question_type']
+            exclude_components = ["question_name", "question_type"]
 
         d = copy.deepcopy(self._to_dict())
         for key, value in d.items():
@@ -136,6 +137,33 @@ class QuestionBase(
         if not hasattr(self, "_model_instructions"):
             self._model_instructions = {}
         return self._model_instructions
+
+    def _all_text(self) -> str:
+        """Return the question text."""
+        txt = ""
+        for key, value in self.data.items():
+            if isinstance(value, str):
+                txt += value
+            elif isinstance(value, list):
+                txt += "".join(str(value))
+        return txt
+
+    @property
+    def parameters(self) -> set[str]:
+        """Return the parameters of the question."""
+        from jinja2 import Environment, meta
+
+        env = Environment()
+        # Parse the template
+        txt = self._all_text()
+        # txt = self.question_text
+        # if hasattr(self, "question_options"):
+        #    txt += " ".join(self.question_options)
+        parsed_content = env.parse(txt)
+        # Extract undeclared variables
+        variables = meta.find_undeclared_variables(parsed_content)
+        # Return as a list
+        return set(variables)
 
     @model_instructions.setter
     def model_instructions(self, data: dict):
@@ -250,7 +278,7 @@ class QuestionBase(
             return new_q
 
         return question_class(**local_data)
-    
+
     def copy(self) -> Type[QuestionBase]:
         """Return a deep copy of the question."""
         return copy.deepcopy(self)
@@ -264,14 +292,15 @@ class QuestionBase(
 
         print_json(json.dumps(self.to_dict()))
 
-    def __call__(self, *args, just_answer = True, **kwargs):
+    def __call__(self, just_answer=True, model=None, agent=None, **kwargs):
         """Call the question."""
-        results = self.to_survey()(*args, **kwargs)
+        survey = self.to_survey()
+        results = survey(model=model, agent=agent, **kwargs)
         if just_answer:
-            return results.select(f'answer.{self.question_name}').first()
+            return results.select(f"answer.{self.question_name}").first()
         else:
             return results
-         
+
     def __repr__(self) -> str:
         """Return a string representation of the question. Should be able to be used to reconstruct the question."""
         class_name = self.__class__.__name__
@@ -288,10 +317,10 @@ class QuestionBase(
         if not isinstance(other, QuestionBase):
             return False
         return self.to_dict() == other.to_dict()
-    
+
     def __sub__(self, other) -> BaseDiff:
         """Return the difference between two objects."""
-        
+
         return BaseDiff(other, self)
 
     # TODO: Throws an error that should be addressed at QuestionFunctional
@@ -306,7 +335,9 @@ class QuestionBase(
         >>> q2 = QuestionNumerical(question_text = "What is the population of {{capital}}, in millions. Please round", question_name = "population")
         >>> q3 = q1 + q2
         """
-        if isinstance(other_question_or_diff, BaseDiff) or isinstance(other_question_or_diff, BaseDiffCollection):
+        if isinstance(other_question_or_diff, BaseDiff) or isinstance(
+            other_question_or_diff, BaseDiffCollection
+        ):
             return other_question_or_diff.apply(self)
 
         from edsl.questions import compose_questions
@@ -339,7 +370,7 @@ class QuestionBase(
     ############################
     # Forward methods
     ############################
-    def add_question(self, other: Question) -> "Survey":
+    def add_question(self, other: QuestionBase) -> "Survey":
         """Add a question to this question by turning them into a survey with two questions."""
         from edsl.surveys.Survey import Survey
 

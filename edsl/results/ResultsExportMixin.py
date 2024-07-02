@@ -155,6 +155,8 @@ class ResultsExportMixin:
         max_rows=None,
         tee=False,
         iframe=False,
+        iframe_height:int=200,
+        iframe_width:int=600,
     ) -> None:
         """Print the results in a pretty format.
 
@@ -244,8 +246,8 @@ class ResultsExportMixin:
             if iframe:
                 import html
 
-                height = 200
-                width = 600
+                height = iframe_height
+                width = iframe_width
                 escaped_output = html.escape(html_source)
                 # escaped_output = html_source
                 iframe = f""""
@@ -505,6 +507,10 @@ class ResultsExportMixin:
             values = self._key_to_value(field)
         else:
             values = list(zip(*(self._key_to_value(field) for field in fields)))
+        
+        for value in values:
+            if isinstance(value, list):
+                value = tuple(value)
 
         tally = dict(Counter(values))
         sorted_tally = dict(sorted(tally.items(), key=lambda item: -item[1]))

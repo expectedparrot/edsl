@@ -37,14 +37,14 @@ class Model(metaclass=Meta):
         registry = registry or default
         factory = registry.create_model_factory(model_name)
         return factory(*args, **kwargs)
-    
+
     @classmethod
     def add_model(cls, service_name, model_name):
         from edsl.inference_services.registry import default
 
         registry = default
         registry.add_model(service_name, model_name)
-    
+
     @classmethod
     def services(cls, registry=None):
         from edsl.inference_services.registry import default

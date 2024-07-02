@@ -104,7 +104,7 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
             else:
                 new_scenario[key] = value
         return new_scenario
-    
+
     def _to_dict(self) -> dict:
         """Convert a scenario to a dictionary.
 
@@ -115,7 +115,7 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         {'food': 'wood chips', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}
         """
         return self.data.copy()
-    
+
     @add_edsl_version
     def to_dict(self) -> dict:
         """Convert a scenario to a dictionary.
@@ -129,7 +129,6 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         return self._to_dict()
 
     def __hash__(self) -> int:
-        #return int(hashlib.md5(json.dumps(self._to_dict(), sort_keys = True).encode()).hexdigest(), 16)
         """
         Return a hash of the scenario.
 

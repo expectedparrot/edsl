@@ -71,11 +71,10 @@ class SurveyBuilderSPSS(SurveyBuilder):
             [convert_value(obs) for obs in v]
             for k, v in df.to_dict(orient="list").items()
         ]
-        return data 
+        return data
 
     def get_question_texts(self):
         return list(self.get_df().columns)
-
 
     def get_responses(self):
         """Returns a dataframe of responses.

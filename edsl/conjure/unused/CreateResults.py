@@ -1,8 +1,8 @@
 from edsl.surveys.Survey import Survey
 from edsl.agents.AgentList import AgentList
 
-class CreateResults:
 
+class CreateResults:
     def __init__(self, survey: Survey, agents: AgentList):
         self.survey = survey
         self.agents = agents
