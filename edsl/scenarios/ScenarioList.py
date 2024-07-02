@@ -31,6 +31,14 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         else:
             super().__init__([])
 
+    @property
+    def parameters(self) -> set:
+        if len(self) == 0:
+            return set()
+        
+        return set.union(*[set(s.keys()) for s in self])
+
+
     def __hash__(self) -> int:
         from edsl.utilities.utilities import dict_hash
 
