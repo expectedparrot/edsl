@@ -20,9 +20,9 @@ from edsl.utilities.decorators import (
 
 
 class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
-    """A Scenario is a dictionary of keys/values. 
-     
-      They can be used parameterize edsl questions."""
+    """A Scenario is a dictionary of keys/values.
+
+    They can be used parameterize edsl questions."""
 
     def __init__(self, data: Union[dict, None] = None, name: str = None):
         """Initialize a new Scenario.
@@ -139,6 +139,7 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         1153210385458344214
         """
         from edsl.utilities.utilities import dict_hash
+
         return dict_hash(self._to_dict())
 
     def print(self):

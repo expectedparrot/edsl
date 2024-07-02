@@ -15,6 +15,7 @@ from edsl.study.ObjectEntry import ObjectEntry
 from edsl.study.ProofOfWork import ProofOfWork
 from edsl.study.SnapShot import SnapShot
 
+
 class Study:
     """A study organizes a series of EDSL objects.
 
@@ -152,7 +153,7 @@ class Study:
         """
         print("Existing objects in study:")
         self.print()
-        snapshot = SnapShot(self.namespace, exclude = [self])
+        snapshot = SnapShot(self.namespace, exclude=[self])
         if self.use_study_cache:
             print("Using study cache.")
             set_session_cache(self.cache)
@@ -192,16 +193,16 @@ class Study:
             )
         # Add cache at the end
         table.add_row(
-            'N/A - Study Cache', 
-            'Cache', 
-            f'Cache of study, entries: {len(self.cache)}', 
-            str(hash(self.cache)), 
-            ''
+            "N/A - Study Cache",
+            "Cache",
+            f"Cache of study, entries: {len(self.cache)}",
+            str(hash(self.cache)),
+            "",
         )
         console.print(table)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        snapshot = SnapShot(namespace = self.namespace, exclude = [self])
+        snapshot = SnapShot(namespace=self.namespace, exclude=[self])
         if self.use_study_cache:
             unset_session_cache()
 
@@ -222,7 +223,7 @@ class Study:
             if self.starting_objects:
                 missing = set(self.starting_objects.keys()) - set(self.objects.keys())
                 added = set(self.objects.keys()) - set(self.starting_objects.keys())
-                #breakpoint()
+                # breakpoint()
                 print("Study did not perfectly replicate.")
                 for hash in missing:
                     print(f"Missing object: {self.starting_objects[hash]}")
@@ -262,7 +263,6 @@ class Study:
             )
             print(self.proof_of_work)
             self.save()
-
 
     def to_dict(self):
         return {
@@ -322,7 +322,7 @@ class Study:
             "processor": platform.processor(),
             "hostname": socket.gethostname(),
         }
-    
+
     @staticmethod
     def _get_description(object):
         text = ""
@@ -366,13 +366,14 @@ class Study:
     def __repr__(self):
         return f"""Study(name = {self.name}, description = {self.description}, objects = {self.objects}, cache = {self.cache}, filename = {self.filename}, coop = {self.coop}, use_study_cache = {self.use_study_cache}, overwrite_on_change = {self.overwrite_on_change})"""
 
+
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)
 
     # with Study(name = "cool_study") as study:
     #      from edsl import QuestionFreeText
     #      q = QuestionFreeText.example()
-    
+
     # assert len(study.objects) == 1
-  
