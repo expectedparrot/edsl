@@ -540,7 +540,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     ###################
     # FORWARD METHODS
     ###################
-    def by(self, *args: Union[Agent, Scenario, LanguageModel]) -> Jobs:
+    def by(self, *args: Union['Agent', 'Scenario', 'LanguageModel']) -> 'Jobs':
         """Add Agents, Scenarios, and LanguageModels to a survey and returns a runnable Jobs object.
 
         :param args: The Agents, Scenarios, and LanguageModels to add to the survey.
@@ -1025,19 +1025,9 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         s = cls(questions=[q0, q1, q2])
         s = s.add_rule(q0, "q0 == 'yes'", q2)
         return s
+    
 
-    def __call__(self, model=None, agent=None, **kwargs):
-        """Run the survey with default model, taking the required survey as arguments.
-
-        >>> from edsl.questions import QuestionFunctional
-        >>> def f(scenario, agent_traits): return "yes" if scenario["period"] == "morning" else "no"
-        >>> q = QuestionFunctional(question_name = "q0", func = f)
-        >>> s = Survey([q])
-        >>> s(period = "morning").select("answer.q0").first()
-        'yes'
-        >>> s(period = "evening").select("answer.q0").first()
-        'no'
-        """
+    def get_job(self, model=None, agent=None, **kwargs):
         if not model:
             from edsl import Model
 
@@ -1052,7 +1042,44 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
             agent = Agent()
 
-        return self.by(s).by(agent).by(model).run()
+        return self.by(s).by(agent).by(model)
+
+    def __call__(self, model=None, agent=None, **kwargs):
+        """Run the survey with default model, taking the required survey as arguments.
+
+        >>> from edsl.questions import QuestionFunctional
+        >>> def f(scenario, agent_traits): return "yes" if scenario["period"] == "morning" else "no"
+        >>> q = QuestionFunctional(question_name = "q0", func = f)
+        >>> s = Survey([q])
+        >>> s(period = "morning").select("answer.q0").first()
+        'yes'
+        >>> s(period = "evening").select("answer.q0").first()
+        'no'
+        """
+        job = self.get_job(model, agent, **kwargs)
+        return job.run()
+    
+    async def run_async(self, model=None, agent=None, cache = None, **kwargs):
+        """Run the survey with default model, taking the required survey as arguments.
+
+        >>> from edsl.questions import QuestionFunctional
+        >>> def f(scenario, agent_traits): return "yes" if scenario["period"] == "morning" else "no"
+        >>> q = QuestionFunctional(question_name = "q0", func = f)
+        >>> s = Survey([q])
+        >>> s(period = "morning").select("answer.q0").first()
+        'yes'
+        >>> s(period = "evening").select("answer.q0").first()
+        'no'
+        """
+        # TODO: temp fix by creating a cache
+        if cache is None:
+            from edsl.data import Cache
+            c = Cache()
+        else:
+            c = cache
+        jobs: 'Jobs' = self.get_job(model, agent, **kwargs)
+        return await jobs.run_async(cache = c)
+
 
 
 def main():
