@@ -18,7 +18,6 @@ def print_retry(retry_state, print_to_terminal=True):
     attempt_number = retry_state.attempt_number
     exception = retry_state.outcome.exception()
     wait_time = retry_state.next_action.sleep
-    # breakpoint()
     if print_to_terminal:
         print(
             f"Attempt {attempt_number} failed with exception:"

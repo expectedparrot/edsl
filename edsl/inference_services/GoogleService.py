@@ -62,9 +62,9 @@ class GoogleService(InferenceServiceABC):
                 data = raw_response
                 try:
                     return data["candidates"][0]["content"]["parts"][0]["text"]
-                except KeyError:
-                    breakpoint()
-
+                except KeyError as e:
+                    print(f"The data return was {data}, which was missing the key 'candidates'")
+                    raise e
         LLM.__name__ = model_name
 
         return LLM
