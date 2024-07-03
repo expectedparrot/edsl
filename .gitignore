@@ -10,6 +10,11 @@ _build/*
 *json
 *jsonl
 *log
+*svg
+*jpeg
+*dta
+*sav
+*csv
 *txt
 *html
 .backups
