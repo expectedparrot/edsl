@@ -410,9 +410,7 @@ def create_latex_table_from_data(data, filename=None, split_at_dot=True):
     return latex_table_str
 
 
-def print_list_of_dicts_as_html_table(
-    data, filename=None, interactive=True, notebook=False
-):
+def print_list_of_dicts_as_html_table(data, interactive=True):
     """Print a list of dictionaries as an HTML table.
 
     :param data: The list of dictionaries to print.
@@ -459,22 +457,9 @@ def print_list_of_dicts_as_html_table(
     # Close the table
     html_table += "</tbody>\n"
     html_table += "</table>"
+    return gen_html_sandwich(html_table, interactive=interactive)
 
-    html = gen_html_sandwich(html_table, interactive=interactive)
-
-    # Output or save to file
-    if filename:
-        with open(filename, "w") as f:
-            f.write(html)
-    else:
-        # view_html(html)
-        if notebook:
-            # ipython_diplay(HTML(html))
-            return html
-        else:
-            print(html)
-
-
+   
 def print_list_of_dicts_as_markdown_table(data, filename=None):
     """Print a list of dictionaries as a Markdown table.
 

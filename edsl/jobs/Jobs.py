@@ -404,7 +404,7 @@ class Jobs(Base):
         sidecar_model: Optional[LanguageModel] = None,
         batch_mode: Optional[bool] = None,
         verbose: bool = False,
-        print_exceptions=False,
+        print_exceptions=True,
     ) -> Results:
         """
         Runs the Job: conducts Interviews and returns their results.
