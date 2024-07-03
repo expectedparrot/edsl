@@ -13,7 +13,7 @@ EDSL_MAX_BACKOFF_SEC = float(CONFIG.get("EDSL_MAX_BACKOFF_SEC"))
 EDSL_MAX_ATTEMPTS = int(CONFIG.get("EDSL_MAX_ATTEMPTS"))
 
 
-def print_retry(retry_state, print_to_terminal=False):
+def print_retry(retry_state, print_to_terminal=True):
     "Prints details on tenacity retries."
     attempt_number = retry_state.attempt_number
     exception = retry_state.outcome.exception()
@@ -21,9 +21,11 @@ def print_retry(retry_state, print_to_terminal=False):
     # breakpoint()
     if print_to_terminal:
         print(
-            f"Attempt {attempt_number} failed with exception: {repr(exception)}; "
+            f"Attempt {attempt_number} failed with exception:"
+            f"{exception}",
             f"now waiting {wait_time:.2f} seconds before retrying."
-            f" Parameters: start={EDSL_BACKOFF_START_SEC}, max={EDSL_MAX_BACKOFF_SEC}, max_attempts={EDSL_MAX_ATTEMPTS}."
+            f"Parameters: start={EDSL_BACKOFF_START_SEC}, max={EDSL_MAX_BACKOFF_SEC}, max_attempts={EDSL_MAX_ATTEMPTS}."
+            "\n\n"
         )
 
 

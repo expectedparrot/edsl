@@ -190,6 +190,23 @@ class Results(UserList, Mixins, Base):
             "created_columns": self.created_columns,
             "cache": Cache() if not hasattr(self, "cache") else self.cache.to_dict(),
         }
+    
+    def compare(self, other_results):
+        """
+        Compare two Results objects and return the differences.
+        """
+        hashes_0 = [hash(result) for result in self]
+        hashes_1 = [hash(result) for result in other_results]
+
+        in_self_but_not_other = set(hashes_0).difference(set(hashes_1))
+        in_other_but_not_self = set(hashes_1).difference(set(hashes_0))
+        
+        indicies_self = [hashes_0.index(h) for h in in_self_but_not_other]
+        indices_other = [hashes_1.index(h) for h in in_other_but_not_self]
+        return {'a_not_b': [self[i] for i in indicies_self], 
+                'b_not_a': [other_results[i] for i in indices_other]}
+
+
 
     @add_edsl_version
     def to_dict(self) -> dict[str, Any]:

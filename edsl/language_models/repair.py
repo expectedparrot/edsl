@@ -1,14 +1,16 @@
 import json
 import asyncio
 
+from rich import print
+from rich.console import Console
+from rich.syntax import Syntax
+
 from edsl.utilities.utilities import clean_json
 
+from edsl.utilities.repair_functions import extract_json_from_string
 
-async def async_repair(bad_json, error_message=""):
+async def async_repair(bad_json, error_message="", user_prompt=None, system_prompt=None):
     s = clean_json(bad_json)
-    from edsl import Model
-
-    m = Model()
 
     try:
         # this is the OpenAI version, but that's fine
@@ -17,14 +19,51 @@ async def async_repair(bad_json, error_message=""):
     except json.JSONDecodeError:
         valid_dict = {}
         success = False
-        # print("Replacing control characters didn't work. Trying with the model.")
+        #print("Replacing control characters didn't work. Trying extracting the sub-string.")
     else:
         return valid_dict, success
 
-    prompt = f"""This is the output from a less capable language model.  
-    It was supposed to respond with just a JSON object with an answer to a question and some commentary, 
-    in a field called "comment" next to "answer".
-    Please repair this bad JSON: {bad_json}."""
+    try:
+        valid_dict = extract_json_from_string(s)
+        success = True
+        #print("Extracting the sub-string worked!")
+    except ValueError:
+        valid_dict = {}
+        success = False
+        #print("Extracting JSON didn't work. Trying with a LM model.")
+        # console = Console()
+        # error_message = f"[red]{str(bad_json)}[/red]"
+        # console.print("    " + error_message)
+    else:
+        return valid_dict, success
+
+    from edsl import Model
+    m = Model()
+
+    prompt = """
+    A language model was supposed to respond to a question. 
+    The response should have been JSON object with an answer to a question and some commentary.
+    
+    It should have retured a string like this: 
+    
+    '{'answer': 'The answer to the question.', 'comment': 'Some commentary.'}'
+    
+    or:
+
+    '{'answer': 'The answer to the question.'}'
+
+    The answer field is very like an integer number. The comment field is always string.
+
+    You job is to return just the repaired JSON object that the model should have returned, properly formatted.
+
+        - It might have included some preliminary comments.
+        - It might have included some control characters.
+        - It might have included some extraneous text.
+
+    DO NOT include any extraneous text in your response. Just return the repaired JSON object.
+    Do not preface the JSON object with any text. Just return the JSON object.
+
+    Please repair this bad JSON: """ + str(bad_json)
 
     if error_message:
         prompt += f" Parsing error message: {error_message}"
@@ -44,6 +83,12 @@ async def async_repair(bad_json, error_message=""):
     except json.JSONDecodeError:
         valid_dict = {}
         success = False
+        console = Console()
+        error_message = f"All repairs. failed. LLM Model given [red]{str(bad_json)}[/red]"
+        console.print("    " + error_message)
+        model_returned = results["choices"][0]["message"]["content"]
+        console.print(f"LLM Model returned: [blue]{model_returned}[/blue]")
+
 
     return valid_dict, success
 
