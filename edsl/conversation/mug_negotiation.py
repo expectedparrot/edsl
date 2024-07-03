@@ -1,6 +1,7 @@
 from edsl import Agent, AgentList
 from edsl.conversation.Conversation import Conversation, ConversationList
 
+
 def bargaining_pairs(alice_valuation, bob_valuation):
 
     a1 = Agent(
@@ -28,8 +29,14 @@ def bargaining_pairs(alice_valuation, bob_valuation):
     )
     return AgentList([a1, a2])
 
+
 valuations = [(10, 15), (10, 100), (10, 9)]
-cl = ConversationList([Conversation(agent_list=bargaining_pairs(*v), max_turns=10, verbose=True) for v in valuations])
+cl = ConversationList(
+    [
+        Conversation(agent_list=bargaining_pairs(*v), max_turns=10, verbose=True)
+        for v in valuations
+    ]
+)
 cl.run()
 results = cl.to_results()
 
@@ -37,7 +44,12 @@ results.select("conversation_index", "index", "agent_name", "dialogue").print(
     format="rich"
 )
 
-from edsl import QuestionFreeText, QuestionMultipleChoice, QuestionYesNo, QuestionNumerical
+from edsl import (
+    QuestionFreeText,
+    QuestionMultipleChoice,
+    QuestionYesNo,
+    QuestionNumerical,
+)
 
 q_deal = QuestionYesNo(
     question_text="""This was a negotiation: {{ transcript }}. 
@@ -47,20 +59,24 @@ q_deal = QuestionYesNo(
 )
 
 q_price = QuestionNumerical(
-    question_text = """This was a negotiation: {{ transcript }}.
+    question_text="""This was a negotiation: {{ transcript }}.
     A deal was reached. What was the price of the deal?
-    """, 
-    question_name = "price"
+    """,
+    question_name="price",
 )
 
 q_side_deal = QuestionYesNo(
-    question_text = """This was a negotiation: {{ transcript }}.
+    question_text="""This was a negotiation: {{ transcript }}.
     Was there a side deal? I.e., seller agreed to other terms in exchange for a higher price?
     """,
-    question_name = "side_deal"
+    question_name="side_deal",
 )
 
-survey = q_deal.add_question(q_price).add_question(q_side_deal).add_stop_rule("deal", "deal == 'No'")
+survey = (
+    q_deal.add_question(q_price)
+    .add_question(q_side_deal)
+    .add_stop_rule("deal", "deal == 'No'")
+)
 
 transcript_analysis = survey.by(cl.summarize()).run()
 transcript_analysis.select("deal", "price", "side_deal").print(format="rich")

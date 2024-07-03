@@ -55,8 +55,9 @@ def dict_hash(data: dict):
 import re
 import json
 
+
 def extract_json_from_string(text):
-    pattern = re.compile(r'\{.*?\}')
+    pattern = re.compile(r"\{.*?\}")
     match = pattern.search(text)
     if match:
         json_data = match.group(0)
@@ -80,7 +81,7 @@ def clean_json(bad_json_str):
         ("\t", "\\t"),
         ("\b", "\\b"),
         ("\f", "\\f"),
-        ("[/INST]", "removed_inst")
+        ("[/INST]", "removed_inst"),
     ]
 
     s = bad_json_str
@@ -190,7 +191,6 @@ class HTMLSnippet(str):
 
         # open the HTML tempfile in the default web browser
         webbrowser.open(f"file://{os.path.realpath(f.name)}")
-
 
 
 def random_string() -> str:
@@ -352,6 +352,3 @@ def shorten_string(s, max_length, placeholder="..."):
         end_remove = end_space
 
     return s[:start_remove] + placeholder + s[end_remove:]
-
-
-

@@ -21,19 +21,19 @@ class AgentStatement:
 
     @property
     def agent_name(self):
-        return self.statement['agent']['name']
+        return self.statement["agent"]["name"]
 
     def to_dict(self):
         return self.statement.to_dict()
-    
+
     @classmethod
     def from_dict(cls, data):
         return cls(Result.from_dict(data))
 
     @property
     def text(self):
-        return self.statement['answer']['dialogue']
-   
+        return self.statement["answer"]["dialogue"]
+
 
 class AgentStatements(UserList):
 
@@ -43,10 +43,10 @@ class AgentStatements(UserList):
     @property
     def transcript(self):
         return [{s.agent_name: s.text} for s in self.data]
-    
+
     def to_dict(self):
         return [d.to_dict() for d in self.data]
-    
+
     @classmethod
     def from_dict(cls, data):
         return cls([AgentStatement.from_dict(d) for d in data])
@@ -67,13 +67,13 @@ class Conversation:
         next_speaker_generator: Optional[Callable] = None,
         verbose: bool = False,
         conversation_index: Optional[int] = None,
-        cache = None
+        cache=None,
     ):
         if cache is None:
             self.cache = Cache()
         else:
             self.cache = cache
-        
+
         self.agent_list = agent_list
         self.verbose = verbose
         self.agent_statements = []
@@ -114,8 +114,9 @@ class Conversation:
             should_stop = await self.stopping_function(self.agent_statements, **kwargs)
         else:
             should_stop = self.stopping_function(self.agent_statements, **kwargs)
-            
+
         return not should_stop
+
     def add_index(self, index) -> None:
         self._conversation_index = index
 
@@ -137,7 +138,7 @@ class Conversation:
         agent_list = AgentList.from_dict(data["agent_list"])
         max_turns = data["max_turns"]
         verbose = data["verbose"]
-        agent_statements = AgentStatements.from_dict(data["agent_statements"]),
+        agent_statements = (AgentStatements.from_dict(data["agent_statements"]),)
         conversation_index = data["conversation_index"]
         return cls(
             agent_list=agent_list,
@@ -168,9 +169,9 @@ class Conversation:
             conversation=conversation,
             conversation_index=self.conversation_index,
             agent_name=speaker.name,
-            agent = speaker,
+            agent=speaker,
             just_answer=False,
-            cache = self.cache
+            cache=self.cache,
         )
         return results[0]
 
@@ -181,7 +182,7 @@ class Conversation:
         i = 0
         while await self.continue_conversation():
             speaker = self.next_speaker()
-            #breakpoint()
+            # breakpoint()
 
             next_statement = AgentStatement(
                 statement=await self.get_next_statement(
@@ -200,7 +201,7 @@ class Conversation:
 class ConversationList:
     """A collection of conversations to be run in parallel."""
 
-    def __init__(self, conversations: list[Conversation], cache = None):
+    def __init__(self, conversations: list[Conversation], cache=None):
         self.conversations = conversations
         for i, conversation in enumerate(self.conversations):
             conversation.add_index(i)
@@ -209,10 +210,9 @@ class ConversationList:
             self.cache = Cache()
         else:
             self.cache = cache
-        
+
         for c in self.conversations:
             c.cache = self.cache
-
 
     async def run_conversations(self):
         await asyncio.gather(*[c._converse() for c in self.conversations])
@@ -239,5 +239,3 @@ class ConversationList:
 
     def summarize(self) -> ScenarioList:
         return ScenarioList([c.summarize() for c in self.conversations])
-
-

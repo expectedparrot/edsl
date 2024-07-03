@@ -20,11 +20,10 @@ def print_retry(retry_state, print_to_terminal=True):
     wait_time = retry_state.next_action.sleep
     if print_to_terminal:
         print(
-            f"Attempt {attempt_number} failed with exception:"
-            f"{exception}",
+            f"Attempt {attempt_number} failed with exception:" f"{exception}",
             f"now waiting {wait_time:.2f} seconds before retrying."
             f"Parameters: start={EDSL_BACKOFF_START_SEC}, max={EDSL_MAX_BACKOFF_SEC}, max_attempts={EDSL_MAX_ATTEMPTS}."
-            "\n\n"
+            "\n\n",
         )
 
 

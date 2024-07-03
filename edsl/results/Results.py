@@ -164,14 +164,13 @@ class Results(UserList, Mixins, Base):
         )
 
     def __repr__(self) -> str:
-        #return f"Results(data = {self.data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
+        # return f"Results(data = {self.data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
         return f"""Results object 
                 Size: {len(self.data)}. 
                 Survey questions: {[q.question_name for q in self.survey.questions]}. 
                 Created columns: {self.created_columns}
                 Hash: {hash(self)}
             """
-
 
     def _repr_html_(self) -> str:
         json_str = json.dumps(self.to_dict()["data"], indent=4)
@@ -182,15 +181,15 @@ class Results(UserList, Mixins, Base):
         )
         return HTML(formatted_json).data
 
-    def _to_dict(self): 
-        sorted_data =  sorted([result for result in self.data], key=lambda x: hash(x))
+    def _to_dict(self):
+        sorted_data = sorted([result for result in self.data], key=lambda x: hash(x))
         return {
             "data": [result.to_dict() for result in sorted_data],
             "survey": self.survey.to_dict(),
             "created_columns": self.created_columns,
             "cache": Cache() if not hasattr(self, "cache") else self.cache.to_dict(),
         }
-    
+
     def compare(self, other_results):
         """
         Compare two Results objects and return the differences.
@@ -200,13 +199,13 @@ class Results(UserList, Mixins, Base):
 
         in_self_but_not_other = set(hashes_0).difference(set(hashes_1))
         in_other_but_not_self = set(hashes_1).difference(set(hashes_0))
-        
+
         indicies_self = [hashes_0.index(h) for h in in_self_but_not_other]
         indices_other = [hashes_1.index(h) for h in in_other_but_not_self]
-        return {'a_not_b': [self[i] for i in indicies_self], 
-                'b_not_a': [other_results[i] for i in indices_other]}
-
-
+        return {
+            "a_not_b": [self[i] for i in indicies_self],
+            "b_not_a": [other_results[i] for i in indices_other],
+        }
 
     @add_edsl_version
     def to_dict(self) -> dict[str, Any]:
@@ -518,28 +517,33 @@ class Results(UserList, Mixins, Base):
             data=new_data,
             created_columns=self.created_columns + [new_var_name],
         )
-    
+
     def add_column(self, column_name: str, values: list) -> Results:
         """Adds columns to Results
-        
+
         >>> r = Results.example()
         >>> r.add_column('a', [1,2,3,]).select('a')
         Dataset([{'answer.a': [1, 2, 3]}])
         """
 
-        assert len(values) == len(self.data), "The number of values must match the number of results."
+        assert len(values) == len(
+            self.data
+        ), "The number of values must match the number of results."
         new_results = self.data.copy()
         for i, result in enumerate(new_results):
             result["answer"][column_name] = values[i]
-        return Results(survey=self.survey, data=new_results, created_columns=self.created_columns + [column_name])
-    
+        return Results(
+            survey=self.survey,
+            data=new_results,
+            created_columns=self.created_columns + [column_name],
+        )
+
     def add_columns_from_dict(self, columns: List[dict]) -> Results:
         keys = list(columns[0].keys())
         for key in keys:
             values = [d[key] for d in columns]
             self = self.add_column(key, values)
         return self
-
 
     def mutate(
         self, new_var_string: str, functions_dict: Optional[dict] = None

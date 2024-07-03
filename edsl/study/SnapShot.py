@@ -1,18 +1,19 @@
 from typing import Generator
 import inspect
 
+
 class SnapShot:
-    def __init__(self, namespace, exclude = None):
+    def __init__(self, namespace, exclude=None):
         if exclude is None:
             self.exclude = []
         else:
             self.exclude = exclude
-            
+
         self.edsl_objects = dict(self._get_edsl_objects(namespace=namespace))
         self.edsl_classes = dict(self._get_edsl_classes(namespace=namespace))
 
     def __repr__(self):
-        return f"SnapShot(edsl_objects={self.edsl_objects}, edsl_classes={self.edsl_objects})"        
+        return f"SnapShot(edsl_objects={self.edsl_objects}, edsl_classes={self.edsl_objects})"
 
     def _get_edsl_classes(
         self, namespace: dict
@@ -67,4 +68,5 @@ class SnapShot:
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)

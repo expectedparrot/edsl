@@ -10,7 +10,7 @@ class BucketCollection(UserDict):
     Models themselves are hashable, so this works.
     """
 
-    def __init__(self, infinity_buckets = False):
+    def __init__(self, infinity_buckets=False):
         super().__init__()
         self.infinity_buckets = infinity_buckets
 

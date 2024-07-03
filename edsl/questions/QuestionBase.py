@@ -112,7 +112,7 @@ class QuestionBase(
     @classmethod
     def applicable_prompts(
         cls, model: Optional[str] = None
-    ) -> list[type['PromptBase']]:
+    ) -> list[type["PromptBase"]]:
         """Get the prompts that are applicable to the question type.
 
         :param model: The language model to use.
@@ -300,7 +300,7 @@ class QuestionBase(
             return results.select(f"answer.{self.question_name}").first()
         else:
             return results
-        
+
     async def run_async(self, just_answer=True, model=None, agent=None, **kwargs):
         """Call the question."""
         survey = self.to_survey()
