@@ -35,14 +35,14 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
     def parameters(self) -> set:
         if len(self) == 0:
             return set()
-        
-        return set.union(*[set(s.keys()) for s in self])
 
+        return set.union(*[set(s.keys()) for s in self])
 
     def __hash__(self) -> int:
         from edsl.utilities.utilities import dict_hash
-        return dict_hash(self._to_dict(sort = True))
-    
+
+        return dict_hash(self._to_dict(sort=True))
+
     def __repr__(self):
         return f"ScenarioList({self.data})"
 
@@ -326,8 +326,8 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
                 observations.append(Scenario(dict(zip(header, row))))
         return cls(observations)
 
-    def _to_dict(self, sort = False) -> dict:
-        if sort: 
+    def _to_dict(self, sort=False) -> dict:
+        if sort:
             data = sorted(self, key=lambda x: hash(x))
         else:
             data = self

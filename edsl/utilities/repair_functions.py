@@ -1,6 +1,7 @@
 import json
 from edsl.utilities.utilities import valid_json
 
+
 def extract_json_from_string(s):
     """Extract a JSON string from a string."""
     # Find the first occurrence of '{'
@@ -18,7 +19,10 @@ def extract_json_from_string(s):
     else:
         raise ValueError("No JSON object found in string")
 
+
 if __name__ == "__main__":
-    text = 'Sure - here is some JSON { "key": "value", "number": 123, "array": [1, 2, 3] }'
+    text = (
+        'Sure - here is some JSON { "key": "value", "number": 123, "array": [1, 2, 3] }'
+    )
     extracted_json = extract_json_from_string(text)
     d = extracted_json

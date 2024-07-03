@@ -1,5 +1,5 @@
 from edsl import Agent, AgentList, QuestionFreeText
-from edsl import Cache 
+from edsl import Cache
 from edsl.conversation.Conversation import Conversation, ConversationList
 
 a1 = Agent(
@@ -31,7 +31,7 @@ c2 = Conversation(agent_list=AgentList([a1, a2]), max_turns=5, verbose=True)
 
 c = Cache.load("car_talk.json.gz")
 breakpoint()
-combo = ConversationList([c1, c2], cache = c)
+combo = ConversationList([c1, c2], cache=c)
 combo.run()
 results = combo.to_results()
 results.select("conversation_index", "index", "agent_name", "dialogue").print(
@@ -56,5 +56,3 @@ q_actors = QuestionList(
 
 transcript_analysis = q.add_question(q_actors).by(combo.summarize()).run()
 transcript_analysis.select("car_brand", "actors").print(format="rich")
-
-

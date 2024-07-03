@@ -459,7 +459,7 @@ def print_list_of_dicts_as_html_table(data, interactive=True):
     html_table += "</table>"
     return gen_html_sandwich(html_table, interactive=interactive)
 
-   
+
 def print_list_of_dicts_as_markdown_table(data, filename=None):
     """Print a list of dictionaries as a Markdown table.
 

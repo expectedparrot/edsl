@@ -19,13 +19,16 @@ class InferenceServicesCollection:
         try:
             service_models = service.available()
         except Exception as e:
-            print(f"Error getting models for {service._inference_service_}. Relying on cache.")
+            print(
+                f"Error getting models for {service._inference_service_}. Relying on cache."
+            )
             from edsl.inference_services.models_available_cache import models_available
+
             service_models = models_available.get(service._inference_service_, [])
             # cache results
             service._models_list_cache = service_models
             from_api = False
-        return service_models #, from_api
+        return service_models  # , from_api
 
     def available(self):
         total_models = []

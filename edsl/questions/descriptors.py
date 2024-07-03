@@ -332,7 +332,8 @@ class QuestionTextDescriptor(BaseDescriptor):
             raise Exception("Question must be a string!")
         if contains_single_braced_substring(value):
             import warnings
+
             warnings.warn(
-                f"WARNING: Question text contains a single-braced substring: If you intended to parameterize the question with a Scenario this should be changed to a double-braced substring, e.g. {{variable}}.\nSee details on constructing Scenarios in the docs: https://docs.expectedparrot.com/en/latest/scenarios.html", 
-                UserWarning
+                f"WARNING: Question text contains a single-braced substring: If you intended to parameterize the question with a Scenario this should be changed to a double-braced substring, e.g. {{variable}}.\nSee details on constructing Scenarios in the docs: https://docs.expectedparrot.com/en/latest/scenarios.html",
+                UserWarning,
             )
