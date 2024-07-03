@@ -1,6 +1,6 @@
 import json
 import asyncio
-
+import warnings
 from rich import print
 from rich.console import Console
 from rich.syntax import Syntax
@@ -26,14 +26,9 @@ async def async_repair(bad_json, error_message="", user_prompt=None, system_prom
     try:
         valid_dict = extract_json_from_string(s)
         success = True
-        #print("Extracting the sub-string worked!")
     except ValueError:
         valid_dict = {}
         success = False
-        #print("Extracting JSON didn't work. Trying with a LM model.")
-        # console = Console()
-        # error_message = f"[red]{str(bad_json)}[/red]"
-        # console.print("    " + error_message)
     else:
         return valid_dict, success
 
@@ -41,41 +36,44 @@ async def async_repair(bad_json, error_message="", user_prompt=None, system_prom
     m = Model()
 
     from edsl import QuestionExtract
-    
-    q = QuestionExtract(question_text = """
-    A language model was supposed to respond to a question. 
-    The response should have been JSON object with an answer to a question and some commentary.
-    
-    It should have retured a string like this: 
-    
-    '{'answer': 'The answer to the question.', 'comment': 'Some commentary.'}'
-    
-    or:
 
-    '{'answer': 'The answer to the question.'}'
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)
 
-    The answer field is very like an integer number. The comment field is always string.
+        q = QuestionExtract(question_text = """
+        A language model was supposed to respond to a question. 
+        The response should have been JSON object with an answer to a question and some commentary.
+        
+        It should have retured a string like this: 
+        
+        '{'answer': 'The answer to the question.', 'comment': 'Some commentary.'}'
+        
+        or:
 
-    You job is to return just the repaired JSON object that the model should have returned, properly formatted.
+        '{'answer': 'The answer to the question.'}'
 
-        - It might have included some preliminary comments.
-        - It might have included some control characters.
-        - It might have included some extraneous text.
+        The answer field is very like an integer number. The comment field is always string.
 
-    DO NOT include any extraneous text in your response. Just return the repaired JSON object.
-    Do not preface the JSON object with any text. Just return the JSON object.
+        You job is to return just the repaired JSON object that the model should have returned, properly formatted.
 
-    Bad answer: """ + str(bad_json) + 
-    "The model received a user prompt of: '"  + str(user_prompt) +
-    """'
-    The model received a system prompt of: ' """ + str(system_prompt) + 
-    """
-    '
-    Please return the repaired JSON object, following the instructions the original model should have followed, though 
-    using 'new_answer' a nd 'new_comment' as the keys."""
-    , 
-    answer_template = {"new_answer": "<number, string, list, etc.>", "new_comment": "Model's comments"}, 
-    question_name = "model_repair")
+            - It might have included some preliminary comments.
+            - It might have included some control characters.
+            - It might have included some extraneous text.
+
+        DO NOT include any extraneous text in your response. Just return the repaired JSON object.
+        Do not preface the JSON object with any text. Just return the JSON object.
+
+        Bad answer: """ + str(bad_json) + 
+        "The model received a user prompt of: '"  + str(user_prompt) +
+        """'
+        The model received a system prompt of: ' """ + str(system_prompt) + 
+        """
+        '
+        Please return the repaired JSON object, following the instructions the original model should have followed, though 
+        using 'new_answer' a nd 'new_comment' as the keys."""
+        , 
+        answer_template = {"new_answer": "<number, string, list, etc.>", "new_comment": "Model's comments"}, 
+        question_name = "model_repair")
 
     results = await q.run_async(cache = cache)
 
