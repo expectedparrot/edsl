@@ -40,7 +40,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         self.bucket_collection: "BucketCollection" = jobs.bucket_collection
         self.total_interviews: List["Interview"] = []
 
-    async def run_async(
+    async def run_async_generator(
         self,
         cache: Cache,
         n: int = 1,
@@ -90,7 +90,8 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             for iteration in range(n):
                 if iteration > 0:
                     new_interview = interview.duplicate(
-                        iteration=iteration, cache=self.cache
+                        iteration=iteration, 
+                        cache=self.cache
                     )
                     self.total_interviews.append(new_interview)
                 else:
@@ -99,15 +100,18 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                     )  # set the cache for the first interview
                     self.total_interviews.append(interview)
 
-    async def _simple_run(self):
-        self.cache = Cache()
+    async def run_async(self, cache = None) -> Results:
+        if cache is None:
+            self.cache = Cache()
+        else:
+            self.cache = cache
         data = []
-        async for result in self.run_async(cache=Cache()):
+        async for result in self.run_async_generator(cache=self.cache):
             data.append(result)
-        return data
+        return Results(survey = self.jobs.survey, data = data)
 
     def simple_run(self):
-        data = asyncio.run(self._simple_run())
+        data = asyncio.run(self.run_async())
         return Results(survey=self.jobs.survey, data=data)
 
     async def _build_interview_task(
@@ -207,7 +211,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
 
                 async def process_results():
                     """Processes results from interviews."""
-                    async for result in self.run_async(
+                    async for result in self.run_async_generator(
                         n=n,
                         debug=debug,
                         stop_on_exception=stop_on_exception,
@@ -255,7 +259,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
 
                     async def process_results():
                         """Processes results from interviews."""
-                        async for result in self.run_async(
+                        async for result in self.run_async_generator(
                             n=n,
                             debug=debug,
                             stop_on_exception=stop_on_exception,

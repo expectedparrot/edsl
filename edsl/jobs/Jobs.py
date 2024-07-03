@@ -544,6 +544,11 @@ class Jobs(Base):
         results = JobsRunnerAsyncio(self).run(*args, **kwargs)
         return results
     
+    async def run_async(self, cache = None, **kwargs):
+        """Run the job asynchronously."""
+        results = await JobsRunnerAsyncio(self).run_async(cache = cache, **kwargs)
+        return results
+
     def all_question_parameters(self):
         """Return all the fields in the questions in the survey."""
         return set.union(*[question.parameters for question in self.survey.questions])
