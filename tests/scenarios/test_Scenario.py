@@ -27,17 +27,17 @@ class TestScenario(unittest.TestCase):
     def test_add(self):
         s1 = Scenario(self.example_scenario)
         s2 = Scenario({"color": "red"})
-        self.assertEqual(s1 + s2, {"price": 100, "quantity": 2, "color": "red"})
+        self.assertEqual(s1 + s2, Scenario({"price": 100, "quantity": 2, "color": "red"}))
         self.assertIsInstance(s1 + s2, Scenario)
 
         s3 = Scenario({"color": None})
-        self.assertEqual(s1 + s3, {"price": 100, "quantity": 2, "color": None})
+        self.assertEqual(s1 + s3, Scenario({"price": 100, "quantity": 2, "color": None}))
 
 
     def test_rename(self):
         s = Scenario({"food": "wood chips"})
         result = s.rename({"food": "food_preference"})
-        self.assertEqual(result, {"food_preference": "wood chips"})
+        self.assertEqual(result, Scenario({"food_preference": "wood chips"}))
 
 
 if __name__ == "__main__":
