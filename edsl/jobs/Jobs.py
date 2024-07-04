@@ -23,6 +23,7 @@ from edsl import ScenarioList
 from edsl.surveys import Survey
 from edsl.jobs.runners.JobsRunnerAsyncio import JobsRunnerAsyncio
 
+from edsl.language_models.ModelList import ModelList
 
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
@@ -51,9 +52,23 @@ class Jobs(Base):
         self.survey = survey
         self.agents: AgentList = agents
         self.scenarios: ScenarioList = scenarios
-        self.models = models or []
-
+        self.models = models
+        
         self.__bucket_collection = None
+
+    @property
+    def models(self):
+        return self._models
+    
+    @models.setter
+    def models(self, value):
+        if value:
+            if not isinstance(value, ModelList):
+                self._models = ModelList(value)
+            else:
+                self._models = value
+        else:
+            self._models = ModelList([])
 
     @property
     def agents(self):
