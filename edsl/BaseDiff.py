@@ -2,7 +2,7 @@ import difflib
 import json
 from typing import Any, Dict, Tuple
 from collections import UserList
-
+import inspect
 
 class BaseDiffCollection(UserList):
     def __init__(self, diffs=None):
@@ -36,8 +36,13 @@ class BaseDiff:
 
         self.obj1 = obj1
         self.obj2 = obj2
-        self._dict1 = obj1._to_dict()
-        self._dict2 = obj2._to_dict()
+        
+        if 'sort' in inspect.signature(obj1._to_dict).parameters:
+            self._dict1 = obj1._to_dict(sort=True)
+            self._dict2 = obj2._to_dict(sort=True)
+        else:
+            self._dict1 = obj1._to_dict()
+            self._dict2 = obj2._to_dict()
         self._obj_class = type(obj1)
 
         self.added = added
@@ -175,6 +180,7 @@ class BaseDiff:
             super().append(self.prepend * self.level + item)
 
     def __str__(self):
+        prepend = " "
         result = self.Results(level=self.level, prepend="\t")
         if self.added:
             result.append("Added keys and values:")
