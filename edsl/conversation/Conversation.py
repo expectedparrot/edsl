@@ -15,7 +15,6 @@ from edsl.conversation.next_speaker_utilities import (
 
 
 class AgentStatement:
-
     def __init__(self, statement: Result):
         self.statement = statement
 
@@ -36,7 +35,6 @@ class AgentStatement:
 
 
 class AgentStatements(UserList):
-
     def __init__(self, data=None):
         super().__init__(data)
 
@@ -101,7 +99,6 @@ class Conversation:
 
         # Determine when the conversation ends
         if stopping_function is None:
-
             self.stopping_function = lambda agent_statements: False
         else:
             self.stopping_function = stopping_function
