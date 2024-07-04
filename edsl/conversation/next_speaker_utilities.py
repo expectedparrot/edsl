@@ -70,7 +70,6 @@ def random_inclusive_generator(agent_list, speakers_so_far, **kwargs):
 
 
 def speaker_closure(agent_list, generator_function, focal_speaker_index=None):
-
     speakers_so_far = []
     focal_speaker_index = focal_speaker_index
 

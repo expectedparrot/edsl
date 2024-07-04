@@ -3,7 +3,6 @@ from edsl.conversation.Conversation import Conversation, ConversationList
 
 
 def bargaining_pairs(alice_valuation, bob_valuation):
-
     a1 = Agent(
         name="Alice",
         traits={
