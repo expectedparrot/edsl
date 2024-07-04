@@ -223,6 +223,10 @@ class Results(UserList, Mixins, Base):
 
     def __hash__(self) -> int:
         return dict_hash(self._to_dict())
+    
+    @property
+    def hashes(self) -> set:
+        return set(hash(result) for result in self.data)
 
     @classmethod
     @remove_edsl_version
