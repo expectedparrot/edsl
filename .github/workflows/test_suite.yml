@@ -45,3 +45,7 @@ jobs:
       - name: Run edsl tests
         shell: bash
         run: poetry run make test
+
+      - name: Run doctests
+        shell: bash
+        run: poetry run make test-doctests
