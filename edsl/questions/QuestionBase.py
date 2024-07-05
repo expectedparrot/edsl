@@ -3,7 +3,7 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from rich.table import Table
-from typing import Any, Type, Optional, List
+from typing import Any, Type, Optional, List, Callable
 import copy
 
 from edsl.exceptions import (
@@ -296,6 +296,16 @@ class QuestionBase(
         """Call the question."""
         survey = self.to_survey()
         results = survey(model=model, agent=agent, **kwargs)
+        if just_answer:
+            return results.select(f"answer.{self.question_name}").first()
+        else:
+            return results
+
+    async def run_async(self, just_answer=True, model=None, agent=None, **kwargs):
+        """Call the question."""
+        survey = self.to_survey()
+        ## asyncio.run(survey.async_call());
+        results = await survey.run_async(model=model, agent=agent, **kwargs)
         if just_answer:
             return results.select(f"answer.{self.question_name}").first()
         else:

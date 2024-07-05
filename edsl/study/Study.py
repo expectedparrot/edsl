@@ -2,74 +2,18 @@ import os
 import platform
 import socket
 import copy
-import time
-import json
-from typing import Optional, Generator, List, Dict
-from datetime import datetime
 import inspect
+import json
+from typing import Optional, List, Dict
+from datetime import datetime
 
 # from edsl.Base import Base
 from edsl import Cache, set_session_cache, unset_session_cache
 from edsl.utilities.utilities import dict_hash
-from dataclasses import dataclass, field
-from collections import UserDict
 
 from edsl.study.ObjectEntry import ObjectEntry
 from edsl.study.ProofOfWork import ProofOfWork
-
-
-class SnapShot:
-    def __init__(self):
-        self.edsl_objects = dict(self._get_edsl_objects())
-        self.edsl_classes = dict(self._get_edsl_classes())
-
-    def _get_edsl_classes(
-        self, namespace: Optional[dict] = None
-    ) -> Generator[tuple[str, type], None, None]:
-        """Get all EDSL classes in the namespace.
-
-        :param namespace: The namespace to search for EDSL classes. The default is the global namespace.
-
-        >>> sn = SnapShot()
-        >>> list(sn._get_edsl_classes(namespace = {}))
-        []
-
-        >>> sn = SnapShot()
-        >>> sn.edsl_classes
-        {'Cache': <class 'edsl.data.Cache.Cache'>}
-        """
-        from edsl.Base import RegisterSubclassesMeta
-        from edsl import QuestionBase
-
-        if namespace is None:
-            namespace = globals()
-        for name, value in namespace.items():
-            if (
-                inspect.isclass(value)
-                and name in RegisterSubclassesMeta.get_registry()
-                and value != RegisterSubclassesMeta
-            ):
-                yield name, value
-            if inspect.isclass(value) and issubclass(value, QuestionBase):
-                yield name, value
-
-    def _get_edsl_objects(self) -> Generator[tuple[str, type], None, None]:
-        """Get all EDSL objects in the global namespace.
-
-        >>> sn = SnapShot()
-        >>> sn.edsl_objects
-        {}
-
-        """
-        from edsl.Base import Base
-
-        for name, value in globals().items():
-            if (
-                hasattr(value, "to_dict")
-                and not inspect.isclass(value)
-                and not isinstance(value, Study)
-            ):
-                yield name, value
+from edsl.study.SnapShot import SnapShot
 
 
 class Study:
@@ -87,8 +31,13 @@ class Study:
     >>> with Study(name = "cool_study") as study:
     ...     from edsl import QuestionFreeText
     ...     q = QuestionFreeText.example()
+    New study saved to cool_study.json
+    Saving study to cool_study.json
+    Starting hashes: dict_keys([])
+    Current hashes: dict_keys(['1144312636257752766'])
     >>> len(study.objects)
     1
+    >>> _ = os.system("rm cool_study.json")
 
 
     It records all the edsl objects that are created during the study.
@@ -98,34 +47,42 @@ class Study:
 
     def __init__(
         self,
-        name: str,
+        name: Optional[str] = None,
+        filename: Optional[str] = None,
         description: Optional[str] = None,
         objects: Optional[Dict[str, ObjectEntry]] = None,
         cache: Optional[Cache] = None,
-        file_path: Optional[str] = None,
         coop: bool = False,
         use_study_cache=True,
         overwrite_on_change=True,
         proof_of_work=None,
         proof_of_work_difficulty: int = None,
+        namespace: Optional[dict] = None,
     ):
         """
         :param name: The name of the study.
         :param description: A description of the study.
         :param objects: A dictionary of objects to add to the study.
         :param cache: A cache object to (potentially) use for the study.
-        :param file_path: The path to the study file.
+        :param filename: The path to the study file.
         :param coop: Whether to push the study to coop.
         :param use_study_cache: Whether to use the study cache.
         :param overwrite_on_change: Whether to overwrite the study file if it has changed.
         """
-        self.file_path = file_path or name
+        if name is None and filename is None:
+            raise ValueError("You must provide a name or a filename for the study.")
+
+        if filename is None:
+            self.filename = name
+        else:
+            self.filename = filename
+
         if (
-            self.file_path
-            and os.path.exists(self.file_path + ".json")
-            and os.path.getsize(self.file_path + ".json") > 0
+            self.filename
+            and os.path.exists(self.filename + ".json")
+            and os.path.getsize(self.filename + ".json") > 0
         ):
-            print(f"Using existing study file {file_path}.json")
+            print(f"Using existing study file {self.filename}.json")
             self._load_from_file()
         else:
             self.name = name
@@ -133,6 +90,14 @@ class Study:
             self.objects = objects or {}
             self.cache = cache or Cache()
             self.proof_of_work = proof_of_work or ProofOfWork()
+
+        if namespace is None:
+            # Get the caller's frame
+            frame = inspect.currentframe().f_back
+            # Get the caller's global namespace
+            self.namespace = frame.f_globals
+        else:
+            self.namespace = namespace
 
         # These always overwrite the saved study
         self.coop = coop
@@ -142,20 +107,27 @@ class Study:
 
         self.starting_objects = copy.deepcopy(self.objects)
 
+    @classmethod
+    def from_file(cls, filename: str):
+        """Load a study from a file."""
+        if filename.endswith(".json"):
+            filename = filename[:-5]
+        return cls(filename=filename)
+
     def _load_from_file(self):
         """Load the study from a file.
 
         >>> import tempfile
-        >>> file_path = tempfile.NamedTemporaryFile(delete=False)
-        >>> study = Study(name = "poo", file_path = file_path.name)
+        >>> filename = tempfile.NamedTemporaryFile(delete=False)
+        >>> study = Study(name = "poo", filename = filename.name)
         >>> study.save()
         Saving study to ...
-        >>> study2 = Study(file_path = file_path.name)
+        >>> study2 = Study(filename = filename.name)
         Using existing study file ...
         >>> study2.name
         'poo'
         """
-        with open(self.file_path + ".json", "r") as f:
+        with open(self.filename + ".json", "r") as f:
             d = json.load(f)
             d["cache"] = Cache.from_dict(d["cache"])
             d["proof_of_work"] = ProofOfWork.from_dict(d["proof_of_work"])
@@ -167,17 +139,23 @@ class Study:
 
     def __enter__(self):
         """
-        >>> s = Study(use_study_cache = True)
+        >>> s = Study(name = "temp", use_study_cache = True)
         >>> _ = s.__enter__()
         >>> from edsl.config import CONFIG
         >>> hasattr(CONFIG, "EDSL_SESSION_CACHE")
         True
-
+        >>> _ = s.__exit__(None, None, None)
+        New study saved to temp.json
+        ...
+        ...
+        >>> os.remove("temp.json")
 
         """
-
-        snapshot = SnapShot()
+        print("Existing objects in study:")
+        self.print()
+        snapshot = SnapShot(self.namespace, exclude=[self])
         if self.use_study_cache:
+            print("Using study cache.")
             set_session_cache(self.cache)
 
         if snapshot.edsl_objects:
@@ -204,7 +182,7 @@ class Study:
         table.add_column("Description")
         table.add_column("Hash")
         table.add_column("Coop info")
-        for hash, obj in self.objects.items():
+        for obj_hash, obj in self.objects.items():
             url = (
                 ""
                 if not hasattr(obj, "coop_info") or obj.coop_info is None
@@ -213,10 +191,18 @@ class Study:
             table.add_row(
                 obj.variable_name, obj.edsl_class_name, obj.description, obj.hash, url
             )
+        # Add cache at the end
+        table.add_row(
+            "N/A - Study Cache",
+            "Cache",
+            f"Cache of study, entries: {len(self.cache)}",
+            str(hash(self.cache)),
+            "",
+        )
         console.print(table)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        snapshot = SnapShot()
+        snapshot = SnapShot(namespace=self.namespace, exclude=[self])
         if self.use_study_cache:
             unset_session_cache()
 
@@ -224,7 +210,7 @@ class Study:
             self.add_edsl_object(object=object, variable_name=variable_name)
 
         if not self.starting_objects:
-            print(f"New study saved to {self.file_path}.json")
+            print(f"New study saved to {self.filename}.json")
             self.save()
 
         if self.starting_objects and list(self.starting_objects.keys()) == list(
@@ -237,11 +223,12 @@ class Study:
             if self.starting_objects:
                 missing = set(self.starting_objects.keys()) - set(self.objects.keys())
                 added = set(self.objects.keys()) - set(self.starting_objects.keys())
+                # breakpoint()
                 print("Study did not perfectly replicate.")
                 for hash in missing:
-                    print(f"Missing object: {self.starting_objects[hash]!r}")
+                    print(f"Missing object: {self.starting_objects[hash]}")
                 for hash in added:
-                    print(f"Added object: {self.objects[hash]!r}")
+                    print(f"Added object: {self.objects[hash]}")
                 if self.overwrite_on_change:
                     print("Overwriting study file.")
                     self.save()
@@ -258,6 +245,9 @@ class Study:
                 raise ValueError(
                     "If you want to push to coop, you must save the study file with a new name or call study iwth 'overwrite_on_change=True' to overwrite the existing study file."
                 )
+
+        print("Objects in study now:")
+        self.print()
 
         if self.proof_of_work_difficulty:
             print("Adding proof of work to study...")
@@ -321,8 +311,8 @@ class Study:
         return cls(**d)
 
     def save(self):
-        print(f"Saving study to {self.file_path}.json")
-        with open(self.file_path + ".json", "w") as f:
+        print(f"Saving study to {self.filename}.json")
+        with open(self.filename + ".json", "w") as f:
             json.dump(self.to_dict(), f, indent=4)
 
     def _get_system_info(self):
@@ -333,7 +323,18 @@ class Study:
             "hostname": socket.gethostname(),
         }
 
+    @staticmethod
+    def _get_description(object):
+        text = ""
+        if hasattr(object, "__len__"):
+            text += f"Num. entries: {len(object)}"
+        if hasattr(object, "question_name"):
+            text += f"Question name: {object.question_name}"
+        return text
+
     def add_edsl_object(self, object, variable_name, description=None) -> None:
+        if description is None:
+            description = self._get_description(object)
         oe = ObjectEntry(
             variable_name=variable_name, object=object, description=description
         )
@@ -363,40 +364,16 @@ class Study:
             )
 
     def __repr__(self):
-        return f"""Study(name = {self.name}, description = {self.description}, objects = {self.objects}, cache = {self.cache}, file_path = {self.file_path}, coop = {self.coop}, use_study_cache = {self.use_study_cache}, overwrite_on_change = {self.overwrite_on_change})"""
+        return f"""Study(name = {self.name}, description = {self.description}, objects = {self.objects}, cache = {self.cache}, filename = {self.filename}, coop = {self.coop}, use_study_cache = {self.use_study_cache}, overwrite_on_change = {self.overwrite_on_change})"""
 
-
-# if __name__ == "__main__":
-#     with Study(name = "cool_study") as study:
-#         from edsl import QuestionFreeText
-#         q = QuestionFreeText.example()
-
-# len(study.objects)
-# import doctest
-# doctest.testmod(optionflags=doctest.ELLIPSIS)
 
 if __name__ == "__main__":
-    from edsl import Cache, QuestionFreeText, ScenarioList
+    import doctest
 
-    study = Study(
-        name="kktv2",
-        description="KKT replication",
-        file_path="fhm_replication2",
-        coop=False,
-        proof_of_work_difficulty=4,
-    )
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
 
-    with study:
-        q = QuestionFreeText.example()
-        results = q.run()
+    # with Study(name = "cool_study") as study:
+    #      from edsl import QuestionFreeText
+    #      q = QuestionFreeText.example()
 
-
-# r0 = study.versions()['results'][0].object; r1 = study.versions()['results'][1].object; diff = r1 - r0; print(diff)
-
-# c0 = study.versions()['c'][0].object
-# c1 = study.versions()['c'][1].object
-# diff = c1 - c0
-# print(diff)
-
-# d = study.to_dict()
-# newd = Study.from_dict(d)
+    # assert len(study.objects) == 1

@@ -49,16 +49,16 @@ class Jobs(Base):
         :param scenarios: a list of scenarios
         """
         self.survey = survey
-        self.agents:AgentList = agents
+        self.agents: AgentList = agents
         self.scenarios: ScenarioList = scenarios
-        self.models = models or []        
+        self.models = models or []
 
         self.__bucket_collection = None
 
     @property
     def agents(self):
-        return self._agents 
-    
+        return self._agents
+
     @agents.setter
     def agents(self, value):
         if value:
@@ -82,7 +82,6 @@ class Jobs(Base):
                 self._scenarios = value
         else:
             self._scenarios = ScenarioList([])
-
 
     def by(
         self,
@@ -165,17 +164,17 @@ class Jobs(Base):
                 {"system_prompt": system_prompts},
             ]
         )
-    
+
     @staticmethod
     def _get_container_class(object):
         from edsl import AgentList
+
         if isinstance(object, Agent):
             return AgentList
         elif isinstance(object, Scenario):
             return ScenarioList
         else:
             return list
-
 
     @staticmethod
     def _turn_args_to_list(args):
@@ -228,10 +227,11 @@ class Jobs(Base):
             )
         current_objects = getattr(self, key, None)
         return current_objects, key
-    
+
     @staticmethod
     def _get_empty_container_object(object):
         from edsl import AgentList
+
         if isinstance(object, Agent):
             return AgentList([])
         elif isinstance(object, Scenario):
@@ -342,14 +342,20 @@ class Jobs(Base):
             )
         return links
 
+    def __hash__(self):
+        """Allow the model to be used as a key in a dictionary."""
+        from edsl.utilities.utilities import dict_hash
+
+        return dict_hash(self.to_dict())
+
     def _output(self, message) -> None:
         """Check if a Job is verbose. If so, print the message."""
         if self.verbose:
             print(message)
 
-    def _check_parameters(self, strict = False) -> None:
+    def _check_parameters(self, strict=False) -> None:
         """Check if the parameters in the survey and scenarios are consistent.
-        
+
         >>> from edsl import QuestionFreeText
         >>> q = QuestionFreeText(question_text = "{{poo}}", question_name = "ugly_question")
         >>> j = Jobs(survey = Survey(questions=[q]))
@@ -362,28 +368,27 @@ class Jobs(Base):
         >>> q = QuestionFreeText(question_text = "{{poo}}", question_name = "ugly_question")
         >>> s = Scenario({'plop': "A", 'poo': "B"})
         >>> j = Jobs(survey = Survey(questions=[q])).by(s)
-        >>> j._check_parameters(strict = True)  
+        >>> j._check_parameters(strict = True)
         Traceback (most recent call last):
         ...
         ValueError: The following parameters are in the scenarios but not in the survey: {'plop'}
         """
         survey_parameters: set = self.survey.parameters
-        scenario_parameters:set = self.scenarios.parameters
-        
+        scenario_parameters: set = self.scenarios.parameters
+
         msg1, msg2 = None, None
 
-        if (in_survey_but_not_in_scenarios := survey_parameters - scenario_parameters):
+        if in_survey_but_not_in_scenarios := survey_parameters - scenario_parameters:
             msg1 = f"The following parameters are in the survey but not in the scenarios: {in_survey_but_not_in_scenarios}"
-        if (in_scenarios_but_not_in_survey := scenario_parameters - survey_parameters):
+        if in_scenarios_but_not_in_survey := scenario_parameters - survey_parameters:
             msg2 = f"The following parameters are in the scenarios but not in the survey: {in_scenarios_but_not_in_survey}"
-        
+
         if msg1 or msg2:
             message = "\n".join(filter(None, [msg1, msg2]))
             if strict:
                 raise ValueError(message)
             else:
                 warnings.warn(message)
-
 
     def run(
         self,
@@ -399,7 +404,7 @@ class Jobs(Base):
         sidecar_model: Optional[LanguageModel] = None,
         batch_mode: Optional[bool] = None,
         verbose: bool = False,
-        print_exceptions=False,
+        print_exceptions=True,
     ) -> Results:
         """
         Runs the Job: conducts Interviews and returns their results.
@@ -537,11 +542,16 @@ class Jobs(Base):
 
         results = JobsRunnerAsyncio(self).run(*args, **kwargs)
         return results
-    
+
+    async def run_async(self, cache=None, **kwargs):
+        """Run the job asynchronously."""
+        results = await JobsRunnerAsyncio(self).run_async(cache=cache, **kwargs)
+        return results
+
     def all_question_parameters(self):
         """Return all the fields in the questions in the survey."""
         return set.union(*[question.parameters for question in self.survey.questions])
-    
+
     #######################
     # Dunder methods
     #######################
@@ -661,7 +671,9 @@ class Jobs(Base):
         )
         base_survey = Survey(questions=[q1, q2])
 
-        scenario_list = ScenarioList([Scenario({"period": "morning"}), Scenario({"period": "afternoon"})])         
+        scenario_list = ScenarioList(
+            [Scenario({"period": "morning"}), Scenario({"period": "afternoon"})]
+        )
         job = base_survey.by(scenario_list).by(joy_agent, sad_agent)
 
         return job
@@ -697,4 +709,3 @@ if __name__ == "__main__":
     import doctest
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)
-

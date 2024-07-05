@@ -155,8 +155,9 @@ class ResultsExportMixin:
         max_rows=None,
         tee=False,
         iframe=False,
-        iframe_height:int=200,
-        iframe_width:int=600,
+        iframe_height: int = 200,
+        iframe_width: int = 600,
+        web=False,
     ) -> None:
         """Print the results in a pretty format.
 
@@ -241,7 +242,7 @@ class ResultsExportMixin:
         elif format == "html":
             notebook = is_notebook()
             html_source = print_list_of_dicts_as_html_table(
-                new_data, filename=None, interactive=interactive, notebook=notebook
+                new_data, interactive=interactive
             )
             if iframe:
                 import html
@@ -254,8 +255,13 @@ class ResultsExportMixin:
                 <iframe srcdoc="{ escaped_output }" style="width: {width}px; height: {height}px;"></iframe>
                 """
                 display(HTML(iframe))
-            else:
+            elif notebook:
                 display(HTML(html_source))
+            else:
+                from edsl.utilities.interface import view_html
+
+                view_html(html_source)
+
         elif format == "markdown":
             print_list_of_dicts_as_markdown_table(new_data, filename=filename)
         elif format == "latex":
@@ -507,7 +513,7 @@ class ResultsExportMixin:
             values = self._key_to_value(field)
         else:
             values = list(zip(*(self._key_to_value(field) for field in fields)))
-        
+
         for value in values:
             if isinstance(value, list):
                 value = tuple(value)

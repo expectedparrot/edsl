@@ -382,6 +382,7 @@ class LanguageModel(
             )
             cache_used = False
 
+        # print("Cached used: ", cache_used)
         return response, cache_used, cache_key
         # return self._update_response_with_tracking(
         #     response=response,
@@ -431,7 +432,6 @@ class LanguageModel(
         if encoded_image:
             params["encoded_image"] = encoded_image
 
-        # breakpoint()
         raw_response, cache_used, cache_key = await self.async_get_raw_response(
             **params
         )
@@ -441,7 +441,9 @@ class LanguageModel(
             dict_response = json.loads(response)
         except json.JSONDecodeError as e:
             # TODO: Turn into logs to generate issues
-            dict_response, success = await repair(response, str(e))
+            dict_response, success = await repair(
+                bad_json=response, error_message=str(e), cache=cache
+            )
             if not success:
                 raise Exception(
                     f"""Even the repair failed. The error was: {e}. The response was: {response}."""

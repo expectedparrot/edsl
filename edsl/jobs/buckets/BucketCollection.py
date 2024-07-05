@@ -10,8 +10,9 @@ class BucketCollection(UserDict):
     Models themselves are hashable, so this works.
     """
 
-    def __init__(self):
+    def __init__(self, infinity_buckets=False):
         super().__init__()
+        self.infinity_buckets = infinity_buckets
 
     def __repr__(self):
         return f"BucketCollection({self.data})"
@@ -21,8 +22,13 @@ class BucketCollection(UserDict):
 
         This will create the token and request buckets for the model."""
         # compute the TPS and RPS from the model
-        TPS = model.TPM / 60.0
-        RPS = model.RPM / 60.0
+        if not self.infinity_buckets:
+            TPS = model.TPM / 60.0
+            RPS = model.RPM / 60.0
+        else:
+            TPS = float("inf")
+            RPS = float("inf")
+
         # create the buckets
         requests_bucket = TokenBucket(
             bucket_name=model.model,
