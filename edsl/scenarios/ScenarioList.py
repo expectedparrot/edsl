@@ -34,7 +34,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
     @property
     def parameters(self) -> set:
         """Return the set of parameters in the ScenarioList
-        
+
         Example:
 
         >>> s = ScenarioList([Scenario({'a': 1}), Scenario({'b': 2})])
@@ -48,20 +48,20 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
 
     def __hash__(self) -> int:
         """Return the hash of the ScenarioList.
-        
+
         >>> s = ScenarioList.example()
         >>> hash(s)
         1262252885757976162
         """
         from edsl.utilities.utilities import dict_hash
+
         return dict_hash(self._to_dict(sort=True))
 
     def __repr__(self):
         return f"ScenarioList({self.data})"
 
     def __mul__(self, other: ScenarioList) -> ScenarioList:
-        """Takes the cross product of two ScenarioLists.
-        """
+        """Takes the cross product of two ScenarioLists."""
         from itertools import product
 
         new_sl = []
@@ -71,7 +71,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
 
     def times(self, other: ScenarioList) -> ScenarioList:
         """Takes the cross product of two ScenarioLists.
-        
+
         Example:
 
         >>> s1 = ScenarioList([Scenario({'a': 1}), Scenario({'a': 2})])
@@ -295,7 +295,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         >>> s = ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
         >>> s.rename({'name': 'first_name', 'age': 'years'})
         ScenarioList([Scenario({'first_name': 'Alice', 'years': 30}), Scenario({'first_name': 'Bob', 'years': 25})])
-        
+
         """
 
         new_list = ScenarioList([])
@@ -377,7 +377,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
     @classmethod
     def gen(cls, scenario_dicts_list: List[dict]) -> ScenarioList:
         """Create a `ScenarioList` from a list of dictionaries.
-        
+
         Example:
 
         >>> ScenarioList.gen([{'name': 'Alice'}, {'name': 'Bob'}])
@@ -432,12 +432,12 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
 
     def __getitem__(self, key: Union[int, slice]) -> Any:
         """Return the item at the given index.
-        
+
         Example:
         >>> s = ScenarioList([Scenario({'age': 22, 'hair': 'brown', 'height': 5.5}), Scenario({'age': 22, 'hair': 'brown', 'height': 5.5})])
         >>> s[0]
         Scenario({'age': 22, 'hair': 'brown', 'height': 5.5})
-        
+
         >>> s[:1]
         ScenarioList([Scenario({'age': 22, 'hair': 'brown', 'height': 5.5})])
 

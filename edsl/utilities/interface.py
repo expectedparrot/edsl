@@ -331,15 +331,15 @@ def create_latex_table_from_data(data, filename=None, split_at_dot=True):
 
     >>> data = [{"a": [1, 2, 3], "b": [4, 5, 6]}]
     >>> print(create_latex_table_from_data(data))
-    \begin{tabular}{|c|c|}
-    \hline
-    a & b \\
-    \hline
-    1 & 4 \\
-    2 & 5 \\
-    3 & 6 \\
-    \hline
-    \end{tabular}
+    \\begin{tabular}{|c|c|}
+    \\hline
+    a & b \\\\
+    \\hline
+    1 & 4 \\\\
+    2 & 5 \\\\
+    3 & 6 \\\\
+    \\hline
+    \\end{tabular}
     """
 
     def escape_latex(s):
@@ -379,7 +379,7 @@ def create_latex_table_from_data(data, filename=None, split_at_dot=True):
     num_rows = len(next(iter(data[0].values())))
 
     # Debugging: Print the keys of the dictionaries
-    print("Keys in data[0]:", list(data[0].keys()))
+    # print("Keys in data[0]:", list(data[0].keys()))
 
     # Add the data rows
     for i in range(num_rows):
@@ -516,6 +516,13 @@ def print_tally_with_rich(data, filename=None):
     Example:
     >>> data = {'a':12, 'b':14, 'c':9}
     >>> print_tally_with_rich(data)
+    ┏━━━━━━━┳━━━━━━━┓
+    ┃ Value ┃ Count ┃
+    ┡━━━━━━━╇━━━━━━━┩
+    │ a     │ 12    │
+    │ b     │ 14    │
+    │ c     │ 9     │
+    └───────┴───────┘
     """
     # Initialize a console object
     console = Console(record=True)

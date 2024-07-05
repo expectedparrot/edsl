@@ -8,14 +8,15 @@ from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 from edsl.utilities import is_valid_variable_name
 from edsl.utilities.utilities import dict_hash
 
+
 class ModelList(Base, UserList):
 
     def __init__(self, data: Optional[list] = None):
         """Initialize the ScenarioList class.
-        
+
         >>> from edsl import Model
         >>> m = ModelList(Model.available())
-        
+
         """
         if data is not None:
             super().__init__(data)
@@ -25,7 +26,7 @@ class ModelList(Base, UserList):
     @property
     def names(self):
         """
-        
+
         >>> ModelList.example().names
         {'...'}
         """
@@ -36,23 +37,24 @@ class ModelList(Base, UserList):
 
     def __repr__(self):
         return f"ModelList({super().__repr__()})"
-    
+
     def __hash__(self):
         """Return a hash of the ModelList. This is used for comparison of ModelLists.
-        
+
         >>> hash(ModelList.example())
         1423518243781418961
-        
+
         """
         from edsl.utilities.utilities import dict_hash
+
         return dict_hash(self._to_dict(sort=True))
-    
-    def _to_dict(self, sort = False):
+
+    def _to_dict(self, sort=False):
         if sort:
-            model_list = sorted([model for model in self], key = lambda x: hash(x))
-            return {'models':[model._to_dict() for model in model_list]}
+            model_list = sorted([model for model in self], key=lambda x: hash(x))
+            return {"models": [model._to_dict() for model in model_list]}
         else:
-            return {'models':[model._to_dict() for model in self]}
+            return {"models": [model._to_dict() for model in self]}
 
     @add_edsl_version
     def to_dict(self):
@@ -63,7 +65,7 @@ class ModelList(Base, UserList):
         """
         return self._to_dict()
 
-    @classmethod    
+    @classmethod
     @remove_edsl_version
     def from_dict(cls, data):
         """
@@ -72,8 +74,8 @@ class ModelList(Base, UserList):
         >>> newm = ModelList.from_dict(ModelList.example().to_dict())
         >>> assert ModelList.example() == newm
         """
-        return cls(data = [LanguageModel.from_dict(model) for model in data['models']])
-    
+        return cls(data=[LanguageModel.from_dict(model) for model in data["models"]])
+
     def code(self):
         pass
 
@@ -81,8 +83,8 @@ class ModelList(Base, UserList):
     def example(cl):
         return ModelList([LanguageModel.example() for _ in range(3)])
 
+
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)
-
-

@@ -4,6 +4,7 @@ from typing import Any, Dict, Tuple
 from collections import UserList
 import inspect
 
+
 class BaseDiffCollection(UserList):
     def __init__(self, diffs=None):
         if diffs is None:
@@ -36,8 +37,8 @@ class BaseDiff:
 
         self.obj1 = obj1
         self.obj2 = obj2
-        
-        if 'sort' in inspect.signature(obj1._to_dict).parameters:
+
+        if "sort" in inspect.signature(obj1._to_dict).parameters:
             self._dict1 = obj1._to_dict(sort=True)
             self._dict2 = obj2._to_dict(sort=True)
         else:

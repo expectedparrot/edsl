@@ -74,10 +74,14 @@ class SurveyExportMixin:
         :param filename: The name of the file to save the code to.
         :param survey_var_name: The name of the survey variable.
 
+        >>> from edsl.surveys import Survey
         >>> survey = Survey.example()
-        >>> survey.code()
-
-
+        >>> print(survey.code())
+        from edsl.surveys.Survey import Survey
+        ...
+        ...
+        survey = Survey(questions=[q0, q1, q2])
+        ...
         """
         header_lines = ["from edsl.surveys.Survey import Survey"]
         header_lines.append("from edsl import Question")

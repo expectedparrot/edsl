@@ -53,13 +53,13 @@ class Jobs(Base):
         self.agents: AgentList = agents
         self.scenarios: ScenarioList = scenarios
         self.models = models
-        
+
         self.__bucket_collection = None
 
     @property
     def models(self):
         return self._models
-    
+
     @models.setter
     def models(self, value):
         if value:
@@ -117,7 +117,7 @@ class Jobs(Base):
         >>> q = QuestionFreeText(question_name="name", question_text="What is your name?")
         >>> j = Jobs(survey = Survey(questions=[q]))
         >>> j
-        Jobs(survey=Survey(...), agents=AgentList([]), models=[], scenarios=ScenarioList([]))
+        Jobs(survey=Survey(...), agents=AgentList([]), models=ModelList([]), scenarios=ScenarioList([]))
         >>> from edsl import Agent; a = Agent(traits = {"status": "Sad"})
         >>> j.by(a).agents
         AgentList([Agent(traits = {'status': 'Sad'})])
