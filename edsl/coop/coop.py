@@ -335,6 +335,7 @@ class Coop:
         self,
         cache_entries: list[CacheEntry],
         visibility: VisibilityType = "private",
+        description: Optional[str] = None,
     ) -> dict:
         """
         Create many remote cache entries.
@@ -342,6 +343,7 @@ class Coop:
 
         :param cache_entries: The list of cache entries to send to the server.
         :param visibility: The visibility of the cache entries.
+        :param description: A description for these entries in the remote cache.
 
         >>> entries = [CacheEntry.example(randomize=True) for _ in range(10)]
         >>> coop.remote_cache_create_many(cache_entries=entries)
@@ -352,6 +354,7 @@ class Coop:
                 "json_string": json.dumps(c.to_dict()),
                 "version": self._edsl_version,
                 "visibility": visibility,
+                "description": description,
             }
             for c in cache_entries
         ]
