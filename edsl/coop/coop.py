@@ -299,6 +299,7 @@ class Coop:
         self,
         cache_entry: CacheEntry,
         visibility: VisibilityType = "private",
+        description: Optional[str] = None,
     ) -> dict:
         """
         Create a single remote cache entry.
@@ -306,6 +307,7 @@ class Coop:
 
         :param cache_entry: The cache entry to send to the server.
         :param visibility: The visibility of the cache entry.
+        :param optional description: A description for this entry in the remote cache.
 
         >>> entry = CacheEntry.example()
         >>> coop.remote_cache_create(cache_entry=entry)
@@ -318,6 +320,7 @@ class Coop:
                 "json_string": json.dumps(cache_entry.to_dict()),
                 "version": self._edsl_version,
                 "visibility": visibility,
+                "description": description,
             },
         )
         self._resolve_server_response(response)
