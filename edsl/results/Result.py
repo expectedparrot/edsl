@@ -58,6 +58,8 @@ class Result(Base, UserDict):
 
     The answer dictionary has the structure:
 
+    >>> import warnings
+    >>> warnings.simplefilter("ignore", UserWarning)
     >>> Result.example().answer
     {'how_feeling': 'OK', 'how_feeling_comment': 'This is a real survey response from a human.', 'how_feeling_yesterday': 'Great', 'how_feeling_yesterday_comment': 'This is a real survey response from a human.'}
 
