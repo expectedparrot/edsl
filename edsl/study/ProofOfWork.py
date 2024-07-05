@@ -1,27 +1,28 @@
 import hashlib
-from typing import Optional, Any
 import time
+from typing import Optional, Any, Dict, List
 
 
 class ProofOfWork:
-    def __init__(self, input_data: Optional[Any] = None, proof: Optional[dict] = None):
+    def __init__(
+        self,
+        input_data: Optional[Any] = None,
+        proof: Optional[Dict[int, List[Dict[str, Any]]]] = None,
+    ):
         self.input_data = input_data
-        if proof:
-            self.proof = proof
-        else:
-            self.proof = {}
+        self.proof = proof or {}
 
-    def add_input_data(self, input_data):
+    def add_input_data(self, input_data: Any) -> None:
         self.input_data = input_data
 
-    def to_dict(self):
+    def to_dict(self) -> Dict[str, Any]:
         return {"input_data": self.input_data, "proof": self.proof}
 
     @classmethod
-    def from_dict(cls, data):
+    def from_dict(cls, data: Dict[str, Any]) -> "ProofOfWork":
         return cls(data["input_data"], data["proof"])
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"ProofOfWork(input_data={self.input_data}, proof={self.proof})"
 
     def to_hash(self, nonce: int) -> str:
@@ -44,10 +45,9 @@ class ProofOfWork:
                     return False
                 if hash_result != proof["hash"]:
                     return False
-
         return True
 
-    def add_proof(self, difficulty: int, starting_nonce=None) -> None:
+    def add_proof(self, difficulty: int, starting_nonce: Optional[int] = None) -> None:
         """
         Find a nonce that results in a hash with `difficulty` number of leading zeros.
 
@@ -94,6 +94,8 @@ class ProofOfWork:
 
 
 if __name__ == "__main__":
+    from edsl.study import ProofOfWork
+
     p = ProofOfWork("hello world")
     p.add_proof(3)
     print(p)
