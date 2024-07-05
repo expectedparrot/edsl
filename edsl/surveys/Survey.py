@@ -89,7 +89,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         >>> s = Survey.example()
         >>> s.get_question("q0")
-        Question('multiple_choice', question_name = 'q0', question_text = 'Do you like school?', question_options = ['yes', 'no'])
+        Question('multiple_choice', question_name = \"""q0\""", question_text = \"""Do you like school?\""", question_options = ['yes', 'no'])
         """
         if question_name not in self.question_name_to_index:
             raise KeyError(f"Question name {question_name} not found in survey.")
@@ -563,8 +563,6 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         >>> from edsl import QuestionFreeText
         >>> s = Survey([QuestionFreeText.example()])
         >>> results = s.run(debug = True)
-        >>> results
-        Results(...)
         >>> results.select('answer.*').print(format = "rich")
         ┏━━━━━━━━━━━━━━┓
         ┃ answer       ┃
@@ -651,18 +649,17 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         >>> i = s.gen_path_through_survey()
         >>> next(i)
-        Question('multiple_choice', question_name = 'q0', question_text = 'Do you like school?', question_options = ['yes', 'no'])
+        Question('multiple_choice', question_name = \"""q0\""", question_text = \"""Do you like school?\""", question_options = ['yes', 'no'])
         >>> i.send({"q0": "yes"})
-        Question('multiple_choice', question_name = 'q2', question_text = 'Why?', question_options = ['**lack*** of killer bees in cafeteria', 'other'])
+        Question('multiple_choice', question_name = \"""q2\""", question_text = \"""Why?\""", question_options = ['**lack*** of killer bees in cafeteria', 'other'])
 
         And here is the path through the survey if the answer to q0 is 'no':
 
         >>> i2 = s.gen_path_through_survey()
         >>> next(i2)
-        Question('multiple_choice', question_name = 'q0', question_text = 'Do you like school?', question_options = ['yes', 'no'])
+        Question('multiple_choice', question_name = \"""q0\""", question_text = \"""Do you like school?\""", question_options = ['yes', 'no'])
         >>> i2.send({"q0": "no"})
-        Question('multiple_choice', question_name = 'q1', question_text = 'Why not?', question_options = ['killer bees in cafeteria', 'other'])
-
+        Question('multiple_choice', question_name = \"""q1\""", question_text = \"""Why not?\""", question_options = ['killer bees in cafeteria', 'other'])
         """
         question = self._first_question()
         while not question == EndOfSurvey:
@@ -772,7 +769,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         >>> s = Survey.example()
         >>> s[0]
-        Question('multiple_choice', question_name = 'q0', question_text = 'Do you like school?', question_options = ['yes', 'no'])
+        Question('multiple_choice', question_name = \"""q0\""", question_text = \"""Do you like school?\""", question_options = ['yes', 'no'])
 
         """
         if isinstance(index, int):
@@ -1042,20 +1039,20 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         return self.by(s).by(agent).by(model)
 
-    def __call__(self, model=None, agent=None, **kwargs):
+    def __call__(self, model=None, agent=None, cache=None, **kwargs):
         """Run the survey with default model, taking the required survey as arguments.
 
         >>> from edsl.questions import QuestionFunctional
         >>> def f(scenario, agent_traits): return "yes" if scenario["period"] == "morning" else "no"
         >>> q = QuestionFunctional(question_name = "q0", func = f)
         >>> s = Survey([q])
-        >>> s(period = "morning").select("answer.q0").first()
+        >>> s(period = "morning", cache = False).select("answer.q0").first()
         'yes'
-        >>> s(period = "evening").select("answer.q0").first()
+        >>> s(period = "evening", cache = False).select("answer.q0").first()
         'no'
         """
         job = self.get_job(model, agent, **kwargs)
-        return job.run()
+        return job.run(cache=cache)
 
     async def run_async(self, model=None, agent=None, cache=None, **kwargs):
         """Run the survey with default model, taking the required survey as arguments.

@@ -181,7 +181,7 @@ class Results(UserList, Mixins, Base):
         )
         return HTML(formatted_json).data
 
-    def _to_dict(self, sort = False):
+    def _to_dict(self, sort=False):
         if sort:
             data = sorted([result for result in self.data], key=lambda x: hash(x))
         else:
@@ -225,8 +225,8 @@ class Results(UserList, Mixins, Base):
         return self._to_dict()
 
     def __hash__(self) -> int:
-        return dict_hash(self._to_dict(sort = True))
-    
+        return dict_hash(self._to_dict(sort=True))
+
     @property
     def hashes(self) -> set:
         return set(hash(result) for result in self.data)

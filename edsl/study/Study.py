@@ -112,7 +112,7 @@ class Study:
     def _create_mapping_dicts(self):
         self._name_to_object = {}
         self._hash_to_name = {}
-        self._name_to_oe = {} 
+        self._name_to_oe = {}
         name_counts = {}
         for hash, obj in self.objects.items():
             new_name = obj.variable_name
@@ -132,11 +132,10 @@ class Study:
     @property
     def hash_to_name(self):
         self._create_mapping_dicts()
-        return self._hash_to_name     
+        return self._hash_to_name
 
     def __getattr__(self, name):
         return self.name_to_object[name]
-
 
     @classmethod
     def from_file(cls, filename: str):
@@ -223,13 +222,13 @@ class Study:
                 else obj.coop_info.get("url", "")
             )
             table.add_row(
-                obj.variable_name, 
+                obj.variable_name,
                 self.hash_to_name[obj_hash],
-                obj.edsl_class_name, 
-                obj.description, 
-                obj.hash, 
-                url, 
-                datetime.fromtimestamp(obj.created_at).strftime("%Y-%m-%d %H:%M:%S")
+                obj.edsl_class_name,
+                obj.description,
+                obj.hash,
+                url,
+                datetime.fromtimestamp(obj.created_at).strftime("%Y-%m-%d %H:%M:%S"),
             )
         # Add cache at the end
         table.add_row(

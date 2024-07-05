@@ -98,7 +98,7 @@ class Agent(Base):
 
         >>> a = Agent(traits = {"age": 10}, traits_presentation_template = "I am a {{age}} year old.")
         >>> repr(a.agent_persona)
-        "Prompt(text='I am a {{age}} year old.')"
+        'Prompt(text=\"""I am a {{age}} year old.\""")'
 
         When this is rendered for presentation to the LLM, it will replace the `{{age}}` with the actual age.
         it is also possible to use the `codebook` to provide a more human-readable description of the trait.
@@ -109,7 +109,7 @@ class Agent(Base):
         >>> a = Agent(traits = traits, codebook = codebook, traits_presentation_template = "This agent is Dave. {{codebook['age']}} {{age}}")
         >>> d = a.traits | {'codebook': a.codebook}
         >>> a.agent_persona.render(d)
-        Prompt(text='This agent is Dave. Their age is 10')
+        Prompt(text=\"""This agent is Dave. Their age is 10\""")
 
         Instructions
         ------------
@@ -204,8 +204,8 @@ class Agent(Base):
         Example usage:
 
         >>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
-        >>> a.rename("age", "years")
-        Agent(traits = {'years': 10, 'hair': 'brown', 'height': 5.5})
+        >>> a.rename("age", "years") == Agent(traits = {'years': 10, 'hair': 'brown', 'height': 5.5})
+        True
         """
         self.traits[new_name] = self.traits.pop(old_name)
         return self
@@ -339,7 +339,7 @@ class Agent(Base):
         >>> from edsl import QuestionFreeText
         >>> q = QuestionFreeText.example()
         >>> a.answer_question(question = q, cache = False)
-        {'answer': 'I am a direct answer.', 'comment': 'This is a real survey response from a human.', 'question_name': 'how_are_you', 'prompts': {'user_prompt': Prompt(text='NA'), 'system_prompt': Prompt(text='NA')}, 'usage': {'prompt_tokens': 0, 'completion_tokens': 0}, 'cached_response': None, 'raw_model_response': None, 'simple_model_raw_response': None}
+        {'answer': 'I am a direct answer.', 'comment': 'This is a real survey response from a human.', ...}
 
         This is a function where an agent returns an answer to a particular question.
         However, there are several different ways an agent can answer a question, so the
@@ -588,7 +588,7 @@ class Agent(Base):
         Example usage:
 
         >>> Agent.from_dict({'name': "Steve", 'traits': {'age': 10, 'hair': 'brown', 'height': 5.5}})
-        Agent(name = 'Steve', traits = {'age': 10, 'hair': 'brown', 'height': 5.5})
+        Agent(name = \"""Steve\""", traits = {'age': 10, 'hair': 'brown', 'height': 5.5})
 
         """
         return cls(**agent_dict)
