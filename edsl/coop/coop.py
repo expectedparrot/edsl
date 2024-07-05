@@ -343,7 +343,7 @@ class Coop:
 
         :param cache_entries: The list of cache entries to send to the server.
         :param visibility: The visibility of the cache entries.
-        :param description: A description for these entries in the remote cache.
+        :param optional description: A description for these entries in the remote cache.
 
         >>> entries = [CacheEntry.example(randomize=True) for _ in range(10)]
         >>> coop.remote_cache_create_many(cache_entries=entries)

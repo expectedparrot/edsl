@@ -27,12 +27,12 @@ in :ref:`caching`.
 
 .. code-block:: python
 
-  from edsl import Cache
+  from edsl import Cache, Survey
   from edsl.questions import QuestionMultipleChoice, QuestionFreeText
 
   survey = Survey(questions=[QuestionMultipleChoice.example(), QuestionFreeText.example()])
 
-  result = survey.run(cache=Cache())
+  result = survey.run(cache=Cache(), remote_cache_description="Example survey #1")
 
 We can look at the `Coop remote cache logs <https://www.expectedparrot.com/home/remote-cache>`_
 to verify that our results were cached successfully:
@@ -45,8 +45,34 @@ to verify that our results were cached successfully:
 If you see more than 2 uploaded entries, it's likely that your local cache
 already contained some entries (see :ref:`syncing` for more details).
 
-Clearing the cache
--------------------
+We can inspect the details of individual entries by clicking on **View entries**.
+
+.. image:: static/coop_remote_cache_entries_1.png
+  :alt: Page displaying the code for a remote cache entry on the Coop web app
+  :align: center
+  :width: 650px
+
+.. raw:: html
+
+  <br>
+
+Bulk remote cache operations
+------------------------------
+
+The remote cache entry page allows you to perform bulk operations on your cache entries.
+We currently support two bulk operations:
+
+  * **Send to cache:** This creates an unlisted cache object on Coop that will show up on your `My Caches <https://www.expectedparrot.com/home/caches/>`_ page. You can then change the visibility to public to share it with others.
+  * **Delete:** This deletes entries from your remote cache. This operation is currently irreversible, so use with caution!
+
+When performing a bulk remote cache operation, you can select from one of three targets:
+
+  * **Selected entries:** The entries you've selected via checkbox.
+  * **Search results:** The entries that match your search query. Search queries are case insensitive. They match either the raw model output or the cache entry description. 
+  * **Remote cache:** All of the entries in your remote cache. 
+
+Clearing the cache programatically
+------------------------------------
 
 You are currently allowed to store a maximum of 50,000 entries in the remote cache.
 Trying to exceed this limit will raise an ``APIRemoteCacheError``.
@@ -83,7 +109,7 @@ Behind the scenes, remote caching involves the following steps:
   * Run the EDSL survey.
   * Update the remote cache with entries from the local cache, along with the new entries from the survey.
 
-Let's look deeper at how syncing works. To start, we'll create a local cache 
+Let's take a closer look at how syncing works. To start, we'll create a local cache 
 with some example entries. We'll also add examples to the remote cache.
 
 .. code-block:: python
@@ -99,11 +125,19 @@ with some example entries. We'll also add examples to the remote cache.
 
   # Add entries to remote cache
   coop = Coop()
-  coop.remote_cache_create_many(remote_entries)
+  coop.remote_cache_create_many(remote_entries, description="Set of 15 example entries")
 
 
-We now have 10 entries in the local cache and 15 in the remote cache.
-Let's run a survey:
+We now have 10 entries in the local cache and 15 in the remote cache. We can
+verify this by looking at the remote cache logs:
+
+.. image:: static/coop_remote_cache_syncing_logs_1.png
+  :alt: Logs showing 15 remote cache entries on the Coop web app
+  :align: center
+  :width: 650px
+
+
+Now, let's run a survey:
 
 .. code-block:: python
 
@@ -112,7 +146,7 @@ Let's run a survey:
 
   survey = Survey(questions=[QuestionCheckBox.example(), QuestionNumerical.example()])
 
-  result = survey.run(cache=c, verbose=True)
+  result = survey.run(cache=c, remote_cache_description="Example survey #2", verbose=True)
 
 
 Setting the ``verbose`` flag to True provides us with some helpful output:
@@ -127,23 +161,18 @@ Setting the ``verbose`` flag to True provides us with some helpful output:
   Remote cache updated!
   There are 27 entries in the local cache.
 
-From this output, we see that the local cache has been synced with the remote cache. 
-We should now have 27 entries in both caches.
+We now have 27 entries in both caches:
 
-We can verify that there are 27 entries in the remote cache by viewing the
-remote cache logs:
-
-.. image:: static/coop_remote_cache_logs_2.png
+.. image:: static/coop_remote_cache_syncing_logs_2.png
   :alt: Logs showing 27 remote cache entries on the Coop web app
   :align: center
   :width: 650px
 
-In addition to the total entries, the logs show us the details of each 
-remote cache operation:
+To recap, our 27 entries come from:
  
-  * Uploading 15 entries to remote cache  (our initial call to ``remote_cache_create_many``)
-  * Downloading 15 entries from remote to local (part of our ``run`` call)
-  * Uploading of 12 entries from local to remote (part of our ``run`` call)
+  * 15 entries in remote cache (from calling ``coop.remote_cache_create_many``)
+  * 10 entries in local cache (from calling ``c.add_from_dict``)
+  * 2 entries from survey (from calling ``survey.run``)
 
 Remote cache methods
 --------------
@@ -151,7 +180,7 @@ Remote cache methods
 Once you've activated remote caching on Coop, we will automatically send your LLM responses
 to the server when you run a job.
 
-However, if you need to interact with the remote cache manually, we 
+However, if you need to interact with the remote cache programatically, we 
 have the following methods.
 
 Coop class

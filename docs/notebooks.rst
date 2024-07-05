@@ -78,7 +78,7 @@ You can push a notebook to Coop like this:
     coop.create(notebook, description="Comparing model votes", visibility="unlisted")
 
 
-Afterwards, you should see your notebook on the `My Notebooks  <https://www.expectedparrot.com/home/notebooks>`_ page.
+Afterwards, you should see your notebook on the `My Notebooks  <https://www.expectedparrot.com/home/notebooks/>`_ page.
 
 .. image:: static/coop_my_notebooks.png
   :alt: "My Notebooks" page on Coop with one notebook called "Comparing model votes"
@@ -93,7 +93,7 @@ Saving a Coop notebook to file
 -------------------------------
 
 You can explore notebooks that other users have uploaded on the 
-`Explore Notebooks  <https://www.expectedparrot.com/explore/notebooks>`_ page.
+`Explore Notebooks  <https://www.expectedparrot.com/explore/notebooks/>`_ page.
 
 .. image:: static/coop_public_notebooks.png
   :alt: "Public Notebooks" page on Coop with one notebook called "Grading experiment"
