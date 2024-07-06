@@ -29,6 +29,7 @@ class TestBaseModels:
                 "Jobs",
                 "Cache",
                 "Notebook",
+                "ModelList"
             ]
 
         methods = [

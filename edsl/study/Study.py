@@ -107,6 +107,36 @@ class Study:
 
         self.starting_objects = copy.deepcopy(self.objects)
 
+        self._create_mapping_dicts()
+
+    def _create_mapping_dicts(self):
+        self._name_to_object = {}
+        self._hash_to_name = {}
+        self._name_to_oe = {}
+        name_counts = {}
+        for hash, obj in self.objects.items():
+            new_name = obj.variable_name
+            if obj.variable_name in name_counts:
+                name_counts[obj.variable_name] += 1
+                new_name = obj.variable_name + "_" + str(name_counts[obj.variable_name])
+            else:
+                name_counts[obj.variable_name] = 1
+            self._name_to_object[new_name] = obj.object
+            self._hash_to_name[hash] = new_name
+
+    @property
+    def name_to_object(self):
+        self._create_mapping_dicts()
+        return self._name_to_object
+
+    @property
+    def hash_to_name(self):
+        self._create_mapping_dicts()
+        return self._hash_to_name
+
+    def __getattr__(self, name):
+        return self.name_to_object[name]
+
     @classmethod
     def from_file(cls, filename: str):
         """Load a study from a file."""
@@ -177,11 +207,14 @@ class Study:
 
         console = Console()
         table = Table(title="Study")
-        table.add_column("Variable Name")
+        table.add_column("Original Name")
+        table.add_column("Study Name")
         table.add_column("Class")
         table.add_column("Description")
         table.add_column("Hash")
         table.add_column("Coop info")
+        table.add_column("Created")
+
         for obj_hash, obj in self.objects.items():
             url = (
                 ""
@@ -189,15 +222,23 @@ class Study:
                 else obj.coop_info.get("url", "")
             )
             table.add_row(
-                obj.variable_name, obj.edsl_class_name, obj.description, obj.hash, url
+                obj.variable_name,
+                self.hash_to_name[obj_hash],
+                obj.edsl_class_name,
+                obj.description,
+                obj.hash,
+                url,
+                datetime.fromtimestamp(obj.created_at).strftime("%Y-%m-%d %H:%M:%S"),
             )
         # Add cache at the end
         table.add_row(
             "N/A - Study Cache",
+            "cache",
             "Cache",
             f"Cache of study, entries: {len(self.cache)}",
             str(hash(self.cache)),
-            "",
+            "N/A",
+            "N/A",
         )
         console.print(table)
 

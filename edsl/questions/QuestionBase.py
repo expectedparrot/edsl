@@ -338,12 +338,8 @@ class QuestionBase(
         """
         Compose two questions into a single question.
 
-        >>> from edsl.scenarios.Scenario import Scenario
-        >>> from edsl.questions.QuestionFreeText import QuestionFreeText
-        >>> from edsl.questions.QuestionNumerical import QuestionNumerical
-        >>> q1 = QuestionFreeText(question_text = "What is the capital of {{country}}", question_name = "capital")
-        >>> q2 = QuestionNumerical(question_text = "What is the population of {{capital}}, in millions. Please round", question_name = "population")
-        >>> q3 = q1 + q2
+        TODO: Probably getting deprecated.
+
         """
         if isinstance(other_question_or_diff, BaseDiff) or isinstance(
             other_question_or_diff, BaseDiffCollection

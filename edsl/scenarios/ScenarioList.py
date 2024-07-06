@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 import csv
-from collections import UserList
+import random
+from collections import UserList, Counter
 from collections.abc import Iterable
-from collections import Counter
 
 from typing import Any, Optional, Union, List
 
@@ -33,12 +33,26 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
 
     @property
     def parameters(self) -> set:
+        """Return the set of parameters in the ScenarioList
+
+        Example:
+
+        >>> s = ScenarioList([Scenario({'a': 1}), Scenario({'b': 2})])
+        >>> s.parameters == {'a', 'b'}
+        True
+        """
         if len(self) == 0:
             return set()
 
         return set.union(*[set(s.keys()) for s in self])
 
     def __hash__(self) -> int:
+        """Return the hash of the ScenarioList.
+
+        >>> s = ScenarioList.example()
+        >>> hash(s)
+        1262252885757976162
+        """
         from edsl.utilities.utilities import dict_hash
 
         return dict_hash(self._to_dict(sort=True))
@@ -56,13 +70,19 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         return ScenarioList(new_sl)
 
     def times(self, other: ScenarioList) -> ScenarioList:
-        """Takes the cross product of two ScenarioLists."""
+        """Takes the cross product of two ScenarioLists.
+
+        Example:
+
+        >>> s1 = ScenarioList([Scenario({'a': 1}), Scenario({'a': 2})])
+        >>> s2 = ScenarioList([Scenario({'b': 1}), Scenario({'b': 2})])
+        >>> s1.times(s2)
+        ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2}), Scenario({'a': 2, 'b': 1}), Scenario({'a': 2, 'b': 2})])
+        """
         return self.__mul__(other)
 
     def shuffle(self, seed: Optional[str] = "edsl") -> ScenarioList:
         """Shuffle the ScenarioList."""
-        import random
-
         random.seed(seed)
         random.shuffle(self.data)
         return self
@@ -91,7 +111,6 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
 
     def sample(self, n: int, seed="edsl") -> ScenarioList:
         """Return a random sample from the ScenarioList"""
-        import random
 
         if seed != "edsl":
             random.seed(seed)
@@ -269,6 +288,16 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         return self
 
     def rename(self, replacement_dict: dict) -> ScenarioList:
+        """Rename the fields in the scenarios.
+
+        Example:
+
+        >>> s = ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
+        >>> s.rename({'name': 'first_name', 'age': 'years'})
+        ScenarioList([Scenario({'first_name': 'Alice', 'years': 30}), Scenario({'first_name': 'Bob', 'years': 25})])
+
+        """
+
         new_list = ScenarioList([])
         for obj in self:
             new_obj = obj.rename(replacement_dict)
@@ -347,7 +376,14 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
 
     @classmethod
     def gen(cls, scenario_dicts_list: List[dict]) -> ScenarioList:
-        """Create a `ScenarioList` from a list of dictionaries."""
+        """Create a `ScenarioList` from a list of dictionaries.
+
+        Example:
+
+        >>> ScenarioList.gen([{'name': 'Alice'}, {'name': 'Bob'}])
+        ScenarioList([Scenario({'name': 'Alice'}), Scenario({'name': 'Bob'})])
+
+        """
         return cls([Scenario(s) for s in scenario_dicts_list])
 
     @classmethod
@@ -393,39 +429,19 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin):
         filename: str = None,
     ):
         print_scenario_list(self)
-        # if format is None:
-        #     if is_notebook():
-        #         format = "html"
-        #     else:
-        #         format = "rich"
-
-        # if pretty_labels is None:
-        #     pretty_labels = {}
-
-        # if format not in ["rich", "html", "markdown"]:
-        #     raise ValueError("format must be one of 'rich', 'html', or 'markdown'.")
-
-        # if max_rows is not None:
-        #     new_data = self[:max_rows]
-        # else:
-        #     new_data = self
-
-        # if format == "rich":
-        #     print_list_of_dicts_with_rich(
-        #         new_data, filename=filename, split_at_dot=False
-        #     )
-        # elif format == "html":
-        #     notebook = is_notebook()
-        #     html = print_list_of_dicts_as_html_table(
-        #         new_data, filename=None, interactive=False, notebook=notebook
-        #     )
-        #     # print(html)
-        #     display(HTML(html))
-        # elif format == "markdown":
-        #     print_list_of_dicts_as_markdown_table(new_data, filename=filename)
 
     def __getitem__(self, key: Union[int, slice]) -> Any:
-        """Return the item at the given index."""
+        """Return the item at the given index.
+
+        Example:
+        >>> s = ScenarioList([Scenario({'age': 22, 'hair': 'brown', 'height': 5.5}), Scenario({'age': 22, 'hair': 'brown', 'height': 5.5})])
+        >>> s[0]
+        Scenario({'age': 22, 'hair': 'brown', 'height': 5.5})
+
+        >>> s[:1]
+        ScenarioList([Scenario({'age': 22, 'hair': 'brown', 'height': 5.5})])
+
+        """
         if isinstance(key, slice):
             return ScenarioList(super().__getitem__(key))
         elif isinstance(key, int):

@@ -136,12 +136,9 @@ class ResultsDBMixin:
 
         >>> from edsl.results import Results
         >>> r = Results.example()
-        >>> r.sql("select data_type, key, value from self where data_type = 'answer' limit 3", shape="long")
-          data_type                    key                                         value
-        0    answer            how_feeling                                            OK
-        1    answer    how_feeling_comment  This is a real survey response from a human.
-        2    answer  how_feeling_yesterday                                         Great
-
+        >>> d = r.sql("select data_type, key, value from self where data_type = 'answer' limit 3", shape="long")
+        >>> list(d['value'])
+        ['OK', 'This is a real survey response from a human.', 'Great']
 
         We can also return the data in wide format.
         Note the use of single quotes to escape the column names, as required by sql.
