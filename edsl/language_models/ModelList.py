@@ -55,6 +55,13 @@ class ModelList(Base, UserList):
             return {"models": [model._to_dict() for model in model_list]}
         else:
             return {"models": [model._to_dict() for model in self]}
+        
+    @classmethod
+    def from_names(self, *args):
+        """A a model list from a list of names"""
+        if len(args) == 1 and isinstance(args[0], list):
+            args = args[0]
+        return ModelList([Model(model_name) for model_name in args])
 
     @add_edsl_version
     def to_dict(self):

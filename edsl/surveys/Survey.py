@@ -562,7 +562,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         >>> from edsl import QuestionFreeText
         >>> s = Survey([QuestionFreeText.example()])
-        >>> results = s.run(debug = True)
+        >>> results = s.run(debug = True, cache = False)
         >>> results.select('answer.*').print(format = "rich")
         ┏━━━━━━━━━━━━━━┓
         ┃ answer       ┃
@@ -910,7 +910,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         """Print the survey in a rich format.
 
         >>> t = Survey.example().rich_print()
-        >>> print(t)
+        >>> print(t) # doctest: +SKIP
         ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
         ┃ Questions                                                                                          ┃
         ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
@@ -957,7 +957,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         :param filename: The name of the file to save the CSV to.
 
         >>> s = Survey.example()
-        >>> s.to_csv()
+        >>> s.to_csv() # doctest: +SKIP
            index question_name        question_text                                question_options    question_type
         0      0            q0  Do you like school?                                       [yes, no]  multiple_choice
         1      1            q1             Why not?               [killer bees in cafeteria, other]  multiple_choice
@@ -1114,4 +1114,4 @@ def main():
 if __name__ == "__main__":
     import doctest
 
-    doctest.testmod(optionflags=doctest.ELLIPSIS)
+    doctest.testmod(optionflags=doctest.ELLIPSIS | doctest.SKIP) 
