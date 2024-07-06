@@ -6,7 +6,7 @@ import io
 import random
 from functools import wraps
 
-from typing import Literal, Optional
+from typing import Literal, Optional, Union
 
 from edsl.utilities.utilities import is_notebook
 
@@ -483,7 +483,7 @@ class ResultsExportMixin:
             return filename
 
     @_convert_decorator
-    def tally(self, *fields: Optional[str], top_n=None, format=None):
+    def tally(self, *fields: Optional[str], top_n=None, output = "dict") -> Union[dict, 'Dataset']:
         """Tally the values of a field or perform a cross-tab of multiple fields.
 
         :param fields: The field(s) to tally, multiple fields for cross-tabulation.
@@ -525,15 +525,18 @@ class ResultsExportMixin:
         if top_n is not None:
             sorted_tally = dict(list(sorted_tally.items())[:top_n])
 
-        if format is not None:
-            if format == "rich":
-                from edsl.utilities.interface import print_tally_with_rich
-
-                print_tally_with_rich(sorted_tally)
-                return None
-
-        return sorted_tally
-
+        import warnings
+        import textwrap
+        from edsl.results.Dataset import Dataset
+        if output == "dict":
+            warnings.warn(textwrap.dedent("""\
+                        The default output from tally will change to Dataset in the future.
+                        Use output='Dataset' to get the Dataset object for now.
+                        """))
+            return sorted_tally
+        elif output == "Dataset":
+            return Dataset([{'value': list(sorted_tally.keys())}, {'count': list(sorted_tally.values())}])
+  
 
 if __name__ == "__main__":
     import doctest
