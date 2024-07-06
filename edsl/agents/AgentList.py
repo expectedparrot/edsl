@@ -185,18 +185,15 @@ class AgentList(UserList, Base):
             data.sort(key=lambda x: hash(x))
         else:
             data = self.data
-        return {"agent_list": [agent._to_dict() for agent in data]}
+
+        return {"agent_list": [agent.to_dict() for agent in data]}
 
     def __eq__(self, other: AgentList) -> bool:
         return self._to_dict(sorted=True) == other._to_dict(sorted=True)
 
     @add_edsl_version
     def to_dict(self):
-        """Return dictionary of AgentList to serialization.
-
-        >>> AgentList.example().to_dict()
-        {'agent_list': [{'traits': {'age': 22, 'hair': 'brown', 'height': 5.5}, 'edsl_version': '...', 'edsl_class_name': 'Agent'}, {'traits': {'age': 22, 'hair': 'brown', 'height': 5.5}, 'edsl_version': '...', 'edsl_class_name': 'Agent'}], 'edsl_version': '...', 'edsl_class_name': 'AgentList'}
-        """
+        """Return dictionary of AgentList to serialization."""
         return self._to_dict()
 
     def __repr__(self):

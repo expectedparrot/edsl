@@ -41,6 +41,7 @@ def test_jobs_simple_stuf(valid_job):
     assert "Jobs(survey=Survey(" in repr(valid_job)
     from edsl import ScenarioList
     from edsl import AgentList
+    from edsl import ModelList
     assert isinstance(eval(repr(valid_job)), Jobs)
     # serialization
     assert isinstance(valid_job.to_dict(), dict)
@@ -87,33 +88,35 @@ def test_jobs_by_scenarios():
         question_options=["Good", "Great", "OK", "Bad"],
         question_name="how_feeling",
     )
+    from edsl import ScenarioList
     survey = Survey(name="Test Survey", questions=[q])
     scenario1 = Scenario({"price": "100"})
     scenario2 = Scenario({"value": "200"})
     scenario3 = Scenario({"price": "200"})
     # by without existing scenarios
     job = survey.by(scenario1)
-    assert job.scenarios == [scenario1]
+    assert job.scenarios == ScenarioList([scenario1])
     job = survey.by(scenario1, scenario2)
-    assert job.scenarios == [scenario1, scenario2]
+    assert job.scenarios == ScenarioList([scenario1, scenario2])
     assert len(job) == 2
     job = survey.by([scenario1, scenario2])
-    assert job.scenarios == [scenario1, scenario2]
+    assert job.scenarios == ScenarioList([scenario1, scenario2])
     assert len(job) == 2
     job = survey.by((scenario1, scenario2))
-    assert job.scenarios == [scenario1, scenario2]
+    assert job.scenarios == ScenarioList([scenario1, scenario2])
     assert len(job) == 2
     # by with existing scenarios
     job = survey.by(scenario1).by(scenario2)
-    assert job.scenarios == [scenario1 + scenario2]
+    assert job.scenarios == ScenarioList([scenario1 + scenario2])
     assert len(job) == 1
     # if the scenarios have the same keys, new scenarios take precedence
     job = survey.by(scenario1).by(scenario3)
-    assert job.scenarios == [scenario3]
+    assert job.scenarios == ScenarioList([scenario3])
     assert len(job) == 1
 
 
 def test_jobs_by_models():
+    from edsl import ModelList
     q = QuestionMultipleChoice(
         question_text="How are you?",
         question_options=["Good", "Great", "OK", "Bad"],
@@ -125,19 +128,19 @@ def test_jobs_by_models():
     model2 = Model(default.available()[1][0])
     # by without existing models
     job = survey.by(model1)
-    assert job.models == [model1]
+    assert job.models == ModelList([model1])
     job = survey.by(model1, model2)
-    assert job.models == [model1, model2]
+    assert job.models == ModelList([model1, model2])
     assert len(job) == 2
     job = survey.by([model1, model2])
-    assert job.models == [model1, model2]
+    assert job.models == ModelList([model1, model2])
     assert len(job) == 2
     job = survey.by((model1, model2))
-    assert job.models == [model1, model2]
+    assert job.models == ModelList([model1, model2])
     assert len(job) == 2
     # by with existing models
     job = survey.by(model1).by(model2)
-    assert job.models == [model2]
+    assert job.models == ModelList([model2])
     assert len(job) == 1
 
 

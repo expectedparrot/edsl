@@ -181,10 +181,13 @@ class Results(UserList, Mixins, Base):
         )
         return HTML(formatted_json).data
 
-    def _to_dict(self):
-        sorted_data = sorted([result for result in self.data], key=lambda x: hash(x))
+    def _to_dict(self, sort=False):
+        if sort:
+            data = sorted([result for result in self.data], key=lambda x: hash(x))
+        else:
+            data = [result for result in self.data]
         return {
-            "data": [result.to_dict() for result in sorted_data],
+            "data": [result.to_dict() for result in data],
             "survey": self.survey.to_dict(),
             "created_columns": self.created_columns,
             "cache": Cache() if not hasattr(self, "cache") else self.cache.to_dict(),
@@ -222,7 +225,11 @@ class Results(UserList, Mixins, Base):
         return self._to_dict()
 
     def __hash__(self) -> int:
-        return dict_hash(self._to_dict())
+        return dict_hash(self._to_dict(sort=True))
+
+    @property
+    def hashes(self) -> set:
+        return set(hash(result) for result in self.data)
 
     @classmethod
     @remove_edsl_version
@@ -522,8 +529,8 @@ class Results(UserList, Mixins, Base):
         """Adds columns to Results
 
         >>> r = Results.example()
-        >>> r.add_column('a', [1,2,3,]).select('a')
-        Dataset([{'answer.a': [1, 2, 3]}])
+        >>> r.add_column('a', [1,2,3, 4]).select('a')
+        Dataset([{'answer.a': [1, 2, 3, 4]}])
         """
 
         assert len(values) == len(
