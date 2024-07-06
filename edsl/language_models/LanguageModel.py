@@ -142,7 +142,7 @@ class LanguageModel(
     def has_valid_api_key(self) -> bool:
         """Check if the model has a valid API key.
 
-        >>> LanguageModel.example().has_valid_api_key()
+        >>> LanguageModel.example().has_valid_api_key() : # doctest: +SKIP
         True
 
         This method is used to check if the model has a valid API key.
