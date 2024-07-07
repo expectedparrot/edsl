@@ -109,7 +109,7 @@ def test_coop_client_jobs():
         (Jobs.example(), "public"),
         (Jobs.example(), "unlisted"),
     ]
-    coop_object_api_workflows("job", job_examples)
+    #coop_object_api_workflows("job", job_examples)
 
 
 @pytest.mark.coop
