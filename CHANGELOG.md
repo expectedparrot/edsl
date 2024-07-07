@@ -4,6 +4,8 @@
 ### Added
 - Ability to add columns to `Results`
 
+- Class `ModelList` allows you to create a list of `Model` objects to use, similar to `ScenarioList`.
+
 - [In progress] New prompt visibility features.
 
 - [In progress] New methods for piping responses to questions into other questions. 
