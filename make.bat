@@ -2,11 +2,17 @@
 :: Analogues for makefile commands, to help our developers who use Windows
 :: ---------
 @echo off
-:: commands.bat
+setlocal
+:: To run a command, type `make.bat <command-name-here> in your terminal
 
+if "%1" == "clean-docs" goto clean-docs
+if "%1" == "clean-test" goto clean-test
+if "%1" == "docs" goto docs
+if "%1" == "docs-view" goto docs-view
 if "%1" == "install" goto install
 if "%1" == "test" goto test
-if "%1" == "clean-test" goto clean-test
+if "%1" == "test-coop" goto test-coop
+if "%1" == "test-coverage" goto test-coverage
 goto end
 
 ::###############
@@ -53,6 +59,12 @@ for /r %%i in (.) do (
 )
 goto end
 
+:clean-docs
+:: Clean documentation files
+echo Cleaning docs...
+if exist .temp\docs rmdir /s /q .temp\docs
+goto end
+
 :clean-test
 :: Clean test files
 if exist dist rmdir /s /q dist
@@ -87,6 +99,33 @@ echo Done!
 goto end
 
 ::###############
+::##@Development 🛠️  
+::###############
+
+:docs
+:: Generate documentation
+call :clean-docs
+if not exist .temp\docs (
+    mkdir .temp\docs
+)
+poetry export -f requirements.txt --with dev --output .temp\docs\requirements.txt
+poetry export -f requirements.txt --with dev --output docs\requirements.txt
+sphinx-build -b html docs .temp\docs
+goto end
+
+:docs-view
+:: View documentation
+for /f "tokens=2 delims==" %%I in ('wmic os get Caption /value') do set "OSNAME=%%I"
+echo %OSNAME% | findstr /I "Windows" >NUL
+if %errorlevel% == 0 (
+    echo Supported operating system - docs will open automatically: %OSNAME%
+    start .temp\docs\index.html
+) else (
+    echo Unsupported operating system - docs will not open automatically: %OSNAME%
+)
+goto end
+
+::###############
 ::##@Testing 🐛
 ::###############
 
@@ -96,4 +135,30 @@ call :clean-test
 pytest -xv tests --nocoop --windows
 goto end
 
+:test-coop
+:: Run Coop tests (no regular tests, requires Coop local server running)
+call :clean-test
+pytest -xv tests --coop --windows
+goto end
+
+:test-coverage
+:: Run regular tests and get a coverage report
+call :clean-test
+poetry run coverage run -m pytest -x tests --nocoop --windows --ignore=tests\stress
+if %errorlevel% neq 0 (
+    echo Tests failed
+    exit /b %errorlevel%
+)
+poetry run coverage html
+for /f "tokens=2 delims==" %%I in ('wmic os get Caption /value') do set "OSNAME=%%I"
+echo %OSNAME% | findstr /I "Windows" >NUL
+if %errorlevel% == 0 (
+    echo Supported operating system - coverage report will open automatically: %OSNAME%
+    start htmlcov\index.html
+) else (
+    echo Unsupported operating system - coverage report will not open automatically: %OSNAME%
+)
+goto end
+
 :end
+endlocal

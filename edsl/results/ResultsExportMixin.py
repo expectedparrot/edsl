@@ -46,6 +46,7 @@ class ResultsExportMixin:
     ) -> list:
         """Return the set of keys that are present in the dataset.
 
+        >>> from edsl.results.Dataset import Dataset
         >>> d = Dataset([{'a.b':[1,2,3,4]}])
         >>> d.relevant_columns()
         ['a.b']
@@ -155,8 +156,9 @@ class ResultsExportMixin:
         max_rows=None,
         tee=False,
         iframe=False,
-        iframe_height:int=200,
-        iframe_width:int=600,
+        iframe_height: int = 200,
+        iframe_width: int = 600,
+        web=False,
     ) -> None:
         """Print the results in a pretty format.
 
@@ -241,7 +243,7 @@ class ResultsExportMixin:
         elif format == "html":
             notebook = is_notebook()
             html_source = print_list_of_dicts_as_html_table(
-                new_data, filename=None, interactive=interactive, notebook=notebook
+                new_data, interactive=interactive
             )
             if iframe:
                 import html
@@ -254,8 +256,13 @@ class ResultsExportMixin:
                 <iframe srcdoc="{ escaped_output }" style="width: {width}px; height: {height}px;"></iframe>
                 """
                 display(HTML(iframe))
-            else:
+            elif notebook:
                 display(HTML(html_source))
+            else:
+                from edsl.utilities.interface import view_html
+
+                view_html(html_source)
+
         elif format == "markdown":
             print_list_of_dicts_as_markdown_table(new_data, filename=filename)
         elif format == "latex":
@@ -481,11 +488,12 @@ class ResultsExportMixin:
 
         :param fields: The field(s) to tally, multiple fields for cross-tabulation.
 
+        >>> from edsl.results import Results
         >>> r = Results.example()
         >>> r.select('how_feeling').tally('answer.how_feeling')
         {'OK': 2, 'Great': 1, 'Terrible': 1}
-        >>> r.tally('field1', 'field2')
-        {('X', 'A'): 1, ('X', 'B'): 1, ('Y', 'A'): 1}
+        >>> r.select('how_feeling', 'period').tally('how_feeling', 'period')
+        {('OK', 'morning'): 1, ('Great', 'afternoon'): 1, ('Terrible', 'morning'): 1, ('OK', 'afternoon'): 1}
         """
         from collections import Counter
 
@@ -507,7 +515,7 @@ class ResultsExportMixin:
             values = self._key_to_value(field)
         else:
             values = list(zip(*(self._key_to_value(field) for field in fields)))
-        
+
         for value in values:
             if isinstance(value, list):
                 value = tuple(value)

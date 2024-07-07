@@ -238,6 +238,17 @@ class Base(
     #         f.write(html_string)
     #         webbrowser.open(f.name)
 
+    def __eq__(self, other):
+        """Return whether two objects are equal."""
+        import inspect
+
+        if not isinstance(other, self.__class__):
+            return False
+        if "sort" in inspect.signature(self._to_dict).parameters:
+            return self._to_dict(sort=True) == other._to_dict(sort=True)
+        else:
+            return self._to_dict() == other._to_dict()
+
     @abstractmethod
     def example():
         """This method should be implemented by subclasses."""

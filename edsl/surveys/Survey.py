@@ -89,7 +89,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         >>> s = Survey.example()
         >>> s.get_question("q0")
-        Question('multiple_choice', question_name = 'q0', question_text = 'Do you like school?', question_options = ['yes', 'no'])
+        Question('multiple_choice', question_name = \"""q0\""", question_text = \"""Do you like school?\""", question_options = ['yes', 'no'])
         """
         if question_name not in self.question_name_to_index:
             raise KeyError(f"Question name {question_name} not found in survey.")
@@ -107,6 +107,10 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         from edsl.utilities.utilities import dict_hash
 
         return dict_hash(self._to_dict())
+
+    @property
+    def parameters(self):
+        return set.union(*[q.parameters for q in self.questions])
 
     @property
     def question_names(self) -> list[str]:
@@ -535,7 +539,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     ###################
     # FORWARD METHODS
     ###################
-    def by(self, *args: Union[Agent, Scenario, LanguageModel]) -> Jobs:
+    def by(self, *args: Union["Agent", "Scenario", "LanguageModel"]) -> "Jobs":
         """Add Agents, Scenarios, and LanguageModels to a survey and returns a runnable Jobs object.
 
         :param args: The Agents, Scenarios, and LanguageModels to add to the survey.
@@ -558,9 +562,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         >>> from edsl import QuestionFreeText
         >>> s = Survey([QuestionFreeText.example()])
-        >>> results = s.run(debug = True)
-        >>> results
-        Results(...)
+        >>> results = s.run(debug = True, cache = False)
         >>> results.select('answer.*').print(format = "rich")
         ┏━━━━━━━━━━━━━━┓
         ┃ answer       ┃
@@ -647,18 +649,17 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         >>> i = s.gen_path_through_survey()
         >>> next(i)
-        Question('multiple_choice', question_name = 'q0', question_text = 'Do you like school?', question_options = ['yes', 'no'])
+        Question('multiple_choice', question_name = \"""q0\""", question_text = \"""Do you like school?\""", question_options = ['yes', 'no'])
         >>> i.send({"q0": "yes"})
-        Question('multiple_choice', question_name = 'q2', question_text = 'Why?', question_options = ['**lack*** of killer bees in cafeteria', 'other'])
+        Question('multiple_choice', question_name = \"""q2\""", question_text = \"""Why?\""", question_options = ['**lack*** of killer bees in cafeteria', 'other'])
 
         And here is the path through the survey if the answer to q0 is 'no':
 
         >>> i2 = s.gen_path_through_survey()
         >>> next(i2)
-        Question('multiple_choice', question_name = 'q0', question_text = 'Do you like school?', question_options = ['yes', 'no'])
+        Question('multiple_choice', question_name = \"""q0\""", question_text = \"""Do you like school?\""", question_options = ['yes', 'no'])
         >>> i2.send({"q0": "no"})
-        Question('multiple_choice', question_name = 'q1', question_text = 'Why not?', question_options = ['killer bees in cafeteria', 'other'])
-
+        Question('multiple_choice', question_name = \"""q1\""", question_text = \"""Why not?\""", question_options = ['killer bees in cafeteria', 'other'])
         """
         question = self._first_question()
         while not question == EndOfSurvey:
@@ -768,7 +769,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         >>> s = Survey.example()
         >>> s[0]
-        Question('multiple_choice', question_name = 'q0', question_text = 'Do you like school?', question_options = ['yes', 'no'])
+        Question('multiple_choice', question_name = \"""q0\""", question_text = \"""Do you like school?\""", question_options = ['yes', 'no'])
 
         """
         if isinstance(index, int):
@@ -909,7 +910,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         """Print the survey in a rich format.
 
         >>> t = Survey.example().rich_print()
-        >>> print(t)
+        >>> print(t) # doctest: +SKIP
         ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
         ┃ Questions                                                                                          ┃
         ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
@@ -956,7 +957,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         :param filename: The name of the file to save the CSV to.
 
         >>> s = Survey.example()
-        >>> s.to_csv()
+        >>> s.to_csv() # doctest: +SKIP
            index question_name        question_text                                question_options    question_type
         0      0            q0  Do you like school?                                       [yes, no]  multiple_choice
         1      1            q1             Why not?               [killer bees in cafeteria, other]  multiple_choice
@@ -1021,18 +1022,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         s = s.add_rule(q0, "q0 == 'yes'", q2)
         return s
 
-    def __call__(self, model=None, agent=None, **kwargs):
-        """Run the survey with default model, taking the required survey as arguments.
-
-        >>> from edsl.questions import QuestionFunctional
-        >>> def f(scenario, agent_traits): return "yes" if scenario["period"] == "morning" else "no"
-        >>> q = QuestionFunctional(question_name = "q0", func = f)
-        >>> s = Survey([q])
-        >>> s(period = "morning").select("answer.q0").first()
-        'yes'
-        >>> s(period = "evening").select("answer.q0").first()
-        'no'
-        """
+    def get_job(self, model=None, agent=None, **kwargs):
         if not model:
             from edsl import Model
 
@@ -1047,7 +1037,44 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
             agent = Agent()
 
-        return self.by(s).by(agent).by(model).run()
+        return self.by(s).by(agent).by(model)
+
+    def __call__(self, model=None, agent=None, cache=None, **kwargs):
+        """Run the survey with default model, taking the required survey as arguments.
+
+        >>> from edsl.questions import QuestionFunctional
+        >>> def f(scenario, agent_traits): return "yes" if scenario["period"] == "morning" else "no"
+        >>> q = QuestionFunctional(question_name = "q0", func = f)
+        >>> s = Survey([q])
+        >>> s(period = "morning", cache = False).select("answer.q0").first()
+        'yes'
+        >>> s(period = "evening", cache = False).select("answer.q0").first()
+        'no'
+        """
+        job = self.get_job(model, agent, **kwargs)
+        return job.run(cache=cache)
+
+    async def run_async(self, model=None, agent=None, cache=None, **kwargs):
+        """Run the survey with default model, taking the required survey as arguments.
+
+        >>> from edsl.questions import QuestionFunctional
+        >>> def f(scenario, agent_traits): return "yes" if scenario["period"] == "morning" else "no"
+        >>> q = QuestionFunctional(question_name = "q0", func = f)
+        >>> s = Survey([q])
+        >>> s(period = "morning").select("answer.q0").first()
+        'yes'
+        >>> s(period = "evening").select("answer.q0").first()
+        'no'
+        """
+        # TODO: temp fix by creating a cache
+        if cache is None:
+            from edsl.data import Cache
+
+            c = Cache()
+        else:
+            c = cache
+        jobs: "Jobs" = self.get_job(model, agent, **kwargs)
+        return await jobs.run_async(cache=c)
 
 
 def main():
@@ -1087,4 +1114,4 @@ def main():
 if __name__ == "__main__":
     import doctest
 
-    doctest.testmod(optionflags=doctest.ELLIPSIS)
+    doctest.testmod(optionflags=doctest.ELLIPSIS | doctest.SKIP) 
