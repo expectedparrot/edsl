@@ -24,7 +24,9 @@ from edsl.utilities.decorators import (
 
 
 class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
-    """A Scenario is a dictionary of keys/values for parameterizing questions."""
+    """A Scenario is a dictionary of keys/values.
+
+    They can be used parameterize edsl questions."""
 
     def __init__(self, data: Union[dict, None] = None, name: str = None):
         """Initialize a new Scenario.
@@ -37,7 +39,7 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         self.name = name
 
     def replicate(self, n: int) -> "ScenarioList":
-        """Replicate a scenario n times.
+        """Replicate a scenario n times to return a ScenarioList.
 
         :param n: The number of times to replicate the scenario.
 
@@ -63,7 +65,7 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         self._has_image = value
 
     def __add__(self, other_scenario: "Scenario") -> "Scenario":
-        """Combine two scenarios.
+        """Combine two scenarios by taking the union of their keys
 
         If the other scenario is None, then just return self.
 
@@ -131,12 +133,18 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         return self._to_dict()
 
     def __hash__(self) -> int:
-        return int(
-            hashlib.md5(
-                json.dumps(self._to_dict(), sort_keys=True).encode()
-            ).hexdigest(),
-            16,
-        )
+        """
+        Return a hash of the scenario.
+
+        Example:
+
+        >>> s = Scenario({"food": "wood chips"})
+        >>> hash(s)
+        1153210385458344214
+        """
+        from edsl.utilities.utilities import dict_hash
+
+        return dict_hash(self._to_dict())
 
     def print(self):
         from rich import print_json

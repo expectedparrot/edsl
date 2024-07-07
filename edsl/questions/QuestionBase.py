@@ -3,7 +3,7 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from rich.table import Table
-from typing import Any, Type, Optional, List
+from typing import Any, Type, Optional, List, Callable
 import copy
 
 from edsl.exceptions import (
@@ -145,7 +145,7 @@ class QuestionBase(
             if isinstance(value, str):
                 txt += value
             elif isinstance(value, list):
-                txt += " ".join(value)
+                txt += "".join(str(value))
         return txt
 
     @property
@@ -301,6 +301,16 @@ class QuestionBase(
         else:
             return results
 
+    async def run_async(self, just_answer=True, model=None, agent=None, **kwargs):
+        """Call the question."""
+        survey = self.to_survey()
+        ## asyncio.run(survey.async_call());
+        results = await survey.run_async(model=model, agent=agent, **kwargs)
+        if just_answer:
+            return results.select(f"answer.{self.question_name}").first()
+        else:
+            return results
+
     def __repr__(self) -> str:
         """Return a string representation of the question. Should be able to be used to reconstruct the question."""
         class_name = self.__class__.__name__
@@ -328,12 +338,8 @@ class QuestionBase(
         """
         Compose two questions into a single question.
 
-        >>> from edsl.scenarios.Scenario import Scenario
-        >>> from edsl.questions.QuestionFreeText import QuestionFreeText
-        >>> from edsl.questions.QuestionNumerical import QuestionNumerical
-        >>> q1 = QuestionFreeText(question_text = "What is the capital of {{country}}", question_name = "capital")
-        >>> q2 = QuestionNumerical(question_text = "What is the population of {{capital}}, in millions. Please round", question_name = "population")
-        >>> q3 = q1 + q2
+        TODO: Probably getting deprecated.
+
         """
         if isinstance(other_question_or_diff, BaseDiff) or isinstance(
             other_question_or_diff, BaseDiffCollection

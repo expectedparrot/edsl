@@ -27,13 +27,13 @@ class InvigilatorBase(ABC):
     This returns an empty prompt because there is no memory the agent needs to have at q0.
 
     >>> InvigilatorBase.example().create_memory_prompt("q0")
-    Prompt(text='')
+    Prompt(text=\"""\""")
 
     >>> i = InvigilatorBase.example()
     >>> i.current_answers = {"q0": "Prior answer"}
     >>> i.memory_plan.add_single_memory("q1", "q0")
     >>> i.create_memory_prompt("q1")
-    Prompt(text='
+    Prompt(text=\"""
             Before the question you are now answering, you already answered the following question(s):
     ...
     """
@@ -67,7 +67,7 @@ class InvigilatorBase(ABC):
         """Return a string representation of the Invigilator.
 
         >>> InvigilatorBase.example().__repr__()
-        "InvigilatorExample(...)"
+        'InvigilatorExample(...)'
 
         """
         return f"{self.__class__.__name__}(agent={repr(self.agent)}, question={repr(self.question)}, scneario={repr(self.scenario)}, model={repr(self.model)}, memory_plan={repr(self.memory_plan)}, current_answers={repr(self.current_answers)}, iteration{repr(self.iteration)}, additional_prompt_data={repr(self.additional_prompt_data)}, cache={repr(self.cache)}, sidecarmodel={repr(self.sidecar_model)})"
@@ -89,7 +89,7 @@ class InvigilatorBase(ABC):
         """Return the prompt used.
 
         >>> InvigilatorBase.example().get_prompts()
-        {'user_prompt': Prompt(text='NA'), 'system_prompt': Prompt(text='NA')}
+        {'user_prompt': Prompt(text=\"""NA\"""), 'system_prompt': Prompt(text=\"""NA\""")}
         """
         return {
             "user_prompt": Prompt("NA"),
@@ -133,7 +133,7 @@ class InvigilatorBase(ABC):
         """Return an example invigilator.
 
         >>> InvigilatorBase.example()
-        InvigilatorExample(agent=Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5}), question=Question('multiple_choice', question_name = 'how_feeling', question_text = 'How are you?', question_options = ['Good', 'Great', 'OK', 'Bad']), scneario=Scenario({'persona': 'A reseacher studying whether LLMs can be used to generate surveys.'}), model=Model(model_name = 'test', temperature = 0.5), memory_plan={}, current_answers=None, iteration1, additional_prompt_data=None, cache=None, sidecarmodel=None)
+        InvigilatorExample(...)
 
         """
         from edsl.agents.Agent import Agent
