@@ -375,6 +375,17 @@ The table will look like this:
 To learn more about methods of inspecting and printing results, please see the :ref:`results` section.
 
 
+ModelList class
+---------------
+
+.. automodule:: edsl.language_models.ModelList
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :special-members: __init__
+   :exclude-members:
+   
+
 LanguageModel class
 -------------------
 
