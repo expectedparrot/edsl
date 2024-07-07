@@ -7,6 +7,10 @@ import base64
 import hashlib
 import json
 
+import fitz  # PyMuPDF
+import os
+import subprocess
+
 from rich.table import Table
 
 from edsl.Base import Base
@@ -202,6 +206,28 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
             )
             s.has_image = True
             return s
+
+    @classmethod
+    def from_pdf(cls, pdf_path):
+        # Ensure the file exists
+        if not os.path.exists(pdf_path):
+            raise FileNotFoundError(f"The file {pdf_path} does not exist.")
+
+        # Open the PDF file
+        document = fitz.open(pdf_path)
+
+        # Get the filename from the path
+        filename = os.path.basename(pdf_path)
+
+        # Iterate through each page and extract text
+        text = ""
+        for page_num in range(len(document)):
+            page = document.load_page(page_num)
+            text = text + page.get_text()
+
+        # Create a dictionary for the combined text
+        page_info = {"filename": filename, "text": text}
+        return Scenario(page_info)
 
     @classmethod
     def from_docx(cls, docx_path: str) -> "Scenario":
