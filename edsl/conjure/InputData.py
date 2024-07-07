@@ -147,7 +147,7 @@ class InputDataABC(
         """Rename a question.
 
         >>> id = InputDataABC.example()
-        >>> id.rename_question({'morning': 'evening'}).question_names
+        >>> id.rename_questions({'morning': 'evening'}).question_names
         ['evening', 'feeling']
 
         """
@@ -436,7 +436,7 @@ class InputDataABC(
 
         >>> id = InputDataABC.example()
         >>> id.select('morning').question_names
-        ('morning',)
+        ['morning']
 
         """
 
