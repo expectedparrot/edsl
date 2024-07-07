@@ -37,6 +37,7 @@ matplotlib = "^3.8.4"
 pymupdf = "^1.24.4"
 restrictedpython = "^7.1"
 pyreadstat = "^1.2.7"
+nltk = "^3.8.1"
 
 [tool.poetry.dependencies.black]
 extras = ["jupyter"]
