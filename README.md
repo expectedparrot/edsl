@@ -3,27 +3,61 @@
   <img src="https://github.com/expectedparrot/edsl/blob/main/static/logo.png?raw=true" alt="edsl.png" width="100"/>
 </p>
 
-The Expected Parrot Domain-Specific Language (EDSL) package lets you conduct computational social science and market research with AI. Use it to design surveys and experiments, simulate responses with large language models, and perform data labeling and other research tasks. EDSL comes with built-in methods for analyzing, visualizing and sharing your results. 
+The Expected Parrot Domain-Specific Language (EDSL) package lets you conduct computational social science and market research with AI. Use it to design surveys and experiments, simulate responses with large language models, and perform data labeling and other research tasks. Results are formatted as specified datasets and come with built-in methods for analyzing, visualizing, and sharing. 
 
 ## 🔗 Links
-- PyPI: https://pypi.org/project/edsl/
-- Documentation: https://docs.expectedparrot.com
-- Getting started: https://docs.expectedparrot.com/en/latest/starter_tutorial.html
-- Discord: https://discord.com/invite/mxAYkjfy9m
-
+- [PyPI](https://pypi.org/project/edsl/)
+- [Documentation](https://docs.expectedparrot.com)
+- [Discord](https://discord.com/invite/mxAYkjfy9m)
+- [Twitter](https://x.com/ExpectedParrot)
+- [LinkedIn](https://www.linkedin.com/company/expectedparrot/)
+- [Blog](https://blog.expectedparrot.com)
 
 ## 💡 Contributions, Feature Requests & Bugs
-Interested in contributing? Want us to add a new feature? Found a nasty bug that you would like us to squash? Please send us an email at info@expectedparrot.com or message us at our Discord server.
+Interested in contributing? Want us to add a new feature? Found a bug for us to squash? 
+Please send us an email at [info@expectedparrot.com](mailto:info@expectedparrot.com) or message us at our [Discord channel](https://discord.com/invite/mxAYkjfy9m).
 
-
-## 💻 Getting started
+## 💻 Getting Started
 EDSL is compatible with Python 3.9 - 3.12.
-```
+```python
 pip install edsl
 ```
 
-- Read the docs at http://docs.expectedparrot.com.
-- See https://docs.expectedparrot.com/en/latest/starter_tutorial.html for examples and tutorials.
+- [Documentation](https://docs.expectedparrot.com)
+- [Installation instructions](https://docs.expectedparrot.com/en/latest/installation.html)
+- [Getting started tutorial](https://docs.expectedparrot.com/en/latest/starter_tutorial.html) 
 
 ## 🔧 Dependencies
-API keys for LLMs that you want to use, stored in a `.env` file
+API keys for large language models that you want to use, stored in a `.env` file.
+See instructions on [storing API keys](https://docs.expectedparrot.com/en/latest/api_keys.html).
+
+## 🌎 Hello, World!
+A quick example:
+
+```python
+# Import a question type
+from edsl.questions import QuestionMultipleChoice
+
+# Construct a question using the question type template
+q = QuestionMultipleChoice(
+    question_name="example_question",
+    question_text="How do you feel today?",
+    question_options=["Bad", "OK", "Good"]
+)
+
+# Run it with the default language model
+results = q.run()
+
+# Inspect the results in a dataset
+results.select("example_question").print()
+```
+
+Output:
+```python
+┏━━━━━━━━━━━━━━━━━━━┓
+┃ answer            ┃
+┃ .example_question ┃
+┡━━━━━━━━━━━━━━━━━━━┩
+│ Good              │
+└───────────────────┘
+```
