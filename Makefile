@@ -170,6 +170,8 @@ test-doctests: ## Run doctests
 	pytest --doctest-modules edsl/utilities
 	pytest --doctest-modules edsl/language_models
 	pytest --doctest-modules edsl/data
+	pytest --doctest-modules edsl/study
+	pytest --doctest-modules edsl/conjure
 
 test-integration: ## Run integration tests via pytest **consumes API credits**
 	cd integration/printing && python check_printing.py
