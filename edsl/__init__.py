@@ -39,3 +39,4 @@ from edsl.notebooks import Notebook
 from edsl.study.Study import Study
 from edsl.coop.coop import Coop
 from edsl.conjure.Conjure import Conjure
+from edsl.language_models.ModelList import ModelList

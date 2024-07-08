@@ -1,0 +1,25 @@
+rate_limits = {
+    "openai": {
+        "date": "Tue, 02 Jul 2024 15:25:28 GMT",
+        "content-type": "application/json",
+        "transfer-encoding": "chunked",
+        "connection": "keep-alive",
+        "openai-organization": "user-wmu32omw8ulzzutk6mjhtqgk",
+        "openai-processing-ms": "760",
+        "openai-version": "2020-10-01",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "x-ratelimit-limit-requests": "5000",
+        "x-ratelimit-limit-tokens": "600000",
+        "x-ratelimit-remaining-requests": "4999",
+        "x-ratelimit-remaining-tokens": "599978",
+        "x-ratelimit-reset-requests": "12ms",
+        "x-ratelimit-reset-tokens": "2ms",
+        "x-request-id": "req_971608f3647f660a0cd6537fbe21f69c",
+        "cf-cache-status": "DYNAMIC",
+        "set-cookie": "__cf_bm=MJfUk.0TXdjtiNkUUqlUO2gaN3wzm0iHsRQRWExy52o-1719933928-1.0.1.1-0xk9gFxy_mD1KzAsKQ_HpL2pdQJ90D4B5frt65xU.c9k9QwD0oTBILqXB0rykXNh04Pm1UB1.H_W9sFJVOcSaw; path=/; expires=Tue, 02-Jul-24 15:55:28 GMT; domain=.api.openai.com; HttpOnly; Secure; SameSite=None, _cfuvid=GbheRct_iw9_I8iLWmt5ZRcLYZ_QVnroCrAt8QMVsUg-1719933928399-0.0.1.1-604800000; path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None",
+        "server": "cloudflare",
+        "cf-ray": "89cfa6059bb9b68f-OTP",
+        "content-encoding": "gzip",
+        "alt-svc": 'h3=":443"; ma=86400',
+    }
+}

@@ -81,7 +81,7 @@ class JobsRunnerStatusData:
         >>> completed_tasks = []
         >>> elapsed_time = 0
         >>> JobsRunnerStatusData().generate_status_summary(completed_tasks, elapsed_time, interviews)
-        {'Elapsed time': '0.0 sec.', 'Total interviews requested': '1 ', 'Completed interviews': '0 ', 'Percent complete': '0 %', 'Average time per interview': 'NA', 'Task remaining': '1 ', 'Estimated time remaining': 'NA', 'model_queues': [{'model_name': 'gpt-4-1106-preview', 'TPM_limit_k': 1600.0, 'RPM_limit_k': 8.0, 'num_tasks_waiting': 0, 'token_usage_info': [{'cache_status': 'new_token_usage', 'details': [{'type': 'prompt_tokens', 'tokens': 0}, {'type': 'completion_tokens', 'tokens': 0}], 'cost': '$0.00000'}, {'cache_status': 'cached_token_usage', 'details': [{'type': 'prompt_tokens', 'tokens': 0}, {'type': 'completion_tokens', 'tokens': 0}], 'cost': '$0.00000'}]}]}
+        {'Elapsed time': '0.0 sec.', 'Total interviews requested': '1 ', 'Completed interviews': '0 ', 'Percent complete': '0 %', 'Average time per interview': 'NA', 'Task remaining': '1 ', 'Estimated time remaining': 'NA', 'model_queues': [{'model_name': '...', 'TPM_limit_k': ..., 'RPM_limit_k': ..., 'num_tasks_waiting': 0, 'token_usage_info': [{'cache_status': 'new_token_usage', 'details': [{'type': 'prompt_tokens', 'tokens': 0}, {'type': 'completion_tokens', 'tokens': 0}], 'cost': '$0.00000'}, {'cache_status': 'cached_token_usage', 'details': [{'type': 'prompt_tokens', 'tokens': 0}, {'type': 'completion_tokens', 'tokens': 0}], 'cost': '$0.00000'}]}]}
         """
 
         models_to_tokens = defaultdict(InterviewTokenUsage)
@@ -176,7 +176,7 @@ class JobsRunnerStatusData:
         >>> model = interviews[0].model
         >>> num_waiting = 0
         >>> JobsRunnerStatusData()._get_model_info(model, num_waiting, models_to_tokens)
-        {'model_name': 'gpt-4-1106-preview', 'TPM_limit_k': 1600.0, 'RPM_limit_k': 8.0, 'num_tasks_waiting': 0, 'token_usage_info': [{'cache_status': 'new_token_usage', 'details': [{'type': 'prompt_tokens', 'tokens': 0}, {'type': 'completion_tokens', 'tokens': 0}], 'cost': '$0.00000'}, {'cache_status': 'cached_token_usage', 'details': [{'type': 'prompt_tokens', 'tokens': 0}, {'type': 'completion_tokens', 'tokens': 0}], 'cost': '$0.00000'}]}
+        {'model_name': 'gpt-4-1106-preview', 'TPM_limit_k': ..., 'RPM_limit_k': ..., 'num_tasks_waiting': 0, 'token_usage_info': [{'cache_status': 'new_token_usage', 'details': [{'type': 'prompt_tokens', 'tokens': 0}, {'type': 'completion_tokens', 'tokens': 0}], 'cost': '$0.00000'}, {'cache_status': 'cached_token_usage', 'details': [{'type': 'prompt_tokens', 'tokens': 0}, {'type': 'completion_tokens', 'tokens': 0}], 'cost': '$0.00000'}]}
         """
 
         prices = get_token_pricing(model.model)
@@ -234,4 +234,4 @@ class JobsRunnerStatusData:
 if __name__ == "__main__":
     import doctest
 
-    doctest.testmod()
+    doctest.testmod(optionflags=doctest.ELLIPSIS)

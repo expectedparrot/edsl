@@ -158,20 +158,34 @@ class InterviewTaskBuildingMixin:
         This in turn calls the the passed-in agent's async_answer_question method, which returns a response dictionary.
         Note that is updates answers dictionary with the response.
         """
-        invigilator = self._get_invigilator(question, debug=debug)
+        try:
+            invigilator = self._get_invigilator(question, debug=debug)
 
-        if self._skip_this_question(question):
-            return invigilator.get_failed_task_result()
+            if self._skip_this_question(question):
+                return invigilator.get_failed_task_result()
 
-        response: AgentResponseDict = await self._attempt_to_answer_question(
-            invigilator, task
-        )
+            response: AgentResponseDict = await self._attempt_to_answer_question(
+                invigilator, task
+            )
 
-        self._add_answer(response=response, question=question)
+            self._add_answer(response=response, question=question)
 
-        # With the answer to the question, we can now cancel any skipped questions
-        self._cancel_skipped_questions(question)
-        return AgentResponseDict(**response)
+            # With the answer to the question, we can now cancel any skipped questions
+            self._cancel_skipped_questions(question)
+            return AgentResponseDict(**response)
+        except Exception as e:
+            raise e
+            # import traceback
+            # print("Exception caught:")
+            # traceback.print_exc()
+
+            # # Extract and print the traceback info
+            # tb = e.__traceback__
+            # while tb is not None:
+            #     print(f"File {tb.tb_frame.f_code.co_filename}, line {tb.tb_lineno}, in {tb.tb_frame.f_code.co_name}")
+            #     tb = tb.tb_next
+            #     breakpoint()
+            #     raise e
 
     def _add_answer(self, response: AgentResponseDict, question: QuestionBase) -> None:
         """Add the answer to the answers dictionary.
