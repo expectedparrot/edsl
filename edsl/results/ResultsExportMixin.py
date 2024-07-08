@@ -33,6 +33,8 @@ class ResultsExportMixin:
                 return func(self.select(), *args, **kwargs)
             elif self.__class__.__name__ == "Dataset":
                 return func(self, *args, **kwargs)
+            elif self.__class__.__name__ == "ScenarioList":
+                return func(self.to_dataset(), *args, **kwargs)
             else:
                 raise Exception(
                     f"Class {self.__class__.__name__} not recognized as a Results or Dataset object."
