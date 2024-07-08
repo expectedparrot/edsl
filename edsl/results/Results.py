@@ -30,7 +30,7 @@ from edsl.results.Dataset import Dataset
 from edsl.results.Result import Result
 from edsl.results.ResultsExportMixin import ResultsExportMixin
 from edsl.scenarios import Scenario
-from edsl.scenarios.ScenarioList import ScenarioList
+#from edsl.scenarios.ScenarioList import ScenarioList
 from edsl.surveys import Survey
 from edsl.data.Cache import Cache
 from edsl.utilities import (
@@ -356,7 +356,7 @@ class Results(UserList, Mixins, Base):
         return [r.model for r in self.data]
 
     @property
-    def scenarios(self) -> ScenarioList:
+    def scenarios(self) -> 'ScenarioList':
         """Return a list of all of the scenarios in the Results.
 
         Example:
@@ -365,6 +365,7 @@ class Results(UserList, Mixins, Base):
         >>> r.scenarios
         ScenarioList([Scenario({'period': 'morning'}), Scenario({'period': 'afternoon'}), Scenario({'period': 'morning'}), Scenario({'period': 'afternoon'})])
         """
+        from edsl import ScenarioList
         return ScenarioList([r.scenario for r in self.data])
 
     @property
@@ -546,6 +547,12 @@ class Results(UserList, Mixins, Base):
         )
 
     def add_columns_from_dict(self, columns: List[dict]) -> Results:
+        """Adds columns to Results from a list of dictionaries.
+
+        >>> r = Results.example()
+        >>> r.add_columns_from_dict([{'a': 1, 'b': 2}, {'a': 3, 'b': 4}, {'a':3, 'b':2}, {'a':3, 'b':2}]).select('a', 'b')
+        Dataset([{'answer.a': [1, 3, 3, 3]}, {'answer.b': [2, 4, 2, 2]}])
+        """
         keys = list(columns[0].keys())
         for key in keys:
             values = [d[key] for d in columns]

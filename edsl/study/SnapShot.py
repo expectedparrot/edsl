@@ -4,13 +4,18 @@ import inspect
 
 class SnapShot:
     def __init__(self, namespace, exclude=None):
+        self.namespace = namespace
+
         if exclude is None:
             self.exclude = []
         else:
             self.exclude = exclude
 
-        self.edsl_objects = dict(self._get_edsl_objects(namespace=namespace))
-        self.edsl_classes = dict(self._get_edsl_classes(namespace=namespace))
+        self.edsl_objects = dict(self._get_edsl_objects(namespace=self.namespace))
+        self.edsl_classes = dict(self._get_edsl_classes(namespace=self.namespace))
+
+    def _all_object_keys(self):
+        return self.namespace.keys()
 
     def __repr__(self):
         return f"SnapShot(edsl_objects={self.edsl_objects}, edsl_classes={self.edsl_objects})"
@@ -61,7 +66,7 @@ class SnapShot:
             if (
                 hasattr(value, "to_dict")
                 and not inspect.isclass(value)
-                and value not in self.exclude
+                and value.__class__ not in [o.__class__ for o in self.exclude]
             ):
                 yield name, value
 
