@@ -1,10 +1,16 @@
+import requests
 import subprocess
 from io import StringIO
 import os
 import pandas as pd
 
-
 class ValidFilename:
+    """A descriptor that checks if a file exists.
+
+    
+    >>> f = ValidFilename()
+    >>> f = "hello"
+    """
     def __set_name__(self, owner, name):
         self.name = name
 
@@ -22,6 +28,28 @@ class ValidFilename:
 
         instance.__dict__[self.name] = value
 
+class DummyClassToTestDescriptor:
+    """
+    
+    >>> d = DummyClassToTestDescriptor(1)
+    Traceback (most recent call last):
+    ...
+    ValueError: The filename must be a string, not int
+
+    >>> d = DummyClassToTestDescriptor("hello")
+    Traceback (most recent call last):
+    ...
+    ValueError: The file 'hello' does not exist.
+    """
+    filename = ValidFilename()
+
+    def __init__(self, filename):
+        self.filename = filename
+
+    def __repr__(self):
+        return f"DummyClassToTestDescriptor({self.filename})"
+
+
 
 class Missing:
     def __repr__(self):
@@ -35,6 +63,18 @@ class Missing:
 
 
 def convert_value(x):
+    """Takes a string and tries to convert it.
+    
+    >>> convert_value('1')
+    1
+    >>> convert_value('1.2')
+    1.2
+    >>> convert_value("how are you?")
+    'how are you?'
+    >>> convert_value("")
+    'missing'
+    
+    """
     try:
         float_val = float(x)
         if float_val.is_integer():
@@ -48,39 +88,39 @@ def convert_value(x):
             return str(x)
 
 
-class RCodeSnippet:
-    def __init__(self, r_code):
-        self.r_code = r_code
+# class RCodeSnippet:
+#     def __init__(self, r_code):
+#         self.r_code = r_code
 
-    def __call__(self, data_file_name):
-        return self.run_R_stdin(self.r_code, data_file_name)
+#     def __call__(self, data_file_name):
+#         return self.run_R_stdin(self.r_code, data_file_name)
 
-    def __add__(self, other):
-        return RCodeSnippet(self.r_code + other.r_code)
+#     def __add__(self, other):
+#         return RCodeSnippet(self.r_code + other.r_code)
 
-    def write_to_file(self, filename) -> None:
-        """Writes the R code to a file; useful for debugging."""
-        if filename.endswith(".R") or filename.endswith(".r"):
-            pass
-        else:
-            filename += ".R"
+#     def write_to_file(self, filename) -> None:
+#         """Writes the R code to a file; useful for debugging."""
+#         if filename.endswith(".R") or filename.endswith(".r"):
+#             pass
+#         else:
+#             filename += ".R"
 
-        with open(filename, "w") as f:
-            f.write(self.r_code)
+#         with open(filename, "w") as f:
+#             f.write(self.r_code)
 
-    @staticmethod
-    def run_R_stdin(r_code, data_file_name, transform_func=lambda x: pd.read_csv(x)):
-        """Runs an R script and returns the stdout as a string."""
-        cmd = ["Rscript", "-e", r_code, data_file_name]
-        process = subprocess.Popen(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-        )
-        stdout, stderr = process.communicate()
-        if stderr != "":
-            print("Warning: stderr is not empty.")
-            print(f"Problem running: {r_code}")
-            raise Exception(stderr)
-        return transform_func(StringIO(stdout))
+#     @staticmethod
+#     def run_R_stdin(r_code, data_file_name, transform_func=lambda x: pd.read_csv(x)):
+#         """Runs an R script and returns the stdout as a string."""
+#         cmd = ["Rscript", "-e", r_code, data_file_name]
+#         process = subprocess.Popen(
+#             cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+#         )
+#         stdout, stderr = process.communicate()
+#         if stderr != "":
+#             print("Warning: stderr is not empty.")
+#             print(f"Problem running: {r_code}")
+#             raise Exception(stderr)
+#         return transform_func(StringIO(stdout))
 
 
 def infer_question_type(question_text, responses, sample_size=15):
@@ -121,9 +161,6 @@ def infer_question_type(question_text, responses, sample_size=15):
     return response
 
 
-import requests
-
-
 def download_file(url, filename):
     """
     Downloads a file from a given URL and saves it to the specified filename.
@@ -155,3 +192,6 @@ def download_file(url, filename):
 
 
 # Example usage
+if __name__ == "__main__": 
+    import doctest
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
