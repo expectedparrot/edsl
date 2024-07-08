@@ -2,7 +2,7 @@ import re
 import keyword
 
 
-def sanitize_string(input_string, max_length=25):
+def sanitize_string(input_string, max_length=35):
     # Ensure nltk stopwords are downloaded
     try:
         from nltk.corpus import stopwords
@@ -47,7 +47,8 @@ def sanitize_string(input_string, max_length=25):
     if keyword.iskeyword(sanitized_string):
         sanitized_string += "_modified"
 
-    return sanitized_string.lower()
+    result =  sanitized_string.lower()
+    return result
 
 
 # Example usage

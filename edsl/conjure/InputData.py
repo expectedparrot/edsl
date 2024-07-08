@@ -312,6 +312,8 @@ class InputDataABC(
                         )
                     else:
                         value[i] = new_name
+                else:
+                    value[i] = qn
         self._question_names = value
 
     @property
@@ -504,6 +506,24 @@ class InputDataABC(
 
     def get_answer_codebook(self):
         return {}
+    
+    def _drop_rows(self, indices):
+        """Drop rows from the raw data."""
+        #for i in indices:
+        #    for j in range(len(self.raw_data)):
+        #        self.raw_data[j].pop(i)
+        self.raw_data = [[r for i, r in enumerate(row) if i not in indices] for row in self.raw_data]
+        return self
+    
+    def _missing_indices(self, question_name):
+        """Return the indices of missing values for a question."""
+        idx = self.question_names.index(question_name)
+        return [i for i, r in enumerate(self.raw_data[idx]) if r == 'missing']
+    
+    def drop_missing(self, question_name):
+        """Drop missing values for a question."""
+        self._drop_rows(self._missing_indices(question_name))
+
 
     def apply_codebook(self) -> None:
         """Apply the codebook to the raw data."""
@@ -537,19 +557,6 @@ class InputDataABC(
         return InputDataExample("notneeded", config={}, **kwargs)
 
 
-# class InputDataStata(InputDataPyRead):
-
-#     def pyread_function(self, datafile_name):
-#         from pyreadstat import read_dta
-
-#         return read_dta(datafile_name)
-
-
-# class InputDataSPSS(InputDataPyRead):
-#     def pyread_function(self, datafile_name):
-#         from pyreadstat import read_sav
-
-#         return read_sav(datafile_name)
 
 
 if __name__ == "__main__":
@@ -557,80 +564,3 @@ if __name__ == "__main__":
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)
 
-    # pew = InputDataSPSS("examples/pew.sav", config={})
-
-    # doctest.testmod()
-    # config = {"skiprows": 1}
-    # brady = InputDataCSV("examples/deflate_gate.csv", config = {'skiprows': None})
-
-    # sloan = InputDataCSV("examples/sloan_search.csv", config = {'skiprows': [0, 2]})
-
-    # q_raw = RawQuestion(question_type = "multiple_choice",
-    #                     question_name = "morning",
-    #                     question_text = "how are you doing this morning?",
-    #                     question_options = ["Good", "Bad"],
-    #                     responses = ["Good", "Bad"])
-    # q = q_raw.to_question()
-
-    # gss = InputDataSPSS("examples/GSS7218_R3.sav", config = {"skiprows": None})
-
-    # gss = InputDataStata("examples/GSS2022.dta", config = {}, auto_infer = True,
-    #                     question_name_repair_func = lambda x: {'class':'social_class'}.get(x, x)
-    #                     )
-    # new_gss = gss.select(gss.question_names[9:11])
-    # results = new_gss.to_results(indices = range(10))
-    # results.select('answer.*').print()
-    # # gss.question_texts = None
-    # gss.raw_data = None
-    # import time
-    # start = time.time()
-    # gss.frac_numerical
-    # end = time.time()
-    # print("First pass", end - start)
-    # start = time.time()
-    # gss.frac_numerical
-    # end = time.time()
-    # print("Second pass", end - start)
-
-    # def question_name_repair_func(x):
-    #    return x.replace("#", "_num")
-
-    # jobs = InputDataSPSS("examples/job_satisfaction.sav",
-    #                     config={"skiprows": None},
-    #                     question_name_repair_func = question_name_repair_func)
-    # jobs.to_survey().html()
-
-    # url = 'https://dataverse.harvard.edu/api/access/datafile/:persistentId?persistentId=doi:10.7910/DVN/9D2NAC/ZEPNV4'
-    # filename = 'brady.csv'
-    # from edsl.conjure.utilities import download_file
-    # download_file(url, filename)
-
-    # brady = InputDataCSV(download_file(url, filename))
-    # fb = brady.select('favorite_team', 'state_reside')
-    # from edsl import QuestionFreeText
-    # q = QuestionFreeText(question_text = "Who is your favorite football player of all time?", question_name = "favorite_player")
-    # al = fb.to_agent_list(sample_size=10)
-    # al.to_scenario_list().print()
-    # results = q.by(al).run()
-    # results.select('favorite_team', 'favorite_player').print()
-
-    # bfast_agents = (brady
-    #          .select('treatment_response', 'treatment')
-    #          .to_scenario_list()
-    #          .filter("treatment == 'Question Random Assignment - Text 1'")
-    #          .to_agent_list()
-    # )
-    # from edsl import QuestionYesNo
-    # q_eggs = QuestionYesNo(question_text = "Did you eat eggs for breakfast?", question_name = "eggs")
-    # egg_results = q_eggs.by(bfast_agents).run(progress_bar = True)
-
-    # # # id2 = InputDataCSV.from_dict(id.to_dict())
-    # if False:
-    #     lenny = InputDataCSV("lenny.csv", config={"skiprows": None})
-    #     #lenny.print()
-    #     lenny.order_options()
-    #     #lenny.print()
-    #     survey = lenny.to_survey()
-    #     a = lenny.to_agent_list([0])
-    #     results = lenny.to_results()
-    #     results.select('age').print()
