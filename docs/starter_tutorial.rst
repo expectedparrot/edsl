@@ -129,7 +129,7 @@ To see all available models, run `Model.available()`.
     # Run the survey with the scenarios, agents and models
     results = survey.by(scenarios).by(agents).by(models).run()
 
-    # Filter, sort, select and print components of the results to view
+    # Filter, sort, select and print components of the results to inspect
     (results
     .filter("activity == 'reading' and persona == 'chef'")
     .sort_by("model")
