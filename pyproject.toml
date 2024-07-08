@@ -36,6 +36,7 @@ pygments = "^2.17.2"
 matplotlib = "^3.8.4"
 pymupdf = "^1.24.4"
 restrictedpython = "^7.1"
+pyreadstat = "^1.2.7"
 
 [tool.poetry.dependencies.black]
 extras = ["jupyter"]
@@ -76,3 +77,6 @@ trailing_comma_inline_array = true
 
 [tool.tomlsort.overrides."tool.poetry.dependencies"]
 table_keys = false
+
+[tool.poetry.scripts]
+postinstall = "scripts.postinstall:main"

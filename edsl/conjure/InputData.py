@@ -2,22 +2,16 @@ import functools
 
 from abc import ABC, abstractmethod
 from typing import Dict, Callable, Optional, List, Generator, Tuple, Union
-from collections import namedtuple, Counter
+from collections import namedtuple
 from typing import List, Union
 
-import pandas as pd
-
-from edsl import Question, Results
 from edsl.questions.QuestionBase import QuestionBase
-from edsl.agents.AgentList import AgentList
-from edsl.agents.Agent import Agent
 
 from edsl.scenarios.ScenarioList import ScenarioList
 from edsl.surveys.Survey import Survey
 from edsl.conjure.SurveyResponses import SurveyResponses
 from edsl.conjure.naming_utilities import sanitize_string
 from edsl.utilities.utilities import is_valid_variable_name
-from edsl.conjure.utilities import convert_value, Missing
 
 from edsl.conjure.RawQuestion import RawQuestion
 from edsl.conjure.AgentConstructionMixin import AgentConstructionMixin
@@ -35,9 +29,6 @@ class InputDataABC(
     QuestionTypeMixin,
 ):
     """A class to represent the input data for a survey.
-
-    This class can take inputs that will be used or it will infer them.
-    Each of the inferred values can be overridden by passing them in.
     """
 
     NUM_UNIQUE_THRESHOLD = 15
@@ -130,24 +121,42 @@ class InputDataABC(
 
     @abstractmethod
     def get_question_texts(self) -> List[str]:
-        """Get the text of the questions"""
+        """Get the text of the questions
+        
+        >>> id = InputDataABC.example()
+        >>> id.get_question_texts()
+        ['how are you doing this morning?', 'how are you feeling?']
+        
+        """
         raise NotImplementedError
 
     @abstractmethod
     def get_raw_data(self) -> List[List[str]]:
-        """Returns a dataframe of responses by reading the datafile_name."""
+        """Returns the responses by reading the datafile_name.
+
+        >>> id = InputDataABC.example()
+        >>> id.get_raw_data()
+        [['1', '4'], ['3', '6']]
+
+        """
         raise NotImplementedError
 
     @abstractmethod
     def get_question_names(self) -> List[str]:
-        """Get the names of the questions"""
+        """Get the names of the questions.
+        
+        >>> id = InputDataABC.example()
+        >>> id.get_question_names()
+        ['morning', 'feeling']
+        
+        """
         raise NotImplementedError
 
     def rename_questions(self, rename_dict: Dict[str, str]) -> "InputData":
         """Rename a question.
 
         >>> id = InputDataABC.example()
-        >>> id.rename_question({'morning': 'evening'}).question_names
+        >>> id.rename_questions({'morning': 'evening'}).question_names
         ['evening', 'feeling']
 
         """
@@ -170,7 +179,13 @@ class InputDataABC(
         return self
 
     def _drop_question(self, question_name):
-        """Drop a question"""
+        """Drop a question
+        
+        >>> id = InputDataABC.example()
+        >>> id._drop_question('morning').question_names
+        ['feeling']
+        
+        """
         idx = self.question_names.index(question_name)
         self._question_names.pop(idx)
         self._question_texts.pop(idx)
@@ -228,6 +243,7 @@ class InputDataABC(
         old_type = self.question_types[self.question_names.index(question_name)]
         old_options = self.question_options[self.question_names.index(question_name)]
 
+        from edsl import Question
         if new_type not in Question.available():
             raise ValueError(f"Question type {new_type} is not available.")
 
@@ -312,6 +328,8 @@ class InputDataABC(
                         )
                     else:
                         value[i] = new_name
+                else:
+                    value[i] = qn
         self._question_names = value
 
     @property
@@ -436,7 +454,7 @@ class InputDataABC(
 
         >>> id = InputDataABC.example()
         >>> id.select('morning').question_names
-        ('morning',)
+        ['morning']
 
         """
 
@@ -491,7 +509,12 @@ class InputDataABC(
 
     @property
     def answer_codebook(self) -> dict:
-        """Return the answer codebook."""
+        """Return the answer codebook.
+        >>> id = InputDataABC.example(answer_codebook = {'morning':{'1':'hello'}})
+        >>> id.answer_codebook
+        {'morning': {'1': 'hello'}}
+        
+        """
         if not hasattr(self, "_answer_codebook"):
             self._answer_codebook = None
         return self._answer_codebook
@@ -504,9 +527,69 @@ class InputDataABC(
 
     def get_answer_codebook(self):
         return {}
+    
+    def _drop_rows(self, indices: List[int]):
+        """Drop rows from the raw data.
+        :param indices
+
+        >>> id = InputDataABC.example()
+        >>> id.num_observations 
+        2
+        >>> _ = id._drop_rows([1])
+        >>> id.num_observations
+        1
+
+        """
+        self.raw_data = [[r for i, r in enumerate(row) if i not in indices] for row in self.raw_data]
+        return self
+    
+    def _missing_indices(self, question_name):
+        """Return the indices of missing values for a question.
+        TODO: Could re-factor to use SimpleEval
+
+        >>> id = InputDataABC.example()
+        >>> id.raw_data[0][0] = 'missing'
+        >>> id._missing_indices('morning')
+        [0]
+        """
+        idx = self.question_names.index(question_name)
+        return [i for i, r in enumerate(self.raw_data[idx]) if r == 'missing']
+    
+    def drop_missing(self, question_name):
+        """Drop missing values for a question.
+        
+        >>> id = InputDataABC.example()
+        >>> id.num_observations
+        2
+        >>> id.raw_data[0][0] = 'missing'
+        >>> id.drop_missing('morning')
+        >>> id.num_observations 
+        1
+        """
+        self._drop_rows(self._missing_indices(question_name))
+
+    @property
+    def num_observations(self):
+        """
+        Return the number of observations 
+
+        >>> id = InputDataABC.example()
+        >>> id.num_observations 
+        2
+        """
+        return len(self.raw_data[0])
 
     def apply_codebook(self) -> None:
-        """Apply the codebook to the raw data."""
+        """Apply the codebook to the raw data.
+
+        >>> id = InputDataABC.example()
+        >>> id.raw_data
+        [['1', '4'], ['3', '6']]
+        
+        >>> id = InputDataABC.example(answer_codebook = {'morning':{'1':'hello'}})
+        >>> id.raw_data
+        [['hello', '4'], ['3', '6']]
+        """
         for index, qn in enumerate(self.question_names):
             if qn in self.answer_codebook:
                 new_responses = [
@@ -515,7 +598,7 @@ class InputDataABC(
                 self.raw_data[index] = new_responses
 
     def __repr__(self):
-        return f"{self.__class__.__name__}: datafile_name:'{self.datafile_name}' num_questions:{len(self.question_names)}, num_agents:{len(self.raw_data[0])}"
+        return f"{self.__class__.__name__}: datafile_name:'{self.datafile_name}' num_questions:{len(self.question_names)}, num_observations:{len(self.raw_data[0])}"
 
     @classmethod
     def example(cls, **kwargs) -> "InputDataABC":
@@ -537,19 +620,6 @@ class InputDataABC(
         return InputDataExample("notneeded", config={}, **kwargs)
 
 
-# class InputDataStata(InputDataPyRead):
-
-#     def pyread_function(self, datafile_name):
-#         from pyreadstat import read_dta
-
-#         return read_dta(datafile_name)
-
-
-# class InputDataSPSS(InputDataPyRead):
-#     def pyread_function(self, datafile_name):
-#         from pyreadstat import read_sav
-
-#         return read_sav(datafile_name)
 
 
 if __name__ == "__main__":
@@ -557,80 +627,3 @@ if __name__ == "__main__":
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)
 
-    # pew = InputDataSPSS("examples/pew.sav", config={})
-
-    # doctest.testmod()
-    # config = {"skiprows": 1}
-    # brady = InputDataCSV("examples/deflate_gate.csv", config = {'skiprows': None})
-
-    # sloan = InputDataCSV("examples/sloan_search.csv", config = {'skiprows': [0, 2]})
-
-    # q_raw = RawQuestion(question_type = "multiple_choice",
-    #                     question_name = "morning",
-    #                     question_text = "how are you doing this morning?",
-    #                     question_options = ["Good", "Bad"],
-    #                     responses = ["Good", "Bad"])
-    # q = q_raw.to_question()
-
-    # gss = InputDataSPSS("examples/GSS7218_R3.sav", config = {"skiprows": None})
-
-    # gss = InputDataStata("examples/GSS2022.dta", config = {}, auto_infer = True,
-    #                     question_name_repair_func = lambda x: {'class':'social_class'}.get(x, x)
-    #                     )
-    # new_gss = gss.select(gss.question_names[9:11])
-    # results = new_gss.to_results(indices = range(10))
-    # results.select('answer.*').print()
-    # # gss.question_texts = None
-    # gss.raw_data = None
-    # import time
-    # start = time.time()
-    # gss.frac_numerical
-    # end = time.time()
-    # print("First pass", end - start)
-    # start = time.time()
-    # gss.frac_numerical
-    # end = time.time()
-    # print("Second pass", end - start)
-
-    # def question_name_repair_func(x):
-    #    return x.replace("#", "_num")
-
-    # jobs = InputDataSPSS("examples/job_satisfaction.sav",
-    #                     config={"skiprows": None},
-    #                     question_name_repair_func = question_name_repair_func)
-    # jobs.to_survey().html()
-
-    # url = 'https://dataverse.harvard.edu/api/access/datafile/:persistentId?persistentId=doi:10.7910/DVN/9D2NAC/ZEPNV4'
-    # filename = 'brady.csv'
-    # from edsl.conjure.utilities import download_file
-    # download_file(url, filename)
-
-    # brady = InputDataCSV(download_file(url, filename))
-    # fb = brady.select('favorite_team', 'state_reside')
-    # from edsl import QuestionFreeText
-    # q = QuestionFreeText(question_text = "Who is your favorite football player of all time?", question_name = "favorite_player")
-    # al = fb.to_agent_list(sample_size=10)
-    # al.to_scenario_list().print()
-    # results = q.by(al).run()
-    # results.select('favorite_team', 'favorite_player').print()
-
-    # bfast_agents = (brady
-    #          .select('treatment_response', 'treatment')
-    #          .to_scenario_list()
-    #          .filter("treatment == 'Question Random Assignment - Text 1'")
-    #          .to_agent_list()
-    # )
-    # from edsl import QuestionYesNo
-    # q_eggs = QuestionYesNo(question_text = "Did you eat eggs for breakfast?", question_name = "eggs")
-    # egg_results = q_eggs.by(bfast_agents).run(progress_bar = True)
-
-    # # # id2 = InputDataCSV.from_dict(id.to_dict())
-    # if False:
-    #     lenny = InputDataCSV("lenny.csv", config={"skiprows": None})
-    #     #lenny.print()
-    #     lenny.order_options()
-    #     #lenny.print()
-    #     survey = lenny.to_survey()
-    #     a = lenny.to_agent_list([0])
-    #     results = lenny.to_results()
-    #     results.select('age').print()

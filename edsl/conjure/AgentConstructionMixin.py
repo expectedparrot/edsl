@@ -8,7 +8,17 @@ from edsl.results.Results import Results
 
 class AgentConstructionMixin:
     def agent(self, index) -> Agent:
-        """Return an agent constructed from the data."""
+        """Return an agent constructed from the data.
+        
+        :param index: The index of the agent to construct.
+
+        >>> from edsl.conjure.InputData import InputDataABC
+        >>> id = InputDataABC.example()
+        >>> id.agent(0)
+        Agent(traits = {'morning': '1', 'feeling': '3'}, codebook = {'morning': 'how are you doing this morning?', 'feeling': 'how are you feeling?'})
+
+        
+        """
         responses = [responses[index] for responses in self.raw_data]
         traits = {qn: r for qn, r in zip(self.question_names, responses)}
 
@@ -40,6 +50,16 @@ class AgentConstructionMixin:
         :param indices: The indices of the agents to include.
         :param sample_size: The number of agents to sample.
         :param seed: The seed for the random number generator.
+
+        >>> from edsl.conjure.InputData import InputDataABC
+        >>> id = InputDataABC.example()
+        >>> al = id.to_agent_list()
+        >>> len(al) == id.num_observations
+        True
+        >>> al = id.to_agent_list(indices = [0, 1, 2])
+        Traceback (most recent call last):
+        ...
+        ValueError: Index 2 is greater than the number of agents 2.
         """
         if indices and (sample_size or seed != "edsl"):
             raise ValueError(
@@ -86,6 +106,12 @@ class AgentConstructionMixin:
         :param sample_size: The number of agents to sample.
         :param seed: The seed for the random number generator.
         :param dryrun: If True, the survey will not be run, but the time to run it will be printed.
+
+        >>> from edsl.conjure.InputData import InputDataABC
+        >>> id = InputDataABC.example()
+        >>> r = id.to_results()
+        >>> len(r) == id.num_observations
+        True
         """
         agent_list = self.to_agent_list(
             indices=indices,
@@ -118,3 +144,9 @@ class AgentConstructionMixin:
                 )
             return None
         return survey.by(agent_list).run()
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
+
