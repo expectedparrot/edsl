@@ -546,6 +546,12 @@ class Results(UserList, Mixins, Base):
         )
 
     def add_columns_from_dict(self, columns: List[dict]) -> Results:
+        """Adds columns to Results from a list of dictionaries.
+
+        >>> r = Results.example()
+        >>> r.add_columns_from_dict([{'a': 1, 'b': 2}, {'a': 3, 'b': 4}, {'a':3, 'b':2}, {'a':3, 'b':2}]).select('a', 'b')
+        Dataset([{'answer.a': [1, 3, 3, 3]}, {'answer.b': [2, 4, 2, 2]}])
+        """
         keys = list(columns[0].keys())
         for key in keys:
             values = [d[key] for d in columns]
