@@ -55,6 +55,8 @@ ObjectPage = Literal[
     "studies",
 ]
 
+RemoteJobStatus = Literal["queued", "running", "completed", "failed"]
+
 VisibilityType = Literal[
     "private",
     "public",
