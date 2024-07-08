@@ -1,3 +1,4 @@
+import requests
 import subprocess
 from io import StringIO
 import os
@@ -35,6 +36,18 @@ class Missing:
 
 
 def convert_value(x):
+    """Takes a string and tries to convert it.
+    
+    >>> convert_value('1')
+    1
+    >>> convert_value('1.2')
+    1.2
+    >>> convert_value("how are you?")
+    'how are you?'
+    >>> convert_value("")
+    'missing'
+    
+    """
     try:
         float_val = float(x)
         if float_val.is_integer():
@@ -121,9 +134,6 @@ def infer_question_type(question_text, responses, sample_size=15):
     return response
 
 
-import requests
-
-
 def download_file(url, filename):
     """
     Downloads a file from a given URL and saves it to the specified filename.
@@ -155,3 +165,6 @@ def download_file(url, filename):
 
 
 # Example usage
+if __name__ == "__main__": 
+    import doctest
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
