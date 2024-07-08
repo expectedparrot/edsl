@@ -4,8 +4,13 @@ from io import StringIO
 import os
 import pandas as pd
 
-
 class ValidFilename:
+    """A descriptor that checks if a file exists.
+
+    
+    >>> f = ValidFilename()
+    >>> f = "hello"
+    """
     def __set_name__(self, owner, name):
         self.name = name
 
@@ -22,6 +27,28 @@ class ValidFilename:
             raise ValueError(f"The file '{value}' does not exist.")
 
         instance.__dict__[self.name] = value
+
+class DummyClassToTestDescriptor:
+    """
+    
+    >>> d = DummyClassToTestDescriptor(1)
+    Traceback (most recent call last):
+    ...
+    ValueError: The filename must be a string, not int
+
+    >>> d = DummyClassToTestDescriptor("hello")
+    Traceback (most recent call last):
+    ...
+    ValueError: The file 'hello' does not exist.
+    """
+    filename = ValidFilename()
+
+    def __init__(self, filename):
+        self.filename = filename
+
+    def __repr__(self):
+        return f"DummyClassToTestDescriptor({self.filename})"
+
 
 
 class Missing:
@@ -61,39 +88,39 @@ def convert_value(x):
             return str(x)
 
 
-class RCodeSnippet:
-    def __init__(self, r_code):
-        self.r_code = r_code
+# class RCodeSnippet:
+#     def __init__(self, r_code):
+#         self.r_code = r_code
 
-    def __call__(self, data_file_name):
-        return self.run_R_stdin(self.r_code, data_file_name)
+#     def __call__(self, data_file_name):
+#         return self.run_R_stdin(self.r_code, data_file_name)
 
-    def __add__(self, other):
-        return RCodeSnippet(self.r_code + other.r_code)
+#     def __add__(self, other):
+#         return RCodeSnippet(self.r_code + other.r_code)
 
-    def write_to_file(self, filename) -> None:
-        """Writes the R code to a file; useful for debugging."""
-        if filename.endswith(".R") or filename.endswith(".r"):
-            pass
-        else:
-            filename += ".R"
+#     def write_to_file(self, filename) -> None:
+#         """Writes the R code to a file; useful for debugging."""
+#         if filename.endswith(".R") or filename.endswith(".r"):
+#             pass
+#         else:
+#             filename += ".R"
 
-        with open(filename, "w") as f:
-            f.write(self.r_code)
+#         with open(filename, "w") as f:
+#             f.write(self.r_code)
 
-    @staticmethod
-    def run_R_stdin(r_code, data_file_name, transform_func=lambda x: pd.read_csv(x)):
-        """Runs an R script and returns the stdout as a string."""
-        cmd = ["Rscript", "-e", r_code, data_file_name]
-        process = subprocess.Popen(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-        )
-        stdout, stderr = process.communicate()
-        if stderr != "":
-            print("Warning: stderr is not empty.")
-            print(f"Problem running: {r_code}")
-            raise Exception(stderr)
-        return transform_func(StringIO(stdout))
+#     @staticmethod
+#     def run_R_stdin(r_code, data_file_name, transform_func=lambda x: pd.read_csv(x)):
+#         """Runs an R script and returns the stdout as a string."""
+#         cmd = ["Rscript", "-e", r_code, data_file_name]
+#         process = subprocess.Popen(
+#             cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+#         )
+#         stdout, stderr = process.communicate()
+#         if stderr != "":
+#             print("Warning: stderr is not empty.")
+#             print(f"Problem running: {r_code}")
+#             raise Exception(stderr)
+#         return transform_func(StringIO(stdout))
 
 
 def infer_question_type(question_text, responses, sample_size=15):

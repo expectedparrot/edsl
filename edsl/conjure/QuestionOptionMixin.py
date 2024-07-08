@@ -68,3 +68,7 @@ class QuestionOptionMixin:
             proposed_ordering.select("example_question_name", "ordering").to_list()
         )
         self._question_options = [d.get(qn, None) for qn in self.question_names]
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
