@@ -1,7 +1,7 @@
 import asyncio
 from typing import Callable, Union, List
 from collections import UserList, UserDict
-
+import time
 
 from edsl.jobs.buckets import ModelBuckets
 from edsl.exceptions import InterviewErrorPriorTaskCanceled
@@ -132,7 +132,7 @@ class QuestionTaskCreator(UserList):
             self.waiting = True
             self.task_status = TaskStatus.WAITING_FOR_REQUEST_CAPACITY
 
-        await self.requests_bucket.get_tokens(1)
+        await self.tokens_bucket.get_tokens(1)
 
         self.task_status = TaskStatus.API_CALL_IN_PROGRESS
         try:

@@ -7,6 +7,10 @@ import base64
 import hashlib
 import json
 
+import fitz  # PyMuPDF
+import os
+import subprocess
+
 from rich.table import Table
 
 from edsl.Base import Base
@@ -20,7 +24,9 @@ from edsl.utilities.decorators import (
 
 
 class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
-    """A Scenario is a dictionary of keys/values for parameterizing questions."""
+    """A Scenario is a dictionary of keys/values.
+
+    They can be used parameterize edsl questions."""
 
     def __init__(self, data: Union[dict, None] = None, name: str = None):
         """Initialize a new Scenario.
@@ -33,7 +39,7 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         self.name = name
 
     def replicate(self, n: int) -> "ScenarioList":
-        """Replicate a scenario n times.
+        """Replicate a scenario n times to return a ScenarioList.
 
         :param n: The number of times to replicate the scenario.
 
@@ -59,7 +65,7 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         self._has_image = value
 
     def __add__(self, other_scenario: "Scenario") -> "Scenario":
-        """Combine two scenarios.
+        """Combine two scenarios by taking the union of their keys
 
         If the other scenario is None, then just return self.
 
@@ -127,12 +133,18 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         return self._to_dict()
 
     def __hash__(self) -> int:
-        return int(
-            hashlib.md5(
-                json.dumps(self._to_dict(), sort_keys=True).encode()
-            ).hexdigest(),
-            16,
-        )
+        """
+        Return a hash of the scenario.
+
+        Example:
+
+        >>> s = Scenario({"food": "wood chips"})
+        >>> hash(s)
+        1153210385458344214
+        """
+        from edsl.utilities.utilities import dict_hash
+
+        return dict_hash(self._to_dict())
 
     def print(self):
         from rich import print_json
@@ -202,6 +214,28 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
             )
             s.has_image = True
             return s
+
+    @classmethod
+    def from_pdf(cls, pdf_path):
+        # Ensure the file exists
+        if not os.path.exists(pdf_path):
+            raise FileNotFoundError(f"The file {pdf_path} does not exist.")
+
+        # Open the PDF file
+        document = fitz.open(pdf_path)
+
+        # Get the filename from the path
+        filename = os.path.basename(pdf_path)
+
+        # Iterate through each page and extract text
+        text = ""
+        for page_num in range(len(document)):
+            page = document.load_page(page_num)
+            text = text + page.get_text()
+
+        # Create a dictionary for the combined text
+        page_info = {"filename": filename, "text": text}
+        return Scenario(page_info)
 
     @classmethod
     def from_docx(cls, docx_path: str) -> "Scenario":

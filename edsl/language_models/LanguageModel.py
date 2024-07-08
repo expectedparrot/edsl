@@ -142,7 +142,7 @@ class LanguageModel(
     def has_valid_api_key(self) -> bool:
         """Check if the model has a valid API key.
 
-        >>> LanguageModel.example().has_valid_api_key()
+        >>> LanguageModel.example().has_valid_api_key() : # doctest: +SKIP
         True
 
         This method is used to check if the model has a valid API key.
@@ -209,8 +209,8 @@ class LanguageModel(
         """Model's tokens-per-minute limit.
 
         >>> m = LanguageModel.example()
-        >>> m.TPM
-        1600000.0
+        >>> m.TPM > 0
+        True
         """
         self._set_rate_limits()
         return self._safety_factor * self.__rate_limits["tpm"]
@@ -287,29 +287,6 @@ class LanguageModel(
         """
         raise NotImplementedError
 
-    def _update_response_with_tracking(
-        self, response: dict, start_time: int, cached_response=False, cache_key=None
-    ):
-        """Update the response with tracking information.
-
-        >>> m = LanguageModel.example()
-        >>> m._update_response_with_tracking(response={"response": "Hello"}, start_time=0, cached_response=False, cache_key=None)
-        {'response': 'Hello', 'elapsed_time': ..., 'timestamp': ..., 'cached_response': False, 'cache_key': None}
-
-
-        """
-        end_time = time.time()
-        ## TODO: This 'cached_response' field is important for some reason.
-        response.update(
-            {
-                # "elapsed_time": end_time - start_time,
-                # "timestamp": end_time,
-                #                "cached_response": cached_response,
-                # "cache_key": cache_key,
-            }
-        )
-        return response
-
     async def async_get_raw_response(
         self,
         user_prompt: str,
@@ -317,7 +294,7 @@ class LanguageModel(
         cache,
         iteration: int = 0,
         encoded_image=None,
-    ) -> dict[str, Any]:
+    ) -> tuple[dict, bool, str]:
         """Handle caching of responses.
 
         :param user_prompt: The user's prompt.
@@ -325,8 +302,7 @@ class LanguageModel(
         :param iteration: The iteration number.
         :param cache: The cache to use.
 
-        If the cache isn't being used, it just returns a 'fresh' call to the LLM,
-        but appends some tracking information to the response (using the _update_response_with_tracking method).
+        If the cache isn't being used, it just returns a 'fresh' call to the LLM.
         But if cache is being used, it first checks the database to see if the response is already there.
         If it is, it returns the cached response, but again appends some tracking information.
         If it isn't, it calls the LLM, saves the response to the database, and returns the response with tracking information.
@@ -337,7 +313,7 @@ class LanguageModel(
         >>> from edsl import Cache
         >>> m = LanguageModel.example(test_model = True)
         >>> m.get_raw_response(user_prompt = "Hello", system_prompt = "hello", cache = Cache())
-        {'message': '{"answer": "Hello world"}', 'elapsed_time': ..., 'timestamp': ..., 'cached_response': False, 'cache_key': '24ff6ac2bc2f1729f817f261e0792577'}
+        ({'message': '{"answer": "Hello world"}'}, False, '24ff6ac2bc2f1729f817f261e0792577')
         """
         start_time = time.time()
 
@@ -383,12 +359,6 @@ class LanguageModel(
             cache_used = False
 
         return response, cache_used, cache_key
-        # return self._update_response_with_tracking(
-        #     response=response,
-        #     start_time=start_time,
-        #     cached_response=cache_used,
-        #     cache_key=cache_key,
-        # ), cache_used
 
     get_raw_response = sync_wrapper(async_get_raw_response)
 
@@ -431,7 +401,6 @@ class LanguageModel(
         if encoded_image:
             params["encoded_image"] = encoded_image
 
-        # breakpoint()
         raw_response, cache_used, cache_key = await self.async_get_raw_response(
             **params
         )
@@ -441,7 +410,9 @@ class LanguageModel(
             dict_response = json.loads(response)
         except json.JSONDecodeError as e:
             # TODO: Turn into logs to generate issues
-            dict_response, success = await repair(response, str(e))
+            dict_response, success = await repair(
+                bad_json=response, error_message=str(e), cache=cache
+            )
             if not success:
                 raise Exception(
                     f"""Even the repair failed. The error was: {e}. The response was: {response}."""

@@ -70,12 +70,13 @@ def test_Question_properties(capsys):
     # with pytest.raises(QuestionScenarioRenderError):
     #     q3.formulate_prompt()
     curly = valid_question.copy()
-    curly["question_text"] = "What is the capital of {country}"
-    # make sure that when you initialize curly, it outputs a string that contains "WARNING"
-    # it's not a warning, just a string printed, so you have to check capsys
-    QuestionFreeText(**curly)
-    captured = capsys.readouterr()
-    assert "WARNING" in captured.out
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)
+        with pytest.warns(UserWarning):
+            curly["question_text"] = "What is the capital of {country}"
+            QuestionFreeText(**curly)
 
     # Q -> Survey stuff
     q1 = QuestionFreeText(**valid_question)

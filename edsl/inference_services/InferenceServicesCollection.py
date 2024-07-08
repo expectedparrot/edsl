@@ -1,5 +1,5 @@
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
-
+import warnings
 
 class InferenceServicesCollection:
     added_models = {}
@@ -13,15 +13,25 @@ class InferenceServicesCollection:
             cls.added_models[service_name] = []
         cls.added_models[service_name].append(model_name)
 
+    @staticmethod
+    def _get_service_available(service) -> list[str]:
+        from_api = True
+        try:
+            service_models = service.available()
+        except Exception as e:
+            warnings.warn(f"Error getting models for {service._inference_service_}. Relying on cache.", UserWarning)
+            from edsl.inference_services.models_available_cache import models_available
+
+            service_models = models_available.get(service._inference_service_, [])
+            # cache results
+            service._models_list_cache = service_models
+            from_api = False
+        return service_models  # , from_api
+
     def available(self):
         total_models = []
         for service in self.services:
-            try:
-                service_models = service.available()
-            except Exception as e:
-                print(f"Error getting models for {service._inference_service_}: {e}")
-                service_models = []
-                continue
+            service_models = self._get_service_available(service)
             for model in service_models:
                 total_models.append([model, service._inference_service_, -1])
 
@@ -39,7 +49,7 @@ class InferenceServicesCollection:
 
     def create_model_factory(self, model_name: str, service_name=None, index=None):
         for service in self.services:
-            if model_name in service.available():
+            if model_name in self._get_service_available(service):
                 if service_name is None or service_name == service._inference_service_:
                     return service.create_model(model_name)
 

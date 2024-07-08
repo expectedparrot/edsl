@@ -60,7 +60,13 @@ class GoogleService(InferenceServiceABC):
 
             def parse_response(self, raw_response: dict[str, Any]) -> str:
                 data = raw_response
-                return data["candidates"][0]["content"]["parts"][0]["text"]
+                try:
+                    return data["candidates"][0]["content"]["parts"][0]["text"]
+                except KeyError as e:
+                    print(
+                        f"The data return was {data}, which was missing the key 'candidates'"
+                    )
+                    raise e
 
         LLM.__name__ = model_name
 

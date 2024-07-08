@@ -331,15 +331,15 @@ def create_latex_table_from_data(data, filename=None, split_at_dot=True):
 
     >>> data = [{"a": [1, 2, 3], "b": [4, 5, 6]}]
     >>> print(create_latex_table_from_data(data))
-    \begin{tabular}{|c|c|}
-    \hline
-    a & b \\
-    \hline
-    1 & 4 \\
-    2 & 5 \\
-    3 & 6 \\
-    \hline
-    \end{tabular}
+    \\begin{tabular}{|c|c|}
+    \\hline
+    a & b \\\\
+    \\hline
+    1 & 4 \\\\
+    2 & 5 \\\\
+    3 & 6 \\\\
+    \\hline
+    \\end{tabular}
     """
 
     def escape_latex(s):
@@ -379,7 +379,7 @@ def create_latex_table_from_data(data, filename=None, split_at_dot=True):
     num_rows = len(next(iter(data[0].values())))
 
     # Debugging: Print the keys of the dictionaries
-    print("Keys in data[0]:", list(data[0].keys()))
+    # print("Keys in data[0]:", list(data[0].keys()))
 
     # Add the data rows
     for i in range(num_rows):
@@ -410,9 +410,7 @@ def create_latex_table_from_data(data, filename=None, split_at_dot=True):
     return latex_table_str
 
 
-def print_list_of_dicts_as_html_table(
-    data, filename=None, interactive=True, notebook=False
-):
+def print_list_of_dicts_as_html_table(data, interactive=True):
     """Print a list of dictionaries as an HTML table.
 
     :param data: The list of dictionaries to print.
@@ -459,20 +457,7 @@ def print_list_of_dicts_as_html_table(
     # Close the table
     html_table += "</tbody>\n"
     html_table += "</table>"
-
-    html = gen_html_sandwich(html_table, interactive=interactive)
-
-    # Output or save to file
-    if filename:
-        with open(filename, "w") as f:
-            f.write(html)
-    else:
-        # view_html(html)
-        if notebook:
-            # ipython_diplay(HTML(html))
-            return html
-        else:
-            print(html)
+    return gen_html_sandwich(html_table, interactive=interactive)
 
 
 def print_list_of_dicts_as_markdown_table(data, filename=None):
@@ -531,6 +516,13 @@ def print_tally_with_rich(data, filename=None):
     Example:
     >>> data = {'a':12, 'b':14, 'c':9}
     >>> print_tally_with_rich(data)
+    ┏━━━━━━━┳━━━━━━━┓
+    ┃ Value ┃ Count ┃
+    ┡━━━━━━━╇━━━━━━━┩
+    │ a     │ 12    │
+    │ b     │ 14    │
+    │ c     │ 9     │
+    └───────┴───────┘
     """
     # Initialize a console object
     console = Console(record=True)
