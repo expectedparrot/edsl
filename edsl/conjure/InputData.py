@@ -2,22 +2,16 @@ import functools
 
 from abc import ABC, abstractmethod
 from typing import Dict, Callable, Optional, List, Generator, Tuple, Union
-from collections import namedtuple, Counter
+from collections import namedtuple
 from typing import List, Union
 
-import pandas as pd
-
-from edsl import Question, Results
 from edsl.questions.QuestionBase import QuestionBase
-from edsl.agents.AgentList import AgentList
-from edsl.agents.Agent import Agent
 
 from edsl.scenarios.ScenarioList import ScenarioList
 from edsl.surveys.Survey import Survey
 from edsl.conjure.SurveyResponses import SurveyResponses
 from edsl.conjure.naming_utilities import sanitize_string
 from edsl.utilities.utilities import is_valid_variable_name
-from edsl.conjure.utilities import convert_value, Missing
 
 from edsl.conjure.RawQuestion import RawQuestion
 from edsl.conjure.AgentConstructionMixin import AgentConstructionMixin
@@ -35,9 +29,6 @@ class InputDataABC(
     QuestionTypeMixin,
 ):
     """A class to represent the input data for a survey.
-
-    This class can take inputs that will be used or it will infer them.
-    Each of the inferred values can be overridden by passing them in.
     """
 
     NUM_UNIQUE_THRESHOLD = 15
@@ -130,17 +121,35 @@ class InputDataABC(
 
     @abstractmethod
     def get_question_texts(self) -> List[str]:
-        """Get the text of the questions"""
+        """Get the text of the questions
+        
+        >>> id = InputDataABC.example()
+        >>> id.get_question_texts()
+        ['how are you doing this morning?', 'how are you feeling?']
+        
+        """
         raise NotImplementedError
 
     @abstractmethod
     def get_raw_data(self) -> List[List[str]]:
-        """Returns a dataframe of responses by reading the datafile_name."""
+        """Returns the responses by reading the datafile_name.
+
+        >>> id = InputDataABC.example()
+        >>> id.get_raw_data()
+        [['1', '4'], ['3', '6']]
+
+        """
         raise NotImplementedError
 
     @abstractmethod
     def get_question_names(self) -> List[str]:
-        """Get the names of the questions"""
+        """Get the names of the questions.
+        
+        >>> id = InputDataABC.example()
+        >>> id.get_question_names()
+        ['morning', 'feeling']
+        
+        """
         raise NotImplementedError
 
     def rename_questions(self, rename_dict: Dict[str, str]) -> "InputData":
@@ -170,7 +179,13 @@ class InputDataABC(
         return self
 
     def _drop_question(self, question_name):
-        """Drop a question"""
+        """Drop a question
+        
+        >>> id = InputDataABC.example()
+        >>> id._drop_question('morning').question_names
+        ['feeling']
+        
+        """
         idx = self.question_names.index(question_name)
         self._question_names.pop(idx)
         self._question_texts.pop(idx)
@@ -228,6 +243,7 @@ class InputDataABC(
         old_type = self.question_types[self.question_names.index(question_name)]
         old_options = self.question_options[self.question_names.index(question_name)]
 
+        from edsl import Question
         if new_type not in Question.available():
             raise ValueError(f"Question type {new_type} is not available.")
 
@@ -493,7 +509,12 @@ class InputDataABC(
 
     @property
     def answer_codebook(self) -> dict:
-        """Return the answer codebook."""
+        """Return the answer codebook.
+        >>> id = InputDataABC.example(answer_codebook = {'morning':{'1':'hello'}})
+        >>> id.answer_codebook
+        {'morning': {'1': 'hello'}}
+        
+        """
         if not hasattr(self, "_answer_codebook"):
             self._answer_codebook = None
         return self._answer_codebook
@@ -509,24 +530,54 @@ class InputDataABC(
     
     def _drop_rows(self, indices):
         """Drop rows from the raw data."""
-        #for i in indices:
-        #    for j in range(len(self.raw_data)):
-        #        self.raw_data[j].pop(i)
         self.raw_data = [[r for i, r in enumerate(row) if i not in indices] for row in self.raw_data]
         return self
     
     def _missing_indices(self, question_name):
-        """Return the indices of missing values for a question."""
+        """Return the indices of missing values for a question.
+        TODO: Could re-factor to use SimpleEval
+
+        >>> c = InputDataABC.example()
+        
+        """
         idx = self.question_names.index(question_name)
         return [i for i, r in enumerate(self.raw_data[idx]) if r == 'missing']
     
     def drop_missing(self, question_name):
-        """Drop missing values for a question."""
+        """Drop missing values for a question.
+        
+        >>> id = InputDataABC.example()
+        >>> id.num_observations
+        2
+        >>> id.raw_data[0][0] = 'missing'
+        >>> id.drop_missing('morning')
+        >>> id.num_observations 
+        1
+        """
         self._drop_rows(self._missing_indices(question_name))
 
+    @property
+    def num_observations(self):
+        """
+        Return the number of observations 
+
+        >>> id = InputDataABC.example()
+        >>> id.num_observations 
+        2
+        """
+        return len(self.raw_data[0])
 
     def apply_codebook(self) -> None:
-        """Apply the codebook to the raw data."""
+        """Apply the codebook to the raw data.
+
+        >>> id = InputDataABC.example()
+        >>> id.raw_data
+        [['1', '4'], ['3', '6']]
+        
+        >>> id = InputDataABC.example(answer_codebook = {'morning':{'1':'hello'}})
+        >>> id.raw_data
+        [['hello', '4'], ['3', '6']]
+        """
         for index, qn in enumerate(self.question_names):
             if qn in self.answer_codebook:
                 new_responses = [
@@ -535,7 +586,7 @@ class InputDataABC(
                 self.raw_data[index] = new_responses
 
     def __repr__(self):
-        return f"{self.__class__.__name__}: datafile_name:'{self.datafile_name}' num_questions:{len(self.question_names)}, num_agents:{len(self.raw_data[0])}"
+        return f"{self.__class__.__name__}: datafile_name:'{self.datafile_name}' num_questions:{len(self.question_names)}, num_observations:{len(self.raw_data[0])}"
 
     @classmethod
     def example(cls, **kwargs) -> "InputDataABC":
