@@ -50,6 +50,155 @@ If multiple values will be used, we can create a list of `Scenario` objects:
     scenarios = [Scenario({"item": item}) for item in ["color", "food"]]
 
 
+We can inspect the scenarios to see that they have been created correctly:
+
+.. code-block:: python
+
+    scenarios 
+
+
+This will return:
+
+.. code-block:: python
+
+    [Scenario({'item': 'color'}), Scenario({'item': 'food'})]
+
+
+
+We can also create a `ScenarioList` object to store multiple scenarios:
+
+.. code-block:: python
+
+    from edsl import ScenarioList
+
+    scenariolist = ScenarioList([Scenario({"item": item}) for item in ["color", "food"]])
+
+
+To inspect the scenarios, we can print them:
+
+.. code-block:: python
+
+    scenariolist
+
+
+This will return:
+
+.. code-block:: python
+
+    {
+        "scenarios": [
+            {
+                "item": "color"
+            },
+            {
+                "item": "food"
+            }
+        ]
+    }
+
+
+Combining Scenarios 
+-------------------
+We can combine multiple scenarios into a single `Scenario` object:
+
+.. code-block:: python
+
+    from edsl import Scenario
+
+    scenario1 = Scenario({"food": "apple"})
+    scenario2 = Scenario({"drink": "water"})
+
+    combined_scenario = scenario1 + scenario2
+
+    combined_scenario
+
+
+This will return:
+
+.. code-block:: python
+
+    {
+        "food": "apple",
+        "drink": "water"
+    }
+
+
+We can also combine `ScenarioList` objects:
+
+.. code-block:: python
+
+    from edsl import ScenarioList
+
+    scenariolist1 = ScenarioList([Scenario({"food": "apple"}), Scenario({"drink": "water"})])
+    scenariolist2 = ScenarioList([Scenario({"color": "red"}), Scenario({"shape": "circle"})])
+
+    combined_scenariolist = scenariolist1 + scenariolist2
+
+    combined_scenariolist
+
+
+This will return:
+
+.. code-block:: python
+
+    {
+        "scenarios": [
+            {
+                "food": "apple"
+            },
+            {
+                "drink": "water"
+            },
+            {
+                "color": "red"
+            },
+            {
+                "shape": "circle"
+            }
+        ]
+    }
+
+
+We can create a cross product of `ScenarioList` objects (combine the scenarios in each list with each other):
+
+.. code-block:: python
+
+    from edsl import ScenarioList
+
+    scenariolist1 = ScenarioList([Scenario({"food": "apple"}), Scenario({"drink": "water"})])
+    scenariolist2 = ScenarioList([Scenario({"color": "red"}), Scenario({"shape": "circle"})])
+
+    cross_product_scenariolist = scenariolist1 * scenariolist2
+
+    cross_product_scenariolist
+
+
+This will return:
+
+.. code-block:: python
+
+    {
+        "scenarios": [
+            {
+                "food": "apple",
+                "color": "red"
+            },
+            {
+                "food": "apple",
+                "shape": "circle"
+            },
+            {
+                "drink": "water",
+                "color": "red"
+            },
+            {
+                "drink": "water",
+                "shape": "circle"
+            }
+        ]
+    }
+
+
 Using Scenarios
 ---------------
 `Scenario` objects are used by adding them to a question or survey with the `by()` method when the question or survey is run.
@@ -308,7 +457,7 @@ Note that the question texts are unchanged:
         {"message": "I have a safety concern...", "user": "Charlie", "source": "Email", "date": "2022-01-03"}, 
         {"message": "I need help with a product...", "user": "David", "source": "Chat", "date": "2022-01-04"}
         ]
-    scenarios = [Scenario({"message": msg["message"], 
+    scenarios = [Scenario({"message": msg["message"],
                         "user": msg["user"],
                         "source": msg["source"],
                         "date": msg["date"]}) for msg in user_messages]
