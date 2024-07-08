@@ -528,8 +528,18 @@ class InputDataABC(
     def get_answer_codebook(self):
         return {}
     
-    def _drop_rows(self, indices):
-        """Drop rows from the raw data."""
+    def _drop_rows(self, indices: List[int]):
+        """Drop rows from the raw data.
+        :param indices
+
+        >>> id = InputDataABC.example()
+        >>> id.num_observations 
+        2
+        >>> _ = id._drop_rows([1])
+        >>> id.num_observations
+        1
+
+        """
         self.raw_data = [[r for i, r in enumerate(row) if i not in indices] for row in self.raw_data]
         return self
     
@@ -537,8 +547,10 @@ class InputDataABC(
         """Return the indices of missing values for a question.
         TODO: Could re-factor to use SimpleEval
 
-        >>> c = InputDataABC.example()
-        
+        >>> id = InputDataABC.example()
+        >>> id.raw_data[0][0] = 'missing'
+        >>> id._missing_indices('morning')
+        [0]
         """
         idx = self.question_names.index(question_name)
         return [i for i, r in enumerate(self.raw_data[idx]) if r == 'missing']
