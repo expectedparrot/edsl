@@ -8,27 +8,19 @@ The Expected Parrot Domain-Specific Language (EDSL) package lets you conduct com
 ## 🔗 Links
 - [PyPI](https://pypi.org/project/edsl/)
 - [Documentation](https://docs.expectedparrot.com)
+- [Getting started](https://docs.expectedparrot.com/en/latest/starter_tutorial.html) 
 - [Discord](https://discord.com/invite/mxAYkjfy9m)
 - [Twitter](https://x.com/ExpectedParrot)
 - [LinkedIn](https://www.linkedin.com/company/expectedparrot/)
 - [Blog](https://blog.expectedparrot.com)
 
-## 💡 Contributions, Feature Requests & Bugs
+## 💡 Contributions, feature requests & bugs
 Interested in contributing? Want us to add a new feature? Found a bug for us to squash? 
 Please send us an email at [info@expectedparrot.com](mailto:info@expectedparrot.com) or message us at our [Discord channel](https://discord.com/invite/mxAYkjfy9m).
 
-## 💻 Getting Started
-EDSL is compatible with Python 3.9 - 3.12.
-```python
-pip install edsl
-```
-
-- [Documentation](https://docs.expectedparrot.com)
-- [Installation instructions](https://docs.expectedparrot.com/en/latest/installation.html)
-- [Getting started tutorial](https://docs.expectedparrot.com/en/latest/starter_tutorial.html) 
-
-## 🔧 Dependencies
-API keys for large language models that you want to use, stored in a `.env` file.
+## 💻 Requirements
+* EDSL is compatible with Python 3.9 - 3.12.
+* API keys for large language models that you want to use, stored in a `.env` file.
 See instructions on [storing API keys](https://docs.expectedparrot.com/en/latest/api_keys.html).
 
 ## 🌎 Hello, World!
