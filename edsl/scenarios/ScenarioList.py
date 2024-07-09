@@ -22,6 +22,7 @@ from edsl.utilities import is_valid_variable_name
 
 from edsl.results.ResultsExportMixin import ResultsExportMixin
 
+
 class ScenarioList(Base, UserList, ScenarioListPdfMixin, ResultsExportMixin):
     """Class for creating a list of scenarios to be used in a survey."""
 
@@ -258,11 +259,12 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin, ResultsExportMixin):
         ScenarioList([Scenario({'name': 'Alice'}), Scenario({'name': 'Bob'})])
         """
         return cls([Scenario({name: value}) for value in values])
-    
-    def to_dataset(self) -> 'Dataset':
+
+    def to_dataset(self) -> "Dataset":
         from edsl.results.Dataset import Dataset
+
         keys = self[0].keys()
-        data = {key: [scenario[key] for scenario in self.data] for key in keys}        
+        data = {key: [scenario[key] for scenario in self.data] for key in keys}
         return Dataset([data])
 
     def add_list(self, name, values) -> ScenarioList:

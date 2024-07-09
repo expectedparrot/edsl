@@ -30,7 +30,8 @@ from edsl.results.Dataset import Dataset
 from edsl.results.Result import Result
 from edsl.results.ResultsExportMixin import ResultsExportMixin
 from edsl.scenarios import Scenario
-#from edsl.scenarios.ScenarioList import ScenarioList
+
+# from edsl.scenarios.ScenarioList import ScenarioList
 from edsl.surveys import Survey
 from edsl.data.Cache import Cache
 from edsl.utilities import (
@@ -356,7 +357,7 @@ class Results(UserList, Mixins, Base):
         return [r.model for r in self.data]
 
     @property
-    def scenarios(self) -> 'ScenarioList':
+    def scenarios(self) -> "ScenarioList":
         """Return a list of all of the scenarios in the Results.
 
         Example:
@@ -366,6 +367,7 @@ class Results(UserList, Mixins, Base):
         ScenarioList([Scenario({'period': 'morning'}), Scenario({'period': 'afternoon'}), Scenario({'period': 'morning'}), Scenario({'period': 'afternoon'})])
         """
         from edsl import ScenarioList
+
         return ScenarioList([r.scenario for r in self.data])
 
     @property

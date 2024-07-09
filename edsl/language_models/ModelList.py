@@ -10,7 +10,6 @@ from edsl.utilities.utilities import dict_hash
 
 
 class ModelList(Base, UserList):
-
     def __init__(self, data: Optional[list] = None):
         """Initialize the ScenarioList class.
 
@@ -55,7 +54,7 @@ class ModelList(Base, UserList):
             return {"models": [model._to_dict() for model in model_list]}
         else:
             return {"models": [model._to_dict() for model in self]}
-        
+
     @classmethod
     def from_names(self, *args):
         """A a model list from a list of names"""
