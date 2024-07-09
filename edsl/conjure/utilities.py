@@ -4,13 +4,15 @@ from io import StringIO
 import os
 import pandas as pd
 
+
 class ValidFilename:
     """A descriptor that checks if a file exists.
 
-    
+
     >>> f = ValidFilename()
     >>> f = "hello"
     """
+
     def __set_name__(self, owner, name):
         self.name = name
 
@@ -28,9 +30,10 @@ class ValidFilename:
 
         instance.__dict__[self.name] = value
 
+
 class DummyClassToTestDescriptor:
     """
-    
+
     >>> d = DummyClassToTestDescriptor(1)
     Traceback (most recent call last):
     ...
@@ -41,6 +44,7 @@ class DummyClassToTestDescriptor:
     ...
     ValueError: The file 'hello' does not exist.
     """
+
     filename = ValidFilename()
 
     def __init__(self, filename):
@@ -48,7 +52,6 @@ class DummyClassToTestDescriptor:
 
     def __repr__(self):
         return f"DummyClassToTestDescriptor({self.filename})"
-
 
 
 class Missing:
@@ -64,7 +67,7 @@ class Missing:
 
 def convert_value(x):
     """Takes a string and tries to convert it.
-    
+
     >>> convert_value('1')
     1
     >>> convert_value('1.2')
@@ -73,7 +76,7 @@ def convert_value(x):
     'how are you?'
     >>> convert_value("")
     'missing'
-    
+
     """
     try:
         float_val = float(x)
@@ -192,6 +195,7 @@ def download_file(url, filename):
 
 
 # Example usage
-if __name__ == "__main__": 
+if __name__ == "__main__":
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)
