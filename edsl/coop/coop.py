@@ -135,7 +135,7 @@ class Coop:
             "version": self._edsl_version,
             "description": response_json.get("description"),
             "visibility": response_json.get("visibility"),
-            "url": f"{self.url}/explore/{object_page}/{response_json.get('uuid')}",
+            "url": f"{self.url}/content/{response_json.get('uuid')}",
         }
 
     def get(
@@ -596,7 +596,6 @@ if __name__ == "__main__":
         Agent,
         AgentList,
         Cache,
-        Jobs,
         Notebook,
         QuestionMultipleChoice,
         Results,
@@ -609,7 +608,6 @@ if __name__ == "__main__":
         ("agent", Agent),
         ("agent_list", AgentList),
         ("cache", Cache),
-        ("job", Jobs),
         ("notebook", Notebook),
         ("question", QuestionMultipleChoice),
         ("results", Results),
