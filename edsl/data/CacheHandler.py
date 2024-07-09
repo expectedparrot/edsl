@@ -50,6 +50,7 @@ class CacheHandler:
         if dir_path and not os.path.exists(dir_path):
             os.makedirs(dir_path)
             import warnings
+
             warnings.warn(f"Created cache directory: {dir_path}")
 
     def gen_cache(self) -> Cache:

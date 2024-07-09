@@ -28,8 +28,7 @@ class InputDataABC(
     QuestionOptionMixin,
     QuestionTypeMixin,
 ):
-    """A class to represent the input data for a survey.
-    """
+    """A class to represent the input data for a survey."""
 
     NUM_UNIQUE_THRESHOLD = 15
     FRAC_NUMERICAL_THRESHOLD = 0.8
@@ -122,11 +121,11 @@ class InputDataABC(
     @abstractmethod
     def get_question_texts(self) -> List[str]:
         """Get the text of the questions
-        
+
         >>> id = InputDataABC.example()
         >>> id.get_question_texts()
         ['how are you doing this morning?', 'how are you feeling?']
-        
+
         """
         raise NotImplementedError
 
@@ -144,11 +143,11 @@ class InputDataABC(
     @abstractmethod
     def get_question_names(self) -> List[str]:
         """Get the names of the questions.
-        
+
         >>> id = InputDataABC.example()
         >>> id.get_question_names()
         ['morning', 'feeling']
-        
+
         """
         raise NotImplementedError
 
@@ -180,11 +179,11 @@ class InputDataABC(
 
     def _drop_question(self, question_name):
         """Drop a question
-        
+
         >>> id = InputDataABC.example()
         >>> id._drop_question('morning').question_names
         ['feeling']
-        
+
         """
         idx = self.question_names.index(question_name)
         self._question_names.pop(idx)
@@ -244,6 +243,7 @@ class InputDataABC(
         old_options = self.question_options[self.question_names.index(question_name)]
 
         from edsl import Question
+
         if new_type not in Question.available():
             raise ValueError(f"Question type {new_type} is not available.")
 
@@ -513,7 +513,7 @@ class InputDataABC(
         >>> id = InputDataABC.example(answer_codebook = {'morning':{'1':'hello'}})
         >>> id.answer_codebook
         {'morning': {'1': 'hello'}}
-        
+
         """
         if not hasattr(self, "_answer_codebook"):
             self._answer_codebook = None
@@ -527,22 +527,24 @@ class InputDataABC(
 
     def get_answer_codebook(self):
         return {}
-    
+
     def _drop_rows(self, indices: List[int]):
         """Drop rows from the raw data.
         :param indices
 
         >>> id = InputDataABC.example()
-        >>> id.num_observations 
+        >>> id.num_observations
         2
         >>> _ = id._drop_rows([1])
         >>> id.num_observations
         1
 
         """
-        self.raw_data = [[r for i, r in enumerate(row) if i not in indices] for row in self.raw_data]
+        self.raw_data = [
+            [r for i, r in enumerate(row) if i not in indices] for row in self.raw_data
+        ]
         return self
-    
+
     def _missing_indices(self, question_name):
         """Return the indices of missing values for a question.
         TODO: Could re-factor to use SimpleEval
@@ -553,17 +555,17 @@ class InputDataABC(
         [0]
         """
         idx = self.question_names.index(question_name)
-        return [i for i, r in enumerate(self.raw_data[idx]) if r == 'missing']
-    
+        return [i for i, r in enumerate(self.raw_data[idx]) if r == "missing"]
+
     def drop_missing(self, question_name):
         """Drop missing values for a question.
-        
+
         >>> id = InputDataABC.example()
         >>> id.num_observations
         2
         >>> id.raw_data[0][0] = 'missing'
         >>> id.drop_missing('morning')
-        >>> id.num_observations 
+        >>> id.num_observations
         1
         """
         self._drop_rows(self._missing_indices(question_name))
@@ -571,10 +573,10 @@ class InputDataABC(
     @property
     def num_observations(self):
         """
-        Return the number of observations 
+        Return the number of observations
 
         >>> id = InputDataABC.example()
-        >>> id.num_observations 
+        >>> id.num_observations
         2
         """
         return len(self.raw_data[0])
@@ -585,7 +587,7 @@ class InputDataABC(
         >>> id = InputDataABC.example()
         >>> id.raw_data
         [['1', '4'], ['3', '6']]
-        
+
         >>> id = InputDataABC.example(answer_codebook = {'morning':{'1':'hello'}})
         >>> id.raw_data
         [['hello', '4'], ['3', '6']]
@@ -620,10 +622,7 @@ class InputDataABC(
         return InputDataExample("notneeded", config={}, **kwargs)
 
 
-
-
 if __name__ == "__main__":
     import doctest
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)
-

@@ -15,6 +15,7 @@ class RawQuestion:
     >>> rq.to_question()
     Question('multiple_choice', question_name = \"""how_are_you\""", question_text = \"""How are you doing?\""", question_options = ['Good', 'Bad'])
     """
+
     question_type: str
     question_name: str
     question_text: str
@@ -23,12 +24,13 @@ class RawQuestion:
 
     @classmethod
     def example(cls):
-        return cls(question_type = "multiple_choice",
-                   question_name = "how_are_you", 
-                   question_text = "How are you doing?", 
-                   responses = ["Good", "Bad", "Bad", "Good"], 
-                   question_options = ["Good", "Bad"]
-                   )
+        return cls(
+            question_type="multiple_choice",
+            question_name="how_are_you",
+            question_text="How are you doing?",
+            responses=["Good", "Bad", "Bad", "Good"],
+            question_options=["Good", "Bad"],
+        )
 
     def __post_init__(self):
         self.responses = [convert_value(r) for r in self.responses]
@@ -57,6 +59,7 @@ class RawQuestion:
         return Question(**d)
 
 
-if __name__ == "__main__": 
+if __name__ == "__main__":
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)

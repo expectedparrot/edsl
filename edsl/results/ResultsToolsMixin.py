@@ -1,4 +1,4 @@
-#from edsl import ScenarioList
+# from edsl import ScenarioList
 from edsl.questions import QuestionList, QuestionCheckBox
 
 
@@ -15,6 +15,7 @@ class ResultsToolsMixin:
     ) -> list:
         values = self.shuffle(seed=seed).select(field).to_list()[:max_values]
         from edsl import ScenarioList
+
         q = QuestionList(
             question_text=f"""
         {context}
@@ -24,9 +25,7 @@ class ResultsToolsMixin:
         """,
             question_name="themes",
         )
-        results = q.run(
-            print_exceptions=print_exceptions, progress_bar=progress_bar
-        )
+        results = q.run(print_exceptions=print_exceptions, progress_bar=progress_bar)
         return results.select("themes").first()
 
     def answers_to_themes(
@@ -38,6 +37,7 @@ class ResultsToolsMixin:
         print_exceptions=False,
     ) -> dict:
         from edsl import ScenarioList
+
         values = self.select(field).to_list()
         scenarios = ScenarioList.from_list("field", values).add_value(
             "context", context
