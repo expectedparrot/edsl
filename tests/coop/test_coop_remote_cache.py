@@ -85,6 +85,77 @@ class TestRemoteCacheWithJobs(unittest.TestCase):
         "edsl.Coop.edsl_settings",
         new_callable=PropertyMock,
         return_value={
+            "remote_caching": True,
+            "remote_inference": False,
+            "remote_logging": False,
+        },
+    )
+    def test_coop_remote_cache_description(self, mock_edsl_settings):
+        def get_descriptions(coop: Coop):
+            response = coop._send_server_request(
+                uri="api/v0/remote-cache/get-many",
+                method="POST",
+                payload={"keys": []},
+            )
+            coop._resolve_server_response(response)
+            descriptions = [
+                entry.get("description") or "No description provided"
+                for entry in response.json()
+            ]
+            return descriptions
+
+        coop = Coop(api_key="b")
+        coop.remote_cache_clear()
+        assert coop.remote_cache_get() == []
+
+        # Entry without description
+        entry = CacheEntry.example()
+        coop.remote_cache_create(entry)
+        descriptions = get_descriptions(coop)
+        assert descriptions == ["No description provided"]
+
+        # Entries with descriptions
+        entry = CacheEntry.example(randomize=True)
+        coop.remote_cache_create(entry, description="Example entry")
+        coop.remote_cache_create_many(
+            example_cache_entries, description="More examples"
+        )
+        descriptions = get_descriptions(coop)
+        assert sorted(descriptions) == [
+            "Example entry",
+            "More examples",
+            "More examples",
+            "No description provided",
+        ]
+
+        # run a test job
+        q_1 = QuestionMultipleChoice(
+            question_name="sky_color",
+            question_text="What is the color of the sky?",
+            question_options=["red", "green", "blue"],
+        )
+        q_2 = QuestionMultipleChoice(
+            question_name="grass_color",
+            question_text="What is the color of the grass?",
+            question_options=["red", "green", "blue"],
+        )
+        m = self.cache_test_model()
+        survey = Survey(questions=[q_1, q_2])
+        survey.by(m).run(cache=Cache(), remote_cache_description="Example survey")
+        descriptions = get_descriptions(coop)
+        assert sorted(descriptions) == [
+            "Example entry",
+            "Example survey",
+            "Example survey",
+            "More examples",
+            "More examples",
+            "No description provided",
+        ]
+
+    @patch(
+        "edsl.Coop.edsl_settings",
+        new_callable=PropertyMock,
+        return_value={
             "remote_caching": False,
             "remote_inference": False,
             "remote_logging": False,

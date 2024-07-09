@@ -17,7 +17,8 @@ class QuestionOptionMixin:
     def _get_question_options(self, question_name) -> Union[List[str], None]:
         """Return the options for a question.
 
-        >>> id = InputData.example()
+        >>> from edsl.conjure.InputData import InputDataABC
+        >>> id = InputDataABC.example()
         >>> sorted(id._get_question_options('morning'))
         ['1', '4']
 
@@ -67,3 +68,9 @@ class QuestionOptionMixin:
             proposed_ordering.select("example_question_name", "ordering").to_list()
         )
         self._question_options = [d.get(qn, None) for qn in self.question_names]
+
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod(optionflags=doctest.ELLIPSIS)

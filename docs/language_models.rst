@@ -8,7 +8,7 @@ See the :ref:`api_keys` page for instructions on storing your API keys.
 
 Available services 
 ------------------
-We can see all of the available services by calling the `services()` method of the `Model` class:
+We can see all of the available services (model providers) by calling the `services()` method of the `Model` class:
 
 .. code-block:: python
 
@@ -104,7 +104,7 @@ This will return a list of the models we can choose from:
 
 Adding a model
 --------------
-Available models are added automatically.
+Newly available models for these services are added automatically.
 A current list is also viewable at :py:class:`edsl.enums.LanguageModelType`.
 If you do not see a publicly available model that you want to work with, please send us a feature request to add it or add it yourself by calling the `add_model()` method:
 
@@ -142,6 +142,14 @@ We can check the models that for which we have already properly stored API keys 
    Model.check_models()
 
 This will return a list of the available models and a confirmation message whether a valid key exists.
+The output will look like this (note that the keys are not shown):
+
+.. code-block:: text
+
+   Checking all available models...
+
+   Now checking: 01-ai/Yi-34B-Chat
+   OK!
 
 
 Specifying a model
@@ -182,24 +190,40 @@ This will show the default parameters of the model:
    }
 
 
-Running a survey with a model
------------------------------
+Running a survey with models
+----------------------------
 Similar to how we specify :ref:`agents` and :ref:`scenarios` in running a survey, we specify the models to use by adding them to a survey with the `by()` method when the survey is run.
-If a single model is specified, it is the only item passed to the `by()` method. 
-If multiple models are to be used, they are passed as a list.
-For example, the following code specifies that a survey be run with each of GPT 4 and Llama 2:
+We can pass either a single `Model` object or a list of models to the `by()` method. 
+If multiple models are to be used they are passed as a list or as a `ModelList` object.
+For example, the following code specifies that a survey be run with each of GPT 4 and Gemini Pro:
 
 .. code-block:: python
 
    from edsl import Model
 
-   models = [Model('gpt-4-1106-preview'), Model('llama-2-70b-chat-hf')]
+   models = [Model('gpt-4'), Model('gemini-pro')]
 
    from edsl import Survey 
 
    survey = Survey.example()
 
    results = survey.by(models).run()
+
+
+This code uses `ModelList` instead of a list of `Model` objects:
+
+.. code-block:: python
+
+   from edsl import Model, ModelList
+
+   models = ModelList([Model('gpt-4'), Model('gemini-pro')])
+
+   from edsl import Survey 
+
+   survey = Survey.example()
+
+   results = survey.by(models).run()
+
 
 This will generate a result for each question in the survey with each model.
 If agents and/or scenarios are also specified, the responses will be generated for each combination of agents, scenarios and models.
@@ -212,16 +236,11 @@ The following commands are equivalent:
 
    results = survey.by(models).by(agents).by(scenarios).run()
 
-If we only want to use a single model it can be passed directly to the `by()` method:
-
-.. code-block:: python
-
-   results = survey.by(Model('gpt-4-1106-preview')).run()
 
 
 Default model
 -------------
-If no model is specified, a survey is automatically run with the default model (GPT 4).
+If no model is specified, a survey is automatically run with the default model (GPT 4) (if an API key for OpenAI has been stored).
 For example, the following code runs a survey with the default model (and no agents or scenarios) without needing to import the `Model` class:
 
 .. code-block:: python
@@ -373,6 +392,17 @@ The table will look like this:
      - My favorite color is blue. It reminds me of the ocean on a clear summer day, full of possibilities and mystery.
 
 To learn more about methods of inspecting and printing results, please see the :ref:`results` section.
+
+
+ModelList class
+---------------
+
+.. automodule:: edsl.language_models.ModelList
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :special-members: __init__
+   :exclude-members:
 
 
 LanguageModel class

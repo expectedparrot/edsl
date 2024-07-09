@@ -36,6 +36,13 @@ class InputDataCSV(InputDataABC):
 
     def get_question_names(self):
         new_names = [self.naming_function(q) for q in self.question_texts]
-        if len(new_names) != len(set(new_names)):
-            new_names = [f"{q}_{i}" for i, q in enumerate(new_names)]
+
+        if len(new_names) > len(set(new_names)):
+            from collections import Counter
+
+            counter = Counter(new_names)
+            for i, name in enumerate(new_names):
+                if counter[name] > 1:
+                    new_names[i] = name + str(counter[name])
+                    counter[name] -= 1
         return new_names

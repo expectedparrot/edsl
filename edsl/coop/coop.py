@@ -299,9 +299,19 @@ class Coop:
         self,
         cache_entry: CacheEntry,
         visibility: VisibilityType = "private",
+        description: Optional[str] = None,
     ) -> dict:
         """
         Create a single remote cache entry.
+        If an entry with the same key already exists in the database, update it instead.
+
+        :param cache_entry: The cache entry to send to the server.
+        :param visibility: The visibility of the cache entry.
+        :param optional description: A description for this entry in the remote cache.
+
+        >>> entry = CacheEntry.example()
+        >>> coop.remote_cache_create(cache_entry=entry)
+        {'status': 'success', 'created_entry_count': 1, 'updated_entry_count': 0}
         """
         response = self._send_server_request(
             uri="api/v0/remote-cache",
@@ -310,6 +320,7 @@ class Coop:
                 "json_string": json.dumps(cache_entry.to_dict()),
                 "version": self._edsl_version,
                 "visibility": visibility,
+                "description": description,
             },
         )
         self._resolve_server_response(response)
@@ -327,15 +338,26 @@ class Coop:
         self,
         cache_entries: list[CacheEntry],
         visibility: VisibilityType = "private",
+        description: Optional[str] = None,
     ) -> dict:
         """
         Create many remote cache entries.
+        If an entry with the same key already exists in the database, update it instead.
+
+        :param cache_entries: The list of cache entries to send to the server.
+        :param visibility: The visibility of the cache entries.
+        :param optional description: A description for these entries in the remote cache.
+
+        >>> entries = [CacheEntry.example(randomize=True) for _ in range(10)]
+        >>> coop.remote_cache_create_many(cache_entries=entries)
+        {'status': 'success', 'created_entry_count': 10, 'updated_entry_count': 0}
         """
         payload = [
             {
                 "json_string": json.dumps(c.to_dict()),
                 "version": self._edsl_version,
                 "visibility": visibility,
+                "description": description,
             }
             for c in cache_entries
         ]
@@ -361,7 +383,11 @@ class Coop:
     ) -> list[CacheEntry]:
         """
         Get all remote cache entries.
-        - optional exclude_keys: exclude CacheEntry objects with these keys.
+
+        :param optional exclude_keys: Exclude CacheEntry objects with these keys.
+
+        >>> coop.remote_cache_get()
+        [CacheEntry(...), CacheEntry(...), ...]
         """
         if exclude_keys is None:
             exclude_keys = []
@@ -411,6 +437,11 @@ class Coop:
     def remote_cache_clear(self) -> dict:
         """
         Clear all remote cache entries.
+
+        >>> entries = [CacheEntry.example(randomize=True) for _ in range(10)]
+        >>> coop.remote_cache_create_many(cache_entries=entries)
+        >>> coop.remote_cache_clear()
+        {'status': 'success', 'deleted_entry_count': 10}
         """
         response = self._send_server_request(
             uri="api/v0/remote-cache/delete-all",
@@ -449,6 +480,9 @@ class Coop:
     def remote_cache_clear_log(self) -> dict:
         """
         Clear all remote cache log entries.
+
+        >>> coop.remote_cache_clear_log()
+        {'status': 'success'}
         """
         response = self._send_server_request(
             uri="api/v0/remote-cache-log/delete-all",

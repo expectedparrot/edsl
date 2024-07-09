@@ -420,6 +420,7 @@ class Jobs(Base):
         batch_mode: Optional[bool] = None,
         verbose: bool = False,
         print_exceptions=True,
+        remote_cache_description: Optional[str] = None,
     ) -> Results:
         """
         Runs the Job: conducts Interviews and returns their results.
@@ -433,6 +434,7 @@ class Jobs(Base):
         :param check_api_keys: check if the API keys are valid
         :param batch_mode: run the job in batch mode i.e., no expecation of interaction with the user
         :param verbose: prints messages
+        :param remote_cache_description: specifies a description for this group of entries in the remote cache
         """
         from edsl.coop.coop import Coop
 
@@ -540,7 +542,9 @@ class Jobs(Base):
                     f"{'entry' if new_entry_count == 1 else 'entries'}..."
                 )
                 coop.remote_cache_create_many(
-                    server_missing_cacheentries, visibility="private"
+                    server_missing_cacheentries,
+                    visibility="private",
+                    description=remote_cache_description,
                 )
                 self._output("Remote cache updated!")
             else:
