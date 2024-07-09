@@ -16,6 +16,10 @@ from edsl.study.ProofOfWork import ProofOfWork
 from edsl.study.SnapShot import SnapShot
 
 
+class _StudyFrameMarker:
+    pass
+
+
 class Study:
     """A study organizes a series of EDSL objects.
 
@@ -28,13 +32,9 @@ class Study:
     The `study` object is a context manager.
     It lets you group a series of events and objects together.
 
-    >>> with Study(name = "cool_study") as study:
+    >>> with Study(name = "cool_study", verbose = False) as study:
     ...     from edsl import QuestionFreeText
     ...     q = QuestionFreeText.example()
-    New study saved to cool_study.json
-    Saving study to cool_study.json
-    Starting hashes: dict_keys([])
-    Current hashes: dict_keys(['1144312636257752766'])
     >>> len(study.objects)
     1
     >>> _ = os.system("rm cool_study.json")
@@ -58,6 +58,7 @@ class Study:
         proof_of_work=None,
         proof_of_work_difficulty: int = None,
         namespace: Optional[dict] = None,
+        verbose=True,
     ):
         """
         :param name: The name of the study.
@@ -68,7 +69,15 @@ class Study:
         :param coop: Whether to push the study to coop.
         :param use_study_cache: Whether to use the study cache.
         :param overwrite_on_change: Whether to overwrite the study file if it has changed.
+
+        >>> s = Study()
+        Traceback (most recent call last):
+        ...
+        ValueError: You must provide a name or a filename for the study.
+
         """
+        self.verbose = verbose
+
         if name is None and filename is None:
             raise ValueError("You must provide a name or a filename for the study.")
 
@@ -82,7 +91,8 @@ class Study:
             and os.path.exists(self.filename + ".json")
             and os.path.getsize(self.filename + ".json") > 0
         ):
-            print(f"Using existing study file {self.filename}.json")
+            if self.verbose:
+                print(f"Using existing study file {self.filename}.json")
             self._load_from_file()
         else:
             self.name = name
@@ -90,14 +100,6 @@ class Study:
             self.objects = objects or {}
             self.cache = cache or Cache()
             self.proof_of_work = proof_of_work or ProofOfWork()
-
-        if namespace is None:
-            # Get the caller's frame
-            frame = inspect.currentframe().f_back
-            # Get the caller's global namespace
-            self.namespace = frame.f_globals
-        else:
-            self.namespace = namespace
 
         # These always overwrite the saved study
         self.coop = coop
@@ -107,7 +109,53 @@ class Study:
 
         self.starting_objects = copy.deepcopy(self.objects)
 
+        if namespace:
+            self._namespace = namespace
+        else:
+            self._namespace = None
+
         self._create_mapping_dicts()
+
+    @property
+    def namespace(self):
+        return self._find_stack()
+
+    def _find_stack(self) -> dict:
+        "Finds the frame with the Study context"
+        # if self.verbose:
+        #    self.explore_stacks()
+        frame = inspect.currentframe()
+        candidate_frames = []
+        while frame:
+            if "Study" in frame.f_globals:
+                candidate_frames.append(frame)
+
+            frame = frame.f_back
+
+        found_variables_dict = {}
+        for frame in candidate_frames:
+            found_variables_dict.update(frame.f_globals)
+            found_variables_dict.update(frame.f_locals)
+
+        return found_variables_dict
+
+    def explore_stacks(self):
+        frame = inspect.currentframe()
+        count = 0
+        d = {}
+        while frame:
+            d[count] = "Study" in frame.f_globals.keys()
+            count += 1
+            from rich import print as rprint
+
+            print("Globals:")
+            rprint(frame.f_globals["__name__"])
+            rprint(frame.f_globals.keys())
+            print("Locals:")
+            rprint(frame.f_locals.keys())
+            print("\n")
+            frame = frame.f_back
+        return d
 
     def _create_mapping_dicts(self):
         self._name_to_object = {}
@@ -124,8 +172,19 @@ class Study:
             self._name_to_object[new_name] = obj.object
             self._hash_to_name[hash] = new_name
 
+    def __len__(self):
+        return len(self.objects)
+
+    def __eq__(self, other):
+        return self.objects.keys() == other.objects.keys()
+
     @property
     def name_to_object(self):
+        """
+        >>> s = Study.example()
+        >>> s.name_to_object
+        {'q': Question('free_text', question_name = \"""how_are_you\""", question_text = \"""How are you?\""")}
+        """
         self._create_mapping_dicts()
         return self._name_to_object
 
@@ -169,28 +228,32 @@ class Study:
 
     def __enter__(self):
         """
-        >>> s = Study(name = "temp", use_study_cache = True)
+        >>> s = Study(name = "temp", use_study_cache = True, verbose = False)
         >>> _ = s.__enter__()
         >>> from edsl.config import CONFIG
         >>> hasattr(CONFIG, "EDSL_SESSION_CACHE")
         True
         >>> _ = s.__exit__(None, None, None)
-        New study saved to temp.json
-        ...
-        ...
+        >>> len(s.objects)
+        0
         >>> os.remove("temp.json")
 
         """
-        print("Existing objects in study:")
-        self.print()
+        if self.verbose:
+            print("Existing objects in study:")
+            self.print()
         snapshot = SnapShot(self.namespace, exclude=[self])
         if self.use_study_cache:
-            print("Using study cache.")
+            if self.verbose:
+                print("Using study cache.")
             set_session_cache(self.cache)
 
         if snapshot.edsl_objects:
             raise ValueError(
-                "You have EDSL objects in the global namespace. Please remove them before starting a study or put under the 'Study' context manager."
+                "You have EDSL objects in the global namespace.",
+                "Please remove them before starting a study or put under the 'Study' context manager."
+                "Objects found:",
+                snapshot.edsl_objects,
             )
         return self
 
@@ -200,6 +263,8 @@ class Study:
     def study_diff(self):
         ## Need to also report missing.
         from edsl.BaseDiff import BaseDiff
+
+        raise NotImplementedError("Need to implement this.")
 
     def print(self):
         from rich.console import Console
@@ -244,23 +309,28 @@ class Study:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         snapshot = SnapShot(namespace=self.namespace, exclude=[self])
+        # print("Frame objects are:", snapshot.namespace.keys())
+        # breakpoint()
         if self.use_study_cache:
             unset_session_cache()
 
         for variable_name, object in snapshot.edsl_objects.items():
-            self.add_edsl_object(object=object, variable_name=variable_name)
+            self._add_edsl_object(object=object, variable_name=variable_name)
 
         if not self.starting_objects:
-            print(f"New study saved to {self.filename}.json")
+            if self.verbose:
+                print(f"New study saved to {self.filename}.json")
             self.save()
 
         if self.starting_objects and list(self.starting_objects.keys()) == list(
             self.objects.keys()
         ):
-            print("Study perfectly replicated.")
+            if self.verbose:
+                print("Study perfectly replicated.")
         else:
-            print("Starting hashes:", self.starting_objects.keys())
-            print("Current hashes:", self.objects.keys())
+            if self.verbose:
+                print("Starting hashes:", self.starting_objects.keys())
+                print("Current hashes:", self.objects.keys())
             if self.starting_objects:
                 missing = set(self.starting_objects.keys()) - set(self.objects.keys())
                 added = set(self.objects.keys()) - set(self.starting_objects.keys())
@@ -287,8 +357,9 @@ class Study:
                     "If you want to push to coop, you must save the study file with a new name or call study iwth 'overwrite_on_change=True' to overwrite the existing study file."
                 )
 
-        print("Objects in study now:")
-        self.print()
+        if self.verbose:
+            print("Objects in study now:")
+            self.print()
 
         if self.proof_of_work_difficulty:
             print("Adding proof of work to study...")
@@ -310,6 +381,7 @@ class Study:
             "name": self.name,
             "description": self.description,
             "objects": {hash: obj.to_dict() for hash, obj in self.objects.items()},
+            "filename": self.filename,
             "cache": self.cache.to_dict(),
             "use_study_cache": self.use_study_cache,
             "overwrite_on_change": self.overwrite_on_change,
@@ -319,7 +391,7 @@ class Study:
     def versions(self):
         """Return a dictionary of objects grouped by variable name."""
         d = {}
-        for hash, obj_entry in self.objects.items():
+        for _, obj_entry in self.objects.items():
             if obj_entry.variable_name not in d:
                 d[obj_entry.variable_name] = [obj_entry]
             else:
@@ -334,8 +406,11 @@ class Study:
         return diff
 
     @classmethod
-    def example(cls):
-        with cls(name="cool_study") as study:
+    def example(cls, verbose=False):
+        import tempfile
+
+        study_file = tempfile.NamedTemporaryFile()
+        with cls(filename=study_file.name, verbose=verbose) as study:
             from edsl import QuestionFreeText
 
             q = QuestionFreeText.example()
@@ -352,7 +427,8 @@ class Study:
         return cls(**d)
 
     def save(self):
-        print(f"Saving study to {self.filename}.json")
+        if self.verbose:
+            print(f"Saving study to {self.filename}.json")
         with open(self.filename + ".json", "w") as f:
             json.dump(self.to_dict(), f, indent=4)
 
@@ -373,7 +449,14 @@ class Study:
             text += f"Question name: {object.question_name}"
         return text
 
-    def add_edsl_object(self, object, variable_name, description=None) -> None:
+    def _add_edsl_object(self, object, variable_name, description=None) -> None:
+        """
+        >>> s = Study.example()
+        >>> from edsl import QuestionLinearScale
+        >>> s._add_edsl_object(QuestionLinearScale.example(), 'q')
+        >>> len(s)
+        2
+        """
         if description is None:
             description = self._get_description(object)
         oe = ObjectEntry(
@@ -384,25 +467,10 @@ class Study:
         else:
             self.objects[oe.hash] = oe
 
-    def load_name_space(self):
-        for variable_name, object in self.edsl_objects.items():
-            globals()[variable_name] = object
-
     def push(self, refresh=False) -> None:
         """Push the objects to coop."""
         for obj_entry in self.objects.values():
             obj_entry.push(refresh=refresh)
-
-    def _write_local(self):
-        timestamp = datetime.fromtimestamp(self.start_time).strftime("%Y%m%d_%H%M%S")
-        log_folder = os.path.join(self.log_dir, f"study_log_{timestamp}")
-        os.makedirs(log_folder)
-        for hash, obj in self.objects.items():
-            # print(f"Now saving object of type {obj.__class__.__name__} with hash:", hash)
-            obj.save(
-                os.path.join(log_folder, f"{obj.__class__.__name__}_{hash}"),
-                compress=False,
-            )
 
     def __repr__(self):
         return f"""Study(name = {self.name}, description = {self.description}, objects = {self.objects}, cache = {self.cache}, filename = {self.filename}, coop = {self.coop}, use_study_cache = {self.use_study_cache}, overwrite_on_change = {self.overwrite_on_change})"""
@@ -418,3 +486,6 @@ if __name__ == "__main__":
     #      q = QuestionFreeText.example()
 
     # assert len(study.objects) == 1
+
+    # print(study.versions())
+    # {'q': [ObjectEntry(variable_name='q', object=Question('free_text', question_name = """how_are_you""", question_text = """How are you?"""), description='Question name: how_are_you', coop_info=None, created_at=1720276402.561273, edsl_class_name='QuestionFreeText')]}

@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.1.27] - 2024-TBD [In progress]
+## [0.1.29] - 2024-TBD [In progress]
 ### Added
 - [In progress] New prompt visibility features.
 
@@ -13,13 +13,31 @@
 - [In progress] Options that we think of as "terminal", such as `sql()`, `print()`, `html()`, etc., now take a `tee` boolean that causes them to return `self`. This is useful for chaining, e.g., if you run `print(format = "rich", tee = True)` it will return `self`, which allows you do also run `print(format = "rich", tee = True).print(format = "latex", filename = "example.tex")`.
 
 ### Changed
-- Allow renaming of `Results` answers
-
 - [In progress] `QuestionMultipleChoice` may be modified to allow combined options and free response "Other" option, as well as non-responsive answers. Previously, an error was thrown if the agent did not select one of the given options. Details TBD.
 
+
+## [0.1.28] - 2024-07-09
+### Added
+- Method `add_columns()` allows you to add columns to `Results`.
+
+- Class `ModelList` allows you to create a list of `Model` objects, similar to `ScenarioList` and `AgentList`.
+
+### Changed
 ### Fixed
 ### Deprecated
 ### Removed
+
+
+## [0.1.27] - 2024-06-28
+### Added
+- `Conjure` module allows you to import existing survey data and reconstruct it as EDSL objects. 
+See details on methods `to_survey()`, `to_results()`, `to_agent_list()` and renaming/modifying objects: https://docs.expectedparrot.com/en/latest/conjure.html
+
+### Changed
+- Method `rename()` allows you to rename questions, agents, scenarios, results.
+
+### Fixed
+- New language models from OpenAI, Anthropic, Google will be added automatically when they are released by the platforms.
 
 
 ## [0.1.26] - 2024-06-10

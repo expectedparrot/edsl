@@ -37,19 +37,20 @@ class Conjure:
 
 
 if __name__ == "__main__":
-    import glob
+    pass
+    # import glob
 
-    for file in glob.glob("examples/*"):
-        if file.endswith(".txt"):
-            continue
-        print("\n\n")
-        print("Now processing:", file)
-        conjure_instance = Conjure(file)
-        print(conjure_instance)
-        conjure_instance.to_results(dryrun=True)
-        print("\n\n")
+    # for file in glob.glob("examples/*"):
+    #     if file.endswith(".txt"):
+    #         continue
+    #     print("\n\n")
+    #     print("Now processing:", file)
+    #     conjure_instance = Conjure(file)
+    #     print(conjure_instance)
+    #     conjure_instance.to_results(dryrun=True)
+    #     print("\n\n")
 
-        # c = Conjure("mayors.sav")
-        # al = c.to_agent_list()
-        # s = c.to_survey()
-        # r = c.results()
+    #     # c = Conjure("mayors.sav")
+    #     # al = c.to_agent_list()
+    #     # s = c.to_survey()
+    #     # r = c.results()
