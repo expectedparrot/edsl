@@ -1,5 +1,6 @@
 from edsl.inference_services.registry import default
 
+
 def write_available():
     d = {}
     for service in default.services:
@@ -7,6 +8,3 @@ def write_available():
 
     with open("models_available_cache.py", "w") as f:
         f.write(f"models_available = {d}")
-
-
-
