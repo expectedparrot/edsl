@@ -473,7 +473,7 @@ class Study:
             obj_entry.push(refresh=refresh)
 
     def __repr__(self):
-        return f"""Study(name = {self.name}, description = {self.description}, objects = {self.objects}, cache = {self.cache}, filename = {self.filename}, coop = {self.coop}, use_study_cache = {self.use_study_cache}, overwrite_on_change = {self.overwrite_on_change})"""
+        return f"""Study(name = {self.name}, description = {self.description}, objects = {self.objects}, cache = {self.cache}, filename = "{self.filename}", coop = {self.coop}, use_study_cache = {self.use_study_cache}, overwrite_on_change = {self.overwrite_on_change})"""
 
 
 if __name__ == "__main__":
