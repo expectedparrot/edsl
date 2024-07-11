@@ -403,7 +403,8 @@ class Jobs(Base):
             if strict:
                 raise ValueError(message)
             else:
-                warnings.warn(message)
+                pass
+                #warnings.warn(message)
 
     def run(
         self,

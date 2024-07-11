@@ -119,7 +119,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin, ResultsExportMixin):
 
         return ScenarioList(random.sample(self.data, n))
 
-    def expand(self, expand_field: str) -> ScenarioList:
+    def expand(self, expand_field: str, number_field = False) -> ScenarioList:
         """Expand the ScenarioList by a field.
 
         Example:
@@ -133,9 +133,11 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin, ResultsExportMixin):
             values = scenario[expand_field]
             if not isinstance(values, Iterable) or isinstance(values, str):
                 values = [values]
-            for value in values:
+            for index, value in enumerate(values):
                 new_scenario = scenario.copy()
                 new_scenario[expand_field] = value
+                if number_field:
+                    new_scenario[expand_field + '_number'] = index + 1
                 new_scenarios.append(new_scenario)
         return ScenarioList(new_scenarios)
 
@@ -178,16 +180,20 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin, ResultsExportMixin):
 
         return ScenarioList(new_data)
 
-    def order_by(self, field: str, reverse: bool = False) -> ScenarioList:
-        """Order the scenarios by a field.
+    def order_by(self, *fields: str, reverse: bool = False) -> ScenarioList:
+        """Order the scenarios by one or more fields.
 
         Example:
 
         >>> s = ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
-        >>> s.order_by('b')
+        >>> s.order_by('b', 'a')
         ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
         """
-        return ScenarioList(sorted(self, key=lambda x: x[field], reverse=reverse))
+
+        def get_sort_key(scenario: Any) -> tuple:
+            return tuple(scenario[field] for field in fields)
+        
+        return ScenarioList(sorted(self, key=get_sort_key, reverse=reverse))
 
     def filter(self, expression: str) -> ScenarioList:
         """
@@ -437,7 +443,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin, ResultsExportMixin):
         pretty_labels: Optional[dict] = None,
         filename: str = None,
     ):
-        print_scenario_list(self)
+        print_scenario_list(self[:max_rows])
 
     def __getitem__(self, key: Union[int, slice]) -> Any:
         """Return the item at the given index.
