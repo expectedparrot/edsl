@@ -1,23 +1,18 @@
-import os
-import platform
-import socket
 import copy
 import inspect
 import json
-from typing import Optional, List, Dict
+import os
+import platform
+import socket
 from datetime import datetime
-
-# from edsl.Base import Base
+from typing import Dict, Optional
 from edsl import Cache, set_session_cache, unset_session_cache
 from edsl.utilities.utilities import dict_hash
-
 from edsl.study.ObjectEntry import ObjectEntry
 from edsl.study.ProofOfWork import ProofOfWork
 from edsl.study.SnapShot import SnapShot
 
-
-class _StudyFrameMarker:
-    pass
+# from edsl.Base import Base
 
 
 class Study:
@@ -58,7 +53,7 @@ class Study:
         proof_of_work=None,
         proof_of_work_difficulty: int = None,
         namespace: Optional[dict] = None,
-        verbose=True,
+        verbose: Optional[bool] = True,
     ):
         """
         :param name: The name of the study.
