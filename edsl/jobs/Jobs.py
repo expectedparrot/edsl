@@ -421,6 +421,7 @@ class Jobs(Base):
         verbose: bool = False,
         print_exceptions=True,
         remote_cache_description: Optional[str] = None,
+        remote_inference_description: Optional[str] = None,
     ) -> Results:
         """
         Runs the Job: conducts Interviews and returns their results.
@@ -450,9 +451,31 @@ class Jobs(Base):
 
         try:
             coop = Coop()
-            remote_cache = coop.edsl_settings["remote_caching"]
+            user_edsl_settings = coop.edsl_settings
+            remote_cache = user_edsl_settings["remote_caching"]
+            remote_inference = user_edsl_settings["remote_inference"]
         except Exception:
             remote_cache = False
+            remote_inference = False
+
+        if remote_inference:
+            self._output("Remote inference activated. Sending job to server...")
+            if remote_cache:
+                self._output(
+                    "Sorry, remote caching doesn't work with remote inference yet."
+                )
+                self._output(
+                    "Don't worry, you will still be able to view your results at the link in the remote inference dashboard."
+                )
+
+            remote_job_data = coop.remote_inference_create(
+                self,
+                description=remote_inference_description,
+                status="queued",
+            )
+            self._output("Job sent!")
+            self._output(remote_job_data)
+            return remote_job_data
 
         if self.remote:
             ## TODO: This should be a coop check
