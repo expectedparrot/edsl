@@ -368,7 +368,7 @@ class Jobs(Base):
         if self.verbose:
             print(message)
 
-    def _check_parameters(self, strict=False) -> None:
+    def _check_parameters(self, strict=False, warn = True) -> None:
         """Check if the parameters in the survey and scenarios are consistent.
 
         >>> from edsl import QuestionFreeText
@@ -403,8 +403,8 @@ class Jobs(Base):
             if strict:
                 raise ValueError(message)
             else:
-                pass
-                #warnings.warn(message)
+                if warn:
+                    warnings.warn(message)
 
     def run(
         self,
