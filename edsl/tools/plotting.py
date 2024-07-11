@@ -93,8 +93,10 @@ def theme_plot(results, field, context, themes=None, progress_bar=False):
           SELECT json_each.value AS theme 
           FROM self, 
           json_each({ field }_themes)
-          ) GROUP BY theme
-          ORDER BY mentions DESC
+          ) 
+    GROUP BY theme
+    HAVING theme <> 'Other'
+    ORDER BY mentions DESC
              """
     themes = results.sql(themes_query, to_list=True)
 

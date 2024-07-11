@@ -343,6 +343,22 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin, ResultsExportMixin):
         """
         return cls([Scenario(row) for row in df.to_dict(orient="records")])
 
+    def to_key_value(self, field, value = None) -> dict:
+        """Return the set of values in the field.
+
+        Example:
+
+        >>> s = ScenarioList([Scenario({'name': 'Alice'}), Scenario({'name': 'Bob'})])
+        >>> s.to_set('name')
+        {'Alice', 'Bob'}
+        """
+        if value is None:
+            return {scenario[field] for scenario in self}
+        else:
+            return {scenario[field]: scenario[value] for scenario in self}
+    
+
+
     @classmethod
     def from_csv(cls, filename: str) -> ScenarioList:
         """Create a ScenarioList from a CSV file.
