@@ -527,7 +527,7 @@ class Coop:
         self._resolve_server_response(response)
         response_json = response.json()
         return {
-            "uuid": response_json.get("uuid"),
+            "uuid": response_json.get("jobs_uuid"),
             "description": response_json.get("description"),
             "status": response_json.get("status"),
             "visibility": response_json.get("visibility"),
