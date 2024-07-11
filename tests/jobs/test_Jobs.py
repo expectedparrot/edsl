@@ -7,7 +7,8 @@ from edsl.questions import QuestionMultipleChoice
 from edsl.scenarios import Scenario
 from edsl.surveys import Survey
 from edsl import Model
-from edsl import Question # needed for the eval() of the repr() of the Job
+from edsl import Question  # needed for the eval() of the repr() of the Job
+
 
 @pytest.fixture(scope="function")
 def valid_job():
@@ -31,17 +32,19 @@ def valid_job():
 
 def test_jobs_simple_stuf(valid_job):
     # simple stuff
-    #assert valid_job.survey.name == "Test Survey"
-    from edsl.surveys.RuleCollection import RuleCollection  
+    # assert valid_job.survey.name == "Test Survey"
+    from edsl.surveys.RuleCollection import RuleCollection
     from edsl.surveys.Rule import Rule
+
     assert valid_job.agents[0].traits == {"trait1": "value1"}
-    assert valid_job.models[0].model == 'gpt-4-1106-preview'
+    assert valid_job.models[0].model == "gpt-4-1106-preview"
     assert valid_job.scenarios[0].get("price") == 100
     # eval works and returns eval-able string
     assert "Jobs(survey=Survey(" in repr(valid_job)
     from edsl import ScenarioList
     from edsl import AgentList
     from edsl import ModelList
+
     assert isinstance(eval(repr(valid_job)), Jobs)
     # serialization
     assert isinstance(valid_job.to_dict(), dict)
@@ -54,6 +57,7 @@ def test_jobs_simple_stuf(valid_job):
 
 def test_jobs_by_agents():
     from edsl import AgentList
+
     q = QuestionMultipleChoice(
         question_text="How are you?",
         question_options=["Good", "Great", "OK", "Bad"],
@@ -89,6 +93,7 @@ def test_jobs_by_scenarios():
         question_name="how_feeling",
     )
     from edsl import ScenarioList
+
     survey = Survey(name="Test Survey", questions=[q])
     scenario1 = Scenario({"price": "100"})
     scenario2 = Scenario({"value": "200"})
@@ -117,6 +122,7 @@ def test_jobs_by_scenarios():
 
 def test_jobs_by_models():
     from edsl import ModelList
+
     q = QuestionMultipleChoice(
         question_text="How are you?",
         question_options=["Good", "Great", "OK", "Bad"],
@@ -124,6 +130,7 @@ def test_jobs_by_models():
     )
     survey = Survey(name="Test Survey", questions=[q])
     from edsl.inference_services.registry import default
+
     model1 = Model(default.available()[0][0])
     model2 = Model(default.available()[1][0])
     # by without existing models
@@ -162,13 +169,14 @@ def test_jobs_interviews(valid_job):
     assert interviews[0].scenario == Scenario()
     assert interviews[0].agent == Agent()
     assert interviews[0].model.model == "gpt-4-1106-preview"
-   
+
 
 def test_jobs_run(valid_job):
     from edsl.data.Cache import Cache
+
     cache = Cache()
-  
-    results = valid_job.run(debug=True, cache = cache, check_api_keys=False, remote=False)
+
+    results = valid_job.run(debug=True, cache=cache, check_api_keys=False)
     # breakpoint()
 
     assert len(results) == 1
@@ -201,8 +209,9 @@ def test_normal_run():
 
     q = QuestionFreeText(question_text="What is your name?", question_name="name")
     from edsl.data.Cache import Cache
+
     cache = Cache()
-    results = q.by(model).run(cache = cache, remote = False)
+    results = q.by(model).run(cache=cache)
     assert results[0]["answer"] == {"name": "SPAM!"}
 
 
@@ -254,9 +263,10 @@ def test_handle_model_exception():
 
 
 def test_jobs_bucket_creator(valid_job):
-    #from edsl.jobs.runners.job_runners_registry import JobsRunnersRegistry
-    #JobRunner = JobsRunnersRegistry["asyncio"](jobs=valid_job)
+    # from edsl.jobs.runners.job_runners_registry import JobsRunnersRegistry
+    # JobRunner = JobsRunnersRegistry["asyncio"](jobs=valid_job)
     from edsl.jobs.runners.JobsRunnerAsyncio import JobsRunnerAsyncio
+
     bc = JobsRunnerAsyncio(jobs=valid_job).bucket_collection
     assert bc[valid_job.models[0]].requests_bucket.tokens > 10
     assert bc[valid_job.models[0]].tokens_bucket.tokens > 10
@@ -264,9 +274,11 @@ def test_jobs_bucket_creator(valid_job):
 
 def test_bad_jobs():
     from edsl.jobs import Jobs
-    j = Jobs.example(throw_exception_probability = 1.0)
+
+    j = Jobs.example(throw_exception_probability=1.0)
     results = j.run()
     assert hasattr(results, "failed_jobs")
+
 
 def test_jobs_main():
     main()
