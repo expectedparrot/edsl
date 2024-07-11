@@ -555,6 +555,27 @@ class Coop:
             "version": data.get("version"),
         }
 
+    def remote_inference_cost(
+        self,
+        job: Jobs,
+    ) -> dict:
+        """
+        Get the cost of a remote inference job.
+        """
+        response = self._send_server_request(
+            uri="api/v0/remote-inference/cost",
+            method="POST",
+            payload={
+                "json_string": json.dumps(
+                    job.to_dict(),
+                    default=self._json_handle_none,
+                ),
+            },
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        return response_json.get("cost")
+
     ################
     # Remote Errors
     ################
