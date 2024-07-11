@@ -1,6 +1,6 @@
 import hashlib
 import time
-from typing import Optional, Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 
 class ProofOfWork:
@@ -16,7 +16,10 @@ class ProofOfWork:
         self.input_data = input_data
 
     def to_dict(self) -> Dict[str, Any]:
-        return {"input_data": self.input_data, "proof": self.proof}
+        return {
+            "input_data": self.input_data,
+            "proof": self.proof,
+        }
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "ProofOfWork":
