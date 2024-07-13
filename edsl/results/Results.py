@@ -165,13 +165,7 @@ class Results(UserList, Mixins, Base):
         )
 
     def __repr__(self) -> str:
-        # return f"Results(data = {self.data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
-        return f"""Results object 
-                Size: {len(self.data)}. 
-                Survey questions: {[q.question_name for q in self.survey.questions]}. 
-                Created columns: {self.created_columns}
-                Hash: {hash(self)}
-            """
+        return f"Results(data = {self.data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
 
     def _repr_html_(self) -> str:
         json_str = json.dumps(self.to_dict()["data"], indent=4)
@@ -759,7 +753,10 @@ class Results(UserList, Mixins, Base):
 
     def sort_by(self, *columns: str, reverse: bool = False) -> Results:
         import warnings
-        warnings.warn("sort_by is deprecated. Use order_by instead.", DeprecationWarning)
+
+        warnings.warn(
+            "sort_by is deprecated. Use order_by instead.", DeprecationWarning
+        )
         return self.order_by(*columns, reverse=reverse)
 
     def order_by(self, *columns: str, reverse: bool = False) -> Results:
@@ -800,6 +797,7 @@ class Results(UserList, Mixins, Base):
         │ Great        │
         └──────────────┘
         """
+
         def to_numeric_if_possible(v):
             try:
                 return float(v)
