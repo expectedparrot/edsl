@@ -454,10 +454,7 @@ class Jobs(Base):
             self._output("Remote inference activated. Sending job to server...")
             if remote_cache:
                 self._output(
-                    "Sorry, remote caching doesn't work with remote inference yet."
-                )
-                self._output(
-                    "Don't worry, you will still be able to view your results at the link in the remote inference dashboard."
+                    "Remote caching activated. The remote cache will be used for this job."
                 )
 
             remote_job_data = coop.remote_inference_create(
