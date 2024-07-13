@@ -159,7 +159,23 @@ class PromptConstructorMixin:
         return rendered_instructions
     
     def construct_user_prompt(self) -> Prompt:
-        """Construct the user prompt for the LLM call."""
+        """Construct the user prompt for the LLM call.
+        
+        >>> from edsl.agents.InvigilatorBase import InvigilatorBase
+        >>> i = InvigilatorBase.example()
+        >>> i.construct_user_prompt()
+        Prompt(text=\"""You are being asked the following question: Do you like school?
+        The options are
+        <BLANKLINE>
+        0: yes
+        <BLANKLINE>
+        1: no
+        <BLANKLINE>
+        Return a valid JSON formatted like this, selecting only the number of the option:
+        {"answer": <put answer code here>, "comment": "<put explanation here>"}
+        Only 1 option may be selected.\""")
+            
+        """
         user_prompt = self._get_question_instructions()
         if self.memory_plan is not None:
             user_prompt += self.create_memory_prompt(
@@ -168,7 +184,25 @@ class PromptConstructorMixin:
         return user_prompt
 
     def get_prompts(self) -> Dict[str, Prompt]:
-        """Get both prompts for the LLM call."""
+        """Get both prompts for the LLM call.
+        
+        >>> from edsl import QuestionFreeText
+        >>> from edsl.agents.InvigilatorBase import InvigilatorBase
+        >>> q = QuestionFreeText(question_text="How are you today?", question_name="q0")
+        >>> i = InvigilatorBase.example(question = q)
+        >>> i.get_prompts()
+        {'user_prompt': ..., 'system_prompt': ...}
+        
+        >>> from edsl import QuestionFreeText
+        >>> from edsl import Scenario
+        >>> scenario = Scenario.from_image("../../static/logo.png")
+        >>> scenario.has_image
+        True
+        >>> q = QuestionFreeText(question_text="How are you today?", question_name="q0")
+        >>> i = InvigilatorBase.example(question = q, scenario = scenario)
+        >>> i.get_prompts()
+        {'user_prompt': ..., 'system_prompt': ..., 'encoded_image': ...'}
+        """
         system_prompt = self.construct_system_prompt()
         user_prompt = self.construct_user_prompt()
         prompts = {
@@ -182,7 +216,7 @@ class PromptConstructorMixin:
 
 if __name__ == "__main__":
     import doctest
-    doctest.testmod()
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
     # from edsl import Model
     # from edsl import Agent
 
