@@ -5,12 +5,13 @@ import os
 import platform
 import socket
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 from edsl import Cache, set_session_cache, unset_session_cache
 from edsl.utilities.utilities import dict_hash
 from edsl.study.ObjectEntry import ObjectEntry
 from edsl.study.ProofOfWork import ProofOfWork
 from edsl.study.SnapShot import SnapShot
+from uuid import UUID
 
 # from edsl.Base import Base
 
@@ -464,11 +465,28 @@ class Study:
 
     def push(self, refresh=False) -> None:
         """Push the objects to coop."""
-        for obj_entry in self.objects.values():
-            obj_entry.push(refresh=refresh)
+
+        from edsl import Coop
+
+        coop = Coop()
+        coop.create(self, description=self.description)
+
+    @classmethod
+    def pull(cls, id_or_url: Union[str, UUID], exec_profile=None):
+        """Pull the object from coop."""
+        from edsl.coop import Coop
+
+        if id_or_url.startswith("http"):
+            uuid_value = id_or_url.split("/")[-1]
+        else:
+            uuid_value = id_or_url
+
+        c = Coop()
+
+        return c._get_base(cls, uuid_value, exec_profile=exec_profile)
 
     def __repr__(self):
-        return f"""Study(name = {self.name}, description = {self.description}, objects = {self.objects}, cache = {self.cache}, filename = "{self.filename}", coop = {self.coop}, use_study_cache = {self.use_study_cache}, overwrite_on_change = {self.overwrite_on_change})"""
+        return f"""Study(name = "{self.name}", description = "{self.description}", objects = {self.objects}, cache = {self.cache}, filename = "{self.filename}", coop = {self.coop}, use_study_cache = {self.use_study_cache}, overwrite_on_change = {self.overwrite_on_change})"""
 
 
 if __name__ == "__main__":
