@@ -46,6 +46,7 @@ class InvigilatorBase(ABC):
         model: LanguageModel,
         memory_plan: MemoryPlan,
         current_answers: dict,
+        survey: Optional["Survey"],
         cache: Optional[Cache] = None,
         iteration: Optional[int] = 1,
         additional_prompt_data: Optional[dict] = None,
@@ -57,11 +58,12 @@ class InvigilatorBase(ABC):
         self.scenario = scenario
         self.model = model
         self.memory_plan = memory_plan
-        self.current_answers = current_answers
+        self.current_answers = current_answers or {}
         self.iteration = iteration
         self.additional_prompt_data = additional_prompt_data
         self.cache = cache
         self.sidecar_model = sidecar_model
+        self.survey = survey
 
     def __repr__(self) -> str:
         """Return a string representation of the Invigilator.
@@ -76,7 +78,7 @@ class InvigilatorBase(ABC):
         """Return an AgentResponseDict used in case the question-asking fails.
 
         >>> InvigilatorBase.example().get_failed_task_result()
-        {'answer': None, 'comment': 'Failed to get response', 'question_name': 'how_feeling', ...}
+        {'answer': None, 'comment': 'Failed to get response', ...}
         """
         return AgentResponseDict(
             answer=None,
@@ -129,7 +131,7 @@ class InvigilatorBase(ABC):
         )
 
     @classmethod
-    def example(cls, throw_an_exception=False):
+    def example(cls, throw_an_exception=False, question = None):
         """Return an example invigilator.
 
         >>> InvigilatorBase.example()
@@ -167,15 +169,18 @@ class InvigilatorBase(ABC):
         if throw_an_exception:
             model.throw_an_exception = True
         agent = Agent.example()
-        question = QuestionMultipleChoice.example()
+        #question = QuestionMultipleChoice.example()
+        from edsl.surveys import Survey
+        survey = Survey.example()
+        question = question or survey.questions[0]
         scenario = Scenario.example()
         # memory_plan = None #memory_plan = MemoryPlan()
         from edsl import Survey
 
         memory_plan = MemoryPlan(survey=Survey.example())
         current_answers = None
-
-        class InvigilatorExample(InvigilatorBase):
+        from edsl.agents.PromptConstructionMixin import PromptConstructorMixin
+        class InvigilatorExample(InvigilatorBase, PromptConstructorMixin):
             """An example invigilator."""
 
             async def async_answer_question(self):
@@ -188,6 +193,7 @@ class InvigilatorBase(ABC):
             agent=agent,
             question=question,
             scenario=scenario,
+            survey = survey,
             model=model,
             memory_plan=memory_plan,
             current_answers=current_answers,

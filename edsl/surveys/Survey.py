@@ -95,6 +95,10 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
             raise KeyError(f"Question name {question_name} not found in survey.")
         index = self.question_name_to_index[question_name]
         return self._questions[index]
+    
+    def question_names_to_questions(self) -> dict:
+        """Return a dictionary mapping question names to question attributes."""
+        return {q.question_name: q for q in self.questions}
 
     def get_question(self, question_name: str) -> QuestionBase:
         """Return the question object given the question name."""
@@ -111,6 +115,10 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     @property
     def parameters(self):
         return set.union(*[q.parameters for q in self.questions])
+
+    @property    
+    def parameters_by_question(self):
+        return {q.question_name: q.parameters for q in self.questions}
 
     @property
     def question_names(self) -> list[str]:
@@ -732,6 +740,22 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         except IndexError:
             raise
 
+    @property
+    def piping_dag(self) -> DAG:
+        d = {}
+        for question_name, depenencies in self.parameters_by_question.items():
+            if depenencies:
+                question_index = self.question_name_to_index[question_name]
+                for dependency in depenencies:
+                    if dependency not in self.question_name_to_index:
+                        pass
+                    else:
+                        dependency_index = self.question_name_to_index[dependency]
+                        if question_index not in d:
+                            d[question_index] = set()
+                        d[question_index].add(dependency_index)
+        return d
+    
     def dag(self, textify: bool = False) -> DAG:
         """Return the DAG of the survey, which reflects both skip-logic and memory.
 
@@ -745,10 +769,12 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         """
         memory_dag = self.memory_plan.dag
         rule_dag = self.rule_collection.dag
+        piping_dag = self.piping_dag
         if textify:
             memory_dag = DAG(self.textify(memory_dag))
             rule_dag = DAG(self.textify(rule_dag))
-        return memory_dag + rule_dag
+            piping_dag = DAG(self.textify(piping_dag))
+        return memory_dag + rule_dag + piping_dag
 
     ###################
     # DUNDER METHODS
@@ -994,7 +1020,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         return res
 
     @classmethod
-    def example(cls) -> Survey:
+    def example(cls, params = False) -> Survey:
         """Return an example survey.
 
         >>> s = Survey.example()
@@ -1018,6 +1044,14 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
             question_options=["**lack*** of killer bees in cafeteria", "other"],
             question_name="q2",
         )
+        if params:
+            q3 = QuestionMultipleChoice(
+                question_text="To the question '{{ q0.question_text}}', you said '{{ q0.answer }}'. Do you still feel this way?",
+                question_options=["yes", "no"],
+                question_name="q3",
+            )
+            s = cls(questions=[q0, q1, q2, q3])
+            return s
         s = cls(questions=[q0, q1, q2])
         s = s.add_rule(q0, "q0 == 'yes'", q2)
         return s

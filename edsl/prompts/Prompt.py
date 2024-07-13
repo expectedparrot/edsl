@@ -1,12 +1,15 @@
-"""Class for creating prompts to be used in a survey."""
-
 from __future__ import annotations
 from typing import Optional
 from abc import ABC
 from typing import Any, List
 
 from rich.table import Table
-from jinja2 import Template, Environment, meta, TemplateSyntaxError
+from jinja2 import Template, Environment, meta, TemplateSyntaxError, Undefined
+
+
+class PreserveUndefined(Undefined):
+    def __str__(self):
+        return '{{ ' + self._undefined_name + ' }}'
 
 from edsl.exceptions.prompts import TemplateRenderError
 from edsl.prompts.prompt_config import (
@@ -75,10 +78,10 @@ class PromptBase(
         >>> p = Prompt("Hello, {{person}}")
         >>> p2 = Prompt("How are you?")
         >>> p + p2
-        Prompt(text='Hello, {{person}}How are you?')
+        Prompt(text=\"""Hello, {{person}}How are you?\""")
 
         >>> p + "How are you?"
-        Prompt(text='Hello, {{person}}How are you?')
+        Prompt(text=\"""Hello, {{person}}How are you?\""")
         """
         if isinstance(other_prompt, str):
             return self.__class__(self.text + other_prompt)
@@ -114,7 +117,7 @@ class PromptBase(
         Example:
         >>> p = Prompt("Hello, {{person}}")
         >>> p
-        Prompt(text='Hello, {{person}}')
+        Prompt(text=\"""Hello, {{person}}\""")
         """
         return f'Prompt(text="""{self.text}""")'
 
@@ -137,7 +140,7 @@ class PromptBase(
         :param template: The template to find the variables in.
 
         """
-        env = Environment()
+        env = Environment(undefined=PreserveUndefined)
         ast = env.parse(template)
         return list(meta.find_undeclared_variables(ast))
 
@@ -183,16 +186,19 @@ class PromptBase(
 
         :param primary_replacement: The primary replacement dictionary.
         :param additional_replacements: Additional replacement dictionaries.
-
+        
         >>> p = Prompt("Hello, {{person}}")
         >>> p.render({"person": "John"})
-        'Hello, John'
+        Prompt(text=\"""Hello, John\""")
 
         >>> p.render({"person": "Mr. {{last_name}}", "last_name": "Horton"})
-        'Hello, Mr. Horton'
+        Prompt(text=\"""Hello, Mr. Horton\""")
 
         >>> p.render({"person": "Mr. {{last_name}}", "last_name": "Ho{{letter}}ton"}, max_nesting = 1)
-        'Hello, Mr. Horton'
+        Prompt(text=\"""Hello, Mr. Ho{{ letter }}ton\""")
+        
+        >>> p.render({"person": "Mr. {{last_name}}"})
+        Prompt(text=\"""Hello, Mr. {{ last_name }}\""")
         """
         new_text = self._render(
             self.text, primary_replacement, **additional_replacements
@@ -216,12 +222,14 @@ class PromptBase(
         >>> codebook = {"age": "Age"}
         >>> p = Prompt("You are an agent named {{ name }}. {{ codebook['age']}}: {{ age }}")
         >>> p.render({"name": "John", "age": 44}, codebook=codebook)
-        'You are an agent named John. Age: 44'
+        Prompt(text=\"""You are an agent named John. Age: 44\""")
         """
+        env = Environment(undefined=PreserveUndefined)
         try:
             previous_text = None
             for _ in range(MAX_NESTING):
-                rendered_text = Template(text).render(
+                
+                rendered_text = env.from_string(text).render(
                     primary_replacement, **additional_replacements
                 )
                 if rendered_text == previous_text:
@@ -258,7 +266,7 @@ class PromptBase(
         >>> p = Prompt("Hello, {{person}}")
         >>> p2 = Prompt.from_dict(p.to_dict())
         >>> p2
-        Prompt(text='Hello, {{person}}')
+        Prompt(text=\"""Hello, {{person}}\""")
 
         """
         class_name = data["class_name"]
@@ -289,6 +297,11 @@ class Prompt(PromptBase):
 
     component_type = ComponentTypes.GENERIC
 
+if __name__ == "__main__":
+    print("Running doctests...")
+    import doctest
+
+    doctest.testmod()
 
 from edsl.prompts.library.question_multiple_choice import *
 from edsl.prompts.library.agent_instructions import *
@@ -303,8 +316,3 @@ from edsl.prompts.library.question_rank import *
 from edsl.prompts.library.question_extract import *
 from edsl.prompts.library.question_list import *
 
-
-if __name__ == "__main__":
-    import doctest
-
-    doctest.testmod()

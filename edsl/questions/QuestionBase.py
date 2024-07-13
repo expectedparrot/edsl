@@ -173,15 +173,16 @@ class QuestionBase(
     def add_model_instructions(
         self, *, instructions: str, model: Optional[str] = None
     ) -> None:
-        """Add model-specific instructions for the question.
+        """Add model-specific instructions for the question that override the default instructions.
 
         :param instructions: The instructions to add. This is typically a jinja2 template.
         :param model: The language model for this instruction.
 
         >>> from edsl.questions import QuestionFreeText
         >>> q = QuestionFreeText(question_name = "color", question_text = "What is your favorite color?")
-        >>> q.add_model_instructions(instructions = "Answer in valid JSON like so {'answer': 'comment: <>}", model = "gpt3")
-
+        >>> q.add_model_instructions(instructions = "{{question_text}}. Answer in valid JSON like so {'answer': 'comment: <>}", model = "gpt3")
+        >>> q.get_instructions(model = "gpt3")
+        Prompt(text=\"""{{question_text}}. Answer in valid JSON like so {'answer': 'comment: <>}\""")
         """
         from edsl import Model
 
@@ -201,6 +202,13 @@ class QuestionBase(
         """Get the mathcing question-answering instructions for the question.
 
         :param model: The language model to use.
+
+        >>> from edsl import QuestionFreeText
+        >>> QuestionFreeText.example().get_instructions()
+        Prompt(text=\"""You are being asked the following question: {{question_text}}
+        Return a valid JSON formatted like this:
+        {"answer": "<put free text answer here>"}
+        \""")
         """
         from edsl.prompts.Prompt import Prompt
 
