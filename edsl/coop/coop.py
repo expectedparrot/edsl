@@ -211,7 +211,7 @@ class Coop:
                 "version": o.get("version"),
                 "description": o.get("description"),
                 "visibility": o.get("visibility"),
-                "url": f"{self.url}/explore/{object_page}/{o.get('uuid')}",
+                "url": f"{self.url}/content/{o.get('uuid')}",
             }
             for o in response.json()
         ]
