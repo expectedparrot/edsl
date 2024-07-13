@@ -182,7 +182,15 @@ class PromptConstructorMixin:
                 self.question.question_name
             ).render(self.scenario)
         return user_prompt
-
+    
+    def _get_scenario_with_image(self) -> Dict[str, Any]:
+        from edsl import Scenario
+        try:
+            scenario = Scenario.from_image("../../static/logo.png")
+        except FileNotFoundError:
+            scenario = Scenario.from_image("static/logo.png")
+        return scenario
+ 
     def get_prompts(self) -> Dict[str, Prompt]:
         """Get both prompts for the LLM call.
         
@@ -192,10 +200,7 @@ class PromptConstructorMixin:
         >>> i = InvigilatorBase.example(question = q)
         >>> i.get_prompts()
         {'user_prompt': ..., 'system_prompt': ...}
-        
-        >>> from edsl import QuestionFreeText
-        >>> from edsl import Scenario
-        >>> scenario = Scenario.from_image("../../static/logo.png")
+        >>> scenario = i._get_scenario_with_image() 
         >>> scenario.has_image
         True
         >>> q = QuestionFreeText(question_text="How are you today?", question_name="q0")

@@ -1057,7 +1057,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         return s
 
     def get_job(self, model=None, agent=None, **kwargs):
-        if not model:
+        if model is None:
             from edsl import Model
 
             model = Model()
