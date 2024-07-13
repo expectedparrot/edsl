@@ -1,16 +1,11 @@
-from typing import Generator
 import inspect
+from typing import Generator, List, Optional
 
 
 class SnapShot:
-    def __init__(self, namespace, exclude=None):
+    def __init__(self, namespace, exclude: Optional[List] = None):
         self.namespace = namespace
-
-        if exclude is None:
-            self.exclude = []
-        else:
-            self.exclude = exclude
-
+        self.exclude = exclude or []
         self.edsl_objects = dict(self._get_edsl_objects(namespace=self.namespace))
         self.edsl_classes = dict(self._get_edsl_classes(namespace=self.namespace))
 
@@ -63,6 +58,7 @@ class SnapShot:
         from edsl.study.Study import Study
 
         for name, value in namespace.items():
+            # TODO check this code logic (if there are other objects with to_dict method that are not from edsl)
             if (
                 hasattr(value, "to_dict")
                 and not inspect.isclass(value)
