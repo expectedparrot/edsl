@@ -69,6 +69,8 @@ class QuestionOptionMixin:
         )
         self._question_options = [d.get(qn, None) for qn in self.question_names]
 
+
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)

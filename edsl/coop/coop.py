@@ -141,7 +141,7 @@ class Coop:
             "version": self._edsl_version,
             "description": response_json.get("description"),
             "visibility": response_json.get("visibility"),
-            "url": f"{self.url}/explore/{object_page}/{response_json.get('uuid')}",
+            "url": f"{self.url}/content/{response_json.get('uuid')}",
         }
 
     def get(
@@ -217,7 +217,7 @@ class Coop:
                 "version": o.get("version"),
                 "description": o.get("description"),
                 "visibility": o.get("visibility"),
-                "url": f"{self.url}/explore/{object_page}/{o.get('uuid')}",
+                "url": f"{self.url}/content/{o.get('uuid')}",
             }
             for o in response.json()
         ]
@@ -548,7 +548,7 @@ class Coop:
         return {
             "jobs_uuid": data.get("jobs_uuid"),
             "results_uuid": data.get("results_uuid"),
-            "results_url": "TO BE ADDED",
+            "results_url": f"{self.url}/content/{data.get('results_uuid')}",
             "status": data.get("status"),
             "reason": data.get("reason"),
             "price": data.get("price"),
@@ -657,7 +657,6 @@ if __name__ == "__main__":
         Agent,
         AgentList,
         Cache,
-        Jobs,
         Notebook,
         QuestionMultipleChoice,
         Results,
@@ -670,7 +669,6 @@ if __name__ == "__main__":
         ("agent", Agent),
         ("agent_list", AgentList),
         ("cache", Cache),
-        ("job", Jobs),
         ("notebook", Notebook),
         ("question", QuestionMultipleChoice),
         ("results", Results),
@@ -768,18 +766,10 @@ if __name__ == "__main__":
     ##############
     from edsl.jobs import Jobs
 
-    # check jobs on server (should be an empty list)
-    coop.get_all("job")
-    for job in coop.get_all("job"):
-        coop.delete(object_type="job", uuid=job.get("uuid"))
-    # post a job
-    response = coop.create(Jobs.example())
-    # get job and results
-    coop.remote_inference_get(response.get("uuid"))
-    coop.get(
-        object_type="results",
-        uuid=coop.remote_inference_get(response.get("uuid")).get("results_uuid"),
-    )
+    job = Jobs.example()
+    coop.remote_inference_cost(job)
+    results = coop.remote_inference_create(job)
+    coop.remote_inference_get(results.get("uuid"))
 
     ##############
     # D. Errors
