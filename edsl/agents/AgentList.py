@@ -241,16 +241,16 @@ class AgentList(UserList, Base):
 
         """
         return cls([Agent.example(), Agent.example()])
-    
+
     @classmethod
-    def from_list(self, trait_name:str, values: List[Any]):
+    def from_list(self, trait_name: str, values: List[Any]):
         """Create an AgentList from a list of values.
 
         :param trait_name: The name of the trait.
         :param values: A list of values.
         """
         return AgentList([Agent({trait_name: value}) for value in values])
-    
+
     def __mul__(self, other: AgentList) -> AgentList:
         """Takes the cross product of two AgentLists."""
         from itertools import product
@@ -259,7 +259,6 @@ class AgentList(UserList, Base):
         for s1, s2 in list(product(self, other)):
             new_sl.append(s1 + s2)
         return AgentList(new_sl)
-
 
     def code(self, string=True) -> Union[str, list[str]]:
         """Return code to construct an AgentList.
