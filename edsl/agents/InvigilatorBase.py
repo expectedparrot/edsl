@@ -128,7 +128,7 @@ class InvigilatorBase(ABC):
         )
 
     @classmethod
-    def example(cls, throw_an_exception=False, question = None, scenario = None):
+    def example(cls, throw_an_exception=False, question=None, scenario=None):
         """Return an example invigilator.
 
         >>> InvigilatorBase.example()
@@ -166,8 +166,9 @@ class InvigilatorBase(ABC):
         if throw_an_exception:
             model.throw_an_exception = True
         agent = Agent.example()
-        #question = QuestionMultipleChoice.example()
+        # question = QuestionMultipleChoice.example()
         from edsl.surveys import Survey
+
         survey = Survey.example()
         question = question or survey.questions[0]
         scenario = scenario or Scenario.example()
@@ -177,6 +178,7 @@ class InvigilatorBase(ABC):
         memory_plan = MemoryPlan(survey=Survey.example())
         current_answers = None
         from edsl.agents.PromptConstructionMixin import PromptConstructorMixin
+
         class InvigilatorExample(PromptConstructorMixin, InvigilatorBase):
             """An example invigilator."""
 
@@ -190,7 +192,7 @@ class InvigilatorBase(ABC):
             agent=agent,
             question=question,
             scenario=scenario,
-            survey = survey,
+            survey=survey,
             model=model,
             memory_plan=memory_plan,
             current_answers=current_answers,

@@ -95,7 +95,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
             raise KeyError(f"Question name {question_name} not found in survey.")
         index = self.question_name_to_index[question_name]
         return self._questions[index]
-    
+
     def question_names_to_questions(self) -> dict:
         """Return a dictionary mapping question names to question attributes."""
         return {q.question_name: q for q in self.questions}
@@ -116,7 +116,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     def parameters(self):
         return set.union(*[q.parameters for q in self.questions])
 
-    @property    
+    @property
     def parameters_by_question(self):
         return {q.question_name: q.parameters for q in self.questions}
 
@@ -755,7 +755,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
                             d[question_index] = set()
                         d[question_index].add(dependency_index)
         return d
-    
+
     def dag(self, textify: bool = False) -> DAG:
         """Return the DAG of the survey, which reflects both skip-logic and memory.
 
@@ -1020,7 +1020,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         return res
 
     @classmethod
-    def example(cls, params = False) -> Survey:
+    def example(cls, params=False) -> Survey:
         """Return an example survey.
 
         >>> s = Survey.example()
