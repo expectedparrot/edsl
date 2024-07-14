@@ -5,8 +5,14 @@ import requests
 from typing import Any, Optional, Union, Literal
 from uuid import UUID
 import edsl
-from edsl import CONFIG, CacheEntry
-from edsl.coop.utils import EDSLObject, ObjectRegistry, ObjectType, VisibilityType
+from edsl import CONFIG, CacheEntry, Jobs
+from edsl.coop.utils import (
+    EDSLObject,
+    ObjectRegistry,
+    ObjectType,
+    RemoteJobStatus,
+    VisibilityType,
+)
 
 
 class Coop:
@@ -494,6 +500,40 @@ class Coop:
     ################
     # Remote Inference
     ################
+    def remote_inference_create(
+        self,
+        job: Jobs,
+        description: Optional[str] = None,
+        status: RemoteJobStatus = "queued",
+        visibility: Optional[VisibilityType] = "unlisted",
+    ) -> dict:
+        """
+        Send a remote inference job to the server.
+        """
+        response = self._send_server_request(
+            uri="api/v0/remote-inference",
+            method="POST",
+            payload={
+                "json_string": json.dumps(
+                    job.to_dict(),
+                    default=self._json_handle_none,
+                ),
+                "description": description,
+                "status": status,
+                "visibility": visibility,
+                "version": self._edsl_version,
+            },
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        return {
+            "uuid": response_json.get("jobs_uuid"),
+            "description": response_json.get("description"),
+            "status": response_json.get("status"),
+            "visibility": response_json.get("visibility"),
+            "version": self._edsl_version,
+        }
+
     def remote_inference_get(self, job_uuid: str) -> dict:
         """
         Get the results of a remote inference job.
@@ -508,12 +548,33 @@ class Coop:
         return {
             "jobs_uuid": data.get("jobs_uuid"),
             "results_uuid": data.get("results_uuid"),
-            "results_url": "TO BE ADDED",
+            "results_url": f"{self.url}/content/{data.get('results_uuid')}",
             "status": data.get("status"),
             "reason": data.get("reason"),
             "price": data.get("price"),
             "version": data.get("version"),
         }
+
+    def remote_inference_cost(
+        self,
+        job: Jobs,
+    ) -> dict:
+        """
+        Get the cost of a remote inference job.
+        """
+        response = self._send_server_request(
+            uri="api/v0/remote-inference/cost",
+            method="POST",
+            payload={
+                "json_string": json.dumps(
+                    job.to_dict(),
+                    default=self._json_handle_none,
+                ),
+            },
+        )
+        self._resolve_server_response(response)
+        response_json = response.json()
+        return response_json.get("cost")
 
     ################
     # Remote Errors
@@ -705,18 +766,10 @@ if __name__ == "__main__":
     ##############
     from edsl.jobs import Jobs
 
-    # check jobs on server (should be an empty list)
-    coop.get_all("job")
-    for job in coop.get_all("job"):
-        coop.delete(object_type="job", uuid=job.get("uuid"))
-    # post a job
-    response = coop.create(Jobs.example())
-    # get job and results
-    coop.remote_inference_get(response.get("uuid"))
-    coop.get(
-        object_type="results",
-        uuid=coop.remote_inference_get(response.get("uuid")).get("results_uuid"),
-    )
+    job = Jobs.example()
+    coop.remote_inference_cost(job)
+    results = coop.remote_inference_create(job)
+    coop.remote_inference_get(results.get("uuid"))
 
     ##############
     # D. Errors

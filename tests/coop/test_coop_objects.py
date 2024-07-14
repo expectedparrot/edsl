@@ -102,17 +102,6 @@ def test_coop_client_caches():
 
 
 @pytest.mark.coop
-def test_coop_client_jobs():
-    job_examples = [
-        (Jobs.example(), "public"),
-        (Jobs.example(), "private"),
-        (Jobs.example(), "public"),
-        (Jobs.example(), "unlisted"),
-    ]
-    #coop_object_api_workflows("job", job_examples)
-
-
-@pytest.mark.coop
 def test_coop_client_questions():
     question_examples = [
         (QuestionMultipleChoice.example(), "public"),

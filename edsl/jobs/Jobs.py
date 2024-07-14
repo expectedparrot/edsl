@@ -312,10 +312,6 @@ class Jobs(Base):
         # if no agents, models, or scenarios are set, set them to defaults
         self.agents = self.agents or [Agent()]
         self.models = self.models or [Model()]
-        # if remote, set all the models to remote
-        if hasattr(self, "remote") and self.remote:
-            for model in self.models:
-                model.remote = True
         self.scenarios = self.scenarios or [Scenario()]
         for agent, scenario, model in product(self.agents, self.scenarios, self.models):
             yield Interview(
@@ -368,7 +364,7 @@ class Jobs(Base):
         if self.verbose:
             print(message)
 
-    def _check_parameters(self, strict=False, warn = True) -> None:
+    def _check_parameters(self, strict=False, warn=True) -> None:
         """Check if the parameters in the survey and scenarios are consistent.
 
         >>> from edsl import QuestionFreeText
@@ -413,15 +409,13 @@ class Jobs(Base):
         progress_bar: bool = False,
         stop_on_exception: bool = False,
         cache: Union[Cache, bool] = None,
-        remote: bool = (
-            False if os.getenv("DEFAULT_RUN_MODE", "local") == "local" else True
-        ),
         check_api_keys: bool = False,
         sidecar_model: Optional[LanguageModel] = None,
         batch_mode: Optional[bool] = None,
         verbose: bool = False,
         print_exceptions=True,
         remote_cache_description: Optional[str] = None,
+        remote_inference_description: Optional[str] = None,
     ) -> Results:
         """
         Runs the Job: conducts Interviews and returns their results.
@@ -431,11 +425,11 @@ class Jobs(Base):
         :param progress_bar: shows a progress bar
         :param stop_on_exception: stops the job if an exception is raised
         :param cache: a cache object to store results
-        :param remote: run the job remotely
         :param check_api_keys: check if the API keys are valid
         :param batch_mode: run the job in batch mode i.e., no expecation of interaction with the user
         :param verbose: prints messages
         :param remote_cache_description: specifies a description for this group of entries in the remote cache
+        :param remote_inference_description: specifies a description for the remote inference job
         """
         from edsl.coop.coop import Coop
 
@@ -446,21 +440,33 @@ class Jobs(Base):
                 "Batch mode is deprecated. Please update your code to not include 'batch_mode' in the 'run' method."
             )
 
-        self.remote = remote
         self.verbose = verbose
 
         try:
             coop = Coop()
-            remote_cache = coop.edsl_settings["remote_caching"]
+            user_edsl_settings = coop.edsl_settings
+            remote_cache = user_edsl_settings["remote_caching"]
+            remote_inference = user_edsl_settings["remote_inference"]
         except Exception:
             remote_cache = False
+            remote_inference = False
 
-        if self.remote:
-            ## TODO: This should be a coop check
-            if os.getenv("EXPECTED_PARROT_API_KEY", None) is None:
-                raise MissingRemoteInferenceError()
+        if remote_inference:
+            self._output("Remote inference activated. Sending job to server...")
+            if remote_cache:
+                self._output(
+                    "Remote caching activated. The remote cache will be used for this job."
+                )
 
-        if not self.remote:
+            remote_job_data = coop.remote_inference_create(
+                self,
+                description=remote_inference_description,
+                status="queued",
+            )
+            self._output("Job sent!")
+            self._output(remote_job_data)
+            return remote_job_data
+        else:
             if check_api_keys:
                 for model in self.models + [Model()]:
                     if not model.has_valid_api_key():
