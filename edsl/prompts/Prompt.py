@@ -37,6 +37,10 @@ class PromptBase(
         from edsl.utilities.utilities import data_to_html
 
         return data_to_html(self.to_dict())
+    
+    def __len__(self):
+        """Return the length of the prompt text."""
+        return len(self.text)
 
     @classmethod
     def prompt_attributes(cls) -> List[str]:
