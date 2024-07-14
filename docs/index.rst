@@ -28,36 +28,46 @@ Links
    <br><br>
 
 
-This page provides documentation, tutorials and demo notebooks for the EDSL package.
-The contents are organized into several key sections to help you get started using it:
+This page provides documentation, tutorials and demo notebooks for the EDSL package and Coop: a platform for creating, storing and sharing AI research.
+The contents are organized into key sections to help you get started:
 
 Introduction
 ------------
 - :ref:`overview`:  An overview of the purpose, concepts and goals of the EDSL package.
-- :ref:`whitepaper`:  A whitepaper about the EDSL package.
+- :ref:`whitepaper`:  A whitepaper about the EDSL package (in progress).
 - :ref:`citation`:  Instructions on how to cite the package in your work.
 
 Getting Started
 ---------------
-- :ref:`starter_tutorial`:  A tutorial to help you get started using the package.
+- :ref:`starter_tutorial`:  A tutorial to help you get started using EDSL.
 - :ref:`installation`:  Instructions for installing the EDSL package.
 - :ref:`api_keys`:  Instructions for obtaining and storing API keys for language models.
 
 Core Concepts
 -------------
-- :ref:`questions`:  Learn about the different types of questions and their applications.
+- :ref:`questions`:  Learn about different types of questions and their applications.
 - :ref:`scenarios`:  Explore how questions can be dynamically parameterized for tasks like data labeling.
 - :ref:`surveys`:  Discover how to construct surveys and implement survey rules and conditions.
 - :ref:`agents`:  Understand the design and implementation of AI agents that respond to surveys.
 - :ref:`language_models`:  Examine the selection and application of language models for generating results.
 - :ref:`results`:  Investigate methods for analyzing and utilizing survey results.
 - :ref:`data`:  Learn about caching and sharing your survey results.
-- :ref:`conjure`:  Import existing surveys and respondents data as EDSL surveys and agents to simulate new results.
 - :ref:`exceptions`:  Understand how to identify and handle exceptions in your survey design.
 - :ref:`token_limits`:  Learn about managing token limits for language models.
-- :ref:`coop`:  A platform for storing and sharing your work, projects and ideas with other researchers. *Coming soon!*
-- :ref:`notebooks`: Share your .ipynb files with other users on Coop. 
-- :ref:`remote_caching`: Learn how to cache your results on our server. 
+
+Importing Data
+-------------
+- :ref:`conjure`:  Automatically import other survey data into EDSL to:
+* Clean and analyze your data.
+* Create AI agents for respondents and conduct follow-on interviews.
+* Extend your results with new questions and surveys.
+* Store and share your data on the Coop. 
+
+Coop 
+----
+- :ref:`coop`: A platform for creating, storing and sharing AI research. 
+- :ref:`notebooks`: Instructions for sharing .ipynb files with other users on the Coop. 
+- :ref:`remote_caching`: Learn how to cache your results and API calls on our server. 
 
 How-to Guides
 -------------
@@ -132,9 +142,21 @@ Information about additional functionality for developers.
    language_models
    results
    data
-   conjure
    exceptions
    token_limits
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Importing Data
+   :hidden:
+
+   conjure
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Coop
+   :hidden:
+
    coop
    notebooks
    remote_caching
