@@ -548,7 +548,7 @@ class Coop:
         return {
             "jobs_uuid": data.get("jobs_uuid"),
             "results_uuid": data.get("results_uuid"),
-            "results_url": "TO BE ADDED",
+            "results_url": f"{self.url}/content/{data.get('results_uuid')}",
             "status": data.get("status"),
             "reason": data.get("reason"),
             "price": data.get("price"),
@@ -767,7 +767,7 @@ if __name__ == "__main__":
     from edsl.jobs import Jobs
 
     job = Jobs.example()
-    cost = coop.remote_inference_cost(job)
+    coop.remote_inference_cost(job)
     results = coop.remote_inference_create(job)
     coop.remote_inference_get(results.get("uuid"))
 
