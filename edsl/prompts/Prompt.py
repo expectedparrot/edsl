@@ -9,7 +9,8 @@ from jinja2 import Template, Environment, meta, TemplateSyntaxError, Undefined
 
 class PreserveUndefined(Undefined):
     def __str__(self):
-        return '{{ ' + self._undefined_name + ' }}'
+        return "{{ " + self._undefined_name + " }}"
+
 
 from edsl.exceptions.prompts import TemplateRenderError
 from edsl.prompts.prompt_config import (
@@ -37,7 +38,7 @@ class PromptBase(
         from edsl.utilities.utilities import data_to_html
 
         return data_to_html(self.to_dict())
-    
+
     def __len__(self):
         """Return the length of the prompt text."""
         return len(self.text)
@@ -190,7 +191,7 @@ class PromptBase(
 
         :param primary_replacement: The primary replacement dictionary.
         :param additional_replacements: Additional replacement dictionaries.
-        
+
         >>> p = Prompt("Hello, {{person}}")
         >>> p.render({"person": "John"})
         Prompt(text=\"""Hello, John\""")
@@ -200,7 +201,7 @@ class PromptBase(
 
         >>> p.render({"person": "Mr. {{last_name}}", "last_name": "Ho{{letter}}ton"}, max_nesting = 1)
         Prompt(text=\"""Hello, Mr. Ho{{ letter }}ton\""")
-        
+
         >>> p.render({"person": "Mr. {{last_name}}"})
         Prompt(text=\"""Hello, Mr. {{ last_name }}\""")
         """
@@ -232,7 +233,6 @@ class PromptBase(
         try:
             previous_text = None
             for _ in range(MAX_NESTING):
-                
                 rendered_text = env.from_string(text).render(
                     primary_replacement, **additional_replacements
                 )
@@ -301,6 +301,7 @@ class Prompt(PromptBase):
 
     component_type = ComponentTypes.GENERIC
 
+
 if __name__ == "__main__":
     print("Running doctests...")
     import doctest
@@ -319,4 +320,3 @@ from edsl.prompts.library.question_numerical import *
 from edsl.prompts.library.question_rank import *
 from edsl.prompts.library.question_extract import *
 from edsl.prompts.library.question_list import *
-
