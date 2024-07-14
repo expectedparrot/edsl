@@ -1,11 +1,7 @@
 # Changelog
 
-## [0.1.28] - 2024-TBD [In progress]
+## [0.1.29] - 2024-TBD [In progress]
 ### Added
-- Ability to add columns to `Results`
-
-- Class `ModelList` allows you to create a list of `Model` objects to use, similar to `ScenarioList`.
-
 - [In progress] New prompt visibility features.
 
 - [In progress] New methods for piping responses to questions into other questions. 
@@ -19,6 +15,14 @@
 ### Changed
 - [In progress] `QuestionMultipleChoice` may be modified to allow combined options and free response "Other" option, as well as non-responsive answers. Previously, an error was thrown if the agent did not select one of the given options. Details TBD.
 
+
+## [0.1.28] - 2024-07-09
+### Added
+- Method `add_columns()` allows you to add columns to `Results`.
+
+- Class `ModelList` allows you to create a list of `Model` objects, similar to `ScenarioList` and `AgentList`.
+
+### Changed
 ### Fixed
 ### Deprecated
 ### Removed
@@ -30,7 +34,7 @@
 See details on methods `to_survey()`, `to_results()`, `to_agent_list()` and renaming/modifying objects: https://docs.expectedparrot.com/en/latest/conjure.html
 
 ### Changed
-- Allow renaming of agents, scenarios, results
+- Method `rename()` allows you to rename questions, agents, scenarios, results.
 
 ### Fixed
 - New language models from OpenAI, Anthropic, Google will be added automatically when they are released by the platforms.

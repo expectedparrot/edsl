@@ -30,7 +30,8 @@ from edsl.results.Dataset import Dataset
 from edsl.results.Result import Result
 from edsl.results.ResultsExportMixin import ResultsExportMixin
 from edsl.scenarios import Scenario
-#from edsl.scenarios.ScenarioList import ScenarioList
+
+# from edsl.scenarios.ScenarioList import ScenarioList
 from edsl.surveys import Survey
 from edsl.data.Cache import Cache
 from edsl.utilities import (
@@ -164,13 +165,7 @@ class Results(UserList, Mixins, Base):
         )
 
     def __repr__(self) -> str:
-        # return f"Results(data = {self.data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
-        return f"""Results object 
-                Size: {len(self.data)}. 
-                Survey questions: {[q.question_name for q in self.survey.questions]}. 
-                Created columns: {self.created_columns}
-                Hash: {hash(self)}
-            """
+        return f"Results(data = {self.data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
 
     def _repr_html_(self) -> str:
         json_str = json.dumps(self.to_dict()["data"], indent=4)
@@ -356,7 +351,7 @@ class Results(UserList, Mixins, Base):
         return [r.model for r in self.data]
 
     @property
-    def scenarios(self) -> 'ScenarioList':
+    def scenarios(self) -> "ScenarioList":
         """Return a list of all of the scenarios in the Results.
 
         Example:
@@ -366,6 +361,7 @@ class Results(UserList, Mixins, Base):
         ScenarioList([Scenario({'period': 'morning'}), Scenario({'period': 'afternoon'}), Scenario({'period': 'morning'}), Scenario({'period': 'afternoon'})])
         """
         from edsl import ScenarioList
+
         return ScenarioList([r.scenario for r in self.data])
 
     @property
@@ -755,10 +751,18 @@ class Results(UserList, Mixins, Base):
 
         return Dataset(new_data)
 
-    def sort_by(self, columns, reverse: bool = False) -> Results:
+    def sort_by(self, *columns: str, reverse: bool = False) -> Results:
+        import warnings
+
+        warnings.warn(
+            "sort_by is deprecated. Use order_by instead.", DeprecationWarning
+        )
+        return self.order_by(*columns, reverse=reverse)
+
+    def order_by(self, *columns: str, reverse: bool = False) -> Results:
         """Sort the results by one or more columns.
 
-        :param columns: A string or a list of strings that are column names.
+        :param columns: One or more column names as strings.
         :param reverse: A boolean that determines whether to sort in reverse order.
 
         Each column name can be a single key, e.g. "how_feeling", or a dot-separated string, e.g. "answer.how_feeling".
@@ -766,7 +770,7 @@ class Results(UserList, Mixins, Base):
         Example:
 
         >>> r = Results.example()
-        >>> r.sort_by(['how_feeling'], reverse=False).select('how_feeling').print()
+        >>> r.sort_by('how_feeling', reverse=False).select('how_feeling').print()
         ┏━━━━━━━━━━━━━━┓
         ┃ answer       ┃
         ┃ .how_feeling ┃
@@ -779,7 +783,7 @@ class Results(UserList, Mixins, Base):
         ├──────────────┤
         │ Terrible     │
         └──────────────┘
-        >>> r.sort_by(['how_feeling'], reverse=True).select('how_feeling').print()
+        >>> r.sort_by('how_feeling', reverse=True).select('how_feeling').print()
         ┏━━━━━━━━━━━━━━┓
         ┃ answer       ┃
         ┃ .how_feeling ┃
@@ -793,8 +797,6 @@ class Results(UserList, Mixins, Base):
         │ Great        │
         └──────────────┘
         """
-        if isinstance(columns, str):
-            columns = [columns]
 
         def to_numeric_if_possible(v):
             try:
@@ -803,28 +805,14 @@ class Results(UserList, Mixins, Base):
                 return v
 
         def sort_key(item):
-            # Create an empty list to store the key components for sorting
             key_components = []
-
-            # Loop through each column specified in the sort
             for col in columns:
-                # Parse the column into its data type and key
                 data_type, key = self._parse_column(col)
-
-                # Retrieve the value from the item based on the parsed data type and key
                 value = item.get_value(data_type, key)
-
-                # Convert the value to numeric if possible, and append it to the key components
                 key_components.append(to_numeric_if_possible(value))
-
-            # Convert the list of key components into a tuple to serve as the sorting key
             return tuple(key_components)
 
-        new_data = sorted(
-            self.data,
-            key=sort_key,
-            reverse=reverse,
-        )
+        new_data = sorted(self.data, key=sort_key, reverse=reverse)
         return Results(survey=self.survey, data=new_data, created_columns=None)
 
     def filter(self, expression: str) -> Results:

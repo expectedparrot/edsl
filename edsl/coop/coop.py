@@ -141,7 +141,7 @@ class Coop:
             "version": self._edsl_version,
             "description": response_json.get("description"),
             "visibility": response_json.get("visibility"),
-            "url": f"{self.url}/explore/{object_page}/{response_json.get('uuid')}",
+            "url": f"{self.url}/content/{response_json.get('uuid')}",
         }
 
     def get(
@@ -217,7 +217,7 @@ class Coop:
                 "version": o.get("version"),
                 "description": o.get("description"),
                 "visibility": o.get("visibility"),
-                "url": f"{self.url}/explore/{object_page}/{o.get('uuid')}",
+                "url": f"{self.url}/content/{o.get('uuid')}",
             }
             for o in response.json()
         ]

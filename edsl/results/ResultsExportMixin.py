@@ -485,7 +485,9 @@ class ResultsExportMixin:
             return filename
 
     @_convert_decorator
-    def tally(self, *fields: Optional[str], top_n=None, output = "dict") -> Union[dict, 'Dataset']:
+    def tally(
+        self, *fields: Optional[str], top_n=None, output="dict"
+    ) -> Union[dict, "Dataset"]:
         """Tally the values of a field or perform a cross-tab of multiple fields.
 
         :param fields: The field(s) to tally, multiple fields for cross-tabulation.
@@ -530,15 +532,25 @@ class ResultsExportMixin:
         import warnings
         import textwrap
         from edsl.results.Dataset import Dataset
+
         if output == "dict":
-            warnings.warn(textwrap.dedent("""\
+            warnings.warn(
+                textwrap.dedent(
+                    """\
                         The default output from tally will change to Dataset in the future.
                         Use output='Dataset' to get the Dataset object for now.
-                        """))
+                        """
+                )
+            )
             return sorted_tally
         elif output == "Dataset":
-            return Dataset([{'value': list(sorted_tally.keys())}, {'count': list(sorted_tally.values())}])
-  
+            return Dataset(
+                [
+                    {"value": list(sorted_tally.keys())},
+                    {"count": list(sorted_tally.values())},
+                ]
+            )
+
 
 if __name__ == "__main__":
     import doctest
