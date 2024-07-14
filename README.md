@@ -14,15 +14,6 @@ The Expected Parrot Domain-Specific Language (EDSL) package lets you conduct com
 - [LinkedIn](https://www.linkedin.com/company/expectedparrot/)
 - [Blog](https://blog.expectedparrot.com)
 
-## 💡 Contributions, feature requests & bugs
-Interested in contributing? Want us to add a new feature? Found a bug for us to squash? 
-Please send us an email at [info@expectedparrot.com](mailto:info@expectedparrot.com) or message us at our [Discord channel](https://discord.com/invite/mxAYkjfy9m).
-
-## 💻 Requirements
-* EDSL is compatible with Python 3.9 - 3.12.
-* API keys for large language models that you want to use, stored in a `.env` file.
-See instructions on [storing API keys](https://docs.expectedparrot.com/en/latest/api_keys.html).
-
 ## 🌎 Hello, World!
 A quick example:
 
@@ -53,3 +44,12 @@ Output:
 │ Good              │
 └───────────────────┘
 ```
+
+## 💻 Requirements
+* EDSL is compatible with Python 3.9 - 3.12.
+* API keys for large language models that you want to use, stored in a `.env` file.
+See instructions on [storing API keys](https://docs.expectedparrot.com/en/latest/api_keys.html).
+
+## 💡 Contributions, feature requests & bugs
+Interested in contributing? Want us to add a new feature? Found a bug for us to squash? 
+Please send us an email at [info@expectedparrot.com](mailto:info@expectedparrot.com) or message us at our [Discord channel](https://discord.com/invite/mxAYkjfy9m).
