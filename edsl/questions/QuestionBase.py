@@ -173,15 +173,16 @@ class QuestionBase(
     def add_model_instructions(
         self, *, instructions: str, model: Optional[str] = None
     ) -> None:
-        """Add model-specific instructions for the question.
+        """Add model-specific instructions for the question that override the default instructions.
 
         :param instructions: The instructions to add. This is typically a jinja2 template.
         :param model: The language model for this instruction.
 
         >>> from edsl.questions import QuestionFreeText
         >>> q = QuestionFreeText(question_name = "color", question_text = "What is your favorite color?")
-        >>> q.add_model_instructions(instructions = "Answer in valid JSON like so {'answer': 'comment: <>}", model = "gpt3")
-
+        >>> q.add_model_instructions(instructions = "{{question_text}}. Answer in valid JSON like so {'answer': 'comment: <>}", model = "gpt3")
+        >>> q.get_instructions(model = "gpt3")
+        Prompt(text=\"""{{question_text}}. Answer in valid JSON like so {'answer': 'comment: <>}\""")
         """
         from edsl import Model
 
@@ -201,6 +202,13 @@ class QuestionBase(
         """Get the mathcing question-answering instructions for the question.
 
         :param model: The language model to use.
+
+        >>> from edsl import QuestionFreeText
+        >>> QuestionFreeText.example().get_instructions()
+        Prompt(text=\"""You are being asked the following question: {{question_text}}
+        Return a valid JSON formatted like this:
+        {"answer": "<put free text answer here>"}
+        \""")
         """
         from edsl.prompts.Prompt import Prompt
 
@@ -293,7 +301,16 @@ class QuestionBase(
         print_json(json.dumps(self.to_dict()))
 
     def __call__(self, just_answer=True, model=None, agent=None, **kwargs):
-        """Call the question."""
+        """Call the question.
+        
+        >>> from edsl.language_models import LanguageModel
+        >>> m = LanguageModel.example(canned_response = "Yo, what's up?", test_model = True)
+        >>> from edsl import QuestionFreeText
+        >>> q = QuestionFreeText(question_name = "color", question_text = "What is your favorite color?")
+        >>> q(model = m)
+        "Yo, what's up?"
+
+        """
         survey = self.to_survey()
         results = survey(model=model, agent=agent, **kwargs)
         if just_answer:
@@ -302,9 +319,9 @@ class QuestionBase(
             return results
 
     async def run_async(self, just_answer=True, model=None, agent=None, **kwargs):
-        """Call the question."""
+        """Call the question.
+        """
         survey = self.to_survey()
-        ## asyncio.run(survey.async_call());
         results = await survey.run_async(model=model, agent=agent, **kwargs)
         if just_answer:
             return results.select(f"answer.{self.question_name}").first()
@@ -383,29 +400,34 @@ class QuestionBase(
         s = Survey([self, other])
         return s
 
-    def to_survey(self):
+    def to_survey(self) -> "Survey":
         """Turn a single question into a survey."""
         from edsl.surveys.Survey import Survey
 
         s = Survey([self])
         return s
 
-    def run(self, *args, **kwargs):
+    def run(self, *args, **kwargs) -> 'Results':
         """Turn a single question into a survey and run it."""
         from edsl.surveys.Survey import Survey
 
         s = self.to_survey()
         return s.run(*args, **kwargs)
 
-    def by(self, *args):
-        """Turn a single question into a survey and run it."""
+    def by(self, *args) -> 'Jobs':
+        """Turn a single question into a survey and then a Job."""
         from edsl.surveys.Survey import Survey
 
         s = Survey([self])
         return s.by(*args)
 
-    def human_readable(self):
-        """Print the question in a human readable format."""
+    def human_readable(self) -> str:
+        """Print the question in a human readable format.
+        
+        >>> from edsl.questions import QuestionFreeText
+        >>> QuestionFreeText.example().human_readable()
+        'Question Type: free_text\\nQuestion: How are you?'
+        """
         lines = []
         lines.append(f"Question Type: {self.question_type}")
         lines.append(f"Question: {self.question_text}")

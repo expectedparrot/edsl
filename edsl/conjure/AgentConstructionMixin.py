@@ -9,7 +9,7 @@ from edsl.results.Results import Results
 class AgentConstructionMixin:
     def agent(self, index) -> Agent:
         """Return an agent constructed from the data.
-        
+
         :param index: The index of the agent to construct.
 
         >>> from edsl.conjure.InputData import InputDataABC
@@ -17,7 +17,7 @@ class AgentConstructionMixin:
         >>> id.agent(0)
         Agent(traits = {'morning': '1', 'feeling': '3'}, codebook = {'morning': 'how are you doing this morning?', 'feeling': 'how are you feeling?'})
 
-        
+
         """
         responses = [responses[index] for responses in self.raw_data]
         traits = {qn: r for qn, r in zip(self.question_names, responses)}
@@ -145,8 +145,8 @@ class AgentConstructionMixin:
             return None
         return survey.by(agent_list).run()
 
+
 if __name__ == "__main__":
     import doctest
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)
-

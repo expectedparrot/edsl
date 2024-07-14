@@ -44,6 +44,7 @@ class InterviewTaskBuildingMixin:
             scenario=self.scenario,
             model=self.model,
             debug=debug,
+            survey = self.survey,
             memory_plan=self.survey.memory_plan,
             current_answers=self.answers,
             iteration=self.iteration,

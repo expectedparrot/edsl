@@ -174,7 +174,9 @@ class InputDataMixinQuestionStats:
             new_counters.append(top_options)
         return new_counters
 
+
 if __name__ == "__main__":
     from edsl.conjure.InputData import InputDataABC
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)

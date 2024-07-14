@@ -1,22 +1,20 @@
-import os
-import platform
-import socket
 import copy
 import inspect
 import json
-from typing import Optional, List, Dict
+import os
+import platform
+import socket
 from datetime import datetime
-
-# from edsl.Base import Base
+from typing import Dict, Optional, Union
 from edsl import Cache, set_session_cache, unset_session_cache
 from edsl.utilities.utilities import dict_hash
-
 from edsl.study.ObjectEntry import ObjectEntry
 from edsl.study.ProofOfWork import ProofOfWork
 from edsl.study.SnapShot import SnapShot
+from uuid import UUID
 
-class _StudyFrameMarker:
-    pass
+# from edsl.Base import Base
+
 
 class Study:
     """A study organizes a series of EDSL objects.
@@ -56,7 +54,7 @@ class Study:
         proof_of_work=None,
         proof_of_work_difficulty: int = None,
         namespace: Optional[dict] = None,
-        verbose = True, 
+        verbose: Optional[bool] = True,
     ):
         """
         :param name: The name of the study.
@@ -72,13 +70,12 @@ class Study:
         Traceback (most recent call last):
         ...
         ValueError: You must provide a name or a filename for the study.
-                
+
         """
         self.verbose = verbose
 
         if name is None and filename is None:
             raise ValueError("You must provide a name or a filename for the study.")
-        
 
         if filename is None:
             self.filename = name
@@ -89,7 +86,7 @@ class Study:
             self.filename
             and os.path.exists(self.filename + ".json")
             and os.path.getsize(self.filename + ".json") > 0
-        ):  
+        ):
             if self.verbose:
                 print(f"Using existing study file {self.filename}.json")
             self._load_from_file()
@@ -121,17 +118,17 @@ class Study:
 
     def _find_stack(self) -> dict:
         "Finds the frame with the Study context"
-        #if self.verbose:
+        # if self.verbose:
         #    self.explore_stacks()
         frame = inspect.currentframe()
         candidate_frames = []
         while frame:
-            if 'Study' in frame.f_globals:
+            if "Study" in frame.f_globals:
                 candidate_frames.append(frame)
 
             frame = frame.f_back
 
-        found_variables_dict = {}        
+        found_variables_dict = {}
         for frame in candidate_frames:
             found_variables_dict.update(frame.f_globals)
             found_variables_dict.update(frame.f_locals)
@@ -143,18 +140,19 @@ class Study:
         count = 0
         d = {}
         while frame:
-            d[count] = 'Study' in frame.f_globals.keys()
+            d[count] = "Study" in frame.f_globals.keys()
             count += 1
             from rich import print as rprint
+
             print("Globals:")
-            rprint(frame.f_globals['__name__'])
+            rprint(frame.f_globals["__name__"])
             rprint(frame.f_globals.keys())
             print("Locals:")
             rprint(frame.f_locals.keys())
             print("\n")
             frame = frame.f_back
         return d
-    
+
     def _create_mapping_dicts(self):
         self._name_to_object = {}
         self._hash_to_name = {}
@@ -172,7 +170,7 @@ class Study:
 
     def __len__(self):
         return len(self.objects)
-    
+
     def __eq__(self, other):
         return self.objects.keys() == other.objects.keys()
 
@@ -248,9 +246,10 @@ class Study:
 
         if snapshot.edsl_objects:
             raise ValueError(
-                "You have EDSL objects in the global namespace.", 
-                 "Please remove them before starting a study or put under the 'Study' context manager."
-                 "Objects found:", snapshot.edsl_objects
+                "You have EDSL objects in the global namespace.",
+                "Please remove them before starting a study or put under the 'Study' context manager."
+                "Objects found:",
+                snapshot.edsl_objects,
             )
         return self
 
@@ -260,6 +259,7 @@ class Study:
     def study_diff(self):
         ## Need to also report missing.
         from edsl.BaseDiff import BaseDiff
+
         raise NotImplementedError("Need to implement this.")
 
     def print(self):
@@ -305,8 +305,8 @@ class Study:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         snapshot = SnapShot(namespace=self.namespace, exclude=[self])
-        #print("Frame objects are:", snapshot.namespace.keys())
-        #breakpoint()
+        # print("Frame objects are:", snapshot.namespace.keys())
+        # breakpoint()
         if self.use_study_cache:
             unset_session_cache()
 
@@ -385,9 +385,7 @@ class Study:
         }
 
     def versions(self):
-        """Return a dictionary of objects grouped by variable name.
-        
-        """
+        """Return a dictionary of objects grouped by variable name."""
         d = {}
         for _, obj_entry in self.objects.items():
             if obj_entry.variable_name not in d:
@@ -404,11 +402,13 @@ class Study:
         return diff
 
     @classmethod
-    def example(cls, verbose = False):
+    def example(cls, verbose=False):
         import tempfile
-        study_file = tempfile.NamedTemporaryFile()        
-        with cls(filename = study_file.name, verbose = verbose) as study:
+
+        study_file = tempfile.NamedTemporaryFile()
+        with cls(filename=study_file.name, verbose=verbose) as study:
             from edsl import QuestionFreeText
+
             q = QuestionFreeText.example()
         return study
 
@@ -465,11 +465,28 @@ class Study:
 
     def push(self, refresh=False) -> None:
         """Push the objects to coop."""
-        for obj_entry in self.objects.values():
-            obj_entry.push(refresh=refresh)
+
+        from edsl import Coop
+
+        coop = Coop()
+        coop.create(self, description=self.description)
+
+    @classmethod
+    def pull(cls, id_or_url: Union[str, UUID], exec_profile=None):
+        """Pull the object from coop."""
+        from edsl.coop import Coop
+
+        if id_or_url.startswith("http"):
+            uuid_value = id_or_url.split("/")[-1]
+        else:
+            uuid_value = id_or_url
+
+        c = Coop()
+
+        return c._get_base(cls, uuid_value, exec_profile=exec_profile)
 
     def __repr__(self):
-        return f"""Study(name = {self.name}, description = {self.description}, objects = {self.objects}, cache = {self.cache}, filename = {self.filename}, coop = {self.coop}, use_study_cache = {self.use_study_cache}, overwrite_on_change = {self.overwrite_on_change})"""
+        return f"""Study(name = "{self.name}", description = "{self.description}", objects = {self.objects}, cache = {self.cache}, filename = "{self.filename}", coop = {self.coop}, use_study_cache = {self.use_study_cache}, overwrite_on_change = {self.overwrite_on_change})"""
 
 
 if __name__ == "__main__":

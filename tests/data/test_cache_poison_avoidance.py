@@ -59,6 +59,7 @@ class InvigilatorTest(InvigilatorAI):
         }
 
 def test_bad_answer_not_cached():
+    from edsl import Survey
     m = create_language_model(exception=ValueError, fail_at_number=10, invalid_json = True)()
     i = InvigilatorTest(agent = a, 
                     model = m, 
@@ -66,6 +67,7 @@ def test_bad_answer_not_cached():
                     scenario = {}, 
                     memory_plan = Mock(), 
                     current_answers = Mock(),
+                    survey = Survey.example(),
                     cache = c
     )
 
@@ -75,6 +77,7 @@ def test_bad_answer_not_cached():
     assert c.data == {}
 
 def test_good_answer_cached():
+    from edsl import Survey
     m = create_language_model(exception=ValueError, fail_at_number=10, invalid_json = False)()
     i = InvigilatorTest(agent = a, 
                     model = m, 
@@ -82,6 +85,7 @@ def test_good_answer_cached():
                     scenario = {}, 
                     memory_plan = Mock(), 
                     current_answers = Mock(),
+                    survey = Survey.example(),
                     cache = c
     )
 
