@@ -766,18 +766,10 @@ if __name__ == "__main__":
     ##############
     from edsl.jobs import Jobs
 
-    # check jobs on server (should be an empty list)
-    coop.get_all("job")
-    for job in coop.get_all("job"):
-        coop.delete(object_type="job", uuid=job.get("uuid"))
-    # post a job
-    response = coop.create(Jobs.example())
-    # get job and results
-    coop.remote_inference_get(response.get("uuid"))
-    coop.get(
-        object_type="results",
-        uuid=coop.remote_inference_get(response.get("uuid")).get("results_uuid"),
-    )
+    job = Jobs.example()
+    cost = coop.remote_inference_cost(job)
+    results = coop.remote_inference_create(job)
+    coop.remote_inference_get(results.get("uuid"))
 
     ##############
     # D. Errors
