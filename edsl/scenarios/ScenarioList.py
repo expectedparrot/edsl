@@ -119,7 +119,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin, ResultsExportMixin):
 
         return ScenarioList(random.sample(self.data, n))
 
-    def expand(self, expand_field: str, number_field = False) -> ScenarioList:
+    def expand(self, expand_field: str, number_field=False) -> ScenarioList:
         """Expand the ScenarioList by a field.
 
         Example:
@@ -137,7 +137,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin, ResultsExportMixin):
                 new_scenario = scenario.copy()
                 new_scenario[expand_field] = value
                 if number_field:
-                    new_scenario[expand_field + '_number'] = index + 1
+                    new_scenario[expand_field + "_number"] = index + 1
                 new_scenarios.append(new_scenario)
         return ScenarioList(new_scenarios)
 
@@ -192,7 +192,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin, ResultsExportMixin):
 
         def get_sort_key(scenario: Any) -> tuple:
             return tuple(scenario[field] for field in fields)
-        
+
         return ScenarioList(sorted(self, key=get_sort_key, reverse=reverse))
 
     def filter(self, expression: str) -> ScenarioList:

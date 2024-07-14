@@ -302,7 +302,7 @@ class QuestionBase(
 
     def __call__(self, just_answer=True, model=None, agent=None, **kwargs):
         """Call the question.
-        
+
         >>> from edsl.language_models import LanguageModel
         >>> m = LanguageModel.example(canned_response = "Yo, what's up?", test_model = True)
         >>> from edsl import QuestionFreeText
@@ -319,8 +319,7 @@ class QuestionBase(
             return results
 
     async def run_async(self, just_answer=True, model=None, agent=None, **kwargs):
-        """Call the question.
-        """
+        """Call the question."""
         survey = self.to_survey()
         results = await survey.run_async(model=model, agent=agent, **kwargs)
         if just_answer:
@@ -407,14 +406,14 @@ class QuestionBase(
         s = Survey([self])
         return s
 
-    def run(self, *args, **kwargs) -> 'Results':
+    def run(self, *args, **kwargs) -> "Results":
         """Turn a single question into a survey and run it."""
         from edsl.surveys.Survey import Survey
 
         s = self.to_survey()
         return s.run(*args, **kwargs)
 
-    def by(self, *args) -> 'Jobs':
+    def by(self, *args) -> "Jobs":
         """Turn a single question into a survey and then a Job."""
         from edsl.surveys.Survey import Survey
 
@@ -423,7 +422,7 @@ class QuestionBase(
 
     def human_readable(self) -> str:
         """Print the question in a human readable format.
-        
+
         >>> from edsl.questions import QuestionFreeText
         >>> QuestionFreeText.example().human_readable()
         'Question Type: free_text\\nQuestion: How are you?'
