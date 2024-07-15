@@ -1,15 +1,15 @@
 .. _notebooks:
 
 Notebooks
-===============
+=========
 
-The ``Notebook`` object allows you to share your .ipynb files with others by uploading them to Coop.
+The `Notebook` object allows you to share your .ipynb files with others by uploading them to Coop.
 You can also view and pull notebooks that other users have uploaded.
 
 Creating a notebook
---------------------
+-------------------
 
-There are three ways to create a ``Notebook`` object:
+There are three ways to create a `Notebook` object:
 
 1. From file
 ^^^^^^^^^^^^^^^^^
@@ -23,7 +23,7 @@ There are three ways to create a ``Notebook`` object:
 2. From data
 ^^^^^^^^^^^^^^^^^
 
-Your data must be a Python ``dict`` that conforms to the official Jupyter 
+Your data must be a Python `dict` that conforms to the official Jupyter 
 notebook format. You can learn more about the format `here <https://nbformat.readthedocs.io/en/latest/format_description.html>`_.
 
 .. code-block:: python

@@ -89,140 +89,20 @@ Developers
 ----------
 
 Information about additional functionality for developers.
-
-
-.. Links
-.. -----
-.. *Updates*
-
-.. .. raw:: html
-
-..    <a href="https://pypi.org/project/edsl" target="_blank"><i class="fab fa-python"></i></a>&nbsp;&nbsp;Download the latest version of EDSL at <a href="https://pypi.org/project/edsl" target="_blank">PyPI</a>.     
-..    <br><br>
-
-..    <a href="https://github.com/expectedparrot/edsl" target="_blank"><i class="fab fa-github"></i></a>&nbsp;&nbsp;Get the latest EDSL updates at <a href="https://github.com/expectedparrot/edsl" target="_blank">GitHub</a>.
-..    <br><br>
-
-.. *Community*
-
-.. .. raw:: html
-
-..    <a href="https://discord.com/invite/mxAYkjfy9m" target="_blank"><i class="fab fa-discord"></i></a>&nbsp;&nbsp;Join our <a href="https://discord.com/invite/mxAYkjfy9m" target="_blank">Discord</a> channel to connect with other users and ask questions.
-..    <br><br>
-
-.. *Support*
-
-.. .. raw:: html
-
-..    <i class="far fa-envelope"></i>&nbsp;&nbsp;Send us an email at <b>info@expectedparrot.com</b>.    
-..    <br><br>
-
  
 
-
 .. toctree::
-   :maxdepth: 2
-   :caption: Introduction
-   :hidden:
+   :maxdepth: 1
 
-   overview
-   citation
+   introduction
+   getting_started
+   core_concepts
+   importing_data
+   using_coop
+   how_to_guides
+   examples
+   developers
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Getting Started
-   :hidden:
-
-   starter_tutorial
-   installation
-   api_keys
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Core Concepts
-   :hidden:
-
-   questions
-   scenarios
-   surveys
-   agents
-   prompts
-   language_models
-   results
-   data
-   exceptions
-   token_limits
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Importing Data
-   :hidden:
-
-   conjure
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Coop
-   :hidden:
-
-   coop
-   notebooks
-   remote_caching
-
-.. toctree::
-   :maxdepth: 2
-   :caption: How-to Guides
-   :hidden:
-
-   notebooks/data_labeling_example.ipynb
-   notebooks/cheatsheet_scenarios.ipynb
-   notebooks/scenario_from_pdf.ipynb
-   notebooks/batching_results.ipynb
-   notebooks/adding_metadata.ipynb
-   notebooks/survey_memories.ipynb
-   notebooks/example_agent_dynamic_traits.ipynb
-   notebooks/research_methods.ipynb
-   notebooks/edsl_components.ipynb
-   notebooks/export_survey_updates.ipynb
-   notebooks/question_extract_example.ipynb
-   notebooks/data_cleaning.ipynb
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Notebooks
-   :hidden:
-
-   notebooks/agentifying_responses.ipynb
-   notebooks/summarizing_transcripts.ipynb
-   notebooks/data_labeling_agent.ipynb
-   notebooks/conduct_interview.ipynb
-   notebooks/qualitative_research.ipynb
-   notebooks/random_numbers.ipynb
-   notebooks/model_walkoff.ipynb
-   notebooks/concept_induction.ipynb
-   notebooks/testing_training_data.ipynb
-   notebooks/comparing_model_responses.ipynb
-   notebooks/analyze_evaluations.ipynb
-   notebooks/evaluating_job_posts.ipynb
-   notebooks/explore_llm_biases.ipynb
-   notebooks/research_random_silicon_sampling.ipynb
-   notebooks/explore_survey_contexts.ipynb
-   notebooks/free_responses.ipynb
-   notebooks/digital_twin.ipynb
-   notebooks/river_problem.ipynb
-   notebooks/writing_style.ipynb
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Developers
-   :hidden:
-
-   contributing
-   interview
-   jobs 
-   interviews
-   answers
-   enums
 
 .. image:: https://colab.research.google.com/assets/colab-badge.svg
    :target: https://colab.research.google.com/github/expectedparrot/edsl/blob/main/examples/create_agents.ipynb 
