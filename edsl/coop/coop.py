@@ -509,6 +509,15 @@ class Coop:
     ) -> dict:
         """
         Send a remote inference job to the server.
+
+        :param job: The EDSL job to send to the server.
+        :param optional description: A description for this entry in the remote cache.
+        :param status: The status of the job. Should be 'queued', unless you are debugging.
+        :param visibility: The visibility of the cache entry.
+
+        >>> job = Jobs.example()
+        >>> coop.remote_inference_create(job=job, description="My job")
+        {'uuid': '9f8484ee-b407-40e4-9652-4133a7236c9c', 'description': 'My job', 'status': 'queued', 'visibility': 'unlisted', 'version': '0.1.29.dev4'}
         """
         response = self._send_server_request(
             uri="api/v0/remote-inference",
@@ -536,7 +545,12 @@ class Coop:
 
     def remote_inference_get(self, job_uuid: str) -> dict:
         """
-        Get the results of a remote inference job.
+        Get the details of a remote inference job.
+
+        :param job_uuid: The UUID of the EDSL job.
+
+        >>> coop.remote_inference_get("9f8484ee-b407-40e4-9652-4133a7236c9c")
+        {'jobs_uuid': '9f8484ee-b407-40e4-9652-4133a7236c9c', 'results_uuid': 'dd708234-31bf-4fe1-8747-6e232625e026', 'results_url': 'https://www.expectedparrot.com/content/dd708234-31bf-4fe1-8747-6e232625e026', 'status': 'completed', 'reason': None, 'price': 16, 'version': '0.1.29.dev4'}
         """
         response = self._send_server_request(
             uri="api/v0/remote-inference",
@@ -558,6 +572,12 @@ class Coop:
     def remote_inference_cost(self, input: Union[Jobs, Survey]) -> int:
         """
         Get the cost of a remote inference job.
+
+        :param input: The EDSL job to send to the server.
+
+        >>> job = Jobs.example()
+        >>> coop.remote_inference_cost(input=job)
+        16
         """
         if isinstance(input, Jobs):
             job = input
