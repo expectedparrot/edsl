@@ -239,6 +239,57 @@ In the examples, the answer to q1 is substituted into the expression `"color == 
 as the name of q1 is "color".
 
 
+Piping 
+------
+Piping is a method of referencing the components of a previous question in a later question.
+For example:
+
+.. code-block:: python
+
+   from edsl.questions import QuestionFreeText
+
+   q0 = QuestionFreeText(
+      question_text = "What is your favorite color?", 
+      question_name = "color"
+   )
+
+   q1 = QuestionList(
+      question_text = "Name some things that are {{ q0.answer }}.", 
+      question_name = "examples"
+   )
+
+   survey = Survey([q0, q1])
+
+In this example, q0 will be administered before q1 and the response to q0 is piped into q1, so that the prompt for q1 will be "Name some things that are <response to q0>.".
+
+
+This can also be done with agent traits. For example:
+
+.. code-block:: python
+
+   from edsl import Agent, QuestionFreeText
+
+   a = Agent(traits = {'first_name': 'John'})
+
+   q = QuestionFreeText(
+      question_text = 'What is your last name, {{ agent.first_name }}?', 
+      question_name = "example"
+   )
+
+   jobs = q.by(a)
+   print(jobs.prompts().select('user_prompt').first().text)
+
+
+This code will output the text of the prompt for the question:
+
+.. code-block:: text
+
+   You are being asked the following question: What is your last name, John?
+   Return a valid JSON formatted like this:
+   {"answer": "<put free text answer here>"}
+
+
+
 Question memory
 ---------------
 When an agent is taking a survey, they can be prompted to "remember" answers to previous questions.
