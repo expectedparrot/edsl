@@ -164,7 +164,7 @@ For example:
     from edsl import Agent, QuestionFreeText 
 
     a = Agent(traits = {'first_name': 'John'})
-    
+
     q = QuestionFreeText(
         question_text = 'What is your last name, {{ agent.first_name }}?', 
         question_name = "exmaple"
@@ -181,6 +181,35 @@ This code will output the text of the prompt for the question:
     Return a valid JSON formatted like this:
     {"answer": "<put free text answer here>"}
 
+
+Accessing agent traits 
+----------------------
+The `traits` of an agent can be accessed directly:
+
+.. code-block:: python
+
+    a = Agent(traits = {'age': 22})
+    a.traits
+
+This code will return:
+
+.. code-block:: text
+
+    {'age': 22}
+
+The `traits` of an agent can also be accessed as attributes of the agent:
+
+.. code-block:: python
+
+    a = Agent(traits = {'age': 22})
+    a.age
+
+This code will return:
+
+.. code-block:: text
+
+    22
+    
 
 Simulating agent responses 
 --------------------------
