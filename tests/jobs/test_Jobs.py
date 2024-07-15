@@ -119,6 +119,13 @@ def test_jobs_by_scenarios():
     assert job.scenarios == ScenarioList([scenario3])
     assert len(job) == 1
 
+def test_agent_info():
+    from edsl import Agent
+    agent = Agent(traits={"first_name": "John"})
+    from edsl import QuestionFreeText 
+    q = QuestionFreeText(question_text = "What is your name, {{ agent.first_name }}?", question_name = "name")
+    job = q.by(agent)
+    assert 'John' in job.prompts().select('user_prompt').first().text
 
 def test_jobs_by_models():
     from edsl import ModelList

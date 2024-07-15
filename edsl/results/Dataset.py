@@ -77,6 +77,27 @@ class Dataset(UserList, ResultsExportMixin):
             return list(d.values())[0]
 
         return get_values(self.data[0])[0]
+    
+    def select(self, *keys):
+        """Return a new dataset with only the selected keys.
+
+        :param keys: The keys to select.
+
+        >>> d = Dataset([{'a.b':[1,2,3,4], 'c.d':[5,6,7,8]}])
+        >>> d.select('a.b')
+        Dataset([{'a.b': [1, 2, 3, 4]}])
+
+        >>> d.select('a.b', 'c.d')
+        Dataset([{'a.b': [1, 2, 3, 4], 'c.d': [5, 6, 7, 8]}])
+        """
+        if isinstance(keys, str):
+            keys = [keys]
+
+        new_data = []
+        for observation in self.data:
+            if list(observation.keys())[0] in keys:
+                new_data.append(observation)
+        return Dataset(new_data)
 
     def _repr_html_(self) -> str:
         """Return an HTML representation of the dataset."""
@@ -222,6 +243,15 @@ class Dataset(UserList, ResultsExportMixin):
             new_data.append({key: new_values})
 
         return Dataset(new_data)
+    
+    @classmethod
+    def example(self):
+        """Return an example dataset.
+
+        >>> Dataset.example()
+        Dataset([{'a':[1,2,3,4]}])
+        """
+        return Dataset([{'a':[1,2,3,4]}, {'b':[4,3,2,1]}])
 
 
 if __name__ == "__main__":
