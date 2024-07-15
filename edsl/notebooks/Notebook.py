@@ -56,6 +56,36 @@ class Notebook(Base):
 
         self.name = name or self.default_name
 
+    @classmethod
+    def from_script(cls, path: str, name: Optional[str] = None) -> "Notebook":
+        # Read the script file
+        with open(path, 'r') as script_file:
+            script_content = script_file.read()
+        
+        # Create a new Jupyter notebook
+        nb = nbformat.v4.new_notebook()
+        
+        # Add the script content to the first cell
+        first_cell = nbformat.v4.new_code_cell(script_content)
+        nb.cells.append(first_cell)
+        
+        # Create a Notebook instance with the notebook data
+        notebook_instance = cls(nb)
+        
+        return notebook_instance
+    
+    @classmethod
+    def from_current_script(cls) -> "Notebook":
+        import inspect
+        import os
+        # Get the path to the current file
+        current_frame = inspect.currentframe()
+        caller_frame = inspect.getouterframes(current_frame, 2)
+        current_file_path = os.path.abspath(caller_frame[1].filename)
+        
+        # Use from_script to create the notebook
+        return cls.from_script(current_file_path)
+
     def __eq__(self, other):
         """
         Check if two Notebooks are equal.
