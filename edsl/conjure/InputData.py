@@ -51,6 +51,7 @@ class InputDataABC(
         config: Optional[dict] = None,
         naming_function: Optional[Callable] = sanitize_string,
         raw_data: Optional[List] = None,
+        binary: Optional[str] = None,
         question_names: Optional[List[str]] = None,
         question_texts: Optional[List[str]] = None,
         answer_codebook: Optional[Dict] = None,
@@ -82,9 +83,14 @@ class InputDataABC(
         self.config = config
         self.naming_function = naming_function
 
-
-        with open(self.datafile_name, 'rb') as file:
-            self.binary = base64.b64encode(file.read()).decode()
+        if binary is not None:
+            self.binary = binary        
+        else:
+            try:
+                with open(self.datafile_name, 'rb') as file:
+                    self.binary = base64.b64encode(file.read()).decode()
+            except FileNotFoundError:
+                self.binary = None
 
         def default_repair_func(x):
             return (
@@ -306,6 +312,7 @@ class InputDataABC(
             "raw_data": self.raw_data,
             "question_names": self.question_names,
             "question_texts": self.question_texts,
+            "binary": self.binary,
             "answer_codebook": self.answer_codebook,
             "question_types": self.question_types,
         }

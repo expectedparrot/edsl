@@ -343,14 +343,14 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin, ResultsExportMixin):
         """
         return cls([Scenario(row) for row in df.to_dict(orient="records")])
 
-    def to_key_value(self, field, value = None) -> dict:
+    def to_key_value(self, field, value = None) -> Union[dict, set]:
         """Return the set of values in the field.
 
         Example:
 
         >>> s = ScenarioList([Scenario({'name': 'Alice'}), Scenario({'name': 'Bob'})])
-        >>> s.to_set('name')
-        {'Alice', 'Bob'}
+        >>> s.to_key_value('name') == {'Alice', 'Bob'}
+        True
         """
         if value is None:
             return {scenario[field] for scenario in self}
