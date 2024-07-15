@@ -5,7 +5,7 @@ import requests
 from typing import Any, Optional, Union, Literal
 from uuid import UUID
 import edsl
-from edsl import CONFIG, CacheEntry, Jobs
+from edsl import CONFIG, CacheEntry, Jobs, Survey
 from edsl.coop.utils import (
     EDSLObject,
     ObjectRegistry,
@@ -555,13 +555,17 @@ class Coop:
             "version": data.get("version"),
         }
 
-    def remote_inference_cost(
-        self,
-        job: Jobs,
-    ) -> dict:
+    def remote_inference_cost(self, input: Union[Jobs, Survey]) -> int:
         """
         Get the cost of a remote inference job.
         """
+        if isinstance(input, Jobs):
+            job = input
+        elif isinstance(input, Survey):
+            job = Jobs(survey=input)
+        else:
+            raise TypeError("Input must be either a Job or a Survey.")
+
         response = self._send_server_request(
             uri="api/v0/remote-inference/cost",
             method="POST",
