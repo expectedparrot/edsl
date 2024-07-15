@@ -485,6 +485,12 @@ class Agent(Base):
         """
         return self.data == other.data
 
+    def __getattr__(self, name):
+        # This will be called only if 'name' is not found in the usual places
+        if name in self.traits:
+            return self.traits[name]
+        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+  
     def print(self) -> None:
         from rich import print_json
         import json
