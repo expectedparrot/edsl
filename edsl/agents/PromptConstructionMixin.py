@@ -270,9 +270,7 @@ class PromptConstructorMixin:
             for question, answer in self.current_answers.items():
                 d[question].answer = answer
 
-            rendered_instructions = question_prompt.render(
-                self.question.data | self.scenario | d
-            )
+            rendered_instructions = question_prompt.render(self.question.data | self.scenario | d | {'agent': self.agent})
 
             undefined_template_variables = (
                 rendered_instructions.undefined_template_variables({})
