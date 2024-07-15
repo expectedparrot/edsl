@@ -68,6 +68,7 @@ Coop
 - :ref:`coop`: A platform for creating, storing and sharing AI research. 
 - :ref:`notebooks`: Instructions for sharing .ipynb files with other users on the Coop. 
 - :ref:`remote_caching`: Learn how to cache your results and API calls on our server. 
+- :ref:`remote_inference`: Run your jobs on our server. 
 
 How-to Guides
 -------------
@@ -160,6 +161,7 @@ Information about additional functionality for developers.
    coop
    notebooks
    remote_caching
+   remote_inference
 
 .. toctree::
    :maxdepth: 2
