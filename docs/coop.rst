@@ -3,11 +3,9 @@
 Coop
 ====
 
-*Coming soon! The Coop is in development. Let us know if you'd like to try it!*
-
 .. raw:: html
 
-  The <a href="https://www.expectedparrot.com/login">Coop</a> is a platform for storing, sharing and accessing research in EDSL.
+  The <a href="https://www.expectedparrot.com/login">Coop</a> is a platform for creating, storing and sharing AI research in EDSL.
 
   <br>
 
