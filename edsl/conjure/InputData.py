@@ -1,5 +1,4 @@
-import functools
-
+import base64
 from abc import ABC, abstractmethod
 from typing import Dict, Callable, Optional, List, Generator, Tuple, Union
 from collections import namedtuple
@@ -52,6 +51,7 @@ class InputDataABC(
         config: Optional[dict] = None,
         naming_function: Optional[Callable] = sanitize_string,
         raw_data: Optional[List] = None,
+        binary: Optional[str] = None,
         question_names: Optional[List[str]] = None,
         question_texts: Optional[List[str]] = None,
         answer_codebook: Optional[Dict] = None,
@@ -82,6 +82,15 @@ class InputDataABC(
         self.datafile_name = datafile_name
         self.config = config
         self.naming_function = naming_function
+
+        if binary is not None:
+            self.binary = binary        
+        else:
+            try:
+                with open(self.datafile_name, 'rb') as file:
+                    self.binary = base64.b64encode(file.read()).decode()
+            except FileNotFoundError:
+                self.binary = None
 
         def default_repair_func(x):
             return (
@@ -118,6 +127,14 @@ class InputDataABC(
         if order_options:
             self.order_options()
 
+    @property
+    def download_link(self):
+        from IPython.display import HTML
+        actual_file_name = self.datafile_name.split("/")[-1]
+        download_link =f'<a href="data:text/plain;base64,{self.binary}" download="{actual_file_name}">Download {self.datafile_name}</a>'
+        return HTML(download_link)
+
+
     @abstractmethod
     def get_question_texts(self) -> List[str]:
         """Get the text of the questions
@@ -151,7 +168,7 @@ class InputDataABC(
         """
         raise NotImplementedError
 
-    def rename_questions(self, rename_dict: Dict[str, str]) -> "InputData":
+    def rename_questions(self, rename_dict: Dict[str, str], ignore_missing = False) -> "InputData":
         """Rename a question.
 
         >>> id = InputDataABC.example()
@@ -160,10 +177,10 @@ class InputDataABC(
 
         """
         for old_name, new_name in rename_dict.items():
-            self.rename(old_name, new_name)
+            self.rename(old_name, new_name, ignore_missing = ignore_missing)
         return self
 
-    def rename(self, old_name, new_name) -> "InputData":
+    def rename(self, old_name, new_name, ignore_missing = False) -> "InputData":
         """Rename a question.
 
         >>> id = InputDataABC.example()
@@ -171,13 +188,19 @@ class InputDataABC(
         ['evening', 'feeling']
 
         """
+        if old_name not in self.question_names:
+            if ignore_missing:
+                return self
+            else:
+                raise ValueError(f"Question {old_name} not found.")
+            
         idx = self.question_names.index(old_name)
         self.question_names[idx] = new_name
         self.answer_codebook[new_name] = self.answer_codebook.pop(old_name, {})
 
         return self
 
-    def _drop_question(self, question_name):
+    def _drop_question(self, question_name, ignore_missing=False):
         """Drop a question
 
         >>> id = InputDataABC.example()
@@ -185,6 +208,11 @@ class InputDataABC(
         ['feeling']
 
         """
+        if question_name not in self.question_names:
+            if ignore_missing:
+                return self
+            else:
+                raise ValueError(f"Question {question_name} not found.")
         idx = self.question_names.index(question_name)
         self._question_names.pop(idx)
         self._question_texts.pop(idx)
@@ -206,7 +234,7 @@ class InputDataABC(
             self._drop_question(qn)
         return self
 
-    def keep(self, *question_names_to_keep) -> "InputDataABC":
+    def keep(self, *question_names_to_keep, ignore_missing = False) -> "InputDataABC":
         """Keep a question.
 
         >>> id = InputDataABC.example()
@@ -217,7 +245,7 @@ class InputDataABC(
         all_question_names = self._question_names[:]
         for qn in all_question_names:
             if qn not in question_names_to_keep:
-                self._drop_question(qn)
+                self._drop_question(qn, ignore_missing = ignore_missing)
         return self
 
     def modify_question_type(
@@ -284,6 +312,7 @@ class InputDataABC(
             "raw_data": self.raw_data,
             "question_names": self.question_names,
             "question_texts": self.question_texts,
+            "binary": self.binary,
             "answer_codebook": self.answer_codebook,
             "question_types": self.question_types,
         }
