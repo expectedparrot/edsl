@@ -268,8 +268,13 @@ class PromptConstructorMixin:
             # TODO: Try to populate the answers in the question object if they are available
             d = self.survey.question_names_to_questions()
             for question, answer in self.current_answers.items():
-                d[question].answer = answer
-
+                if question in d:
+                    d[question].answer = answer
+                else:
+                    # adds a comment to the question
+                    if (new_question := question.split("_comment")[0]) in d:
+                        d[new_question].comment = answer
+         
             rendered_instructions = question_prompt.render(self.question.data | self.scenario | d | {'agent': self.agent})
 
             undefined_template_variables = (

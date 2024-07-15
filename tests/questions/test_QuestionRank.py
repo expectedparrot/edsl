@@ -60,6 +60,7 @@ def test_QuestionRank_construction():
         QuestionRank(**invalid_question)
     # should raise an exception if question_text is too long
     invalid_question = valid_question.copy()
+    from edsl.questions.settings import Settings
     invalid_question.update({"question_text": "a" * (Settings.MAX_QUESTION_LENGTH + 1)})
     with pytest.raises(Exception):
         QuestionRank(**invalid_question)
@@ -80,10 +81,12 @@ def test_QuestionRank_construction():
         QuestionRank(**invalid_question)
     # should raise an exception if options are too long
     invalid_question = valid_question.copy()
-    invalid_question.update(
-        {"question_options": ["Pizza", "Ice cream", "Cake", "Cereal" * 1000]}
-    )
+
     with pytest.raises(Exception):
+        from edsl.questions.settings import Settings
+        invalid_question.update(
+            {"question_options": ["Pizza", "Ice cream", "Cake", "Cereal" * (1 + Settings.MAX_OPTION_LENGTH)]}
+        )
         QuestionRank(**invalid_question)
 
 
