@@ -83,19 +83,20 @@ class Dataset(UserList, ResultsExportMixin):
 
         :param keys: The keys to select.
 
-        >>> d = Dataset([{'a.b':[1,2,3,4], 'c.d':[5,6,7,8]}])
+        >>> d = Dataset([{'a.b':[1,2,3,4]}, {'c.d':[5,6,7,8]}])
         >>> d.select('a.b')
         Dataset([{'a.b': [1, 2, 3, 4]}])
 
         >>> d.select('a.b', 'c.d')
-        Dataset([{'a.b': [1, 2, 3, 4], 'c.d': [5, 6, 7, 8]}])
+        Dataset([{'a.b': [1, 2, 3, 4]}, {'c.d': [5, 6, 7, 8]}])
         """
         if isinstance(keys, str):
             keys = [keys]
 
         new_data = []
         for observation in self.data:
-            if list(observation.keys())[0] in keys:
+            observation_key = list(observation.keys())[0]
+            if observation_key in keys:
                 new_data.append(observation)
         return Dataset(new_data)
 
@@ -249,7 +250,7 @@ class Dataset(UserList, ResultsExportMixin):
         """Return an example dataset.
 
         >>> Dataset.example()
-        Dataset([{'a':[1,2,3,4]}])
+        Dataset([{'a': [1, 2, 3, 4]}, {'b': [4, 3, 2, 1]}])
         """
         return Dataset([{'a':[1,2,3,4]}, {'b':[4,3,2,1]}])
 
