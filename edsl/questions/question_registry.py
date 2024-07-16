@@ -1,10 +1,10 @@
 """This module provides a factory class for creating question objects."""
 
 import textwrap
-from typing import Union
+from uuid import UUID
+from typing import Optional, Union
 
-from edsl.exceptions import QuestionSerializationError
-from edsl.exceptions import QuestionCreationValidationError
+
 from edsl.questions.QuestionBase import RegisterQuestionsMeta
 
 
@@ -60,18 +60,12 @@ class Question(metaclass=Meta):
         return q.example()
 
     @classmethod
-    def pull(cls, id_or_url: str):
+    def pull(cls, uuid: Optional[Union[str, UUID]] = None, url: Optional[str] = None):
         """Pull the object from coop."""
         from edsl.coop import Coop
 
-        c = Coop()
-        if c.url in id_or_url:
-            id = id_or_url.split("/")[-1]
-        else:
-            id = id_or_url
-        from edsl.questions.QuestionBase import QuestionBase
-
-        return c._get_base(QuestionBase, id)
+        coop = Coop()
+        return coop.get(uuid, url, "question")
 
     @classmethod
     def delete(cls, id_or_url: str):
