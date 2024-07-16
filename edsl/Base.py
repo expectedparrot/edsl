@@ -52,18 +52,14 @@ class PersistenceMixin:
         return c.create(self, description, visibility)
 
     @classmethod
-    def pull(cls, id_or_url: Union[str, UUID]):
+    def pull(cls, uuid: Optional[Union[str, UUID]] = None, url: Optional[str] = None):
         """Pull the object from coop."""
         from edsl.coop import Coop
+        from edsl.coop.utils import ObjectRegistry
 
-        if id_or_url.startswith("http"):
-            uuid_value = id_or_url.split("/")[-1]
-        else:
-            uuid_value = id_or_url
-
-        c = Coop()
-
-        return c._get_base(cls, uuid_value)
+        object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
+        coop = Coop()
+        return coop.get(uuid, url, object_type)
 
     @classmethod
     def delete(cls, id_or_url: Union[str, UUID]):

@@ -121,11 +121,11 @@ class Coop:
             method="POST",
             payload={
                 "description": description,
-                "object_type": object_type,
                 "json_string": json.dumps(
                     object.to_dict(),
                     default=self._json_handle_none,
                 ),
+                "object_type": object_type,
                 "visibility": visibility,
                 "version": self._edsl_version,
             },
@@ -133,35 +133,35 @@ class Coop:
         self._resolve_server_response(response)
         response_json = response.json()
         return {
+            "description": response_json.get("description"),
+            "object_type": object_type,
+            "url": f"{self.url}/content/{response_json.get('uuid')}",
             "uuid": response_json.get("uuid"),
             "version": self._edsl_version,
-            "description": response_json.get("description"),
             "visibility": response_json.get("visibility"),
-            "url": f"{self.url}/content/{response_json.get('uuid')}",
         }
 
     def get(
         self,
-        object_type: ObjectType,
         uuid: Union[str, UUID] = None,
         url: str = None,
+        expected_object_type: Optional[ObjectType] = None,
     ) -> EDSLObject:
         """
-        Retrieve an EDSL object either by object type & UUID, or by its url.
-        - The object has to belong to the user or not be private.
-        - Returns the initialized object class instance.
+        Retrieve an EDSL object by its uuid or its url.
+        - If the object's visibility is private, the user must be the owner.
+        - Optionally, check if the retrieved object is of a certain type.
 
-        :param object_type: the type of object to retrieve.
         :param uuid: the uuid of the object either in str or UUID format.
         :param url: the url of the object.
+        :param expected_object_type: the expected type of the object.
+
+        :return: the object instance.
         """
         if not url and not uuid:
-            raise Exception(
-                "Provide either a uuid or a url for the object you are trying to retrieve."
-            )
+            raise Exception("No uuid or url provided for the object.")
         if url:
             uuid = url.split("/")[-1]
-        edsl_class = ObjectRegistry.object_type_to_edsl_class.get(object_type)
         response = self._send_server_request(
             uri=f"api/v0/object",
             method="GET",
@@ -169,19 +169,12 @@ class Coop:
         )
         self._resolve_server_response(response)
         json_string = response.json().get("json_string")
+        object_type = response.json().get("object_type")
+        if expected_object_type and object_type != expected_object_type:
+            raise Exception(f"Expected {expected_object_type=} but got {object_type=}")
+        edsl_class = ObjectRegistry.object_type_to_edsl_class.get(object_type)
         object = edsl_class.from_dict(json.loads(json_string))
         return object
-
-    def _get_base(
-        self,
-        cls: EDSLObject,
-        uuid: Union[str, UUID],
-    ) -> EDSLObject:
-        """
-        Used by the Base class to offer a get functionality.
-        """
-        object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
-        return self.get(object_type, uuid)
 
     def get_all(self, object_type: ObjectType) -> list[EDSLObject]:
         """
@@ -651,8 +644,9 @@ if __name__ == "__main__":
     # a simple example
     # .. create and get an object through the Coop client
     response = coop.create(QuestionMultipleChoice.example())
-    coop.get(object_type="question", uuid=response.get("uuid"))
-    coop.get(object_type="question", url=response.get("url"))
+    coop.get(uuid=response.get("uuid"))
+    coop.get(uuid=response.get("uuid"), expected_object_type="question")
+    coop.get(url=response.get("url"))
     # .. create and get an object through the class
     response = QuestionMultipleChoice.example().push()
     QuestionMultipleChoice.pull(response.get("uuid"))
