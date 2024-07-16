@@ -116,7 +116,6 @@ class Coop:
         Create an EDSL object in the Coop server.
         """
         object_type = ObjectRegistry.get_object_type_by_edsl_class(object)
-        object_page = ObjectRegistry.get_object_page_by_object_type(object_type)
         response = self._send_server_request(
             uri=f"api/v0/object",
             method="POST",
