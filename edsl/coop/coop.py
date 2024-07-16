@@ -106,9 +106,6 @@ class Coop:
     ################
     # Objects
     ################
-
-    # TODO: add URL to get and get_all methods
-
     def create(
         self,
         object: EDSLObject,
