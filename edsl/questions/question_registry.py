@@ -68,17 +68,12 @@ class Question(metaclass=Meta):
         return coop.get(uuid, url, "question")
 
     @classmethod
-    def delete(cls, id_or_url: str):
+    def delete(cls, uuid: Optional[Union[str, UUID]] = None, url: Optional[str] = None):
         """Delete the object from coop."""
         from edsl.coop import Coop
 
-        c = Coop()
-        if c.url in id_or_url:
-            id = id_or_url.split("/")[-1]
-        else:
-            id = id_or_url
-
-        return c._delete_base(id)
+        coop = Coop()
+        return coop.delete(uuid, url)
 
     @classmethod
     def update(cls, id_or_url: str, visibility: str):
