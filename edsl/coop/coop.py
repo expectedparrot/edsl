@@ -142,10 +142,9 @@ class Coop:
 
     def get(
         self,
-        object_type: ObjectType = None,
+        object_type: ObjectType,
         uuid: Union[str, UUID] = None,
         url: str = None,
-        exec_profile=None,
     ) -> EDSLObject:
         """
         Retrieve an EDSL object either by object type & UUID, or by its url.
@@ -156,50 +155,39 @@ class Coop:
         :param uuid: the uuid of the object either in str or UUID format.
         :param url: the url of the object.
         """
+        if not url and not uuid:
+            raise Exception(
+                "Provide either a uuid or a url for the object you are trying to retrieve."
+            )
         if url:
-            object_type = url.split("/")[-2]
             uuid = url.split("/")[-1]
-        elif not object_type and not uuid:
-            raise Exception("Provide either object_type & UUID, or a url.")
         edsl_class = ObjectRegistry.object_type_to_edsl_class.get(object_type)
-        import time
-
-        start = time.time()
         response = self._send_server_request(
             uri=f"api/v0/object",
             method="GET",
-            params={"type": object_type, "uuid": uuid},
+            params={"uuid": uuid},
         )
-        end = time.time()
-        if exec_profile:
-            print("Download exec time = ", end - start)
         self._resolve_server_response(response)
         json_string = response.json().get("json_string")
-        start = time.time()
-        res_object = edsl_class.from_dict(json.loads(json_string))
-        end = time.time()
-        if exec_profile:
-            print("Creating object exec time = ", end - start)
-        return res_object
+        object = edsl_class.from_dict(json.loads(json_string))
+        return object
 
     def _get_base(
         self,
         cls: EDSLObject,
         uuid: Union[str, UUID],
-        exec_profile=None,
     ) -> EDSLObject:
         """
         Used by the Base class to offer a get functionality.
         """
         object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
-        return self.get(object_type, uuid, exec_profile=exec_profile)
+        return self.get(object_type, uuid)
 
     def get_all(self, object_type: ObjectType) -> list[EDSLObject]:
         """
         Retrieve all objects of a certain type associated with the user.
         """
         edsl_class = ObjectRegistry.object_type_to_edsl_class.get(object_type)
-        object_page = ObjectRegistry.get_object_page_by_object_type(object_type)
         response = self._send_server_request(
             uri=f"api/v0/objects",
             method="GET",
@@ -654,6 +642,7 @@ if __name__ == "__main__":
         AgentList,
         Cache,
         Notebook,
+        QuestionFreeText,
         QuestionMultipleChoice,
         Results,
         Scenario,
@@ -661,6 +650,28 @@ if __name__ == "__main__":
         Survey,
     )
 
+    # a simple example
+    response = coop.create(QuestionMultipleChoice.example())
+    # .. through coop client
+    coop.get(object_type="question", uuid=response.get("uuid"))
+    coop.get(object_type="question", url=response.get("url"))
+    # .. through the class
+    response = QuestionMultipleChoice.example().push()
+    QuestionMultipleChoice.pull(response.get("uuid"))
+    coop.patch(object_type="question", uuid=response.get("uuid"), visibility="public")
+    coop.patch(
+        object_type="question",
+        uuid=response.get("uuid"),
+        description="crazy new description",
+    )
+    coop.patch(
+        object_type="question",
+        uuid=response.get("uuid"),
+        value=QuestionFreeText.example(),
+    )
+    coop.delete(object_type="question", uuid=response.get("uuid"))
+
+    # test all objects
     OBJECTS = [
         ("agent", Agent),
         ("agent_list", AgentList),
@@ -712,25 +723,6 @@ if __name__ == "__main__":
         for item in objects:
             coop.delete(object_type=object_type, uuid=item.get("uuid"))
         assert len(coop.get_all(object_type)) == 0
-
-    # a simple example
-    from edsl import Coop, QuestionMultipleChoice, QuestionFreeText
-
-    coop = Coop(api_key="b")
-    response = QuestionMultipleChoice.example().push()
-    QuestionMultipleChoice.pull(response.get("uuid"))
-    coop.patch(object_type="question", uuid=response.get("uuid"), visibility="public")
-    coop.patch(
-        object_type="question",
-        uuid=response.get("uuid"),
-        description="crazy new description",
-    )
-    coop.patch(
-        object_type="question",
-        uuid=response.get("uuid"),
-        value=QuestionFreeText.example(),
-    )
-    coop.delete(object_type="question", uuid=response.get("uuid"))
 
     ##############
     # B. Remote Cache

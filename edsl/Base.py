@@ -52,7 +52,7 @@ class PersistenceMixin:
         return c.create(self, description, visibility)
 
     @classmethod
-    def pull(cls, id_or_url: Union[str, UUID], exec_profile=None):
+    def pull(cls, id_or_url: Union[str, UUID]):
         """Pull the object from coop."""
         from edsl.coop import Coop
 
@@ -63,7 +63,7 @@ class PersistenceMixin:
 
         c = Coop()
 
-        return c._get_base(cls, uuid_value, exec_profile=exec_profile)
+        return c._get_base(cls, uuid_value)
 
     @classmethod
     def delete(cls, id_or_url: Union[str, UUID]):
