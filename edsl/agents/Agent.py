@@ -490,13 +490,29 @@ class Agent(Base):
         """
         return self.data == other.data
 
-    # def __getattr__(self, name):
-    #     # This will be called only if 'name' is not found in the usual places
-    #     #breakpoint()
-    #     if name in self.traits:
-    #         return self.traits[name]
-    #     raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
-  
+    def __getattr__(self, name):
+        # This will be called only if 'name' is not found in the usual places
+        # breakpoint()
+        if name == "has_dynamic_traits_function":
+            return self.has_dynamic_traits_function
+
+        if name in self.traits:
+            return self.traits[name]
+        raise AttributeError(
+            f"'{type(self).__name__}' object has no attribute '{name}'"
+        )
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        # Include any additional state that needs to be serialized
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        # Ensure _traits is initialized if it's missing
+        if "_traits" not in self.__dict__:
+            self._traits = {}
+
     def print(self) -> None:
         from rich import print_json
         import json
