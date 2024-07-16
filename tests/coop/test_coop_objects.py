@@ -22,7 +22,7 @@ def coop_object_api_workflows(object_type, object_examples):
     # 1. Ensure we are starting with a clean state
     objects = coop.get_all(object_type)
     for object in objects:
-        coop.delete(object_type, object.get("uuid"))
+        coop.delete(object.get("uuid"))
     objects = coop.get_all(object_type)
     assert objects == [], "Expected no objects in the database."
 
@@ -64,7 +64,7 @@ def coop_object_api_workflows(object_type, object_examples):
 
     # 5. Cleanup
     for object in coop.get_all(object_type):
-        response = coop.delete(object_type, object.get("uuid"))
+        response = coop.delete(object.get("uuid"))
         assert response.get("status") == "success"
 
 

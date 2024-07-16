@@ -71,7 +71,7 @@ class PersistenceMixin:
         from edsl.coop import Coop
 
         c = Coop()
-        return c._delete_base(cls, id_or_url)
+        return c._delete_base(id_or_url)
 
     @classmethod
     def patch(

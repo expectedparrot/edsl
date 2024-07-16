@@ -207,28 +207,26 @@ class Coop:
         ]
         return objects
 
-    def delete(self, object_type: ObjectType, uuid: Union[str, UUID]) -> dict:
+    def delete(self, uuid: Union[str, UUID]) -> dict:
         """
         Delete an object from the server.
         """
         response = self._send_server_request(
             uri=f"api/v0/object",
             method="DELETE",
-            params={"type": object_type, "uuid": uuid},
+            params={"uuid": uuid},
         )
         self._resolve_server_response(response)
         return response.json()
 
     def _delete_base(
         self,
-        cls: EDSLObject,
         uuid: Union[str, UUID],
     ) -> dict:
         """
         Used by the Base class to offer a delete functionality.
         """
-        object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
-        return self.delete(object_type, uuid)
+        return self.delete(uuid)
 
     def patch(
         self,
@@ -651,13 +649,14 @@ if __name__ == "__main__":
     )
 
     # a simple example
+    # .. create and get an object through the Coop client
     response = coop.create(QuestionMultipleChoice.example())
-    # .. through coop client
     coop.get(object_type="question", uuid=response.get("uuid"))
     coop.get(object_type="question", url=response.get("url"))
-    # .. through the class
+    # .. create and get an object through the class
     response = QuestionMultipleChoice.example().push()
     QuestionMultipleChoice.pull(response.get("uuid"))
+    # .. patch an object
     coop.patch(object_type="question", uuid=response.get("uuid"), visibility="public")
     coop.patch(
         object_type="question",
@@ -669,7 +668,7 @@ if __name__ == "__main__":
         uuid=response.get("uuid"),
         value=QuestionFreeText.example(),
     )
-    coop.delete(object_type="question", uuid=response.get("uuid"))
+    coop.delete(uuid=response.get("uuid"))
 
     # test all objects
     OBJECTS = [
@@ -689,7 +688,7 @@ if __name__ == "__main__":
         # 1. Delete existing objects
         existing_objects = coop.get_all(object_type)
         for item in existing_objects:
-            coop.delete(object_type=object_type, uuid=item.get("uuid"))
+            coop.delete(uuid=item.get("uuid"))
         # 2. Create new objects
         example = cls.example()
         response_1 = coop.create(example)
@@ -721,7 +720,7 @@ if __name__ == "__main__":
             )
         # 7. Delete all objects
         for item in objects:
-            coop.delete(object_type=object_type, uuid=item.get("uuid"))
+            coop.delete(uuid=item.get("uuid"))
         assert len(coop.get_all(object_type)) == 0
 
     ##############

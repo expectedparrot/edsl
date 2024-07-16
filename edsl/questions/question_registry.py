@@ -83,9 +83,8 @@ class Question(metaclass=Meta):
             id = id_or_url.split("/")[-1]
         else:
             id = id_or_url
-        from edsl.questions.QuestionBase import QuestionBase
 
-        return c._delete_base(QuestionBase, id)
+        return c._delete_base(id)
 
     @classmethod
     def update(cls, id_or_url: str, visibility: str):
