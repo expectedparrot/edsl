@@ -472,7 +472,7 @@ class Study:
         coop.create(self, description=self.description)
 
     @classmethod
-    def pull(cls, id_or_url: Union[str, UUID], exec_profile=None):
+    def pull(cls, id_or_url: Union[str, UUID]):
         """Pull the object from coop."""
         from edsl.coop import Coop
 
@@ -483,7 +483,7 @@ class Study:
 
         c = Coop()
 
-        return c._get_base(cls, uuid_value, exec_profile=exec_profile)
+        return c._get_base(cls, uuid_value)
 
     def __repr__(self):
         return f"""Study(name = "{self.name}", description = "{self.description}", objects = {self.objects}, cache = {self.cache}, filename = "{self.filename}", coop = {self.coop}, use_study_cache = {self.use_study_cache}, overwrite_on_change = {self.overwrite_on_change})"""
