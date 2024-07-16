@@ -73,6 +73,7 @@ Coop
 - :ref:`coop`: A platform for creating, storing and sharing AI research. 
 - :ref:`notebooks`: Instructions for sharing .ipynb files with other users on the Coop. 
 - :ref:`remote_caching`: Learn how to cache your results and API calls on our server. 
+- :ref:`remote_inference`: Run your jobs on our server. 
 
 How-to Guides
 -------------
@@ -103,6 +104,105 @@ Information about additional functionality for developers.
    examples
    developers
 
+<<<<<<< HEAD
+=======
+.. toctree::
+   :maxdepth: 2
+   :caption: Getting Started
+   :hidden:
+
+   starter_tutorial
+   installation
+   api_keys
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Core Concepts
+   :hidden:
+
+   questions
+   scenarios
+   surveys
+   agents
+   prompts
+   language_models
+   results
+   data
+   exceptions
+   token_limits
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Importing Data
+   :hidden:
+
+   conjure
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Coop
+   :hidden:
+
+   coop
+   notebooks
+   remote_caching
+   remote_inference
+
+.. toctree::
+   :maxdepth: 2
+   :caption: How-to Guides
+   :hidden:
+
+   notebooks/data_labeling_example.ipynb
+   notebooks/cheatsheet_scenarios.ipynb
+   notebooks/scenario_from_pdf.ipynb
+   notebooks/batching_results.ipynb
+   notebooks/adding_metadata.ipynb
+   notebooks/survey_memories.ipynb
+   notebooks/example_agent_dynamic_traits.ipynb
+   notebooks/research_methods.ipynb
+   notebooks/edsl_components.ipynb
+   notebooks/export_survey_updates.ipynb
+   notebooks/question_extract_example.ipynb
+   notebooks/data_cleaning.ipynb
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Notebooks
+   :hidden:
+
+   notebooks/agentifying_responses.ipynb
+   notebooks/summarizing_transcripts.ipynb
+   notebooks/data_labeling_agent.ipynb
+   notebooks/conduct_interview.ipynb
+   notebooks/qualitative_research.ipynb
+   notebooks/random_numbers.ipynb
+   notebooks/model_walkoff.ipynb
+   notebooks/concept_induction.ipynb
+   notebooks/testing_training_data.ipynb
+   notebooks/comparing_model_responses.ipynb
+   notebooks/analyze_evaluations.ipynb
+   notebooks/evaluating_job_posts.ipynb
+   notebooks/explore_llm_biases.ipynb
+   notebooks/research_random_silicon_sampling.ipynb
+   notebooks/explore_survey_contexts.ipynb
+   notebooks/free_responses.ipynb
+   notebooks/digital_twin.ipynb
+   notebooks/river_problem.ipynb
+   notebooks/writing_style.ipynb
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Developers
+   :hidden:
+
+   contributing
+   interview
+   jobs 
+   interviews
+   answers
+   enums
+>>>>>>> f82452ce622aaceeb341632d935f20d4136b3f43
 
 .. image:: https://colab.research.google.com/assets/colab-badge.svg
    :target: https://colab.research.google.com/github/expectedparrot/edsl/blob/main/examples/create_agents.ipynb 
