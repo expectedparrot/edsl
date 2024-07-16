@@ -274,8 +274,10 @@ class PromptConstructorMixin:
                     # adds a comment to the question
                     if (new_question := question.split("_comment")[0]) in d:
                         d[new_question].comment = answer
-         
-            rendered_instructions = question_prompt.render(self.question.data | self.scenario | d | {'agent': self.agent})
+
+            rendered_instructions = question_prompt.render(
+                self.question.data | self.scenario | d | {"agent": self.agent}
+            )
 
             undefined_template_variables = (
                 rendered_instructions.undefined_template_variables({})

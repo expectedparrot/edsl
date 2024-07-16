@@ -2,7 +2,6 @@
 from edsl.questions import QuestionList, QuestionCheckBox
 
 
-
 class ResultsToolsMixin:
     def get_themes(
         self,
@@ -14,7 +13,10 @@ class ResultsToolsMixin:
         progress_bar=False,
         print_exceptions=False,
     ) -> list:
-        values = [str(txt)[:1000] for txt in self.shuffle(seed=seed).select(field).to_list()[:max_values]]
+        values = [
+            str(txt)[:1000]
+            for txt in self.shuffle(seed=seed).select(field).to_list()[:max_values]
+        ]
         from edsl import ScenarioList
 
         q = QuestionList(
