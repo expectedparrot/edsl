@@ -371,7 +371,7 @@ class Jobs(Base):
         >>> q = QuestionFreeText(question_text = "{{poo}}", question_name = "ugly_question")
         >>> j = Jobs(survey = Survey(questions=[q]))
         >>> with warnings.catch_warnings(record=True) as w:
-        ...     j._check_parameters()
+        ...     j._check_parameters(warn = True)
         ...     assert len(w) == 1
         ...     assert issubclass(w[-1].category, UserWarning)
         ...     assert "The following parameters are in the survey but not in the scenarios" in str(w[-1].message)
