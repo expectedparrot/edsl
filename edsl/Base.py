@@ -62,12 +62,12 @@ class PersistenceMixin:
         return coop.get(uuid, url, object_type)
 
     @classmethod
-    def delete(cls, id_or_url: Union[str, UUID]):
+    def delete(cls, uuid: Optional[Union[str, UUID]] = None, url: Optional[str] = None):
         """Delete the object from coop."""
         from edsl.coop import Coop
 
-        c = Coop()
-        return c._delete_base(id_or_url)
+        coop = Coop()
+        return coop.delete(uuid, url)
 
     @classmethod
     def patch(

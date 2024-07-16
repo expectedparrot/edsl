@@ -160,7 +160,7 @@ class Coop:
         """
         if not url and not uuid:
             raise Exception("No uuid or url provided for the object.")
-        if url:
+        if not uuid and url:
             uuid = url.split("/")[-1]
         response = self._send_server_request(
             uri=f"api/v0/object",
@@ -200,10 +200,14 @@ class Coop:
         ]
         return objects
 
-    def delete(self, uuid: Union[str, UUID]) -> dict:
+    def delete(self, uuid: Union[str, UUID] = None, url: str = None) -> dict:
         """
         Delete an object from the server.
         """
+        if not url and not uuid:
+            raise Exception("No uuid or url provided for the object.")
+        if not uuid and url:
+            uuid = url.split("/")[-1]
         response = self._send_server_request(
             uri=f"api/v0/object",
             method="DELETE",
@@ -211,15 +215,6 @@ class Coop:
         )
         self._resolve_server_response(response)
         return response.json()
-
-    def _delete_base(
-        self,
-        uuid: Union[str, UUID],
-    ) -> dict:
-        """
-        Used by the Base class to offer a delete functionality.
-        """
-        return self.delete(uuid)
 
     def patch(
         self,
@@ -642,27 +637,22 @@ if __name__ == "__main__":
     )
 
     # a simple example
-    # .. create and get an object through the Coop client
+
+    # .. create and manipulate an object through the Coop client
     response = coop.create(QuestionMultipleChoice.example())
     coop.get(uuid=response.get("uuid"))
     coop.get(uuid=response.get("uuid"), expected_object_type="question")
     coop.get(url=response.get("url"))
-    # .. create and get an object through the class
+    # patch stuff here
+    # ...
+    coop.delete(uuid=response.get("uuid"))
+
+    # .. create and manipulate an object through the class
     response = QuestionMultipleChoice.example().push()
     QuestionMultipleChoice.pull(response.get("uuid"))
-    # .. patch an object
-    coop.patch(object_type="question", uuid=response.get("uuid"), visibility="public")
-    coop.patch(
-        object_type="question",
-        uuid=response.get("uuid"),
-        description="crazy new description",
-    )
-    coop.patch(
-        object_type="question",
-        uuid=response.get("uuid"),
-        value=QuestionFreeText.example(),
-    )
-    coop.delete(uuid=response.get("uuid"))
+    # patch stuff here
+    # ...
+    QuestionMultipleChoice.delete(response.get("uuid"))
 
     # test all objects
     OBJECTS = [
