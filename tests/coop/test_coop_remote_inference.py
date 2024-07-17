@@ -1,5 +1,5 @@
 import pytest
-from edsl import Coop, Jobs, Model, Survey, Results
+from edsl import Coop, Agent, Jobs, Model, Results, Survey
 from edsl.questions import (
     QuestionMultipleChoice,
     QuestionLikertFive,
@@ -23,7 +23,8 @@ def test_coop_remote_inference_cost():
             QuestionBudget.example(),
         ]
     )
-    job = Jobs(survey=survey, models=[Model("gpt-4o")])
+    models = [Model("gpt-4o")]
+    job = survey.by(models)
     cost = coop.remote_inference_cost(job)
     assert cost == 8
     survey = Survey(
@@ -31,13 +32,12 @@ def test_coop_remote_inference_cost():
             QuestionMultipleChoice.example(),
         ]
     )
-    job = Jobs(survey=survey, models=[Model("gpt-4o")])
-    cost = coop.remote_inference_cost(job)
+    cost = coop.remote_inference_cost(survey)
     assert cost == 2
-    with pytest.raises(Exception):
-        # Should be invalid JSON
-        survey = Survey.example()
-        coop.remote_inference_cost(survey)
+    with pytest.raises(TypeError):
+        # Not valid input - we raise a TypeError from EDSL
+        agent = Agent.example()
+        coop.remote_inference_cost(agent)
 
 
 @pytest.mark.coop
