@@ -72,7 +72,8 @@ class PersistenceMixin:
     @classmethod
     def patch(
         cls,
-        id_or_url: Union[str, UUID],
+        uuid: Optional[Union[str, UUID]] = None,
+        url: Optional[str] = None,
         description: Optional[str] = None,
         value: Optional[Any] = None,
         visibility: Optional[str] = None,
@@ -85,8 +86,8 @@ class PersistenceMixin:
         """
         from edsl.coop import Coop
 
-        c = Coop()
-        return c._patch_base(cls, id_or_url, description, value, visibility)
+        coop = Coop()
+        return coop.patch(uuid, url, description, value, visibility)
 
     @classmethod
     def search(cls, query):

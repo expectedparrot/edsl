@@ -94,6 +94,18 @@ class Coop:
         if value is None:
             return "null"
 
+    def _resolve_uuid(
+        self, uuid: Union[str, UUID] = None, url: str = None
+    ) -> str | UUID:
+        """
+        Resolve the uuid from a uuid or a url.
+        """
+        if not url and not uuid:
+            raise Exception("No uuid or url provided for the object.")
+        if not uuid and url:
+            uuid = url.split("/")[-1]
+        return uuid
+
     @property
     def edsl_settings(self) -> dict:
         """
@@ -158,10 +170,7 @@ class Coop:
 
         :return: the object instance.
         """
-        if not url and not uuid:
-            raise Exception("No uuid or url provided for the object.")
-        if not uuid and url:
-            uuid = url.split("/")[-1]
+        uuid = self._resolve_uuid(uuid, url)
         response = self._send_server_request(
             uri=f"api/v0/object",
             method="GET",
@@ -176,7 +185,7 @@ class Coop:
         object = edsl_class.from_dict(json.loads(json_string))
         return object
 
-    def get_all(self, object_type: ObjectType) -> list[EDSLObject]:
+    def get_all(self, object_type: ObjectType) -> list[dict[str, Any]]:
         """
         Retrieve all objects of a certain type associated with the user.
         """
@@ -204,10 +213,7 @@ class Coop:
         """
         Delete an object from the server.
         """
-        if not url and not uuid:
-            raise Exception("No uuid or url provided for the object.")
-        if not uuid and url:
-            uuid = url.split("/")[-1]
+        uuid = self._resolve_uuid(uuid, url)
         response = self._send_server_request(
             uri=f"api/v0/object",
             method="DELETE",
@@ -218,8 +224,8 @@ class Coop:
 
     def patch(
         self,
-        object_type: ObjectType,
-        uuid: Union[str, UUID],
+        uuid: Union[str, UUID] = None,
+        url: str = None,
         description: Optional[str] = None,
         value: Optional[EDSLObject] = None,
         visibility: Optional[VisibilityType] = None,
@@ -230,14 +236,11 @@ class Coop:
         """
         if description is None and visibility is None and value is None:
             raise Exception("Nothing to patch.")
-        if value is not None:
-            value_type = ObjectRegistry.get_object_type_by_edsl_class(value)
-            if value_type != object_type:
-                raise Exception(f"Object type mismatch: {object_type=} {value_type=}")
+        uuid = self._resolve_uuid(uuid, url)
         response = self._send_server_request(
             uri=f"api/v0/object",
             method="PATCH",
-            params={"type": object_type, "uuid": uuid},
+            params={"uuid": uuid},
             payload={
                 "description": description,
                 "json_string": (
@@ -253,20 +256,6 @@ class Coop:
         )
         self._resolve_server_response(response)
         return response.json()
-
-    def _patch_base(
-        self,
-        cls: EDSLObject,
-        uuid: Union[str, UUID],
-        description: Optional[str] = None,
-        value: Optional[EDSLObject] = None,
-        visibility: Optional[VisibilityType] = None,
-    ) -> dict:
-        """
-        Used by the Base class to offer a patch functionality.
-        """
-        object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
-        return self.patch(object_type, uuid, description, value, visibility)
 
     ################
     # Remote Cache
@@ -609,19 +598,10 @@ class Coop:
         return response_json
 
 
-if __name__ == "__main__":
-    from edsl.coop import Coop
-
-    # init
-    API_KEY = "b"
-    coop = Coop(api_key=API_KEY)
-    # basics
-    coop
-    coop.edsl_settings
-
-    ##############
-    # A. Objects
-    ##############
+def main():
+    """
+    A simple example for the coop client
+    """
     from uuid import uuid4
     from edsl import (
         Agent,
@@ -635,26 +615,48 @@ if __name__ == "__main__":
         ScenarioList,
         Survey,
     )
+    from edsl.coop import Coop
+    from edsl.data.CacheEntry import CacheEntry
+    from edsl.jobs import Jobs
 
-    # a simple example
+    # init & basics
+    API_KEY = "b"
+    coop = Coop(api_key=API_KEY)
+    coop
+    coop.edsl_settings
 
+    ##############
+    # A. A simple example
+    ##############
     # .. create and manipulate an object through the Coop client
     response = coop.create(QuestionMultipleChoice.example())
     coop.get(uuid=response.get("uuid"))
     coop.get(uuid=response.get("uuid"), expected_object_type="question")
     coop.get(url=response.get("url"))
-    # patch stuff here
-    # ...
+    coop.create(QuestionMultipleChoice.example())
+    coop.get_all("question")
+    coop.patch(uuid=response.get("uuid"), visibility="private")
+    coop.patch(uuid=response.get("uuid"), description="hey")
+    coop.patch(uuid=response.get("uuid"), value=QuestionFreeText.example())
+    # coop.patch(uuid=response.get("uuid"), value=Survey.example()) - should throw error
+    coop.get(uuid=response.get("uuid"))
     coop.delete(uuid=response.get("uuid"))
 
     # .. create and manipulate an object through the class
     response = QuestionMultipleChoice.example().push()
+    QuestionMultipleChoice.pull(uuid=response.get("uuid"))
+    QuestionMultipleChoice.pull(url=response.get("url"))
+    QuestionMultipleChoice.patch(uuid=response.get("uuid"), visibility="private")
+    QuestionMultipleChoice.patch(uuid=response.get("uuid"), description="hey")
+    QuestionMultipleChoice.patch(
+        uuid=response.get("uuid"), value=QuestionFreeText.example()
+    )
     QuestionMultipleChoice.pull(response.get("uuid"))
-    # patch stuff here
-    # ...
     QuestionMultipleChoice.delete(response.get("uuid"))
 
-    # test all objects
+    ##############
+    # B. Examples with all objects
+    ##############
     OBJECTS = [
         ("agent", Agent),
         ("agent_list", AgentList),
@@ -666,7 +668,6 @@ if __name__ == "__main__":
         ("scenario_list", ScenarioList),
         ("survey", Survey),
     ]
-
     for object_type, cls in OBJECTS:
         print(f"Testing {object_type} objects")
         # 1. Delete existing objects
@@ -686,32 +687,26 @@ if __name__ == "__main__":
         assert len(objects) == 4
         # 4. Try to retrieve an item that does not exist
         try:
-            coop.get(object_type=object_type, uuid=uuid4())
+            coop.get(uuid=uuid4())
         except Exception as e:
             print(e)
         # 5. Try to retrieve all test objects by their uuids
         for response in [response_1, response_2, response_3, response_4]:
-            coop.get(object_type=object_type, uuid=response.get("uuid"))
+            coop.get(uuid=response.get("uuid"))
         # 6. Change visibility of all objects
         for item in objects:
-            coop.patch(
-                object_type=object_type, uuid=item.get("uuid"), visibility="private"
-            )
+            coop.patch(uuid=item.get("uuid"), visibility="private")
         # 6. Change description of all objects
         for item in objects:
-            coop.patch(
-                object_type=object_type, uuid=item.get("uuid"), description="hey"
-            )
+            coop.patch(uuid=item.get("uuid"), description="hey")
         # 7. Delete all objects
         for item in objects:
             coop.delete(uuid=item.get("uuid"))
         assert len(coop.get_all(object_type)) == 0
 
     ##############
-    # B. Remote Cache
+    # C. Remote Cache
     ##############
-    from edsl.data.CacheEntry import CacheEntry
-
     # clear
     coop.remote_cache_clear()
     assert coop.remote_cache_get() == []
@@ -733,22 +728,16 @@ if __name__ == "__main__":
     coop.remote_cache_get()
 
     ##############
-    # C. Remote Inference
+    # D. Remote Inference
     ##############
-    from edsl.jobs import Jobs
-
     job = Jobs.example()
     coop.remote_inference_cost(job)
     results = coop.remote_inference_create(job)
     coop.remote_inference_get(results.get("uuid"))
 
     ##############
-    # D. Errors
+    # E. Errors
     ##############
-    from edsl import Coop
-
-    coop = Coop()
-    coop.api_key = "a"
     coop.error_create({"something": "This is an error message"})
     coop.api_key = None
     coop.error_create({"something": "This is an error message"})
