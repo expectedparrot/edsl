@@ -96,7 +96,7 @@ class Coop:
 
     def _resolve_uuid(
         self, uuid: Union[str, UUID] = None, url: str = None
-    ) -> str | UUID:
+    ) -> Union[str, UUID]:
         """
         Resolve the uuid from a uuid or a url.
         """
