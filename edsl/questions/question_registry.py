@@ -2,7 +2,7 @@
 
 import textwrap
 from uuid import UUID
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 
 from edsl.questions.QuestionBase import RegisterQuestionsMeta
@@ -76,18 +76,19 @@ class Question(metaclass=Meta):
         return coop.delete(uuid, url)
 
     @classmethod
-    def update(cls, id_or_url: str, visibility: str):
-        """Update the object on coop."""
+    def patch(
+        cls,
+        uuid: Optional[Union[str, UUID]] = None,
+        url: Optional[str] = None,
+        description: Optional[str] = None,
+        value: Optional[Any] = None,
+        visibility: Optional[str] = None,
+    ):
+        """Patch the object on coop."""
         from edsl.coop import Coop
 
-        c = Coop()
-        if c.url in id_or_url:
-            id = id_or_url.split("/")[-1]
-        else:
-            id = id_or_url
-        from edsl.questions.QuestionBase import QuestionBase
-
-        return c._update_base(QuestionBase, id, visibility)
+        coop = Coop()
+        return coop.patch(uuid, url, description, value, visibility)
 
     @classmethod
     def available(cls, show_class_names: bool = False) -> Union[list, dict]:
