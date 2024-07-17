@@ -2,21 +2,35 @@ from edsl import Scenario
 import base64
 import io
 import tempfile
+from typing import Optional
 
 
 class FileStore(Scenario):
-    def __init__(self, filename):
-        self.suffix = "." + filename.split(".")[-1]
-        self.binary = False
-        base64_string = self.encode_file_to_base64_string(filename)
+    def __init__(
+        self,
+        filename: str,
+        binary: Optional[bool] = None,
+        suffix: Optional[str] = None,
+        base64_string: Optional[str] = None,
+    ):
+        self.filename = filename
+        self.suffix = suffix or "." + filename.split(".")[-1]
+        self.binary = binary or False
+        self.base64_string = base64_string or self.encode_file_to_base64_string(
+            filename
+        )
         super().__init__(
             {
-                "filename": filename,
-                "base64_string": base64_string,
+                "filename": self.filename,
+                "base64_string": self.base64_string,
                 "binary": self.binary,
                 "suffix": self.suffix,
             }
         )
+
+    @classmethod
+    def from_dict(cls, d):
+        return cls(d["filename"], d["binary"], d["suffix"], d["base64_string"])
 
     def encode_file_to_base64_string(self, file_path):
         try:
@@ -96,13 +110,21 @@ class FileStore(Scenario):
         info = scenario_version.push(description=description)
         return info
 
+    @classmethod
+    def pull(cls, uuid):
+        scenario_version = Scenario.pull(uuid)
+        return cls.from_dict(scenario_version.to_dict())
+
 
 if __name__ == "__main__":
-    file_path = "../conjure/examples/Ex11-2.sav"
-    fs = FileStore(file_path)
+    # file_path = "../conjure/examples/Ex11-2.sav"
+    # fs = FileStore(file_path)
     # info = fs.push()
     # print(info)
 
-    from edsl import Conjure
+    # from edsl import Conjure
 
-    c = Conjure(datafile_name=fs.to_tempfile())
+    # c = Conjure(datafile_name=fs.to_tempfile())
+    f = FileStore("paper.pdf")
+    # print(f.to_tempfile())
+    f.push()
