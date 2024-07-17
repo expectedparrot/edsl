@@ -94,6 +94,18 @@ class Coop:
         if value is None:
             return "null"
 
+    def _resolve_uuid(
+        self, uuid: Union[str, UUID] = None, url: str = None
+    ) -> Union[str, UUID]:
+        """
+        Resolve the uuid from a uuid or a url.
+        """
+        if not url and not uuid:
+            raise Exception("No uuid or url provided for the object.")
+        if not uuid and url:
+            uuid = url.split("/")[-1]
+        return uuid
+
     @property
     def edsl_settings(self) -> dict:
         """
@@ -106,9 +118,6 @@ class Coop:
     ################
     # Objects
     ################
-
-    # TODO: add URL to get and get_all methods
-
     def create(
         self,
         object: EDSLObject,
@@ -119,17 +128,16 @@ class Coop:
         Create an EDSL object in the Coop server.
         """
         object_type = ObjectRegistry.get_object_type_by_edsl_class(object)
-        object_page = ObjectRegistry.get_object_page_by_object_type(object_type)
         response = self._send_server_request(
             uri=f"api/v0/object",
             method="POST",
             payload={
                 "description": description,
-                "object_type": object_type,
                 "json_string": json.dumps(
                     object.to_dict(),
                     default=self._json_handle_none,
                 ),
+                "object_type": object_type,
                 "visibility": visibility,
                 "version": self._edsl_version,
             },
@@ -137,73 +145,51 @@ class Coop:
         self._resolve_server_response(response)
         response_json = response.json()
         return {
+            "description": response_json.get("description"),
+            "object_type": object_type,
+            "url": f"{self.url}/content/{response_json.get('uuid')}",
             "uuid": response_json.get("uuid"),
             "version": self._edsl_version,
-            "description": response_json.get("description"),
             "visibility": response_json.get("visibility"),
-            "url": f"{self.url}/content/{response_json.get('uuid')}",
         }
 
     def get(
         self,
-        object_type: ObjectType = None,
         uuid: Union[str, UUID] = None,
         url: str = None,
-        exec_profile=None,
+        expected_object_type: Optional[ObjectType] = None,
     ) -> EDSLObject:
         """
-        Retrieve an EDSL object either by object type & UUID, or by its url.
-        - The object has to belong to the user or not be private.
-        - Returns the initialized object class instance.
+        Retrieve an EDSL object by its uuid or its url.
+        - If the object's visibility is private, the user must be the owner.
+        - Optionally, check if the retrieved object is of a certain type.
 
-        :param object_type: the type of object to retrieve.
         :param uuid: the uuid of the object either in str or UUID format.
         :param url: the url of the object.
-        """
-        if url:
-            object_type = url.split("/")[-2]
-            uuid = url.split("/")[-1]
-        elif not object_type and not uuid:
-            raise Exception("Provide either object_type & UUID, or a url.")
-        edsl_class = ObjectRegistry.object_type_to_edsl_class.get(object_type)
-        import time
+        :param expected_object_type: the expected type of the object.
 
-        start = time.time()
+        :return: the object instance.
+        """
+        uuid = self._resolve_uuid(uuid, url)
         response = self._send_server_request(
             uri=f"api/v0/object",
             method="GET",
-            params={"type": object_type, "uuid": uuid},
+            params={"uuid": uuid},
         )
-        end = time.time()
-        if exec_profile:
-            print("Download exec time = ", end - start)
         self._resolve_server_response(response)
         json_string = response.json().get("json_string")
-        start = time.time()
-        res_object = edsl_class.from_dict(json.loads(json_string))
-        end = time.time()
-        if exec_profile:
-            print("Creating object exec time = ", end - start)
-        return res_object
+        object_type = response.json().get("object_type")
+        if expected_object_type and object_type != expected_object_type:
+            raise Exception(f"Expected {expected_object_type=} but got {object_type=}")
+        edsl_class = ObjectRegistry.object_type_to_edsl_class.get(object_type)
+        object = edsl_class.from_dict(json.loads(json_string))
+        return object
 
-    def _get_base(
-        self,
-        cls: EDSLObject,
-        uuid: Union[str, UUID],
-        exec_profile=None,
-    ) -> EDSLObject:
-        """
-        Used by the Base class to offer a get functionality.
-        """
-        object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
-        return self.get(object_type, uuid, exec_profile=exec_profile)
-
-    def get_all(self, object_type: ObjectType) -> list[EDSLObject]:
+    def get_all(self, object_type: ObjectType) -> list[dict[str, Any]]:
         """
         Retrieve all objects of a certain type associated with the user.
         """
         edsl_class = ObjectRegistry.object_type_to_edsl_class.get(object_type)
-        object_page = ObjectRegistry.get_object_page_by_object_type(object_type)
         response = self._send_server_request(
             uri=f"api/v0/objects",
             method="GET",
@@ -223,33 +209,23 @@ class Coop:
         ]
         return objects
 
-    def delete(self, object_type: ObjectType, uuid: Union[str, UUID]) -> dict:
+    def delete(self, uuid: Union[str, UUID] = None, url: str = None) -> dict:
         """
         Delete an object from the server.
         """
+        uuid = self._resolve_uuid(uuid, url)
         response = self._send_server_request(
             uri=f"api/v0/object",
             method="DELETE",
-            params={"type": object_type, "uuid": uuid},
+            params={"uuid": uuid},
         )
         self._resolve_server_response(response)
         return response.json()
 
-    def _delete_base(
-        self,
-        cls: EDSLObject,
-        uuid: Union[str, UUID],
-    ) -> dict:
-        """
-        Used by the Base class to offer a delete functionality.
-        """
-        object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
-        return self.delete(object_type, uuid)
-
     def patch(
         self,
-        object_type: ObjectType,
-        uuid: Union[str, UUID],
+        uuid: Union[str, UUID] = None,
+        url: str = None,
         description: Optional[str] = None,
         value: Optional[EDSLObject] = None,
         visibility: Optional[VisibilityType] = None,
@@ -260,14 +236,11 @@ class Coop:
         """
         if description is None and visibility is None and value is None:
             raise Exception("Nothing to patch.")
-        if value is not None:
-            value_type = ObjectRegistry.get_object_type_by_edsl_class(value)
-            if value_type != object_type:
-                raise Exception(f"Object type mismatch: {object_type=} {value_type=}")
+        uuid = self._resolve_uuid(uuid, url)
         response = self._send_server_request(
             uri=f"api/v0/object",
             method="PATCH",
-            params={"type": object_type, "uuid": uuid},
+            params={"uuid": uuid},
             payload={
                 "description": description,
                 "json_string": (
@@ -283,20 +256,6 @@ class Coop:
         )
         self._resolve_server_response(response)
         return response.json()
-
-    def _patch_base(
-        self,
-        cls: EDSLObject,
-        uuid: Union[str, UUID],
-        description: Optional[str] = None,
-        value: Optional[EDSLObject] = None,
-        visibility: Optional[VisibilityType] = None,
-    ) -> dict:
-        """
-        Used by the Base class to offer a patch functionality.
-        """
-        object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
-        return self.patch(object_type, uuid, description, value, visibility)
 
     ################
     # Remote Cache
@@ -663,32 +622,65 @@ class Coop:
         return response_json
 
 
-if __name__ == "__main__":
-    from edsl.coop import Coop
-
-    # init
-    API_KEY = "b"
-    coop = Coop(api_key=API_KEY)
-    # basics
-    coop
-    coop.edsl_settings
-
-    ##############
-    # A. Objects
-    ##############
+def main():
+    """
+    A simple example for the coop client
+    """
     from uuid import uuid4
     from edsl import (
         Agent,
         AgentList,
         Cache,
         Notebook,
+        QuestionFreeText,
         QuestionMultipleChoice,
         Results,
         Scenario,
         ScenarioList,
         Survey,
     )
+    from edsl.coop import Coop
+    from edsl.data.CacheEntry import CacheEntry
+    from edsl.jobs import Jobs
 
+    # init & basics
+    API_KEY = "b"
+    coop = Coop(api_key=API_KEY)
+    coop
+    coop.edsl_settings
+
+    ##############
+    # A. A simple example
+    ##############
+    # .. create and manipulate an object through the Coop client
+    response = coop.create(QuestionMultipleChoice.example())
+    coop.get(uuid=response.get("uuid"))
+    coop.get(uuid=response.get("uuid"), expected_object_type="question")
+    coop.get(url=response.get("url"))
+    coop.create(QuestionMultipleChoice.example())
+    coop.get_all("question")
+    coop.patch(uuid=response.get("uuid"), visibility="private")
+    coop.patch(uuid=response.get("uuid"), description="hey")
+    coop.patch(uuid=response.get("uuid"), value=QuestionFreeText.example())
+    # coop.patch(uuid=response.get("uuid"), value=Survey.example()) - should throw error
+    coop.get(uuid=response.get("uuid"))
+    coop.delete(uuid=response.get("uuid"))
+
+    # .. create and manipulate an object through the class
+    response = QuestionMultipleChoice.example().push()
+    QuestionMultipleChoice.pull(uuid=response.get("uuid"))
+    QuestionMultipleChoice.pull(url=response.get("url"))
+    QuestionMultipleChoice.patch(uuid=response.get("uuid"), visibility="private")
+    QuestionMultipleChoice.patch(uuid=response.get("uuid"), description="hey")
+    QuestionMultipleChoice.patch(
+        uuid=response.get("uuid"), value=QuestionFreeText.example()
+    )
+    QuestionMultipleChoice.pull(response.get("uuid"))
+    QuestionMultipleChoice.delete(response.get("uuid"))
+
+    ##############
+    # B. Examples with all objects
+    ##############
     OBJECTS = [
         ("agent", Agent),
         ("agent_list", AgentList),
@@ -700,13 +692,12 @@ if __name__ == "__main__":
         ("scenario_list", ScenarioList),
         ("survey", Survey),
     ]
-
     for object_type, cls in OBJECTS:
         print(f"Testing {object_type} objects")
         # 1. Delete existing objects
         existing_objects = coop.get_all(object_type)
         for item in existing_objects:
-            coop.delete(object_type=object_type, uuid=item.get("uuid"))
+            coop.delete(uuid=item.get("uuid"))
         # 2. Create new objects
         example = cls.example()
         response_1 = coop.create(example)
@@ -720,51 +711,26 @@ if __name__ == "__main__":
         assert len(objects) == 4
         # 4. Try to retrieve an item that does not exist
         try:
-            coop.get(object_type=object_type, uuid=uuid4())
+            coop.get(uuid=uuid4())
         except Exception as e:
             print(e)
         # 5. Try to retrieve all test objects by their uuids
         for response in [response_1, response_2, response_3, response_4]:
-            coop.get(object_type=object_type, uuid=response.get("uuid"))
+            coop.get(uuid=response.get("uuid"))
         # 6. Change visibility of all objects
         for item in objects:
-            coop.patch(
-                object_type=object_type, uuid=item.get("uuid"), visibility="private"
-            )
+            coop.patch(uuid=item.get("uuid"), visibility="private")
         # 6. Change description of all objects
         for item in objects:
-            coop.patch(
-                object_type=object_type, uuid=item.get("uuid"), description="hey"
-            )
+            coop.patch(uuid=item.get("uuid"), description="hey")
         # 7. Delete all objects
         for item in objects:
-            coop.delete(object_type=object_type, uuid=item.get("uuid"))
+            coop.delete(uuid=item.get("uuid"))
         assert len(coop.get_all(object_type)) == 0
 
-    # a simple example
-    from edsl import Coop, QuestionMultipleChoice, QuestionFreeText
-
-    coop = Coop(api_key="b")
-    response = QuestionMultipleChoice.example().push()
-    QuestionMultipleChoice.pull(response.get("uuid"))
-    coop.patch(object_type="question", uuid=response.get("uuid"), visibility="public")
-    coop.patch(
-        object_type="question",
-        uuid=response.get("uuid"),
-        description="crazy new description",
-    )
-    coop.patch(
-        object_type="question",
-        uuid=response.get("uuid"),
-        value=QuestionFreeText.example(),
-    )
-    coop.delete(object_type="question", uuid=response.get("uuid"))
-
     ##############
-    # B. Remote Cache
+    # C. Remote Cache
     ##############
-    from edsl.data.CacheEntry import CacheEntry
-
     # clear
     coop.remote_cache_clear()
     assert coop.remote_cache_get() == []
@@ -786,22 +752,16 @@ if __name__ == "__main__":
     coop.remote_cache_get()
 
     ##############
-    # C. Remote Inference
+    # D. Remote Inference
     ##############
-    from edsl.jobs import Jobs
-
     job = Jobs.example()
     coop.remote_inference_cost(job)
     results = coop.remote_inference_create(job)
     coop.remote_inference_get(results.get("uuid"))
 
     ##############
-    # D. Errors
+    # E. Errors
     ##############
-    from edsl import Coop
-
-    coop = Coop()
-    coop.api_key = "a"
     coop.error_create({"something": "This is an error message"})
     coop.api_key = None
     coop.error_create({"something": "This is an error message"})
