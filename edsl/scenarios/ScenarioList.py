@@ -343,7 +343,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin, ResultsExportMixin):
         """
         return cls([Scenario(row) for row in df.to_dict(orient="records")])
 
-    def to_key_value(self, field, value = None) -> Union[dict, set]:
+    def to_key_value(self, field, value=None) -> Union[dict, set]:
         """Return the set of values in the field.
 
         Example:
@@ -356,8 +356,6 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin, ResultsExportMixin):
             return {scenario[field] for scenario in self}
         else:
             return {scenario[field]: scenario[value] for scenario in self}
-    
-
 
     @classmethod
     def from_csv(cls, filename: str) -> ScenarioList:
