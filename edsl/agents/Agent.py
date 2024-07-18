@@ -56,6 +56,7 @@ class Agent(Base):
     name = NameDescriptor()
     dynamic_traits_function_name = ""
     answer_question_directly_function_name = ""
+    has_dynamic_traits_function = False
 
     def __init__(
         self,
@@ -129,12 +130,16 @@ class Agent(Base):
 
         if self.dynamic_traits_function:
             self.dynamic_traits_function_name = self.dynamic_traits_function.__name__
+            self.has_dynamic_traits_function = True
+        else:
+            self.has_dynamic_traits_function = False
 
         if dynamic_traits_function_source_code:
             self.dynamic_traits_function_name = dynamic_traits_function_name
             self.dynamic_traits_function = create_restricted_function(
                 dynamic_traits_function_name, dynamic_traits_function
             )
+
         if answer_question_directly_source_code:
             self.answer_question_directly_function_name = (
                 answer_question_directly_function_name
@@ -159,7 +164,7 @@ class Agent(Base):
 
         This checks whether the dynamic traits function is valid.
         """
-        if self.dynamic_traits_function is not None:
+        if self.has_dynamic_traits_function:
             sig = inspect.signature(self.dynamic_traits_function)
             if "question" in sig.parameters:
                 if len(sig.parameters) > 1:
@@ -189,7 +194,7 @@ class Agent(Base):
         {'age': 10, 'hair': 'brown', 'height': 5.5}
 
         """
-        if self.dynamic_traits_function is not None:
+        if self.has_dynamic_traits_function:
             sig = inspect.signature(self.dynamic_traits_function)
             if "question" in sig.parameters:
                 return self.dynamic_traits_function(question=self.current_question)
@@ -487,10 +492,28 @@ class Agent(Base):
 
     def __getattr__(self, name):
         # This will be called only if 'name' is not found in the usual places
+        # breakpoint()
+        if name == "has_dynamic_traits_function":
+            return self.has_dynamic_traits_function
+
         if name in self.traits:
             return self.traits[name]
-        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
-  
+        raise AttributeError(
+            f"'{type(self).__name__}' object has no attribute '{name}'"
+        )
+
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        # Include any additional state that needs to be serialized
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        # Ensure _traits is initialized if it's missing
+        if "_traits" not in self.__dict__:
+            self._traits = {}
+
     def print(self) -> None:
         from rich import print_json
         import json

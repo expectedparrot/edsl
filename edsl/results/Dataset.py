@@ -77,7 +77,7 @@ class Dataset(UserList, ResultsExportMixin):
             return list(d.values())[0]
 
         return get_values(self.data[0])[0]
-    
+
     def select(self, *keys):
         """Return a new dataset with only the selected keys.
 
@@ -244,7 +244,7 @@ class Dataset(UserList, ResultsExportMixin):
             new_data.append({key: new_values})
 
         return Dataset(new_data)
-    
+
     @classmethod
     def example(self):
         """Return an example dataset.
@@ -252,7 +252,7 @@ class Dataset(UserList, ResultsExportMixin):
         >>> Dataset.example()
         Dataset([{'a': [1, 2, 3, 4]}, {'b': [4, 3, 2, 1]}])
         """
-        return Dataset([{'a':[1,2,3,4]}, {'b':[4,3,2,1]}])
+        return Dataset([{"a": [1, 2, 3, 4]}, {"b": [4, 3, 2, 1]}])
 
 
 if __name__ == "__main__":

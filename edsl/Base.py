@@ -52,31 +52,28 @@ class PersistenceMixin:
         return c.create(self, description, visibility)
 
     @classmethod
-    def pull(cls, id_or_url: Union[str, UUID], exec_profile=None):
+    def pull(cls, uuid: Optional[Union[str, UUID]] = None, url: Optional[str] = None):
         """Pull the object from coop."""
         from edsl.coop import Coop
+        from edsl.coop.utils import ObjectRegistry
 
-        if id_or_url.startswith("http"):
-            uuid_value = id_or_url.split("/")[-1]
-        else:
-            uuid_value = id_or_url
-
-        c = Coop()
-
-        return c._get_base(cls, uuid_value, exec_profile=exec_profile)
+        object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
+        coop = Coop()
+        return coop.get(uuid, url, object_type)
 
     @classmethod
-    def delete(cls, id_or_url: Union[str, UUID]):
+    def delete(cls, uuid: Optional[Union[str, UUID]] = None, url: Optional[str] = None):
         """Delete the object from coop."""
         from edsl.coop import Coop
 
-        c = Coop()
-        return c._delete_base(cls, id_or_url)
+        coop = Coop()
+        return coop.delete(uuid, url)
 
     @classmethod
     def patch(
         cls,
-        id_or_url: Union[str, UUID],
+        uuid: Optional[Union[str, UUID]] = None,
+        url: Optional[str] = None,
         description: Optional[str] = None,
         value: Optional[Any] = None,
         visibility: Optional[str] = None,
@@ -89,8 +86,8 @@ class PersistenceMixin:
         """
         from edsl.coop import Coop
 
-        c = Coop()
-        return c._patch_base(cls, id_or_url, description, value, visibility)
+        coop = Coop()
+        return coop.patch(uuid, url, description, value, visibility)
 
     @classmethod
     def search(cls, query):
