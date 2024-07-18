@@ -93,19 +93,13 @@ Information about additional functionality for developers.
  
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
+   :caption: Introduction
+   :hidden:
 
-   introduction
-   getting_started
-   core_concepts
-   importing_data
-   using_coop
-   how_to_guides
-   examples
-   developers
+   overview
+   citation
 
-<<<<<<< HEAD
-=======
 .. toctree::
    :maxdepth: 2
    :caption: Getting Started
@@ -190,6 +184,9 @@ Information about additional functionality for developers.
    notebooks/digital_twin.ipynb
    notebooks/river_problem.ipynb
    notebooks/writing_style.ipynb
+   notebooks/edsl_polling.ipynb
+   notebooks/ces_data_edsl.ipynb
+   notebooks/ces_agents.ipynb
 
 .. toctree::
    :maxdepth: 2
@@ -202,7 +199,6 @@ Information about additional functionality for developers.
    interviews
    answers
    enums
->>>>>>> f82452ce622aaceeb341632d935f20d4136b3f43
 
 .. image:: https://colab.research.google.com/assets/colab-badge.svg
    :target: https://colab.research.google.com/github/expectedparrot/edsl/blob/main/examples/create_agents.ipynb 
