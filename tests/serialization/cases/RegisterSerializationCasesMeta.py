@@ -17,10 +17,11 @@ class RegisterSerializationCasesMeta(ABCMeta):
             if object not in cls._tests:
                 cls._tests[object] = {}
 
-            # Identify and register test methods
+            # Register the class and its test methods
+            cls._tests[object][name] = {"class": cls, "methods": []}
             for attr_name, attr_value in dct.items():
                 if callable(attr_value) and attr_name.startswith("test_"):
-                    cls._tests[object][attr_name] = attr_value
+                    cls._tests[object][name]["methods"].append(attr_name)
 
     @classmethod
     def get_registered_tests(cls):
@@ -33,10 +34,14 @@ class RegisterSerializationCasesMeta(ABCMeta):
 
         for object, object_tests in mcs._tests.items():
             print(f"Running {object} tests:")
-            for test_name, test_func in object_tests.items():
-                print(f"Running {test_name}...")
-                case_data = test_func()
-                data.append({"class_name": object, "dict": dict(case_data)})
+            for class_name, class_info in object_tests.items():
+                print(f"Running tests for {class_name}:")
+                test_class = class_info["class"]
+                instance = test_class()
+                for method_name in class_info["methods"]:
+                    print(f"Running {method_name}...")
+                    test_method = getattr(instance, method_name)
+                    test_method()  # Call test method directly
             print()
 
 
@@ -47,12 +52,10 @@ class SerializationBase(metaclass=RegisterSerializationCasesMeta):
 class ResultsSerializationCases(SerializationBase):
     object = "Results"
 
-    @staticmethod
-    def test_survey_creation():
+    def test_survey_creation(self):
         print("Survey creation test")
         return [("foo", 100), ("bar", 200)]
 
-    @staticmethod
-    def test_survey_response():
+    def test_survey_response(self):
         print("Survey response test")
         return [("foo", 300), ("bar", 400)]
