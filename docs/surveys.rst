@@ -35,15 +35,15 @@ The methods for adding survey rules and memory include the following, which are 
 * `add_memory_collection()` - Include memories of a set of prior questions/answers at any other question in the survey.
 
 Piping
-------
+^^^^^^
 You can also pipe components of other questions into a question, for example, to reference the response to a previous question in a later question.
 
 Flow
-----
+^^^^
 A special method `show_flow()` will display the flow of the survey, showing the order of questions and any rules that have been applied.
 
 
-*Coming soon:*
+*Request access:*
 An EDSL survey can also be exported to other platforms such as LimeSurvey, Google Forms, Qualtrics and SurveyMonkey. 
 This can be useful for combining responses from AI and human audiences. 
 See a `demo notebook <https://docs.expectedparrot.com/en/latest/notebooks/export_survey_updates.html>`_.
