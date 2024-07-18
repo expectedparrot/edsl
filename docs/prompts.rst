@@ -13,6 +13,7 @@ Typically, prompts are created using the `Prompt` class, a subclass of the `Prom
 Default prompts are provided in the `edsl.prompts.library` module. 
 These prompts can be used as is or customized to suit specific requirements by creating new classes that inherit from the `Prompt` class.
 
+
 Default prompts 
 ^^^^^^^^^^^^^^^
 The `edsl.prompts.library` module contains default prompts for agent instructions and question instructions (shown below).
@@ -53,6 +54,88 @@ For example, we can inspect the prompts for the sample results generated in the 
    ├────────────────────────────┼───────────────────────────┼────────────────────────────┼───────────────────────────┤
    
    ...
+
+
+Showing prompts 
+^^^^^^^^^^^^^^^
+Before you run a survey, EDSL creates a `Jobs` object. You can see the prompts it will use by calling `prompts()` on the `Jobs` object. 
+For example:
+
+.. code-block:: python
+
+   from edsl import Model, Survey
+   j = Survey.example().by(Model())
+   j.prompts().print()
+
+This will display the prompts that will be used in the survey:
+
+.. code-block:: text
+
+   ┏━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+   ┃ interview_index ┃ question_index ┃ user_prompt              ┃ scenario_index         ┃ system_prompt            ┃
+   ┡━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+   │ 0               │ q0             │ You are being asked the  │  Scenario Attributes   │ You are answering        │
+   │                 │                │ following question: Do   │ ┏━━━━━━━━━━━━┳━━━━━━━┓ │ questions as if you were │
+   │                 │                │ you like school?         │ ┃ Attribute  ┃ Value ┃ │ a human. Do not break    │
+   │                 │                │ The options are          │ ┡━━━━━━━━━━━━╇━━━━━━━┩ │ character. You are an    │
+   │                 │                │                          │ │ data       │ {}    │ │ agent with the following │
+   │                 │                │ 0: yes                   │ │ name       │ None  │ │ persona:                 │
+   │                 │                │                          │ │ _has_image │ False │ │ {}                       │
+   │                 │                │ 1: no                    │ └────────────┴───────┘ │                          │
+   │                 │                │                          │                        │                          │
+   │                 │                │ Return a valid JSON      │                        │                          │
+   │                 │                │ formatted like this,     │                        │                          │
+   │                 │                │ selecting only the       │                        │                          │
+   │                 │                │ number of the option:    │                        │                          │
+   │                 │                │ {"answer": <put answer   │                        │                          │
+   │                 │                │ code here>, "comment":   │                        │                          │
+   │                 │                │ "<put explanation        │                        │                          │
+   │                 │                │ here>"}                  │                        │                          │
+   │                 │                │ Only 1 option may be     │                        │                          │
+   │                 │                │ selected.                │                        │                          │
+   ├─────────────────┼────────────────┼──────────────────────────┼────────────────────────┼──────────────────────────┤
+   │ 0               │ q1             │ You are being asked the  │  Scenario Attributes   │ You are answering        │
+   │                 │                │ following question: Why  │ ┏━━━━━━━━━━━━┳━━━━━━━┓ │ questions as if you were │
+   │                 │                │ not?                     │ ┃ Attribute  ┃ Value ┃ │ a human. Do not break    │
+   │                 │                │ The options are          │ ┡━━━━━━━━━━━━╇━━━━━━━┩ │ character. You are an    │
+   │                 │                │                          │ │ data       │ {}    │ │ agent with the following │
+   │                 │                │ 0: killer bees in        │ │ name       │ None  │ │ persona:                 │
+   │                 │                │ cafeteria                │ │ _has_image │ False │ │ {}                       │
+   │                 │                │                          │ └────────────┴───────┘ │                          │
+   │                 │                │ 1: other                 │                        │                          │
+   │                 │                │                          │                        │                          │
+   │                 │                │ Return a valid JSON      │                        │                          │
+   │                 │                │ formatted like this,     │                        │                          │
+   │                 │                │ selecting only the       │                        │                          │
+   │                 │                │ number of the option:    │                        │                          │
+   │                 │                │ {"answer": <put answer   │                        │                          │
+   │                 │                │ code here>, "comment":   │                        │                          │
+   │                 │                │ "<put explanation        │                        │                          │
+   │                 │                │ here>"}                  │                        │                          │
+   │                 │                │ Only 1 option may be     │                        │                          │
+   │                 │                │ selected.                │                        │                          │
+   ├─────────────────┼────────────────┼──────────────────────────┼────────────────────────┼──────────────────────────┤
+   │ 0               │ q2             │ You are being asked the  │  Scenario Attributes   │ You are answering        │
+   │                 │                │ following question: Why? │ ┏━━━━━━━━━━━━┳━━━━━━━┓ │ questions as if you were │
+   │                 │                │ The options are          │ ┃ Attribute  ┃ Value ┃ │ a human. Do not break    │
+   │                 │                │                          │ ┡━━━━━━━━━━━━╇━━━━━━━┩ │ character. You are an    │
+   │                 │                │ 0: **lack*** of killer   │ │ data       │ {}    │ │ agent with the following │
+   │                 │                │ bees in cafeteria        │ │ name       │ None  │ │ persona:                 │
+   │                 │                │                          │ │ _has_image │ False │ │ {}                       │
+   │                 │                │ 1: other                 │ └────────────┴───────┘ │                          │
+   │                 │                │                          │                        │                          │
+   │                 │                │ Return a valid JSON      │                        │                          │
+   │                 │                │ formatted like this,     │                        │                          │
+   │                 │                │ selecting only the       │                        │                          │
+   │                 │                │ number of the option:    │                        │                          │
+   │                 │                │ {"answer": <put answer   │                        │                          │
+   │                 │                │ code here>, "comment":   │                        │                          │
+   │                 │                │ "<put explanation        │                        │                          │
+   │                 │                │ here>"}                  │                        │                          │
+   │                 │                │ Only 1 option may be     │                        │                          │
+   │                 │                │ selected.                │                        │                          │
+   └─────────────────┴────────────────┴──────────────────────────┴────────────────────────┴──────────────────────────┘
+
 
 Agent instructions
 ^^^^^^^^^^^^^^^^^^
