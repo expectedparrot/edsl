@@ -3,7 +3,7 @@
 Agents
 ======
 `Agent` objects are used to simulate survey responses for target audiences. 
-They are created with specified traits, such as personas and relevant attributes for a survey, that are used together with language models to generate responses to questions. 
+They are created with specified traits, such as personas and relevant attributes for a survey, that are used together with language models to generate answers to questions. 
 
 Constructing an Agent
 ---------------------
@@ -152,6 +152,64 @@ And this code will let us filter the results by the agent's age:
 .. code-block:: python
 
     results.filter("agent.age == 22").print()
+
+
+Using agent traits in prompts 
+-----------------------------
+The `traits` of an agent can be used in the prompts of questions. 
+For example:
+
+.. code-block:: python
+
+    from edsl import Agent, QuestionFreeText 
+
+    a = Agent(traits = {'first_name': 'John'})
+
+    q = QuestionFreeText(
+        question_text = 'What is your last name, {{ agent.first_name }}?', 
+        question_name = "exmaple"
+    )
+
+    jobs = q.by(a)
+    print(jobs.prompts().select('user_prompt').first().text)
+
+This code will output the text of the prompt for the question:
+
+.. code-block:: text
+
+    You are being asked the following question: What is your last name, John?
+    Return a valid JSON formatted like this:
+    {"answer": "<put free text answer here>"}
+
+
+Accessing agent traits 
+----------------------
+The `traits` of an agent can be accessed directly:
+
+.. code-block:: python
+
+    a = Agent(traits = {'age': 22})
+    a.traits
+
+This code will return:
+
+.. code-block:: text
+
+    {'age': 22}
+
+The `traits` of an agent can also be accessed as attributes of the agent:
+
+.. code-block:: python
+
+    a = Agent(traits = {'age': 22})
+    a.age
+
+This code will return:
+
+.. code-block:: text
+
+    22
+    
 
 Simulating agent responses 
 --------------------------

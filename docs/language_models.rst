@@ -126,11 +126,11 @@ Output:
 
 .. code-block:: python
 
-[['claude-3-5-sonnet-20240620', 'anthropic', 10],
- ['claude-3-haiku-20240307', 'anthropic', 11],
- ['claude-3-opus-20240229', 'anthropic', 12],
- ['claude-3-sonnet-20240229', 'anthropic', 13],
- ['new_model', 'anthropic', 61]]
+   [['claude-3-5-sonnet-20240620', 'anthropic', 10],
+   ['claude-3-haiku-20240307', 'anthropic', 11],
+   ['claude-3-opus-20240229', 'anthropic', 12],
+   ['claude-3-sonnet-20240229', 'anthropic', 13],
+   ['new_model', 'anthropic', 61]]
 
 
 Check models 
