@@ -55,7 +55,7 @@ def create_serialization_test_data():
             )
 
     # C. Create custom / more complex examples
-    RegisterSerializationCasesMeta.generate_data(data)
+    RegisterSerializationCasesMeta.generate_custom_example_data(container=data)
 
     # D. Write data to the file
     data_to_write = [
