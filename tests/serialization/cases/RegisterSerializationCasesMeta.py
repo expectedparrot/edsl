@@ -4,52 +4,57 @@ from edsl.questions import *
 
 
 class RegisterSerializationCasesMeta(ABCMeta):
-    _tests = {}
+    _test_cases = {}
 
     def __init__(cls, name, bases, dct):
-        """Initialize the class and add its examples to the registry."""
+        """Initialize the class and add its test cases to the registry."""
 
         super().__init__(name, bases, dct)
 
         if name != "SerializationBase":
-            object = dct.get("object", "default")
+            # Object should be the name of an EDSL object, e.g., Results, Agent, Notebook,...
+            # This will be used in the deserialization tests
+            object = dct.get("object")
+            if object is None:
+                raise AttributeError(f"{name} must have an 'object' attribute.")
 
             # Create a dict for object tests
-            if object not in cls._tests:
-                cls._tests[object] = {}
+            if object not in cls._test_cases:
+                cls._test_cases[object] = {}
 
             # Register the class and its test methods
-            cls._tests[object][name] = {"class": cls, "methods": []}
+            cls._test_cases[object][name] = {"class": cls, "test_cases": []}
             for attr_name, attr_value in dct.items():
                 if callable(attr_value) and attr_name.startswith("test_"):
-                    cls._tests[object][name]["methods"].append(attr_name)
+                    cls._test_cases[object][name]["test_cases"].append(attr_name)
 
     @classmethod
-    def get_registered_tests(cls):
-        """Return the registry of registered tests."""
-        return cls._tests
+    def get_registered_test_cases(cls):
+        """Return the registry of registered test cases."""
+        return cls._test_cases
 
     @classmethod
-    def generate_data(mcs, data: list[dict]):
-        """Generate serialization data by running the registered methods. Add data to list."""
+    def generate_custom_example_data(mcs, container: list):
+        """
+        Generate serialization data for custom examples by running the methods in the ._tests registry.
 
-        for object_name, object_tests in mcs._tests.items():
-            print(f"Running {object_name} tests:")
-            for class_name, class_info in object_tests.items():
-                print(f"Running tests for {class_name}:")
+        :param container: The data from custom examples will be appended to this list.
+        """
 
-                # Create an instance of the class and run tests
-                test_class = class_info["class"]
+        for object_name, object_tests in mcs._test_cases.items():
+            for test_class_name, test_class_info in object_tests.items():
+                # Create an instance of the test class and run tests
+                test_class = test_class_info["class"]
                 instance = test_class()
 
-                for method_name in class_info["methods"]:
-                    print(f"Running {method_name}...")
+                for method_name in test_class_info["test_cases"]:
+                    print(f"Running {test_class_name}.{method_name}...")
                     test_method = getattr(instance, method_name)
 
                     # Call test method directly
-                    case_data = test_method()
-                    data.append(
-                        {"class_name": object_name, "dict": case_data.to_dict()}
+                    test_case_data = test_method()
+                    container.append(
+                        {"class_name": object_name, "dict": test_case_data.to_dict()}
                     )
 
 
