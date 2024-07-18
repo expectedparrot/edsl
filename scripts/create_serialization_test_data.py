@@ -22,7 +22,7 @@ def create_serialization_test_data():
         version = edsl_version
 
     data = []
-    path = f"tests/serialization/data/new_{version}.json"
+    path = f"tests/serialization/data/{version}.json"
 
     # A. check if the file already exists
     if os.path.exists(path):
