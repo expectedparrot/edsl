@@ -106,7 +106,10 @@ def test_serialization_coverage():
 
     classes_to_cover = set(classes.keys())
 
-    classes_not_covered = (classes_to_cover - data_classes) - set(["Question"])
+    classes_not_covered = (classes_to_cover - data_classes) - set(
+        # We don't need the base Question or QuestionAddTwoNumbers (a test instance of QuestionFunctional)
+        ["Question", "QuestionAddTwoNumbers"]
+    )
 
     assert (
         len(classes_not_covered) == 0
