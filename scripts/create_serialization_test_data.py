@@ -15,7 +15,6 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s\t%(message)s")
 
 
 def create_serialization_test_data():
-    global edsl_version
     if ".dev" in edsl_version:
         version = edsl_version.split(".dev")[0]
     else:
