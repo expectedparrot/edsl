@@ -54,17 +54,21 @@ def test_remote_inference_with_jobs(mock_edsl_settings):
 
     # Test a job with a description
     job = Jobs.example()
-    remote_job_data = job.run(remote_inference_description="Example of a completed job")
-    assert type(remote_job_data) == dict
-    assert remote_job_data.get("description") == "Example of a completed job"
-    assert remote_job_data.get("status") == "queued"
+    result = job.run(remote_inference_description="Example of a completed job")
+    assert isinstance(result, Results)
+    description = result.select("description").first()
+    status = result.select("status").first()
+    assert description == "Example of a completed job"
+    assert status == "queued"
 
     # Test a job with no description
     job = Jobs.example()
-    remote_job_data = job.run()
-    assert type(remote_job_data) == dict
-    assert remote_job_data.get("description") == None
-    assert remote_job_data.get("status") == "queued"
+    result = job.run()
+    assert isinstance(result, Results)
+    description = result.select("description").first()
+    status = result.select("status").first()
+    assert description == None
+    assert status == "queued"
 
 
 @pytest.mark.coop

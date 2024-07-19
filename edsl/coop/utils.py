@@ -10,7 +10,7 @@ from edsl import (
     Study,
 )
 from edsl.questions import QuestionBase
-from typing import Literal, Type, Union
+from typing import Literal, Optional, Type, Union
 
 EDSLObject = Union[
     Agent,
@@ -94,3 +94,30 @@ class ObjectRegistry:
         if EDSL_object is None:
             raise ValueError(f"EDSL class not found for {object_type=}")
         return EDSL_object
+
+    @classmethod
+    def get_registry(
+        cls,
+        subclass_registry: Optional[dict] = None,
+        exclude_classes: Optional[list] = None,
+    ) -> dict:
+        """
+        Return the registry of objects.
+
+        Exclude objects that are already registered in subclass_registry.
+        This allows the user to isolate Coop-only objects.
+
+        Also exclude objects if their class name is in the exclude_classes list.
+        """
+
+        if subclass_registry is None:
+            subclass_registry = {}
+        if exclude_classes is None:
+            exclude_classes = []
+
+        return {
+            class_name: o["edsl_class"]
+            for o in cls.objects
+            if (class_name := o["edsl_class"].__name__) not in subclass_registry
+            and class_name not in exclude_classes
+        }
