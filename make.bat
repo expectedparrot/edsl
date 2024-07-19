@@ -13,6 +13,7 @@ if "%1" == "install" goto install
 if "%1" == "test" goto test
 if "%1" == "test-coop" goto test-coop
 if "%1" == "test-coverage" goto test-coverage
+if "%1" == "test-data" goto test-data
 goto end
 
 ::###############
@@ -158,6 +159,11 @@ if %errorlevel% == 0 (
 ) else (
     echo Unsupported operating system - coverage report will not open automatically: %OSNAME%
 )
+goto end
+
+:test-data
+:: Create serialization test data for the current EDSL version
+python scripts/create_serialization_test_data.py
 goto end
 
 :end

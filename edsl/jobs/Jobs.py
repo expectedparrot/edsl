@@ -17,7 +17,7 @@ from edsl.exceptions import MissingAPIKeyError
 from edsl.jobs.buckets.BucketCollection import BucketCollection
 from edsl.jobs.interviews.Interview import Interview
 from edsl.language_models import LanguageModel
-from edsl.results import Results
+from edsl.results import Result, Results
 from edsl.scenarios import Scenario
 from edsl import ScenarioList
 from edsl.surveys import Survey
@@ -464,8 +464,25 @@ class Jobs(Base):
                 status="queued",
             )
             self._output("Job sent!")
-            self._output(remote_job_data)
-            return remote_job_data
+            # Create mock results object to store job data
+            results = Results(
+                survey=Survey(),
+                data=[
+                    Result(
+                        agent=Agent.example(),
+                        scenario=Scenario.example(),
+                        model=Model(),
+                        iteration=1,
+                        answer={"info": "Remote job details"},
+                    )
+                ],
+            )
+            results.add_columns_from_dict([remote_job_data])
+            if self.verbose:
+                results.select(["info", "uuid", "status", "version"]).print(
+                    format="rich"
+                )
+            return results
         else:
             if check_api_keys:
                 for model in self.models + [Model()]:
