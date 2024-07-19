@@ -3,8 +3,9 @@ import json
 import os
 from edsl import __version__ as edsl_version
 from edsl.Base import RegisterSubclassesMeta
-from edsl.coop.utils import ObjectRegistry, Study
+from edsl.coop.utils import ObjectRegistry
 from edsl.questions import RegisterQuestionsMeta
+from edsl.utilities.utilities import to_camel_case
 
 
 def test_serialization():
@@ -18,10 +19,24 @@ def test_serialization():
         [f.startswith(version) for f in files]
     ), f"No serialization data found for the current EDSL version ({version}). Please run `make test-data`."
 
+    # create an object registry for the classes that are not in the subclass registry
+    subclass_registry = RegisterSubclassesMeta.get_registry()
+    object_registry = {}
+    for object in ObjectRegistry.objects:
+        camel_case_name = to_camel_case(object["object_type"])
+        classes_to_exclude = ["Question"]
+        # if we don't already have this subclass, register it
+        if (
+            camel_case_name not in subclass_registry
+            and camel_case_name not in classes_to_exclude
+        ):
+            object_registry[camel_case_name] = object["edsl_class"]
+
     # get all EDSL classes that you'd like to test
     combined_items = itertools.chain(
-        RegisterSubclassesMeta.get_registry().items(),
+        subclass_registry.items(),
         RegisterQuestionsMeta.get_registered_classes().items(),
+        object_registry.items(),
     )
     classes = []
     for subclass_name, subclass in combined_items:
@@ -31,13 +46,6 @@ def test_serialization():
                 "class": subclass,
             }
         )
-
-    classes.append(
-        {
-            "class_name": "Study",
-            "class": Study,
-        }
-    )
 
     for file in files:
         print("\n\n")
