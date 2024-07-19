@@ -3,7 +3,7 @@ import json
 import os
 from edsl import __version__ as edsl_version
 from edsl.Base import RegisterSubclassesMeta
-from edsl.coop.utils import ObjectRegistry
+from edsl.coop.utils import ObjectRegistry, Study
 from edsl.questions import RegisterQuestionsMeta
 
 
@@ -31,6 +31,13 @@ def test_serialization():
                 "class": subclass,
             }
         )
+
+    classes.append(
+        {
+            "class_name": "Study",
+            "class": Study,
+        }
+    )
 
     for file in files:
         print("\n\n")
