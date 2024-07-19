@@ -4,8 +4,9 @@ import json
 import os
 from edsl import __version__ as edsl_version
 from edsl.Base import RegisterSubclassesMeta
-from edsl.coop.utils import Study
+from edsl.coop.utils import ObjectRegistry, Study
 from edsl.questions import *
+from edsl.utilities.utilities import to_camel_case
 from tests.serialization.cases.RegisterSerializationCasesMeta import (
     RegisterSerializationCasesMeta,
 )
@@ -42,10 +43,24 @@ def create_serialization_test_data():
         }
     )
 
-    # C. Collect all registered classes
+    # C. Collect all registered classes we want to generate an example for
+    subclass_registry = RegisterSubclassesMeta.get_registry()
+    # Create an object registry for the classes that are not in the subclass registry
+    object_registry = {}
+    for object in ObjectRegistry.objects:
+        camel_case_name = to_camel_case(object["object_type"])
+        classes_to_exclude = ["Question", "Study"]
+        # if we don't already have this subclass, register it
+        if (
+            camel_case_name not in subclass_registry
+            and camel_case_name not in classes_to_exclude
+        ):
+            object_registry[camel_case_name] = object["edsl_class"]
+
     combined_items = itertools.chain(
-        RegisterSubclassesMeta.get_registry().items(),
+        subclass_registry.items(),
         RegisterQuestionsMeta.get_registered_classes().items(),
+        object_registry.items(),
     )
 
     for subclass_name, subclass in combined_items:
