@@ -352,10 +352,3 @@ def shorten_string(s, max_length, placeholder="..."):
         end_remove = end_space
 
     return s[:start_remove] + placeholder + s[end_remove:]
-
-
-def to_camel_case(s: str):
-    """Convert a string from snake case to camel case."""
-    words = s.split("_")
-    capitalized_words = [word.title() for word in words]
-    return "".join(capitalized_words)

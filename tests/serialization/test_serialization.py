@@ -5,7 +5,6 @@ from edsl import __version__ as edsl_version
 from edsl.Base import RegisterSubclassesMeta
 from edsl.coop.utils import ObjectRegistry
 from edsl.questions import RegisterQuestionsMeta
-from edsl.utilities.utilities import to_camel_case
 
 
 def test_serialization():
@@ -19,23 +18,15 @@ def test_serialization():
         [f.startswith(version) for f in files]
     ), f"No serialization data found for the current EDSL version ({version}). Please run `make test-data`."
 
-    # create an object registry for the classes that are not in the subclass registry
-    subclass_registry = RegisterSubclassesMeta.get_registry()
-    object_registry = {}
-    for object in ObjectRegistry.objects:
-        camel_case_name = to_camel_case(object["object_type"])
-        classes_to_exclude = ["Question"]
-        # if we don't already have this subclass, register it
-        if (
-            camel_case_name not in subclass_registry
-            and camel_case_name not in classes_to_exclude
-        ):
-            object_registry[camel_case_name] = object["edsl_class"]
-
     # get all EDSL classes that you'd like to test
+    subclass_registry = RegisterSubclassesMeta.get_registry()
+    questions_registry = RegisterQuestionsMeta.get_registered_classes()
+    object_registry = ObjectRegistry.get_registry(
+        subclass_registry=subclass_registry, exclude_classes=["QuestionBase"]
+    )
     combined_items = itertools.chain(
         subclass_registry.items(),
-        RegisterQuestionsMeta.get_registered_classes().items(),
+        questions_registry.items(),
         object_registry.items(),
     )
     classes = []
@@ -77,21 +68,10 @@ def test_serialization_coverage():
     This test will fail if the current EDSL version does not include tests
     for all EDSL objects.
     """
-
-    def to_camel_case(s: str):
-        words = s.split("_")
-        capitalized_words = [word.title() for word in words]
-        return "".join(capitalized_words)
-
-    objects_dct = {}
-    for object in ObjectRegistry.objects:
-        camel_case_name = to_camel_case(object["object_type"])
-        objects_dct[camel_case_name] = object["edsl_class"]
-
     combined_items = itertools.chain(
         RegisterSubclassesMeta.get_registry().items(),
         RegisterQuestionsMeta.get_registered_classes().items(),
-        objects_dct.items(),
+        ObjectRegistry.get_registry().items(),
     )
 
     classes = {}
@@ -116,7 +96,7 @@ def test_serialization_coverage():
 
     classes_not_covered = (classes_to_cover - data_classes) - set(
         # We don't need the base Question or QuestionAddTwoNumbers (a test instance of QuestionFunctional)
-        ["Question", "QuestionAddTwoNumbers"]
+        ["QuestionBase", "QuestionAddTwoNumbers"]
     )
 
     assert (
