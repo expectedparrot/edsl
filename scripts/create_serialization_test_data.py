@@ -4,12 +4,11 @@ import json
 import os
 from edsl import __version__ as edsl_version
 from edsl.Base import RegisterSubclassesMeta
-from edsl import Agent, Model, Jobs, Scenario, Survey
+from edsl.coop.utils import Study
 from edsl.questions import *
 from tests.serialization.cases.RegisterSerializationCasesMeta import (
     RegisterSerializationCasesMeta,
 )
-from typing import Union
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s\t%(message)s")
 
@@ -28,7 +27,22 @@ def create_serialization_test_data():
         logging.info(f"`{path}` already exists.")
         return
 
-    # B. Collect all registered classes
+    # B. Study data needs to go up here; otherwise, there is a namespace error
+    with Study(name="example_study", verbose=False) as study:
+        from edsl import QuestionFreeText
+
+        q = QuestionFreeText.example()
+
+    data.append(
+        {
+            "class_name": "Study",
+            "class": Study,
+            "example": study,
+            "dict": study.to_dict(),
+        }
+    )
+
+    # C. Collect all registered classes
     combined_items = itertools.chain(
         RegisterSubclassesMeta.get_registry().items(),
         RegisterQuestionsMeta.get_registered_classes().items(),
@@ -53,10 +67,10 @@ def create_serialization_test_data():
                 f"Class: {item['class_name']} does not have edsl_version in the dict"
             )
 
-    # C. Create custom / more complex examples
+    # D. Create custom / more complex examples
     RegisterSerializationCasesMeta.generate_custom_example_data(container=data)
 
-    # D. Write data to the file
+    # E. Write data to the file
     data_to_write = [
         {"class_name": item["class_name"], "dict": item["dict"]} for item in data
     ]
