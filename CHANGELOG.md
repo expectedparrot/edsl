@@ -2,9 +2,16 @@
 
 ## [0.1.29] - 2024-TBD [In progress]
 ### Added
-- [In progress] New prompt visibility features.
+- Prompts visibility: Call `prompts()` on a `Jobs` object for a survey to inspect the prompts that will be used in a survey before running it. For example:
+```
+from edsl import Model, Survey
+j = Survey.example().by(Model()) 
+j.prompts().print(format="rich")
+```
 
-- [In progress] New methods for piping responses to questions into other questions. 
+- Piping: Use agent traits and components of questions (question_text, answer, etc.) as inputs to other questions in a survey (e.g., `question_text = "What is your last name, {{ agent.first_name }}?"` or `question_text = "Name some examples of {{ prior_q.answer }}"`).
+
+- Agent traits: Call agent traits directly (e.g., `Agent.example().age` will return `22`).
 
 - [In progress] `ScenarioList.from_sqlite` allows you to create a list of scenarios from a SQLite table.
 
