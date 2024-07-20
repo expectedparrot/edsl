@@ -5,25 +5,21 @@ import csv
 import random
 from collections import UserList, Counter
 from collections.abc import Iterable
-
 from typing import Any, Optional, Union, List
 
-from rich.table import Table
 from simpleeval import EvalWithCompoundTypes
 
-from edsl.scenarios.Scenario import Scenario
 from edsl.Base import Base
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
+from edsl.scenarios.Scenario import Scenario
 from edsl.scenarios.ScenarioListPdfMixin import ScenarioListPdfMixin
-
-from edsl.utilities.interface import print_scenario_list
-
-from edsl.utilities import is_valid_variable_name
-
-from edsl.results.ResultsExportMixin import ResultsExportMixin
+from edsl.scenarios.ScenarioListExportMixin import ScenarioListExportMixin
 
 
-class ScenarioList(Base, UserList, ScenarioListPdfMixin, ResultsExportMixin):
+class ScenarioListMixin(ScenarioListPdfMixin, ScenarioListExportMixin):
+    pass
+
+class ScenarioList(Base, UserList, ScenarioListMixin):
     """Class for creating a list of scenarios to be used in a survey."""
 
     def __init__(self, data: Optional[list] = None):
@@ -157,6 +153,8 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin, ResultsExportMixin):
             )
         raw_var_name, expression = new_var_string.split("=", 1)
         var_name = raw_var_name.strip()
+        from edsl.utilities.utilities import is_valid_variable_name
+
         if not is_valid_variable_name(var_name):
             raise Exception(f"{var_name} is not a valid variable name.")
 
@@ -376,6 +374,7 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin, ResultsExportMixin):
         >>> scenario_list[1]['age']
         '25'
         """
+        from edsl.scenarios.Scenario import Scenario
         observations = []
         with open(filename, "r") as f:
             reader = csv.reader(f)
@@ -413,12 +412,14 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin, ResultsExportMixin):
         ScenarioList([Scenario({'name': 'Alice'}), Scenario({'name': 'Bob'})])
 
         """
+        from edsl.scenarios.Scenario import Scenario
         return cls([Scenario(s) for s in scenario_dicts_list])
 
     @classmethod
     @remove_edsl_version
     def from_dict(cls, data) -> ScenarioList:
         """Create a `ScenarioList` from a dictionary."""
+        from edsl.scenarios.Scenario import Scenario
         return cls([Scenario.from_dict(s) for s in data["scenarios"]])
 
     def code(self) -> str:
@@ -443,6 +444,8 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin, ResultsExportMixin):
 
     def rich_print(self) -> None:
         """Display an object as a table."""
+        from rich.table import Table
+
         table = Table(title="ScenarioList")
         table.add_column("Index", style="bold")
         table.add_column("Scenario")
@@ -457,6 +460,8 @@ class ScenarioList(Base, UserList, ScenarioListPdfMixin, ResultsExportMixin):
         pretty_labels: Optional[dict] = None,
         filename: str = None,
     ):
+        from edsl.utilities.interface import print_scenario_list
+
         print_scenario_list(self[:max_rows])
 
     def __getitem__(self, key: Union[int, slice]) -> Any:

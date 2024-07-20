@@ -1,32 +1,16 @@
 # """The Jobs class is a collection of agents, scenarios and models and one survey."""
 from __future__ import annotations
-import os
 import warnings
 from itertools import product
 from typing import Optional, Union, Sequence, Generator
-from edsl import Model
-from edsl.agents import Agent
-from edsl.agents.AgentList import AgentList
-from edsl.Base import Base
-from edsl.data.Cache import Cache
-from edsl.data.CacheHandler import CacheHandler
-from edsl.results.Dataset import Dataset
 
-from edsl.exceptions.jobs import MissingRemoteInferenceError
+from edsl.Base import Base
+
 from edsl.exceptions import MissingAPIKeyError
 from edsl.jobs.buckets.BucketCollection import BucketCollection
 from edsl.jobs.interviews.Interview import Interview
-from edsl.language_models import LanguageModel
-from edsl.results import Results
-from edsl.scenarios import Scenario
-from edsl import ScenarioList
-from edsl.surveys import Survey
 from edsl.jobs.runners.JobsRunnerAsyncio import JobsRunnerAsyncio
-
-from edsl.language_models.ModelList import ModelList
-
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
-
 
 class Jobs(Base):
     """
@@ -37,10 +21,10 @@ class Jobs(Base):
 
     def __init__(
         self,
-        survey: Survey,
-        agents: Optional[list[Agent]] = None,
-        models: Optional[list[LanguageModel]] = None,
-        scenarios: Optional[list[Scenario]] = None,
+        survey: 'Survey',
+        agents: Optional[list['Agent']] = None,
+        models: Optional[list['LanguageModel']] = None,
+        scenarios: Optional[list['Scenario']] = None,
     ):
         """Initialize a Jobs instance.
 
@@ -50,8 +34,8 @@ class Jobs(Base):
         :param scenarios: a list of scenarios
         """
         self.survey = survey
-        self.agents: AgentList = agents
-        self.scenarios: ScenarioList = scenarios
+        self.agents: 'AgentList' = agents
+        self.scenarios: 'ScenarioList' = scenarios
         self.models = models
 
         self.__bucket_collection = None
@@ -62,6 +46,7 @@ class Jobs(Base):
 
     @models.setter
     def models(self, value):
+        from edsl import ModelList
         if value:
             if not isinstance(value, ModelList):
                 self._models = ModelList(value)
@@ -76,6 +61,7 @@ class Jobs(Base):
 
     @agents.setter
     def agents(self, value):
+        from edsl import AgentList
         if value:
             if not isinstance(value, AgentList):
                 self._agents = AgentList(value)
@@ -90,6 +76,7 @@ class Jobs(Base):
 
     @scenarios.setter
     def scenarios(self, value):
+        from edsl import ScenarioList
         if value:
             if not isinstance(value, ScenarioList):
                 self._scenarios = ScenarioList(value)
@@ -101,10 +88,10 @@ class Jobs(Base):
     def by(
         self,
         *args: Union[
-            Agent,
-            Scenario,
-            LanguageModel,
-            Sequence[Union[Agent, Scenario, LanguageModel]],
+            'Agent',
+            'Scenario',
+            'LanguageModel',
+            Sequence[Union['Agent', 'Scenario', 'LanguageModel']],
         ],
     ) -> Jobs:
         """
@@ -144,7 +131,7 @@ class Jobs(Base):
         setattr(self, objects_key, new_objects)  # update the job
         return self
 
-    def prompts(self) -> Dataset:
+    def prompts(self) -> 'Dataset':
         """Return a Dataset of prompts that will be used.
 
 
@@ -160,6 +147,7 @@ class Jobs(Base):
         user_prompts = []
         system_prompts = []
         scenario_indices = []
+        from edsl.results.Dataset import Dataset
 
         for interview_index, interview in enumerate(interviews):
             invigilators = list(interview._build_invigilators(debug=False))
@@ -182,7 +170,10 @@ class Jobs(Base):
 
     @staticmethod
     def _get_container_class(object):
-        from edsl import AgentList
+        from edsl.agents.AgentList import AgentList
+        from edsl.agents.Agent import Agent
+        from edsl.scenarios.Scenario import Scenario
+        from edsl.scenarios.ScenarioList import ScenarioList
 
         if isinstance(object, Agent):
             return AgentList
@@ -218,6 +209,9 @@ class Jobs(Base):
     def _get_current_objects_of_this_type(
         self, object: Union[Agent, Scenario, LanguageModel]
     ) -> tuple[list, str]:
+        from edsl.agents.Agent import Agent
+        from edsl.scenarios.Scenario import Scenario
+        from edsl.language_models.LanguageModel import LanguageModel
         """Return the current objects of the same type as the first argument.
 
         >>> from edsl.jobs import Jobs
@@ -246,6 +240,9 @@ class Jobs(Base):
     @staticmethod
     def _get_empty_container_object(object):
         from edsl import AgentList
+        from edsl import Agent
+        from edsl import Scenario
+        from edsl import ScenarioList
 
         if isinstance(object, Agent):
             return AgentList([])
@@ -310,6 +307,10 @@ class Jobs(Base):
         with us filling in defaults.
         """
         # if no agents, models, or scenarios are set, set them to defaults
+        from edsl.agents.Agent import Agent
+        from edsl.language_models.registry import Model
+        from edsl.scenarios.Scenario import Scenario
+
         self.agents = self.agents or [Agent()]
         self.models = self.models or [Model()]
         self.scenarios = self.scenarios or [Scenario()]
@@ -325,6 +326,7 @@ class Jobs(Base):
         These buckets are used to track API calls and token usage.
 
         >>> from edsl.jobs import Jobs
+        >>> from edsl import Model
         >>> j = Jobs.example().by(Model(temperature = 1), Model(temperature = 0.5))
         >>> bc = j.create_bucket_collection()
         >>> bc
@@ -368,6 +370,8 @@ class Jobs(Base):
         """Check if the parameters in the survey and scenarios are consistent.
 
         >>> from edsl import QuestionFreeText
+        >>> from edsl import Survey
+        >>> from edsl import Scenario
         >>> q = QuestionFreeText(question_text = "{{poo}}", question_name = "ugly_question")
         >>> j = Jobs(survey = Survey(questions=[q]))
         >>> with warnings.catch_warnings(record=True) as w:
@@ -477,8 +481,10 @@ class Jobs(Base):
 
         # handle cache
         if cache is None:
+            from edsl.data.CacheHandler import CacheHandler
             cache = CacheHandler().get_cache()
         if cache is False:
+            from edsl.data.Cache import Cache
             cache = Cache()
 
         if not remote_cache:
@@ -630,6 +636,10 @@ class Jobs(Base):
     @remove_edsl_version
     def from_dict(cls, data: dict) -> Jobs:
         """Creates a Jobs instance from a dictionary."""
+        from edsl import Survey
+        from edsl.agents.Agent import Agent
+        from edsl.language_models.LanguageModel import LanguageModel
+        from edsl.scenarios.Scenario import Scenario
         return cls(
             survey=Survey.from_dict(data["survey"]),
             agents=[Agent.from_dict(agent) for agent in data["agents"]],
@@ -656,7 +666,8 @@ class Jobs(Base):
         """
         import random
         from edsl.questions import QuestionMultipleChoice
-        from edsl import Agent
+        from edsl.agents.Agent import Agent
+        from edsl.scenarios.Scenario import Scenario
 
         # (status, question, period)
         agent_answers = {
@@ -695,6 +706,7 @@ class Jobs(Base):
             question_options=["Good", "Great", "OK", "Terrible"],
             question_name="how_feeling_yesterday",
         )
+        from edsl import Survey, ScenarioList
         base_survey = Survey(questions=[q1, q2])
 
         scenario_list = ScenarioList(

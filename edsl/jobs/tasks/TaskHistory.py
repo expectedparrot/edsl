@@ -1,11 +1,7 @@
 from edsl.jobs.tasks.task_status_enum import TaskStatus
-from matplotlib import pyplot as plt
 from typing import List, Optional
-
-import matplotlib.pyplot as plt
 from io import BytesIO
 import base64
-
 
 class TaskHistory:
     def __init__(self, interviews: List["Interview"], include_traceback=False):
@@ -75,6 +71,8 @@ class TaskHistory:
 
     def plot_completion_times(self):
         """Plot the completion times for each task."""
+        import matplotlib.pyplot as plt
+
         updates = self.get_updates()
 
         elapsed = [update.max_time - update.min_time for update in updates]

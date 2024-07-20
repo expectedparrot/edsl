@@ -1,11 +1,11 @@
 """This module provides a Config class that loads environment variables from a .env file and sets them as class attributes."""
 
 import os
-from dotenv import load_dotenv, find_dotenv
 from edsl.exceptions import (
     InvalidEnvironmentVariableError,
     MissingEnvironmentVariableError,
 )
+from dotenv import load_dotenv, find_dotenv
 
 # valid values for EDSL_RUN_MODE
 EDSL_RUN_MODES = ["development", "development-testrun", "production"]
@@ -96,6 +96,7 @@ class Config:
         Loads the .env
         - Overrides existing env vars unless EDSL_RUN_MODE=="development-testrun"
         """
+
         override = True
         if self.EDSL_RUN_MODE == "development-testrun":
             override = False

@@ -5,7 +5,7 @@ from edsl import Model
 from edsl.language_models import LanguageModel
 from edsl.Base import Base
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
-from edsl.utilities import is_valid_variable_name
+from edsl.utilities.utilities import is_valid_variable_name
 from edsl.utilities.utilities import dict_hash
 
 

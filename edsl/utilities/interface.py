@@ -1,12 +1,8 @@
 """A module for displaying data in various formats."""
 
 from html import escape
-from IPython.display import HTML
-from IPython.display import display as ipython_diplay
 
 # from PIL import Image, ImageDraw, ImageFont
-from rich.console import Console
-from rich.table import Table
 
 
 def gen_html_sandwich(html_inner, interactive=False):
@@ -158,6 +154,8 @@ def get_multiline_textsize(text, font):
 
 
 def display(console, table, filename):
+    from rich.console import Console
+    from rich.table import Table
     """Display the table using the rich library and save it to a file if a filename is provided."""
     if filename is not None:
         with open(filename, "w") as f:
@@ -170,6 +168,9 @@ def display(console, table, filename):
 
 
 def print_results_long(results, max_rows=None):
+    from rich.console import Console
+    from rich.table import Table
+
     console = Console(record=True)
     table = Table(show_header=True, header_style="bold magenta")
     table.add_column("Result index", style="dim")
@@ -199,6 +200,9 @@ def print_dict_with_rich(d, key_name="Key", value_name="Value", filename=None):
     │ c   │ 3     │
     └─────┴───────┘
     """
+    from rich.console import Console
+    from rich.table import Table
+
     console = Console(record=True)
     table = Table(show_header=True, header_style="bold magenta")
     table.add_column(key_name, style="dim")
@@ -251,6 +255,9 @@ def print_dict_as_html_table(
 
 
 def print_scenario_list(data):
+    from rich.console import Console
+    from rich.table import Table
+
     new_data = []
     for obs in data:
         try:
@@ -300,6 +307,9 @@ def print_dataset_with_rich(data, filename=None, split_at_dot=True):
     │ 3 │ 6 │
     └───┴───┘
     """
+    from rich.console import Console
+    from rich.table import Table
+
     console = Console(record=True)
 
     # Create a table object
@@ -495,6 +505,9 @@ def print_list_of_dicts_as_markdown_table(data, filename=None):
 
 def print_public_methods_with_doc(obj):
     """Print the public methods of an object along with their docstrings."""
+    from rich.console import Console
+    from rich.table import Table
+
     console = Console()
     public_methods_with_docstrings = [
         (method, getattr(obj, method).__doc__)
@@ -525,6 +538,9 @@ def print_tally_with_rich(data, filename=None):
     └───────┴───────┘
     """
     # Initialize a console object
+    from rich.console import Console
+    from rich.table import Table
+
     console = Console(record=True)
 
     # Create a new table
@@ -537,6 +553,8 @@ def print_tally_with_rich(data, filename=None):
     # Add rows to the table
     for key, value in data.items():
         table.add_row(key, str(value))
+
+    from IPython.display import display
 
     display(console, table, filename)
 
@@ -561,6 +579,9 @@ def print_table_with_rich(data, filename=None):
     │ 2 │ 9 │ 8 │
     └───┴───┴───┘
     """
+    from rich.console import Console
+    from rich.table import Table
+
     # Initialize a console object - expects a list of dictionaries
     console = Console(record=True)
 

@@ -1,8 +1,6 @@
 """A mixin class for exporting surveys to different formats."""
 
-from docx import Document
 from typing import Union, Optional
-import black
 
 
 class SurveyExportMixin:
@@ -29,6 +27,8 @@ class SurveyExportMixin:
 
     def docx(self, filename=None) -> Union["Document", None]:
         """Generate a docx document for the survey."""
+        from docx import Document
+
         doc = Document()
         doc.add_heading("EDSL Survey")
         doc.add_paragraph(f"\n")
@@ -83,6 +83,8 @@ class SurveyExportMixin:
         survey = Survey(questions=[q0, q1, q2])
         ...
         """
+        import black
+
         header_lines = ["from edsl.surveys.Survey import Survey"]
         header_lines.append("from edsl import Question")
         lines = ["\n".join(header_lines)]

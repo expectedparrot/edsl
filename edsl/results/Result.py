@@ -3,24 +3,16 @@ from __future__ import annotations
 from collections import UserDict
 from typing import Any, Type, Callable, Optional
 from collections import UserDict
-
-from rich.table import Table
-
-from IPython.display import display
-
-from edsl.agents import Agent
-from edsl.language_models import LanguageModel
-from edsl.scenarios import Scenario
 from edsl.Base import Base
-from edsl.prompts import Prompt
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
-
 
 class PromptDict(UserDict):
     """A dictionary that is used to store the prompt for a given result."""
 
     def rich_print(self):
         """Display an object as a table."""
+        from rich.table import Table
+
         table = Table(title="")
         table.add_column("Attribute", style="bold")
         table.add_column("Value")
@@ -30,7 +22,6 @@ class PromptDict(UserDict):
             table.add_row(attr_name, repr(attr_value))
 
         return table
-
 
 def agent_namer_closure():
     """Return a function that can be used to name an agent."""
@@ -71,9 +62,9 @@ class Result(Base, UserDict):
 
     def __init__(
         self,
-        agent: Agent,
-        scenario: Scenario,
-        model: Type[LanguageModel],
+        agent: 'Agent',
+        scenario: 'Scenario',
+        model: Type['LanguageModel'],
         iteration: int,
         answer: str,
         prompt: dict[str, str] = None,
@@ -278,6 +269,11 @@ class Result(Base, UserDict):
     @remove_edsl_version
     def from_dict(self, json_dict: dict) -> Result:
         """Return a Result object from a dictionary representation."""
+
+        from edsl import Agent
+        from edsl import Scenario
+        from edsl.language_models.LanguageModel import LanguageModel
+        from edsl.prompts.Prompt import Prompt
         prompt_data = json_dict.get("prompt", {})
         prompt_d = {}
         for prompt_name, prompt_obj in prompt_data.items():
@@ -301,6 +297,7 @@ class Result(Base, UserDict):
         """Display an object as a table."""
         # from edsl.utilities import print_dict_with_rich
         from rich import print
+        from rich.table import Table
 
         table = Table(title="Result")
         table.add_column("Attribute", style="bold")
@@ -325,7 +322,7 @@ class Result(Base, UserDict):
     @classmethod
     def example(cls):
         """Return an example Result object."""
-        from edsl.results import Results
+        from edsl.results.Results import Results
 
         return Results.example()[0]
 
@@ -350,59 +347,6 @@ class Result(Base, UserDict):
         return scoring_function(**params)
 
 
-def main():
-    """Run the main function."""
-    from edsl.results.Result import Result
-    import json
-
-    print("Being imported")
-    json_string = """
-    {
-        "agent": {
-            "traits": {
-                "status": "Unhappy"
-            }
-        },
-        "scenario": {
-            "period": "morning"
-        },
-        "model": {
-            "model": "gpt-3.5-turbo",
-            "parameters": {
-                "temperature": 0.5,
-                "max_tokens": 1000,
-                "top_p": 1,
-                "frequency_penalty": 0,
-                "presence_penalty": 0,
-                "use_cache": true
-            }
-        },
-        "iteration": 0,
-        "answer": {
-            "how_feeling": "Bad"
-        }, 
-        "prompt": {"how_feeling_user_prompt": "How are you feeling today?", "how_feeling_system_prompt": "Answer the question"}
-    }
-    """
-
-    result = Result.from_dict(json.loads(json_string))
-
-    result.sub_dicts
-    assert result.combined_dict["how_feeling"] == "Bad"
-
-    result.combined_dict
-    assert result.get_value("answer", "how_feeling") == "Bad"
-
-    result.key_to_data_type
-    print(result)
-
-    assert result == result.copy()
-
-    result.to_dict()
-
-
 if __name__ == "__main__":
-    # print(Result.example())
     import doctest
-
     doctest.testmod(optionflags=doctest.ELLIPSIS)

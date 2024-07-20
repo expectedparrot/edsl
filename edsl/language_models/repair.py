@@ -1,18 +1,12 @@
 import json
 import asyncio
 import warnings
-from rich import print
-from rich.console import Console
-from rich.syntax import Syntax
-
-from edsl.utilities.utilities import clean_json
-
-from edsl.utilities.repair_functions import extract_json_from_string
-
 
 async def async_repair(
     bad_json, error_message="", user_prompt=None, system_prompt=None, cache=None
 ):
+    from edsl.utilities.utilities import clean_json
+
     s = clean_json(bad_json)
 
     try:
@@ -27,6 +21,7 @@ async def async_repair(
         return valid_dict, success
 
     try:
+        from edsl.utilities.repair_functions import extract_json_from_string
         valid_dict = extract_json_from_string(s)
         success = True
     except ValueError:
@@ -98,6 +93,10 @@ async def async_repair(
     except json.JSONDecodeError:
         valid_dict = {}
         success = False
+        from rich import print
+        from rich.console import Console
+        from rich.syntax import Syntax
+
         console = Console()
         error_message = (
             f"All repairs. failed. LLM Model given [red]{str(bad_json)}[/red]"

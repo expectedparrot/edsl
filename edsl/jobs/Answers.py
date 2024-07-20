@@ -8,7 +8,15 @@ class Answers(UserDict):
     """Helper class to hold the answers to a survey."""
 
     def add_answer(self, response, question) -> None:
-        """Add a response to the answers dictionary."""
+        """Add a response to the answers dictionary.
+        
+        >>> from edsl import QuestionFreeText 
+        >>> q = QuestionFreeText.example()
+        >>> answers = Answers()
+        >>> answers.add_answer({"answer": "yes"}, q)
+        >>> answers[q.question_name]
+        'yes'
+        """
         answer = response.get("answer")
         comment = response.pop("comment", None)
         # record the answer
@@ -42,3 +50,7 @@ class Answers(UserDict):
             table.add_row(attr_name, repr(attr_value))
 
         return table
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()

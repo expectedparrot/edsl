@@ -8,7 +8,6 @@ from typing import Any, Optional, Union
 from uuid import UUID
 from IPython.display import display
 from rich.console import Console
-from edsl.utilities import is_notebook
 
 
 class RichPrintingMixin:
@@ -28,6 +27,8 @@ class RichPrintingMixin:
 
     def print(self):
         """Print the object to the console."""
+        from edsl.utilities.utilities import is_notebook
+
         if is_notebook():
             display(self.rich_print())
         else:

@@ -116,6 +116,16 @@ class FileStore(Scenario):
         return cls.from_dict(scenario_version.to_dict())
 
 
+class CSVFileStore(FileStore):
+    def __init__(self, filename):
+        super().__init__(filename, suffix=".csv")
+
+class PDFFileStore(FileStore):
+    def __init__(self, filename):
+        super().__init__(filename, suffix=".pdf")
+
+        
+
 if __name__ == "__main__":
     # file_path = "../conjure/examples/Ex11-2.sav"
     # fs = FileStore(file_path)
@@ -125,6 +135,6 @@ if __name__ == "__main__":
     # from edsl import Conjure
 
     # c = Conjure(datafile_name=fs.to_tempfile())
-    f = FileStore("paper.pdf")
+    f = PDFFileStore("paper.pdf")
     # print(f.to_tempfile())
     f.push()

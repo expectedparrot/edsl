@@ -1,13 +1,9 @@
 from typing import Optional, Callable
-from edsl.questions.QuestionBase import QuestionBase
-from edsl.questions.descriptors import FunctionDescriptor
 import inspect
 
 from edsl.questions.QuestionBase import QuestionBase
-from edsl.questions.descriptors import FunctionDescriptor
 
 from edsl.utilities.restricted_python import create_restricted_function
-
 
 class QuestionFunctional(QuestionBase):
     """A special type of question that is *not* answered by an LLM."""

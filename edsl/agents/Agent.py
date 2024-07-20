@@ -5,27 +5,14 @@ import copy
 import inspect
 import types
 from typing import Any, Callable, Optional, Union, Dict, Sequence
-
-from rich.table import Table
-
 from edsl.Base import Base
-from edsl.questions.QuestionBase import QuestionBase
-from edsl.language_models import LanguageModel
-from edsl.surveys.MemoryPlan import MemoryPlan
+
 from edsl.exceptions.agents import (
     AgentCombinationError,
     AgentDirectAnswerFunctionError,
     AgentDynamicTraitsFunctionError,
 )
-from edsl.agents.Invigilator import (
-    InvigilatorDebug,
-    InvigilatorHuman,
-    InvigilatorFunctional,
-    InvigilatorAI,
-    InvigilatorBase,
-)
-from edsl.language_models.registry import Model
-from edsl.scenarios import Scenario
+
 from edsl.agents.descriptors import (
     TraitsDescriptor,
     CodebookDescriptor,
@@ -38,12 +25,7 @@ from edsl.utilities.decorators import (
     remove_edsl_version,
 )
 from edsl.data_transfer_models import AgentResponseDict
-from edsl.prompts.library.agent_persona import AgentPersona
-from edsl.data.Cache import Cache
-
-
 from edsl.utilities.restricted_python import create_restricted_function
-
 
 class Agent(Base):
     """An Agent that can answer questions."""
@@ -156,6 +138,7 @@ class Agent(Base):
         self.current_question = None
 
         if traits_presentation_template is not None:
+            from edsl.prompts.library.agent_persona import AgentPersona
             self.traits_presentation_template = traits_presentation_template
             self.agent_persona = AgentPersona(text=self.traits_presentation_template)
 
@@ -276,8 +259,8 @@ class Agent(Base):
     def create_invigilator(
         self,
         *,
-        question: QuestionBase,
-        cache,
+        question: 'QuestionBase',
+        cache: 'Cache',
         survey: Optional["Survey"] = None,
         scenario: Optional[Scenario] = None,
         model: Optional[LanguageModel] = None,
@@ -286,7 +269,7 @@ class Agent(Base):
         current_answers: Optional[dict] = None,
         iteration: int = 1,
         sidecar_model=None,
-    ) -> InvigilatorBase:
+    ) -> 'InvigilatorBase':
         """Create an Invigilator.
 
         An invigilator is an object that is responsible for administering a question to an agent.
@@ -300,6 +283,7 @@ class Agent(Base):
         An invigator is an object that is responsible for administering a question to an agent and
         recording the responses.
         """
+        from edsl import Model, Scenario
         cache = cache
         self.current_question = question
         model = model or Model()
@@ -321,13 +305,13 @@ class Agent(Base):
     async def async_answer_question(
         self,
         *,
-        question: QuestionBase,
-        cache: Cache,
-        scenario: Optional[Scenario] = None,
+        question: 'QuestionBase',
+        cache: 'Cache',
+        scenario: Optional['Scenario'] = None,
         survey: Optional["Survey"] = None,
-        model: Optional[LanguageModel] = None,
+        model: Optional['LanguageModel'] = None,
         debug: bool = False,
-        memory_plan: Optional[MemoryPlan] = None,
+        memory_plan: Optional['MemoryPlan'] = None,
         current_answers: Optional[dict] = None,
         iteration: int = 0,
     ) -> AgentResponseDict:
@@ -371,22 +355,33 @@ class Agent(Base):
 
     def _create_invigilator(
         self,
-        question: QuestionBase,
-        cache: Optional[Cache] = None,
-        scenario: Optional[Scenario] = None,
-        model: Optional[LanguageModel] = None,
+        question: 'QuestionBase',
+        cache: Optional['Cache'] = None,
+        scenario: Optional['Scenario'] = None,
+        model: Optional['LanguageModel'] = None,
         survey: Optional["Survey"] = None,
         debug: bool = False,
-        memory_plan: Optional[MemoryPlan] = None,
+        memory_plan: Optional['MemoryPlan'] = None,
         current_answers: Optional[dict] = None,
         iteration: int = 0,
         sidecar_model=None,
-    ) -> InvigilatorBase:
+    ) -> 'InvigilatorBase':
         """Create an Invigilator."""
+        from edsl import Model
+        from edsl import Scenario
         model = model or Model()
         scenario = scenario or Scenario()
 
+        from edsl.agents.Invigilator import (
+            InvigilatorDebug,
+            InvigilatorHuman,
+            InvigilatorFunctional,
+            InvigilatorAI,
+            InvigilatorBase,
+        )
+
         if cache is None:
+            from edsl.data.Cache import Cache
             cache = Cache()
 
         if debug:
@@ -674,6 +669,8 @@ class Agent(Base):
         >>> a.rich_print()
         <rich.table.Table object at ...>
         """
+        from rich.table import Table
+
         table_data, column_names = self._table()
         table = Table(title=f"{self.__class__.__name__} Attributes")
         for column in column_names:
@@ -705,7 +702,6 @@ class Agent(Base):
         agent = Agent(traits={'age': 10, 'hair': 'brown', 'height': 5.5})
         """
         return f"from edsl import Agent\nagent = Agent(traits={self.traits})"
-
 
 def main():
     """
