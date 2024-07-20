@@ -124,6 +124,7 @@ class TaskHistory:
         rows = int(len(TaskStatus) ** 0.5) + 1
         cols = (len(TaskStatus) + rows - 1) // rows  # Ensure all plots fit
 
+        import matplotlib.pyplot as plt
         fig, axes = plt.subplots(rows, cols, figsize=(15, 10))
         axes = axes.flatten()  # Flatten in case of a single row/column
 
