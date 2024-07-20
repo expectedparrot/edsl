@@ -7,23 +7,23 @@ A `Survey` is collection of questions that can be administered asynchronously to
 
 The key steps to creating and conducting a survey are:
 
-* Creating `Question` objects of any type (multiple choice, free text, linear scale, etc.)
-* Passing questions to a `Survey` 
+* Creating `Question` objects of any type (multiple choice, checkbox, free text, numerical, linear scale, etc.)
+* Passing questions to a `Survey`
 * Running the survey by sending it to a language `Model`
 
 When running a survey you can optionally:
 
-* Add traits for an AI `Agent` (or `AgentList`) that will respond to the survey 
+* Add traits for an AI `Agent` (or an `AgentList` of multiple agents) to respond to the survey 
 * Add values for parameterized questions (`Scenario` objects) 
-* Add conditional rules or "memory" of responses to other questions
+* Add conditional rules/logic, context and "memory" of responses to other questions
 
-Running a survey automatically generates a `Results` object containing the responses to the survey.
+Running a survey automatically generates a `Results` object containing the responses and other components of the survey (questions, agents, scenarios, models, prompts, etc.). 
 See the :ref:`results` module for more information on working with `Results` objects.
 
 
 Key methods 
 -----------
-A survey is administered by calling the `run()` method on the `Survey` object, after adding any agents, scenarios and models with the `by()` method and any survey rules or memory with the appropriate methods.
+A survey is administered by calling the `run()` method on the `Survey` object, after adding any agents, scenarios and models with the `by()` method, and any survey rules or memory with the appropriate methods.
 The methods for adding survey rules and memory include the following, which are each discussed in more detail below:
 
 * `add_skip_rule()` - Skip a question based on a conditional expression (e.g., the response to another question).
@@ -34,10 +34,16 @@ The methods for adding survey rules and memory include the following, which are 
 * `add_targeted_memory()` - Include a memory of a specific question/answer at another question in the survey.
 * `add_memory_collection()` - Include memories of a set of prior questions/answers at any other question in the survey.
 
+Piping
+^^^^^^
+You can also pipe components of other questions into a question, for example, to reference the response to a previous question in a later question.
+
+Flow
+^^^^
 A special method `show_flow()` will display the flow of the survey, showing the order of questions and any rules that have been applied.
 
 
-*Coming soon:*
+*Request access:*
 An EDSL survey can also be exported to other platforms such as LimeSurvey, Google Forms, Qualtrics and SurveyMonkey. 
 This can be useful for combining responses from AI and human audiences. 
 See a `demo notebook <https://docs.expectedparrot.com/en/latest/notebooks/export_survey_updates.html>`_.
@@ -231,6 +237,57 @@ An expression is evaluated to True or False, with the answer substituted into th
 The placeholder for this answer is the name of the question itself. 
 In the examples, the answer to q1 is substituted into the expression `"color == 'Blue'"`, 
 as the name of q1 is "color".
+
+
+Piping 
+------
+Piping is a method of referencing the components of a previous question in a later question.
+For example:
+
+.. code-block:: python
+
+   from edsl.questions import QuestionFreeText
+
+   q0 = QuestionFreeText(
+      question_text = "What is your favorite color?", 
+      question_name = "color"
+   )
+
+   q1 = QuestionList(
+      question_text = "Name some things that are {{ q0.answer }}.", 
+      question_name = "examples"
+   )
+
+   survey = Survey([q0, q1])
+
+In this example, q0 will be administered before q1 and the response to q0 is piped into q1, so that the prompt for q1 will be "Name some things that are <response to q0>.".
+
+
+This can also be done with agent traits. For example:
+
+.. code-block:: python
+
+   from edsl import Agent, QuestionFreeText
+
+   a = Agent(traits = {'first_name': 'John'})
+
+   q = QuestionFreeText(
+      question_text = 'What is your last name, {{ agent.first_name }}?', 
+      question_name = "example"
+   )
+
+   jobs = q.by(a)
+   print(jobs.prompts().select('user_prompt').first().text)
+
+
+This code will output the text of the prompt for the question:
+
+.. code-block:: text
+
+   You are being asked the following question: What is your last name, John?
+   Return a valid JSON formatted like this:
+   {"answer": "<put free text answer here>"}
+
 
 
 Question memory

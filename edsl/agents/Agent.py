@@ -497,6 +497,7 @@ class Agent(Base):
             f"'{type(self).__name__}' object has no attribute '{name}'"
         )
 
+
     def __getstate__(self):
         state = self.__dict__.copy()
         # Include any additional state that needs to be serialized
