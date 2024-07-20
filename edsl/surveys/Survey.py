@@ -5,9 +5,6 @@ import re
 
 from typing import Any, Generator, Optional, Union, List, Literal, Callable
 
-from rich import print
-from rich.table import Table
-
 from edsl.exceptions import SurveyCreationError, SurveyHasNoRulesError
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.surveys.base import RulePriority, EndOfSurvey
@@ -18,11 +15,10 @@ from edsl.Base import Base
 from edsl.surveys.SurveyExportMixin import SurveyExportMixin
 from edsl.surveys.descriptors import QuestionsDescriptor
 from edsl.surveys.MemoryPlan import MemoryPlan
+
 from edsl.surveys.DAG import DAG
-from edsl.utilities import is_notebook
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 from edsl.surveys.SurveyFlowVisualizationMixin import SurveyFlowVisualizationMixin
-
 
 class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     """A collection of questions that supports skip logic."""
@@ -957,6 +953,8 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         │ └───────────────┴─────────────────┴───────────────┴──────────────────────────────────────────────┘ │
         └────────────────────────────────────────────────────────────────────────────────────────────────────┘
         """
+        from rich.table import Table
+
         table = Table(show_header=True, header_style="bold magenta")
         table.add_column("Questions", style="dim")
 

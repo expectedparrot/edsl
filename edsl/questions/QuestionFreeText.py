@@ -2,8 +2,6 @@ from __future__ import annotations
 import textwrap
 from typing import Any, Optional
 from edsl.questions.QuestionBase import QuestionBase
-from edsl.scenarios import Scenario
-from edsl.utilities import random_string
 
 
 class QuestionFreeText(QuestionBase):
@@ -43,12 +41,14 @@ class QuestionFreeText(QuestionBase):
         self._validate_answer_key_value(answer, "answer", str)
         return answer
 
-    def _translate_answer_code_to_answer(self, answer, scenario: Scenario = None):
+    def _translate_answer_code_to_answer(self, answer, scenario: 'Scenario' = None):
         """Do nothing, because the answer is already in a human-readable format."""
         return answer
 
     def _simulate_answer(self, human_readable: bool = True) -> dict[str, str]:
         """Simulate a valid answer for debugging purposes."""
+        from edsl.utilities.utilities import random_string
+
         return {"answer": random_string()}
 
     @property

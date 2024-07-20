@@ -1,13 +1,10 @@
 from __future__ import annotations
 import json
-from sqlalchemy import create_engine
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import sessionmaker
 from typing import Any, Generator, Optional, Union
+
 from edsl.config import CONFIG
 from edsl.data.CacheEntry import CacheEntry
 from edsl.data.orm import Base, Data
-
 
 class SQLiteDict:
     """
@@ -25,10 +22,15 @@ class SQLiteDict:
         >>> import os; os.unlink(temp_db_path)  # Clean up the temp file after the test
 
         """
+        from sqlalchemy.exc import SQLAlchemyError
+        from sqlalchemy.orm import sessionmaker
+        from sqlalchemy import create_engine
+
         self.db_path = db_path or CONFIG.get("EDSL_DATABASE_PATH")
         if not self.db_path.startswith("sqlite:///"):
             self.db_path = f"sqlite:///{self.db_path}"
         try:
+            from edsl.data.orm import Base, Data
             self.engine = create_engine(self.db_path, echo=False, future=True)
             Base.metadata.create_all(self.engine)
             self.Session = sessionmaker(bind=self.engine)
@@ -55,6 +57,7 @@ class SQLiteDict:
         if not isinstance(value, CacheEntry):
             raise ValueError(f"Value must be a CacheEntry object (got {type(value)}).")
         with self.Session() as db:
+            from edsl.data.orm import Base, Data
             db.merge(Data(key=key, value=json.dumps(value.to_dict())))
             db.commit()
 
@@ -69,6 +72,7 @@ class SQLiteDict:
         True
         """
         with self.Session() as db:
+            from edsl.data.orm import Base, Data
             value = db.query(Data).filter_by(key=key).first()
             if not value:
                 raise KeyError(f"Key '{key}' not found.")

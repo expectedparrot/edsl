@@ -1,7 +1,6 @@
 """This module contains the descriptors used to set the attributes of the Agent class."""
 
 from typing import Dict
-from edsl.utilities.utilities import is_valid_variable_name
 from edsl.exceptions.agents import AgentNameError, AgentTraitKeyError
 
 
@@ -30,6 +29,7 @@ class TraitsDescriptor:
 
     def __set__(self, instance, traits_dict: Dict[str, str]) -> None:
         """Set the value of the attribute."""
+        from edsl.utilities.utilities import is_valid_variable_name
         for key, value in traits_dict.items():
             if key == "name":
                 raise AgentNameError(

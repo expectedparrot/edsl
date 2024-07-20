@@ -7,18 +7,17 @@ import json
 import os
 import warnings
 from typing import Optional, Union
-
+import time
 from edsl.config import CONFIG
 from edsl.data.CacheEntry import CacheEntry
-from edsl.data.SQLiteDict import SQLiteDict
+
+#from edsl.data.SQLiteDict import SQLiteDict
 from edsl.Base import Base
 from edsl.utilities.utilities import dict_hash
-
 from edsl.utilities.decorators import (
     add_edsl_version,
     remove_edsl_version,
 )
-
 
 class Cache(Base):
     """
@@ -38,7 +37,7 @@ class Cache(Base):
         self,
         *,
         filename: Optional[str] = None,
-        data: Optional[Union[SQLiteDict, dict]] = None,
+        data: Optional[Union['SQLiteDict', dict]] = None,
         immediate_write: bool = True,
         method=None,
     ):
@@ -104,6 +103,8 @@ class Cache(Base):
 
     def _perform_checks(self):
         """Perform checks on the cache."""
+        from edsl.data.CacheEntry import CacheEntry
+
         if any(not isinstance(value, CacheEntry) for value in self.data.values()):
             raise Exception("Not all values are CacheEntry instances")
         if self.method is not None:
@@ -138,6 +139,8 @@ class Cache(Base):
 
 
         """
+        from edsl.data.CacheEntry import CacheEntry
+
         key = CacheEntry.gen_key(
             model=model,
             parameters=parameters,
@@ -171,6 +174,7 @@ class Cache(Base):
         * If `immediate_write` is True , the key-value pair is added to `self.data`
         * If `immediate_write` is False, the key-value pair is added to `self.new_entries_to_write_later`
         """
+
         entry = CacheEntry(
             model=model,
             parameters=parameters,
@@ -188,13 +192,14 @@ class Cache(Base):
         return key
 
     def add_from_dict(
-        self, new_data: dict[str, CacheEntry], write_now: Optional[bool] = True
+        self, new_data: dict[str, 'CacheEntry'], write_now: Optional[bool] = True
     ) -> None:
         """
         Add entries to the cache from a dictionary.
 
         :param write_now: Whether to write to the cache immediately (similar to `immediate_write`).
         """
+
         for key, value in new_data.items():
             if key in self.data:
                 if value != self.data[key]:
@@ -231,6 +236,8 @@ class Cache(Base):
 
         :param write_now: Whether to write to the cache immediately (similar to `immediate_write`).
         """
+        from edsl.data.SQLiteDict import SQLiteDict
+
         db = SQLiteDict(db_path)
         new_data = {}
         for key, value in db.items():
@@ -268,6 +275,7 @@ class Cache(Base):
         * If `db_path` is provided, the cache will be stored in an SQLite database.
         """
         # if a file doesn't exist at jsonfile, throw an error
+        from edsl.data.SQLiteDict import SQLiteDict
         if not os.path.exists(jsonlfile):
             raise FileNotFoundError(f"File {jsonlfile} not found")
 
@@ -286,6 +294,8 @@ class Cache(Base):
         """
         ## TODO: Check to make sure not over-writing (?)
         ## Should be added to SQLiteDict constructor (?)
+        from edsl.data.SQLiteDict import SQLiteDict
+
         new_data = SQLiteDict(db_path)
         for key, value in self.data.items():
             new_data[key] = value

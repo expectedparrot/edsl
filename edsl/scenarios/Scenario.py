@@ -1,17 +1,12 @@
 """A Scenario is a dictionary with a key/value to parameterize a question."""
 
+import time
 import copy
 from collections import UserDict
 from typing import Union, List, Optional, Generator
 import base64
 import hashlib
-import json
-
-import fitz  # PyMuPDF
 import os
-import subprocess
-
-from rich.table import Table
 
 from edsl.Base import Base
 from edsl.scenarios.ScenarioImageMixin import ScenarioImageMixin
@@ -21,7 +16,6 @@ from edsl.utilities.decorators import (
     add_edsl_version,
     remove_edsl_version,
 )
-
 
 class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
     """A Scenario is a dictionary of keys/values.
@@ -217,6 +211,8 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
 
     @classmethod
     def from_pdf(cls, pdf_path):
+        import fitz  # PyMuPDF
+
         # Ensure the file exists
         if not os.path.exists(pdf_path):
             raise FileNotFoundError(f"The file {pdf_path} does not exist.")
@@ -404,6 +400,8 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
 
     def rich_print(self) -> "Table":
         """Display an object as a rich table."""
+        from rich.table import Table
+
         table_data, column_names = self._table()
         table = Table(title=f"{self.__class__.__name__} Attributes")
         for column in column_names:

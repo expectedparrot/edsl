@@ -22,7 +22,7 @@ import csv
 from simpleeval import EvalWithCompoundTypes
 
 from edsl.Base import Base
-from edsl.agents import Agent
+#from edsl.agents import Agent
 from edsl.utilities.decorators import (
     add_edsl_version,
     remove_edsl_version,
@@ -32,7 +32,7 @@ from edsl.utilities.decorators import (
 class AgentList(UserList, Base):
     """A list of Agents."""
 
-    def __init__(self, data: Optional[list[Agent]] = None):
+    def __init__(self, data: Optional[list['Agent']] = None):
         """Initialize a new AgentList.
 
         :param data: A list of Agents.
@@ -77,6 +77,7 @@ class AgentList(UserList, Base):
     def select(self, *traits) -> AgentList:
         """Selects agents with only the references traits.
 
+        >>> from edsl.agents.Agent import Agent
         >>> al = AgentList([Agent(traits = {'a': 1, 'b': 1}), Agent(traits = {'a': 1, 'b': 2})])
         >>> al.select('a')
         AgentList([Agent(traits = {'a': 1}), Agent(traits = {'a': 1})])
@@ -94,12 +95,13 @@ class AgentList(UserList, Base):
         """
         Filter a list of agents based on an expression.
 
+        >>> from edsl.agents.Agent import Agent
         >>> al = AgentList([Agent(traits = {'a': 1, 'b': 1}), Agent(traits = {'a': 1, 'b': 2})])
         >>> al.filter("b == 2")
         AgentList([Agent(traits = {'a': 1, 'b': 2})])
         """
 
-        def create_evaluator(agent: Agent):
+        def create_evaluator(agent: 'Agent'):
             """Create an evaluator for the given result.
             The 'combined_dict' is a mapping of all values for that Result object.
             """
@@ -133,6 +135,7 @@ class AgentList(UserList, Base):
 
         :param file_path: The path to the CSV file.
         """
+        from edsl.agents.Agent import Agent
         agent_list = []
         with open(file_path, "r") as f:
             reader = csv.DictReader(f)
@@ -153,7 +156,7 @@ class AgentList(UserList, Base):
         """Remove traits from the AgentList.
 
         :param traits: The traits to remove.
-
+        >>> from edsl.agents.Agent import Agent
         >>> al = AgentList([Agent({'age': 22, 'hair': 'brown', 'height': 5.5}), Agent({'age': 22, 'hair': 'brown', 'height': 5.5})])
         >>> al.remove_trait('age')
         AgentList([Agent(traits = {'hair': 'brown', 'height': 5.5}), Agent(traits = {'hair': 'brown', 'height': 5.5})])
@@ -222,12 +225,13 @@ class AgentList(UserList, Base):
         """Deserialize the dictionary back to an AgentList object.
 
         :param: data: A dictionary representing an AgentList.
-
+        >>> from edsl.agents.Agent import Agent
         >>> al = AgentList([Agent.example(), Agent.example()])
         >>> al2 = AgentList.from_dict(al.to_dict())
         >>> al2 == al
         True
         """
+        from edsl.agents.Agent import Agent
         agents = [Agent.from_dict(agent_dict) for agent_dict in data["agent_list"]]
         return cls(agents)
 
@@ -240,6 +244,7 @@ class AgentList(UserList, Base):
         2
 
         """
+        from edsl.agents.Agent import Agent
         return cls([Agent.example(), Agent.example()])
 
     @classmethod
@@ -249,6 +254,7 @@ class AgentList(UserList, Base):
         :param trait_name: The name of the trait.
         :param values: A list of values.
         """
+        from edsl.agents.Agent import Agent
         return AgentList([Agent({trait_name: value}) for value in values])
 
     def __mul__(self, other: AgentList) -> AgentList:

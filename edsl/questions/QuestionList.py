@@ -5,8 +5,6 @@ from typing import Any, Optional, Union
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.descriptors import IntegerOrNoneDescriptor
 
-from edsl.scenarios import Scenario
-from edsl.utilities import random_string
 
 
 class QuestionList(QuestionBase):
@@ -42,13 +40,15 @@ class QuestionList(QuestionBase):
         self._validate_answer_list(answer)
         return answer
 
-    def _translate_answer_code_to_answer(self, answer, scenario: Scenario = None):
+    def _translate_answer_code_to_answer(self, answer, scenario: 'Scenario' = None):
         """There is no answer code."""
         return answer
 
     def _simulate_answer(self, human_readable: bool = True):
         """Simulate a valid answer for debugging purposes (what the validator expects)."""
         num_items = random.randint(1, self.max_list_items or 2)
+        from edsl.utilities.utilities import random_string
+
         return {"answer": [random_string() for _ in range(num_items)]}
 
     @property

@@ -2,11 +2,10 @@ from __future__ import annotations
 import textwrap
 from random import uniform
 from typing import Any, Optional, Union
+
 from edsl.exceptions import QuestionAnswerValidationError
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.descriptors import NumericalOrNoneDescriptor
-from edsl.scenarios import Scenario
-from edsl.utilities import random_string
 
 
 class QuestionNumerical(QuestionBase):
@@ -48,12 +47,14 @@ class QuestionNumerical(QuestionBase):
         self._validate_answer_numerical(answer)
         return answer
 
-    def _translate_answer_code_to_answer(self, answer, scenario: Scenario = None):
+    def _translate_answer_code_to_answer(self, answer, scenario: 'Scenario' = None):
         """There is no answer code."""
         return answer
 
     def _simulate_answer(self, human_readable: bool = True):
         """Simulate a valid answer for debugging purposes."""
+        from edsl.utilities.utilities import random_string
+
         return {
             "answer": uniform(self.min_value, self.max_value),
             "comment": random_string(),

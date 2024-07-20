@@ -1,14 +1,12 @@
 from __future__ import annotations
-from typing import Optional, Union
+import time
+from typing import Union
 import random
 
 from jinja2 import Template
 
-from edsl.utilities import random_string
-from edsl.questions.descriptors import QuestionOptionsDescriptor
 from edsl.questions.QuestionBase import QuestionBase
-from edsl.scenarios import Scenario
-
+from edsl.questions.descriptors import QuestionOptionsDescriptor
 
 class QuestionMultipleChoice(QuestionBase):
     """This question prompts the agent to select one option from a list of options."""
@@ -47,8 +45,10 @@ class QuestionMultipleChoice(QuestionBase):
         self._validate_answer_multiple_choice(answer)
         return answer
 
-    def _translate_answer_code_to_answer(self, answer_code, scenario: Scenario = None):
+    def _translate_answer_code_to_answer(self, answer_code, scenario: 'Scenario' = None):
         """Translate the answer code to the actual answer."""
+        from edsl.scenarios.Scenario import Scenario
+
         scenario = scenario or Scenario()
         translated_options = [
             Template(str(option)).render(scenario) for option in self.question_options
@@ -59,6 +59,8 @@ class QuestionMultipleChoice(QuestionBase):
         self, human_readable: bool = True
     ) -> dict[str, Union[int, str]]:
         """Simulate a valid answer for debugging purposes."""
+        from edsl.utilities.utilities import random_string
+
         if human_readable:
             answer = random.choice(self.question_options)
         else:
@@ -70,6 +72,7 @@ class QuestionMultipleChoice(QuestionBase):
 
     @property
     def question_html_content(self) -> str:
+
         if hasattr(self, "option_labels"):
             option_labels = self.option_labels
         else:
@@ -127,6 +130,7 @@ def main():
     q.to_dict()
     assert q.from_dict(q.to_dict()) == q
 
-    import doctest
 
+if __name__ == "__main__":
+    import doctest
     doctest.testmod(optionflags=doctest.ELLIPSIS)
