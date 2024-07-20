@@ -249,6 +249,7 @@ class Cache(Base):
         """
         Construct a Cache from a SQLite database.
         """
+        from edsl.data.SQLiteDict import SQLiteDict
         return cls(data=SQLiteDict(db_path))
 
     @classmethod

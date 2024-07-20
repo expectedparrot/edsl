@@ -13,24 +13,25 @@ def to_dataset(func):
         if self.__class__.__name__ == "Results":
             return func(self.select(), *args, **kwargs)
         else:
-            raise Exception(
-                f"Class {self.__class__.__name__} not recognized as a Results or Dataset object."
-            )
-
+            return func(self, *args, **kwargs)
+    wrapper._is_wrapped = True
     return wrapper
 
-def decorate_all_methods(cls):
-    for attr_name, attr_value in cls.__dict__.items():
-        if callable(attr_value):
+def decorate_methods_from_mixin(cls, mixin_cls):
+    for attr_name, attr_value in mixin_cls.__dict__.items():
+        if callable(attr_value) and not attr_name.startswith("__"):
             setattr(cls, attr_name, to_dataset(attr_value))
     return cls
 
 
-@decorate_all_methods
 class ResultsExportMixin(DatasetExportMixin):
     """Mixin class for exporting Results objects."""
 
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        decorate_methods_from_mixin(cls, DatasetExportMixin)
 
+        
 if __name__ == "__main__":
     #pass
     import doctest

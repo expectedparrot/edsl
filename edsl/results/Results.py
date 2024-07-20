@@ -3,7 +3,6 @@ The Results object is the result of running a survey.
 It is not typically instantiated directly, but is returned by the run method of a `Job` object.
 """
 from __future__ import annotations
-import time
 import json
 import random
 from collections import UserList, defaultdict
@@ -19,11 +18,11 @@ from edsl.exceptions.results import (
     ResultsFilterError,
 )
 
-from .ResultsExportMixin import ResultsExportMixin
-from .ResultsToolsMixin import ResultsToolsMixin
-from .ResultsDBMixin import ResultsDBMixin
-from .ResultsGGMixin import ResultsGGMixin
-from .ResultsFetchMixin import ResultsFetchMixin
+from edsl.results.ResultsExportMixin import ResultsExportMixin
+from edsl.results.ResultsToolsMixin import ResultsToolsMixin
+from edsl.results.ResultsDBMixin import ResultsDBMixin
+from edsl.results.ResultsGGMixin import ResultsGGMixin
+from edsl.results.ResultsFetchMixin import ResultsFetchMixin
 
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 from edsl.utilities.utilities import dict_hash
@@ -37,7 +36,22 @@ class Mixins(
     ResultsGGMixin,
     ResultsToolsMixin,
 ):
-    pass
+    def print_long(self, max_rows=None) -> None:
+        """Print the results in long format.
+
+        >>> from edsl.results import Results
+        >>> r = Results.example()
+        >>> r.select('how_feeling').print_long(max_rows = 2)
+        ┏━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━┓
+        ┃ Result index ┃ Key         ┃ Value ┃
+        ┡━━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━┩
+        │ 0            │ how_feeling │ OK    │
+        │ 1            │ how_feeling │ Great │
+        └──────────────┴─────────────┴───────┘
+        """
+        from edsl.utilities.interface import print_results_long
+
+        print_results_long(self, max_rows=max_rows)
 
 class Results(UserList, Mixins, Base):
     """
