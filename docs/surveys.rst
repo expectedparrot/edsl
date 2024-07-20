@@ -254,7 +254,7 @@ For example:
    )
 
    q1 = QuestionList(
-      question_text = "Name some things that are {{ q0.answer }}.", 
+      question_text = "Name some things that are {{ color.answer }}.", 
       question_name = "examples"
    )
 
