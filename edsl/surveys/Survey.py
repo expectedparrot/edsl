@@ -558,6 +558,12 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         job = Jobs(survey=self)
         return job.by(*args)
+    
+    def to_jobs(self):
+        """Convert the survey to a Jobs object."""
+        from edsl.jobs.Jobs import Jobs
+
+        return Jobs(survey=self)
 
     def run(self, *args, **kwargs) -> "Results":
         """Turn the survey into a Job and runs it.

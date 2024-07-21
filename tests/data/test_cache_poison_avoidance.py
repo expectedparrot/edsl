@@ -84,7 +84,7 @@ def test_good_answer_cached():
                     question = q, 
                     scenario = {}, 
                     memory_plan = Mock(), 
-                    current_answers = Mock(),
+                    current_answers = {},
                     survey = Survey.example(),
                     cache = c
     )
