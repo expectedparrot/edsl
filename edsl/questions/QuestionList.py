@@ -6,7 +6,6 @@ from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.descriptors import IntegerOrNoneDescriptor
 
 
-
 class QuestionList(QuestionBase):
     """This question prompts the agent to answer by providing a list of items as comma-separated strings."""
 
@@ -40,7 +39,7 @@ class QuestionList(QuestionBase):
         self._validate_answer_list(answer)
         return answer
 
-    def _translate_answer_code_to_answer(self, answer, scenario: 'Scenario' = None):
+    def _translate_answer_code_to_answer(self, answer, scenario: "Scenario" = None):
         """There is no answer code."""
         return answer
 

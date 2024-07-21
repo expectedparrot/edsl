@@ -29,8 +29,8 @@ def create_image(console, image_filename):
 
 
 def display_table(console, table, filename):
-    #from rich.console import Console
-    #from rich.table import Table
+    # from rich.console import Console
+    # from rich.table import Table
     """Display the table using the rich library and save it to a file if a filename is provided."""
     if filename is not None:
         with open(filename, "w") as f:
@@ -166,9 +166,6 @@ def get_multiline_textsize(text, font):
     return max_width, total_height
 
 
-
-
-
 def print_results_long(results, max_rows=None):
     from rich.console import Console
     from rich.table import Table
@@ -212,7 +209,7 @@ def print_dict_with_rich(d, key_name="Key", value_name="Value", filename=None):
     for key, value in d.items():
         table.add_row(key, str(value))
     console.print(table)
-    #display_table(console, table, filename)
+    # display_table(console, table, filename)
 
 
 def print_dict_as_html_table(
@@ -333,7 +330,7 @@ def print_dataset_with_rich(data, filename=None, split_at_dot=True):
         table.add_row(*row)
 
     console.print(table)
-    #display_table(console, table, filename)
+    # display_table(console, table, filename)
 
 
 def create_latex_table_from_data(data, filename=None, split_at_dot=True):

@@ -8,14 +8,15 @@ from jinja2 import Template
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.descriptors import QuestionOptionsDescriptor
 
+
 class QuestionMultipleChoice(QuestionBase):
     """This question prompts the agent to select one option from a list of options."""
 
     question_type = "multiple_choice"
     purpose = "When options are known and limited"
-    question_options: Union[
-        list[str], list[list], list[float], list[int]
-    ] = QuestionOptionsDescriptor()
+    question_options: Union[list[str], list[list], list[float], list[int]] = (
+        QuestionOptionsDescriptor()
+    )
 
     def __init__(
         self,
@@ -45,7 +46,9 @@ class QuestionMultipleChoice(QuestionBase):
         self._validate_answer_multiple_choice(answer)
         return answer
 
-    def _translate_answer_code_to_answer(self, answer_code, scenario: 'Scenario' = None):
+    def _translate_answer_code_to_answer(
+        self, answer_code, scenario: "Scenario" = None
+    ):
         """Translate the answer code to the actual answer."""
         from edsl.scenarios.Scenario import Scenario
 
@@ -133,4 +136,5 @@ def main():
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)

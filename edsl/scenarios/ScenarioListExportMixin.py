@@ -1,7 +1,8 @@
 """Mixin class for exporting results."""
-import time
+
 from functools import wraps
 from edsl.results.DatasetExportMixin import DatasetExportMixin
+
 
 def to_dataset(func):
     """Convert the Results object to a Dataset object before calling the function."""
@@ -17,6 +18,7 @@ def to_dataset(func):
             )
 
     return wrapper
+
 
 def decorate_all_methods(cls):
     for attr_name, attr_value in cls.__dict__.items():

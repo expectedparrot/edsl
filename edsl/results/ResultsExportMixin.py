@@ -1,8 +1,10 @@
 """Mixin class for exporting results."""
+
 from functools import wraps
 from typing import Literal, Optional, Union
 
 from edsl.results.DatasetExportMixin import DatasetExportMixin
+
 
 def to_dataset(func):
     """Convert the Results object to a Dataset object before calling the function."""
@@ -14,8 +16,10 @@ def to_dataset(func):
             return func(self.select(), *args, **kwargs)
         else:
             return func(self, *args, **kwargs)
+
     wrapper._is_wrapped = True
     return wrapper
+
 
 def decorate_methods_from_mixin(cls, mixin_cls):
     for attr_name, attr_value in mixin_cls.__dict__.items():
@@ -31,8 +35,9 @@ class ResultsExportMixin(DatasetExportMixin):
         super().__init_subclass__(**kwargs)
         decorate_methods_from_mixin(cls, DatasetExportMixin)
 
-        
+
 if __name__ == "__main__":
-    #pass
+    # pass
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)

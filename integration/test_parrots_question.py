@@ -2,22 +2,20 @@ from edsl.questions import QuestionMultipleChoice, QuestionNumerical, QuestionFr
 from edsl import Survey
 
 q1 = QuestionMultipleChoice(
-   question_name = "best_pet",
-   question_text = "What is the best kind of pet?",
-   question_options = ["Dog", "Fish", "Lizard", "Parrot"]
+    question_name="best_pet",
+    question_text="What is the best kind of pet?",
+    question_options=["Dog", "Fish", "Lizard", "Parrot"],
 )
 q2 = QuestionNumerical(
-   question_name = "ideal_fish",
-   question_text = "What is the ideal number of fish to own?"
+    question_name="ideal_fish", question_text="What is the ideal number of fish to own?"
 )
 q3 = QuestionFreeText(
-   question_name = "parrots",
-   question_text = "What are parrots known for?"
+    question_name="parrots", question_text="What are parrots known for?"
 )
 survey = Survey([q1, q2, q3])
 survey = survey.add_rule(q1, "best_pet == 'Dog'", q3)
 results = survey.run()
 results.select("best_pet", "ideal_fish", "parrots").print(format="rich")
 
-#results.task_history.plot()
+# results.task_history.plot()
 results.task_history.print()

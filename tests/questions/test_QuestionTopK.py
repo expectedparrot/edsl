@@ -4,6 +4,7 @@ from edsl.questions import Settings
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.derived.QuestionTopK import QuestionTopK, main
 
+
 def test_QuestionTopK_main():
     main()
 

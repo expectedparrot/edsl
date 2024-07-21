@@ -10,6 +10,7 @@ from edsl.utilities.decorators import (
     remove_edsl_version,
 )
 
+
 class Notebook(Base):
     """
     A Notebook is a utility class that allows you to easily share/pull ipynbs from Coop.
@@ -136,6 +137,7 @@ class Notebook(Base):
         """
         from nbconvert import HTMLExporter
         import nbformat
+
         notebook = nbformat.from_dict(self.data)
         html_exporter = HTMLExporter(template_name="basic")
         (body, _) = html_exporter.from_notebook_node(notebook)

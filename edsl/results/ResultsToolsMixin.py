@@ -1,4 +1,3 @@
-
 class ResultsToolsMixin:
     def get_themes(
         self,

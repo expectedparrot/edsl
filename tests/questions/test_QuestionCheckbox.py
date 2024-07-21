@@ -137,7 +137,7 @@ def test_QuestionCheckBox_serialization():
         "min_selections": 2,
         "max_selections": 3,
         "question_type": "checkbox",
-    }.items() <= q.to_dict().items() 
+    }.items() <= q.to_dict().items()
     assert {
         "question_name": "weekdays",
         "question_text": "Which weekdays do you like? Select 2 or 3.",

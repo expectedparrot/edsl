@@ -6,6 +6,7 @@ from edsl.config import CONFIG
 from edsl.data.CacheEntry import CacheEntry
 from edsl.data.orm import Base, Data
 
+
 class SQLiteDict:
     """
     A dictionary-like object that is an interface for an local database.
@@ -31,6 +32,7 @@ class SQLiteDict:
             self.db_path = f"sqlite:///{self.db_path}"
         try:
             from edsl.data.orm import Base, Data
+
             self.engine = create_engine(self.db_path, echo=False, future=True)
             Base.metadata.create_all(self.engine)
             self.Session = sessionmaker(bind=self.engine)
@@ -58,6 +60,7 @@ class SQLiteDict:
             raise ValueError(f"Value must be a CacheEntry object (got {type(value)}).")
         with self.Session() as db:
             from edsl.data.orm import Base, Data
+
             db.merge(Data(key=key, value=json.dumps(value.to_dict())))
             db.commit()
 
@@ -73,6 +76,7 @@ class SQLiteDict:
         """
         with self.Session() as db:
             from edsl.data.orm import Base, Data
+
             value = db.query(Data).filter_by(key=key).first()
             if not value:
                 raise KeyError(f"Key '{key}' not found.")

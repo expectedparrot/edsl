@@ -42,7 +42,7 @@ class QuestionExtract(QuestionBase):
         self._validate_answer_extract(answer)
         return answer
 
-    def _translate_answer_code_to_answer(self, answer, scenario: 'Scenario' = None):
+    def _translate_answer_code_to_answer(self, answer, scenario: "Scenario" = None):
         """Return the answer in a human-readable format."""
         return answer
 
@@ -106,6 +106,8 @@ def main():
     q.to_dict()
     assert q.from_dict(q.to_dict()) == q
 
+
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)

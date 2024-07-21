@@ -2,6 +2,7 @@ import json
 import asyncio
 import warnings
 
+
 async def async_repair(
     bad_json, error_message="", user_prompt=None, system_prompt=None, cache=None
 ):
@@ -22,6 +23,7 @@ async def async_repair(
 
     try:
         from edsl.utilities.repair_functions import extract_json_from_string
+
         valid_dict = extract_json_from_string(s)
         success = True
     except ValueError:

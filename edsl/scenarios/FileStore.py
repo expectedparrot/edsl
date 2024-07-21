@@ -120,11 +120,11 @@ class CSVFileStore(FileStore):
     def __init__(self, filename):
         super().__init__(filename, suffix=".csv")
 
+
 class PDFFileStore(FileStore):
     def __init__(self, filename):
         super().__init__(filename, suffix=".pdf")
 
-        
 
 if __name__ == "__main__":
     # file_path = "../conjure/examples/Ex11-2.sav"

@@ -41,7 +41,7 @@ class QuestionFreeText(QuestionBase):
         self._validate_answer_key_value(answer, "answer", str)
         return answer
 
-    def _translate_answer_code_to_answer(self, answer, scenario: 'Scenario' = None):
+    def _translate_answer_code_to_answer(self, answer, scenario: "Scenario" = None):
         """Do nothing, because the answer is already in a human-readable format."""
         return answer
 

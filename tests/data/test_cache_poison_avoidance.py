@@ -9,8 +9,9 @@ from edsl import Agent
 from edsl.language_models import LanguageModel
 from edsl.enums import InferenceServiceType
 
+
 def create_language_model(
-    exception: Exception, fail_at_number: int, never_ending=False, invalid_json = False
+    exception: Exception, fail_at_number: int, never_ending=False, invalid_json=False
 ):
     class TestLanguageModel(LanguageModel):
         _model_ = "gpt-4-1106-preview"
@@ -41,6 +42,7 @@ def create_language_model(
 
     return TestLanguageModel
 
+
 from edsl.data import Cache
 from edsl.prompts.Prompt import Prompt
 
@@ -49,7 +51,9 @@ c = Cache()
 a = Agent()
 
 from edsl.questions import QuestionNumerical
+
 q = QuestionNumerical.example()
+
 
 class InvigilatorTest(InvigilatorAI):
     def get_prompts(self):
@@ -58,39 +62,47 @@ class InvigilatorTest(InvigilatorAI):
             "system_prompt": Prompt("XX1XX"),
         }
 
+
 def test_bad_answer_not_cached():
     from edsl import Survey
-    m = create_language_model(exception=ValueError, fail_at_number=10, invalid_json = True)()
-    i = InvigilatorTest(agent = a, 
-                    model = m, 
-                    question = q, 
-                    scenario = {}, 
-                    memory_plan = Mock(), 
-                    current_answers = Mock(),
-                    survey = Survey.example(),
-                    cache = c
+
+    m = create_language_model(
+        exception=ValueError, fail_at_number=10, invalid_json=True
+    )()
+    i = InvigilatorTest(
+        agent=a,
+        model=m,
+        question=q,
+        scenario={},
+        memory_plan=Mock(),
+        current_answers=Mock(),
+        survey=Survey.example(),
+        cache=c,
     )
 
     with pytest.raises(Exception):
         response = i.answer_question()
-    
+
     assert c.data == {}
+
 
 def test_good_answer_cached():
     from edsl import Survey
-    m = create_language_model(exception=ValueError, fail_at_number=10, invalid_json = False)()
-    i = InvigilatorTest(agent = a, 
-                    model = m, 
-                    question = q, 
-                    scenario = {}, 
-                    memory_plan = Mock(), 
-                    current_answers = {},
-                    survey = Survey.example(),
-                    cache = c
+
+    m = create_language_model(
+        exception=ValueError, fail_at_number=10, invalid_json=False
+    )()
+    i = InvigilatorTest(
+        agent=a,
+        model=m,
+        question=q,
+        scenario={},
+        memory_plan=Mock(),
+        current_answers={},
+        survey=Survey.example(),
+        cache=c,
     )
 
     response = i.answer_question()
-    
+
     assert c.data != {}
-
-

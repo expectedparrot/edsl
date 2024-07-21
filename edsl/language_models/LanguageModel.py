@@ -22,6 +22,7 @@ from edsl.enums import service_to_api_keyname
 from edsl.exceptions import MissingAPIKeyError
 from edsl.language_models.RegisterLanguageModelsMeta import RegisterLanguageModelsMeta
 
+
 def handle_key_error(func):
     """Handle KeyError exceptions."""
 
@@ -282,7 +283,7 @@ class LanguageModel(
         self,
         user_prompt: str,
         system_prompt: str,
-        cache: 'Cache',
+        cache: "Cache",
         iteration: int = 0,
         encoded_image=None,
     ) -> tuple[dict, bool, str]:

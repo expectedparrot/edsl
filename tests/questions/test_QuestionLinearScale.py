@@ -6,6 +6,7 @@ from edsl.exceptions import (
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.derived.QuestionLinearScale import QuestionLinearScale, main
 
+
 def test_QuestionLinearScale_main():
     main()
 
@@ -86,8 +87,8 @@ def test_QuestionLinearScale_serialization():
     # serialization should add a "type" attribute
     q = QuestionLinearScale(**valid_question)
     print(q.to_dict())
-    
-    assert  {
+
+    assert {
         "question_text": "On a scale from 1 to 5, how much do you like pizza?",
         "question_options": [1, 2, 3, 4, 5],
         "question_name": "pizza",

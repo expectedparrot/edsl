@@ -11,6 +11,7 @@ class SurveyFlowVisualizationMixin:
         """Create an image showing the flow of users through the survey."""
         # Create a graph object
         import pydot
+
         graph = pydot.Dot(graph_type="digraph")
 
         # Add nodes for each question
@@ -100,8 +101,10 @@ class SurveyFlowVisualizationMixin:
                     """
                 )
             from edsl.utilities.utilities import is_notebook
+
             if is_notebook():
                 from IPython.display import Image
+
                 display(Image(tmp_file.name))
             else:
                 import os

@@ -5,7 +5,7 @@ from edsl.questions.RegisterQuestionsMeta import RegisterQuestionsMeta
 # Base Class
 from edsl.questions.QuestionBase import QuestionBase
 
-#Core Questions
+# Core Questions
 from edsl.questions.QuestionBudget import QuestionBudget
 from edsl.questions.QuestionCheckBox import QuestionCheckBox
 from edsl.questions.QuestionExtract import QuestionExtract
@@ -24,4 +24,4 @@ from edsl.questions.derived.QuestionTopK import QuestionTopK
 from edsl.questions.derived.QuestionYesNo import QuestionYesNo
 
 # # Compose Questions
-#from edsl.questions.compose_questions import compose_questions
+# from edsl.questions.compose_questions import compose_questions

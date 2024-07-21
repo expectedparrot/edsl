@@ -20,6 +20,7 @@ from edsl.surveys.DAG import DAG
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 from edsl.surveys.SurveyFlowVisualizationMixin import SurveyFlowVisualizationMixin
 
+
 class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     """A collection of questions that supports skip logic."""
 
@@ -558,7 +559,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         job = Jobs(survey=self)
         return job.by(*args)
-    
+
     def to_jobs(self):
         """Convert the survey to a Jobs object."""
         from edsl.jobs.Jobs import Jobs

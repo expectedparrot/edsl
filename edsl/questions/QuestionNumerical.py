@@ -47,7 +47,7 @@ class QuestionNumerical(QuestionBase):
         self._validate_answer_numerical(answer)
         return answer
 
-    def _translate_answer_code_to_answer(self, answer, scenario: 'Scenario' = None):
+    def _translate_answer_code_to_answer(self, answer, scenario: "Scenario" = None):
         """There is no answer code."""
         return answer
 

@@ -7,7 +7,7 @@ from edsl import QuestionFreeText
 from edsl.jobs.buckets.ModelBuckets import ModelBuckets
 
 
-async def answer_question_func(question, debug, task = None):
+async def answer_question_func(question, debug, task=None):
     await asyncio.sleep(1)
     return {"answer": 42}
 
@@ -58,15 +58,17 @@ async def test_task_add_dependency():
 
     creator_2.add_dependency(creator_1.generate_task(debug=False))
 
-    assert creator_2.generate_task(debug=False).depends_on == [QuestionFreeText.example().question_name]
+    assert creator_2.generate_task(debug=False).depends_on == [
+        QuestionFreeText.example().question_name
+    ]
 
     asyncio.run(creator_2._run_task_async(debug=False))
-    #breakpoint()
+    # breakpoint()
 
-    #results = await creator._run_focal_task(debug=False)
-    #assert results == {"answer": 42}
+    # results = await creator._run_focal_task(debug=False)
+    # assert results == {"answer": 42}
 
-    #assert creator.task_status == TaskStatus.FINISHED
+    # assert creator.task_status == TaskStatus.FINISHED
 
 
 @pytest.mark.asyncio
@@ -96,5 +98,5 @@ async def test_task_add_dependency():
     # #assert creator_2.generate_task(debug=False).depends_on == [QuestionFreeText.example().question_name]
     # with pytest.raises(asyncio.CancelledError):
     #     asyncio.run(creator_2._run_task_async(debug=False))
-    
-    #breakpoint()
+
+    # breakpoint()

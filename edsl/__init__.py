@@ -1,5 +1,6 @@
 import os
 import time
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)
 
@@ -24,7 +25,8 @@ from edsl.questions import QuestionYesNo
 from edsl.questions.question_registry import Question
 from edsl.scenarios import Scenario
 from edsl.scenarios import ScenarioList
-#from edsl.utilities.interface import print_dict_with_rich
+
+# from edsl.utilities.interface import print_dict_with_rich
 from edsl.surveys.Survey import Survey
 from edsl.language_models.registry import Model
 from edsl.language_models.ModelList import ModelList
