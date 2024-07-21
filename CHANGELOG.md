@@ -1,18 +1,7 @@
 # Changelog
 
-## [0.1.29] - 2024-TBD [In progress]
+## [0.1.30] - 2024-TBD [In progress]
 ### Added
-- Prompts visibility: Call `prompts()` on a `Jobs` object for a survey to inspect the prompts that will be used in a survey before running it. For example:
-```
-from edsl import Model, Survey
-j = Survey.example().by(Model()) 
-j.prompts().print(format="rich")
-```
-
-- Piping: Use agent traits and components of questions (question_text, answer, etc.) as inputs to other questions in a survey (e.g., `question_text = "What is your last name, {{ agent.first_name }}?"` or `question_text = "Name some examples of {{ prior_q.answer }}"`).
-
-- Agent traits: Call agent traits directly (e.g., `Agent.example().age` will return `22`).
-
 - [In progress] `ScenarioList.from_sqlite` allows you to create a list of scenarios from a SQLite table.
 
 - [In progress] Added LaTeX support to SQL outputs and ability to write to files: `Results.print(format="latex", filename="example.tex")`
@@ -21,6 +10,23 @@ j.prompts().print(format="rich")
 
 ### Changed
 - [In progress] `QuestionMultipleChoice` may be modified to allow combined options and free response "Other" option, as well as non-responsive answers. Previously, an error was thrown if the agent did not select one of the given options. Details TBD.
+
+
+## [0.1.29] - 2024-07-21
+### Added
+- Prompts visibility: Call `prompts()` on a `Jobs` object for a survey to inspect the prompts that will be used in a survey before running it. For example:
+```
+from edsl import Model, Survey
+j = Survey.example().by(Model()) 
+j.prompts().print(format="rich")
+```
+
+- Piping: Use agent traits and components of questions (question_text, answer, etc.) as inputs to other questions in a survey (e.g., `question_text = "What is your last name, {{ agent.first_name }}?"` or `question_text = "Name some examples of {{ prior_q.answer }}"` or `question_options = ["{{ prior_q.answer[0]}}", "{{ prior_q.answer[1] }}"]`). Examples: https://docs.expectedparrot.com/en/latest/surveys.html#id2
+
+- Agent traits: Call agent traits directly (e.g., `Agent.example().age` will return `22`).
+
+### Fixed
+- A bug in piping to allow you to pipe an `answer` into `question_options`. Examples: https://docs.expectedparrot.com/en/latest/surveys.html#id2
 
 
 ## [0.1.28] - 2024-07-09
