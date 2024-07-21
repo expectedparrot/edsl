@@ -1,11 +1,8 @@
 """Mixin class for ggplot2 plotting."""
 
 import subprocess
-import pandas as pd
 import tempfile
 from typing import Optional
-import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
 
 
 class ResultsGGMixin:
@@ -105,6 +102,9 @@ class ResultsGGMixin:
 
     def _display_plot(self, filename: str, width: float, height: float):
         """Display the plot in the notebook."""
+        import matplotlib.pyplot as plt
+        import matplotlib.image as mpimg
+
         if filename.endswith(".png"):
             img = mpimg.imread(filename)
             plt.figure(

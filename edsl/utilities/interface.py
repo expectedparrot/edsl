@@ -1,12 +1,45 @@
 """A module for displaying data in various formats."""
 
 from html import escape
-from IPython.display import HTML
-from IPython.display import display as ipython_diplay
 
-# from PIL import Image, ImageDraw, ImageFont
-from rich.console import Console
-from rich.table import Table
+
+def create_image(console, image_filename):
+    """Create an image from the console output."""
+    font_size = 15
+    from PIL import Image, ImageDraw, ImageFont
+
+    text = console.export_text()  # Get the console output as text.
+
+    # Create an image from the text
+    font_size = 15
+    font = ImageFont.load_default()  # Use the default font to avoid file path issues.
+    # text_width, text_height = ImageDraw.Draw(
+    #    Image.new("RGB", (100, 100))
+    # ).multiline_textsize(text, font=font)
+    text_width, text_height = get_multiline_textsize(text, font)
+    image = Image.new(
+        "RGB", (text_width + 20, text_height + 20), color=(255, 255, 255)
+    )  # Add some padding
+    d = ImageDraw.Draw(image)
+
+    # Draw text to image
+    d.multiline_text((10, 10), text, font=font, fill=(0, 0, 0))
+    # Save the image
+    image.save(image_filename)
+
+
+def display_table(console, table, filename):
+    # from rich.console import Console
+    # from rich.table import Table
+    """Display the table using the rich library and save it to a file if a filename is provided."""
+    if filename is not None:
+        with open(filename, "w") as f:
+            with console.capture() as capture:
+                console.print(table)
+            f.write(capture.get())
+        create_image(console, filename + ".png")
+    else:
+        console.print(table)
 
 
 def gen_html_sandwich(html_inner, interactive=False):
@@ -133,43 +166,10 @@ def get_multiline_textsize(text, font):
     return max_width, total_height
 
 
-# def create_image(console, image_filename):
-#     """Create an image from the console output."""
-#     font_size = 15
-
-#     text = console.export_text()  # Get the console output as text.
-
-#     # Create an image from the text
-#     font_size = 15
-#     font = ImageFont.load_default()  # Use the default font to avoid file path issues.
-#     # text_width, text_height = ImageDraw.Draw(
-#     #    Image.new("RGB", (100, 100))
-#     # ).multiline_textsize(text, font=font)
-#     text_width, text_height = get_multiline_textsize(text, font)
-#     image = Image.new(
-#         "RGB", (text_width + 20, text_height + 20), color=(255, 255, 255)
-#     )  # Add some padding
-#     d = ImageDraw.Draw(image)
-
-#     # Draw text to image
-#     d.multiline_text((10, 10), text, font=font, fill=(0, 0, 0))
-#     # Save the image
-#     image.save(image_filename)
-
-
-def display(console, table, filename):
-    """Display the table using the rich library and save it to a file if a filename is provided."""
-    if filename is not None:
-        with open(filename, "w") as f:
-            with console.capture() as capture:
-                console.print(table)
-            f.write(capture.get())
-        create_image(console, filename + ".png")
-    else:
-        console.print(table)
-
-
 def print_results_long(results, max_rows=None):
+    from rich.console import Console
+    from rich.table import Table
+
     console = Console(record=True)
     table = Table(show_header=True, header_style="bold magenta")
     table.add_column("Result index", style="dim")
@@ -199,6 +199,9 @@ def print_dict_with_rich(d, key_name="Key", value_name="Value", filename=None):
     │ c   │ 3     │
     └─────┴───────┘
     """
+    from rich.console import Console
+    from rich.table import Table
+
     console = Console(record=True)
     table = Table(show_header=True, header_style="bold magenta")
     table.add_column(key_name, style="dim")
@@ -206,7 +209,7 @@ def print_dict_with_rich(d, key_name="Key", value_name="Value", filename=None):
     for key, value in d.items():
         table.add_row(key, str(value))
     console.print(table)
-    # display(console, table, filename)
+    # display_table(console, table, filename)
 
 
 def print_dict_as_html_table(
@@ -251,6 +254,9 @@ def print_dict_as_html_table(
 
 
 def print_scenario_list(data):
+    from rich.console import Console
+    from rich.table import Table
+
     new_data = []
     for obs in data:
         try:
@@ -300,6 +306,9 @@ def print_dataset_with_rich(data, filename=None, split_at_dot=True):
     │ 3 │ 6 │
     └───┴───┘
     """
+    from rich.console import Console
+    from rich.table import Table
+
     console = Console(record=True)
 
     # Create a table object
@@ -321,7 +330,7 @@ def print_dataset_with_rich(data, filename=None, split_at_dot=True):
         table.add_row(*row)
 
     console.print(table)
-    # display(console, table, filename)
+    # display_table(console, table, filename)
 
 
 def create_latex_table_from_data(data, filename=None, split_at_dot=True):
@@ -495,6 +504,9 @@ def print_list_of_dicts_as_markdown_table(data, filename=None):
 
 def print_public_methods_with_doc(obj):
     """Print the public methods of an object along with their docstrings."""
+    from rich.console import Console
+    from rich.table import Table
+
     console = Console()
     public_methods_with_docstrings = [
         (method, getattr(obj, method).__doc__)
@@ -525,6 +537,10 @@ def print_tally_with_rich(data, filename=None):
     └───────┴───────┘
     """
     # Initialize a console object
+    from rich.console import Console
+    from rich.table import Table
+    from IPython.display import display
+
     console = Console(record=True)
 
     # Create a new table
@@ -538,7 +554,9 @@ def print_tally_with_rich(data, filename=None):
     for key, value in data.items():
         table.add_row(key, str(value))
 
-    display(console, table, filename)
+    from IPython.display import display
+
+    display_table(console, table, filename)
 
 
 def print_table_with_rich(data, filename=None):
@@ -561,6 +579,9 @@ def print_table_with_rich(data, filename=None):
     │ 2 │ 9 │ 8 │
     └───┴───┴───┘
     """
+    from rich.console import Console
+    from rich.table import Table
+
     # Initialize a console object - expects a list of dictionaries
     console = Console(record=True)
 
@@ -580,7 +601,7 @@ def print_table_with_rich(data, filename=None):
     for row in data:
         table.add_row(*[str(value) for value in row.values()])
 
-    display(console, table, filename)
+    display_table(console, table, filename)
 
 
 if __name__ == "__main__":

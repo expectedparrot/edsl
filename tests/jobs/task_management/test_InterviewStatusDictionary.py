@@ -3,6 +3,7 @@ import pytest
 from edsl.jobs.interviews.InterviewStatusDictionary import InterviewStatusDictionary
 from edsl.jobs.tasks.task_status_enum import TaskStatus, TaskStatusDescriptor
 
+
 def test_instantiation():
     i = InterviewStatusDictionary()
     assert i is not None

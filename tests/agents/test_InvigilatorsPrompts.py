@@ -57,13 +57,13 @@ def test_invigilator_ai_no_trait_template(mock_model, mock_question):
         codebook={"feeling": "Feelings right now", "age": "Age in years"},
         traits_presentation_template="",
     )
- 
+
     i = InvigilatorAI(
         agent=a,
         question=mock_question,
         scenario={},
         model=mock_model,
-        survey = Survey.example(),
+        survey=Survey.example(),
         memory_plan=None,
         current_answers=None,
     )
@@ -83,7 +83,7 @@ def test_invigilator_ai_with_trait_template(mock_model, mock_question):
         agent=a,
         question=mock_question,
         scenario={},
-        survey = Survey.example(),
+        survey=Survey.example(),
         model=mock_model,
         memory_plan=None,
         current_answers=None,
@@ -108,7 +108,7 @@ def test_invigilator_ai_with_incomplete_trait_template(mock_model, mock_question
         question=mock_question,
         scenario={},
         model=mock_model,
-        survey = Survey.example(),
+        survey=Survey.example(),
         memory_plan=None,
         current_answers=None,
     )

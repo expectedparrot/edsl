@@ -20,14 +20,21 @@ valid_question_three = {
     "question_name": "capital",
 }
 
+
 def test_parameters():
-    from edsl import QuestionFreeText 
-    q = QuestionFreeText(question_text = "{{ poo}}", question_name = "ugly_question")
-    assert q.parameters == {'poo'}
+    from edsl import QuestionFreeText
+
+    q = QuestionFreeText(question_text="{{ poo}}", question_name="ugly_question")
+    assert q.parameters == {"poo"}
 
     from edsl import QuestionMultipleChoice
-    q = QuestionMultipleChoice(question_text = "{{ poo}}", question_options = ["A", "{{ B}}"], question_name = "ugly_question")
-    assert q.parameters == {'poo', 'B'}
+
+    q = QuestionMultipleChoice(
+        question_text="{{ poo}}",
+        question_options=["A", "{{ B}}"],
+        question_name="ugly_question",
+    )
+    assert q.parameters == {"poo", "B"}
 
 
 def test_meta():
@@ -85,9 +92,13 @@ def test_Question_properties(capsys):
     assert isinstance(s, Survey)
     assert len(s) == 2
 
+
 def test_hashing():
     # NB: Will break if a new question is added
     from edsl import Question
-    examples = [Question.example(question_type) for question_type in  Question.available()]
+
+    examples = [
+        Question.example(question_type) for question_type in Question.available()
+    ]
     hashes = [hash(q) for q in examples]
     assert sum(hashes) == 16761523895673820409

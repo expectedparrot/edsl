@@ -7,6 +7,7 @@ from edsl.scenarios import Scenario
 from edsl.questions import QuestionMultipleChoice
 from edsl.jobs.interviews.Interview import Interview
 
+
 def test_retry():
     #  a survey with skip logic
     q0 = QuestionMultipleChoice(
@@ -32,13 +33,14 @@ def test_retry():
 
     def service_that_fails_set_times(num_fails):
         "Closure that generates a function that fails num_fails times before succeeding."
-        counter  = 0
+        counter = 0
+
         def service_that_fails(self, question, scenario):
             if counter < num_fails:
                 raise Exception("Failed!")
             else:
                 return "yes"
-            
+
         return service_that_fails
 
     direct_question_answering_method = service_that_fails_set_times(2)
@@ -46,6 +48,7 @@ def test_retry():
     a.add_direct_question_answering_method(direct_question_answering_method)
     scenario = Scenario()
     from edsl import Model
+
     m = Model()
     I = Interview(agent=a, survey=s, scenario=scenario, model=m)
 

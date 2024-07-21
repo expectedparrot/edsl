@@ -3,9 +3,9 @@
 from collections import UserDict, defaultdict
 from typing import Optional
 
-from edsl.surveys.Memory import Memory
-from edsl.prompts.Prompt import Prompt
-from edsl.surveys.DAG import DAG
+# from edsl.surveys.Memory import Memory
+# from edsl.prompts.Prompt import Prompt
+# from edsl.surveys.DAG import DAG
 
 
 class MemoryPlan(UserDict):
@@ -61,6 +61,8 @@ class MemoryPlan(UserDict):
         :param answers: A dictionary of question names to answers.
 
         """
+        from edsl.prompts.Prompt import Prompt
+
         self._check_valid_question_name(focal_question)
 
         if focal_question not in self:
@@ -121,6 +123,7 @@ class MemoryPlan(UserDict):
         self._check_valid_question_name(focal_question)
         self._check_valid_question_name(prior_question)
         self._check_order(focal_question, prior_question)
+        from edsl.surveys.Memory import Memory
 
         if focal_question not in self:
             memory = Memory()
@@ -160,6 +163,8 @@ class MemoryPlan(UserDict):
     @classmethod
     def from_dict(cls, data) -> "MemoryPlan":
         """Deserialize a memory plan from a dictionary."""
+        from edsl.surveys.Memory import Memory
+
         newdata = {}
         for question_name, memory in data["data"].items():
             newdata[question_name] = Memory.from_dict(memory)
@@ -182,13 +187,15 @@ class MemoryPlan(UserDict):
         return new_d
 
     @property
-    def dag(self) -> DAG:
+    def dag(self) -> "DAG":
         """Return a directed acyclic graph of the memory plan.
 
         >>> mp = MemoryPlan.example()
         >>> mp.dag
         {1: {0}}
         """
+        from edsl.surveys.DAG import DAG
+
         d = defaultdict(set)
         for focal_question, memory in self.items():
             for prior_question in memory:

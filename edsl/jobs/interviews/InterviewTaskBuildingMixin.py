@@ -5,17 +5,19 @@ import asyncio
 import time
 import traceback
 from typing import Generator, Union
+
 from edsl import CONFIG
 from edsl.exceptions import InterviewTimeoutError
-from edsl.data_transfer_models import AgentResponseDict
-from edsl.questions.QuestionBase import QuestionBase
+
+# from edsl.questions.QuestionBase import QuestionBase
 from edsl.surveys.base import EndOfSurvey
 from edsl.jobs.buckets.ModelBuckets import ModelBuckets
 from edsl.jobs.interviews.interview_exception_tracking import InterviewExceptionEntry
 from edsl.jobs.interviews.retry_management import retry_strategy
 from edsl.jobs.tasks.task_status_enum import TaskStatus
 from edsl.jobs.tasks.QuestionTaskCreator import QuestionTaskCreator
-from edsl.agents.InvigilatorBase import InvigilatorBase
+
+# from edsl.agents.InvigilatorBase import InvigilatorBase
 
 TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
 
@@ -150,15 +152,17 @@ class InterviewTaskBuildingMixin:
     async def _answer_question_and_record_task(
         self,
         *,
-        question: QuestionBase,
+        question: "QuestionBase",
         debug: bool,
         task=None,
-    ) -> AgentResponseDict:
+    ) -> "AgentResponseDict":
         """Answer a question and records the task.
 
         This in turn calls the the passed-in agent's async_answer_question method, which returns a response dictionary.
         Note that is updates answers dictionary with the response.
         """
+        from edsl.data_transfer_models import AgentResponseDict
+
         try:
             invigilator = self._get_invigilator(question, debug=debug)
 
@@ -254,11 +258,11 @@ class InterviewTaskBuildingMixin:
         """
         current_question_index: int = self.to_index[current_question.question_name]
 
-        next_question: Union[
-            int, EndOfSurvey
-        ] = self.survey.rule_collection.next_question(
-            q_now=current_question_index,
-            answers=self.answers | self.scenario | self.agent["traits"],
+        next_question: Union[int, EndOfSurvey] = (
+            self.survey.rule_collection.next_question(
+                q_now=current_question_index,
+                answers=self.answers | self.scenario | self.agent["traits"],
+            )
         )
 
         next_question_index = next_question.next_q

@@ -38,7 +38,7 @@ def test_QuestionList_construction():
     assert isinstance(q, QuestionList)
     assert q.question_name == valid_question["question_name"]
     assert q.question_text == valid_question["question_text"]
-  
+
     assert q.data == valid_question
 
     # QuestionList should impute extra fields appropriately
@@ -79,7 +79,7 @@ def test_QuestionList_serialization():
     q = QuestionList(**valid_question)
     valid_question_w_type = valid_question.copy()
     valid_question_w_type.update({"question_type": "list"})
-    assert valid_question_w_type.items() <= q.to_dict().items() 
+    assert valid_question_w_type.items() <= q.to_dict().items()
     q = QuestionList(**valid_question_w_extras)
     valid_question_w_type = valid_question_w_extras.copy()
     valid_question_w_type.update({"question_type": "list"})
@@ -87,9 +87,7 @@ def test_QuestionList_serialization():
     # and optional attributes if not present
     q = QuestionList(**valid_question_wo_extras)
     valid_question_w_type = valid_question_wo_extras.copy()
-    valid_question_w_type.update(
-        {"question_type": "list", "max_list_items": None}
-    )
+    valid_question_w_type.update({"question_type": "list", "max_list_items": None})
     assert valid_question_w_type.items() <= q.to_dict().items()
 
     # deserialization should return a QuestionListEnhanced object
@@ -106,9 +104,7 @@ def test_QuestionList_serialization():
     with pytest.raises(Exception):
         QuestionBase.from_dict({"type": "list", "question_text": ""})
     with pytest.raises(Exception):
-        QuestionBase.from_dict(
-            {"type": "list", "question_text": ""}
-        )
+        QuestionBase.from_dict({"type": "list", "question_text": ""})
     with pytest.raises(Exception):
         QuestionBase.from_dict(
             {
@@ -156,8 +152,8 @@ def test_QuestionList_answers():
         q._validate_answer({"answer": 1})
 
     # missing answer cases
-#    with pytest.raises(QuestionAnswerValidationError):
-#        q._validate_answer({"answer": []})
+    #    with pytest.raises(QuestionAnswerValidationError):
+    #        q._validate_answer({"answer": []})
     q_empty._validate_answer({"answer": []})
 
     # too many answers

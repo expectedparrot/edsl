@@ -22,12 +22,12 @@ def create_test_function(model):
     return model_test_func
 
 
-#from edsl.enums import LanguageModelType
-#to_exclude = [LanguageModelType.LLAMA_2_13B_CHAT_HF.value]
+# from edsl.enums import LanguageModelType
+# to_exclude = [LanguageModelType.LLAMA_2_13B_CHAT_HF.value]
 
 # Dynamically adding test methods for each question type
 
-models = ['gpt-4-turbo']
+models = ["gpt-4-turbo"]
 for model in models:
     model_test_method_name = f"test_model_{model}"
     model_test_method = create_test_function(model)

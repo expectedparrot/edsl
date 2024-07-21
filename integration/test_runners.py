@@ -36,7 +36,7 @@ def test_async():
     job = get_job()
     c = Cache()
     start = time.time()
-    results = job.run(cache = c)
+    results = job.run(cache=c)
     end = time.time()
     async_time = end - start
     if verbose:

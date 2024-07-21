@@ -1,12 +1,18 @@
 import pytest
-from edsl.BaseDiff import BaseDiff, BaseDiffCollection  # Adjust the import path as necessary
+from edsl.BaseDiff import (
+    BaseDiff,
+    BaseDiffCollection,
+)  # Adjust the import path as necessary
+
 
 @pytest.fixture
 def example_questions():
     from edsl import Question
+
     q_ft = Question.example("free_text")
     q_mc = Question.example("multiple_choice")
     return q_ft, q_mc
+
 
 def test_diff_apply(example_questions):
     q_ft, q_mc = example_questions
@@ -16,8 +22,10 @@ def test_diff_apply(example_questions):
 
     assert new_q_mc == q_mc
 
+
 def test_diff_chain_apply():
     from edsl import Question
+
     q0 = Question.example("free_text")
     q1 = q0.copy()
     q1.question_text = "Why is Buzzard's Bay so named?"
@@ -32,6 +40,7 @@ def test_diff_chain_apply():
 
     assert new_q2 == q2
 
+
 def test_add_diff(example_questions):
     q_ft, q_mc = example_questions
 
@@ -40,6 +49,7 @@ def test_add_diff(example_questions):
 
     assert len(diff_collection) == 1
     assert diff_collection.apply(q_ft) == q_mc
+
 
 def test_diff_repr(example_questions):
     q_ft, q_mc = example_questions

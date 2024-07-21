@@ -2,24 +2,31 @@ import asyncio
 import unittest
 from unittest.mock import AsyncMock, MagicMock, Mock
 
-from edsl.jobs.tasks.QuestionTaskCreator import QuestionTaskCreator 
+from edsl.jobs.tasks.QuestionTaskCreator import QuestionTaskCreator
 from edsl.jobs.buckets.ModelBuckets import ModelBuckets
 from edsl.jobs.tasks.task_status_enum import TaskStatus
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.exceptions import InterviewErrorPriorTaskCanceled
 
+
 class TestQuestionTaskCreator(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.question = MagicMock(spec=QuestionBase, question_name="test_question")
-        self.answer_question_func = AsyncMock(return_value={"usage": {"prompt_tokens": 10, "completion_tokens": 20}})
+        self.answer_question_func = AsyncMock(
+            return_value={"usage": {"prompt_tokens": 10, "completion_tokens": 20}}
+        )
         self.model_buckets = MagicMock(spec=ModelBuckets)
-        self.model_buckets.requests_bucket = Mock(wait_time=Mock(return_value=0), get_tokens=AsyncMock())
-        self.model_buckets.tokens_bucket = AsyncMock(wait_time=Mock(return_value=0), get_tokens=AsyncMock(), add_tokens=Mock())
-        
+        self.model_buckets.requests_bucket = Mock(
+            wait_time=Mock(return_value=0), get_tokens=AsyncMock()
+        )
+        self.model_buckets.tokens_bucket = AsyncMock(
+            wait_time=Mock(return_value=0), get_tokens=AsyncMock(), add_tokens=Mock()
+        )
+
         self.task_creator = QuestionTaskCreator(
             question=self.question,
             answer_question_func=self.answer_question_func,
-            model_buckets=self.model_buckets
+            model_buckets=self.model_buckets,
         )
 
     def test_initialization(self):
@@ -52,6 +59,7 @@ class TestQuestionTaskCreator(unittest.IsolatedAsyncioTestCase):
         # Set up a failing task
         async def fail_task():
             raise Exception("Dependency failed")
+
         failing_task = asyncio.create_task(fail_task())
 
         self.task_creator.add_dependency(failing_task)
@@ -74,5 +82,6 @@ class TestQuestionTaskCreator(unittest.IsolatedAsyncioTestCase):
 
     #     self.assertEqual(self.task_creator.task_status, TaskStatus.CANCELLED)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

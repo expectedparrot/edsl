@@ -1,4 +1,4 @@
-from edsl.results.Result import main
+# from edsl.results.Result import main
 
 
 # def test_result_main():
@@ -18,7 +18,7 @@ def test_constructor():
         scenario=Scenario.example(),
         model=LanguageModel.example(),
         iteration=1,
-        answer={'how_feeling': 'Good'},
+        answer={"how_feeling": "Good"},
         prompt={"key": "value"},
     )
 
@@ -26,7 +26,7 @@ def test_constructor():
     agent_traits["agent_name"] = "Agent_0"
 
     try:
-        assert agent_traits.items() <= result.sub_dicts["agent"].items() 
+        assert agent_traits.items() <= result.sub_dicts["agent"].items()
     except:
         print(result.sub_dicts["agent"])
         print(agent_traits)
@@ -39,7 +39,7 @@ def test_constructor():
         scenario=Scenario.example(),
         model=LanguageModel.example(),
         iteration=1,
-        answer={'how_feeling': 'Good'},
+        answer={"how_feeling": "Good"},
         prompt={"key": "value"},
     )
 

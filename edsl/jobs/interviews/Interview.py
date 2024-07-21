@@ -6,15 +6,9 @@ import asyncio
 import time
 from typing import Any, Type, List, Generator, Optional
 
-from edsl.agents import Agent
-from edsl.language_models import LanguageModel
-from edsl.scenarios import Scenario
-from edsl.surveys import Survey
-
 from edsl.jobs.Answers import Answers
 from edsl.surveys.base import EndOfSurvey
 from edsl.jobs.buckets.ModelBuckets import ModelBuckets
-
 from edsl.jobs.tasks.TaskCreators import TaskCreators
 
 from edsl.jobs.interviews.InterviewStatusLog import InterviewStatusLog
@@ -60,9 +54,9 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         self.debug = debug
         self.iteration = iteration
         self.cache = cache
-        self.answers: dict[
-            str, str
-        ] = Answers()  # will get filled in as interview progresses
+        self.answers: dict[str, str] = (
+            Answers()
+        )  # will get filled in as interview progresses
         self.sidecar_model = sidecar_model
 
         # Trackers

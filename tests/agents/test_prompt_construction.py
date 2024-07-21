@@ -6,7 +6,7 @@ from edsl.questions import QuestionMultipleChoice as q
 
 def test_system_prompt_traits_passed():
     agent = Agent(traits={"age": 10, "hair": "brown", "height": 5.5})
-    i = agent._create_invigilator(question=q.example(), survey = q.example().to_survey())
+    i = agent._create_invigilator(question=q.example(), survey=q.example().to_survey())
     system_prompt = i.construct_system_prompt()
     assert True == all([key in system_prompt for key in agent.traits.keys()])
 
@@ -15,7 +15,7 @@ def test_user_prompt_question_text_passed():
     agent = Agent(traits={"age": 10, "hair": "brown", "height": 5.5})
     from edsl.questions import QuestionMultipleChoice as q
 
-    i = agent._create_invigilator(question=q.example(), survey = q.example().to_survey())
+    i = agent._create_invigilator(question=q.example(), survey=q.example().to_survey())
     user_prompt = i.construct_user_prompt()
     assert q.example().question_text in user_prompt
 
@@ -29,7 +29,9 @@ def test_scenario_render_in_user_prompt():
     q = QuestionFreeText(
         question_text="How are you today {{name}}?", question_name="name"
     )
-    s = Scenario({'name': 'Peter'})
-    i = agent._create_invigilator(question=q, scenario=s, survey = q.example().to_survey())
+    s = Scenario({"name": "Peter"})
+    i = agent._create_invigilator(
+        question=q, scenario=s, survey=q.example().to_survey()
+    )
     user_prompt = i.construct_user_prompt()
     assert "Peter" in user_prompt

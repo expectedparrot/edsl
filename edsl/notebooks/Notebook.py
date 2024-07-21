@@ -1,10 +1,9 @@
 """A Notebook is a utility class that allows you to easily share/pull ipynbs from Coop."""
 
 import json
-import nbformat
-from nbconvert import HTMLExporter
 from typing import Dict, List, Optional
-from rich.table import Table
+
+
 from edsl.Base import Base
 from edsl.utilities.decorators import (
     add_edsl_version,
@@ -34,6 +33,8 @@ class Notebook(Base):
         If no path is provided, assume this code is run in a notebook and try to load the current notebook from file.
         :param name: A name for the Notebook.
         """
+        import nbformat
+
         # Load current notebook path as fallback (VS Code only)
         path = path or globals().get("__vsc_ipynb_file__")
         if data is not None:
@@ -134,6 +135,9 @@ class Notebook(Base):
         """
         Return HTML representation of Notebook.
         """
+        from nbconvert import HTMLExporter
+        import nbformat
+
         notebook = nbformat.from_dict(self.data)
         html_exporter = HTMLExporter(template_name="basic")
         (body, _) = html_exporter.from_notebook_node(notebook)
@@ -174,6 +178,8 @@ class Notebook(Base):
         """
         Display a Notebook as a rich table.
         """
+        from rich.table import Table
+
         table_data, column_names = self._table()
         table = Table(title=f"{self.__class__.__name__} Attributes")
         for column in column_names:

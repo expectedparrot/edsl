@@ -78,7 +78,7 @@ def test_agent_dunder_methods():
 def test_agent_serialization():
     agent = Agent(traits={"age": 10})
     agent_dict = agent.to_dict()
-    assert {"traits": {"age": 10}}.items() <= agent_dict.items() 
+    assert {"traits": {"age": 10}}.items() <= agent_dict.items()
     agent2 = Agent.from_dict(agent_dict)
     assert agent2.traits == {"age": 10}
     assert agent2 == agent

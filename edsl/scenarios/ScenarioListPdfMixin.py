@@ -2,7 +2,7 @@ import fitz  # PyMuPDF
 import os
 import subprocess
 
-from edsl import Scenario
+# from edsl import Scenario
 
 
 class ScenarioListPdfMixin:
@@ -22,6 +22,7 @@ class ScenarioListPdfMixin:
         """
         import tempfile
         from pdf2image import convert_from_path
+        from edsl.scenarios import Scenario
 
         with tempfile.TemporaryDirectory() as output_folder:
             # Convert PDF to images

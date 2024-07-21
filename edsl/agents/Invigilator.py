@@ -82,7 +82,25 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
             self._remove_from_cache(raw_response)
             raise e
 
-        answer = question._translate_answer_code_to_answer(response["answer"], scenario)
+        # breakpoint()
+        question_dict = self.survey.question_names_to_questions()
+        for other_question, answer in self.current_answers.items():
+            if other_question in question_dict:
+                question_dict[other_question].answer = answer
+            else:
+                # adds a comment to the question
+                if (
+                    new_question := other_question.split("_comment")[0]
+                ) in question_dict:
+                    question_dict[new_question].comment = answer
+
+        combined_dict = {**question_dict, **scenario}
+        # print("combined_dict: ", combined_dict)
+        # print("response: ", response)
+        # breakpoint()
+        answer = question._translate_answer_code_to_answer(
+            response["answer"], combined_dict
+        )
         data = {
             "answer": answer,
             "comment": response.get(

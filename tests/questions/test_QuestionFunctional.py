@@ -6,14 +6,14 @@ from edsl.questions.compose_questions import compose_questions
 from edsl.jobs.Jobs import Jobs
 from edsl.scenarios.Scenario import Scenario
 
+
 def SillyFunction(scenario, agent_traits):
-        "Makes no use of the agent traits"
-        return scenario["a"] + scenario["b"]
+    "Makes no use of the agent traits"
+    return scenario["a"] + scenario["b"]
 
 
 def test_QuestionFunctional_construction_from_function():
     """Test QuestionFunctional construction from a function"""
-
 
     scenario_valid = Scenario({"a": 10, "b": 2})
     scenario_wrong = Scenario({"a": 10, "c": 2})
@@ -22,7 +22,7 @@ def test_QuestionFunctional_construction_from_function():
         question_name="add_two_numbers", question_text="functional", func=SillyFunction
     )
     assert q.question_name == "add_two_numbers"
-    #assert q.func == SillyFunction
+    # assert q.func == SillyFunction
     assert "question_type" in q.to_dict()
     assert "functional" in q.to_dict()["question_type"]
     # unnecessary methods are not implemented
@@ -62,7 +62,7 @@ def test_QuestionFunctional_construction_from_function():
         question_name="add_two_numbers", question_text="functional"
     )
     assert q.question_name == "add_two_numbers"
-    #assert q.func == SillyFunction
+    # assert q.func == SillyFunction
     assert isinstance(q.by(scenario_valid), Jobs)
     assert isinstance(q.by(scenario_valid), Jobs)
     # I'll test whether incorrect scenarios throw an error
@@ -70,8 +70,7 @@ def test_QuestionFunctional_construction_from_function():
     #     assert q.by(scenario_wrong).run()
 
 
-
-#Disabled because QuestionFunctional doesn't support nested functions as func paramter
+# Disabled because QuestionFunctional doesn't support nested functions as func paramter
 # and also the code has to be refactor to work with this issue
 def QuestionFunctional_construction_from_Questions():
     """This will use the compose_questions function"""
@@ -148,7 +147,7 @@ def mock_questions_factory():
     return _create_mock_questions
 
 
-#Disabled because QuestionFunctional doesn't support nested functions as func paramter
+# Disabled because QuestionFunctional doesn't support nested functions as func paramter
 # and also the code has to be refactor to work with this issue
 def combo_function(mock_questions_factory):
 

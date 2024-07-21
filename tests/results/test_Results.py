@@ -7,7 +7,8 @@ from edsl.exceptions import (
     ResultsColumnNotFoundError,
     ResultsInvalidNameError,
 )
-#from edsl.report.InputOutputDataTypes import CategoricalData
+
+# from edsl.report.InputOutputDataTypes import CategoricalData
 from edsl.results import Results
 
 
@@ -110,9 +111,9 @@ class TestResults(unittest.TestCase):
             self.example_results.select("how_feeling").print()
             output = buf.getvalue()
         # raise Exception("Just to see if working")
-        #breakpoint()
-        #self.assertIn("Great", output)
-        #self.assertIn("Terrible", output)
+        # breakpoint()
+        # self.assertIn("Great", output)
+        # self.assertIn("Terrible", output)
 
     def test_fetch_list(self):
         self.assertEqual(
@@ -123,14 +124,14 @@ class TestResults(unittest.TestCase):
     def test_shuffle(self):
         # Just check that no exceptions are thrown
         shuffled = self.example_results.shuffle()
-        shuffled2 = self.example_results.select('answer.*').shuffle()
+        shuffled2 = self.example_results.select("answer.*").shuffle()
 
     def test_sample(self):
-        shuffled = self.example_results.sample(n = 1)
+        shuffled = self.example_results.sample(n=1)
         assert len(shuffled) == 1
-        shuffled2 = self.example_results.select('answer.*').sample(n = 1)
+        shuffled2 = self.example_results.select("answer.*").sample(n=1)
         assert len(shuffled2) == 1
-        #with self.assertRaises(Exception):
+        # with self.assertRaises(Exception):
         #    shuffled3 = self.example_results.sample(frac = 1.1, with_replacement = False)
 
     # def test_fetch_answer_data(self):
@@ -150,6 +151,7 @@ class TestResults(unittest.TestCase):
             return "Never"
 
         from edsl.data.Cache import Cache
+
         cache = Cache()
         agent = Agent()
         agent.add_direct_question_answering_method(answer_question_directly)
@@ -159,7 +161,7 @@ class TestResults(unittest.TestCase):
             question_text="How often do you typically exercise each week?",
             question_options=["Never", "Sometimes", "Often"],
         )
-        results = q.by(agent).run(cache = cache)
+        results = q.by(agent).run(cache=cache)
 
         with StringIO() as buf, redirect_stdout(buf):
             results.select("answer.*").print()
@@ -173,11 +175,10 @@ class TestResults(unittest.TestCase):
 
     def test_add(self):
         # just check that no exceptions are thrown
-        r1 = self.example_results 
+        r1 = self.example_results
         r2 = self.example_results
         r3 = r1 + r2
         assert len(r3) == len(r1) + len(r2)
-
 
     # def test_stefan(self):
     #     from edsl.questions import QuestionBase

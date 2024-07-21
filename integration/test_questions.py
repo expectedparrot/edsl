@@ -1,5 +1,5 @@
 import pytest
-from edsl.questions.question_registry import get_question_class,Question
+from edsl.questions.question_registry import get_question_class, Question
 
 
 class TestAllQuestions:

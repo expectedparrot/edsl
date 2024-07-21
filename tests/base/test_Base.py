@@ -29,7 +29,7 @@ class TestBaseModels:
                 "Jobs",
                 "Cache",
                 "Notebook",
-                "ModelList"
+                "ModelList",
             ]
 
         methods = [
@@ -86,7 +86,7 @@ def create_file_operations_test(child_class):
             warnings.warn(f"JSON failure with {child_class}:", EvalReprFail)
 
         file = tempfile.NamedTemporaryFile().name
-        e.save(file, compress = True)
+        e.save(file, compress=True)
         try:
             new_w = child_class.load(file + ".json.gz")
         except:

@@ -1,29 +1,17 @@
 from __future__ import annotations
 import time
 import asyncio
-import textwrap
+import time
 from contextlib import contextmanager
 
 from typing import Coroutine, List, AsyncGenerator, Optional, Union
 
-from rich.live import Live
-from rich.console import Console
-
 from edsl import shared_globals
-from edsl.results import Results, Result
-
 from edsl.jobs.interviews.Interview import Interview
-from edsl.utilities.decorators import jupyter_nb_handler
-
-# from edsl.jobs.Jobs import Jobs
 from edsl.jobs.runners.JobsRunnerStatusMixin import JobsRunnerStatusMixin
-from edsl.language_models import LanguageModel
-from edsl.data.Cache import Cache
-
 from edsl.jobs.tasks.TaskHistory import TaskHistory
 from edsl.jobs.buckets.BucketCollection import BucketCollection
-
-import time
+from edsl.utilities.decorators import jupyter_nb_handler
 
 
 class JobsRunnerAsyncio(JobsRunnerStatusMixin):
@@ -42,13 +30,13 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
 
     async def run_async_generator(
         self,
-        cache: Cache,
+        cache: "Cache",
         n: int = 1,
         debug: bool = False,
         stop_on_exception: bool = False,
         sidecar_model: "LanguageModel" = None,
         total_interviews: Optional[List["Interview"]] = None,
-    ) -> AsyncGenerator[Result, None]:
+    ) -> AsyncGenerator["Result", None]:
         """Creates the tasks, runs them asynchronously, and returns the results as a Results object.
 
         Completed tasks are yielded as they are completed.
@@ -155,19 +143,21 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
 
         prompt_dictionary = {}
         for answer_key_name in answer_key_names:
-            prompt_dictionary[
-                answer_key_name + "_user_prompt"
-            ] = question_name_to_prompts[answer_key_name]["user_prompt"]
-            prompt_dictionary[
-                answer_key_name + "_system_prompt"
-            ] = question_name_to_prompts[answer_key_name]["system_prompt"]
+            prompt_dictionary[answer_key_name + "_user_prompt"] = (
+                question_name_to_prompts[answer_key_name]["user_prompt"]
+            )
+            prompt_dictionary[answer_key_name + "_system_prompt"] = (
+                question_name_to_prompts[answer_key_name]["system_prompt"]
+            )
 
         raw_model_results_dictionary = {}
         for result in valid_results:
             question_name = result["question_name"]
-            raw_model_results_dictionary[
-                question_name + "_raw_model_response"
-            ] = result["raw_model_response"]
+            raw_model_results_dictionary[question_name + "_raw_model_response"] = (
+                result["raw_model_response"]
+            )
+
+        from edsl.results.Result import Result
 
         result = Result(
             agent=interview.agent,
@@ -197,12 +187,16 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         print_exceptions: bool = True,
     ) -> "Coroutine":
         """Runs a collection of interviews, handling both async and sync contexts."""
+        from rich.console import Console
+
         console = Console()
         self.results = []
         self.start_time = time.monotonic()
         self.completed = False
         self.cache = cache
         self.sidecar_model = sidecar_model
+
+        from edsl.results.Results import Results
 
         if not progress_bar:
             # print("Running without progress bar")
@@ -225,6 +219,8 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             results = Results(survey=self.jobs.survey, data=self.results)
         else:
             # print("Running with progress bar")
+            from rich.live import Live
+            from rich.console import Console
 
             def generate_table():
                 return self.status_table(self.results, self.elapsed_time)

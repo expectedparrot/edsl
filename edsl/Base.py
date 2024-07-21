@@ -6,9 +6,6 @@ import io
 import json
 from typing import Any, Optional, Union
 from uuid import UUID
-from IPython.display import display
-from rich.console import Console
-from edsl.utilities import is_notebook
 
 
 class RichPrintingMixin:
@@ -16,6 +13,8 @@ class RichPrintingMixin:
 
     def _for_console(self):
         """Return a string representation of the object for console printing."""
+        from rich.console import Console
+
         with io.StringIO() as buf:
             console = Console(file=buf, record=True)
             table = self.rich_print()
@@ -28,7 +27,11 @@ class RichPrintingMixin:
 
     def print(self):
         """Print the object to the console."""
+        from edsl.utilities.utilities import is_notebook
+
         if is_notebook():
+            from IPython.display import display
+
             display(self.rich_print())
         else:
             from rich.console import Console
