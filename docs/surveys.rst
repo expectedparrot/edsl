@@ -241,26 +241,90 @@ as the name of q1 is "color".
 
 Piping 
 ------
-Piping is a method of referencing the components of a previous question in a later question.
-For example:
+Piping is a method of explicitly referencing components of a question in a later question.
+For example, here we use the answer to q0 in the prompt for q1:
 
 .. code-block:: python
 
-   from edsl.questions import QuestionFreeText
+   from edsl import QuestionFreeText, QuestionList, Survey
 
    q0 = QuestionFreeText(
-      question_text = "What is your favorite color?", 
       question_name = "color"
+      question_text = "What is your favorite color?", 
    )
 
    q1 = QuestionList(
-      question_text = "Name some things that are {{ color.answer }}.", 
       question_name = "examples"
+      question_text = "Name some things that are {{ color.answer }}.", 
    )
 
    survey = Survey([q0, q1])
 
-In this example, q0 will be administered before q1 and the response to q0 is piped into q1, so that the prompt for q1 will be "Name some things that are <response to q0>.".
+   results = survey.run()
+
+   results.select("color", "examples").print(format="rich")
+
+In this example, q0 will be administered before q1 and the response to q0 is piped into q1.
+Output:
+
+.. code-block:: text
+
+   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+   ┃ answer                                                 ┃ answer                                                 ┃
+   ┃ .color                                                 ┃ .examples                                              ┃
+   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+   │ Blue is my favorite color. It's calming and reminds me │ ['sky', 'ocean', 'blueberries', 'sapphires', 'blue     │
+   │ of the sky and the ocean.                              │ jay', 'blue whale', 'blue jeans', 'cornflower',        │
+   │                                                        │ 'forget-me-nots', 'bluebells']                         │
+   └────────────────────────────────────────────────────────┴────────────────────────────────────────────────────────┘
+
+
+If an answer is a list, we can index the items to use them as inputs.
+Here we use an answer in question options:
+
+.. code-block:: python
+
+   from edsl import QuestionList, QuestionFreeText, QuestionMultipleChoice, Survey
+
+   q0 = QuestionList(
+      question_name = "colors",
+      question_text = "What are your 3 favorite colors?", 
+      max_list_items = 3
+   )
+
+   q1 = QuestionFreeText(
+      question_name = "examples",
+      question_text = "Name some things that are {{ colors.answer }}", 
+   )
+
+   q2 = QuestionMultipleChoice(
+      question_name = "favorite",
+      question_text = "Which is your #1 favorite color?", 
+      question_options = [
+         "{{ colors.answer[0] }}",
+         "{{ colors.answer[1] }}",
+         "{{ colors.answer[2] }}",
+      ]
+   )
+
+   survey = Survey([q0, q1, q2])
+
+   results = survey.run()
+
+   results.select("colors", "examples", "favorite").print(format="rich")
+
+Output:
+
+.. code-block:: text
+
+   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┓
+   ┃ answer                   ┃ answer                                                                   ┃ answer    ┃
+   ┃ .colors                  ┃ .examples                                                                ┃ .favorite ┃
+   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━┩
+   │ ['Blue', 'Green', 'Red'] │ Some things that are blue include the sky, blueberries, and sapphires.   │ Blue      │
+   │                          │ Things that are green are leaves, grass, and emeralds. Red items include │           │
+   │                          │ roses, apples, and rubies.                                               │           │
+   └──────────────────────────┴──────────────────────────────────────────────────────────────────────────┴───────────┘
 
 
 This can also be done with agent traits. For example:
