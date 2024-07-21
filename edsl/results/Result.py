@@ -6,6 +6,7 @@ from collections import UserDict
 from edsl.Base import Base
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
+
 class PromptDict(UserDict):
     """A dictionary that is used to store the prompt for a given result."""
 
@@ -22,6 +23,7 @@ class PromptDict(UserDict):
             table.add_row(attr_name, repr(attr_value))
 
         return table
+
 
 def agent_namer_closure():
     """Return a function that can be used to name an agent."""
@@ -62,9 +64,9 @@ class Result(Base, UserDict):
 
     def __init__(
         self,
-        agent: 'Agent',
-        scenario: 'Scenario',
-        model: Type['LanguageModel'],
+        agent: "Agent",
+        scenario: "Scenario",
+        model: Type["LanguageModel"],
         iteration: int,
         answer: str,
         prompt: dict[str, str] = None,
@@ -143,15 +145,15 @@ class Result(Base, UserDict):
             if key in self.question_to_attributes:
                 # You might be tempted to just use the naked key
                 # but this is a bad idea because it pollutes the namespace
-                question_text_dict[
-                    key + "_question_text"
-                ] = self.question_to_attributes[key]["question_text"]
-                question_options_dict[
-                    key + "_question_options"
-                ] = self.question_to_attributes[key]["question_options"]
-                question_type_dict[
-                    key + "_question_type"
-                ] = self.question_to_attributes[key]["question_type"]
+                question_text_dict[key + "_question_text"] = (
+                    self.question_to_attributes[key]["question_text"]
+                )
+                question_options_dict[key + "_question_options"] = (
+                    self.question_to_attributes[key]["question_options"]
+                )
+                question_type_dict[key + "_question_type"] = (
+                    self.question_to_attributes[key]["question_type"]
+                )
 
         return {
             "agent": self.agent.traits
@@ -274,6 +276,7 @@ class Result(Base, UserDict):
         from edsl import Scenario
         from edsl.language_models.LanguageModel import LanguageModel
         from edsl.prompts.Prompt import Prompt
+
         prompt_data = json_dict.get("prompt", {})
         prompt_d = {}
         for prompt_name, prompt_obj in prompt_data.items():
@@ -349,4 +352,5 @@ class Result(Base, UserDict):
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)

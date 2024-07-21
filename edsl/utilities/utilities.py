@@ -19,6 +19,7 @@ import json
 from html import escape
 from typing import Callable, Union
 
+
 def time_it(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -45,8 +46,6 @@ def dict_hash(data: dict):
     return hash(
         int(hashlib.md5(json.dumps(data, sort_keys=True).encode()).hexdigest(), 16)
     )
-
-
 
 
 def extract_json_from_string(text):
@@ -93,7 +92,7 @@ def data_to_html(data, replace_new_lines=False):
     from pygments.lexers import JsonLexer
     from pygments.formatters import HtmlFormatter
     from IPython.display import HTML
-    
+
     json_str = json.dumps(data, indent=4)
     formatted_json = highlight(
         json_str,
@@ -102,7 +101,7 @@ def data_to_html(data, replace_new_lines=False):
     )
     if replace_new_lines:
         formatted_json = formatted_json.replace("\\n", "<br>")
-    
+
     return HTML(formatted_json).data
 
 

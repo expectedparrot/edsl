@@ -10,6 +10,7 @@ from edsl.questions.descriptors import (
     QuestionOptionsDescriptor,
 )
 
+
 class QuestionCheckBox(QuestionBase):
     """This question prompts the agent to select options from a list."""
 
@@ -52,7 +53,9 @@ class QuestionCheckBox(QuestionBase):
         self._validate_answer_checkbox(answer)
         return answer
 
-    def _translate_answer_code_to_answer(self, answer_codes, scenario: 'Scenario' = None):
+    def _translate_answer_code_to_answer(
+        self, answer_codes, scenario: "Scenario" = None
+    ):
         """
         Translate the answer code to the actual answer.
 
@@ -60,6 +63,7 @@ class QuestionCheckBox(QuestionBase):
         The LLM will respond with [0,1] and this code will translate it to ["a","b"].
         """
         from edsl.scenarios.Scenario import Scenario
+
         scenario = scenario or Scenario()
         translated_options = [
             Template(option).render(scenario) for option in self.question_options
@@ -72,6 +76,7 @@ class QuestionCheckBox(QuestionBase):
     def _simulate_answer(self, human_readable=True) -> dict[str, Union[int, str]]:
         """Simulate a valid answer for debugging purposes."""
         from edsl.utilities.utilities import random_string
+
         min_selections = self.min_selections or 1
         max_selections = self.max_selections or len(self.question_options)
         num_selections = random.randint(min_selections, max_selections)

@@ -4,6 +4,7 @@ import subprocess
 import tempfile
 from typing import Optional
 
+
 class ResultsGGMixin:
     """Mixin class for ggplot2 plotting."""
 

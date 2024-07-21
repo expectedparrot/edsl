@@ -27,6 +27,7 @@ from edsl.utilities.decorators import (
 from edsl.data_transfer_models import AgentResponseDict
 from edsl.utilities.restricted_python import create_restricted_function
 
+
 class Agent(Base):
     """An Agent that can answer questions."""
 
@@ -139,6 +140,7 @@ class Agent(Base):
 
         if traits_presentation_template is not None:
             from edsl.prompts.library.agent_persona import AgentPersona
+
             self.traits_presentation_template = traits_presentation_template
             self.agent_persona = AgentPersona(text=self.traits_presentation_template)
 
@@ -259,8 +261,8 @@ class Agent(Base):
     def create_invigilator(
         self,
         *,
-        question: 'QuestionBase',
-        cache: 'Cache',
+        question: "QuestionBase",
+        cache: "Cache",
         survey: Optional["Survey"] = None,
         scenario: Optional[Scenario] = None,
         model: Optional[LanguageModel] = None,
@@ -269,7 +271,7 @@ class Agent(Base):
         current_answers: Optional[dict] = None,
         iteration: int = 1,
         sidecar_model=None,
-    ) -> 'InvigilatorBase':
+    ) -> "InvigilatorBase":
         """Create an Invigilator.
 
         An invigilator is an object that is responsible for administering a question to an agent.
@@ -284,6 +286,7 @@ class Agent(Base):
         recording the responses.
         """
         from edsl import Model, Scenario
+
         cache = cache
         self.current_question = question
         model = model or Model()
@@ -305,13 +308,13 @@ class Agent(Base):
     async def async_answer_question(
         self,
         *,
-        question: 'QuestionBase',
-        cache: 'Cache',
-        scenario: Optional['Scenario'] = None,
+        question: "QuestionBase",
+        cache: "Cache",
+        scenario: Optional["Scenario"] = None,
         survey: Optional["Survey"] = None,
-        model: Optional['LanguageModel'] = None,
+        model: Optional["LanguageModel"] = None,
         debug: bool = False,
-        memory_plan: Optional['MemoryPlan'] = None,
+        memory_plan: Optional["MemoryPlan"] = None,
         current_answers: Optional[dict] = None,
         iteration: int = 0,
     ) -> AgentResponseDict:
@@ -355,20 +358,21 @@ class Agent(Base):
 
     def _create_invigilator(
         self,
-        question: 'QuestionBase',
-        cache: Optional['Cache'] = None,
-        scenario: Optional['Scenario'] = None,
-        model: Optional['LanguageModel'] = None,
+        question: "QuestionBase",
+        cache: Optional["Cache"] = None,
+        scenario: Optional["Scenario"] = None,
+        model: Optional["LanguageModel"] = None,
         survey: Optional["Survey"] = None,
         debug: bool = False,
-        memory_plan: Optional['MemoryPlan'] = None,
+        memory_plan: Optional["MemoryPlan"] = None,
         current_answers: Optional[dict] = None,
         iteration: int = 0,
         sidecar_model=None,
-    ) -> 'InvigilatorBase':
+    ) -> "InvigilatorBase":
         """Create an Invigilator."""
         from edsl import Model
         from edsl import Scenario
+
         model = model or Model()
         scenario = scenario or Scenario()
 
@@ -382,6 +386,7 @@ class Agent(Base):
 
         if cache is None:
             from edsl.data.Cache import Cache
+
             cache = Cache()
 
         if debug:
@@ -497,7 +502,6 @@ class Agent(Base):
             f"'{type(self).__name__}' object has no attribute '{name}'"
         )
 
-
     def __getstate__(self):
         state = self.__dict__.copy()
         # Include any additional state that needs to be serialized
@@ -565,9 +569,9 @@ class Agent(Base):
             if dynamic_traits_func:
                 func = inspect.getsource(dynamic_traits_func)
                 raw_data["dynamic_traits_function_source_code"] = func
-                raw_data[
-                    "dynamic_traits_function_name"
-                ] = self.dynamic_traits_function_name
+                raw_data["dynamic_traits_function_name"] = (
+                    self.dynamic_traits_function_name
+                )
         if hasattr(self, "answer_question_directly"):
             raw_data.pop(
                 "answer_question_directly", None
@@ -583,9 +587,9 @@ class Agent(Base):
                 raw_data["answer_question_directly_source_code"] = inspect.getsource(
                     answer_question_directly_func
                 )
-                raw_data[
-                    "answer_question_directly_function_name"
-                ] = self.answer_question_directly_function_name
+                raw_data["answer_question_directly_function_name"] = (
+                    self.answer_question_directly_function_name
+                )
 
         return raw_data
 
@@ -703,6 +707,7 @@ class Agent(Base):
         agent = Agent(traits={'age': 10, 'hair': 'brown', 'height': 5.5})
         """
         return f"from edsl import Agent\nagent = Agent(traits={self.traits})"
+
 
 def main():
     """

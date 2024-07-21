@@ -118,7 +118,12 @@ def test_wide_format():
     from edsl.results import Results
 
     r = Results.example()
-    sql_results = r.sql('select "answer.how_feeling" from self', shape="wide", csv=True, remove_prefix=False)
+    sql_results = r.sql(
+        'select "answer.how_feeling" from self',
+        shape="wide",
+        csv=True,
+        remove_prefix=False,
+    )
     output_string = "answer.how_feeling\nOK\nGreat\nTerrible\nOK\n"
     assert sql_results == output_string
 

@@ -22,7 +22,8 @@ import csv
 from simpleeval import EvalWithCompoundTypes
 
 from edsl.Base import Base
-#from edsl.agents import Agent
+
+# from edsl.agents import Agent
 from edsl.utilities.decorators import (
     add_edsl_version,
     remove_edsl_version,
@@ -32,7 +33,7 @@ from edsl.utilities.decorators import (
 class AgentList(UserList, Base):
     """A list of Agents."""
 
-    def __init__(self, data: Optional[list['Agent']] = None):
+    def __init__(self, data: Optional[list["Agent"]] = None):
         """Initialize a new AgentList.
 
         :param data: A list of Agents.
@@ -101,7 +102,7 @@ class AgentList(UserList, Base):
         AgentList([Agent(traits = {'a': 1, 'b': 2})])
         """
 
-        def create_evaluator(agent: 'Agent'):
+        def create_evaluator(agent: "Agent"):
             """Create an evaluator for the given result.
             The 'combined_dict' is a mapping of all values for that Result object.
             """
@@ -136,6 +137,7 @@ class AgentList(UserList, Base):
         :param file_path: The path to the CSV file.
         """
         from edsl.agents.Agent import Agent
+
         agent_list = []
         with open(file_path, "r") as f:
             reader = csv.DictReader(f)
@@ -232,6 +234,7 @@ class AgentList(UserList, Base):
         True
         """
         from edsl.agents.Agent import Agent
+
         agents = [Agent.from_dict(agent_dict) for agent_dict in data["agent_list"]]
         return cls(agents)
 
@@ -245,6 +248,7 @@ class AgentList(UserList, Base):
 
         """
         from edsl.agents.Agent import Agent
+
         return cls([Agent.example(), Agent.example()])
 
     @classmethod
@@ -255,6 +259,7 @@ class AgentList(UserList, Base):
         :param values: A list of values.
         """
         from edsl.agents.Agent import Agent
+
         return AgentList([Agent({trait_name: value}) for value in values])
 
     def __mul__(self, other: AgentList) -> AgentList:

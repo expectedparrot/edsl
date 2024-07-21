@@ -1,9 +1,11 @@
 """Mixin class for exporting results."""
+
 import base64
 import csv
 import io
 
 from typing import Literal, Optional, Union
+
 
 class DatasetExportMixin:
     """Mixin class"""
@@ -35,7 +37,6 @@ class DatasetExportMixin:
             ]
 
         return columns
-
 
     def _make_tabular(self, remove_prefix: bool, pretty_labels: Optional[dict] = None):
         """Turn the results into a tabular format.
@@ -203,6 +204,7 @@ class DatasetExportMixin:
 
         elif format == "markdown":
             from edsl.utilities.interface import print_list_of_dicts_as_markdown_table
+
             print_list_of_dicts_as_markdown_table(new_data, filename=filename)
         elif format == "latex":
             df = self.to_pandas()
@@ -270,7 +272,7 @@ class DatasetExportMixin:
             else:
                 return output.getvalue()
 
-    def to_pandas(self, remove_prefix: bool = False) -> 'pd.DataFrame':
+    def to_pandas(self, remove_prefix: bool = False) -> "pd.DataFrame":
         """Convert the results to a pandas DataFrame.
 
         :param remove_prefix: Whether to remove the prefix from the column names.
@@ -484,6 +486,8 @@ class DatasetExportMixin:
                 ]
             )
 
+
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)

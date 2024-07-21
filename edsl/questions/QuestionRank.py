@@ -10,6 +10,7 @@ from edsl.questions.descriptors import (
     NumSelectionsDescriptor,
 )
 
+
 class QuestionRank(QuestionBase):
     """This question prompts the agent to rank options from a list."""
 

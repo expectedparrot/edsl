@@ -9,8 +9,8 @@ class Answers(UserDict):
 
     def add_answer(self, response, question) -> None:
         """Add a response to the answers dictionary.
-        
-        >>> from edsl import QuestionFreeText 
+
+        >>> from edsl import QuestionFreeText
         >>> q = QuestionFreeText.example()
         >>> answers = Answers()
         >>> answers.add_answer({"answer": "yes"}, q)
@@ -51,6 +51,8 @@ class Answers(UserDict):
 
         return table
 
+
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod()

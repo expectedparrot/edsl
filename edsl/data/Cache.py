@@ -11,13 +11,14 @@ import time
 from edsl.config import CONFIG
 from edsl.data.CacheEntry import CacheEntry
 
-#from edsl.data.SQLiteDict import SQLiteDict
+# from edsl.data.SQLiteDict import SQLiteDict
 from edsl.Base import Base
 from edsl.utilities.utilities import dict_hash
 from edsl.utilities.decorators import (
     add_edsl_version,
     remove_edsl_version,
 )
+
 
 class Cache(Base):
     """
@@ -37,7 +38,7 @@ class Cache(Base):
         self,
         *,
         filename: Optional[str] = None,
-        data: Optional[Union['SQLiteDict', dict]] = None,
+        data: Optional[Union["SQLiteDict", dict]] = None,
         immediate_write: bool = True,
         method=None,
     ):
@@ -192,7 +193,7 @@ class Cache(Base):
         return key
 
     def add_from_dict(
-        self, new_data: dict[str, 'CacheEntry'], write_now: Optional[bool] = True
+        self, new_data: dict[str, "CacheEntry"], write_now: Optional[bool] = True
     ) -> None:
         """
         Add entries to the cache from a dictionary.
@@ -250,6 +251,7 @@ class Cache(Base):
         Construct a Cache from a SQLite database.
         """
         from edsl.data.SQLiteDict import SQLiteDict
+
         return cls(data=SQLiteDict(db_path))
 
     @classmethod
@@ -277,6 +279,7 @@ class Cache(Base):
         """
         # if a file doesn't exist at jsonfile, throw an error
         from edsl.data.SQLiteDict import SQLiteDict
+
         if not os.path.exists(jsonlfile):
             raise FileNotFoundError(f"File {jsonlfile} not found")
 

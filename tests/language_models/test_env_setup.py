@@ -29,5 +29,3 @@ def test_make_sure_env_vars_were_reset():
 #     import pytest
 #     with pytest.raises(MissingAPIKeyError):
 #         m = Model()
-    
-    

@@ -43,7 +43,7 @@ class QuestionBudget(QuestionBase):
         return answer
 
     def _translate_answer_code_to_answer(
-        self, answer_codes: dict[str, int], scenario: 'Scenario' = None
+        self, answer_codes: dict[str, int], scenario: "Scenario" = None
     ):
         """
         Translate the answer codes to the actual answers.
@@ -61,6 +61,7 @@ class QuestionBudget(QuestionBase):
     def _simulate_answer(self, human_readable=True):
         """Simulate a valid answer for debugging purposes (what the validator expects)."""
         from edsl.utilities.utilities import random_string
+
         if human_readable:
             keys = self.question_options
         else:
@@ -160,10 +161,10 @@ def main():
     assert q.from_dict(q.to_dict()) == q
 
 
-
 if __name__ == "__main__":
-    #q = QuestionBudget.example()
-    #results = q.run()
+    # q = QuestionBudget.example()
+    # results = q.run()
 
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)

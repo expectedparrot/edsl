@@ -19,7 +19,12 @@ def test_simple_job_integration():
     agents = [Agent(traits={"state": value}) for value in {"sad", "happy"}]
     scenarios = [Scenario({"greeting": key}) for key in ["mate", "friendo"]]
 
-    models_to_check = ["gpt-4", 'gemini-pro', 'claude-3-opus-20240229', 'meta-llama/Meta-Llama-3-70B-Instruct']
+    models_to_check = [
+        "gpt-4",
+        "gemini-pro",
+        "claude-3-opus-20240229",
+        "meta-llama/Meta-Llama-3-70B-Instruct",
+    ]
     models = [Model(model_name) for model_name in models_to_check]
     print("-------------------------")
     print("Running job without cache?")

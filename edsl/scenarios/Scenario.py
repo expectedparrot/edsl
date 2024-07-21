@@ -17,6 +17,7 @@ from edsl.utilities.decorators import (
     remove_edsl_version,
 )
 
+
 class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
     """A Scenario is a dictionary of keys/values.
 

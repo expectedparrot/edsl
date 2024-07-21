@@ -31,9 +31,8 @@ def test_QuestionFreeText_construction():
     assert isinstance(q, QuestionFreeText)
     assert q.question_name == valid_question["question_name"]
     assert q.question_text == valid_question["question_text"]
-   
-    assert q.data == valid_question
 
+    assert q.data == valid_question
 
     # should raise an exception if question_text is missing
     invalid_question = valid_question.copy()

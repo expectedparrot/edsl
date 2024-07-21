@@ -2,6 +2,7 @@
 The Results object is the result of running a survey. 
 It is not typically instantiated directly, but is returned by the run method of a `Job` object.
 """
+
 from __future__ import annotations
 import json
 import random
@@ -29,6 +30,7 @@ from edsl.utilities.utilities import dict_hash
 
 from edsl.Base import Base
 
+
 class Mixins(
     ResultsExportMixin,
     ResultsDBMixin,
@@ -52,6 +54,7 @@ class Mixins(
         from edsl.utilities.interface import print_results_long
 
         print_results_long(self, max_rows=max_rows)
+
 
 class Results(UserList, Mixins, Base):
     """
@@ -78,10 +81,10 @@ class Results(UserList, Mixins, Base):
 
     def __init__(
         self,
-        survey: Optional['Survey'] = None,
-        data: Optional[list['Result']] = None,
+        survey: Optional["Survey"] = None,
+        data: Optional[list["Result"]] = None,
         created_columns: Optional[list[str]] = None,
-        cache: Optional['Cache'] = None,
+        cache: Optional["Cache"] = None,
         job_uuid: Optional[str] = None,
         total_results: Optional[int] = None,
     ):
@@ -95,6 +98,7 @@ class Results(UserList, Mixins, Base):
         """
         super().__init__(data)
         from edsl.data.Cache import Cache
+
         self.survey = survey
         self.created_columns = created_columns or []
         self._job_uuid = job_uuid
@@ -170,7 +174,7 @@ class Results(UserList, Mixins, Base):
         from IPython.display import HTML
 
         json_str = json.dumps(self.to_dict()["data"], indent=4)
-        from pygments import highlight  
+        from pygments import highlight
         from pygments.lexers import JsonLexer
         from pygments.formatters import HtmlFormatter
 
@@ -183,6 +187,7 @@ class Results(UserList, Mixins, Base):
 
     def _to_dict(self, sort=False):
         from edsl.data.Cache import Cache
+
         if sort:
             data = sorted([result for result in self.data], key=lambda x: hash(x))
         else:
@@ -231,7 +236,6 @@ class Results(UserList, Mixins, Base):
     @property
     def hashes(self) -> set:
         return set(hash(result) for result in self.data)
-    
 
     def sample(self, n: int) -> "Results":
         """Return a random sample of the results.
@@ -258,8 +262,6 @@ class Results(UserList, Mixins, Base):
 
         return self
 
-
-
     @classmethod
     @remove_edsl_version
     def from_dict(cls, data: dict[str, Any]) -> Results:
@@ -277,12 +279,15 @@ class Results(UserList, Mixins, Base):
         """
         from edsl import Survey, Cache
         from edsl.results.Result import Result
+
         try:
             results = cls(
                 survey=Survey.from_dict(data["survey"]),
                 data=[Result.from_dict(r) for r in data["data"]],
                 created_columns=data.get("created_columns", None),
-                cache=Cache.from_dict(data.get("cache")) if "cache" in data else Cache(),
+                cache=(
+                    Cache.from_dict(data.get("cache")) if "cache" in data else Cache()
+                ),
             )
         except Exception as e:
             breakpoint()
@@ -353,6 +358,7 @@ class Results(UserList, Mixins, Base):
         {'how_feeling': 'How are you this {{ period }}?', 'how_feeling_yesterday': 'How were you feeling yesterday {{ period }}?'}
         """
         from edsl.utilities.utilities import shorten_string
+
         if not self.survey:
             raise Exception("Survey is not defined so no answer keys are available.")
 
@@ -367,7 +373,7 @@ class Results(UserList, Mixins, Base):
         return sorted_dict
 
     @property
-    def agents(self) -> 'AgentList':
+    def agents(self) -> "AgentList":
         """Return a list of all of the agents in the Results.
 
         Example:
@@ -377,10 +383,11 @@ class Results(UserList, Mixins, Base):
         AgentList([Agent(traits = {'status': 'Joyful'}), Agent(traits = {'status': 'Joyful'}), Agent(traits = {'status': 'Sad'}), Agent(traits = {'status': 'Sad'})])
         """
         from edsl import AgentList
+
         return AgentList([r.agent for r in self.data])
 
     @property
-    def models(self) -> list[Type['LanguageModel']]:
+    def models(self) -> list[Type["LanguageModel"]]:
         """Return a list of all of the models in the Results.
 
         Example:
@@ -502,7 +509,7 @@ class Results(UserList, Mixins, Base):
                     )
         return data_type, key
 
-    def first(self) -> 'Result':
+    def first(self) -> "Result":
         """Return the first observation in the results.
 
         Example:
@@ -633,7 +640,7 @@ class Results(UserList, Mixins, Base):
                 names=result.combined_dict, functions=functions_dict
             )
 
-        def new_result(old_result: 'Result', var_name: str) -> 'Result':
+        def new_result(old_result: "Result", var_name: str) -> "Result":
             evaluator = create_evaluator(old_result)
             value = evaluator.eval(expression)
             new_result = old_result.copy()
@@ -723,7 +730,7 @@ class Results(UserList, Mixins, Base):
 
         return Results(survey=self.survey, data=new_data, created_columns=None)
 
-    def select(self, *columns: Union[str, list[str]]) -> 'Dataset':
+    def select(self, *columns: Union[str, list[str]]) -> "Dataset":
         """
         Select data from the results and format it.
 
@@ -735,7 +742,7 @@ class Results(UserList, Mixins, Base):
         >>> results.select('how_feeling')
         Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}])
         """
-    
+
         if len(self) == 0:
             raise Exception("No data to select from---the Results object is empty.")
 
@@ -793,6 +800,7 @@ class Results(UserList, Mixins, Base):
 
         sorted(new_data, key=sort_by_key_order)
         from edsl.results.Dataset import Dataset
+
         return Dataset(new_data)
 
     def sort_by(self, *columns: str, reverse: bool = False) -> Results:
@@ -1002,6 +1010,8 @@ def main():  # pragma: no cover
     print(results.filter("how_feeling == 'Great'").select("how_feeling"))
     print(results.mutate("how_feeling_x = how_feeling + 'x'").select("how_feeling_x"))
 
+
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)

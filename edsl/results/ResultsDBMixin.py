@@ -91,6 +91,7 @@ class ResultsDBMixin:
             return conn
         elif shape == SQLDataShape.WIDE:
             from sqlalchemy import create_engine
+
             engine = create_engine("sqlite:///:memory:")
             df = self.to_pandas(remove_prefix=remove_prefix)
             df.to_sql("self", engine, index=False, if_exists="replace")
@@ -120,7 +121,7 @@ class ResultsDBMixin:
         to_list=False,
         to_latex=False,
         filename: Optional[str] = None,
-    ) -> Union['pd.DataFrame', str]:
+    ) -> Union["pd.DataFrame", str]:
         """Execute a SQL query and return the results as a DataFrame.
 
         :param query: The SQL query to execute

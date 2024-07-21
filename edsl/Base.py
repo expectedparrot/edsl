@@ -14,6 +14,7 @@ class RichPrintingMixin:
     def _for_console(self):
         """Return a string representation of the object for console printing."""
         from rich.console import Console
+
         with io.StringIO() as buf:
             console = Console(file=buf, record=True)
             table = self.rich_print()
@@ -30,6 +31,7 @@ class RichPrintingMixin:
 
         if is_notebook():
             from IPython.display import display
+
             display(self.rich_print())
         else:
             from rich.console import Console

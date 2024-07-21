@@ -25,7 +25,13 @@ class TestInvigilatorDebug(unittest.TestCase):
         from edsl import Survey
 
         invigilator = InvigilatorDebug(
-            agent = agent, question=question, scenario=scenario, survey = Survey.example(), model=model, memory_plan=memory_plan, current_answers=current_answers
+            agent=agent,
+            question=question,
+            scenario=scenario,
+            survey=Survey.example(),
+            model=model,
+            memory_plan=memory_plan,
+            current_answers=current_answers,
         )
         self.assertEqual(invigilator.answer_question()["answer"], "Mocked Answer")
 
@@ -40,12 +46,17 @@ class TestInvigilatorHuman(unittest.TestCase):
         model = Mock()
         memory_plan = Mock()
         current_answers = Mock()
-    
+
         from edsl import Survey
 
         invigilator = InvigilatorHuman(
-            agent=agent, question=question, scenario=scenario, model=model, memory_plan=memory_plan, current_answers=current_answers,
-            survey = Survey.example()
+            agent=agent,
+            question=question,
+            scenario=scenario,
+            model=model,
+            memory_plan=memory_plan,
+            current_answers=current_answers,
+            survey=Survey.example(),
         )
         response = invigilator.answer_question()
         self.assertEqual(

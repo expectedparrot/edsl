@@ -19,6 +19,7 @@ from edsl.scenarios.ScenarioListExportMixin import ScenarioListExportMixin
 class ScenarioListMixin(ScenarioListPdfMixin, ScenarioListExportMixin):
     pass
 
+
 class ScenarioList(Base, UserList, ScenarioListMixin):
     """Class for creating a list of scenarios to be used in a survey."""
 
@@ -375,6 +376,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         '25'
         """
         from edsl.scenarios.Scenario import Scenario
+
         observations = []
         with open(filename, "r") as f:
             reader = csv.reader(f)
@@ -413,6 +415,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
         """
         from edsl.scenarios.Scenario import Scenario
+
         return cls([Scenario(s) for s in scenario_dicts_list])
 
     @classmethod
@@ -420,6 +423,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
     def from_dict(cls, data) -> ScenarioList:
         """Create a `ScenarioList` from a dictionary."""
         from edsl.scenarios.Scenario import Scenario
+
         return cls([Scenario.from_dict(s) for s in data["scenarios"]])
 
     def code(self) -> str:
