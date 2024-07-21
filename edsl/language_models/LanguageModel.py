@@ -323,12 +323,10 @@ class LanguageModel(
             image_hash = hashlib.md5(encoded_image.encode()).hexdigest()
             cache_call_params["user_prompt"] = f"{user_prompt} {image_hash}"
 
-        cached_response = cache.fetch(**cache_call_params)
-
+        cached_response, cache_key = cache.fetch(**cache_call_params)
         if cached_response:
             response = json.loads(cached_response)
             cache_used = True
-            cache_key = None
         else:
             remote_call = hasattr(self, "remote") and self.remote
             f = (
@@ -340,7 +338,7 @@ class LanguageModel(
             if encoded_image:
                 params["encoded_image"] = encoded_image
             response = await f(**params)
-            cache_key = cache.store(
+            new_cache_key = cache.store(
                 user_prompt=user_prompt,
                 model=str(self.model),
                 parameters=self.parameters,
@@ -348,6 +346,7 @@ class LanguageModel(
                 response=response,
                 iteration=iteration,
             )
+            assert new_cache_key == cache_key
             cache_used = False
 
         return response, cache_used, cache_key
@@ -412,7 +411,7 @@ class LanguageModel(
 
         dict_response.update(
             {
-                "cached_used": cache_used,
+                "cache_used": cache_used,
                 "cache_key": cache_key,
                 "usage": raw_response.get("usage", {}),
                 "raw_model_response": raw_response,

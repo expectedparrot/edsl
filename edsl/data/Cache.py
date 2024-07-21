@@ -41,6 +41,7 @@ class Cache(Base):
         data: Optional[Union["SQLiteDict", dict]] = None,
         immediate_write: bool = True,
         method=None,
+        verbose = False
     ):
         """
         Create two dictionaries to store the cache data.
@@ -59,6 +60,7 @@ class Cache(Base):
         self.new_entries = {}
         self.new_entries_to_write_later = {}
         self.coop = None
+        self.verbose = verbose
 
         self.filename = filename
         if filename and data:
@@ -122,7 +124,7 @@ class Cache(Base):
         system_prompt: str,
         user_prompt: str,
         iteration: int,
-    ) -> Union[None, str]:
+    ) -> tuple(Union[None, str], str):
         """
         Fetch a value (LLM output) from the cache.
 
@@ -151,8 +153,13 @@ class Cache(Base):
         )
         entry = self.data.get(key, None)
         if entry is not None:
+            if self.verbose:
+                print(f"Cache hit for key: {key}")
             self.fetched_data[key] = entry
-        return None if entry is None else entry.output
+        else:
+            if self.verbose:
+                print(f"Cache miss for key: {key}")
+        return None if entry is None else entry.output, key
 
     def store(
         self,
@@ -353,6 +360,9 @@ class Cache(Base):
         """
         for key, entry in self.new_entries_to_write_later.items():
             self.data[key] = entry
+
+        if self.filename:
+            self.write(self.filename)
 
     ####################
     # DUNDER / USEFUL
