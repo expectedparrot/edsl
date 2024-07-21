@@ -137,7 +137,7 @@ class Cache(Base):
         Return None if the response is not found.
 
         >>> c = Cache()
-        >>> c.fetch(model="gpt-3", parameters="default", system_prompt="Hello", user_prompt="Hi", iteration=1) is None
+        >>> c.fetch(model="gpt-3", parameters="default", system_prompt="Hello", user_prompt="Hi", iteration=1)[0] is None
         True
 
 
