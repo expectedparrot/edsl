@@ -74,15 +74,14 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
 
         This cleans up the raw response to make it suitable to pass to AgentResponseDict.
         """
-        # not actually used, but this removes the temptation to delete agent from the signature
         _ = agent
         try:
             response = question._validate_answer(raw_response)
         except Exception as e:
+            """If the response is invalid, remove it from the cache and raise the exception."""
             self._remove_from_cache(raw_response)
             raise e
 
-        # breakpoint()
         question_dict = self.survey.question_names_to_questions()
         for other_question, answer in self.current_answers.items():
             if other_question in question_dict:
@@ -95,12 +94,10 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
                     question_dict[new_question].comment = answer
 
         combined_dict = {**question_dict, **scenario}
-        # print("combined_dict: ", combined_dict)
-        # print("response: ", response)
-        # breakpoint()
         answer = question._translate_answer_code_to_answer(
             response["answer"], combined_dict
         )
+        #breakpoint()
         data = {
             "answer": answer,
             "comment": response.get(
@@ -111,6 +108,8 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
             "cached_response": raw_response.get("cached_response", None),
             "usage": raw_response.get("usage", {}),
             "raw_model_response": raw_model_response,
+            "cache_used": raw_response.get("cache_used", False),
+            "cache_key": raw_response.get("cache_key", None),
         }
         return AgentResponseDict(**data)
 
