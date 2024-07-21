@@ -17,12 +17,26 @@ class TokenBucket:
         self.bucket_name = bucket_name
         self.bucket_type = bucket_type
         self.capacity = capacity  # Maximum number of tokens
+        self._old_capacity = capacity
         self.tokens = capacity  # Current number of available tokens
         self.refill_rate = refill_rate  # Rate at which tokens are refilled
+        self._old_refill_rate = refill_rate
         self.last_refill = time.monotonic()  # Last refill time
 
         self.log: List[Any] = []
 
+    def turbo_mode_on(self):
+        """Set the refill rate to infinity."""
+        self._old_refill_rate = self.refill_rate
+        self._old_capacity = self.capacity
+        self.capacity=float("inf")
+        self.refill_rate=float("inf")
+
+    def turbo_mode_off(self):
+        """Restore the refill rate to its original value."""
+        self.capacity = self._old_capacity
+        self.refill_rate = self._old_refill_rate
+   
     def __add__(self, other) -> "TokenBucket":
         """Combine two token buckets.
 
@@ -98,7 +112,7 @@ class TokenBucket:
             raise ValueError(msg)
         while self.tokens < amount:
             self.refill()
-            await asyncio.sleep(0.1)  # Sleep briefly to prevent busy waiting
+            await asyncio.sleep(0.01)  # Sleep briefly to prevent busy waiting
         self.tokens -= amount
 
         now = time.monotonic()

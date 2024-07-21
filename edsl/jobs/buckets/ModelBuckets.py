@@ -24,6 +24,16 @@ class ModelBuckets:
             requests_bucket=self.requests_bucket + other.requests_bucket,
             tokens_bucket=self.tokens_bucket + other.tokens_bucket,
         )
+    
+    def turbo_mode_on(self):
+        """Set the refill rate to infinity for both buckets."""
+        self.requests_bucket.turbo_mode_on()
+        self.tokens_bucket.turbo_mode_on()
+
+    def turbo_mode_off(self):
+        """Restore the refill rate to its original value for both buckets."""
+        self.requests_bucket.turbo_mode_off()
+        self.tokens_bucket.turbo_mode_off()
 
     @classmethod
     def infinity_bucket(cls, model_name: str = "not_specified") -> "ModelBuckets":
