@@ -12,7 +12,7 @@
 - [In progress] `QuestionMultipleChoice` may be modified to allow combined options and free response "Other" option, as well as non-responsive answers. Previously, an error was thrown if the agent did not select one of the given options. Details TBD.
 
 
-## [0.1.29] - 2024-TBD [In progress]
+## [0.1.29] - 2024-07-21
 ### Added
 - Prompts visibility: Call `prompts()` on a `Jobs` object for a survey to inspect the prompts that will be used in a survey before running it. For example:
 ```
