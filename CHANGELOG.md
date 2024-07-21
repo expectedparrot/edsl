@@ -31,6 +31,9 @@ j.prompts().print(format="rich")
 
 ### Changed
 ### Fixed
+- A bug in piping to allow you to pipe an `answer` into `question_options`.
+Examples: https://docs.expectedparrot.com/en/latest/surveys.html#id2
+
 ### Deprecated
 ### Removed
 
