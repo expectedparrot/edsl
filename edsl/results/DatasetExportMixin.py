@@ -147,7 +147,6 @@ class DatasetExportMixin:
         from edsl.utilities.utilities import is_notebook
 
         if format is None:
-
             if is_notebook():
                 format = "html"
             else:
@@ -406,7 +405,6 @@ class DatasetExportMixin:
             f.write(df.to_html())
 
         if is_notebook():
-
             html_url = f"/files/{filename}"
             html_link = f'<a href="{html_url}" target="_blank">{cta}</a>'
             display(HTML(html_link))

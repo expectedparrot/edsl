@@ -14,9 +14,9 @@ class QuestionMultipleChoice(QuestionBase):
 
     question_type = "multiple_choice"
     purpose = "When options are known and limited"
-    question_options: Union[list[str], list[list], list[float], list[int]] = (
-        QuestionOptionsDescriptor()
-    )
+    question_options: Union[
+        list[str], list[list], list[float], list[int]
+    ] = QuestionOptionsDescriptor()
 
     def __init__(
         self,
@@ -75,7 +75,6 @@ class QuestionMultipleChoice(QuestionBase):
 
     @property
     def question_html_content(self) -> str:
-
         if hasattr(self, "option_labels"):
             option_labels = self.option_labels
         else:
