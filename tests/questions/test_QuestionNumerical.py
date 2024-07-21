@@ -81,7 +81,7 @@ def test_QuestionNumerical_serialization():
     q = QuestionNumerical(**valid_question)
     valid_question_w_type = valid_question.copy()
     valid_question_w_type.update({"question_type": "numerical"})
-    assert valid_question_w_type.items() <= q.to_dict().items() 
+    assert valid_question_w_type.items() <= q.to_dict().items()
     # and optional attributes if not present
     q = QuestionNumerical(**valid_question_wo_extras)
     valid_question_wo_extras_w_type = valid_question_wo_extras.copy()

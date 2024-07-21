@@ -1,12 +1,10 @@
 from __future__ import annotations
 import random
-import textwrap
 from jinja2 import Template
 from typing import Any, Optional, Union
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.exceptions import QuestionAnswerValidationError
-from edsl.scenarios import Scenario
-from edsl.utilities.utilities import random_string
+
 from edsl.questions.descriptors import (
     QuestionOptionsDescriptor,
     NumSelectionsDescriptor,
@@ -55,6 +53,8 @@ class QuestionRank(QuestionBase):
         self, answer_codes, scenario: Scenario = None
     ) -> list[str]:
         """Translate the answer code to the actual answer."""
+        from edsl.scenarios import Scenario
+
         scenario = scenario or Scenario()
         translated_options = [
             Template(option).render(scenario) for option in self.question_options
@@ -66,6 +66,8 @@ class QuestionRank(QuestionBase):
 
     def _simulate_answer(self, human_readable=True) -> dict[str, Union[int, str]]:
         """Simulate a valid answer for debugging purposes."""
+        from edsl.utilities.utilities import random_string
+
         if human_readable:
             selected = random.sample(self.question_options, self.num_selections)
         else:

@@ -1,8 +1,8 @@
 """This module contains the Question class, which is the base class for all questions in EDSL."""
 
 from __future__ import annotations
+import time
 from abc import ABC, abstractmethod
-from rich.table import Table
 from typing import Any, Type, Optional, List, Callable
 import copy
 
@@ -12,7 +12,7 @@ from edsl.exceptions import (
 )
 from edsl.questions.descriptors import QuestionNameDescriptor, QuestionTextDescriptor
 
-from edsl.prompts.registry import get_classes as prompt_lookup
+
 from edsl.questions.AnswerValidatorMixin import AnswerValidatorMixin
 from edsl.questions.RegisterQuestionsMeta import RegisterQuestionsMeta
 from edsl.Base import PersistenceMixin, RichPrintingMixin
@@ -124,6 +124,8 @@ class QuestionBase(
         :param model: The language model to use. If None, assumes does not matter.
 
         """
+        from edsl.prompts.registry import get_classes as prompt_lookup
+
         applicable_prompts = prompt_lookup(
             component_type="question_instructions",
             question_type=cls.question_type,
@@ -496,6 +498,8 @@ class QuestionBase(
 
     def rich_print(self):
         """Print the question in a rich format."""
+        from rich.table import Table
+
         table = Table(show_header=True, header_style="bold magenta")
         table.add_column("Question Name", style="dim")
         table.add_column("Question Type")

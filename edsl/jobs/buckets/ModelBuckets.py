@@ -1,4 +1,4 @@
-from edsl.jobs.buckets.TokenBucket import TokenBucket
+# from edsl.jobs.buckets.TokenBucket import TokenBucket
 
 
 class ModelBuckets:
@@ -8,7 +8,7 @@ class ModelBuckets:
     A request is one call to the service. The number of tokens required for a request depends on parameters.
     """
 
-    def __init__(self, requests_bucket: TokenBucket, tokens_bucket: TokenBucket):
+    def __init__(self, requests_bucket: "TokenBucket", tokens_bucket: "TokenBucket"):
         """Initialize the model buckets.
 
         The requests bucket captures requests per unit of time.
@@ -28,6 +28,8 @@ class ModelBuckets:
     @classmethod
     def infinity_bucket(cls, model_name: str = "not_specified") -> "ModelBuckets":
         """Create a bucket with infinite capacity and refill rate."""
+        from edsl.jobs.buckets.TokenBucket import TokenBucket
+
         return cls(
             requests_bucket=TokenBucket(
                 bucket_name=model_name,

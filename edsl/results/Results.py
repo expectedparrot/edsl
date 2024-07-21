@@ -5,15 +5,9 @@ It is not typically instantiated directly, but is returned by the run method of 
 
 from __future__ import annotations
 import json
-import hashlib
 import random
 from collections import UserList, defaultdict
 from typing import Optional, Callable, Any, Type, Union, List
-
-from pygments import highlight
-from pygments.lexers import JsonLexer
-from pygments.formatters import HtmlFormatter
-from IPython.display import HTML
 
 from simpleeval import EvalWithCompoundTypes
 
@@ -24,29 +18,17 @@ from edsl.exceptions.results import (
     ResultsMutateError,
     ResultsFilterError,
 )
-from edsl.agents import Agent, AgentList
-from edsl.language_models.LanguageModel import LanguageModel
-from edsl.results.Dataset import Dataset
-from edsl.results.Result import Result
+
 from edsl.results.ResultsExportMixin import ResultsExportMixin
-from edsl.scenarios import Scenario
-
-# from edsl.scenarios.ScenarioList import ScenarioList
-from edsl.surveys import Survey
-from edsl.data.Cache import Cache
-from edsl.utilities import (
-    is_valid_variable_name,
-    shorten_string,
-)
-from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
-from edsl.utilities.utilities import dict_hash
 from edsl.results.ResultsToolsMixin import ResultsToolsMixin
-
 from edsl.results.ResultsDBMixin import ResultsDBMixin
 from edsl.results.ResultsGGMixin import ResultsGGMixin
+from edsl.results.ResultsFetchMixin import ResultsFetchMixin
+
+from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
+from edsl.utilities.utilities import dict_hash
 
 from edsl.Base import Base
-from edsl.results.ResultsFetchMixin import ResultsFetchMixin
 
 
 class Mixins(
@@ -56,7 +38,22 @@ class Mixins(
     ResultsGGMixin,
     ResultsToolsMixin,
 ):
-    pass
+    def print_long(self, max_rows=None) -> None:
+        """Print the results in long format.
+
+        >>> from edsl.results import Results
+        >>> r = Results.example()
+        >>> r.select('how_feeling').print_long(max_rows = 2)
+        ┏━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━┓
+        ┃ Result index ┃ Key         ┃ Value ┃
+        ┡━━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━┩
+        │ 0            │ how_feeling │ OK    │
+        │ 1            │ how_feeling │ Great │
+        └──────────────┴─────────────┴───────┘
+        """
+        from edsl.utilities.interface import print_results_long
+
+        print_results_long(self, max_rows=max_rows)
 
 
 class Results(UserList, Mixins, Base):
@@ -84,10 +81,10 @@ class Results(UserList, Mixins, Base):
 
     def __init__(
         self,
-        survey: Optional[Survey] = None,
-        data: Optional[list[Result]] = None,
+        survey: Optional["Survey"] = None,
+        data: Optional[list["Result"]] = None,
         created_columns: Optional[list[str]] = None,
-        cache: Optional[Cache] = None,
+        cache: Optional["Cache"] = None,
         job_uuid: Optional[str] = None,
         total_results: Optional[int] = None,
     ):
@@ -100,6 +97,8 @@ class Results(UserList, Mixins, Base):
         :param total_results: An integer representing the total number of results.
         """
         super().__init__(data)
+        from edsl.data.Cache import Cache
+
         self.survey = survey
         self.created_columns = created_columns or []
         self._job_uuid = job_uuid
@@ -125,6 +124,10 @@ class Results(UserList, Mixins, Base):
         raise TypeError("Invalid argument type")
 
     def _update_results(self) -> None:
+        from edsl import Agent, Scenario
+        from edsl.language_models import LanguageModel
+        from edsl.results import Result
+
         if self._job_uuid and len(self.data) < self._total_results:
             results = [
                 Result(
@@ -168,7 +171,13 @@ class Results(UserList, Mixins, Base):
         return f"Results(data = {self.data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
 
     def _repr_html_(self) -> str:
+        from IPython.display import HTML
+
         json_str = json.dumps(self.to_dict()["data"], indent=4)
+        from pygments import highlight
+        from pygments.lexers import JsonLexer
+        from pygments.formatters import HtmlFormatter
+
         formatted_json = highlight(
             json_str,
             JsonLexer(),
@@ -177,6 +186,8 @@ class Results(UserList, Mixins, Base):
         return HTML(formatted_json).data
 
     def _to_dict(self, sort=False):
+        from edsl.data.Cache import Cache
+
         if sort:
             data = sorted([result for result in self.data], key=lambda x: hash(x))
         else:
@@ -226,6 +237,31 @@ class Results(UserList, Mixins, Base):
     def hashes(self) -> set:
         return set(hash(result) for result in self.data)
 
+    def sample(self, n: int) -> "Results":
+        """Return a random sample of the results.
+
+        :param n: The number of samples to return.
+
+        >>> from edsl.results import Results
+        >>> r = Results.example()
+        >>> len(r.sample(2))
+        2
+        """
+        indices = None
+
+        for entry in self:
+            key, values = list(entry.items())[0]
+            if indices is None:  # gets the indices for the first time
+                indices = list(range(len(values)))
+                sampled_indices = random.sample(indices, n)
+                if n > len(indices):
+                    raise ValueError(
+                        f"Cannot sample {n} items from a list of length {len(indices)}."
+                    )
+            entry[key] = [values[i] for i in sampled_indices]
+
+        return self
+
     @classmethod
     @remove_edsl_version
     def from_dict(cls, data: dict[str, Any]) -> Results:
@@ -241,12 +277,20 @@ class Results(UserList, Mixins, Base):
         >>> r == r2
         True
         """
-        results = cls(
-            survey=Survey.from_dict(data["survey"]),
-            data=[Result.from_dict(r) for r in data["data"]],
-            created_columns=data.get("created_columns", None),
-            cache=Cache.from_dict(data.get("cache")) if "cache" in data else Cache(),
-        )
+        from edsl import Survey, Cache
+        from edsl.results.Result import Result
+
+        try:
+            results = cls(
+                survey=Survey.from_dict(data["survey"]),
+                data=[Result.from_dict(r) for r in data["data"]],
+                created_columns=data.get("created_columns", None),
+                cache=(
+                    Cache.from_dict(data.get("cache")) if "cache" in data else Cache()
+                ),
+            )
+        except Exception as e:
+            breakpoint()
         return results
 
     ######################
@@ -313,6 +357,8 @@ class Results(UserList, Mixins, Base):
         >>> r.answer_keys
         {'how_feeling': 'How are you this {{ period }}?', 'how_feeling_yesterday': 'How were you feeling yesterday {{ period }}?'}
         """
+        from edsl.utilities.utilities import shorten_string
+
         if not self.survey:
             raise Exception("Survey is not defined so no answer keys are available.")
 
@@ -327,7 +373,7 @@ class Results(UserList, Mixins, Base):
         return sorted_dict
 
     @property
-    def agents(self) -> AgentList:
+    def agents(self) -> "AgentList":
         """Return a list of all of the agents in the Results.
 
         Example:
@@ -336,10 +382,12 @@ class Results(UserList, Mixins, Base):
         >>> r.agents
         AgentList([Agent(traits = {'status': 'Joyful'}), Agent(traits = {'status': 'Joyful'}), Agent(traits = {'status': 'Sad'}), Agent(traits = {'status': 'Sad'})])
         """
+        from edsl import AgentList
+
         return AgentList([r.agent for r in self.data])
 
     @property
-    def models(self) -> list[Type[LanguageModel]]:
+    def models(self) -> list[Type["LanguageModel"]]:
         """Return a list of all of the models in the Results.
 
         Example:
@@ -461,7 +509,7 @@ class Results(UserList, Mixins, Base):
                     )
         return data_type, key
 
-    def first(self) -> Result:
+    def first(self) -> "Result":
         """Return the first observation in the results.
 
         Example:
@@ -579,6 +627,8 @@ class Results(UserList, Mixins, Base):
             )
         raw_var_name, expression = new_var_string.split("=", 1)
         var_name = raw_var_name.strip()
+        from edsl.utilities.utilities import is_valid_variable_name
+
         if not is_valid_variable_name(var_name):
             raise ResultsInvalidNameError(f"{var_name} is not a valid variable name.")
 
@@ -590,7 +640,7 @@ class Results(UserList, Mixins, Base):
                 names=result.combined_dict, functions=functions_dict
             )
 
-        def new_result(old_result: Result, var_name: str) -> Result:
+        def new_result(old_result: "Result", var_name: str) -> "Result":
             evaluator = create_evaluator(old_result)
             value = evaluator.eval(expression)
             new_result = old_result.copy()
@@ -680,7 +730,7 @@ class Results(UserList, Mixins, Base):
 
         return Results(survey=self.survey, data=new_data, created_columns=None)
 
-    def select(self, *columns: Union[str, list[str]]) -> Dataset:
+    def select(self, *columns: Union[str, list[str]]) -> "Dataset":
         """
         Select data from the results and format it.
 
@@ -692,6 +742,7 @@ class Results(UserList, Mixins, Base):
         >>> results.select('how_feeling')
         Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}])
         """
+
         if len(self) == 0:
             raise Exception("No data to select from---the Results object is empty.")
 
@@ -748,6 +799,7 @@ class Results(UserList, Mixins, Base):
             return items_in_order.index(single_key)
 
         sorted(new_data, key=sort_by_key_order)
+        from edsl.results.Dataset import Dataset
 
         return Dataset(new_data)
 
@@ -906,7 +958,7 @@ class Results(UserList, Mixins, Base):
 
         :param debug: if False, uses actual API calls
         """
-        from edsl.jobs import Jobs
+        from edsl.jobs.Jobs import Jobs
         from edsl.data.Cache import Cache
 
         c = Cache()

@@ -1,8 +1,6 @@
 """Mixin for working with SQLite respresentation of a 'Results' object."""
 
-import pandas as pd
 import sqlite3
-from sqlalchemy import create_engine
 from enum import Enum
 from typing import Literal, Union, Optional
 
@@ -92,6 +90,8 @@ class ResultsDBMixin:
             conn.commit()
             return conn
         elif shape == SQLDataShape.WIDE:
+            from sqlalchemy import create_engine
+
             engine = create_engine("sqlite:///:memory:")
             df = self.to_pandas(remove_prefix=remove_prefix)
             df.to_sql("self", engine, index=False, if_exists="replace")
@@ -121,7 +121,7 @@ class ResultsDBMixin:
         to_list=False,
         to_latex=False,
         filename: Optional[str] = None,
-    ) -> Union[pd.DataFrame, str]:
+    ) -> Union["pd.DataFrame", str]:
         """Execute a SQL query and return the results as a DataFrame.
 
         :param query: The SQL query to execute
@@ -151,6 +151,8 @@ class ResultsDBMixin:
         2    Terrible
         3          OK
         """
+        import pandas as pd
+
         shape_enum = self._get_shape_enum(shape)
 
         conn = self._db(shape=shape_enum, remove_prefix=remove_prefix)
@@ -205,6 +207,8 @@ class ResultsDBMixin:
         ...
         <BLANKLINE>
         """
+        import pandas as pd
+
         shape_enum = self._get_shape_enum(shape)
         conn = self._db(shape=shape_enum, remove_prefix=remove_prefix)
 

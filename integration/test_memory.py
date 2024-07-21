@@ -45,7 +45,7 @@ def get_survey(memory):
 def test_without_memory():
     s = get_survey(memory=False)
     flip_scenarios = flips(NUM_FLIPS)
-    results = s.by(flip_scenarios).by(m).run(cache = c_no_memory)
+    results = s.by(flip_scenarios).by(m).run(cache=c_no_memory)
     if verbose:
         results.select("coin_flip_observed", "q2").print()
     assert all([result == "I don't know" for result in results.select("q2").to_list()])
@@ -55,12 +55,12 @@ def test_without_memory():
 def test_with_memory():
     s = get_survey(memory=True)
     flip_scenarios = flips(NUM_FLIPS)
-    results = s.by(flip_scenarios).by(m).run(cache = c_memory).mutate("match = q1 == q2")
-    #breakpoint()
+    results = s.by(flip_scenarios).by(m).run(cache=c_memory).mutate("match = q1 == q2")
+    # breakpoint()
     if verbose:
         results.select("q1", "q2", "match").print()
     matches = [result == True for result in results.select("match").to_list()]
     num_matches = sum(matches)
     assert len(matches) == num_matches
-    
+
     c_memory.write_jsonl("coin_flip_cache_with_memory.jsonl")

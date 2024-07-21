@@ -1,4 +1,4 @@
-import pytest 
+import pytest
 
 from edsl import Agent, Scenario
 from edsl.questions import QuestionYesNo
@@ -8,7 +8,7 @@ def test_progress_bar():
     """Just makes sure that the progress bar doesn't throw an error."""
 
     def is_prime(self, question, scenario):
-        number = scenario['number']
+        number = scenario["number"]
         if number < 2:
             return "Yes"
         for i in range(2, number):
@@ -16,14 +16,16 @@ def test_progress_bar():
                 return "No"
         return "Yes"
 
-    a = Agent(name = "prime_knower")
-    a.add_direct_question_answering_method(method = is_prime)
+    a = Agent(name="prime_knower")
+    a.add_direct_question_answering_method(method=is_prime)
 
-    s = [Scenario({'number':number}) for number in range(20)]
-    q = QuestionYesNo(question_text = "Is this number prime: {{ number }}?", 
-                    question_name = "is_prime")
-    
+    s = [Scenario({"number": number}) for number in range(20)]
+    q = QuestionYesNo(
+        question_text="Is this number prime: {{ number }}?", question_name="is_prime"
+    )
+
     from edsl.data.Cache import Cache
-    results = q.by(s).by(a).run(progress_bar = True, cache = Cache())
 
-    #results.select('number', 'is_prime').print()
+    results = q.by(s).by(a).run(progress_bar=True, cache=Cache())
+
+    # results.select('number', 'is_prime').print()

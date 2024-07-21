@@ -1,7 +1,3 @@
-# from edsl import ScenarioList
-from edsl.questions import QuestionList, QuestionCheckBox
-
-
 class ResultsToolsMixin:
     def get_themes(
         self,
@@ -18,6 +14,7 @@ class ResultsToolsMixin:
             for txt in self.shuffle(seed=seed).select(field).to_list()[:max_values]
         ]
         from edsl import ScenarioList
+        from edsl.questions import QuestionList, QuestionCheckBox
 
         q = QuestionList(
             question_text=f"""

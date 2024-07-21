@@ -1,8 +1,6 @@
 from typing import Union, List, Any
 import asyncio
 import time
-from collections import UserDict
-from matplotlib import pyplot as plt
 
 
 class TokenBucket:
@@ -114,6 +112,7 @@ class TokenBucket:
         times, tokens = zip(*self.get_log())
         start_time = times[0]
         times = [t - start_time for t in times]  # Normalize time to start from 0
+        from matplotlib import pyplot as plt
 
         plt.figure(figsize=(10, 6))
         plt.plot(times, tokens, label="Tokens Available")

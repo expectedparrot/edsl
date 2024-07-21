@@ -26,7 +26,9 @@ def pytest_configure(config):
     """
     config.addinivalue_line("markers", "coop: Requires running coop")
     config.coop_enabled = config.getoption("--coop")
-    config.addinivalue_line("markers", "linux_only: Requires running linux - test will not pass on windows")
+    config.addinivalue_line(
+        "markers", "linux_only: Requires running linux - test will not pass on windows"
+    )
 
 
 def pytest_collection_modifyitems(config, items):
@@ -44,7 +46,7 @@ def pytest_collection_modifyitems(config, items):
         for item in items:
             if "coop" not in item.keywords:
                 item.add_marker(skip_notcoop)
-    
+
     if config.getoption("--windows"):
         skip_notwindows = pytest.mark.skip(reason="Skipping non-windows tests")
         for item in items:

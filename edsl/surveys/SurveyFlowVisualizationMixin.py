@@ -1,10 +1,7 @@
 """A mixin for visualizing the flow of a survey."""
 
-import pydot
-import tempfile
-from IPython.display import Image
-from edsl.utilities import is_notebook
 from edsl.surveys.base import RulePriority, EndOfSurvey
+import tempfile
 
 
 class SurveyFlowVisualizationMixin:
@@ -13,6 +10,8 @@ class SurveyFlowVisualizationMixin:
     def show_flow(self, filename: str = None):
         """Create an image showing the flow of users through the survey."""
         # Create a graph object
+        import pydot
+
         graph = pydot.Dot(graph_type="digraph")
 
         # Add nodes for each question
@@ -101,8 +100,11 @@ class SurveyFlowVisualizationMixin:
                         on Ubuntu.
                     """
                 )
+            from edsl.utilities.utilities import is_notebook
 
             if is_notebook():
+                from IPython.display import Image
+
                 display(Image(tmp_file.name))
             else:
                 import os

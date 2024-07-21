@@ -2,7 +2,7 @@ import datetime
 import pytest
 import unittest
 from edsl import Cache, Coop, Survey
-from edsl.data import CacheEntry
+from edsl.data.CacheEntry import CacheEntry
 from edsl.questions import QuestionMultipleChoice
 from unittest.mock import patch, PropertyMock
 

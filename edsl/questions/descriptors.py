@@ -8,9 +8,7 @@ from edsl.exceptions import (
     QuestionAnswerValidationError,
 )
 from edsl.questions.settings import Settings
-from edsl.utilities.utilities import is_valid_variable_name
 
-from edsl.prompts import get_classes
 
 ################################
 # Helper functions
@@ -56,6 +54,8 @@ class BaseDescriptor(ABC):
     def __set__(self, instance, value: Any) -> None:
         """Set the value of the attribute."""
         self.validate(value, instance)
+        from edsl.prompts.registry import get_classes
+
         instance.__dict__[self.name] = value
         if self.name == "_instructions":
             instructions = value
@@ -231,6 +231,8 @@ class QuestionNameDescriptor(BaseDescriptor):
 
     def validate(self, value, instance):
         """Validate the value is a valid variable name."""
+        from edsl.utilities.utilities import is_valid_variable_name
+
         if not is_valid_variable_name(value):
             raise QuestionCreationValidationError(
                 f"`question_name` is not a valid variable name (got {value})."

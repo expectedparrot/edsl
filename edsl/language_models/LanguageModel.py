@@ -7,26 +7,18 @@ import asyncio
 import json
 import time
 import os
-
 from typing import Coroutine, Any, Callable, Type, List, get_type_hints
-
-from abc import ABC, abstractmethod, ABCMeta
-
-from rich.table import Table
+from abc import ABC, abstractmethod
 
 from edsl.config import CONFIG
 
-from edsl.utilities.utilities import clean_json
 from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
+
 from edsl.language_models.repair import repair
-from edsl.exceptions.language_models import LanguageModelAttributeTypeError
 from edsl.enums import InferenceServiceType
 from edsl.Base import RichPrintingMixin, PersistenceMixin
-from edsl.data.Cache import Cache
 from edsl.enums import service_to_api_keyname
-
-
 from edsl.exceptions import MissingAPIKeyError
 from edsl.language_models.RegisterLanguageModelsMeta import RegisterLanguageModelsMeta
 
@@ -291,7 +283,7 @@ class LanguageModel(
         self,
         user_prompt: str,
         system_prompt: str,
-        cache,
+        cache: "Cache",
         iteration: int = 0,
         encoded_image=None,
     ) -> tuple[dict, bool, str]:
@@ -490,6 +482,8 @@ class LanguageModel(
 
     def rich_print(self):
         """Display an object as a table."""
+        from rich.table import Table
+
         table = Table(title="Language Model")
         table.add_column("Attribute", style="bold")
         table.add_column("Value")

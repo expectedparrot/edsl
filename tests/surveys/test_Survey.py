@@ -47,8 +47,6 @@ class TestSurvey(unittest.TestCase):
         #     # can't skip the first question in the survey
         #     s.add_skip_rule(q1, "True")
 
-
-
     def test_add_memory(self):
         survey = self.gen_survey()
         # breakpoint()
@@ -135,7 +133,8 @@ class TestSurvey(unittest.TestCase):
         jobs = survey.by(d)
 
         from edsl.data.Cache import Cache
-        results = jobs.run(cache = Cache())
+
+        results = jobs.run(cache=Cache())
         # with this skip logic, the second question should not be answered
         assert results[0].answer["own_shovel"] == None
 
@@ -165,8 +164,11 @@ class TestSurvey(unittest.TestCase):
 
     def test_export_code(self):
         survey = self.gen_survey()
-        #breakpoint()
-        assert survey.code() == """from edsl.surveys.Survey import Survey\nfrom edsl import Question\n\nlike_school = Question(\n    "multiple_choice",\n    question_name=\"\"\"like_school\"\"\",\n    question_text=\"\"\"Do you like school?\"\"\",\n    question_options=["yes", "no"],\n)\nfavorite_subject = Question(\n    "multiple_choice",\n    question_name=\"\"\"favorite_subject\"\"\",\n    question_text=\"\"\"What is your favorite subject?\"\"\",\n    question_options=["math", "science", "english", "history"],\n)\nmanual = Question(\n    "multiple_choice",\n    question_name=\"\"\"manual\"\"\",\n    question_text=\"\"\"Do you like working with your hands?\"\"\",\n    question_options=["yes", "no"],\n)\nsurvey = Survey(questions=[like_school, favorite_subject, manual])\n"""
+        # breakpoint()
+        assert (
+            survey.code()
+            == """from edsl.surveys.Survey import Survey\nfrom edsl import Question\n\nlike_school = Question(\n    "multiple_choice",\n    question_name=\"\"\"like_school\"\"\",\n    question_text=\"\"\"Do you like school?\"\"\",\n    question_options=["yes", "no"],\n)\nfavorite_subject = Question(\n    "multiple_choice",\n    question_name=\"\"\"favorite_subject\"\"\",\n    question_text=\"\"\"What is your favorite subject?\"\"\",\n    question_options=["math", "science", "english", "history"],\n)\nmanual = Question(\n    "multiple_choice",\n    question_name=\"\"\"manual\"\"\",\n    question_text=\"\"\"Do you like working with your hands?\"\"\",\n    question_options=["yes", "no"],\n)\nsurvey = Survey(questions=[like_school, favorite_subject, manual])\n"""
+        )
         # for now, just make sure it doesn't crash
         _ = survey.docx()
 
@@ -175,8 +177,10 @@ class TestSurvey(unittest.TestCase):
         s = self.gen_survey()
         # make sure doesn't crash
         import tempfile
+
         with tempfile.NamedTemporaryFile(suffix=".png") as f:
             s.show_flow(filename=f.name)
+
 
 if __name__ == "__main__":
     unittest.main()
