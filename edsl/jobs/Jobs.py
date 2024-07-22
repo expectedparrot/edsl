@@ -461,6 +461,13 @@ class Jobs(Base):
             remote_inference = False
 
         if remote_inference:
+            from edsl.agents.Agent import Agent
+            from edsl.language_models.registry import Model
+            from edsl.results.Result import Result
+            from edsl.results.Results import Results
+            from edsl.scenarios.Scenario import Scenario
+            from edsl.surveys.Survey import Survey
+
             self._output("Remote inference activated. Sending job to server...")
             if remote_cache:
                 self._output(
