@@ -30,14 +30,14 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
 
     def __init__(
         self,
-        agent: Agent,
-        survey: Survey,
-        scenario: Scenario,
-        model: Type[LanguageModel],
-        debug: bool = False,
+        agent: 'Agent',
+        survey: 'Survey',
+        scenario: 'Scenario',
+        model: Type['LanguageModel'],
+        debug: Optional[bool] = False,
         iteration: int = 0,
         cache: "Cache" = None,
-        sidecar_model: LanguageModel = None,
+        sidecar_model: 'LanguageModel' = None,
     ):
         """Initialize the Interview instance.
 
@@ -54,9 +54,9 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         self.debug = debug
         self.iteration = iteration
         self.cache = cache
-        self.answers: dict[str, str] = (
-            Answers()
-        )  # will get filled in as interview progresses
+        self.answers: dict[
+            str, str
+        ] = Answers()  # will get filled in as interview progresses
         self.sidecar_model = sidecar_model
 
         # Trackers
@@ -99,6 +99,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         if model_buckets is None or hasattr(self.agent, "answer_question_directly"):
             model_buckets = ModelBuckets.infinity_bucket()
 
+        # FOR TESTING
         # model_buckets = ModelBuckets.infinity_bucket()
 
         ## build the tasks using the InterviewTaskBuildingMixin
