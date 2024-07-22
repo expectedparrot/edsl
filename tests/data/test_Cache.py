@@ -29,7 +29,7 @@ def test_fetch_nonexistent_entry():
             system_prompt="The quick brown fox jumps over the lazy dog.",
             user_prompt="What does the fox say?",
             iteration=1,
-        )
+        )[0]
         == None
     )
 
@@ -79,7 +79,7 @@ def test_html(cache_example):
 
 def test_fetch_existing_entry(cache_example):
     cache = cache_example
-    assert cache.fetch(**cache.fetch_input_example()) == "The fox says 'hello'"
+    assert cache.fetch(**cache.fetch_input_example())[0] == "The fox says 'hello'"
 
 
 def test_store_with_immediate_write():
