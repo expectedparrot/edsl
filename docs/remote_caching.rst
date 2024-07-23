@@ -41,7 +41,7 @@ Activating remote caching
 
     <br>
 
-When remote caching is on, the results of any question or survey that you `run` will be stored 
+When remote caching is on, the results of any question or survey that you run will be stored 
 automatically on the Expected Parrot server.
 
 
