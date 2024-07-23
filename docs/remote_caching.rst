@@ -30,7 +30,7 @@ Activating remote caching
 
 2. Locate **EDSL Settings** section of the page.
 
-2. Toggle the slider for *Remote caching* to turn it on:
+3. Toggle the slider for *Remote caching* to turn it on:
 
 .. image:: static/remote_caching_toggle_coop_api_page.png
   :alt: Remote cache toggle on the Coop web app
