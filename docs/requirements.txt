@@ -1639,7 +1639,6 @@ pymupdf==1.24.7 ; python_full_version >= "3.9.1" and python_version < "3.13" \
     --hash=sha256:da82dc784e52b3635110995a75189cdef71b02d9a3a2635cd1d216133d547519 \
     --hash=sha256:f82db6fd757fb3698075e2e68e4f6df7ae89b82a96ae102e178e5b01a250359b
 pymupdfb==1.24.6 ; python_full_version >= "3.9.1" and python_version < "3.13" \
-    --hash=sha256:01662584d5cfa7a91f77585f13fc23a12291cfd76a57e0a28dd5a56bf521cb2c \
     --hash=sha256:21e3ed890f736def68b9a031122ae1fb854d5cb9a53aa144b6e2ca3092416a6b \
     --hash=sha256:8704d2dfadc9448ce184597d8b0f9c30143e379ac948a517f9c4db7c0c71ed51 \
     --hash=sha256:9224e088a0d3c188dea03831807789e245b812fbd071c8d498da8f7cc33142b2 \
