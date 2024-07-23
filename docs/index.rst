@@ -31,6 +31,15 @@ Links
    <a href="https://discord.com/invite/mxAYkjfy9m" target="_blank"><i class="fab fa-discord"></i></a>&nbsp;&nbsp;<a href="https://discord.com/invite/mxAYkjfy9m" target="_blank">Join our Discord channel</a> to connect with other users and ask questions.
    <br><br>
 
+.. raw:: html
+
+   <a href="" target="_blank"><i class="fab fa-discord"></i></a>&nbsp;&nbsp;Follow on social media:
+   * <a href="https://twitter.com/expectedparrot" target="_blank"><i class="fab fa-twitter"></i></a>&nbsp;&nbsp;<a href="https://twitter.com/expectedparrot" target="_blank">Twitter/X</a>
+   * <a href="https://www.linkedin.com/company/expectedparrot" target="_blank"><i class="fab fa-linkedin"></i></a>&nbsp;&nbsp;<a href="https://www.linkedin.com/company/expectedparrot" target="_blank">Linkedin</a>
+   * <a href="https://blog.expectedparrot.com" target="_blank"><i class="fab fa-linkedin"></i></a>&nbsp;&nbsp;<a href="https://blog.expectedparrot.com" target="_blank">Blog</a>
+   <br><br>
+
+
 Introduction
 ------------
 
