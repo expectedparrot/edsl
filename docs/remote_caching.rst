@@ -22,7 +22,7 @@ Activating remote caching
 .. image:: static/coop_api_main_page.png
   :alt: Coop API page link at the main page
   :align: center
-  :width: 600px
+  :width: 650px
 
 .. raw:: html
   
@@ -35,7 +35,7 @@ Activating remote caching
 .. image:: static/remote_caching_toggle_coop_api_page.png
   :alt: Remote cache toggle on the Coop web app
   :align: center
-  :width: 600px
+  :width: 650px
 
 .. raw:: html
 
