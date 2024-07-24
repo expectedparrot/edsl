@@ -696,7 +696,7 @@ class Agent(Base):
         :param randomize: If True, adds a random string to the value of an example key.
         """
         addition = "" if not randomize else str(uuid4())
-        return cls(traits={"age": 22, "hair": f"brown.{addition}", "height": 5.5})
+        return cls(traits={"age": 22, "hair": f"brown{addition}", "height": 5.5})
 
     def code(self) -> str:
         """Return the code for the agent.

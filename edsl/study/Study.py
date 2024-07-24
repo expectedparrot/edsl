@@ -400,7 +400,7 @@ class Study:
         return diff
 
     @classmethod
-    def example(cls, verbose=False, randomize=True):
+    def example(cls, verbose=False, randomize=False):
         import tempfile
 
         study_file = tempfile.NamedTemporaryFile()
