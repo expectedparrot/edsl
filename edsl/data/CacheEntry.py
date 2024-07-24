@@ -6,9 +6,6 @@ import random
 from typing import Optional
 
 
-# TODO: Timestamp should probably be float?
-
-
 class CacheEntry:
     """
     A Class to represent a cache entry.
@@ -152,9 +149,11 @@ class CacheEntry:
     def example(cls, randomize: bool = False) -> CacheEntry:
         """
         Returns a CacheEntry example.
+
+        :param randomize: If True, adds a random number to the system prompt.
         """
         # if random, create a random number for 0-100
-        addition = "" if not randomize else str(random.randint(0, 1000))
+        addition = "" if not randomize else str(random.randint(0, 10**10))
         return CacheEntry(
             model="gpt-3.5-turbo",
             parameters={"temperature": 0.5},
