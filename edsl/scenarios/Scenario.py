@@ -1,21 +1,17 @@
 """A Scenario is a dictionary with a key/value to parameterize a question."""
 
-import time
+from __future__ import annotations
 import copy
-from collections import UserDict
-from typing import Union, List, Optional, Generator
 import base64
 import hashlib
 import os
-
+from collections import UserDict
+from typing import Union, List, Optional, Generator
+from uuid import uuid4
 from edsl.Base import Base
 from edsl.scenarios.ScenarioImageMixin import ScenarioImageMixin
 from edsl.scenarios.ScenarioHtmlMixin import ScenarioHtmlMixin
-
-from edsl.utilities.decorators import (
-    add_edsl_version,
-    remove_edsl_version,
-)
+from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
 
 class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
@@ -28,9 +24,7 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
 
         :param data: A dictionary of keys/values for parameterizing questions.
         """
-        if data is None:
-            data = {}
-        self.data = data
+        self.data = data if data is not None else {}
         self.name = name
 
     def replicate(self, n: int) -> "ScenarioList":
@@ -415,17 +409,16 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         return table
 
     @classmethod
-    def example(cls) -> "Scenario":
-        """Return an example scenario.
-
-        Example:
-
-        >>> Scenario.example()
-        Scenario({'persona': 'A reseacher studying whether LLMs can be used to generate surveys.'})
+    def example(cls, randomize: bool = False) -> Scenario:
         """
+        Returns an example Scenario instance.
+
+        :param randomize: If True, adds a random string to the value of the example key.
+        """
+        addition = "" if not randomize else str(uuid4())
         return cls(
             {
-                "persona": "A reseacher studying whether LLMs can be used to generate surveys."
+                "persona": f"A reseacher studying whether LLMs can be used to generate surveys.{addition}",
             }
         )
 

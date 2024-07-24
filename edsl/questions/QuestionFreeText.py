@@ -1,6 +1,7 @@
 from __future__ import annotations
 import textwrap
 from typing import Any, Optional
+from uuid import uuid4
 from edsl.questions.QuestionBase import QuestionBase
 
 
@@ -65,9 +66,10 @@ class QuestionFreeText(QuestionBase):
         return question_html_content
 
     @classmethod
-    def example(cls) -> QuestionFreeText:
+    def example(cls, randomize: bool = False) -> QuestionFreeText:
         """Return an example instance of a free text question."""
-        return cls(question_name="how_are_you", question_text="How are you?")
+        addition = "" if not randomize else str(uuid4())
+        return cls(question_name="how_are_you", question_text=f"How are you?{addition}")
 
 
 def main():
