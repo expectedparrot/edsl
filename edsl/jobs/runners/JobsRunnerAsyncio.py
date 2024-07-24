@@ -89,6 +89,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
 
     async def run_async(self, cache=None) -> Results:
         from edsl.results.Results import Results
+
         if cache is None:
             self.cache = Cache()
         else:
@@ -100,6 +101,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
 
     def simple_run(self):
         from edsl.results.Results import Results
+
         data = asyncio.run(self.run_async())
         return Results(survey=self.jobs.survey, data=data)
 
