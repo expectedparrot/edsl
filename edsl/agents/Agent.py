@@ -4,7 +4,8 @@ from __future__ import annotations
 import copy
 import inspect
 import types
-from typing import Any, Callable, Optional, Union, Dict, Sequence
+from typing import Callable, Optional, Union
+from uuid import uuid4
 from edsl.Base import Base
 
 from edsl.exceptions.agents import (
@@ -688,13 +689,14 @@ class Agent(Base):
         return table
 
     @classmethod
-    def example(cls) -> Agent:
-        """Return an example agent.
-
-        >>> Agent.example()
-        Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5})
+    def example(cls, randomize: bool = False) -> Agent:
         """
-        return cls(traits={"age": 22, "hair": "brown", "height": 5.5})
+        Returns an example Agent instance.
+
+        :param randomize: If True, adds a random string to the value of an example key.
+        """
+        addition = "" if not randomize else str(uuid4())
+        return cls(traits={"age": 22, "hair": f"brown{addition}", "height": 5.5})
 
     def code(self) -> str:
         """Return the code for the agent.

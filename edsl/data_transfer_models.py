@@ -17,7 +17,7 @@ class AgentResponseDict(UserDict):
         cached_response=None,
         raw_model_response=None,
         simple_model_raw_response=None,
-        cache_used=None, 
+        cache_used=None,
         cache_key=None,
     ):
         """Initialize the AgentResponseDict object."""

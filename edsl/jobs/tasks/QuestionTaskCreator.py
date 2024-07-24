@@ -144,25 +144,24 @@ class QuestionTaskCreator(UserList):
             self.task_status = TaskStatus.FAILED
             raise e
 
-        ## This isn't working 
-        #breakpoint()
-        if results.get('cache_used', False):
+        ## This isn't working
+        # breakpoint()
+        if results.get("cache_used", False):
             self.tokens_bucket.add_tokens(requested_tokens)
             self.requests_bucket.add_tokens(1)
             self.from_cache = True
-            #print("Turning on turbo!")
+            # print("Turning on turbo!")
             self.tokens_bucket.turbo_mode_on()
             self.requests_bucket.turbo_mode_on()
         else:
-            #breakpoint()
-            #print("Turning off turbo!")
+            # breakpoint()
+            # print("Turning off turbo!")
             self.tokens_bucket.turbo_mode_off()
             self.requests_bucket.turbo_mode_off()
 
         _ = results.pop("cached_response", None)
 
         tracker = self.cached_token_usage if self.from_cache else self.new_token_usage
-
 
         # TODO: This is hacky. The 'func' call should return an object that definitely has a 'usage' key.
         usage = results.get("usage", {"prompt_tokens": 0, "completion_tokens": 0})
