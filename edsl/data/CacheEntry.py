@@ -2,8 +2,8 @@ from __future__ import annotations
 import json
 import datetime
 import hashlib
-import random
 from typing import Optional
+from uuid import uuid4
 
 
 class CacheEntry:
@@ -148,12 +148,12 @@ class CacheEntry:
     @classmethod
     def example(cls, randomize: bool = False) -> CacheEntry:
         """
-        Returns a CacheEntry example.
+        Returns an example CacheEntry instance.
 
-        :param randomize: If True, adds a random number to the system prompt.
+        :param randomize: If True, adds a random string to the system prompt.
         """
-        # if random, create a random number for 0-100
-        addition = "" if not randomize else str(random.randint(0, 10**10))
+        # if random, create a uuid
+        addition = "" if not randomize else str(uuid4())
         return CacheEntry(
             model="gpt-3.5-turbo",
             parameters={"temperature": 0.5},
