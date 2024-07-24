@@ -734,7 +734,7 @@ class Jobs(Base):
         joy_agent.add_direct_question_answering_method(answer_question_directly)
 
         q1 = QuestionMultipleChoice(
-            question_text=f"How are you this {{ period }}?{addition}",
+            question_text="How are you this {{ period }}?",
             question_options=["Good", "Great", "OK", "Terrible"],
             question_name="how_feeling",
         )
@@ -748,7 +748,10 @@ class Jobs(Base):
         base_survey = Survey(questions=[q1, q2])
 
         scenario_list = ScenarioList(
-            [Scenario({"period": "morning"}), Scenario({"period": "afternoon"})]
+            [
+                Scenario({"period": f"morning{addition}"}),
+                Scenario({"period": "afternoon"}),
+            ]
         )
         job = base_survey.by(scenario_list).by(joy_agent, sad_agent)
 
