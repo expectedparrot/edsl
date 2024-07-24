@@ -687,7 +687,9 @@ class Jobs(Base):
     # Example methods
     #######################
     @classmethod
-    def example(cls, throw_exception_probability=0) -> Jobs:
+    def example(
+        cls, throw_exception_probability: int = 0, randomize: bool = False
+    ) -> Jobs:
         """Return an example Jobs instance.
 
         :param throw_exception_probability: the probability that an exception will be thrown when answering a question. This is useful for testing error handling.
@@ -697,9 +699,12 @@ class Jobs(Base):
 
         """
         import random
+        from uuid import uuid4
         from edsl.questions import QuestionMultipleChoice
         from edsl.agents.Agent import Agent
         from edsl.scenarios.Scenario import Scenario
+
+        addition = "" if not randomize else str(uuid4())
 
         # (status, question, period)
         agent_answers = {
@@ -729,7 +734,7 @@ class Jobs(Base):
         joy_agent.add_direct_question_answering_method(answer_question_directly)
 
         q1 = QuestionMultipleChoice(
-            question_text="How are you this {{ period }}?",
+            question_text=f"How are you this {{ period }}?{addition}",
             question_options=["Good", "Great", "OK", "Terrible"],
             question_name="how_feeling",
         )
