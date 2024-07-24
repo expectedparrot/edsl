@@ -1,14 +1,11 @@
 """A Notebook is a utility class that allows you to easily share/pull ipynbs from Coop."""
 
+from __future__ import annotations
 import json
 from typing import Dict, List, Optional
-
-
+from uuid import uuid4
 from edsl.Base import Base
-from edsl.utilities.decorators import (
-    add_edsl_version,
-    remove_edsl_version,
-)
+from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
 
 class Notebook(Base):
@@ -192,10 +189,13 @@ class Notebook(Base):
         return table
 
     @classmethod
-    def example(cls) -> "Notebook":
+    def example(cls, randomize: bool = False) -> Notebook:
         """
-        Return an example Notebook.
+        Returns an example Notebook instance.
+
+        :param randomize: If True, adds a random string one of the cells' output.
         """
+        addition = "" if not randomize else str(uuid4())
         cells = [
             {
                 "cell_type": "markdown",
@@ -210,7 +210,7 @@ class Notebook(Base):
                     {
                         "name": "stdout",
                         "output_type": "stream",
-                        "text": "Hello world!\n",
+                        "text": f"Hello world!\n{addition}",
                     }
                 ],
                 "source": 'print("Hello world!")',

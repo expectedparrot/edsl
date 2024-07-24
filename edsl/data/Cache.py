@@ -7,17 +7,10 @@ import json
 import os
 import warnings
 from typing import Optional, Union
-import time
-from edsl.config import CONFIG
-from edsl.data.CacheEntry import CacheEntry
-
-# from edsl.data.SQLiteDict import SQLiteDict
 from edsl.Base import Base
+from edsl.data.CacheEntry import CacheEntry
 from edsl.utilities.utilities import dict_hash
-from edsl.utilities.decorators import (
-    add_edsl_version,
-    remove_edsl_version,
-)
+from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
 
 class Cache(Base):
@@ -41,7 +34,7 @@ class Cache(Base):
         data: Optional[Union["SQLiteDict", dict]] = None,
         immediate_write: bool = True,
         method=None,
-        verbose = False
+        verbose=False,
     ):
         """
         Create two dictionaries to store the cache data.
@@ -480,12 +473,18 @@ class Cache(Base):
         webbrowser.open("file://" + filepath)
 
     @classmethod
-    def example(cls) -> Cache:
+    def example(cls, randomize: bool = False) -> Cache:
         """
-        Return an example Cache.
-        The example Cache has one entry.
+        Returns an example Cache instance.
+
+        :param randomize: If True, uses CacheEntry's randomize method.
         """
-        return cls(data={CacheEntry.example().key: CacheEntry.example()})
+        return cls(
+            data={
+                CacheEntry.example(randomize).key: CacheEntry.example(),
+                CacheEntry.example(randomize).key: CacheEntry.example(),
+            }
+        )
 
 
 if __name__ == "__main__":
