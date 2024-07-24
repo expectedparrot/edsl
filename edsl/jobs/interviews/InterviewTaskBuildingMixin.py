@@ -25,7 +25,7 @@ TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
 class InterviewTaskBuildingMixin:
     def _build_invigilators(
         self, debug: bool
-    ) -> Generator[InvigilatorBase, None, None]:
+    ) -> Generator['InvigilatorBase', None, None]:
         """Create an invigilator for each question.
 
         :param debug: whether to use debug mode, in which case `InvigilatorDebug` is used.
@@ -35,7 +35,7 @@ class InterviewTaskBuildingMixin:
         for question in self.survey.questions:
             yield self._get_invigilator(question=question, debug=debug)
 
-    def _get_invigilator(self, question: QuestionBase, debug: bool) -> "Invigilator":
+    def _get_invigilator(self, question: 'QuestionBase', debug: bool) -> "Invigilator":
         """Return an invigilator for the given question.
 
         :param question: the question to be answered
@@ -84,7 +84,7 @@ class InterviewTaskBuildingMixin:
         return tuple(tasks)  # , invigilators
 
     def _get_tasks_that_must_be_completed_before(
-        self, *, tasks: list[asyncio.Task], question: QuestionBase
+        self, *, tasks: list[asyncio.Task], question: 'QuestionBase'
     ) -> Generator[asyncio.Task, None, None]:
         """Return the tasks that must be completed before the given question can be answered.
 
@@ -100,7 +100,7 @@ class InterviewTaskBuildingMixin:
     def _create_question_task(
         self,
         *,
-        question: QuestionBase,
+        question: 'QuestionBase',
         tasks_that_must_be_completed_before: list[asyncio.Task],
         model_buckets: ModelBuckets,
         debug: bool,
@@ -175,24 +175,12 @@ class InterviewTaskBuildingMixin:
 
             self._add_answer(response=response, question=question)
 
-            # With the answer to the question, we can now cancel any skipped questions
             self._cancel_skipped_questions(question)
             return AgentResponseDict(**response)
         except Exception as e:
             raise e
-            # import traceback
-            # print("Exception caught:")
-            # traceback.print_exc()
-
-            # # Extract and print the traceback info
-            # tb = e.__traceback__
-            # while tb is not None:
-            #     print(f"File {tb.tb_frame.f_code.co_filename}, line {tb.tb_lineno}, in {tb.tb_frame.f_code.co_name}")
-            #     tb = tb.tb_next
-            #     breakpoint()
-            #     raise e
-
-    def _add_answer(self, response: AgentResponseDict, question: QuestionBase) -> None:
+        
+    def _add_answer(self, response: 'AgentResponseDict', question: 'QuestionBase') -> None:
         """Add the answer to the answers dictionary.
 
         :param response: the response to the question.
@@ -200,7 +188,7 @@ class InterviewTaskBuildingMixin:
         """
         self.answers.add_answer(response=response, question=question)
 
-    def _skip_this_question(self, current_question: QuestionBase) -> bool:
+    def _skip_this_question(self, current_question: 'QuestionBase') -> bool:
         """Determine if the current question should be skipped.
 
         :param current_question: the question to be answered.
