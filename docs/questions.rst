@@ -562,7 +562,8 @@ Example usage:
         question_name = "foods_rank", 
         question_text = "Select the best foods.", 
         question_options = ["Pizza", "Pasta", "Salad", "Soup"],
-        num_selections = 2
+        min_selections = 2,
+        max_selections = 2
     )
 
 An example can also be created using the `example` method:
