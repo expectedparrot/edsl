@@ -384,34 +384,16 @@ See our :ref:`starter_tutorial`, how-to guides and notebooks for examples as wel
 Links
 -----
 
-.. raw:: html
+- `Download the latest version of EDSL on **PyPI** <https://pypi.org/project/edsl>`_.
 
-   <a href="https://pypi.org/project/edsl" target="_blank"><i class="fab fa-python"></i></a>&nbsp;&nbsp;Download the latest version of EDSL at <a href="https://pypi.org/project/edsl" target="_blank">PyPI</a>.     
-   <br><br>
+- `Get the latest EDSL updates on **GitHub** <https://github.com/expectedparrot/edsl>`_.
 
-.. raw:: html
+- `Create a **Coop** account <https://www.expectedparrot.com/login>`_.
 
-   <a href="https://github.com/expectedparrot/edsl" target="_blank"><i class="fab fa-github"></i></a>&nbsp;&nbsp;Get the latest EDSL updates at <a href="https://github.com/expectedparrot/edsl" target="_blank">GitHub</a>.
-   <br><br>
+- `Join our **Discord** channel <https://discord.com/invite/mxAYkjfy9m>`_ to connect with other users and ask questions.
 
-.. raw:: html
-   
-   <a href="https://www.expectedparrot.com/login" target="_blank"><i class="fab fa-user-circle"></i></a>&nbsp;&nbsp;Create a <a href="https://www.expectedparrot.com/login" target="_blank">Coop account</a>.
-   <br><br>
-
-.. raw:: html
-
-   <a href="https://discord.com/invite/mxAYkjfy9m" target="_blank"><i class="fab fa-discord"></i></a>&nbsp;&nbsp;<a href="https://discord.com/invite/mxAYkjfy9m" target="_blank">Join our Discord channel</a> to connect with other users and ask questions.
-   <br><br>
-
-.. raw:: html
-
-   <a href="" target="_blank"><i class="fab fa-rss"></i></a>&nbsp;&nbsp;Follow on social media:
-   <ul>
-      <li><a href="https://twitter.com/expectedparrot" target="_blank"><i class="fab fa-twitter"></i></a>&nbsp;&nbsp;<a href="https://twitter.com/expectedparrot" target="_blank">Twitter/X</a></li>
-      <li><a href="https://www.linkedin.com/company/expectedparrot" target="_blank"><i class="fab fa-linkedin"></i></a>&nbsp;&nbsp;<a href="https://www.linkedin.com/company/expectedparrot" target="_blank">LinkedIn</a></li>
-      <li><a href="https://blog.expectedparrot.com" target="_blank"><i class="fab fa-blogger"></i></a>&nbsp;&nbsp;<a href="https://blog.expectedparrot.com" target="_blank">Blog</a></li>
-   </ul>
-   <br><br>
-
+- Follow us on social media:
+  - `Twitter/X <https://twitter.com/expectedparrot>`_
+  - `LinkedIn <https://www.linkedin.com/company/expectedparrot>`_
+  - `Blog <https://blog.expectedparrot.com>`_
 
