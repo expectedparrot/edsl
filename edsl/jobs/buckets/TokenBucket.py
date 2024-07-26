@@ -30,6 +30,7 @@ class TokenBucket:
         if self.turbo_mode:
             pass
         else:
+            #pass
             self.turbo_mode = True
             self.capacity = float("inf")
             self.refill_rate = float("inf")
@@ -72,7 +73,17 @@ class TokenBucket:
         self.log.append((time.monotonic(), self.tokens))
 
     def refill(self) -> None:
-        """Refill the bucket with new tokens based on elapsed time."""
+        """Refill the bucket with new tokens based on elapsed time.
+        
+
+
+        >>> bucket = TokenBucket(bucket_name="test", bucket_type="test", capacity=10, refill_rate=1)
+        >>> bucket.tokens = 0
+        >>> bucket.refill()
+        >>> bucket.tokens > 0
+        True
+        
+        """
         now = time.monotonic()
         elapsed = now - self.last_refill
         refill_amount = elapsed * self.refill_rate
