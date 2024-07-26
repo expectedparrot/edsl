@@ -20,22 +20,18 @@ Links
 .. raw:: html
 
    <a href="https://pypi.org/project/edsl" target="_blank"><i class="fab fa-python"></i></a>&nbsp;&nbsp;Download the latest version of EDSL at <a href="https://pypi.org/project/edsl" target="_blank">PyPI</a>.     
-   <br><br>
 
 .. raw:: html
 
    <a href="https://github.com/expectedparrot/edsl" target="_blank"><i class="fab fa-github"></i></a>&nbsp;&nbsp;Get the latest EDSL updates at <a href="https://github.com/expectedparrot/edsl" target="_blank">GitHub</a>.
-   <br><br>
 
 .. raw:: html
    
    <a href="https://www.expectedparrot.com/login" target="_blank"><i class="fab fa-user-circle"></i></a>&nbsp;&nbsp;Create a <a href="https://www.expectedparrot.com/login" target="_blank">Coop account</a>.
-   <br><br>
 
 .. raw:: html
 
    <a href="https://discord.com/invite/mxAYkjfy9m" target="_blank"><i class="fab fa-discord"></i></a>&nbsp;&nbsp;<a href="https://discord.com/invite/mxAYkjfy9m" target="_blank">Join our Discord channel</a> to connect with other users and ask questions.
-   <br><br>
 
 .. raw:: html
 
@@ -45,7 +41,7 @@ Links
       <li><a href="https://www.linkedin.com/company/expectedparrot" target="_blank"><i class="fab fa-linkedin"></i></a>&nbsp;&nbsp;<a href="https://www.linkedin.com/company/expectedparrot" target="_blank">LinkedIn</a></li>
       <li><a href="https://blog.expectedparrot.com" target="_blank"><i class="fab fa-blogger"></i></a>&nbsp;&nbsp;<a href="https://blog.expectedparrot.com" target="_blank">Blog</a></li>
    </ul>
-   <br><br>
+   <br>
 
 
 Introduction
@@ -60,7 +56,7 @@ Technical setup
 ---------------
 
 - :ref:`installation`: Instructions for installing the EDSL package.
-- Create a <a href="https://www.expectedparrot.com/login" target="_blank">Coop account</a> to create, store and share content on the Expected Parrot server. See more details on :ref:`coop` below.
+- Create a :ref:`coop` to create, store and share content on the Expected Parrot server. 
 - :ref:`api_keys`: (*Optional*) Instructions for storing API keys for language models to use EDSL locally.
 
 Getting Started
