@@ -299,47 +299,38 @@ Key features
 
 EDSL offers a range of features that make it a powerful tool for conducting AI-powered research:
 
-*Declarative Design*
-EDSL's declarative design simplifies the creation and execution of complex research tasks, enabling users to achieve more with less code.
+**Declarative Design:** EDSL's declarative design simplifies the creation and execution of complex research tasks, enabling users to achieve more with less code.
 
-*Flexible Survey Construction*
-Users can create surveys with multiple questions, rules, and conditional logic, and administer them to diverse agents and models simultaneously.
+**Flexible Survey Construction:** Users can create surveys with multiple questions, rules, and conditional logic, and administer them to diverse agents and models simultaneously.
 
-*Parameterized Questions*
-Questions can be parameterized with scenarios to provide context or data, facilitating the administration of multiple versions of questions at once.
+**Parameterized Questions:** Questions can be parameterized with scenarios to provide context or data, facilitating the administration of multiple versions of questions at once.
 
-*Agent and Model Selection*
-EDSL supports the design of AI agents with unique traits and the selection of language models to generate responses, enabling diverse and rich response types.
+**Agent and Model Selection:** EDSL supports the design of AI agents with unique traits and the selection of language models to generate responses, enabling diverse and rich response types.
 
-*Built-in Data Analysis*
-EDSL provides built-in methods for analyzing and visualizing survey results, making it easy to explore and interpret research outcomes.
+**Built-in Data Analysis:** EDSL provides built-in methods for analyzing and visualizing survey results, making it easy to explore and interpret research outcomes.
 
-*Remote Caching and Inference*
-EDSL offers remote caching and inference features to store and share survey results and offload processing tasks to the Expected Parrot server.
+**Remote Caching and Inference:** EDSL offers remote caching and inference features to store and share survey results and offload processing tasks to the Expected Parrot server.
 
-*Python Integration*
-EDSL leverages Python's robust ecosystem, seamlessly integrating with existing Python tools. 
+**Python Integration:** EDSL leverages Python's robust ecosystem, seamlessly integrating with existing Python tools. 
 It is ideally used within a notebook environment, facilitating the execution and detailed analysis of research outcomes. 
 
-*Model Agnosticism*
-The framework's design allows for the application of diverse language models and agents to the same set of questions, enabling comparative analysis across different models.
+**Model Agnosticism*:** The framework's design allows for the application of diverse language models and agents to the same set of questions, enabling comparative analysis across different models.
 
-*Open Source Flexibility*
-EDSL is open-source under a permissive license, offering the freedom to use, modify, and extend it for personal or commercial projects.
+**Open Source Flexibility:** EDSL is open-source under a permissive license, offering the freedom to use, modify, and extend it for personal or commercial projects.
 
 
 Coop: Collaborative Research Platform
 -------------------------------------
 
-*Enhancing Research Collaboration*
+**Enhancing Research Collaboration:**
 EDSL promotes not only the creation of research but also the sharing of insights, code and results. 
 :ref:`coop` is a new platform designed to enhance collaborative research efforts by providing a centralized location for storing and sharing EDSL content and AI research.
 It provides a range of features, including:
 
-*Automatic Caching and Versioning*
+**Automatic Caching and Versioning:**
 Automatically store survey results and API calls on the Expected Parrot server to ensure that all aspects of your research are tracked and retrievable.
 
-*Remote Inference*
+**Remote Inference:**
 Run jobs on the Expected Parrot server to offload processing tasks, avoid the need to manage local resources and API keys, and speed up research execution. 
 
 See the :ref:`coop` section for more information on how to use these features.
@@ -351,13 +342,13 @@ Use cases
 EDSL is adept at handling a broad spectrum of research tasks that benefit from the integration of AI agents and language models. 
 Potential applications include:
 
-*Survey Simulation and Experimental Research*: Create and simulate detailed surveys and experiments.
+**Survey Simulation and Experimental Research:** Create and simulate detailed surveys and experiments.
 
-*Data Labeling and Classification*: Efficiently label and classify large datasets.
+**Data Labeling and Classification:** Efficiently label and classify large datasets.
 
-*Data Augmentation*: Enhance datasets by generating synthetic, yet realistic, data additions.
+**Data Augmentation:** Enhance datasets by generating synthetic, yet realistic, data additions.
 
-*Synthetic Data Generation*: Produce completely new data sets that mimic real-world data for training and testing models.
+**Synthetic Data Generation:** Produce completely new data sets that mimic real-world data for training and testing models.
 
 
 Getting help 
@@ -384,16 +375,19 @@ See our :ref:`starter_tutorial`, how-to guides and notebooks for examples as wel
 Links
 -----
 
-- `Download the latest version of EDSL on **PyPI** <https://pypi.org/project/edsl>`_.
+- Download the latest version of EDSL on `PyPI <https://pypi.org/project/edsl>`_.
 
-- `Get the latest EDSL updates on **GitHub** <https://github.com/expectedparrot/edsl>`_.
+- Get the latest EDSL updates on `GitHub <https://github.com/expectedparrot/edsl>`_.
 
-- `Create a **Coop** account <https://www.expectedparrot.com/login>`_.
+- Create a `Coop account <https://www.expectedparrot.com/login>`_.
 
-- `Join our **Discord** channel <https://discord.com/invite/mxAYkjfy9m>`_ to connect with other users and ask questions.
+- Join our `Discord channel <https://discord.com/invite/mxAYkjfy9m>`_ to discuss AI research.
 
 - Follow us on social media:
+
   - `Twitter/X <https://twitter.com/expectedparrot>`_
+
   - `LinkedIn <https://www.linkedin.com/company/expectedparrot>`_
+
   - `Blog <https://blog.expectedparrot.com>`_
 

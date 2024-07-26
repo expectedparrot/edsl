@@ -9,7 +9,11 @@ This tutorial demonstrates basic steps for conducting an AI-powered survey using
 Prerequisites
 -------------
 
-Before running the code below, ensure that you have already completed the :ref:`installation` steps and either activated :ref:`remote_inference` at your :ref:`coop` account or stored :ref:`api_keys` for language models that you plan to use locally.
+Before running the code below, ensure that you have already completed technical setup:
+
+- Download the EDSL package. See :ref:`installation` instructions.
+
+- Create a :ref:`coop` account and activate :ref:`remote_inference` or store your own :ref:`api_keys` for language models that you plan to use locally.
 
 If you encounter any issues or have questions, please email us at info@expectedparrot.com or post a question at our `Discord channel <https://discord.com/invite/mxAYkjfy9m>`_.
 
