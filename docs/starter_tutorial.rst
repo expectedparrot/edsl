@@ -2,35 +2,27 @@
 
 Starter Tutorial
 ================
+
 This tutorial demonstrates basic steps for conducting an AI-powered survey using EDSL. 
 
 
 Prerequisites
 -------------
-Before running the code below, ensure that you have already completed the :ref:`installation` steps and stored :ref:`api_keys` for the language models that you plan to use.
+
+Before running the code below, ensure that you have already completed the :ref:`installation` steps and either activated :ref:`remote_inference` at your :ref:`coop` account or stored :ref:`api_keys` for language models that you plan to use locally.
 
 If you encounter any issues or have questions, please email us at info@expectedparrot.com or post a question at our `Discord channel <https://discord.com/invite/mxAYkjfy9m>`_.
-You can also view the contents of this tutorial in an `interactive notebook <https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Tutorial%20-%20Starter%20Tutorial-e080f5883d764931960d3920782baf34>`_.
+.. You can also view the contents of this tutorial in an `interactive notebook <https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Tutorial%20-%20Starter%20Tutorial-e080f5883d764931960d3920782baf34>`_.
 
 
 Conducting an AI-powered survey
 -------------------------------
+
 In the steps below we show how to create and run a simple question in EDSL. 
 Then we show how to design a more complex survey with AI agents and different language models.
-The steps are as follows:
 
-The following steps outline how to use EDSL to develop and execute surveys:
-
-1. **Creating and running a basic question**
-We show how to create and execute a question in EDSL:
-
-    - Import a question type (multiple choice, free text, etc.).
-    - Construct a question in the question type template.
-    - Run the question (using the default language model).
-    - Inspect the dataset of results.
-
-2. **Designing a complex survey**
-We show how to construct a more complex survey involving AI agents and different language models:
+2. **Design a complex survey**
+We show how to construct a more complex survey involving AI agents and specified language models:
 
     - Import question types and other survey components.
     - Construct questions in the relevant templates.
@@ -42,9 +34,10 @@ We show how to construct a more complex survey involving AI agents and different
     - Explore built-in methods for analyzing results.
 
 
-A Basic Question
-~~~~~~~~~~~~~~~~
-Here we create a simple multiple choice question, administer it (to the default language model) and examine the response:
+Run a simple question
+~~~~~~~~~~~~~~~~~~~~~
+
+In this first example we create a simple multiple choice question, administer it to a language model and inspect the response:
 
 .. code-block:: python 
 
@@ -77,27 +70,48 @@ Output:
     └───────────────────┘
 
 
-Note: The default language model is currently GPT 4; you will need an API key for OpenAI to use this model and run this example.
-(See instructions on storing your :ref:`api_keys`.)
+*Note:* The default language model is currently GPT 4; you will need an API key for OpenAI to use this model and run this example locally.
+See instructions on storing your :ref:`api_keys`. 
+Alternatively, you can activate :ref:`remote_inference` at your :ref:`coop` account to run the example on the Expected Parrot server.
 
-In the next example we show how to use different models to generate responses.
+
+Conduct a survey with agents and models
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In this next example we create a survey of multiple questions, design personas for AI agents to answer the questions and select the language models that we want to generate the responses.
+We also show how to parameterize questions with context or data to administer different versions of the questions efficiently.
+This can be useful for comparing responses for different data, agents and models, and performing data labeling tasks.
+
+We also show how to filter, sort, select and print components of the dataset of results.
+
+To see examples of all EDSL question types, run:
+
+.. code-block:: python
+
+    from edsl import Question
+
+    Question.available()
 
 
-A Survey with Agents and Models
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-In this next example we create a survey of multiple questions and personas for AI agents that we prompt language models to use in generating answers the questions.
-We also show how to parameterize questions in order to create different versions of the questions that can be administered at once.
-This is useful for comparing responses for different data, and conducting data labeling tasks.
-We also compare results for different language models.
+Newly released language models are automatically added to EDSL when they become available. 
+To see a current list of available models, run:
 
-To see examples of all question types, run `Question.available()`.
-To see all available models, run `Model.available()`.
+.. code-block:: python
+
+    from edsl import Model
+
+    Model.available()
+    
 
 .. code-block:: python
 
     # Import question types and survey components
-    from edsl.questions import QuestionLinearScale, QuestionFreeText
-    from edsl import Scenario, Survey, Agent, Model
+    from edsl import (
+        QuestionLinearScale, QuestionFreeText, Survey,
+        ScenarioList, Scenario, 
+        AgentList, Agent, 
+        ModelList, Model
+    )
 
     # Construct questions
     q1 = QuestionLinearScale(
@@ -112,19 +126,27 @@ To see all available models, run `Model.available()`.
         question_text = "Describe the most recent time you were {{ activity }}."
     )
 
-    # Add data to questions using scenarios
-    activities = ["exercising", "reading", "cooking"]
-    scenarios = [Scenario({"activity": a}) for a in activities]
-
     # Combine questions in a survey
     survey = Survey(questions = [q1, q2])
 
-    # Create personas for AI agents to use with the survey
-    personas = ["athlete", "student", "chef"]
-    agents = [Agent(traits = {"persona": p}) for p in personas]
+    # Add data to questions using scenarios
+    activities = ["exercising", "reading", "cooking"]
 
-    # Select language models
-    models = [Model(m) for m in ["gpt-4o", "claude-3-5-sonnet-20240620"]]
+    scenarios = ScenarioList(
+        Scenario({"activity": a}) for a in activities
+    )
+
+    # Create personas for AI agents to answer the questions
+    personas = ["athlete", "student", "chef"]
+
+    agents = AgentList(
+        Agent(traits = {"persona": p}) for p in personas
+    )
+
+    # Select language models to generate responses
+    models = ModelList(
+        Model(m) for m in ["gpt-4o", "claude-3-5-sonnet-20240620"]
+    )
 
     # Run the survey with the scenarios, agents and models
     results = survey.by(scenarios).by(agents).by(models).run()
@@ -178,7 +200,7 @@ Output:
     │                            │          │               │       │ ingredients.                                    │
     └────────────────────────────┴──────────┴───────────────┴───────┴─────────────────────────────────────────────────┘
 
-You can also view results in an `interactive notebook <https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Tutorial%20-%20Starter%20Tutorial-e080f5883d764931960d3920782baf34>`_.
+.. You can also view results in an `interactive notebook <https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Tutorial%20-%20Starter%20Tutorial-e080f5883d764931960d3920782baf34>`_.
 
 
 Exploring Your Results
@@ -240,7 +262,8 @@ The `Results` object also supports SQL-like queries:
     # Execute an SQL-like query on the results
     results.sql("select * from self", shape="wide")
 
-You can view the output and examples of other methods in `interactive notebooks <https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Tutorial%20-%20Starter%20Tutorial-e080f5883d764931960d3920782baf34>`_.
+.. You can view the output and examples of other methods in `interactive notebooks <https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Tutorial%20-%20Starter%20Tutorial-e080f5883d764931960d3920782baf34>`_.
 
+Learn more about working with results in the :ref:`results` section.
 
 
