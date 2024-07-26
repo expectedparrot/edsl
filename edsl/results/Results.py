@@ -290,7 +290,8 @@ class Results(UserList, Mixins, Base):
                 ),
             )
         except Exception as e:
-            breakpoint()
+            print(e)
+            # breakpoint()
         return results
 
     ######################
