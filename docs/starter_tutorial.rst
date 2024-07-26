@@ -5,6 +5,8 @@ Starter Tutorial
 
 This tutorial demonstrates basic steps for conducting an AI-powered survey using EDSL. 
 
+*View this notebook at the Coop: https://www.expectedparrot.com/content/a1435acd-9a2c-45fb-adfd-226a7a6c0c97*
+
 
 Prerequisites
 -------------
