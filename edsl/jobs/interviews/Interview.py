@@ -20,6 +20,10 @@ from edsl.jobs.interviews.retry_management import retry_strategy
 from edsl.jobs.interviews.InterviewTaskBuildingMixin import InterviewTaskBuildingMixin
 from edsl.jobs.interviews.InterviewStatusMixin import InterviewStatusMixin
 
+import asyncio
+
+def run_async(coro):
+    return asyncio.run(coro)
 
 class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
     """
@@ -36,8 +40,8 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         model: Type["LanguageModel"],
         debug: Optional[bool] = False,
         iteration: int = 0,
-        cache: "Cache" = None,
-        sidecar_model: "LanguageModel" = None,
+        cache: Optional["Cache"] = None,
+        sidecar_model: Optional['LanguageModel'] = None,
     ):
         """Initialize the Interview instance.
 
@@ -45,6 +49,24 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         :param survey: the survey being administered to the agent.
         :param scenario: the scenario that populates the survey questions.
         :param model: the language model used to answer the questions.
+        :param debug: if True, run without calls to the language model.
+        :param iteration: the iteration number of the interview.
+        :param cache: the cache used to store the answers.
+        :param sidecar_model: a sidecar model used to answer questions.
+
+        >>> i = Interview.example()
+        >>> i.task_creators
+        {}
+
+        >>> i.exceptions
+        {}
+
+        >>> _ = asyncio.run(i.async_conduct_interview())
+        >>> i.task_status_logs['q0']
+        [{'log_time': ..., 'value': <TaskStatus.NOT_STARTED: 1>}, {'log_time': ..., 'value': <TaskStatus.WAITING_FOR_DEPENDENCIES: 2>}, {'log_time': ..., 'value': <TaskStatus.API_CALL_IN_PROGRESS: 7>}, {'log_time': ..., 'value': <TaskStatus.SUCCESS: 8>}]
+
+        >>> i.to_index
+        {'q0': 0, 'q1': 1, 'q2': 2}
 
         """
         self.agent = agent
@@ -64,7 +86,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         self.exceptions = InterviewExceptionCollection()
         self._task_status_log_dict = InterviewStatusLog()
 
-        # dictionary mapping question names to their index in the survey."""
+        # dictionary mapping question names to their index in the survey.
         self.to_index = {
             question_name: index
             for index, question_name in enumerate(self.survey.question_names)
@@ -76,14 +98,16 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         model_buckets: ModelBuckets = None,
         debug: bool = False,
         stop_on_exception: bool = False,
-        sidecar_model: Optional[LanguageModel] = None,
+        sidecar_model: Optional['LanguageModel'] = None,
     ) -> tuple["Answers", List[dict[str, Any]]]:
         """
         Conduct an Interview asynchronously.
+        It returns a tuple with the answers and a list of valid results.
 
         :param model_buckets: a dictionary of token buckets for the model.
         :param debug: run without calls to LLM.
         :param stop_on_exception: if True, stops the interview if an exception is raised.
+        :param sidecar_model: a sidecar model used to answer questions.
 
         Example usage:
 
@@ -91,22 +115,44 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         >>> result, _ = asyncio.run(i.async_conduct_interview())
         >>> result['q0']
         'yes'
+
+        >>> i = Interview.example(throw_exception = True)
+        >>> result, _ = asyncio.run(i.async_conduct_interview())
+        Attempt 1 failed with exception:This is a test error now waiting 1.00 seconds before retrying.Parameters: start=1.0, max=60.0, max_attempts=5.
+        <BLANKLINE>
+        <BLANKLINE>
+        Attempt 2 failed with exception:This is a test error now waiting 2.00 seconds before retrying.Parameters: start=1.0, max=60.0, max_attempts=5.
+        <BLANKLINE>
+        <BLANKLINE>
+        Attempt 3 failed with exception:This is a test error now waiting 4.00 seconds before retrying.Parameters: start=1.0, max=60.0, max_attempts=5.
+        <BLANKLINE>
+        <BLANKLINE>
+        Attempt 4 failed with exception:This is a test error now waiting 8.00 seconds before retrying.Parameters: start=1.0, max=60.0, max_attempts=5.
+        <BLANKLINE>
+        <BLANKLINE>
+
+        >>> i.exceptions
+        {'q0': [{'exception': "Exception('This is a test error')", 'time': ..., 'traceback': ...
+
+        >>> i = Interview.example()
+        >>> result, _ = asyncio.run(i.async_conduct_interview(stop_on_exception = True))
+        Traceback (most recent call last):
+        ...
+        asyncio.exceptions.CancelledError
         """
         self.sidecar_model = sidecar_model
 
         # if no model bucket is passed, create an 'infinity' bucket with no rate limits
-        # print("model_buckets", model_buckets)
         if model_buckets is None or hasattr(self.agent, "answer_question_directly"):
             model_buckets = ModelBuckets.infinity_bucket()
 
-        # FOR TESTING
-        # model_buckets = ModelBuckets.infinity_bucket()
-
+        
         ## build the tasks using the InterviewTaskBuildingMixin
         ## This is the key part---it creates a task for each question,
         ## with dependencies on the questions that must be answered before this one can be answered.
         self.tasks = self._build_question_tasks(
-            debug=debug, model_buckets=model_buckets
+            debug=debug, 
+            model_buckets=model_buckets
         )
 
         ## 'Invigilators' are used to administer the survey
@@ -123,6 +169,14 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         It iterates through the tasks and invigilators, and yields the results of the tasks that are done.
         If a task is not done, it raises a ValueError.
         If an exception is raised in the task, it records the exception in the Interview instance except if the task was cancelled, which is expected behavior.
+
+        >>> i = Interview.example()
+        >>> result, _ = asyncio.run(i.async_conduct_interview())
+        >>> results = list(i._extract_valid_results())
+        >>> len(results) == len(i.survey)
+        True
+        >>> type(results[0])
+        <class 'edsl.data_transfer_models.AgentResponseDict'>
         """
         assert len(self.tasks) == len(self.invigilators)
 
@@ -140,7 +194,18 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
             yield result
 
     def _record_exception(self, task, exception: Exception) -> None:
-        """Record an exception in the Interview instance."""
+        """Record an exception in the Interview instance.
+        
+        It records the exception in the Interview instance, with the task name and the exception entry.
+
+        >>> i = Interview.example()
+        >>> result, _ = asyncio.run(i.async_conduct_interview())
+        >>> i.exceptions
+        {}
+        >>> i._record_exception(i.tasks[0], Exception("An exception occurred."))
+        >>> i.exceptions
+        {'q0': [{'exception': "Exception('An exception occurred.')", 'time': ..., 'traceback': 'NoneType: None\\n'}]}
+        """
         exception_entry = InterviewExceptionEntry(
             exception=repr(exception),
             time=time.time(),
@@ -156,6 +221,10 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         It is used to determine the order in which questions should be answered.
         This reflects both agent 'memory' considerations and 'skip' logic.
         The 'textify' parameter is set to True, so that the question names are returned as strings rather than integer indices.
+
+        >>> i = Interview.example()
+        >>> i.dag == {'q2': {'q0'}, 'q1': {'q0'}}
+        True
         """
         return self.survey.dag(textify=True)
 
@@ -166,8 +235,15 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         """Return a string representation of the Interview instance."""
         return f"Interview(agent = {repr(self.agent)}, survey = {repr(self.survey)}, scenario = {repr(self.scenario)}, model = {repr(self.model)})"
 
-    def duplicate(self, iteration: int, cache: Cache) -> Interview:
-        """Duplicate the interview, but with a new iteration number and cache."""
+    def duplicate(self, iteration: int, cache: 'Cache') -> Interview:
+        """Duplicate the interview, but with a new iteration number and cache.
+        
+        >>> i = Interview.example()
+        >>> i2 = i.duplicate(1, None)
+        >>> i.iteration + 1 == i2.iteration
+        True
+        
+        """
         return Interview(
             agent=self.agent,
             survey=self.survey,
@@ -178,7 +254,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         )
 
     @classmethod
-    def example(self):
+    def example(self, throw_exception: bool = False) -> Interview:
         """Return an example Interview instance."""
         from edsl.agents import Agent
         from edsl.surveys import Survey
@@ -193,66 +269,15 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         survey = Survey.example()
         scenario = Scenario.example()
         model = LanguageModel.example()
+        if throw_exception:
+            model = LanguageModel.example(test_model = True, throw_exception=True)
+            agent = Agent.example()
+            return Interview(agent=agent, survey=survey, scenario=scenario, model=model)
         return Interview(agent=agent, survey=survey, scenario=scenario, model=model)
 
 
 if __name__ == "__main__":
     import doctest
 
-    doctest.testmod()
-    # from edsl import Model
-    # from edsl.agents import Agent
-    # from edsl.surveys import Survey
-    # from edsl.scenarios import Scenario
-    # from edsl.questions import QuestionMultipleChoice
-
-    # # from edsl.jobs.Interview import Interview
-
-    # #  a survey with skip logic
-    # q0 = QuestionMultipleChoice(
-    #     question_text="Do you like school?",
-    #     question_options=["yes", "no"],
-    #     question_name="q0",
-    # )
-    # q1 = QuestionMultipleChoice(
-    #     question_text="Why not?",
-    #     question_options=["killer bees in cafeteria", "other"],
-    #     question_name="q1",
-    # )
-    # q2 = QuestionMultipleChoice(
-    #     question_text="Why?",
-    #     question_options=["**lack*** of killer bees in cafeteria", "other"],
-    #     question_name="q2",
-    # )
-    # s = Survey(questions=[q0, q1, q2])
-    # s = s.add_rule(q0, "q0 == 'yes'", q2)
-
-    # # create an interview
-    # a = Agent(traits=None)
-
-    # def direct_question_answering_method(self, question, scenario):
-    #     """Answer a question directly."""
-    #     raise Exception("Error!")
-    #     # return "yes"
-
-    # a.add_direct_question_answering_method(direct_question_answering_method)
-    # scenario = Scenario()
-    # m = Model()
-    # I = Interview(agent=a, survey=s, scenario=scenario, model=m)
-
-    # result = asyncio.run(I.async_conduct_interview())
-    # # # conduct five interviews
-    # # for _ in range(5):
-    # #     I.conduct_interview(debug=True)
-
-    # # # replace missing answers
-    # # I
-    # # repr(I)
-    # # eval(repr(I))
-    # # print(I.task_status_logs.status_matrix(20))
-    # status_matrix = I.task_status_logs.status_matrix(20)
-    # numerical_matrix = I.task_status_logs.numerical_matrix(20)
-    # I.task_status_logs.visualize()
-
-    # I.exceptions.print()
-    # I.exceptions.ascii_table()
+    # add ellipsis
+    doctest.testmod(optionflags=doctest.ELLIPSIS)

@@ -494,7 +494,7 @@ class LanguageModel(
         return table
 
     @classmethod
-    def example(cls, test_model: bool = False, canned_response: str = "Hello world"):
+    def example(cls, test_model: bool = False, canned_response: str = "Hello world", throw_exception: bool = False):
         """Return a default instance of the class.
 
         >>> from edsl.language_models import LanguageModel
@@ -519,6 +519,8 @@ class LanguageModel(
             ) -> dict[str, Any]:
                 await asyncio.sleep(0.1)
                 # return {"message": """{"answer": "Hello, world"}"""}
+                if throw_exception:
+                    raise Exception("This is a test error")
                 return {"message": f'{{"answer": "{canned_response}"}}'}
 
             def parse_response(self, raw_response: dict[str, Any]) -> str:
