@@ -2,23 +2,20 @@
 
 from __future__ import annotations
 import re
-
 from typing import Any, Generator, Optional, Union, List, Literal, Callable
-
+from uuid import uuid4
+from edsl.Base import Base
 from edsl.exceptions import SurveyCreationError, SurveyHasNoRulesError
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.surveys.base import RulePriority, EndOfSurvey
-from edsl.surveys.Rule import Rule
-from edsl.surveys.RuleCollection import RuleCollection
-
-from edsl.Base import Base
-from edsl.surveys.SurveyExportMixin import SurveyExportMixin
+from edsl.surveys.DAG import DAG
 from edsl.surveys.descriptors import QuestionsDescriptor
 from edsl.surveys.MemoryPlan import MemoryPlan
-
-from edsl.surveys.DAG import DAG
-from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
+from edsl.surveys.Rule import Rule
+from edsl.surveys.RuleCollection import RuleCollection
+from edsl.surveys.SurveyExportMixin import SurveyExportMixin
 from edsl.surveys.SurveyFlowVisualizationMixin import SurveyFlowVisualizationMixin
+from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
 
 class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
@@ -1025,7 +1022,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         return res
 
     @classmethod
-    def example(cls, params=False) -> Survey:
+    def example(cls, params: bool = False, randomize: bool = False) -> Survey:
         """Return an example survey.
 
         >>> s = Survey.example()
@@ -1034,8 +1031,9 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         """
         from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
+        addition = "" if not randomize else str(uuid4())
         q0 = QuestionMultipleChoice(
-            question_text="Do you like school?",
+            question_text=f"Do you like school?{addition}",
             question_options=["yes", "no"],
             question_name="q0",
         )

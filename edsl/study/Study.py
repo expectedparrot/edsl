@@ -6,14 +6,12 @@ import platform
 import socket
 from datetime import datetime
 from typing import Dict, Optional, Union
+from uuid import UUID, uuid4
 from edsl import Cache, set_session_cache, unset_session_cache
 from edsl.utilities.utilities import dict_hash
 from edsl.study.ObjectEntry import ObjectEntry
 from edsl.study.ProofOfWork import ProofOfWork
 from edsl.study.SnapShot import SnapShot
-from uuid import UUID
-
-# from edsl.Base import Base
 
 
 class Study:
@@ -402,14 +400,14 @@ class Study:
         return diff
 
     @classmethod
-    def example(cls, verbose=False):
+    def example(cls, verbose=False, randomize=False):
         import tempfile
 
         study_file = tempfile.NamedTemporaryFile()
         with cls(filename=study_file.name, verbose=verbose) as study:
             from edsl import QuestionFreeText
 
-            q = QuestionFreeText.example()
+            q = QuestionFreeText.example(randomize=randomize)
         return study
 
     @classmethod

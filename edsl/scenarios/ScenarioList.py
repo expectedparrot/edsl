@@ -5,10 +5,8 @@ import csv
 import random
 from collections import UserList, Counter
 from collections.abc import Iterable
-from typing import Any, Optional, Union, List
-
 from simpleeval import EvalWithCompoundTypes
-
+from typing import Any, Optional, Union, List
 from edsl.Base import Base
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 from edsl.scenarios.Scenario import Scenario
@@ -442,9 +440,13 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         return lines
 
     @classmethod
-    def example(cls) -> ScenarioList:
-        """Return an example of the `ScenarioList`."""
-        return cls([Scenario.example(), Scenario.example()])
+    def example(cls, randomize: bool = False) -> ScenarioList:
+        """
+        Return an example ScenarioList instance.
+
+        :params randomize: If True, use Scenario's randomize method to randomize the values.
+        """
+        return cls([Scenario.example(randomize), Scenario.example(randomize)])
 
     def rich_print(self) -> None:
         """Display an object as a table."""

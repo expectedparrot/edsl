@@ -11,23 +11,15 @@ Example usage:
 """
 
 from __future__ import annotations
+import csv
+import json
 from collections import UserList
-from typing import Optional, Union, Sequence, List, Any
+from typing import Any, List, Optional, Union
 from rich import print_json
 from rich.table import Table
-import json
-import csv
-
-
 from simpleeval import EvalWithCompoundTypes
-
 from edsl.Base import Base
-
-# from edsl.agents import Agent
-from edsl.utilities.decorators import (
-    add_edsl_version,
-    remove_edsl_version,
-)
+from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
 
 class AgentList(UserList, Base):
@@ -239,17 +231,15 @@ class AgentList(UserList, Base):
         return cls(agents)
 
     @classmethod
-    def example(cls) -> "AgentList":
-        """Return an example AgentList.
+    def example(cls, randomize: bool = False) -> AgentList:
+        """
+        Returns an example AgentList instance.
 
-        >>> al = AgentList.example()
-        >>> len(al)
-        2
-
+        :param randomize: If True, uses Agent's randomize method.
         """
         from edsl.agents.Agent import Agent
 
-        return cls([Agent.example(), Agent.example()])
+        return cls([Agent.example(randomize), Agent.example(randomize)])
 
     @classmethod
     def from_list(self, trait_name: str, values: List[Any]):

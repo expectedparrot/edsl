@@ -290,7 +290,8 @@ class Results(UserList, Mixins, Base):
                 ),
             )
         except Exception as e:
-            breakpoint()
+            print(e)
+            # breakpoint()
         return results
 
     ######################
@@ -949,7 +950,7 @@ class Results(UserList, Mixins, Base):
         return Results(survey=self.survey, data=new_data, created_columns=None)
 
     @classmethod
-    def example(cls, debug: bool = False) -> Results:
+    def example(cls, debug: bool = False, randomize: bool = False) -> Results:
         """Return an example `Results` object.
 
         Example usage:
@@ -962,7 +963,7 @@ class Results(UserList, Mixins, Base):
         from edsl.data.Cache import Cache
 
         c = Cache()
-        job = Jobs.example()
+        job = Jobs.example(randomize=randomize)
         results = job.run(cache=c, debug=debug)
         return results
 
