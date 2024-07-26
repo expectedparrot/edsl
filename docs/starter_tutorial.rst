@@ -12,7 +12,6 @@ Prerequisites
 Before running the code below, ensure that you have already completed the :ref:`installation` steps and either activated :ref:`remote_inference` at your :ref:`coop` account or stored :ref:`api_keys` for language models that you plan to use locally.
 
 If you encounter any issues or have questions, please email us at info@expectedparrot.com or post a question at our `Discord channel <https://discord.com/invite/mxAYkjfy9m>`_.
-.. You can also view the contents of this tutorial in an `interactive notebook <https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Tutorial%20-%20Starter%20Tutorial-e080f5883d764931960d3920782baf34>`_.
 
 
 Conducting an AI-powered survey
@@ -20,18 +19,6 @@ Conducting an AI-powered survey
 
 In the steps below we show how to create and run a simple question in EDSL. 
 Then we show how to design a more complex survey with AI agents and different language models.
-
-2. **Design a complex survey**
-We show how to construct a more complex survey involving AI agents and specified language models:
-
-    - Import question types and other survey components.
-    - Construct questions in the relevant templates.
-    - Use parameters to create versions of the questions with different inputs.
-    - Combine questions in a survey.
-    - Create personas for AI agents that will answer the questions.
-    - Select language models.
-    - Run the survey with the agents and models.
-    - Explore built-in methods for analyzing results.
 
 
 Run a simple question
@@ -203,7 +190,7 @@ Output:
 .. You can also view results in an `interactive notebook <https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Tutorial%20-%20Starter%20Tutorial-e080f5883d764931960d3920782baf34>`_.
 
 
-Exploring Your Results
+Exploring your results
 ~~~~~~~~~~~~~~~~~~~~~~
 EDSL comes with built-in methods for analyzing and visualizing your results. 
 For example, you can access results as a Pandas dataframe:
@@ -221,7 +208,7 @@ The `columns` method will display a list of all the components of your results, 
     results.columns
 
 
-Output for the results generated above:
+Output:
 
 .. code-block:: python
 
@@ -262,7 +249,6 @@ The `Results` object also supports SQL-like queries:
     # Execute an SQL-like query on the results
     results.sql("select * from self", shape="wide")
 
-.. You can view the output and examples of other methods in `interactive notebooks <https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Tutorial%20-%20Starter%20Tutorial-e080f5883d764931960d3920782baf34>`_.
 
 Learn more about working with results in the :ref:`results` section.
 
