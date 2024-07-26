@@ -191,8 +191,6 @@ Output:
     │                            │          │               │       │ ingredients.                                    │
     └────────────────────────────┴──────────┴───────────────┴───────┴─────────────────────────────────────────────────┘
 
-.. You can also view results in an `interactive notebook <https://deepnote.com/workspace/expected-parrot-c2fa2435-01e3-451d-ba12-9c36b3b87ad9/project/Expected-Parrot-examples-b457490b-fc5d-45e1-82a5-a66e1738a4b9/notebook/Tutorial%20-%20Starter%20Tutorial-e080f5883d764931960d3920782baf34>`_.
-
 
 Exploring your results
 ~~~~~~~~~~~~~~~~~~~~~~
