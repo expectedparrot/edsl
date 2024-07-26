@@ -160,7 +160,6 @@ class QuestionTaskCreator(UserList):
 
         tracker = self.cached_token_usage if self.from_cache else self.new_token_usage
 
-
         # TODO: This is hacky. The 'func' call should return an object that definitely has a 'usage' key.
         usage = results.get("usage", {"prompt_tokens": 0, "completion_tokens": 0})
         prompt_tokens = usage.get("prompt_tokens", 0)

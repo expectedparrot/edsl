@@ -461,6 +461,13 @@ class Jobs(Base):
             remote_inference = False
 
         if remote_inference:
+            from edsl.agents.Agent import Agent
+            from edsl.language_models.registry import Model
+            from edsl.results.Result import Result
+            from edsl.results.Results import Results
+            from edsl.scenarios.Scenario import Scenario
+            from edsl.surveys.Survey import Survey
+
             self._output("Remote inference activated. Sending job to server...")
             if remote_cache:
                 self._output(
@@ -680,7 +687,9 @@ class Jobs(Base):
     # Example methods
     #######################
     @classmethod
-    def example(cls, throw_exception_probability=0) -> Jobs:
+    def example(
+        cls, throw_exception_probability: int = 0, randomize: bool = False
+    ) -> Jobs:
         """Return an example Jobs instance.
 
         :param throw_exception_probability: the probability that an exception will be thrown when answering a question. This is useful for testing error handling.
@@ -690,9 +699,12 @@ class Jobs(Base):
 
         """
         import random
+        from uuid import uuid4
         from edsl.questions import QuestionMultipleChoice
         from edsl.agents.Agent import Agent
         from edsl.scenarios.Scenario import Scenario
+
+        addition = "" if not randomize else str(uuid4())
 
         # (status, question, period)
         agent_answers = {
@@ -736,7 +748,10 @@ class Jobs(Base):
         base_survey = Survey(questions=[q1, q2])
 
         scenario_list = ScenarioList(
-            [Scenario({"period": "morning"}), Scenario({"period": "afternoon"})]
+            [
+                Scenario({"period": f"morning{addition}"}),
+                Scenario({"period": "afternoon"}),
+            ]
         )
         job = base_survey.by(scenario_list).by(joy_agent, sad_agent)
 

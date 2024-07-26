@@ -34,10 +34,10 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
 
     def __init__(
         self,
-        agent: 'Agent',
-        survey: 'Survey',
-        scenario: 'Scenario',
-        model: Type['LanguageModel'],
+        agent: "Agent",
+        survey: "Survey",
+        scenario: "Scenario",
+        model: Type["LanguageModel"],
         debug: Optional[bool] = False,
         iteration: int = 0,
         cache: Optional["Cache"] = None,

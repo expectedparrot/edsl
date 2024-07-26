@@ -97,7 +97,7 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
         answer = question._translate_answer_code_to_answer(
             response["answer"], combined_dict
         )
-        #breakpoint()
+        # breakpoint()
         data = {
             "answer": answer,
             "comment": response.get(

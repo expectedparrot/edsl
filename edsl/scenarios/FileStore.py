@@ -31,7 +31,7 @@ class FileStore(Scenario):
     @classmethod
     def from_dict(cls, d):
         return cls(d["filename"], d["binary"], d["suffix"], d["base64_string"])
-    
+
     def __repr__(self):
         return f"FileStore(filename='{self.filename}', binary='{self.binary}', 'suffix'={self.suffix})"
 
@@ -89,7 +89,6 @@ class FileStore(Scenario):
             # Create a StringIO object for text data
             return io.StringIO(text_data)
 
-   
     def to_tempfile(self, suffix=None):
         if suffix is None:
             suffix = self.suffix
@@ -101,14 +100,14 @@ class FileStore(Scenario):
             file_like_object = self.base64_to_text_file(self["base64_string"])
 
         # Create a named temporary file
-        mode = 'wb' if self.binary else 'w'
+        mode = "wb" if self.binary else "w"
         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=suffix, mode=mode)
-        
+
         if self.binary:
             temp_file.write(file_like_object.read())
         else:
             temp_file.write(file_like_object.read())
-        
+
         temp_file.close()
 
         return temp_file.name
@@ -133,16 +132,19 @@ class CSVFileStore(FileStore):
     @classmethod
     def example(cls):
         from edsl.results.Results import Results
+
         r = Results.example()
         import tempfile
+
         with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as f:
             r.to_csv(filename=f.name)
             return cls(f.name)
-        
+
     def view(self):
         import pandas as pd
+
         return pd.read_csv(self.to_tempfile())
-        
+
 
 class PDFFileStore(FileStore):
     def __init__(self, filename):
@@ -153,24 +155,27 @@ class PDFFileStore(FileStore):
         print(f"PDF path: {pdf_path}")  # Print the path to ensure it exists
         import os
         import subprocess
+
         if os.path.exists(pdf_path):
             try:
-                if os.name == 'posix':
+                if os.name == "posix":
                     # for cool kids
-                    subprocess.run(['open', pdf_path], check=True)  # macOS
-                elif os.name == 'nt':
+                    subprocess.run(["open", pdf_path], check=True)  # macOS
+                elif os.name == "nt":
                     os.startfile(pdf_path)  # Windows
                 else:
-                    subprocess.run(['xdg-open', pdf_path], check=True)  # Linux
+                    subprocess.run(["xdg-open", pdf_path], check=True)  # Linux
             except Exception as e:
                 print(f"Error opening PDF: {e}")
         else:
             print("PDF file was not created successfully.")
 
     @classmethod
-    def example(cls): 
+    def example(cls):
         import textwrap
-        pdf_string = textwrap.dedent("""\
+
+        pdf_string = textwrap.dedent(
+            """\
         %PDF-1.4
         1 0 obj
         << /Type /Catalog /Pages 2 0 R >>
@@ -210,11 +215,14 @@ class PDFFileStore(FileStore):
         << /Size 7 /Root 1 0 R >>
         startxref
         318
-        %%EOF""")
+        %%EOF"""
+        )
         import tempfile
+
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
             f.write(pdf_string.encode())
             return cls(f.name)
+
 
 class PNGFileStore(FileStore):
     def __init__(self, filename):
@@ -223,18 +231,24 @@ class PNGFileStore(FileStore):
     @classmethod
     def example(cls):
         import textwrap
-        png_string = textwrap.dedent("""\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x01\x00\x00\x00\x01\x00\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\x0cIDAT\x08\xd7c\x00\x01""")
+
+        png_string = textwrap.dedent(
+            """\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x01\x00\x00\x00\x01\x00\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\x0cIDAT\x08\xd7c\x00\x01"""
+        )
         import tempfile
+
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
             f.write(png_string.encode())
             return cls(f.name)
-        
+
     def view(self):
         import matplotlib.pyplot as plt
         import matplotlib.image as mpimg
+
         img = mpimg.imread(self.to_tempfile())
         plt.imshow(img)
         plt.show()
+
 
 class SQLiteFileStore(FileStore):
     def __init__(self, filename):
@@ -244,18 +258,20 @@ class SQLiteFileStore(FileStore):
     def example(cls):
         import sqlite3
         import tempfile
+
         with tempfile.NamedTemporaryFile(suffix=".sqlite", delete=False) as f:
             conn = sqlite3.connect(f.name)
             c = conn.cursor()
-            c.execute('''CREATE TABLE stocks (date text)''')
+            c.execute("""CREATE TABLE stocks (date text)""")
             conn.commit()
 
     def view(self):
         import subprocess
         import os
+
         sqlite_path = self.to_tempfile()
         os.system(f"sqlite3 {sqlite_path}")
-                                     
+
 
 if __name__ == "__main__":
     # file_path = "../conjure/examples/Ex11-2.sav"
@@ -263,21 +279,21 @@ if __name__ == "__main__":
     # info = fs.push()
     # print(info)
 
-    #fs = CSVFileStore.example()
-    #fs.to_tempfile()
+    # fs = CSVFileStore.example()
+    # fs.to_tempfile()
     # print(fs.view())
 
-    #fs = PDFFileStore.example()
-    #fs.view()
+    # fs = PDFFileStore.example()
+    # fs.view()
 
-    #fs = PDFFileStore("paper.pdf")
-    #fs.view()
+    # fs = PDFFileStore("paper.pdf")
+    # fs.view()
     # from edsl import Conjure
 
     fs = PNGFileStore("robot.png")
     fs.view()
 
     # c = Conjure(datafile_name=fs.to_tempfile())
-    #f = PDFFileStore("paper.pdf")
+    # f = PDFFileStore("paper.pdf")
     # print(f.to_tempfile())
-    #f.push()
+    # f.push()

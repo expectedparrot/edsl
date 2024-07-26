@@ -32,15 +32,15 @@ class TokenBucket:
         else:
             #pass
             self.turbo_mode = True
-            self.capacity=float("inf")
-            self.refill_rate=float("inf")
+            self.capacity = float("inf")
+            self.refill_rate = float("inf")
 
     def turbo_mode_off(self):
         """Restore the refill rate to its original value."""
         self.turbo_mode = False
         self.capacity = self._old_capacity
         self.refill_rate = self._old_refill_rate
-   
+
     def __add__(self, other) -> "TokenBucket":
         """Combine two token buckets.
 
