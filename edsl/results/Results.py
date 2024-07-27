@@ -603,6 +603,36 @@ class Results(UserList, Mixins, Base):
             values = [d[key] for d in columns]
             self = self.add_column(key, values)
         return self
+    
+    @staticmethod
+    def _create_evaluator(result: Result, functions_dict: Optional[dict] = None) -> EvalWithCompoundTypes:
+        """Create an evaluator for the expression.
+        
+        >>> from unittest.mock import Mock
+        >>> result = Mock()
+        >>> result.combined_dict = {'how_feeling': 'OK'} 
+
+        >>> evaluator = Results._create_evaluator(result = result, functions_dict = {})
+        >>> evaluator.eval("how_feeling == 'OK'")
+        True
+        
+        >>> result.combined_dict = {'answer': {'how_feeling': 'OK'}}
+        >>> evaluator = Results._create_evaluator(result = result, functions_dict = {})
+        >>> evaluator.eval("answer.how_feeling== 'OK'")
+        True
+        
+        Note that you need to refer to the answer dictionary in the expression.
+
+        >>> evaluator.eval("how_feeling== 'OK'")
+        Traceback (most recent call last):
+        ...
+        simpleeval.NameNotDefined: 'how_feeling' is not defined for expression 'how_feeling== 'OK''
+        """
+        if functions_dict is None:
+            functions_dict = {}
+        return EvalWithCompoundTypes(
+            names=result.combined_dict, functions=functions_dict
+        )
 
     def mutate(
         self, new_var_string: str, functions_dict: Optional[dict] = None
@@ -636,13 +666,8 @@ class Results(UserList, Mixins, Base):
         # create the evaluator
         functions_dict = functions_dict or {}
 
-        def create_evaluator(result: Result) -> EvalWithCompoundTypes:
-            return EvalWithCompoundTypes(
-                names=result.combined_dict, functions=functions_dict
-            )
-
         def new_result(old_result: "Result", var_name: str) -> "Result":
-            evaluator = create_evaluator(old_result)
+            evaluator = self._create_evaluator(old_result, functions_dict)
             value = evaluator.eval(expression)
             new_result = old_result.copy()
             new_result["answer"][var_name] = value
@@ -742,6 +767,9 @@ class Results(UserList, Mixins, Base):
         >>> results = Results.example()
         >>> results.select('how_feeling')
         Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}])
+
+        >>> results.select('how_feeling', 'model', 'how_feeling')
+        Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}, {'model.model': ['gpt-4-1106-preview', 'gpt-4-1106-preview', 'gpt-4-1106-preview', 'gpt-4-1106-preview']}, {'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}])
         """
 
         if len(self) == 0:
@@ -799,10 +827,18 @@ class Results(UserList, Mixins, Base):
             # Return the index of this key in the list_of_keys
             return items_in_order.index(single_key)
 
-        sorted(new_data, key=sort_by_key_order)
+        #sorted(new_data, key=sort_by_key_order)
         from edsl.results.Dataset import Dataset
+        sorted_new_data = []
 
-        return Dataset(new_data)
+        # WORKS but slow
+        for key in items_in_order:
+            for d in new_data:
+                if key in d:
+                    sorted_new_data.append(d)
+                    break
+
+        return Dataset(sorted_new_data)
 
     def sort_by(self, *columns: str, reverse: bool = False) -> Results:
         import warnings
@@ -917,31 +953,31 @@ class Results(UserList, Mixins, Base):
                 "You must use '==' instead of '=' in the filter expression."
             )
 
-        def create_evaluator(result):
-            """Create an evaluator for the given result.
-            The 'combined_dict' is a mapping of all values for that Result object.
-            """
-            return EvalWithCompoundTypes(names=result.combined_dict)
-
         try:
             # iterates through all the results and evaluates the expression
-            new_data = [
-                result
-                for result in self.data
-                if create_evaluator(result).eval(expression)
-            ]
+            new_data = []
+            for result in self.data:
+                evaluator = self._create_evaluator(result)
+                result.check_expression(expression) # check expression
+                if evaluator.eval(expression):
+                    new_data.append(result)
+      
+        except ValueError as e:
+            raise ResultsFilterError(
+                f"Error in filter. Exception:{e}",
+                f"The expression you provided was: {expression}",
+                "See https://docs.expectedparrot.com/en/latest/results.html#filtering-results for more details.",
+            )
         except Exception as e:
             raise ResultsFilterError(
-                f"""Error in filter. Exception:{e}.
-            The expression you provided was: {expression}. 
-            Please make sure that the expression is a valid Python expression that evaluates to a boolean.
-            For example, 'how_feeling == "Great"' is a valid expression, as is 'how_feeling in ["Great", "Terrible"]'.
-            However, 'how_feeling = "Great"' is not a valid expression.
-
-            See https://docs.expectedparrot.com/en/latest/results.html#filtering-results for more details.
-            """
+            f"""Error in filter. Exception:{e}.""", 
+            f"""The expression you provided was: {expression}.""",
+            """Please make sure that the expression is a valid Python expression that evaluates to a boolean.""",
+            """For example, 'how_feeling == "Great"' is a valid expression, as is 'how_feeling in ["Great", "Terrible"]'., """,
+            """However, 'how_feeling = "Great"' is not a valid expression.""",
+            """See https://docs.expectedparrot.com/en/latest/results.html#filtering-results for more details."""
             )
-
+      
         if len(new_data) == 0:
             import warnings
 
