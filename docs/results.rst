@@ -17,8 +17,50 @@ To inspect the form of an example `Results` we can call the `example()` method (
    example_results = Results.example()
 
 
-Note: You must have API keys for language models in order to generate results. 
-Please see the :ref:`api_keys` section for instructions on storing your API keys.
+We can see the number of `Result` objects created by inspecting the length of the `Results`:
+
+.. code-block:: python
+
+   len(example_results)
+
+
+Output:
+
+.. code-block:: text
+
+   4
+
+
+We can verify that object types:
+
+.. code-block:: python
+
+   type(example_results)
+
+
+Output
+
+.. code-block:: text
+
+   edsl.results.Results.Results
+
+
+And the 4 `Result` objects:
+
+.. code-block:: python
+
+   type(example_results[0])
+
+
+Output:
+
+.. code-block:: text
+
+   edsl.results.Results.Result
+
+
+**Note:** You must have API keys for language models in order to generate your own results. 
+Please see the :ref:`api_keys` section for instructions on activating :ref:`remote_inference` from your :ref:`coop` account or storing your own API keys.
 
 For purposes of demonstrating how to unpack and interact with results, we'll use the following code to generate results for a simple survey.
 Note that specifying agent traits, scenarios (question parameter values) and language models is optional, and we include those steps here for illustrative purposes:
@@ -46,19 +88,25 @@ Note that specifying agent traits, scenarios (question parameter values) and lan
    )
 
    # Optionally parameterize the questions with scenarios
-   from edsl import Scenario
+   from edsl import ScenarioList, Scenario
 
-   scenarios = [Scenario({"topic": t}) for t in ["climate change", "data privacy"]]
+   scenarios = ScenarioList(
+      Scenario({"topic": t}) for t in ["climate change", "data privacy"]
+   )
 
    # Optionally create agents with traits
-   from edsl import Agent
+   from edsl import AgentList, Agent
 
-   agents = [Agent(traits = {"persona": p}) for p in ["student", "celebrity"]]
+   agents = AgentList(
+      Agent(traits = {"persona": p}) for p in ["student", "celebrity"]
+   )
 
    # Optionally specify language models
-   from edsl import Model
+   from edsl import ModelList, Model
 
-   models = [Model(model) for model in ['gpt-4-0125-preview', 'gpt-3.5-turbo']]
+   models = ModelList(
+      Model(m) for m in ['gpt-4-0125-preview', 'gpt-3.5-turbo']
+   )
 
    # Create a survey with the questions
    from edsl import Survey
@@ -116,17 +164,19 @@ We can readily inspect a result:
 
 
 .. code-block:: text
-   
+      
    {
       "agent": {
          "traits": {
                "persona": "student"
          },
-         "edsl_version": "0.1.19",
+         "edsl_version": "0.1.30.dev3",
          "edsl_class_name": "Agent"
       },
       "scenario": {
-         "topic": "climate change"
+         "topic": "climate change",
+         "edsl_version": "0.1.30.dev3",
+         "edsl_class_name": "Scenario"
       },
       "model": {
          "model": "gpt-4-0125-preview",
@@ -138,30 +188,32 @@ We can readily inspect a result:
                "presence_penalty": 0,
                "logprobs": false,
                "top_logprobs": 3
-         }
+         },
+         "edsl_version": "0.1.30.dev3",
+         "edsl_class_name": "LanguageModel"
       },
       "iteration": 0,
       "answer": {
          "important": "5",
-         "important_comment": "I believe climate change is one of the most pressing issues of our time, affecting ecosystems, weather patterns, and global living conditions. It's crucial to address it with urgency to ensure a sustainable future for all.",
-         "feel": "I feel deeply concerned about climate change. It's evident that its effects are profound and far-reaching, impacting ecosystems, weather patterns, and global temperatures. It's crucial for both individuals and governments to take significant steps towards sustainability and reducing carbon emissions to mitigate its impact.",
+         "important_comment": "Climate change is a critical issue that affects all of us, and I'm deeply concerned about its impacts on our planet and future generations. It's important to take action and work towards sustainable solutions.",
+         "feel": "I feel quite concerned about climate change. It's alarming to see the effects it's already having on our planet, from extreme weather events to the loss of biodiversity. It's something that affects all of us, and I believe it's crucial for both individuals and governments to take action to mitigate its impacts. The urgency to address this issue is clear, and I hope we can find sustainable solutions to protect our environment for future generations.",
          "read": "Yes",
-         "read_comment": "I have read several books on climate change as part of my studies and personal interest in environmental issues."
+         "read_comment": "I have read several books about climate change to better understand its impacts and the science behind it."
       },
       "prompt": {
-         "read_user_prompt": {
-               "text": "You are being asked the following question: Have you read any books about climate change?\nThe options are\n\n0: Yes\n\n1: No\n\nReturn a valid JSON formatted like this, selecting only the number of the option:\n{\"answer\": <put answer code here>, \"comment\": \"<put explanation here>\"}\nOnly 1 option may be selected.",
-               "class_name": "YesNo"
-         },
-         "read_system_prompt": {
-               "text": "You are answering questions as if you were a human. Do not break character. You are an agent with the following persona:\n{'persona': 'student'}",
-               "class_name": "AgentInstruction"
-         },
          "feel_user_prompt": {
                "text": "You are being asked the following question: How do you feel about climate change?\nReturn a valid JSON formatted like this:\n{\"answer\": \"<put free text answer here>\"}",
                "class_name": "FreeText"
          },
          "feel_system_prompt": {
+               "text": "You are answering questions as if you were a human. Do not break character. You are an agent with the following persona:\n{'persona': 'student'}",
+               "class_name": "AgentInstruction"
+         },
+         "read_user_prompt": {
+               "text": "You are being asked the following question: Have you read any books about climate change?\nThe options are\n\n0: Yes\n\n1: No\n\nReturn a valid JSON formatted like this, selecting only the number of the option:\n{\"answer\": <put answer code here>, \"comment\": \"<put explanation here>\"}\nOnly 1 option may be selected.",
+               "class_name": "YesNo"
+         },
+         "read_system_prompt": {
                "text": "You are answering questions as if you were a human. Do not break character. You are an agent with the following persona:\n{'persona': 'student'}",
                "class_name": "AgentInstruction"
          },
@@ -176,95 +228,111 @@ We can readily inspect a result:
       },
       "raw_model_response": {
          "important_raw_model_response": {
-               "id": "chatcmpl-9L9ffFayeaky1A3JtR7xVlQdZroXN",
+               "id": "chatcmpl-9pancU1Rt6VeeFNY4dCYiVj80A5Jh",
                "choices": [
                   {
                      "finish_reason": "stop",
                      "index": 0,
                      "logprobs": null,
                      "message": {
-                           "content": "{\"answer\": 5, \"comment\": \"I believe climate change is one of the most pressing issues of our time, affecting ecosystems, weather patterns, and global living conditions. It's crucial to address it with urgency to ensure a sustainable future for all.\"}",
+                           "content": "{\"answer\": 5, \"comment\": \"Climate change is a critical issue that affects all of us, and I'm deeply concerned about its impacts on our planet and future generations. It's important to take action and work towards sustainable solutions.\"}",
                            "role": "assistant",
                            "function_call": null,
                            "tool_calls": null
                      }
                   }
                ],
-               "created": 1714829091,
+               "created": 1722083212,
                "model": "gpt-4-0125-preview",
                "object": "chat.completion",
+               "service_tier": null,
                "system_fingerprint": null,
                "usage": {
-                  "completion_tokens": 53,
+                  "completion_tokens": 50,
                   "prompt_tokens": 141,
-                  "total_tokens": 194
-               },
-               "elapsed_time": 0.0007658004760742188,
-               "timestamp": 1715205908.4213388,
-               "cached_response": true,
-               "cache_key": null
+                  "total_tokens": 191
+               }
          },
          "feel_raw_model_response": {
-               "id": "chatcmpl-9L9ffx4nLUAd5fto9EiFCJFxcc7le",
+               "id": "chatcmpl-9pancuOj0pexzspNfMY1K1tqjSTuM",
                "choices": [
                   {
                      "finish_reason": "stop",
                      "index": 0,
                      "logprobs": null,
                      "message": {
-                           "content": "```json\n{\"answer\": \"I feel deeply concerned about climate change. It's evident that its effects are profound and far-reaching, impacting ecosystems, weather patterns, and global temperatures. It's crucial for both individuals and governments to take significant steps towards sustainability and reducing carbon emissions to mitigate its impact.\"}\n```",
+                           "content": "```json\n{\"answer\": \"I feel quite concerned about climate change. It's alarming to see the effects it's already having on our planet, from extreme weather events to the loss of biodiversity. It's something that affects all of us, and I believe it's crucial for both individuals and governments to take action to mitigate its impacts. The urgency to address this issue is clear, and I hope we can find sustainable solutions to protect our environment for future generations.\"}\n```",
                            "role": "assistant",
                            "function_call": null,
                            "tool_calls": null
                      }
                   }
                ],
-               "created": 1714829091,
+               "created": 1722083212,
                "model": "gpt-4-0125-preview",
                "object": "chat.completion",
+               "service_tier": null,
                "system_fingerprint": null,
                "usage": {
-                  "completion_tokens": 62,
+                  "completion_tokens": 95,
                   "prompt_tokens": 77,
-                  "total_tokens": 139
-               },
-               "elapsed_time": 0.0002608299255371094,
-               "timestamp": 1715205908.425256,
-               "cached_response": true,
-               "cache_key": null
+                  "total_tokens": 172
+               }
          },
          "read_raw_model_response": {
-               "id": "chatcmpl-9L9wBWVU4G2TfpvVaUP9eGzrXrRy4",
+               "id": "chatcmpl-9pance7VWhTUVXSEUXn1N6SA1IwgA",
                "choices": [
                   {
                      "finish_reason": "stop",
                      "index": 0,
                      "logprobs": null,
                      "message": {
-                           "content": "{\"answer\": 0, \"comment\": \"I have read several books on climate change as part of my studies and personal interest in environmental issues.\"}",
+                           "content": "{\"answer\": 0, \"comment\": \"I have read several books about climate change to better understand its impacts and the science behind it.\"}",
                            "role": "assistant",
                            "function_call": null,
                            "tool_calls": null
                      }
                   }
                ],
-               "created": 1714830115,
+               "created": 1722083212,
                "model": "gpt-4-0125-preview",
                "object": "chat.completion",
+               "service_tier": null,
                "system_fingerprint": null,
                "usage": {
-                  "completion_tokens": 31,
+                  "completion_tokens": 30,
                   "prompt_tokens": 113,
-                  "total_tokens": 144
-               },
-               "elapsed_time": 0.0002422332763671875,
-               "timestamp": 1715205908.4283981,
-               "cached_response": true,
-               "cache_key": null
+                  "total_tokens": 143
+               }
          }
       },
-      "edsl_version": "0.1.19",
-      "edsl_class_name": "Result"
+      "question_to_attributes": {
+         "important": {
+               "question_text": "How much do you care about {{ topic }}?",
+               "question_type": "linear_scale",
+               "question_options": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+               ]
+         },
+         "feel": {
+               "question_text": "How do you feel about {{ topic }}?",
+               "question_type": "free_text",
+               "question_options": null
+         },
+         "read": {
+               "question_text": "Have you read any books about {{ topic }}?",
+               "question_type": "yes_no",
+               "question_options": [
+                  "Yes",
+                  "No"
+               ]
+         }
+      }
    }
 
 
@@ -282,28 +350,30 @@ We can use the `rich_print` method to display the `Result` object in a more read
    ┃ Attribute              ┃ Value                                                                                  ┃
    ┡━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
    │ agent                  │                                    Agent Attributes                                    │
-   │                        │ ┏━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
-   │                        │ ┃ Attribute               ┃ Value                                                    ┃ │
-   │                        │ ┡━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩ │
-   │                        │ │ _name                   │ None                                                     │ │
-   │                        │ │ _traits                 │ {'persona': 'student'}                                   │ │
-   │                        │ │ _codebook               │ {}                                                       │ │
-   │                        │ │ _instruction            │ 'You are answering questions as if you were a human. Do  │ │
-   │                        │ │                         │ not break character.'                                    │ │
-   │                        │ │ set_instructions        │ False                                                    │ │
-   │                        │ │ dynamic_traits_function │ None                                                     │ │
-   │                        │ │ current_question        │ Question('yes_no', question_name = 'read', question_text │ │
-   │                        │ │                         │ = 'Have you read any books about {{ topic }}?',          │ │
-   │                        │ │                         │ question_options = ['Yes', 'No'], model_instructions =   │ │
-   │                        │ │                         │ {})                                                      │ │
-   │                        │ └─────────────────────────┴──────────────────────────────────────────────────────────┘ │
+   │                        │ ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
+   │                        │ ┃ Attribute                   ┃ Value                                                ┃ │
+   │                        │ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩ │
+   │                        │ │ _name                       │ None                                                 │ │
+   │                        │ │ _traits                     │ {'persona': 'student'}                               │ │
+   │                        │ │ _codebook                   │ {}                                                   │ │
+   │                        │ │ _instruction                │ 'You are answering questions as if you were a human. │ │
+   │                        │ │                             │ Do not break character.'                             │ │
+   │                        │ │ set_instructions            │ False                                                │ │
+   │                        │ │ dynamic_traits_function     │ None                                                 │ │
+   │                        │ │ has_dynamic_traits_function │ False                                                │ │
+   │                        │ │ current_question            │ Question('yes_no', question_name = """read""",       │ │
+   │                        │ │                             │ question_text = """Have you read any books about {{  │ │
+   │                        │ │                             │ topic }}?""", question_options = ['Yes', 'No'],      │ │
+   │                        │ │                             │ model_instructions = {})                             │ │
+   │                        │ └─────────────────────────────┴──────────────────────────────────────────────────────┘ │
    │ scenario               │             Scenario Attributes                                                        │
-   │                        │ ┏━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                                            │
-   │                        │ ┃ Attribute ┃ Value                       ┃                                            │
-   │                        │ ┡━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩                                            │
-   │                        │ │ data      │ {'topic': 'climate change'} │                                            │
-   │                        │ │ name      │ None                        │                                            │
-   │                        │ └───────────┴─────────────────────────────┘                                            │
+   │                        │ ┏━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                                           │
+   │                        │ ┃ Attribute  ┃ Value                       ┃                                           │
+   │                        │ ┡━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩                                           │
+   │                        │ │ data       │ {'topic': 'climate change'} │                                           │
+   │                        │ │ name       │ None                        │                                           │
+   │                        │ │ _has_image │ False                       │                                           │
+   │                        │ └────────────┴─────────────────────────────┘                                           │
    │ model                  │                                     Language Model                                     │
    │                        │ ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
    │                        │ ┃ Attribute                   ┃ Value                                                ┃ │
@@ -320,8 +390,7 @@ We can use the `rich_print` method to display the `Result` object in a more read
    │                        │ │ presence_penalty            │ 0                                                    │ │
    │                        │ │ logprobs                    │ False                                                │ │
    │                        │ │ top_logprobs                │ 3                                                    │ │
-   │                        │ │ _LanguageModel__rate_limits │ {'rpm': 10000, 'tpm': 2000000}                       │ │
-   │                        │ │ client                      │ <openai.AsyncOpenAI object at 0x15feedc10>           │ │
+   │                        │ │ _LanguageModel__rate_limits │ {'rpm': 5000, 'tpm': 600000}                         │ │
    │                        │ └─────────────────────────────┴──────────────────────────────────────────────────────┘ │
    │ iteration              │ 0                                                                                      │
    │ answer                 │                                        Answers                                         │
@@ -329,25 +398,35 @@ We can use the `rich_print` method to display the `Result` object in a more read
    │                        │ ┃ Attribute         ┃ Value                                                          ┃ │
    │                        │ ┡━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩ │
    │                        │ │ important         │ '5'                                                            │ │
-   │                        │ │ important_comment │ "I believe climate change is one of the most pressing issues   │ │
-   │                        │ │                   │ of our time, affecting ecosystems, weather patterns, and       │ │
-   │                        │ │                   │ global living conditions. It's crucial to address it with      │ │
-   │                        │ │                   │ urgency to ensure a sustainable future for all."               │ │
-   │                        │ │ feel              │ "I feel deeply concerned about climate change. It's evident    │ │
-   │                        │ │                   │ that its effects are profound and far-reaching, impacting      │ │
-   │                        │ │                   │ ecosystems, weather patterns, and global temperatures. It's    │ │
-   │                        │ │                   │ crucial for both individuals and governments to take           │ │
-   │                        │ │                   │ significant steps towards sustainability and reducing carbon   │ │
-   │                        │ │                   │ emissions to mitigate its impact."                             │ │
+   │                        │ │ important_comment │ "Climate change is a critical issue that affects all of us,    │ │
+   │                        │ │                   │ and I'm deeply concerned about its impacts on our planet and   │ │
+   │                        │ │                   │ future generations. It's important to take action and work     │ │
+   │                        │ │                   │ towards sustainable solutions."                                │ │
+   │                        │ │ feel              │ "I feel quite concerned about climate change. It's alarming to │ │
+   │                        │ │                   │ see the effects it's already having on our planet, from        │ │
+   │                        │ │                   │ extreme weather events to the loss of biodiversity. It's       │ │
+   │                        │ │                   │ something that affects all of us, and I believe it's crucial   │ │
+   │                        │ │                   │ for both individuals and governments to take action to         │ │
+   │                        │ │                   │ mitigate its impacts. The urgency to address this issue is     │ │
+   │                        │ │                   │ clear, and I hope we can find sustainable solutions to protect │ │
+   │                        │ │                   │ our environment for future generations."                       │ │
    │                        │ │ read              │ 'Yes'                                                          │ │
-   │                        │ │ read_comment      │ 'I have read several books on climate change as part of my     │ │
-   │                        │ │                   │ studies and personal interest in environmental issues.'        │ │
+   │                        │ │ read_comment      │ 'I have read several books about climate change to better      │ │
+   │                        │ │                   │ understand its impacts and the science behind it.'             │ │
    │                        │ └───────────────────┴────────────────────────────────────────────────────────────────┘ │
    │ prompt                 │ ┏━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
    │                        │ ┃ Attribute               ┃ Value                                                    ┃ │
    │                        │ ┡━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩ │
-   │                        │ │ read_user_prompt        │ Prompt(text='You are being asked the following question: │ │
-   │                        │ │                         │ Have you read any books about climate change?            │ │
+   │                        │ │ feel_user_prompt        │ Prompt(text="""You are being asked the following         │ │
+   │                        │ │                         │ question: How do you feel about climate change?          │ │
+   │                        │ │                         │ Return a valid JSON formatted like this:                 │ │
+   │                        │ │                         │ {"answer": "<put free text answer here>"}""")            │ │
+   │                        │ │ feel_system_prompt      │ Prompt(text="""You are answering questions as if you     │ │
+   │                        │ │                         │ were a human. Do not break character. You are an agent   │ │
+   │                        │ │                         │ with the following persona:                              │ │
+   │                        │ │                         │ {'persona': 'student'}""")                               │ │
+   │                        │ │ read_user_prompt        │ Prompt(text="""You are being asked the following         │ │
+   │                        │ │                         │ question: Have you read any books about climate change?  │ │
    │                        │ │                         │ The options are                                          │ │
    │                        │ │                         │                                                          │ │
    │                        │ │                         │ 0: Yes                                                   │ │
@@ -358,21 +437,13 @@ We can use the `rich_print` method to display the `Result` object in a more read
    │                        │ │                         │ the number of the option:                                │ │
    │                        │ │                         │ {"answer": <put answer code here>, "comment": "<put      │ │
    │                        │ │                         │ explanation here>"}                                      │ │
-   │                        │ │                         │ Only 1 option may be selected.')                         │ │
-   │                        │ │ read_system_prompt      │ Prompt(text='You are answering questions as if you were  │ │
-   │                        │ │                         │ a human. Do not break character. You are an agent with   │ │
-   │                        │ │                         │ the following persona:                                   │ │
-   │                        │ │                         │ {'persona': 'student'}')                                 │ │
-   │                        │ │ feel_user_prompt        │ Prompt(text='You are being asked the following question: │ │
-   │                        │ │                         │ How do you feel about climate change?                    │ │
-   │                        │ │                         │ Return a valid JSON formatted like this:                 │ │
-   │                        │ │                         │ {"answer": "<put free text answer here>"}')              │ │
-   │                        │ │ feel_system_prompt      │ Prompt(text='You are answering questions as if you were  │ │
-   │                        │ │                         │ a human. Do not break character. You are an agent with   │ │
-   │                        │ │                         │ the following persona:                                   │ │
-   │                        │ │                         │ {'persona': 'student'}')                                 │ │
-   │                        │ │ important_user_prompt   │ Prompt(text='You are being asked the following question: │ │
-   │                        │ │                         │ How much do you care about climate change?               │ │
+   │                        │ │                         │ Only 1 option may be selected.""")                       │ │
+   │                        │ │ read_system_prompt      │ Prompt(text="""You are answering questions as if you     │ │
+   │                        │ │                         │ were a human. Do not break character. You are an agent   │ │
+   │                        │ │                         │ with the following persona:                              │ │
+   │                        │ │                         │ {'persona': 'student'}""")                               │ │
+   │                        │ │ important_user_prompt   │ Prompt(text="""You are being asked the following         │ │
+   │                        │ │                         │ question: How much do you care about climate change?     │ │
    │                        │ │                         │ The options are                                          │ │
    │                        │ │                         │                                                          │ │
    │                        │ │                         │ 0: 0                                                     │ │
@@ -391,67 +462,62 @@ We can use the `rich_print` method to display the `Result` object in a more read
    │                        │ │                         │ the code of the option (codes start at 0):               │ │
    │                        │ │                         │ {"answer": <put answer code here>, "comment": "<put      │ │
    │                        │ │                         │ explanation here>"}                                      │ │
-   │                        │ │                         │ Only 1 option may be selected.')                         │ │
-   │                        │ │ important_system_prompt │ Prompt(text='You are answering questions as if you were  │ │
-   │                        │ │                         │ a human. Do not break character. You are an agent with   │ │
-   │                        │ │                         │ the following persona:                                   │ │
-   │                        │ │                         │ {'persona': 'student'}')                                 │ │
+   │                        │ │                         │ Only 1 option may be selected.""")                       │ │
+   │                        │ │ important_system_prompt │ Prompt(text="""You are answering questions as if you     │ │
+   │                        │ │                         │ were a human. Do not break character. You are an agent   │ │
+   │                        │ │                         │ with the following persona:                              │ │
+   │                        │ │                         │ {'persona': 'student'}""")                               │ │
    │                        │ └─────────────────────────┴──────────────────────────────────────────────────────────┘ │
    │ raw_model_response     │ ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
    │                        │ ┃ Attribute                    ┃ Value                                               ┃ │
    │                        │ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩ │
-   │                        │ │ important_raw_model_response │ {'id': 'chatcmpl-9L9ffFayeaky1A3JtR7xVlQdZroXN',    │ │
+   │                        │ │ important_raw_model_response │ {'id': 'chatcmpl-9pancU1Rt6VeeFNY4dCYiVj80A5Jh',    │ │
    │                        │ │                              │ 'choices': [{'finish_reason': 'stop', 'index': 0,   │ │
    │                        │ │                              │ 'logprobs': None, 'message': {'content':            │ │
-   │                        │ │                              │ '{"answer": 5, "comment": "I believe climate change │ │
-   │                        │ │                              │ is one of the most pressing issues of our time,     │ │
-   │                        │ │                              │ affecting ecosystems, weather patterns, and global  │ │
-   │                        │ │                              │ living conditions. It\'s crucial to address it with │ │
-   │                        │ │                              │ urgency to ensure a sustainable future for all."}', │ │
+   │                        │ │                              │ '{"answer": 5, "comment": "Climate change is a      │ │
+   │                        │ │                              │ critical issue that affects all of us, and I\'m     │ │
+   │                        │ │                              │ deeply concerned about its impacts on our planet    │ │
+   │                        │ │                              │ and future generations. It\'s important to take     │ │
+   │                        │ │                              │ action and work towards sustainable solutions."}',  │ │
    │                        │ │                              │ 'role': 'assistant', 'function_call': None,         │ │
-   │                        │ │                              │ 'tool_calls': None}}], 'created': 1714829091,       │ │
+   │                        │ │                              │ 'tool_calls': None}}], 'created': 1722083212,       │ │
    │                        │ │                              │ 'model': 'gpt-4-0125-preview', 'object':            │ │
-   │                        │ │                              │ 'chat.completion', 'system_fingerprint': None,      │ │
-   │                        │ │                              │ 'usage': {'completion_tokens': 53, 'prompt_tokens': │ │
-   │                        │ │                              │ 141, 'total_tokens': 194}, 'elapsed_time':          │ │
-   │                        │ │                              │ 0.0007658004760742188, 'timestamp':                 │ │
-   │                        │ │                              │ 1715205908.4213388, 'cached_response': True,        │ │
-   │                        │ │                              │ 'cache_key': None}                                  │ │
-   │                        │ │ feel_raw_model_response      │ {'id': 'chatcmpl-9L9ffx4nLUAd5fto9EiFCJFxcc7le',    │ │
+   │                        │ │                              │ 'chat.completion', 'service_tier': None,            │ │
+   │                        │ │                              │ 'system_fingerprint': None, 'usage':                │ │
+   │                        │ │                              │ {'completion_tokens': 50, 'prompt_tokens': 141,     │ │
+   │                        │ │                              │ 'total_tokens': 191}}                               │ │
+   │                        │ │ feel_raw_model_response      │ {'id': 'chatcmpl-9pancuOj0pexzspNfMY1K1tqjSTuM',    │ │
    │                        │ │                              │ 'choices': [{'finish_reason': 'stop', 'index': 0,   │ │
    │                        │ │                              │ 'logprobs': None, 'message': {'content':            │ │
-   │                        │ │                              │ '```json\n{"answer": "I feel deeply concerned about │ │
-   │                        │ │                              │ climate change. It\'s evident that its effects are  │ │
-   │                        │ │                              │ profound and far-reaching, impacting ecosystems,    │ │
-   │                        │ │                              │ weather patterns, and global temperatures. It\'s    │ │
-   │                        │ │                              │ crucial for both individuals and governments to     │ │
-   │                        │ │                              │ take significant steps towards sustainability and   │ │
-   │                        │ │                              │ reducing carbon emissions to mitigate its           │ │
-   │                        │ │                              │ impact."}\n```', 'role': 'assistant',               │ │
-   │                        │ │                              │ 'function_call': None, 'tool_calls': None}}],       │ │
-   │                        │ │                              │ 'created': 1714829091, 'model':                     │ │
-   │                        │ │                              │ 'gpt-4-0125-preview', 'object': 'chat.completion',  │ │
+   │                        │ │                              │ '```json\n{"answer": "I feel quite concerned about  │ │
+   │                        │ │                              │ climate change. It\'s alarming to see the effects   │ │
+   │                        │ │                              │ it\'s already having on our planet, from extreme    │ │
+   │                        │ │                              │ weather events to the loss of biodiversity. It\'s   │ │
+   │                        │ │                              │ something that affects all of us, and I believe     │ │
+   │                        │ │                              │ it\'s crucial for both individuals and governments  │ │
+   │                        │ │                              │ to take action to mitigate its impacts. The urgency │ │
+   │                        │ │                              │ to address this issue is clear, and I hope we can   │ │
+   │                        │ │                              │ find sustainable solutions to protect our           │ │
+   │                        │ │                              │ environment for future generations."}\n```',        │ │
+   │                        │ │                              │ 'role': 'assistant', 'function_call': None,         │ │
+   │                        │ │                              │ 'tool_calls': None}}], 'created': 1722083212,       │ │
+   │                        │ │                              │ 'model': 'gpt-4-0125-preview', 'object':            │ │
+   │                        │ │                              │ 'chat.completion', 'service_tier': None,            │ │
    │                        │ │                              │ 'system_fingerprint': None, 'usage':                │ │
-   │                        │ │                              │ {'completion_tokens': 62, 'prompt_tokens': 77,      │ │
-   │                        │ │                              │ 'total_tokens': 139}, 'elapsed_time':               │ │
-   │                        │ │                              │ 0.0002608299255371094, 'timestamp':                 │ │
-   │                        │ │                              │ 1715205908.425256, 'cached_response': True,         │ │
-   │                        │ │                              │ 'cache_key': None}                                  │ │
-   │                        │ │ read_raw_model_response      │ {'id': 'chatcmpl-9L9wBWVU4G2TfpvVaUP9eGzrXrRy4',    │ │
+   │                        │ │                              │ {'completion_tokens': 95, 'prompt_tokens': 77,      │ │
+   │                        │ │                              │ 'total_tokens': 172}}                               │ │
+   │                        │ │ read_raw_model_response      │ {'id': 'chatcmpl-9pance7VWhTUVXSEUXn1N6SA1IwgA',    │ │
    │                        │ │                              │ 'choices': [{'finish_reason': 'stop', 'index': 0,   │ │
    │                        │ │                              │ 'logprobs': None, 'message': {'content':            │ │
    │                        │ │                              │ '{"answer": 0, "comment": "I have read several      │ │
-   │                        │ │                              │ books on climate change as part of my studies and   │ │
-   │                        │ │                              │ personal interest in environmental issues."}',      │ │
-   │                        │ │                              │ 'role': 'assistant', 'function_call': None,         │ │
-   │                        │ │                              │ 'tool_calls': None}}], 'created': 1714830115,       │ │
-   │                        │ │                              │ 'model': 'gpt-4-0125-preview', 'object':            │ │
-   │                        │ │                              │ 'chat.completion', 'system_fingerprint': None,      │ │
-   │                        │ │                              │ 'usage': {'completion_tokens': 31, 'prompt_tokens': │ │
-   │                        │ │                              │ 113, 'total_tokens': 144}, 'elapsed_time':          │ │
-   │                        │ │                              │ 0.0002422332763671875, 'timestamp':                 │ │
-   │                        │ │                              │ 1715205908.4283981, 'cached_response': True,        │ │
-   │                        │ │                              │ 'cache_key': None}                                  │ │
+   │                        │ │                              │ books about climate change to better understand its │ │
+   │                        │ │                              │ impacts and the science behind it."}', 'role':      │ │
+   │                        │ │                              │ 'assistant', 'function_call': None, 'tool_calls':   │ │
+   │                        │ │                              │ None}}], 'created': 1722083212, 'model':            │ │
+   │                        │ │                              │ 'gpt-4-0125-preview', 'object': 'chat.completion',  │ │
+   │                        │ │                              │ 'service_tier': None, 'system_fingerprint': None,   │ │
+   │                        │ │                              │ 'usage': {'completion_tokens': 30, 'prompt_tokens': │ │
+   │                        │ │                              │ 113, 'total_tokens': 143}}                          │ │
    │                        │ └──────────────────────────────┴─────────────────────────────────────────────────────┘ │
    │ survey                 │ ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
    │                        │ ┃ Questions                                                                          ┃ │
@@ -502,8 +568,8 @@ The following list will be returned for the results generated by the above code:
 
 .. code-block:: text
 
-   ['agent.agent_name',
-   'agent.instruction',
+   ['agent.agent_instruction',
+   'agent.agent_name',
    'agent.persona',
    'answer.feel',
    'answer.important',
@@ -540,7 +606,7 @@ The following list will be returned for the results generated by the above code:
    'scenario.topic']
 
 
-The columns include information about each *agent*, *model* and corresponding *prompts* that were used to simulate an *answer* to each *question* and *scenario* in the survey, together with each *raw model response*.
+The columns include information about each *agent*, *model* and corresponding *prompts* used to simulate the *answer* to each *question* and *scenario* in the survey, together with each *raw model response*.
 If the survey was run multiple times (`run(n=<integer>)`) then the `iteration.iteration` column will show the iteration number for each result.
 
 *Agent* information:
@@ -727,7 +793,7 @@ The following table will be printed:
 Labeling results
 ^^^^^^^^^^^^^^^^
 We can also add some table labels by passing a dictionary to the `pretty_labels` argument of the `print` method
-(note that we do need to include the column prefixes when specifying the table labels, as shown below):
+(note that we need to include the column prefixes when specifying the table labels, as shown below):
 
 .. code-block:: python
 
@@ -811,6 +877,18 @@ This will return an abbreviated table:
    │                │ crucial. It helps in maintaining personal security and preventing unauthorized access to       │
    │                │ sensitive information.                                                                         │
    └────────────────┴────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+**Note:** The `filter` method allows us to pass the unique short names of the columns (without the prefixes) when specifying the logical expression.
+However, because the `model.model` column name is also a prefix, we need to include the prefix when filtering by this column, as shown in the example below:
+
+.. code-block:: python
+
+   (results
+   .filter("model.model == 'gpt-4-0125-preview'")
+   .select("model", "persona", "topic", "read", "important")
+   .print(format="rich")
+   )
 
 
 Limiting results
