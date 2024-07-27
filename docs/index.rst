@@ -17,19 +17,22 @@ The contents are organized into key sections to help you get started:
 Links
 -----
 
-- `Download the latest version of EDSL on **PyPI** <https://pypi.org/project/edsl>`_.
+- Download the latest version of EDSL on `PyPI <https://pypi.org/project/edsl>`_.
 
-- `Get the latest EDSL updates on **GitHub** <https://github.com/expectedparrot/edsl>`_.
+- Get the latest EDSL updates on `GitHub <https://github.com/expectedparrot/edsl>`_.
 
-- `Create a **Coop** account <https://www.expectedparrot.com/login>`_.
+- Create a `Coop account <https://www.expectedparrot.com/login>`_.
 
-- `Join our **Discord** channel <https://discord.com/invite/mxAYkjfy9m>`_ to connect with other users and ask questions.
+- Join our `Discord channel <https://discord.com/invite/mxAYkjfy9m>`_ to discuss AI research.
 
 - Follow us on social media:
-  - `Twitter/X <https://twitter.com/expectedparrot>`_
-  - `LinkedIn <https://www.linkedin.com/company/expectedparrot>`_
-  - `Blog <https://blog.expectedparrot.com>`_
 
+  - `Twitter/X <https://twitter.com/expectedparrot>`_
+
+  - `LinkedIn <https://www.linkedin.com/company/expectedparrot>`_
+  
+  - `Blog <https://blog.expectedparrot.com>`_
+  
 
 Introduction
 ------------
