@@ -3,8 +3,10 @@
 API Keys
 ========
 API keys are required to access the services of large language models (LLMs) such as OpenAI's GPTs, Google's Gemini, Anthropic's Claude, Llama 2 and others.
+In order to run EDSL jobs with LLMs, you must either (i) activate :ref:`remote_inference` at your :ref:`coop` account to run your jobs on the Expected Parrot server (using Expected Parrot's API keys for LLMs) or (ii) provide your own API keys to EDSL.
 
-There are two methods for securely providing your API keys to EDSL:
+This page provides instructions on (ii): how to securely provide your API keys to EDSL to run jobs locally.
+There are two methods for doing this:
 
 
 1. Using a .env file (*recommended*)

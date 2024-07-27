@@ -3,6 +3,7 @@
 Scenarios
 =========
 A `Scenario` is a dictionary containing a key/value pair that is used to parameterize one or more questions in a survey, replacing a parameter in a question with a specific value.
+A `ScenarioList` is a list of `Scenario` objects.
 
 Purpose 
 -------

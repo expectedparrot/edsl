@@ -5,8 +5,8 @@ Questions
 
 .. This module contains the Question class, which is the base class for all questions in EDSL.
 
-EDSL includes templates for many common question types, including multiple choice, checkbox, free text, numerical, linear scale, Likert scale and others.
-The `Question` class has subclasses for each of these types (`QuestionMultipleChoice`, `QuestionFreeText`, etc.) which have methods for validating answers and responses from language models.
+EDSL provides templates for many common question types, including multiple choice, checkbox, free text, numerical, linear scale and others.
+The `Question` class has subclasses for each of these types (`QuestionMultipleChoice`, `QuestionCheckBox`, `QuestionFreeText`, `QuestionNumerical`, `QuestionLinearScale`, etc.) which have methods for validating answers and responses from language models.
 
 
 Question type templates 
@@ -16,7 +16,7 @@ The `question_name` is a unique Pythonic identifier for a question (e.g., "favor
 The `question_text` is the text of the question itself written as a string (e.g., "What is your favorite color?").
 
 Individual question types other than free text also require certain additional fields.
-For example, multiple choice, checkbox, linear scale, rank, top k and budget questions all require a `question_options` list of available answer options.
+For example, multiple choice, checkbox, linear scale, rank, top k and budget questions each require a `question_options` list of possible answer options.
 See examples below for details on required fields and formatting for each type.
 
 
@@ -139,9 +139,11 @@ Create a dictionary for each value that will replace the parameter and store the
 
 .. code-block:: python
 
-   from edsl import Scenario 
+   from edsl import ScenarioList, Scenario
 
-   scenarios = [Scenario({"item": item}) for item in ["color", "food"]]
+   scenarios = ScenarioList(
+      Scenario({"item": item}) for item in ["color", "food"]
+   )
 
 Pass the scenario or scenarios to the question with the `by` method when the question is run. 
 If multiple scenarios are to be used, they are passed as a list:
@@ -185,9 +187,15 @@ To generate a response for the agent, we pass it to the `by` method when we run 
 
    results = q.by(agent).run()
 
-If we have multiple agents, we pass them as a list:
+We can also generate responses for multiple agents at once by passing them as a list:
 
-.. code-block:: python 
+.. code-block:: python
+
+   from edsl import AgentList, Agent
+
+   agents = AgentList(
+      Agent(traits = {"persona":p}) for p in ["Dog catcher", "Magician", "Spy"]
+   )
 
    results = q.by(agents).run()
 
@@ -219,54 +227,70 @@ This will return a list of names of models that we can choose from:
    ['Gryphe/MythoMax-L2-13b-turbo', 'deep_infra', 3],
    ['HuggingFaceH4/zephyr-orpo-141b-A35b-v0.1', 'deep_infra', 4],
    ['Phind/Phind-CodeLlama-34B-v2', 'deep_infra', 5],
-   ['bigcode/starcoder2-15b', 'deep_infra', 6],
-   ['bigcode/starcoder2-15b-instruct-v0.1', 'deep_infra', 7],
-   ['claude-3-haiku-20240307', 'anthropic', 8],
-   ['claude-3-opus-20240229', 'anthropic', 9],
-   ['claude-3-sonnet-20240229', 'anthropic', 10],
-   ['codellama/CodeLlama-34b-Instruct-hf', 'deep_infra', 11],
-   ['codellama/CodeLlama-70b-Instruct-hf', 'deep_infra', 12],
-   ['cognitivecomputations/dolphin-2.6-mixtral-8x7b', 'deep_infra', 13],
-   ['databricks/dbrx-instruct', 'deep_infra', 14],
-   ['deepinfra/airoboros-70b', 'deep_infra', 15],
-   ['gemini-pro', 'google', 16],
-   ['google/codegemma-7b-it', 'deep_infra', 17],
-   ['google/gemma-1.1-7b-it', 'deep_infra', 18],
-   ['gpt-3.5-turbo', 'openai', 19],
-   ['gpt-3.5-turbo-0125', 'openai', 20],
-   ['gpt-3.5-turbo-0301', 'openai', 21],
-   ['gpt-3.5-turbo-0613', 'openai', 22],
-   ['gpt-3.5-turbo-1106', 'openai', 23],
-   ['gpt-3.5-turbo-16k', 'openai', 24],
-   ['gpt-3.5-turbo-16k-0613', 'openai', 25],
-   ['gpt-3.5-turbo-instruct', 'openai', 26],
-   ['gpt-3.5-turbo-instruct-0914', 'openai', 27],
-   ['gpt-4', 'openai', 28],
-   ['gpt-4-0125-preview', 'openai', 29],
-   ['gpt-4-0613', 'openai', 30],
-   ['gpt-4-1106-preview', 'openai', 31],
-   ['gpt-4-1106-vision-preview', 'openai', 32],
-   ['gpt-4-turbo', 'openai', 33],
-   ['gpt-4-turbo-2024-04-09', 'openai', 34],
-   ['gpt-4-turbo-preview', 'openai', 35],
-   ['gpt-4-vision-preview', 'openai', 36],
-   ['gpt-4o', 'openai', 37],
-   ['gpt-4o-2024-05-13', 'openai', 38],
-   ['lizpreciatior/lzlv_70b_fp16_hf', 'deep_infra', 39],
-   ['llava-hf/llava-1.5-7b-hf', 'deep_infra', 40],
-   ['meta-llama/Llama-2-13b-chat-hf', 'deep_infra', 41],
-   ['meta-llama/Llama-2-70b-chat-hf', 'deep_infra', 42],
-   ['meta-llama/Llama-2-7b-chat-hf', 'deep_infra', 43],
-   ['meta-llama/Meta-Llama-3-70B-Instruct', 'deep_infra', 44],
-   ['meta-llama/Meta-Llama-3-8B-Instruct', 'deep_infra', 45],
-   ['microsoft/WizardLM-2-7B', 'deep_infra', 46],
-   ['microsoft/WizardLM-2-8x22B', 'deep_infra', 47],
-   ['mistralai/Mistral-7B-Instruct-v0.1', 'deep_infra', 48],
-   ['mistralai/Mistral-7B-Instruct-v0.2', 'deep_infra', 49],
-   ['mistralai/Mixtral-8x22B-Instruct-v0.1', 'deep_infra', 50],
-   ['mistralai/Mixtral-8x22B-v0.1', 'deep_infra', 51],
-   ['mistralai/Mixtral-8x7B-Instruct-v0.1', 'deep_infra', 52],
-   ['openchat/openchat_3.5', 'deep_infra', 53]]
+   ['Qwen/Qwen2-72B-Instruct', 'deep_infra', 6],
+   ['Qwen/Qwen2-7B-Instruct', 'deep_infra', 7],
+   ['Sao10K/L3-70B-Euryale-v2.1', 'deep_infra', 8],
+   ['bigcode/starcoder2-15b', 'deep_infra', 9],
+   ['bigcode/starcoder2-15b-instruct-v0.1', 'deep_infra', 10],
+   ['claude-3-5-sonnet-20240620', 'anthropic', 11],
+   ['claude-3-haiku-20240307', 'anthropic', 12],
+   ['claude-3-opus-20240229', 'anthropic', 13],
+   ['claude-3-sonnet-20240229', 'anthropic', 14],
+   ['codellama/CodeLlama-34b-Instruct-hf', 'deep_infra', 15],
+   ['codellama/CodeLlama-70b-Instruct-hf', 'deep_infra', 16],
+   ['cognitivecomputations/dolphin-2.6-mixtral-8x7b', 'deep_infra', 17],
+   ['cognitivecomputations/dolphin-2.9.1-llama-3-70b', 'deep_infra', 18],
+   ['databricks/dbrx-instruct', 'deep_infra', 19],
+   ['deepinfra/airoboros-70b', 'deep_infra', 20],
+   ['gemini-pro', 'google', 21],
+   ['google/codegemma-7b-it', 'deep_infra', 22],
+   ['google/gemma-1.1-7b-it', 'deep_infra', 23],
+   ['google/gemma-2-27b-it', 'deep_infra', 24],
+   ['google/gemma-2-9b-it', 'deep_infra', 25],
+   ['gpt-3.5-turbo', 'openai', 26],
+   ['gpt-3.5-turbo-0125', 'openai', 27],
+   ['gpt-3.5-turbo-0301', 'openai', 28],
+   ['gpt-3.5-turbo-0613', 'openai', 29],
+   ['gpt-3.5-turbo-1106', 'openai', 30],
+   ['gpt-3.5-turbo-16k', 'openai', 31],
+   ['gpt-3.5-turbo-16k-0613', 'openai', 32],
+   ['gpt-3.5-turbo-instruct', 'openai', 33],
+   ['gpt-3.5-turbo-instruct-0914', 'openai', 34],
+   ['gpt-4', 'openai', 35],
+   ['gpt-4-0125-preview', 'openai', 36],
+   ['gpt-4-0613', 'openai', 37],
+   ['gpt-4-1106-preview', 'openai', 38],
+   ['gpt-4-1106-vision-preview', 'openai', 39],
+   ['gpt-4-turbo', 'openai', 40],
+   ['gpt-4-turbo-2024-04-09', 'openai', 41],
+   ['gpt-4-turbo-preview', 'openai', 42],
+   ['gpt-4-vision-preview', 'openai', 43],
+   ['gpt-4o', 'openai', 44],
+   ['gpt-4o-2024-05-13', 'openai', 45],
+   ['gpt-4o-mini', 'openai', 46],
+   ['gpt-4o-mini-2024-07-18', 'openai', 47],
+   ['lizpreciatior/lzlv_70b_fp16_hf', 'deep_infra', 48],
+   ['llava-hf/llava-1.5-7b-hf', 'deep_infra', 49],
+   ['meta-llama/Llama-2-13b-chat-hf', 'deep_infra', 50],
+   ['meta-llama/Llama-2-70b-chat-hf', 'deep_infra', 51],
+   ['meta-llama/Llama-2-7b-chat-hf', 'deep_infra', 52],
+   ['meta-llama/Meta-Llama-3-70B-Instruct', 'deep_infra', 53],
+   ['meta-llama/Meta-Llama-3-8B-Instruct', 'deep_infra', 54],
+   ['meta-llama/Meta-Llama-3.1-405B-Instruct', 'deep_infra', 55],
+   ['meta-llama/Meta-Llama-3.1-70B-Instruct', 'deep_infra', 56],
+   ['meta-llama/Meta-Llama-3.1-8B-Instruct', 'deep_infra', 57],
+   ['microsoft/Phi-3-medium-4k-instruct', 'deep_infra', 58],
+   ['microsoft/WizardLM-2-7B', 'deep_infra', 59],
+   ['microsoft/WizardLM-2-8x22B', 'deep_infra', 60],
+   ['mistralai/Mistral-7B-Instruct-v0.1', 'deep_infra', 61],
+   ['mistralai/Mistral-7B-Instruct-v0.2', 'deep_infra', 62],
+   ['mistralai/Mistral-7B-Instruct-v0.3', 'deep_infra', 63],
+   ['mistralai/Mixtral-8x22B-Instruct-v0.1', 'deep_infra', 64],
+   ['mistralai/Mixtral-8x22B-v0.1', 'deep_infra', 65],
+   ['mistralai/Mixtral-8x7B-Instruct-v0.1', 'deep_infra', 66],
+   ['nvidia/Nemotron-4-340B-Instruct', 'deep_infra', 67],
+   ['openchat/openchat-3.6-8b', 'deep_infra', 68],
+   ['openchat/openchat_3.5', 'deep_infra', 69]]
    
 
 We can also check the models for which we have already added API keys:
@@ -281,7 +305,11 @@ To specify models for a survey we first create `Model` objects:
 
 .. code-block:: python
 
-   models = [Model(model) for model in ['claude-3-opus-20240229', 'llama-2-70b-chat-hf']]
+   from edsl import ModelList, Model 
+
+   models = ModelList(
+      Model(m) for m in ['claude-3-opus-20240229', 'llama-2-70b-chat-hf']
+   )
 
 Then we add them to a question or survey with the `by` method when running it:
 

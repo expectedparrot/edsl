@@ -7,7 +7,7 @@ It is compatible with Python 3.9 - 3.12.
 
 .. note::
 
-    EDSL is a Python library that is still in development. 
+    EDSL is in development. 
     We recommend that you continually check for and install the latest version of EDSL to access the most recent features and bug fixes.
 
 
