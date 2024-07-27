@@ -247,6 +247,9 @@ class DatasetExportMixin:
         >>> r = Results.example()
         >>> r.select('how_feeling').to_csv()
         'answer.how_feeling\\r\\nOK\\r\\nGreat\\r\\nTerrible\\r\\nOK\\r\\n'
+        >>> r.select('how_feeling').to_csv(pretty_labels = {'answer.how_feeling': "How are you feeling"})
+        'How are you feeling\\r\\nOK\\r\\nGreat\\r\\nTerrible\\r\\nOK\\r\\n'
+
         """
         if pretty_labels is None:
             pretty_labels = {}
