@@ -461,7 +461,7 @@ class Study:
         else:
             self.objects[oe.hash] = oe
 
-    def push(self) -> None:
+    def push(self) -> dict:
         """Push the objects to coop."""
 
         from edsl import Coop
