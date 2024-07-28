@@ -154,6 +154,8 @@ class DatasetExportMixin:
 
         if pretty_labels is None:
             pretty_labels = {}
+        else:
+            split_at_dot = False
 
         if format not in ["rich", "html", "markdown", "latex"]:
             raise ValueError("format must be one of 'rich', 'html', or 'markdown'.")
