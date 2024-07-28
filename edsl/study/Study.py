@@ -461,13 +461,13 @@ class Study:
         else:
             self.objects[oe.hash] = oe
 
-    def push(self, refresh=False) -> None:
+    def push(self) -> None:
         """Push the objects to coop."""
 
         from edsl import Coop
 
         coop = Coop()
-        coop.create(self, description=self.description)
+        return coop.create(self, description=self.description)
 
     @classmethod
     def pull(cls, uuid: Optional[Union[str, UUID]] = None, url: Optional[str] = None):
