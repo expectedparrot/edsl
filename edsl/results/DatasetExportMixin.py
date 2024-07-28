@@ -15,6 +15,9 @@ class DatasetExportMixin:
     ) -> list:
         """Return the set of keys that are present in the dataset.
 
+        :param data_type: The data type to filter by.
+        :param remove_prefix: Whether to remove the prefix from the column names.
+
         >>> from edsl.results.Dataset import Dataset
         >>> d = Dataset([{'a.b':[1,2,3,4]}])
         >>> d.relevant_columns()
@@ -27,7 +30,6 @@ class DatasetExportMixin:
         ['answer.how_feeling', 'answer.how_feeling_yesterday']
         """
         columns = [list(x.keys())[0] for x in self]
-        # columns = set([list(result.keys())[0] for result in self.data])
         if remove_prefix:
             columns = [column.split(".")[-1] for column in columns]
 
@@ -71,7 +73,15 @@ class DatasetExportMixin:
         return header, rows
 
     def print_long(self):
-        """Print the results in a long format."""
+        """Print the results in a long format.
+        >>> from edsl.results import Results
+        >>> r = Results.example()
+        >>> r.select('how_feeling').print_long()
+        answer.how_feeling: OK
+        answer.how_feeling: Great
+        answer.how_feeling: Terrible
+        answer.how_feeling: OK
+        """
         for entry in self:
             key, list_of_values = list(entry.items())[0]
             for value in list_of_values:
@@ -117,6 +127,42 @@ class DatasetExportMixin:
         │ OK           │
         └──────────────┘
 
+        >>> r = Results.example()
+        >>> r2 = r.select("how_feeling").print(format = "rich", tee = True, max_rows = 2)
+        ┏━━━━━━━━━━━━━━┓
+        ┃ answer       ┃
+        ┃ .how_feeling ┃
+        ┡━━━━━━━━━━━━━━┩
+        │ OK           │
+        ├──────────────┤
+        │ Great        │
+        └──────────────┘
+        >>> r2
+        Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}])
+
+        >>> r.select('how_feeling').print(format = "rich", max_rows = 2)
+        ┏━━━━━━━━━━━━━━┓
+        ┃ answer       ┃
+        ┃ .how_feeling ┃
+        ┡━━━━━━━━━━━━━━┩
+        │ OK           │
+        ├──────────────┤
+        │ Great        │
+        └──────────────┘
+
+        >>> r.select('how_feeling').print(format = "rich", split_at_dot = False)
+        ┏━━━━━━━━━━━━━━━━━━━━┓
+        ┃ answer.how_feeling ┃
+        ┡━━━━━━━━━━━━━━━━━━━━┩
+        │ OK                 │
+        ├────────────────────┤
+        │ Great              │
+        ├────────────────────┤
+        │ Terrible           │
+        ├────────────────────┤
+        │ OK                 │
+        └────────────────────┘
+
         Example: using the pretty_labels parameter
 
         >>> r.select('how_feeling').print(format="rich", pretty_labels = {'answer.how_feeling': "How are you feeling"})
@@ -155,6 +201,7 @@ class DatasetExportMixin:
         if pretty_labels is None:
             pretty_labels = {}
         else:
+            # if the user passes in pretty_labels, we don't want to split at the dot
             split_at_dot = False
 
         if format not in ["rich", "html", "markdown", "latex"]:
@@ -170,8 +217,7 @@ class DatasetExportMixin:
                 for key in entry:
                     actual_rows = len(entry[key])
                     entry[key] = entry[key][:max_rows]
-            # print(f"Showing only the first {max_rows} rows of {actual_rows} rows.")
-
+  
         if format == "rich":
             from edsl.utilities.interface import print_dataset_with_rich
 
@@ -247,6 +293,7 @@ class DatasetExportMixin:
         >>> r = Results.example()
         >>> r.select('how_feeling').to_csv()
         'answer.how_feeling\\r\\nOK\\r\\nGreat\\r\\nTerrible\\r\\nOK\\r\\n'
+        
         >>> r.select('how_feeling').to_csv(pretty_labels = {'answer.how_feeling': "How are you feeling"})
         'How are you feeling\\r\\nOK\\r\\nGreat\\r\\nTerrible\\r\\nOK\\r\\n'
 
@@ -314,6 +361,15 @@ class DatasetExportMixin:
         return ScenarioList([Scenario(d) for d in list_of_dicts])
 
     def to_agent_list(self, remove_prefix: bool = True):
+        """Convert the results to a list of dictionaries, one per agent.
+        
+        :param remove_prefix: Whether to remove the prefix from the column names.
+
+        >>> from edsl.results import Results
+        >>> r = Results.example()
+        >>> r.select('how_feeling').to_agent_list()
+        AgentList([Agent(traits = {'how_feeling': 'OK'}), Agent(traits = {'how_feeling': 'Great'}), Agent(traits = {'how_feeling': 'Terrible'}), Agent(traits = {'how_feeling': 'OK'})])
+        """
         from edsl import AgentList, Agent
 
         list_of_dicts = self.to_dicts(remove_prefix=remove_prefix)
@@ -349,6 +405,9 @@ class DatasetExportMixin:
     def to_list(self, flatten=False, remove_none=False) -> list[list]:
         """Convert the results to a list of lists.
 
+        :param flatten: Whether to flatten the list of lists.
+        :param remove_none: Whether to remove None values from the list.
+
         >>> from edsl.results import Results
         >>> Results.example().select('how_feeling', 'how_feeling_yesterday')
         Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}, {'answer.how_feeling_yesterday': ['Great', 'Good', 'OK', 'Terrible']}])
@@ -359,6 +418,18 @@ class DatasetExportMixin:
         >>> r = Results.example()
         >>> r.select('how_feeling').to_list()
         ['OK', 'Great', 'Terrible', 'OK']
+
+        >>> from edsl.results.Dataset import Dataset
+        >>> Dataset([{'a.b': [[1, 9], 2, 3, 4]}]).select('a.b').to_list(flatten = True)
+        [1, 9, 2, 3, 4]
+
+        >>> from edsl.results.Dataset import Dataset
+        >>> Dataset([{'a.b': [[1, 9], 2, 3, 4]}, {'c': [6, 2, 3, 4]}]).select('a.b', 'c').to_list(flatten = True)
+        Traceback (most recent call last):
+        ...
+        ValueError: Cannot flatten a list of lists when there are multiple columns selected.
+
+
         """
         if len(self.relevant_columns()) > 1 and flatten:
             raise ValueError(
@@ -390,7 +461,7 @@ class DatasetExportMixin:
         return list_to_return
 
     def html(
-        self, filename: str = None, cta: str = "Open in browser", return_link=False
+        self, filename: Optional[str] = None, cta: str = "Open in browser", return_link:bool=False
     ):
         import os
         import tempfile
@@ -424,7 +495,7 @@ class DatasetExportMixin:
             return filename
 
     def tally(
-        self, *fields: Optional[str], top_n=None, output="dict"
+        self, *fields: Optional[str], top_n:Optional[int]=None, output="dict"
     ) -> Union[dict, "Dataset"]:
         """Tally the values of a field or perform a cross-tab of multiple fields.
 
