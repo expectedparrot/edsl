@@ -4,10 +4,33 @@ import inspect
 from edsl.questions.QuestionBase import QuestionBase
 
 from edsl.utilities.restricted_python import create_restricted_function
-
+from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
 class QuestionFunctional(QuestionBase):
-    """A special type of question that is *not* answered by an LLM."""
+    """A special type of question that is *not* answered by an LLM.
+    
+    >>> from edsl import Scenario, Agent
+    
+    # Create an instance of QuestionFunctional with the new function
+    >>> question = QuestionFunctional.example()
+
+    # Activate and test the function
+    >>> question.activate()
+    >>> scenario = Scenario({"numbers": [1, 2, 3, 4, 5]})
+    >>> agent = Agent(traits={"multiplier": 10})
+    >>> results = question.by(scenario).by(agent).run()
+    >>> results.select("answer.*").to_list()[0] == 150
+    True
+    
+    # Serialize the question to a dictionary
+
+    >>> from edsl.questions.QuestionBase import QuestionBase
+    >>> new_question = QuestionBase.from_dict(question.to_dict())
+    >>> results = new_question.by(scenario).by(agent).run()
+    >>> results.select("answer.*").to_list()[0] == 150
+    True
+
+    """
 
     question_type = "functional"
     default_instructions = ""
@@ -73,6 +96,7 @@ class QuestionFunctional(QuestionBase):
         """Required by Question, but not used by QuestionFunctional."""
         raise NotImplementedError
 
+    @add_edsl_version
     def to_dict(self):
         return {
             "question_name": self.question_name,
@@ -81,6 +105,8 @@ class QuestionFunctional(QuestionBase):
             "requires_loop": self.requires_loop,
             "function_name": self.function_name,
         }
+    
+    
 
     @classmethod
     def example(cls):
@@ -113,4 +139,9 @@ def main():
     scenario = Scenario({"numbers": [1, 2, 3, 4, 5]})
     agent = Agent(traits={"multiplier": 10})
     results = question.by(scenario).by(agent).run()
-    print(results)
+    assert results.select("answer.*").to_list()[0] == 150
+
+if __name__ == "__main__":
+    #main()
+    import doctest
+    doctest.testmod(optionflags=doctest.ELLIPSIS)

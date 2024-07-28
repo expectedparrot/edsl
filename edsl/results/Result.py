@@ -126,6 +126,9 @@ class Result(Base, UserDict):
         self.survey = survey
         self.question_to_attributes = question_to_attributes
 
+        self._combined_dict = None
+        self._problem_keys = None
+
     ###############
     # Used in Results
     ###############
@@ -164,25 +167,62 @@ class Result(Base, UserDict):
             "answer": self.answer,
             "prompt": self.prompt,
             "raw_model_response": self.raw_model_response,
-            "iteration": {"iteration": self.iteration},
+#            "iteration": {"iteration": self.iteration},
             "question_text": question_text_dict,
             "question_options": question_options_dict,
             "question_type": question_type_dict,
             "comment": comments_dict,
         }
+    
+    def check_expression(self, expression) -> None:
+        for key in self.problem_keys:
+            if key in expression and not key + "." in expression:
+                raise ValueError(f"Key by iself {key} is problematic. Use the full key {key + '.' + key} name instead.")
+        return None
 
     def code(self):
         """Return a string of code that can be used to recreate the Result object."""
         raise NotImplementedError
+    
+    @property
+    def problem_keys(self):
+        """Return a list of keys that are problematic."""
+        return self._problem_keys
+    
+    def _compute_combined_dict_and_problem_keys(self) -> None:
+        combined = {}
+        problem_keys = []
+        for key, sub_dict in self.sub_dicts.items():
+            combined.update(sub_dict)
+            # in some cases, the sub_dict might have keys that conflict with the main dict
+            if key in combined:
+                # The key is already in the combined dict
+                problem_keys = problem_keys + [key]
+            
+            combined.update({key: sub_dict})
+            # I *think* this allows us to do do things like "answer.how_feelling" i.e., that the evaluator can use 
+            # dot notation to access the subdicts.
+        self._combined_dict = combined
+        self._problem_keys = problem_keys
 
     @property
     def combined_dict(self) -> dict[str, Any]:
-        """Return a dictionary that includes all sub_dicts, but also puts the key-value pairs in each sub_dict as a key_value pair in the combined dictionary."""
-        combined = {}
-        for key, sub_dict in self.sub_dicts.items():
-            combined.update(sub_dict)
-            combined.update({key: sub_dict})
-        return combined
+        """Return a dictionary that includes all sub_dicts, but also puts the key-value pairs in each sub_dict as a key_value pair in the combined dictionary.
+        
+        >>> r = Result.example()
+        >>> r.combined_dict['how_feeling']
+        'OK'
+        """
+        if self._combined_dict is None or self._problem_keys is None:
+            self._compute_combined_dict_and_problem_keys()
+        return self._combined_dict
+    
+    @property
+    def problem_keys(self):
+        """Return a list of keys that are problematic."""
+        if self._combined_dict is None or self._problem_keys is None:
+            self._compute_combined_dict_and_problem_keys()
+        return self._problem_keys
 
     def get_value(self, data_type: str, key: str) -> Any:
         """Return the value for a given data type and key.
@@ -226,7 +266,13 @@ class Result(Base, UserDict):
         return Result.from_dict(self.to_dict())
 
     def __eq__(self, other) -> bool:
-        """Return True if the Result object is equal to another Result object."""
+        """Return True if the Result object is equal to another Result object.
+        
+        >>> r = Result.example()
+        >>> r == r
+        True
+        
+        """
         return self.to_dict() == other.to_dict()
 
     ###############
