@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 import re
-from typing import Any, Callable
+from typing import Any, Callable, List, Optional
 from edsl.exceptions import (
     QuestionCreationValidationError,
     QuestionAnswerValidationError,
@@ -242,6 +242,15 @@ class QuestionNameDescriptor(BaseDescriptor):
 class QuestionOptionsDescriptor(BaseDescriptor):
     """Validate that `question_options` is a list, does not exceed the min/max lengths, and has unique items."""
 
+    @classmethod
+    def example(cls):
+        class TestQuestion:
+            question_options = QuestionOptionsDescriptor()
+
+            def __init__(self, question_options: List[str]):
+                self.question_options = question_options
+        return TestQuestion
+
     def __init__(
         self,
         num_choices: int = None,
@@ -254,7 +263,31 @@ class QuestionOptionsDescriptor(BaseDescriptor):
         self.q_budget = q_budget
 
     def validate(self, value: Any, instance) -> None:
-        """Validate the question options."""
+        """Validate the question options.
+        
+        >>> q_class = QuestionOptionsDescriptor.example()
+        >>> _ = q_class(["a", "b", "c"])
+        >>> _ = q_class(["a", "b", "c", "d", "d"])
+        Traceback (most recent call last):
+        ...
+        edsl.exceptions.questions.QuestionCreationValidationError: Question options must be unique (got ['a', 'b', 'c', 'd', 'd']).
+        
+        We allow dynamic question options, which are strings of the form '{{ question_options }}'.
+        
+        >>> _ = q_class("{{dynamic_options}}")
+        >>> _ = q_class("dynamic_options")
+        Traceback (most recent call last):
+        ...
+        edsl.exceptions.questions.QuestionCreationValidationError: Dynamic question options must be of the form: '{{ question_options }}'.
+        """
+        if isinstance(value, str):
+            # Check if the string is a dynamic question option
+            if "{{" in value and "}}" in value:
+                return None
+            else:
+                raise QuestionCreationValidationError(
+                    "Dynamic question options must be of the form: '{{ question_options }}'."
+                )
         if not isinstance(value, list):
             raise QuestionCreationValidationError(
                 f"Question options must be a list (got {value})."
@@ -339,3 +372,8 @@ class QuestionTextDescriptor(BaseDescriptor):
                 f"WARNING: Question text contains a single-braced substring: If you intended to parameterize the question with a Scenario this should be changed to a double-braced substring, e.g. {{variable}}.\nSee details on constructing Scenarios in the docs: https://docs.expectedparrot.com/en/latest/scenarios.html",
                 UserWarning,
             )
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
