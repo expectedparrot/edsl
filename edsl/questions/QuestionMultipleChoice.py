@@ -2,7 +2,7 @@ from __future__ import annotations
 import time
 from typing import Union
 import random
-
+from typing import Optional
 from jinja2 import Template
 
 from edsl.questions.QuestionBase import QuestionBase
@@ -10,7 +10,11 @@ from edsl.questions.descriptors import QuestionOptionsDescriptor
 
 
 class QuestionMultipleChoice(QuestionBase):
-    """This question prompts the agent to select one option from a list of options."""
+    """This question prompts the agent to select one option from a list of options.
+    
+    https://docs.expectedparrot.com/en/latest/questions.html#questionmultiplechoice-class
+
+    """
 
     question_type = "multiple_choice"
     purpose = "When options are known and limited"
@@ -35,27 +39,69 @@ class QuestionMultipleChoice(QuestionBase):
         self.question_text = question_text
         self.question_options = question_options
 
+    # @property
+    # def question_options(self) -> Union[list[str], list[list], list[float], list[int]]:
+    #     """Return the question options."""
+    #     return self._question_options
+
     ################
     # Answer methods
     ################
     def _validate_answer(
         self, answer: dict[str, Union[str, int]]
     ) -> dict[str, Union[str, int]]:
-        """Validate the answer."""
+        """Validate the answer.
+        
+        >>> q = QuestionMultipleChoice.example()
+        >>> q._validate_answer({"answer": 0, "comment": "I like custard"})
+        {'answer': 0, 'comment': 'I like custard'}
+
+        >>> q = QuestionMultipleChoice(question_name="how_feeling", question_text="How are you?", question_options=["Good", "Great", "OK", "Bad"])
+        >>> q._validate_answer({"answer": -1, "comment": "I like custard"})
+        Traceback (most recent call last):
+        ...
+        edsl.exceptions.questions.QuestionAnswerValidationError: Answer code must be a non-negative integer (got -1).
+        """
         self._validate_answer_template_basic(answer)
         self._validate_answer_multiple_choice(answer)
         return answer
 
     def _translate_answer_code_to_answer(
-        self, answer_code, scenario: "Scenario" = None
+        self, 
+        answer_code: int, 
+        scenario: Optional["Scenario"] = None
     ):
-        """Translate the answer code to the actual answer."""
+        """Translate the answer code to the actual answer.
+
+        It is used to translate the answer code to the actual answer. 
+        The question options might be templates, so they need to be rendered with the scenario.
+        
+        >>> q = QuestionMultipleChoice.example()
+        >>> q._translate_answer_code_to_answer(0, {})
+        'Good'
+        
+        >>> q = QuestionMultipleChoice(question_name="how_feeling", question_text="How are you?", question_options=["{{emotion[0]}}", "emotion[1]"])
+        >>> q._translate_answer_code_to_answer(0, {"emotion": ["Happy", "Sad"]})
+        'Happy'
+
+        """
         from edsl.scenarios.Scenario import Scenario
 
         scenario = scenario or Scenario()
-        translated_options = [
-            Template(str(option)).render(scenario) for option in self.question_options
-        ]
+
+        if isinstance(self.question_options, str):
+            # If dynamic options are provided like {{ options }}, render them with the scenario
+            from jinja2 import Environment, meta
+            env = Environment()
+            parsed_content = env.parse(self.question_options)
+            question_option_key = list(meta.find_undeclared_variables(parsed_content))[0]
+            translated_options = scenario.get(question_option_key)
+        else:
+            translated_options = [
+                Template(str(option)).render(scenario) for option in self.question_options
+            ]
+        #print("Translated options:", translated_options)
+        #breakpoint()
         return translated_options[int(answer_code)]
 
     def _simulate_answer(
@@ -75,6 +121,7 @@ class QuestionMultipleChoice(QuestionBase):
 
     @property
     def question_html_content(self) -> str:
+        """Return the HTML version of the question."""
         if hasattr(self, "option_labels"):
             option_labels = self.option_labels
         else:
