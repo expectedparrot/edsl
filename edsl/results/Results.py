@@ -603,24 +603,26 @@ class Results(UserList, Mixins, Base):
             values = [d[key] for d in columns]
             self = self.add_column(key, values)
         return self
-    
+
     @staticmethod
-    def _create_evaluator(result: Result, functions_dict: Optional[dict] = None) -> EvalWithCompoundTypes:
+    def _create_evaluator(
+        result: Result, functions_dict: Optional[dict] = None
+    ) -> EvalWithCompoundTypes:
         """Create an evaluator for the expression.
-        
+
         >>> from unittest.mock import Mock
         >>> result = Mock()
-        >>> result.combined_dict = {'how_feeling': 'OK'} 
+        >>> result.combined_dict = {'how_feeling': 'OK'}
 
         >>> evaluator = Results._create_evaluator(result = result, functions_dict = {})
         >>> evaluator.eval("how_feeling == 'OK'")
         True
-        
+
         >>> result.combined_dict = {'answer': {'how_feeling': 'OK'}}
         >>> evaluator = Results._create_evaluator(result = result, functions_dict = {})
         >>> evaluator.eval("answer.how_feeling== 'OK'")
         True
-        
+
         Note that you need to refer to the answer dictionary in the expression.
 
         >>> evaluator.eval("how_feeling== 'OK'")
@@ -827,8 +829,9 @@ class Results(UserList, Mixins, Base):
             # Return the index of this key in the list_of_keys
             return items_in_order.index(single_key)
 
-        #sorted(new_data, key=sort_by_key_order)
+        # sorted(new_data, key=sort_by_key_order)
         from edsl.results.Dataset import Dataset
+
         sorted_new_data = []
 
         # WORKS but slow
@@ -958,10 +961,10 @@ class Results(UserList, Mixins, Base):
             new_data = []
             for result in self.data:
                 evaluator = self._create_evaluator(result)
-                result.check_expression(expression) # check expression
+                result.check_expression(expression)  # check expression
                 if evaluator.eval(expression):
                     new_data.append(result)
-      
+
         except ValueError as e:
             raise ResultsFilterError(
                 f"Error in filter. Exception:{e}",
@@ -970,14 +973,14 @@ class Results(UserList, Mixins, Base):
             )
         except Exception as e:
             raise ResultsFilterError(
-            f"""Error in filter. Exception:{e}.""", 
-            f"""The expression you provided was: {expression}.""",
-            """Please make sure that the expression is a valid Python expression that evaluates to a boolean.""",
-            """For example, 'how_feeling == "Great"' is a valid expression, as is 'how_feeling in ["Great", "Terrible"]'., """,
-            """However, 'how_feeling = "Great"' is not a valid expression.""",
-            """See https://docs.expectedparrot.com/en/latest/results.html#filtering-results for more details."""
+                f"""Error in filter. Exception:{e}.""",
+                f"""The expression you provided was: {expression}.""",
+                """Please make sure that the expression is a valid Python expression that evaluates to a boolean.""",
+                """For example, 'how_feeling == "Great"' is a valid expression, as is 'how_feeling in ["Great", "Terrible"]'., """,
+                """However, 'how_feeling = "Great"' is not a valid expression.""",
+                """See https://docs.expectedparrot.com/en/latest/results.html#filtering-results for more details.""",
             )
-      
+
         if len(new_data) == 0:
             import warnings
 

@@ -494,7 +494,12 @@ class LanguageModel(
         return table
 
     @classmethod
-    def example(cls, test_model: bool = False, canned_response: str = "Hello world", throw_exception: bool = False):
+    def example(
+        cls,
+        test_model: bool = False,
+        canned_response: str = "Hello world",
+        throw_exception: bool = False,
+    ):
         """Return a default instance of the class.
 
         >>> from edsl.language_models import LanguageModel

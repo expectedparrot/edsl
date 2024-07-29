@@ -11,7 +11,7 @@ from edsl.questions.descriptors import QuestionOptionsDescriptor
 
 class QuestionMultipleChoice(QuestionBase):
     """This question prompts the agent to select one option from a list of options.
-    
+
     https://docs.expectedparrot.com/en/latest/questions.html#questionmultiplechoice-class
 
     """
@@ -51,7 +51,7 @@ class QuestionMultipleChoice(QuestionBase):
         self, answer: dict[str, Union[str, int]]
     ) -> dict[str, Union[str, int]]:
         """Validate the answer.
-        
+
         >>> q = QuestionMultipleChoice.example()
         >>> q._validate_answer({"answer": 0, "comment": "I like custard"})
         {'answer': 0, 'comment': 'I like custard'}
@@ -67,19 +67,17 @@ class QuestionMultipleChoice(QuestionBase):
         return answer
 
     def _translate_answer_code_to_answer(
-        self, 
-        answer_code: int, 
-        scenario: Optional["Scenario"] = None
+        self, answer_code: int, scenario: Optional["Scenario"] = None
     ):
         """Translate the answer code to the actual answer.
 
-        It is used to translate the answer code to the actual answer. 
+        It is used to translate the answer code to the actual answer.
         The question options might be templates, so they need to be rendered with the scenario.
-        
+
         >>> q = QuestionMultipleChoice.example()
         >>> q._translate_answer_code_to_answer(0, {})
         'Good'
-        
+
         >>> q = QuestionMultipleChoice(question_name="how_feeling", question_text="How are you?", question_options=["{{emotion[0]}}", "emotion[1]"])
         >>> q._translate_answer_code_to_answer(0, {"emotion": ["Happy", "Sad"]})
         'Happy'
@@ -92,16 +90,20 @@ class QuestionMultipleChoice(QuestionBase):
         if isinstance(self.question_options, str):
             # If dynamic options are provided like {{ options }}, render them with the scenario
             from jinja2 import Environment, meta
+
             env = Environment()
             parsed_content = env.parse(self.question_options)
-            question_option_key = list(meta.find_undeclared_variables(parsed_content))[0]
+            question_option_key = list(meta.find_undeclared_variables(parsed_content))[
+                0
+            ]
             translated_options = scenario.get(question_option_key)
         else:
             translated_options = [
-                Template(str(option)).render(scenario) for option in self.question_options
+                Template(str(option)).render(scenario)
+                for option in self.question_options
             ]
-        #print("Translated options:", translated_options)
-        #breakpoint()
+        # print("Translated options:", translated_options)
+        # breakpoint()
         return translated_options[int(answer_code)]
 
     def _simulate_answer(
