@@ -22,8 +22,10 @@ from edsl.jobs.interviews.InterviewStatusMixin import InterviewStatusMixin
 
 import asyncio
 
+
 def run_async(coro):
     return asyncio.run(coro)
+
 
 class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
     """
@@ -41,7 +43,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         debug: Optional[bool] = False,
         iteration: int = 0,
         cache: Optional["Cache"] = None,
-        sidecar_model: Optional['LanguageModel'] = None,
+        sidecar_model: Optional["LanguageModel"] = None,
     ):
         """Initialize the Interview instance.
 
@@ -98,7 +100,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         model_buckets: ModelBuckets = None,
         debug: bool = False,
         stop_on_exception: bool = False,
-        sidecar_model: Optional['LanguageModel'] = None,
+        sidecar_model: Optional["LanguageModel"] = None,
     ) -> tuple["Answers", List[dict[str, Any]]]:
         """
         Conduct an Interview asynchronously.
@@ -146,13 +148,11 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         if model_buckets is None or hasattr(self.agent, "answer_question_directly"):
             model_buckets = ModelBuckets.infinity_bucket()
 
-        
         ## build the tasks using the InterviewTaskBuildingMixin
         ## This is the key part---it creates a task for each question,
         ## with dependencies on the questions that must be answered before this one can be answered.
         self.tasks = self._build_question_tasks(
-            debug=debug, 
-            model_buckets=model_buckets
+            debug=debug, model_buckets=model_buckets
         )
 
         ## 'Invigilators' are used to administer the survey
@@ -195,7 +195,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
 
     def _record_exception(self, task, exception: Exception) -> None:
         """Record an exception in the Interview instance.
-        
+
         It records the exception in the Interview instance, with the task name and the exception entry.
 
         >>> i = Interview.example()
@@ -235,14 +235,14 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         """Return a string representation of the Interview instance."""
         return f"Interview(agent = {repr(self.agent)}, survey = {repr(self.survey)}, scenario = {repr(self.scenario)}, model = {repr(self.model)})"
 
-    def duplicate(self, iteration: int, cache: 'Cache') -> Interview:
+    def duplicate(self, iteration: int, cache: "Cache") -> Interview:
         """Duplicate the interview, but with a new iteration number and cache.
-        
+
         >>> i = Interview.example()
         >>> i2 = i.duplicate(1, None)
         >>> i.iteration + 1 == i2.iteration
         True
-        
+
         """
         return Interview(
             agent=self.agent,
@@ -270,7 +270,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         scenario = Scenario.example()
         model = LanguageModel.example()
         if throw_exception:
-            model = LanguageModel.example(test_model = True, throw_exception=True)
+            model = LanguageModel.example(test_model=True, throw_exception=True)
             agent = Agent.example()
             return Interview(agent=agent, survey=survey, scenario=scenario, model=model)
         return Interview(agent=agent, survey=survey, scenario=scenario, model=model)

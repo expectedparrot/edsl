@@ -217,7 +217,7 @@ class DatasetExportMixin:
                 for key in entry:
                     actual_rows = len(entry[key])
                     entry[key] = entry[key][:max_rows]
-  
+
         if format == "rich":
             from edsl.utilities.interface import print_dataset_with_rich
 
@@ -293,7 +293,7 @@ class DatasetExportMixin:
         >>> r = Results.example()
         >>> r.select('how_feeling').to_csv()
         'answer.how_feeling\\r\\nOK\\r\\nGreat\\r\\nTerrible\\r\\nOK\\r\\n'
-        
+
         >>> r.select('how_feeling').to_csv(pretty_labels = {'answer.how_feeling': "How are you feeling"})
         'How are you feeling\\r\\nOK\\r\\nGreat\\r\\nTerrible\\r\\nOK\\r\\n'
 
@@ -362,7 +362,7 @@ class DatasetExportMixin:
 
     def to_agent_list(self, remove_prefix: bool = True):
         """Convert the results to a list of dictionaries, one per agent.
-        
+
         :param remove_prefix: Whether to remove the prefix from the column names.
 
         >>> from edsl.results import Results
@@ -461,7 +461,10 @@ class DatasetExportMixin:
         return list_to_return
 
     def html(
-        self, filename: Optional[str] = None, cta: str = "Open in browser", return_link:bool=False
+        self,
+        filename: Optional[str] = None,
+        cta: str = "Open in browser",
+        return_link: bool = False,
     ):
         import os
         import tempfile
@@ -495,7 +498,7 @@ class DatasetExportMixin:
             return filename
 
     def tally(
-        self, *fields: Optional[str], top_n:Optional[int]=None, output="dict"
+        self, *fields: Optional[str], top_n: Optional[int] = None, output="dict"
     ) -> Union[dict, "Dataset"]:
         """Tally the values of a field or perform a cross-tab of multiple fields.
 

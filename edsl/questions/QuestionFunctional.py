@@ -6,11 +6,12 @@ from edsl.questions.QuestionBase import QuestionBase
 from edsl.utilities.restricted_python import create_restricted_function
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
+
 class QuestionFunctional(QuestionBase):
     """A special type of question that is *not* answered by an LLM.
-    
+
     >>> from edsl import Scenario, Agent
-    
+
     # Create an instance of QuestionFunctional with the new function
     >>> question = QuestionFunctional.example()
 
@@ -21,7 +22,7 @@ class QuestionFunctional(QuestionBase):
     >>> results = question.by(scenario).by(agent).run()
     >>> results.select("answer.*").to_list()[0] == 150
     True
-    
+
     # Serialize the question to a dictionary
 
     >>> from edsl.questions.QuestionBase import QuestionBase
@@ -105,8 +106,6 @@ class QuestionFunctional(QuestionBase):
             "requires_loop": self.requires_loop,
             "function_name": self.function_name,
         }
-    
-    
 
     @classmethod
     def example(cls):
@@ -141,7 +140,9 @@ def main():
     results = question.by(scenario).by(agent).run()
     assert results.select("answer.*").to_list()[0] == 150
 
+
 if __name__ == "__main__":
-    #main()
+    # main()
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)
