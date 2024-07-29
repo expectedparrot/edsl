@@ -3,12 +3,13 @@
 import base64
 import csv
 import io
+import html
 
-from typing import Literal, Optional, Union
+from typing import Literal, Optional, Union, List
 
 
 class DatasetExportMixin:
-    """Mixin class"""
+    """Mixin class for exporting Dataset objects."""
 
     def relevant_columns(
         self, data_type: Optional[str] = None, remove_prefix=False
@@ -28,19 +29,56 @@ class DatasetExportMixin:
 
         >>> from edsl.results import Results; Results.example().select('how_feeling', 'how_feeling_yesterday').relevant_columns()
         ['answer.how_feeling', 'answer.how_feeling_yesterday']
+        
+        >>> from edsl.results import Results
+        >>> sorted(Results.example().select().relevant_columns(data_type = "model"))
+        ['model.frequency_penalty', 'model.logprobs', 'model.max_tokens', 'model.model', 'model.presence_penalty', 'model.temperature', 'model.top_logprobs', 'model.top_p']
+
+        >>> Results.example().relevant_columns(data_type = "flimflam")
+        Traceback (most recent call last):
+        ...
+        ValueError: No columns found for data type: flimflam. Available data types are: ['agent', 'answer', 'comment', 'model', 'prompt', 'question_options', 'question_text', 'question_type', 'raw_model_response', 'scenario'].
         """
         columns = [list(x.keys())[0] for x in self]
         if remove_prefix:
             columns = [column.split(".")[-1] for column in columns]
 
+        def get_data_type(column):
+            if "." in column:
+                return column.split(".")[0]
+            else:
+                return None
+
         if data_type:
+            all_columns = columns[:]
             columns = [
-                column for column in columns if column.split(".")[0] == data_type
+                column for column in columns if get_data_type(column) == data_type
             ]
+            if len(columns) == 0:
+                all_data_types = sorted(list(set(get_data_type(column) for column in all_columns)))
+                raise ValueError(f"No columns found for data type: {data_type}. Available data types are: {all_data_types}.")
 
         return columns
+    
+    def num_observations(self):
+        """Return the number of observations in the dataset.
 
-    def _make_tabular(self, remove_prefix: bool, pretty_labels: Optional[dict] = None):
+        >>> from edsl.results import Results
+        >>> Results.example().num_observations()
+        4
+        """
+        _num_observations = None
+        for entry in self:
+            key, values = list(entry.items())[0]
+            if _num_observations is None:
+                _num_observations = len(values)
+            else:
+                if len(values) != _num_observations:
+                    raise ValueError("The number of observations is not consistent across columns.")
+                 
+        return _num_observations
+    
+    def _make_tabular(self, remove_prefix: bool, pretty_labels: Optional[dict] = None) -> tuple[list, List[list]]:
         """Turn the results into a tabular format.
 
         :param remove_prefix: Whether to remove the prefix from the column names.
@@ -53,23 +91,28 @@ class DatasetExportMixin:
         >>> r.select('how_feeling')._make_tabular(remove_prefix = True, pretty_labels = {'how_feeling': "How are you feeling"})
         (['How are you feeling'], [['OK'], ['Great'], ['Terrible'], ['OK']])
         """
-        d = {}
-        full_header = sorted(list(self.relevant_columns()))
-        for entry in self.data:
-            key, list_of_values = list(entry.items())[0]
-            d[key] = list_of_values
+        def create_dict_from_list_of_dicts(list_of_dicts):
+            for entry in list_of_dicts:
+                key, list_of_values = list(entry.items())[0]
+                yield key, list_of_values
+        
+        tabular_repr = dict(create_dict_from_list_of_dicts(self.data))
+        
+        full_header = [list(x.keys())[0] for x in self]
+                    
+        rows = []
+        for i in range(self.num_observations()):
+            row = [tabular_repr[h][i] for h in full_header]
+            rows.append(row)
+
         if remove_prefix:
             header = [h.split(".")[-1] for h in full_header]
         else:
             header = full_header
-        num_observations = len(list(self[0].values())[0])
-        rows = []
-        # rows.append(header)
-        for i in range(num_observations):
-            row = [d[h][i] for h in full_header]
-            rows.append(row)
+
         if pretty_labels is not None:
             header = [pretty_labels.get(h, h) for h in header]
+
         return header, rows
 
     def print_long(self):
@@ -91,7 +134,7 @@ class DatasetExportMixin:
         self,
         pretty_labels: Optional[dict] = None,
         filename: Optional[str] = None,
-        format: Literal["rich", "html", "markdown", "latex"] = None,
+        format: Optional[Literal["rich", "html", "markdown", "latex"]] = None,
         interactive: bool = False,
         split_at_dot: bool = True,
         max_rows=None,
@@ -108,6 +151,12 @@ class DatasetExportMixin:
         :param format: The format to print the results in. Options are 'rich', 'html', or 'markdown'.
         :param interactive: Whether to print the results interactively in a Jupyter notebook.
         :param split_at_dot: Whether to split the column names at the last dot w/ a newline.
+        :param max_rows: The maximum number of rows to print.
+        :param tee: Whether to return the dataset.
+        :param iframe: Whether to display the table in an iframe.
+        :param iframe_height: The height of the iframe.
+        :param iframe_width: The width of the iframe.
+        :param web: Whether to display the table in a web browser.
 
         Example: Print in rich format at the terminal
 
@@ -188,35 +237,40 @@ class DatasetExportMixin:
         | Terrible |
         | OK |
         ...
+
+        >>> r.select('how_feeling').print(format='latex')
+        \\begin{tabular}{l}
+        \\toprule
+        ...
         """
         from IPython.display import HTML, display
         from edsl.utilities.utilities import is_notebook
 
-        if format is None:
-            if is_notebook():
-                format = "html"
-            else:
-                format = "rich"
+        def _determine_format(format):
+            if format is None:
+                if is_notebook():
+                    format = "html"
+                else:
+                    format = "rich"
+            if format not in ["rich", "html", "markdown", "latex"]:
+                raise ValueError("format must be one of 'rich', 'html', or 'markdown'.")
+            
+            return format
+        
+        format = _determine_format(format)
 
         if pretty_labels is None:
             pretty_labels = {}
-        else:
-            # if the user passes in pretty_labels, we don't want to split at the dot
+        
+        if pretty_labels != {}: # only split at dot if there are no pretty labels
             split_at_dot = False
 
-        if format not in ["rich", "html", "markdown", "latex"]:
-            raise ValueError("format must be one of 'rich', 'html', or 'markdown'.")
+        def _create_data():
+            for index, entry in enumerate(self):
+                key, list_of_values = list(entry.items())[0]
+                yield {pretty_labels.get(key, key): list_of_values[:max_rows]}
 
-        new_data = []
-        for index, entry in enumerate(self):
-            key, list_of_values = list(entry.items())[0]
-            new_data.append({pretty_labels.get(key, key): list_of_values})
-
-        if max_rows is not None:
-            for entry in new_data:
-                for key in entry:
-                    actual_rows = len(entry[key])
-                    entry[key] = entry[key][:max_rows]
+        new_data = list(_create_data())
 
         if format == "rich":
             from edsl.utilities.interface import print_dataset_with_rich
@@ -224,55 +278,47 @@ class DatasetExportMixin:
             print_dataset_with_rich(
                 new_data, filename=filename, split_at_dot=split_at_dot
             )
-        elif format == "html":
-            notebook = is_notebook()
+            return self if tee else None
+        
+        if format == "markdown":
+            from edsl.utilities.interface import print_list_of_dicts_as_markdown_table
+
+            print_list_of_dicts_as_markdown_table(new_data, filename=filename)
+            return self if tee else None
+        
+        if format == "latex":
+            df = self.to_pandas()
+            df.columns = [col.replace("_", " ") for col in df.columns]
+            latex_string = df.to_latex(index=False)
+            
+            if filename is not None:
+                with open(filename, "w") as f:
+                    f.write(latex_string)
+            else:
+                print(latex_string)
+            
+            return self if tee else None
+            
+        if format == "html":
             from edsl.utilities.interface import print_list_of_dicts_as_html_table
 
             html_source = print_list_of_dicts_as_html_table(
                 new_data, interactive=interactive
             )
-            if iframe:
-                import html
 
-                height = iframe_height
-                width = iframe_width
-                escaped_output = html.escape(html_source)
-                # escaped_output = html_source
+            if iframe:
                 iframe = f""""
-                <iframe srcdoc="{ escaped_output }" style="width: {width}px; height: {height}px;"></iframe>
+                <iframe srcdoc="{ html.escape(html_source) }" style="width: {iframe_width}px; height: {iframe_height}px;"></iframe>
                 """
                 display(HTML(iframe))
-            elif notebook:
+            elif is_notebook():
                 display(HTML(html_source))
             else:
                 from edsl.utilities.interface import view_html
-
                 view_html(html_source)
+            
+            return self if tee else None
 
-        elif format == "markdown":
-            from edsl.utilities.interface import print_list_of_dicts_as_markdown_table
-
-            print_list_of_dicts_as_markdown_table(new_data, filename=filename)
-        elif format == "latex":
-            df = self.to_pandas()
-            df.columns = [col.replace("_", " ") for col in df.columns]
-            latex_string = df.to_latex()
-            if filename is not None:
-                with open(filename, "w") as f:
-                    f.write(latex_string)
-            else:
-                return latex_string
-            # raise NotImplementedError("Latex format not yet implemented.")
-            # latex_string = create_latex_table_from_data(new_data, filename=filename)
-            # if filename is None:
-            #     return latex_string
-            # Not working quite
-
-        else:
-            raise ValueError("format not recognized.")
-
-        if tee:
-            return self
 
     def to_csv(
         self,
@@ -297,6 +343,21 @@ class DatasetExportMixin:
         >>> r.select('how_feeling').to_csv(pretty_labels = {'answer.how_feeling': "How are you feeling"})
         'How are you feeling\\r\\nOK\\r\\nGreat\\r\\nTerrible\\r\\nOK\\r\\n'
 
+        >>> import tempfile
+        >>> filename = tempfile.NamedTemporaryFile(delete=False).name
+        >>> r.select('how_feeling').to_csv(filename = filename)
+        >>> import os
+        >>> import csv 
+        >>> with open(filename, newline='') as f:
+        ...     reader = csv.reader(f)
+        ...     for row in reader:
+        ...         print(row)
+        ['answer.how_feeling']
+        ['OK']
+        ['Great']
+        ['Terrible']
+        ['OK']
+
         """
         if pretty_labels is None:
             pretty_labels = {}
@@ -316,6 +377,7 @@ class DatasetExportMixin:
             writer.writerows(rows)
 
             if download_link:
+                from IPython.display import HTML, display
                 csv_file = output.getvalue()
                 b64 = base64.b64encode(csv_file.encode()).decode()
                 download_link = f'<a href="data:file/csv;base64,{b64}" download="my_data.csv">Download CSV file</a>'
