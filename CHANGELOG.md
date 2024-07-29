@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.1.30] - 2024-TBD [In progress]
+## [0.1.31] - 2024-TBD [In progress]
 ### Added
 - [In progress] `ScenarioList.from_sqlite` allows you to create a list of scenarios from a SQLite table.
 
@@ -10,6 +10,24 @@
 
 ### Changed
 - [In progress] `QuestionMultipleChoice` may be modified to allow combined options and free response "Other" option, as well as non-responsive answers. Previously, an error was thrown if the agent did not select one of the given options. Details TBD.
+
+
+## [0.1.30] - 2024-07-28
+### Added
+- Ability to create a `Scenario` for `question_options`. Example:
+```
+from edsl import QuestionMultipleChoice, Scenario
+
+q = QuestionMultipleChoice(
+    question_name = "capital_of_france",
+    question_text = "What is the capital of France?", 
+    question_options = "{{question_options}}"
+)
+
+s = Scenario({'question_options': ['Paris', 'London', 'Berlin', 'Madrid']})
+
+results = q.by(s).run()
+```
 
 
 ## [0.1.29] - 2024-07-21
