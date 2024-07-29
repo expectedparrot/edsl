@@ -88,8 +88,7 @@ class QuestionTaskCreator(UserList):
         self.append(task)
 
     def generate_task(self, debug: bool) -> asyncio.Task:
-        """Create a task that depends on the passed-in dependencies.        
-        """
+        """Create a task that depends on the passed-in dependencies."""
         task = asyncio.create_task(
             self._run_task_async(debug), name=self.question.question_name
         )
@@ -145,7 +144,7 @@ class QuestionTaskCreator(UserList):
             self.task_status = TaskStatus.FAILED
             raise e
 
-        if results.get('cache_used', False):
+        if results.get("cache_used", False):
             self.tokens_bucket.add_tokens(requested_tokens)
             self.requests_bucket.add_tokens(1)
             self.from_cache = True
