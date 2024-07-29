@@ -2,11 +2,13 @@
 
 Scenarios
 =========
+
 A `Scenario` is a dictionary containing a key/value pair that is used to parameterize one or more questions in a survey, replacing a parameter in a question with a specific value.
 A `ScenarioList` is a list of `Scenario` objects.
 
 Purpose 
 -------
+
 Scenarios allow you create variations and versions of questions efficiently.
 For example, we could create a question `"What is your favorite {{ item }}?"` and use scenarios to replace the parameter `item` with `color` or `food` or other items.
 When we add the scenarios to the question, the question will be asked multiple times, once for each scenario, with the parameter replaced by the value in the scenario.
@@ -14,6 +16,7 @@ This allows us to straightforwardly administer multiple versions of the question
 
 Metadata
 ^^^^^^^^
+
 Scenarios are also a convenient way to keep track of metadata or other information relating to our survey questions that is important to our analysis of the results.
 For example, say we are using scenarios to parameterize questions with pieces of `{{ content }}` from a dataset.
 In our scenarios for the `content` parameter, we could also include metadata about the source of the content, such as the `{{ author }}`, the `{{ publication_date }}`, or the `{{ source }}`.
@@ -23,6 +26,7 @@ This allows us to analyze the responses in the context of the metadata without n
 
 Constructing a Scenario
 -----------------------
+
 To use scenarios, we start by creating a question that takes a parameter in double braces: 
 
 .. code-block:: python
@@ -65,6 +69,8 @@ This will return:
     [Scenario({'item': 'color'}), Scenario({'item': 'food'})]
 
 
+ScenarioList
+^^^^^^^^^^^^
 
 We can also create a `ScenarioList` object to store multiple scenarios:
 
@@ -98,8 +104,40 @@ This will return:
     }
 
 
+We can also create a `Scenario` for `question_options`, e.g., in a multiple choice, checkbox, linear scale or other question type that requires them:
+
+.. code-block:: python
+
+    from edsl import QuestionMultipleChoice, Scenario
+
+    q = QuestionMultipleChoice(
+        question_name = "capital_of_france",
+        question_text = "What is the capital of France?", 
+        question_options = "{{question_options}}"
+    )
+
+    s = Scenario({'question_options': ['Paris', 'London', 'Berlin', 'Madrid']})
+
+    results = q.by(s).run()
+
+    results.select("answer.*").print(format="rich")
+
+
+Output:
+
+.. code-block:: text
+
+    ┏━━━━━━━━━━━━━━━━━━━━┓
+    ┃ answer             ┃
+    ┃ .capital_of_france ┃
+    ┡━━━━━━━━━━━━━━━━━━━━┩
+    │ Paris              │
+    └────────────────────┘
+
+
 Combining Scenarios 
 -------------------
+
 We can combine multiple scenarios into a single `Scenario` object:
 
 .. code-block:: python
