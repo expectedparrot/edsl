@@ -49,10 +49,10 @@ Output:
 Exceptions report 
 -----------------
 
-The exceptions report can be accessed by clicking on the link provided in the exceptions message that is generated when exceptions are raised during the execution of the survey.
+The exceptions report can be accessed by clicking on the link provided in the exceptions message.
 It contains details on the exceptions that were raised:
 
-.. image:: ../_static/exceptions_message.png
+.. image:: /static/exceptions_message.png
     :width: 800
     :align: center
 
@@ -60,9 +60,9 @@ It contains details on the exceptions that were raised:
 Performance plot 
 ^^^^^^^^^^^^^^^^
 
-The report includes a **Performance Plot** (scroll to the end of the report to view it):
+The report includes a Performance Plot with graphical details about the API calls that were made (started, failed, in progress, canceled, etc.; scroll to the end of the report to view it):
 
-.. image:: ../_static/exceptions_performance_plot.png
+.. image:: /static/exceptions_performance_plot.png
     :width: 800
     :align: center
 
@@ -72,7 +72,7 @@ Help debugging
 
 If you would like help debugging an error that you are encountering, please feel free to share your code, objects and exceptions report with us.
 
-A simple way to do this is to post a :ref:`notebook` with your code to the :ref:`coop` and share the link with us at info@expectedparrot.com.
+A simple way to do this is to post a notebook with your code to the :ref:`coop` and share the link with us at info@expectedparrot.com.
 You can use the following code to generate a link to your notebook:
 
 .. code-block:: python
@@ -96,11 +96,12 @@ Answer validation errors
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 A number of exceptions may indicate that there is a problem with the way that a question has been constructed or answered.
-For example, you may except a list as an answer but receive a string instead, or `None`.
+For example, you may intend for the answer to be formatted as a list but receive a string instead.
+Or a question may be unanswered and the model has returned `None`.
 These exceptions are typically raised by the `Question` class and are subclassed from `QuestionAnswerValidationError`.
 
 A useful starting point for debugging these exceptions is to check the `Settings` class for the `Questions` model.
-The default setting are as follows:
+The default settings (which can be modified) are as follows:
 
 .. code-block:: python
 
@@ -116,9 +117,8 @@ JSON errors
 ^^^^^^^^^^^
 
 Some exceptions may indicate that the response from the language model is not properly formatted JSON.
-This can be caused by a problem with the inference provider or the way that the question has been constructed.
-A useful starting point for debugging these exceptions is to check the `Settings` class for the `Questions` model.
-See *Answer validation errors* above.
+This can be caused by a problem with the inference provider or the way that the question has been constructed (e.g., the model is not capable of following the question prompts as written).
+A useful starting point for debugging these exceptions is to check the `Settings` class for the `Questions` model (see *Answer validation errors* above) and try variations in the question prompts and types (e.g., does `QuestionFreeText` produce an answer to the same question formatted as a different question type).
 
 
 Missing API key 
@@ -140,14 +140,14 @@ The maximum number of seconds to wait for an API call to return can be specified
 
 .. code-block:: python
 
-CONFIG_MAP = {
-    ...
-    "EDSL_API_TIMEOUT": {
-        "default": "60",
-        "info": "This env var determines the maximum number of seconds to wait for an API call to return.",
-    },
-    ...
-    
+    CONFIG_MAP = {
+        ...
+        "EDSL_API_TIMEOUT": {
+            "default": "60",
+            "info": "This env var determines the maximum number of seconds to wait for an API call to return.",
+        },
+        ...
+
 
 Missing packages
 ^^^^^^^^^^^^^^^^
@@ -168,17 +168,16 @@ The number of retries can be specified in `config.py`:
 
 .. code-block:: python
 
-CONFIG_MAP = {
-    ...
-    "EDSL_MAX_ATTEMPTS": {
-        "default": "5",
-        "info": "This env var determines the maximum number of times to retry a failed API call.",
-    },
-    ...
+    CONFIG_MAP = {
+        ...
+        "EDSL_MAX_ATTEMPTS": {
+            "default": "5",
+            "info": "This env var determines the maximum number of times to retry a failed API call.",
+        },
+        ...
 
 
-By default, your successul results are cached, so rerunning a survey will only re-run the questions that were not answered successfully in the previous run
-(i.e., you do not need to specify which questions to re-run if the survey is not modified).
+By default, your successful results are cached, so re-executing a survey will only re-run the questions that were not answered successfully in the previous run.
 Learn more about working with :ref:`data`. 
 
 
