@@ -105,15 +105,15 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         from edsl.utilities.utilities import dict_hash
 
         return dict_hash(self._to_dict())
-    
+
     def __add__(self, other: Survey) -> Survey:
         """Combine two surveys.
-        
+
         :param other: The other survey to combine with this one.
         >>> s1 = Survey.example()
         >>> from edsl import QuestionFreeText
         >>> s2 = Survey([QuestionFreeText(question_text="What is your name?", question_name="yo")])
-        >>> s3 = s1 + s2       
+        >>> s3 = s1 + s2
         Traceback (most recent call last):
         ...
         ValueError: ('Cannot combine two surveys with non-default rules.', "Please use the 'clear_non_default_rules' method to remove non-default rules from the survey.")
@@ -122,14 +122,17 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         4
 
         """
-        if len(self.rule_collection.non_default_rules) > 0 or len(other.rule_collection.non_default_rules) > 0:
+        if (
+            len(self.rule_collection.non_default_rules) > 0
+            or len(other.rule_collection.non_default_rules) > 0
+        ):
             raise ValueError(
-                "Cannot combine two surveys with non-default rules.", 
-                "Please use the 'clear_non_default_rules' method to remove non-default rules from the survey."
+                "Cannot combine two surveys with non-default rules.",
+                "Please use the 'clear_non_default_rules' method to remove non-default rules from the survey.",
             )
 
         return Survey(questions=self.questions + other.questions)
-    
+
     def clear_non_default_rules(self) -> Survey:
         s = Survey()
         for question in self.questions:
@@ -1181,5 +1184,5 @@ def main():
 if __name__ == "__main__":
     import doctest
 
-    #doctest.testmod(optionflags=doctest.ELLIPSIS | doctest.SKIP)
+    # doctest.testmod(optionflags=doctest.ELLIPSIS | doctest.SKIP)
     doctest.testmod(optionflags=doctest.ELLIPSIS)
