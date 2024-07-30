@@ -7,8 +7,34 @@ import asyncio
 import json
 import time
 import os
+import hashlib
 from typing import Coroutine, Any, Callable, Type, List, get_type_hints
 from abc import ABC, abstractmethod
+
+class IntendedModelCallOutcome:
+    "This is a tuple-like class that holds the response, cache_used, and cache_key."
+
+    def __init__(self, response: dict, cache_used: bool, cache_key: str):
+        self.response = response
+        self.cache_used = cache_used
+        self.cache_key = cache_key
+
+    def __iter__(self):
+        """Iterate over the class attributes.
+        
+        >>> a, b, c = IntendedModelCallOutcome({'answer': "yes"}, True, 'x1289')
+        >>> a
+        {'answer': 'yes'}
+        """
+        yield self.response
+        yield self.cache_used
+        yield self.cache_key
+
+    def __len__(self):
+        return 3
+    
+    def __repr__(self):
+        return f"IntendedModelCallOutcome(response = {self.response}, cache_used = {self.cache_used}, cache_key = '{self.cache_key}')"
 
 from edsl.config import CONFIG
 
@@ -149,7 +175,7 @@ class LanguageModel(
         key_value = os.getenv(key_name)
         return key_value is not None
 
-    def __hash__(self):
+    def __hash__(self) -> str:
         """Allow the model to be used as a key in a dictionary."""
         from edsl.utilities.utilities import dict_hash
 
@@ -175,6 +201,8 @@ class LanguageModel(
         80.0
         """
         self._set_rate_limits(rpm=rpm, tpm=tpm)
+
+        
 
     def _set_rate_limits(self, rpm=None, tpm=None) -> None:
         """Set the rate limits for the model.
@@ -216,19 +244,23 @@ class LanguageModel(
         >>> LanguageModel._overide_default_parameters(passed_parameter_dict={"temperature": 0.5}, default_parameter_dict={"temperature":0.9, "max_tokens": 1000})
         {'temperature': 0.5, 'max_tokens': 1000}
         """
-        parameters = dict({})
-        for parameter, default_value in default_parameter_dict.items():
-            if parameter in passed_parameter_dict:
-                parameters[parameter] = passed_parameter_dict[parameter]
-            else:
-                parameters[parameter] = default_value
-        return parameters
+        #parameters = dict({})
 
+        return {parameter_name: passed_parameter_dict.get(parameter_name, default_value) 
+                for parameter_name, default_value in default_parameter_dict.items()}
+    
+    def __call__(self, user_prompt:str, system_prompt:str):
+        return self.execute_model_call(user_prompt, system_prompt)
+    
     @abstractmethod
     async def async_execute_model_call(user_prompt: str, system_prompt: str):
-        """Execute the model call and returns the result as a coroutine.
+        """Execute the model call and returns a coroutine.
 
         >>> m = LanguageModel.example(test_model = True)
+        >>> async def test(): return await m.async_execute_model_call("Hello, model!", "You are a helpful agent.")
+        >>> asyncio.run(test())
+        {'message': '{"answer": "Hello world"}'}
+
         >>> m.execute_model_call("Hello, model!", "You are a helpful agent.")
         {'message': '{"answer": "Hello world"}'}
 
@@ -274,10 +306,43 @@ class LanguageModel(
 
         What is returned by the API is model-specific and often includes meta-data that we do not need.
         For example, here is the results from a call to GPT-4:
-        To actually tract the response, we need to grab
+        To actually track the response, we need to grab
         data["choices[0]"]["message"]["content"].
         """
         raise NotImplementedError
+    
+    async def _async_prepare_response(self, model_call_outcome: str, cache: "Cache") -> dict:
+        response = self.parse_response(model_call_outcome.response)
+        try:
+            dict_response = json.loads(response)
+        except json.JSONDecodeError as e:
+            # TODO: Turn into logs to generate issues
+            dict_response, success = await repair(
+                bad_json=response, error_message=str(e), cache=cache
+            )
+            if not success:
+                raise Exception(
+                    f"""Even the repair failed. The error was: {e}. The response was: {response}."""
+                )
+    
+        dict_response.update(
+            {
+                "cache_used": model_call_outcome.cache_used,
+                "cache_key": model_call_outcome.cache_key,
+                "usage": model_call_outcome.response.get("usage", {}),
+                "raw_model_response": model_call_outcome.response,
+            }
+        )
+        return dict_response
+
+    # def _extract_answer_json_from_full_model_response(self, intended_model_response, cache) -> str:
+    #     """Extract the answer from the full model response, which often includes metadata.        
+
+    #     >>> m = LanguageModel.example(test_model = True)
+    #     >>> m._extract_answer_json_from_full_model_response({'message': '{"answer": "Hello world"}'})
+    #     '{"answer": "Hello world"}'
+    #     """
+    #     return self.parse_response(raw_response)
 
     async def async_get_raw_response(
         self,
@@ -286,7 +351,26 @@ class LanguageModel(
         cache: "Cache",
         iteration: int = 0,
         encoded_image=None,
-    ) -> tuple[dict, bool, str]:
+    ) -> IntendedModelCallOutcome:
+        import warnings
+        warnings.warn("This method is deprecated. Use async_get_intended_model_call_outcome.")
+        return await self._async_get_intended_model_call_outcome(
+            user_prompt=user_prompt,
+            system_prompt=system_prompt,
+            cache=cache,
+            iteration=iteration,
+            encoded_image=encoded_image
+        )
+
+
+    async def _async_get_intended_model_call_outcome(
+        self,
+        user_prompt: str,
+        system_prompt: str,
+        cache: "Cache",
+        iteration: int = 0,
+        encoded_image=None,
+    ) -> IntendedModelCallOutcome:
         """Handle caching of responses.
 
         :param user_prompt: The user's prompt.
@@ -304,10 +388,9 @@ class LanguageModel(
 
         >>> from edsl import Cache
         >>> m = LanguageModel.example(test_model = True)
-        >>> m.get_raw_response(user_prompt = "Hello", system_prompt = "hello", cache = Cache())
-        ({'message': '{"answer": "Hello world"}'}, False, '24ff6ac2bc2f1729f817f261e0792577')
+        >>> m._get_intended_model_call_outcome(user_prompt = "Hello", system_prompt = "hello", cache = Cache())
+        IntendedModelCallOutcome(response = {'message': '{"answer": "Hello world"}'}, cache_used = False, cache_key = '24ff6ac2bc2f1729f817f261e0792577')
         """
-        start_time = time.time()
 
         cache_call_params = {
             "model": str(self.model),
@@ -318,9 +401,8 @@ class LanguageModel(
         }
 
         if encoded_image:
-            import hashlib
-
             image_hash = hashlib.md5(encoded_image.encode()).hexdigest()
+            # Add the image hash to the user prompt to make it unique
             cache_call_params["user_prompt"] = f"{user_prompt} {image_hash}"
 
         cached_response, cache_key = cache.fetch(**cache_call_params)
@@ -349,7 +431,9 @@ class LanguageModel(
             assert new_cache_key == cache_key
             cache_used = False
 
-        return response, cache_used, cache_key
+        return IntendedModelCallOutcome(response = response, cache_used = cache_used, cache_key = cache_key)
+
+    _get_intended_model_call_outcome = sync_wrapper(_async_get_intended_model_call_outcome)
 
     get_raw_response = sync_wrapper(async_get_raw_response)
 
@@ -370,7 +454,7 @@ class LanguageModel(
         self,
         user_prompt: str,
         system_prompt: str,
-        cache: Cache,
+        cache: 'Cache',
         iteration: int = 1,
         encoded_image=None,
     ) -> dict:
@@ -391,33 +475,9 @@ class LanguageModel(
         }
         if encoded_image:
             params["encoded_image"] = encoded_image
-
-        raw_response, cache_used, cache_key = await self.async_get_raw_response(
-            **params
-        )
-        response = self.parse_response(raw_response)
-
-        try:
-            dict_response = json.loads(response)
-        except json.JSONDecodeError as e:
-            # TODO: Turn into logs to generate issues
-            dict_response, success = await repair(
-                bad_json=response, error_message=str(e), cache=cache
-            )
-            if not success:
-                raise Exception(
-                    f"""Even the repair failed. The error was: {e}. The response was: {response}."""
-                )
-
-        dict_response.update(
-            {
-                "cache_used": cache_used,
-                "cache_key": cache_key,
-                "usage": raw_response.get("usage", {}),
-                "raw_model_response": raw_response,
-            }
-        )
-        return dict_response
+        
+        model_call_outcome = await self._async_get_intended_model_call_outcome(**params)
+        return await self._async_prepare_response(model_call_outcome, cache=cache)
 
     get_response = sync_wrapper(async_get_response)
 
@@ -543,8 +603,3 @@ if __name__ == "__main__":
     import doctest
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)
-
-    # from edsl.language_models import LanguageModel
-
-    # from edsl.language_models import LanguageModel
-    # print(LanguageModel.example())
