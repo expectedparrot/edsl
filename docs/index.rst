@@ -42,7 +42,7 @@ Introduction
 - :ref:`citation`: How to cite the package in your work.
 
 
-Technical setup
+Technical Setup
 ---------------
 
 - :ref:`installation`: Instructions for installing the EDSL package.
@@ -62,7 +62,11 @@ Core Concepts
 - :ref:`surveys`: Construct surveys and implement rules and conditions.
 - :ref:`agents`: Design and implement AI agents to respond to surveys.
 - :ref:`language_models`: Select language models to generate results.
-- :ref:`results`: Access built-in methods for analyzing and utilizing survey results.
+
+Working with Results
+--------------------
+
+- :ref:`results`: Access built-in methods for analyzing and utilizing survey results as datasets.
 - :ref:`caching`: Learn about caching and sharing results.
 - :ref:`exceptions`: Identify and handle exceptions in your survey design.
 - :ref:`token_limits`: Manage token limits for language models.
@@ -137,6 +141,12 @@ Information about additional functionality for developers.
    agents
    prompts
    language_models
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Working with Results
+   :hidden:
+
    results
    data
    exceptions
