@@ -306,6 +306,14 @@ class DatasetExportMixin:
                 new_data, interactive=interactive
             )
 
+            # if download_link:
+            #     from IPython.display import HTML, display
+            #     csv_file = output.getvalue()
+            #     b64 = base64.b64encode(csv_file.encode()).decode()
+            #     download_link = f'<a href="data:file/csv;base64,{b64}" download="my_data.csv">Download CSV file</a>'
+            #     #display(HTML(download_link))
+
+
             if iframe:
                 iframe = f""""
                 <iframe srcdoc="{ html.escape(html_source) }" style="width: {iframe_width}px; height: {iframe_height}px;"></iframe>
@@ -384,6 +392,24 @@ class DatasetExportMixin:
                 display(HTML(download_link))
             else:
                 return output.getvalue()
+            
+    def download_link(self, pretty_labels: Optional[dict] = None) -> str:
+        """Return a download link for the results.
+
+        :param pretty_labels: A dictionary of pretty labels for the columns.
+        
+        >>> from edsl.results import Results
+        >>> r = Results.example()
+        >>> r.select('how_feeling').download_link()
+        '<a href="data:file/csv;base64,YW5zd2VyLmhvd19mZWVsaW5nDQpPSw0KR3JlYXQNClRlcnJpYmxlDQpPSw0K" download="my_data.csv">Download CSV file</a>'
+        """
+        import base64
+
+        csv_string = self.to_csv(pretty_labels=pretty_labels)
+        b64 = base64.b64encode(csv_string.encode()).decode()
+        return f'<a href="data:file/csv;base64,{b64}" download="my_data.csv">Download CSV file</a>'
+
+        
 
     def to_pandas(self, remove_prefix: bool = False) -> "pd.DataFrame":
         """Convert the results to a pandas DataFrame.
@@ -404,8 +430,8 @@ class DatasetExportMixin:
         csv_string = self.to_csv(remove_prefix=remove_prefix)
         csv_buffer = io.StringIO(csv_string)
         df = pd.read_csv(csv_buffer)
-        df_sorted = df.sort_index(axis=1)  # Sort columns alphabetically
-        return df_sorted
+        #df_sorted = df.sort_index(axis=1)  # Sort columns alphabetically
+        return df
 
     def to_scenario_list(self, remove_prefix: bool = True) -> list[dict]:
         """Convert the results to a list of dictionaries, one per scenario.
