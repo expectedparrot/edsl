@@ -245,7 +245,7 @@ You can manually update objects at the Coop web app:
 
 Navigate to **My Content** and select an object: https://www.expectedparrot.com/content/ 
 
-.. image:: static/coop_select_object.png
+.. image:: static/coop_content.png
   :alt: Select an object on the Coop
   :align: center
   :width: 500px
