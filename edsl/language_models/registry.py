@@ -92,6 +92,14 @@ class Model(metaclass=Meta):
             print("OK!")
             print("\n")
 
+    @classmethod
+    def example(cls) -> "Model":
+        """
+        Return an example model.
+        """
+        model_name = cls.default_model
+        return cls(model_name)
+
 
 if __name__ == "__main__":
     import doctest
