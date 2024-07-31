@@ -1,18 +1,19 @@
 """A list of Scenarios to be used in a survey."""
 
 from __future__ import annotations
+from typing import Any, Optional, Union, List, Callable
 import csv
 import random
 from collections import UserList, Counter
 from collections.abc import Iterable
+
 from simpleeval import EvalWithCompoundTypes
-from typing import Any, Optional, Union, List
+
 from edsl.Base import Base
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 from edsl.scenarios.Scenario import Scenario
 from edsl.scenarios.ScenarioListPdfMixin import ScenarioListPdfMixin
 from edsl.scenarios.ScenarioListExportMixin import ScenarioListExportMixin
-
 
 class ScenarioListMixin(ScenarioListPdfMixin, ScenarioListExportMixin):
     pass
@@ -58,7 +59,13 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         return f"ScenarioList({self.data})"
 
     def __mul__(self, other: ScenarioList) -> ScenarioList:
-        """Takes the cross product of two ScenarioLists."""
+        """Takes the cross product of two ScenarioLists.
+        
+        >>> s1 = ScenarioList.from_list("a", [1, 2])
+        >>> s2 = ScenarioList.from_list("b", [3, 4])
+        >>> s1 * s2
+        ScenarioList([Scenario({'a': 1, 'b': 3}), Scenario({'a': 1, 'b': 4}), Scenario({'a': 2, 'b': 3}), Scenario({'a': 2, 'b': 4})])
+        """
         from itertools import product
 
         new_sl = []
@@ -79,7 +86,12 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         return self.__mul__(other)
 
     def shuffle(self, seed: Optional[str] = "edsl") -> ScenarioList:
-        """Shuffle the ScenarioList."""
+        """Shuffle the ScenarioList.
+        
+        >>> s = ScenarioList.from_list("a", [1,2,3,4])
+        >>> s.shuffle()
+        ScenarioList([Scenario({'a': 3}), Scenario({'a': 4}), Scenario({'a': 1}), Scenario({'a': 2})])
+        """
         random.seed(seed)
         random.shuffle(self.data)
         return self
@@ -107,10 +119,14 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         return dict(Counter([scenario[field] for scenario in self]))
 
     def sample(self, n: int, seed="edsl") -> ScenarioList:
-        """Return a random sample from the ScenarioList"""
+        """Return a random sample from the ScenarioList
+        
+        >>> s = ScenarioList.from_list("a", [1,2,3,4,5,6])
+        >>> s.sample(3)
+        ScenarioList([Scenario({'a': 2}), Scenario({'a': 1}), Scenario({'a': 3})])
+        """
 
-        if seed != "edsl":
-            random.seed(seed)
+        random.seed(seed)
 
         return ScenarioList(random.sample(self.data, n))
 
@@ -136,7 +152,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
                 new_scenarios.append(new_scenario)
         return ScenarioList(new_scenarios)
 
-    def mutate(self, new_var_string: str, functions_dict: dict = None) -> ScenarioList:
+    def mutate(self, new_var_string: str, functions_dict: Optional[dict[str, Callable]] = None) -> ScenarioList:
         """
         Return a new ScenarioList with a new variable added.
 
@@ -145,6 +161,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         >>> s = ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
         >>> s.mutate("c = a + b")
         ScenarioList([Scenario({'a': 1, 'b': 2, 'c': 3}), Scenario({'a': 1, 'b': 1, 'c': 2})])
+
         """
         if "=" not in new_var_string:
             raise Exception(
@@ -264,6 +281,11 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         return cls([Scenario({name: value}) for value in values])
 
     def to_dataset(self) -> "Dataset":
+        """
+        >>> s = ScenarioList.from_list("a", [1,2,3])
+        >>> s.to_dataset()
+        Dataset([{'a': [1, 2, 3]}])
+        """
         from edsl.results.Dataset import Dataset
 
         keys = self[0].keys()
@@ -286,7 +308,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
                 self.append(Scenario({name: value}))
         return self
 
-    def add_value(self, name, value):
+    def add_value(self, name: str, value: Any) -> ScenarioList:
         """Add a value to all scenarios in a ScenarioList.
 
         Example:
@@ -340,7 +362,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         """
         return cls([Scenario(row) for row in df.to_dict(orient="records")])
 
-    def to_key_value(self, field, value=None) -> Union[dict, set]:
+    def to_key_value(self, field:str, value=None) -> Union[dict, set]:
         """Return the set of values in the field.
 
         Example:
@@ -459,16 +481,16 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             table.add_row(str(i), s.rich_print())
         return table
 
-    def print(
-        self,
-        format: Optional[str] = None,
-        max_rows: Optional[int] = None,
-        pretty_labels: Optional[dict] = None,
-        filename: str = None,
-    ):
-        from edsl.utilities.interface import print_scenario_list
+    # def print(
+    #     self,
+    #     format: Optional[str] = None,
+    #     max_rows: Optional[int] = None,
+    #     pretty_labels: Optional[dict] = None,
+    #     filename: str = None,
+    # ):
+    #     from edsl.utilities.interface import print_scenario_list
 
-        print_scenario_list(self[:max_rows])
+    #     print_scenario_list(self[:max_rows])
 
     def __getitem__(self, key: Union[int, slice]) -> Any:
         """Return the item at the given index.

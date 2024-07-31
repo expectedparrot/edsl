@@ -5,7 +5,7 @@ from edsl.results.DatasetExportMixin import DatasetExportMixin
 
 
 def to_dataset(func):
-    """Convert the Results object to a Dataset object before calling the function."""
+    """Convert the object to a Dataset object before calling the function."""
 
     @wraps(func)
     def wrapper(self, *args, **kwargs):
