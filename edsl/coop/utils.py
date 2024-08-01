@@ -2,6 +2,7 @@ from edsl import (
     Agent,
     AgentList,
     Cache,
+    ModelList,
     Notebook,
     Results,
     Scenario,
@@ -9,6 +10,7 @@ from edsl import (
     Survey,
     Study,
 )
+from edsl.language_models import LanguageModel
 from edsl.questions import QuestionBase
 from typing import Literal, Optional, Type, Union
 
@@ -16,6 +18,8 @@ EDSLObject = Union[
     Agent,
     AgentList,
     Cache,
+    LanguageModel,
+    ModelList,
     Notebook,
     Type[QuestionBase],
     Results,
@@ -29,6 +33,8 @@ ObjectType = Literal[
     "agent",
     "agent_list",
     "cache",
+    "model",
+    "model_list",
     "notebook",
     "question",
     "results",
@@ -62,8 +68,10 @@ class ObjectRegistry:
         {"object_type": "agent", "edsl_class": Agent},
         {"object_type": "agent_list", "edsl_class": AgentList},
         {"object_type": "cache", "edsl_class": Cache},
-        {"object_type": "question", "edsl_class": QuestionBase},
+        {"object_type": "model", "edsl_class": LanguageModel},
+        {"object_type": "model_list", "edsl_class": ModelList},
         {"object_type": "notebook", "edsl_class": Notebook},
+        {"object_type": "question", "edsl_class": QuestionBase},
         {"object_type": "results", "edsl_class": Results},
         {"object_type": "scenario", "edsl_class": Scenario},
         {"object_type": "scenario_list", "edsl_class": ScenarioList},
