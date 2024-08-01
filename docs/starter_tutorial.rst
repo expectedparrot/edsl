@@ -4,18 +4,18 @@ Starter Tutorial
 ================
 
 This tutorial demonstrates basic steps for conducting an AI-powered survey using EDSL. 
+You can also [view this notebook at the Coop](https://www.expectedparrot.com/content/6e6508ca-353e-41f7-866e-7a3c6232e0fd).
 
-*View this notebook at the Coop: https://www.expectedparrot.com/content/6e6508ca-353e-41f7-866e-7a3c6232e0fd*
 
-
-Prerequisites
--------------
+Technical setup
+---------------
 
 Before running the code below, ensure that you have already completed technical setup:
 
-- Download the EDSL package. See :ref:`installation` instructions.
-
-- Create a :ref:`coop` account and activate :ref:`remote_inference` or store your own :ref:`api_keys` for language models that you plan to use locally.
+1. Download the EDSL library. See :ref:`installation` instructions. 
+2. Choose how you want to use EDSL:
+    * Run surveys remotely on the Expected Parrot server by activating :ref:`remote_inference` at your :ref:`coop` account.
+    * Run surveys locally by storing :ref:`api_keys` for language models that you want to use with EDSL.
 
 If you encounter any issues or have questions, please email us at info@expectedparrot.com or post a question at our `Discord channel <https://discord.com/invite/mxAYkjfy9m>`_.
 
