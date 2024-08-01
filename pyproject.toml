@@ -1,6 +1,6 @@
 [build-system]
 build-backend = "poetry.core.masonry.api"
-requires = ["poetry-core"]
+requires = ["poetry-core", "setuptools<72.0"]
 
 [tool.poetry]
 authors = ["Apostolos Filippas <apostolos@expectedparrot.com>", "John Horton <john@expectedparrot.com>", "Robin Horton <robin@expectedparrot.com>"]
