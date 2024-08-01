@@ -58,12 +58,11 @@ We start by creating an example survey:
 
 .. code-block:: python
 
-  from edsl import Survey
-  from edsl.questions import QuestionMultipleChoice
+  from edsl import QuestionMultipleChoice, Survey
 
-  q1 = QuestionMultipleChoice.example()
+  q = QuestionMultipleChoice.example()
 
-  survey = Survey(questions=[q1])
+  survey = Survey(questions=[q])
 
 
 Cost
@@ -87,16 +86,17 @@ Output:
 
 .. code-block:: python
 
-  2   # This job costs 2 seed
+  2   
 
 
+This survey will cost 2 seed to run.
 You can purchase more seed at the `Purchases page <https://www.expectedparrot.com/home/purchases>`_.
 
 
 Running a job
 ^^^^^^^^^^^^^
 
-Next we run the survey, passing a `remote_inference_description` string to the `run` method:
+We can run the survey remotely by passing a `remote_inference_description` string to the `run` method:
 
 .. code-block:: python
 
@@ -105,19 +105,16 @@ Next we run the survey, passing a `remote_inference_description` string to the `
 
 Output (actual details will be unique to your job):
 
-.. code-block:: python
+.. code-block:: text
 
-  "Remote inference activated. Sending job to server..."
-  "Job sent!"
-
-  # Some details about the job
-  {
-      "uuid": "2dd892a5-dc3d-4f82-ba8c-9aa9ef6b5391",
-      "description": "Example survey",
-      "status": "queued",
-      "visibility": "unlisted",
-      "version": "0.1.29.dev4",
-  }
+  Remote inference activated. Sending job to server...
+  Job sent!
+  ┏━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━┓
+  ┃ answer             ┃ answer                               ┃ answer  ┃ answer      ┃
+  ┃ .info              ┃ .uuid                                ┃ .status ┃ .version    ┃
+  ┡━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━┩
+  │ Remote job details │ 1234abcd-abcd-1234-abcd-1234abcd1234 │ queued  │ 0.1.31      │
+  └────────────────────┴──────────────────────────────────────┴─────────┴─────────────┘
 
 
 The job will appear at your `Remote Inference page <https://www.expectedparrot.com/home/remote-inference>`_ with a status of "Queued":
@@ -169,7 +166,7 @@ and passing the UUID assigned when the job was run:
 
   coop = Coop()
 
-  coop.remote_cache_get("2dd892a5-dc3d-4f82-ba8c-9aa9ef6b5391")
+  coop.remote_cache_get("1234abcd-abcd-1234-abcd-1234abcd1234")
 
 
 Output:
@@ -177,13 +174,13 @@ Output:
 .. code-block:: python
 
   {
-    "jobs_uuid": "2dd892a5-dc3d-4f82-ba8c-9aa9ef6b5391",
-    "results_uuid": "4442372d-6bc7-4c88-a4b9-da0fbec1de14",
-    "results_url": "https://www.expectedparrot.com/content/4442372d-6bc7-4c88-a4b9-da0fbec1de14",
+    "jobs_uuid": "2468bdfh-bdfh-2468-bdfh-2468bdfh2468",
+    "results_uuid": "5678wxyz-wxyz-5678-wxyz-5678wxyz5678",
+    "results_url": "https://www.expectedparrot.com/content/5678wxyz-wxyz-5678-wxyz-5678wxyz5678",
     "status": "completed",
     "reason": None,
     "price": 2,
-    "version": "0.1.29.dev4",
+    "version": "0.1.31",
   }
 
 
@@ -269,9 +266,6 @@ If the remote cache has been used for a particular job, the details will also sh
 
 Remote inference methods
 ------------------------
-
-The following methods allow you to work with remote jobs manually:
-
 
 Coop class
 ^^^^^^^^^^
