@@ -1,4 +1,5 @@
 import textwrap
+from random import random
 
 
 def get_model_class(model_name, registry=None):
@@ -93,12 +94,15 @@ class Model(metaclass=Meta):
             print("\n")
 
     @classmethod
-    def example(cls) -> "Model":
+    def example(cls, randomize: bool = False) -> "Model":
         """
-        Return an example model.
+        Returns an example Model instance.
+
+        :param randomize: If True, the temperature is set to a random decimal between 0 and 1.
         """
+        temperature = 0.5 if not randomize else round(random(), 2)
         model_name = cls.default_model
-        return cls(model_name)
+        return cls(model_name, temperature=temperature)
 
 
 if __name__ == "__main__":
