@@ -73,9 +73,9 @@ The `description` and `visibility` arguments are optional and can be modified la
 
     from edsl import Notebook
 
-    notebook = Notebook(path="model_votes.ipynb")
+    notebook = Notebook(path="test-notebook.ipynb")
 
-    notebook.push(description="Comparing model votes", visibility="public")
+    notebook.push(description="This is a test notebook", visibility="public")
 
 
 Or alternatively using the `Coop` client object:
@@ -86,16 +86,16 @@ Or alternatively using the `Coop` client object:
 
     coop = Coop()
 
-    notebook = Notebook(path="model_votes.ipynb")
+    notebook = Notebook(path="test-notebook.ipynb")
 
-    coop.create(notebook, description="Comparing model votes", visibility="public")
+    coop.create(notebook, description="This is a test notebook", visibility="public")
 
 
 This will return a message with information about the object that was posted, and you will be able to view your notebook at the Coop: `My Content  <https://www.expectedparrot.com/home/content/>`_.
 
 .. code-block:: text
 
-  {'description': 'Comparing model votes',
+  {'description': 'This is a test notebook',
   'object_type': 'notebook',
   'url': 'https://www.expectedparrot.com/content/1234abcd-abcd-1234-abcd-1234abcd1234',
   'uuid': '1234abcd-abcd-1234-abcd-1234abcd1234',
@@ -115,9 +115,9 @@ We can also use the `to_file()` method to save the notebook to a file:
 
     from edsl import Notebook
 
-    notebook = Notebook.pull("05dbaf7c-1f82-44e1-9aef-d67a3108915c")
+    notebook = Notebook.pull("1234abcd-abcd-1234-abcd-1234abcd1234")
 
-    notebook.to_file("grading_experiment.ipynb")
+    notebook.to_file("new-test-notebook.ipynb")
 
 
 This allows you to edit and run the notebook on your local machine.
