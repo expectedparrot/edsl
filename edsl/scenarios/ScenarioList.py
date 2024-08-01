@@ -15,6 +15,7 @@ from edsl.scenarios.Scenario import Scenario
 from edsl.scenarios.ScenarioListPdfMixin import ScenarioListPdfMixin
 from edsl.scenarios.ScenarioListExportMixin import ScenarioListExportMixin
 
+
 class ScenarioListMixin(ScenarioListPdfMixin, ScenarioListExportMixin):
     pass
 
@@ -60,7 +61,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
     def __mul__(self, other: ScenarioList) -> ScenarioList:
         """Takes the cross product of two ScenarioLists.
-        
+
         >>> s1 = ScenarioList.from_list("a", [1, 2])
         >>> s2 = ScenarioList.from_list("b", [3, 4])
         >>> s1 * s2
@@ -87,7 +88,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
     def shuffle(self, seed: Optional[str] = "edsl") -> ScenarioList:
         """Shuffle the ScenarioList.
-        
+
         >>> s = ScenarioList.from_list("a", [1,2,3,4])
         >>> s.shuffle()
         ScenarioList([Scenario({'a': 3}), Scenario({'a': 4}), Scenario({'a': 1}), Scenario({'a': 2})])
@@ -120,7 +121,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
     def sample(self, n: int, seed="edsl") -> ScenarioList:
         """Return a random sample from the ScenarioList
-        
+
         >>> s = ScenarioList.from_list("a", [1,2,3,4,5,6])
         >>> s.sample(3)
         ScenarioList([Scenario({'a': 2}), Scenario({'a': 1}), Scenario({'a': 3})])
@@ -152,7 +153,9 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
                 new_scenarios.append(new_scenario)
         return ScenarioList(new_scenarios)
 
-    def mutate(self, new_var_string: str, functions_dict: Optional[dict[str, Callable]] = None) -> ScenarioList:
+    def mutate(
+        self, new_var_string: str, functions_dict: Optional[dict[str, Callable]] = None
+    ) -> ScenarioList:
         """
         Return a new ScenarioList with a new variable added.
 
@@ -362,7 +365,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         """
         return cls([Scenario(row) for row in df.to_dict(orient="records")])
 
-    def to_key_value(self, field:str, value=None) -> Union[dict, set]:
+    def to_key_value(self, field: str, value=None) -> Union[dict, set]:
         """Return the set of values in the field.
 
         Example:
