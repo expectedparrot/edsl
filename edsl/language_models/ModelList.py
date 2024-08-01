@@ -86,8 +86,14 @@ class ModelList(Base, UserList):
         pass
 
     @classmethod
-    def example(cl):
-        return ModelList([LanguageModel.example() for _ in range(3)])
+    def example(cls, randomize: bool = False) -> "ModelList":
+        """
+        Returns an example ModelList instance.
+
+        :param randomize: If True, uses Model's randomize method.
+        """
+
+        return cls([Model.example(randomize) for _ in range(3)])
 
 
 if __name__ == "__main__":
