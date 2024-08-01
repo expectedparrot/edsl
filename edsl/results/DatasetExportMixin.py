@@ -29,7 +29,7 @@ class DatasetExportMixin:
 
         >>> from edsl.results import Results; Results.example().select('how_feeling', 'how_feeling_yesterday').relevant_columns()
         ['answer.how_feeling', 'answer.how_feeling_yesterday']
-        
+
         >>> from edsl.results import Results
         >>> sorted(Results.example().select().relevant_columns(data_type = "model"))
         ['model.frequency_penalty', 'model.logprobs', 'model.max_tokens', 'model.model', 'model.presence_penalty', 'model.temperature', 'model.top_logprobs', 'model.top_p']
@@ -55,11 +55,15 @@ class DatasetExportMixin:
                 column for column in columns if get_data_type(column) == data_type
             ]
             if len(columns) == 0:
-                all_data_types = sorted(list(set(get_data_type(column) for column in all_columns)))
-                raise ValueError(f"No columns found for data type: {data_type}. Available data types are: {all_data_types}.")
+                all_data_types = sorted(
+                    list(set(get_data_type(column) for column in all_columns))
+                )
+                raise ValueError(
+                    f"No columns found for data type: {data_type}. Available data types are: {all_data_types}."
+                )
 
         return columns
-    
+
     def num_observations(self):
         """Return the number of observations in the dataset.
 
@@ -74,11 +78,15 @@ class DatasetExportMixin:
                 _num_observations = len(values)
             else:
                 if len(values) != _num_observations:
-                    raise ValueError("The number of observations is not consistent across columns.")
-                 
+                    raise ValueError(
+                        "The number of observations is not consistent across columns."
+                    )
+
         return _num_observations
-    
-    def _make_tabular(self, remove_prefix: bool, pretty_labels: Optional[dict] = None) -> tuple[list, List[list]]:
+
+    def _make_tabular(
+        self, remove_prefix: bool, pretty_labels: Optional[dict] = None
+    ) -> tuple[list, List[list]]:
         """Turn the results into a tabular format.
 
         :param remove_prefix: Whether to remove the prefix from the column names.
@@ -91,15 +99,16 @@ class DatasetExportMixin:
         >>> r.select('how_feeling')._make_tabular(remove_prefix = True, pretty_labels = {'how_feeling': "How are you feeling"})
         (['How are you feeling'], [['OK'], ['Great'], ['Terrible'], ['OK']])
         """
+
         def create_dict_from_list_of_dicts(list_of_dicts):
             for entry in list_of_dicts:
                 key, list_of_values = list(entry.items())[0]
                 yield key, list_of_values
-        
+
         tabular_repr = dict(create_dict_from_list_of_dicts(self.data))
-        
+
         full_header = [list(x.keys())[0] for x in self]
-                    
+
         rows = []
         for i in range(self.num_observations()):
             row = [tabular_repr[h][i] for h in full_header]
@@ -254,15 +263,15 @@ class DatasetExportMixin:
                     format = "rich"
             if format not in ["rich", "html", "markdown", "latex"]:
                 raise ValueError("format must be one of 'rich', 'html', or 'markdown'.")
-            
+
             return format
-        
+
         format = _determine_format(format)
 
         if pretty_labels is None:
             pretty_labels = {}
-        
-        if pretty_labels != {}: # only split at dot if there are no pretty labels
+
+        if pretty_labels != {}:  # only split at dot if there are no pretty labels
             split_at_dot = False
 
         def _create_data():
@@ -279,26 +288,26 @@ class DatasetExportMixin:
                 new_data, filename=filename, split_at_dot=split_at_dot
             )
             return self if tee else None
-        
+
         if format == "markdown":
             from edsl.utilities.interface import print_list_of_dicts_as_markdown_table
 
             print_list_of_dicts_as_markdown_table(new_data, filename=filename)
             return self if tee else None
-        
+
         if format == "latex":
             df = self.to_pandas()
             df.columns = [col.replace("_", " ") for col in df.columns]
             latex_string = df.to_latex(index=False)
-            
+
             if filename is not None:
                 with open(filename, "w") as f:
                     f.write(latex_string)
             else:
                 print(latex_string)
-            
+
             return self if tee else None
-            
+
         if format == "html":
             from edsl.utilities.interface import print_list_of_dicts_as_html_table
 
@@ -313,7 +322,6 @@ class DatasetExportMixin:
             #     download_link = f'<a href="data:file/csv;base64,{b64}" download="my_data.csv">Download CSV file</a>'
             #     #display(HTML(download_link))
 
-
             if iframe:
                 iframe = f""""
                 <iframe srcdoc="{ html.escape(html_source) }" style="width: {iframe_width}px; height: {iframe_height}px;"></iframe>
@@ -323,10 +331,10 @@ class DatasetExportMixin:
                 display(HTML(html_source))
             else:
                 from edsl.utilities.interface import view_html
-                view_html(html_source)
-            
-            return self if tee else None
 
+                view_html(html_source)
+
+            return self if tee else None
 
     def to_csv(
         self,
@@ -355,7 +363,7 @@ class DatasetExportMixin:
         >>> filename = tempfile.NamedTemporaryFile(delete=False).name
         >>> r.select('how_feeling').to_csv(filename = filename)
         >>> import os
-        >>> import csv 
+        >>> import csv
         >>> with open(filename, newline='') as f:
         ...     reader = csv.reader(f)
         ...     for row in reader:
@@ -386,18 +394,19 @@ class DatasetExportMixin:
 
             if download_link:
                 from IPython.display import HTML, display
+
                 csv_file = output.getvalue()
                 b64 = base64.b64encode(csv_file.encode()).decode()
                 download_link = f'<a href="data:file/csv;base64,{b64}" download="my_data.csv">Download CSV file</a>'
                 display(HTML(download_link))
             else:
                 return output.getvalue()
-            
+
     def download_link(self, pretty_labels: Optional[dict] = None) -> str:
         """Return a download link for the results.
 
         :param pretty_labels: A dictionary of pretty labels for the columns.
-        
+
         >>> from edsl.results import Results
         >>> r = Results.example()
         >>> r.select('how_feeling').download_link()
@@ -408,8 +417,6 @@ class DatasetExportMixin:
         csv_string = self.to_csv(pretty_labels=pretty_labels)
         b64 = base64.b64encode(csv_string.encode()).decode()
         return f'<a href="data:file/csv;base64,{b64}" download="my_data.csv">Download CSV file</a>'
-
-        
 
     def to_pandas(self, remove_prefix: bool = False) -> "pd.DataFrame":
         """Convert the results to a pandas DataFrame.
@@ -430,7 +437,7 @@ class DatasetExportMixin:
         csv_string = self.to_csv(remove_prefix=remove_prefix)
         csv_buffer = io.StringIO(csv_string)
         df = pd.read_csv(csv_buffer)
-        #df_sorted = df.sort_index(axis=1)  # Sort columns alphabetically
+        # df_sorted = df.sort_index(axis=1)  # Sort columns alphabetically
         return df
 
     def to_scenario_list(self, remove_prefix: bool = True) -> list[dict]:
