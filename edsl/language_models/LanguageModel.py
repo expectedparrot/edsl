@@ -7,8 +7,34 @@ import asyncio
 import json
 import time
 import os
+import hashlib
 from typing import Coroutine, Any, Callable, Type, List, get_type_hints
 from abc import ABC, abstractmethod
+
+class IntendedModelCallOutcome:
+    "This is a tuple-like class that holds the response, cache_used, and cache_key."
+
+    def __init__(self, response: dict, cache_used: bool, cache_key: str):
+        self.response = response
+        self.cache_used = cache_used
+        self.cache_key = cache_key
+
+    def __iter__(self):
+        """Iterate over the class attributes.
+        
+        >>> a, b, c = IntendedModelCallOutcome({'answer': "yes"}, True, 'x1289')
+        >>> a
+        {'answer': 'yes'}
+        """
+        yield self.response
+        yield self.cache_used
+        yield self.cache_key
+
+    def __len__(self):
+        return 3
+    
+    def __repr__(self):
+        return f"IntendedModelCallOutcome(response = {self.response}, cache_used = {self.cache_used}, cache_key = '{self.cache_key}')"
 
 from edsl.config import CONFIG
 
@@ -149,7 +175,7 @@ class LanguageModel(
         key_value = os.getenv(key_name)
         return key_value is not None
 
-    def __hash__(self):
+    def __hash__(self) -> str:
         """Allow the model to be used as a key in a dictionary."""
         from edsl.utilities.utilities import dict_hash
 
@@ -175,6 +201,8 @@ class LanguageModel(
         80.0
         """
         self._set_rate_limits(rpm=rpm, tpm=tpm)
+
+        
 
     def _set_rate_limits(self, rpm=None, tpm=None) -> None:
         """Set the rate limits for the model.
@@ -216,19 +244,23 @@ class LanguageModel(
         >>> LanguageModel._overide_default_parameters(passed_parameter_dict={"temperature": 0.5}, default_parameter_dict={"temperature":0.9, "max_tokens": 1000})
         {'temperature': 0.5, 'max_tokens': 1000}
         """
-        parameters = dict({})
-        for parameter, default_value in default_parameter_dict.items():
-            if parameter in passed_parameter_dict:
-                parameters[parameter] = passed_parameter_dict[parameter]
-            else:
-                parameters[parameter] = default_value
-        return parameters
+        #parameters = dict({})
 
+        return {parameter_name: passed_parameter_dict.get(parameter_name, default_value) 
+                for parameter_name, default_value in default_parameter_dict.items()}
+    
+    def __call__(self, user_prompt:str, system_prompt:str):
+        return self.execute_model_call(user_prompt, system_prompt)
+    
     @abstractmethod
     async def async_execute_model_call(user_prompt: str, system_prompt: str):
-        """Execute the model call and returns the result as a coroutine.
+        """Execute the model call and returns a coroutine.
 
         >>> m = LanguageModel.example(test_model = True)
+        >>> async def test(): return await m.async_execute_model_call("Hello, model!", "You are a helpful agent.")
+        >>> asyncio.run(test())
+        {'message': '{"answer": "Hello world"}'}
+
         >>> m.execute_model_call("Hello, model!", "You are a helpful agent.")
         {'message': '{"answer": "Hello world"}'}
 
@@ -274,10 +306,37 @@ class LanguageModel(
 
         What is returned by the API is model-specific and often includes meta-data that we do not need.
         For example, here is the results from a call to GPT-4:
-        To actually tract the response, we need to grab
+        To actually track the response, we need to grab
         data["choices[0]"]["message"]["content"].
         """
         raise NotImplementedError
+    
+    async def _async_prepare_response(self, model_call_outcome: IntendedModelCallOutcome, cache: "Cache") -> dict:
+        """Prepare the response for return."""
+
+        model_response = {
+            "cache_used": model_call_outcome.cache_used,
+            "cache_key": model_call_outcome.cache_key,
+            "usage": model_call_outcome.response.get("usage", {}),
+            "raw_model_response": model_call_outcome.response,
+        }
+
+        answer_portion = self.parse_response(model_call_outcome.response)  
+        try:
+            answer_dict = json.loads(answer_portion)
+        except json.JSONDecodeError as e:
+            # TODO: Turn into logs to generate issues
+            answer_dict, success = await repair(
+                bad_json=answer_portion, 
+                error_message=str(e), 
+                cache=cache
+            )
+            if not success:
+                raise Exception(
+                    f"""Even the repair failed. The error was: {e}. The response was: {answer_portion}."""
+                )
+    
+        return {**model_response, **answer_dict}
 
     async def async_get_raw_response(
         self,
@@ -286,7 +345,26 @@ class LanguageModel(
         cache: "Cache",
         iteration: int = 0,
         encoded_image=None,
-    ) -> tuple[dict, bool, str]:
+    ) -> IntendedModelCallOutcome:
+        import warnings
+        warnings.warn("This method is deprecated. Use async_get_intended_model_call_outcome.")
+        return await self._async_get_intended_model_call_outcome(
+            user_prompt=user_prompt,
+            system_prompt=system_prompt,
+            cache=cache,
+            iteration=iteration,
+            encoded_image=encoded_image
+        )
+
+
+    async def _async_get_intended_model_call_outcome(
+        self,
+        user_prompt: str,
+        system_prompt: str,
+        cache: "Cache",
+        iteration: int = 0,
+        encoded_image=None,
+    ) -> IntendedModelCallOutcome:
         """Handle caching of responses.
 
         :param user_prompt: The user's prompt.
@@ -304,52 +382,41 @@ class LanguageModel(
 
         >>> from edsl import Cache
         >>> m = LanguageModel.example(test_model = True)
-        >>> m.get_raw_response(user_prompt = "Hello", system_prompt = "hello", cache = Cache())
-        ({'message': '{"answer": "Hello world"}'}, False, '24ff6ac2bc2f1729f817f261e0792577')
+        >>> m._get_intended_model_call_outcome(user_prompt = "Hello", system_prompt = "hello", cache = Cache())
+        IntendedModelCallOutcome(response = {'message': '{"answer": "Hello world"}'}, cache_used = False, cache_key = '24ff6ac2bc2f1729f817f261e0792577')
         """
-        start_time = time.time()
+
+        if encoded_image:
+            # the image has is appended to the user_prompt for hash-lookup purposes
+            image_hash = hashlib.md5(encoded_image.encode()).hexdigest()
 
         cache_call_params = {
             "model": str(self.model),
             "parameters": self.parameters,
             "system_prompt": system_prompt,
-            "user_prompt": user_prompt,
+            "user_prompt": user_prompt + "" if not encoded_image else f" {image_hash}",
             "iteration": iteration,
         }
-
-        if encoded_image:
-            import hashlib
-
-            image_hash = hashlib.md5(encoded_image.encode()).hexdigest()
-            cache_call_params["user_prompt"] = f"{user_prompt} {image_hash}"
-
         cached_response, cache_key = cache.fetch(**cache_call_params)
-        if cached_response:
+    
+        if (cache_used := cached_response is not None):
             response = json.loads(cached_response)
-            cache_used = True
         else:
-            remote_call = hasattr(self, "remote") and self.remote
             f = (
                 self.remote_async_execute_model_call
-                if remote_call
+                if hasattr(self, "remote") and self.remote
                 else self.async_execute_model_call
             )
-            params = {"user_prompt": user_prompt, "system_prompt": system_prompt}
-            if encoded_image:
-                params["encoded_image"] = encoded_image
+            params = {"user_prompt": user_prompt, "system_prompt": system_prompt, 
+            **({"encoded_image": encoded_image} if encoded_image else {})
+            }
             response = await f(**params)
-            new_cache_key = cache.store(
-                user_prompt=user_prompt,
-                model=str(self.model),
-                parameters=self.parameters,
-                system_prompt=system_prompt,
-                response=response,
-                iteration=iteration,
-            )
-            assert new_cache_key == cache_key
-            cache_used = False
+            new_cache_key = cache.store(**cache_call_params, response=response) # store the response in the cache
+            assert new_cache_key == cache_key # should be the same
+     
+        return IntendedModelCallOutcome(response = response, cache_used = cache_used, cache_key = cache_key)
 
-        return response, cache_used, cache_key
+    _get_intended_model_call_outcome = sync_wrapper(_async_get_intended_model_call_outcome)
 
     get_raw_response = sync_wrapper(async_get_raw_response)
 
@@ -370,7 +437,7 @@ class LanguageModel(
         self,
         user_prompt: str,
         system_prompt: str,
-        cache: Cache,
+        cache: 'Cache',
         iteration: int = 1,
         encoded_image=None,
     ) -> dict:
@@ -388,36 +455,10 @@ class LanguageModel(
             "system_prompt": system_prompt,
             "iteration": iteration,
             "cache": cache,
-        }
-        if encoded_image:
-            params["encoded_image"] = encoded_image
-
-        raw_response, cache_used, cache_key = await self.async_get_raw_response(
-            **params
-        )
-        response = self.parse_response(raw_response)
-
-        try:
-            dict_response = json.loads(response)
-        except json.JSONDecodeError as e:
-            # TODO: Turn into logs to generate issues
-            dict_response, success = await repair(
-                bad_json=response, error_message=str(e), cache=cache
-            )
-            if not success:
-                raise Exception(
-                    f"""Even the repair failed. The error was: {e}. The response was: {response}."""
-                )
-
-        dict_response.update(
-            {
-                "cache_used": cache_used,
-                "cache_key": cache_key,
-                "usage": raw_response.get("usage", {}),
-                "raw_model_response": raw_response,
-            }
-        )
-        return dict_response
+            **({"encoded_image": encoded_image} if encoded_image else {})
+        }        
+        model_call_outcome = await self._async_get_intended_model_call_outcome(**params)
+        return await self._async_prepare_response(model_call_outcome, cache=cache)
 
     get_response = sync_wrapper(async_get_response)
 
@@ -543,8 +584,3 @@ if __name__ == "__main__":
     import doctest
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)
-
-    # from edsl.language_models import LanguageModel
-
-    # from edsl.language_models import LanguageModel
-    # print(LanguageModel.example())
