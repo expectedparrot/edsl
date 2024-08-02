@@ -4,7 +4,7 @@ Starter Tutorial
 ================
 
 This tutorial demonstrates basic steps for conducting an AI-powered survey using EDSL. 
-You can also [view this notebook at the Coop](https://www.expectedparrot.com/content/6e6508ca-353e-41f7-866e-7a3c6232e0fd).
+You can also `view this notebook at the Coop <https://www.expectedparrot.com/content/6e6508ca-353e-41f7-866e-7a3c6232e0fd>`_.
 
 
 Technical setup
@@ -14,8 +14,9 @@ Before running the code below, ensure that you have already completed technical 
 
 1. Download the EDSL library. See :ref:`installation` instructions. 
 2. Choose how you want to use EDSL:
-    * Run surveys remotely on the Expected Parrot server by activating :ref:`remote_inference` at your :ref:`coop` account.
-    * Run surveys locally by storing :ref:`api_keys` for language models that you want to use with EDSL.
+
+    * Run surveys remotely on the Expected Parrot server by activating :ref:`remote_inference` at your :ref:`coop` account
+    * Run surveys locally by storing your own :ref:`api_keys` for language models that you want to use with EDSL
 
 If you encounter any issues or have questions, please email us at info@expectedparrot.com or post a question at our `Discord channel <https://discord.com/invite/mxAYkjfy9m>`_.
 
@@ -63,8 +64,8 @@ Output:
     └───────────────────┘
 
 
-*Note:* The default language model is currently GPT 4; you will need an API key for OpenAI to use this model and run this example locally.
-See instructions on storing your :ref:`api_keys`. 
+*Note:* The default language model is currently GPT 4; you will need an API key for OpenAI to run this example locally.
+See instructions on storing your own :ref:`api_keys`. 
 Alternatively, you can activate :ref:`remote_inference` at your :ref:`coop` account to run the example on the Expected Parrot server.
 
 
