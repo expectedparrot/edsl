@@ -3,76 +3,75 @@
 Remote Inference
 =================
 
-Remote inference allows you to run EDSL jobs on the Expected Parrot server instead of your local machine.
+Remote inference allows you to run EDSL surveys on the Expected Parrot server instead of your local machine.
 
 
-Requirements
-------------
+Technical setup
+---------------
 
-1. `Create a Coop account <https://www.expectedparrot.com/login>`_.
+1. Create a `Coop account <https://www.expectedparrot.com/login>`_.
 
-2. Store your **Expected Parrot API key** in a *.env* file. See :ref:`coop` for more detailed instructions.
+2. Navigate to your `Coop API <https://www.expectedparrot.com/home/api>`_ settings and turn on **remote inference**.
+
+3. Copy your **Expected Parrot API key** to a *.env* file (the same file where you optionally store API keys for language models that you use with EDSL locally). 
+See the :ref:`coop` section for more detailed instructions.
 
 
 Activating remote inference
 ---------------------------
 
-1. `Log in <https://www.expectedparrot.com/login>`_ to Coop and navigate to the `Coop API <https://www.expectedparrot.com/home/api>`_ page:
+`Log in <https://www.expectedparrot.com/login>`_ to Coop and navigate to the `Coop API <https://www.expectedparrot.com/home/api>`_ page:
 
 .. image:: static/coop_api_main_page.png
   :alt: Coop API page link at the main page
   :align: center
-  :width: 650px
+  :width: 500px
 
 .. raw:: html
   
     <br>
 
-2. Locate **EDSL Settings** section of the page.
-
-3. Toggle the slider for *Remote inference* to turn it on:
+Locate your **EDSL Settings** and toggle the slider for *Remote inference* to turn it on:
 
 .. image:: static/remote_inference_toggle_coop_api_page.png
   :alt: Remote inference toggle on the Coop web app
   :align: center
-  :width: 650px
+  :width: 500px
 
 .. raw:: html
 
     <br>
 
-When remote inference is on, jobs will be run on the Expected Parrot server instead of your local machine.
+You can also toggle *Remote cache* to turn on remote caching.
+Learn more about using remote caching with remote inference in the :ref:`remote_caching` section.
 
 
 Using remote inference
 ----------------------
 
-We can use remote inference by passing a `remote_inference_description` string to the `run` method of a survey.
-
+We use remote inference by passing a `remote_inference_description` string to the `run()` method of a survey.
+This string will be used to identify your job on the Expected Parrot server.
 
 Example
 ^^^^^^^
 
-The steps below show how remote inference works. 
 We start by creating an example survey:
 
 .. code-block:: python
 
-  from edsl import Survey
-  from edsl.questions import QuestionMultipleChoice
+  from edsl import QuestionMultipleChoice, Survey
 
-  q1 = QuestionMultipleChoice.example()
+  q = QuestionMultipleChoice.example()
 
-  survey = Survey(questions=[q1])
+  survey = Survey(questions=[q])
 
 
-Cost
-^^^^
+Estimating cost
+^^^^^^^^^^^^^^^
 
-Running jobs on the Expected Parrot server requires seed. 
-The current exchange rate is 1 seed = $0.01 USD.
+Running jobs on the Expected Parrot server requires seed (1 seed = $0.01 USD).
 
-We can estimate the cost of running a survey by passing it in the `remote_inference_cost` method:
+We can estimate the cost of running a survey by creating a `Coop` client object and passing the survey in the `remote_inference_cost()` method:
 
 .. code-block:: python
 
@@ -87,16 +86,18 @@ Output:
 
 .. code-block:: python
 
-  2   # This job costs 2 seed
+  2   
 
 
-You can purchase more seed at the `Purchases page <https://www.expectedparrot.com/home/purchases>`_.
+This survey will cost approximately 2 seed to run.
+
+Additional seed can be purchased at the `Purchases page <https://www.expectedparrot.com/home/purchases>`_.
 
 
 Running a job
 ^^^^^^^^^^^^^
 
-Next we run the survey, passing a `remote_inference_description` string to the `run` method:
+We can run the survey remotely by passing a `remote_inference_description` string to the `run` method:
 
 .. code-block:: python
 
@@ -105,19 +106,16 @@ Next we run the survey, passing a `remote_inference_description` string to the `
 
 Output (actual details will be unique to your job):
 
-.. code-block:: python
+.. code-block:: text
 
-  "Remote inference activated. Sending job to server..."
-  "Job sent!"
-
-  # Some details about the job
-  {
-      "uuid": "2dd892a5-dc3d-4f82-ba8c-9aa9ef6b5391",
-      "description": "Example survey",
-      "status": "queued",
-      "visibility": "unlisted",
-      "version": "0.1.29.dev4",
-  }
+  Remote inference activated. Sending job to server...
+  Job sent!
+  ┏━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━┓
+  ┃ answer             ┃ answer                               ┃ answer  ┃ answer      ┃
+  ┃ .info              ┃ .uuid                                ┃ .status ┃ .version    ┃
+  ┡━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━┩
+  │ Remote job details │ 1234abcd-abcd-1234-abcd-1234abcd1234 │ queued  │ 0.1.31      │
+  └────────────────────┴──────────────────────────────────────┴─────────┴─────────────┘
 
 
 The job will appear at your `Remote Inference page <https://www.expectedparrot.com/home/remote-inference>`_ with a status of "Queued":
@@ -169,7 +167,7 @@ and passing the UUID assigned when the job was run:
 
   coop = Coop()
 
-  coop.remote_cache_get("2dd892a5-dc3d-4f82-ba8c-9aa9ef6b5391")
+  coop.remote_cache_get("1234abcd-abcd-1234-abcd-1234abcd1234")
 
 
 Output:
@@ -177,13 +175,13 @@ Output:
 .. code-block:: python
 
   {
-    "jobs_uuid": "2dd892a5-dc3d-4f82-ba8c-9aa9ef6b5391",
-    "results_uuid": "4442372d-6bc7-4c88-a4b9-da0fbec1de14",
-    "results_url": "https://www.expectedparrot.com/content/4442372d-6bc7-4c88-a4b9-da0fbec1de14",
+    "jobs_uuid": "1234abcd-abcd-1234-abcd-1234abcd1234",
+    "results_uuid": "5678wxyz-wxyz-5678-wxyz-5678wxyz5678",
+    "results_url": "https://www.expectedparrot.com/content/5678wxyz-wxyz-5678-wxyz-5678wxyz5678",
     "status": "completed",
     "reason": None,
     "price": 2,
-    "version": "0.1.29.dev4",
+    "version": "0.1.31",
   }
 
 
@@ -269,9 +267,6 @@ If the remote cache has been used for a particular job, the details will also sh
 
 Remote inference methods
 ------------------------
-
-The following methods allow you to work with remote jobs manually:
-
 
 Coop class
 ^^^^^^^^^^

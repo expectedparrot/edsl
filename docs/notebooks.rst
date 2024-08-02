@@ -6,13 +6,14 @@ Notebooks
 The `Notebook` object allows you to share your .ipynb files with others by uploading them to Coop.
 You can also view and pull notebooks that other users have uploaded.
 
-Creating a notebook
--------------------
+Creating a `Notebook` object
+----------------------------
 
 There are three ways to create a `Notebook` object:
 
 1. From file
-^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^
+Pass the path to your .ipynb file to the constructor (you must include `path` as a keyword argument):
 
 .. code-block:: python
 
@@ -20,11 +21,11 @@ There are three ways to create a `Notebook` object:
 
     notebook = Notebook(path="notebooks/test-notebook.ipynb")
 
-2. From data
-^^^^^^^^^^^^^^^^^
 
-Your data must be a Python `dict` that conforms to the official Jupyter 
-notebook format. You can learn more about the format `here <https://nbformat.readthedocs.io/en/latest/format_description.html>`_.
+2. From data
+^^^^^^^^^^^^
+Your data must be a Python `dict` that conforms to the official Jupyter notebook format. 
+Learn more about the format `here <https://nbformat.readthedocs.io/en/latest/format_description.html>`_.
 
 .. code-block:: python
 
@@ -45,27 +46,39 @@ notebook format. You can learn more about the format `here <https://nbformat.rea
 
     notebook = Notebook(data=data)
 
+
 3. From self
-^^^^^^^^^^^^^^^^^
-
-If you're currently working within a notebook and want to share it,
-you can do so as follows:
-
-.. warning::
-    For now, this method only works if you are using the VS Code IDE. 
+^^^^^^^^^^^^
+To create a `Notebook` for a notebook that you are currently working in:
 
 .. code-block:: python
 
     from edsl import Notebook
 
-    # Don't pass any arguments to the constructor
+    # Do not pass any arguments to the constructor
     notebook = Notebook()
 
 
-Pushing a notebook to Coop
----------------------------
+.. warning::
+    For now, this method only works if you are using the VS Code IDE. 
 
-You can push a notebook to Coop like this:
+    
+Uploading a notebook to Coop
+----------------------------
+
+A notebook can be posted to Coop in the same ways as other EDSL objects: by calling the `push()` method on the `Notebook` object or calling the `create` method on a `Coop` object and passing it the notebook.
+The `description` and `visibility` arguments are optional and can be modified later:
+
+.. code-block:: python
+
+    from edsl import Notebook
+
+    notebook = Notebook(path="test-notebook.ipynb")
+
+    notebook.push(description="This is a test notebook", visibility="public")
+
+
+Or alternatively using the `Coop` client object:
 
 .. code-block:: python
 
@@ -73,48 +86,38 @@ You can push a notebook to Coop like this:
 
     coop = Coop()
 
-    notebook = Notebook(path="model_votes.ipynb")
+    notebook = Notebook(path="test-notebook.ipynb")
 
-    coop.create(notebook, description="Comparing model votes", visibility="unlisted")
+    coop.create(notebook, description="This is a test notebook", visibility="public")
 
 
-Afterwards, you should see your notebook on the `My Notebooks  <https://www.expectedparrot.com/home/notebooks/>`_ page.
+This will return a message with information about the object that was posted, and you will be able to view your notebook at the Coop: `My Content  <https://www.expectedparrot.com/home/content/>`_.
 
-.. image:: static/coop_my_notebooks.png
-  :alt: "My Notebooks" page on Coop with one notebook called "Comparing model votes"
-  :align: center
-  :width: 650px
+.. code-block:: text
 
-.. raw:: html
+  {'description': 'This is a test notebook',
+  'object_type': 'notebook',
+  'url': 'https://www.expectedparrot.com/content/1234abcd-abcd-1234-abcd-1234abcd1234',
+  'uuid': '1234abcd-abcd-1234-abcd-1234abcd1234',
+  'version': '0.1.30',
+  'visibility': 'public'}
 
-  <br>
 
 Saving a Coop notebook to file
--------------------------------
+------------------------------
 
-You can explore notebooks that other users have uploaded on the 
-`Explore Notebooks  <https://www.expectedparrot.com/explore/notebooks/>`_ page.
+You can access notebooks that other users have posted publicly at the `Explore <https://www.expectedparrot.com/explore/explore/>`_ page.
 
-.. image:: static/coop_public_notebooks.png
-  :alt: "Public Notebooks" page on Coop with one notebook called "Grading experiment"
-  :align: center
-  :width: 650px
-
-.. raw:: html
-
-  <br>
-
-If you see a notebook you want to work with, click on the **Get by UUID** button
-to get its pull code.
-
-You can then save the notebook as follows:
+Notebooks can be copied and downloaded the same way as other EDSL objects: by calling the `pull()` method on the `Notebook` class or the `get` method on a `Coop` client object and passing the notebook's `uuid`.
+We can also use the `to_file()` method to save the notebook to a file:
 
 .. code-block:: python
 
     from edsl import Notebook
 
-    notebook = Notebook.pull("05dbaf7c-1f82-44e1-9aef-d67a3108915c")
+    notebook = Notebook.pull("1234abcd-abcd-1234-abcd-1234abcd1234")
 
-    notebook.to_file("grading_experiment.ipynb")
+    notebook.to_file("new-test-notebook.ipynb")
 
-You can now edit and run the notebook on your local machine.
+
+This allows you to edit and run the notebook on your local machine.
