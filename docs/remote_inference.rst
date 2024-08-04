@@ -54,6 +54,9 @@ Save it to a *.env* file in your working directory. Your *.env* file should incl
 
     <br>
 
+
+When remote inference is on, surveys that you run will be sent to the Expected Parrot server for processing.
+
 You can also toggle *Remote cache* to turn on remote caching.
 Learn more about using remote caching with remote inference in the :ref:`remote_caching` section.
 
