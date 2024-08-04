@@ -485,7 +485,6 @@ class Jobs(Base):
             job_in_queue = True
             while job_in_queue:
                 remote_job_data = coop.remote_inference_get(job_uuid)
-                time_checked = datetime.now().strftime("%m/%d/%Y %I:%M:%S %p")
                 status = remote_job_data.get("status")
                 if status == "cancelled":
                     print("\nJob was cancelled by user.")
@@ -509,17 +508,26 @@ class Jobs(Base):
                     return results
                 # Status is either queued, running, or cancelling, so keep checking
                 else:
-                    print(
-                        f"\rJob checked at {time_checked}. Status: {status}.",
-                        end="",
-                        flush=True,
-                    )
                     if len(self) < 10:
                         # Check once every 10 seconds for small jobs
-                        time.sleep(10)
+                        duration = 10
                     else:
                         # Check once every minute for larger jobs
-                        time.sleep(60)
+                        duration = 60
+
+                    time_checked = datetime.now().strftime("%m/%d/%Y %I:%M:%S %p")
+                    # Frames that control the loading animation
+                    frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+                    start_time = time.time()
+                    i = 0
+                    while time.time() - start_time < duration:
+                        print(
+                            f"\r{frames[i % len(frames)]} Job checked at {time_checked}. Status: {status}.",
+                            end="",
+                            flush=True,
+                        )
+                        time.sleep(0.1)
+                        i += 1
         else:
             if check_api_keys:
                 for model in self.models + [Model()]:
