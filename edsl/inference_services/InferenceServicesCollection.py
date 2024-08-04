@@ -21,7 +21,10 @@ class InferenceServicesCollection:
             service_models = service.available()
         except Exception as e:
             warnings.warn(
-                f"Error getting models for {service._inference_service_}. Relying on cache.",
+                f"""Error getting models for {service._inference_service_}. 
+                Check that you have properly stored your Expected Parrot API key and activated remote inference, or stored your own API keys for the language models that you want to use.
+                See https://docs.expectedparrot.com/en/latest/api_keys.html for instructions on storing API keys.
+                Relying on cache.""",
                 UserWarning,
             )
             from edsl.inference_services.models_available_cache import models_available
