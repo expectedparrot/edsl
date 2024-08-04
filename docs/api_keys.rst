@@ -4,27 +4,21 @@ API Keys
 ========
 API keys are required to access the services of large language models (LLMs) such as OpenAI's GPTs, Google's Gemini, Anthropic's Claude, Llama 2 and others.
 
-There are two ways to access LLMs using EDSL:
-
-1. **Remote inference:** Activate :ref:`remote_inference` at your :ref:`coop` account and use your Expected Parrot API key to run jobs on the Expected Parrot server.
-   This method allows you to use Expected Parrot's infrastructure to run jobs securely and avoid managing API keys (and potentially exposing them in your code).
-
-or
-
-2. **Local inference:** Provide your own API keys for LLMs that you want to use with ESDL to run jobs locally on your machine.
-   Methods for doing this are described below.
+To access LLMs using EDSL you can either use remote inference or local inference.
 
 
 Remote inference 
 ----------------
 
-To use remote inference with Expected Parrot, you must activate it at your :ref:`coop` account and store your Expected Parrot API key in a `.env` file in your working directory.
-Your `.env` file should be populated as follows:
+This method allows you to run EDSL surveys on the Expected Parrot server instead of your local machine and avoid managing your own API keys for different LLM providers.
+
+To use remote inference you must activate it at your :ref:`coop` account and store your Expected Parrot API key in a `.env` file in your working directory.
+Your `.env` file should include the following line (replace `your_key_here` with your actual Expected Parrot API key from your Coop account):
 
 .. code-block:: python
 
    EXPECTED_PARROT_API_KEY='your_key_here'
-   
+
 
 Please see the :ref:`remote_inference` section for instructions on how to activate remote inference and use it.
 
@@ -34,7 +28,7 @@ Local inference
 
 You can access LLMs with EDSL on your own machine by providing your own API keys for LLMs.
 
-There are two methods for providing your own API keys to EDSL:
+There are two ways of providing your own API keys to EDSL:
 
 
 1. Using a .env file (*recommended*)
