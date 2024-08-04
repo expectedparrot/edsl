@@ -16,7 +16,7 @@ Activating remote inference
 .. image:: static/coop_main_page.png
   :alt: Coop main page
   :align: center
-  :width: 350px
+  :width: 500px
 
 .. raw:: html
   
@@ -28,7 +28,7 @@ Activating remote inference
 .. image:: static/coop_ep_key.png
   :alt: Coop main page
   :align: center
-  :width: 350px
+  :width: 500px
 
 .. raw:: html
   
