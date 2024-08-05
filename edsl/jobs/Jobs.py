@@ -3,9 +3,7 @@ from __future__ import annotations
 import warnings
 from itertools import product
 from typing import Optional, Union, Sequence, Generator
-
 from edsl.Base import Base
-
 from edsl.exceptions import MissingAPIKeyError
 from edsl.jobs.buckets.BucketCollection import BucketCollection
 from edsl.jobs.interviews.Interview import Interview
@@ -461,12 +459,11 @@ class Jobs(Base):
             remote_inference = False
 
         if remote_inference:
-            from edsl.agents.Agent import Agent
-            from edsl.language_models.registry import Model
-            from edsl.results.Result import Result
-            from edsl.results.Results import Results
-            from edsl.scenarios.Scenario import Scenario
-            from edsl.surveys.Survey import Survey
+            import time
+            from datetime import datetime
+            from edsl.config import CONFIG
+
+            expected_parrot_url = CONFIG.get("EXPECTED_PARROT_URL")
 
             self._output("Remote inference activated. Sending job to server...")
             if remote_cache:
@@ -474,33 +471,59 @@ class Jobs(Base):
                     "Remote caching activated. The remote cache will be used for this job."
                 )
 
-            remote_job_data = coop.remote_inference_create(
+            remote_job_creation_data = coop.remote_inference_create(
                 self,
                 description=remote_inference_description,
                 status="queued",
             )
-            self._output("Job sent!")
-            # Create mock results object to store job data
-            results = Results(
-                survey=Survey(),
-                data=[
-                    Result(
-                        agent=Agent.example(),
-                        scenario=Scenario.example(),
-                        model=Model(),
-                        iteration=1,
-                        answer={"info": "Remote job details"},
+            time_queued = datetime.now().strftime("%m/%d/%Y %I:%M:%S %p")
+            job_uuid = remote_job_creation_data.get("uuid")
+            print(f"Remote inference started (Job uuid={job_uuid}).")
+            # print(f"Job queued at {time_queued}.")
+            job_in_queue = True
+            while job_in_queue:
+                remote_job_data = coop.remote_inference_get(job_uuid)
+                status = remote_job_data.get("status")
+                if status == "cancelled":
+                    print("\r" + " " * 80 + "\r", end="")
+                    print("Job cancelled by the user.")
+                    print(
+                        f"See {expected_parrot_url}/home/remote-inference for more details."
                     )
-                ],
-            )
-            results.add_columns_from_dict([remote_job_data])
-            if self.verbose:
-                results.select(["info", "uuid", "status", "version"]).print(
-                    format="rich"
-                )
-            return results
+                    return None
+                elif status == "failed":
+                    print("\r" + " " * 80 + "\r", end="")
+                    print("Job failed.")
+                    print(
+                        f"See {expected_parrot_url}/home/remote-inference for more details."
+                    )
+                    return None
+                elif status == "completed":
+                    results_uuid = remote_job_data.get("results_uuid")
+                    results = coop.get(results_uuid, expected_object_type="results")
+                    print("\r" + " " * 80 + "\r", end="")
+                    print(
+                        f"Job completed and Results stored on Coop (Results uuid={results_uuid})."
+                    )
+                    return results
+                else:
+                    duration = 10 if len(self) < 10 else 60
+                    time_checked = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
+                    frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+                    start_time = time.time()
+                    i = 0
+                    while time.time() - start_time < duration:
+                        print(
+                            f"\r{frames[i % len(frames)]} Job status: {status} - last update: {time_checked}",
+                            end="",
+                            flush=True,
+                        )
+                        time.sleep(0.1)
+                        i += 1
         else:
             if check_api_keys:
+                from edsl import Model
+
                 for model in self.models + [Model()]:
                     if not model.has_valid_api_key():
                         raise MissingAPIKeyError(
