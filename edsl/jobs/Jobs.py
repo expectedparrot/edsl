@@ -480,49 +480,43 @@ class Jobs(Base):
             )
             time_queued = datetime.now().strftime("%m/%d/%Y %I:%M:%S %p")
             job_uuid = remote_job_creation_data.get("uuid")
-            print(f"Remote inference job with uuid={job_uuid}.")
-            print(f"Job queued at {time_queued}.")
+            print(f"Remote inference started (Job uuid={job_uuid}).")
+            # print(f"Job queued at {time_queued}.")
             job_in_queue = True
             while job_in_queue:
                 remote_job_data = coop.remote_inference_get(job_uuid)
                 status = remote_job_data.get("status")
                 if status == "cancelled":
-                    print("\nJob was cancelled by user.")
+                    print("\r" + " " * 80 + "\r", end="")
+                    print("Job cancelled by the user.")
                     print(
-                        f"Please see {expected_parrot_url}/home/remote-inference for more details."
+                        f"See {expected_parrot_url}/home/remote-inference for more details."
                     )
                     return None
                 elif status == "failed":
-                    print("\nJob failed.")
+                    print("\r" + " " * 80 + "\r", end="")
+                    print("Job failed.")
                     print(
-                        f"Please see {expected_parrot_url}/home/remote-inference for more details."
+                        f"See {expected_parrot_url}/home/remote-inference for more details."
                     )
                     return None
                 elif status == "completed":
-                    print("\nJob finished successfully!")
                     results_uuid = remote_job_data.get("results_uuid")
-                    print(f"Results with uuid={results_uuid} created.")
-
-                    # Get results from server
                     results = coop.get(results_uuid, expected_object_type="results")
+                    print("\r" + " " * 80 + "\r", end="")
+                    print(
+                        f"Job completed and Results stored on Coop (Results uuid={results_uuid})."
+                    )
                     return results
-                # Status is either queued, running, or cancelling, so keep checking
                 else:
-                    if len(self) < 10:
-                        # Check once every 10 seconds for small jobs
-                        duration = 10
-                    else:
-                        # Check once every minute for larger jobs
-                        duration = 60
-
-                    time_checked = datetime.now().strftime("%m/%d/%Y %I:%M:%S %p")
-                    # Frames that control the loading animation
+                    duration = 10 if len(self) < 10 else 60
+                    time_checked = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
                     frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
                     start_time = time.time()
                     i = 0
                     while time.time() - start_time < duration:
                         print(
-                            f"\r{frames[i % len(frames)]} Job checked at {time_checked}. Status: {status}.",
+                            f"\r{frames[i % len(frames)]} Job status: {status} - last update: {time_checked}",
                             end="",
                             flush=True,
                         )
