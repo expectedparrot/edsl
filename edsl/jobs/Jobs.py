@@ -3,9 +3,7 @@ from __future__ import annotations
 import warnings
 from itertools import product
 from typing import Optional, Union, Sequence, Generator
-
 from edsl.Base import Base
-
 from edsl.exceptions import MissingAPIKeyError
 from edsl.jobs.buckets.BucketCollection import BucketCollection
 from edsl.jobs.interviews.Interview import Interview
@@ -524,6 +522,8 @@ class Jobs(Base):
                         i += 1
         else:
             if check_api_keys:
+                from edsl import Model
+
                 for model in self.models + [Model()]:
                     if not model.has_valid_api_key():
                         raise MissingAPIKeyError(
