@@ -6,34 +6,46 @@ Remote Inference
 Remote inference allows you to run EDSL surveys on the Expected Parrot server instead of your local machine.
 
 
-Technical setup
----------------
-
-1. Create a `Coop account <https://www.expectedparrot.com/login>`_.
-
-2. Navigate to your `Coop API <https://www.expectedparrot.com/home/api>`_ settings and turn on **remote inference**.
-
-3. Copy your **Expected Parrot API key** to a *.env* file (the same file where you optionally store API keys for language models that you use with EDSL locally). 
-See the :ref:`coop` section for more detailed instructions.
-
-
 Activating remote inference
 ---------------------------
 
-`Log in <https://www.expectedparrot.com/login>`_ to Coop and navigate to the `Coop API <https://www.expectedparrot.com/home/api>`_ page:
+1. Create a `Coop account <https://www.expectedparrot.com/login>`_. (Learn more about Coop features in the :ref:`coop` section.)
 
-.. image:: static/coop_api_main_page.png
-  :alt: Coop API page link at the main page
+2. Navigate to your `Coop API <https://www.expectedparrot.com/home/api>`_ settings page:
+
+.. image:: static/coop_main_page.png
+  :alt: Coop main page
   :align: center
-  :width: 500px
+  :width: 350px
 
 .. raw:: html
   
     <br>
 
-Locate your **EDSL Settings** and toggle the slider for *Remote inference* to turn it on:
 
-.. image:: static/remote_inference_toggle_coop_api_page.png
+3. Copy your **Expected Parrot API key**:
+
+.. image:: static/coop_ep_key.png
+  :alt: Coop main page
+  :align: center
+  :width: 350px
+
+.. raw:: html
+  
+    <br>
+
+
+Save it to a *.env* file in your working directory. Your *.env* file should include the following line (replace `your_key_here` with your actual Expected Parrot API key):
+
+.. code-block:: python
+
+  EXPECTED_PARROT_API_KEY='your_key_here'
+
+
+
+4. Locate your **EDSL Settings** and toggle the slider for *Remote inference* to turn it on:
+
+.. image:: static/coop_edsl_settings_remote_inference.png
   :alt: Remote inference toggle on the Coop web app
   :align: center
   :width: 500px
@@ -49,7 +61,7 @@ Learn more about using remote caching with remote inference in the :ref:`remote_
 Using remote inference
 ----------------------
 
-We use remote inference by passing a `remote_inference_description` string to the `run()` method of a survey.
+Use remote inference by passing a `remote_inference_description` string to the `run()` method of a survey.
 This string will be used to identify your job on the Expected Parrot server.
 
 Example
