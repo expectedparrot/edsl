@@ -13,6 +13,25 @@ from edsl.jobs.tasks.TaskHistory import TaskHistory
 from edsl.jobs.buckets.BucketCollection import BucketCollection
 from edsl.utilities.decorators import jupyter_nb_handler
 
+import time
+import functools
+
+def cache_with_timeout(timeout):
+    def decorator(func):
+        cached_result = {}
+        last_computation_time = [0]  # Using list to store mutable value
+
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            current_time = time.time()
+            if (current_time - last_computation_time[0]) >= timeout:
+                cached_result['value'] = func(*args, **kwargs)
+                last_computation_time[0] = current_time
+            return cached_result['value']
+        
+        return wrapper
+    return decorator
+
 #from queue import Queue
 from collections import UserList
 
@@ -219,6 +238,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         from rich.live import Live
         from rich.console import Console
 
+        @cache_with_timeout(1)
         def generate_table():
             return self.status_table(self.results, self.elapsed_time)
 
@@ -243,7 +263,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
 
             while True:
                 progress_bar_context.update(generate_table())
-                await asyncio.sleep(0.00001)  # Update interval
+                await asyncio.sleep(0.1)  # Update interval
                 if self.completed:
                     break
 
@@ -255,14 +275,14 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             else:
                 yield
 
-        with conditional_context(progress_bar, Live(generate_table(), console=console, refresh_per_second=5)) as progress_bar_context:
+        with conditional_context(progress_bar, Live(generate_table(), console=console, refresh_per_second=1)) as progress_bar_context:
 
             with cache as c:
 
                 progress_task = asyncio.create_task(update_progress_bar(progress_bar_context))
 
                 try:
-                    await asyncio.gather(process_results(cache = c, progress_bar_context = progress_bar_context), progress_task)
+                    await asyncio.gather(progress_task, process_results(cache = c, progress_bar_context = progress_bar_context))
                 except asyncio.CancelledError:
                         pass
                 finally:
