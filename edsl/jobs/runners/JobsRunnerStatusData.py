@@ -34,35 +34,30 @@ class JobsRunnerStatusData:
 
         return status
 
-    def status_counts(self, interviews: List[Type["Interview"]]):
-        """
-        Takes a collection of interviews and returns a dictionary of the counts of each status.
+    # def status_counts(self, interviews: List[Type["Interview"]]):
+    #     """
+    #     Takes a collection of interviews and returns a dictionary of the counts of each status.
 
-        :param interviews: a collection of interviews.
+    #     :param interviews: a collection of interviews.
 
-        This creates a dictionary of the counts of each status in the collection of interviews.
+    #     This creates a dictionary of the counts of each status in the collection of interviews.
 
-        >>> from edsl.jobs.interviews.Interview import Interview
-        >>> interviews = [Interview.example() for _ in range(100)]
-        >>> jd = JobsRunnerStatusData()
-        >>> jd.status_counts(interviews)
-        dict_values([InterviewStatusDictionary({<TaskStatus.NOT_STARTED: 1>: 0, <TaskStatus.WAITING_FOR_DEPENDENCIES: 2>: 0, <TaskStatus.CANCELLED: 3>: 0, <TaskStatus.PARENT_FAILED: 4>: 0, <TaskStatus.WAITING_FOR_REQUEST_CAPACITY: 5>: 0, <TaskStatus.WAITING_FOR_TOKEN_CAPACITY: 6>: 0, <TaskStatus.API_CALL_IN_PROGRESS: 7>: 0, <TaskStatus.SUCCESS: 8>: 0, <TaskStatus.FAILED: 9>: 0, 'number_from_cache': 0})])
-        >>> len(jd.status_counts(interviews))
-        1
-        """
-        model_to_status = defaultdict(InterviewStatusDictionary)
+    #     >>> from edsl.jobs.interviews.Interview import Interview
+    #     >>> interviews = [Interview.example() for _ in range(100)]
+    #     >>> jd = JobsRunnerStatusData()
+    #     >>> jd.status_counts(interviews)
+    #     dict_values([InterviewStatusDictionary({<TaskStatus.NOT_STARTED: 1>: 0, <TaskStatus.WAITING_FOR_DEPENDENCIES: 2>: 0, <TaskStatus.CANCELLED: 3>: 0, <TaskStatus.PARENT_FAILED: 4>: 0, <TaskStatus.WAITING_FOR_REQUEST_CAPACITY: 5>: 0, <TaskStatus.WAITING_FOR_TOKEN_CAPACITY: 6>: 0, <TaskStatus.API_CALL_IN_PROGRESS: 7>: 0, <TaskStatus.SUCCESS: 8>: 0, <TaskStatus.FAILED: 9>: 0, 'number_from_cache': 0})])
+    #     >>> len(jd.status_counts(interviews))
+    #     1
+    #     """
+    #     model_to_status = defaultdict(InterviewStatusDictionary)
 
-        for interview in interviews:
-            model = interview.model  # get the model for the interview
-            model_to_status[
-                model
-            ] += (
-                interview.interview_status
-            )  # InterviewStatusDictionary objects can be added together
+    #     # InterviewStatusDictionary objects can be added together
+    #     for interview in interviews:
+    #         model_to_status[interview.model] += interview.interview_status 
 
-        return (
-            model_to_status.values()
-        )  # return the values of the dictionary, which is a list of dictionaries
+    #     return list(model_to_status.values())
+    #       # return the values of the dictionary, which is a list of dictionaries
 
     def generate_status_summary(
         self,
@@ -86,7 +81,6 @@ class JobsRunnerStatusData:
 
         models_to_tokens = defaultdict(InterviewTokenUsage)
         model_to_status = defaultdict(InterviewStatusDictionary)
-
         waiting_dict = defaultdict(int)
 
         interview_statistics = InterviewStatisticsCollection()
