@@ -20,10 +20,10 @@ class InferenceServicesCollection:
         try:
             service_models = service.available()
         except Exception as e:
-            warnings.warn(
-                f"Error getting models for {service._inference_service_}. Relying on cache.",
-                UserWarning,
-            )
+            # warnings.warn(
+            #     f"Error getting models for {service._inference_service_}. Relying on cache.",
+            #     UserWarning,
+            # )
             from edsl.inference_services.models_available_cache import models_available
 
             service_models = models_available.get(service._inference_service_, [])
