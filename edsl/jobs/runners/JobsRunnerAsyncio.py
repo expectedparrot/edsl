@@ -87,7 +87,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                     )  # set the cache for the first interview
                     self.total_interviews.append(interview)
 
-    async def run_async(self, cache=None) -> Results:
+    async def run_async(self, cache=None, n=1) -> Results:
         from edsl.results.Results import Results
 
         if cache is None:
@@ -95,7 +95,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         else:
             self.cache = cache
         data = []
-        async for result in self.run_async_generator(cache=self.cache):
+        async for result in self.run_async_generator(cache=self.cache, n=n):
             data.append(result)
         return Results(survey=self.jobs.survey, data=data)
 
