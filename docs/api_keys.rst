@@ -2,7 +2,7 @@
 
 API Keys
 ========
-API keys are required to access the services of large language models (LLMs) such as OpenAI's GPTs, Google's Gemini, Anthropic's Claude, Llama 2 and others.
+API keys are required to access the services of large language models (LLMs) such as OpenAI's GPTs, Google's Gemini, Anthropic's Claude, Llama 2, Groq and others.
 
 To access LLMs using EDSL you can either use remote inference or local inference.
 
@@ -41,6 +41,7 @@ Replace `your_key_here` with your actual API key for each service that you plan 
    ANTHROPIC_API_KEY='your_key_here'
    DEEP_INFRA_API_KEY='your_key_here'
    GOOGLE_API_KEY='your_key_here'
+   GROQ_API_KEY='your_key_here'
    OPENAI_API_KEY='your_key_here'
 
 
@@ -58,6 +59,7 @@ This method stores the keys in your system's memory only for the duration of the
    os.environ['ANTHROPIC_API_KEY'] = 'your_key_here'
    os.environ['DEEP_INFRA_API_KEY'] = 'your_key_here'
    os.environ['GOOGLE_API_KEY'] = 'your_key_here'
+   os.environ['GROQ_API_KEY'] = 'your_key_here'
    os.environ['OPENAI_API_KEY'] = 'your_key_here'
 
 
