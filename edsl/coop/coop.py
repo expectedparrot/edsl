@@ -465,6 +465,7 @@ class Coop:
         description: Optional[str] = None,
         status: RemoteJobStatus = "queued",
         visibility: Optional[VisibilityType] = "unlisted",
+        iterations: Optional[int] = 1,
     ) -> dict:
         """
         Send a remote inference job to the server.
@@ -473,6 +474,7 @@ class Coop:
         :param optional description: A description for this entry in the remote cache.
         :param status: The status of the job. Should be 'queued', unless you are debugging.
         :param visibility: The visibility of the cache entry.
+        :param iterations: The number of times to run each interview.
 
         >>> job = Jobs.example()
         >>> coop.remote_inference_create(job=job, description="My job")
@@ -488,6 +490,7 @@ class Coop:
                 ),
                 "description": description,
                 "status": status,
+                "iterations": iterations,
                 "visibility": visibility,
                 "version": self._edsl_version,
             },
@@ -498,6 +501,7 @@ class Coop:
             "uuid": response_json.get("jobs_uuid"),
             "description": response_json.get("description"),
             "status": response_json.get("status"),
+            "iterations": response_json.get("iterations"),
             "visibility": response_json.get("visibility"),
             "version": self._edsl_version,
         }
