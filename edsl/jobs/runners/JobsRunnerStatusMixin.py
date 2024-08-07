@@ -45,6 +45,15 @@ class ModelTokenUsageStats:
     details: List[dict]
     cost: str
 
+class Stats:
+
+    def elapsed_time(self):
+        InterviewStatistic(
+                "elapsed_time", value=elapsed_time, digits=1, units="sec."
+            )
+
+
+
 
 class JobsRunnerStatusMixin:
 
@@ -58,27 +67,19 @@ class JobsRunnerStatusMixin:
     #     """
     #     return [interview.interview_status for interview in interviews]
 
-    @staticmethod
-    def _job_level_info(completed_tasks: List[Type[asyncio.Task]], elapsed_time: float, interviews: List[Type["Interview"]]):
-        interview_statistics = InterviewStatisticsCollection()
+    def _compute_statistic(stat_name: str, completed_tasks, elapsed_time, interviews):
 
-        interview_statistics.add_stat(
-            InterviewStatistic(
+        stat_definitions = {
+            "elapsed_time": lambda: InterviewStatistic(
                 "elapsed_time", value=elapsed_time, digits=1, units="sec."
-            )
-        )
-        interview_statistics.add_stat(
-            InterviewStatistic(
+            ),
+            "total_interviews_requested": lambda: InterviewStatistic(
                 "total_interviews_requested", value=len(interviews), units=""
-            )
-        )
-        interview_statistics.add_stat(
-            InterviewStatistic(
+            ),
+            "completed_interviews": lambda: InterviewStatistic(
                 "completed_interviews", value=len(completed_tasks), units=""
-            )
-        )
-        interview_statistics.add_stat(
-            InterviewStatistic(
+            ),
+            "percent_complete": lambda: InterviewStatistic(
                 "percent_complete",
                 value=(
                     len(completed_tasks) / len(interviews) * 100
@@ -87,37 +88,44 @@ class JobsRunnerStatusMixin:
                 ),
                 digits=0,
                 units="%",
-            )
-        )
-        interview_statistics.add_stat(
-            InterviewStatistic(
+            ),
+            "average_time_per_interview": lambda: InterviewStatistic(
                 "average_time_per_interview",
                 value=elapsed_time / len(completed_tasks) if completed_tasks else "NA",
                 digits=1,
                 units="sec.",
-            )
-        )
-        interview_statistics.add_stat(
-            InterviewStatistic(
+            ),
+            "task_remaining": lambda: InterviewStatistic(
                 "task_remaining", value=len(interviews) - len(completed_tasks), units=""
-            )
-        )
-        number_remaining = len(interviews) - len(completed_tasks)
-        time_per_task = (
-            elapsed_time / len(completed_tasks) if len(completed_tasks) > 0 else "NA"
-        )
-        estimated_time_remaining = (
-            number_remaining * time_per_task if time_per_task != "NA" else "NA"
-        )
-
-        interview_statistics.add_stat(
-            InterviewStatistic(
+            ),
+            "estimated_time_remaining": lambda: InterviewStatistic(
                 "estimated_time_remaining",
-                value=estimated_time_remaining,
+                value=(
+                    (len(interviews) - len(completed_tasks)) * (elapsed_time / len(completed_tasks))
+                    if len(completed_tasks) > 0
+                    else "NA"
+                ),
                 digits=1,
                 units="sec.",
             )
-        )
+            }
+        if stat_name not in stat_definitions:
+            raise ValueError(f"Invalid stat_name: {stat_name}. The valid stat_names are: {list(stat_definitions.keys())}")
+        return stat_definitions[stat_name]()
+
+
+    @staticmethod
+    def _job_level_info(completed_tasks: List[Type[asyncio.Task]], 
+                        elapsed_time: float, 
+                        interviews: List[Type["Interview"]] 
+                        ) -> InterviewStatisticsCollection:
+
+        interview_statistics = InterviewStatisticsCollection()
+
+        default_statistics = ["elapsed_time", "total_interviews_requested", "completed_interviews", "percent_complete", "average_time_per_interview", "task_remaining", "estimated_time_remaining"]
+        for stat_name in default_statistics:
+            interview_statistics.add_stat(JobsRunnerStatusMixin._compute_statistic(stat_name, completed_tasks, elapsed_time, interviews))
+
         return interview_statistics
 
     @staticmethod
@@ -140,6 +148,7 @@ class JobsRunnerStatusMixin:
         completed_tasks: List[Type[asyncio.Task]],
         elapsed_time: float,
         interviews: List[Type["Interview"]],
+        include_model_queues = False
     ) -> InterviewStatisticsCollection:
         """Generate a summary of the status of the job runner.
 
@@ -160,7 +169,10 @@ class JobsRunnerStatusMixin:
             elapsed_time=elapsed_time, 
             interviews=interviews
         )
-        interview_status_summary.model_queues = list(JobsRunnerStatusMixin._get_model_queues_info(interviews))
+        if include_model_queues:
+            interview_status_summary.model_queues = list(JobsRunnerStatusMixin._get_model_queues_info(interviews))
+        else:
+            interview_status_summary.model_queues = None
 
         return interview_status_summary
 
