@@ -59,7 +59,7 @@ class InferenceServiceType(EnumWithChecks):
     GOOGLE = "google"
     TEST = "test"
     ANTHROPIC = "anthropic"
-
+    GROQ = "groq"
 
 service_to_api_keyname = {
     InferenceServiceType.BEDROCK.value: "TBD",
@@ -69,6 +69,7 @@ service_to_api_keyname = {
     InferenceServiceType.GOOGLE.value: "GOOGLE_API_KEY",
     InferenceServiceType.TEST.value: "TBD",
     InferenceServiceType.ANTHROPIC.value: "ANTHROPIC_API_KEY",
+    InferenceServiceType.GROQ.value: "GROQ_API_KEY",
 }
 
 
