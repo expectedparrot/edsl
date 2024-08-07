@@ -65,6 +65,10 @@ CONFIG_MAP = {
     #     "default": None,
     #     "info": "This env var holds your Anthropic API key (https://www.anthropic.com/).",
     # },
+    # "GROQ_API_KEY": {
+    #     "default": None,
+    #     "info": "This env var holds your GROQ API key (https://console.groq.com/login).",
+    # },
 }
 
 
