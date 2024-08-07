@@ -204,12 +204,18 @@ class InterviewTaskBuildingMixin:
         return skip
 
     async def _attempt_to_answer_question(
-        self, invigilator: InvigilatorBase, task: asyncio.Task
-    ) -> AgentResponseDict:
+        self, invigilator: 'InvigilatorBase', task: asyncio.Task
+    ) -> 'AgentResponseDict':
         """Attempt to answer the question, and handle exceptions.
 
         :param invigilator: the invigilator that will answer the question.
         :param task: the task that is being run.
+
+        >>> from edsl.agents.InvigilatorDebug import InvigilatorDebug
+        >>> from edsl.questions.QuestionText import QuestionText
+        >>> q = QuestionText(question_name="test", question_text="What is your name?")
+        >>> invigilator = InvigilatorDebug.example(question=q)
+        
         """
         try:
             return await asyncio.wait_for(
