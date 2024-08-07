@@ -18,7 +18,12 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
     """An invigilator that uses an AI model to answer questions."""
 
     async def async_answer_question(self) -> AgentResponseDict:
-        """Answer a question using the AI model."""
+        """Answer a question using the AI model.
+        
+        >>> i = InvigilatorAI.example()
+        >>> i.answer_question()
+        {'message': '{"answer": "SPAM!"}'}
+        """
         params = self.get_prompts() | {"iteration": self.iteration}
         raw_response = await self.async_get_response(**params)
         data = {
@@ -29,6 +34,7 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
             "raw_model_response": raw_response["raw_model_response"],
         }
         response = self._format_raw_response(**data)
+        #breakpoint()
         return AgentResponseDict(**response)
 
     async def async_get_response(
@@ -38,7 +44,8 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
         iteration: int = 0,
         encoded_image=None,
     ) -> dict:
-        """Call the LLM and gets a response. Used in the `answer_question` method."""
+        """Call the LLM and gets a response. Used in the `answer_question` method.        
+        """
         try:
             params = {
                 "user_prompt": user_prompt.text,
@@ -97,7 +104,6 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
         answer = question._translate_answer_code_to_answer(
             response["answer"], combined_dict
         )
-        # breakpoint()
         data = {
             "answer": answer,
             "comment": response.get(

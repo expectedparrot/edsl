@@ -13,6 +13,35 @@ from edsl.jobs.tasks.TaskHistory import TaskHistory
 from edsl.jobs.buckets.BucketCollection import BucketCollection
 from edsl.utilities.decorators import jupyter_nb_handler
 
+import time
+import functools
+
+def cache_with_timeout(timeout):
+    def decorator(func):
+        cached_result = {}
+        last_computation_time = [0]  # Using list to store mutable value
+
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            current_time = time.time()
+            if (current_time - last_computation_time[0]) >= timeout:
+                cached_result['value'] = func(*args, **kwargs)
+                last_computation_time[0] = current_time
+            return cached_result['value']
+        
+        return wrapper
+    return decorator
+
+#from queue import Queue
+from collections import UserList
+
+class StatusTracker(UserList):
+    def __init__(self, total_tasks: int):
+        self.total_tasks = total_tasks
+        super().__init__()
+    
+    def current_status(self):
+        return print(f"Completed: {len(self.data)} of {self.total_tasks}", end = "\r")
 
 class JobsRunnerAsyncio(JobsRunnerStatusMixin):
     """A class for running a collection of interviews asynchronously.
@@ -43,7 +72,9 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
 
         :param n: how many times to run each interview
         :param debug:
-        :param stop_on_exception:
+        :param stop_on_exception: Whether to stop the interview if an exception is raised
+        :param sidecar_model: a language model to use in addition to the interview's model
+        :param total_interviews: A list of interviews to run can be provided instead.
         """
         tasks = []
         if total_interviews:
@@ -89,6 +120,9 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
 
     async def run_async(self, cache=None, n=1) -> Results:
         from edsl.results.Results import Results
+
+        #breakpoint()
+        #tracker = StatusTracker(total_tasks=len(self.interviews))
 
         if cache is None:
             self.cache = Cache()
@@ -201,91 +235,67 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         self.sidecar_model = sidecar_model
 
         from edsl.results.Results import Results
+        from rich.live import Live
+        from rich.console import Console
 
-        if not progress_bar:
-            # print("Running without progress bar")
-            with cache as c:
+        @cache_with_timeout(1)
+        def generate_table():
+            return self.status_table(self.results, self.elapsed_time)
 
-                async def process_results():
-                    """Processes results from interviews."""
-                    async for result in self.run_async_generator(
-                        n=n,
-                        debug=debug,
-                        stop_on_exception=stop_on_exception,
-                        cache=c,
-                        sidecar_model=sidecar_model,
-                    ):
-                        self.results.append(result)
-                    self.completed = True
+        async def process_results(cache, progress_bar_context = None):
+            """Processes results from interviews."""
+            async for result in self.run_async_generator(
+                n=n,
+                debug=debug,
+                stop_on_exception=stop_on_exception,
+                cache=cache,
+                sidecar_model=sidecar_model,
+            ):
+                self.results.append(result)
+                if progress_bar_context:
+                    progress_bar_context.update(generate_table())
+                self.completed = True
 
-                await asyncio.gather(process_results())
+        async def update_progress_bar(progress_bar_context):
+            """Updates the progress bar at fixed intervals."""
+            if progress_bar_context is None:
+                return
 
-            results = Results(survey=self.jobs.survey, data=self.results)
-        else:
-            # print("Running with progress bar")
-            from rich.live import Live
-            from rich.console import Console
+            while True:
+                progress_bar_context.update(generate_table())
+                await asyncio.sleep(0.1)  # Update interval
+                if self.completed:
+                    break
 
-            def generate_table():
-                return self.status_table(self.results, self.elapsed_time)
+        @contextmanager
+        def conditional_context(condition, context_manager):
+            if condition:
+                with context_manager as cm:
+                    yield cm
+            else:
+                yield
 
-            @contextmanager
-            def no_op_cm():
-                """A no-op context manager with a dummy update method."""
-                yield DummyLive()
-
-            class DummyLive:
-                def update(self, *args, **kwargs):
-                    """A dummy update method that does nothing."""
-                    pass
-
-            progress_bar_context = (
-                Live(generate_table(), console=console, refresh_per_second=5)
-                if progress_bar
-                else no_op_cm()
-            )
+        with conditional_context(progress_bar, Live(generate_table(), console=console, refresh_per_second=1)) as progress_bar_context:
 
             with cache as c:
-                with progress_bar_context as live:
 
-                    async def update_progress_bar():
-                        """Updates the progress bar at fixed intervals."""
-                        while True:
-                            live.update(generate_table())
-                            await asyncio.sleep(0.00001)  # Update interval
-                            if self.completed:
-                                break
+                progress_task = asyncio.create_task(update_progress_bar(progress_bar_context))
 
-                    async def process_results():
-                        """Processes results from interviews."""
-                        async for result in self.run_async_generator(
-                            n=n,
-                            debug=debug,
-                            stop_on_exception=stop_on_exception,
-                            cache=c,
-                            sidecar_model=sidecar_model,
-                        ):
-                            self.results.append(result)
-                            live.update(generate_table())
-                        self.completed = True
-
-                    progress_task = asyncio.create_task(update_progress_bar())
-
-                    try:
-                        await asyncio.gather(process_results(), progress_task)
-                    except asyncio.CancelledError:
+                try:
+                    await asyncio.gather(progress_task, process_results(cache = c, progress_bar_context = progress_bar_context))
+                except asyncio.CancelledError:
                         pass
-                    finally:
-                        progress_task.cancel()  # Cancel the progress_task when process_results is done
-                        await progress_task
+                finally:
+                    progress_task.cancel()  # Cancel the progress_task when process_results is done
+                    await progress_task
 
-                        await asyncio.sleep(1)  # short delay to show the final status
+                    await asyncio.sleep(1)  # short delay to show the final status
 
-                        # one more update
-                        live.update(generate_table())
+                    if progress_bar_context:
+                        progress_bar_context.update(generate_table())
 
-            results = Results(survey=self.jobs.survey, data=self.results)
 
+        results = Results(survey=self.jobs.survey, data=self.results)
         task_history = TaskHistory(self.total_interviews, include_traceback=False)
         results.task_history = task_history
 
