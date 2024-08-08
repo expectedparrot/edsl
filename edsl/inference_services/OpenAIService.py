@@ -1,6 +1,8 @@
 from typing import Any, List
 import re
-from openai import AsyncOpenAI
+import os
+#from openai import AsyncOpenAI
+import openai
 
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
 from edsl.language_models import LanguageModel
@@ -12,6 +14,22 @@ class OpenAIService(InferenceServiceABC):
 
     _inference_service_ = "openai"
     _env_key_name_ = "OPENAI_API_KEY"
+    _base_url_ = None
+
+    _sync_client_ = openai.OpenAI
+    _async_client_ = openai.AsyncOpenAI
+    
+    @classmethod
+    def sync_client(cls):
+        return cls._sync_client_(
+            api_key = os.getenv(cls._env_key_name_), 
+            base_url = cls._base_url_)
+    
+    @classmethod
+    def async_client(cls):
+        return cls._async_client_(
+            api_key = os.getenv(cls._env_key_name_), 
+            base_url = cls._base_url_)
 
     # TODO: Make this a coop call
     model_exclude_list = [
@@ -32,15 +50,23 @@ class OpenAIService(InferenceServiceABC):
     _models_list_cache: List[str] = []
 
     @classmethod
+    def get_model_list(cls):
+        raw_list = cls.sync_client().models.list()
+        if hasattr(raw_list, "data"):
+            return raw_list.data
+        else:
+            return raw_list
+
+    @classmethod
     def available(cls) -> List[str]:
-        from openai import OpenAI
+        #from openai import OpenAI
 
         if not cls._models_list_cache:
             try:
-                client = OpenAI()
+                #client = OpenAI(api_key = os.getenv(cls._env_key_name_), base_url = cls._base_url_)
                 cls._models_list_cache = [
                     m.id
-                    for m in client.models.list()
+                    for m in cls.get_model_list() 
                     if m.id not in cls.model_exclude_list
                 ]
             except Exception as e:
@@ -78,15 +104,24 @@ class OpenAIService(InferenceServiceABC):
                 "top_logprobs": 3,
             }
 
+            def sync_client(self):
+                return cls.sync_client()
+            
+            def async_client(self):
+                return cls.async_client()
+
             @classmethod
             def available(cls) -> list[str]:
-                client = openai.OpenAI()
-                return client.models.list()
-
+                #import openai
+                #client = openai.OpenAI(api_key = os.getenv(cls._env_key_name_), base_url = cls._base_url_)
+                #return client.models.list()
+                return cls.sync_client().models.list()
+            
             def get_headers(self) -> dict[str, Any]:
-                from openai import OpenAI
+                #from openai import OpenAI
 
-                client = OpenAI()
+                #client = OpenAI(api_key = os.getenv(cls._env_key_name_), base_url = cls._base_url_)
+                client = self.sync_client()
                 response = client.chat.completions.with_raw_response.create(
                     messages=[
                         {
@@ -124,8 +159,8 @@ class OpenAIService(InferenceServiceABC):
                 encoded_image=None,
             ) -> dict[str, Any]:
                 """Calls the OpenAI API and returns the API response."""
-                content = [{"type": "text", "text": user_prompt}]
                 if encoded_image:
+                    content = [{"type": "text", "text": user_prompt}]
                     content.append(
                         {
                             "type": "image_url",
@@ -134,21 +169,28 @@ class OpenAIService(InferenceServiceABC):
                             },
                         }
                     )
-                self.client = AsyncOpenAI()
-                response = await self.client.chat.completions.create(
-                    model=self.model,
-                    messages=[
+                else:
+                    content = user_prompt
+                # self.client = AsyncOpenAI(
+                #     api_key = os.getenv(cls._env_key_name_), 
+                #     base_url = cls._base_url_
+                #     )
+                client = self.async_client()
+                params = {
+                    "model": self.model,
+                    "messages": [
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": content},
                     ],
-                    temperature=self.temperature,
-                    max_tokens=self.max_tokens,
-                    top_p=self.top_p,
-                    frequency_penalty=self.frequency_penalty,
-                    presence_penalty=self.presence_penalty,
-                    logprobs=self.logprobs,
-                    top_logprobs=self.top_logprobs if self.logprobs else None,
-                )
+                    "temperature": self.temperature,
+                    "max_tokens": self.max_tokens,
+                    "top_p": self.top_p,
+                    "frequency_penalty": self.frequency_penalty,
+                    "presence_penalty": self.presence_penalty,
+                    "logprobs": self.logprobs,
+                    "top_logprobs": self.top_logprobs if self.logprobs else None,
+                }
+                response = await client.chat.completions.create(**params)
                 return response.model_dump()
 
             @staticmethod

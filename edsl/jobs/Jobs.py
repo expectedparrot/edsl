@@ -475,6 +475,7 @@ class Jobs(Base):
                 self,
                 description=remote_inference_description,
                 status="queued",
+                iterations=n,
             )
             time_queued = datetime.now().strftime("%m/%d/%Y %I:%M:%S %p")
             job_uuid = remote_job_creation_data.get("uuid")
@@ -629,9 +630,9 @@ class Jobs(Base):
         results = JobsRunnerAsyncio(self).run(*args, **kwargs)
         return results
 
-    async def run_async(self, cache=None, **kwargs):
+    async def run_async(self, cache=None, n=1, **kwargs):
         """Run the job asynchronously."""
-        results = await JobsRunnerAsyncio(self).run_async(cache=cache, **kwargs)
+        results = await JobsRunnerAsyncio(self).run_async(cache=cache, n=n, **kwargs)
         return results
 
     def all_question_parameters(self):

@@ -36,6 +36,10 @@ class Model(metaclass=Meta):
         from edsl.inference_services.registry import default
 
         registry = registry or default
+        
+        if isinstance(model_name, int):
+            model_name = cls.available(name_only=True)[model_name]
+        
         factory = registry.create_model_factory(model_name)
         return factory(*args, **kwargs)
 
