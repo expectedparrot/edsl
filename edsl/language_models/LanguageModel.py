@@ -122,6 +122,11 @@ class LanguageModel(
             # Skip the API key check. Sometimes this is useful for testing.
             self._api_token = None
 
+    def ask_question(self, question):
+        user_prompt = question.get_instructions().render(question.data).text
+        system_prompt = "You are a helpful agent pretending to be a human."
+        return self.execute_model_call(user_prompt, system_prompt)
+
     @property
     def api_token(self) -> str:
         if not hasattr(self, "_api_token"):
@@ -154,7 +159,8 @@ class LanguageModel(
         if verbose:
             print(f"Current key is {masked}")
         return self.execute_model_call(
-            user_prompt="Hello, model!", system_prompt="You are a helpful agent."
+            user_prompt="Hello, model!", 
+            system_prompt="You are a helpful agent."
         )
 
     def has_valid_api_key(self) -> bool:
