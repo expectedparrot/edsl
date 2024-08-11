@@ -20,13 +20,24 @@ def to_dataset(func):
     return wrapper
 
 
-def decorate_all_methods(cls):
-    for attr_name, attr_value in cls.__dict__.items():
-        if callable(attr_value):
+def decorate_methods_from_mixin(cls, mixin_cls):
+    for attr_name, attr_value in mixin_cls.__dict__.items():
+        if callable(attr_value) and not attr_name.startswith("__"):
             setattr(cls, attr_name, to_dataset(attr_value))
     return cls
 
 
-@decorate_all_methods
+# def decorate_all_methods(cls):
+#     for attr_name, attr_value in cls.__dict__.items():
+#         if callable(attr_value):
+#             setattr(cls, attr_name, to_dataset(attr_value))
+#     return cls
+
+
+# @decorate_all_methods
 class ScenarioListExportMixin(DatasetExportMixin):
     """Mixin class for exporting Results objects."""
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        decorate_methods_from_mixin(cls, DatasetExportMixin)
