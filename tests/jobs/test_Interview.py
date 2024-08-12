@@ -130,7 +130,7 @@ def test_handle_model_exceptions(create_survey, fail_at_number, chained):
 
     cache = Cache()
 
-    results = jobs.run(cache=cache)
+    results = jobs.run(cache=cache, print_exceptions = False)
 
     if not chained:
         assert results.select(f"answer.question_{fail_at_number}").first() is None
@@ -149,7 +149,7 @@ def test_handle_timeout_exception(create_survey, capsys):
     from edsl.data.Cache import Cache
 
     cache = Cache()
-    results = survey.by(model).run(cache=cache)
+    results = survey.by(model).run(cache=cache, print_exceptions = False)
     captured = capsys.readouterr()
     # assert (
     #     "WARNING: At least one question in the survey was not answered." in captured.out
