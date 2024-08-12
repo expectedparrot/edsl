@@ -12,6 +12,14 @@ def test_expand():
     assert expanded == expected
 
 
+def test_exports():
+    # just test coverts do not throw exceptions
+    s = ScenarioList.example()
+    _ = s.to_pandas()
+    _ = s.to_csv()
+    _ = s.to_dicts()
+    _ = s.to_list()
+    
 def test_filter():
     s = ScenarioList([Scenario({"a": 1, "b": 1}), Scenario({"a": 1, "b": 2})])
     filtered = s.filter("b == 2")
