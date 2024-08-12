@@ -35,6 +35,11 @@ class Conjure:
         # The __init__ method in Conjure won't be called because __new__ returns a different class instance.
         pass
 
+    @classmethod
+    def example(cls):
+        from edsl.conjure.InputData import InputDataABC
+        return InputDataABC.example()
+
 
 if __name__ == "__main__":
     pass
