@@ -94,6 +94,28 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
             for index, question_name in enumerate(self.survey.question_names)
         }
 
+    def _to_dict(self) -> dict[str, Any]:
+        """Return a dictionary representation of the Interview instance.
+        This is just for hashing purposes.
+
+        >>> i = Interview.example()
+        >>> hash(i)   
+        2262289294479673997
+        """
+        return {
+            "agent": self.agent._to_dict(),
+            "survey": self.survey._to_dict(),
+            "scenario": self.scenario._to_dict(),
+            "model": self.model._to_dict(),
+            "iteration": self.iteration,
+         }
+
+    def __hash__(self) -> int:
+        from edsl.utilities.utilities import dict_hash
+
+        return dict_hash(self._to_dict())
+
+
     async def async_conduct_interview(
         self,
         *,

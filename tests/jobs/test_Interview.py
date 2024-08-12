@@ -40,12 +40,15 @@ def create_language_model(
 
 @pytest.fixture
 def create_survey():
-    def _create_survey(num_questions: int, chained: bool = True):
+    def _create_survey(num_questions: int, chained: bool = True, take_scenario = False):
         survey = Survey()
         for i in range(num_questions):
-            q = QuestionFreeText(
-                question_text=f"XX{i}XX", question_name=f"question_{i}"
-            )
+            if take_scenario:
+                q = QuestionFreeText(question_text = f"XX{i}XX and {{scenario_value }}", question_name = f"question_{i}")                     
+            else:
+                q = QuestionFreeText(
+                    question_text=f"XX{i}XX", question_name=f"question_{i}"
+                )
             survey.add_question(q)
             if i > 0 and chained:
                 survey.add_targeted_memory(f"question_{i}", f"question_{i-1}")
@@ -53,6 +56,18 @@ def create_survey():
 
     return _create_survey
 
+def test_order(create_survey):
+    survey = create_survey(5, chained=False, take_scenario=True)
+    from edsl import ScenarioList
+    import random
+    scenario_values =  ["a", "b", "c", "d", "e"]
+    random.shuffle(scenario_values)
+    sl = ScenarioList.from_list("scenario_value", scenario_values)
+    model = create_language_model(ValueError, 100)()
+    jobs = survey.by(model).by(sl)
+    results = jobs.run()
+    for result, interview in zip(results, jobs.interviews()):
+        assert result.interview_hash == hash(interview)
 
 def test_token_usage(create_survey):
     model = create_language_model(ValueError, 100)()
