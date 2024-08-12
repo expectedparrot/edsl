@@ -207,6 +207,8 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             raw_model_response=raw_model_results_dictionary,
             survey=interview.survey,
         )
+        result.interview_hash = hash(interview)
+
         return result
 
     @property
@@ -294,6 +296,9 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                     if progress_bar_context:
                         progress_bar_context.update(generate_table())
 
+        # puts results in the same order as the total interviews
+        interview_hashes = [hash(interview) for interview in self.total_interviews]
+        self.results = sorted(self.results, key=lambda x: interview_hashes.index(x.interview_hash))
 
         results = Results(survey=self.jobs.survey, data=self.results)
         task_history = TaskHistory(self.total_interviews, include_traceback=False)
@@ -302,6 +307,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         results.has_exceptions = task_history.has_exceptions
 
         if results.has_exceptions:
+            # put the failed interviews in the results object as a list
             failed_interviews = [
                 interview.duplicate(
                     iteration=interview.iteration, cache=interview.cache
