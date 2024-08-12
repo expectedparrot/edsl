@@ -11,6 +11,7 @@ class TaskHistory:
 
         [Interview.exceptions, Interview.exceptions, Interview.exceptions, ...]
 
+        >>> _ = TaskHistory.example()
         """
 
         self.total_interviews = interviews
@@ -18,8 +19,24 @@ class TaskHistory:
 
         self._interviews = {index: i for index, i in enumerate(self.total_interviews)}
 
+    @classmethod
+    def example(cls):
+        from edsl.jobs.interviews.Interview import Interview
+
+        from edsl.jobs.Jobs import Jobs
+        j = Jobs.example(throw_exception_probability=1, test_model = True)
+
+        from edsl.config import CONFIG 
+        results = j.run(print_exceptions = False, skip_retry = True)
+
+        return cls(results.task_history.total_interviews)
+
     @property
     def exceptions(self):
+        """
+        >>> len(TaskHistory.example().exceptions)
+        4
+        """
         return [i.exceptions for k, i in self._interviews.items() if i.exceptions != {}]
 
     @property
@@ -249,6 +266,9 @@ class TaskHistory:
         </style>
         </head>
         <body>
+            <h1>Overview</h1>
+            <p>There were {{ interviews|length }} total interviews.</p>
+
             {% for index, interview in interviews.items() %}
                 {% if interview.exceptions != {} %}
                    <div class="interview">Interview: {{ index }} </div>
@@ -295,6 +315,8 @@ class TaskHistory:
         </html>
         """
         )
+
+        #breakpoint()
 
         # Render the template with data
         output = template.render(
@@ -344,3 +366,9 @@ class TaskHistory:
 
         if return_link:
             return filename
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
+
