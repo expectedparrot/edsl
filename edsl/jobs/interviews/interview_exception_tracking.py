@@ -1,18 +1,70 @@
-from rich.console import Console
-from rich.table import Table
+import traceback
+import datetime
+import time
 from collections import UserDict
 
+from edsl.jobs.interviews.InterviewExceptionEntry import InterviewExceptionEntry
 
-class InterviewExceptionEntry(UserDict):
-    """Class to record an exception that occurred during the interview."""
+#                 #traceback=traceback.format_exc(),
+#                 #traceback = frame_summary_to_dict(traceback.extract_tb(e.__traceback__))
+#                 #traceback = [frame_summary_to_dict(f) for f in traceback.extract_tb(e.__traceback__)]
 
-    def __init__(self, exception, time, traceback):
-        data = {"exception": exception, "time": time, "traceback": traceback}
-        super().__init__(data)
+# class InterviewExceptionEntry:
+#     """Class to record an exception that occurred during the interview.
+    
+#     >>> entry = InterviewExceptionEntry.example()
+#     >>> entry.to_dict()['exception']
+#     "ValueError('An error occurred.')"
+#     """
 
-    def to_dict(self) -> dict:
-        """Return the exception as a dictionary."""
-        return self.data
+#     def __init__(self, exception: Exception):
+#         self.time = datetime.datetime.now().isoformat()
+#         self.exception = exception
+
+#     def __getitem__(self, key):
+#         # Support dict-like access obj['a']
+#         return str(getattr(self, key))
+
+#     @classmethod
+#     def example(cls):
+#         try: 
+#             raise ValueError("An error occurred.")
+#         except Exception as e:
+#             entry = InterviewExceptionEntry(e)
+#         return entry
+    
+#     @property
+#     def traceback(self):
+#         """Return the exception as HTML."""
+#         e = self.exception
+#         tb_str = ''.join(traceback.format_exception(type(e), e, e.__traceback__))
+#         return tb_str
+    
+
+#     @property
+#     def html(self):
+#         from rich.console import Console
+#         from rich.table import Table
+#         from rich.traceback import Traceback
+
+#         from io import StringIO
+#         html_output = StringIO()
+    
+#         console = Console(file=html_output, record=True)
+#         tb = Traceback(show_locals=True)
+#         console.print(tb)
+
+#         tb = Traceback.from_exception(type(self.exception), self.exception, self.exception.__traceback__, show_locals=True)
+#         console.print(tb)
+#         return html_output.getvalue()
+     
+#     def to_dict(self) -> dict:
+#         """Return the exception as a dictionary."""
+#         return {
+#             'exception': repr(self.exception),
+#             'time': self.time,
+#             'traceback': self.traceback
+#         }
 
 
 class InterviewExceptionCollection(UserDict):
@@ -84,3 +136,9 @@ class InterviewExceptionCollection(UserDict):
                 )
 
         console.print(table)
+
+
+
+if __name__ == "__main__":
+    import doctest 
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
