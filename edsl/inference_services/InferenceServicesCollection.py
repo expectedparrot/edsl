@@ -21,9 +21,7 @@ class InferenceServicesCollection:
             service_models = service.available()
         except Exception as e:
             warnings.warn(
-                f"""Error getting models for {service._inference_service_}. 
-                Check that you have properly stored your Expected Parrot API key and activated remote inference, or stored your own API keys for the language models that you want to use.
-                See https://docs.expectedparrot.com/en/latest/api_keys.html for instructions on storing API keys.
+                f"""Did not find a personal API key for {service._inference_service_}. 
                 Relying on cache.""",
                 UserWarning,
             )
