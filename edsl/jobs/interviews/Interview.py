@@ -231,11 +231,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         >>> i.exceptions
         {'q0': [{'exception': "Exception('An exception occurred.')", 'time': ..., 'traceback': 'NoneType: None\\n'}]}
         """
-        exception_entry = InterviewExceptionEntry(
-            exception=repr(exception),
-            time=time.time(),
-            traceback=traceback.format_exc(),
-        )
+        exception_entry = InterviewExceptionEntry(exception)
         self.exceptions.add(task.get_name(), exception_entry)
 
     @property

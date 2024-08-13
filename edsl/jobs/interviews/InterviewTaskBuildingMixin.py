@@ -12,15 +12,31 @@ from edsl.exceptions import InterviewTimeoutError
 # from edsl.questions.QuestionBase import QuestionBase
 from edsl.surveys.base import EndOfSurvey
 from edsl.jobs.buckets.ModelBuckets import ModelBuckets
-from edsl.jobs.interviews.interview_exception_tracking import InterviewExceptionEntry
+from edsl.jobs.interviews.InterviewExceptionEntry import InterviewExceptionEntry
 from edsl.jobs.interviews.retry_management import retry_strategy
 from edsl.jobs.tasks.task_status_enum import TaskStatus
 from edsl.jobs.tasks.QuestionTaskCreator import QuestionTaskCreator
 
 # from edsl.agents.InvigilatorBase import InvigilatorBase
 
+from rich.console import Console
+from rich.traceback import Traceback
+
 TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
 
+def frame_summary_to_dict(frame):
+    """
+    Convert a FrameSummary object to a dictionary.
+
+    :param frame: A traceback FrameSummary object
+    :return: A dictionary containing the frame's details
+    """
+    return {
+        "filename": frame.filename,
+        "lineno": frame.lineno,
+        "name": frame.name,
+        "line": frame.line
+    }
 
 class InterviewTaskBuildingMixin:
     def _build_invigilators(
@@ -210,6 +226,12 @@ class InterviewTaskBuildingMixin:
         )
         return skip
 
+    async def _handle_exception(self, e, question_name, task=None):
+        exception_entry = InterviewExceptionEntry(e)
+        if task:
+            task.task_status = TaskStatus.FAILED
+        self.exceptions.add(question_name, exception_entry)
+
     async def _attempt_to_answer_question(
         self, invigilator: 'InvigilatorBase', task: asyncio.Task
     ) -> 'AgentResponseDict':
@@ -224,25 +246,10 @@ class InterviewTaskBuildingMixin:
                 invigilator.async_answer_question(), timeout=TIMEOUT
             )
         except asyncio.TimeoutError as e:
-            exception_entry = InterviewExceptionEntry(
-                exception=repr(e),
-                time=time.time(),
-                traceback=traceback.format_exc(),
-            )
-            if task:
-                task.task_status = TaskStatus.FAILED
-            self.exceptions.add(invigilator.question.question_name, exception_entry)
-
+            self._handle_exception(e, invigilator.question.question_name, task)
             raise InterviewTimeoutError(f"Task timed out after {TIMEOUT} seconds.")
         except Exception as e:
-            exception_entry = InterviewExceptionEntry(
-                exception=repr(e),
-                time=time.time(),
-                traceback=traceback.format_exc(),
-            )
-            if task:
-                task.task_status = TaskStatus.FAILED
-            self.exceptions.add(invigilator.question.question_name, exception_entry)
+            self._handle_exception(e, invigilator.question.question_name, task)
             raise e
 
     def _cancel_skipped_questions(self, current_question: QuestionBase) -> None:
