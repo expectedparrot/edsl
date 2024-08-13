@@ -44,6 +44,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         iteration: int = 0,
         cache: Optional["Cache"] = None,
         sidecar_model: Optional["LanguageModel"] = None,
+        skip_retry = False,
     ):
         """Initialize the Interview instance.
 
@@ -87,6 +88,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         self.task_creators = TaskCreators()  # tracks the task creators
         self.exceptions = InterviewExceptionCollection()
         self._task_status_log_dict = InterviewStatusLog()
+        self.skip_retry = skip_retry
 
         # dictionary mapping question names to their index in the survey.
         self.to_index = {
@@ -100,7 +102,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
 
         >>> i = Interview.example()
         >>> hash(i)   
-        2262289294479673997
+        820421918298871814
         """
         return {
             "agent": self.agent._to_dict(),
@@ -108,6 +110,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
             "scenario": self.scenario._to_dict(),
             "model": self.model._to_dict(),
             "iteration": self.iteration,
+            "exceptions": self.exceptions.to_dict(),
          }
 
     def __hash__(self) -> int:
@@ -273,6 +276,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
             model=self.model,
             iteration=iteration,
             cache=cache,
+            skip_retry=self.skip_retry,
         )
 
     @classmethod
