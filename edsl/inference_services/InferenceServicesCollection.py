@@ -21,8 +21,7 @@ class InferenceServicesCollection:
             service_models = service.available()
         except Exception as e:
             warnings.warn(
-                f"""Did not find a personal API key for {service._inference_service_}. 
-                Relying on cache.""",
+                f"""Did not find a personal API key for {service._inference_service_}. Relying on cache.""",
                 UserWarning,
             )
             from edsl.inference_services.models_available_cache import models_available
