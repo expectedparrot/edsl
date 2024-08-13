@@ -11,6 +11,7 @@ class TaskHistory:
 
         [Interview.exceptions, Interview.exceptions, Interview.exceptions, ...]
 
+        >>> _ = TaskHistory.example()
         """
 
         self.total_interviews = interviews
@@ -18,8 +19,24 @@ class TaskHistory:
 
         self._interviews = {index: i for index, i in enumerate(self.total_interviews)}
 
+    @classmethod
+    def example(cls):
+        from edsl.jobs.interviews.Interview import Interview
+
+        from edsl.jobs.Jobs import Jobs
+        j = Jobs.example(throw_exception_probability=1, test_model = True)
+
+        from edsl.config import CONFIG 
+        results = j.run(print_exceptions = False, skip_retry = True)
+
+        return cls(results.task_history.total_interviews)
+
     @property
     def exceptions(self):
+        """
+        >>> len(TaskHistory.example().exceptions)
+        4
+        """
         return [i.exceptions for k, i in self._interviews.items() if i.exceptions != {}]
 
     @property
@@ -42,7 +59,12 @@ class TaskHistory:
 
     @property
     def has_exceptions(self) -> bool:
-        """Return True if there are any exceptions."""
+        """Return True if there are any exceptions.
+        
+        >>> TaskHistory.example().has_exceptions
+        True
+        
+        """
         return len(self.exceptions) > 0
 
     def _repr_html_(self):
@@ -215,6 +237,47 @@ class TaskHistory:
         color: #555;
         }
         """
+    
+    @property
+    def exceptions_by_type(self) -> dict:
+        """Return a dictionary of exceptions by type."""
+        exceptions_by_type = {}
+        for interview in self.total_interviews:
+            for question_name, exceptions in interview.exceptions.items():
+                for exception in exceptions:
+                    exception_type = exception["exception"]
+                    if exception_type in exceptions_by_type:
+                        exceptions_by_type[exception_type] += 1
+                    else:
+                        exceptions_by_type[exception_type] = 1
+        return exceptions_by_type
+
+    @property
+    def exceptions_by_question_name(self) -> dict:
+        """Return a dictionary of exceptions tallied by question name."""
+        exceptions_by_question_name = {}
+        for interview in self.total_interviews:
+            for question_name, exceptions in interview.exceptions.items():
+                if question_name not in exceptions_by_question_name:
+                    exceptions_by_question_name[question_name] = 0
+                exceptions_by_question_name[question_name] += len(exceptions)
+
+        for question in self.total_interviews[0].survey.questions:
+            if question.question_name not in exceptions_by_question_name:
+                exceptions_by_question_name[question.question_name] = 0
+        return exceptions_by_question_name
+    
+    @property
+    def exceptions_by_model(self) -> dict:
+        """Return a dictionary of exceptions tallied by model and question name."""
+        exceptions_by_model = {}
+        for interview in self.total_interviews:
+            model = interview.model
+            if model not in exceptions_by_model:
+                exceptions_by_model[model.model] = 0
+            if interview.exceptions != {}:
+                exceptions_by_model[model.model] += len(interview.exceptions)
+        return exceptions_by_model
 
     def html(
         self,
@@ -236,6 +299,8 @@ class TaskHistory:
         if css is None:
             css = self.css()
 
+        models_used = set([i.model for index, i in self._interviews.items()])
+
         template = Template(
             """
         <!DOCTYPE html>
@@ -249,6 +314,69 @@ class TaskHistory:
         </style>
         </head>
         <body>
+            <h1>Overview</h1>
+            <p>There were {{ interviews|length }} total interviews. The number of interviews with exceptions was {{ num_exceptions }}.</p>
+            <p>The models used were: {{ models_used }}.</p>
+            <p>For documentation on dealing with exceptions on Expected Parrot, 
+            see <a href="https://docs.expectedparrot.com/en/latest/exceptions.html">here</a>.</p>
+
+            <h2>Exceptions by Type</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Exception Type</th>
+                        <th>Number</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for exception_type, exceptions in exceptions_by_type.items() %}
+                        <tr>
+                            <td>{{ exception_type }}</td>
+                            <td>{{ exceptions }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+
+            <h2>Exceptions by Model</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Model</th>
+                        <th>Number</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for model, exceptions in exceptions_by_model.items() %}
+                        <tr>
+                            <td>{{ model }}</td>
+                            <td>{{ exceptions }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+
+            <h2>Exceptions by Question Name</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Question Name</th>
+                        <th>Number of Exceptions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for question_name, exception_count in exceptions_by_question_name.items() %}
+                        <tr>
+                            <td>{{ question_name }}</td>
+                            <td>{{ exception_count }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+
             {% for index, interview in interviews.items() %}
                 {% if interview.exceptions != {} %}
                    <div class="interview">Interview: {{ index }} </div>
@@ -296,11 +424,18 @@ class TaskHistory:
         """
         )
 
+        #breakpoint()
+
         # Render the template with data
         output = template.render(
             interviews=self._interviews,
             css=css,
+            num_exceptions=len(self.exceptions),
             performance_plot_html=performance_plot_html,
+            exceptions_by_type=self.exceptions_by_type,
+            exceptions_by_question_name=self.exceptions_by_question_name,
+            exceptions_by_model=self.exceptions_by_model,
+            models_used = models_used
         )
 
         # Save the rendered output to a file
@@ -344,3 +479,9 @@ class TaskHistory:
 
         if return_link:
             return filename
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
+

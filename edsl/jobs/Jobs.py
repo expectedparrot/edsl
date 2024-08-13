@@ -319,7 +319,7 @@ class Jobs(Base):
         self.scenarios = self.scenarios or [Scenario()]
         for agent, scenario, model in product(self.agents, self.scenarios, self.models):
             yield Interview(
-                survey=self.survey, agent=agent, scenario=scenario, model=model
+                survey=self.survey, agent=agent, scenario=scenario, model=model, skip_retry=self.skip_retry
             )
 
     def create_bucket_collection(self) -> BucketCollection:
@@ -409,6 +409,12 @@ class Jobs(Base):
                 if warn:
                     warnings.warn(message)
 
+    @property
+    def skip_retry(self):
+        if not hasattr(self, "_skip_retry"):
+            return False
+        return self._skip_retry
+
     def run(
         self,
         n: int = 1,
@@ -423,6 +429,7 @@ class Jobs(Base):
         print_exceptions=True,
         remote_cache_description: Optional[str] = None,
         remote_inference_description: Optional[str] = None,
+        skip_retry: bool = False,
     ) -> Results:
         """
         Runs the Job: conducts Interviews and returns their results.
@@ -441,6 +448,7 @@ class Jobs(Base):
         from edsl.coop.coop import Coop
 
         self._check_parameters()
+        self._skip_retry = skip_retry
 
         if batch_mode is not None:
             raise NotImplementedError(
@@ -712,7 +720,7 @@ class Jobs(Base):
     #######################
     @classmethod
     def example(
-        cls, throw_exception_probability: int = 0, randomize: bool = False
+        cls, throw_exception_probability: int = 0, randomize: bool = False, test_model = False
     ) -> Jobs:
         """Return an example Jobs instance.
 
@@ -729,6 +737,10 @@ class Jobs(Base):
         from edsl.scenarios.Scenario import Scenario
 
         addition = "" if not randomize else str(uuid4())
+
+        if test_model:
+            from edsl.language_models import LanguageModel    
+            m = LanguageModel.example(test_model = True)
 
         # (status, question, period)
         agent_answers = {
@@ -777,7 +789,10 @@ class Jobs(Base):
                 Scenario({"period": "afternoon"}),
             ]
         )
-        job = base_survey.by(scenario_list).by(joy_agent, sad_agent)
+        if test_model:
+            job = base_survey.by(m).by(scenario_list).by(joy_agent, sad_agent)
+        else:
+            job = base_survey.by(scenario_list).by(joy_agent, sad_agent)
 
         return job
 
