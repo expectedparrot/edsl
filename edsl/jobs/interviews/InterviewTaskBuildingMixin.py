@@ -226,7 +226,7 @@ class InterviewTaskBuildingMixin:
         )
         return skip
 
-    async def _handle_exception(self, e, question_name, task=None):
+    def _handle_exception(self, e, question_name:str, task=None):
         exception_entry = InterviewExceptionEntry(e)
         if task:
             task.task_status = TaskStatus.FAILED
