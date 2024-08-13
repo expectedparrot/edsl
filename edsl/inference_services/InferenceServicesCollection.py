@@ -59,5 +59,10 @@ class InferenceServicesCollection:
             if model_name in self._get_service_available(service):
                 if service_name is None or service_name == service._inference_service_:
                     return service.create_model(model_name)
+                
+        # if model_name == "test":
+        #     from edsl.language_models import LanguageModel
+        #     return LanguageModel(test = True)
+            
 
         raise Exception(f"Model {model_name} not found in any of the services")

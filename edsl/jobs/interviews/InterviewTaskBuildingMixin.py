@@ -148,7 +148,6 @@ class InterviewTaskBuildingMixin:
                 raise ValueError(f"Prompt is of type {type(prompt)}")
         return len(combined_text) / 4.0
 
-    @retry_strategy
     async def _answer_question_and_record_task(
         self,
         *,
@@ -163,22 +162,30 @@ class InterviewTaskBuildingMixin:
         """
         from edsl.data_transfer_models import AgentResponseDict
 
-        try:
-            invigilator = self._get_invigilator(question, debug=debug)
+        async def _inner():
+            try:
+                invigilator = self._get_invigilator(question, debug=debug)
 
-            if self._skip_this_question(question):
-                return invigilator.get_failed_task_result()
+                if self._skip_this_question(question):
+                    return invigilator.get_failed_task_result()
 
-            response: AgentResponseDict = await self._attempt_to_answer_question(
-                invigilator, task
-            )
+                response: AgentResponseDict = await self._attempt_to_answer_question(
+                    invigilator, task
+                )
 
-            self._add_answer(response=response, question=question)
+                self._add_answer(response=response, question=question)
 
-            self._cancel_skipped_questions(question)
-            return AgentResponseDict(**response)
-        except Exception as e:
-            raise e
+                self._cancel_skipped_questions(question)
+                return AgentResponseDict(**response)
+            except Exception as e:
+                raise e
+
+        skip_rety = getattr(self, "skip_retry", False)
+        if not skip_rety:  
+            _inner = retry_strategy(_inner)
+
+        return await _inner()
+
 
     def _add_answer(
         self, response: "AgentResponseDict", question: "QuestionBase"

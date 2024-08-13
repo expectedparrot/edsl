@@ -328,6 +328,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
 
                 shared_globals["edsl_runner_exceptions"] = task_history
                 print(msg)
+                # this is where exceptions are opening up
                 task_history.html(cta="Open report to see details.")
                 print(
                     "Also see: https://docs.expectedparrot.com/en/latest/exceptions.html"
