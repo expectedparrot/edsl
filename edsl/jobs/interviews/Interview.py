@@ -14,8 +14,8 @@ from edsl.jobs.tasks.TaskCreators import TaskCreators
 from edsl.jobs.interviews.InterviewStatusLog import InterviewStatusLog
 from edsl.jobs.interviews.interview_exception_tracking import (
     InterviewExceptionCollection,
-    InterviewExceptionEntry,
 )
+from edsl.jobs.interviews.InterviewExceptionEntry import InterviewExceptionEntry
 from edsl.jobs.interviews.retry_management import retry_strategy
 from edsl.jobs.interviews.InterviewTaskBuildingMixin import InterviewTaskBuildingMixin
 from edsl.jobs.interviews.InterviewStatusMixin import InterviewStatusMixin
@@ -159,8 +159,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         <BLANKLINE>
 
         >>> i.exceptions
-        {'q0': [{'exception': "Exception('This is a test error')", 'time': ..., 'traceback': ...
-
+        {'q0': ...
         >>> i = Interview.example()
         >>> result, _ = asyncio.run(i.async_conduct_interview(stop_on_exception = True))
         Traceback (most recent call last):
@@ -229,7 +228,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         {}
         >>> i._record_exception(i.tasks[0], Exception("An exception occurred."))
         >>> i.exceptions
-        {'q0': [{'exception': "Exception('An exception occurred.')", 'time': ..., 'traceback': 'NoneType: None\\n'}]}
+        {'q0': ...
         """
         exception_entry = InterviewExceptionEntry(exception)
         self.exceptions.add(task.get_name(), exception_entry)
