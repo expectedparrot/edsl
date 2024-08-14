@@ -14,8 +14,8 @@ from edsl.jobs.tasks.TaskCreators import TaskCreators
 from edsl.jobs.interviews.InterviewStatusLog import InterviewStatusLog
 from edsl.jobs.interviews.interview_exception_tracking import (
     InterviewExceptionCollection,
-    InterviewExceptionEntry,
 )
+from edsl.jobs.interviews.InterviewExceptionEntry import InterviewExceptionEntry
 from edsl.jobs.interviews.retry_management import retry_strategy
 from edsl.jobs.interviews.InterviewTaskBuildingMixin import InterviewTaskBuildingMixin
 from edsl.jobs.interviews.InterviewStatusMixin import InterviewStatusMixin
@@ -96,22 +96,24 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
             for index, question_name in enumerate(self.survey.question_names)
         }
 
-    def _to_dict(self) -> dict[str, Any]:
+    def _to_dict(self, include_exceptions = False) -> dict[str, Any]:
         """Return a dictionary representation of the Interview instance.
         This is just for hashing purposes.
 
         >>> i = Interview.example()
         >>> hash(i)   
-        820421918298871814
+        1646262796627658719
         """
-        return {
+        d = {
             "agent": self.agent._to_dict(),
             "survey": self.survey._to_dict(),
             "scenario": self.scenario._to_dict(),
             "model": self.model._to_dict(),
             "iteration": self.iteration,
-            "exceptions": self.exceptions.to_dict(),
-         }
+            "exceptions": {}
+        }
+        if include_exceptions:
+            d["exceptions"] = self.exceptions.to_dict()
 
     def __hash__(self) -> int:
         from edsl.utilities.utilities import dict_hash
@@ -159,8 +161,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         <BLANKLINE>
 
         >>> i.exceptions
-        {'q0': [{'exception': "Exception('This is a test error')", 'time': ..., 'traceback': ...
-
+        {'q0': ...
         >>> i = Interview.example()
         >>> result, _ = asyncio.run(i.async_conduct_interview(stop_on_exception = True))
         Traceback (most recent call last):
@@ -229,13 +230,9 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         {}
         >>> i._record_exception(i.tasks[0], Exception("An exception occurred."))
         >>> i.exceptions
-        {'q0': [{'exception': "Exception('An exception occurred.')", 'time': ..., 'traceback': 'NoneType: None\\n'}]}
+        {'q0': ...
         """
-        exception_entry = InterviewExceptionEntry(
-            exception=repr(exception),
-            time=time.time(),
-            traceback=traceback.format_exc(),
-        )
+        exception_entry = InterviewExceptionEntry(exception)
         self.exceptions.add(task.get_name(), exception_entry)
 
     @property

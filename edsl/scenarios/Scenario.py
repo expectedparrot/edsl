@@ -182,6 +182,18 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
                 new_scenario[key] = self[key]
         return new_scenario
 
+    @classmethod    
+    def from_url(cls, url: str):
+        """Creates a scenario from a URL.
+
+        :param url: The URL to create the scenario from.
+
+        """
+        import requests
+        text = requests.get(url).text
+        return cls({"url": url, "text": text})
+
+
     @classmethod
     def from_image(cls, image_path: str) -> str:
         """Creates a scenario with a base64 encoding of an image.
