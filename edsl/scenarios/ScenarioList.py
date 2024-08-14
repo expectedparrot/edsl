@@ -242,6 +242,17 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
         return ScenarioList(new_data)
 
+    def from_urls(self, urls: list[str], field_name: Optional[str] = "text") -> ScenarioList:
+        """Create a ScenarioList from a list of URLs.
+
+        Example:
+
+        >>> s = ScenarioList.from_urls(['https://www.google.com', 'https://www.yahoo.com'], 'url')
+        >>> s[0]['url']
+        'https://www.google.com'
+        """
+        return ScenarioList([Scenario.from_url(url, field_name) for url in urls])
+
     def select(self, *fields) -> ScenarioList:
         """
         Selects scenarios with only the references fields.
