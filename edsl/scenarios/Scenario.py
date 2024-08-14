@@ -219,7 +219,7 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
     @classmethod
     def from_pdf(cls, pdf_path):
         import fitz  # PyMuPDF
-
+        from edsl import Scenario
         # Ensure the file exists
         if not os.path.exists(pdf_path):
             raise FileNotFoundError(f"The file {pdf_path} does not exist.")
