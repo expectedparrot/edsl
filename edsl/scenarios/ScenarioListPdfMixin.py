@@ -43,6 +43,8 @@ class ScenarioListPdfMixin:
 
     @staticmethod
     def extract_text_from_pdf(pdf_path):
+        from edsl import Scenario
+        # TODO: Add test case
         # Ensure the file exists
         if not os.path.exists(pdf_path):
             raise FileNotFoundError(f"The file {pdf_path} does not exist.")
