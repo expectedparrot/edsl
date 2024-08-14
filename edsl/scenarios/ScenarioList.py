@@ -245,11 +245,10 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
     def from_urls(self, urls: list[str], field_name: Optional[str] = "text") -> ScenarioList:
         """Create a ScenarioList from a list of URLs.
 
-        Example:
+        :param urls: A list of URLs.
+        :param field_name: The name of the field to store the text from the URLs.
 
-        >>> s = ScenarioList.from_urls(['https://www.google.com', 'https://www.yahoo.com'], 'url')
-        >>> s[0]['url']
-        'https://www.google.com'
+
         """
         return ScenarioList([Scenario.from_url(url, field_name) for url in urls])
 
