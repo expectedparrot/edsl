@@ -26,7 +26,6 @@ class QuestionNumerical(QuestionBase):
 
         :param question_name: The name of the question.
         :param question_text: The text of the question.
-        :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionNumerical.default_instructions`.
         :param min_value: The minimum value of the answer.
         :param max_value: The maximum value of the answer.
         """
