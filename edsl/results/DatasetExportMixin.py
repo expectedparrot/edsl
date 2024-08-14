@@ -27,6 +27,10 @@ class DatasetExportMixin:
         >>> d.relevant_columns(remove_prefix=True)
         ['b']
 
+        >>> d = Dataset([{'a':[1,2,3,4]}, {'b':[5,6,7,8]}])
+        >>> d.relevant_columns()
+        ['a', 'b']
+
         >>> from edsl.results import Results; Results.example().select('how_feeling', 'how_feeling_yesterday').relevant_columns()
         ['answer.how_feeling', 'answer.how_feeling_yesterday']
 
@@ -593,7 +597,7 @@ class DatasetExportMixin:
             return filename
 
     def tally(
-        self, *fields: Optional[str], top_n: Optional[int] = None, output="dict"
+        self, *fields: Optional[str], top_n: Optional[int] = None, output="Dataset"
     ) -> Union[dict, "Dataset"]:
         """Tally the values of a field or perform a cross-tab of multiple fields.
 
@@ -601,9 +605,11 @@ class DatasetExportMixin:
 
         >>> from edsl.results import Results
         >>> r = Results.example()
-        >>> r.select('how_feeling').tally('answer.how_feeling')
+        >>> r.select('how_feeling').tally('answer.how_feeling', output = "dict")
         {'OK': 2, 'Great': 1, 'Terrible': 1}
-        >>> r.select('how_feeling', 'period').tally('how_feeling', 'period')
+        >>> r.select('how_feeling').tally('answer.how_feeling', output = "Dataset")
+        Dataset([{'value': ['OK', 'Great', 'Terrible']}, {'count': [2, 1, 1]}])
+        >>> r.select('how_feeling', 'period').tally('how_feeling', 'period', output = "dict")
         {('OK', 'morning'): 1, ('Great', 'afternoon'): 1, ('Terrible', 'morning'): 1, ('OK', 'afternoon'): 1}
         """
         from collections import Counter
@@ -614,6 +620,8 @@ class DatasetExportMixin:
         relevant_columns_without_prefix = [
             column.split(".")[-1] for column in self.relevant_columns()
         ]
+
+        #breakpoint()
 
         if not all(
             f in self.relevant_columns() or f in relevant_columns_without_prefix
@@ -641,6 +649,7 @@ class DatasetExportMixin:
         from edsl.results.Dataset import Dataset
 
         if output == "dict":
+            # why did I do this? 
             warnings.warn(
                 textwrap.dedent(
                     """\
