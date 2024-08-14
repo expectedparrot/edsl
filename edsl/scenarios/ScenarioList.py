@@ -288,12 +288,15 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         >>> s = ScenarioList.from_list("a", [1,2,3])
         >>> s.to_dataset()
         Dataset([{'a': [1, 2, 3]}])
+        >>> s = ScenarioList.from_list("a", [1,2,3]).add_list("b", [4,5,6])
+        >>> s.to_dataset()
+        Dataset([{'a': [1, 2, 3]}, {'b': [4, 5, 6]}])
         """
         from edsl.results.Dataset import Dataset
 
         keys = self[0].keys()
-        data = {key: [scenario[key] for scenario in self.data] for key in keys}
-        return Dataset([data])
+        data = [{key: [scenario[key] for scenario in self.data]} for key in keys]
+        return Dataset(data)
 
     def add_list(self, name, values) -> ScenarioList:
         """Add a list of values to a ScenarioList.
