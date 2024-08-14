@@ -15,15 +15,19 @@ class InferenceServicesCollection:
         cls.added_models[service_name].append(model_name)
 
     @staticmethod
-    def _get_service_available(service) -> list[str]:
+    def _get_service_available(service, warn:bool = False) -> list[str]:
         from_api = True
         try:
             service_models = service.available()
         except Exception as e:
-            warnings.warn(
-                f"""Did not find a personal API key for {service._inference_service_}. Relying on cache.""",
-                UserWarning,
-            )
+            if warn:
+                warnings.warn(
+                    f"""Error getting models for {service._inference_service_}. 
+                    Check that you have properly stored your Expected Parrot API key and activated remote inference, or stored your own API keys for the language models that you want to use.
+                    See https://docs.expectedparrot.com/en/latest/api_keys.html for instructions on storing API keys.
+                    Relying on cache.""",
+                    UserWarning,
+                )
             from edsl.inference_services.models_available_cache import models_available
 
             service_models = models_available.get(service._inference_service_, [])
