@@ -242,6 +242,16 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
         return ScenarioList(new_data)
 
+    def from_urls(self, urls: list[str], field_name: Optional[str] = "text") -> ScenarioList:
+        """Create a ScenarioList from a list of URLs.
+
+        :param urls: A list of URLs.
+        :param field_name: The name of the field to store the text from the URLs.
+
+
+        """
+        return ScenarioList([Scenario.from_url(url, field_name) for url in urls])
+
     def select(self, *fields) -> ScenarioList:
         """
         Selects scenarios with only the references fields.
