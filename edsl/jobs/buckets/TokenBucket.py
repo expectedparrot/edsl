@@ -100,7 +100,7 @@ class TokenBucket:
         available_tokens = min(self.capacity, self.tokens + refill_amount)
         return max(0, requested_tokens - available_tokens) / self.refill_rate
 
-    async def get_tokens(self, amount: Union[int, float] = 1) -> None:
+    async def get_tokens(self, amount: Union[int, float] = 1, cheat_bucket_capacity = True) -> None:
         """Wait for the specified number of tokens to become available.
 
 
@@ -122,8 +122,13 @@ class TokenBucket:
         ValueError: Requested amount exceeds bucket capacity. Bucket capacity: 10, requested amount: 11. As the bucket never overflows, the requested amount will never be available.
         """
         if amount > self.capacity:
-            msg = f"Requested amount exceeds bucket capacity. Bucket capacity: {self.capacity}, requested amount: {amount}. As the bucket never overflows, the requested amount will never be available."
-            raise ValueError(msg)
+            if not cheat_bucket_capacity:
+                msg = f"Requested amount exceeds bucket capacity. Bucket capacity: {self.capacity}, requested amount: {amount}. As the bucket never overflows, the requested amount will never be available."
+                raise ValueError(msg)
+            else:
+                self.tokens = 0 # clear the bucket but let it go through
+                return
+
         while self.tokens < amount:
             self.refill()
             await asyncio.sleep(0.01)  # Sleep briefly to prevent busy waiting
