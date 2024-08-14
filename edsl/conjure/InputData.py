@@ -134,7 +134,6 @@ class InputDataABC(
         actual_file_name = self.datafile_name.split("/")[-1]
         download_link = f'<a href="data:text/plain;base64,{self.binary}" download="{actual_file_name}">Download {self.datafile_name}</a>'
         return HTML(download_link)
-    
 
     @abstractmethod
     def get_question_texts(self) -> List[str]:

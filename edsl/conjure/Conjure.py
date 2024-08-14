@@ -38,6 +38,7 @@ class Conjure:
     @classmethod
     def example(cls):
         from edsl.conjure.InputData import InputDataABC
+
         return InputDataABC.example()
 
 
