@@ -27,6 +27,10 @@ class DatasetExportMixin:
         >>> d.relevant_columns(remove_prefix=True)
         ['b']
 
+        >>> d = Dataset([{'a':[1,2,3,4]}, {'b':[5,6,7,8]}])
+        >>> d.relevant_columns()
+        ['a', 'b']
+
         >>> from edsl.results import Results; Results.example().select('how_feeling', 'how_feeling_yesterday').relevant_columns()
         ['answer.how_feeling', 'answer.how_feeling_yesterday']
 
@@ -614,6 +618,8 @@ class DatasetExportMixin:
         relevant_columns_without_prefix = [
             column.split(".")[-1] for column in self.relevant_columns()
         ]
+
+        #breakpoint()
 
         if not all(
             f in self.relevant_columns() or f in relevant_columns_without_prefix
