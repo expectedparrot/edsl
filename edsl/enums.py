@@ -61,6 +61,7 @@ class InferenceServiceType(EnumWithChecks):
     ANTHROPIC = "anthropic"
     GROQ = "groq"
 
+
 service_to_api_keyname = {
     InferenceServiceType.BEDROCK.value: "TBD",
     InferenceServiceType.DEEP_INFRA.value: "DEEP_INFRA_API_KEY",

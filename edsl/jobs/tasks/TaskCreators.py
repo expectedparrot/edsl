@@ -22,7 +22,7 @@ class TaskCreators(UserDict):
         This is iterates through all tasks that make up an interview.
         For each task, it determines how many tokens were used and whether they were cached or new.
         It then sums the total number of cached and new tokens used for the interview.
-        
+
         """
         cached_tokens = TokenUsage(from_cache=True)
         new_tokens = TokenUsage(from_cache=False)
