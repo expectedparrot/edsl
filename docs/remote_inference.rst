@@ -16,7 +16,7 @@ Activating remote inference
 .. image:: static/coop_main_page.png
   :alt: Coop main page
   :align: center
-  :width: 350px
+  :width: 500px
 
 .. raw:: html
   
@@ -28,7 +28,7 @@ Activating remote inference
 .. image:: static/coop_ep_key.png
   :alt: Coop main page
   :align: center
-  :width: 350px
+  :width: 500px
 
 .. raw:: html
   
@@ -53,6 +53,9 @@ Save it to a *.env* file in your working directory. Your *.env* file should incl
 .. raw:: html
 
     <br>
+
+
+When remote inference is on, surveys that you run will be sent to the Expected Parrot server for processing.
 
 You can also toggle *Remote cache* to turn on remote caching.
 Learn more about using remote caching with remote inference in the :ref:`remote_caching` section.
@@ -81,7 +84,7 @@ We start by creating an example survey:
 Estimating cost
 ^^^^^^^^^^^^^^^
 
-Running jobs on the Expected Parrot server requires seed (1 seed = $0.01 USD).
+Running jobs on the Expected Parrot server requires credits (1 credit = $0.01 USD).
 
 We can estimate the cost of running a survey by creating a `Coop` client object and passing the survey in the `remote_inference_cost()` method:
 
@@ -101,9 +104,9 @@ Output:
   2   
 
 
-This survey will cost approximately 2 seed to run.
+This survey will cost approximately 2 credits to run.
 
-Additional seed can be purchased at the `Purchases page <https://www.expectedparrot.com/home/purchases>`_.
+Additional credits can be purchased at the `Purchases page <https://www.expectedparrot.com/home/purchases>`_.
 
 
 Running a job
@@ -215,13 +218,13 @@ will describe the error that caused the failure:
 
 Job history can also provide important information about cancellation. When you cancel a job, one of two things must be true:
 
-1. **The job hasn't started running yet.** No seed will be deducted from your balance.
-2. **The job has started running.** Seed will be deducted.
+1. **The job hasn't started running yet.** No credits will be deducted from your balance.
+2. **The job has started running.** Credits will be deducted.
 
-When a late cancellation has occurred, the seed deduction will be reflected in your job history.
+When a late cancellation has occurred, the credits deduction will be reflected in your job history.
 
 .. image:: static/coop_remote_inference_history_cancelled.png
-  :alt: A screenshot of job history logs on the Coop web app. The job has been cancelled late, and 2 seed have been deducted from the user's balance.
+  :alt: A screenshot of job history logs on the Coop web app. The job has been cancelled late, and 2 credits have been deducted from the user's balance.
   :align: center
   :width: 300px
 

@@ -22,13 +22,14 @@ from edsl.jobs.interviews.InterviewStatisticsCollection import (
 from edsl.jobs.tokens.InterviewTokenUsage import InterviewTokenUsage
 
 
-#return {"cache_status": token_usage_type, "details": details, "cost": f"${token_usage.cost(prices):.5f}"}
+# return {"cache_status": token_usage_type, "details": details, "cost": f"${token_usage.cost(prices):.5f}"}
 
 from dataclasses import dataclass, asdict
 
 from rich.text import Text
 from rich.box import SIMPLE
 from rich.table import Table
+
 
 @dataclass
 class ModelInfo:
@@ -45,18 +46,13 @@ class ModelTokenUsageStats:
     details: List[dict]
     cost: str
 
+
 class Stats:
-
     def elapsed_time(self):
-        InterviewStatistic(
-                "elapsed_time", value=elapsed_time, digits=1, units="sec."
-            )
-
-
+        InterviewStatistic("elapsed_time", value=elapsed_time, digits=1, units="sec.")
 
 
 class JobsRunnerStatusMixin:
-
     # @staticmethod
     # def status_dict(interviews: List[Type["Interview"]]) -> List[Type[InterviewStatusDictionary]]:
     #     """
@@ -68,7 +64,6 @@ class JobsRunnerStatusMixin:
     #     return [interview.interview_status for interview in interviews]
 
     def _compute_statistic(stat_name: str, completed_tasks, elapsed_time, interviews):
-
         stat_definitions = {
             "elapsed_time": lambda: InterviewStatistic(
                 "elapsed_time", value=elapsed_time, digits=1, units="sec."
@@ -101,36 +96,49 @@ class JobsRunnerStatusMixin:
             "estimated_time_remaining": lambda: InterviewStatistic(
                 "estimated_time_remaining",
                 value=(
-                    (len(interviews) - len(completed_tasks)) * (elapsed_time / len(completed_tasks))
+                    (len(interviews) - len(completed_tasks))
+                    * (elapsed_time / len(completed_tasks))
                     if len(completed_tasks) > 0
                     else "NA"
                 ),
                 digits=1,
                 units="sec.",
-            )
-            }
+            ),
+        }
         if stat_name not in stat_definitions:
-            raise ValueError(f"Invalid stat_name: {stat_name}. The valid stat_names are: {list(stat_definitions.keys())}")
+            raise ValueError(
+                f"Invalid stat_name: {stat_name}. The valid stat_names are: {list(stat_definitions.keys())}"
+            )
         return stat_definitions[stat_name]()
 
-
     @staticmethod
-    def _job_level_info(completed_tasks: List[Type[asyncio.Task]], 
-                        elapsed_time: float, 
-                        interviews: List[Type["Interview"]] 
-                        ) -> InterviewStatisticsCollection:
-
+    def _job_level_info(
+        completed_tasks: List[Type[asyncio.Task]],
+        elapsed_time: float,
+        interviews: List[Type["Interview"]],
+    ) -> InterviewStatisticsCollection:
         interview_statistics = InterviewStatisticsCollection()
 
-        default_statistics = ["elapsed_time", "total_interviews_requested", "completed_interviews", "percent_complete", "average_time_per_interview", "task_remaining", "estimated_time_remaining"]
+        default_statistics = [
+            "elapsed_time",
+            "total_interviews_requested",
+            "completed_interviews",
+            "percent_complete",
+            "average_time_per_interview",
+            "task_remaining",
+            "estimated_time_remaining",
+        ]
         for stat_name in default_statistics:
-            interview_statistics.add_stat(JobsRunnerStatusMixin._compute_statistic(stat_name, completed_tasks, elapsed_time, interviews))
+            interview_statistics.add_stat(
+                JobsRunnerStatusMixin._compute_statistic(
+                    stat_name, completed_tasks, elapsed_time, interviews
+                )
+            )
 
         return interview_statistics
 
     @staticmethod
     def _get_model_queues_info(interviews):
-
         models_to_tokens = defaultdict(InterviewTokenUsage)
         model_to_status = defaultdict(InterviewStatusDictionary)
         waiting_dict = defaultdict(int)
@@ -141,14 +149,16 @@ class JobsRunnerStatusMixin:
             waiting_dict[interview.model] += interview.interview_status.waiting
 
         for model, num_waiting in waiting_dict.items():
-            yield JobsRunnerStatusMixin._get_model_info(model, num_waiting, models_to_tokens)
+            yield JobsRunnerStatusMixin._get_model_info(
+                model, num_waiting, models_to_tokens
+            )
 
     @staticmethod
     def generate_status_summary(
         completed_tasks: List[Type[asyncio.Task]],
         elapsed_time: float,
         interviews: List[Type["Interview"]],
-        include_model_queues = False
+        include_model_queues=False,
     ) -> InterviewStatisticsCollection:
         """Generate a summary of the status of the job runner.
 
@@ -164,13 +174,17 @@ class JobsRunnerStatusMixin:
         {'Elapsed time': '0.0 sec.', 'Total interviews requested': '1 ', 'Completed interviews': '0 ', 'Percent complete': '0 %', 'Average time per interview': 'NA', 'Task remaining': '1 ', 'Estimated time remaining': 'NA'}
         """
 
-        interview_status_summary: InterviewStatisticsCollection = JobsRunnerStatusMixin._job_level_info(
-            completed_tasks=completed_tasks, 
-            elapsed_time=elapsed_time, 
-            interviews=interviews
+        interview_status_summary: InterviewStatisticsCollection = (
+            JobsRunnerStatusMixin._job_level_info(
+                completed_tasks=completed_tasks,
+                elapsed_time=elapsed_time,
+                interviews=interviews,
+            )
         )
         if include_model_queues:
-            interview_status_summary.model_queues = list(JobsRunnerStatusMixin._get_model_queues_info(interviews))
+            interview_status_summary.model_queues = list(
+                JobsRunnerStatusMixin._get_model_queues_info(interviews)
+            )
         else:
             interview_status_summary.model_queues = None
 
@@ -202,15 +216,21 @@ class JobsRunnerStatusMixin:
 
         token_usage_info = []
         for token_usage_type in ["new_token_usage", "cached_token_usage"]:
-            token_usage_info.append(JobsRunnerStatusMixin._get_token_usage_info(token_usage_type, models_to_tokens, model, prices))
+            token_usage_info.append(
+                JobsRunnerStatusMixin._get_token_usage_info(
+                    token_usage_type, models_to_tokens, model, prices
+                )
+            )
 
-        return ModelInfo(**{
-            "model_name": model.model,
-            "TPM_limit_k": model.TPM / 1000,
-            "RPM_limit_k": model.RPM / 1000,
-            "num_tasks_waiting": num_waiting,
-            "token_usage_info": token_usage_info,
-        })
+        return ModelInfo(
+            **{
+                "model_name": model.model,
+                "TPM_limit_k": model.TPM / 1000,
+                "RPM_limit_k": model.RPM / 1000,
+                "num_tasks_waiting": num_waiting,
+                "token_usage_info": token_usage_info,
+            }
+        )
 
     @staticmethod
     def _get_token_usage_info(
@@ -232,13 +252,19 @@ class JobsRunnerStatusMixin:
 
         """
         all_token_usage: InterviewTokenUsage = models_to_tokens[model]
-        token_usage: TokenUsage = getattr(all_token_usage, token_usage_type)    
-        
-        details = [{"type": token_type, "tokens": getattr(token_usage, token_type)}
-                   for token_type in ["prompt_tokens", "completion_tokens"]]
-        
-        return ModelTokenUsageStats(token_usage_type = token_usage_type, details = details, cost = f"${token_usage.cost(prices):.5f}")
-    
+        token_usage: TokenUsage = getattr(all_token_usage, token_usage_type)
+
+        details = [
+            {"type": token_type, "tokens": getattr(token_usage, token_type)}
+            for token_type in ["prompt_tokens", "completion_tokens"]
+        ]
+
+        return ModelTokenUsageStats(
+            token_usage_type=token_usage_type,
+            details=details,
+            cost=f"${token_usage.cost(prices):.5f}",
+        )
+
     @staticmethod
     def _add_statistics_to_table(table, status_summary):
         table.add_column("Statistic", style="dim", no_wrap=True, width=50)
@@ -249,9 +275,7 @@ class JobsRunnerStatusMixin:
                 table.add_row(key, value)
 
     @staticmethod
-    def display_status_table(status_summary: InterviewStatisticsCollection) -> 'Table':
-
-
+    def display_status_table(status_summary: InterviewStatisticsCollection) -> "Table":
         table = Table(
             title="Job Status",
             show_header=True,
@@ -268,24 +292,29 @@ class JobsRunnerStatusMixin:
         if status_summary.model_queues is not None:
             table.add_row(Text("Model Queues", style="bold red"), "")
             for model_info in status_summary.model_queues:
-
                 model_name = model_info.model_name
                 tpm = f"TPM (k)={model_info.TPM_limit_k}"
                 rpm = f"RPM (k)= {model_info.RPM_limit_k}"
                 pretty_model_name = model_name + ";" + tpm + ";" + rpm
                 table.add_row(Text(pretty_model_name, style="blue"), "")
-                table.add_row("Number question tasks waiting for capacity", str(model_info.num_tasks_waiting))
+                table.add_row(
+                    "Number question tasks waiting for capacity",
+                    str(model_info.num_tasks_waiting),
+                )
                 # Token usage and cost info
                 for token_usage_info in model_info.token_usage_info:
                     token_usage_type = token_usage_info.token_usage_type
                     table.add_row(
-                        Text(spacing + token_usage_type.replace("_", " "), style="bold"), ""
+                        Text(
+                            spacing + token_usage_type.replace("_", " "), style="bold"
+                        ),
+                        "",
                     )
                     for detail in token_usage_info.details:
                         token_type = detail["type"]
                         tokens = detail["tokens"]
                         table.add_row(spacing + f"{token_type}", f"{tokens:,}")
-                    #table.add_row(spacing + "cost", cache_info["cost"])
+                    # table.add_row(spacing + "cost", cache_info["cost"])
 
         return table
 
@@ -296,6 +325,7 @@ class JobsRunnerStatusMixin:
             interviews=self.total_interviews,
         )
         return self.display_status_table(summary_data)
+
 
 if __name__ == "__main__":
     import doctest

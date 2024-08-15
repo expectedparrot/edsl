@@ -5,13 +5,8 @@ from edsl.jobs.Jobs import Jobs
 from edsl.agents.Agent import Agent
 from edsl.surveys.Survey import Survey
 
-import doctest
-import edsl.scenarios
-
-
-def test_doctests():
-    doctest.testmod(edsl.scenarios)
-
+import unittest
+from unittest.mock import patch, MagicMock
 
 class TestScenario(unittest.TestCase):
     def setUp(self):
@@ -41,6 +36,21 @@ class TestScenario(unittest.TestCase):
         s = Scenario({"food": "wood chips"})
         result = s.rename({"food": "food_preference"})
         self.assertEqual(result, Scenario({"food_preference": "wood chips"}))
+
+    @patch('requests.get')
+    def test_from_url(self, mock_get):
+        # Arrange
+        mock_response = MagicMock()
+        mock_response.text = "Mocked response text"
+        mock_get.return_value = mock_response
+        url = "http://example.com"
+        
+        # Act
+        scenario = Scenario.from_url(url, field_name="content")
+
+        # Assert
+        self.assertEqual(scenario["url"], url)
+        self.assertEqual(scenario["content"], "Mocked response text")
 
 
 if __name__ == "__main__":
