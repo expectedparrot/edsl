@@ -281,12 +281,17 @@ class PromptConstructorMixin:
             if "question_options" in question_data:
                 if isinstance(self.question.data["question_options"], str):
                     from jinja2 import Environment, meta
-                    env = Environment()
-                    parsed_content = env.parse(self.question.data['question_options'])
-                    question_option_key = list(meta.find_undeclared_variables(parsed_content))[0]
-                    question_data["question_options"] = self.scenario.get(question_option_key)   
 
-            #breakpoint()        
+                    env = Environment()
+                    parsed_content = env.parse(self.question.data["question_options"])
+                    question_option_key = list(
+                        meta.find_undeclared_variables(parsed_content)
+                    )[0]
+                    question_data["question_options"] = self.scenario.get(
+                        question_option_key
+                    )
+
+            # breakpoint()
             rendered_instructions = question_prompt.render(
                 question_data | self.scenario | d | {"agent": self.agent}
             )
