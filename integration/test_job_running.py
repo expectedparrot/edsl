@@ -16,7 +16,7 @@ def test_handle_model_exception():
     def create_exception_throwing_model(exception: Exception, fail_at_number: int):
         class TestLanguageModelGood(LanguageModel):
             _model_ = LanguageModelType.TEST.value
-            _parameters_ = {"temperature": 0.5, "use_cache": False}
+            _parameters_ = {"temperature": 0.5}
             _inference_service_ = InferenceServiceType.TEST.value
 
             counter = 0
@@ -83,7 +83,7 @@ def test_handle_model_exception():
     def create_exception_throwing_model(exception: Exception, fail_at_number: int):
         class TestLanguageModelGood(LanguageModel):
             _model_ = LanguageModelType.TEST.value
-            _parameters_ = {"temperature": 0.5, "use_cache": False}
+            _parameters_ = {"temperature": 0.5}
             _inference_service_ = InferenceServiceType.TEST.value
 
             counter = 0
