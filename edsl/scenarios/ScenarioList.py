@@ -242,7 +242,9 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
         return ScenarioList(new_data)
 
-    def from_urls(self, urls: list[str], field_name: Optional[str] = "text") -> ScenarioList:
+    def from_urls(
+        self, urls: list[str], field_name: Optional[str] = "text"
+    ) -> ScenarioList:
         """Create a ScenarioList from a list of URLs.
 
         :param urls: A list of URLs.
