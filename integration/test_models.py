@@ -15,8 +15,8 @@ class TestAllModels:
 def create_test_function(model):
     @staticmethod
     def model_test_func():
-        m = Model(model, use_cache=False)
-        results = q.by(m).run()
+        m = Model(model)
+        results = q.by(m).run(cache=False)
         results.select("answer.*", "model.model").print()
 
     return model_test_func
