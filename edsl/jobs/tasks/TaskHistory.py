@@ -30,7 +30,7 @@ class TaskHistory:
 
         from edsl.config import CONFIG
 
-        results = j.run(print_exceptions=False, skip_retry=True)
+        results = j.run(print_exceptions=False, skip_retry=True, cache = False)
 
         return cls(results.task_history.total_interviews)
 
