@@ -420,6 +420,112 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             return {scenario[field]: scenario[value] for scenario in self}
 
     @classmethod
+    def from_excel(
+        cls, filename: str, sheet_name: Optional[str] = None
+    ) -> ScenarioList:
+        """Create a ScenarioList from an Excel file.
+
+        If the Excel file contains multiple sheets and no sheet_name is provided,
+        the method will print the available sheets and require the user to specify one.
+
+        Example:
+
+        >>> import tempfile
+        >>> import os
+        >>> import pandas as pd
+        >>> with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as f:
+        ...     df1 = pd.DataFrame({
+        ...         'name': ['Alice', 'Bob'],
+        ...         'age': [30, 25],
+        ...         'location': ['New York', 'Los Angeles']
+        ...     })
+        ...     df2 = pd.DataFrame({
+        ...         'name': ['Charlie', 'David'],
+        ...         'age': [35, 40],
+        ...         'location': ['Chicago', 'Boston']
+        ...     })
+        ...     with pd.ExcelWriter(f.name) as writer:
+        ...         df1.to_excel(writer, sheet_name='Sheet1', index=False)
+        ...         df2.to_excel(writer, sheet_name='Sheet2', index=False)
+        ...     temp_filename = f.name
+        >>> scenario_list = ScenarioList.from_excel(temp_filename, sheet_name='Sheet1')
+        >>> len(scenario_list)
+        2
+        >>> scenario_list[0]['name']
+        'Alice'
+        >>> scenario_list = ScenarioList.from_excel(temp_filename)  # Should raise an error and list sheets
+        Traceback (most recent call last):
+        ...
+        ValueError: Please provide a sheet name to load data from.
+        """
+        from edsl.scenarios.Scenario import Scenario
+        import pandas as pd
+
+        # Get all sheets
+        all_sheets = pd.read_excel(filename, sheet_name=None)
+
+        # If no sheet_name is provided and there is more than one sheet, print available sheets
+        if sheet_name is None:
+            if len(all_sheets) > 1:
+                print("The Excel file contains multiple sheets:")
+                for name in all_sheets.keys():
+                    print(f"- {name}")
+                raise ValueError("Please provide a sheet name to load data from.")
+            else:
+                # If there is only one sheet, use it
+                sheet_name = list(all_sheets.keys())[0]
+
+        # Load the specified or determined sheet
+        df = pd.read_excel(filename, sheet_name=sheet_name)
+
+        observations = []
+        for _, row in df.iterrows():
+            observations.append(Scenario(row.to_dict()))
+
+        return cls(observations)
+
+    @classmethod
+    def from_google_sheet(cls, url: str, sheet_name: str = None) -> ScenarioList:
+        """Create a ScenarioList from a Google Sheet.
+
+        This method downloads the Google Sheet as an Excel file, saves it to a temporary file,
+        and then reads it using the from_excel class method.
+
+        Args:
+            url (str): The URL to the Google Sheet.
+            sheet_name (str, optional): The name of the sheet to load. If None, the method will behave
+                                        the same as from_excel regarding multiple sheets.
+
+        Returns:
+            ScenarioList: An instance of the ScenarioList class.
+
+        """
+        import pandas as pd
+        import tempfile
+        import requests
+
+        if "/edit" in url:
+            sheet_id = url.split("/d/")[1].split("/edit")[0]
+        else:
+            raise ValueError("Invalid Google Sheet URL format.")
+
+        export_url = (
+            f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=xlsx"
+        )
+
+        # Download the Google Sheet as an Excel file
+        response = requests.get(export_url)
+        response.raise_for_status()  # Ensure the request was successful
+
+        # Save the Excel file to a temporary file
+        with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as temp_file:
+            temp_file.write(response.content)
+            temp_filename = temp_file.name
+
+        # Call the from_excel class method with the temporary file
+        return cls.from_excel(temp_filename, sheet_name=sheet_name)
+
+    @classmethod
     def from_csv(cls, filename: str) -> ScenarioList:
         """Create a ScenarioList from a CSV file.
 
