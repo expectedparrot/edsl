@@ -39,6 +39,7 @@ pymupdf = "^1.24.4"
 restrictedpython = "^7.1"
 pyreadstat = "^1.2.7"
 groq = "^0.9.0"
+openpyxl = "^3.1.5"
 
 [tool.poetry.dependencies.black]
 extras = ["jupyter"]
