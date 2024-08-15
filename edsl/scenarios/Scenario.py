@@ -183,15 +183,16 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         return new_scenario
 
     @classmethod    
-    def from_url(cls, url: str):
+    def from_url(cls, url: str, field_name: Optional[str] = "text") -> "Scenario":
         """Creates a scenario from a URL.
 
         :param url: The URL to create the scenario from.
+        :param field_name: The field name to use for the text.
 
         """
         import requests
         text = requests.get(url).text
-        return cls({"url": url, "text": text})
+        return cls({"url": url, field_name: text})
 
 
     @classmethod
@@ -219,7 +220,6 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
     @classmethod
     def from_pdf(cls, pdf_path):
         import fitz  # PyMuPDF
-        from edsl import Scenario
         # Ensure the file exists
         if not os.path.exists(pdf_path):
             raise FileNotFoundError(f"The file {pdf_path} does not exist.")
