@@ -24,6 +24,7 @@ from rich.traceback import Traceback
 
 TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
 
+
 def frame_summary_to_dict(frame):
     """
     Convert a FrameSummary object to a dictionary.
@@ -35,8 +36,9 @@ def frame_summary_to_dict(frame):
         "filename": frame.filename,
         "lineno": frame.lineno,
         "name": frame.name,
-        "line": frame.line
+        "line": frame.line,
     }
+
 
 class InterviewTaskBuildingMixin:
     def _build_invigilators(
@@ -197,11 +199,10 @@ class InterviewTaskBuildingMixin:
                 raise e
 
         skip_rety = getattr(self, "skip_retry", False)
-        if not skip_rety:  
+        if not skip_rety:
             _inner = retry_strategy(_inner)
 
         return await _inner()
-
 
     def _add_answer(
         self, response: "AgentResponseDict", question: "QuestionBase"
@@ -226,20 +227,20 @@ class InterviewTaskBuildingMixin:
         )
         return skip
 
-    def _handle_exception(self, e, question_name:str, task=None):
+    def _handle_exception(self, e, question_name: str, task=None):
         exception_entry = InterviewExceptionEntry(e)
         if task:
             task.task_status = TaskStatus.FAILED
         self.exceptions.add(question_name, exception_entry)
 
     async def _attempt_to_answer_question(
-        self, invigilator: 'InvigilatorBase', task: asyncio.Task
-    ) -> 'AgentResponseDict':
+        self, invigilator: "InvigilatorBase", task: asyncio.Task
+    ) -> "AgentResponseDict":
         """Attempt to answer the question, and handle exceptions.
 
         :param invigilator: the invigilator that will answer the question.
         :param task: the task that is being run.
-        
+
         """
         try:
             return await asyncio.wait_for(

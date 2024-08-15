@@ -76,8 +76,8 @@ Output:
     QuestionStats(num_responses=8, num_unique_responses=4, missing=0, unique_responses=['Credit Card', 'Cash', 'PayPal', 'Debit Card'], frac_numerical=0.0, top_5=[('Credit Card', 2), ('Debit Card', 2), ('PayPal', 2), ('Cash', 2)], frac_obs_from_top_5=1.0)
 
 
-Create an `AgentList`
-^^^^^^^^^^^^^^^^^^^^^
+Create an AgentList
+^^^^^^^^^^^^^^^^^^^
 We can use the `to_agent_list()` method to generate an `AgentList` object from the `Conjure` object:
 
 .. code-block:: python
@@ -118,8 +118,8 @@ Output:
     }
 
 
-Create an `Survey`
-^^^^^^^^^^^^^^^^^^^^^
+Create a Survey
+^^^^^^^^^^^^^^^
 We can use the `to_survey()` method to generate a `Survey` object from the `Conjure` object:
 
 .. code-block:: python
@@ -298,8 +298,8 @@ Output:
     }
 
 
-Create a `Results` object
-^^^^^^^^^^^^^^^^^^^^^^^^^
+Create Results
+^^^^^^^^^^^^^^
 
 We can use the `to_results()` method to generate a `Results` object from the `Conjure` object:
 

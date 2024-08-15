@@ -44,7 +44,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         iteration: int = 0,
         cache: Optional["Cache"] = None,
         sidecar_model: Optional["LanguageModel"] = None,
-        skip_retry = False,
+        skip_retry=False,
     ):
         """Initialize the Interview instance.
 
@@ -96,12 +96,12 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
             for index, question_name in enumerate(self.survey.question_names)
         }
 
-    def _to_dict(self, include_exceptions = False) -> dict[str, Any]:
+    def _to_dict(self, include_exceptions=False) -> dict[str, Any]:
         """Return a dictionary representation of the Interview instance.
         This is just for hashing purposes.
 
         >>> i = Interview.example()
-        >>> hash(i)   
+        >>> hash(i)
         1646262796627658719
         """
         d = {
@@ -110,7 +110,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
             "scenario": self.scenario._to_dict(),
             "model": self.model._to_dict(),
             "iteration": self.iteration,
-            "exceptions": {}
+            "exceptions": {},
         }
         if include_exceptions:
             d["exceptions"] = self.exceptions.to_dict()
@@ -119,7 +119,6 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         from edsl.utilities.utilities import dict_hash
 
         return dict_hash(self._to_dict())
-
 
     async def async_conduct_interview(
         self,
