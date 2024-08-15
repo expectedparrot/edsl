@@ -61,6 +61,7 @@ class InferenceServiceType(EnumWithChecks):
     ANTHROPIC = "anthropic"
     GROQ = "groq"
 
+
 service_to_api_keyname = {
     InferenceServiceType.BEDROCK.value: "TBD",
     InferenceServiceType.DEEP_INFRA.value: "DEEP_INFRA_API_KEY",
@@ -70,6 +71,7 @@ service_to_api_keyname = {
     InferenceServiceType.TEST.value: "TBD",
     InferenceServiceType.ANTHROPIC.value: "ANTHROPIC_API_KEY",
     InferenceServiceType.GROQ.value: "GROQ_API_KEY",
+    InferenceServiceType.BEDROCK.value: ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"],
 }
 
 
