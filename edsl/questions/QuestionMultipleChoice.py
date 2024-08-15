@@ -96,7 +96,7 @@ class QuestionMultipleChoice(QuestionBase):
             question_option_key = list(meta.find_undeclared_variables(parsed_content))[
                 0
             ]
-            #breakpoint()
+            # breakpoint()
             translated_options = scenario.get(question_option_key)
         else:
             translated_options = [

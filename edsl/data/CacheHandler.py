@@ -41,7 +41,7 @@ class CacheHandler:
         old_data = self.from_old_sqlite_cache()
         self.cache.add_from_dict(old_data)
 
-    def create_cache_directory(self) -> None:
+    def create_cache_directory(self, notify = False) -> None:
         """
         Create the cache directory if one is required and it does not exist.
         """
@@ -49,9 +49,8 @@ class CacheHandler:
         dir_path = os.path.dirname(path)
         if dir_path and not os.path.exists(dir_path):
             os.makedirs(dir_path)
-            import warnings
-
-            warnings.warn(f"Created cache directory: {dir_path}")
+            if notify:
+                print(f"Created cache directory: {dir_path}")
 
     def gen_cache(self) -> Cache:
         """
