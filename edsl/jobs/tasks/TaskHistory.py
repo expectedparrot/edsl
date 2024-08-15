@@ -12,6 +12,7 @@ class TaskHistory:
         [Interview.exceptions, Interview.exceptions, Interview.exceptions, ...]
 
         >>> _ = TaskHistory.example()
+        ...
         """
 
         self.total_interviews = interviews
