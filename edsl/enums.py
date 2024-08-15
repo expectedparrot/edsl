@@ -60,6 +60,7 @@ class InferenceServiceType(EnumWithChecks):
     TEST = "test"
     ANTHROPIC = "anthropic"
     GROQ = "groq"
+    AZURE = "azure"
 
 
 service_to_api_keyname = {
