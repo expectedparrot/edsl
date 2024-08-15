@@ -15,7 +15,7 @@ def create_language_model(
 ):
     class TestLanguageModel(LanguageModel):
         _model_ = "gpt-4-1106-preview"
-        _parameters_ = {"temperature": 0.5, "use_cache": False}
+        _parameters_ = {"temperature": 0.5}
         _inference_service_ = InferenceServiceType.TEST.value
 
         async def async_execute_model_call(

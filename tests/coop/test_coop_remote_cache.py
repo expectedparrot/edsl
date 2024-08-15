@@ -61,7 +61,6 @@ class TestRemoteCacheWithJobs(unittest.TestCase):
         from edsl.language_models.LanguageModel import LanguageModel
 
         class CacheTestLanguageModel(LanguageModel):
-            use_cache = False
             _model_ = "cache-test-model"
             _parameters_ = {"temperature": 0.5}
             _inference_service_ = InferenceServiceType.TEST.value

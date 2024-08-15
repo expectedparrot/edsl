@@ -17,7 +17,7 @@ class DummyModel(LanguageModel):
 
 
 def test_lm():
-    lm = DummyModel(use_cache=False)
+    lm = DummyModel())
     lm.model = "dummy"
     lm.parameters = {}
     assert lm.get_response(user_prompt="blah", system_prompt="blah") == {
