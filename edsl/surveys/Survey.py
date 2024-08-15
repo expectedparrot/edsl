@@ -81,9 +81,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         q = next(i)
         while True:
             try:
-                print(q.question_text)
                 answer = q._simulate_answer()
-                #breakpoint()
                 q = i.send({q.question_name: answer['answer']})
             except StopIteration:
                 break
@@ -748,7 +746,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
             #breakpoint()
             answer = yield question
             self.answers.update(answer)
-            print(f"Answers: {self.answers}")
+            #print(f"Answers: {self.answers}")
             ## TODO: This should also include survey and agent attributes
             question = self.next_question(question, self.answers)
 
