@@ -16,6 +16,7 @@ from edsl.utilities.decorators import jupyter_nb_handler
 import time
 import functools
 
+
 def cache_with_timeout(timeout):
     def decorator(func):
         cached_result = {}
@@ -25,23 +26,27 @@ def cache_with_timeout(timeout):
         def wrapper(*args, **kwargs):
             current_time = time.time()
             if (current_time - last_computation_time[0]) >= timeout:
-                cached_result['value'] = func(*args, **kwargs)
+                cached_result["value"] = func(*args, **kwargs)
                 last_computation_time[0] = current_time
-            return cached_result['value']
-        
+            return cached_result["value"]
+
         return wrapper
+
     return decorator
 
-#from queue import Queue
+
+# from queue import Queue
 from collections import UserList
+
 
 class StatusTracker(UserList):
     def __init__(self, total_tasks: int):
         self.total_tasks = total_tasks
         super().__init__()
-    
+
     def current_status(self):
-        return print(f"Completed: {len(self.data)} of {self.total_tasks}", end = "\r")
+        return print(f"Completed: {len(self.data)} of {self.total_tasks}", end="\r")
+
 
 class JobsRunnerAsyncio(JobsRunnerStatusMixin):
     """A class for running a collection of interviews asynchronously.
@@ -121,8 +126,8 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
     async def run_async(self, cache=None, n=1) -> Results:
         from edsl.results.Results import Results
 
-        #breakpoint()
-        #tracker = StatusTracker(total_tasks=len(self.interviews))
+        # breakpoint()
+        # tracker = StatusTracker(total_tasks=len(self.interviews))
 
         if cache is None:
             self.cache = Cache()
@@ -244,7 +249,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         def generate_table():
             return self.status_table(self.results, self.elapsed_time)
 
-        async def process_results(cache, progress_bar_context = None):
+        async def process_results(cache, progress_bar_context=None):
             """Processes results from interviews."""
             async for result in self.run_async_generator(
                 n=n,
@@ -277,16 +282,23 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             else:
                 yield
 
-        with conditional_context(progress_bar, Live(generate_table(), console=console, refresh_per_second=1)) as progress_bar_context:
-
+        with conditional_context(
+            progress_bar, Live(generate_table(), console=console, refresh_per_second=1)
+        ) as progress_bar_context:
             with cache as c:
-
-                progress_task = asyncio.create_task(update_progress_bar(progress_bar_context))
+                progress_task = asyncio.create_task(
+                    update_progress_bar(progress_bar_context)
+                )
 
                 try:
-                    await asyncio.gather(progress_task, process_results(cache = c, progress_bar_context = progress_bar_context))
+                    await asyncio.gather(
+                        progress_task,
+                        process_results(
+                            cache=c, progress_bar_context=progress_bar_context
+                        ),
+                    )
                 except asyncio.CancelledError:
-                        pass
+                    pass
                 finally:
                     progress_task.cancel()  # Cancel the progress_task when process_results is done
                     await progress_task
@@ -298,7 +310,9 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
 
         # puts results in the same order as the total interviews
         interview_hashes = [hash(interview) for interview in self.total_interviews]
-        self.results = sorted(self.results, key=lambda x: interview_hashes.index(x.interview_hash))
+        self.results = sorted(
+            self.results, key=lambda x: interview_hashes.index(x.interview_hash)
+        )
 
         results = Results(survey=self.jobs.survey, data=self.results)
         task_history = TaskHistory(self.total_interviews, include_traceback=False)
