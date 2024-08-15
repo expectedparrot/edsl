@@ -21,12 +21,14 @@ class GeneralErrors(Exception):
 
 
 class MissingAPIKeyError(GeneralErrors):
-    def __init__(self, model_name, inference_service):
-        full_message = dedent(
-            f"""
-        An API Key for model `{model_name}` is missing from the .env file.
-        This key is associated with the inference service `{inference_service}`.
-        Please see https://docs.expectedparrot.com/en/latest/api_keys.html for more information.
-        """
-        )
+    def __init__(self, full_message=None, model_name=None, inference_service=None):
+        if model_name and inference_service:
+            full_message = dedent(
+                f"""
+            An API Key for model `{model_name}` is missing from the .env file.
+            This key is associated with the inference service `{inference_service}`.
+            Please see https://docs.expectedparrot.com/en/latest/api_keys.html for more information.
+            """
+            )
+
         super().__init__(full_message)
