@@ -18,42 +18,13 @@ class AwsBedrockService(InferenceServiceABC):
     @classmethod
     def available(cls):
         """Fetch available models from AWS Bedrock."""
-        # client = boto3.client('bedrock', region_name="us-west-2")
-        # all_models_ids = [
-        #    x['modelId'] for x in client.list_foundation_models()['modelSummaries']
-        # ]
-        # good models
-        all_models_ids = [
-            "amazon.titan-tg1-large",
-            "amazon.titan-text-lite-v1",
-            "amazon.titan-text-express-v1",
-            "ai21.j2-grande-instruct",
-            "ai21.j2-jumbo-instruct",
-            "ai21.j2-mid",
-            "ai21.j2-mid-v1",
-            "ai21.j2-ultra",
-            "ai21.j2-ultra-v1",
-            "anthropic.claude-instant-v1",
-            "anthropic.claude-v2:1",
-            "anthropic.claude-v2",
-            "anthropic.claude-3-sonnet-20240229-v1:0",
-            "anthropic.claude-3-haiku-20240307-v1:0",
-            "anthropic.claude-3-opus-20240229-v1:0",
-            "anthropic.claude-3-5-sonnet-20240620-v1:0",
-            "cohere.command-text-v14",
-            "cohere.command-r-v1:0",
-            "cohere.command-r-plus-v1:0",
-            "cohere.command-light-text-v14",
-            "meta.llama3-8b-instruct-v1:0",
-            "meta.llama3-70b-instruct-v1:0",
-            "meta.llama3-1-8b-instruct-v1:0",
-            "meta.llama3-1-70b-instruct-v1:0",
-            "meta.llama3-1-405b-instruct-v1:0",
-            "mistral.mistral-7b-instruct-v0:2",
-            "mistral.mixtral-8x7b-instruct-v0:1",
-            "mistral.mistral-large-2402-v1:0",
-            "mistral.mistral-large-2407-v1:0",
-        ]
+        if not cls._models_list_cache:
+            client = boto3.client("bedrock", region_name="us-west-2")
+            all_models_ids = [
+                x["modelId"] for x in client.list_foundation_models()["modelSummaries"]
+            ]
+        else:
+            all_models_ids = cls._models_list_cache
 
         return all_models_ids
 
@@ -94,7 +65,11 @@ class AwsBedrockService(InferenceServiceABC):
                         "content": [{"text": user_prompt}],
                     }
                 ]
-
+                system = [
+                    {
+                        "text": system_prompt,
+                    }
+                ]
                 try:
                     response = client.converse(
                         modelId=self._model_,
@@ -104,6 +79,7 @@ class AwsBedrockService(InferenceServiceABC):
                             "temperature": self.temperature,
                             "topP": self.top_p,
                         },
+                        system=system,
                         additionalModelRequestFields={},
                     )
                     return response
