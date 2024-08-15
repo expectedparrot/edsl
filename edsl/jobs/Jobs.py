@@ -39,6 +39,8 @@ class Jobs(Base):
 
         self.__bucket_collection = None
 
+    # these setters and getters are used to ensure that the agents, models, and scenarios are stored as AgentList, ModelList, and ScenarioList objects
+
     @property
     def models(self):
         return self._models
@@ -119,7 +121,9 @@ class Jobs(Base):
         - scenarios: traits of new scenarios are combined with traits of old existing. New scenarios will overwrite overlapping traits, and do not increase the number of scenarios in the instance
         - models: new models overwrite old models.
         """
-        passed_objects = self._turn_args_to_list(args)
+        passed_objects = self._turn_args_to_list(
+            args
+        )  # objects can also be passed comma-separated
 
         current_objects, objects_key = self._get_current_objects_of_this_type(
             passed_objects[0]
@@ -176,17 +180,27 @@ class Jobs(Base):
         from edsl.agents.Agent import Agent
         from edsl.scenarios.Scenario import Scenario
         from edsl.scenarios.ScenarioList import ScenarioList
+        from edsl.language_models.ModelList import ModelList
 
         if isinstance(object, Agent):
             return AgentList
         elif isinstance(object, Scenario):
             return ScenarioList
+        elif isinstance(object, ModelList):
+            return ModelList
         else:
             return list
 
     @staticmethod
     def _turn_args_to_list(args):
-        """Return a list of the first argument if it is a sequence, otherwise returns a list of all the arguments."""
+        """Return a list of the first argument if it is a sequence, otherwise returns a list of all the arguments.
+
+        Example:
+
+        >>> Jobs._turn_args_to_list([1,2,3])
+        [1, 2, 3]
+
+        """
 
         def did_user_pass_a_sequence(args):
             """Return True if the user passed a sequence, False otherwise.
@@ -209,7 +223,7 @@ class Jobs(Base):
             return container_class(args)
 
     def _get_current_objects_of_this_type(
-        self, object: Union[Agent, Scenario, LanguageModel]
+        self, object: Union["Agent", "Scenario", "LanguageModel"]
     ) -> tuple[list, str]:
         from edsl.agents.Agent import Agent
         from edsl.scenarios.Scenario import Scenario
@@ -292,7 +306,11 @@ class Jobs(Base):
 
     @classmethod
     def from_interviews(cls, interview_list):
-        """Return a Jobs instance from a list of interviews."""
+        """Return a Jobs instance from a list of interviews.
+
+        This is useful when you have, say, a list of failed interviews and you want to create
+        a new job with only those interviews.
+        """
         survey = interview_list[0].survey
         # get all the models
         models = list(set([interview.model for interview in interview_list]))
@@ -308,6 +326,8 @@ class Jobs(Base):
         Note that this sets the agents, model and scenarios if they have not been set. This is a side effect of the method.
         This is useful because a user can create a job without setting the agents, models, or scenarios, and the job will still run,
         with us filling in defaults.
+
+
         """
         # if no agents, models, or scenarios are set, set them to defaults
         from edsl.agents.Agent import Agent
@@ -363,7 +383,13 @@ class Jobs(Base):
         return links
 
     def __hash__(self):
-        """Allow the model to be used as a key in a dictionary."""
+        """Allow the model to be used as a key in a dictionary.
+
+        >>> from edsl.jobs import Jobs
+        >>> hash(Jobs.example())
+        750934364534469557
+
+        """
         from edsl.utilities.utilities import dict_hash
 
         return dict_hash(self.to_dict())
@@ -394,11 +420,27 @@ class Jobs(Base):
         Traceback (most recent call last):
         ...
         ValueError: The following parameters are in the scenarios but not in the survey: {'plop'}
+
+        >>> q = QuestionFreeText(question_text = "Hello", question_name = "ugly_question")
+        >>> s = Scenario({'ugly_question': "B"})
+        >>> j = Jobs(survey = Survey(questions=[q])).by(s)
+        >>> j._check_parameters()
+        Traceback (most recent call last):
+        ...
+        ValueError: The following names are in both the survey question_names and the scenario keys: {'ugly_question'}. This will create issues.
         """
         survey_parameters: set = self.survey.parameters
         scenario_parameters: set = self.scenarios.parameters
 
-        msg1, msg2 = None, None
+        msg0, msg1, msg2 = None, None, None
+
+        # look for key issues
+        if intersection := set(self.scenarios.parameters) & set(
+            self.survey.question_names
+        ):
+            msg0 = f"The following names are in both the survey question_names and the scenario keys: {intersection}. This will create issues."
+
+            raise ValueError(msg0)
 
         if in_survey_but_not_in_scenarios := survey_parameters - scenario_parameters:
             msg1 = f"The following parameters are in the survey but not in the scenarios: {in_survey_but_not_in_scenarios}"
@@ -643,12 +685,16 @@ class Jobs(Base):
         return results
 
     async def run_async(self, cache=None, n=1, **kwargs):
-        """Run the job asynchronously."""
+        """Run asynchronously."""
         results = await JobsRunnerAsyncio(self).run_async(cache=cache, n=n, **kwargs)
         return results
 
     def all_question_parameters(self):
-        """Return all the fields in the questions in the survey."""
+        """Return all the fields in the questions in the survey.
+        >>> from edsl.jobs import Jobs
+        >>> Jobs.example().all_question_parameters()
+        {'period'}
+        """
         return set.union(*[question.parameters for question in self.survey.questions])
 
     #######################
@@ -716,7 +762,13 @@ class Jobs(Base):
         )
 
     def __eq__(self, other: Jobs) -> bool:
-        """Return True if the Jobs instance is equal to another Jobs instance."""
+        """Return True if the Jobs instance is equal to another Jobs instance.
+
+        >>> from edsl.jobs import Jobs
+        >>> Jobs.example() == Jobs.example()
+        True
+
+        """
         return self.to_dict() == other.to_dict()
 
     #######################
@@ -725,13 +777,15 @@ class Jobs(Base):
     @classmethod
     def example(
         cls,
-        throw_exception_probability: int = 0,
+        throw_exception_probability: float = 0.0,
         randomize: bool = False,
         test_model=False,
     ) -> Jobs:
         """Return an example Jobs instance.
 
         :param throw_exception_probability: the probability that an exception will be thrown when answering a question. This is useful for testing error handling.
+        :param randomize: whether to randomize the job by adding a random string to the period
+        :param test_model: whether to use a test model
 
         >>> Jobs.example()
         Jobs(...)
