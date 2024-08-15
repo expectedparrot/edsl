@@ -1,7 +1,8 @@
 from typing import Any, List
 import re
 import os
-#from openai import AsyncOpenAI
+
+# from openai import AsyncOpenAI
 import openai
 
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
@@ -18,18 +19,18 @@ class OpenAIService(InferenceServiceABC):
 
     _sync_client_ = openai.OpenAI
     _async_client_ = openai.AsyncOpenAI
-    
+
     @classmethod
     def sync_client(cls):
         return cls._sync_client_(
-            api_key = os.getenv(cls._env_key_name_), 
-            base_url = cls._base_url_)
-    
+            api_key=os.getenv(cls._env_key_name_), base_url=cls._base_url_
+        )
+
     @classmethod
     def async_client(cls):
         return cls._async_client_(
-            api_key = os.getenv(cls._env_key_name_), 
-            base_url = cls._base_url_)
+            api_key=os.getenv(cls._env_key_name_), base_url=cls._base_url_
+        )
 
     # TODO: Make this a coop call
     model_exclude_list = [
@@ -59,14 +60,14 @@ class OpenAIService(InferenceServiceABC):
 
     @classmethod
     def available(cls) -> List[str]:
-        #from openai import OpenAI
+        # from openai import OpenAI
 
         if not cls._models_list_cache:
             try:
-                #client = OpenAI(api_key = os.getenv(cls._env_key_name_), base_url = cls._base_url_)
+                # client = OpenAI(api_key = os.getenv(cls._env_key_name_), base_url = cls._base_url_)
                 cls._models_list_cache = [
                     m.id
-                    for m in cls.get_model_list() 
+                    for m in cls.get_model_list()
                     if m.id not in cls.model_exclude_list
                 ]
             except Exception as e:
@@ -106,21 +107,21 @@ class OpenAIService(InferenceServiceABC):
 
             def sync_client(self):
                 return cls.sync_client()
-            
+
             def async_client(self):
                 return cls.async_client()
 
             @classmethod
             def available(cls) -> list[str]:
-                #import openai
-                #client = openai.OpenAI(api_key = os.getenv(cls._env_key_name_), base_url = cls._base_url_)
-                #return client.models.list()
+                # import openai
+                # client = openai.OpenAI(api_key = os.getenv(cls._env_key_name_), base_url = cls._base_url_)
+                # return client.models.list()
                 return cls.sync_client().models.list()
-            
-            def get_headers(self) -> dict[str, Any]:
-                #from openai import OpenAI
 
-                #client = OpenAI(api_key = os.getenv(cls._env_key_name_), base_url = cls._base_url_)
+            def get_headers(self) -> dict[str, Any]:
+                # from openai import OpenAI
+
+                # client = OpenAI(api_key = os.getenv(cls._env_key_name_), base_url = cls._base_url_)
                 client = self.sync_client()
                 response = client.chat.completions.with_raw_response.create(
                     messages=[
@@ -172,7 +173,7 @@ class OpenAIService(InferenceServiceABC):
                 else:
                     content = user_prompt
                 # self.client = AsyncOpenAI(
-                #     api_key = os.getenv(cls._env_key_name_), 
+                #     api_key = os.getenv(cls._env_key_name_),
                 #     base_url = cls._base_url_
                 #     )
                 client = self.async_client()

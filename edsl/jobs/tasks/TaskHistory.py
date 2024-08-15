@@ -12,6 +12,7 @@ class TaskHistory:
         [Interview.exceptions, Interview.exceptions, Interview.exceptions, ...]
 
         >>> _ = TaskHistory.example()
+        ...
         """
 
         self.total_interviews = interviews
@@ -24,10 +25,12 @@ class TaskHistory:
         from edsl.jobs.interviews.Interview import Interview
 
         from edsl.jobs.Jobs import Jobs
-        j = Jobs.example(throw_exception_probability=1, test_model = True)
 
-        from edsl.config import CONFIG 
-        results = j.run(print_exceptions = False, skip_retry = True)
+        j = Jobs.example(throw_exception_probability=1, test_model=True)
+
+        from edsl.config import CONFIG
+
+        results = j.run(print_exceptions=False, skip_retry=True, cache = False)
 
         return cls(results.task_history.total_interviews)
 
@@ -60,10 +63,10 @@ class TaskHistory:
     @property
     def has_exceptions(self) -> bool:
         """Return True if there are any exceptions.
-        
+
         >>> TaskHistory.example().has_exceptions
         True
-        
+
         """
         return len(self.exceptions) > 0
 
@@ -237,7 +240,7 @@ class TaskHistory:
         color: #555;
         }
         """
-    
+
     @property
     def exceptions_by_type(self) -> dict:
         """Return a dictionary of exceptions by type."""
@@ -266,7 +269,7 @@ class TaskHistory:
             if question.question_name not in exceptions_by_question_name:
                 exceptions_by_question_name[question.question_name] = 0
         return exceptions_by_question_name
-    
+
     @property
     def exceptions_by_model(self) -> dict:
         """Return a dictionary of exceptions tallied by model and question name."""
@@ -424,7 +427,7 @@ class TaskHistory:
         """
         )
 
-        #breakpoint()
+        # breakpoint()
 
         # Render the template with data
         output = template.render(
@@ -435,7 +438,7 @@ class TaskHistory:
             exceptions_by_type=self.exceptions_by_type,
             exceptions_by_question_name=self.exceptions_by_question_name,
             exceptions_by_model=self.exceptions_by_model,
-            models_used = models_used
+            models_used=models_used,
         )
 
         # Save the rendered output to a file
@@ -483,5 +486,5 @@ class TaskHistory:
 
 if __name__ == "__main__":
     import doctest
-    doctest.testmod(optionflags=doctest.ELLIPSIS)
 
+    doctest.testmod(optionflags=doctest.ELLIPSIS)

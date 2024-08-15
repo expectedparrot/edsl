@@ -319,7 +319,11 @@ class Jobs(Base):
         self.scenarios = self.scenarios or [Scenario()]
         for agent, scenario, model in product(self.agents, self.scenarios, self.models):
             yield Interview(
-                survey=self.survey, agent=agent, scenario=scenario, model=model, skip_retry=self.skip_retry
+                survey=self.survey,
+                agent=agent,
+                scenario=scenario,
+                model=model,
+                skip_retry=self.skip_retry,
             )
 
     def create_bucket_collection(self) -> BucketCollection:
@@ -720,7 +724,10 @@ class Jobs(Base):
     #######################
     @classmethod
     def example(
-        cls, throw_exception_probability: int = 0, randomize: bool = False, test_model = False
+        cls,
+        throw_exception_probability: int = 0,
+        randomize: bool = False,
+        test_model=False,
     ) -> Jobs:
         """Return an example Jobs instance.
 
@@ -739,8 +746,9 @@ class Jobs(Base):
         addition = "" if not randomize else str(uuid4())
 
         if test_model:
-            from edsl.language_models import LanguageModel    
-            m = LanguageModel.example(test_model = True)
+            from edsl.language_models import LanguageModel
+
+            m = LanguageModel.example(test_model=True)
 
         # (status, question, period)
         agent_answers = {
