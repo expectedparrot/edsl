@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 import re
+import tempfile
+import requests
+
 from typing import Any, Generator, Optional, Union, List, Literal, Callable
 from uuid import uuid4
 from edsl.Base import Base
@@ -929,12 +932,30 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         return survey
 
     @classmethod
-    def from_qsf(cls, qsf: str) -> Survey:
+    def from_qsf(
+        cls, qsf_file: Optional[str] = None, url: Optional[str] = None
+    ) -> Survey:
         """Create a Survey object from a Qualtrics QSF file."""
+
+        if url and qsf_file:
+            raise ValueError("Only one of url or qsf_file can be provided.")
+
+        if (not url) and (not qsf_file):
+            raise ValueError("Either url or qsf_file must be provided.")
+
+        if url:
+
+            response = requests.get(url)
+            response.raise_for_status()  # Ensure the request was successful
+
+            # Save the Excel file to a temporary file
+            with tempfile.NamedTemporaryFile(suffix=".qsf", delete=False) as temp_file:
+                temp_file.write(response.content)
+                qsf_file = temp_file.name
 
         from edsl.surveys.SurveyQualtricsImport import SurveyQualtricsImport
 
-        so = SurveyQualtricsImport(qsf)
+        so = SurveyQualtricsImport(qsf_file)
         return so.create_survey()
 
     ###################

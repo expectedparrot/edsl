@@ -8,6 +8,9 @@ from edsl import Survey
 qualtrics_codes = {
     "TE": "free_text",
     "MC": "multiple_choice",
+    "Matrix": "matrix",
+    "DB": "free_text",  # not quite right, but for now
+    "Timing": "free_text",  # not quite right, but for now
 }
 # TE (Text Entry): Allows respondents to input a text response.
 # MC (Multiple Choice): Provides respondents with a list of options to choose from.
@@ -27,6 +30,153 @@ def clean_html(raw_html):
     return clean_text
 
 
+class QualtricsQuestion:
+
+    def __init__(self, question_json, debug=False):
+        self.debug = debug
+        self.question_json = question_json
+        if self.element != "SQ":
+            raise ValueError("Invalid question element type")
+
+    @property
+    def element(self):
+        return self.question_json["Element"]
+
+    @property
+    def selector(self):
+        return self.question_json.get("Selector", None)
+
+    @property
+    def question_name(self):
+        return self.question_json["PrimaryAttribute"]
+
+    @property
+    def question_text(self):
+        return clean_html(self.question_json["Payload"]["QuestionText"])
+
+    @property
+    def raw_question_type(self):
+        return self.question_json["Payload"]["QuestionType"]
+
+    @property
+    def question_type(self):
+        q_type = qualtrics_codes.get(self.raw_question_type, None)
+        if q_type is None:
+            print(f"Unknown question type: {self.raw_question_type}")
+            return None
+        return q_type
+
+    @property
+    def choices(self):
+        if "Choices" in self.question_json["Payload"]:
+            return [
+                choice["Display"]
+                for choice in self.question_json["Payload"]["Choices"].values()
+            ]
+        return None
+
+    @property
+    def answers(self):
+        if "Answers" in self.question_json["Payload"]:
+            return [
+                choice["Display"]
+                for choice in self.question_json["Payload"]["Choices"].values()
+            ]
+        return None
+
+    def to_edsl(self):
+        if self.question_type == "free_text":
+            try:
+                q = Question(
+                    **{
+                        "question_type": self.question_type,
+                        "question_text": self.question_text,
+                        "question_name": self.question_name,
+                    }
+                )
+                return [q]
+            except Exception as e:
+                return []
+
+        if self.question_type == "multiple_choice":
+            # Let's figure of it it's actually a checkbox question
+            if self.selector == "MAVR" or self.selector == "MULTIPLE":
+                try:
+                    q = Question(
+                        **{
+                            "question_type": "checkbox",
+                            "question_text": self.question_text,
+                            "question_name": self.question_name,
+                            "question_options": self.choices,
+                        }
+                    )
+                    return [q]
+                except Exception as e:
+                    return []
+
+            # maybe it's a linear scale!
+            if "<br>" in self.choices[0]:
+                option_labels = {}
+                question_options = []
+                for choice in self.choices:
+                    if "<br>" in choice:
+                        option_label, question_option = choice.split("<br>")
+                        option_labels[int(question_option)] = option_label
+                        question_options.append(int(question_option))
+                    else:
+                        question_options.append(int(choice))
+                try:
+                    q = Question(
+                        **{
+                            "question_type": "linear_scale",
+                            "question_text": self.question_text,
+                            "question_name": self.question_name,
+                            "question_options": question_options,
+                            "option_labels": option_labels,
+                        }
+                    )
+                    return [q]
+                except Exception as e:
+                    if self.debug:
+                        raise e
+                    else:
+                        print(e)
+                        return []
+
+            try:
+                q = Question(
+                    **{
+                        "question_type": self.question_type,
+                        "question_text": self.question_text,
+                        "question_name": self.question_name,
+                        "question_options": self.choices,
+                    }
+                )
+                return [q]
+            except Exception as e:
+                return []
+
+        if self.question_type == "matrix":
+            questions = []
+            for index, choice in enumerate(self.choices):
+                try:
+                    q = Question(
+                        **{
+                            "question_type": "multiple_choice",
+                            "question_text": self.question_text + f" ({choice})",
+                            "question_name": self.question_name + f"_{index}",
+                            "question_options": self.answers,
+                        }
+                    )
+                    questions.append(q)
+                except Exception as e:
+                    continue
+
+            return questions
+
+        raise ValueError(f"Invalid question type: {self.question_type}")
+
+
 class SurveyQualtricsImport:
 
     def __init__(self, qsf_file_name: str):
@@ -34,37 +184,10 @@ class SurveyQualtricsImport:
         self.question_data = self.extract_questions_from_json()
 
     def create_survey(self):
-        survey = Survey()
-        for question in self.question_data:
-            if question["question_type"] == "free_text":
-                try:
-                    q = Question(
-                        question_type="free_text",
-                        question_text=question["question_text"],
-                        question_name=question["question_name"],
-                    )
-                except Exception as e:
-                    print(f"Error creating free text question: {e}")
-                    continue
-            elif question["question_type"] == "multiple_choice":
-                try:
-                    q = Question(
-                        question_type="multiple_choice",
-                        question_text=question["question_text"],
-                        question_name=question["question_name"],
-                        question_options=question["question_options"],
-                    )
-                except Exception as e:
-                    print(f"Error creating multiple choice question: {e}")
-                    continue
-            else:
-                # raise ValueError(f"Unknown question type: {question['question_type']}")
-                print(f"Unknown question type: {question['question_type']}")
-                continue
-
-            survey.add_question(q)
-
-        return survey
+        questions = []
+        for qualtrics_questions in self.question_data:
+            questions.extend(qualtrics_questions.to_edsl())
+        return Survey(questions)
 
     def extract_questions_from_json(self):
         with open(self.qsf_file_name, "r") as f:
@@ -76,34 +199,17 @@ class SurveyQualtricsImport:
 
         for question in questions:
             if question["Element"] == "SQ":
-                q_id = question["PrimaryAttribute"]
-                q_text = clean_html(question["Payload"]["QuestionText"])
-                q_type = qualtrics_codes.get(question["Payload"]["QuestionType"])
-
-                options = None
-                if "Choices" in question["Payload"]:
-                    options = [
-                        choice["Display"]
-                        for choice in question["Payload"]["Choices"].values()
-                    ]
-
-                extracted_questions.append(
-                    {
-                        "question_name": q_id,
-                        "question_text": q_text,
-                        "question_type": q_type,
-                        "question_options": options,
-                    }
-                )
+                extracted_questions.append(QualtricsQuestion(question))
 
         return extracted_questions
 
 
 if __name__ == "__main__":
     survey_creator = SurveyQualtricsImport("example.qsf")
+    # print(survey_creator.question_data)
     survey = survey_creator.create_survey()
-    info = survey.push()
-    print(info)
+    # info = survey.push()
+    # print(info)
     # questions = survey.extract_questions_from_json()
     # for question in questions:
     #    print(question)
