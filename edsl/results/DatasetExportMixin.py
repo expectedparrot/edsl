@@ -601,9 +601,7 @@ class DatasetExportMixin:
 
         :param filename: The filename to save the Word document to.
 
-        >>> from edsl.results import Results
-        >>> r = Results.example()
-        >>> r.select('how_feeling').to_docx()
+
         """
         from docx import Document
 
