@@ -29,7 +29,6 @@ class QuestionFreeText(QuestionBase):
         """
         self.question_name = question_name
         self.question_text = question_text
-        self.instructions = instructions
 
     ################
     # Answer methods
