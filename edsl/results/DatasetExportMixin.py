@@ -596,6 +596,29 @@ class DatasetExportMixin:
         if return_link:
             return filename
 
+    def to_docx(self, filename: Optional[str] = None, separator: str = "\n"):
+        """Export the results to a Word document.
+
+        :param filename: The filename to save the Word document to.
+
+        >>> from edsl.results import Results
+        >>> r = Results.example()
+        >>> r.select('how_feeling').to_docx()
+        """
+        from docx import Document
+
+        doc = Document()
+        for entry in self:
+            key, values = list(entry.items())[0]
+            doc.add_paragraph(key)
+            line = separator.join(values)
+            doc.add_paragraph(line)
+
+        if filename is not None:
+            doc.save(filename)
+        else:
+            return doc
+
     def tally(
         self, *fields: Optional[str], top_n: Optional[int] = None, output="Dataset"
     ) -> Union[dict, "Dataset"]:
