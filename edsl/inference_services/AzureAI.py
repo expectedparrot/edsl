@@ -23,12 +23,47 @@ class AzureAIService(InferenceServiceABC):
     """Azure AI service class."""
 
     _inference_service_ = "azure"
-    _env_key_name_ = "AZURE_API_KEY"  # Environment variable for Azure API key
+    _env_key_name_ = (
+        "AZURE_ENDPOINT_URL_AND_KEY"  # Environment variable for Azure API key
+    )
+    _model_id_to_endpoint_and_key = {}
 
     @classmethod
     def available(cls):
-        # TODO: Implement logic to return available models based on Azure environment variables
-        return ["azure"]
+        out = []
+        azure_endpoints = os.getenv("AZURE_ENDPOINT_URL_AND_KEY", None)
+        if not azure_endpoints:
+            # TODO print an error message
+            pass
+        azure_endpoints = azure_endpoints.split(",")
+        for data in azure_endpoints:
+            try:
+                # data has this format for non openai models https://model_id.azure_endpoint:azure_key
+                _, endpoint, azure_endpoint_key = data.split(":")
+                if "openai" not in endpoint:
+                    model_id = endpoint.split(".")[0].replace("/", "")
+                    out.append(model_id)
+                    cls._model_id_to_endpoint_and_key[model_id] = {
+                        "endpoint": f"https:{endpoint}",
+                        "azure_endpoint_key": azure_endpoint_key,
+                    }
+                else:
+                    # data has this format for openai models ,https://azure_project_id.openai.azure.com/openai/deployments/gpt-4o-mini/chat/completions?api-version=2023-03-15-preview:azure_key
+                    if "/deployments/" in endpoint:
+                        start_idx = endpoint.index("/deployments/") + len(
+                            "/deployments/"
+                        )
+                        end_idx = (
+                            endpoint.index("/", start_idx)
+                            if "/" in endpoint[start_idx:]
+                            else len(endpoint)
+                        )
+                        model_id = endpoint[start_idx:end_idx]
+                        out.append(f"azure:{model_id}")
+
+            except Exception as e:
+                print(e)
+        return out
 
     @classmethod
     def create_model(
@@ -55,17 +90,29 @@ class AzureAIService(InferenceServiceABC):
             ) -> dict[str, Any]:
                 """Calls the Azure OpenAI API and returns the API response."""
 
-                api_key = os.getenv(cls._env_key_name_)
-                if not api_key:
-                    raise EnvironmentError(f"{cls._env_key_name_} is not set")
+                try:
+                    api_key = cls._model_id_to_endpoint_and_key[model_name][
+                        "azure_endpoint_key"
+                    ]
+                except:
+                    api_key = None
 
-                base_url = os.getenv(
-                    "AZURE_ENDPOINT_URL"
-                )  # Expecting endpoint URL in environment variables
+                if not api_key:
+                    raise EnvironmentError(
+                        f"AZURE_ENDPOINT_URL_AND_KEY doesn't have the endpoint:key pair for your model: {model_name}"
+                    )
+
+                try:
+                    base_url = cls._model_id_to_endpoint_and_key[model_name]["endpoint"]
+                except:
+                    base_url = None
+
                 if not base_url:
-                    raise EnvironmentError("AZURE_ENDPOINT_URL is not set")
+                    raise EnvironmentError(
+                        f"AZURE_ENDPOINT_URL_AND_KEY doesn't have the endpoint:key pair for your model: {model_name}"
+                    )
+
                 print(base_url, api_key)
-                # client = OpenAI(base_url=base_url, api_key=api_key)
                 client = ChatCompletionsClient(
                     endpoint=base_url,
                     credential=AzureKeyCredential(api_key),
