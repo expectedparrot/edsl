@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 import re
+import tempfile
+import requests
+
 from typing import Any, Generator, Optional, Union, List, Literal, Callable
 from uuid import uuid4
 from edsl.Base import Base
@@ -817,6 +820,15 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
     @property
     def piping_dag(self) -> DAG:
+        """Figures out the DAG of piping dependencies.
+
+        >>> from edsl import QuestionFreeText
+        >>> q0 = QuestionFreeText(question_text="Here is a question", question_name="q0")
+        >>> q1 = QuestionFreeText(question_text="You previously answered {{ q0 }}---how do you feel now?", question_name="q1")
+        >>> s = Survey([q0, q1])
+        >>> s.piping_dag
+        {1: {0}}
+        """
         d = {}
         for question_name, depenencies in self.parameters_by_question.items():
             if depenencies:
@@ -960,6 +972,33 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
             question_groups=data["question_groups"],
         )
         return survey
+
+    @classmethod
+    def from_qsf(
+        cls, qsf_file: Optional[str] = None, url: Optional[str] = None
+    ) -> Survey:
+        """Create a Survey object from a Qualtrics QSF file."""
+
+        if url and qsf_file:
+            raise ValueError("Only one of url or qsf_file can be provided.")
+
+        if (not url) and (not qsf_file):
+            raise ValueError("Either url or qsf_file must be provided.")
+
+        if url:
+
+            response = requests.get(url)
+            response.raise_for_status()  # Ensure the request was successful
+
+            # Save the Excel file to a temporary file
+            with tempfile.NamedTemporaryFile(suffix=".qsf", delete=False) as temp_file:
+                temp_file.write(response.content)
+                qsf_file = temp_file.name
+
+        from edsl.surveys.SurveyQualtricsImport import SurveyQualtricsImport
+
+        so = SurveyQualtricsImport(qsf_file)
+        return so.create_survey()
 
     ###################
     # DISPLAY METHODS
