@@ -387,7 +387,7 @@ class Jobs(Base):
 
         >>> from edsl.jobs import Jobs
         >>> hash(Jobs.example())
-        750934364534469557
+        739844438700788808
 
         """
         from edsl.utilities.utilities import dict_hash
@@ -735,15 +735,19 @@ class Jobs(Base):
     #######################
     # Serialization methods
     #######################
+
+    def _to_dict(self):
+        return {
+            "survey": self.survey._to_dict(),
+            "agents": [agent._to_dict() for agent in self.agents],
+            "models": [model._to_dict() for model in self.models],
+            "scenarios": [scenario._to_dict() for scenario in self.scenarios],
+        }
+
     @add_edsl_version
     def to_dict(self) -> dict:
         """Convert the Jobs instance to a dictionary."""
-        return {
-            "survey": self.survey.to_dict(),
-            "agents": [agent.to_dict() for agent in self.agents],
-            "models": [model.to_dict() for model in self.models],
-            "scenarios": [scenario.to_dict() for scenario in self.scenarios],
-        }
+        return self._to_dict()
 
     @classmethod
     @remove_edsl_version
