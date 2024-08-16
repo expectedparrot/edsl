@@ -775,6 +775,15 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
     @property
     def piping_dag(self) -> DAG:
+        """Figures out the DAG of piping dependencies.
+
+        >>> from edsl import QuestionFreeText
+        >>> q0 = QuestionFreeText(question_text="Here is a question", question_name="q0")
+        >>> q1 = QuestionFreeText(question_text="You previously answered {{ q0 }}---how do you feel now?", question_name="q1")
+        >>> s = Survey([q0, q1])
+        >>> s.piping_dag
+        {1: {0}}
+        """
         d = {}
         for question_name, depenencies in self.parameters_by_question.items():
             if depenencies:
@@ -918,6 +927,15 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
             question_groups=data["question_groups"],
         )
         return survey
+
+    @classmethod
+    def from_qsf(cls, qsf: str) -> Survey:
+        """Create a Survey object from a Qualtrics QSF file."""
+
+        from edsl.surveys.SurveyQualtricsImport import SurveyQualtricsImport
+
+        so = SurveyQualtricsImport(qsf)
+        return so.create_survey()
 
     ###################
     # DISPLAY METHODS
