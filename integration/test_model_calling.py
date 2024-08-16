@@ -12,7 +12,7 @@ def get_job():
     NUM_FLIPS = 5
     random.seed("agents are cool")
 
-    m = Model(use_cache=False)
+    m = Model()
 
     flip_results = [
         {"coin_flip_observed": random.choice(["heads", "tails"])}
@@ -33,7 +33,7 @@ def test_async():
     global async_time
     job = get_job()
     start = time.time()
-    results = job.run()
+    results = job.run(cache=False)
     end = time.time()
     async_time = end - start
     if verbose:

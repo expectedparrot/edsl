@@ -39,7 +39,6 @@ class TestLanguageModel(unittest.TestCase):
         self.bad_class = TestLanguageModelBad
 
         class TestLanguageModelGood(LanguageModel):
-            use_cache = False
             _model_ = "test"
             _parameters_ = {"temperature": 0.5}
             _inference_service_ = InferenceServiceType.TEST.value
@@ -74,8 +73,7 @@ class TestLanguageModel(unittest.TestCase):
         #         _inference_service_ = InferenceServiceType.TEST.value
 
     def test_params_passed_to_parent(self):
-        m = self.good_class(use_cache=True)
-        self.assertEqual(m.use_cache, True)
+        pass
 
     def test_missing_class_attributes(self):
         with self.assertRaises(Exception):

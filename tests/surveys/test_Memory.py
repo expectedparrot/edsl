@@ -41,7 +41,7 @@ class TestMemory(unittest.TestCase):
         def create_exception_throwing_model(exception: Exception, probability: float):
             class TestLanguageModelGood(LanguageModel):
                 _model_ = "test"
-                _parameters_ = {"temperature": 0.5, "use_cache": False}
+                _parameters_ = {"temperature": 0.5}
                 _inference_service_ = InferenceServiceType.TEST.value
 
                 async def async_execute_model_call(
