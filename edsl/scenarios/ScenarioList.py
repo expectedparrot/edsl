@@ -242,7 +242,9 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
         return ScenarioList(new_data)
 
-    def from_urls(self, urls: list[str], field_name: Optional[str] = "text") -> ScenarioList:
+    def from_urls(
+        self, urls: list[str], field_name: Optional[str] = "text"
+    ) -> ScenarioList:
         """Create a ScenarioList from a list of URLs.
 
         :param urls: A list of URLs.
@@ -364,6 +366,31 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             columns = [description[0] for description in cursor.description]
             data = cursor.fetchall()
         return cls([Scenario(dict(zip(columns, row))) for row in data])
+
+    @classmethod
+    def from_latex(cls, tex_file_path: str):
+        with open(tex_file_path, "r") as file:
+            lines = file.readlines()
+
+        processed_lines = []
+        non_blank_lines = [
+            (i, line.strip()) for i, line in enumerate(lines) if line.strip()
+        ]
+
+        for index, (line_no, text) in enumerate(non_blank_lines):
+            entry = {
+                "line_no": line_no + 1,  # Using 1-based index for line numbers
+                "text": text,
+                "line_before": non_blank_lines[index - 1][1] if index > 0 else None,
+                "line_after": (
+                    non_blank_lines[index + 1][1]
+                    if index < len(non_blank_lines) - 1
+                    else None
+                ),
+            }
+            processed_lines.append(entry)
+
+        return ScenarioList([Scenario(entry) for entry in processed_lines])
 
     @classmethod
     def from_pandas(cls, df) -> ScenarioList:
