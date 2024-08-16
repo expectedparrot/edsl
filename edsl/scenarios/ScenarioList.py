@@ -393,6 +393,74 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         return ScenarioList([Scenario(entry) for entry in processed_lines])
 
     @classmethod
+    def from_docx(cls, docx_file_path: str):
+        from docx import Document
+
+        doc = Document(docx_file_path)
+        lines = []
+
+        # Extract text from paragraphs, treating each paragraph as a line
+        for para in doc.paragraphs:
+            lines.extend(para.text.splitlines())
+
+        processed_lines = []
+        non_blank_lines = [
+            (i, line.strip()) for i, line in enumerate(lines) if line.strip()
+        ]
+
+        for index, (line_no, text) in enumerate(non_blank_lines):
+            entry = {
+                "line_no": line_no + 1,  # Using 1-based index for line numbers
+                "text": text,
+                "line_before": non_blank_lines[index - 1][1] if index > 0 else None,
+                "line_after": (
+                    non_blank_lines[index + 1][1]
+                    if index < len(non_blank_lines) - 1
+                    else None
+                ),
+            }
+            processed_lines.append(entry)
+
+        return ScenarioList([Scenario(entry) for entry in processed_lines])
+
+    @classmethod
+    def from_google_doc(cls, url: str) -> ScenarioList:
+        """Create a ScenarioList from a Google Doc.
+
+        This method downloads the Google Doc as a Word file (.docx), saves it to a temporary file,
+        and then reads it using the from_docx class method.
+
+        Args:
+            url (str): The URL to the Google Doc.
+
+        Returns:
+            ScenarioList: An instance of the ScenarioList class.
+
+        """
+        import tempfile
+        import requests
+        from docx import Document
+
+        if "/edit" in url:
+            doc_id = url.split("/d/")[1].split("/edit")[0]
+        else:
+            raise ValueError("Invalid Google Doc URL format.")
+
+        export_url = f"https://docs.google.com/document/d/{doc_id}/export?format=docx"
+
+        # Download the Google Doc as a Word file (.docx)
+        response = requests.get(export_url)
+        response.raise_for_status()  # Ensure the request was successful
+
+        # Save the Word file to a temporary file
+        with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as temp_file:
+            temp_file.write(response.content)
+            temp_filename = temp_file.name
+
+        # Call the from_docx class method with the temporary file
+        return cls.from_docx(temp_filename)
+
+    @classmethod
     def from_pandas(cls, df) -> ScenarioList:
         """Create a ScenarioList from a pandas DataFrame.
 
