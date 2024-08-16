@@ -41,7 +41,7 @@ class CacheHandler:
         old_data = self.from_old_sqlite_cache()
         self.cache.add_from_dict(old_data)
 
-    def create_cache_directory(self, notify = False) -> None:
+    def create_cache_directory(self, notify=False) -> None:
         """
         Create the cache directory if one is required and it does not exist.
         """
