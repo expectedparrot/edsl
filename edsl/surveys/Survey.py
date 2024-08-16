@@ -75,6 +75,38 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
             warnings.warn("name parameter to a survey is deprecated.")
 
+    def simulate(self) -> dict:
+        """Simulate the survey and return the answers."""
+        i = self.gen_path_through_survey()
+        q = next(i)
+        while True:
+            try:
+                answer = q._simulate_answer()
+                q = i.send({q.question_name: answer['answer']})
+            except StopIteration:
+                break
+        return self.answers
+    
+    def create_agent(self) -> 'Agent':
+        """Create an agent from the simulated answers."""
+        answers_dict = self.simulate()
+        from edsl.agents.Agent import Agent
+        a = Agent(traits=answers_dict)
+
+        def construct_answer_dict_function(traits: dict) -> Callable:
+            def func(self, question: "QuestionBase", scenario=None):
+                return traits.get(question.question_name, None)
+
+            return func
+
+        a.add_direct_question_answering_method(construct_answer_dict_function(answers_dict))
+        return a
+    
+    def simulate_results(self) -> 'Results':
+        """Simulate the survey and return the results."""
+        a = self.create_agent()
+        return self.by([a]).run()
+
     def get(self, question_name: str) -> QuestionBase:
         """
         Return the question object given the question name.
@@ -141,6 +173,12 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
     @property
     def parameters(self):
+        """Return a set of parameters in the survey.
+        
+        >>> s = Survey.example()
+        >>> s.parameters
+        set()
+        """
         return set.union(*[q.parameters for q in self.questions])
 
     @property
@@ -702,9 +740,13 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         >>> i2.send({"q0": "no"})
         Question('multiple_choice', question_name = \"""q1\""", question_text = \"""Why not?\""", question_options = ['killer bees in cafeteria', 'other'])
         """
+        self.answers = {}
         question = self._first_question()
         while not question == EndOfSurvey:
-            self.answers = yield question
+            #breakpoint()
+            answer = yield question
+            self.answers.update(answer)
+            #print(f"Answers: {self.answers}")
             ## TODO: This should also include survey and agent attributes
             question = self.next_question(question, self.answers)
 
