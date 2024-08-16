@@ -76,7 +76,7 @@ def main():
     q = QuestionFreeText.example()
     q.question_text
     q.question_name
-    q.instructions
+    # q.instructions
     # validate an answer
     q._validate_answer({"answer": "I like custard"})
     # translate answer code
