@@ -698,16 +698,6 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             table.add_row(str(i), s.rich_print())
         return table
 
-    # def print(
-    #     self,
-    #     format: Optional[str] = None,
-    #     max_rows: Optional[int] = None,
-    #     pretty_labels: Optional[dict] = None,
-    #     filename: str = None,
-    # ):
-    #     from edsl.utilities.interface import print_scenario_list
-
-    #     print_scenario_list(self[:max_rows])
 
     def __getitem__(self, key: Union[int, slice]) -> Any:
         """Return the item at the given index.
