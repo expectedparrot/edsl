@@ -387,12 +387,12 @@ class Jobs(Base):
 
         >>> from edsl.jobs import Jobs
         >>> hash(Jobs.example())
-        739844438700788808
+        1899889272028271160
 
         """
         from edsl.utilities.utilities import dict_hash
 
-        return dict_hash(self.to_dict())
+        return dict_hash(self._to_dict())
 
     def _output(self, message) -> None:
         """Check if a Job is verbose. If so, print the message."""
