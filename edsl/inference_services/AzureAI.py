@@ -67,8 +67,8 @@ class AzureAIService(InferenceServiceABC):
                 print(base_url, api_key)
                 # client = OpenAI(base_url=base_url, api_key=api_key)
                 client = ChatCompletionsClient(
-                    endpoint="https://Meta-Llama-3-1-70B-Instruct-kewm.eastus.models.ai.azure.com",
-                    credential=AzureKeyCredential("36SuoSUbCi115HpTn0w3I7LVsKAimGmJ"),
+                    endpoint=base_url,
+                    credential=AzureKeyCredential(api_key),
                 )
                 try:
                     response = client.complete(
