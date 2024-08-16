@@ -5,6 +5,19 @@ from openai import OpenAI
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
 from edsl.language_models.LanguageModel import LanguageModel
 
+from azure.ai.inference import ChatCompletionsClient
+from azure.core.credentials import AzureKeyCredential
+from azure.ai.inference.models import SystemMessage, UserMessage
+
+
+def json_handle_none(value: Any) -> Any:
+    """
+    Handle None values during JSON serialization.
+    - Return "null" if the value is None. Otherwise, don't return anything.
+    """
+    if value is None:
+        return "null"
+
 
 class AzureAIService(InferenceServiceABC):
     """Azure AI service class."""
@@ -51,26 +64,28 @@ class AzureAIService(InferenceServiceABC):
                 )  # Expecting endpoint URL in environment variables
                 if not base_url:
                     raise EnvironmentError("AZURE_ENDPOINT_URL is not set")
-
-                client = OpenAI(base_url=base_url, api_key=api_key)
+                print(base_url, api_key)
+                # client = OpenAI(base_url=base_url, api_key=api_key)
+                client = ChatCompletionsClient(
+                    endpoint="https://Meta-Llama-3-1-70B-Instruct-kewm.eastus.models.ai.azure.com",
+                    credential=AzureKeyCredential("36SuoSUbCi115HpTn0w3I7LVsKAimGmJ"),
+                )
                 try:
-                    response = client.chat.completions.create(
+                    response = client.complete(
                         messages=[
-                            {
-                                "role": "user",
-                                "content": user_prompt,
-                            }
+                            SystemMessage(content=system_prompt),
+                            UserMessage(content=user_prompt),
                         ],
-                        model="azureai",
+                        model_extras={"safe_mode": True},
                     )
-
-                    return response.to_dict()
+                    return response.as_dict()
                 except Exception as e:
                     return {"error": str(e)}
 
             @staticmethod
             def parse_response(raw_response: dict[str, Any]) -> str:
                 """Parses the API response and returns the response text."""
+                print(raw_response)
                 if (
                     raw_response
                     and "choices" in raw_response
