@@ -5,6 +5,8 @@ import boto3
 from botocore.exceptions import ClientError
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
 from edsl.language_models.LanguageModel import LanguageModel
+import json
+from edsl.utilities.utilities import fix_partial_correct_response
 
 
 class AwsBedrockService(InferenceServiceABC):
@@ -79,11 +81,12 @@ class AwsBedrockService(InferenceServiceABC):
                             "temperature": self.temperature,
                             "topP": self.top_p,
                         },
-                        system=system,
+                        # system=system,
                         additionalModelRequestFields={},
                     )
                     return response
                 except (ClientError, Exception) as e:
+                    print(e)
                     return {"error": str(e)}
 
             @staticmethod
@@ -96,6 +99,9 @@ class AwsBedrockService(InferenceServiceABC):
                     if match:
                         return match.group(1)
                     else:
+                        out = fix_partial_correct_response(response)
+                        if "error" not in out:
+                            response = out["extracted_json"]
                         return response
                 return "Error parsing response"
 
