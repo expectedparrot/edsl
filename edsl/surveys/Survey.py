@@ -20,6 +20,11 @@ from edsl.surveys.SurveyExportMixin import SurveyExportMixin
 from edsl.surveys.SurveyFlowVisualizationMixin import SurveyFlowVisualizationMixin
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
+from edsl.surveys.Instruction import Instruction
+from edsl.surveys.Instruction import SituatedInstruction
+from edsl.surveys.Instruction import ChangeInstruction
+from edsl.surveys.Instruction import SituatedInstructionCollection
+
 
 class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     """A collection of questions that supports skip logic."""
@@ -42,7 +47,9 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
     def __init__(
         self,
-        questions: Optional[list[QuestionBase]] = None,
+        questions: Optional[
+            list[Union[QuestionBase, Instruction, ChangeInstruction]]
+        ] = None,
         memory_plan: Optional[MemoryPlan] = None,
         rule_collection: Optional[RuleCollection] = None,
         question_groups: Optional[dict[str, tuple[int, int]]] = None,
@@ -56,13 +63,75 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         :param question_groups: The groups of questions in the survey.
         :param name: The name of the survey - DEPRECATED.
 
+
+        The 'pseudo_indices' attribute is a dictionary that maps question names to pseudo-indices
+        that are used to order questions and instructions in the survey.
+        Only questions get real indices; instructions get pseudo-indices.
+        However, the order of the pseudo-indices is the same as the order questions and instructions are added to the survey.
+
+        We don't have to know how many instructions there are to calculate the pseudo-indices because they are
+        calculated by the inverse of one minus the sum of 1/2^n for n in the number of instructions run so far.
+
+        >>> i = Instruction(text = "Pay attention to the following questions.", name = "intro")
+        >>> i2 = Instruction(text = "How are you feeling today?", name = "followon_intro")
+        >>> from edsl import QuestionFreeText; q1 = QuestionFreeText.example()
+        >>> from edsl import QuestionMultipleChoice; q2 = QuestionMultipleChoice.example()
+        >>> s = Survey([q1, i, i2, q2])
+        >>> len(s.instructions)
+        2
+        >>> s.pseudo_indices
+        {'how_are_you': 0, 'intro': 0.5, 'followon_intro': 0.75, 'how_feeling': 1}
+
+        >>> list(s.instructions.instructions_before("how_feeling"))
+        ['intro', 'followon_intro']
+
         """
+        true_questions = []
+        instructions = {}
+        questions_and_instructions = questions or []
+
+        self.pseudo_indices = {}
+        pseudo_index = 0
+        instructions_run_length = 0
+        num_true_questions = 0
+        for index, entry in enumerate(questions_and_instructions):
+            if isinstance(entry, Instruction) or isinstance(entry, ChangeInstruction):
+                instructions_run_length += 1
+                delta = 1 - 1.0 / (2.0**instructions_run_length)
+                pseudo_index = (num_true_questions - 1) + delta
+                before_element_name = (
+                    questions_and_instructions[index - 1].name if index > 0 else None
+                )
+                after_element_name = (
+                    questions_and_instructions[index + 1].name
+                    if index < len(questions_and_instructions) - 1
+                    else None
+                )
+                situated_instruction = SituatedInstruction(
+                    instruction=entry,
+                    before_element=before_element_name,
+                    after_element=after_element_name,
+                    pseudo_index=pseudo_index,
+                )
+                instructions[entry.name] = situated_instruction
+            else:
+                pseudo_index = num_true_questions
+                num_true_questions += 1
+                instructions_run_length = 0
+                true_questions.append(entry)
+
+            self.pseudo_indices[entry.name] = pseudo_index
+
         self.rule_collection = RuleCollection(
-            num_questions=len(questions) if questions else None
+            num_questions=len(true_questions) if true_questions else None
         )
         # the RuleCollection needs to be present while we add the questions; we might override this later
         # if a rule_collection is provided. This allows us to serialize the survey with the rule_collection.
-        self.questions = questions or []
+
+        self.questions = true_questions
+        self.instructions = SituatedInstructionCollection(
+            instructions, [q.name for q in true_questions]
+        )
         self.memory_plan = memory_plan or MemoryPlan(self)
         if question_groups is not None:
             self.question_groups = question_groups
@@ -78,6 +147,14 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
             warnings.warn("name parameter to a survey is deprecated.")
 
+    def relevant_instructions(self) -> dict:
+        """This should be a dictionry with keys as question names and values as instructions that are relevant to the question.
+
+        # Did the instruction come before the question and was it not modified by a change instruction?
+
+        """
+        pass
+
     def simulate(self) -> dict:
         """Simulate the survey and return the answers."""
         i = self.gen_path_through_survey()
@@ -85,15 +162,16 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         while True:
             try:
                 answer = q._simulate_answer()
-                q = i.send({q.question_name: answer['answer']})
+                q = i.send({q.question_name: answer["answer"]})
             except StopIteration:
                 break
         return self.answers
-    
-    def create_agent(self) -> 'Agent':
+
+    def create_agent(self) -> "Agent":
         """Create an agent from the simulated answers."""
         answers_dict = self.simulate()
         from edsl.agents.Agent import Agent
+
         a = Agent(traits=answers_dict)
 
         def construct_answer_dict_function(traits: dict) -> Callable:
@@ -102,10 +180,12 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
             return func
 
-        a.add_direct_question_answering_method(construct_answer_dict_function(answers_dict))
+        a.add_direct_question_answering_method(
+            construct_answer_dict_function(answers_dict)
+        )
         return a
-    
-    def simulate_results(self) -> 'Results':
+
+    def simulate_results(self) -> "Results":
         """Simulate the survey and return the results."""
         a = self.create_agent()
         return self.by([a]).run()
@@ -177,7 +257,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     @property
     def parameters(self):
         """Return a set of parameters in the survey.
-        
+
         >>> s = Survey.example()
         >>> s.parameters
         set()
@@ -746,10 +826,10 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         self.answers = {}
         question = self._first_question()
         while not question == EndOfSurvey:
-            #breakpoint()
+            # breakpoint()
             answer = yield question
             self.answers.update(answer)
-            #print(f"Answers: {self.answers}")
+            # print(f"Answers: {self.answers}")
             ## TODO: This should also include survey and agent attributes
             question = self.next_question(question, self.answers)
 
