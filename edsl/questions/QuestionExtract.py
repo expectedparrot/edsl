@@ -22,7 +22,6 @@ class QuestionExtract(QuestionBase):
         :param question_text: The text of the question.
         :param question_options: The options the respondent should select from.
         :param answer_template: The template for the answer.
-        :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionExtract.default_instructions`.
         """
         self.question_name = question_name
         self.question_text = question_text
