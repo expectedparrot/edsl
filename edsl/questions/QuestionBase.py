@@ -45,6 +45,10 @@ class QuestionBase(
 
         return dict_hash(self._to_dict())
 
+    @property
+    def name(self):
+        return self.question_name
+
     def _repr_html_(self):
         from edsl.utilities.utilities import data_to_html
 

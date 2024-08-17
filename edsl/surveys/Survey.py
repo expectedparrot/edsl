@@ -91,7 +91,6 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         questions_and_instructions = questions or []
 
         self.pseudo_indices = {}
-        pseudo_index = 0
         instructions_run_length = 0
         num_true_questions = 0
         for index, entry in enumerate(questions_and_instructions):
@@ -107,6 +106,18 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
                     if index < len(questions_and_instructions) - 1
                     else None
                 )
+                if isinstance(entry, ChangeInstruction):
+                    for prior_instruction in entry.keep:
+                        if prior_instruction not in instructions:
+                            raise ValueError(
+                                f"ChangeInstruction {entry.name} references instruction {prior_instruction} which does not exist."
+                            )
+                    for prior_instruction in entry.drop:
+                        if prior_instruction not in instructions:
+                            raise ValueError(
+                                f"ChangeInstruction {entry.name} references instruction {prior_instruction} which does not exist."
+                            )
+
                 situated_instruction = SituatedInstruction(
                     instruction=entry,
                     before_element=before_element_name,
