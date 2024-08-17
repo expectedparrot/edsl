@@ -242,7 +242,9 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
         return ScenarioList(new_data)
 
-    def from_urls(self, urls: list[str], field_name: Optional[str] = "text") -> ScenarioList:
+    def from_urls(
+        self, urls: list[str], field_name: Optional[str] = "text"
+    ) -> ScenarioList:
         """Create a ScenarioList from a list of URLs.
 
         :param urls: A list of URLs.
@@ -366,6 +368,99 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         return cls([Scenario(dict(zip(columns, row))) for row in data])
 
     @classmethod
+    def from_latex(cls, tex_file_path: str):
+        with open(tex_file_path, "r") as file:
+            lines = file.readlines()
+
+        processed_lines = []
+        non_blank_lines = [
+            (i, line.strip()) for i, line in enumerate(lines) if line.strip()
+        ]
+
+        for index, (line_no, text) in enumerate(non_blank_lines):
+            entry = {
+                "line_no": line_no + 1,  # Using 1-based index for line numbers
+                "text": text,
+                "line_before": non_blank_lines[index - 1][1] if index > 0 else None,
+                "line_after": (
+                    non_blank_lines[index + 1][1]
+                    if index < len(non_blank_lines) - 1
+                    else None
+                ),
+            }
+            processed_lines.append(entry)
+
+        return ScenarioList([Scenario(entry) for entry in processed_lines])
+
+    @classmethod
+    def from_docx(cls, docx_file_path: str):
+        from docx import Document
+
+        doc = Document(docx_file_path)
+        lines = []
+
+        # Extract text from paragraphs, treating each paragraph as a line
+        for para in doc.paragraphs:
+            lines.extend(para.text.splitlines())
+
+        processed_lines = []
+        non_blank_lines = [
+            (i, line.strip()) for i, line in enumerate(lines) if line.strip()
+        ]
+
+        for index, (line_no, text) in enumerate(non_blank_lines):
+            entry = {
+                "line_no": line_no + 1,  # Using 1-based index for line numbers
+                "text": text,
+                "line_before": non_blank_lines[index - 1][1] if index > 0 else None,
+                "line_after": (
+                    non_blank_lines[index + 1][1]
+                    if index < len(non_blank_lines) - 1
+                    else None
+                ),
+            }
+            processed_lines.append(entry)
+
+        return ScenarioList([Scenario(entry) for entry in processed_lines])
+
+    @classmethod
+    def from_google_doc(cls, url: str) -> ScenarioList:
+        """Create a ScenarioList from a Google Doc.
+
+        This method downloads the Google Doc as a Word file (.docx), saves it to a temporary file,
+        and then reads it using the from_docx class method.
+
+        Args:
+            url (str): The URL to the Google Doc.
+
+        Returns:
+            ScenarioList: An instance of the ScenarioList class.
+
+        """
+        import tempfile
+        import requests
+        from docx import Document
+
+        if "/edit" in url:
+            doc_id = url.split("/d/")[1].split("/edit")[0]
+        else:
+            raise ValueError("Invalid Google Doc URL format.")
+
+        export_url = f"https://docs.google.com/document/d/{doc_id}/export?format=docx"
+
+        # Download the Google Doc as a Word file (.docx)
+        response = requests.get(export_url)
+        response.raise_for_status()  # Ensure the request was successful
+
+        # Save the Word file to a temporary file
+        with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as temp_file:
+            temp_file.write(response.content)
+            temp_filename = temp_file.name
+
+        # Call the from_docx class method with the temporary file
+        return cls.from_docx(temp_filename)
+
+    @classmethod
     def from_pandas(cls, df) -> ScenarioList:
         """Create a ScenarioList from a pandas DataFrame.
 
@@ -391,6 +486,112 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             return {scenario[field] for scenario in self}
         else:
             return {scenario[field]: scenario[value] for scenario in self}
+
+    @classmethod
+    def from_excel(
+        cls, filename: str, sheet_name: Optional[str] = None
+    ) -> ScenarioList:
+        """Create a ScenarioList from an Excel file.
+
+        If the Excel file contains multiple sheets and no sheet_name is provided,
+        the method will print the available sheets and require the user to specify one.
+
+        Example:
+
+        >>> import tempfile
+        >>> import os
+        >>> import pandas as pd
+        >>> with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as f:
+        ...     df1 = pd.DataFrame({
+        ...         'name': ['Alice', 'Bob'],
+        ...         'age': [30, 25],
+        ...         'location': ['New York', 'Los Angeles']
+        ...     })
+        ...     df2 = pd.DataFrame({
+        ...         'name': ['Charlie', 'David'],
+        ...         'age': [35, 40],
+        ...         'location': ['Chicago', 'Boston']
+        ...     })
+        ...     with pd.ExcelWriter(f.name) as writer:
+        ...         df1.to_excel(writer, sheet_name='Sheet1', index=False)
+        ...         df2.to_excel(writer, sheet_name='Sheet2', index=False)
+        ...     temp_filename = f.name
+        >>> scenario_list = ScenarioList.from_excel(temp_filename, sheet_name='Sheet1')
+        >>> len(scenario_list)
+        2
+        >>> scenario_list[0]['name']
+        'Alice'
+        >>> scenario_list = ScenarioList.from_excel(temp_filename)  # Should raise an error and list sheets
+        Traceback (most recent call last):
+        ...
+        ValueError: Please provide a sheet name to load data from.
+        """
+        from edsl.scenarios.Scenario import Scenario
+        import pandas as pd
+
+        # Get all sheets
+        all_sheets = pd.read_excel(filename, sheet_name=None)
+
+        # If no sheet_name is provided and there is more than one sheet, print available sheets
+        if sheet_name is None:
+            if len(all_sheets) > 1:
+                print("The Excel file contains multiple sheets:")
+                for name in all_sheets.keys():
+                    print(f"- {name}")
+                raise ValueError("Please provide a sheet name to load data from.")
+            else:
+                # If there is only one sheet, use it
+                sheet_name = list(all_sheets.keys())[0]
+
+        # Load the specified or determined sheet
+        df = pd.read_excel(filename, sheet_name=sheet_name)
+
+        observations = []
+        for _, row in df.iterrows():
+            observations.append(Scenario(row.to_dict()))
+
+        return cls(observations)
+
+    @classmethod
+    def from_google_sheet(cls, url: str, sheet_name: str = None) -> ScenarioList:
+        """Create a ScenarioList from a Google Sheet.
+
+        This method downloads the Google Sheet as an Excel file, saves it to a temporary file,
+        and then reads it using the from_excel class method.
+
+        Args:
+            url (str): The URL to the Google Sheet.
+            sheet_name (str, optional): The name of the sheet to load. If None, the method will behave
+                                        the same as from_excel regarding multiple sheets.
+
+        Returns:
+            ScenarioList: An instance of the ScenarioList class.
+
+        """
+        import pandas as pd
+        import tempfile
+        import requests
+
+        if "/edit" in url:
+            sheet_id = url.split("/d/")[1].split("/edit")[0]
+        else:
+            raise ValueError("Invalid Google Sheet URL format.")
+
+        export_url = (
+            f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=xlsx"
+        )
+
+        # Download the Google Sheet as an Excel file
+        response = requests.get(export_url)
+        response.raise_for_status()  # Ensure the request was successful
+
+        # Save the Excel file to a temporary file
+        with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as temp_file:
+            temp_file.write(response.content)
+            temp_filename = temp_file.name
+
+        # Call the from_excel class method with the temporary file
+        return cls.from_excel(temp_filename, sheet_name=sheet_name)
 
     @classmethod
     def from_csv(cls, filename: str) -> ScenarioList:
@@ -497,16 +698,6 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             table.add_row(str(i), s.rich_print())
         return table
 
-    # def print(
-    #     self,
-    #     format: Optional[str] = None,
-    #     max_rows: Optional[int] = None,
-    #     pretty_labels: Optional[dict] = None,
-    #     filename: str = None,
-    # ):
-    #     from edsl.utilities.interface import print_scenario_list
-
-    #     print_scenario_list(self[:max_rows])
 
     def __getitem__(self, key: Union[int, slice]) -> Any:
         """Return the item at the given index.

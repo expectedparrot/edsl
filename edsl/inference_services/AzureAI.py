@@ -1,13 +1,16 @@
 import os
 from typing import Any
 import re
-from openai import OpenAI
+from openai import AsyncAzureOpenAI
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
 from edsl.language_models.LanguageModel import LanguageModel
 
-from azure.ai.inference import ChatCompletionsClient
+from azure.ai.inference.aio import ChatCompletionsClient
 from azure.core.credentials import AzureKeyCredential
 from azure.ai.inference.models import SystemMessage, UserMessage
+import asyncio
+import json
+from edsl.utilities.utilities import fix_partial_correct_response
 
 
 def json_handle_none(value: Any) -> Any:
@@ -33,8 +36,7 @@ class AzureAIService(InferenceServiceABC):
         out = []
         azure_endpoints = os.getenv("AZURE_ENDPOINT_URL_AND_KEY", None)
         if not azure_endpoints:
-            # TODO print an error message
-            pass
+            raise EnvironmentError(f"AZURE_ENDPOINT_URL_AND_KEY is not defined")
         azure_endpoints = azure_endpoints.split(",")
         for data in azure_endpoints:
             try:
@@ -59,10 +61,27 @@ class AzureAIService(InferenceServiceABC):
                             else len(endpoint)
                         )
                         model_id = endpoint[start_idx:end_idx]
+                        api_version_value = None
+                        if "api-version=" in endpoint:
+                            start_idx = endpoint.index("api-version=") + len(
+                                "api-version="
+                            )
+                            end_idx = (
+                                endpoint.index("&", start_idx)
+                                if "&" in endpoint[start_idx:]
+                                else len(endpoint)
+                            )
+                            api_version_value = endpoint[start_idx:end_idx]
+
+                        cls._model_id_to_endpoint_and_key[f"azure:{model_id}"] = {
+                            "endpoint": f"https:{endpoint}",
+                            "azure_endpoint_key": azure_endpoint_key,
+                            "api_version": api_version_value,
+                        }
                         out.append(f"azure:{model_id}")
 
             except Exception as e:
-                print(e)
+                raise e
         return out
 
     @classmethod
@@ -103,48 +122,70 @@ class AzureAIService(InferenceServiceABC):
                     )
 
                 try:
-                    base_url = cls._model_id_to_endpoint_and_key[model_name]["endpoint"]
+                    endpoint = cls._model_id_to_endpoint_and_key[model_name]["endpoint"]
                 except:
-                    base_url = None
+                    endpoint = None
 
-                if not base_url:
+                if not endpoint:
                     raise EnvironmentError(
                         f"AZURE_ENDPOINT_URL_AND_KEY doesn't have the endpoint:key pair for your model: {model_name}"
                     )
 
-                print(base_url, api_key)
-                client = ChatCompletionsClient(
-                    endpoint=base_url,
-                    credential=AzureKeyCredential(api_key),
-                )
-                try:
-                    response = client.complete(
-                        messages=[
-                            SystemMessage(content=system_prompt),
-                            UserMessage(content=user_prompt),
-                        ],
-                        model_extras={"safe_mode": True},
+                if "openai" not in endpoint:
+                    client = ChatCompletionsClient(
+                        endpoint=endpoint,
+                        credential=AzureKeyCredential(api_key),
                     )
-                    return response.as_dict()
-                except Exception as e:
-                    return {"error": str(e)}
+                    try:
+                        response = await client.complete(
+                            messages=[
+                                SystemMessage(content=system_prompt),
+                                UserMessage(content=user_prompt),
+                            ],
+                            # model_extras={"safe_mode": True},
+                        )
+                        await client.close()
+                        return response.as_dict()
+                    except Exception as e:
+                        await client.close()
+                        return {"error": str(e)}
+                else:
+                    api_version = cls._model_id_to_endpoint_and_key[model_name][
+                        "api_version"
+                    ]
+                    client = AsyncAzureOpenAI(
+                        azure_endpoint=endpoint,
+                        api_version=api_version,
+                        api_key=api_key,
+                    )
+                    response = await client.chat.completions.create(
+                        model=model_name,
+                        messages=[
+                            {
+                                "role": "user",
+                                "content": user_prompt,  # Your question can go here
+                            },
+                        ],
+                    )
+                    return response.model_dump()
 
             @staticmethod
             def parse_response(raw_response: dict[str, Any]) -> str:
                 """Parses the API response and returns the response text."""
-                print(raw_response)
                 if (
                     raw_response
                     and "choices" in raw_response
                     and raw_response["choices"]
                 ):
                     response = raw_response["choices"][0]["message"]["content"]
-                    # Old parsing logic with regex
                     pattern = r"^```json(?:\\n|\n)(.+?)(?:\\n|\n)```$"
                     match = re.match(pattern, response, re.DOTALL)
                     if match:
                         return match.group(1)
                     else:
+                        out = fix_partial_correct_response(response)
+                        if "error" not in out:
+                            response = out["extracted_json"]
                         return response
                 return "Error parsing response"
 

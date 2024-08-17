@@ -117,13 +117,15 @@ class Rule:
     def _checks(self):
         pass
 
-    @add_edsl_version
+    # def _to_dict(self):
+
+    # @add_edsl_version
     def to_dict(self):
         """Convert the rule to a dictionary for serialization.
 
         >>> r = Rule.example()
         >>> r.to_dict()
-        {'current_q': 1, 'expression': "q1 == 'yes'", 'next_q': 2, 'priority': 0, 'question_name_to_index': {'q1': 1}, 'before_rule': False, 'edsl_version': '...', 'edsl_class_name': 'Rule'}
+        {'current_q': 1, 'expression': "q1 == 'yes'", 'next_q': 2, 'priority': 0, 'question_name_to_index': {'q1': 1}, 'before_rule': False}
         """
         return {
             "current_q": self.current_q,
@@ -133,6 +135,7 @@ class Rule:
             "question_name_to_index": self.question_name_to_index,
             "before_rule": self.before_rule,
         }
+        # return self._to_dict()
 
     @classmethod
     @remove_edsl_version
