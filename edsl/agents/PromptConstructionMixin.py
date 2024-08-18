@@ -366,14 +366,14 @@ class PromptConstructorMixin:
 
         >>> from edsl import QuestionFreeText
         >>> from edsl.agents.InvigilatorBase import InvigilatorBase
-        >>> q = QuestionFreeText(question_text="How are you today?", question_name="q0")
+        >>> q = QuestionFreeText(question_text="How are you today?", question_name="q_new")
         >>> i = InvigilatorBase.example(question = q)
         >>> i.get_prompts()
         {'user_prompt': ..., 'system_prompt': ...}
         >>> scenario = i._get_scenario_with_image()
         >>> scenario.has_image
         True
-        >>> q = QuestionFreeText(question_text="How are you today?", question_name="q0")
+        >>> q = QuestionFreeText(question_text="How are you today?", question_name="q_new")
         >>> i = InvigilatorBase.example(question = q, scenario = scenario)
         >>> i.get_prompts()
         {'user_prompt': ..., 'system_prompt': ..., 'encoded_image': ...'}
