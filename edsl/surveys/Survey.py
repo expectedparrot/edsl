@@ -66,6 +66,8 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         """
 
+        self.raw_passed_questions = questions
+
         true_questions, instruction_names_to_instructions, self.pseudo_indices = (
             self._separate_questions_and_instructions(questions or [])
         )
@@ -1038,7 +1040,8 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         """
         return {
-            "questions": [q._to_dict() for q in self._questions],
+            # "questions": [q._to_dict() for q in self._questions],
+            "questions": [q.to_dict() for q in self.raw_passed_questions or []],
             "memory_plan": self.memory_plan.to_dict(),
             "rule_collection": self.rule_collection.to_dict(),
             "question_groups": self.question_groups,
@@ -1068,7 +1071,28 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         True
 
         """
-        questions = [QuestionBase.from_dict(q_dict) for q_dict in data["questions"]]
+
+        def get_class(pass_dict):
+            if (class_name := pass_dict.get("edsl_class_name")) == "QuestionBase":
+                return QuestionBase
+            elif class_name == "Instruction":
+                from edsl.surveys.instructions.Instruction import Instruction
+
+                return Instruction
+            elif class_name == "ChangeInstruction":
+                from edsl.surveys.instructions.ChangeInstruction import (
+                    ChangeInstruction,
+                )
+
+                return ChangeInstruction
+            else:
+                # some data might not have the edsl_class_name
+                return QuestionBase
+                # raise ValueError(f"Class {pass_dict['edsl_class_name']} not found")
+
+        questions = [
+            get_class(q_dict).from_dict(q_dict) for q_dict in data["questions"]
+        ]
         memory_plan = MemoryPlan.from_dict(data["memory_plan"])
         survey = cls(
             questions=questions,
@@ -1126,7 +1150,8 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     def __repr__(self) -> str:
         """Return a string representation of the survey."""
 
-        questions_string = ", ".join([repr(q) for q in self._questions])
+        # questions_string = ", ".join([repr(q) for q in self._questions])
+        questions_string = ", ".join([repr(q) for q in self.raw_passed_questions or []])
         # question_names_string = ", ".join([repr(name) for name in self.question_names])
         return f"Survey(questions=[{questions_string}], memory_plan={self.memory_plan}, rule_collection={self.rule_collection}, question_groups={self.question_groups})"
 
