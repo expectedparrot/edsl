@@ -17,7 +17,7 @@ class Instruction:
         return """Instruction(name="{}", text="{}")""".format(self.name, self.text)
 
     def _to_dict(self):
-        return {"name": self.name, "text": self.text}
+        return {"name": self.name, "text": self.text, "edsl_class_name": "Instruction"}
 
     @add_edsl_version
     def to_dict(self):

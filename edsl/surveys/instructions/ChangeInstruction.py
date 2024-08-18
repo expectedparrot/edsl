@@ -26,7 +26,11 @@ class ChangeInstruction:
         return self.text
 
     def _to_dict(self):
-        return {"keep": self.keep, "drop": self.drop}
+        return {
+            "keep": self.keep,
+            "drop": self.drop,
+            "edsl_class_name": "ChangeInstruction",
+        }
 
     @add_edsl_version
     def to_dict(self):

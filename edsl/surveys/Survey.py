@@ -1041,7 +1041,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         """
         return {
             # "questions": [q._to_dict() for q in self._questions],
-            "questions": [q.to_dict() for q in self.raw_passed_questions or []],
+            "questions": [q._to_dict() for q in self.raw_passed_questions or []],
             "memory_plan": self.memory_plan.to_dict(),
             "rule_collection": self.rule_collection.to_dict(),
             "question_groups": self.question_groups,
