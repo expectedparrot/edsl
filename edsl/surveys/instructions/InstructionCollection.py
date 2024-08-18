@@ -10,11 +10,8 @@ class InstructionCollection:
         instruction_names_to_instruction: Dict[str, Instruction],
         questions: List[QuestionBase],
     ):
-        self.d = {}
         self.instruction_names_to_instruction = instruction_names_to_instruction
         self.questions = questions
-        for question in questions:
-            self.d[question.name] = self.relevant_instructions(question)
 
     @property
     def question_names(self):
@@ -28,7 +25,7 @@ class InstructionCollection:
     ) -> tuple[List[Instruction], List[ChangeInstruction]]:
         if question_name not in self.question_names:
             raise ValueError(
-                f"Question name not found in the list of questions: got {question_name}; list is {self.question_names}"
+                f"Question name not found in the list of questions: got '{question_name}'; list is {self.question_names}"
             )
         instructions, changes = [], []
 
