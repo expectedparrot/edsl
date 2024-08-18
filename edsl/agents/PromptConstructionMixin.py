@@ -314,6 +314,19 @@ class PromptConstructorMixin:
                     f"Question instructions still has variables: {undefined_template_variables}."
                 )
 
+            # Check if question has an instructions
+            relevant_instructions = self.survey.relevant_instructions(
+                self.question.question_name
+            )
+
+            if relevant_instructions != []:
+                preamble_text = Prompt(
+                    text="Before answer this question, you were given the following instructions: "
+                )
+                for instruction in relevant_instructions:
+                    preamble_text += instruction.text
+                rendered_instructions = preamble_text + rendered_instructions
+
             self._question_instructions_prompt = rendered_instructions
         return self._question_instructions_prompt
 
