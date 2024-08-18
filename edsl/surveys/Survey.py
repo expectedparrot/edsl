@@ -23,7 +23,7 @@ from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
 # from edsl.surveys.Instruction import Instruction
 # from edsl.surveys.Instruction import ChangeInstruction
-from edsl.surveys.Instruction import SituatedInstructionCollection
+from edsl.surveys.instructions.InstructionCollection import InstructionCollection
 
 
 class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
@@ -64,43 +64,6 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         :param name: The name of the survey - DEPRECATED.
 
 
-        The 'pseudo_indices' attribute is a dictionary that maps question names to pseudo-indices
-        that are used to order questions and instructions in the survey.
-        Only questions get real indices; instructions get pseudo-indices.
-        However, the order of the pseudo-indices is the same as the order questions and instructions are added to the survey.
-
-        We don't have to know how many instructions there are to calculate the pseudo-indices because they are
-        calculated by the inverse of one minus the sum of 1/2^n for n in the number of instructions run so far.
-
-        >>> i = Instruction(text = "Pay attention to the following questions.", name = "intro")
-        >>> i2 = Instruction(text = "How are you feeling today?", name = "followon_intro")
-        >>> from edsl import QuestionFreeText; q1 = QuestionFreeText.example()
-        >>> from edsl import QuestionMultipleChoice; q2 = QuestionMultipleChoice.example()
-        >>> s = Survey([q1, i, i2, q2])
-        >>> len(s.instructions)
-        2
-        >>> s.pseudo_indices
-        {'how_are_you': 0, 'intro': 0.5, 'followon_intro': 0.75, 'how_feeling': 1}
-
-        >>> [x.name for x in list(s.instructions.instructions_before("how_feeling"))]
-        ['intro', 'followon_intro']
-
-        >>> from edsl.surveys.Instruction import ChangeInstruction, Instruction
-        >>> q3 = QuestionFreeText(question_text = "What is your favorite color?", question_name = "color")
-        >>> i_change = ChangeInstruction(drop = ["intro"])
-        >>> s = Survey([q1, i, q2, i_change, q3])
-        >>> [i.name for i in s.relevant_instructions("how_are_you")]
-        []
-        >>> [i.name for i in s.relevant_instructions("how_feeling")]
-        ['intro']
-        >>> [i.name for i in s.relevant_instructions("color")]
-        []
-
-        >>> i_change = ChangeInstruction(keep = ["poop"], drop = [])
-        >>> s = Survey([q1, i, q2, i_change])
-        Traceback (most recent call last):
-        ...
-        ValueError: ChangeInstruction change_instruction_0 references instruction poop which does not exist.
         """
 
         true_questions, instruction_names_to_instructions, self.pseudo_indices = (
@@ -114,7 +77,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         # if a rule_collection is provided. This allows us to serialize the survey with the rule_collection.
 
         self.questions = true_questions
-        self.instructions = SituatedInstructionCollection(
+        self.instructions = InstructionCollection(
             instruction_names_to_instructions, true_questions
         )
 
@@ -135,7 +98,45 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
     @staticmethod
     def _separate_questions_and_instructions(questions_and_instructions: list):
-        from edsl.surveys.Instruction import Instruction, ChangeInstruction
+        """
+        The 'pseudo_indices' attribute is a dictionary that maps question names to pseudo-indices
+        that are used to order questions and instructions in the survey.
+        Only questions get real indices; instructions get pseudo-indices.
+        However, the order of the pseudo-indices is the same as the order questions and instructions are added to the survey.
+
+        We don't have to know how many instructions there are to calculate the pseudo-indices because they are
+        calculated by the inverse of one minus the sum of 1/2^n for n in the number of instructions run so far.
+
+        >>> from edsl import Instruction
+        >>> i = Instruction(text = "Pay attention to the following questions.", name = "intro")
+        >>> i2 = Instruction(text = "How are you feeling today?", name = "followon_intro")
+        >>> from edsl import QuestionFreeText; q1 = QuestionFreeText.example()
+        >>> from edsl import QuestionMultipleChoice; q2 = QuestionMultipleChoice.example()
+        >>> s = Survey([q1, i, i2, q2])
+        >>> len(s.instructions)
+        2
+        >>> s.pseudo_indices
+        {'how_are_you': 0, 'intro': 0.5, 'followon_intro': 0.75, 'how_feeling': 1}
+
+        >>> from edsl import ChangeInstruction
+        >>> q3 = QuestionFreeText(question_text = "What is your favorite color?", question_name = "color")
+        >>> i_change = ChangeInstruction(drop = ["intro"])
+        >>> s = Survey([q1, i, q2, i_change, q3])
+        >>> [i.name for i in s.relevant_instructions("how_are_you")]
+        []
+        >>> [i.name for i in s.relevant_instructions("how_feeling")]
+        ['intro']
+        >>> [i.name for i in s.relevant_instructions("color")]
+        []
+
+        >>> i_change = ChangeInstruction(keep = ["poop"], drop = [])
+        >>> s = Survey([q1, i, q2, i_change])
+        Traceback (most recent call last):
+        ...
+        ValueError: ChangeInstruction change_instruction_0 references instruction poop which does not exist.
+        """
+        from edsl.surveys.instructions.Instruction import Instruction
+        from edsl.surveys.instructions.ChangeInstruction import ChangeInstruction
 
         true_questions = []
         instruction_names_to_instructions = {}
@@ -163,7 +164,6 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
                 instructions_run_length = 0
                 true_questions.append(entry)
             else:
-                breakpoint()
                 raise ValueError(
                     f"Entry {repr(entry)} is not a QuestionBase or an Instruction."
                 )
