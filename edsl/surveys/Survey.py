@@ -20,9 +20,9 @@ from edsl.surveys.SurveyExportMixin import SurveyExportMixin
 from edsl.surveys.SurveyFlowVisualizationMixin import SurveyFlowVisualizationMixin
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
-from edsl.surveys.Instruction import Instruction
-from edsl.surveys.Instruction import SituatedInstruction
-from edsl.surveys.Instruction import ChangeInstruction
+
+# from edsl.surveys.Instruction import Instruction
+# from edsl.surveys.Instruction import ChangeInstruction
 from edsl.surveys.Instruction import SituatedInstructionCollection
 
 
@@ -48,7 +48,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     def __init__(
         self,
         questions: Optional[
-            list[Union[QuestionBase, Instruction, ChangeInstruction]]
+            list[Union[QuestionBase, "Instruction", "ChangeInstruction"]]
         ] = None,
         memory_plan: Optional[MemoryPlan] = None,
         rule_collection: Optional[RuleCollection] = None,
@@ -82,56 +82,30 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         >>> s.pseudo_indices
         {'how_are_you': 0, 'intro': 0.5, 'followon_intro': 0.75, 'how_feeling': 1}
 
-        >>> list(s.instructions.instructions_before("how_feeling"))
+        >>> [x.name for x in list(s.instructions.instructions_before("how_feeling"))]
         ['intro', 'followon_intro']
 
+        >>> from edsl.surveys.Instruction import ChangeInstruction, Instruction
+        >>> q3 = QuestionFreeText(question_text = "What is your favorite color?", question_name = "color")
+        >>> i_change = ChangeInstruction(drop = ["intro"])
+        >>> s = Survey([q1, i, q2, i_change, q3])
+        >>> [i.name for i in s.relevant_instructions("how_are_you")]
+        []
+        >>> [i.name for i in s.relevant_instructions("how_feeling")]
+        ['intro']
+        >>> [i.name for i in s.relevant_instructions("color")]
+        []
+
+        >>> i_change = ChangeInstruction(keep = ["poop"], drop = [])
+        >>> s = Survey([q1, i, q2, i_change])
+        Traceback (most recent call last):
+        ...
+        ValueError: ChangeInstruction change_instruction_0 references instruction poop which does not exist.
         """
-        true_questions = []
-        instructions = {}
-        questions_and_instructions = questions or []
 
-        self.pseudo_indices = {}
-        instructions_run_length = 0
-        num_true_questions = 0
-        for index, entry in enumerate(questions_and_instructions):
-            if isinstance(entry, Instruction) or isinstance(entry, ChangeInstruction):
-                instructions_run_length += 1
-                delta = 1 - 1.0 / (2.0**instructions_run_length)
-                pseudo_index = (num_true_questions - 1) + delta
-                before_element_name = (
-                    questions_and_instructions[index - 1].name if index > 0 else None
-                )
-                after_element_name = (
-                    questions_and_instructions[index + 1].name
-                    if index < len(questions_and_instructions) - 1
-                    else None
-                )
-                if isinstance(entry, ChangeInstruction):
-                    for prior_instruction in entry.keep:
-                        if prior_instruction not in instructions:
-                            raise ValueError(
-                                f"ChangeInstruction {entry.name} references instruction {prior_instruction} which does not exist."
-                            )
-                    for prior_instruction in entry.drop:
-                        if prior_instruction not in instructions:
-                            raise ValueError(
-                                f"ChangeInstruction {entry.name} references instruction {prior_instruction} which does not exist."
-                            )
-
-                situated_instruction = SituatedInstruction(
-                    instruction=entry,
-                    before_element=before_element_name,
-                    after_element=after_element_name,
-                    pseudo_index=pseudo_index,
-                )
-                instructions[entry.name] = situated_instruction
-            else:
-                pseudo_index = num_true_questions
-                num_true_questions += 1
-                instructions_run_length = 0
-                true_questions.append(entry)
-
-            self.pseudo_indices[entry.name] = pseudo_index
+        true_questions, instruction_names_to_instructions, self.pseudo_indices = (
+            self._separate_questions_and_instructions(questions or [])
+        )
 
         self.rule_collection = RuleCollection(
             num_questions=len(true_questions) if true_questions else None
@@ -141,8 +115,9 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         self.questions = true_questions
         self.instructions = SituatedInstructionCollection(
-            instructions, [q.name for q in true_questions]
+            instruction_names_to_instructions, true_questions
         )
+
         self.memory_plan = memory_plan or MemoryPlan(self)
         if question_groups is not None:
             self.question_groups = question_groups
@@ -158,13 +133,52 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
             warnings.warn("name parameter to a survey is deprecated.")
 
-    def relevant_instructions(self) -> dict:
+    @staticmethod
+    def _separate_questions_and_instructions(questions_and_instructions: list):
+        from edsl.surveys.Instruction import Instruction, ChangeInstruction
+
+        true_questions = []
+        instruction_names_to_instructions = {}
+
+        num_change_instructions = 0
+        pseudo_indices = {}
+        instructions_run_length = 0
+        for entry in questions_and_instructions:
+            if isinstance(entry, Instruction) or isinstance(entry, ChangeInstruction):
+                if isinstance(entry, ChangeInstruction):
+                    entry.add_name(num_change_instructions)
+                    num_change_instructions += 1
+                    for prior_instruction in entry.keep + entry.drop:
+                        if prior_instruction not in instruction_names_to_instructions:
+                            raise ValueError(
+                                f"ChangeInstruction {entry.name} references instruction {prior_instruction} which does not exist."
+                            )
+                instructions_run_length += 1
+                delta = 1 - 1.0 / (2.0**instructions_run_length)
+                pseudo_index = (len(true_questions) - 1) + delta
+                entry.pseudo_index = pseudo_index
+                instruction_names_to_instructions[entry.name] = entry
+            elif isinstance(entry, QuestionBase):
+                pseudo_index = len(true_questions)
+                instructions_run_length = 0
+                true_questions.append(entry)
+            else:
+                breakpoint()
+                raise ValueError(
+                    f"Entry {repr(entry)} is not a QuestionBase or an Instruction."
+                )
+
+            pseudo_indices[entry.name] = pseudo_index
+
+        return true_questions, instruction_names_to_instructions, pseudo_indices
+
+    def relevant_instructions(self, question) -> dict:
         """This should be a dictionry with keys as question names and values as instructions that are relevant to the question.
 
         # Did the instruction come before the question and was it not modified by a change instruction?
 
         """
-        pass
+        return list(self.instructions.relevant_instructions(question))
 
     def simulate(self) -> dict:
         """Simulate the survey and return the answers."""

@@ -1,30 +1,6 @@
-from typing import Union, Optional, List
+from typing import Union, Optional, List, Generator, Dict
 from collections import UserList
-
-
-class SituatedInstructionCollection:
-    def __init__(self, situated_instructions, question_name_list=None):
-        self.situated_instructions = situated_instructions
-        self.question_name_list = question_name_list
-
-    def instructions_before(self, question_name):
-        ## Find all the questions that are after a given instruction
-        ## Find out which ones got turned off
-        if question_name not in self.question_name_list:
-            raise ValueError(
-                f"Question name not found in the list of questions: got {question_name}; list is {self.question_name_list}"
-            )
-
-        index = self.question_name_list.index(question_name)
-        for (
-            instruction_name,
-            situated_instruction,
-        ) in self.situated_instructions.items():
-            if situated_instruction.pseudo_index < index:
-                yield instruction_name
-
-    def __len__(self):
-        return len(self.situated_instructions)
+from edsl.questions import QuestionBase
 
 
 class Instruction:
@@ -37,7 +13,7 @@ class Instruction:
         return self.text
 
     def __repr__(self):
-        return """Instruction(name={}, text={})""".format(self.name, self.text)
+        return """Instruction(name="{}", text="{}")""".format(self.name, self.text)
 
     def to_dict(self):
         return {"name": self.name, "text": self.text}
@@ -51,38 +27,122 @@ class ChangeInstruction:
 
     def __init__(
         self,
-        name: str,
         keep: Optional[List[str]] = None,
         drop: Optional[List[str]] = None,
     ):
-        self.name = name
-        self.keep = keep
-        self.drop = drop
+        if keep is None and drop is None:
+            raise ValueError("Keep and drop cannot both be None")
+
+        self.keep = keep or []
+        self.drop = drop or []
+
+    def include_instruction(self, instruction_name) -> bool:
+        return (instruction_name in self.keep) or (not instruction_name in self.drop)
+
+    def add_name(self, index) -> None:
+        self.name = "change_instruction_{}".format(index)
 
     def __str__(self):
         return self.text
 
-    def __repr__(self):
-        return """Instruction(name={}, text={})""".format(self.name, self.text)
-
     def to_dict(self):
-        return {"name": self.name, "text": self.text}
+        return {"keep": self.keep, "drop": self.drop}
 
     @classmethod
     def from_dict(cls, data):
         return cls(data["name"], data["text"])
 
 
-class SituatedInstruction:
-
+class SituatedInstructionCollection:
     def __init__(
         self,
-        instruction: Union[Instruction, ChangeInstruction],
-        before_element: Union[str, None],
-        after_element: Union[str],
-        pseudo_index: float,
+        instruction_names_to_instruction: Dict[str, Instruction],
+        questions: List[QuestionBase],
     ):
-        self.instruction = instruction
-        self.before_element = before_element
-        self.after_element = after_element
-        self.pseudo_index = pseudo_index
+        self.instruction_names_to_instruction = instruction_names_to_instruction
+        self.questions = questions
+
+    @property
+    def question_names(self):
+        return [q.name for q in self.questions]
+
+    def question_index(self, question_name):
+        return self.question_names.index(question_name)
+
+    def change_instructions_before(self, question_name):
+        if question_name not in self.question_names:
+            raise ValueError(
+                f"Question name not found in the list of questions: got {question_name}; list is {self.question_names}"
+            )
+
+        index = self.question_index(question_name)
+        for (
+            instruction_name,
+            instruction,
+        ) in self.instruction_names_to_instruction.items():
+            if instruction.pseudo_index < index and isinstance(
+                instruction, ChangeInstruction
+            ):
+                yield instruction
+
+    def instructions_before(self, question_name) -> Generator[Instruction, None, None]:
+        if question_name not in self.question_names:
+            raise ValueError(
+                f"Question name not found in the list of questions: got {question_name}; list is {self.question_names}"
+            )
+
+        index = self.question_index(question_name)
+        for (
+            instruction_name,
+            instruction,
+        ) in self.instruction_names_to_instruction.items():
+            if instruction.pseudo_index < index and isinstance(
+                instruction, Instruction
+            ):
+                yield instruction
+
+    def relevant_instructions(
+        self, question: Union[str, QuestionBase]
+    ) -> Generator[Instruction, None, None]:
+        ## Find all the questions that are after a given instruction
+        if isinstance(question, str):
+            question_name = question
+        elif isinstance(question, QuestionBase):
+            question_name = question.name
+        instructions_before = list(self.instructions_before(question_name))
+        change_instructions_before = list(
+            self.change_instructions_before(question_name)
+        )
+        keep_list = []
+        drop_list = []
+        for instruction in change_instructions_before:
+            keep_list.extend(instruction.keep)
+            drop_list.extend(instruction.drop)
+
+        for instruction in instructions_before:
+            if instruction.name in keep_list or instruction.name not in drop_list:
+                yield instruction
+
+    def __len__(self):
+        return len(self.instruction_names_to_instruction)
+
+    # len(s.instructions)
+    # assert s.pseudo_indices == {
+    #     "how_are_you": 0,
+    #     "intro": 0.5,
+    #     "followon_intro": 0.75,
+    #     "how_feeling": 1,
+    # }
+
+    # assert [
+    #     x.name for x in list(s.instructions.instructions_before("how_feeling"))
+    # ] == ["intro", "followon_intro"]
+
+    # q3 = QuestionFreeText(
+    #     question_text="What is your favorite color?", question_name="color"
+    # )
+    # i_change = ChangeInstruction(drop=["intro"])
+    # s = Survey([q1, i, q2, i_change, q3])
+    # assert [i.name for i in s.relevant_instructions("how_are_you")] == []
+    # assert [i.name for i in s.relevant_instructions("how_feeling")] == ["intro"]
+    # assert [i.name for i in s.relevant_instructions("color")] == []
