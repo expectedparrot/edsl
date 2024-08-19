@@ -39,6 +39,8 @@ pymupdf = "^1.24.4"
 restrictedpython = "^7.1"
 pyreadstat = "^1.2.7"
 groq = "^0.9.0"
+boto3 = "^1.34.161"
+azure-ai-inference = "^1.0.0b3"
 openpyxl = "^3.1.5"
 
 [tool.poetry.dependencies.black]

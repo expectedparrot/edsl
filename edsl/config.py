@@ -69,6 +69,15 @@ CONFIG_MAP = {
     #     "default": None,
     #     "info": "This env var holds your GROQ API key (https://console.groq.com/login).",
     # },
+    # "AWS_ACCESS_KEY_ID" :
+    #     "default": None,
+    #     "info": "This env var holds your AWS access key ID.",
+    # "AWS_SECRET_ACCESS_KEY:
+    #     "default": None,
+    #     "info": "This env var holds your AWS secret access key.",
+    # "AZURE_ENDPOINT_URL_AND_KEY":
+    #     "default": None,
+    #     "info": "This env var holds your Azure endpoint URL and key (URL:key). You can have several comma-separated URL-key pairs (URL1:key1,URL2:key2).",
 }
 
 
@@ -113,8 +122,9 @@ class Config:
         """
         # for each env var in the CONFIG_MAP
         for env_var, config in CONFIG_MAP.items():
+            # we've set it already in _set_run_mode
             if env_var == "EDSL_RUN_MODE":
-                continue  # we've set it already in _set_run_mode
+                continue
             value = os.getenv(env_var)
             default_value = config.get("default")
             # if the env var is set, set it as a CONFIG attribute
