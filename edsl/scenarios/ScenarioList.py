@@ -698,7 +698,6 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             table.add_row(str(i), s.rich_print())
         return table
 
-
     def __getitem__(self, key: Union[int, slice]) -> Any:
         """Return the item at the given index.
 
