@@ -22,7 +22,6 @@ class QuestionList(QuestionBase):
 
         :param question_name: The name of the question.
         :param question_text: The text of the question.
-        :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionList.default_instructions`.
         :param max_list_items: The maximum number of items that can be in the answer list.
         """
         self.question_name = question_name

@@ -25,7 +25,6 @@ class QuestionBudget(QuestionBase):
         :param question_text: The text of the question.
         :param question_options: The options for allocation of the budget sum.
         :param budget_sum: The total amount of the budget to be allocated among the options.
-        :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionBudget.default_instructions`.
         """
         self.question_name = question_name
         self.question_text = question_text
