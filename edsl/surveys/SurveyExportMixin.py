@@ -51,13 +51,39 @@ class SurveyExportMixin:
             return
         return doc
 
-    def to_scenario_list(self) -> "ScenarioList":
+    def show(self):
+        self.to_scenario_list(questions_only=False, rename=True).print(format="rich")
+
+    def to_scenario_list(
+        self, questions_only: bool = True, rename=False
+    ) -> "ScenarioList":
         from edsl import ScenarioList, Scenario
+
+        # from edsl.questions import QuestionBase
+
+        if questions_only:
+            to_iterate_over = self._questions
+        else:
+            to_iterate_over = self.recombined_questions_and_instructions()
+
+        if rename:
+            renaming_dict = {
+                "name": "identifier",
+                "question_name": "identifier",
+                "question_text": "text",
+            }
+        else:
+            renaming_dict = {}
 
         all_keys = set([])
         scenarios = ScenarioList()
-        for q in self._questions:
-            d = q.to_dict()
+        for item in to_iterate_over:
+            d = item.to_dict()
+            if item.__class__.__name__ == "Instruction":
+                d["question_type"] = "NA / instruction"
+            for key in renaming_dict:
+                if key in d:
+                    d[renaming_dict[key]] = d.pop(key)
             all_keys.update(d.keys())
             scenarios.append(Scenario(d))
 
