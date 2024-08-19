@@ -20,18 +20,15 @@ class QuestionFreeText(QuestionBase):
     def __init__(
         self,
         question_name: str,
-        question_text: str,
-        instructions: Optional[str] = None,
+        question_text: str
     ):
         """Instantiate a new QuestionFreeText.
 
         :param question_name: The name of the question.
         :param question_text: The text of the question.
-        :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionFreeText.default_instructions`.
         """
         self.question_name = question_name
         self.question_text = question_text
-        self.instructions = instructions
 
     ################
     # Answer methods
@@ -79,7 +76,7 @@ def main():
     q = QuestionFreeText.example()
     q.question_text
     q.question_name
-    q.instructions
+    # q.instructions
     # validate an answer
     q._validate_answer({"answer": "I like custard"})
     # translate answer code

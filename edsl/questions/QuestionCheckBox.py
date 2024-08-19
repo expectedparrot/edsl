@@ -33,7 +33,6 @@ class QuestionCheckBox(QuestionBase):
         :param question_name: The name of the question.
         :param question_text: The text of the question.
         :param question_options: The options the respondent should select from.
-        :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionCheckBox.default_instructions`.
         :param min_selections: The minimum number of options that must be selected.
         :param max_selections: The maximum number of options that must be selected.
         """
