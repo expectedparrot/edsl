@@ -17,11 +17,7 @@ class QuestionFreeText(QuestionBase):
         """
     )
 
-    def __init__(
-        self,
-        question_name: str,
-        question_text: str
-    ):
+    def __init__(self, question_name: str, question_text: str):
         """Instantiate a new QuestionFreeText.
 
         :param question_name: The name of the question.
