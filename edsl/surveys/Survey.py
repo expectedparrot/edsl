@@ -1113,7 +1113,9 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     # SERIALIZATION METHODS
     ###################
 
-    def recombined_questions_and_instructions(self):
+    def recombined_questions_and_instructions(
+        self,
+    ) -> list[Union[QuestionBase, "Instruction"]]:
         # recombine the questions and instructions
         questions_and_instructions = self._questions + list(
             self.instruction_names_to_instructions.values()
