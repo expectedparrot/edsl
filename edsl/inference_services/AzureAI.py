@@ -135,6 +135,9 @@ class AzureAIService(InferenceServiceABC):
                     client = ChatCompletionsClient(
                         endpoint=endpoint,
                         credential=AzureKeyCredential(api_key),
+                        temperature=self.temperature,
+                        top_p=self.top_p,
+                        max_tokens=self.max_tokens,
                     )
                     try:
                         response = await client.complete(
