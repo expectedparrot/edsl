@@ -214,6 +214,17 @@ class PromptConstructorMixin:
 
         return self._agent_persona_prompt
 
+    def prior_answers_dict(self) -> dict:
+        d = self.survey.question_names_to_questions()
+        for question, answer in self.current_answers.items():
+            if question in d:
+                d[question].answer = answer
+            else:
+                # adds a comment to the question
+                if (new_question := question.split("_comment")[0]) in d:
+                    d[new_question].comment = answer
+        return d
+
     @property
     def question_instructions_prompt(self) -> Prompt:
         """
@@ -266,18 +277,19 @@ class PromptConstructorMixin:
             question_prompt = self.question.get_instructions(model=self.model.model)
 
             # TODO: Try to populate the answers in the question object if they are available
-            d = self.survey.question_names_to_questions()
-            for question, answer in self.current_answers.items():
-                if question in d:
-                    d[question].answer = answer
-                else:
-                    # adds a comment to the question
-                    if (new_question := question.split("_comment")[0]) in d:
-                        d[new_question].comment = answer
+            # d = self.survey.question_names_to_questions()
+            # for question, answer in self.current_answers.items():
+            #     if question in d:
+            #         d[question].answer = answer
+            #     else:
+            #         # adds a comment to the question
+            #         if (new_question := question.split("_comment")[0]) in d:
+            #             d[new_question].comment = answer
 
             question_data = self.question.data.copy()
 
-            # check to see if the questio_options is actuall a string
+            # check to see if the question_options is actually a string
+            # This is used when the user is using the question_options as a variable from a sceario
             if "question_options" in question_data:
                 if isinstance(self.question.data["question_options"], str):
                     from jinja2 import Environment, meta
@@ -293,7 +305,10 @@ class PromptConstructorMixin:
 
             # breakpoint()
             rendered_instructions = question_prompt.render(
-                question_data | self.scenario | d | {"agent": self.agent}
+                question_data
+                | self.scenario
+                | self.prior_answers_dict()
+                | {"agent": self.agent}
             )
 
             undefined_template_variables = (
@@ -339,7 +354,7 @@ class PromptConstructorMixin:
             if self.memory_plan is not None:
                 memory_prompt += self.create_memory_prompt(
                     self.question.question_name
-                ).render(self.scenario)
+                ).render(self.scenario | self.prior_answers_dict())
             self._prior_question_memory_prompt = memory_prompt
         return self._prior_question_memory_prompt
 
