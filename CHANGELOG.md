@@ -1,15 +1,28 @@
 # Changelog
 
-## [0.1.31] - 2024-TBD [In progress]
-### Added
-- [In progress] `ScenarioList.from_sqlite` allows you to create a list of scenarios from a SQLite table.
-
-- [In progress] Added LaTeX support to SQL outputs and ability to write to files: `Results.print(format="latex", filename="example.tex")`
-
-- [In progress] Options that we think of as "terminal", such as `sql()`, `print()`, `html()`, etc., now take a `tee` boolean that causes them to return `self`. This is useful for chaining, e.g., if you run `print(format = "rich", tee = True)` it will return `self`, which allows you do also run `print(format = "rich", tee = True).print(format = "latex", filename = "example.tex")`.
+## [0.1.33] - IN PROGRESS
 
 ### Changed
 - [In progress] `QuestionMultipleChoice` may be modified to allow combined options and free response "Other" option, as well as non-responsive answers. Previously, an error was thrown if the agent did not select one of the given options. Details TBD.
+
+
+## [0.1.32] - 2024-08-19
+### Added
+- Models: AWS Bedrock & Azure
+
+- Question: New method `loop()` allows you to create versions of questions when you are constructing a survey. It takes a `ScenarioList()` as a parameter and returns a list of `Question` objects.
+
+### Fixes
+- Bug in `Survey` question piping prevented you from adding questions after piping.
+
+
+## [0.1.31] - 2024-08-15
+
+- `ScenarioList.from_sqlite` allows you to create a list of scenarios from a SQLite table.
+
+- Added LaTeX support to SQL outputs and ability to write to files: `Results.print(format="latex", filename="example.tex")`
+
+- Options that we think of as "terminal", such as `sql()`, `print()`, `html()`, etc., now take a `tee` boolean that causes them to return `self`. This is useful for chaining, e.g., if you run `print(format = "rich", tee = True)` it will return `self`, which allows you do also run `print(format = "rich", tee = True).print(format = "latex", filename = "example.tex")`.
 
 
 ## [0.1.30] - 2024-07-28
