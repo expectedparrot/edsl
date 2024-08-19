@@ -20,6 +20,7 @@ def all_model_ids(bedrock_client):
     ]
 
 
+# TODO: this test is uninformative, because it can't fail
 def test_converse_with_models(bedrock_runtime_client, all_model_ids):
     user_message = """[INST]You are a a very intelligent bot with exceptional critical thinking[/INST]
     I went to the market and bought 10 apples. I gave 2 apples to your friend and 2 to the helper. I then went and bought 5 more apples and ate 1. How many apples did I remain with?
