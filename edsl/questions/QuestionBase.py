@@ -116,13 +116,37 @@ class QuestionBase(
     def loop(self, scenario_list: "ScenarioList") -> List[QuestionBase]:
         from jinja2 import Environment
 
+        staring_name = self.question_name
         questions = []
         for index, scenario in enumerate(scenario_list):
             env = Environment()
             new_data = self.to_dict().copy()
             for key, value in new_data.items():
-                new_data[key] = env.from_string(value).render(scenario)
-            new_data["question_name"] = new_data["question_name"] + f"_{index}"
+                if isinstance(value, str):
+                    new_data[key] = env.from_string(value).render(scenario)
+                elif isinstance(value, list):
+                    new_data[key] = [
+                        env.from_string(v).render(scenario) if isinstance(v, str) else v
+                        for v in value
+                    ]
+                elif isinstance(value, dict):
+                    new_data[key] = {
+                        (
+                            env.from_string(k).render(scenario)
+                            if isinstance(k, str)
+                            else k
+                        ): (
+                            env.from_string(v).render(scenario)
+                            if isinstance(v, str)
+                            else v
+                        )
+                        for k, v in value.items()
+                    }
+                else:
+                    raise ValueError(f"Unexpected value type: {type(value)}")
+
+            if new_data["question_name"] == staring_name:
+                new_data["question_name"] = new_data["question_name"] + f"_{index}"
             questions.append(QuestionBase.from_dict(new_data))
         return questions
 
