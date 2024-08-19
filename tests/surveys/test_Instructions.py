@@ -15,7 +15,8 @@ def test_instructions():
 
     s = Survey([q1, i, i2, q2])
 
-    instructions, change = s.instructions._entries_before("how_feeling")
+    # instructions, change = s.instructions._entries_before("how_feeling")
+    instructions, change = s.relevant_instructions_dict._entries_before("how_feeling")
     assert [x.name for x in instructions] == ["intro", "followon_intro"]
 
 

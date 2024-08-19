@@ -4,7 +4,10 @@ from edsl.questions import QuestionBase
 from typing import Union, Optional, List, Generator, Dict
 
 
-class InstructionCollection:
+from collections import UserDict
+
+
+class InstructionCollection(UserDict):
     def __init__(
         self,
         instruction_names_to_instruction: Dict[str, Instruction],
@@ -12,6 +15,18 @@ class InstructionCollection:
     ):
         self.instruction_names_to_instruction = instruction_names_to_instruction
         self.questions = questions
+        data = {}
+        for question in self.questions:
+            # just add both the question and the question name
+            data[question.name] = list(self.relevant_instructions(question))
+            # data[question] = list(self.relevant_instructions(question))
+        super().__init__(data)
+
+    def __getitem__(self, key):
+        # in case the person uses question instead of the name
+        if isinstance(key, QuestionBase):
+            key = key.name
+        return self.data[key]
 
     @property
     def question_names(self):

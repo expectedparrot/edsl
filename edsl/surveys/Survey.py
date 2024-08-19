@@ -64,6 +64,13 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         :param name: The name of the survey - DEPRECATED.
 
 
+        >>> from edsl import QuestionFreeText
+        >>> q1 = QuestionFreeText(question_text = "What is your name?", question_name = "name")
+        >>> q2 = QuestionFreeText(question_text = "What is your favorite color?", question_name = "color")
+        >>> q3 = QuestionFreeText(question_text = "Is a hot dog a sandwich", question_name = "food")
+        >>> s = Survey([q1, q2, q3], question_groups = {"demographics": (0, 1), "substantive":(3)})
+
+
         """
 
         self.raw_passed_questions = questions
@@ -81,10 +88,6 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         self.questions = true_questions
         self.instruction_names_to_instructions = instruction_names_to_instructions
 
-        # self.instructions = InstructionCollection(
-        #     instruction_names_to_instructions, true_questions
-        # )
-
         self.memory_plan = memory_plan or MemoryPlan(self)
         if question_groups is not None:
             self.question_groups = question_groups
@@ -101,7 +104,14 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
             warnings.warn("name parameter to a survey is deprecated.")
 
     @property
-    def instructions(self):
+    def relevant_instructions_dict(self) -> dict:
+        """Return a dictionary with keys as question names and values as instructions that are relevant to the question.
+
+        >>> s = Survey.example(include_instructions=True)
+        >>> s.relevant_instructions_dict
+        {'q0': [Instruction(name="attention", text="Please pay attention!")], 'q1': [Instruction(name="attention", text="Please pay attention!")], 'q2': [Instruction(name="attention", text="Please pay attention!")]}
+
+        """
         return InstructionCollection(
             self.instruction_names_to_instructions, self.questions
         )
@@ -123,7 +133,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         >>> from edsl import QuestionFreeText; q1 = QuestionFreeText.example()
         >>> from edsl import QuestionMultipleChoice; q2 = QuestionMultipleChoice.example()
         >>> s = Survey([q1, i, i2, q2])
-        >>> len(s.instructions)
+        >>> len(s.instruction_names_to_instructions)
         2
         >>> s.pseudo_indices
         {'how_are_you': 0, 'intro': 0.5, 'followon_intro': 0.75, 'how_feeling': 1}
@@ -132,11 +142,11 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         >>> q3 = QuestionFreeText(question_text = "What is your favorite color?", question_name = "color")
         >>> i_change = ChangeInstruction(drop = ["intro"])
         >>> s = Survey([q1, i, q2, i_change, q3])
-        >>> [i.name for i in s.relevant_instructions("how_are_you")]
+        >>> [i.name for i in s.relevant_instructions(q1)]
         []
-        >>> [i.name for i in s.relevant_instructions("how_feeling")]
+        >>> [i.name for i in s.relevant_instructions(q2)]
         ['intro']
-        >>> [i.name for i in s.relevant_instructions("color")]
+        >>> [i.name for i in s.relevant_instructions(q3)]
         []
 
         >>> i_change = ChangeInstruction(keep = ["poop"], drop = [])
@@ -188,7 +198,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         # Did the instruction come before the question and was it not modified by a change instruction?
 
         """
-        return list(self.instructions.relevant_instructions(question))
+        return self.relevant_instructions_dict[question]
 
     def simulate(self) -> dict:
         """Simulate the survey and return the answers."""
@@ -327,6 +337,68 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         {'q0': 0, 'q1': 1, 'q2': 2}
         """
         return {q.question_name: i for i, q in enumerate(self.questions)}
+
+    @property
+    def max_pseudo_index(self) -> float:
+        """Return the maximum pseudo index in the survey.
+
+        Example:
+
+        >>> s = Survey.example()
+        >>> s.max_pseudo_index
+        2
+        """
+        if len(self.pseudo_indices) == 0:
+            return -1
+        return max(self.pseudo_indices.values())
+
+    @property
+    def last_item_was_instruction(self) -> bool:
+        """Return whether the last item added to the survey was an instruction.
+
+        Example:
+
+        >>> s = Survey.example()
+        >>> s.last_item_was_instruction
+        False
+        """
+        return isinstance(self.max_pseudo_index, float)
+
+    def add_instruction(
+        self, instruction: Union["Instruction", "ChangeInstruction"]
+    ) -> Survey:
+        """
+        Add an instruction to the survey.
+
+        :param instruction: The instruction to add to the survey.
+
+        >>> from edsl import Instruction
+        >>> i = Instruction(text="Pay attention to the following questions.", name="intro")
+        >>> s = Survey().add_instruction(i)
+        >>> s.instruction_names_to_instructions
+        {'intro': Instruction(name="intro", text="Pay attention to the following questions.")}
+        >>> s.pseudo_indices
+        {'intro': -0.5}
+        """
+        import math
+
+        if instruction.name in self.instruction_names_to_instructions:
+            raise SurveyCreationError(
+                f"""Instruction name '{instruction.name}' already exists in survey. Existing names are {self.instruction_names_to_instructions.keys()}."""
+            )
+        self.instruction_names_to_instructions[instruction.name] = instruction
+
+        # was the last thing added an instruction or a question?
+        if self.last_item_was_instruction:
+            pseudo_index = (
+                self.max_pseudo_index
+                + (math.ceil(self.max_pseudo_index) - self.max_pseudo_index) / 2
+            )
+        else:
+            pseudo_index = self.max_pseudo_index + 1.0 / 2.0
+        self.pseudo_indices[instruction.name] = pseudo_index
+
+        return self
 
     def add_question(self, question: QuestionBase) -> Survey:
         """
@@ -1044,7 +1116,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     def recombined_questions_and_instructions(self):
         # recombine the questions and instructions
         questions_and_instructions = self._questions + list(
-            self.instructions.instruction_names_to_instruction.values()
+            self.instruction_names_to_instructions.values()
         )
         return sorted(
             questions_and_instructions, key=lambda x: self.pseudo_indices[x.name]
