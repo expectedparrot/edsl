@@ -113,6 +113,19 @@ class QuestionBase(
 
         return candidate_data
 
+    def loop(self, scenario_list: "ScenarioList") -> List[QuestionBase]:
+        from jinja2 import Environment
+
+        questions = []
+        for index, scenario in enumerate(scenario_list):
+            env = Environment()
+            new_data = self.to_dict().copy()
+            for key, value in new_data.items():
+                new_data[key] = env.from_string(value).render(scenario)
+            new_data["question_name"] = new_data["question_name"] + f"_{index}"
+            questions.append(QuestionBase.from_dict(new_data))
+        return questions
+
     @classmethod
     def applicable_prompts(
         cls, model: Optional[str] = None
