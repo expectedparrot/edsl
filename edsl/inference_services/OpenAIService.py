@@ -8,6 +8,7 @@ import openai
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
 from edsl.language_models import LanguageModel
 from edsl.inference_services.rate_limits_cache import rate_limits
+from edsl.utilities.utilities import fix_partial_correct_response
 
 
 class OpenAIService(InferenceServiceABC):
@@ -207,6 +208,9 @@ class OpenAIService(InferenceServiceABC):
                 if match:
                     return match.group(1)
                 else:
+                    out = fix_partial_correct_response(response)
+                    if "error" not in out:
+                        response = out["extracted_json"]
                     return response
 
         LLM.__name__ = "LanguageModel"
