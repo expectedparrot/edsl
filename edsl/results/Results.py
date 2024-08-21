@@ -835,10 +835,11 @@ class Results(UserList, Mixins, Base):
                 raise Exception(
                     f"Column '{column}' is ambiguous. Did you mean one of {matches}?"
                 )
-            if len(matches) == 0:
+            if len(matches) == 0 and ".*" not in column:
                 raise Exception(f"Column '{column}' not found in data.")
             if len(matches) == 1:
                 column = matches[0]
+
             parsed_data_type, parsed_key = self._parse_column(column)
             data_types = get_data_types_to_return(parsed_data_type)
             found_once = False  # we need to track this to make sure we found the key at least once
