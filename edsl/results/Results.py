@@ -31,6 +31,10 @@ from edsl.utilities.utilities import dict_hash
 from edsl.Base import Base
 
 
+def find_matching_strings(string_list, short_string):
+    return [s for s in string_list if s.startswith(short_string)]
+
+
 class Mixins(
     ResultsExportMixin,
     ResultsDBMixin,
@@ -107,6 +111,27 @@ class Results(UserList, Mixins, Base):
 
         if hasattr(self, "_add_output_functions"):
             self._add_output_functions()
+
+    def _matching_columns(self, partial_name: str) -> list[str]:
+        """
+        Return a list of strings that match the short_string.
+
+        >>> r = Results.example()
+        >>> r._matching_columns('answer.how')
+        ['answer.how_feeling', 'answer.how_feeling_yesterday']
+        >>> r._matching_columns('answer.how_feeling')
+        ['answer.how_feeling']
+        """
+        if "." in partial_name:
+            search_in_list = self.columns
+        else:
+            search_in_list = [s.split(".")[1] for s in self.columns]
+
+        matches = find_matching_strings(search_in_list, partial_name)
+        for match in matches:  # if it's a perfect match, return it
+            if match == partial_name:
+                return [match]
+        return matches
 
     def code(self):
         raise NotImplementedError
@@ -721,8 +746,8 @@ class Results(UserList, Mixins, Base):
 
     def sample(
         self,
-        n: int = None,
-        frac: float = None,
+        n: Optional[int] = None,
+        frac: Optional[float] = None,
         with_replacement: bool = True,
         seed: Optional[str] = "edsl",
     ) -> Results:
@@ -772,12 +797,16 @@ class Results(UserList, Mixins, Base):
 
         >>> results.select('how_feeling', 'model', 'how_feeling')
         Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}, {'model.model': ['gpt-4-1106-preview', 'gpt-4-1106-preview', 'gpt-4-1106-preview', 'gpt-4-1106-preview']}, {'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}])
+
+        >>> from edsl import Results; r = Results.example(); r.select('answer.how_feeling_y')
+        Dataset([{'answer.how_feeling_yesterday': ['Great', 'Good', 'OK', 'Terrible']}])
         """
 
         if len(self) == 0:
             raise Exception("No data to select from---the Results object is empty.")
 
         if not columns or columns == ("*",) or columns == (None,):
+            # is the users passes nothing, then we'll return all the columns
             columns = ("*.*",)
 
         if isinstance(columns[0], list):
@@ -801,6 +830,15 @@ class Results(UserList, Mixins, Base):
         # iterate through the passed columns
         for column in columns:
             # a user could pass 'result.how_feeling' or just 'how_feeling'
+            matches = self._matching_columns(column)
+            if len(matches) > 1:
+                raise Exception(
+                    f"Column '{column}' is ambiguous. Did you mean one of {matches}?"
+                )
+            if len(matches) == 0:
+                raise Exception(f"Column '{column}' not found in data.")
+            if len(matches) == 1:
+                column = matches[0]
             parsed_data_type, parsed_key = self._parse_column(column)
             data_types = get_data_types_to_return(parsed_data_type)
             found_once = False  # we need to track this to make sure we found the key at least once
