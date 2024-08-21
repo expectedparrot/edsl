@@ -501,7 +501,7 @@ class DatasetExportMixin:
 
         return list_of_dicts
 
-    def to_list(self, flatten=False, remove_none=False) -> list[list]:
+    def to_list(self, flatten=False, remove_none=False, unzipped=False) -> list[list]:
         """Convert the results to a list of lists.
 
         :param flatten: Whether to flatten the list of lists.
