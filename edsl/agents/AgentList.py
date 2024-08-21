@@ -21,6 +21,12 @@ from simpleeval import EvalWithCompoundTypes
 from edsl.Base import Base
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
+from collections.abc import Iterable
+
+
+def is_iterable(obj):
+    return isinstance(obj, Iterable)
+
 
 class AgentList(UserList, Base):
     """A list of Agents."""
@@ -111,6 +117,13 @@ class AgentList(UserList, Base):
 
         return AgentList(new_data)
 
+    @property
+    def all_traits(self):
+        d = {}
+        for agent in self:
+            d.update(agent.traits)
+        return list(d.keys())
+
     @classmethod
     def from_csv(cls, file_path: str):
         """Load AgentList from a CSV file.
@@ -157,6 +170,35 @@ class AgentList(UserList, Base):
         """
         for agent in self.data:
             _ = agent.remove_trait(trait)
+        return self
+
+    def add_trait(self, trait, values):
+        """Adds a new trait to every agent, with values taken from values.
+
+        :param trait: The name of the trait.
+        :param values: The valeues(s) of the trait. If a single value is passed, it is used for all agents.
+
+        >>> al = AgentList.example()
+        >>> al.add_trait('new_trait', 1)
+        >>> al.select('new_trait').to_list() == [1, 1]
+        True
+        >>> al.add_trait('new_trait', [1, 2, 3])
+        Traceback (most recent call last):
+        ...
+        ValueError: The passed values have to be the same length as the agent list.
+        """
+        if not is_iterable(values):
+            value = values
+            for agent in self.data:
+                agent.add_trait(trait, value)
+            return self
+
+        if len(values) != len(self):
+            raise ValueError(
+                "The passed values have to be the same length as the agent list."
+            )
+        for agent, value in zip(self.data, values):
+            agent.add_trait(trait, value)
         return self
 
     @staticmethod

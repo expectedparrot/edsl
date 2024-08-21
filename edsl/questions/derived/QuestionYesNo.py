@@ -13,7 +13,7 @@ class QuestionYesNo(QuestionMultipleChoice):
         self,
         question_name: str,
         question_text: str,
-        question_options: list[str] = ["Yes", "No"],
+        question_options: list[str] = ["No", "Yes"],
     ):
         """Instantiate a new QuestionYesNo.
 
