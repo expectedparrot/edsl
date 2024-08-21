@@ -180,8 +180,9 @@ class AgentList(UserList, Base):
 
         >>> al = AgentList.example()
         >>> al.add_trait('new_trait', 1)
-        >>> al.select('new_trait').to_list() == [1, 1]
-        True
+        AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5, 'new_trait': 1}), Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5, 'new_trait': 1})])
+        >>> al.select('new_trait').to_scenario_list().to_list()
+        [1, 1]
         >>> al.add_trait('new_trait', [1, 2, 3])
         Traceback (most recent call last):
         ...
