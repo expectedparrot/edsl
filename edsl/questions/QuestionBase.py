@@ -45,6 +45,10 @@ class QuestionBase(
 
         return dict_hash(self._to_dict())
 
+    @property
+    def name(self):
+        return self.question_name
+
     def _repr_html_(self):
         from edsl.utilities.utilities import data_to_html
 
@@ -108,6 +112,43 @@ class QuestionBase(
             candidate_data["function_source_code"] = inspect.getsource(func)
 
         return candidate_data
+
+    def loop(self, scenario_list: "ScenarioList") -> List[QuestionBase]:
+        from jinja2 import Environment
+
+        staring_name = self.question_name
+        questions = []
+        for index, scenario in enumerate(scenario_list):
+            env = Environment()
+            new_data = self.to_dict().copy()
+            for key, value in new_data.items():
+                if isinstance(value, str):
+                    new_data[key] = env.from_string(value).render(scenario)
+                elif isinstance(value, list):
+                    new_data[key] = [
+                        env.from_string(v).render(scenario) if isinstance(v, str) else v
+                        for v in value
+                    ]
+                elif isinstance(value, dict):
+                    new_data[key] = {
+                        (
+                            env.from_string(k).render(scenario)
+                            if isinstance(k, str)
+                            else k
+                        ): (
+                            env.from_string(v).render(scenario)
+                            if isinstance(v, str)
+                            else v
+                        )
+                        for k, v in value.items()
+                    }
+                else:
+                    raise ValueError(f"Unexpected value type: {type(value)}")
+
+            if new_data["question_name"] == staring_name:
+                new_data["question_name"] = new_data["question_name"] + f"_{index}"
+            questions.append(QuestionBase.from_dict(new_data))
+        return questions
 
     @classmethod
     def applicable_prompts(

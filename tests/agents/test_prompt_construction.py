@@ -14,8 +14,9 @@ def test_system_prompt_traits_passed():
 def test_user_prompt_question_text_passed():
     agent = Agent(traits={"age": 10, "hair": "brown", "height": 5.5})
     from edsl.questions import QuestionMultipleChoice as q
+    from edsl import Survey
 
-    i = agent._create_invigilator(question=q.example(), survey=q.example().to_survey())
+    i = agent._create_invigilator(question=q.example(), survey=Survey([q.example()]))
     user_prompt = i.construct_user_prompt()
     assert q.example().question_text in user_prompt
 
@@ -27,11 +28,14 @@ def test_scenario_render_in_user_prompt():
 
     agent = Agent(traits={"age": 10, "hair": "brown", "height": 5.5})
     q = QuestionFreeText(
-        question_text="How are you today {{name}}?", question_name="name"
+        question_text="How are you today {{first_name}}?", question_name="name"
     )
-    s = Scenario({"name": "Peter"})
+    q_no_nesting = QuestionFreeText(
+        question_text="How are you today?", question_name="name"
+    )
+    s = Scenario({"first_name": "Peter"})
     i = agent._create_invigilator(
-        question=q, scenario=s, survey=q.example().to_survey()
+        question=q, scenario=s, survey=q_no_nesting.to_survey()
     )
     user_prompt = i.construct_user_prompt()
     assert "Peter" in user_prompt

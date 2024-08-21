@@ -170,12 +170,19 @@ class InvigilatorBase(ABC):
         from edsl.surveys import Survey
 
         survey = Survey.example()
+        # if question:
+        # need to have the focal question name in the list of names
+        # survey._questions[0].question_name = question.question_name
+        #    survey.add_question(question)
+        if question:
+            survey.add_question(question)
+
         question = question or survey.questions[0]
         scenario = scenario or Scenario.example()
         # memory_plan = None #memory_plan = MemoryPlan()
         from edsl import Survey
 
-        memory_plan = MemoryPlan(survey=Survey.example())
+        memory_plan = MemoryPlan(survey=survey)
         current_answers = None
         from edsl.agents.PromptConstructionMixin import PromptConstructorMixin
 

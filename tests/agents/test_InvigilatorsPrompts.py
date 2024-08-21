@@ -17,7 +17,8 @@ class MockModel:
 class MockQuestion:
     question_type = "free_text"
     question_text = "How are you feeling?"
-    question_name = "feelings_question"
+    question_name = "q0"
+    name = "q0"
     data = {
         "question_name": "feelings",
         "question_text": "How are you feeling?",

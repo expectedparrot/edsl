@@ -2,6 +2,27 @@
 
 from typing import Union, Optional
 
+import subprocess
+import platform
+import os
+import tempfile
+
+
+def open_docx(file_path):
+    """
+    Open a docx file using the default application in a cross-platform manner.
+
+    :param file_path: str, path to the docx file
+    """
+    file_path = os.path.abspath(file_path)
+
+    if platform.system() == "Darwin":  # macOS
+        subprocess.call(("open", file_path))
+    elif platform.system() == "Windows":  # Windows
+        os.startfile(file_path)
+    else:  # linux variants
+        subprocess.call(("xdg-open", file_path))
+
 
 class SurveyExportMixin:
     """A mixin class for exporting surveys to different formats."""
@@ -25,7 +46,12 @@ class SurveyExportMixin:
         )
         return q.run().select("description").first()
 
-    def docx(self, filename=None) -> Union["Document", None]:
+    def docx(
+        self,
+        return_document_object: bool = False,
+        filename: Optional[str] = None,
+        open_file: bool = False,
+    ) -> Union["Document", None]:
         """Generate a docx document for the survey."""
         from docx import Document
 
@@ -45,19 +71,56 @@ class SurveyExportMixin:
                 if hasattr(question, "question_options"):
                     for option in getattr(question, "question_options", []):
                         doc.add_paragraph(str(option), style="ListBullet")
-        if filename:
-            doc.save(filename)
-            print("The survey has been saved to", filename)
-            return
-        return doc
 
-    def to_scenario_list(self) -> "ScenarioList":
+        if return_document_object and filename is None:
+            return doc
+
+        if filename is None:
+
+            with tempfile.NamedTemporaryFile(
+                "w", delete=False, suffix=".docx", dir=os.getcwd()
+            ) as f:
+                filename = f.name
+
+        doc.save(filename)
+        print("The survey has been saved to", filename)
+        if open_file:
+            open_docx(filename)
+        return
+
+    def show(self):
+        self.to_scenario_list(questions_only=False, rename=True).print(format="rich")
+
+    def to_scenario_list(
+        self, questions_only: bool = True, rename=False
+    ) -> "ScenarioList":
         from edsl import ScenarioList, Scenario
+
+        # from edsl.questions import QuestionBase
+
+        if questions_only:
+            to_iterate_over = self._questions
+        else:
+            to_iterate_over = self.recombined_questions_and_instructions()
+
+        if rename:
+            renaming_dict = {
+                "name": "identifier",
+                "question_name": "identifier",
+                "question_text": "text",
+            }
+        else:
+            renaming_dict = {}
 
         all_keys = set([])
         scenarios = ScenarioList()
-        for q in self._questions:
-            d = q.to_dict()
+        for item in to_iterate_over:
+            d = item.to_dict()
+            if item.__class__.__name__ == "Instruction":
+                d["question_type"] = "NA / instruction"
+            for key in renaming_dict:
+                if key in d:
+                    d[renaming_dict[key]] = d.pop(key)
             all_keys.update(d.keys())
             scenarios.append(Scenario(d))
 
