@@ -65,6 +65,10 @@ class InvigilatorBase(ABC):
         self.sidecar_model = sidecar_model
         self.survey = survey
 
+        self.raw_model_response = (
+            None  # placeholder for the raw response from the model
+        )
+
     def __repr__(self) -> str:
         """Return a string representation of the Invigilator.
 

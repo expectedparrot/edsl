@@ -1,10 +1,10 @@
 from __future__ import annotations
 import time
 import asyncio
-import time
+import functools
+from typing import Coroutine, List, AsyncGenerator, Optional, Union, Generator
 from contextlib import contextmanager
-
-from typing import Coroutine, List, AsyncGenerator, Optional, Union
+from collections import UserList
 
 from edsl import shared_globals
 from edsl.jobs.interviews.Interview import Interview
@@ -12,12 +12,15 @@ from edsl.jobs.runners.JobsRunnerStatusMixin import JobsRunnerStatusMixin
 from edsl.jobs.tasks.TaskHistory import TaskHistory
 from edsl.jobs.buckets.BucketCollection import BucketCollection
 from edsl.utilities.decorators import jupyter_nb_handler
-
-import time
-import functools
+from edsl.data.Cache import Cache
+from edsl.results.Result import Result
+from edsl.results.Results import Results
+from edsl.jobs.FailedQuestion import FailedQuestion
 
 
 def cache_with_timeout(timeout):
+    """ "Used to keep the generate table from being run too frequetly."""
+
     def decorator(func):
         cached_result = {}
         last_computation_time = [0]  # Using list to store mutable value
@@ -33,10 +36,6 @@ def cache_with_timeout(timeout):
         return wrapper
 
     return decorator
-
-
-# from queue import Queue
-from collections import UserList
 
 
 class StatusTracker(UserList):
@@ -55,7 +54,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
     The Jobs object is a collection of interviews that are to be run.
     """
 
-    def __init__(self, jobs: Jobs):
+    def __init__(self, jobs: "Jobs"):
         self.jobs = jobs
         # this creates the interviews, which can take a while
         self.interviews: List["Interview"] = jobs.interviews()
@@ -68,7 +67,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         n: int = 1,
         debug: bool = False,
         stop_on_exception: bool = False,
-        sidecar_model: "LanguageModel" = None,
+        sidecar_model: Optional["LanguageModel"] = None,
         total_interviews: Optional[List["Interview"]] = None,
     ) -> AsyncGenerator["Result", None]:
         """Creates the tasks, runs them asynchronously, and returns the results as a Results object.
@@ -82,11 +81,11 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         :param total_interviews: A list of interviews to run can be provided instead.
         """
         tasks = []
-        if total_interviews:
+        if total_interviews:  # was already passed in total interviews
             self.total_interviews = total_interviews
         else:
-            self._populate_total_interviews(
-                n=n
+            self.total_interviews = list(
+                self._populate_total_interviews(n=n)
             )  # Populate self.total_interviews before creating tasks
 
         for interview in self.total_interviews:
@@ -102,44 +101,30 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             result = await task
             yield result
 
-    def _populate_total_interviews(self, n: int = 1) -> None:
+    def _populate_total_interviews(
+        self, n: int = 1
+    ) -> Generator["Interview", None, None]:
         """Populates self.total_interviews with n copies of each interview.
 
         :param n: how many times to run each interview.
         """
-        # TODO: Why not return a list of interviews instead of modifying the object?
-
-        self.total_interviews = []
         for interview in self.interviews:
             for iteration in range(n):
                 if iteration > 0:
-                    new_interview = interview.duplicate(
-                        iteration=iteration, cache=self.cache
-                    )
-                    self.total_interviews.append(new_interview)
+                    yield interview.duplicate(iteration=iteration, cache=self.cache)
                 else:
-                    interview.cache = (
-                        self.cache
-                    )  # set the cache for the first interview
-                    self.total_interviews.append(interview)
+                    interview.cache = self.cache
+                    yield interview
 
-    async def run_async(self, cache=None, n=1) -> Results:
-        from edsl.results.Results import Results
+    async def run_async(self, cache: Optional["Cache"] = None, n: int = 1) -> Results:
 
-        # breakpoint()
-        # tracker = StatusTracker(total_tasks=len(self.interviews))
-
-        if cache is None:
-            self.cache = Cache()
-        else:
-            self.cache = cache
+        self.cache = Cache() if cache is None else cache
         data = []
         async for result in self.run_async_generator(cache=self.cache, n=n):
             data.append(result)
         return Results(survey=self.jobs.survey, data=data)
 
     def simple_run(self):
-        from edsl.results.Results import Results
 
         data = asyncio.run(self.run_async())
         return Results(survey=self.jobs.survey, data=data)
@@ -150,8 +135,8 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         interview: Interview,
         debug: bool,
         stop_on_exception: bool = False,
-        sidecar_model: Optional[LanguageModel] = None,
-    ) -> Result:
+        sidecar_model: Optional["LanguageModel"] = None,
+    ) -> "Result":
         """Conducts an interview and returns the result.
 
         :param interview: the interview to conduct
@@ -186,21 +171,19 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
 
         prompt_dictionary = {}
         for answer_key_name in answer_key_names:
-            prompt_dictionary[
-                answer_key_name + "_user_prompt"
-            ] = question_name_to_prompts[answer_key_name]["user_prompt"]
-            prompt_dictionary[
-                answer_key_name + "_system_prompt"
-            ] = question_name_to_prompts[answer_key_name]["system_prompt"]
+            prompt_dictionary[answer_key_name + "_user_prompt"] = (
+                question_name_to_prompts[answer_key_name]["user_prompt"]
+            )
+            prompt_dictionary[answer_key_name + "_system_prompt"] = (
+                question_name_to_prompts[answer_key_name]["system_prompt"]
+            )
 
         raw_model_results_dictionary = {}
         for result in valid_results:
             question_name = result["question_name"]
-            raw_model_results_dictionary[
-                question_name + "_raw_model_response"
-            ] = result["raw_model_response"]
-
-        from edsl.results.Result import Result
+            raw_model_results_dictionary[question_name + "_raw_model_response"] = (
+                result["raw_model_response"]
+            )
 
         result = Result(
             agent=interview.agent,
@@ -309,7 +292,12 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                         progress_bar_context.update(generate_table())
 
         # puts results in the same order as the total interviews
-        interview_hashes = [hash(interview) for interview in self.total_interviews]
+        interview_lookup = {
+            hash(interview): index
+            for index, interview in enumerate(self.total_interviews)
+        }
+        # interview_hashes = [hash(interview) for interview in self.total_interviews]
+        interview_hashes = list(interview_lookup.keys())
         self.results = sorted(
             self.results, key=lambda x: interview_hashes.index(x.interview_hash)
         )
@@ -318,6 +306,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         task_history = TaskHistory(self.total_interviews, include_traceback=False)
         results.task_history = task_history
 
+        results.failed_questions = {}
         results.has_exceptions = task_history.has_exceptions
 
         if results.has_exceptions:
@@ -329,6 +318,15 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                 for interview in self.total_interviews
                 if interview.has_exceptions
             ]
+
+            failed_questions = {}
+            for interview in self.total_interviews:
+                if interview.has_exceptions:
+                    index = interview_lookup[hash(interview)]
+                    failed_questions[index] = interview.failed_questions
+
+            results.failed_questions = failed_questions
+
             from edsl.jobs.Jobs import Jobs
 
             results.failed_jobs = Jobs.from_interviews(

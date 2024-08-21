@@ -79,9 +79,9 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         self.debug = debug
         self.iteration = iteration
         self.cache = cache
-        self.answers: dict[
-            str, str
-        ] = Answers()  # will get filled in as interview progresses
+        self.answers: dict[str, str] = (
+            Answers()
+        )  # will get filled in as interview progresses
         self.sidecar_model = sidecar_model
 
         # Trackers
@@ -95,6 +95,8 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
             question_name: index
             for index, question_name in enumerate(self.survey.question_names)
         }
+
+        self.failed_questions = []
 
     def _to_dict(self, include_exceptions=False) -> dict[str, Any]:
         """Return a dictionary representation of the Interview instance.
@@ -215,6 +217,18 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
                 result = invigilator.get_failed_task_result()
             except Exception as e:  # any other kind of exception in the task
                 result = invigilator.get_failed_task_result()
+                from edsl.jobs.FailedQuestion import FailedQuestion
+
+                failed_question = FailedQuestion(
+                    question=invigilator.question,
+                    scenario=invigilator.scenario,
+                    model=invigilator.model,
+                    agent=invigilator.agent,
+                    raw_model_response=invigilator.raw_model_response,
+                    exception=e,
+                    prompts=invigilator.get_prompts(),
+                )
+                self.failed_questions.append(failed_question)
                 self._record_exception(task, e)
             yield result
 
