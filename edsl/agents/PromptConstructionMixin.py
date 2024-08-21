@@ -329,6 +329,19 @@ class PromptConstructorMixin:
                     f"Question instructions still has variables: {undefined_template_variables}."
                 )
 
+            # Check if question has an instructions
+            relevant_instructions = self.survey.relevant_instructions(
+                self.question.question_name
+            )
+
+            if relevant_instructions != []:
+                preamble_text = Prompt(
+                    text="Before answer this question, you were given the following instructions: "
+                )
+                for instruction in relevant_instructions:
+                    preamble_text += instruction.text
+                rendered_instructions = preamble_text + rendered_instructions
+
             self._question_instructions_prompt = rendered_instructions
         return self._question_instructions_prompt
 
@@ -368,14 +381,14 @@ class PromptConstructorMixin:
 
         >>> from edsl import QuestionFreeText
         >>> from edsl.agents.InvigilatorBase import InvigilatorBase
-        >>> q = QuestionFreeText(question_text="How are you today?", question_name="q0")
+        >>> q = QuestionFreeText(question_text="How are you today?", question_name="q_new")
         >>> i = InvigilatorBase.example(question = q)
         >>> i.get_prompts()
         {'user_prompt': ..., 'system_prompt': ...}
         >>> scenario = i._get_scenario_with_image()
         >>> scenario.has_image
         True
-        >>> q = QuestionFreeText(question_text="How are you today?", question_name="q0")
+        >>> q = QuestionFreeText(question_text="How are you today?", question_name="q_new")
         >>> i = InvigilatorBase.example(question = q, scenario = scenario)
         >>> i.get_prompts()
         {'user_prompt': ..., 'system_prompt': ..., 'encoded_image': ...'}

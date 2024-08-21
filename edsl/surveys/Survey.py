@@ -21,6 +21,11 @@ from edsl.surveys.SurveyFlowVisualizationMixin import SurveyFlowVisualizationMix
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
 
+# from edsl.surveys.Instruction import Instruction
+# from edsl.surveys.Instruction import ChangeInstruction
+from edsl.surveys.instructions.InstructionCollection import InstructionCollection
+
+
 class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     """A collection of questions that supports skip logic."""
 
@@ -42,7 +47,9 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
     def __init__(
         self,
-        questions: Optional[list[QuestionBase]] = None,
+        questions: Optional[
+            list[Union[QuestionBase, "Instruction", "ChangeInstruction"]]
+        ] = None,
         memory_plan: Optional[MemoryPlan] = None,
         rule_collection: Optional[RuleCollection] = None,
         question_groups: Optional[dict[str, tuple[int, int]]] = None,
@@ -56,13 +63,31 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         :param question_groups: The groups of questions in the survey.
         :param name: The name of the survey - DEPRECATED.
 
+
+        >>> from edsl import QuestionFreeText
+        >>> q1 = QuestionFreeText(question_text = "What is your name?", question_name = "name")
+        >>> q2 = QuestionFreeText(question_text = "What is your favorite color?", question_name = "color")
+        >>> q3 = QuestionFreeText(question_text = "Is a hot dog a sandwich", question_name = "food")
+        >>> s = Survey([q1, q2, q3], question_groups = {"demographics": (0, 1), "substantive":(3)})
+
+
         """
+
+        self.raw_passed_questions = questions
+
+        true_questions, instruction_names_to_instructions, self.pseudo_indices = (
+            self._separate_questions_and_instructions(questions or [])
+        )
+
         self.rule_collection = RuleCollection(
-            num_questions=len(questions) if questions else None
+            num_questions=len(true_questions) if true_questions else None
         )
         # the RuleCollection needs to be present while we add the questions; we might override this later
         # if a rule_collection is provided. This allows us to serialize the survey with the rule_collection.
-        self.questions = questions or []
+
+        self.questions = true_questions
+        self.instruction_names_to_instructions = instruction_names_to_instructions
+
         self.memory_plan = memory_plan or MemoryPlan(self)
         if question_groups is not None:
             self.question_groups = question_groups
@@ -78,6 +103,103 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
             warnings.warn("name parameter to a survey is deprecated.")
 
+    @property
+    def relevant_instructions_dict(self) -> dict:
+        """Return a dictionary with keys as question names and values as instructions that are relevant to the question.
+
+        >>> s = Survey.example(include_instructions=True)
+        >>> s.relevant_instructions_dict
+        {'q0': [Instruction(name="attention", text="Please pay attention!")], 'q1': [Instruction(name="attention", text="Please pay attention!")], 'q2': [Instruction(name="attention", text="Please pay attention!")]}
+
+        """
+        return InstructionCollection(
+            self.instruction_names_to_instructions, self.questions
+        )
+
+    @staticmethod
+    def _separate_questions_and_instructions(questions_and_instructions: list):
+        """
+        The 'pseudo_indices' attribute is a dictionary that maps question names to pseudo-indices
+        that are used to order questions and instructions in the survey.
+        Only questions get real indices; instructions get pseudo-indices.
+        However, the order of the pseudo-indices is the same as the order questions and instructions are added to the survey.
+
+        We don't have to know how many instructions there are to calculate the pseudo-indices because they are
+        calculated by the inverse of one minus the sum of 1/2^n for n in the number of instructions run so far.
+
+        >>> from edsl import Instruction
+        >>> i = Instruction(text = "Pay attention to the following questions.", name = "intro")
+        >>> i2 = Instruction(text = "How are you feeling today?", name = "followon_intro")
+        >>> from edsl import QuestionFreeText; q1 = QuestionFreeText.example()
+        >>> from edsl import QuestionMultipleChoice; q2 = QuestionMultipleChoice.example()
+        >>> s = Survey([q1, i, i2, q2])
+        >>> len(s.instruction_names_to_instructions)
+        2
+        >>> s.pseudo_indices
+        {'how_are_you': 0, 'intro': 0.5, 'followon_intro': 0.75, 'how_feeling': 1}
+
+        >>> from edsl import ChangeInstruction
+        >>> q3 = QuestionFreeText(question_text = "What is your favorite color?", question_name = "color")
+        >>> i_change = ChangeInstruction(drop = ["intro"])
+        >>> s = Survey([q1, i, q2, i_change, q3])
+        >>> [i.name for i in s.relevant_instructions(q1)]
+        []
+        >>> [i.name for i in s.relevant_instructions(q2)]
+        ['intro']
+        >>> [i.name for i in s.relevant_instructions(q3)]
+        []
+
+        >>> i_change = ChangeInstruction(keep = ["poop"], drop = [])
+        >>> s = Survey([q1, i, q2, i_change])
+        Traceback (most recent call last):
+        ...
+        ValueError: ChangeInstruction change_instruction_0 references instruction poop which does not exist.
+        """
+        from edsl.surveys.instructions.Instruction import Instruction
+        from edsl.surveys.instructions.ChangeInstruction import ChangeInstruction
+
+        true_questions = []
+        instruction_names_to_instructions = {}
+
+        num_change_instructions = 0
+        pseudo_indices = {}
+        instructions_run_length = 0
+        for entry in questions_and_instructions:
+            if isinstance(entry, Instruction) or isinstance(entry, ChangeInstruction):
+                if isinstance(entry, ChangeInstruction):
+                    entry.add_name(num_change_instructions)
+                    num_change_instructions += 1
+                    for prior_instruction in entry.keep + entry.drop:
+                        if prior_instruction not in instruction_names_to_instructions:
+                            raise ValueError(
+                                f"ChangeInstruction {entry.name} references instruction {prior_instruction} which does not exist."
+                            )
+                instructions_run_length += 1
+                delta = 1 - 1.0 / (2.0**instructions_run_length)
+                pseudo_index = (len(true_questions) - 1) + delta
+                entry.pseudo_index = pseudo_index
+                instruction_names_to_instructions[entry.name] = entry
+            elif isinstance(entry, QuestionBase):
+                pseudo_index = len(true_questions)
+                instructions_run_length = 0
+                true_questions.append(entry)
+            else:
+                raise ValueError(
+                    f"Entry {repr(entry)} is not a QuestionBase or an Instruction."
+                )
+
+            pseudo_indices[entry.name] = pseudo_index
+
+        return true_questions, instruction_names_to_instructions, pseudo_indices
+
+    def relevant_instructions(self, question) -> dict:
+        """This should be a dictionry with keys as question names and values as instructions that are relevant to the question.
+
+        # Did the instruction come before the question and was it not modified by a change instruction?
+
+        """
+        return self.relevant_instructions_dict[question]
+
     def simulate(self) -> dict:
         """Simulate the survey and return the answers."""
         i = self.gen_path_through_survey()
@@ -85,15 +207,16 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         while True:
             try:
                 answer = q._simulate_answer()
-                q = i.send({q.question_name: answer['answer']})
+                q = i.send({q.question_name: answer["answer"]})
             except StopIteration:
                 break
         return self.answers
-    
-    def create_agent(self) -> 'Agent':
+
+    def create_agent(self) -> "Agent":
         """Create an agent from the simulated answers."""
         answers_dict = self.simulate()
         from edsl.agents.Agent import Agent
+
         a = Agent(traits=answers_dict)
 
         def construct_answer_dict_function(traits: dict) -> Callable:
@@ -102,10 +225,12 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
             return func
 
-        a.add_direct_question_answering_method(construct_answer_dict_function(answers_dict))
+        a.add_direct_question_answering_method(
+            construct_answer_dict_function(answers_dict)
+        )
         return a
-    
-    def simulate_results(self) -> 'Results':
+
+    def simulate_results(self) -> "Results":
         """Simulate the survey and return the results."""
         a = self.create_agent()
         return self.by([a]).run()
@@ -177,7 +302,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     @property
     def parameters(self):
         """Return a set of parameters in the survey.
-        
+
         >>> s = Survey.example()
         >>> s.parameters
         set()
@@ -213,6 +338,68 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         """
         return {q.question_name: i for i, q in enumerate(self.questions)}
 
+    @property
+    def max_pseudo_index(self) -> float:
+        """Return the maximum pseudo index in the survey.
+
+        Example:
+
+        >>> s = Survey.example()
+        >>> s.max_pseudo_index
+        2
+        """
+        if len(self.pseudo_indices) == 0:
+            return -1
+        return max(self.pseudo_indices.values())
+
+    @property
+    def last_item_was_instruction(self) -> bool:
+        """Return whether the last item added to the survey was an instruction.
+
+        Example:
+
+        >>> s = Survey.example()
+        >>> s.last_item_was_instruction
+        False
+        """
+        return isinstance(self.max_pseudo_index, float)
+
+    def add_instruction(
+        self, instruction: Union["Instruction", "ChangeInstruction"]
+    ) -> Survey:
+        """
+        Add an instruction to the survey.
+
+        :param instruction: The instruction to add to the survey.
+
+        >>> from edsl import Instruction
+        >>> i = Instruction(text="Pay attention to the following questions.", name="intro")
+        >>> s = Survey().add_instruction(i)
+        >>> s.instruction_names_to_instructions
+        {'intro': Instruction(name="intro", text="Pay attention to the following questions.")}
+        >>> s.pseudo_indices
+        {'intro': -0.5}
+        """
+        import math
+
+        if instruction.name in self.instruction_names_to_instructions:
+            raise SurveyCreationError(
+                f"""Instruction name '{instruction.name}' already exists in survey. Existing names are {self.instruction_names_to_instructions.keys()}."""
+            )
+        self.instruction_names_to_instructions[instruction.name] = instruction
+
+        # was the last thing added an instruction or a question?
+        if self.last_item_was_instruction:
+            pseudo_index = (
+                self.max_pseudo_index
+                + (math.ceil(self.max_pseudo_index) - self.max_pseudo_index) / 2
+            )
+        else:
+            pseudo_index = self.max_pseudo_index + 1.0 / 2.0
+        self.pseudo_indices[instruction.name] = pseudo_index
+
+        return self
+
     def add_question(self, question: QuestionBase) -> Survey:
         """
         Add a question to survey.
@@ -230,17 +417,19 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         >>> s = Survey().add_question(q).add_question(q)
         Traceback (most recent call last):
         ...
-        edsl.exceptions.surveys.SurveyCreationError: Question name already exists in survey. ...
+        edsl.exceptions.surveys.SurveyCreationError: Question name 'q0' already exists in survey. Existing names are ['q0'].
         """
         if question.question_name in self.question_names:
             raise SurveyCreationError(
-                f"""Question name already exists in survey. Please use a different name for the offensing question. The problemetic question name is {question.question_name}."""
+                f"""Question name '{question.question_name}' already exists in survey. Existing names are {self.question_names}."""
             )
         index = len(self.questions)
         # TODO: This is a bit ugly because the user
         # doesn't "know" about _questions - it's generated by the
         # descriptor.
         self._questions.append(question)
+
+        self.pseudo_indices[question.question_name] = index
 
         # using index + 1 presumes there is a next question
         self.rule_collection.add_rule(
@@ -746,10 +935,10 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         self.answers = {}
         question = self._first_question()
         while not question == EndOfSurvey:
-            #breakpoint()
+            # breakpoint()
             answer = yield question
             self.answers.update(answer)
-            #print(f"Answers: {self.answers}")
+            # print(f"Answers: {self.answers}")
             ## TODO: This should also include survey and agent attributes
             question = self.next_question(question, self.answers)
 
@@ -924,6 +1113,17 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     # SERIALIZATION METHODS
     ###################
 
+    def recombined_questions_and_instructions(
+        self,
+    ) -> list[Union[QuestionBase, "Instruction"]]:
+        # recombine the questions and instructions
+        questions_and_instructions = self._questions + list(
+            self.instruction_names_to_instructions.values()
+        )
+        return sorted(
+            questions_and_instructions, key=lambda x: self.pseudo_indices[x.name]
+        )
+
     def _to_dict(self) -> dict[str, Any]:
         """Serialize the Survey object to a dictionary.
 
@@ -933,7 +1133,11 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         """
         return {
-            "questions": [q._to_dict() for q in self._questions],
+            # "questions": [q._to_dict() for q in self._questions],
+            # "questions": [q._to_dict() for q in self.raw_passed_questions or []],
+            "questions": [
+                q._to_dict() for q in self.recombined_questions_and_instructions()
+            ],
             "memory_plan": self.memory_plan.to_dict(),
             "rule_collection": self.rule_collection.to_dict(),
             "question_groups": self.question_groups,
@@ -962,8 +1166,35 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         >>> s == Survey.example()
         True
 
+        >>> s = Survey.example(include_instructions = True)
+        >>> d = s.to_dict()
+        >>> news = Survey.from_dict(d)
+        >>> news == s
+        True
+
         """
-        questions = [QuestionBase.from_dict(q_dict) for q_dict in data["questions"]]
+
+        def get_class(pass_dict):
+            if (class_name := pass_dict.get("edsl_class_name")) == "QuestionBase":
+                return QuestionBase
+            elif class_name == "Instruction":
+                from edsl.surveys.instructions.Instruction import Instruction
+
+                return Instruction
+            elif class_name == "ChangeInstruction":
+                from edsl.surveys.instructions.ChangeInstruction import (
+                    ChangeInstruction,
+                )
+
+                return ChangeInstruction
+            else:
+                # some data might not have the edsl_class_name
+                return QuestionBase
+                # raise ValueError(f"Class {pass_dict['edsl_class_name']} not found")
+
+        questions = [
+            get_class(q_dict).from_dict(q_dict) for q_dict in data["questions"]
+        ]
         memory_plan = MemoryPlan.from_dict(data["memory_plan"])
         survey = cls(
             questions=questions,
@@ -1021,7 +1252,8 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     def __repr__(self) -> str:
         """Return a string representation of the survey."""
 
-        questions_string = ", ".join([repr(q) for q in self._questions])
+        # questions_string = ", ".join([repr(q) for q in self._questions])
+        questions_string = ", ".join([repr(q) for q in self.raw_passed_questions or []])
         # question_names_string = ", ".join([repr(name) for name in self.question_names])
         return f"Survey(questions=[{questions_string}], memory_plan={self.memory_plan}, rule_collection={self.rule_collection}, question_groups={self.question_groups})"
 
@@ -1136,7 +1368,9 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         return res
 
     @classmethod
-    def example(cls, params: bool = False, randomize: bool = False) -> Survey:
+    def example(
+        cls, params: bool = False, randomize: bool = False, include_instructions=False
+    ) -> Survey:
         """Return an example survey.
 
         >>> s = Survey.example()
@@ -1169,6 +1403,13 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
             )
             s = cls(questions=[q0, q1, q2, q3])
             return s
+        if include_instructions:
+            from edsl import Instruction
+
+            i = Instruction(text="Please pay attention!", name="attention")
+            s = cls(questions=[i, q0, q1, q2])
+            return s
+
         s = cls(questions=[q0, q1, q2])
         s = s.add_rule(q0, "q0 == 'yes'", q2)
         return s

@@ -1,5 +1,6 @@
 """A mixin for visualizing the flow of a survey."""
 
+from typing import Optional
 from edsl.surveys.base import RulePriority, EndOfSurvey
 import tempfile
 
@@ -7,7 +8,7 @@ import tempfile
 class SurveyFlowVisualizationMixin:
     """A mixin for visualizing the flow of a survey."""
 
-    def show_flow(self, filename: str = None):
+    def show_flow(self, filename: Optional[str] = None):
         """Create an image showing the flow of users through the survey."""
         # Create a graph object
         import pydot
