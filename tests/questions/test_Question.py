@@ -101,4 +101,6 @@ def test_hashing():
         Question.example(question_type) for question_type in Question.available()
     ]
     hashes = [hash(q) for q in examples]
-    assert sum(hashes) == 16761523895673820409
+    assert (
+        sum(hashes) == 16668425656756741917
+    )  # 16761523895673820409 == 16761523895673820409

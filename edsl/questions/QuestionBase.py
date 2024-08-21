@@ -3,7 +3,7 @@
 from __future__ import annotations
 import time
 from abc import ABC, abstractmethod
-from typing import Any, Type, Optional, List, Callable
+from typing import Any, Type, Optional, List, Callable, Union
 import copy
 
 from edsl.exceptions import (
@@ -320,8 +320,14 @@ class QuestionBase(
         else:
             return results
 
-    async def run_async(self, just_answer=True, model=None, agent=None, **kwargs):
-        """Call the question."""
+    async def run_async(
+        self,
+        just_answer: bool = True,
+        model: Optional["Model"] = None,
+        agent: Optional["Agent"] = None,
+        **kwargs,
+    ) -> Union[Any, "Results"]:
+        """Call the question asynchronously."""
         survey = self.to_survey()
         results = await survey.run_async(model=model, agent=agent, **kwargs)
         if just_answer:
