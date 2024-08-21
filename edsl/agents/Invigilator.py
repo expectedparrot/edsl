@@ -26,6 +26,8 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
         """
         params = self.get_prompts() | {"iteration": self.iteration}
         raw_response = await self.async_get_response(**params)
+        # logs the raw response in the invigilator
+        self.raw_model_response = raw_response["raw_model_response"]
         data = {
             "agent": self.agent,
             "question": self.question,
@@ -34,7 +36,6 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
             "raw_model_response": raw_response["raw_model_response"],
         }
         response = self._format_raw_response(**data)
-        # breakpoint()
         return AgentResponseDict(**response)
 
     async def async_get_response(
