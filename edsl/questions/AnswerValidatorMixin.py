@@ -16,6 +16,21 @@ class AnswerValidatorMixin:
     - Question specific validation: validators for specific question types
     """
 
+    def failing_job(self):
+        from edsl import Agent
+
+        a = Agent()
+
+        def f(self, question, scenario):
+            return []
+
+        a.add_direct_question_answering_method(f, validate_response=True)
+        from edsl import QuestionNumerical
+
+        q = QuestionNumerical.example()
+        results = q.by(a).run()
+        return results
+
     #####################
     # TEMPLATE VALIDATION
     #####################
@@ -290,3 +305,5 @@ if __name__ == "__main__":
     import doctest
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)
+
+    results = AnswerValidatorMixin().failing_job()

@@ -7,6 +7,24 @@ from edsl.language_models.LanguageModel import LanguageModel
 from edsl.questions import QuestionFreeText
 
 
+def create_survey(num_questions: int, chained: bool = True, take_scenario=False):
+    survey = Survey()
+    for i in range(num_questions):
+        if take_scenario:
+            q = QuestionFreeText(
+                question_text=f"XX{i}XX and {{scenario_value }}",
+                question_name=f"question_{i}",
+            )
+        else:
+            q = QuestionFreeText(
+                question_text=f"XX{i}XX", question_name=f"question_{i}"
+            )
+        survey.add_question(q)
+        if i > 0 and chained:
+            survey.add_targeted_memory(f"question_{i}", f"question_{i-1}")
+    return survey
+
+
 def create_language_model(
     exception: Exception, fail_at_number: int, never_ending=False
 ):
