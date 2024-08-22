@@ -219,6 +219,8 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
                 result = invigilator.get_failed_task_result()
                 from edsl.jobs.FailedQuestion import FailedQuestion
 
+                # This is only after the re-tries have failed.
+                # breakpoint()
                 failed_question = FailedQuestion(
                     question=invigilator.question,
                     scenario=invigilator.scenario,

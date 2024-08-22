@@ -196,6 +196,21 @@ class InterviewTaskBuildingMixin:
                 self._cancel_skipped_questions(question)
                 return AgentResponseDict(**response)
             except Exception as e:
+                from edsl.jobs.FailedQuestion import FailedQuestion
+
+                # This is only after the re-tries have failed.
+                # breakpoint()
+                failed_question = FailedQuestion(
+                    question=invigilator.question,
+                    scenario=invigilator.scenario,
+                    model=invigilator.model,
+                    agent=invigilator.agent,
+                    raw_model_response=invigilator.raw_model_response,
+                    exception=e,
+                    prompts=invigilator.get_prompts(),
+                )
+                self.failed_questions.append(failed_question)
+
                 raise e
 
         skip_rety = getattr(self, "skip_retry", False)
@@ -264,11 +279,11 @@ class InterviewTaskBuildingMixin:
         """
         current_question_index: int = self.to_index[current_question.question_name]
 
-        next_question: Union[
-            int, EndOfSurvey
-        ] = self.survey.rule_collection.next_question(
-            q_now=current_question_index,
-            answers=self.answers | self.scenario | self.agent["traits"],
+        next_question: Union[int, EndOfSurvey] = (
+            self.survey.rule_collection.next_question(
+                q_now=current_question_index,
+                answers=self.answers | self.scenario | self.agent["traits"],
+            )
         )
 
         next_question_index = next_question.next_q

@@ -229,8 +229,12 @@ class InvigilatorDebug(InvigilatorBase):
 class InvigilatorHuman(InvigilatorBase):
     """An invigilator for when a human is answering the question."""
 
+    validate_response: bool = False
+    translate_response: bool = False
+
     async def async_answer_question(self, iteration: int = 0) -> AgentResponseDict:
         """Return the answer to the question."""
+
         data = {
             "comment": "This is a real survey response from a human.",
             "answer": None,
@@ -239,10 +243,21 @@ class InvigilatorHuman(InvigilatorBase):
         }
         try:
             answer = self.agent.answer_question_directly(self.question, self.scenario)
+            self.raw_model_response = answer
+            if self.validate_response:
+                _ = self.question._validate_answer({"answer": answer})
+            if self.translate_response:
+                answer = self.question._translate_answer_code_to_answer(
+                    answer, self.scenario
+                )
             return AgentResponseDict(**(data | {"answer": answer}))
         except Exception as e:
             agent_response_dict = AgentResponseDict(
-                **(data | {"answer": None, "comment": str(e)})
+                **(
+                    data
+                    | {"answer": None, "comment": str(e)}
+                    | {"raw_model_response": answer}
+                )
             )
             raise FailedTaskException(
                 f"Failed to get response. The exception is {str(e)}",
