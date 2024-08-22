@@ -625,6 +625,44 @@ class Coop:
 
         return response_json
 
+    def fetch_prices(self):
+        import requests
+        import csv
+        from io import StringIO
+
+        sheet_id = "1SAO3Bhntefl0XQHJv27rMxpvu6uzKDWNXFHRa7jrUDs"
+
+        # Construct the URL to fetch the CSV
+        url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
+
+        try:
+            # Fetch the CSV data
+            response = requests.get(url)
+            response.raise_for_status()  # Raise an exception for bad responses
+
+            # Parse the CSV data
+            csv_data = StringIO(response.text)
+            reader = csv.reader(csv_data)
+
+            # Convert to list of dictionaries
+            headers = next(reader)
+            data = [dict(zip(headers, row)) for row in reader]
+
+            return data
+
+        except requests.RequestException as e:
+            print(f"An error occurred: {e}")
+            return None
+
+
+if __name__ == "__main__":
+    sheet_data = fetch_sheet_data()
+    if sheet_data:
+        print(f"Successfully fetched {len(sheet_data)} rows of data.")
+        print("First row:", sheet_data[0])
+    else:
+        print("Failed to fetch sheet data.")
+
 
 def main():
     """
