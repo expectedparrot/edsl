@@ -1,9 +1,14 @@
 # Changelog
 
 ## [0.1.33] - IN PROGRESS
+### Added 
+- Allow partial match on key names in `select()` method to save typing.
 
 ### Changed
 - [In progress] `QuestionMultipleChoice` may be modified to allow combined options and free response "Other" option, as well as non-responsive answers. Previously, an error was thrown if the agent did not select one of the given options. Details TBD.
+
+### Fixed
+- Bug in generation of exceptions report that excluded agent information.
 
 
 ## [0.1.32] - 2024-08-19
