@@ -4,6 +4,7 @@ import textwrap
 from typing import Any, Optional, Union
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.descriptors import IntegerOrNoneDescriptor
+from edsl.questions.decorators import inject_exception
 
 from pydantic import field_validator
 from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
@@ -103,6 +104,7 @@ class QuestionList(QuestionBase):
     # Helpful methods
     ################
     @classmethod
+    @inject_exception
     def example(cls) -> QuestionList:
         """Return an example of a list question."""
         return cls(

@@ -21,8 +21,14 @@ class ResponseValidatorABC(ABC):
             if not hasattr(cls, var):
                 raise ValueError(f"Class {cls.__name__} must have a '{var}' attribute.")
 
-    def __init__(self, response_model: type[BaseModel], **kwargs):
+    def __init__(
+        self,
+        response_model: type[BaseModel],
+        exception_to_throw: Optional[Exception] = None,
+        **kwargs,
+    ):
         self.response_model = response_model
+        self.exception_to_throw = exception_to_throw  # for testing
 
         # Validate required parameters
         missing_params = [
@@ -45,6 +51,8 @@ class ResponseValidatorABC(ABC):
         return response
 
     def validate(self, data):
+        if self.exception_to_throw:
+            raise self.exception_to_throw
         response = self._base_validate(data)
         return self.custom_validate(response)
         # return response

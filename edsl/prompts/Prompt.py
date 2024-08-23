@@ -13,7 +13,7 @@ from jinja2 import Template, Environment, meta, TemplateSyntaxError, Undefined
 
 class PreserveUndefined(Undefined):
     def __str__(self):
-        return "{{ " + self._undefined_name + " }}"
+        return "{{ " + str(self._undefined_name) + " }}"
 
 
 from edsl.exceptions.prompts import TemplateRenderError

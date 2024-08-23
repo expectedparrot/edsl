@@ -7,6 +7,8 @@ from edsl.exceptions import QuestionAnswerValidationError
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.descriptors import NumericalOrNoneDescriptor
 
+from edsl.questions.decorators import inject_exception
+
 from edsl.questions.AnswerNumerical import AnswerNumerical
 from edsl.prompts import Prompt
 
@@ -150,6 +152,7 @@ class QuestionNumerical(QuestionBase):
     # Helpful methods
     ################
     @classmethod
+    @inject_exception
     def example(cls) -> QuestionNumerical:
         """Return an example question."""
         return cls(
