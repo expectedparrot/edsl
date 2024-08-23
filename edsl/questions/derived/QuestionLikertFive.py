@@ -2,6 +2,8 @@ from __future__ import annotations
 from typing import Optional
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
+from edsl.questions.decorators import inject_exception
+
 
 class QuestionLikertFive(QuestionMultipleChoice):
     """This question prompts the agent to respond to a statement on a 5-point Likert scale."""
@@ -33,12 +35,15 @@ class QuestionLikertFive(QuestionMultipleChoice):
             question_name=question_name,
             question_text=question_text,
             question_options=question_options,
+            use_code=False,
+            include_comment=True,
         )
 
     ################
     # Helpful
     ################
     @classmethod
+    @inject_exception
     def example(cls) -> QuestionLikertFive:
         """Return an example question."""
         return cls(

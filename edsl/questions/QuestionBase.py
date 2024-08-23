@@ -71,9 +71,13 @@ class QuestionBase(
     @property
     def response_validator(self) -> "ResponseValidatorBase":
         """Return the response validator."""
-        params = {
-            "response_model": self.response_model,
-        } | {k: getattr(self, k) for k in self.validator_parameters}
+        params = (
+            {
+                "response_model": self.response_model,
+            }
+            | {k: getattr(self, k) for k in self.validator_parameters}
+            | {"exception_to_throw": getattr(self, "exception_to_throw", None)}
+        )
         return self.response_validator_class(**params)
 
     def _simulate_answer(self, human_readable: bool = True):

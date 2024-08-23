@@ -17,6 +17,8 @@ from edsl.jobs.interviews.retry_management import retry_strategy
 from edsl.jobs.tasks.task_status_enum import TaskStatus
 from edsl.jobs.tasks.QuestionTaskCreator import QuestionTaskCreator
 
+from edsl.exceptions import QuestionAnswerValidationError
+
 # from edsl.agents.InvigilatorBase import InvigilatorBase
 
 from rich.console import Console
@@ -166,6 +168,22 @@ class InterviewTaskBuildingMixin:
                 raise ValueError(f"Prompt is of type {type(prompt)}")
         return len(combined_text) / 4.0
 
+    def create_failed_question(self, invigilator, e):
+        from edsl.jobs.FailedQuestion import FailedQuestion
+
+        # This is only after the re-tries have failed.
+        # breakpoint()
+        failed_question = FailedQuestion(
+            question=invigilator.question,
+            scenario=invigilator.scenario,
+            model=invigilator.model,
+            agent=invigilator.agent,
+            raw_model_response=invigilator.raw_model_response,
+            exception=e,
+            prompts=invigilator.get_prompts(),
+        )
+        return failed_question
+
     async def _answer_question_and_record_task(
         self,
         *,
@@ -192,30 +210,34 @@ class InterviewTaskBuildingMixin:
                 )
 
                 self._add_answer(response=response, question=question)
-
                 self._cancel_skipped_questions(question)
                 return AgentResponseDict(**response)
-            except Exception as e:
-                from edsl.jobs.FailedQuestion import FailedQuestion
-
-                # This is only after the re-tries have failed.
-                # breakpoint()
-                failed_question = FailedQuestion(
-                    question=invigilator.question,
-                    scenario=invigilator.scenario,
-                    model=invigilator.model,
-                    agent=invigilator.agent,
-                    raw_model_response=invigilator.raw_model_response,
-                    exception=e,
-                    prompts=invigilator.get_prompts(),
-                )
+            except QuestionAnswerValidationError as e:
+                failed_question = self.create_failed_question(invigilator, e)
                 self.failed_questions.append(failed_question)
-
+                raise e
+            except Exception as e:
+                failed_question = self.create_failed_question(invigilator, e)
+                self.failed_questions.append(failed_question)
                 raise e
 
-        skip_rety = getattr(self, "skip_retry", False)
-        if not skip_rety:
-            _inner = retry_strategy(_inner)
+        skip_retry = getattr(self, "skip_retry", False)
+        if not skip_retry:
+
+            def retry_if_not_validation_error(func):
+                async def wrapper(*args, **kwargs):
+                    try:
+                        return await func(*args, **kwargs)
+                    except QuestionAnswerValidationError:
+                        raise  # Do not retry for QuestionAnswerValidationError
+                    except Exception as e:
+                        return await retry_strategy(func)(
+                            *args, **kwargs
+                        )  # Retry for other exceptions
+
+                return wrapper
+
+            _inner = retry_if_not_validation_error(_inner)
 
         return await _inner()
 

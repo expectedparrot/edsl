@@ -1,14 +1,15 @@
 from __future__ import annotations
+import textwrap
 from typing import Any, Optional
 from uuid import uuid4
-from edsl.questions.QuestionBase import QuestionBase
 
 from pydantic import field_validator
+
+from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
 from edsl.questions.ResponseValidatorABC import BaseResponse
-
 from edsl.exceptions import QuestionAnswerValidationError
-import textwrap
+from edsl.questions.decorators import inject_exception
 
 
 class FreeTextResponse(BaseResponse):
@@ -69,6 +70,7 @@ class QuestionFreeText(QuestionBase):
         return question_html_content
 
     @classmethod
+    @inject_exception
     def example(cls, randomize: bool = False) -> QuestionFreeText:
         """Return an example instance of a free text question."""
         addition = "" if not randomize else str(uuid4())

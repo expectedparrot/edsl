@@ -6,7 +6,7 @@ from jinja2 import Template
 
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.descriptors import QuestionOptionsDescriptor
-
+from edsl.questions.decorators import inject_exception
 
 from pydantic import field_validator
 from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
@@ -102,14 +102,6 @@ class MultipleChoiceResponseValidator(ResponseValidatorABC):
     ]
 
     def custom_validate(self, response) -> BaseResponse:
-        if response.answer is None:
-            raise QuestionAnswerValidationError("Answer is missing.")
-        # if int(response.answer) < 0 or int(response.answer) >= len(
-        #     self.question_options
-        # ):
-        #     raise QuestionAnswerValidationError(
-        #         f"Answer code must be a non-negative integer (got {response.answer})."
-        #     )
         return response.dict()
 
 
@@ -261,6 +253,7 @@ class QuestionMultipleChoice(QuestionBase):
     # Example
     ################
     @classmethod
+    @inject_exception
     def example(cls) -> QuestionMultipleChoice:
         """Return an example instance."""
         return cls(
