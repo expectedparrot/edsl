@@ -2,6 +2,8 @@ from __future__ import annotations
 from edsl.questions.descriptors import QuestionOptionsDescriptor
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
+from edsl.questions.decorators import inject_exception
+
 
 class QuestionYesNo(QuestionMultipleChoice):
     """This question prompts the agent to respond with 'Yes' or 'No'."""
@@ -25,6 +27,7 @@ class QuestionYesNo(QuestionMultipleChoice):
             question_name=question_name,
             question_text=question_text,
             question_options=question_options,
+            use_code=False,
         )
         self.question_options = question_options
 
@@ -32,6 +35,7 @@ class QuestionYesNo(QuestionMultipleChoice):
     # Helpful
     ################
     @classmethod
+    @inject_exception
     def example(cls) -> QuestionYesNo:
         """Return an example of a yes/no question."""
         return cls(question_name="is_it_equal", question_text="Is 5 + 5 equal to 11?")
@@ -56,6 +60,12 @@ def main():
     q.to_dict()
     assert q.from_dict(q.to_dict()) == q
 
+    import doctest
+
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
+
+
+if __name__ == "__main__":
     import doctest
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)
