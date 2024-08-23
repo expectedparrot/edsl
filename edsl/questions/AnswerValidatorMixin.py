@@ -71,7 +71,8 @@ class AnswerValidatorMixin:
     def _validate_answer_key_value_numeric(
         self, answer: dict[str, Any], key: str
     ) -> None:
-        """Check that the value of a key is numeric (int or float).
+        """Check that the value is numeric (int or float).
+        Can also deal with strings that contain commas and other characters.
 
         >>> avm = AnswerValidatorMixin()
         >>> avm._validate_answer_key_value_numeric({'answer': 1}, 'answer')

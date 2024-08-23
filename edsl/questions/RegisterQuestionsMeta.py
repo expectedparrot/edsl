@@ -16,18 +16,16 @@ class RegisterQuestionsMeta(ABCMeta):
         if name != "QuestionBase":
             ## Enforce that all questions have a question_type class attribute
             ## and it comes from our enum of valid question types.
-            if not hasattr(cls, "question_type"):
-                raise QuestionMissingTypeError(
-                    "Question must have a question_type class attribute"
-                )
-
-            if not QuestionType.is_value_valid(cls.question_type):
-                acceptable_values = [item.value for item in QuestionType]
-                raise QuestionBadTypeError(
-                    f"""question_type must be one of {QuestionType} values, which are 
-                                currently {acceptable_values}"""
-                    ""
-                )
+            required_attributes = [
+                "question_type",
+                "_response_model",
+                "response_validator_class",
+            ]
+            for attr in required_attributes:
+                if not hasattr(cls, attr):
+                    raise QuestionMissingTypeError(
+                        f"Question must have a {attr} class attribute"
+                    )
 
             RegisterQuestionsMeta._registry[name] = cls
 

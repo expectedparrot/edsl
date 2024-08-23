@@ -1,5 +1,6 @@
 from __future__ import annotations
 import random
+import textwrap
 from jinja2 import Template
 from typing import Any, Optional, Union
 from edsl.questions.QuestionBase import QuestionBase
@@ -10,6 +11,30 @@ from edsl.questions.descriptors import (
     NumSelectionsDescriptor,
 )
 
+from edsl.prompts import Prompt
+
+from pydantic import field_validator
+from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
+from edsl.questions.ResponseValidatorABC import BaseResponse
+from edsl.exceptions import QuestionAnswerValidationError
+
+
+class RankResponse(BaseResponse):
+    """
+    >>> nr = RankResponse(answer=[1, 2], comment="I like custard")
+    >>> nr.dict()
+    {'answer': [1, 2], 'comment': 'I like custard'}
+    """
+
+    answer: list[int]
+
+
+class RankResponseValidator(ResponseValidatorABC):
+    def custom_validate(self, response) -> RankResponse:
+        if len(response.answer) != len(set(response.answer)):
+            raise QuestionAnswerValidationError("Answer must be unique")
+        return response.dict()
+
 
 class QuestionRank(QuestionBase):
     """This question prompts the agent to rank options from a list."""
@@ -17,6 +42,22 @@ class QuestionRank(QuestionBase):
     question_type = "rank"
     question_options: list[str] = QuestionOptionsDescriptor()
     num_selections = NumSelectionsDescriptor()
+
+    new_default_instructions = Prompt(
+        text=textwrap.dedent(
+            """\
+        You are being asked the following question: {{question_text}}
+        The options are
+        {% for option in question_options %}
+        {{ loop.index0 }}: {{option}}
+        {% endfor %}
+        Return a valid JSON formatted like this, selecting the numbers of the options in order of preference,
+        with the most preferred option first, and the least preferred option last:
+        {"answer": [<put comma-separated list of answer codes here>], "comment": "<put explanation here>"}
+        Exactly {{num_selections}} options must be selected.
+        """
+        )
+    )
 
     def __init__(
         self,
