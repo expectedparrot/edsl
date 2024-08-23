@@ -562,7 +562,7 @@ class Jobs(Base):
                     )
                     return results
                 else:
-                    duration = 10 if len(self) < 10 else 60
+                    duration = 5
                     time_checked = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
                     frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
                     start_time = time.time()
