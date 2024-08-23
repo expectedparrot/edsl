@@ -1,7 +1,6 @@
 """This module contains the Question class, which is the base class for all questions in EDSL."""
 
 from __future__ import annotations
-import time
 from abc import ABC, abstractmethod
 from typing import Any, Type, Optional, List, Callable, Union
 import copy
@@ -20,6 +19,7 @@ from edsl.BaseDiff import BaseDiff, BaseDiffCollection
 
 from edsl.questions.SimpleAskMixin import SimpleAskMixin
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
+from edsl.exceptions import QuestionAnswerValidationError
 
 
 class QuestionBase(
@@ -35,6 +35,64 @@ class QuestionBase(
     question_name: str = QuestionNameDescriptor()
     question_text: str = QuestionTextDescriptor()
 
+    # default_template_settings = {"include_comment": True, "use_code": True}
+
+    @property
+    def response_model(self):
+        if self._response_model is not None:
+            return self._response_model
+        else:
+            return self.create_response_model()
+
+    @classmethod
+    def self_check(cls):
+        q = cls.example()
+        for answer, params in q.response_validator.valid_examples:
+            for key, value in params.items():
+                setattr(q, key, value)
+            q._validate_answer(answer)
+        for answer, params, reason in q.response_validator.invalid_examples:
+            for key, value in params.items():
+                setattr(q, key, value)
+            try:
+                q._validate_answer(answer)
+            except QuestionAnswerValidationError:
+                pass
+            else:
+                raise ValueError(f"Example {answer} should have failed for {reason}.")
+
+    @property
+    def new_default_instructions(self):
+        "This is set up as a property because there are mutable question values that determine how it is rendered."
+        from edsl.prompts import Prompt
+
+        return Prompt.from_template("question_" + self.question_type)
+
+    @property
+    def response_validator(self) -> "ResponseValidatorBase":
+        """Return the response validator."""
+        params = {
+            "response_model": self.response_model,
+        } | {k: getattr(self, k) for k in self.validator_parameters}
+        return self.response_validator_class(**params)
+
+    def _simulate_answer(self, human_readable: bool = True):
+        """Simulate a valid answer for debugging purposes (what the validator expects)."""
+        # num_items = random.randint(1, self.max_list_items or 2)
+        # from edsl.utilities.utilities import random_string
+        # return {"answer": [random_string() for _ in range(num_items)]}
+        from polyfactory.factories.pydantic_factory import ModelFactory
+
+        class FakeData(ModelFactory[self.response_model]): ...
+
+        return FakeData.build().dict()
+
+    def _validate_answer(
+        self, answer: dict[str, Any]
+    ) -> dict[str, Union[str, float, int]]:
+        """Validate the answer."""
+        return self.response_validator.validate(answer)
+
     def __getitem__(self, key: str) -> Any:
         """Get an attribute of the question."""
         return getattr(self, key)
@@ -47,6 +105,7 @@ class QuestionBase(
 
     @property
     def name(self):
+        "Helper function so questions and instructions can use the same access method"
         return self.question_name
 
     def _repr_html_(self):
@@ -93,17 +152,20 @@ class QuestionBase(
     @property
     def data(self) -> dict:
         """Return a dictionary of question attributes **except** for question_type."""
+        exclude_list = ["question_type", "_include_comment", "_use_code"]
         candidate_data = {
             k.replace("_", "", 1): v
             for k, v in self.__dict__.items()
-            if k.startswith("_")
+            if k.startswith("_") and k not in exclude_list
         }
-        optional_attributes = {
-            "set_instructions": "instructions",
-        }
-        for boolean_flag, attribute in optional_attributes.items():
-            if hasattr(self, boolean_flag) and not getattr(self, boolean_flag):
-                candidate_data.pop(attribute, None)
+        # optional_attributes = {
+        #     "set_instructions": "instructions",
+        #     "set_comment_off": "include_comment",
+        #     "set_code_off": "use_code",
+        # }
+        # for boolean_flag, attribute in optional_attributes.items():
+        #     if hasattr(self, boolean_flag):  # and not getattr(self, boolean_flag):
+        #         candidate_data.pop(attribute, None)
 
         if "func" in candidate_data:
             func = candidate_data.pop("func")
@@ -258,7 +320,10 @@ class QuestionBase(
         if model in self.model_instructions:
             return Prompt(text=self.model_instructions[model])
         else:
-            return self.applicable_prompts(model)[0]()
+            if hasattr(self, "new_default_instructions"):
+                return self.new_default_instructions
+            else:
+                return self.applicable_prompts(model)[0]()
 
     def option_permutations(self) -> list[QuestionBase]:
         """Return a list of questions with all possible permutations of the options."""
@@ -415,10 +480,10 @@ class QuestionBase(
 
         return compose_questions(self, other_question_or_diff)
 
-    @abstractmethod
-    def _validate_answer(self, answer: dict[str, str]):
-        """Validate the answer from the LLM. Behavior depends on the question type."""
-        pass
+    # @abstractmethod
+    # def _validate_answer(self, answer: dict[str, str]):
+    #     """Validate the answer from the LLM. Behavior depends on the question type."""
+    #     pass
 
     def _validate_response(self, response):
         """Validate the response from the LLM. Behavior depends on the question type."""
@@ -428,15 +493,20 @@ class QuestionBase(
             )
         return response
 
-    @abstractmethod
-    def _translate_answer_code_to_answer(self):  # pragma: no cover
-        """Translate the answer code to the actual answer. Behavior depends on the question type."""
-        pass
+    @property
+    def validator_parameters(self) -> list[str]:
+        return self.response_validator_class.required_params
 
-    @abstractmethod
-    def _simulate_answer(self, human_readable=True) -> dict:  # pragma: no cover
-        """Simulate a valid answer for debugging purposes (what the validator expects)."""
-        pass
+    def _translate_answer_code_to_answer(
+        self, answer, scenario: Optional["Scenario"] = None
+    ):
+        """There is over-ridden by child classes that ask for codes."""
+        return answer
+
+    # @abstractmethod
+    # def _simulate_answer(self, human_readable=True) -> dict:  # pragma: no cover
+    #     """Simulate a valid answer for debugging purposes (what the validator expects)."""
+    #     pass
 
     ############################
     # Forward methods

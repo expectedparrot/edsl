@@ -5,49 +5,74 @@ from typing import Any, Optional, Union
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.descriptors import IntegerOrNoneDescriptor
 
+from pydantic import field_validator
+from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
+from edsl.questions.ResponseValidatorABC import BaseResponse
+
+from edsl.exceptions import QuestionAnswerValidationError
+import textwrap
+
+
+class ListResponse(BaseResponse):
+    """
+    >>> nr = ListResponse(answer = ["Apple", "Cherry"])
+    >>> nr.dict()
+    {'answer': ['Apple', 'Cherry'], 'comment': None}
+    """
+
+    answer: list[Union[str, int, float, list, dict]]
+
+
+class ListResponseValidator(ResponseValidatorABC):
+
+    required_params = ["max_list_items"]
+    valid_examples = [({"answer": ["hello", "world"]}, {"max_list_items": 5})]
+
+    invalid_examples = [
+        (
+            {"answer": ["hello", "world", "this", "is", "a", "test"]},
+            {"max_list_items": 5},
+            "Too many items.",
+        ),
+    ]
+
+    def custom_validate(self, response) -> ListResponse:
+        if (
+            self.max_list_items is not None
+            and len(response.answer) > self.max_list_items
+        ):
+            raise QuestionAnswerValidationError("Too many items.")
+        return response.dict()
+
 
 class QuestionList(QuestionBase):
     """This question prompts the agent to answer by providing a list of items as comma-separated strings."""
 
     question_type = "list"
     max_list_items: int = IntegerOrNoneDescriptor()
+    _response_model = ListResponse
+    response_validator_class = ListResponseValidator
 
     def __init__(
         self,
         question_name: str,
         question_text: str,
         max_list_items: Optional[int] = None,
+        include_comment: bool = True,
     ):
         """Instantiate a new QuestionList.
 
         :param question_name: The name of the question.
         :param question_text: The text of the question.
         :param max_list_items: The maximum number of items that can be in the answer list.
+
+        >>> QuestionList.example().self_check()
         """
         self.question_name = question_name
         self.question_text = question_text
         self.max_list_items = max_list_items
 
-    ################
-    # Answer methods
-    ################
-    def _validate_answer(self, answer: Any) -> dict[str, Union[list[str], str]]:
-        """Validate the answer."""
-        self._validate_answer_template_basic(answer)
-        self._validate_answer_key_value(answer, "answer", list)
-        self._validate_answer_list(answer)
-        return answer
-
-    def _translate_answer_code_to_answer(self, answer, scenario: "Scenario" = None):
-        """There is no answer code."""
-        return answer
-
-    def _simulate_answer(self, human_readable: bool = True):
-        """Simulate a valid answer for debugging purposes (what the validator expects)."""
-        num_items = random.randint(1, self.max_list_items or 2)
-        from edsl.utilities.utilities import random_string
-
-        return {"answer": [random_string() for _ in range(num_items)]}
+        self._include_comment = include_comment
 
     @property
     def question_html_content(self) -> str:
@@ -107,6 +132,8 @@ def main():
     q.to_dict()
     assert q.from_dict(q.to_dict()) == q
 
+
+if __name__ == "__main__":
     import doctest
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)

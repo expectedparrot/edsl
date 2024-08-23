@@ -7,13 +7,102 @@ from edsl.exceptions import QuestionAnswerValidationError
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.descriptors import NumericalOrNoneDescriptor
 
+from edsl.questions.AnswerNumerical import AnswerNumerical
+from edsl.prompts import Prompt
+
+from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
+from edsl.questions.ResponseValidatorABC import BaseResponse
+
+from decimal import Decimal
+from pydantic import field_validator
+from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
+from edsl.questions.ResponseValidatorABC import BaseResponse
+from decimal import Decimal
+from pydantic import BaseModel, Field, field_validator
+from typing import Optional
+
+
+class QuestionAnswerValidationError(ValueError):
+    pass
+
+
+class NumericResponse(BaseModel):
+    """
+    >>> nr = NumericResponse(answer=1, comment="I like custard")
+    >>> nr.model_dump()
+    {'answer': Decimal('1'), 'comment': 'I like custard'}
+    """
+
+    answer: Decimal
+    comment: Optional[str] = None
+
+    @field_validator("answer", mode="before")
+    @classmethod
+    def parse_numeric(cls, v):
+        if isinstance(v, str):
+            v = v.replace(",", "")
+        try:
+            return Decimal(v)
+        except:
+            raise QuestionAnswerValidationError(f"Invalid numeric value: {v}")
+
+
+def create_numeric_response(
+    min_value: Optional[Decimal] = None, max_value: Optional[Decimal] = None
+):
+    field_kwargs = {}
+    if min_value is not None:
+        field_kwargs["ge"] = min_value
+    if max_value is not None:
+        field_kwargs["le"] = max_value
+
+    class ConstrainedNumericResponse(NumericResponse):
+        answer: Decimal = Field(**field_kwargs)
+
+    return ConstrainedNumericResponse
+
+
+class NumericalResponseValidator(ResponseValidatorABC):
+    required_params = ["min_value", "max_value"]
+
+    valid_examples = [
+        ({"answer": 1}, {"min_value": 0, "max_value": 10}),
+        ({"answer": 1}, {"min_value": None, "max_value": None}),
+    ]
+
+    invalid_examples = [
+        ({"answer": 10}, {"min_value": 0, "max_value": 5}, "Answer if out of range"),
+        ({"answer": "ten"}, {"min_value": 0, "max_value": 5}, "Answer is not a number"),
+        ({}, {"min_value": 0, "max_value": 5}, "Answer key is missing"),
+    ]
+
+    def custom_validate(self, response) -> NumericResponse:
+        if self.min_value is not None:
+            if response.answer < self.min_value:
+                raise QuestionAnswerValidationError(
+                    f"Answer must be at least {self.min_value}"
+                )
+        if self.max_value:
+            if response.answer > self.max_value:
+                raise QuestionAnswerValidationError(
+                    f"Answer must be at most {self.max_value}"
+                )
+        return response.dict()
+
 
 class QuestionNumerical(QuestionBase):
-    """This question prompts the agent to answer with a numerical value."""
+    """This question prompts the agent to answer with a numerical value.
+
+    >>> QuestionNumerical.self_check()
+
+    """
 
     question_type = "numerical"
     min_value: Optional[float] = NumericalOrNoneDescriptor()
     max_value: Optional[float] = NumericalOrNoneDescriptor()
+
+    _response_model = None
+    response_validator_class = NumericalResponseValidator
 
     def __init__(
         self,
@@ -21,6 +110,7 @@ class QuestionNumerical(QuestionBase):
         question_text: str,
         min_value: Optional[Union[int, float]] = None,
         max_value: Optional[Union[int, float]] = None,
+        include_comment: bool = True,
     ):
         """Initialize the question.
 
@@ -34,30 +124,14 @@ class QuestionNumerical(QuestionBase):
         self.min_value = min_value
         self.max_value = max_value
 
+        self._include_comment = include_comment
+
+    def create_response_model(self):
+        return create_numeric_response(self.min_value, self.max_value)
+
     ################
     # Answer methods
     ################
-    def _validate_answer(
-        self, answer: dict[str, Any]
-    ) -> dict[str, Union[str, float, int]]:
-        """Validate the answer."""
-        self._validate_answer_template_basic(answer)
-        self._validate_answer_key_value_numeric(answer, "answer")
-        self._validate_answer_numerical(answer)
-        return answer
-
-    def _translate_answer_code_to_answer(self, answer, scenario: "Scenario" = None):
-        """There is no answer code."""
-        return answer
-
-    def _simulate_answer(self, human_readable: bool = True):
-        """Simulate a valid answer for debugging purposes."""
-        from edsl.utilities.utilities import random_string
-
-        return {
-            "answer": uniform(self.min_value, self.max_value),
-            "comment": random_string(),
-        }
 
     @property
     def question_html_content(self) -> str:
@@ -86,26 +160,7 @@ class QuestionNumerical(QuestionBase):
         )
 
 
-def main():
-    """Show example usage."""
-    from edsl.questions.QuestionNumerical import QuestionNumerical
-
-    q = QuestionNumerical.example()
-    q.question_text
-    q.min_value
-    q.max_value
-    # validate an answer
-    q._validate_answer({"answer": 1, "comment": "I like custard"})
-    # translate answer code
-    q._translate_answer_code_to_answer(1)
-    # simulate answer
-    q._simulate_answer()
-    q._simulate_answer(human_readable=False)
-    q._validate_answer(q._simulate_answer(human_readable=False))
-    # serialization (inherits from Question)
-    q.to_dict()
-    assert q.from_dict(q.to_dict()) == q
-
+if __name__ == "__main__":
     import doctest
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)

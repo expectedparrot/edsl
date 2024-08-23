@@ -309,6 +309,12 @@ class PromptConstructorMixin:
                 | self.scenario
                 | self.prior_answers_dict()
                 | {"agent": self.agent}
+                | {
+                    "use_code": getattr(self.question, "_use_code", True),
+                    "include_comment": getattr(
+                        self.question, "_include_comment", False
+                    ),
+                }
             )
 
             undefined_template_variables = (

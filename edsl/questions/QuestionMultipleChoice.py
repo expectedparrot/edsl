@@ -1,12 +1,116 @@
 from __future__ import annotations
-import time
-from typing import Union
+from typing import Union, Literal
 import random
 from typing import Optional
 from jinja2 import Template
 
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.descriptors import QuestionOptionsDescriptor
+
+
+from pydantic import field_validator
+from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
+from edsl.questions.ResponseValidatorABC import BaseResponse
+
+from edsl.exceptions import QuestionAnswerValidationError
+
+from pydantic import BaseModel, Field, create_model
+
+
+def create_response_model_code(
+    min_value: int, max_value: int, include_comment: bool = True
+):
+    """
+    Dynamically create a RestrictedMultipleChoiceResponse model with custom min and max values.
+
+    :param min_value: The minimum allowed value for the answer field.
+    :param max_value: The maximum allowed value for the answer field.
+    :return: A new Pydantic model class.
+    """
+    if include_comment:
+        return create_model(
+            "DynamicRestrictedMultipleChoiceResponse",
+            answer=(int, Field(..., ge=min_value, le=max_value)),
+            comment=(str, ""),
+            __base__=BaseModel,
+        )
+    else:
+        return create_model(
+            "DynamicRestrictedMultipleChoiceResponse",
+            answer=(int, Field(..., ge=min_value, le=max_value)),
+            __base__=BaseModel,
+        )
+
+
+def create_response_model_no_code(choices: list, include_comment: bool = True):
+    """
+    Dynamically create a MultipleChoiceResponse model with a predefined list of choices.
+
+    :param choices: A list of allowed values for the answer field.
+    :return: A new Pydantic model class.
+    """
+    # Convert the choices list to a tuple for use with Literal
+    choice_tuple = tuple(choices)
+
+    class MultipleChoiceResponse(BaseModel):
+        answer: Literal[choice_tuple] = Field(
+            ..., description="Must be one of the predefined choices"
+        )
+        comment: Optional[str] = Field(None, description="Optional comment field")
+
+        class Config:
+            @staticmethod
+            def json_schema_extra(schema: dict, model: BaseModel) -> None:
+                # Add the list of choices to the schema for better documentation
+                for prop in schema.get("properties", {}).values():
+                    if "allOf" in prop:
+                        prop["enum"] = choices
+
+        @classmethod
+        def with_comment(cls):
+            return cls
+
+        @classmethod
+        def without_comment(cls):
+            return cls.model_exclude({"comment"})
+
+    if include_comment:
+        return MultipleChoiceResponse.with_comment()
+    else:
+        return MultipleChoiceResponse.without_comment()
+
+
+class MultipleChoiceResponseValidator(ResponseValidatorABC):
+
+    required_params = ["question_options"]
+
+    valid_examples = [
+        ({"answer": 1}, {"question_options": ["Good", "Great", "OK", "Bad"]})
+    ]
+
+    invalid_examples = [
+        (
+            {"answer": -1},
+            {"question_options": ["Good", "Great", "OK", "Bad"]},
+            "Answer code must be a non-negative integer",
+        ),
+        (
+            {"answer": None},
+            {"question_options": ["Good", "Great", "OK", "Bad"]},
+            "Answer code must not be missing.",
+        ),
+    ]
+
+    def custom_validate(self, response) -> BaseResponse:
+        if response.answer is None:
+            raise QuestionAnswerValidationError("Answer is missing.")
+        # if int(response.answer) < 0 or int(response.answer) >= len(
+        #     self.question_options
+        # ):
+        #     raise QuestionAnswerValidationError(
+        #         f"Answer code must be a non-negative integer (got {response.answer})."
+        #     )
+        return response.dict()
 
 
 class QuestionMultipleChoice(QuestionBase):
@@ -18,52 +122,55 @@ class QuestionMultipleChoice(QuestionBase):
 
     question_type = "multiple_choice"
     purpose = "When options are known and limited"
-    question_options: Union[
-        list[str], list[list], list[float], list[int]
-    ] = QuestionOptionsDescriptor()
+    question_options: Union[list[str], list[list], list[float], list[int]] = (
+        QuestionOptionsDescriptor()
+    )
+    _response_model = None
+    response_validator_class = MultipleChoiceResponseValidator
 
     def __init__(
         self,
         question_name: str,
         question_text: str,
         question_options: Union[list[str], list[list], list[float], list[int]],
+        include_comment: bool = True,
+        use_code: bool = True,
     ):
         """Instantiate a new QuestionMultipleChoice.
 
         :param question_name: The name of the question.
         :param question_text: The text of the question.
         :param question_options: The options the agent should select from.
+
         """
         self.question_name = question_name
         self.question_text = question_text
         self.question_options = question_options
 
-    # @property
-    # def question_options(self) -> Union[list[str], list[list], list[float], list[int]]:
-    #     """Return the question options."""
-    #     return self._question_options
+        self._include_comment = include_comment
+        self._use_code = use_code
 
     ################
     # Answer methods
     ################
-    def _validate_answer(
-        self, answer: dict[str, Union[str, int]]
-    ) -> dict[str, Union[str, int]]:
-        """Validate the answer.
+    def set_comment_off(self):
+        """Turn off the comment field in the response model."""
+        self._include_comment = False
 
-        >>> q = QuestionMultipleChoice.example()
-        >>> q._validate_answer({"answer": 0, "comment": "I like custard"})
-        {'answer': 0, 'comment': 'I like custard'}
+    def set_use_code_off(self):
+        """Turn off the use of code in the response model."""
+        self._use_code = False
 
-        >>> q = QuestionMultipleChoice(question_name="how_feeling", question_text="How are you?", question_options=["Good", "Great", "OK", "Bad"])
-        >>> q._validate_answer({"answer": -1, "comment": "I like custard"})
-        Traceback (most recent call last):
-        ...
-        edsl.exceptions.questions.QuestionAnswerValidationError: Answer code must be a non-negative integer (got -1).
-        """
-        self._validate_answer_template_basic(answer)
-        self._validate_answer_multiple_choice(answer)
-        return answer
+    def create_response_model(self):
+        if self._use_code:
+            response_model = create_response_model_code(
+                0, len(self.question_options) - 1, self._include_comment
+            )
+        else:
+            response_model = create_response_model_no_code(
+                self.question_options, self._include_comment
+            )
+        return response_model
 
     def _translate_answer_code_to_answer(
         self, answer_code: int, scenario: Optional["Scenario"] = None
@@ -95,31 +202,32 @@ class QuestionMultipleChoice(QuestionBase):
             question_option_key = list(meta.find_undeclared_variables(parsed_content))[
                 0
             ]
-            # breakpoint()
             translated_options = scenario.get(question_option_key)
         else:
             translated_options = [
                 Template(str(option)).render(scenario)
                 for option in self.question_options
             ]
-        # print("Translated options:", translated_options)
-        # breakpoint()
-        return translated_options[int(answer_code)]
-
-    def _simulate_answer(
-        self, human_readable: bool = True
-    ) -> dict[str, Union[int, str]]:
-        """Simulate a valid answer for debugging purposes."""
-        from edsl.utilities.utilities import random_string
-
-        if human_readable:
-            answer = random.choice(self.question_options)
+        if self._use_code:
+            return translated_options[int(answer_code)]
         else:
-            answer = random.choice(range(len(self.question_options)))
-        return {
-            "answer": answer,
-            "comment": random_string(),
-        }
+            # return translated_options[answer_code]
+            return answer_code
+
+    # def _simulate_answer(
+    #     self, human_readable: bool = True
+    # ) -> dict[str, Union[int, str]]:
+    #     """Simulate a valid answer for debugging purposes."""
+    #     from edsl.utilities.utilities import random_string
+
+    #     if human_readable:
+    #         answer = random.choice(self.question_options)
+    #     else:
+    #         answer = random.choice(range(len(self.question_options)))
+    #     return {
+    #         "answer": answer,
+    #         "comment": random_string(),
+    #     }
 
     @property
     def question_html_content(self) -> str:

@@ -3,6 +3,10 @@ from typing import Optional
 from abc import ABC
 from typing import Any, List
 
+from jinja2 import Environment, FileSystemLoader
+from typing import Union, Dict
+from pathlib import Path
+
 from rich.table import Table
 from jinja2 import Template, Environment, meta, TemplateSyntaxError, Undefined
 
@@ -69,6 +73,46 @@ class PromptBase(
         with open(filename, "r") as f:
             text = f.read()
         return cls(text=text)
+
+    @classmethod
+    def from_template(
+        cls,
+        file_name: str,
+        path_to_folder: Optional[Union[str, Path]] = None,
+        **kwargs: Dict[str, Any],
+    ) -> "PromptBase":
+        """Create a `PromptBase` from a Jinja template.
+
+        Args:
+            file_name (str): The name of the Jinja template file.
+            path_to_folder (Union[str, Path]): The path to the folder containing the template.
+                            Can be absolute or relative.
+            **kwargs: Variables to be passed to the template for rendering.
+
+        Returns:
+            PromptBase: An instance of PromptBase with the rendered template as text.
+        """
+        # if file_name lacks the .j2 extension, add it
+        if not file_name.endswith(".jinja"):
+            file_name += ".jinja"
+
+        # Convert path_to_folder to a Path object if it's a string
+        if path_to_folder is None:
+            from importlib import resources
+            import os
+
+            path_to_folder = resources.path("edsl.questions", "prompt_templates")
+
+        folder_path = Path(path_to_folder)
+        with open(folder_path / file_name, "r") as f:
+            text = f.read()
+        return cls(text=text)
+        # Resolve the path to get the absolute path
+        # absolute_path = folder_path.resolve()
+        # env = Environment(loader=FileSystemLoader(absolute_path))
+        # template = env.get_template(file_name)
+        # rendered_text = template.render({})
+        # return cls(text=rendered_text)
 
     @property
     def text(self):

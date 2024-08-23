@@ -10,6 +10,77 @@ from edsl.questions.descriptors import (
     QuestionOptionsDescriptor,
 )
 
+from pydantic import field_validator
+from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
+from edsl.questions.ResponseValidatorABC import BaseResponse
+
+from edsl.exceptions import QuestionAnswerValidationError
+
+
+class CheckBoxResponse(BaseResponse):
+    """
+    >>> nr = CheckBoxResponse(answer = [1,2], comment = "hello")
+    >>> nr.dict()
+    {'answer': [1, 2], 'comment': 'hello'}
+    """
+
+    answer: list[int]
+
+
+class CheckBoxResponseValidator(ResponseValidatorABC):
+
+    required_params = ["question_options", "min_selections", "max_selections"]
+
+    valid_examples = [
+        ({"answer": [1, 2]}, {"question_options": ["Good", "Great", "OK", "Bad"]})
+    ]
+
+    invalid_examples = [
+        (
+            {"answer": [-1]},
+            {"question_options": ["Good", "Great", "OK", "Bad"]},
+            "Answer code must be a non-negative integer",
+        ),
+        (
+            {"answer": 1},
+            {"question_options": ["Good", "Great", "OK", "Bad"]},
+            "Answer code must be a list",
+        ),
+        (
+            {"answer": [1, 2, 3, 4]},
+            {
+                "question_options": ["Good", "Great", "OK", "Bad"],
+                "min_selections": 1,
+                "max_selections": 2,
+            },
+            "Too many options selected",
+        ),
+    ]
+
+    def custom_validate(self, response) -> CheckBoxResponse:
+        if response.answer is None:
+            raise QuestionAnswerValidationError("Answer is missing.")
+        for choice_index in response.answer:
+            if int(choice_index) < 0 or int(choice_index) >= len(self.question_options):
+                raise QuestionAnswerValidationError(
+                    f"Answer code must be a non-negative integer (got {choice_index})."
+                )
+        if (
+            self.min_selections is not None
+            and len(response.answer) < self.min_selections
+        ):
+            raise QuestionAnswerValidationError(
+                f"Select at least {self.min_selections} option(s)."
+            )
+        if (
+            self.max_selections is not None
+            and len(response.answer) > self.max_selections
+        ):
+            raise QuestionAnswerValidationError(
+                f"Select at most {self.max_selections} option(s)."
+            )
+        return response.dict()
+
 
 class QuestionCheckBox(QuestionBase):
     """This question prompts the agent to select options from a list."""
@@ -19,6 +90,9 @@ class QuestionCheckBox(QuestionBase):
     question_options: list[str] = QuestionOptionsDescriptor()
     min_selections = IntegerDescriptor(none_allowed=True)
     max_selections = IntegerDescriptor(none_allowed=True)
+
+    _response_model = CheckBoxResponse
+    response_validator_class = CheckBoxResponseValidator
 
     def __init__(
         self,
@@ -42,16 +116,6 @@ class QuestionCheckBox(QuestionBase):
         self.max_selections = max_selections
         self.question_options = question_options
 
-    ################
-    # Answer methods
-    ################
-    def _validate_answer(self, answer: Any) -> dict[str, Union[int, str]]:
-        """Validate the answer."""
-        self._validate_answer_template_basic(answer)
-        self._validate_answer_key_value(answer, "answer", list)
-        self._validate_answer_checkbox(answer)
-        return answer
-
     def _translate_answer_code_to_answer(
         self, answer_codes, scenario: "Scenario" = None
     ):
@@ -72,30 +136,30 @@ class QuestionCheckBox(QuestionBase):
             translated_codes.append(translated_options[int(answer_code)])
         return translated_codes
 
-    def _simulate_answer(self, human_readable=True) -> dict[str, Union[int, str]]:
-        """Simulate a valid answer for debugging purposes."""
-        from edsl.utilities.utilities import random_string
+    # def _simulate_answer(self, human_readable=True) -> dict[str, Union[int, str]]:
+    #     """Simulate a valid answer for debugging purposes."""
+    #     from edsl.utilities.utilities import random_string
 
-        min_selections = self.min_selections or 1
-        max_selections = self.max_selections or len(self.question_options)
-        num_selections = random.randint(min_selections, max_selections)
-        if human_readable:
-            # Select a random number of options from self.question_options
-            selected_options = random.sample(self.question_options, num_selections)
-            answer = {
-                "answer": selected_options,
-                "comment": random_string(),
-            }
-        else:
-            # Select a random number of indices from the range of self.question_options
-            selected_indices = random.sample(
-                range(len(self.question_options)), num_selections
-            )
-            answer = {
-                "answer": selected_indices,
-                "comment": random_string(),
-            }
-        return answer
+    #     min_selections = self.min_selections or 1
+    #     max_selections = self.max_selections or len(self.question_options)
+    #     num_selections = random.randint(min_selections, max_selections)
+    #     if human_readable:
+    #         # Select a random number of options from self.question_options
+    #         selected_options = random.sample(self.question_options, num_selections)
+    #         answer = {
+    #             "answer": selected_options,
+    #             "comment": random_string(),
+    #         }
+    #     else:
+    #         # Select a random number of indices from the range of self.question_options
+    #         selected_indices = random.sample(
+    #             range(len(self.question_options)), num_selections
+    #         )
+    #         answer = {
+    #             "answer": selected_indices,
+    #             "comment": random_string(),
+    #         }
+    #     return answer
 
     @property
     def question_html_content(self) -> str:
@@ -162,6 +226,12 @@ def main():
     q.to_dict()
     assert q.from_dict(q.to_dict()) == q
 
+    import doctest
+
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
+
+
+if __name__ == "__main__":
     import doctest
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)
