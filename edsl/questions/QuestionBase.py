@@ -441,6 +441,7 @@ class QuestionBase(
     def html(
         self,
         scenario: Optional[dict] = None,
+        agent: Optional[dict] = {},
         include_question_name: bool = False,
         height: Optional[int] = None,
         width: Optional[int] = None,
@@ -473,7 +474,7 @@ class QuestionBase(
 
         params = {
             "question_name": self.question_name,
-            "question_text": Template(self.question_text).render(scenario),
+            "question_text": Template(self.question_text).render(scenario, agent=agent),
             "question_type": self.question_type,
             "question_content": Template(question_content).render(scenario),
             "include_question_name": include_question_name,

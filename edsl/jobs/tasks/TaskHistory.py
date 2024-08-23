@@ -390,7 +390,7 @@ class TaskHistory:
 
                     <h2>Question</h2>
                     <div class="question-detail"> 
-                            {{ interview.survey.get_question(question).html() }}
+                            {{ interview.survey.get_question(question).html(interview.scenario,interview.agent) }}
                     </div>        
 
                     <h2>Scenario</h2>                            
