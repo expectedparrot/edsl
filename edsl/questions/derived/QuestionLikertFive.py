@@ -16,7 +16,6 @@ class QuestionLikertFive(QuestionMultipleChoice):
         "Agree",
         "Strongly agree",
     ]
-    # default_instructions = QuestionMultipleChoice.default_instructions
 
     def __init__(
         self,
@@ -39,9 +38,6 @@ class QuestionLikertFive(QuestionMultipleChoice):
             include_comment=True,
         )
 
-    ################
-    # Helpful
-    ################
     @classmethod
     @inject_exception
     def example(cls) -> QuestionLikertFive:
