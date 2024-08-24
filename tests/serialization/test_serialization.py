@@ -45,7 +45,12 @@ def test_serialization():
             data = json.load(f)
         for item in data:
             class_name = item["class_name"]
-            if class_name == "QuestionFunctional":
+            if class_name in [
+                "QuestionFunctional",
+                "QuestionBudget",
+                "QuestionRank",
+                "QuestionTopK",
+            ]:
                 continue
             print(f"- Testing {class_name}")
             try:

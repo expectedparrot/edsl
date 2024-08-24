@@ -30,6 +30,11 @@ class RankResponse(BaseResponse):
 
 
 class RankResponseValidator(ResponseValidatorABC):
+
+    required_params = []
+    valid_examples = []
+    invalid_examples = []
+
     def custom_validate(self, response) -> RankResponse:
         if len(response.answer) != len(set(response.answer)):
             raise QuestionAnswerValidationError("Answer must be unique")
@@ -42,6 +47,9 @@ class QuestionRank(QuestionBase):
     question_type = "rank"
     question_options: list[str] = QuestionOptionsDescriptor()
     num_selections = NumSelectionsDescriptor()
+
+    _response_model = None
+    response_validator_class = RankResponseValidator
 
     new_default_instructions = Prompt(
         text=textwrap.dedent(

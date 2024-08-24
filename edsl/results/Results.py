@@ -17,6 +17,7 @@ from edsl.exceptions.results import (
     ResultsInvalidNameError,
     ResultsMutateError,
     ResultsFilterError,
+    ResultsDeserializationError,
 )
 
 from edsl.results.ResultsExportMixin import ResultsExportMixin
@@ -315,8 +316,7 @@ class Results(UserList, Mixins, Base):
                 ),
             )
         except Exception as e:
-            print(e)
-            # breakpoint()
+            raise ResultsDeserializationError(f"Error in Results.from_dict: {e}")
         return results
 
     ######################
