@@ -140,9 +140,9 @@ class QuestionMultipleChoice(QuestionBase):
         self.question_options = question_options
 
         self._include_comment = include_comment
-        self._use_code = use_code
-        self._answering_instructions = answering_instructions
-        self._question_presentation = question_presentation
+        self.use_code = use_code
+        self.answering_instructions = answering_instructions
+        self.question_presentation = question_presentation
 
     ################
     # Answer methods

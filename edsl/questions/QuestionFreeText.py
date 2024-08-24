@@ -1,5 +1,4 @@
 from __future__ import annotations
-import textwrap
 from typing import Any, Optional
 from uuid import uuid4
 
@@ -14,20 +13,17 @@ from edsl.questions.decorators import inject_exception
 
 class FreeTextResponse(BaseResponse):
     """
-    >>> nr = FreeTextResponse(answer = "You dude")
+    >>> nr = FreeTextResponse(answer = "Yo dude")
     >>> nr.dict()
-    {'answer': 'You dude', 'comment': None}
+    {'answer': 'Yo dude', 'comment': None}
     """
 
     answer: str
 
 
 class FreeTextResponseValidator(ResponseValidatorABC):
-
     required_params = []
-
     valid_examples = [({"answer": "This is great"}, {})]
-
     invalid_examples = [
         (
             {"answer": None},
@@ -47,7 +43,13 @@ class QuestionFreeText(QuestionBase):
     _response_model = FreeTextResponse
     response_validator_class = FreeTextResponseValidator
 
-    def __init__(self, question_name: str, question_text: str):
+    def __init__(
+        self,
+        question_name: str,
+        question_text: str,
+        answering_instructions: Optional[str] = None,
+        question_presentation: Optional[str] = None,
+    ):
         """Instantiate a new QuestionFreeText.
 
         :param question_name: The name of the question.
@@ -55,6 +57,8 @@ class QuestionFreeText(QuestionBase):
         """
         self.question_name = question_name
         self.question_text = question_text
+        self.answering_instructions = answering_instructions
+        self.question_presentation = question_presentation
 
     @property
     def question_html_content(self) -> str:

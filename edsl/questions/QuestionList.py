@@ -60,6 +60,8 @@ class QuestionList(QuestionBase):
         question_text: str,
         max_list_items: Optional[int] = None,
         include_comment: bool = True,
+        answering_instructions: Optional[str] = None,
+        question_presentation: Optional[str] = None,
     ):
         """Instantiate a new QuestionList.
 
@@ -73,7 +75,9 @@ class QuestionList(QuestionBase):
         self.question_text = question_text
         self.max_list_items = max_list_items
 
-        self._include_comment = include_comment
+        self.include_comment = include_comment
+        self.answering_instructions = answering_instructions
+        self.question_presentations = question_presentation
 
     @property
     def question_html_content(self) -> str:

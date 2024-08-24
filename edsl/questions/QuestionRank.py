@@ -51,28 +51,14 @@ class QuestionRank(QuestionBase):
     _response_model = None
     response_validator_class = RankResponseValidator
 
-    new_default_instructions = Prompt(
-        text=textwrap.dedent(
-            """\
-        You are being asked the following question: {{question_text}}
-        The options are
-        {% for option in question_options %}
-        {{ loop.index0 }}: {{option}}
-        {% endfor %}
-        Return a valid JSON formatted like this, selecting the numbers of the options in order of preference,
-        with the most preferred option first, and the least preferred option last:
-        {"answer": [<put comma-separated list of answer codes here>], "comment": "<put explanation here>"}
-        Exactly {{num_selections}} options must be selected.
-        """
-        )
-    )
-
     def __init__(
         self,
         question_name: str,
         question_text: str,
         question_options: list[str],
         num_selections: Optional[int] = None,
+        question_presentation: Optional[str] = None,
+        answering_instructions: Optional[str] = None,
     ):
         """Initialize the question.
 
@@ -86,6 +72,8 @@ class QuestionRank(QuestionBase):
         self.question_text = question_text
         self.question_options = question_options
         self.num_selections = num_selections or len(question_options)
+        self.question_presentation = question_presentation
+        self.answering_instructions = answering_instructions
 
     ################
     # Answer methods

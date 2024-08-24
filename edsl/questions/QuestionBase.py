@@ -37,7 +37,15 @@ class QuestionBase(
 
     _answering_instructions = None
     _question_presentation = None
-    # default_template_settings = {"include_comment": True, "use_code": True}
+
+    @classmethod
+    def run_example(cls, show_answer=True, **kwargs):
+        """Run an example of the question."""
+        results = cls.example(**kwargs).run()
+        if show_answer:
+            results.select("answer.*").print()
+        else:
+            return results
 
     @property
     def response_model(self):
@@ -47,40 +55,70 @@ class QuestionBase(
             return self.create_response_model()
 
     @property
+    def use_code(self):
+        if hasattr(self, "_use_code"):
+            return self._use_code
+        return True
+
+    @use_code.setter
+    def use_code(self, value: bool):
+        self._use_code = value
+
+    @property
+    def include_comment(self):
+        if hasattr(self, "_include_comment"):
+            return self._include_comment
+        return True
+
+    @include_comment.setter
+    def include_comment(self, value: bool):
+        self._include_comment = value
+
+    @property
     def answering_instructions(self):
         if self._answering_instructions is None:
-            from importlib import resources
-            from edsl.prompts import Prompt
-
-            path_to_folder = resources.path(
-                f"edsl.questions.templates", self.question_type
-            )
-            self._answering_instructions = Prompt.from_template(
-                "answering_instructions.jinja", path_to_folder
-            )
+            return self.default_answering_instructions()
         return self._answering_instructions
+
+    @answering_instructions.setter
+    def answering_instructions(self, value):
+        self._answering_instructions = value
+
+    @classmethod
+    def default_answering_instructions(cls):
+        from importlib import resources
+        from edsl.prompts import Prompt
+
+        path_to_folder = resources.path(f"edsl.questions.templates", cls.question_type)
+        return Prompt.from_template("answering_instructions.jinja", path_to_folder)
+
+    @classmethod
+    def default_question_presentation(cls):
+        from importlib import resources
+        from edsl.prompts import Prompt
+
+        path_to_folder = resources.path(f"edsl.questions.templates", cls.question_type)
+        return Prompt.from_template("question_presentation.jinja", path_to_folder)
 
     @property
     def question_presentation(self):
         if self._question_presentation is None:
-            from importlib import resources
-            from edsl.prompts import Prompt
-
-            path_to_folder = resources.path(
-                f"edsl.questions.templates", self.question_type
-            )
-            self._question_presentation = Prompt.from_template(
-                "question_presentation.jinja", path_to_folder
-            )
+            return self.default_question_presentation()
         return self._question_presentation
 
-    def preview(self):
+    @question_presentation.setter
+    def question_presentation(self, value):
+        self._question_presentation = value
+
+    def prompt_preview(self, scenario=None, agent=None):
         return self.new_default_instructions.render(
             self.data
             | {
                 "include_comment": getattr(self, "_include_comment", True),
                 "use_code": getattr(self, "_use_code", True),
             }
+            | ({"scenario": scenario} or {})
+            | ({"agent": agent} or {})
         )
 
     @classmethod
@@ -103,8 +141,6 @@ class QuestionBase(
     @property
     def new_default_instructions(self):
         "This is set up as a property because there are mutable question values that determine how it is rendered."
-        # from edsl.prompts import Prompt
-        # return Prompt.from_template("question_" + self.question_type)
         return self.question_presentation + self.answering_instructions
 
     @property
@@ -121,9 +157,6 @@ class QuestionBase(
 
     def _simulate_answer(self, human_readable: bool = True):
         """Simulate a valid answer for debugging purposes (what the validator expects)."""
-        # num_items = random.randint(1, self.max_list_items or 2)
-        # from edsl.utilities.utilities import random_string
-        # return {"answer": [random_string() for _ in range(num_items)]}
         from polyfactory.factories.pydantic_factory import ModelFactory
 
         class FakeData(ModelFactory[self.response_model]): ...

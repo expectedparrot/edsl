@@ -26,11 +26,8 @@ def dict_to_pydantic_model(input_dict: Dict[str, Any]) -> Any:
 
 
 class ExtractResponseValidator(ResponseValidatorABC):
-
     required_params = ["answer_template"]
-
     valid_examples = [({"answer": "This is great"}, {})]
-
     invalid_examples = [
         (
             {"answer": None},
@@ -56,6 +53,8 @@ class QuestionExtract(QuestionBase):
         question_text: str,
         answer_template: dict[str, Any],
         question_name: str,
+        answering_instructions: str = None,
+        question_presentation: str = None,
     ):
         """Initialize the question.
 
@@ -67,6 +66,8 @@ class QuestionExtract(QuestionBase):
         self.question_name = question_name
         self.question_text = question_text
         self.answer_template = answer_template
+        self.answering_instructions = answering_instructions
+        self.question_presentation = question_presentation
 
     def create_response_model(self):
         return dict_to_pydantic_model(self.answer_template)

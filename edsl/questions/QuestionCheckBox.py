@@ -124,6 +124,8 @@ class QuestionCheckBox(QuestionBase):
         max_selections: Optional[int] = None,
         include_comment: bool = True,
         use_code: bool = True,
+        question_presentation: Optional[str] = None,
+        answering_instructions: Optional[str] = None,
     ):
         """Instantiate a new QuestionCheckBox.
 
@@ -141,6 +143,9 @@ class QuestionCheckBox(QuestionBase):
 
         self._include_comment = include_comment
         self._use_code = use_code
+
+        self.question_presentation = question_presentation
+        self.answering_instructions = answering_instructions
 
     def create_response_model(self):
         if not self._use_code:
