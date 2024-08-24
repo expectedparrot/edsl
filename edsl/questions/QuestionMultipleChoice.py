@@ -1,7 +1,5 @@
 from __future__ import annotations
-from typing import Union, Literal
-import random
-from typing import Optional
+from typing import Union, Literal, Optional
 from jinja2 import Template
 
 from edsl.questions.QuestionBase import QuestionBase
@@ -127,6 +125,8 @@ class QuestionMultipleChoice(QuestionBase):
         question_options: Union[list[str], list[list], list[float], list[int]],
         include_comment: bool = True,
         use_code: bool = True,
+        answering_instructions: Optional[str] = None,
+        question_presentation: Optional[str] = None,
     ):
         """Instantiate a new QuestionMultipleChoice.
 
@@ -141,17 +141,12 @@ class QuestionMultipleChoice(QuestionBase):
 
         self._include_comment = include_comment
         self._use_code = use_code
+        self._answering_instructions = answering_instructions
+        self._question_presentation = question_presentation
 
     ################
     # Answer methods
     ################
-    def set_comment_off(self):
-        """Turn off the comment field in the response model."""
-        self._include_comment = False
-
-    def set_use_code_off(self):
-        """Turn off the use of code in the response model."""
-        self._use_code = False
 
     def create_response_model(self):
         if self._use_code:
@@ -206,21 +201,6 @@ class QuestionMultipleChoice(QuestionBase):
             # return translated_options[answer_code]
             return answer_code
 
-    # def _simulate_answer(
-    #     self, human_readable: bool = True
-    # ) -> dict[str, Union[int, str]]:
-    #     """Simulate a valid answer for debugging purposes."""
-    #     from edsl.utilities.utilities import random_string
-
-    #     if human_readable:
-    #         answer = random.choice(self.question_options)
-    #     else:
-    #         answer = random.choice(range(len(self.question_options)))
-    #     return {
-    #         "answer": answer,
-    #         "comment": random_string(),
-    #     }
-
     @property
     def question_html_content(self) -> str:
         """Return the HTML version of the question."""
@@ -228,26 +208,15 @@ class QuestionMultipleChoice(QuestionBase):
             option_labels = self.option_labels
         else:
             option_labels = {}
-        question_html_content = Template(
-            """
-        {% for option in question_options %} 
-        <div>
-        <input type="radio" id="{{ option }}" name="{{ question_name }}" value="{{ option }}">
-        <label for="{{ option }}">
-        {{ option }}
-        {% if option in option_labels %}
-        : {{ option_labels[option] }}
-        {% endif %}
-        </label>
-        </div>
-        {% endfor %}
-        """
-        ).render(
+
+        with open("html/multiple_choice_html.jinja") as f:
+            question_html_content = f.read()
+
+        return question_html_content.render(
             question_name=self.question_name,
             question_options=self.question_options,
             option_labels=option_labels,
         )
-        return question_html_content
 
     ################
     # Example
