@@ -10,27 +10,19 @@ from edsl.agents.Agent import Agent
 from edsl.agents.AgentList import AgentList
 
 from edsl.questions import QuestionBase
-
+from edsl.questions.question_registry import Question
 from edsl.questions import QuestionMultipleChoice
-
-# from edsl.questions import QuestionBudget
 from edsl.questions import QuestionCheckBox
-
 from edsl.questions import QuestionExtract
 from edsl.questions import QuestionFreeText
-
-# from edsl.questions import QuestionFunctional
+from edsl.questions import QuestionFunctional
 from edsl.questions import QuestionLikertFive
-
 from edsl.questions import QuestionList
-
 from edsl.questions import QuestionLinearScale
 from edsl.questions import QuestionNumerical
-
-# from edsl.questions import QuestionRank
-# from edsl.questions import QuestionTopK
 from edsl.questions import QuestionYesNo
-from edsl.questions.question_registry import Question
+from edsl.questions import QuestionBudget
+
 from edsl.scenarios import Scenario
 from edsl.scenarios import ScenarioList
 

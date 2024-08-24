@@ -11,6 +11,8 @@ class QuestionBudget(QuestionBase):
     question_type = "budget"
     budget_sum: int = IntegerDescriptor(none_allowed=False)
     question_options: list[str] = QuestionOptionsDescriptor(q_budget=True)
+    _response_model = None
+    response_validator_class = None
 
     def __init__(
         self,

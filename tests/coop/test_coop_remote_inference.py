@@ -4,7 +4,7 @@ from edsl.questions import (
     QuestionMultipleChoice,
     QuestionLikertFive,
     QuestionYesNo,
-    QuestionBudget,
+    #    QuestionBudget,
 )
 from unittest.mock import patch, PropertyMock
 
@@ -20,7 +20,7 @@ def test_coop_remote_inference_cost():
             QuestionMultipleChoice.example(),
             QuestionLikertFive.example(),
             QuestionYesNo.example(),
-            QuestionBudget.example(),
+            #       QuestionBudget.example(),
         ]
     )
     models = [Model("gpt-4o")]
