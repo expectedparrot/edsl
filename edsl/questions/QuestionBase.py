@@ -35,6 +35,8 @@ class QuestionBase(
     question_name: str = QuestionNameDescriptor()
     question_text: str = QuestionTextDescriptor()
 
+    _answering_instructions = None
+    _question_presentation = None
     # default_template_settings = {"include_comment": True, "use_code": True}
 
     @property
@@ -43,6 +45,43 @@ class QuestionBase(
             return self._response_model
         else:
             return self.create_response_model()
+
+    @property
+    def answering_instructions(self):
+        if self._answering_instructions is None:
+            from importlib import resources
+            from edsl.prompts import Prompt
+
+            path_to_folder = resources.path(
+                f"edsl.questions.templates", self.question_type
+            )
+            self._answering_instructions = Prompt.from_template(
+                "answering_instructions.jinja", path_to_folder
+            )
+        return self._answering_instructions
+
+    @property
+    def question_presentation(self):
+        if self._question_presentation is None:
+            from importlib import resources
+            from edsl.prompts import Prompt
+
+            path_to_folder = resources.path(
+                f"edsl.questions.templates", self.question_type
+            )
+            self._question_presentation = Prompt.from_template(
+                "question_presentation.jinja", path_to_folder
+            )
+        return self._question_presentation
+
+    def preview(self):
+        return self.new_default_instructions.render(
+            self.data
+            | {
+                "include_comment": getattr(self, "_include_comment", True),
+                "use_code": getattr(self, "_use_code", True),
+            }
+        )
 
     @classmethod
     def self_check(cls):
@@ -64,9 +103,9 @@ class QuestionBase(
     @property
     def new_default_instructions(self):
         "This is set up as a property because there are mutable question values that determine how it is rendered."
-        from edsl.prompts import Prompt
-
-        return Prompt.from_template("question_" + self.question_type)
+        # from edsl.prompts import Prompt
+        # return Prompt.from_template("question_" + self.question_type)
+        return self.question_presentation + self.answering_instructions
 
     @property
     def response_validator(self) -> "ResponseValidatorBase":
@@ -156,7 +195,13 @@ class QuestionBase(
     @property
     def data(self) -> dict:
         """Return a dictionary of question attributes **except** for question_type."""
-        exclude_list = ["question_type", "_include_comment", "_use_code"]
+        exclude_list = [
+            "question_type",
+            "_include_comment",
+            "_use_code",
+            "_answering_instructions",
+            "_question_presentation",
+        ]
         candidate_data = {
             k.replace("_", "", 1): v
             for k, v in self.__dict__.items()
