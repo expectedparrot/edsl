@@ -113,6 +113,8 @@ class QuestionNumerical(QuestionBase):
         min_value: Optional[Union[int, float]] = None,
         max_value: Optional[Union[int, float]] = None,
         include_comment: bool = True,
+        question_presentation: Optional[str] = None,
+        answering_instructions: Optional[str] = None,
     ):
         """Initialize the question.
 
@@ -126,7 +128,9 @@ class QuestionNumerical(QuestionBase):
         self.min_value = min_value
         self.max_value = max_value
 
-        self._include_comment = include_comment
+        self.include_comment = include_comment
+        self.question_presentation = question_presentation
+        self.answering_instructions = answering_instructions
 
     def create_response_model(self):
         return create_numeric_response(self.min_value, self.max_value)

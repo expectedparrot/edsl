@@ -22,20 +22,24 @@ class QuestionLikertFive(QuestionMultipleChoice):
         question_name: str,
         question_text: str,
         question_options: Optional[list[str]] = likert_options,
+        answering_instructions: Optional[str] = None,
+        question_presentation: Optional[str] = None,
+        include_comment: bool = True,
     ):
         """Initialize the question.
 
         :param question_name: The name of the question.
         :param question_text: The text of the question.
         :param question_options: The options the respondent should select from (list of strings). If not provided, the default Likert options are used (['Strongly disagree', 'Disagree', 'Neutral', 'Agree', 'Strongly agree']). To view them, run `QuestionLikertFive.likert_options`.
-        :param instructions: Instructions for the question. If not provided, the default instructions are used. To view them, run `QuestionLikertFive.default_instructions`.
         """
         super().__init__(
             question_name=question_name,
             question_text=question_text,
             question_options=question_options,
             use_code=False,
-            include_comment=True,
+            include_comment=include_comment,
+            answering_instructions=answering_instructions,
+            question_presentation=question_presentation,
         )
 
     @classmethod

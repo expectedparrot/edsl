@@ -19,6 +19,7 @@ from edsl.questions.QuestionBudget import QuestionBudget
 from edsl.questions.derived.QuestionLikertFive import QuestionLikertFive
 from edsl.questions.derived.QuestionLinearScale import QuestionLinearScale
 from edsl.questions.derived.QuestionYesNo import QuestionYesNo
+from edsl.questions.derived.QuestionTopK import QuestionTopK
 
 # # Compose Questions
 # from edsl.questions.compose_questions import compose_questions

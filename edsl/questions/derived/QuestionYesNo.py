@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Optional
 from edsl.questions.descriptors import QuestionOptionsDescriptor
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
@@ -16,6 +17,8 @@ class QuestionYesNo(QuestionMultipleChoice):
         question_name: str,
         question_text: str,
         question_options: list[str] = ["No", "Yes"],
+        answering_instructions: Optional[str] = None,
+        question_presentation: Optional[str] = None,
     ):
         """Instantiate a new QuestionYesNo.
 
@@ -28,6 +31,8 @@ class QuestionYesNo(QuestionMultipleChoice):
             question_text=question_text,
             question_options=question_options,
             use_code=False,
+            answering_instructions=answering_instructions,
+            question_presentation=question_presentation,
         )
         self.question_options = question_options
 

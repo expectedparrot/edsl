@@ -303,7 +303,6 @@ class PromptConstructorMixin:
                         question_option_key
                     )
 
-            # breakpoint()
             rendered_instructions = question_prompt.render(
                 question_data
                 | self.scenario

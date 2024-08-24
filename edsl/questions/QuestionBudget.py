@@ -20,6 +20,8 @@ class QuestionBudget(QuestionBase):
         question_text: str,
         question_options: list[str],
         budget_sum: int,
+        question_presentation: Optional[str] = None,
+        answering_instructions: Optional[str] = None,
     ):
         """Instantiate a new QuestionBudget.
 
@@ -32,6 +34,8 @@ class QuestionBudget(QuestionBase):
         self.question_text = question_text
         self.question_options = question_options
         self.budget_sum = budget_sum
+        self.question_presentation = question_presentation
+        self.answering_instructions = answering_instructions
 
     ################
     # Answer methods
