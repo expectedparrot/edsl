@@ -79,7 +79,7 @@ class QuestionBase(
             self._fake_data_factory = FakeData
         return self._fake_data_factory
 
-    def _simulate_answer(self):
+    def _simulate_answer(self, human_readable: bool = False) -> dict:
         """Simulate a valid answer for debugging purposes (what the validator expects).
         >>> from edsl import QuestionFreeText as Q
         >>> Q.example()._simulate_answer()
