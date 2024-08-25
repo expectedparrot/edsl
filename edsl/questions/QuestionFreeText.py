@@ -6,16 +6,21 @@ from pydantic import field_validator
 
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
-from edsl.questions.ResponseValidatorABC import BaseResponse
+
 from edsl.exceptions import QuestionAnswerValidationError
 from edsl.questions.decorators import inject_exception
 
+from pydantic import BaseModel
+from typing import Optional, Any, List
 
-class FreeTextResponse(BaseResponse):
+from edsl.exceptions import QuestionAnswerValidationError
+
+
+class FreeTextResponse(BaseModel):
     """
     >>> nr = FreeTextResponse(answer = "Yo dude")
     >>> nr.dict()
-    {'answer': 'Yo dude', 'comment': None}
+    {'answer': 'Yo dude'}
     """
 
     answer: str
