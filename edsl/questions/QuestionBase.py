@@ -134,6 +134,7 @@ class QuestionBase(
         exclude_list = [
             "question_type",
             "_include_comment",
+            "_fake_data_factory",
             "_use_code",
             "_answering_instructions",
             "_question_presentation",

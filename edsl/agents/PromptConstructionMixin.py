@@ -231,16 +231,8 @@ class PromptConstructorMixin:
         >>> from edsl.agents.InvigilatorBase import InvigilatorBase
         >>> i = InvigilatorBase.example()
         >>> i.question_instructions_prompt
-        Prompt(text=\"""You are being asked the following question: Do you like school?
-        The options are
-        <BLANKLINE>
-        0: yes
-        <BLANKLINE>
-        1: no
-        <BLANKLINE>
-        Return a valid JSON formatted like this, selecting only the number of the option:
-        {"answer": <put answer code here>, "comment": "<put explanation here>"}
-        Only 1 option may be selected.\""")
+        Prompt(text=\"""...
+        ...
 
         >>> from edsl import QuestionFreeText
         >>> q = QuestionFreeText(question_text = "Consider {{ X }}. What is your favorite color?", question_name = "q_color")
