@@ -1111,7 +1111,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     def recombined_questions_and_instructions(
         self,
     ) -> list[Union[QuestionBase, "Instruction"]]:
-        # recombine the questions and instructions
+        """Return a list of questions and instructions sorted by pseudo index."""
         questions_and_instructions = self._questions + list(
             self.instruction_names_to_instructions.values()
         )
@@ -1226,9 +1226,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         so = SurveyQualtricsImport(qsf_file)
         return so.create_survey()
 
-    ###################
-    # DISPLAY METHODS
-    ###################
+    # region: Display methods
     def print(self):
         """Print the survey in a rich format.
 
@@ -1308,6 +1306,8 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         return table
 
+    # endregion
+
     def codebook(self) -> dict[str, str]:
         """Create a codebook for the survey, mapping question names to question text.
 
@@ -1320,6 +1320,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
             codebook[question.question_name] = question.question_text
         return codebook
 
+    # region: Export methods
     def to_csv(self, filename: str = None):
         """Export the survey to a CSV file.
 
@@ -1361,6 +1362,8 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         res = c.web(self.to_dict(), platform, email)
         return res
+
+    # endregion
 
     @classmethod
     def example(

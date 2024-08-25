@@ -104,7 +104,7 @@ class PromptBase(
             path_to_folder = resources.path("edsl.questions", "prompt_templates")
 
         folder_path = Path(path_to_folder)
-        with open(folder_path / file_name, "r") as f:
+        with open(folder_path.joinpath(file_name), "r") as f:
             text = f.read()
         return cls(text=text)
         # Resolve the path to get the absolute path
