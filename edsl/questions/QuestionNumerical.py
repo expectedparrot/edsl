@@ -1,31 +1,16 @@
 from __future__ import annotations
-import textwrap
+from decimal import Decimal
 from random import uniform
 from typing import Any, Optional, Union
+
+from pydantic import BaseModel, Field, field_validator
 
 from edsl.exceptions import QuestionAnswerValidationError
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.descriptors import NumericalOrNoneDescriptor
-
 from edsl.questions.decorators import inject_exception
-
-from edsl.questions.AnswerNumerical import AnswerNumerical
-from edsl.prompts import Prompt
-
 from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
-from edsl.questions.ResponseValidatorABC import BaseResponse
-
-from decimal import Decimal
-from pydantic import field_validator
-from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
-from edsl.questions.ResponseValidatorABC import BaseResponse
-from decimal import Decimal
-from pydantic import BaseModel, Field, field_validator
-from typing import Optional
-
-
-class QuestionAnswerValidationError(ValueError):
-    pass
+from edsl.exceptions.questions import QuestionAnswerValidationError
 
 
 class NumericResponse(BaseModel):
