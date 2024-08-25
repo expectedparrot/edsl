@@ -103,7 +103,11 @@ class PromptBase(
 
             path_to_folder = resources.path("edsl.questions", "prompt_templates")
 
-        folder_path = Path(path_to_folder)
+        try:
+            folder_path = Path(path_to_folder)
+        except Exception as e:
+            raise ValueError(f"Invalid path: {path_to_folder}. Error: {e}")
+
         with open(folder_path.joinpath(file_name), "r") as f:
             text = f.read()
         return cls(text=text)

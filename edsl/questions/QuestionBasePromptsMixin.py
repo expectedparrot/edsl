@@ -7,8 +7,10 @@ from edsl.exceptions.questions import QuestionAnswerValidationError
 class QuestionBasePromptsMixin:
 
     @classmethod
-    def path_to_folder(cls):
-        return resources.files(f"edsl.questions.templates").joinpath(cls.question_type)
+    def path_to_folder(cls) -> str:
+        return str(
+            resources.files(f"edsl.questions.templates").joinpath(cls.question_type)
+        )
 
     @property
     def response_model(self) -> type["BaseModel"]:
