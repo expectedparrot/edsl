@@ -208,15 +208,26 @@ class QuestionMultipleChoice(QuestionBase):
             option_labels = self.option_labels
         else:
             option_labels = {}
-
-        with open("html/multiple_choice_html.jinja") as f:
-            question_html_content = f.read()
-
-        return question_html_content.render(
+        question_html_content = Template(
+            """
+        {% for option in question_options %} 
+        <div>
+        <input type="radio" id="{{ option }}" name="{{ question_name }}" value="{{ option }}">
+        <label for="{{ option }}">
+        {{ option }}
+        {% if option in option_labels %}
+        : {{ option_labels[option] }}
+        {% endif %}
+        </label>
+        </div>
+        {% endfor %}
+        """
+        ).render(
             question_name=self.question_name,
             question_options=self.question_options,
             option_labels=option_labels,
         )
+        return question_html_content
 
     ################
     # Example

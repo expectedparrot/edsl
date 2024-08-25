@@ -834,13 +834,8 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         >>> from edsl import QuestionFreeText
         >>> s = Survey([QuestionFreeText.example()])
         >>> results = s.run(debug = True, cache = False)
-        >>> results.select('answer.*').print(format = "rich")
-        ┏━━━━━━━━━━━━━━┓
-        ┃ answer       ┃
-        ┃ .how_are_you ┃
-        ┡━━━━━━━━━━━━━━┩
-        ...
-        └──────────────┘
+        >>> results.select('answer.*')
+        Dataset([{'answer.how_are_you': ['...']}])
         """
         from edsl.jobs.Jobs import Jobs
 

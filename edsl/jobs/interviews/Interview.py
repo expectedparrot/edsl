@@ -148,16 +148,16 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
 
         >>> i = Interview.example(throw_exception = True)
         >>> result, _ = asyncio.run(i.async_conduct_interview())
-        Attempt 1 failed with exception:This is a test error now waiting 1.00 seconds before retrying.Parameters: start=1.0, max=60.0, max_attempts=5.
+        Attempt 1 failed with exception 'Exception':This is a test error now waiting 1.00 seconds before retrying.Parameters: start=1.0, max=60.0, max_attempts=5.
         <BLANKLINE>
         <BLANKLINE>
-        Attempt 2 failed with exception:This is a test error now waiting 2.00 seconds before retrying.Parameters: start=1.0, max=60.0, max_attempts=5.
+        Attempt 2 failed with exception 'Exception':This is a test error now waiting 2.00 seconds before retrying.Parameters: start=1.0, max=60.0, max_attempts=5.
         <BLANKLINE>
         <BLANKLINE>
-        Attempt 3 failed with exception:This is a test error now waiting 4.00 seconds before retrying.Parameters: start=1.0, max=60.0, max_attempts=5.
+        Attempt 3 failed with exception 'Exception':This is a test error now waiting 4.00 seconds before retrying.Parameters: start=1.0, max=60.0, max_attempts=5.
         <BLANKLINE>
         <BLANKLINE>
-        Attempt 4 failed with exception:This is a test error now waiting 8.00 seconds before retrying.Parameters: start=1.0, max=60.0, max_attempts=5.
+        Attempt 4 failed with exception 'Exception':This is a test error now waiting 8.00 seconds before retrying.Parameters: start=1.0, max=60.0, max_attempts=5.
         <BLANKLINE>
         <BLANKLINE>
 
