@@ -44,18 +44,20 @@ class ResponseValidatorABC(ABC):
             setattr(self, key, value)
 
     def _base_validate(self, data):
-        try:
-            response = self.response_model(**data)
-        except Exception as e:
-            raise QuestionAnswerValidationError(str(e))
+        response = self.response_model(**data)
         return response
 
     def validate(self, data):
         if self.exception_to_throw:
             raise self.exception_to_throw
-        response = self._base_validate(data)
-        return self.custom_validate(response)
-        # return response
+        try:
+            response = self._base_validate(data)
+        except Exception as e:
+            raise QuestionAnswerValidationError(str(e))
+        try:
+            return self.custom_validate(response)
+        except Exception as e:
+            raise QuestionAnswerValidationError(str(e))
 
     @abstractmethod
     def custom_validate(self, data: dict) -> BaseModel:

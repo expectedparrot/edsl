@@ -1,12 +1,31 @@
+from __future__ import annotations
 import copy
 import itertools
-from typing import Optional, List, Callable
+from typing import Optional, List, Callable, Type
+from typing import TypeVar
 
 
 class QuestionBaseGenMixin:
 
-    def option_permutations(self) -> list["QuestionBase"]:
-        """Return a list of questions with all possible permutations of the options."""
+    def copy(self) -> QuestionBase:
+        """Return a deep copy of the question.
+
+        >>> from edsl.questions import QuestionFreeText
+        >>> q = QuestionFreeText(question_name = "color", question_text = "What is your favorite color?")
+        >>> q2 = q.copy()
+        >>> q2.question_name
+        'color'
+
+        """
+        return copy.deepcopy(self)
+
+    def option_permutations(self) -> list[QuestionBase]:
+        """Return a list of questions with all possible permutations of the options.
+
+        >>> from edsl import QuestionMultipleChoice as Q
+        >>> len(Q.example().option_permutations())
+        24
+        """
 
         if not hasattr(self, "question_options"):
             return [self]
@@ -21,7 +40,18 @@ class QuestionBaseGenMixin:
             questions.append(question)
         return questions
 
-    def loop(self, scenario_list: "ScenarioList") -> List["QuestionBase"]:
+    def loop(self, scenario_list: ScenarioList) -> List[QuestionBase]:
+        """Return a list of questions with the question name modified for each scenario.
+
+        :param scenario_list: The list of scenarios to loop through.
+
+        >>> from edsl import QuestionFreeText
+        >>> from edsl import ScenarioList
+        >>> q = QuestionFreeText(question_text = "What are your thoughts on: {{ subject}}?", question_name = "base_{{subject}}")
+        >>> len(q.loop(ScenarioList.from_list("subject", ["Math", "Economics", "Chemistry"])))
+        3
+
+        """
         from jinja2 import Environment
         from edsl.questions.QuestionBase import QuestionBase
 
@@ -59,7 +89,7 @@ class QuestionBaseGenMixin:
             questions.append(QuestionBase.from_dict(new_data))
         return questions
 
-    def apply_function(self, func: Callable, exclude_components=None) -> "QuestionBase":
+    def apply_function(self, func: Callable, exclude_components=None) -> QuestionBase:
         """Apply a function to the question parts
 
         >>> from edsl.questions import QuestionFreeText
@@ -89,3 +119,9 @@ class QuestionBaseGenMixin:
                 continue
             d[key] = func(value)
         return QuestionBase.from_dict(d)
+
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod()
