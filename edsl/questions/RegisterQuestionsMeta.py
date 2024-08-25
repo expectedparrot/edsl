@@ -15,7 +15,11 @@ class RegisterQuestionsMeta(ABCMeta):
     def __init__(cls, name, bases, dct):
         """Initialize the class and adds it to the registry if it's not the base class."""
         super(RegisterQuestionsMeta, cls).__init__(name, bases, dct)
-        if name != "QuestionBase" and name != "QuestionFunctional":
+        if (
+            name != "QuestionBase"
+            and name != "QuestionFunctional"
+            and name != "QuestionAddTwoNumbers"
+        ):
             ## Enforce that all questions have a question_type class attribute
             ## and it comes from our enum of valid question types.
             required_attributes = [
@@ -40,7 +44,7 @@ class RegisterQuestionsMeta(ABCMeta):
             for param in required_params:
                 if param not in init_params:
                     raise QuestionBadTypeError(
-                        "Question must have a question_presentation parameter in its __init__ method"
+                        f"Question type {name} must have a question_presentation parameter in its __init__ method"
                     )
 
             RegisterQuestionsMeta._registry[name] = cls
