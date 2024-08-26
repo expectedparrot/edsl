@@ -88,9 +88,7 @@ class QuestionBasePromptsMixin:
 
     @classmethod
     def path_to_folder(cls) -> str:
-        return str(
-            resources.files(f"edsl.questions.templates").joinpath(cls.question_type)
-        )
+        return resources.files(f"edsl.questions.templates", cls.question_type)
 
     @property
     def response_model(self) -> type["BaseModel"]:
@@ -131,13 +129,19 @@ class QuestionBasePromptsMixin:
 
     @classmethod
     def default_answering_instructions(cls) -> str:
-        return Prompt.from_template(
-            "answering_instructions.jinja", cls.path_to_folder()
-        )
+        with resources.open_text(
+            f"edsl.questions.templates.{cls.question_type}",
+            "answering_instructions.jinja",
+        ) as file:
+            return Prompt(text=file.read())
 
     @classmethod
     def default_question_presentation(cls):
-        return Prompt.from_template("question_presentation.jinja", cls.path_to_folder())
+        with resources.open_text(
+            f"edsl.questions.templates.{cls.question_type}",
+            "question_presentation.jinja",
+        ) as file:
+            return Prompt(text=file.read())
 
     @property
     def question_presentation(self):
@@ -203,13 +207,6 @@ class QuestionBasePromptsMixin:
         """Get the mathcing question-answering instructions for the question.
 
         :param model: The language model to use.
-
-        >>> from edsl import QuestionFreeText
-        >>> QuestionFreeText.example().get_instructions()
-        Prompt(text=\"""You are being asked the following question: {{question_text}}
-        Return a valid JSON formatted like this:
-        {"answer": "<put free text answer here>"}
-        \""")
         """
         from edsl.prompts.Prompt import Prompt
 
