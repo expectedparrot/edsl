@@ -132,7 +132,9 @@ class InvigilatorBase(ABC):
         )
 
     @classmethod
-    def example(cls, throw_an_exception=False, question=None, scenario=None):
+    def example(
+        cls, throw_an_exception=False, question=None, scenario=None, survey=None
+    ) -> "InvigilatorBase":
         """Return an example invigilator.
 
         >>> InvigilatorBase.example()
@@ -173,7 +175,8 @@ class InvigilatorBase(ABC):
         # question = QuestionMultipleChoice.example()
         from edsl.surveys import Survey
 
-        survey = Survey.example()
+        if not survey:
+            survey = Survey.example()
         # if question:
         # need to have the focal question name in the list of names
         # survey._questions[0].question_name = question.question_name

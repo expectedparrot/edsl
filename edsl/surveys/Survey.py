@@ -1461,7 +1461,11 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
     @classmethod
     def example(
-        cls, params: bool = False, randomize: bool = False, include_instructions=False
+        cls,
+        params: bool = False,
+        randomize: bool = False,
+        include_instructions=False,
+        custom_instructions: Optional[str] = None,
     ) -> Survey:
         """Return an example survey.
 
@@ -1495,10 +1499,15 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
             )
             s = cls(questions=[q0, q1, q2, q3])
             return s
+
         if include_instructions:
             from edsl import Instruction
 
-            i = Instruction(text="Please pay attention!", name="attention")
+            custom_instructions = (
+                custom_instructions if custom_instructions else "Please pay attention!"
+            )
+
+            i = Instruction(text=custom_instructions, name="attention")
             s = cls(questions=[i, q0, q1, q2])
             return s
 

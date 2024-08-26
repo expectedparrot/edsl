@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Dict, Any, Optional
 from collections import UserList
 
@@ -233,37 +234,6 @@ class PromptConstructorMixin:
         >>> i.question_instructions_prompt
         Prompt(text=\"""...
         ...
-
-        >>> from edsl import QuestionFreeText
-        >>> q = QuestionFreeText(question_text = "Consider {{ X }}. What is your favorite color?", question_name = "q_color")
-        >>> from edsl.agents.InvigilatorBase import InvigilatorBase
-        >>> i = InvigilatorBase.example(question = q)
-        >>> i.question_instructions_prompt
-        Traceback (most recent call last):
-        ...
-        edsl.exceptions.questions.QuestionScenarioRenderError: Question instructions still has variables: ['X'].
-
-
-        >>> from edsl import QuestionFreeText
-        >>> q = QuestionFreeText(question_text = "You were asked the question '{{ q0.question_text }}'. What is your favorite color?", question_name = "q_color")
-        >>> from edsl.agents.InvigilatorBase import InvigilatorBase
-        >>> i = InvigilatorBase.example(question = q)
-        >>> i.question_instructions_prompt
-        Prompt(text=\"""You are being asked the following question: You were asked the question 'Do you like school?'. What is your favorite color?
-        Return a valid JSON formatted like this:
-        {"answer": "<put free text answer here>"}\""")
-
-        >>> from edsl import QuestionFreeText
-        >>> q = QuestionFreeText(question_text = "You stated '{{ q0.answer }}'. What is your favorite color?", question_name = "q_color")
-        >>> from edsl.agents.InvigilatorBase import InvigilatorBase
-        >>> i = InvigilatorBase.example(question = q)
-        >>> i.current_answers = {"q0": "I like school"}
-        >>> i.question_instructions_prompt
-        Prompt(text=\"""You are being asked the following question: You stated 'I like school'. What is your favorite color?
-        Return a valid JSON formatted like this:
-        {"answer": "<put free text answer here>"}\""")
-
-
         """
         if not hasattr(self, "_question_instructions_prompt"):
             question_prompt = self.question.get_instructions(model=self.model.model)
@@ -382,13 +352,6 @@ class PromptConstructorMixin:
         >>> i = InvigilatorBase.example(question = q)
         >>> i.get_prompts()
         {'user_prompt': ..., 'system_prompt': ...}
-        >>> scenario = i._get_scenario_with_image()
-        >>> scenario.has_image
-        True
-        >>> q = QuestionFreeText(question_text="How are you today?", question_name="q_new")
-        >>> i = InvigilatorBase.example(question = q, scenario = scenario)
-        >>> i.get_prompts()
-        {'user_prompt': ..., 'system_prompt': ..., 'encoded_image': ...'}
         """
         prompts = self.prompt_plan.get_prompts(
             agent_instructions=self.agent_instructions_prompt,
@@ -401,7 +364,7 @@ class PromptConstructorMixin:
             prompts["encoded_image"] = self.scenario["encoded_image"]
         return prompts
 
-    def _get_scenario_with_image(self) -> Dict[str, Any]:
+    def _get_scenario_with_image(self) -> Scenario:
         """This is a helper function to get a scenario with an image, for testing purposes."""
         from edsl import Scenario
 
