@@ -2,6 +2,8 @@
 
 ## [0.1.33] - IN PROGRESS
 ### Added 
+- Optional parameter `comment = False` can be passed to the `run()` method of a `Survey` object to turn off the comments field that is automatically added to all `Question` types other than `QuestionFreeText`. 
+
 - Allow partial match on key names in `select()` method to save typing.
 
 ### Changed
