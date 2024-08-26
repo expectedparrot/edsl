@@ -6,6 +6,9 @@ import csv
 import random
 from collections import UserList, Counter
 from collections.abc import Iterable
+import urllib.parse
+import urllib.request
+from io import StringIO
 
 from simpleeval import EvalWithCompoundTypes
 
@@ -594,8 +597,15 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         return cls.from_excel(temp_filename, sheet_name=sheet_name)
 
     @classmethod
-    def from_csv(cls, filename: str) -> ScenarioList:
-        """Create a ScenarioList from a CSV file.
+    def from_csv(cls, source: Union[str, urllib.parse.ParseResult]) -> ScenarioList:
+        """Create a ScenarioList from a CSV file or URL.
+
+        Args:
+            source: A string representing either a local file path or a URL to a CSV file,
+                    or a urllib.parse.ParseResult object for a URL.
+
+        Returns:
+            ScenarioList: A ScenarioList object containing the data from the CSV.
 
         Example:
 
@@ -611,15 +621,37 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         'Alice'
         >>> scenario_list[1]['age']
         '25'
+
+        >>> url = "https://example.com/data.csv"
+        >>> ## scenario_list_from_url = ScenarioList.from_csv(url)
         """
         from edsl.scenarios.Scenario import Scenario
 
-        observations = []
-        with open(filename, "r") as f:
-            reader = csv.reader(f)
+        def is_url(source):
+            try:
+                result = urllib.parse.urlparse(source)
+                return all([result.scheme, result.netloc])
+            except ValueError:
+                return False
+
+        if isinstance(source, str) and is_url(source):
+            with urllib.request.urlopen(source) as response:
+                csv_content = response.read().decode("utf-8")
+            csv_file = StringIO(csv_content)
+        elif isinstance(source, urllib.parse.ParseResult):
+            with urllib.request.urlopen(source.geturl()) as response:
+                csv_content = response.read().decode("utf-8")
+            csv_file = StringIO(csv_content)
+        else:
+            csv_file = open(source, "r")
+
+        try:
+            reader = csv.reader(csv_file)
             header = next(reader)
-            for row in reader:
-                observations.append(Scenario(dict(zip(header, row))))
+            observations = [Scenario(dict(zip(header, row))) for row in reader]
+        finally:
+            csv_file.close()
+
         return cls(observations)
 
     def _to_dict(self, sort=False) -> dict:

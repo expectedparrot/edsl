@@ -8,9 +8,10 @@ from edsl.__version__ import __version__
 from edsl.config import Config, CONFIG
 from edsl.agents.Agent import Agent
 from edsl.agents.AgentList import AgentList
+
 from edsl.questions import QuestionBase
+from edsl.questions.question_registry import Question
 from edsl.questions import QuestionMultipleChoice
-from edsl.questions import QuestionBudget
 from edsl.questions import QuestionCheckBox
 from edsl.questions import QuestionExtract
 from edsl.questions import QuestionFreeText
@@ -19,10 +20,9 @@ from edsl.questions import QuestionLikertFive
 from edsl.questions import QuestionList
 from edsl.questions import QuestionLinearScale
 from edsl.questions import QuestionNumerical
-from edsl.questions import QuestionRank
-from edsl.questions import QuestionTopK
 from edsl.questions import QuestionYesNo
-from edsl.questions.question_registry import Question
+from edsl.questions import QuestionBudget
+
 from edsl.scenarios import Scenario
 from edsl.scenarios import ScenarioList
 
@@ -40,3 +40,6 @@ from edsl.notebooks.Notebook import Notebook
 from edsl.study.Study import Study
 from edsl.conjure.Conjure import Conjure
 from edsl.coop.coop import Coop
+
+from edsl.surveys.instructions.Instruction import Instruction
+from edsl.surveys.instructions.ChangeInstruction import ChangeInstruction

@@ -3,18 +3,58 @@ from typing import Any
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.descriptors import AnswerTemplateDescriptor
 
+from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
+from edsl.questions.ResponseValidatorABC import BaseResponse
+from edsl.exceptions import QuestionAnswerValidationError
+from edsl.questions.decorators import inject_exception
+
+from typing import Dict, Any
+from pydantic import create_model, Field
+
+
+def dict_to_pydantic_model(input_dict: Dict[str, Any]) -> Any:
+    field_definitions = {
+        key: (str, Field(default=str(value))) for key, value in input_dict.items()
+    }
+
+    DynamicModel = create_model("DynamicModel", **field_definitions)
+
+    return create_model(
+        "AnswerModel",
+        answer=(DynamicModel, ...),  # ... means the field is required
+    )
+
+
+class ExtractResponseValidator(ResponseValidatorABC):
+    required_params = ["answer_template"]
+    valid_examples = [({"answer": "This is great"}, {})]
+    invalid_examples = [
+        (
+            {"answer": None},
+            {"answer_template": {"name": "John Doe", "profession": "Carpenter"}},
+            "Result cannot be empty",
+        ),
+    ]
+
+    def custom_validate(self, response) -> BaseResponse:
+        return response.dict()
+
 
 class QuestionExtract(QuestionBase):
     """This question prompts the agent to extract information from a string and return it in a given template."""
 
     question_type = "extract"
     answer_template: dict[str, Any] = AnswerTemplateDescriptor()
+    _response_model = None
+    response_validator_class = ExtractResponseValidator
 
     def __init__(
         self,
         question_text: str,
         answer_template: dict[str, Any],
         question_name: str,
+        answering_instructions: str = None,
+        question_presentation: str = None,
     ):
         """Initialize the question.
 
@@ -26,33 +66,11 @@ class QuestionExtract(QuestionBase):
         self.question_name = question_name
         self.question_text = question_text
         self.answer_template = answer_template
+        self.answering_instructions = answering_instructions
+        self.question_presentation = question_presentation
 
-    ################
-    # Answer methods
-    ################
-    def _validate_answer(self, answer: Any) -> dict[str, Any]:
-        """Validate the answer."""
-        # raw_json = answer["answer"]
-        # fixed_json_data = re.sub(r"\'", '"', raw_json)
-        # answer["answer"] = json.loads(fixed_json_data)
-        self._validate_answer_template_basic(answer)
-        # self._validate_answer_key_value(answer, "answer", dict)
-
-        self._validate_answer_extract(answer)
-        return answer
-
-    def _translate_answer_code_to_answer(self, answer, scenario: "Scenario" = None):
-        """Return the answer in a human-readable format."""
-        return answer
-
-    def _simulate_answer(self, human_readable: bool = True) -> dict[str, str]:
-        """Simulate a valid answer for debugging purposes."""
-        from edsl.utilities.utilities import random_string
-
-        return {
-            "answer": {key: random_string() for key in self.answer_template.keys()},
-            "comment": random_string(),
-        }
+    def create_response_model(self):
+        return dict_to_pydantic_model(self.answer_template)
 
     @property
     def question_html_content(self) -> str:
@@ -77,6 +95,7 @@ class QuestionExtract(QuestionBase):
     # Helpful methods
     ################
     @classmethod
+    @inject_exception
     def example(cls) -> QuestionExtract:
         """Return an example question."""
         return cls(

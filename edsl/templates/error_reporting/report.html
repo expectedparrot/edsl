@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+        <html lang="en">
+        <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Exception Details</title>
+        <style>
+        {{ css }}
+        </style>
+        </head>
+        <body>
+            <h1>Overview</h1>
+            <p>There were {{ interviews|length }} total interviews. The number of interviews with exceptions was {{ num_exceptions }}.</p>
+            <p>The models used were: {{ models_used }}.</p>
+            <p>For documentation on dealing with exceptions on Expected Parrot, 
+            see <a href="https://docs.expectedparrot.com/en/latest/exceptions.html">here</a>.</p>
+
+            <h2>Exceptions by Type</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Exception Type</th>
+                        <th>Number</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for exception_type, exceptions in exceptions_by_type.items() %}
+                        <tr>
+                            <td>{{ exception_type }}</td>
+                            <td>{{ exceptions }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+
+            <h2>Exceptions by Model</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Model</th>
+                        <th>Number</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for model, exceptions in exceptions_by_model.items() %}
+                        <tr>
+                            <td>{{ model }}</td>
+                            <td>{{ exceptions }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+
+            <h2>Exceptions by Question Name</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Question Name</th>
+                        <th>Number of Exceptions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for question_name, exception_count in exceptions_by_question_name.items() %}
+                        <tr>
+                            <td>{{ question_name }}</td>
+                            <td>{{ exception_count }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+
+            {% for index, interview in interviews.items() %}
+                {% if interview.exceptions != {} %}
+                   <div class="interview">Interview: {{ index }} </div>
+                    <h1>Failing questions</h1>
+                {% endif %}
+                {% for question, exceptions in interview.exceptions.items() %}
+                    <div class="question">question_name: {{ question }}</div>
+
+                    <h2>Question</h2>
+                    <div class="question-detail"> 
+                            {{ interview.survey.get_question(question).html() }}
+                    </div>        
+
+                    <h2>Scenario</h2>                            
+                    <div class="scenario"> 
+                            {{ interview.scenario._repr_html_() }}
+                    </div>        
+
+                    <h2>Agent</h2>
+                    <div class="agent">
+                            {{ interview.agent._repr_html_() }}
+                    </div>
+
+                    <h2>Model</h2>
+                    <div class="model">
+                            {{ interview.model._repr_html_() }}
+                    </div>
+                            
+                    <h2>Exception details</h2>
+
+                    {% for exception_message in exceptions %}
+                        <div class="exception-detail">
+                            <div class="exception-exception">Exception: {{ exception_message.exception }}</div>
+                            <div class="exception-time">Time: {{ exception_message.time }}</div>
+                            <div class="exception-traceback">Traceback: <pre>{{ exception_message.traceback }} </pre></div>
+                        </div>
+                    {% endfor %}            
+                {% endfor %}            
+            {% endfor %}
+                            
+        <h1>Performance Plot</h1>
+        {{ performance_plot_html }}
+        </body>
+        </html>
