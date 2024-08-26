@@ -296,7 +296,6 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             hash(interview): index
             for index, interview in enumerate(self.total_interviews)
         }
-        # interview_hashes = [hash(interview) for interview in self.total_interviews]
         interview_hashes = list(interview_lookup.keys())
         self.results = sorted(
             self.results, key=lambda x: interview_hashes.index(x.interview_hash)
@@ -341,7 +340,9 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                 shared_globals["edsl_runner_exceptions"] = task_history
                 print(msg)
                 # this is where exceptions are opening up
-                task_history.html(cta="Open report to see details.")
+                task_history.html(
+                    cta="Open report to see details.", open_in_browser=False
+                )
                 print(
                     "Also see: https://docs.expectedparrot.com/en/latest/exceptions.html"
                 )

@@ -277,6 +277,7 @@ class TaskHistory:
         return_link=False,
         css=None,
         cta="Open Report in New Tab",
+        open_in_browser=True,
     ):
         """Return an HTML report."""
 
@@ -317,6 +318,7 @@ class TaskHistory:
             import webbrowser
             import os
 
+        if open_in_browser:
             webbrowser.open(f"file://{os.path.abspath(filename)}")
 
         if return_link:

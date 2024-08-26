@@ -69,6 +69,68 @@ class InvigilatorBase(ABC):
             None  # placeholder for the raw response from the model
         )
 
+    def to_dict(self):
+        attributes = [
+            "agent",
+            "question",
+            "scenario",
+            "model",
+            "memory_plan",
+            "current_answers",
+            "iteration",
+            "additional_prompt_data",
+            "cache",
+            "sidecar_model",
+            "survey",
+        ]
+
+        def serialize_attribute(attr):
+            value = getattr(self, attr)
+            if value is None:
+                return None
+            if hasattr(value, "to_dict"):
+                return value.to_dict()
+            if isinstance(value, (int, float, str, bool, dict, list)):
+                return value
+            return str(value)
+
+        return {attr: serialize_attribute(attr) for attr in attributes}
+
+    @classmethod
+    def from_dict(cls, data):
+        from edsl.agents.Agent import Agent
+        from edsl.questions import QuestionBase
+        from edsl.scenarios.Scenario import Scenario
+        from edsl.surveys.MemoryPlan import MemoryPlan
+        from edsl.language_models.LanguageModel import LanguageModel
+        from edsl.surveys.Survey import Survey
+
+        agent = Agent.from_dict(data["agent"])
+        question = QuestionBase.from_dict(data["question"])
+        scenario = Scenario.from_dict(data["scenario"])
+        model = LanguageModel.from_dict(data["model"])
+        memory_plan = MemoryPlan.from_dict(data["memory_plan"])
+        survey = Survey.from_dict(data["survey"])
+        current_answers = data["current_answers"]
+        iteration = data["iteration"]
+        additional_prompt_data = data["additional_prompt_data"]
+        cache = Cache.from_dict(data["cache"])
+        sidecar_model = LanguageModel.from_dict(data["sidecar_model"])
+
+        return cls(
+            agent=agent,
+            question=question,
+            scenario=scenario,
+            model=model,
+            memory_plan=memory_plan,
+            current_answers=current_answers,
+            survey=survey,
+            iteration=iteration,
+            additional_prompt_data=additional_prompt_data,
+            cache=cache,
+            sidecar_model=sidecar_model,
+        )
+
     def __repr__(self) -> str:
         """Return a string representation of the Invigilator.
 
