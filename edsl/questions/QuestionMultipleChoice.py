@@ -79,7 +79,6 @@ def create_response_model_no_code(choices: list, include_comment: bool = True):
 
 
 class MultipleChoiceResponseValidator(ResponseValidatorABC):
-
     required_params = ["question_options"]
 
     valid_examples = [
@@ -112,9 +111,9 @@ class QuestionMultipleChoice(QuestionBase):
 
     question_type = "multiple_choice"
     purpose = "When options are known and limited"
-    question_options: Union[list[str], list[list], list[float], list[int]] = (
-        QuestionOptionsDescriptor()
-    )
+    question_options: Union[
+        list[str], list[list], list[float], list[int]
+    ] = QuestionOptionsDescriptor()
     _response_model = None
     response_validator_class = MultipleChoiceResponseValidator
 

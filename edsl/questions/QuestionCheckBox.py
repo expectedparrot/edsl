@@ -68,7 +68,6 @@ def create_checkbox_response_model(
 
 
 class CheckBoxResponseValidator(ResponseValidatorABC):
-
     required_params = ["question_options", "min_selections", "max_selections"]
 
     valid_examples = [

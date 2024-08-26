@@ -4,7 +4,6 @@ from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
 
 class ChangeInstruction:
-
     def __init__(
         self,
         keep: Optional[List[str]] = None,

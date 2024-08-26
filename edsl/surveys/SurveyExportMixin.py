@@ -76,7 +76,6 @@ class SurveyExportMixin:
             return doc
 
         if filename is None:
-
             with tempfile.NamedTemporaryFile(
                 "w", delete=False, suffix=".docx", dir=os.getcwd()
             ) as f:

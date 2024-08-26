@@ -75,9 +75,11 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         self.raw_passed_questions = questions
 
-        true_questions, instruction_names_to_instructions, self.pseudo_indices = (
-            self._separate_questions_and_instructions(questions or [])
-        )
+        (
+            true_questions,
+            instruction_names_to_instructions,
+            self.pseudo_indices,
+        ) = self._separate_questions_and_instructions(questions or [])
 
         self.rule_collection = RuleCollection(
             num_questions=len(true_questions) if true_questions else None

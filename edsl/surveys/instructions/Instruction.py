@@ -5,7 +5,6 @@ from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
 
 class Instruction:
-
     def __init__(self, name, text):
         self.name = name
         self.text = text

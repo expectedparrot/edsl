@@ -26,7 +26,6 @@ class AutoStudy:
         agent_list: Optional["AgentList"] = None,
         default_num_agents=11,
     ):
-
         self.overall_question = overall_question
         self.population = population
         self._survey = survey
@@ -62,7 +61,6 @@ class AutoStudy:
         return self._results
 
     def _create_survey(self):
-
         survey_pipline_stages = [
             StageQuestions,
             StageLabelQuestions,
@@ -76,7 +74,6 @@ class AutoStudy:
         ).survey
 
     def _create_persona_mapping(self):
-
         persona_pipeline_stages = [
             StageQuestions,
             StagePersona,
@@ -94,14 +91,12 @@ class AutoStudy:
         return sample_agent_results
 
     def _create_agent_list_generator(self):
-
         return agent_generator(
             persona=self.persona_mapping.persona,
             dimension_dict=self.persona_mapping.mapping,
         )
 
     def agent_list(self, num_agents):
-
         return create_agents(
             agent_generator=self.agent_list_generator,
             survey=self.survey,
