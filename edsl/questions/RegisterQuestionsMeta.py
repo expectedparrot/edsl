@@ -47,6 +47,7 @@ class RegisterQuestionsMeta(ABCMeta):
                         f"Question type {name} must have a question_presentation parameter in its __init__ method"
                     )
 
+        if name != "QuestionBase":
             RegisterQuestionsMeta._registry[name] = cls
 
     @classmethod

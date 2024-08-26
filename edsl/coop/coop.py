@@ -53,6 +53,7 @@ class Coop:
         method: str,
         payload: Optional[dict[str, Any]] = None,
         params: Optional[dict[str, Any]] = None,
+        timeout: Optional[float] = 5,
     ) -> requests.Response:
         """
         Send a request to the server and return the response.
@@ -62,11 +63,16 @@ class Coop:
             method = method.upper()
             if method in ["GET", "DELETE"]:
                 response = requests.request(
-                    method, url, params=params, headers=self.headers
+                    method, url, params=params, headers=self.headers, timeout=timeout
                 )
             elif method in ["POST", "PATCH"]:
                 response = requests.request(
-                    method, url, params=params, json=payload, headers=self.headers
+                    method,
+                    url,
+                    params=params,
+                    json=payload,
+                    headers=self.headers,
+                    timeout=timeout,
                 )
             else:
                 raise Exception(f"Invalid {method=}.")
@@ -110,10 +116,18 @@ class Coop:
     def edsl_settings(self) -> dict:
         """
         Retrieve and return the EDSL settings stored on Coop.
+        If no response is received within 5 seconds, return an empty dict.
         """
-        response = self._send_server_request(uri="api/v0/edsl-settings", method="GET")
-        self._resolve_server_response(response)
-        return response.json()
+        from requests.exceptions import Timeout
+
+        try:
+            response = self._send_server_request(
+                uri="api/v0/edsl-settings", method="GET", timeout=5
+            )
+            self._resolve_server_response(response)
+            return response.json()
+        except Timeout:
+            return {}
 
     ################
     # Objects
