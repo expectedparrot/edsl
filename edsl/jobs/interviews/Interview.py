@@ -253,7 +253,9 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         >>> result, _ = asyncio.run(i.async_conduct_interview())
         >>> i.exceptions
         {}
-        >>> i._record_exception(i.tasks[0], Exception("An exception occurred."))
+        >>> i = Interview.example(throw_exception = True)
+        >>> i.skip_retry = True
+        >>> result, _ = asyncio.run(i.async_conduct_interview())
         >>> i.exceptions
         {'q0': ...
         """
