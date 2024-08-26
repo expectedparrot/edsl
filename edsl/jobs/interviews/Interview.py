@@ -77,9 +77,9 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         self.debug = debug
         self.iteration = iteration
         self.cache = cache
-        self.answers: dict[str, str] = (
-            Answers()
-        )  # will get filled in as interview progresses
+        self.answers: dict[
+            str, str
+        ] = Answers()  # will get filled in as interview progresses
         self.sidecar_model = sidecar_model
 
         # Trackers

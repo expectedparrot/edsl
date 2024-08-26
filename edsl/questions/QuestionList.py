@@ -25,7 +25,6 @@ class ListResponse(BaseResponse):
 
 
 class ListResponseValidator(ResponseValidatorABC):
-
     required_params = ["max_list_items"]
     valid_examples = [({"answer": ["hello", "world"]}, {"max_list_items": 5})]
 

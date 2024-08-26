@@ -240,7 +240,6 @@ class TaskHistory:
         return exceptions_by_model
 
     def generate_html_report(self, css: Optional[str]):
-
         performance_plot_html = self.plot(num_periods=100, get_embedded_html=True)
 
         if css is None:

@@ -5,7 +5,6 @@ from edsl.language_models.LanguageModel import LanguageModel
 
 
 class FailedQuestion:
-
     # tests/jobs/test_Interview.py::test_handle_model_exceptions
 
     # (Pdb) dir(self.exception.__traceback__)
@@ -35,7 +34,6 @@ class FailedQuestion:
 
     @classmethod
     def from_dict(cls, data):
-
         question = QuestionBase.from_dict(data["question"])
         scenario = Scenario.from_dict(data["scenario"])
         model = LanguageModel.from_dict(data["model"])
@@ -76,6 +74,5 @@ class FailedQuestion:
 
 
 if __name__ == "__main__":
-
     fq = FailedQuestion.example()
     new_fq = FailedQuestion.from_dict(fq.to_dict())

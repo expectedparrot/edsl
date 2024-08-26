@@ -6,7 +6,6 @@ from typing import TypeVar
 
 
 class QuestionBaseGenMixin:
-
     def copy(self) -> QuestionBase:
         """Return a deep copy of the question.
 

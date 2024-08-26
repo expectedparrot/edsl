@@ -117,7 +117,6 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                     yield interview
 
     async def run_async(self, cache: Optional["Cache"] = None, n: int = 1) -> Results:
-
         self.cache = Cache() if cache is None else cache
         data = []
         async for result in self.run_async_generator(cache=self.cache, n=n):
@@ -125,7 +124,6 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         return Results(survey=self.jobs.survey, data=data)
 
     def simple_run(self):
-
         data = asyncio.run(self.run_async())
         return Results(survey=self.jobs.survey, data=data)
 
@@ -171,19 +169,19 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
 
         prompt_dictionary = {}
         for answer_key_name in answer_key_names:
-            prompt_dictionary[answer_key_name + "_user_prompt"] = (
-                question_name_to_prompts[answer_key_name]["user_prompt"]
-            )
-            prompt_dictionary[answer_key_name + "_system_prompt"] = (
-                question_name_to_prompts[answer_key_name]["system_prompt"]
-            )
+            prompt_dictionary[
+                answer_key_name + "_user_prompt"
+            ] = question_name_to_prompts[answer_key_name]["user_prompt"]
+            prompt_dictionary[
+                answer_key_name + "_system_prompt"
+            ] = question_name_to_prompts[answer_key_name]["system_prompt"]
 
         raw_model_results_dictionary = {}
         for result in valid_results:
             question_name = result["question_name"]
-            raw_model_results_dictionary[question_name + "_raw_model_response"] = (
-                result["raw_model_response"]
-            )
+            raw_model_results_dictionary[
+                question_name + "_raw_model_response"
+            ] = result["raw_model_response"]
 
         result = Result(
             agent=interview.agent,

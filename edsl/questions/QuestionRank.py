@@ -30,7 +30,6 @@ class RankResponse(BaseResponse):
 
 
 class RankResponseValidator(ResponseValidatorABC):
-
     required_params = []
     valid_examples = []
     invalid_examples = []

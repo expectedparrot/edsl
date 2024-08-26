@@ -39,7 +39,6 @@ def frame_summary_to_dict(frame):
 
 
 class InterviewTaskBuildingMixin:
-
     def _build_invigilators(
         self, debug: bool
     ) -> Generator["InvigilatorBase", None, None]:
@@ -300,11 +299,11 @@ class InterviewTaskBuildingMixin:
         """
         current_question_index: int = self.to_index[current_question.question_name]
 
-        next_question: Union[int, EndOfSurvey] = (
-            self.survey.rule_collection.next_question(
-                q_now=current_question_index,
-                answers=self.answers | self.scenario | self.agent["traits"],
-            )
+        next_question: Union[
+            int, EndOfSurvey
+        ] = self.survey.rule_collection.next_question(
+            q_now=current_question_index,
+            answers=self.answers | self.scenario | self.agent["traits"],
         )
 
         next_question_index = next_question.next_q

@@ -199,7 +199,6 @@ class SurveyQualtricsImport:
         return survey_data
 
     def extract_questions_from_json(self):
-
         questions = self.survey_data["SurveyElements"]
 
         extracted_questions = []

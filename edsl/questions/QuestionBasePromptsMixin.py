@@ -5,7 +5,6 @@ from edsl.exceptions.questions import QuestionAnswerValidationError
 
 
 class QuestionBasePromptsMixin:
-
     @classmethod
     def applicable_prompts(
         cls, model: Optional[str] = None
@@ -83,7 +82,6 @@ class QuestionBasePromptsMixin:
             }
             self._model_instructions.update({model: instructions})
         else:
-
             self._model_instructions.update({model: instructions})
 
     @classmethod
