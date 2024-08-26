@@ -310,7 +310,7 @@ class TaskHistory:
 
         env = Environment(loader=TemplateLoader("edsl", "templates/error_reporting"))
         # Load and render a template
-        template = env.get_template("report.html")
+        template = env.get_template("base.html")
         # rendered_template = template.render(your_data=your_data)
 
         # Render the template with data
