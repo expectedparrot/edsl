@@ -129,19 +129,35 @@ class QuestionBasePromptsMixin:
 
     @classmethod
     def default_answering_instructions(cls) -> str:
-        with resources.open_text(
+        template_text = resources.read_text(
             f"edsl.questions.templates.{cls.question_type}",
             "answering_instructions.jinja",
-        ) as file:
-            return Prompt(text=file.read())
+        )
+        return Prompt(text=template_text)
 
     @classmethod
     def default_question_presentation(cls):
-        with resources.open_text(
+        template_text = resources.read_text(
             f"edsl.questions.templates.{cls.question_type}",
             "question_presentation.jinja",
-        ) as file:
-            return Prompt(text=file.read())
+        )
+        return Prompt(text=template_text)
+
+    # @classmethod
+    # def default_answering_instructions(cls) -> str:
+    #     with resources.open_text(
+    #         f"edsl.questions.templates.{cls.question_type}",
+    #         "answering_instructions.jinja",
+    #     ) as file:
+    #         return Prompt(text=file.read())
+
+    # @classmethod
+    # def default_question_presentation(cls):
+    #     with resources.open_text(
+    #         f"edsl.questions.templates.{cls.question_type}",
+    #         "question_presentation.jinja",
+    #     ) as file:
+    #         return Prompt(text=file.read())
 
     @property
     def question_presentation(self):

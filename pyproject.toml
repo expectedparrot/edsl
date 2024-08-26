@@ -83,3 +83,7 @@ trailing_comma_inline_array = true
 
 [tool.tomlsort.overrides."tool.poetry.dependencies"]
 table_keys = false
+
+include = [
+    "edsl/questions/templates/**/*.jinja",
+]
