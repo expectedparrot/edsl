@@ -189,58 +189,14 @@ class TaskHistory:
             plt.show()
 
     def css(self):
-        return """
-        body {
-        font-family: Arial, sans-serif;
-        line-height: 1.6;
-        background-color: #f9f9f9;
-        color: #333;
-        margin: 20px;
-        }
+        env = resources.files("edsl").joinpath("templates/error_reporting")
+        css = env.joinpath("report.css").read_text()
+        return css
 
-        .interview {
-        font-size: 1.5em;
-        margin-bottom: 10px;
-        padding: 10px;
-        background-color: #e3f2fd;
-        border-left: 5px solid #2196f3;
-        }
-
-        .question {
-        font-size: 1.2em;
-        margin-bottom: 10px;
-        padding: 10px;
-        background-color: #fff9c4;
-        border-left: 5px solid #ffeb3b;
-        }
-
-        .exception-detail {
-        margin-bottom: 10px;
-        padding: 10px;
-        background-color: #ffebee;
-        border-left: 5px solid #f44336;
-        }
-
-        .question-detail {
-           border: 3px solid black; /* Adjust the thickness by changing the number */
-            padding: 10px; /* Optional: Adds some padding inside the border */
-        }
-
-        .exception-detail div {
-        margin-bottom: 5px;
-        }
-
-        .exception-exception {
-        font-weight: bold;
-        color: #d32f2f;
-        }
-
-        .exception-time,
-        .exception-traceback {
-        font-style: italic;
-        color: #555;
-        }
-        """
+    def javascript(self):
+        env = resources.files("edsl").joinpath("templates/error_reporting")
+        js = env.joinpath("report.js").read_text()
+        return js
 
     @property
     def exceptions_by_type(self) -> dict:
@@ -283,6 +239,38 @@ class TaskHistory:
                 exceptions_by_model[model.model] += len(interview.exceptions)
         return exceptions_by_model
 
+    def generate_html_report(self, css: Optional[str]):
+
+        performance_plot_html = self.plot(num_periods=100, get_embedded_html=True)
+
+        if css is None:
+            css = self.css()
+
+        models_used = set([i.model for index, i in self._interviews.items()])
+
+        from jinja2 import Environment, FileSystemLoader
+        from edsl.TemplateLoader import TemplateLoader
+
+        env = Environment(loader=TemplateLoader("edsl", "templates/error_reporting"))
+
+        # Load and render a template
+        template = env.get_template("base.html")
+        # rendered_template = template.render(your_data=your_data)
+
+        # Render the template with data
+        output = template.render(
+            interviews=self._interviews,
+            css=css,
+            javascript=self.javascript(),
+            num_exceptions=len(self.exceptions),
+            performance_plot_html=performance_plot_html,
+            exceptions_by_type=self.exceptions_by_type,
+            exceptions_by_question_name=self.exceptions_by_question_name,
+            exceptions_by_model=self.exceptions_by_model,
+            models_used=models_used,
+        )
+        return output
+
     def html(
         self,
         filename: Optional[str] = None,
@@ -296,41 +284,12 @@ class TaskHistory:
         import tempfile
         import os
         from edsl.utilities.utilities import is_notebook
-        from jinja2 import Template
 
-        performance_plot_html = self.plot(num_periods=100, get_embedded_html=True)
-
-        if css is None:
-            css = self.css()
-
-        models_used = set([i.model for index, i in self._interviews.items()])
-
-        from jinja2 import Environment, FileSystemLoader
-        from edsl.TemplateLoader import TemplateLoader
-
-        env = Environment(loader=TemplateLoader("edsl", "templates/error_reporting"))
-        # Load and render a template
-        template = env.get_template("base.html")
-        # rendered_template = template.render(your_data=your_data)
-
-        # Render the template with data
-        output = template.render(
-            interviews=self._interviews,
-            css=css,
-            num_exceptions=len(self.exceptions),
-            performance_plot_html=performance_plot_html,
-            exceptions_by_type=self.exceptions_by_type,
-            exceptions_by_question_name=self.exceptions_by_question_name,
-            exceptions_by_model=self.exceptions_by_model,
-            models_used=models_used,
-        )
+        output = self.generate_html_report(css)
 
         # Save the rendered output to a file
         with open("output.html", "w") as f:
             f.write(output)
-
-        if css is None:
-            css = self.css()
 
         if filename is None:
             current_directory = os.getcwd()
@@ -353,7 +312,6 @@ class TaskHistory:
             <iframe srcdoc="{ escaped_output }" style="width: 800px; height: 600px;"></iframe>
             """
             display(HTML(iframe))
-            # display(HTML(output))
         else:
             print(f"Exception report saved to {filename}")
             import webbrowser
@@ -363,6 +321,35 @@ class TaskHistory:
 
         if return_link:
             return filename
+
+    def notebook(self):
+        """Create a notebook with the HTML content embedded in the first cell, then delete the cell content while keeping the output."""
+        from nbformat import v4 as nbf
+        from nbconvert.preprocessors import ExecutePreprocessor
+        import nbformat
+        import os
+
+        # Use the existing html method to generate the HTML content
+        output_html = self.generate_html_report(css=None)
+        nb = nbf.new_notebook()
+
+        # Add a code cell that renders the HTML content
+        code_cell = nbf.new_code_cell(
+            f"""
+    from IPython.display import HTML, display
+    display(HTML('''{output_html}'''))
+            """
+        )
+        nb.cells.append(code_cell)
+
+        # Execute the notebook
+        ep = ExecutePreprocessor(timeout=600, kernel_name="python3")
+        ep.preprocess(nb, {"metadata": {"path": os.getcwd()}})
+
+        # After execution, clear the cell's source code
+        nb.cells[0].source = ""
+
+        return nb
 
 
 if __name__ == "__main__":

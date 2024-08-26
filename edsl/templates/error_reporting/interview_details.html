@@ -22,10 +22,18 @@
         
 <h2>Exception details</h2>
 
+
 {% for exception_message in exceptions %}
+
     <div class="exception-detail">
-        <div class="exception-exception">Exception: {{ exception_message.exception }}</div>
-        <div class="exception-time">Time: {{ exception_message.time }}</div>
-        <div class="exception-traceback">Traceback: <pre>{{ exception_message.traceback }} </pre></div>
+        <div class="exception-header">
+            <span class="exception-exception">Exception: {{ exception_message.exception }}</span>
+            <button class="toggle-btn">▼</button>
+        </div>
+        <div class="exception-content">
+            <div class="exception-time">Time: {{ exception_message.time }}</div>
+            <div class="exception-traceback">Traceback: <pre>{{ exception_message.traceback }}</pre></div>
+        </div>
     </div>
+
 {% endfor %}

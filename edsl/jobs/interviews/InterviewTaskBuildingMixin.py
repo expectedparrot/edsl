@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 import asyncio
-import time
-import traceback
 from typing import Generator, Union
 
 from edsl import CONFIG
@@ -18,8 +16,6 @@ from edsl.jobs.tasks.task_status_enum import TaskStatus
 from edsl.jobs.tasks.QuestionTaskCreator import QuestionTaskCreator
 
 from edsl.exceptions import QuestionAnswerValidationError
-
-# from edsl.agents.InvigilatorBase import InvigilatorBase
 
 from rich.console import Console
 from rich.traceback import Traceback
@@ -43,6 +39,7 @@ def frame_summary_to_dict(frame):
 
 
 class InterviewTaskBuildingMixin:
+
     def _build_invigilators(
         self, debug: bool
     ) -> Generator["InvigilatorBase", None, None]:
@@ -101,7 +98,7 @@ class InterviewTaskBuildingMixin:
                 iteration=self.iteration,
             )
             tasks.append(question_task)
-        return tuple(tasks)  # , invigilators
+        return tuple(tasks)
 
     def _get_tasks_that_must_be_completed_before(
         self, *, tasks: list[asyncio.Task], question: "QuestionBase"
@@ -171,8 +168,6 @@ class InterviewTaskBuildingMixin:
     def create_failed_question(self, invigilator, e):
         from edsl.jobs.FailedQuestion import FailedQuestion
 
-        # This is only after the re-tries have failed.
-        # breakpoint()
         failed_question = FailedQuestion(
             question=invigilator.question,
             scenario=invigilator.scenario,
@@ -264,11 +259,15 @@ class InterviewTaskBuildingMixin:
         )
         return skip
 
-    def _handle_exception(self, e, question_name: str, task=None):
-        exception_entry = InterviewExceptionEntry(e)
+    def _handle_exception(self, e: Exception, invigilator: "Invigilator", task=None):
+        exception_entry = InterviewExceptionEntry(
+            exception=e,
+            failed_question=self.create_failed_question(invigilator, e),
+            invigilator=invigilator,
+        )
         if task:
             task.task_status = TaskStatus.FAILED
-        self.exceptions.add(question_name, exception_entry)
+        self.exceptions.add(invigilator.question.question_name, exception_entry)
 
     async def _attempt_to_answer_question(
         self, invigilator: "InvigilatorBase", task: asyncio.Task
@@ -284,10 +283,10 @@ class InterviewTaskBuildingMixin:
                 invigilator.async_answer_question(), timeout=TIMEOUT
             )
         except asyncio.TimeoutError as e:
-            self._handle_exception(e, invigilator.question.question_name, task)
+            self._handle_exception(e, invigilator, task)
             raise InterviewTimeoutError(f"Task timed out after {TIMEOUT} seconds.")
         except Exception as e:
-            self._handle_exception(e, invigilator.question.question_name, task)
+            self._handle_exception(e, invigilator, task)
             raise e
 
     def _cancel_skipped_questions(self, current_question: QuestionBase) -> None:

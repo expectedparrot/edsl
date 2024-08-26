@@ -2,10 +2,7 @@ import traceback
 import datetime
 import time
 from collections import UserDict
-
-# traceback=traceback.format_exc(),
-# traceback = frame_summary_to_dict(traceback.extract_tb(e.__traceback__))
-# traceback = [frame_summary_to_dict(f) for f in traceback.extract_tb(e.__traceback__)]
+from edsl.jobs.FailedQuestion import FailedQuestion
 
 
 class InterviewExceptionEntry:
@@ -16,9 +13,18 @@ class InterviewExceptionEntry:
     "ValueError('An error occurred.')"
     """
 
-    def __init__(self, exception: Exception, traceback_format="html"):
+    def __init__(
+        self,
+        *,
+        exception: Exception,
+        failed_question: FailedQuestion,
+        invigilator: "Invigilator",
+        traceback_format="html",
+    ):
         self.time = datetime.datetime.now().isoformat()
         self.exception = exception
+        self.failed_question = failed_question
+        self.invigilator = invigilator
         self.traceback_format = traceback_format
 
     def __getitem__(self, key):
