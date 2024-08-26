@@ -1,9 +1,7 @@
 """This module contains the Interview class, which is responsible for conducting an interview asynchronously."""
 
 from __future__ import annotations
-import traceback
 import asyncio
-import time
 from typing import Any, Type, List, Generator, Optional
 
 from edsl.jobs.Answers import Answers
@@ -20,7 +18,7 @@ from edsl.jobs.interviews.retry_management import retry_strategy
 from edsl.jobs.interviews.InterviewTaskBuildingMixin import InterviewTaskBuildingMixin
 from edsl.jobs.interviews.InterviewStatusMixin import InterviewStatusMixin
 
-import asyncio
+from edsl.jobs.FailedQuestion import FailedQuestion
 
 
 def run_async(coro):
@@ -98,6 +96,7 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
 
         self.failed_questions = []
 
+    # region: Serialization
     def _to_dict(self, include_exceptions=False) -> dict[str, Any]:
         """Return a dictionary representation of the Interview instance.
         This is just for hashing purposes.
@@ -122,10 +121,12 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
 
         return dict_hash(self._to_dict())
 
+    # endregion
+
     async def async_conduct_interview(
         self,
         *,
-        model_buckets: ModelBuckets = None,
+        model_buckets: Optional[ModelBuckets] = None,
         debug: bool = False,
         stop_on_exception: bool = False,
         sidecar_model: Optional["LanguageModel"] = None,
@@ -217,10 +218,8 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
                 result = invigilator.get_failed_task_result()
             except Exception as e:  # any other kind of exception in the task
                 result = invigilator.get_failed_task_result()
-                from edsl.jobs.FailedQuestion import FailedQuestion
 
                 # This is only after the re-tries have failed.
-                # breakpoint()
                 failed_question = FailedQuestion(
                     question=invigilator.question,
                     scenario=invigilator.scenario,
@@ -231,10 +230,21 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
                     prompts=invigilator.get_prompts(),
                 )
                 self.failed_questions.append(failed_question)
-                self._record_exception(task, e)
+                self._record_exception(
+                    task=task,
+                    exception=e,
+                    failed_question=failed_question,
+                    invigilator=invigilator,
+                )
             yield result
 
-    def _record_exception(self, task, exception: Exception) -> None:
+    def _record_exception(
+        self,
+        task,
+        exception: Exception,
+        failed_question: Optional[FailedQuestion],
+        invigilator: Optional["Invigilator"],
+    ) -> None:
         """Record an exception in the Interview instance.
 
         It records the exception in the Interview instance, with the task name and the exception entry.
@@ -247,7 +257,11 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         >>> i.exceptions
         {'q0': ...
         """
-        exception_entry = InterviewExceptionEntry(exception)
+        exception_entry = InterviewExceptionEntry(
+            exception=exception,
+            failed_question=failed_question,
+            invigilator=invigilator,
+        )
         self.exceptions.add(task.get_name(), exception_entry)
 
     @property
