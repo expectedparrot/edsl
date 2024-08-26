@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 import json
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 from uuid import uuid4
 from edsl.Base import Base
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
@@ -56,6 +56,8 @@ class Notebook(Base):
 
     @classmethod
     def from_script(cls, path: str, name: Optional[str] = None) -> "Notebook":
+        import nbformat
+
         # Read the script file
         with open(path, "r") as script_file:
             script_content = script_file.read()
@@ -92,12 +94,26 @@ class Notebook(Base):
         """
         return self.data == other.data
 
+    def __hash__(self) -> int:
+        """
+        Allow the model to be used as a key in a dictionary.
+        """
+        from edsl.utilities.utilities import dict_hash
+
+        return dict_hash(self.data["cells"])
+
+    def _to_dict(self) -> dict:
+        """
+        Serialize to a dictionary.
+        """
+        return {"name": self.name, "data": self.data}
+
     @add_edsl_version
     def to_dict(self) -> dict:
         """
         Convert a Notebook to a dictionary.
         """
-        return {"name": self.name, "data": self.data}
+        return self._to_dict()
 
     @classmethod
     @remove_edsl_version
@@ -111,6 +127,8 @@ class Notebook(Base):
         """
         Save the notebook at the specified filepath.
         """
+        import nbformat
+
         nbformat.write(nbformat.from_dict(self.data), fp=path)
 
     def print(self):

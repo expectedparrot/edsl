@@ -249,12 +249,12 @@ For example, here we use the answer to q0 in the prompt for q1:
    from edsl import QuestionFreeText, QuestionList, Survey
 
    q0 = QuestionFreeText(
-      question_name = "color"
+      question_name = "color",
       question_text = "What is your favorite color?", 
    )
 
    q1 = QuestionList(
-      question_name = "examples"
+      question_name = "examples",
       question_text = "Name some things that are {{ color.answer }}.", 
    )
 

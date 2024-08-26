@@ -1322,7 +1322,6 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
             raise ValueError("Either url or qsf_file must be provided.")
 
         if url:
-
             response = requests.get(url)
             response.raise_for_status()  # Ensure the request was successful
 

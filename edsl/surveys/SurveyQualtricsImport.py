@@ -31,7 +31,6 @@ def clean_html(raw_html):
 
 
 class QualtricsQuestion:
-
     def __init__(self, question_json, debug=False):
         self.debug = debug
         self.question_json = question_json
@@ -183,7 +182,6 @@ class QualtricsQuestion:
 
 
 class SurveyQualtricsImport:
-
     def __init__(self, qsf_file_name: str):
         self.qsf_file_name = qsf_file_name
         self.question_data = self.extract_questions_from_json()
