@@ -61,6 +61,37 @@ def extract_json_from_string(text):
     return None
 
 
+def fix_partial_correct_response(text: str) -> dict:
+    # Find the start position of the key "answer"
+    answer_key_start = text.find('"answer"')
+
+    if answer_key_start == -1:
+        return {"error": "No 'answer' key found in the text"}
+
+    # Define regex to find the complete JSON object starting with "answer"
+    json_pattern = r'(\{[^\{\}]*"answer"[^\{\}]*\})'
+    match = re.search(json_pattern, text)
+
+    if not match:
+        return {"error": "No valid JSON object found"}
+
+    # Extract the matched JSON object
+    json_object = match.group(0)
+
+    # Find the start and stop positions of the JSON object in the original text
+    start_pos = text.find(json_object)
+    stop_pos = start_pos + len(json_object)
+
+    # Parse the JSON object to validate it
+    try:
+        parsed_json = json.loads(json_object)
+    except json.JSONDecodeError:
+        return {"error": "Failed to parse JSON object"}
+
+    # Return the result as a dictionary with positions
+    return {"start": start_pos, "stop": stop_pos, "extracted_json": json_object}
+
+
 def clean_json(bad_json_str):
     """
     Clean JSON string by replacing single quotes with double quotes

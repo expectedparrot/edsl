@@ -133,18 +133,22 @@ class LanguageModel(
     def api_token(self) -> str:
         if not hasattr(self, "_api_token"):
             key_name = service_to_api_keyname.get(self._inference_service_, "NOT FOUND")
-            self._api_token = os.getenv(key_name)
-            if (
-                self._api_token is None
-                and self._inference_service_ != "test"
-                and not self.remote
-            ):
+
+            if self._inference_service_ == "bedrock":
+                self._api_token = [os.getenv(key_name[0]), os.getenv(key_name[1])]
+                # Check if any of the tokens are None
+                missing_token = any(token is None for token in self._api_token)
+            else:
+                self._api_token = os.getenv(key_name)
+                missing_token = self._api_token is None
+            if missing_token and self._inference_service_ != "test" and not self.remote:
+                print("rainsing error")
                 raise MissingAPIKeyError(
                     f"""The key for service: `{self._inference_service_}` is not set.
-                    Need a key with name {key_name} in your .env file.
-                    """
+                        Need a key with name {key_name} in your .env file."""
                 )
-        return self._api_token
+
+            return self._api_token
 
     def __getitem__(self, key):
         return getattr(self, key)
