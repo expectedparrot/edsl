@@ -1,9 +1,7 @@
 """This module contains the Interview class, which is responsible for conducting an interview asynchronously."""
 
 from __future__ import annotations
-import traceback
 import asyncio
-import time
 from typing import Any, Type, List, Generator, Optional
 
 from edsl.jobs.Answers import Answers
@@ -20,7 +18,7 @@ from edsl.jobs.interviews.retry_management import retry_strategy
 from edsl.jobs.interviews.InterviewTaskBuildingMixin import InterviewTaskBuildingMixin
 from edsl.jobs.interviews.InterviewStatusMixin import InterviewStatusMixin
 
-import asyncio
+from edsl.jobs.FailedQuestion import FailedQuestion
 
 
 def run_async(coro):
@@ -96,6 +94,9 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
             for index, question_name in enumerate(self.survey.question_names)
         }
 
+        self.failed_questions = []
+
+    # region: Serialization
     def _to_dict(self, include_exceptions=False) -> dict[str, Any]:
         """Return a dictionary representation of the Interview instance.
         This is just for hashing purposes.
@@ -120,10 +121,12 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
 
         return dict_hash(self._to_dict())
 
+    # endregion
+
     async def async_conduct_interview(
         self,
         *,
-        model_buckets: ModelBuckets = None,
+        model_buckets: Optional[ModelBuckets] = None,
         debug: bool = False,
         stop_on_exception: bool = False,
         sidecar_model: Optional["LanguageModel"] = None,
@@ -146,16 +149,16 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
 
         >>> i = Interview.example(throw_exception = True)
         >>> result, _ = asyncio.run(i.async_conduct_interview())
-        Attempt 1 failed with exception:This is a test error now waiting 1.00 seconds before retrying.Parameters: start=1.0, max=60.0, max_attempts=5.
+        Attempt 1 failed with exception 'Exception':This is a test error now waiting 1.00 seconds before retrying.Parameters: start=1.0, max=60.0, max_attempts=5.
         <BLANKLINE>
         <BLANKLINE>
-        Attempt 2 failed with exception:This is a test error now waiting 2.00 seconds before retrying.Parameters: start=1.0, max=60.0, max_attempts=5.
+        Attempt 2 failed with exception 'Exception':This is a test error now waiting 2.00 seconds before retrying.Parameters: start=1.0, max=60.0, max_attempts=5.
         <BLANKLINE>
         <BLANKLINE>
-        Attempt 3 failed with exception:This is a test error now waiting 4.00 seconds before retrying.Parameters: start=1.0, max=60.0, max_attempts=5.
+        Attempt 3 failed with exception 'Exception':This is a test error now waiting 4.00 seconds before retrying.Parameters: start=1.0, max=60.0, max_attempts=5.
         <BLANKLINE>
         <BLANKLINE>
-        Attempt 4 failed with exception:This is a test error now waiting 8.00 seconds before retrying.Parameters: start=1.0, max=60.0, max_attempts=5.
+        Attempt 4 failed with exception 'Exception':This is a test error now waiting 8.00 seconds before retrying.Parameters: start=1.0, max=60.0, max_attempts=5.
         <BLANKLINE>
         <BLANKLINE>
 
@@ -215,10 +218,33 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
                 result = invigilator.get_failed_task_result()
             except Exception as e:  # any other kind of exception in the task
                 result = invigilator.get_failed_task_result()
-                self._record_exception(task, e)
+
+                # This is only after the re-tries have failed.
+                failed_question = FailedQuestion(
+                    question=invigilator.question,
+                    scenario=invigilator.scenario,
+                    model=invigilator.model,
+                    agent=invigilator.agent,
+                    raw_model_response=invigilator.raw_model_response,
+                    exception=e,
+                    prompts=invigilator.get_prompts(),
+                )
+                self.failed_questions.append(failed_question)
+                self._record_exception(
+                    task=task,
+                    exception=e,
+                    failed_question=failed_question,
+                    invigilator=invigilator,
+                )
             yield result
 
-    def _record_exception(self, task, exception: Exception) -> None:
+    def _record_exception(
+        self,
+        task,
+        exception: Exception,
+        failed_question: Optional[FailedQuestion],
+        invigilator: Optional["Invigilator"],
+    ) -> None:
         """Record an exception in the Interview instance.
 
         It records the exception in the Interview instance, with the task name and the exception entry.
@@ -227,11 +253,17 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         >>> result, _ = asyncio.run(i.async_conduct_interview())
         >>> i.exceptions
         {}
-        >>> i._record_exception(i.tasks[0], Exception("An exception occurred."))
+        >>> i = Interview.example(throw_exception = True)
+        >>> i.skip_retry = True
+        >>> result, _ = asyncio.run(i.async_conduct_interview())
         >>> i.exceptions
         {'q0': ...
         """
-        exception_entry = InterviewExceptionEntry(exception)
+        exception_entry = InterviewExceptionEntry(
+            exception=exception,
+            failed_question=failed_question,
+            invigilator=invigilator,
+        )
         self.exceptions.add(task.get_name(), exception_entry)
 
     @property

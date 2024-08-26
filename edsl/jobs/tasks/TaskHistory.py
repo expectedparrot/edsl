@@ -1,7 +1,8 @@
-from edsl.jobs.tasks.task_status_enum import TaskStatus
 from typing import List, Optional
 from io import BytesIO
 import base64
+from importlib import resources
+from edsl.jobs.tasks.task_status_enum import TaskStatus
 
 
 class TaskHistory:
@@ -188,58 +189,14 @@ class TaskHistory:
             plt.show()
 
     def css(self):
-        return """
-        body {
-        font-family: Arial, sans-serif;
-        line-height: 1.6;
-        background-color: #f9f9f9;
-        color: #333;
-        margin: 20px;
-        }
+        env = resources.files("edsl").joinpath("templates/error_reporting")
+        css = env.joinpath("report.css").read_text()
+        return css
 
-        .interview {
-        font-size: 1.5em;
-        margin-bottom: 10px;
-        padding: 10px;
-        background-color: #e3f2fd;
-        border-left: 5px solid #2196f3;
-        }
-
-        .question {
-        font-size: 1.2em;
-        margin-bottom: 10px;
-        padding: 10px;
-        background-color: #fff9c4;
-        border-left: 5px solid #ffeb3b;
-        }
-
-        .exception-detail {
-        margin-bottom: 10px;
-        padding: 10px;
-        background-color: #ffebee;
-        border-left: 5px solid #f44336;
-        }
-
-        .question-detail {
-           border: 3px solid black; /* Adjust the thickness by changing the number */
-            padding: 10px; /* Optional: Adds some padding inside the border */
-        }
-
-        .exception-detail div {
-        margin-bottom: 5px;
-        }
-
-        .exception-exception {
-        font-weight: bold;
-        color: #d32f2f;
-        }
-
-        .exception-time,
-        .exception-traceback {
-        font-style: italic;
-        color: #555;
-        }
-        """
+    def javascript(self):
+        env = resources.files("edsl").joinpath("templates/error_reporting")
+        js = env.joinpath("report.js").read_text()
+        return js
 
     @property
     def exceptions_by_type(self) -> dict:
@@ -282,21 +239,7 @@ class TaskHistory:
                 exceptions_by_model[model.model] += len(interview.exceptions)
         return exceptions_by_model
 
-    def html(
-        self,
-        filename: Optional[str] = None,
-        return_link=False,
-        css=None,
-        cta="Open Report in New Tab",
-    ):
-        """Return an HTML report."""
-
-        from IPython.display import display, HTML
-        import tempfile
-        import os
-        from edsl.utilities.utilities import is_notebook
-        from jinja2 import Template
-
+    def generate_html_report(self, css: Optional[str]):
         performance_plot_html = self.plot(num_periods=100, get_embedded_html=True)
 
         if css is None:
@@ -304,135 +247,20 @@ class TaskHistory:
 
         models_used = set([i.model for index, i in self._interviews.items()])
 
-        template = Template(
-            """
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Exception Details</title>
-        <style>
-        {{ css }}
-        </style>
-        </head>
-        <body>
-            <h1>Overview</h1>
-            <p>There were {{ interviews|length }} total interviews. The number of interviews with exceptions was {{ num_exceptions }}.</p>
-            <p>The models used were: {{ models_used }}.</p>
-            <p>For documentation on dealing with exceptions on Expected Parrot, 
-            see <a href="https://docs.expectedparrot.com/en/latest/exceptions.html">here</a>.</p>
+        from jinja2 import Environment, FileSystemLoader
+        from edsl.TemplateLoader import TemplateLoader
 
-            <h2>Exceptions by Type</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Exception Type</th>
-                        <th>Number</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for exception_type, exceptions in exceptions_by_type.items() %}
-                        <tr>
-                            <td>{{ exception_type }}</td>
-                            <td>{{ exceptions }}</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        env = Environment(loader=TemplateLoader("edsl", "templates/error_reporting"))
 
-
-            <h2>Exceptions by Model</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Model</th>
-                        <th>Number</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for model, exceptions in exceptions_by_model.items() %}
-                        <tr>
-                            <td>{{ model }}</td>
-                            <td>{{ exceptions }}</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-
-
-            <h2>Exceptions by Question Name</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Question Name</th>
-                        <th>Number of Exceptions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for question_name, exception_count in exceptions_by_question_name.items() %}
-                        <tr>
-                            <td>{{ question_name }}</td>
-                            <td>{{ exception_count }}</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-
-
-            {% for index, interview in interviews.items() %}
-                {% if interview.exceptions != {} %}
-                   <div class="interview">Interview: {{ index }} </div>
-                    <h1>Failing questions</h1>
-                {% endif %}
-                {% for question, exceptions in interview.exceptions.items() %}
-                    <div class="question">question_name: {{ question }}</div>
-
-                    <h2>Question</h2>
-                    <div class="question-detail"> 
-                            {{ interview.survey.get_question(question).html(interview.scenario,interview.agent) }}
-                    </div>        
-
-                    <h2>Scenario</h2>                            
-                    <div class="scenario"> 
-                            {{ interview.scenario._repr_html_() }}
-                    </div>        
-
-                    <h2>Agent</h2>
-                    <div class="agent">
-                            {{ interview.agent._repr_html_() }}
-                    </div>
-
-                    <h2>Model</h2>
-                    <div class="model">
-                            {{ interview.model._repr_html_() }}
-                    </div>
-                            
-                    <h2>Exception details</h2>
-
-                    {% for exception_message in exceptions %}
-                        <div class="exception-detail">
-                            <div class="exception-exception">Exception: {{ exception_message.exception }}</div>
-                            <div class="exception-time">Time: {{ exception_message.time }}</div>
-                            <div class="exception-traceback">Traceback: <pre>{{ exception_message.traceback }} </pre></div>
-                        </div>
-                    {% endfor %}            
-                {% endfor %}            
-            {% endfor %}
-                            
-        <h1>Performance Plot</h1>
-        {{ performance_plot_html }}
-        </body>
-        </html>
-        """
-        )
-
-        # breakpoint()
+        # Load and render a template
+        template = env.get_template("base.html")
+        # rendered_template = template.render(your_data=your_data)
 
         # Render the template with data
         output = template.render(
             interviews=self._interviews,
             css=css,
+            javascript=self.javascript(),
             num_exceptions=len(self.exceptions),
             performance_plot_html=performance_plot_html,
             exceptions_by_type=self.exceptions_by_type,
@@ -440,13 +268,28 @@ class TaskHistory:
             exceptions_by_model=self.exceptions_by_model,
             models_used=models_used,
         )
+        return output
+
+    def html(
+        self,
+        filename: Optional[str] = None,
+        return_link=False,
+        css=None,
+        cta="Open Report in New Tab",
+        open_in_browser=True,
+    ):
+        """Return an HTML report."""
+
+        from IPython.display import display, HTML
+        import tempfile
+        import os
+        from edsl.utilities.utilities import is_notebook
+
+        output = self.generate_html_report(css)
 
         # Save the rendered output to a file
         with open("output.html", "w") as f:
             f.write(output)
-
-        if css is None:
-            css = self.css()
 
         if filename is None:
             current_directory = os.getcwd()
@@ -456,10 +299,7 @@ class TaskHistory:
 
         with open(filename, "w") as f:
             with open(filename, "w") as f:
-                # f.write(html_header)
-                # f.write(self._repr_html_())
                 f.write(output)
-                # f.write(html_footer)
 
         if is_notebook():
             import html
@@ -472,16 +312,45 @@ class TaskHistory:
             <iframe srcdoc="{ escaped_output }" style="width: 800px; height: 600px;"></iframe>
             """
             display(HTML(iframe))
-            # display(HTML(output))
         else:
             print(f"Exception report saved to {filename}")
             import webbrowser
             import os
 
+        if open_in_browser:
             webbrowser.open(f"file://{os.path.abspath(filename)}")
 
         if return_link:
             return filename
+
+    def notebook(self):
+        """Create a notebook with the HTML content embedded in the first cell, then delete the cell content while keeping the output."""
+        from nbformat import v4 as nbf
+        from nbconvert.preprocessors import ExecutePreprocessor
+        import nbformat
+        import os
+
+        # Use the existing html method to generate the HTML content
+        output_html = self.generate_html_report(css=None)
+        nb = nbf.new_notebook()
+
+        # Add a code cell that renders the HTML content
+        code_cell = nbf.new_code_cell(
+            f"""
+    from IPython.display import HTML, display
+    display(HTML('''{output_html}'''))
+            """
+        )
+        nb.cells.append(code_cell)
+
+        # Execute the notebook
+        ep = ExecutePreprocessor(timeout=600, kernel_name="python3")
+        ep.preprocess(nb, {"metadata": {"path": os.getcwd()}})
+
+        # After execution, clear the cell's source code
+        nb.cells[0].source = ""
+
+        return nb
 
 
 if __name__ == "__main__":

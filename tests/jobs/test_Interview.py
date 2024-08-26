@@ -7,44 +7,19 @@ from edsl.enums import InferenceServiceType
 from edsl.language_models.LanguageModel import LanguageModel
 from edsl.questions import QuestionFreeText
 
-
-def create_language_model(
-    exception: Exception, fail_at_number: int, never_ending=False
-):
-    class TestLanguageModel(LanguageModel):
-        _model_ = "test"
-        _parameters_ = {"temperature": 0.5}
-        _inference_service_ = InferenceServiceType.TEST.value
-
-        async def async_execute_model_call(
-            self, user_prompt: str, system_prompt: str
-        ) -> dict[str, Any]:
-            question_number = int(
-                user_prompt.split("XX")[1]
-            )  ## grabs the question number from the prompt
-            await asyncio.sleep(0.1)
-            if never_ending:  ## you're not going anywhere buddy
-                await asyncio.sleep(float("inf"))
-            if question_number == fail_at_number:
-                if asyncio.iscoroutinefunction(exception):
-                    await exception()
-                else:
-                    raise exception
-            return {"message": """{"answer": "SPAM!"}"""}
-
-        def parse_response(self, raw_response: dict[str, Any]) -> str:
-            return raw_response["message"]
-
-    return TestLanguageModel
+from edsl.language_models.utilities import create_language_model
 
 
 @pytest.fixture
 def create_survey():
-    def _create_survey(num_questions: int, chained: bool = True, take_scenario = False):
+    def _create_survey(num_questions: int, chained: bool = True, take_scenario=False):
         survey = Survey()
         for i in range(num_questions):
             if take_scenario:
-                q = QuestionFreeText(question_text = f"XX{i}XX and {{scenario_value }}", question_name = f"question_{i}")                     
+                q = QuestionFreeText(
+                    question_text=f"XX{i}XX and {{scenario_value }}",
+                    question_name=f"question_{i}",
+                )
             else:
                 q = QuestionFreeText(
                     question_text=f"XX{i}XX", question_name=f"question_{i}"
@@ -56,11 +31,13 @@ def create_survey():
 
     return _create_survey
 
+
 def test_order(create_survey):
     survey = create_survey(5, chained=False, take_scenario=True)
     from edsl import ScenarioList
     import random
-    scenario_values =  ["a", "b", "c", "d", "e"]
+
+    scenario_values = ["a", "b", "c", "d", "e"]
     random.shuffle(scenario_values)
     sl = ScenarioList.from_list("scenario_value", scenario_values)
     model = create_language_model(ValueError, 100)()
@@ -68,6 +45,7 @@ def test_order(create_survey):
     results = jobs.run()
     for result, interview in zip(results, jobs.interviews()):
         assert result.interview_hash == hash(interview)
+
 
 def test_token_usage(create_survey):
     model = create_language_model(ValueError, 100)()
@@ -130,7 +108,7 @@ def test_handle_model_exceptions(create_survey, fail_at_number, chained):
 
     cache = Cache()
 
-    results = jobs.run(cache=cache, print_exceptions = False)
+    results = jobs.run(cache=cache, print_exceptions=False)
 
     if not chained:
         assert results.select(f"answer.question_{fail_at_number}").first() is None
@@ -149,7 +127,7 @@ def test_handle_timeout_exception(create_survey, capsys):
     from edsl.data.Cache import Cache
 
     cache = Cache()
-    results = survey.by(model).run(cache=cache, print_exceptions = False)
+    results = survey.by(model).run(cache=cache, print_exceptions=False)
     captured = capsys.readouterr()
     # assert (
     #     "WARNING: At least one question in the survey was not answered." in captured.out

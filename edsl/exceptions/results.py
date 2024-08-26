@@ -2,6 +2,10 @@ class ResultsErrors(Exception):
     pass
 
 
+class ResultsDeserializationError(ResultsErrors):
+    pass
+
+
 class ResultsBadMutationstringError(ResultsErrors):
     pass
 

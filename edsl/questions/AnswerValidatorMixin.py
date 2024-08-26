@@ -16,6 +16,21 @@ class AnswerValidatorMixin:
     - Question specific validation: validators for specific question types
     """
 
+    def failing_job(self):
+        from edsl import Agent
+
+        a = Agent()
+
+        def f(self, question, scenario):
+            return []
+
+        a.add_direct_question_answering_method(f, validate_response=True)
+        from edsl import QuestionNumerical
+
+        q = QuestionNumerical.example()
+        results = q.by(a).run()
+        return results
+
     #####################
     # TEMPLATE VALIDATION
     #####################
@@ -56,7 +71,8 @@ class AnswerValidatorMixin:
     def _validate_answer_key_value_numeric(
         self, answer: dict[str, Any], key: str
     ) -> None:
-        """Check that the value of a key is numeric (int or float).
+        """Check that the value is numeric (int or float).
+        Can also deal with strings that contain commas and other characters.
 
         >>> avm = AnswerValidatorMixin()
         >>> avm._validate_answer_key_value_numeric({'answer': 1}, 'answer')
@@ -290,3 +306,5 @@ if __name__ == "__main__":
     import doctest
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)
+
+    results = AnswerValidatorMixin().failing_job()
