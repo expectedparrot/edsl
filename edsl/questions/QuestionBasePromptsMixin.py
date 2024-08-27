@@ -3,8 +3,41 @@ from typing import Optional
 from edsl.prompts import Prompt
 from edsl.exceptions.questions import QuestionAnswerValidationError
 
+from functools import lru_cache
+
+
+class TemplateManager:
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._template_cache = {}
+        return cls._instance
+
+    @lru_cache(maxsize=None)
+    def get_template(self, question_type, template_name):
+        if (question_type, template_name) not in self._template_cache:
+            with resources.open_text(
+                f"edsl.questions.templates.{question_type}", template_name
+            ) as file:
+                self._template_cache[(question_type, template_name)] = file.read()
+        return self._template_cache[(question_type, template_name)]
+
+
+# Global instance
+template_manager = TemplateManager()
+
 
 class QuestionBasePromptsMixin:
+    # @classmethod
+    # @lru_cache(maxsize=1)
+    # def _read_template(cls, template_name):
+    #     with resources.open_text(
+    #         f"edsl.questions.templates.{cls.question_type}", template_name
+    #     ) as file:
+    #         return file.read()
+
     @classmethod
     def applicable_prompts(
         cls, model: Optional[str] = None
@@ -115,6 +148,22 @@ class QuestionBasePromptsMixin:
     def include_comment(self, value: bool) -> None:
         self._include_comment = value
 
+    @classmethod
+    def default_answering_instructions(cls) -> str:
+        # template_text = cls._read_template("answering_instructions.jinja")
+        template_text = template_manager.get_template(
+            cls.question_type, "answering_instructions.jinja"
+        )
+        return Prompt(text=template_text)
+
+    @classmethod
+    def default_question_presentation(cls):
+        # template_text = cls._read_template("question_presentation.jinja")
+        template_text = template_manager.get_template(
+            cls.question_type, "question_presentation.jinja"
+        )
+        return Prompt(text=template_text)
+
     @property
     def answering_instructions(self) -> str:
         if self._answering_instructions is None:
@@ -124,22 +173,6 @@ class QuestionBasePromptsMixin:
     @answering_instructions.setter
     def answering_instructions(self, value) -> None:
         self._answering_instructions = value
-
-    @classmethod
-    def default_answering_instructions(cls) -> str:
-        template_text = resources.read_text(
-            f"edsl.questions.templates.{cls.question_type}",
-            "answering_instructions.jinja",
-        )
-        return Prompt(text=template_text)
-
-    @classmethod
-    def default_question_presentation(cls):
-        template_text = resources.read_text(
-            f"edsl.questions.templates.{cls.question_type}",
-            "question_presentation.jinja",
-        )
-        return Prompt(text=template_text)
 
     # @classmethod
     # def default_answering_instructions(cls) -> str:

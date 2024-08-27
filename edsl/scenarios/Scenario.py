@@ -219,10 +219,9 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
 
     @classmethod
     def from_pdf(cls, pdf_path):
-        import fitz  # PyMuPDF
-        from edsl import Scenario
-
         # Ensure the file exists
+        import fitz
+
         if not os.path.exists(pdf_path):
             raise FileNotFoundError(f"The file {pdf_path} does not exist.")
 
@@ -236,7 +235,14 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         text = ""
         for page_num in range(len(document)):
             page = document.load_page(page_num)
-            text = text + page.get_text()
+            blocks = page.get_text("blocks")  # Extract text blocks
+
+            # Sort blocks by their vertical position (y0) to maintain reading order
+            blocks.sort(key=lambda b: (b[1], b[0]))  # Sort by y0 first, then x0
+
+            # Combine the text blocks in order
+            for block in blocks:
+                text += block[4] + "\n"
 
         # Create a dictionary for the combined text
         page_info = {"filename": filename, "text": text}
