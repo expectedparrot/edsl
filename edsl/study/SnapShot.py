@@ -64,7 +64,6 @@ class SnapShot:
             return module_name.startswith(package_name)
 
         for name, value in namespace.items():
-
             # TODO check this code logic (if there are other objects with to_dict method that are not from edsl)
             if (
                 is_edsl_object(value)

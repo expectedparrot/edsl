@@ -30,7 +30,6 @@ template_manager = TemplateManager()
 
 
 class QuestionBasePromptsMixin:
-
     # @classmethod
     # @lru_cache(maxsize=1)
     # def _read_template(cls, template_name):
