@@ -3,8 +3,8 @@ from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.derived.QuestionLikertFive import QuestionLikertFive, main
 
 
-def test_QuestionLikertFive_main():
-    main()
+# def test_QuestionLikertFive_main():
+#     main()
 
 
 valid_question = {

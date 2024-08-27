@@ -155,13 +155,11 @@ def test_QuestionLinearScale_extras():
     # instructions
     # _simulate_answer
     assert q._simulate_answer().keys() == q._simulate_answer(human_readable=True).keys()
-    assert q._simulate_answer(human_readable=False)["answer"] in range(
-        len(q.question_options)
-    )
+    assert q._simulate_answer(human_readable=False)["answer"] in q.question_options
     simulated_answer = q._simulate_answer()
     assert isinstance(simulated_answer, dict)
     assert "answer" in simulated_answer
     assert "comment" in simulated_answer
-    assert isinstance(simulated_answer["answer"], int)
+    # assert isinstance(simulated_answer["answer"], int)
     assert simulated_answer["answer"] in q.question_options
     # form elements

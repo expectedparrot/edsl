@@ -14,7 +14,7 @@ from edsl.results import Results
 
 class TestResults(unittest.TestCase):
     def setUp(self):
-        self.example_results = Results.example(debug=True)
+        self.example_results = Results.example(debug=False)
 
     def test_instance(self):
         self.assertIsInstance(self.example_results, Results)

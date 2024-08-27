@@ -39,6 +39,9 @@ class QuestionFunctional(QuestionBase):
     function_source_code = ""
     function_name = ""
 
+    _response_model = None
+    response_validator_class = None
+
     def __init__(
         self,
         question_name: str,

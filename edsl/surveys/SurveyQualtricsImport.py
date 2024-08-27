@@ -9,7 +9,7 @@ qualtrics_codes = {
     "TE": "free_text",
     "MC": "multiple_choice",
     "Matrix": "matrix",
-    "DB": "free_text",  # not quite right, but for now
+    "DB": "instruction",  # not quite right, but for now
     "Timing": "free_text",  # not quite right, but for now
 }
 # TE (Text Entry): Allows respondents to input a text response.
@@ -84,6 +84,11 @@ class QualtricsQuestion:
         return None
 
     def to_edsl(self):
+        if self.question_type == "instruction":
+            from edsl import Instruction
+
+            return [Instruction(text=self.question_text, name=self.question_name)]
+
         if self.question_type == "free_text":
             try:
                 q = Question(
@@ -187,11 +192,14 @@ class SurveyQualtricsImport:
             questions.extend(qualtrics_questions.to_edsl())
         return Survey(questions)
 
-    def extract_questions_from_json(self):
+    @property
+    def survey_data(self):
         with open(self.qsf_file_name, "r") as f:
             survey_data = json.load(f)
+        return survey_data
 
-        questions = survey_data["SurveyElements"]
+    def extract_questions_from_json(self):
+        questions = self.survey_data["SurveyElements"]
 
         extracted_questions = []
 
@@ -201,11 +209,74 @@ class SurveyQualtricsImport:
 
         return extracted_questions
 
+    def extract_blocks_from_json(self):
+        blocks = []
+
+        for element in self.survey_data["SurveyElements"]:
+            if element["Element"] == "BL":
+                for block_payload in element["Payload"]:
+                    block_elements = [
+                        BlockElement(be["Type"], be["QuestionID"])
+                        for be in block_payload["BlockElements"]
+                    ]
+                    options_data = block_payload.get("Options", {})
+                    options = BlockOptions(
+                        options_data.get("BlockLocking", "false"),
+                        options_data.get("RandomizeQuestions", "false"),
+                        options_data.get("BlockVisibility", "Collapsed"),
+                    )
+
+                    block = SurveyBlock(
+                        block_payload["Type"],
+                        block_payload["Description"],
+                        block_payload["ID"],
+                        block_elements,
+                        options,
+                    )
+                    blocks.append(block)
+
+        return blocks
+
+
+class SurveyBlock:
+    def __init__(self, block_type, description, block_id, block_elements, options):
+        self.block_type = block_type
+        self.description = description
+        self.block_id = block_id
+        self.block_elements = block_elements
+        self.options = options
+
+    def __repr__(self):
+        return f"SurveyBlock(type={self.block_type}, description={self.description}, id={self.block_id})"
+
+
+class BlockElement:
+    def __init__(self, element_type, question_id):
+        self.element_type = element_type
+        self.question_id = question_id
+
+    def __repr__(self):
+        return f"BlockElement(type={self.element_type}, question_id={self.question_id})"
+
+
+class BlockOptions:
+    def __init__(self, block_locking, randomize_questions, block_visibility):
+        self.block_locking = block_locking
+        self.randomize_questions = randomize_questions
+        self.block_visibility = block_visibility
+
+    def __repr__(self):
+        return (
+            f"BlockOptions(block_locking={self.block_locking}, "
+            f"randomize_questions={self.randomize_questions}, "
+            f"block_visibility={self.block_visibility})"
+        )
+
 
 if __name__ == "__main__":
     survey_creator = SurveyQualtricsImport("example.qsf")
     # print(survey_creator.question_data)
-    survey = survey_creator.create_survey()
+    # survey = survey_creator.create_survey()
     # info = survey.push()
     # print(info)
     # questions = survey.extract_questions_from_json()

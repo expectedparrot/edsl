@@ -2,23 +2,24 @@ import traceback
 import datetime
 import time
 from collections import UserDict
-
-# traceback=traceback.format_exc(),
-# traceback = frame_summary_to_dict(traceback.extract_tb(e.__traceback__))
-# traceback = [frame_summary_to_dict(f) for f in traceback.extract_tb(e.__traceback__)]
+from edsl.jobs.FailedQuestion import FailedQuestion
 
 
 class InterviewExceptionEntry:
-    """Class to record an exception that occurred during the interview.
+    """Class to record an exception that occurred during the interview."""
 
-    >>> entry = InterviewExceptionEntry.example()
-    >>> entry.to_dict()['exception']
-    "ValueError('An error occurred.')"
-    """
-
-    def __init__(self, exception: Exception, traceback_format="html"):
+    def __init__(
+        self,
+        *,
+        exception: Exception,
+        failed_question: FailedQuestion,
+        invigilator: "Invigilator",
+        traceback_format="html",
+    ):
         self.time = datetime.datetime.now().isoformat()
         self.exception = exception
+        self.failed_question = failed_question
+        self.invigilator = invigilator
         self.traceback_format = traceback_format
 
     def __getitem__(self, key):
@@ -27,11 +28,13 @@ class InterviewExceptionEntry:
 
     @classmethod
     def example(cls):
-        try:
-            raise ValueError("An error occurred.")
-        except Exception as e:
-            entry = InterviewExceptionEntry(e)
-        return entry
+        from edsl import QuestionFreeText
+        from edsl.language_models import LanguageModel
+
+        m = LanguageModel.example(test_model=True)
+        q = QuestionFreeText.example(exception_to_throw=ValueError)
+        results = q.by(m).run(skip_retry=True, print_exceptions=False)
+        return results.task_history.exceptions[0]["how_are_you"][0]
 
     @property
     def traceback(self):
@@ -78,13 +81,15 @@ class InterviewExceptionEntry:
 
         >>> entry = InterviewExceptionEntry.example()
         >>> entry.to_dict()['exception']
-        "ValueError('An error occurred.')"
+        'ValueError()'
 
         """
         return {
             "exception": repr(self.exception),
             "time": self.time,
             "traceback": self.traceback,
+            "failed_question": self.failed_question.to_dict(),
+            "invigilator": self.invigilator.to_dict(),
         }
 
     def push(self):
