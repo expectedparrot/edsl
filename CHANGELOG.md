@@ -2,6 +2,13 @@
 
 ## [0.1.33] - IN PROGRESS
 ### Added 
+- Get table from Wikipedia: 
+```
+sl = ScenarioList.from_wikipedia("url",0)
+```
+
+- 'tree' visualization
+
 - Ability to control exact prompt language and separate instructions from presentation of a question: `Question` objects now take optional parameters `answering_instructions` and `question_presentation` or else use default jinja2 templates in a templating system. Example:
 
 - Optional parameter `include_comments = False` can be passed to the `run()` method of a `Survey` object to turn off the comments field that is automatically added to all `Question` types other than `QuestionFreeText`. 
