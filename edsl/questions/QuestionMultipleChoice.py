@@ -123,7 +123,7 @@ class QuestionMultipleChoice(QuestionBase):
         question_text: str,
         question_options: Union[list[str], list[list], list[float], list[int]],
         include_comment: bool = True,
-        use_code: bool = True,
+        use_code: bool = False,
         answering_instructions: Optional[str] = None,
         question_presentation: Optional[str] = None,
     ):
@@ -167,11 +167,11 @@ class QuestionMultipleChoice(QuestionBase):
         The question options might be templates, so they need to be rendered with the scenario.
 
         >>> q = QuestionMultipleChoice.example()
-        >>> q._translate_answer_code_to_answer(0, {})
+        >>> q._translate_answer_code_to_answer('Good', {})
         'Good'
 
         >>> q = QuestionMultipleChoice(question_name="how_feeling", question_text="How are you?", question_options=["{{emotion[0]}}", "emotion[1]"])
-        >>> q._translate_answer_code_to_answer(0, {"emotion": ["Happy", "Sad"]})
+        >>> q._translate_answer_code_to_answer('Happy', {"emotion": ["Happy", "Sad"]})
         'Happy'
 
         """
@@ -242,24 +242,24 @@ class QuestionMultipleChoice(QuestionBase):
         )
 
 
-def main():
-    """Create an example QuestionMultipleChoice and test its methods."""
-    from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
+# def main():
+#     """Create an example QuestionMultipleChoice and test its methods."""
+#     from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
-    q = QuestionMultipleChoice.example()
-    q.question_text
-    q.question_options
-    q.question_name
-    # validate an answer
-    q._validate_answer({"answer": 0, "comment": "I like custard"})
-    # translate answer code
-    q._translate_answer_code_to_answer(0, {})
-    # simulate answer
-    q._simulate_answer()
-    q._simulate_answer(human_readable=False)
-    # serialization (inherits from Question)
-    q.to_dict()
-    assert q.from_dict(q.to_dict()) == q
+#     q = QuestionMultipleChoice.example()
+#     q.question_text
+#     q.question_options
+#     q.question_name
+#     # validate an answer
+#     q._validate_answer({"answer": 0, "comment": "I like custard"})
+#     # translate answer code
+#     q._translate_answer_code_to_answer(0, {})
+#     # simulate answer
+#     q._simulate_answer()
+#     q._simulate_answer(human_readable=False)
+#     # serialization (inherits from Question)
+#     q.to_dict()
+#     assert q.from_dict(q.to_dict()) == q
 
 
 if __name__ == "__main__":

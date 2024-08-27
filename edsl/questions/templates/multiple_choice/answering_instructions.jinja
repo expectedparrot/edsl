@@ -8,10 +8,10 @@ Return a valid JSON formatted like this:
     {% endif %}
 {% else %}
 
-    {% if include_comment %}
+{% if include_comment %}
 {"answer": <text of option>, "comment": "<put explanation here>"}
     {% else %}
-{"answer": <put option here>}
+{"answer": <text of option here>}
     {% endif %}
 
 {% endif %}
