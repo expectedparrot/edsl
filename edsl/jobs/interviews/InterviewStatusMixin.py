@@ -2,7 +2,6 @@ from edsl.jobs.interviews.InterviewStatusLog import InterviewStatusLog
 from edsl.jobs.tokens.InterviewTokenUsage import InterviewTokenUsage
 
 from edsl.jobs.interviews.InterviewStatusDictionary import InterviewStatusDictionary
-from edsl.jobs.tasks.QuestionTaskCreator import QuestionTaskCreator
 
 
 class InterviewStatusMixin:
