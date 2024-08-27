@@ -335,10 +335,29 @@ class LanguageModel(
         }
 
         answer_portion = self.parse_response(model_call_outcome.response)
+
+        ## This is a hack to fix the JSON response from the model
+        ## It fixes newlines in the JSON response, but doesn't inject them into key portion
+        import re
+
+        pattern = r'"(\w+)":\s*"([^"]*?)"(?=\s*[,}])'
+        matches = re.findall(pattern, answer_portion, re.DOTALL)
+
+        fixed_data = {}
+        for key, value in matches:
+            fixed_value = value.replace("\n", "\\n")
+            fixed_data[key] = fixed_value
+        ###
+        answer_portion = json.dumps(fixed_data)
+
         try:
             answer_dict = json.loads(answer_portion)
         except json.JSONDecodeError as e:
             # TODO: Turn into logs to generate issues
+            print("Bad JSON response from model.")
+            print(answer_portion)
+            print("The exception was: ", e)
+
             answer_dict, success = await repair(
                 bad_json=answer_portion, error_message=str(e), cache=cache
             )

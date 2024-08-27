@@ -21,7 +21,6 @@ class TemplateManager:
             with resources.open_text(
                 f"edsl.questions.templates.{question_type}", template_name
             ) as file:
-                print("file getting opened")
                 self._template_cache[(question_type, template_name)] = file.read()
         return self._template_cache[(question_type, template_name)]
 
