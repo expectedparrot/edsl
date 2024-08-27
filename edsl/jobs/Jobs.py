@@ -503,9 +503,6 @@ class Jobs(Base):
 
         self.verbose = verbose
 
-        # if cache is True:
-        #     raise ValueError("cache=True is not supported. Please use a Cache object.")
-
         try:
             coop = Coop()
             user_edsl_settings = coop.edsl_settings

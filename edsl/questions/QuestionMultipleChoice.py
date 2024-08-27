@@ -167,11 +167,11 @@ class QuestionMultipleChoice(QuestionBase):
         The question options might be templates, so they need to be rendered with the scenario.
 
         >>> q = QuestionMultipleChoice.example()
-        >>> q._translate_answer_code_to_answer(0, {})
+        >>> q._translate_answer_code_to_answer('Good', {})
         'Good'
 
         >>> q = QuestionMultipleChoice(question_name="how_feeling", question_text="How are you?", question_options=["{{emotion[0]}}", "emotion[1]"])
-        >>> q._translate_answer_code_to_answer(0, {"emotion": ["Happy", "Sad"]})
+        >>> q._translate_answer_code_to_answer('Happy', {"emotion": ["Happy", "Sad"]})
         'Happy'
 
         """
