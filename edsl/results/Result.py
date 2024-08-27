@@ -148,15 +148,15 @@ class Result(Base, UserDict):
             if key in self.question_to_attributes:
                 # You might be tempted to just use the naked key
                 # but this is a bad idea because it pollutes the namespace
-                question_text_dict[
-                    key + "_question_text"
-                ] = self.question_to_attributes[key]["question_text"]
-                question_options_dict[
-                    key + "_question_options"
-                ] = self.question_to_attributes[key]["question_options"]
-                question_type_dict[
-                    key + "_question_type"
-                ] = self.question_to_attributes[key]["question_type"]
+                question_text_dict[key + "_question_text"] = (
+                    self.question_to_attributes[key]["question_text"]
+                )
+                question_options_dict[key + "_question_options"] = (
+                    self.question_to_attributes[key]["question_options"]
+                )
+                question_type_dict[key + "_question_type"] = (
+                    self.question_to_attributes[key]["question_type"]
+                )
 
         return {
             "agent": self.agent.traits
@@ -259,6 +259,25 @@ class Result(Base, UserDict):
         for data_type, subdict in self.sub_dicts.items():
             for key, value in subdict.items():
                 yield (index, data_type, key, str(value))
+
+    def leaves(self):
+        leaves = []
+        for question_name, answer in self.answer.items():
+            if not question_name.endswith("_comment"):
+                leaves.append(
+                    {
+                        "question": f"({question_name}): "
+                        + str(
+                            self.question_to_attributes[question_name]["question_text"]
+                        ),
+                        "answer": answer,
+                        "scenario": repr(self.scenario),
+                        "agent": repr(self.agent),
+                        "model": repr(self.model),
+                        "iteration": self.iteration,
+                    }
+                )
+        return leaves
 
     ###############
     # Useful

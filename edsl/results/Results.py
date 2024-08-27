@@ -113,6 +113,81 @@ class Results(UserList, Mixins, Base):
         if hasattr(self, "_add_output_functions"):
             self._add_output_functions()
 
+    def leaves(self):
+        leaves = []
+        for result in self:
+            leaves.extend(result.leaves())
+        return leaves
+
+    def tree(
+        self,
+        fold_attributes: Optional[List[str]] = None,
+        drop: Optional[List[str]] = None,
+        open_file=True,
+    ) -> dict:
+        """Return the results as a tree."""
+        from edsl.results.tree_explore import FoldableHTMLTableGenerator
+
+        if drop is None:
+            drop = []
+
+        valid_attributes = [
+            "model",
+            "scenario",
+            "agent",
+            "answer",
+            "question",
+            "iteration",
+        ]
+        if fold_attributes is None:
+            fold_attributes = []
+
+        for attribute in fold_attributes:
+            if attribute not in valid_attributes:
+                raise ValueError(
+                    f"Invalid fold attribute: {attribute}; must be in {valid_attributes}"
+                )
+        data = self.leaves()
+        generator = FoldableHTMLTableGenerator(data)
+        tree = generator.tree(fold_attributes=fold_attributes, drop=drop)
+        html_content = generator.generate_html(tree, fold_attributes)
+        import tempfile
+        from edsl.utilities.utilities import is_notebook
+
+        from IPython.display import display, HTML
+
+        if is_notebook():
+            import html
+            from IPython.display import display, HTML
+
+            height = 1000
+            width = 1000
+            escaped_output = html.escape(html_content)
+            # escaped_output = rendered_html
+            iframe = f""""
+            <iframe srcdoc="{ escaped_output }" style="width: {width}px; height: {height}px;"></iframe>
+            """
+            display(HTML(iframe))
+            return None
+
+        with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
+            f.write(html_content.encode())
+            print(f"HTML file has been generated: {f.name}")
+
+            if open_file:
+                import webbrowser
+                import time
+
+                time.sleep(1)  # Wait for 1 second
+                # webbrowser.open(f.name)
+                import os
+
+                filename = f.name
+                webbrowser.open(f"file://{os.path.abspath(filename)}")
+
+            else:
+                return html_content
+
     def _matching_columns(self, partial_name: str) -> list[str]:
         """
         Return a list of strings that match the short_string.
