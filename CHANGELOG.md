@@ -2,7 +2,9 @@
 
 ## [0.1.33] - IN PROGRESS
 ### Added 
-- Optional parameter `comment = False` can be passed to the `run()` method of a `Survey` object to turn off the comments field that is automatically added to all `Question` types other than `QuestionFreeText`. 
+- Ability to control exact prompt language and separate instructions from presentation of a question: `Question` objects now take optional parameters `answering_instructions` and `question_presentation` or else use default jinja2 templates in a templating system. Example:
+
+- Optional parameter `include_comments = False` can be passed to the `run()` method of a `Survey` object to turn off the comments field that is automatically added to all `Question` types other than `QuestionFreeText`. 
 
 - Allow partial match on key names in `select()` method to save typing.
 
