@@ -68,6 +68,7 @@ class SnapShot:
             # TODO check this code logic (if there are other objects with to_dict method that are not from edsl)
             if (
                 is_edsl_object(value)
+                and hasattr(value, "to_dict")
                 and not inspect.isclass(value)
                 and value.__class__ not in [o.__class__ for o in self.exclude]
             ):

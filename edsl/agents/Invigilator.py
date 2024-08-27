@@ -82,8 +82,15 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
         This cleans up the raw response to make it suitable to pass to AgentResponseDict.
         """
         _ = agent
+        # breakpoint()
         try:
-            response = question._validate_answer(raw_response)
+
+            response = question._validate_answer(
+                json.loads(self.model.parse_response(raw_model_response))
+            )
+            # response = question._validate_answer(
+            #    json.loads(raw_model_response["message"])
+            # )
         except Exception as e:
             """If the response is invalid, remove it from the cache and raise the exception."""
             self._remove_from_cache(raw_response)
