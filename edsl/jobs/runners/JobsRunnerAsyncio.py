@@ -88,6 +88,8 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                 self._populate_total_interviews(n=n)
             )  # Populate self.total_interviews before creating tasks
 
+        # print("Interviews created")
+
         for interview in self.total_interviews:
             interviewing_task = self._build_interview_task(
                 interview=interview,
@@ -97,7 +99,10 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             )
             tasks.append(asyncio.create_task(interviewing_task))
 
+        # print("Tasks created")
+
         for task in asyncio.as_completed(tasks):
+            # print(f"Task {task} completed")
             result = await task
             yield result
 
@@ -169,19 +174,19 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
 
         prompt_dictionary = {}
         for answer_key_name in answer_key_names:
-            prompt_dictionary[
-                answer_key_name + "_user_prompt"
-            ] = question_name_to_prompts[answer_key_name]["user_prompt"]
-            prompt_dictionary[
-                answer_key_name + "_system_prompt"
-            ] = question_name_to_prompts[answer_key_name]["system_prompt"]
+            prompt_dictionary[answer_key_name + "_user_prompt"] = (
+                question_name_to_prompts[answer_key_name]["user_prompt"]
+            )
+            prompt_dictionary[answer_key_name + "_system_prompt"] = (
+                question_name_to_prompts[answer_key_name]["system_prompt"]
+            )
 
         raw_model_results_dictionary = {}
         for result in valid_results:
             question_name = result["question_name"]
-            raw_model_results_dictionary[
-                question_name + "_raw_model_response"
-            ] = result["raw_model_response"]
+            raw_model_results_dictionary[question_name + "_raw_model_response"] = (
+                result["raw_model_response"]
+            )
 
         result = Result(
             agent=interview.agent,
@@ -242,7 +247,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                 self.results.append(result)
                 if progress_bar_context:
                     progress_bar_context.update(generate_table())
-                self.completed = True
+            self.completed = True
 
         async def update_progress_bar(progress_bar_context):
             """Updates the progress bar at fixed intervals."""
