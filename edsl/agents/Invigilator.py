@@ -84,7 +84,6 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
         _ = agent
         # breakpoint()
         try:
-
             response = question._validate_answer(
                 json.loads(self.model.parse_response(raw_model_response))
             )
