@@ -6,7 +6,7 @@ from edsl.exceptions import (
 )
 from edsl.questions import Settings
 from edsl.questions.QuestionBase import QuestionBase
-from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice, main
+from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
 
 def test_QuestionMultipleChoice_main():
