@@ -236,7 +236,7 @@ class Study:
         if self.verbose:
             print("Existing objects in study:")
             self.print()
-        snapshot = SnapShot(self.namespace, exclude=[self])
+        snapshot = SnapShot(self.namespace, exclude=[self, Config])
         if self.use_study_cache:
             if self.verbose:
                 print("Using study cache.")
