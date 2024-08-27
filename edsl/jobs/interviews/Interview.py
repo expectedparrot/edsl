@@ -4,11 +4,18 @@ from __future__ import annotations
 import asyncio
 from typing import Any, Type, List, Generator, Optional, Union
 
-from edsl.jobs.Answers import Answers
-from edsl.surveys.base import EndOfSurvey
-from edsl.jobs.buckets.ModelBuckets import ModelBuckets
-from edsl.jobs.tasks.TaskCreators import TaskCreators
+from edsl import CONFIG
 
+from edsl.surveys.base import EndOfSurvey
+from edsl.exceptions import QuestionAnswerValidationError
+from edsl.exceptions import InterviewTimeoutError
+from edsl.data_transfer_models import AgentResponseDict
+
+from edsl.jobs.FailedQuestion import FailedQuestion
+from edsl.jobs.buckets.ModelBuckets import ModelBuckets
+from edsl.jobs.Answers import Answers
+from edsl.jobs.tasks.QuestionTaskCreator import QuestionTaskCreator
+from edsl.jobs.tasks.TaskCreators import TaskCreators
 from edsl.jobs.interviews.InterviewStatusLog import InterviewStatusLog
 from edsl.jobs.interviews.interview_exception_tracking import (
     InterviewExceptionCollection,
@@ -16,16 +23,7 @@ from edsl.jobs.interviews.interview_exception_tracking import (
 from edsl.jobs.interviews.InterviewExceptionEntry import InterviewExceptionEntry
 from edsl.jobs.interviews.retry_management import retry_strategy
 from edsl.jobs.interviews.InterviewStatusMixin import InterviewStatusMixin
-from edsl.jobs.tasks.QuestionTaskCreator import QuestionTaskCreator
 
-from edsl.jobs.FailedQuestion import FailedQuestion
-from edsl.exceptions import QuestionAnswerValidationError
-
-
-from edsl import CONFIG
-from edsl.exceptions import InterviewTimeoutError
-
-# from edsl.questions.QuestionBase import QuestionBase
 from edsl.surveys.base import EndOfSurvey
 from edsl.jobs.buckets.ModelBuckets import ModelBuckets
 from edsl.jobs.interviews.InterviewExceptionEntry import InterviewExceptionEntry
@@ -60,15 +58,15 @@ class Interview(InterviewStatusMixin):
 
     def __init__(
         self,
-        agent: "Agent",
-        survey: "Survey",
-        scenario: "Scenario",
+        agent: Agent,
+        survey: Survey,
+        scenario: Scenario,
         model: Type["LanguageModel"],
         debug: Optional[bool] = False,
         iteration: int = 0,
         cache: Optional["Cache"] = None,
         sidecar_model: Optional["LanguageModel"] = None,
-        skip_retry=False,
+        skip_retry: bool = False,
     ):
         """Initialize the Interview instance.
 
@@ -314,7 +312,6 @@ class Interview(InterviewStatusMixin):
         This in turn calls the the passed-in agent's async_answer_question method, which returns a response dictionary.
         Note that is updates answers dictionary with the response.
         """
-        from edsl.data_transfer_models import AgentResponseDict
 
         async def _inner():
             try:
