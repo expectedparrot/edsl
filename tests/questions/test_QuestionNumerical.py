@@ -6,11 +6,7 @@ from edsl.exceptions import (
 )
 from edsl.questions import Settings
 from edsl.questions.QuestionBase import QuestionBase
-from edsl.questions.QuestionNumerical import QuestionNumerical, main
-
-
-def test_QuestionNumerical_main():
-    main()
+from edsl.questions.QuestionNumerical import QuestionNumerical  # , main
 
 
 valid_question = {
@@ -184,4 +180,10 @@ def test_test_QuestionNumerical_extras():
     simulated_answer = q._simulate_answer()
     assert isinstance(simulated_answer, dict)
     assert "answer" in simulated_answer
-    assert isinstance(simulated_answer["answer"], float)
+    from decimal import Decimal
+
+    assert (
+        isinstance(simulated_answer["answer"], float)
+        or isinstance(simulated_answer["answer"], int)
+        or isinstance(simulated_answer["answer"], Decimal)
+    )

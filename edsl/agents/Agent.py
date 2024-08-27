@@ -4,7 +4,7 @@ from __future__ import annotations
 import copy
 import inspect
 import types
-from typing import Callable, Optional, Union
+from typing import Callable, Optional, Union, Any
 from uuid import uuid4
 from edsl.Base import Base
 
@@ -228,7 +228,12 @@ class Agent(Base):
         if hasattr(self, "answer_question_directly"):
             delattr(self, "answer_question_directly")
 
-    def add_direct_question_answering_method(self, method: Callable) -> None:
+    def add_direct_question_answering_method(
+        self,
+        method: Callable,
+        validate_response: bool = False,
+        translate_response: bool = False,
+    ) -> None:
         """Add a method to the agent that can answer a particular question type.
 
         :param method: A method that can answer a question directly.
@@ -248,6 +253,9 @@ class Agent(Base):
                 "Warning: overwriting existing answer_question_directly method"
             )
             # print("Warning: overwriting existing answer_question_directly method")
+
+        self.validate_response = validate_response
+        self.translate_response = translate_response
 
         signature = inspect.signature(method)
         for argument in ["question", "scenario", "self"]:
@@ -304,6 +312,10 @@ class Agent(Base):
             cache=cache,
             sidecar_model=sidecar_model,
         )
+        if hasattr(self, "validate_response"):
+            invigilator.validate_response = self.validate_response
+        if hasattr(self, "translate_response"):
+            invigilator.translate_response = self.translate_response
         return invigilator
 
     async def async_answer_question(
@@ -639,6 +651,22 @@ class Agent(Base):
             table_data.append({"Attribute": attr_name, "Value": repr(attr_value)})
         column_names = ["Attribute", "Value"]
         return table_data, column_names
+
+    def add_trait(self, trait_name_or_dict: str, value: Optional[Any] = None) -> Agent:
+        """Adds a trait to an agent and returns that agent"""
+        if isinstance(trait_name_or_dict, dict) and value is None:
+            self.traits.update(trait_name_or_dict)
+            return self
+
+        if isinstance(trait_name_or_dict, dict) and value:
+            raise ValueError(f"You passed a dict: {trait_name_or_dict}")
+
+        if isinstance(trait_name_or_dict, str):
+            trait = trait_name_or_dict
+            self.traits[trait] = value
+            return self
+
+        raise Exception("Something is not right with adding")
 
     def remove_trait(self, trait: str) -> Agent:
         """Remove a trait from the agent.

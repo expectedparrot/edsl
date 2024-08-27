@@ -1,0 +1,11 @@
+Your response should be only a valid JSON in the following format:
+{% if include_comment %}
+{
+"answer": [<comma-separated list of responsive words or phrases as independent strings>],
+"comment": "<put comment here>"
+}
+{% else %}
+{
+"answer": [<comma-separated list of responsive words or phrases as independent strings>],
+}
+{% endif %}

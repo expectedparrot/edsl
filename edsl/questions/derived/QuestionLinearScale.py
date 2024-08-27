@@ -4,6 +4,8 @@ from typing import Optional
 from edsl.questions.descriptors import QuestionOptionsDescriptor, OptionLabelDescriptor
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 
+from edsl.questions.decorators import inject_exception
+
 
 class QuestionLinearScale(QuestionMultipleChoice):
     """This question prompts the agent to respond to a statement on a linear scale."""
@@ -18,6 +20,8 @@ class QuestionLinearScale(QuestionMultipleChoice):
         question_text: str,
         question_options: list[int],
         option_labels: Optional[dict[int, str]] = None,
+        answering_instructions: Optional[str] = None,
+        question_presentation: Optional[str] = None,
     ):
         """Instantiate a new QuestionLinearScale.
 
@@ -31,14 +35,18 @@ class QuestionLinearScale(QuestionMultipleChoice):
             question_name=question_name,
             question_text=question_text,
             question_options=question_options,
+            use_code=False,
         )
         self.question_options = question_options
         self.option_labels = option_labels
+        self.answering_instructions = answering_instructions
+        self.question_presentation = question_presentation
 
     ################
     # Helpful
     ################
     @classmethod
+    @inject_exception
     def example(cls) -> QuestionLinearScale:
         """Return an example of a linear scale question."""
         return cls(

@@ -1,23 +1,60 @@
 from __future__ import annotations
-import textwrap
 from typing import Any, Optional
 from uuid import uuid4
+
+from pydantic import field_validator
+
 from edsl.questions.QuestionBase import QuestionBase
+from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
+
+from edsl.exceptions import QuestionAnswerValidationError
+from edsl.questions.decorators import inject_exception
+
+from pydantic import BaseModel
+from typing import Optional, Any, List
+
+from edsl.exceptions import QuestionAnswerValidationError
+
+
+class FreeTextResponse(BaseModel):
+    """
+    >>> nr = FreeTextResponse(answer = "Yo dude")
+    >>> nr.dict()
+    {'answer': 'Yo dude'}
+    """
+
+    answer: str
+
+
+class FreeTextResponseValidator(ResponseValidatorABC):
+    required_params = []
+    valid_examples = [({"answer": "This is great"}, {})]
+    invalid_examples = [
+        (
+            {"answer": None},
+            {},
+            "Answer code must not be missing.",
+        ),
+    ]
+
+    def custom_validate(self, response) -> FreeTextResponse:
+        return response.dict()
 
 
 class QuestionFreeText(QuestionBase):
     """This question prompts the agent to respond with free text."""
 
     question_type = "free_text"
-    default_instructions = textwrap.dedent(
-        """\
-        You are being asked the following question: {{question_text}}
-        Return a valid JSON formatted like this: 
-        {"answer": "<put free text answer here>"}
-        """
-    )
+    _response_model = FreeTextResponse
+    response_validator_class = FreeTextResponseValidator
 
-    def __init__(self, question_name: str, question_text: str):
+    def __init__(
+        self,
+        question_name: str,
+        question_text: str,
+        answering_instructions: Optional[str] = None,
+        question_presentation: Optional[str] = None,
+    ):
         """Instantiate a new QuestionFreeText.
 
         :param question_name: The name of the question.
@@ -25,25 +62,8 @@ class QuestionFreeText(QuestionBase):
         """
         self.question_name = question_name
         self.question_text = question_text
-
-    ################
-    # Answer methods
-    ################
-    def _validate_answer(self, answer: Any) -> dict[str, str]:
-        """Validate the answer."""
-        self._validate_answer_template_basic(answer)
-        self._validate_answer_key_value(answer, "answer", str)
-        return answer
-
-    def _translate_answer_code_to_answer(self, answer, scenario: "Scenario" = None):
-        """Do nothing, because the answer is already in a human-readable format."""
-        return answer
-
-    def _simulate_answer(self, human_readable: bool = True) -> dict[str, str]:
-        """Simulate a valid answer for debugging purposes."""
-        from edsl.utilities.utilities import random_string
-
-        return {"answer": random_string()}
+        self.answering_instructions = answering_instructions
+        self.question_presentation = question_presentation
 
     @property
     def question_html_content(self) -> str:
@@ -59,6 +79,7 @@ class QuestionFreeText(QuestionBase):
         return question_html_content
 
     @classmethod
+    @inject_exception
     def example(cls, randomize: bool = False) -> QuestionFreeText:
         """Return an example instance of a free text question."""
         addition = "" if not randomize else str(uuid4())

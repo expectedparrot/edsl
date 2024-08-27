@@ -1,6 +1,9 @@
 from __future__ import annotations
+from typing import Optional
 from edsl.questions.descriptors import QuestionOptionsDescriptor
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
+
+from edsl.questions.decorators import inject_exception
 
 
 class QuestionYesNo(QuestionMultipleChoice):
@@ -13,7 +16,9 @@ class QuestionYesNo(QuestionMultipleChoice):
         self,
         question_name: str,
         question_text: str,
-        question_options: list[str] = ["Yes", "No"],
+        question_options: list[str] = ["No", "Yes"],
+        answering_instructions: Optional[str] = None,
+        question_presentation: Optional[str] = None,
     ):
         """Instantiate a new QuestionYesNo.
 
@@ -25,6 +30,9 @@ class QuestionYesNo(QuestionMultipleChoice):
             question_name=question_name,
             question_text=question_text,
             question_options=question_options,
+            use_code=False,
+            answering_instructions=answering_instructions,
+            question_presentation=question_presentation,
         )
         self.question_options = question_options
 
@@ -32,6 +40,7 @@ class QuestionYesNo(QuestionMultipleChoice):
     # Helpful
     ################
     @classmethod
+    @inject_exception
     def example(cls) -> QuestionYesNo:
         """Return an example of a yes/no question."""
         return cls(question_name="is_it_equal", question_text="Is 5 + 5 equal to 11?")
@@ -56,6 +65,12 @@ def main():
     q.to_dict()
     assert q.from_dict(q.to_dict()) == q
 
+    import doctest
+
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
+
+
+if __name__ == "__main__":
     import doctest
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)

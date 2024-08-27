@@ -6,6 +6,7 @@ _build/*
 *db.bak
 *db-shm
 *db-wal
+*docx
 *gz
 *json
 *jsonl

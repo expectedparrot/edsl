@@ -1,0 +1,39 @@
+<div class="question">question_name: {{ question }}</div>
+
+<h2>Question</h2>
+<div class="question-detail"> 
+    {{ interview.survey.get_question(question).html() }}
+</div>        
+
+<h2>Scenario</h2>                            
+<div class="scenario"> 
+    {{ interview.scenario._repr_html_() }}
+</div>        
+
+<h2>Agent</h2>
+<div class="agent">
+    {{ interview.agent._repr_html_() }}
+</div>
+
+<h2>Model</h2>
+<div class="model">
+    {{ interview.model._repr_html_() }}
+</div>
+        
+<h2>Exception details</h2>
+
+
+{% for exception_message in exceptions %}
+
+    <div class="exception-detail">
+        <div class="exception-header">
+            <span class="exception-exception">Exception: {{ exception_message.exception }}</span>
+            <button class="toggle-btn">▼</button>
+        </div>
+        <div class="exception-content">
+            <div class="exception-time">Time: {{ exception_message.time }}</div>
+            <div class="exception-traceback">Traceback: <pre>{{ exception_message.traceback }}</pre></div>
+        </div>
+    </div>
+
+{% endfor %}

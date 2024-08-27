@@ -141,25 +141,6 @@ def repair(
     return repair_wrapper(bad_json, error_message, user_prompt, system_prompt, cache)
 
 
-# Example usage:
-# result, success = repair_wrapper('{"name": "John Doe", "age": 30,}')  # example bad JSON
-
-
-# def repair_wrapper(bad_json, error_message=""):
-#     loop = asyncio.get_event_loop()
-#     if loop.is_running():
-#         # Add repair as a task to the running loop
-#         task = loop.create_task(repair(bad_json, error_message))
-#         return task
-#     else:
-#         # Run a new event loop for repair
-#         return loop.run_until_complete(repair(bad_json, error_message))
-
-
-# Example usage:
-# result, success = repair_wrapper('{"name": "John Doe", "age": 30,}')  # example bad JSON
-
-
 if __name__ == "__main__":
     bad_json = """
     {

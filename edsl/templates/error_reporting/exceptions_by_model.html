@@ -1,0 +1,17 @@
+<h2>Exceptions by Model</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Model</th>
+            <th>Number</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for model, exceptions in exceptions_by_model.items() %}
+            <tr>
+                <td>{{ model }}</td>
+                <td>{{ exceptions }}</td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>

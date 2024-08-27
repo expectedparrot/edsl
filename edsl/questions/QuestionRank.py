@@ -1,5 +1,6 @@
 from __future__ import annotations
 import random
+import textwrap
 from jinja2 import Template
 from typing import Any, Optional, Union
 from edsl.questions.QuestionBase import QuestionBase
@@ -10,6 +11,34 @@ from edsl.questions.descriptors import (
     NumSelectionsDescriptor,
 )
 
+from edsl.prompts import Prompt
+
+from pydantic import field_validator
+from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
+from edsl.questions.ResponseValidatorABC import BaseResponse
+from edsl.exceptions import QuestionAnswerValidationError
+
+
+class RankResponse(BaseResponse):
+    """
+    >>> nr = RankResponse(answer=[1, 2], comment="I like custard")
+    >>> nr.dict()
+    {'answer': [1, 2], 'comment': 'I like custard'}
+    """
+
+    answer: list[int]
+
+
+class RankResponseValidator(ResponseValidatorABC):
+    required_params = []
+    valid_examples = []
+    invalid_examples = []
+
+    def custom_validate(self, response) -> RankResponse:
+        if len(response.answer) != len(set(response.answer)):
+            raise QuestionAnswerValidationError("Answer must be unique")
+        return response.dict()
+
 
 class QuestionRank(QuestionBase):
     """This question prompts the agent to rank options from a list."""
@@ -18,12 +47,17 @@ class QuestionRank(QuestionBase):
     question_options: list[str] = QuestionOptionsDescriptor()
     num_selections = NumSelectionsDescriptor()
 
+    _response_model = None
+    response_validator_class = RankResponseValidator
+
     def __init__(
         self,
         question_name: str,
         question_text: str,
         question_options: list[str],
         num_selections: Optional[int] = None,
+        question_presentation: Optional[str] = None,
+        answering_instructions: Optional[str] = None,
     ):
         """Initialize the question.
 
@@ -37,6 +71,8 @@ class QuestionRank(QuestionBase):
         self.question_text = question_text
         self.question_options = question_options
         self.num_selections = num_selections or len(question_options)
+        self.question_presentation = question_presentation
+        self.answering_instructions = answering_instructions
 
     ################
     # Answer methods

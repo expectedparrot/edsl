@@ -69,6 +69,9 @@ sphinx-fontawesome = "^0.0.6"
 sphinx-rtd-theme = "^2.0.0"
 toml = "^0.10.2"
 toml-sort = "^0.23.1"
+fastapi = "^0.112.1"
+uvicorn = "^0.30.6"
+polyfactory = "^2.16.2"
 
 [[tool.poetry.packages]]
 include = "edsl"
@@ -82,3 +85,7 @@ trailing_comma_inline_array = true
 
 [tool.tomlsort.overrides."tool.poetry.dependencies"]
 table_keys = false
+
+include = [
+    "edsl/questions/templates/**/*.jinja",
+]

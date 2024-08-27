@@ -1,9 +1,8 @@
 """This module contains the Question class, which is the base class for all questions in EDSL."""
 
 from __future__ import annotations
-import time
 from abc import ABC, abstractmethod
-from typing import Any, Type, Optional, List, Callable
+from typing import Any, Type, Optional, List, Callable, Union, TypedDict
 import copy
 
 from edsl.exceptions import (
@@ -19,87 +18,133 @@ from edsl.Base import PersistenceMixin, RichPrintingMixin
 from edsl.BaseDiff import BaseDiff, BaseDiffCollection
 
 from edsl.questions.SimpleAskMixin import SimpleAskMixin
+from edsl.questions.QuestionBasePromptsMixin import QuestionBasePromptsMixin
+from edsl.questions.QuestionBaseGenMixin import QuestionBaseGenMixin
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
+from edsl.exceptions import QuestionAnswerValidationError
 
 
 class QuestionBase(
     PersistenceMixin,
     RichPrintingMixin,
     SimpleAskMixin,
+    QuestionBasePromptsMixin,
+    QuestionBaseGenMixin,
     ABC,
     AnswerValidatorMixin,
     metaclass=RegisterQuestionsMeta,
 ):
-    """ABC for the Question class. All questions should inherit from this class."""
+    """ABC for the Question class. All questions inherit from this class.
+    Some of the constraints on child questions are defined in the RegisterQuestionsMeta metaclass.
+    """
 
     question_name: str = QuestionNameDescriptor()
     question_text: str = QuestionTextDescriptor()
 
-    def __getitem__(self, key: str) -> Any:
-        """Get an attribute of the question."""
-        return getattr(self, key)
+    _answering_instructions = None
+    _question_presentation = None
+
+    # region: Validation and simulation methods
+    @property
+    def response_validator(self) -> "ResponseValidatorBase":
+        """Return the response validator."""
+        params = (
+            {
+                "response_model": self.response_model,
+            }
+            | {k: getattr(self, k) for k in self.validator_parameters}
+            | {"exception_to_throw": getattr(self, "exception_to_throw", None)}
+        )
+        return self.response_validator_class(**params)
+
+    @property
+    def validator_parameters(self) -> list[str]:
+        """Return the parameters required for the response validator.
+
+        >>> from edsl import QuestionMultipleChoice as Q
+        >>> Q.example().validator_parameters
+        ['question_options']
+
+        """
+        return self.response_validator_class.required_params
+
+    @property
+    def fake_data_factory(self):
+        """Return the fake data factory."""
+        if not hasattr(self, "_fake_data_factory"):
+            from polyfactory.factories.pydantic_factory import ModelFactory
+
+            class FakeData(ModelFactory[self.response_model]):
+                ...
+
+            self._fake_data_factory = FakeData
+        return self._fake_data_factory
+
+    def _simulate_answer(self, human_readable: bool = False) -> dict:
+        """Simulate a valid answer for debugging purposes (what the validator expects).
+        >>> from edsl import QuestionFreeText as Q
+        >>> Q.example()._simulate_answer()
+        {'answer': '...'}
+        """
+        return self.fake_data_factory.build().dict()
+
+    class ValidatedAnswer(TypedDict):
+        answer: Any
+        comment: Optional[str]
+
+    def _validate_answer(self, answer: dict) -> ValidatedAnswer:
+        """Validate the answer.
+        >>> from edsl import QuestionFreeText as Q
+        >>> Q.example()._validate_answer({'answer': 'Hello'})
+        {'answer': 'Hello'}
+        >>> Q.example()._validate_answer({'shmanswer': 1})
+        Traceback (most recent call last):
+        ...
+        edsl.exceptions.questions.QuestionAnswerValidationError:...
+        ...
+        """
+        return self.response_validator.validate(answer)
+
+    # endregion
+
+    # region: Serialization methods
+    @property
+    def name(self) -> str:
+        "Helper function so questions and instructions can use the same access method"
+        return self.question_name
 
     def __hash__(self) -> int:
-        """Return a hash of the question."""
+        """Return a hash of the question.
+
+        >>> from edsl import QuestionFreeText as Q
+        >>> hash(Q.example())
+        1144312636257752766
+        """
         from edsl.utilities.utilities import dict_hash
 
         return dict_hash(self._to_dict())
 
-    def _repr_html_(self):
-        from edsl.utilities.utilities import data_to_html
-
-        data = self.to_dict()
-        try:
-            _ = data.pop("edsl_version")
-            _ = data.pop("edsl_class_name")
-        except KeyError:
-            print("Serialized question lacks edsl version, but is should have it.")
-
-        return data_to_html(data)
-
-    def apply_function(self, func: Callable, exclude_components=None) -> QuestionBase:
-        """Apply a function to the question parts
-
-        >>> from edsl.questions import QuestionFreeText
-        >>> q = QuestionFreeText(question_name = "color", question_text = "What is your favorite color?")
-        >>> shouting = lambda x: x.upper()
-        >>> q.apply_function(shouting)
-        Question('free_text', question_name = \"""color\""", question_text = \"""WHAT IS YOUR FAVORITE COLOR?\""")
-
-        """
-        if exclude_components is None:
-            exclude_components = ["question_name", "question_type"]
-
-        d = copy.deepcopy(self._to_dict())
-        for key, value in d.items():
-            if key in exclude_components:
-                continue
-            if isinstance(value, dict):
-                for k, v in value.items():
-                    value[k] = func(v)
-                d[key] = value
-                continue
-            if isinstance(value, list):
-                value = [func(v) for v in value]
-                d[key] = value
-                continue
-            d[key] = func(value)
-        return QuestionBase.from_dict(d)
-
     @property
     def data(self) -> dict:
-        """Return a dictionary of question attributes **except** for question_type."""
+        """Return a dictionary of question attributes **except** for question_type.
+
+        >>> from edsl import QuestionFreeText as Q
+        >>> Q.example().data
+        {'question_name': 'how_are_you', 'question_text': 'How are you?'}
+        """
+        exclude_list = [
+            "question_type",
+            "_include_comment",
+            "_fake_data_factory",
+            "_use_code",
+            "_answering_instructions",
+            "_question_presentation",
+        ]
         candidate_data = {
             k.replace("_", "", 1): v
             for k, v in self.__dict__.items()
-            if k.startswith("_")
+            if k.startswith("_") and k not in exclude_list
         }
-        optional_attributes = {
-            "set_instructions": "instructions",
-        }
-        for boolean_flag, attribute in optional_attributes.items():
-            if hasattr(self, boolean_flag) and not getattr(self, boolean_flag):
-                candidate_data.pop(attribute, None)
 
         if "func" in candidate_data:
             func = candidate_data.pop("func")
@@ -109,147 +154,22 @@ class QuestionBase(
 
         return candidate_data
 
-    @classmethod
-    def applicable_prompts(
-        cls, model: Optional[str] = None
-    ) -> list[type["PromptBase"]]:
-        """Get the prompts that are applicable to the question type.
-
-        :param model: The language model to use.
-
-        >>> from edsl.questions import QuestionFreeText
-        >>> QuestionFreeText.applicable_prompts()
-        [<class 'edsl.prompts.library.question_freetext.FreeText'>]
-
-        :param model: The language model to use. If None, assumes does not matter.
-
-        """
-        from edsl.prompts.registry import get_classes as prompt_lookup
-
-        applicable_prompts = prompt_lookup(
-            component_type="question_instructions",
-            question_type=cls.question_type,
-            model=model,
-        )
-        return applicable_prompts
-
-    @property
-    def model_instructions(self) -> dict:
-        """Get the model-specific instructions for the question."""
-        if not hasattr(self, "_model_instructions"):
-            self._model_instructions = {}
-        return self._model_instructions
-
-    def _all_text(self) -> str:
-        """Return the question text."""
-        txt = ""
-        for key, value in self.data.items():
-            if isinstance(value, str):
-                txt += value
-            elif isinstance(value, list):
-                txt += "".join(str(value))
-        return txt
-
-    @property
-    def parameters(self) -> set[str]:
-        """Return the parameters of the question."""
-        from jinja2 import Environment, meta
-
-        env = Environment()
-        # Parse the template
-        txt = self._all_text()
-        # txt = self.question_text
-        # if hasattr(self, "question_options"):
-        #    txt += " ".join(self.question_options)
-        parsed_content = env.parse(txt)
-        # Extract undeclared variables
-        variables = meta.find_undeclared_variables(parsed_content)
-        # Return as a list
-        return set(variables)
-
-    @model_instructions.setter
-    def model_instructions(self, data: dict):
-        """Set the model-specific instructions for the question."""
-        self._model_instructions = data
-
-    def add_model_instructions(
-        self, *, instructions: str, model: Optional[str] = None
-    ) -> None:
-        """Add model-specific instructions for the question that override the default instructions.
-
-        :param instructions: The instructions to add. This is typically a jinja2 template.
-        :param model: The language model for this instruction.
-
-        >>> from edsl.questions import QuestionFreeText
-        >>> q = QuestionFreeText(question_name = "color", question_text = "What is your favorite color?")
-        >>> q.add_model_instructions(instructions = "{{question_text}}. Answer in valid JSON like so {'answer': 'comment: <>}", model = "gpt3")
-        >>> q.get_instructions(model = "gpt3")
-        Prompt(text=\"""{{question_text}}. Answer in valid JSON like so {'answer': 'comment: <>}\""")
-        """
-        from edsl import Model
-
-        if not hasattr(self, "_model_instructions"):
-            self._model_instructions = {}
-        if model is None:
-            # if not model is passed, all the models are mapped to this instruction, including 'None'
-            self._model_instructions = {
-                model_name: instructions
-                for model_name in Model.available(name_only=True)
-            }
-            self._model_instructions.update({model: instructions})
-        else:
-            self._model_instructions.update({model: instructions})
-
-    def get_instructions(self, model: Optional[str] = None) -> type["PromptBase"]:
-        """Get the mathcing question-answering instructions for the question.
-
-        :param model: The language model to use.
-
-        >>> from edsl import QuestionFreeText
-        >>> QuestionFreeText.example().get_instructions()
-        Prompt(text=\"""You are being asked the following question: {{question_text}}
-        Return a valid JSON formatted like this:
-        {"answer": "<put free text answer here>"}
-        \""")
-        """
-        from edsl.prompts.Prompt import Prompt
-
-        if model in self.model_instructions:
-            return Prompt(text=self.model_instructions[model])
-        else:
-            return self.applicable_prompts(model)[0]()
-
-    def option_permutations(self) -> list[QuestionBase]:
-        """Return a list of questions with all possible permutations of the options."""
-
-        if not hasattr(self, "question_options"):
-            return [self]
-
-        import copy
-        import itertools
-
-        questions = []
-        for index, permutation in enumerate(
-            itertools.permutations(self.question_options)
-        ):
-            question = copy.deepcopy(self)
-            question.question_options = list(permutation)
-            question.question_name = f"{self.question_name}_{index}"
-            questions.append(question)
-        return questions
-
-    ############################
-    # Serialization methods
-    ############################
     def _to_dict(self):
-        """Convert the question to a dictionary that includes the question type (used in deserialization)."""
+        """Convert the question to a dictionary that includes the question type (used in deserialization).
+
+        >>> from edsl import QuestionFreeText as Q; Q.example()._to_dict()
+        {'question_name': 'how_are_you', 'question_text': 'How are you?', 'question_type': 'free_text'}
+        """
         candidate_data = self.data.copy()
         candidate_data["question_type"] = self.question_type
         return candidate_data
 
     @add_edsl_version
     def to_dict(self) -> dict[str, Any]:
-        """Convert the question to a dictionary that includes the question type (used in deserialization)."""
+        """Convert the question to a dictionary that includes the question type (used in deserialization).
+        >>> from edsl import QuestionFreeText as Q; Q.example().to_dict()
+        {'question_name': 'how_are_you', 'question_text': 'How are you?', 'question_type': 'free_text', 'edsl_version': '...'}
+        """
         return self._to_dict()
 
     @classmethod
@@ -289,26 +209,49 @@ class QuestionBase(
 
         return question_class(**local_data)
 
-    def copy(self) -> Type[QuestionBase]:
-        """Return a deep copy of the question."""
-        return copy.deepcopy(self)
+    # endregion
 
-    ############################
-    # Dunder methods
-    ############################
-    def print(self):
-        from rich import print_json
-        import json
+    # region: Running methods
+    @classmethod
+    def _get_test_model(self, canned_response: Optional[str] = None) -> "LanguageModel":
+        """Get a test model for the question."""
+        from edsl.language_models import LanguageModel
 
-        print_json(json.dumps(self.to_dict()))
+        return LanguageModel.example(canned_response=canned_response, test_model=True)
+
+    @classmethod
+    def run_example(
+        cls, show_answer: bool = True, model: Optional["LanguageModel"] = None, **kwargs
+    ):
+        """Run an example of the question.
+        >>> from edsl.language_models import LanguageModel
+        >>> from edsl import QuestionFreeText as Q
+        >>> m = Q._get_test_model(canned_response = "Yo, what's up?")
+        >>> Q.run_example(show_answer = True, model = m)
+        ┏━━━━━━━━━━━━━━━━┓
+        ┃ answer         ┃
+        ┃ .how_are_you   ┃
+        ┡━━━━━━━━━━━━━━━━┩
+        │ Yo, what's up? │
+        └────────────────┘
+        """
+        if model is None:
+            from edsl import Model
+
+            model = Model()
+        results = cls.example(**kwargs).by(model).run()
+        if show_answer:
+            results.select("answer.*").print()
+        else:
+            return results
 
     def __call__(self, just_answer=True, model=None, agent=None, **kwargs):
         """Call the question.
 
-        >>> from edsl.language_models import LanguageModel
-        >>> m = LanguageModel.example(canned_response = "Yo, what's up?", test_model = True)
-        >>> from edsl import QuestionFreeText
-        >>> q = QuestionFreeText(question_name = "color", question_text = "What is your favorite color?")
+
+        >>> from edsl import QuestionFreeText as Q
+        >>> m = Q._get_test_model(canned_response = "Yo, what's up?")
+        >>> q = Q(question_name = "color", question_text = "What is your favorite color?")
         >>> q(model = m)
         "Yo, what's up?"
 
@@ -320,8 +263,30 @@ class QuestionBase(
         else:
             return results
 
-    async def run_async(self, just_answer=True, model=None, agent=None, **kwargs):
-        """Call the question."""
+    def run(self, *args, **kwargs) -> "Results":
+        """Turn a single question into a survey and runs it."""
+        from edsl.surveys.Survey import Survey
+
+        s = self.to_survey()
+        return s.run(*args, **kwargs)
+
+    async def run_async(
+        self,
+        just_answer: bool = True,
+        model: Optional["Model"] = None,
+        agent: Optional["Agent"] = None,
+        **kwargs,
+    ) -> Union[Any, "Results"]:
+        """Call the question asynchronously.
+
+        >>> import asyncio
+        >>> from edsl import QuestionFreeText as Q
+        >>> m = Q._get_test_model(canned_response = "Blue")
+        >>> q = Q(question_name = "color", question_text = "What is your favorite color?")
+        >>> async def test_run_async(): result = await q.run_async(model=m); print(result)
+        >>> asyncio.run(test_run_async())
+        Blue
+        """
         survey = self.to_survey()
         results = await survey.run_async(model=model, agent=agent, **kwargs)
         if just_answer:
@@ -329,9 +294,37 @@ class QuestionBase(
         else:
             return results
 
+    # endregion
+
+    # region: Magic methods
+    def _repr_html_(self):
+        from edsl.utilities.utilities import data_to_html
+
+        data = self.to_dict()
+        try:
+            _ = data.pop("edsl_version")
+            _ = data.pop("edsl_class_name")
+        except KeyError:
+            print("Serialized question lacks edsl version, but is should have it.")
+
+        return data_to_html(data)
+
+    def __getitem__(self, key: str) -> Any:
+        """Get an attribute of the question so it can be treated like a dictionary.
+
+        >>> from edsl.questions import QuestionFreeText as Q
+        >>> Q.example()['question_text']
+        'How are you?'
+        """
+        return getattr(self, key)
+
     def __repr__(self) -> str:
-        """Return a string representation of the question. Should be able to be used to reconstruct the question."""
-        class_name = self.__class__.__name__
+        """Return a string representation of the question. Should be able to be used to reconstruct the question.
+
+        >>> from edsl import QuestionFreeText as Q
+        >>> repr(Q.example())
+        'Question(\\'free_text\\', question_name = \"""how_are_you\""", question_text = \"""How are you?\""")'
+        """
         items = [
             f'{k} = """{v}"""' if isinstance(v, str) else f"{k} = {v}"
             for k, v in self.data.items()
@@ -340,14 +333,31 @@ class QuestionBase(
         question_type = self.to_dict().get("question_type", "None")
         return f"Question('{question_type}', {', '.join(items)})"
 
-    def __eq__(self, other: Type[QuestionBase]) -> bool:
-        """Check if two questions are equal. Equality is defined as having the .to_dict()."""
+    def __eq__(self, other: Union[Any, Type[QuestionBase]]) -> bool:
+        """Check if two questions are equal. Equality is defined as having the .to_dict().
+
+        >>> from edsl import QuestionFreeText as Q
+        >>> q1 = Q.example()
+        >>> q2 = Q.example()
+        >>> q1 == q2
+        True
+        >>> q1.question_text = "How are you John?"
+        >>> q1 == q2
+        False
+
+        """
         if not isinstance(other, QuestionBase):
             return False
         return self.to_dict() == other.to_dict()
 
     def __sub__(self, other) -> BaseDiff:
-        """Return the difference between two objects."""
+        """Return the difference between two objects.
+        >>> from edsl import QuestionFreeText as Q
+        >>> q1 = Q.example()
+        >>> q2 = q1.copy()
+        >>> q2.question_text = "How are you John?"
+        >>> diff = q1 - q2
+        """
 
         return BaseDiff(other, self)
 
@@ -364,14 +374,8 @@ class QuestionBase(
         ):
             return other_question_or_diff.apply(self)
 
-        from edsl.questions import compose_questions
-
-        return compose_questions(self, other_question_or_diff)
-
-    @abstractmethod
-    def _validate_answer(self, answer: dict[str, str]):
-        """Validate the answer from the LLM. Behavior depends on the question type."""
-        pass
+        # from edsl.questions import compose_questions
+        # return compose_questions(self, other_question_or_diff)
 
     def _validate_response(self, response):
         """Validate the response from the LLM. Behavior depends on the question type."""
@@ -381,39 +385,39 @@ class QuestionBase(
             )
         return response
 
-    @abstractmethod
-    def _translate_answer_code_to_answer(self):  # pragma: no cover
-        """Translate the answer code to the actual answer. Behavior depends on the question type."""
-        pass
+    def _translate_answer_code_to_answer(
+        self, answer, scenario: Optional["Scenario"] = None
+    ):
+        """There is over-ridden by child classes that ask for codes."""
+        return answer
 
-    @abstractmethod
-    def _simulate_answer(self, human_readable=True) -> dict:  # pragma: no cover
-        """Simulate a valid answer for debugging purposes (what the validator expects)."""
-        pass
+    # endregion
 
-    ############################
-    # Forward methods
-    ############################
+    # region: Forward methods
     def add_question(self, other: QuestionBase) -> "Survey":
-        """Add a question to this question by turning them into a survey with two questions."""
+        """Add a question to this question by turning them into a survey with two questions.
+
+        >>> from edsl.questions import QuestionFreeText as Q
+        >>> from edsl.questions import QuestionMultipleChoice as QMC
+        >>> s = Q.example().add_question(QMC.example())
+        >>> len(s.questions)
+        2
+        """
         from edsl.surveys.Survey import Survey
 
         s = Survey([self, other])
         return s
 
     def to_survey(self) -> "Survey":
-        """Turn a single question into a survey."""
+        """Turn a single question into a survey.
+        >>> from edsl import QuestionFreeText as Q
+        >>> Q.example().to_survey().questions[0].question_name
+        'how_are_you'
+        """
         from edsl.surveys.Survey import Survey
 
         s = Survey([self])
         return s
-
-    def run(self, *args, **kwargs) -> "Results":
-        """Turn a single question into a survey and run it."""
-        from edsl.surveys.Survey import Survey
-
-        s = self.to_survey()
-        return s.run(*args, **kwargs)
 
     def by(self, *args) -> "Jobs":
         """Turn a single question into a survey and then a Job."""
@@ -421,6 +425,15 @@ class QuestionBase(
 
         s = Survey([self])
         return s.by(*args)
+
+    # endregion
+
+    # region: Display methods
+    def print(self):
+        from rich import print_json
+        import json
+
+        print_json(json.dumps(self.to_dict()))
 
     def human_readable(self) -> str:
         """Print the question in a human readable format.
@@ -519,6 +532,8 @@ class QuestionBase(
             options,
         )
         return table
+
+    # endregion
 
 
 if __name__ == "__main__":
