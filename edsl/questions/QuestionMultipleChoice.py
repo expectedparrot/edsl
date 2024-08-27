@@ -111,9 +111,9 @@ class QuestionMultipleChoice(QuestionBase):
 
     question_type = "multiple_choice"
     purpose = "When options are known and limited"
-    question_options: Union[
-        list[str], list[list], list[float], list[int]
-    ] = QuestionOptionsDescriptor()
+    question_options: Union[list[str], list[list], list[float], list[int]] = (
+        QuestionOptionsDescriptor()
+    )
     _response_model = None
     response_validator_class = MultipleChoiceResponseValidator
 
@@ -123,7 +123,7 @@ class QuestionMultipleChoice(QuestionBase):
         question_text: str,
         question_options: Union[list[str], list[list], list[float], list[int]],
         include_comment: bool = True,
-        use_code: bool = True,
+        use_code: bool = False,
         answering_instructions: Optional[str] = None,
         question_presentation: Optional[str] = None,
     ):
