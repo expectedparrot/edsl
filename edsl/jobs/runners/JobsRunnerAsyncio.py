@@ -88,6 +88,8 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                 self._populate_total_interviews(n=n)
             )  # Populate self.total_interviews before creating tasks
 
+        # print("Interviews created")
+
         for interview in self.total_interviews:
             interviewing_task = self._build_interview_task(
                 interview=interview,
@@ -97,7 +99,10 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             )
             tasks.append(asyncio.create_task(interviewing_task))
 
+        # print("Tasks created")
+
         for task in asyncio.as_completed(tasks):
+            # print(f"Task {task} completed")
             result = await task
             yield result
 
@@ -242,7 +247,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                 self.results.append(result)
                 if progress_bar_context:
                     progress_bar_context.update(generate_table())
-                self.completed = True
+            self.completed = True
 
         async def update_progress_bar(progress_bar_context):
             """Updates the progress bar at fixed intervals."""

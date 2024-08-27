@@ -21,17 +21,36 @@ class OpenAIService(InferenceServiceABC):
     _sync_client_ = openai.OpenAI
     _async_client_ = openai.AsyncOpenAI
 
+    _sync_client_instance = None
+    _async_client_instance = None
+
     @classmethod
     def sync_client(cls):
-        return cls._sync_client_(
-            api_key=os.getenv(cls._env_key_name_), base_url=cls._base_url_
-        )
+        if cls._sync_client_instance is None:
+            cls._sync_client_instance = cls._sync_client_(
+                api_key=os.getenv(cls._env_key_name_), base_url=cls._base_url_
+            )
+        return cls._sync_client_instance
 
     @classmethod
     def async_client(cls):
-        return cls._async_client_(
-            api_key=os.getenv(cls._env_key_name_), base_url=cls._base_url_
-        )
+        if cls._async_client_instance is None:
+            cls._async_client_instance = cls._async_client_(
+                api_key=os.getenv(cls._env_key_name_), base_url=cls._base_url_
+            )
+        return cls._async_client_instance
+
+    # @classmethod
+    # def sync_client(cls):
+    #     return cls._sync_client_(
+    #         api_key=os.getenv(cls._env_key_name_), base_url=cls._base_url_
+    #     )
+
+    # @classmethod
+    # def async_client(cls):
+    #     return cls._async_client_(
+    #         api_key=os.getenv(cls._env_key_name_), base_url=cls._base_url_
+    #     )
 
     # TODO: Make this a coop call
     model_exclude_list = [

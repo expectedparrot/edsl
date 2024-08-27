@@ -2,47 +2,71 @@
 
 from __future__ import annotations
 import asyncio
-from typing import Any, Type, List, Generator, Optional
+from typing import Any, Type, List, Generator, Optional, Union
 
-from edsl.jobs.Answers import Answers
+from edsl import CONFIG
+
 from edsl.surveys.base import EndOfSurvey
-from edsl.jobs.buckets.ModelBuckets import ModelBuckets
-from edsl.jobs.tasks.TaskCreators import TaskCreators
+from edsl.exceptions import QuestionAnswerValidationError
+from edsl.exceptions import InterviewTimeoutError
+from edsl.data_transfer_models import AgentResponseDict
 
+from edsl.jobs.FailedQuestion import FailedQuestion
+from edsl.jobs.buckets.ModelBuckets import ModelBuckets
+from edsl.jobs.Answers import Answers
+from edsl.jobs.tasks.QuestionTaskCreator import QuestionTaskCreator
+from edsl.jobs.tasks.TaskCreators import TaskCreators
 from edsl.jobs.interviews.InterviewStatusLog import InterviewStatusLog
 from edsl.jobs.interviews.interview_exception_tracking import (
     InterviewExceptionCollection,
 )
 from edsl.jobs.interviews.InterviewExceptionEntry import InterviewExceptionEntry
 from edsl.jobs.interviews.retry_management import retry_strategy
-from edsl.jobs.interviews.InterviewTaskBuildingMixin import InterviewTaskBuildingMixin
 from edsl.jobs.interviews.InterviewStatusMixin import InterviewStatusMixin
 
-from edsl.jobs.FailedQuestion import FailedQuestion
+from edsl.surveys.base import EndOfSurvey
+from edsl.jobs.buckets.ModelBuckets import ModelBuckets
+from edsl.jobs.interviews.InterviewExceptionEntry import InterviewExceptionEntry
+from edsl.jobs.interviews.retry_management import retry_strategy
+from edsl.jobs.tasks.task_status_enum import TaskStatus
+from edsl.jobs.tasks.QuestionTaskCreator import QuestionTaskCreator
+
+from edsl.exceptions import QuestionAnswerValidationError
+
+# from rich.console import Console
+# from rich.traceback import Traceback
+
+TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
 
 
-def run_async(coro):
-    return asyncio.run(coro)
+# def run_async(coro):
+#    return asyncio.run(coro)
+
+from edsl import Agent, Survey, Scenario, Cache
+from edsl.language_models import LanguageModel
+from edsl.questions import QuestionBase
+from edsl.agents.InvigilatorBase import InvigilatorBase
 
 
-class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
+class Interview(InterviewStatusMixin):
     """
     An 'interview' is one agent answering one survey, with one language model, for a given scenario.
 
     The main method is `async_conduct_interview`, which conducts the interview asynchronously.
+    Most of the class is dedicated to creating the tasks for each question in the survey, and then running them.
     """
 
     def __init__(
         self,
-        agent: "Agent",
-        survey: "Survey",
-        scenario: "Scenario",
+        agent: Agent,
+        survey: Survey,
+        scenario: Scenario,
         model: Type["LanguageModel"],
         debug: Optional[bool] = False,
         iteration: int = 0,
         cache: Optional["Cache"] = None,
         sidecar_model: Optional["LanguageModel"] = None,
-        skip_retry=False,
+        skip_retry: bool = False,
     ):
         """Initialize the Interview instance.
 
@@ -123,6 +147,305 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
 
     # endregion
 
+    # region: Creating tasks
+    @property
+    def dag(self) -> "DAG":
+        """Return the directed acyclic graph for the survey.
+
+        The DAG, or directed acyclic graph, is a dictionary that maps question names to their dependencies.
+        It is used to determine the order in which questions should be answered.
+        This reflects both agent 'memory' considerations and 'skip' logic.
+        The 'textify' parameter is set to True, so that the question names are returned as strings rather than integer indices.
+
+        >>> i = Interview.example()
+        >>> i.dag == {'q2': {'q0'}, 'q1': {'q0'}}
+        True
+        """
+        return self.survey.dag(textify=True)
+
+    def _build_invigilators(
+        self, debug: bool
+    ) -> Generator[InvigilatorBase, None, None]:
+        """Create an invigilator for each question.
+
+        :param debug: whether to use debug mode, in which case `InvigilatorDebug` is used.
+
+        An invigilator is responsible for answering a particular question in the survey.
+        """
+        for question in self.survey.questions:
+            yield self._get_invigilator(question=question, debug=debug)
+
+    def _get_invigilator(self, question: QuestionBase, debug: bool) -> InvigilatorBase:
+        """Return an invigilator for the given question.
+
+        :param question: the question to be answered
+        :param debug: whether to use debug mode, in which case `InvigilatorDebug` is used.
+        """
+        invigilator = self.agent.create_invigilator(
+            question=question,
+            scenario=self.scenario,
+            model=self.model,
+            debug=debug,
+            survey=self.survey,
+            memory_plan=self.survey.memory_plan,
+            current_answers=self.answers,
+            iteration=self.iteration,
+            cache=self.cache,
+            sidecar_model=self.sidecar_model,
+        )
+        """Return an invigilator for the given question."""
+        return invigilator
+
+    def _build_question_tasks(
+        self,
+        debug: bool,
+        model_buckets: ModelBuckets,
+    ) -> list[asyncio.Task]:
+        """Create a task for each question, with dependencies on the questions that must be answered before this one can be answered.
+
+        :param debug: whether to use debug mode, in which case `InvigilatorDebug` is used.
+        :param model_buckets: the model buckets used to track and control usage rates.
+        """
+        tasks = []
+        for question in self.survey.questions:
+            tasks_that_must_be_completed_before = list(
+                self._get_tasks_that_must_be_completed_before(
+                    tasks=tasks, question=question
+                )
+            )
+            question_task = self._create_question_task(
+                question=question,
+                tasks_that_must_be_completed_before=tasks_that_must_be_completed_before,
+                model_buckets=model_buckets,
+                debug=debug,
+                iteration=self.iteration,
+            )
+            tasks.append(question_task)
+        return tuple(tasks)
+
+    def _get_tasks_that_must_be_completed_before(
+        self, *, tasks: list[asyncio.Task], question: "QuestionBase"
+    ) -> Generator[asyncio.Task, None, None]:
+        """Return the tasks that must be completed before the given question can be answered.
+
+        :param tasks: a list of tasks that have been created so far.
+        :param question: the question for which we are determining dependencies.
+
+        If a question has no dependencies, this will be an empty list, [].
+        """
+        parents_of_focal_question = self.dag.get(question.question_name, [])
+        for parent_question_name in parents_of_focal_question:
+            yield tasks[self.to_index[parent_question_name]]
+
+    def _create_question_task(
+        self,
+        *,
+        question: QuestionBase,
+        tasks_that_must_be_completed_before: list[asyncio.Task],
+        model_buckets: ModelBuckets,
+        debug: bool,
+        iteration: int = 0,
+    ) -> asyncio.Task:
+        """Create a task that depends on the passed-in dependencies that are awaited before the task is run.
+
+        :param question: the question to be answered. This is the question we are creating a task for.
+        :param tasks_that_must_be_completed_before: the tasks that must be completed before the focal task is run.
+        :param model_buckets: the model buckets used to track and control usage rates.
+        :param debug: whether to use debug mode, in which case `InvigilatorDebug` is used.
+        :param iteration: the iteration number for the interview.
+
+        The task is created by a `QuestionTaskCreator`, which is responsible for creating the task and managing its dependencies.
+        It is passed a reference to the function that will be called to answer the question.
+        It is passed a list "tasks_that_must_be_completed_before" that are awaited before the task is run.
+        These are added as a dependency to the focal task.
+        """
+        task_creator = QuestionTaskCreator(
+            question=question,
+            answer_question_func=self._answer_question_and_record_task,
+            token_estimator=self._get_estimated_request_tokens,
+            model_buckets=model_buckets,
+            iteration=iteration,
+        )
+        for task in tasks_that_must_be_completed_before:
+            task_creator.add_dependency(task)
+
+        self.task_creators.update(
+            {question.question_name: task_creator}
+        )  # track this task creator
+        return task_creator.generate_task(debug)
+
+    def _get_estimated_request_tokens(self, question) -> float:
+        """Estimate the number of tokens that will be required to run the focal task."""
+        invigilator = self._get_invigilator(question=question, debug=False)
+        # TODO: There should be a way to get a more accurate estimate.
+        combined_text = ""
+        for prompt in invigilator.get_prompts().values():
+            if hasattr(prompt, "text"):
+                combined_text += prompt.text
+            elif isinstance(prompt, str):
+                combined_text += prompt
+            else:
+                raise ValueError(f"Prompt is of type {type(prompt)}")
+        return len(combined_text) / 4.0
+
+    def create_failed_question(self, invigilator, e) -> FailedQuestion:
+        failed_question = FailedQuestion(
+            question=invigilator.question,
+            scenario=invigilator.scenario,
+            model=invigilator.model,
+            agent=invigilator.agent,
+            raw_model_response=invigilator.raw_model_response,
+            exception=e,
+            prompts=invigilator.get_prompts(),
+        )
+        return failed_question
+
+    async def _answer_question_and_record_task(
+        self,
+        *,
+        question: "QuestionBase",
+        debug: bool,
+        task=None,
+    ) -> "AgentResponseDict":
+        """Answer a question and records the task.
+
+        This in turn calls the the passed-in agent's async_answer_question method, which returns a response dictionary.
+        Note that is updates answers dictionary with the response.
+        """
+
+        async def _inner():
+            try:
+                invigilator = self._get_invigilator(question, debug=debug)
+
+                if self._skip_this_question(question):
+                    return invigilator.get_failed_task_result()
+
+                response: AgentResponseDict = await self._attempt_to_answer_question(
+                    invigilator, task
+                )
+
+                self._add_answer(response=response, question=question)
+                self._cancel_skipped_questions(question)
+                return AgentResponseDict(**response)
+            except QuestionAnswerValidationError as e:
+                failed_question = self.create_failed_question(invigilator, e)
+                self.failed_questions.append(failed_question)
+                raise e
+            except Exception as e:
+                failed_question = self.create_failed_question(invigilator, e)
+                self.failed_questions.append(failed_question)
+                raise e
+
+        skip_retry = getattr(self, "skip_retry", False)
+        if not skip_retry:
+
+            def retry_if_not_validation_error(func):
+                async def wrapper(*args, **kwargs):
+                    try:
+                        return await func(*args, **kwargs)
+                    except QuestionAnswerValidationError:
+                        raise  # Do not retry for QuestionAnswerValidationError
+                    except Exception as e:
+                        return await retry_strategy(func)(
+                            *args, **kwargs
+                        )  # Retry for other exceptions
+
+                return wrapper
+
+            _inner = retry_if_not_validation_error(_inner)
+
+        return await _inner()
+
+    def _add_answer(
+        self, response: "AgentResponseDict", question: "QuestionBase"
+    ) -> None:
+        """Add the answer to the answers dictionary.
+
+        :param response: the response to the question.
+        :param question: the question that was answered.
+        """
+        self.answers.add_answer(response=response, question=question)
+
+    def _skip_this_question(self, current_question: "QuestionBase") -> bool:
+        """Determine if the current question should be skipped.
+
+        :param current_question: the question to be answered.
+        """
+        current_question_index = self.to_index[current_question.question_name]
+
+        answers = self.answers | self.scenario | self.agent["traits"]
+        skip = self.survey.rule_collection.skip_question_before_running(
+            current_question_index, answers
+        )
+        return skip
+
+    def _handle_exception(
+        self, e: Exception, invigilator: "InvigilatorBase", task=None
+    ):
+        exception_entry = InterviewExceptionEntry(
+            exception=e,
+            failed_question=self.create_failed_question(invigilator, e),
+            invigilator=invigilator,
+        )
+        if task:
+            task.task_status = TaskStatus.FAILED
+        self.exceptions.add(invigilator.question.question_name, exception_entry)
+
+    async def _attempt_to_answer_question(
+        self, invigilator: "InvigilatorBase", task: asyncio.Task
+    ) -> "AgentResponseDict":
+        """Attempt to answer the question, and handle exceptions.
+
+        :param invigilator: the invigilator that will answer the question.
+        :param task: the task that is being run.
+
+        """
+        try:
+            return await asyncio.wait_for(
+                invigilator.async_answer_question(), timeout=TIMEOUT
+            )
+        except asyncio.TimeoutError as e:
+            self._handle_exception(e, invigilator, task)
+            raise InterviewTimeoutError(f"Task timed out after {TIMEOUT} seconds.")
+        except Exception as e:
+            self._handle_exception(e, invigilator, task)
+            raise e
+
+    def _cancel_skipped_questions(self, current_question: QuestionBase) -> None:
+        """Cancel the tasks for questions that are skipped.
+
+        :param current_question: the question that was just answered.
+
+        It first determines the next question, given the current question and the current answers.
+        If the next question is the end of the survey, it cancels all remaining tasks.
+        If the next question is after the current question, it cancels all tasks between the current question and the next question.
+        """
+        current_question_index: int = self.to_index[current_question.question_name]
+
+        next_question: Union[
+            int, EndOfSurvey
+        ] = self.survey.rule_collection.next_question(
+            q_now=current_question_index,
+            answers=self.answers | self.scenario | self.agent["traits"],
+        )
+
+        next_question_index = next_question.next_q
+
+        def cancel_between(start, end):
+            """Cancel the tasks between the start and end indices."""
+            for i in range(start, end):
+                self.tasks[i].cancel()
+
+        if next_question_index == EndOfSurvey:
+            cancel_between(current_question_index + 1, len(self.survey.questions))
+            return
+
+        if next_question_index > (current_question_index + 1):
+            cancel_between(current_question_index + 1, next_question_index)
+
+    # endregion
+
+    # region: Conducting the interview
     async def async_conduct_interview(
         self,
         *,
@@ -191,6 +514,9 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         valid_results = list(self._extract_valid_results())
         return self.answers, valid_results
 
+    # endregion
+
+    # region: Extracting results and recording errors
     def _extract_valid_results(self) -> Generator["Answers", None, None]:
         """Extract the valid results from the list of results.
 
@@ -266,24 +592,9 @@ class Interview(InterviewStatusMixin, InterviewTaskBuildingMixin):
         )
         self.exceptions.add(task.get_name(), exception_entry)
 
-    @property
-    def dag(self) -> "DAG":
-        """Return the directed acyclic graph for the survey.
+    # endregion
 
-        The DAG, or directed acyclic graph, is a dictionary that maps question names to their dependencies.
-        It is used to determine the order in which questions should be answered.
-        This reflects both agent 'memory' considerations and 'skip' logic.
-        The 'textify' parameter is set to True, so that the question names are returned as strings rather than integer indices.
-
-        >>> i = Interview.example()
-        >>> i.dag == {'q2': {'q0'}, 'q1': {'q0'}}
-        True
-        """
-        return self.survey.dag(textify=True)
-
-    #######################
-    # Dunder methods
-    #######################
+    # region: Magic methods
     def __repr__(self) -> str:
         """Return a string representation of the Interview instance."""
         return f"Interview(agent = {repr(self.agent)}, survey = {repr(self.survey)}, scenario = {repr(self.scenario)}, model = {repr(self.model)})"
