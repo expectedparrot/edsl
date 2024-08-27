@@ -476,6 +476,62 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         """
         return cls([Scenario(row) for row in df.to_dict(orient="records")])
 
+    @classmethod
+    def from_wikipedia(cls, url: str, table_index: int = 0):
+        """
+        Extracts a table from a Wikipedia page.
+
+        Parameters:
+            url (str): The URL of the Wikipedia page.
+            table_index (int): The index of the table to extract (default is 0).
+
+        Returns:
+            pd.DataFrame: A DataFrame containing the extracted table.
+        # # Example usage
+        # url = "https://en.wikipedia.org/wiki/List_of_countries_by_GDP_(nominal)"
+        # df = from_wikipedia(url, 0)
+
+        # if not df.empty:
+        #     print(df.head())
+        # else:
+        #     print("Failed to extract table.")
+
+
+        """
+        import pandas as pd
+        import requests
+        from requests.exceptions import RequestException
+
+        try:
+            # Check if the URL is reachable
+            response = requests.get(url)
+            response.raise_for_status()  # Raises HTTPError for bad responses
+
+            # Extract tables from the Wikipedia page
+            tables = pd.read_html(url)
+
+            # Ensure the requested table index is within the range of available tables
+            if table_index >= len(tables) or table_index < 0:
+                raise IndexError(
+                    f"Table index {table_index} is out of range. This page has {len(tables)} table(s)."
+                )
+
+            # Return the requested table as a DataFrame
+            # return tables[table_index]
+            return cls.from_pandas(tables[table_index])
+
+        except RequestException as e:
+            print(f"Error fetching the URL: {e}")
+        except ValueError as e:
+            print(f"Error parsing tables: {e}")
+        except IndexError as e:
+            print(e)
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+
+        # Return an empty DataFrame in case of an error
+        # return cls.from_pandas(pd.DataFrame())
+
     def to_key_value(self, field: str, value=None) -> Union[dict, set]:
         """Return the set of values in the field.
 
