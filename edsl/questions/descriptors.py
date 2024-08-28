@@ -207,7 +207,7 @@ class OptionLabelDescriptor(BaseDescriptor):
     def validate(self, value, instance):
         """Validate the value is a string."""
         key_values = [int(v) for v in value.keys()]
-        if key_value is not []:
+        if key_values is not []:
             if min(key_values) != min(instance.question_options):
                 raise QuestionCreationValidationError(
                     f"First option needs a label (got {value})"
