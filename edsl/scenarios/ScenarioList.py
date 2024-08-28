@@ -156,14 +156,16 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
                 new_scenarios.append(new_scenario)
         return ScenarioList(new_scenarios)
 
-    def unpack_dict(self, field: str, prefix: Optional[str] = None) -> ScenarioList:
+    def unpack_dict(
+        self, field: str, prefix: Optional[str] = None, drop_field: bool = False
+    ) -> ScenarioList:
         """Unpack a dictionary field into separate fields.
 
         Example:
 
         >>> s = ScenarioList([Scenario({'a': 1, 'b': {'c': 2, 'd': 3}})])
         >>> s.unpack_dict('b')
-        ScenarioList([Scenario({'a': 1, 'c': 2, 'd': 3})])
+        ScenarioList([Scenario({'a': 1, 'b': {'c': 2, 'd': 3}, 'c': 2, 'd': 3})])
         """
         new_scenarios = []
         for scenario in self:
@@ -173,6 +175,8 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
                     new_scenario[prefix + key] = value
                 else:
                     new_scenario[key] = value
+            if drop_field:
+                new_scenario.pop(field)
             new_scenarios.append(new_scenario)
         return ScenarioList(new_scenarios)
 
