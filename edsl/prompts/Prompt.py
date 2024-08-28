@@ -295,7 +295,9 @@ class PromptBase(
                 "Too much nesting - you created an infinite loop here, pal"
             )
         except TemplateSyntaxError as e:
-            raise TemplateRenderError(f"Template syntax error: {e}")
+            raise TemplateRenderError(
+                f"Template syntax error: {e}. Bad template: {text}"
+            )
 
     def to_dict(self) -> dict[str, Any]:
         """Return the `Prompt` as a dictionary.

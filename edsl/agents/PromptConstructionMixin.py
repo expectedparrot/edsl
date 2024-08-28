@@ -252,18 +252,21 @@ class PromptConstructorMixin:
 
             # check to see if the question_options is actually a string
             # This is used when the user is using the question_options as a variable from a sceario
-            if "question_options" in question_data:
-                if isinstance(self.question.data["question_options"], str):
-                    from jinja2 import Environment, meta
+            # if "question_options" in question_data:
+            if isinstance(self.question.data.get("question_options", None), str):
+                from jinja2 import Environment, meta
 
-                    env = Environment()
-                    parsed_content = env.parse(self.question.data["question_options"])
-                    question_option_key = list(
-                        meta.find_undeclared_variables(parsed_content)
-                    )[0]
-                    question_data["question_options"] = self.scenario.get(
-                        question_option_key
-                    )
+                env = Environment()
+                parsed_content = env.parse(self.question.data["question_options"])
+                question_option_key = list(
+                    meta.find_undeclared_variables(parsed_content)
+                )[0]
+
+                if isinstance(
+                    question_options := self.scenario.get(question_option_key), list
+                ):
+                    question_data["question_options"] = question_options
+                    self.question.question_options = question_options
 
             rendered_instructions = question_prompt.render(
                 question_data
