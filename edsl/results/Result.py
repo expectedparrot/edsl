@@ -271,6 +271,7 @@ class Result(Base, UserDict):
                             self.question_to_attributes[question_name]["question_text"]
                         ),
                         "answer": answer,
+                        "comment": self.answer.get(question_name + "_comment", ""),
                         "scenario": repr(self.scenario),
                         "agent": repr(self.agent),
                         "model": repr(self.model),
