@@ -247,6 +247,7 @@ class InvigilatorHuman(InvigilatorBase):
             "prompts": self.get_prompts(),
             "question_name": self.question.question_name,
         }
+        answer = None
         try:
             answer = self.agent.answer_question_directly(self.question, self.scenario)
             self.raw_model_response = answer
