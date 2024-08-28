@@ -27,6 +27,10 @@ class InterviewExceptionEntry:
         return repr(self.exception)
 
     @property
+    def rendered_prompts(self):
+        return self.invigilator.get_prompts()
+
+    @property
     def raw_model_response(self):
         import json
 
