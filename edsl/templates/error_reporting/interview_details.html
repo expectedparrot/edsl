@@ -19,18 +19,25 @@
 <div class="model">
     {{ interview.model._repr_html_() }}
 </div>
-        
+
+
 <h2>Exception details</h2>
 
 
 {% for exception_message in exceptions %}
-
-    <div class="exception-detail">
+<div class="exception-detail">
         <div class="exception-header">
-            <span class="exception-exception">Exception: {{ exception_message.exception }}</span>
-            <button class="toggle-btn">▼</button>
+            <span class="exception-exception">Exception: {{ exception_message.name }}</span>
+        <button class="toggle-btn">▼</button>
         </div>
         <div class="exception-content">
+            <p>Raw model response:</p>
+            <div class="model-response">
+            <pre>
+            {{ exception_message.raw_model_response }}
+            </pre>
+            </div>            
+
             <div class="exception-time">Time: {{ exception_message.time }}</div>
             <div class="exception-traceback">Traceback: <pre>{{ exception_message.traceback }}</pre></div>
         </div>
