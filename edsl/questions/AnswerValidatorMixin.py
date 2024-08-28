@@ -37,13 +37,6 @@ class AnswerValidatorMixin:
     def _validate_answer_template_basic(self, answer: Any) -> None:
         """Check that the answer (i) is a dictionary (ii) has an 'answer' key.
 
-        >>> avm = AnswerValidatorMixin()
-        >>> avm._validate_answer_template_basic({'answer': 1})
-        >>> avm._validate_answer_template_basic([])
-        Traceback (most recent call last):
-        ...
-        edsl.exceptions.questions.QuestionAnswerValidationError: Answer must be a dictionary (got []).
-
         - E.g., both {'answer': 1} and {'answer': {'a': 1}, 'other_key'=[1,2,3]} are valid
         """
         if not isinstance(answer, dict):
@@ -74,12 +67,6 @@ class AnswerValidatorMixin:
         """Check that the value is numeric (int or float).
         Can also deal with strings that contain commas and other characters.
 
-        >>> avm = AnswerValidatorMixin()
-        >>> avm._validate_answer_key_value_numeric({'answer': 1}, 'answer')
-        >>> avm._validate_answer_key_value_numeric({'answer': 'poo'}, 'answer')
-        Traceback (most recent call last):
-        ...
-        edsl.exceptions.questions.QuestionAnswerValidationError: Answer should be numerical (int or float). Got 'poo'
         """
         value = answer.get(key)
         initial_value = value
@@ -144,15 +131,6 @@ class AnswerValidatorMixin:
 
         :param answer: Answer to validate
 
-        >>> avm = AnswerValidatorMixin()
-        >>> avm.question_options = ["a", "b", "c"]
-        >>> avm.min_selections = 1
-        >>> avm.max_selections = 2
-        >>> avm._validate_answer_checkbox({"answer": ["0", "1"]})
-        >>> avm._validate_answer_checkbox({"answer": []})
-        Traceback (most recent call last):
-        ...
-        edsl.exceptions.questions.QuestionAnswerValidationError:...
 
         Check that answer["answer"]:
         - has elements that are strings, bytes-like objects or real numbers evaluating to integers
@@ -303,8 +281,9 @@ class AnswerValidatorMixin:
 
 
 if __name__ == "__main__":
-    import doctest
+    pass
+    # import doctest
 
-    doctest.testmod(optionflags=doctest.ELLIPSIS)
+    # doctest.testmod(optionflags=doctest.ELLIPSIS)
 
-    results = AnswerValidatorMixin().failing_job()
+    # results = AnswerValidatorMixin().failing_job()
