@@ -97,7 +97,7 @@ class InterviewExceptionEntry:
 
         >>> entry = InterviewExceptionEntry.example()
         >>> entry.to_dict()['exception']
-        'ValueError()'
+        ValueError()
 
         """
         return {
