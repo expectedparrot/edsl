@@ -25,10 +25,12 @@ class ResponseValidatorABC(ABC):
         self,
         response_model: type[BaseModel],
         exception_to_throw: Optional[Exception] = None,
+        override_answer: Optional[dict] = None,
         **kwargs,
     ):
         self.response_model = response_model
         self.exception_to_throw = exception_to_throw  # for testing
+        self.override_answer = override_answer  # for testing
 
         # Validate required parameters
         missing_params = [
@@ -50,10 +52,16 @@ class ResponseValidatorABC(ABC):
     def validate(self, data):
         if self.exception_to_throw:
             raise self.exception_to_throw
+        if self.override_answer:  # for testing
+            data = self.override_answer
+
         try:
             response = self._base_validate(data)
         except Exception as e:
-            raise QuestionAnswerValidationError(str(e))
+            raise QuestionAnswerValidationError(
+                message=str(e), data=data, model=self.response_model
+            )
+
         try:
             return self.custom_validate(response)
         except Exception as e:

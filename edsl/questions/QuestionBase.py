@@ -21,7 +21,6 @@ from edsl.questions.SimpleAskMixin import SimpleAskMixin
 from edsl.questions.QuestionBasePromptsMixin import QuestionBasePromptsMixin
 from edsl.questions.QuestionBaseGenMixin import QuestionBaseGenMixin
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
-from edsl.exceptions import QuestionAnswerValidationError
 
 
 class QuestionBase(
@@ -54,6 +53,7 @@ class QuestionBase(
             }
             | {k: getattr(self, k) for k in self.validator_parameters}
             | {"exception_to_throw": getattr(self, "exception_to_throw", None)}
+            | {"override_answer": getattr(self, "override_answer", None)}
         )
         return self.response_validator_class(**params)
 
@@ -74,8 +74,7 @@ class QuestionBase(
         if not hasattr(self, "_fake_data_factory"):
             from polyfactory.factories.pydantic_factory import ModelFactory
 
-            class FakeData(ModelFactory[self.response_model]):
-                ...
+            class FakeData(ModelFactory[self.response_model]): ...
 
             self._fake_data_factory = FakeData
         return self._fake_data_factory
@@ -94,6 +93,7 @@ class QuestionBase(
 
     def _validate_answer(self, answer: dict) -> ValidatedAnswer:
         """Validate the answer.
+        >>> from edsl.exceptions import QuestionAnswerValidationError
         >>> from edsl import QuestionFreeText as Q
         >>> Q.example()._validate_answer({'answer': 'Hello'})
         {'answer': 'Hello'}

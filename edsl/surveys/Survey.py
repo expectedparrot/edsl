@@ -21,6 +21,15 @@ from edsl.surveys.SurveyFlowVisualizationMixin import SurveyFlowVisualizationMix
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
 
+class ValidatedString(str):
+    def __new__(cls, content):
+        if "<>" in content:
+            raise ValueError(
+                "The expression contains '<>', which is not allowed. You probably mean '!='."
+            )
+        return super().__new__(cls, content)
+
+
 # from edsl.surveys.Instruction import Instruction
 # from edsl.surveys.Instruction import ChangeInstruction
 from edsl.surveys.instructions.InstructionCollection import InstructionCollection
@@ -845,7 +854,13 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         >>> s.next_question("q0", {"q0": "no"}).question_name
         'q1'
+
+        >>> s.add_stop_rule("q0", "q1 <> 'yes'")
+        Traceback (most recent call last):
+        ...
+        ValueError: The expression contains '<>', which is not allowed. You probably mean '!='.
         """
+        expression = ValidatedString(expression)
         self.add_rule(question, expression, EndOfSurvey)
         return self
 

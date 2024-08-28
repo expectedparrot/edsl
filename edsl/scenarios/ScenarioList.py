@@ -9,6 +9,8 @@ from collections.abc import Iterable
 import urllib.parse
 import urllib.request
 from io import StringIO
+from collections import defaultdict
+import inspect
 
 from simpleeval import EvalWithCompoundTypes
 
@@ -18,6 +20,9 @@ from edsl.scenarios.Scenario import Scenario
 from edsl.scenarios.ScenarioListPdfMixin import ScenarioListPdfMixin
 from edsl.scenarios.ScenarioListExportMixin import ScenarioListExportMixin
 
+from edsl.conjure.naming_utilities import sanitize_string
+from edsl.utilities.utilities import is_valid_variable_name
+
 
 class ScenarioListMixin(ScenarioListPdfMixin, ScenarioListExportMixin):
     pass
@@ -26,12 +31,171 @@ class ScenarioListMixin(ScenarioListPdfMixin, ScenarioListExportMixin):
 class ScenarioList(Base, UserList, ScenarioListMixin):
     """Class for creating a list of scenarios to be used in a survey."""
 
-    def __init__(self, data: Optional[list] = None):
+    def __init__(self, data: Optional[list] = None, codebook: Optional[dict] = None):
         """Initialize the ScenarioList class."""
         if data is not None:
             super().__init__(data)
         else:
             super().__init__([])
+        self.codebook = codebook or {}
+
+    def give_valid_names(self) -> ScenarioList:
+        """Give valid names to the scenario keys.
+
+        >>> s = ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
+        >>> s.give_valid_names()
+        ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
+        >>> s = ScenarioList([Scenario({'are you there John?': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
+        >>> s.give_valid_names()
+        ScenarioList([Scenario({'john': 1, 'b': 2}), Scenario({'a': 1, 'b': 1})])
+        """
+        codebook = {}
+        new_scenaerios = []
+        for scenario in self:
+            new_scenario = {}
+            for key in scenario:
+                if not is_valid_variable_name(key):
+                    if key in codebook:
+                        new_key = codebook[key]
+                    else:
+                        new_key = sanitize_string(key)
+                        if not is_valid_variable_name(new_key):
+                            new_key = f"var_{len(codebook)}"
+                        codebook[key] = new_key
+                    new_scenario[new_key] = scenario[key]
+                else:
+                    new_scenario[key] = scenario[key]
+            new_scenaerios.append(Scenario(new_scenario))
+        return ScenarioList(new_scenaerios, codebook)
+
+    def unpivot(self, id_vars=None, value_vars=None):
+        """
+        Unpivot the ScenarioList, allowing for id variables to be specified.
+
+        Parameters:
+        id_vars (list): Fields to use as identifier variables (kept in each entry)
+        value_vars (list): Fields to unpivot. If None, all fields not in id_vars will be used.
+
+        Example:
+        >>> s = ScenarioList([
+        ...     Scenario({'id': 1, 'year': 2020, 'a': 10, 'b': 20}),
+        ...     Scenario({'id': 2, 'year': 2021, 'a': 15, 'b': 25})
+        ... ])
+        >>> s.unpivot(id_vars=['id', 'year'], value_vars=['a', 'b'])
+        ScenarioList([Scenario({'id': 1, 'year': 2020, 'variable': 'a', 'value': 10}), Scenario({'id': 1, 'year': 2020, 'variable': 'b', 'value': 20}), Scenario({'id': 2, 'year': 2021, 'variable': 'a', 'value': 15}), Scenario({'id': 2, 'year': 2021, 'variable': 'b', 'value': 25})])
+        """
+        if id_vars is None:
+            id_vars = []
+        if value_vars is None:
+            value_vars = [field for field in self[0].keys() if field not in id_vars]
+
+        new_scenarios = []
+        for scenario in self:
+            for var in value_vars:
+                new_scenario = {id_var: scenario[id_var] for id_var in id_vars}
+                new_scenario["variable"] = var
+                new_scenario["value"] = scenario[var]
+                new_scenarios.append(Scenario(new_scenario))
+
+        return ScenarioList(new_scenarios)
+
+    def pivot(self, id_vars, var_name="variable", value_name="value"):
+        """
+        Pivot the ScenarioList from long to wide format.
+
+        Parameters:
+        id_vars (list): Fields to use as identifier variables
+        var_name (str): Name of the variable column (default: 'variable')
+        value_name (str): Name of the value column (default: 'value')
+
+        Example:
+        >>> s = ScenarioList([
+        ...     Scenario({'id': 1, 'year': 2020, 'variable': 'a', 'value': 10}),
+        ...     Scenario({'id': 1, 'year': 2020, 'variable': 'b', 'value': 20}),
+        ...     Scenario({'id': 2, 'year': 2021, 'variable': 'a', 'value': 15}),
+        ...     Scenario({'id': 2, 'year': 2021, 'variable': 'b', 'value': 25})
+        ... ])
+        >>> s.pivot(id_vars=['id', 'year'])
+        ScenarioList([Scenario({'id': 1, 'year': 2020, 'a': 10, 'b': 20}), Scenario({'id': 2, 'year': 2021, 'a': 15, 'b': 25})])
+        """
+        pivoted_dict = {}
+
+        for scenario in self:
+            # Create a tuple of id values to use as a key
+            id_key = tuple(scenario[id_var] for id_var in id_vars)
+
+            # If this combination of id values hasn't been seen before, initialize it
+            if id_key not in pivoted_dict:
+                pivoted_dict[id_key] = {id_var: scenario[id_var] for id_var in id_vars}
+
+            # Add the variable-value pair to the dict
+            variable = scenario[var_name]
+            value = scenario[value_name]
+            pivoted_dict[id_key][variable] = value
+
+        # Convert the dict of dicts to a list of Scenarios
+        pivoted_scenarios = [
+            Scenario(dict(zip(id_vars, id_key), **values))
+            for id_key, values in pivoted_dict.items()
+        ]
+
+        return ScenarioList(pivoted_scenarios)
+
+    def group_by(self, id_vars, variables, func):
+        """
+        Group the ScenarioList by id_vars and apply a function to the specified variables.
+
+        Parameters:
+        id_vars (list): Fields to use as identifier variables for grouping
+        variables (list): Fields to pass to the aggregation function
+        func (callable): Function to apply to the grouped variables.
+                        Should accept lists of values for each variable.
+
+        Returns:
+        ScenarioList: A new ScenarioList with the grouped and aggregated results
+
+        Example:
+        >>> def avg_sum(a, b):
+        ...     return {'avg_a': sum(a) / len(a), 'sum_b': sum(b)}
+        >>> s = ScenarioList([
+        ...     Scenario({'group': 'A', 'year': 2020, 'a': 10, 'b': 20}),
+        ...     Scenario({'group': 'A', 'year': 2021, 'a': 15, 'b': 25}),
+        ...     Scenario({'group': 'B', 'year': 2020, 'a': 12, 'b': 22}),
+        ...     Scenario({'group': 'B', 'year': 2021, 'a': 17, 'b': 27})
+        ... ])
+        >>> s.group_by(id_vars=['group'], variables=['a', 'b'], func=avg_sum)
+        ScenarioList([Scenario({'group': 'A', 'avg_a': 12.5, 'sum_b': 45}), Scenario({'group': 'B', 'avg_a': 14.5, 'sum_b': 49})])
+        """
+        # Check if the function is compatible with the specified variables
+        func_params = inspect.signature(func).parameters
+        if len(func_params) != len(variables):
+            raise ValueError(
+                f"Function {func.__name__} expects {len(func_params)} arguments, but {len(variables)} variables were provided"
+            )
+
+        # Group the scenarios
+        grouped = defaultdict(lambda: defaultdict(list))
+        for scenario in self:
+            key = tuple(scenario[id_var] for id_var in id_vars)
+            for var in variables:
+                grouped[key][var].append(scenario[var])
+
+        # Apply the function to each group
+        result = []
+        for key, group in grouped.items():
+            try:
+                aggregated = func(*[group[var] for var in variables])
+            except Exception as e:
+                raise ValueError(f"Error applying function to group {key}: {str(e)}")
+
+            if not isinstance(aggregated, dict):
+                raise ValueError(f"Function {func.__name__} must return a dictionary")
+
+            new_scenario = dict(zip(id_vars, key))
+            new_scenario.update(aggregated)
+            result.append(Scenario(new_scenario))
+
+        return ScenarioList(result)
 
     @property
     def parameters(self) -> set:
@@ -154,6 +318,30 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
                 if number_field:
                     new_scenario[expand_field + "_number"] = index + 1
                 new_scenarios.append(new_scenario)
+        return ScenarioList(new_scenarios)
+
+    def unpack_dict(
+        self, field: str, prefix: Optional[str] = None, drop_field: bool = False
+    ) -> ScenarioList:
+        """Unpack a dictionary field into separate fields.
+
+        Example:
+
+        >>> s = ScenarioList([Scenario({'a': 1, 'b': {'c': 2, 'd': 3}})])
+        >>> s.unpack_dict('b')
+        ScenarioList([Scenario({'a': 1, 'b': {'c': 2, 'd': 3}, 'c': 2, 'd': 3})])
+        """
+        new_scenarios = []
+        for scenario in self:
+            new_scenario = scenario.copy()
+            for key, value in scenario[field].items():
+                if prefix:
+                    new_scenario[prefix + key] = value
+                else:
+                    new_scenario[key] = value
+            if drop_field:
+                new_scenario.pop(field)
+            new_scenarios.append(new_scenario)
         return ScenarioList(new_scenarios)
 
     def mutate(
@@ -312,6 +500,19 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         keys = self[0].keys()
         data = [{key: [scenario[key] for scenario in self.data]} for key in keys]
         return Dataset(data)
+
+    def split(
+        self, field: str, split_on: str, index: int, new_name: Optional[str] = None
+    ) -> ScenarioList:
+        """Split a scenario fiel in multiple fields."""
+        if new_name is None:
+            new_name = field + "_split_" + str(index)
+        new_scenarios = []
+        for scenario in self:
+            new_scenario = scenario.copy()
+            new_scenario[new_name] = scenario[field].split(split_on)[index]
+            new_scenarios.append(new_scenario)
+        return ScenarioList(new_scenarios)
 
     def add_list(self, name, values) -> ScenarioList:
         """Add a list of values to a ScenarioList.
@@ -475,6 +676,62 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         ScenarioList([Scenario({'name': 'Alice', 'age': 30, 'location': 'New York'}), Scenario({'name': 'Bob', 'age': 25, 'location': 'Los Angeles'})])
         """
         return cls([Scenario(row) for row in df.to_dict(orient="records")])
+
+    @classmethod
+    def from_wikipedia(cls, url: str, table_index: int = 0):
+        """
+        Extracts a table from a Wikipedia page.
+
+        Parameters:
+            url (str): The URL of the Wikipedia page.
+            table_index (int): The index of the table to extract (default is 0).
+
+        Returns:
+            pd.DataFrame: A DataFrame containing the extracted table.
+        # # Example usage
+        # url = "https://en.wikipedia.org/wiki/List_of_countries_by_GDP_(nominal)"
+        # df = from_wikipedia(url, 0)
+
+        # if not df.empty:
+        #     print(df.head())
+        # else:
+        #     print("Failed to extract table.")
+
+
+        """
+        import pandas as pd
+        import requests
+        from requests.exceptions import RequestException
+
+        try:
+            # Check if the URL is reachable
+            response = requests.get(url)
+            response.raise_for_status()  # Raises HTTPError for bad responses
+
+            # Extract tables from the Wikipedia page
+            tables = pd.read_html(url)
+
+            # Ensure the requested table index is within the range of available tables
+            if table_index >= len(tables) or table_index < 0:
+                raise IndexError(
+                    f"Table index {table_index} is out of range. This page has {len(tables)} table(s)."
+                )
+
+            # Return the requested table as a DataFrame
+            # return tables[table_index]
+            return cls.from_pandas(tables[table_index])
+
+        except RequestException as e:
+            print(f"Error fetching the URL: {e}")
+        except ValueError as e:
+            print(f"Error parsing tables: {e}")
+        except IndexError as e:
+            print(e)
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+
+        # Return an empty DataFrame in case of an error
+        # return cls.from_pandas(pd.DataFrame())
 
     def to_key_value(self, field: str, value=None) -> Union[dict, set]:
         """Return the set of values in the field.
