@@ -133,7 +133,6 @@ class LanguageModel(
     def api_token(self) -> str:
         if not hasattr(self, "_api_token"):
             key_name = service_to_api_keyname.get(self._inference_service_, "NOT FOUND")
-
             if self._inference_service_ == "bedrock":
                 self._api_token = [os.getenv(key_name[0]), os.getenv(key_name[1])]
                 # Check if any of the tokens are None
@@ -148,7 +147,7 @@ class LanguageModel(
                         Need a key with name {key_name} in your .env file."""
                 )
 
-            return self._api_token
+        return self._api_token
 
     def __getitem__(self, key):
         return getattr(self, key)
