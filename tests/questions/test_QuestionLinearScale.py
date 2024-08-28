@@ -64,7 +64,8 @@ def test_QuestionLinearScale_construction():
         QuestionLinearScale(**invalid_question)
     # but first and last only are valid
     invalid_question.update({"option_labels": {1: "OK", 5: "OK"}})
-    QuestionLinearScale(**invalid_question)
+    with pytest.raises(Exception):
+        QuestionLinearScale(**invalid_question)
     # should raise an exception if unexpected attribute is present
     invalid_question = valid_question.copy()
     invalid_question.update({"unexpected_attribute": "unexpected_attribute"})
