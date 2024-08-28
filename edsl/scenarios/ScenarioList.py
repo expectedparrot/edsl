@@ -156,6 +156,26 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
                 new_scenarios.append(new_scenario)
         return ScenarioList(new_scenarios)
 
+    def unpack_dict(self, field: str, prefix: Optional[str] = None) -> ScenarioList:
+        """Unpack a dictionary field into separate fields.
+
+        Example:
+
+        >>> s = ScenarioList([Scenario({'a': 1, 'b': {'c': 2, 'd': 3}})])
+        >>> s.unpack_dict('b')
+        ScenarioList([Scenario({'a': 1, 'c': 2, 'd': 3})])
+        """
+        new_scenarios = []
+        for scenario in self:
+            new_scenario = scenario.copy()
+            for key, value in scenario[field].items():
+                if prefix:
+                    new_scenario[prefix + key] = value
+                else:
+                    new_scenario[key] = value
+            new_scenarios.append(new_scenario)
+        return ScenarioList(new_scenarios)
+
     def mutate(
         self, new_var_string: str, functions_dict: Optional[dict[str, Callable]] = None
     ) -> ScenarioList:
@@ -312,6 +332,19 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         keys = self[0].keys()
         data = [{key: [scenario[key] for scenario in self.data]} for key in keys]
         return Dataset(data)
+
+    def split(
+        self, field: str, split_on: str, index: int, new_name: Optional[str] = None
+    ) -> ScenarioList:
+        """Split a scenario fiel in multiple fields."""
+        if new_name is None:
+            new_name = field + "_split_" + str(index)
+        new_scenarios = []
+        for scenario in self:
+            new_scenario = scenario.copy()
+            new_scenario[new_name] = scenario[field].split(split_on)[index]
+            new_scenarios.append(new_scenario)
+        return ScenarioList(new_scenarios)
 
     def add_list(self, name, values) -> ScenarioList:
         """Add a list of values to a ScenarioList.
