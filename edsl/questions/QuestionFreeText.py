@@ -18,9 +18,7 @@ from edsl.exceptions import QuestionAnswerValidationError
 
 class FreeTextResponse(BaseModel):
     """
-    >>> nr = FreeTextResponse(answer = "Yo dude")
-    >>> nr.dict()
-    {'answer': 'Yo dude'}
+    Validator for free text response questions.
     """
 
     answer: str

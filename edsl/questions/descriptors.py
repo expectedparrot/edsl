@@ -206,12 +206,14 @@ class OptionLabelDescriptor(BaseDescriptor):
 
     def validate(self, value, instance):
         """Validate the value is a string."""
-        if value is not None:
-            if min(value.keys()) != min(instance.question_options):
+        # key_values = [int(v) for v in value.keys()]
+
+        if value and (key_values := [float(v) for v in value.keys()]) != []:
+            if min(key_values) != min(instance.question_options):
                 raise QuestionCreationValidationError(
                     f"First option needs a label (got {value})"
                 )
-            if max(value.keys()) != max(instance.question_options):
+            if max(key_values) != max(instance.question_options):
                 raise QuestionCreationValidationError(
                     f"Last option needs a label (got {value})"
                 )
@@ -219,11 +221,16 @@ class OptionLabelDescriptor(BaseDescriptor):
                 raise QuestionCreationValidationError(
                     "Option labels must be strings (got {value})."
                 )
-            for key in value.keys():
+            for key in key_values:
                 if key not in instance.question_options:
                     raise QuestionCreationValidationError(
                         f"Option label key ({key}) is not in question options ({instance.question_options})."
                     )
+
+            if len(value.values()) != len(set(value.values())):
+                raise QuestionCreationValidationError(
+                    f"Option labels must be unique (got {value})."
+                )
 
 
 class QuestionNameDescriptor(BaseDescriptor):
