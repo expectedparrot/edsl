@@ -2,6 +2,8 @@
 
 ## [0.1.33] - IN PROGRESS
 ### Added 
+- Add an optional boolean flag to 'Question' that allows you turn off or modify validators 
+
 - Get table from Wikipedia: 
 ```
 sl = ScenarioList.from_wikipedia("url",0)
