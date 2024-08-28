@@ -13,6 +13,8 @@ from edsl.agents.PromptConstructionMixin import PromptConstructorMixin
 
 from edsl.agents.InvigilatorBase import InvigilatorBase
 
+from edsl.exceptions.questions import QuestionResponseValidationError
+
 
 class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
     """An invigilator that uses an AI model to answer questions."""
@@ -85,11 +87,16 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
         # breakpoint()
         try:
             response = question._validate_answer(
-                json.loads(self.model.parse_response(raw_model_response))
+                json.loads(json_string := self.model.parse_response(raw_model_response))
             )
             # response = question._validate_answer(
             #    json.loads(raw_model_response["message"])
             # )
+        except json.JSONDecodeError as e:
+            msg = f"""Error at line {e.lineno}, column {e.colno} (character {e.pos})"). Problematic part of the JSON: {json_string[e.pos-10:e.pos+10]}")"""
+            self._remove_from_cache(raw_response)
+            raise QuestionResponseValidationError(msg)
+
         except Exception as e:
             """If the response is invalid, remove it from the cache and raise the exception."""
             self._remove_from_cache(raw_response)
