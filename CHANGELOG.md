@@ -2,22 +2,28 @@
 
 ## [0.1.33] - IN PROGRESS
 ### Added 
-- Add an optional boolean flag to 'Question' that allows you turn off or modify validators 
-
-- Get table from Wikipedia: 
-```
-sl = ScenarioList.from_wikipedia("url",0)
-```
-
 - 'tree' visualization
+
+- `ScenarioList` method `unpivot()`
+- `ScenarioList` method `pivot()`
+- `ScenarioList` method `group_by()`
+
+- `ScenarioList` method `from_wikipedia()` allows you to convert a Wikipedia table into a scenario list. Example usage: https://www.expectedparrot.com/content/247589dd-ad1e-45f4-9c82-e71dbeac8c96 (Notebook: *Using an LLM to Augment Existing Tabular Data*)
+
+- `Survey` method `from_google_form_pdf()` allows you to import from edsl import Survey
+s = Survey.from_google_form_pdf(url_or_file =...)
 
 - Ability to control exact prompt language and separate instructions from presentation of a question: `Question` objects now take optional parameters `answering_instructions` and `question_presentation` or else use default jinja2 templates in a templating system. Example:
 
 - Optional parameter `include_comments = False` can be passed to the `run()` method of a `Survey` object to turn off the comments field that is automatically added to all `Question` types other than `QuestionFreeText`. 
 
-- Allow partial match on key names in `select()` method to save typing.
+- Add an optional boolean flag to 'Question' that allows you turn off or modify validators 
+
+- Allow partial match on key names in `select()` method (of `Results` and `ScenarioList`) to save typing.
 
 ### Changed
+- Improved exceptions reporting.
+
 - [In progress] `QuestionMultipleChoice` may be modified to allow combined options and free response "Other" option, as well as non-responsive answers. Previously, an error was thrown if the agent did not select one of the given options. Details TBD.
 
 ### Fixed
@@ -30,7 +36,7 @@ sl = ScenarioList.from_wikipedia("url",0)
 
 - Question: New method `loop()` allows you to create versions of questions when you are constructing a survey. It takes a `ScenarioList()` as a parameter and returns a list of `Question` objects.
 
-### Fixes
+### Fixed
 - Bug in `Survey` question piping prevented you from adding questions after piping.
 
 
