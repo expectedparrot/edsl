@@ -14,13 +14,25 @@ class InterviewExceptionEntry:
         exception: Exception,
         failed_question: FailedQuestion,
         invigilator: "Invigilator",
-        traceback_format="html",
+        traceback_format="text",
     ):
         self.time = datetime.datetime.now().isoformat()
         self.exception = exception
         self.failed_question = failed_question
         self.invigilator = invigilator
         self.traceback_format = traceback_format
+
+    @property
+    def name(self):
+        return repr(self.exception)
+
+    @property
+    def raw_model_response(self):
+        import json
+
+        if self.invigilator.raw_model_response is None:
+            return "No raw model response available."
+        return json.dumps(self.invigilator.raw_model_response, indent=2)
 
     def __getitem__(self, key):
         # Support dict-like access obj['a']
@@ -85,7 +97,7 @@ class InterviewExceptionEntry:
 
         """
         return {
-            "exception": repr(self.exception),
+            "exception": self.exception,
             "time": self.time,
             "traceback": self.traceback,
             "failed_question": self.failed_question.to_dict(),
