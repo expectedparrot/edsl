@@ -145,7 +145,7 @@ class LanguageModel(
     """
 
     _model_ = None
-    key_sequence = None  # ["choices", 0, "message", "content"]
+    key_sequence = None  # This should be something like ["choices", 0, "message", "content"]
     __rate_limits = None
     __default_rate_limits = {
         "rpm": 10_000,
