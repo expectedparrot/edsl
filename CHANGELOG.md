@@ -1,9 +1,30 @@
 # Changelog
 
 ## [0.1.33] - IN PROGRESS
+### Added 
+- 'tree' visualization
+
+- `ScenarioList` method `unpivot()` allows you to expand a scenario list by specified identifiers; method `pivot()` allows you to undo this, collapsing scenarios by identifiers. 
+
+- `ScenarioList` method `give_valid_names()` allows you to automatically generate valid Pythonic identifiers for scenario keys. 
+
+- `ScenarioList` method `group_by()` allows you to group scenarios by specified identifies and apply a function to the values of the specified variables.
+
+- `ScenarioList` method `from_wikipedia_table()` allows you to convert a Wikipedia table into a scenario list. Example usage: https://www.expectedparrot.com/content/247589dd-ad1e-45f4-9c82-e71dbeac8c96 (Notebook: *Using an LLM to Augment Existing Tabular Data*)
+
+- Ability to control exact prompt language and separate instructions from presentation of a question: `Question` objects now take optional parameters `answering_instructions` and `question_presentation` or else use default jinja2 templates in a templating system. 
+
+- Optional parameter `include_comments = False` can be passed to a `Question` object to turn off the comments field that is automatically added to all `Question` types other than `QuestionFreeText`.  
+
+- Allow partial match on key names in `select()` method (of `Results` and `ScenarioList`) to save typing.
 
 ### Changed
+- Improved exceptions reporting.
+
 - [In progress] `QuestionMultipleChoice` may be modified to allow combined options and free response "Other" option, as well as non-responsive answers. Previously, an error was thrown if the agent did not select one of the given options. Details TBD.
+
+### Fixed
+- Bug in generation of exceptions report that excluded agent information.
 
 
 ## [0.1.32] - 2024-08-19
@@ -12,7 +33,7 @@
 
 - Question: New method `loop()` allows you to create versions of questions when you are constructing a survey. It takes a `ScenarioList()` as a parameter and returns a list of `Question` objects.
 
-### Fixes
+### Fixed
 - Bug in `Survey` question piping prevented you from adding questions after piping.
 
 
