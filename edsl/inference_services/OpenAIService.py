@@ -67,6 +67,8 @@ class OpenAIService(InferenceServiceABC):
         "text-embedding-3-small",
         "text-embedding-ada-002",
         "ft:davinci-002:mit-horton-lab::8OfuHgoo",
+        "gpt-3.5-turbo-instruct-0914",
+        "gpt-3.5-turbo-instruct",
     ]
     _models_list_cache: List[str] = []
 
