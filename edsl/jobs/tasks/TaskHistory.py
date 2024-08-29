@@ -1,5 +1,7 @@
 from typing import List, Optional
 from io import BytesIO
+import webbrowser
+import os
 import base64
 from importlib import resources
 from edsl.jobs.tasks.task_status_enum import TaskStatus
@@ -314,8 +316,6 @@ class TaskHistory:
             display(HTML(iframe))
         else:
             print(f"Exception report saved to {filename}")
-            import webbrowser
-            import os
 
         if open_in_browser:
             webbrowser.open(f"file://{os.path.abspath(filename)}")

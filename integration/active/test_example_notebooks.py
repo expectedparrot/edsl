@@ -25,10 +25,11 @@ def execute_notebook(notebook_path):
     "notebook_path",
     [
         os.path.join(dirpath, f)
-        for dirpath, _, files in os.walk("examples")  # Update this path
+        for dirpath, _, files in os.walk("integration/notebooks")  # Update this path
         for f in files
         if f.endswith(".ipynb")
-    ],
+    ]
+    + ["docs/notebooks/critique_questions.ipynb"],
 )
 def test_notebook_execution(notebook_path):
     """

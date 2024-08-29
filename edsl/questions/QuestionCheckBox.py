@@ -24,8 +24,8 @@ from typing import List, Literal, Optional, Annotated
 
 def create_checkbox_response_model(
     choices: list,
-    min_selections=None,
-    max_selections=None,
+    min_selections: Optional[int] = None,
+    max_selections: Optional[int] = None,
     include_comment: bool = True,
 ):
     """
@@ -38,10 +38,16 @@ def create_checkbox_response_model(
     # Convert the choices list to a tuple for use with Literal
     choice_tuple = tuple(choices)
 
+    field_params = {}
+    if min_selections is not None:
+        field_params["min_items"] = min_selections
+    if max_selections is not None:
+        field_params["max_items"] = max_selections
+
     class CheckboxResponse(BaseModel):
         answer: Annotated[
             List[Literal[choice_tuple]],
-            Field(min_items=min_selections, max_items=max_selections),
+            Field(..., **field_params),
         ] = Field(..., description="List of selected choices")
         comment: Optional[str] = Field(None, description="Optional comment field")
 
