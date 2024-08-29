@@ -2,11 +2,13 @@ from __future__ import annotations
 from typing import Union, Literal, Optional
 from jinja2 import Template
 
+from pydantic import BaseModel, Field
+from typing import Optional, Literal
+
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.descriptors import QuestionOptionsDescriptor
 from edsl.questions.decorators import inject_exception
 
-from pydantic import field_validator
 from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
 from edsl.questions.ResponseValidatorABC import BaseResponse
 
@@ -45,37 +47,37 @@ def create_response_model_no_code(choices: list, include_comment: bool = True):
     Dynamically create a MultipleChoiceResponse model with a predefined list of choices.
 
     :param choices: A list of allowed values for the answer field.
+    :param include_comment: Whether to include the comment field in the model.
     :return: A new Pydantic model class.
     """
     # Convert the choices list to a tuple for use with Literal
     choice_tuple = tuple(choices)
 
-    class MultipleChoiceResponse(BaseModel):
-        answer: Literal[choice_tuple] = Field(
-            ..., description="Must be one of the predefined choices"
+    fields = {
+        "answer": (
+            Literal[choice_tuple],
+            Field(..., description="Must be one of the predefined choices"),
         )
-        comment: Optional[str] = Field(None, description="Optional comment field")
-
-        class Config:
-            @staticmethod
-            def json_schema_extra(schema: dict, model: BaseModel) -> None:
-                # Add the list of choices to the schema for better documentation
-                for prop in schema.get("properties", {}).values():
-                    if "allOf" in prop:
-                        prop["enum"] = choices
-
-        @classmethod
-        def with_comment(cls):
-            return cls
-
-        @classmethod
-        def without_comment(cls):
-            return cls.model_exclude({"comment"})
+    }
 
     if include_comment:
-        return MultipleChoiceResponse.with_comment()
-    else:
-        return MultipleChoiceResponse.without_comment()
+        fields["comment"] = (
+            Optional[str],
+            Field(None, description="Optional comment field"),
+        )
+
+    class Config:
+        @staticmethod
+        def json_schema_extra(schema: dict, model: BaseModel) -> None:
+            # Add the list of choices to the schema for better documentation
+            for prop in schema.get("properties", {}).values():
+                if "allOf" in prop:
+                    prop["enum"] = choices
+
+    MultipleChoiceResponse = create_model("MultipleChoiceResponse", **fields)
+    MultipleChoiceResponse.Config = Config
+
+    return MultipleChoiceResponse
 
 
 class MultipleChoiceResponseValidator(ResponseValidatorABC):
@@ -111,9 +113,9 @@ class QuestionMultipleChoice(QuestionBase):
 
     question_type = "multiple_choice"
     purpose = "When options are known and limited"
-    question_options: Union[
-        list[str], list[list], list[float], list[int]
-    ] = QuestionOptionsDescriptor()
+    question_options: Union[list[str], list[list], list[float], list[int]] = (
+        QuestionOptionsDescriptor()
+    )
     _response_model = None
     response_validator_class = MultipleChoiceResponseValidator
 
