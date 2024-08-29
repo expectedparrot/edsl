@@ -367,7 +367,21 @@ class QuestionOptionsDescriptor(BaseDescriptor):
 
 
 class QuestionTextDescriptor(BaseDescriptor):
-    """Validate that the `question_text` attribute is a string."""
+    """Validate that the `question_text` attribute is a string.
+
+
+    >>> class TestQuestion:
+    ...     question_text = QuestionTextDescriptor()
+    ...     def __init__(self, question_text: str):
+    ...         self.question_text = question_text
+
+    >>> _ = TestQuestion("What is the capital of France?")
+    >>> _ = TestQuestion("What is the capital of France? {{variable}}")
+    >>> _ = TestQuestion("What is the capital of France? {{variable name}}")
+    Traceback (most recent call last):
+    ...
+    edsl.exceptions.questions.QuestionCreationValidationError: Question text contains an invalid identifier: 'variable name'
+    """
 
     def validate(self, value, instance):
         """Validate the value is a string."""
@@ -384,6 +398,12 @@ class QuestionTextDescriptor(BaseDescriptor):
                 f"WARNING: Question text contains a single-braced substring: If you intended to parameterize the question with a Scenario this should be changed to a double-braced substring, e.g. {{variable}}.\nSee details on constructing Scenarios in the docs: https://docs.expectedparrot.com/en/latest/scenarios.html",
                 UserWarning,
             )
+        # iterate through all doubles braces and check if they are valid python identifiers
+        for match in re.finditer(r"\{\{([^\{\}]+)\}\}", value):
+            if " " in match.group(1).strip():
+                raise QuestionCreationValidationError(
+                    f"Question text contains an invalid identifier: '{match.group(1)}'"
+                )
 
 
 if __name__ == "__main__":

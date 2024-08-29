@@ -26,18 +26,16 @@ class OpenAIService(InferenceServiceABC):
 
     @classmethod
     def sync_client(cls):
-        if cls._sync_client_instance is None:
-            cls._sync_client_instance = cls._sync_client_(
-                api_key=os.getenv(cls._env_key_name_), base_url=cls._base_url_
-            )
+        cls._sync_client_instance = cls._sync_client_(
+            api_key=os.getenv(cls._env_key_name_), base_url=cls._base_url_
+        )
         return cls._sync_client_instance
 
     @classmethod
     def async_client(cls):
-        if cls._async_client_instance is None:
-            cls._async_client_instance = cls._async_client_(
-                api_key=os.getenv(cls._env_key_name_), base_url=cls._base_url_
-            )
+        cls._async_client_instance = cls._async_client_(
+            api_key=os.getenv(cls._env_key_name_), base_url=cls._base_url_
+        )
         return cls._async_client_instance
 
     # @classmethod
