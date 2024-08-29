@@ -558,7 +558,7 @@ Example usage:
 
 This will return:
 
-.. code-block:: python
+.. code-block:: text
 
     {
         "scenarios": [
@@ -593,7 +593,7 @@ Example usage:
 
 This will return:
 
-.. code-block:: python
+.. code-block:: text
 
     {
         "scenarios": [
@@ -643,7 +643,110 @@ We can create a list of scenarios from the CSV file:
 
 This will return a list consisting of a scenario for each row with the keys as the column names and the values as the row values:
 
+.. code-block:: text
+
+    {
+        "scenarios": [
+            {
+                "message": "I can't log in...",
+                "user": "Alice",
+                "source": "Customer support",
+                "date": "2022-01-01"
+            },
+            {
+                "message": "I need help with my bill...",
+                "user": "Bob",
+                "source": "Phone",
+                "date": "2022-01-02"
+            },
+            {
+                "message": "I have a safety concern...",
+                "user": "Charlie",
+                "source": "Email",
+                "date": "2022-01-03"
+            },
+            {
+                "message": "I need help with a product...",
+                "user": "David",
+                "source": "Chat",
+                "date": "2022-01-04"
+            }
+        ]
+    }
+
+
+If the scenario keys are not valid Python identifiers, we can use the `give_valid_names()` method to convert them to valid identifiers.
+
+For example, our CSV file might contain a header row that is question texts:
+
+.. code-block:: text
+
+    "What is the message?","Who is the user?","What is the source?","What is the date?"
+    "I can't log in...","Alice","Customer support","2022-01-01"
+    "I need help with my bill...","Bob","Phone","2022-01-02"
+    "I have a safety concern...","Charlie","Email","2022-01-03"
+    "I need help with a product...","David","Chat","2022-01-04"
+
+
+We can create a list of scenarios from the CSV file:
+
 .. code-block:: python
+
+    from edsl import ScenarioList
+
+    scenariolist = ScenarioList.from_csv("path/to/csv_file.csv")
+
+    scenariolist = scenariolist.give_valid_names()
+
+    scenariolist
+
+
+This will return scenarios with non-Pythonic identifiers:
+
+.. code-block:: text
+
+    {
+        "scenarios": [
+            {
+                "What is the message?": "I can't log in...",
+                "Who is the user?": "Alice",
+                "What is the source?": "Customer support",
+                "What is the date?": "2022-01-01"
+            },
+            {
+                "What is the message?": "I need help with my bill...",
+                "Who is the user?": "Bob",
+                "What is the source?": "Phone",
+                "What is the date?": "2022-01-02"
+            },
+            {
+                "What is the message?": "I have a safety concern...",
+                "Who is the user?": "Charlie",
+                "What is the source?": "Email",
+                "What is the date?": "2022-01-03"
+            },
+            {
+                "What is the message?": "I need help with a product...",
+                "Who is the user?": "David",
+                "What is the source?": "Chat",
+                "What is the date?": "2022-01-04"
+            }
+        ]
+    }
+
+
+We can then use the `give_valid_names()` method to convert the keys to valid identifiers:
+
+.. code-block:: python
+
+    scenariolist.give_valid_names()
+
+    scenariolist
+
+
+This will return scenarios with valid identifiers (removing stop words and using underscores):
+
+.. code-block:: text
 
     {
         "scenarios": [
