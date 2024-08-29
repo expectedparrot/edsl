@@ -51,6 +51,59 @@ from edsl.exceptions import MissingAPIKeyError
 from edsl.language_models.RegisterLanguageModelsMeta import RegisterLanguageModelsMeta
 
 
+import json
+from json_repair import repair_json
+
+
+def convert_answer(response_part):
+    import json
+
+    if response_part == "None":
+        return None
+
+    repaired = repair_json(response_part)
+    if repaired == '""':
+        # it was a literal string
+        return response_part
+
+    try:
+        return json.loads(repaired)
+    except json.JSONDecodeError as j:
+        # last resort
+        return response_part
+
+
+def apply_key_sequence(data, key_sequence):
+    current_data = data
+    for i, key in enumerate(key_sequence):
+        try:
+            if isinstance(current_data, (list, tuple)):
+                if not isinstance(key, int):
+                    raise TypeError(
+                        f"Expected integer index for sequence at position {i}, got {type(key).__name__}"
+                    )
+                if key < 0 or key >= len(current_data):
+                    raise IndexError(
+                        f"Index {key} out of range for sequence of length {len(current_data)} at position {i}"
+                    )
+            elif isinstance(current_data, dict):
+                if key not in current_data:
+                    raise KeyError(
+                        f"Key '{key}' not found in dictionary at position {i}"
+                    )
+            else:
+                raise TypeError(
+                    f"Cannot index into {type(current_data).__name__} at position {i}"
+                )
+
+            current_data = current_data[key]
+        except Exception as e:
+            path = " -> ".join(map(str, key_sequence[: i + 1]))
+            raise ValueError(f"Error accessing path: {path}. {str(e)}") from e
+
+    return current_data
+
+
 def handle_key_error(func):
     """Handle KeyError exceptions."""
 
@@ -92,7 +145,7 @@ class LanguageModel(
     """
 
     _model_ = None
-
+    key_sequence = None  # ["choices", 0, "message", "content"]
     __rate_limits = None
     __default_rate_limits = {
         "rpm": 10_000,
@@ -306,20 +359,23 @@ class LanguageModel(
 
         return main()
 
-    @abstractmethod
-    def parse_response(raw_response: dict[str, Any]) -> str:
-        """Parse the response and returns the response text.
-
-        >>> m = LanguageModel.example(test_model = True)
-        >>> m
-        Model(model_name = 'test', temperature = 0.5)
-
-        What is returned by the API is model-specific and often includes meta-data that we do not need.
-        For example, here is the results from a call to GPT-4:
-        To actually track the response, we need to grab
-        data["choices[0]"]["message"]["content"].
-        """
-        raise NotImplementedError
+    # @staticmethod
+    def parse_response(cls, raw_response: dict[str, Any]) -> str:
+        """Parses the API response and returns the response text."""
+        # key_sequence = [0]
+        response_string = apply_key_sequence(raw_response, cls.key_sequence)
+        if len(response_string.split("\n")) > 1:
+            r = json.dumps(
+                {
+                    "answer": convert_answer(response_string.split("\n")[0]),
+                    "comment": response_string.split("\n")[-1].strip(),
+                }
+            )
+            return r
+        else:
+            return json.dumps(
+                {"answer": convert_answer(response_string.split("\n")[0])}
+            )
 
     async def _async_prepare_response(
         self, model_call_outcome: IntendedModelCallOutcome, cache: "Cache"
@@ -337,17 +393,19 @@ class LanguageModel(
 
         ## This is a hack to fix the JSON response from the model
         ## It fixes newlines in the JSON response, but doesn't inject them into key portion
-        import re
+        # import re
 
-        pattern = r'"(\w+)":\s*"([^"]*?)"(?=\s*[,}])'
-        matches = re.findall(pattern, answer_portion, re.DOTALL)
+        # pattern = r'"(\w+)":\s*"([^"]*?)"(?=\s*[,}])'
+        # matches = re.findall(pattern, answer_portion, re.DOTALL)
 
-        fixed_data = {}
-        for key, value in matches:
-            fixed_value = value.replace("\n", "\\n")
-            fixed_data[key] = fixed_value
-        ###
-        answer_portion = json.dumps(fixed_data)
+        # fixed_data = {}
+        # for key, value in matches:
+        #     fixed_value = value.replace("\n", "\\n")
+        #     fixed_data[key] = fixed_value
+        # ###
+        # answer_portion = json.dumps(fixed_data)
+
+        answer_portion = json.dumps({"answer": str(answer_portion)})
 
         try:
             answer_dict = json.loads(answer_portion)

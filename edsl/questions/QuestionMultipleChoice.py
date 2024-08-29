@@ -235,12 +235,14 @@ class QuestionMultipleChoice(QuestionBase):
     ################
     @classmethod
     @inject_exception
-    def example(cls) -> QuestionMultipleChoice:
+    def example(cls, include_comment=False, use_code=False) -> QuestionMultipleChoice:
         """Return an example instance."""
         return cls(
             question_text="How are you?",
             question_options=["Good", "Great", "OK", "Bad"],
             question_name="how_feeling",
+            include_comment=include_comment,
+            use_code=use_code,
         )
 
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 from decimal import Decimal
 from random import uniform
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -13,27 +13,6 @@ from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
 from edsl.exceptions.questions import QuestionAnswerValidationError
 
 
-class NumericResponse(BaseModel):
-    """
-    >>> nr = NumericResponse(answer=1, comment="I like custard")
-    >>> nr.model_dump()
-    {'answer': Decimal('1'), 'comment': 'I like custard'}
-    """
-
-    answer: Decimal
-    comment: Optional[str] = None
-
-    @field_validator("answer", mode="before")
-    @classmethod
-    def parse_numeric(cls, v):
-        if isinstance(v, str):
-            v = v.replace(",", "")
-        try:
-            return Decimal(v)
-        except:
-            raise QuestionAnswerValidationError(f"Invalid numeric value: {v}")
-
-
 def create_numeric_response(
     min_value: Optional[Decimal] = None, max_value: Optional[Decimal] = None
 ):
@@ -43,8 +22,9 @@ def create_numeric_response(
     if max_value is not None:
         field_kwargs["le"] = max_value
 
-    class ConstrainedNumericResponse(NumericResponse):
-        answer: Decimal = Field(**field_kwargs)
+    class ConstrainedNumericResponse(BaseModel):
+        answer: Union[Decimal, None] = Field(**field_kwargs)
+        comment: Optional[str] = None
 
     return ConstrainedNumericResponse
 
@@ -63,17 +43,7 @@ class NumericalResponseValidator(ResponseValidatorABC):
         ({}, {"min_value": 0, "max_value": 5}, "Answer key is missing"),
     ]
 
-    def custom_validate(self, response) -> NumericResponse:
-        if self.min_value is not None:
-            if response.answer < self.min_value:
-                raise QuestionAnswerValidationError(
-                    f"Answer must be at least {self.min_value}"
-                )
-        if self.max_value:
-            if response.answer > self.max_value:
-                raise QuestionAnswerValidationError(
-                    f"Answer must be at most {self.max_value}"
-                )
+    def custom_validate(self, response):
         return response.dict()
 
 
@@ -142,13 +112,14 @@ class QuestionNumerical(QuestionBase):
     ################
     @classmethod
     @inject_exception
-    def example(cls) -> QuestionNumerical:
+    def example(cls, include_comment=False) -> QuestionNumerical:
         """Return an example question."""
         return cls(
             question_name="age",
             question_text="How old are you in years?",
             min_value=0,
             max_value=86.7,
+            include_comment=include_comment,
         )
 
 

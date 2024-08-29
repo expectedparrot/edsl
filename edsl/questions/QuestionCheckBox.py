@@ -243,7 +243,7 @@ class QuestionCheckBox(QuestionBase):
     ################
     @classmethod
     @inject_exception
-    def example(cls) -> QuestionCheckBox:
+    def example(cls, include_comment=False, use_code=True) -> QuestionCheckBox:
         """Return an example checkbox question."""
         return cls(
             question_name="never_eat",
@@ -257,6 +257,8 @@ class QuestionCheckBox(QuestionBase):
             ],
             min_selections=2,
             max_selections=5,
+            use_code=use_code,
+            include_comment=include_comment,
         )
 
 

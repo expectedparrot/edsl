@@ -108,12 +108,13 @@ class QuestionList(QuestionBase):
     ################
     @classmethod
     @inject_exception
-    def example(cls) -> QuestionList:
+    def example(cls, include_comment=True) -> QuestionList:
         """Return an example of a list question."""
         return cls(
             question_name="list_of_foods",
             question_text="What are your favorite foods?",
             max_list_items=5,
+            include_comment=include_comment,
         )
 
 

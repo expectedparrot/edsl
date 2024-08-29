@@ -1,17 +1,9 @@
 {# Answering Instructions #}
-Return only valid JSON formatted like this:
 {% if use_code %}
-    {% if include_comment %}
-{"answer": "<put answer code here>"", "comment": "<put explanation here>"}
-    {% else %}
-{"answer": "<put answer code here>"}
-    {% endif %}
+Respond only with the code corresponding to one of the options.
 {% else %}
-
+Respond only with a string corresponding to one of the options.
+{% endif %}
 {% if include_comment %}
-{"answer":"<text of option>", "comment": "<put explanation here>"}
-    {% else %}
-{"answer": "<text of option here>"}
-    {% endif %}
-
+After the answer, you can put a comment explaining why you chose that option on the next line.
 {% endif %}

@@ -6,6 +6,13 @@ import re
 class InferenceServiceABC(ABC):
     """Abstract class for inference services."""
 
+    # check if child class has cls attribute "key_sequence"
+    def __init_subclass__(cls):
+        if not hasattr(cls, "key_sequence"):
+            raise NotImplementedError(
+                f"Class {cls.__name__} must have a 'key_sequence' attribute."
+            )
+
     @abstractmethod
     def available() -> list[str]:
         pass
