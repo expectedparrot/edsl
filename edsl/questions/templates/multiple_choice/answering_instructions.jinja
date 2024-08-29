@@ -1,17 +1,17 @@
 {# Answering Instructions #}
-Return a valid JSON formatted like this:
+Return only valid JSON formatted like this:
 {% if use_code %}
     {% if include_comment %}
-{"answer": <put answer code here>, "comment": "<put explanation here>"}
+{"answer": "<put answer code here>"", "comment": "<put explanation here>"}
     {% else %}
-{"answer": <put answer code here>}
+{"answer": "<put answer code here>"}
     {% endif %}
 {% else %}
 
 {% if include_comment %}
-{"answer": <text of option>, "comment": "<put explanation here>"}
+{"answer":"<text of option>", "comment": "<put explanation here>"}
     {% else %}
-{"answer": <text of option here>}
+{"answer": "<text of option here>"}
     {% endif %}
 
 {% endif %}
