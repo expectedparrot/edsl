@@ -46,8 +46,14 @@ class ResponseValidatorABC(ABC):
             setattr(self, key, value)
 
     def _base_validate(self, data):
-        response = self.response_model(**data)
-        return response
+        try:
+            return self.response_model(**data)
+        except Exception as e:
+            if hasattr(self, "fix"):
+                print("Trying to fix the data")
+                fixed_data = self.fix(data)
+                return self.response_model(**fixed_data)
+            raise e
 
     def validate(self, data):
         if self.exception_to_throw:
