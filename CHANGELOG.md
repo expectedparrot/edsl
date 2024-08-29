@@ -4,20 +4,17 @@
 ### Added 
 - 'tree' visualization
 
-- `ScenarioList` method `unpivot()`
-- `ScenarioList` method `pivot()`
-- `ScenarioList` method `group_by()`
+- `ScenarioList` method `unpivot()` allows you to expand a scenario list by specified identifiers; method `pivot()` allows you to undo this, collapsing scenarios by identifiers. 
 
-- `ScenarioList` method `from_wikipedia()` allows you to convert a Wikipedia table into a scenario list. Example usage: https://www.expectedparrot.com/content/247589dd-ad1e-45f4-9c82-e71dbeac8c96 (Notebook: *Using an LLM to Augment Existing Tabular Data*)
+- `ScenarioList` method `give_valid_names()` allows you to automatically generate valid Pythonic identifiers for scenario keys. 
 
-- `Survey` method `from_google_form_pdf()` allows you to import from edsl import Survey
-s = Survey.from_google_form_pdf(url_or_file =...)
+- `ScenarioList` method `group_by()` allows you to group scenarios by specified identifies and apply a function to the values of the specified variables.
 
-- Ability to control exact prompt language and separate instructions from presentation of a question: `Question` objects now take optional parameters `answering_instructions` and `question_presentation` or else use default jinja2 templates in a templating system. Example:
+- `ScenarioList` method `from_wikipedia_table()` allows you to convert a Wikipedia table into a scenario list. Example usage: https://www.expectedparrot.com/content/247589dd-ad1e-45f4-9c82-e71dbeac8c96 (Notebook: *Using an LLM to Augment Existing Tabular Data*)
 
-- Optional parameter `include_comments = False` can be passed to the `run()` method of a `Survey` object to turn off the comments field that is automatically added to all `Question` types other than `QuestionFreeText`. 
+- Ability to control exact prompt language and separate instructions from presentation of a question: `Question` objects now take optional parameters `answering_instructions` and `question_presentation` or else use default jinja2 templates in a templating system. 
 
-- Add an optional boolean flag to 'Question' that allows you turn off or modify validators 
+- Optional parameter `include_comments = False` can be passed to a `Question` object to turn off the comments field that is automatically added to all `Question` types other than `QuestionFreeText`.  
 
 - Allow partial match on key names in `select()` method (of `Results` and `ScenarioList`) to save typing.
 
