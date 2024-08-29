@@ -20,6 +20,8 @@ from edsl.surveys.SurveyExportMixin import SurveyExportMixin
 from edsl.surveys.SurveyFlowVisualizationMixin import SurveyFlowVisualizationMixin
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
+from edsl.agents.Agent import Agent
+
 
 class ValidatedString(str):
     def __new__(cls, content):
@@ -33,6 +35,8 @@ class ValidatedString(str):
 # from edsl.surveys.Instruction import Instruction
 # from edsl.surveys.Instruction import ChangeInstruction
 from edsl.surveys.instructions.InstructionCollection import InstructionCollection
+from edsl.surveys.instructions.Instruction import Instruction
+from edsl.surveys.instructions.ChangeInstruction import ChangeInstruction
 
 
 class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
@@ -57,12 +61,12 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     def __init__(
         self,
         questions: Optional[
-            list[Union[QuestionBase, "Instruction", "ChangeInstruction"]]
+            list[Union[QuestionBase, Instruction, ChangeInstruction]]
         ] = None,
         memory_plan: Optional[MemoryPlan] = None,
         rule_collection: Optional[RuleCollection] = None,
         question_groups: Optional[dict[str, tuple[int, int]]] = None,
-        name: str = None,
+        name: Optional[str] = None,
     ):
         """Create a new survey.
 
@@ -116,7 +120,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
     # region: Suvry instruction handling
     @property
-    def relevant_instructions_dict(self) -> dict:
+    def relevant_instructions_dict(self) -> InstructionCollection:
         """Return a dictionary with keys as question names and values as instructions that are relevant to the question.
 
         >>> s = Survey.example(include_instructions=True)
@@ -129,7 +133,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         )
 
     @staticmethod
-    def _separate_questions_and_instructions(questions_and_instructions: list):
+    def _separate_questions_and_instructions(questions_and_instructions: list) -> tuple:
         """
         The 'pseudo_indices' attribute is a dictionary that maps question names to pseudo-indices
         that are used to order questions and instructions in the survey.
@@ -300,9 +304,6 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     def create_agent(self) -> "Agent":
         """Create an agent from the simulated answers."""
         answers_dict = self.simulate()
-        from edsl.agents.Agent import Agent
-
-        a = Agent(traits=answers_dict)
 
         def construct_answer_dict_function(traits: dict) -> Callable:
             def func(self, question: "QuestionBase", scenario=None):
@@ -310,10 +311,9 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
             return func
 
-        a.add_direct_question_answering_method(
+        return Agent(traits=answers_dict).add_direct_question_answering_method(
             construct_answer_dict_function(answers_dict)
         )
-        return a
 
     def simulate_results(self) -> "Results":
         """Simulate the survey and return the results."""

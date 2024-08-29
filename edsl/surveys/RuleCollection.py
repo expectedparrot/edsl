@@ -1,6 +1,6 @@
 """A collection of rules for a survey."""
 
-from typing import List, Union, Any
+from typing import List, Union, Any, Optional
 from collections import defaultdict, UserList
 
 from edsl.exceptions import (
@@ -24,7 +24,7 @@ NextQuestion = namedtuple(
 class RuleCollection(UserList):
     """A collection of rules for a particular survey."""
 
-    def __init__(self, num_questions: int = None, rules: List[Rule] = None):
+    def __init__(self, num_questions: Optional[int] = None, rules: List[Rule] = None):
         """Initialize the RuleCollection object.
 
         :param num_questions: The number of questions in the survey.
