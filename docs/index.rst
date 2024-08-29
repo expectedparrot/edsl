@@ -174,6 +174,7 @@ Information about additional functionality for developers.
    :caption: How-to Guides
    :hidden:
 
+   notebooks/scenariolist_unpivot.ipynb
    notebooks/data_labeling_example.ipynb
    notebooks/cheatsheet_scenarios.ipynb
    notebooks/scenario_from_pdf.ipynb
