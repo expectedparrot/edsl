@@ -27,7 +27,7 @@ This allows us to analyze the responses in the context of the metadata without n
 Constructing a Scenario
 -----------------------
 
-To use scenarios, we start by creating a question that takes a parameter in double braces: 
+To use a scenario, we start by creating a question that takes a parameter in double braces: 
 
 .. code-block:: python
 
@@ -48,6 +48,89 @@ Next we create a dictionary for a value that will replace the parameter and stor
     scenario = Scenario({"item": "color"})
 
 
+We can inspect the scenario and see that it consists of the key/value pair that we created:
+
+.. code-block:: python
+
+    scenario
+
+
+This will return:
+
+.. code-block:: python
+
+    {
+        "item": "color"
+    }
+
+
+Using a Scenario
+----------------
+
+We use a scenario by adding it to a question (or a survey of questions) with the `by()` method when we run it:
+
+.. code-block:: python
+
+    results = q.by(scenario).run()
+
+    results.select("item", "favorite_item").print(format="rich")
+
+
+We can check the results to verify that the scenario has been used correctly:
+
+.. code-block:: python
+
+    results.select("item", "favorite_item").print(format="rich")
+
+
+This will print a table of the selected components of the results:
+
+.. code-block:: text
+
+    ┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+    ┃ scenario ┃ answer                     ┃
+    ┃ .item    ┃ .favorite_item             ┃
+    ┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+    │ color    │ My favorite color is blue. │
+    └──────────┴────────────────────────────┘
+
+
+Multiple parameters
+^^^^^^^^^^^^^^^^^^^
+
+We can also create a `Scenario` for multiple parameters:
+
+.. code-block:: python
+
+    from edsl.questions import QuestionFreeText
+
+    q = QuestionFreeText(
+        question_name = "counting",
+        question_text = "How many {{ unit }} are in a {{ distance }}?",
+    )
+
+    scenario = Scenario({"unit": "inches", "distance": "mile"})
+
+    results = q.by(scenario).run()
+
+    results.select("unit", "distance", "counting").print(format="rich")
+
+
+This will print a table of the selected components of the results:
+
+.. code-block:: text
+
+    ┏━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+    ┃ scenario ┃ scenario  ┃ answer                             ┃
+    ┃ .unit    ┃ .distance ┃ .counting                          ┃
+    ┡━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+    │ inches   │ mile      │ There are 63,360 inches in a mile. │
+    └──────────┴───────────┴────────────────────────────────────┘
+
+
+ScenarioList 
+^^^^^^^^^^^^
+
 If multiple values will be used, we can create a list of `Scenario` objects: 
 
 .. code-block:: python
@@ -55,7 +138,7 @@ If multiple values will be used, we can create a list of `Scenario` objects:
     scenarios = [Scenario({"item": item}) for item in ["color", "food"]]
 
 
-We can inspect the scenarios to see that they have been created correctly:
+We can inspect the scenarios:
 
 .. code-block:: python
 
@@ -69,9 +152,6 @@ This will return:
     [Scenario({'item': 'color'}), Scenario({'item': 'food'})]
 
 
-ScenarioList
-^^^^^^^^^^^^
-
 We can also create a `ScenarioList` object to store multiple scenarios:
 
 .. code-block:: python
@@ -81,7 +161,7 @@ We can also create a `ScenarioList` object to store multiple scenarios:
     scenariolist = ScenarioList([Scenario({"item": item}) for item in ["color", "food"]])
 
 
-To inspect the scenarios, we can print them:
+We can inspect it:
 
 .. code-block:: python
 
@@ -104,6 +184,87 @@ This will return:
     }
 
 
+They can both be used in the same way as a single `Scenario` object:
+
+.. code-block:: python
+
+    from edsl.questions import QuestionFreeText
+
+    q = QuestionFreeText(
+        question_name = "favorite_item",
+        question_text = "What is your favorite {{ item }}?",
+    )
+
+    scenariolist = ScenarioList([Scenario({"item": item}) for item in ["color", "food"]])
+
+    results = q.by(scenariolist).run()
+
+    results.select("item", "favorite_item").print(format="rich")
+
+
+This will print a table of the selected components of the results:
+
+.. code-block:: text
+
+    ┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+    ┃ scenario ┃ answer                                                                    ┃
+    ┃ .item    ┃ .favorite_item                                                            ┃
+    ┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+    │ color    │ My favorite color is blue.                                                │
+    ├──────────┼───────────────────────────────────────────────────────────────────────────┤
+    │ food     │ As an AI, I don't eat, but a popular favorite food among humans is pizza. │
+    └──────────┴───────────────────────────────────────────────────────────────────────────┘
+
+
+If we have multiple questions in a survey, we can add scenarios to the survey in the same way as we do a single question:
+
+.. code-block:: python
+
+    from edsl import QuestionFreeText, QuestionList, Survey, Scenario
+
+    q1 = QuestionFreeText(
+        question_name = "favorite_item",
+        question_text = "What is your favorite {{ item }}?",
+    )
+    q2 = QuestionList(
+        question_name = "items_list",
+        question_text = "What are some of your favorite {{ item }} preferences?",
+        
+    )
+
+    survey = Survey(questions = [q1, q2])
+
+    scenariolist = ScenarioList(
+        Scenario({"item": item}) for item in ["color", "food"]
+    )
+
+    results = survey.by(scenariolist).run()
+
+    results.select("item", "favorite_item", "items_list").print(format="rich")
+
+
+This will print a table of the responses for each scenario for each question:
+
+.. code-block:: text
+
+    ┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+    ┃ scenario ┃ answer                                            ┃ answer                                           ┃
+    ┃ .item    ┃ .favorite_item                                    ┃ .items_list                                      ┃
+    ┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+    │ color    │ My favorite color is blue.                        │ ['Blue', 'Green', 'Red']                         │
+    ├──────────┼───────────────────────────────────────────────────┼──────────────────────────────────────────────────┤
+    │ food     │ As an AI, I don't eat, but a popular favorite     │ ['Italian cuisine', 'sushi', 'fresh salads',     │
+    │          │ food among humans is pizza.                       │ 'barbecue', 'dark chocolate']                    │
+    └──────────┴───────────────────────────────────────────────────┴──────────────────────────────────────────────────┘
+
+
+To learn more about constructing surveys, please see the :ref:`surveys` module.
+
+
+Scenarios for question options
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+In the above examples we created scenarios in the `question_text`.
 We can also create a `Scenario` for `question_options`, e.g., in a multiple choice, checkbox, linear scale or other question type that requires them:
 
 .. code-block:: python
@@ -113,7 +274,7 @@ We can also create a `Scenario` for `question_options`, e.g., in a multiple choi
     q = QuestionMultipleChoice(
         question_name = "capital_of_france",
         question_text = "What is the capital of France?", 
-        question_options = "{{question_options}}"
+        question_options = "{{ question_options }}"
     )
 
     s = Scenario({'question_options': ['Paris', 'London', 'Berlin', 'Madrid']})
@@ -238,107 +399,15 @@ This will return:
     }
 
 
-Using Scenarios
----------------
-`Scenario` objects are used by adding them to a question or survey with the `by()` method when the question or survey is run.
-Here we add a single scenario to our question, run it, and inspect the response:
+Creating scenarios from a dataset
+---------------------------------
 
-.. code-block:: python
-
-    results = q.by(scenario).run()
-
-    results.select("item", "favorite_item").print(format="rich")
-
-
-This will print a table of the selected components of the results:
-
-.. code-block:: text
-
-    ┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-    ┃ scenario ┃ answer                                                                                               ┃
-    ┃ .item    ┃ .favorite_item                                                                                       ┃
-    ┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-    │ color    │ Blue is my favorite color for its calming and serene qualities.                                      │
-    ├──────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────┤
-    │ food     │ My favorite food is a classic Italian pizza with a thin crust, topped with mozzarella, fresh basil,  │
-    │          │ and a rich tomato sauce.                                                                             │
-    └──────────┴──────────────────────────────────────────────────────────────────────────────────────────────────────┘
-
-
-If we have multiple scenarios, we can add them to the survey in the same way:
-
-As with other survey components (agents and language models), multiple `Scenario` objects should be added together as a list in the same `by` method:
-
-.. code-block:: python
-
-    results = q.by(scenarios).run()
-
-    results.select("item", "favorite_item").print(format="rich")
-
-
-Now we will see both scenarios in our results table:
-
-.. code-block:: text
-
-    ┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-    ┃ scenario ┃ answer                                                                                               ┃
-    ┃ .item    ┃ .favorite_item                                                                                       ┃
-    ┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-    │ color    │ Blue is my favorite color for its calming and serene qualities.                                      │
-    ├──────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────┤
-    │ food     │ My favorite food is a classic Italian pizza with a thin crust, topped with mozzarella, fresh basil,  │
-    │          │ and a rich tomato sauce.                                                                             │
-    └──────────┴──────────────────────────────────────────────────────────────────────────────────────────────────────┘
-
-
-If we have multiple questions in a survey, we can add scenarios to the survey in the same way:
-
-.. code-block:: python
-
-    from edsl.questions import QuestionFreeText, QuestionList
-    from edsl import Survey, Scenario
-
-    q1 = QuestionFreeText(
-        question_name = "favorite_item",
-        question_text = "What is your favorite {{ item }}?",
-    )
-    q2 = QuestionList(
-        question_name = "items_list",
-        question_text = "What are some of your favorite {{ item }} preferences?",
-        
-    )
-
-    survey = Survey(questions = [q1, q2])
-
-    scenarios = [Scenario({"item": item}) for item in ["color", "food"]]
-
-    results = survey.by(scenarios).run()
-
-    results.select("item", "favorite_item", "items_list").print(format="rich")
-
-
-This will print a table of the responses for each scenario for each question:
-
-.. code-block:: text
-
-    ┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-    ┃ scenario ┃ answer                                            ┃ answer                                           ┃
-    ┃ .item    ┃ .favorite_item                                    ┃ .items_list                                      ┃
-    ┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-    │ color    │ Blue is my favorite color for its calming and     │ ['Blue', 'Green', 'Burgundy']                    │
-    │          │ serene qualities.                                 │                                                  │
-    ├──────────┼───────────────────────────────────────────────────┼──────────────────────────────────────────────────┤
-    │ food     │ My favorite food is a classic Italian pizza with  │ ['Italian cuisine', 'Sushi', 'Mexican food',     │
-    │          │ a thin crust, topped with mozzarella, fresh       │ 'Dark chocolate', 'Avocado toast']               │
-    │          │ basil, and a rich tomato sauce.                   │                                                  │
-    └──────────┴───────────────────────────────────────────────────┴──────────────────────────────────────────────────┘
-
-
-To learn more about constructing surveys, please see the :ref:`surveys` module.
+There are a variety of methods for creating and working with scenarios generated from datasets and different data types.
 
 
 Turning results into scenarios 
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 The method `to_scenario_list()` can be used to turn the results of a survey into a list of scenarios.
 
 Example usage:
@@ -347,8 +416,7 @@ Say we have some results from a survey where we asked agents to choose a random 
 
 .. code-block:: python
 
-    from edsl.questions import QuestionNumerical
-    from edsl import Agent
+    from edsl import QuestionNumerical, Agent
 
     q_random = QuestionNumerical(
         question_name = "random",
@@ -395,9 +463,415 @@ We can inspect the scenarios to see that they have been created correctly:
     Scenario({'persona': 'Spy', 'random': 528})]
 
 
+PDFs as textual scenarios
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The `ScenarioList` method `from_pdf('path/to/pdf')` is a convenient way to extract information from large files.
+It allows you to read in a PDF and automatically create a list of textual scenarios for the pages of the file.
+Each scenario has the following keys: `filename`, `page`, `text` which can be used as a parameter in a question (or stored as metadat), and renamed as desired.
+
+*How it works:* Add a placeholder `{{ text }}` to a question text to use the text of a PDF page as a parameter in the question.
+When you run the survey with the PDF scenarios, the text of each page will be inserted into the question text in place of the placeholder.
+
+Example usage:
+
+.. code-block:: python
+
+    from edsl import QuestionFreeText, ScenarioList, Survey
+
+    # Create a survey of questions parameterized by the {{ text }} of the PDF pages:
+    q1 = QuestionFreeText(
+        question_name = "themes",
+        question_text = "Identify the key themes mentioned on this page: {{ text }}",
+    )
+
+    q2 = QuestionFreeText(
+        question_name = "idea",
+        question_text = "Identify the most important idea on this page: {{ text }}",
+    )
+
+    survey = Survey([q1, q2])
+
+    scenarios = ScenarioList.from_pdf("path/to/pdf_file.pdf")
+
+    # Run the survey with the pages of the PDF as scenarios:
+    results = survey.by(scenarios).run()
+
+    # To print the page and text of each PDF page scenario together with the answers to the question:
+    results.select("page", "text", "answer.*").print(format="rich")
+
+
+See a demo notebook of this method in the notebooks section of the docs index: "Extracting information from PDFs".
+
+
+Image scenarios
+^^^^^^^^^^^^^^^
+
+The `Scenario` method `from_image('path/to/image_file')` turns a PNG into into a scenario to be used with an image model (e.g., GPT-4o).
+The scenario has the following keys: `file_path`, `encoded_image`.
+
+Note that we do *not* need to use a placeholder `{{ text }}` in the question text in order to add the scenario to the question.
+Instead, we simply write the question with no parameters and add the scenario to the survey when running it as usual.
+
+Example usage:
+
+.. code-block:: python
+
+    from edsl import QuestionFreeText, QuestionList, Scenario, Survey, Model 
+
+    m = Model("gpt-4o") # Need to use a vision model for image scenarios
+
+    q1 = QuestionFreeText(
+        question_name = "show",
+        question_text = "What does this image show?",
+    )
+
+    q2 = QuestionList(
+        question_name = "count",
+        question_text = "How many things are in this image?",
+    )
+
+    survey = Survey([q1, q2])
+
+    scenario = Scenario.from_image("path/to/image_file")
+
+    results = survey.by(scenario).run()
+
+    results.select("file_path", "answer.*").print(format="rich")
+
+
+Creating a scenario list from a list
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The `ScenarioList` method `from_list()` can be used to create a list of scenarios for a specified key and list of values that is passed.
+
+Example usage:
+
+.. code-block:: python
+
+    from edsl import ScenarioList
+
+    scenariolist = ScenarioList.from_list("item", ["color", "food", "animal"])
+
+    scenariolist
+
+
+This will return:
+
+.. code-block:: python
+
+    {
+        "scenarios": [
+            {
+                "item": "color"
+            },
+            {
+                "item": "food"
+            },
+            {
+                "item": "animal"
+            }
+        ]
+    }
+
+
+Creating a scenario list from a dictionary
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The `ScenarioList` method `from_dict()` can be used to create a list of scenarios for a specified key and dictionary of values that is passed.
+
+Example usage:
+
+.. code-block:: python
+
+    from edsl import ScenarioList
+
+    scenariolist = ScenarioList.from_dict({"item": ["color", "food", "animal"]})
+
+    scenariolist
+
+
+This will return:
+
+.. code-block:: python
+
+    {
+        "scenarios": [
+            {
+                "item": "color"
+            },
+            {
+                "item": "food"
+            },
+            {
+                "item": "animal"
+            }
+        ]
+    }
+
+
+Creating a scenario list from a CSV
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The `ScenarioList` method `from_csv('path/to/csv')` can be used to create a list of scenarios from a CSV file.
+The method reads the CSV file and creates a scenario for each row in the file, with the keys as the column names and the values as the row values.
+
+
+Example usage:
+
+Say we have a CSV file with the following data:
+
+.. code-block:: text
+
+    message,user,source,date
+    I can't log in...,Alice,Customer support,2022-01-01
+    I need help with my bill...,Bob,Phone,2022-01-02
+    I have a safety concern...,Charlie,Email,2022-01-03
+    I need help with a product...,David,Chat,2022-01-04
+
+
+We can create a list of scenarios from the CSV file:
+
+.. code-block:: python
+
+    from edsl import ScenarioList
+
+    scenariolist = ScenarioList.from_csv("path/to/csv_file.csv")
+
+    scenariolist
+
+
+This will return a list consisting of a scenario for each row with the keys as the column names and the values as the row values:
+
+.. code-block:: python
+
+    {
+        "scenarios": [
+            {
+                "message": "I can't log in...",
+                "user": "Alice",
+                "source": "Customer support",
+                "date": "2022-01-01"
+            },
+            {
+                "message": "I need help with my bill...",
+                "user": "Bob",
+                "source": "Phone",
+                "date": "2022-01-02"
+            },
+            {
+                "message": "I have a safety concern...",
+                "user": "Charlie",
+                "source": "Email",
+                "date": "2022-01-03"
+            },
+            {
+                "message": "I need help with a product...",
+                "user": "David",
+                "source": "Chat",
+                "date": "2022-01-04"
+            }
+        ]
+    }
+
+
+Methods for un/pivoting and grouping scenarios
+----------------------------------------------
+
+There are a variety of methods for modifying scenarios and scenario lists.
+
+Unpivoting a scenario list
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The `ScenarioList` method `unpivot()` can be used to unpivot a scenario list based on one or more specified identifiers.
+It takes a list of `id_vars` which are the names of the key/value pairs to keep in each new scenario, and a list of `value_vars` which are the names of the key/value pairs to unpivot.
+
+Example usage:
+
+Say we have a scenario list for the above CSV file:
+
+.. code-block:: python
+
+    from edsl import ScenarioList
+
+    scenariolist = ScenarioList.from_csv("path/to/csv_file.csv")
+
+    scenariolist
+
+
+We can call the unpivot the scenario list:
+
+.. code-block:: python
+
+    scenariolist.unpivot(id_vars = ["user"], value_vars = ["source", "date", "message"])
+
+    scenariolist
+
+
+This will return a list of scenarios with the `source`, `date`, and `message` key/value pairs unpivoted:
+
+.. code-block:: python
+
+    {
+        "scenarios": [
+            {
+                "user": "Alice",
+                "variable": "source",
+                "value": "Customer support"
+            },
+            {
+                "user": "Alice",
+                "variable": "date",
+                "value": "2022-01-01"
+            },
+            {
+                "user": "Alice",
+                "variable": "message",
+                "value": "I can't log in..."
+            },
+            {
+                "user": "Bob",
+                "variable": "source",
+                "value": "Phone"
+            },
+            {
+                "user": "Bob",
+                "variable": "date",
+                "value": "2022-01-02"
+            },
+            {
+                "user": "Bob",
+                "variable": "message",
+                "value": "I need help with my bill..."
+            },
+            {
+                "user": "Charlie",
+                "variable": "source",
+                "value": "Email"
+            },
+            {
+                "user": "Charlie",
+                "variable": "date",
+                "value": "2022-01-03"
+            },
+            {
+                "user": "Charlie",
+                "variable": "message",
+                "value": "I have a safety concern..."
+            },
+            {
+                "user": "David",
+                "variable": "source",
+                "value": "Chat"
+            },
+            {
+                "user": "David",
+                "variable": "date",
+                "value": "2022-01-04"
+            },
+            {
+                "user": "David",
+                "variable": "message",
+                "value": "I need help with a product..."
+            }
+        ]
+    }
+
+
+Pivoting a scenario list
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+We can call the `pivot()` method to reverse the unpivot operation:
+
+.. code-block:: python
+
+    scenariolist.pivot(id_vars = ["user"], var_name="variable", value_name="value")
+
+    scenariolist
+
+
+This will return a list of scenarios with the `source`, `date`, and `message` key/value pairs pivoted back to their original form:
+
+.. code-block:: python
+
+    {
+        "scenarios": [
+            {
+                "user": "Alice",
+                "source": "Customer support",
+                "date": "2022-01-01",
+                "message": "I can't log in..."
+            },
+            {
+                "user": "Bob",
+                "source": "Phone",
+                "date": "2022-01-02",
+                "message": "I need help with my bill..."
+            },
+            {
+                "user": "Charlie",
+                "source": "Email",
+                "date": "2022-01-03",
+                "message": "I have a safety concern..."
+            },
+            {
+                "user": "David",
+                "source": "Chat",
+                "date": "2022-01-04",
+                "message": "I need help with a product..."
+            }
+        ]
+    }
+
+
+Grouping scenarios
+^^^^^^^^^^^^^^^^^^
+
+The `group_by()` method can be used to group scenarios by one or more specified keys and apply a function to the values of the specified variables.
+
+Example usage:
+
+.. code-block:: python
+
+    from edsl import ScenarioList
+
+    def avg_sum(a, b):
+        return {'avg_a': sum(a) / len(a), 'sum_b': sum(b)}
+
+    scenariolist = ScenarioList([
+        Scenario({'group': 'A', 'year': 2020, 'a': 10, 'b': 20}),
+        Scenario({'group': 'A', 'year': 2021, 'a': 15, 'b': 25}),
+        Scenario({'group': 'B', 'year': 2020, 'a': 12, 'b': 22}),
+        Scenario({'group': 'B', 'year': 2021, 'a': 17, 'b': 27})
+    ])
+
+    scenariolist.group_by(id_vars=['group'], variables=['a', 'b'], func=avg_sum)
+
+
+This will return a list of scenarios with the `a` and `b` key/value pairs grouped by the `group` key and the `avg_a` and `sum_b` key/value pairs calculated by the `avg_sum` function:
+
+.. code-block:: python
+
+    {
+        "scenarios": [
+            {
+                "group": "A",
+                "avg_a": 12.5,
+                "sum_b": 45
+            },
+            {
+                "group": "B",
+                "avg_a": 14.5,
+                "sum_b": 49
+            }
+        ]
+    }
+
+
 
 Data labeling tasks
 -------------------
+
 Scenarios are particularly useful for conducting data labeling or data coding tasks, where we can design the task as a question or series of questions about each piece of data in our dataset.
 For example, say we have a dataset of text messages that we want to sort by topic.
 We could perform this task by running multiple choice questions such as `"What is the primary topic of this message: {{ message }}?"` or `"Does this message mention a safety issue? {{ message }}"` where each text message is inserted in the `message` placeholder of the question text.
@@ -466,6 +940,7 @@ This will print a table of the scenarios and the answers to the questions for ea
 
 Adding metadata
 ^^^^^^^^^^^^^^^
+
 If we have metadata about the messages that we want to keep track of, we can add it to the scenarios as well.
 This will create additional columns for the metadata in the results dataset, but without the need to include it in our question texts.
 Here we modify the above example to use a dataset of messages with metadata. 
@@ -577,89 +1052,6 @@ This will return:
             }
         ]
     }
-
-
-Creating scenarios for files and images
----------------------------------------
-
-PDFs as textual scenarios
-^^^^^^^^^^^^^^^^^^^^^^^^^
-The `ScenarioList` method `from_pdf('path/to/pdf')` is a convenient way to extract information from large files.
-It allows you to read in a PDF and automatically create a list of textual scenarios for the pages of the file.
-Each scenario has the following keys: `filename`, `page`, `text`.
-
-*How it works:* Add a placeholder `{{ text }}` to a question text to use the text of a PDF page as a parameter in the question.
-When you run the survey with the PDF scenarios, the text of each page will be inserted into the question text in place of the placeholder.
-
-Example usage:
-
-.. code-block:: python
-
-    from edsl.questions import QuestionFreeText
-    from edsl import ScenarioList, Survey
-
-    # Create a survey of questions parameterized by the {{ text }} of the PDF pages:
-    q1 = QuestionFreeText(
-        question_name = "themes",
-        question_text = "Identify the key themes mentioned on this page: {{ text }}",
-    )
-
-    q2 = QuestionFreeText(
-        question_name = "idea",
-        question_text = "Identify the most important idea on this page: {{ text }}",
-    )
-
-    survey = Survey([q1, q2])
-
-    scenarios = ScenarioList.from_pdf("path/to/pdf_file.pdf")
-
-    # Run the survey with the pages of the PDF as scenarios:
-    results = survey.by(scenarios).run()
-
-    # To print the page and text of each PDF page scenario together with the answers to the question:
-    results.select("page", "text", "answer.*").print(format="rich")
-
-
-See a demo notebook of this method in the notebooks section of the docs index: "Extracting information from PDFs".
-
-
-Image scenarios
-^^^^^^^^^^^^^^^
-The `Scenario` method `from_image('path/to/image_file')` turns a PNG into into a scenario to be used with an image model (e.g., GPT-4o).
-The scenario has the following keys: `file_path`, `encoded_image`.
-
-Note that we do not need to use a placeholder `{{ text }}` in the question text in order to add the scenario to the question.
-Instead, we simply write the question with no parameters and add the scenario to the survey when running it as usual.
-
-Example usage:
-
-.. code-block:: python
-
-    from edsl.questions import QuestionFreeText, QuestionList
-    from edsl import Scenario, Survey, Model 
-
-    m = Model("gpt-4o") # Need to use a vision model for image scenarios
-
-    q1 = QuestionFreeText(
-        question_name = "show",
-        question_text = "What does this image show?",
-    )
-
-    q2 = QuestionList(
-        question_name = "count",
-        question_text = "How many things are in this image?",
-    )
-
-    survey = Survey([q1, q2])
-
-    scenario = Scenario.from_image("path/to/image_file")
-
-    results = survey.by(scenario).run()
-
-    results.select("file_path", "answer.*").print(format="rich")
-
-
-
 
 
 
