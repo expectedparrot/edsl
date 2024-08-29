@@ -116,7 +116,7 @@ class QuestionNumerical(QuestionBase):
         """Return an example question."""
         return cls(
             question_name="age",
-            question_text="How old are you in years?",
+            question_text="You are a 45 year old man. How old are you in years?",
             min_value=0,
             max_value=86.7,
             include_comment=include_comment,

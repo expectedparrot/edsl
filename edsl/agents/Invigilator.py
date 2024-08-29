@@ -84,7 +84,6 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
         This cleans up the raw response to make it suitable to pass to AgentResponseDict.
         """
         _ = agent
-        # breakpoint()
         try:
             response = question._validate_answer(
                 json.loads(json_string := self.model.parse_response(raw_model_response))

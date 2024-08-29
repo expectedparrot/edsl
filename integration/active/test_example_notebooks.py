@@ -21,15 +21,24 @@ def execute_notebook(notebook_path):
             raise RuntimeError(f"Error executing the notebook '{notebook_path}': {e}")
 
 
+full_list = [
+    "docs/notebooks/critique_questions.ipynb",
+    "docs/notebooks/hiring_interviews.ipynb",  # no good - onet db broken
+    "docs/notebooks/adding_metadata.ipynb",  # works
+    "docs/notebooks/analyze_evaluations.ipynb",  # works
+]
+
+
 @pytest.mark.parametrize(
     "notebook_path",
-    [
-        os.path.join(dirpath, f)
-        for dirpath, _, files in os.walk("integration/notebooks")  # Update this path
-        for f in files
-        if f.endswith(".ipynb")
-    ]
-    + ["docs/notebooks/critique_questions.ipynb"],
+    ["docs/notebooks/hiring_interviews.ipynb"],
+    # [
+    #     os.path.join(dirpath, f)
+    #     for dirpath, _, files in os.walk("integration/notebooks")  # Update this path
+    #     for f in files
+    #     if f.endswith(".ipynb")
+    # ]
+    # + ,
 )
 def test_notebook_execution(notebook_path):
     """

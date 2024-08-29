@@ -60,7 +60,7 @@ class QuestionBaseGenMixin:
             env = Environment()
             new_data = self.to_dict().copy()
             for key, value in new_data.items():
-                if isinstance(value, str):
+                if isinstance(value, str) and key != "question_options":
                     new_data[key] = env.from_string(value).render(scenario)
                 elif isinstance(value, list):
                     new_data[key] = [
@@ -80,11 +80,14 @@ class QuestionBaseGenMixin:
                         )
                         for k, v in value.items()
                     }
+                elif key == "question_options" and isinstance(value, str):
+                    new_data[key] = value
                 else:
                     raise ValueError(f"Unexpected value type: {type(value)}")
 
             if new_data["question_name"] == staring_name:
                 new_data["question_name"] = new_data["question_name"] + f"_{index}"
+
             questions.append(QuestionBase.from_dict(new_data))
         return questions
 
