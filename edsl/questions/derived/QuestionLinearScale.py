@@ -35,7 +35,7 @@ class QuestionLinearScale(QuestionMultipleChoice):
             question_name=question_name,
             question_text=question_text,
             question_options=question_options,
-            use_code=False,
+            use_code=False,  # question linear scale will have it's own code
         )
         self.question_options = question_options
         self.option_labels = (

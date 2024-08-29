@@ -10,6 +10,7 @@ from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
 
 class GoogleService(InferenceServiceABC):
     _inference_service_ = "google"
+    key_sequence = ["candidates", 0, "content", "parts", 0, "text"]
 
     @classmethod
     def available(cls):
@@ -24,6 +25,7 @@ class GoogleService(InferenceServiceABC):
 
         class LLM(LanguageModel):
             _model_ = model_name
+            key_sequence = cls.key_sequence
             _inference_service_ = cls._inference_service_
             _parameters_ = {
                 "temperature": 0.5,

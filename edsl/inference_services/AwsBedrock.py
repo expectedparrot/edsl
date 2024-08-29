@@ -16,6 +16,7 @@ class AwsBedrockService(InferenceServiceABC):
     _env_key_name_ = (
         "AWS_ACCESS_KEY_ID"  # or any other environment key for AWS credentials
     )
+    key_sequence = ["output", "message", "content", 0, "text"]
 
     @classmethod
     def available(cls):
@@ -42,6 +43,7 @@ class AwsBedrockService(InferenceServiceABC):
             Child class of LanguageModel for interacting with AWS Bedrock models.
             """
 
+            key_sequence = cls.key_sequence
             _inference_service_ = cls._inference_service_
             _model_ = model_name
             _parameters_ = {
@@ -88,22 +90,6 @@ class AwsBedrockService(InferenceServiceABC):
                 except (ClientError, Exception) as e:
                     print(e)
                     return {"error": str(e)}
-
-            @staticmethod
-            def parse_response(raw_response: dict[str, Any]) -> str:
-                """Parses the API response and returns the response text."""
-                if "output" in raw_response and "message" in raw_response["output"]:
-                    response = raw_response["output"]["message"]["content"][0]["text"]
-                    pattern = r"^```json(?:\\n|\n)(.+?)(?:\\n|\n)```$"
-                    match = re.match(pattern, response, re.DOTALL)
-                    if match:
-                        return match.group(1)
-                    else:
-                        out = fix_partial_correct_response(response)
-                        if "error" not in out:
-                            response = out["extracted_json"]
-                        return response
-                return "Error parsing response"
 
         LLM.__name__ = model_class_name
 

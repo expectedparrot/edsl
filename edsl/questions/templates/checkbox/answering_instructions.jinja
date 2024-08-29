@@ -1,8 +1,10 @@
 {# Answering Instructions #}
-Please respond with valid JSON, formatted like so:
-{% if include_comment %}
-    {"answer": [<put comma-separated list here>], "comment": "<put explanation here>"}
+{% if use_code %}
+Please respond only with a comma-separated list of the code of the options you want to select, with square brackets. E.g., [A, B, C]
 {% else %}
-    {"answer": [<put comma-separated list here>]}
+Please respond only with a comma-separated list of the options you want to select, with square brackets. E.g., ['Good', 'Bad', 'Ugly']
+{% endif %}
+{% if include_comment %}
+After the answer, you can put a comment explaining your choice on the next line.
 {% endif %}
 
