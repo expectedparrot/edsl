@@ -99,7 +99,9 @@ def apply_key_sequence(data, key_sequence):
             current_data = current_data[key]
         except Exception as e:
             path = " -> ".join(map(str, key_sequence[: i + 1]))
-            raise ValueError(f"Error accessing path: {path}. {str(e)}") from e
+            raise ValueError(
+                f"Error accessing path: {path}. {str(e)}. Full response is: '{data}'"
+            ) from e
 
     return current_data
 
@@ -145,7 +147,9 @@ class LanguageModel(
     """
 
     _model_ = None
-    key_sequence = None  # This should be something like ["choices", 0, "message", "content"]
+    key_sequence = (
+        None  # This should be something like ["choices", 0, "message", "content"]
+    )
     __rate_limits = None
     __default_rate_limits = {
         "rpm": 10_000,
@@ -362,7 +366,6 @@ class LanguageModel(
     # @staticmethod
     def parse_response(cls, raw_response: dict[str, Any]) -> str:
         """Parses the API response and returns the response text."""
-        # key_sequence = [0]
         response_string = apply_key_sequence(raw_response, cls.key_sequence)
         if len(response_string.split("\n")) > 1:
             r = json.dumps(

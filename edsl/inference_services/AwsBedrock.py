@@ -16,8 +16,10 @@ class AwsBedrockService(InferenceServiceABC):
     _env_key_name_ = (
         "AWS_ACCESS_KEY_ID"  # or any other environment key for AWS credentials
     )
-    key_sequence = ["output", "message", "content", 0, "text"]
+    # key_sequence = ["output", "message", "content", 0, "text"]
+    key_sequence = ["choices", 0, "message", "content"]
 
+    # raw_response['choices'][0]['message']['content']
     @classmethod
     def available(cls):
         """Fetch available models from AWS Bedrock."""

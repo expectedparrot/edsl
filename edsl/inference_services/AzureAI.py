@@ -25,7 +25,9 @@ def json_handle_none(value: Any) -> Any:
 class AzureAIService(InferenceServiceABC):
     """Azure AI service class."""
 
-    key_sequence = ["content", 0, "text"]  # ["content"][0]["text"]
+    # key_sequence = ["content", 0, "text"]  # ["content"][0]["text"]
+    key_sequence = ["choices", 0, "message", "content"]
+
     _inference_service_ = "azure"
     _env_key_name_ = (
         "AZURE_ENDPOINT_URL_AND_KEY"  # Environment variable for Azure API key
