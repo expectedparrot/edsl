@@ -610,6 +610,136 @@ This will return:
     }
 
 
+Creating a scenario list from a Wikipedia table
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The `ScenarioList` method `from_wikipedia_table('url')` can be used to create a list of scenarios from a Wikipedia table.
+
+Example usage:
+
+.. code-block:: python
+
+    from edsl import ScenarioList
+
+    scenariolist = ScenarioList.from_wikipedia_table("https://en.wikipedia.org/wiki/Fortune_500", 0)
+
+    scenariolist
+
+
+This will return a list of scenarios for the first table on the Wikipedia page:
+
+    ┏━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┓
+    ┃ Rank ┃ Company              ┃ State          ┃ Industry                                 ┃ Revenue in USD ┃
+    ┡━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━┩
+    │ 1    │ Walmart              │ Arkansas       │ General Merchandisers                    │ $648.1 billion │
+    ├──────┼──────────────────────┼────────────────┼──────────────────────────────────────────┼────────────────┤
+    │ 2    │ Amazon               │ Washington     │ Internet Services and Retailing          │ $574.8 billion │
+    ├──────┼──────────────────────┼────────────────┼──────────────────────────────────────────┼────────────────┤
+    │ 3    │ Apple                │ California     │ Computers, Office Equipment              │ $383.3 billion │
+    ├──────┼──────────────────────┼────────────────┼──────────────────────────────────────────┼────────────────┤
+    │ 4    │ UnitedHealth Group   │ Minnesota      │ Health Care: Insurance and Managed Care  │ $371.6 billion │
+    ├──────┼──────────────────────┼────────────────┼──────────────────────────────────────────┼────────────────┤
+    │ 5    │ Berkshire Hathaway   │ Nebraska       │ Insurance: Property and Casualty (stock) │ $364.5 billion │
+    ├──────┼──────────────────────┼────────────────┼──────────────────────────────────────────┼────────────────┤
+    │ 6    │ CVS Health           │ Rhode Island   │ Health Care: Pharmacy and Other Services │ $357.8 billion │
+    ├──────┼──────────────────────┼────────────────┼──────────────────────────────────────────┼────────────────┤
+    │ 7    │ ExxonMobil           │ Texas          │ Petroleum Refining                       │ $344.6 billion │
+    ├──────┼──────────────────────┼────────────────┼──────────────────────────────────────────┼────────────────┤
+    │ 8    │ Alphabet Inc.        │ California     │ Internet Services and Retailing          │ $307.4 billion │
+    ├──────┼──────────────────────┼────────────────┼──────────────────────────────────────────┼────────────────┤
+    │ 9    │ McKesson Corporation │ Texas          │ Wholesalers: Health Care                 │ $276.7 billion │
+    ├──────┼──────────────────────┼────────────────┼──────────────────────────────────────────┼────────────────┤
+    │ 10   │ Cencora              │ Pennsylvania   │ Wholesalers: Health Care                 │ $262.2 billion │
+    ├──────┼──────────────────────┼────────────────┼──────────────────────────────────────────┼────────────────┤
+    │ 11   │ Costco               │ Washington     │ General Merchandisers                    │ $242.3 billion │
+    ├──────┼──────────────────────┼────────────────┼──────────────────────────────────────────┼────────────────┤
+    │ 12   │ JPMorgan Chase       │ New York       │ Commercial Banks                         │ $239.4 billion │
+    ├──────┼──────────────────────┼────────────────┼──────────────────────────────────────────┼────────────────┤
+    │ 13   │ Microsoft            │ Washington     │ Computer Software                        │ $211.9 billion │
+    ├──────┼──────────────────────┼────────────────┼──────────────────────────────────────────┼────────────────┤
+    │ 14   │ Cardinal Health      │ Ohio           │ Wholesalers: Health Care                 │ $205.0 billion │
+    ├──────┼──────────────────────┼────────────────┼──────────────────────────────────────────┼────────────────┤
+    │ 15   │ Chevron Corporation  │ California     │ Petroleum Refining                       │ $200.9 billion │
+    ├──────┼──────────────────────┼────────────────┼──────────────────────────────────────────┼────────────────┤
+    │ 16   │ Cigna                │ Connecticut    │ Health Care: Pharmacy and Other Services │ $195.3 billion │
+    ├──────┼──────────────────────┼────────────────┼──────────────────────────────────────────┼────────────────┤
+    │ 17   │ Ford Motor Company   │ Michigan       │ Motor Vehicles & Parts                   │ $176.2 billion │
+    ├──────┼──────────────────────┼────────────────┼──────────────────────────────────────────┼────────────────┤
+    │ 18   │ Bank of America      │ North Carolina │ Commercial Banks                         │ $171.9 billion │
+    ├──────┼──────────────────────┼────────────────┼──────────────────────────────────────────┼────────────────┤
+    │ 19   │ General Motors       │ Michigan       │ Motor Vehicles & Parts                   │ $171.8 billion │
+    ├──────┼──────────────────────┼────────────────┼──────────────────────────────────────────┼────────────────┤
+    │ 20   │ Elevance Health      │ Indiana        │ Health Care: Insurance and Managed Care  │ $171.3 billion │
+    └──────┴──────────────────────┴────────────────┴──────────────────────────────────────────┴────────────────┘
+
+
+The scenario list can be used in a survey to ask questions about the data in the table.
+
+.. code-block:: python
+
+    from edsl import QuestionFreeText, Survey
+
+    q = QuestionFreeText(
+        question_name = "company",
+        question_text = "What industry is {{ Company }} in?",
+    )
+
+    survey = Survey([q])
+
+    results = survey.by(scenariolist).run()
+
+    results.select("Company", "Industry").print(format="rich")
+
+
+Example output:
+
+.. code-block:: text
+
+    ┏━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+    ┃ scenario             ┃ scenario                                 ┃
+    ┃ .Company             ┃ .Industry                                ┃
+    ┡━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+    │ Ford Motor Company   │ Motor Vehicles & Parts                   │
+    ├──────────────────────┼──────────────────────────────────────────┤
+    │ General Motors       │ Motor Vehicles & Parts                   │
+    ├──────────────────────┼──────────────────────────────────────────┤
+    │ Bank of America      │ Commercial Banks                         │
+    ├──────────────────────┼──────────────────────────────────────────┤
+    │ Chevron Corporation  │ Petroleum Refining                       │
+    ├──────────────────────┼──────────────────────────────────────────┤
+    │ ExxonMobil           │ Petroleum Refining                       │
+    ├──────────────────────┼──────────────────────────────────────────┤
+    │ JPMorgan Chase       │ Commercial Banks                         │
+    ├──────────────────────┼──────────────────────────────────────────┤
+    │ Costco               │ General Merchandisers                    │
+    ├──────────────────────┼──────────────────────────────────────────┤
+    │ Apple                │ Computers, Office Equipment              │
+    ├──────────────────────┼──────────────────────────────────────────┤
+    │ Elevance Health      │ Health Care: Insurance and Managed Care  │
+    ├──────────────────────┼──────────────────────────────────────────┤
+    │ UnitedHealth Group   │ Health Care: Insurance and Managed Care  │
+    ├──────────────────────┼──────────────────────────────────────────┤
+    │ Cencora              │ Wholesalers: Health Care                 │
+    ├──────────────────────┼──────────────────────────────────────────┤
+    │ Microsoft            │ Computer Software                        │
+    ├──────────────────────┼──────────────────────────────────────────┤
+    │ McKesson Corporation │ Wholesalers: Health Care                 │
+    ├──────────────────────┼──────────────────────────────────────────┤
+    │ Alphabet Inc.        │ Internet Services and Retailing          │
+    ├──────────────────────┼──────────────────────────────────────────┤
+    │ Cigna                │ Health Care: Pharmacy and Other Services │
+    ├──────────────────────┼──────────────────────────────────────────┤
+    │ Walmart              │ General Merchandisers                    │
+    ├──────────────────────┼──────────────────────────────────────────┤
+    │ Amazon               │ Internet Services and Retailing          │
+    ├──────────────────────┼──────────────────────────────────────────┤
+    │ Berkshire Hathaway   │ Insurance: Property and Casualty (stock) │
+    ├──────────────────────┼──────────────────────────────────────────┤
+    │ Cardinal Health      │ Wholesalers: Health Care                 │
+    ├──────────────────────┼──────────────────────────────────────────┤
+    │ CVS Health           │ Health Care: Pharmacy and Other Services │
+    └──────────────────────┴──────────────────────────────────────────┘
+
 Creating a scenario list from a CSV
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
