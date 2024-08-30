@@ -174,7 +174,6 @@ Information about additional functionality for developers.
    :caption: How-to Guides
    :hidden:
 
-   notebooks/scenariolist_unpivot.ipynb
    notebooks/data_labeling_example.ipynb
    notebooks/cheatsheet_scenarios.ipynb
    notebooks/scenario_from_pdf.ipynb
@@ -193,6 +192,8 @@ Information about additional functionality for developers.
    :caption: Notebooks
    :hidden:
 
+   notebooks/scenariolist_unpivot.ipynb
+   notebooks/google_form_to_edsl.ipynb
    notebooks/agentifying_responses.ipynb
    notebooks/summarizing_transcripts.ipynb
    notebooks/data_labeling_agent.ipynb
