@@ -174,3 +174,13 @@ async def clear_after_test():
     # Do nothing before the test runs
     yield
     # TODO: Do some things after the test, e.g., clear the database
+
+
+@pytest.fixture(scope="session", autouse=True)
+def clear_after_test():
+    """
+    Clean the cache folder before and after all the test suite.
+    """
+    os.system("rm -rf tests/.temp_cache")
+    yield
+    # os.system("rm -rf tests/.temp_cache")
