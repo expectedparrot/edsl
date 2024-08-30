@@ -143,7 +143,7 @@ def extract_generated_tokens_from_raw_response(data, key_sequence):
                 f"Error accessing path: {path}. {str(e)}. Full response is: '{data}'"
             ) from e
 
-    return current_data
+    return current_data.strip()  # in case any whitespace was added
 
 
 def handle_key_error(func):
