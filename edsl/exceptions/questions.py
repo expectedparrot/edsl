@@ -14,7 +14,6 @@ class QuestionErrors(Exception):
 
 
 class QuestionAnswerValidationError(QuestionErrors):
-
     documentation = "https://docs.expectedparrot.com/en/latest/exceptions.html"
 
     explanation = """This when the answer coming from the Language Model does not conform to the expectation for that question type.
