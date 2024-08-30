@@ -25,6 +25,9 @@ def json_handle_none(value: Any) -> Any:
 class AzureAIService(InferenceServiceABC):
     """Azure AI service class."""
 
+    # key_sequence = ["content", 0, "text"]  # ["content"][0]["text"]
+    key_sequence = ["choices", 0, "message", "content"]
+
     _inference_service_ = "azure"
     _env_key_name_ = (
         "AZURE_ENDPOINT_URL_AND_KEY"  # Environment variable for Azure API key
@@ -96,6 +99,7 @@ class AzureAIService(InferenceServiceABC):
             Child class of LanguageModel for interacting with Azure OpenAI models.
             """
 
+            key_sequence = cls.key_sequence
             _inference_service_ = cls._inference_service_
             _model_ = model_name
             _parameters_ = {
@@ -172,25 +176,25 @@ class AzureAIService(InferenceServiceABC):
                     )
                     return response.model_dump()
 
-            @staticmethod
-            def parse_response(raw_response: dict[str, Any]) -> str:
-                """Parses the API response and returns the response text."""
-                if (
-                    raw_response
-                    and "choices" in raw_response
-                    and raw_response["choices"]
-                ):
-                    response = raw_response["choices"][0]["message"]["content"]
-                    pattern = r"^```json(?:\\n|\n)(.+?)(?:\\n|\n)```$"
-                    match = re.match(pattern, response, re.DOTALL)
-                    if match:
-                        return match.group(1)
-                    else:
-                        out = fix_partial_correct_response(response)
-                        if "error" not in out:
-                            response = out["extracted_json"]
-                        return response
-                return "Error parsing response"
+            # @staticmethod
+            # def parse_response(raw_response: dict[str, Any]) -> str:
+            #     """Parses the API response and returns the response text."""
+            #     if (
+            #         raw_response
+            #         and "choices" in raw_response
+            #         and raw_response["choices"]
+            #     ):
+            #         response = raw_response["choices"][0]["message"]["content"]
+            #         pattern = r"^```json(?:\\n|\n)(.+?)(?:\\n|\n)```$"
+            #         match = re.match(pattern, response, re.DOTALL)
+            #         if match:
+            #             return match.group(1)
+            #         else:
+            #             out = fix_partial_correct_response(response)
+            #             if "error" not in out:
+            #                 response = out["extracted_json"]
+            #             return response
+            #     return "Error parsing response"
 
         LLM.__name__ = model_class_name
 

@@ -10,6 +10,7 @@ from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
 
 class GoogleService(InferenceServiceABC):
     _inference_service_ = "google"
+    key_sequence = ["candidates", 0, "content", "parts", 0, "text"]
 
     @classmethod
     def available(cls):
@@ -24,6 +25,7 @@ class GoogleService(InferenceServiceABC):
 
         class LLM(LanguageModel):
             _model_ = model_name
+            key_sequence = cls.key_sequence
             _inference_service_ = cls._inference_service_
             _parameters_ = {
                 "temperature": 0.5,
@@ -57,16 +59,6 @@ class GoogleService(InferenceServiceABC):
                     ) as response:
                         raw_response_text = await response.text()
                         return json.loads(raw_response_text)
-
-            def parse_response(self, raw_response: dict[str, Any]) -> str:
-                data = raw_response
-                try:
-                    return data["candidates"][0]["content"]["parts"][0]["text"]
-                except KeyError as e:
-                    print(
-                        f"The data return was {data}, which was missing the key 'candidates'"
-                    )
-                    raise e
 
         LLM.__name__ = model_name
 

@@ -167,10 +167,22 @@ def language_model_good():
 
 
 @pytest.fixture(scope="function", autouse=True)
-async def clear_after_test():
+async def clear_after_test_function():
     """
-    This fixture does some things after each test (function) runs.
+    Clean before and after each test.
     """
     # Do nothing before the test runs
     yield
     # TODO: Do some things after the test, e.g., clear the database
+
+
+@pytest.fixture(scope="session", autouse=True)
+def clear_after_test_session():
+    """
+    Clean before and after all the test session.
+    """
+    os.system("make clean")
+    os.system("make clean-test")
+    yield
+    os.system("make clean")
+    os.system("make clean-test")

@@ -18,7 +18,7 @@ class ListResponse(BaseResponse):
     """
     >>> nr = ListResponse(answer = ["Apple", "Cherry"])
     >>> nr.dict()
-    {'answer': ['Apple', 'Cherry'], 'comment': None}
+    {'answer': ['Apple', 'Cherry'], 'comment': None, 'generated_tokens': None}
     """
 
     answer: list[Union[str, int, float, list, dict]]
@@ -43,6 +43,15 @@ class ListResponseValidator(ResponseValidatorABC):
         ):
             raise QuestionAnswerValidationError("Too many items.")
         return response.dict()
+
+    def fix(self, response):
+        answer = str(response.get("answer") or response.get("generated_tokens", ""))
+        if len(answer.split(",")) > 0:
+            return (
+                {"answer": answer.split(",")} | {"comment": response.get("comment")}
+                if "comment" in response
+                else {}
+            )
 
 
 class QuestionList(QuestionBase):
@@ -108,12 +117,13 @@ class QuestionList(QuestionBase):
     ################
     @classmethod
     @inject_exception
-    def example(cls) -> QuestionList:
+    def example(cls, include_comment=True) -> QuestionList:
         """Return an example of a list question."""
         return cls(
             question_name="list_of_foods",
             question_text="What are your favorite foods?",
             max_list_items=5,
+            include_comment=include_comment,
         )
 
 

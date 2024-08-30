@@ -1,28 +1,8 @@
-This question requires a numerical response 
-in the form of an integer or decimal (e.g., -12, 0, 1, 2, 3.45, ...).
-Your response must be in the following format:
+This question requires a numerical response in the form of an integer or decimal (e.g., -12, 0, 1, 2, 3.45, ...).
+Respond with just your number on a single line.
+If your response is equivalent to zero, report '0'
+If you cannot determine the answer, report 'None'
 
 {% if include_comment %}
-{"answer": "<your numerical answer here>", "comment": "<your explanation here>"}
-{% else %}
-{"answer": "<your numerical answer here>"}
-{% endif %}
-
-You must only include an integer or decimal in the quoted "answer" part of your response.
-        
-Here is an example of a valid response:
-{% if include_comment %}
-{"answer": "100", "comment": "This is my explanation..."}
-{% else %}
-{"answer": "100"}
-{% endif %}
-        
-Here is an example of a response that is invalid because the "answer" includes words:
-{"answer": "I don't know.", ...}
-
-If your response is equivalent to zero, your formatted response should look like this:
-{% if include_comment %}
-{"answer": "0", "comment": "This is my explanation..."}
-{% else %}
-{"answer": "0"}
+After the answer, put a comment explaining your choice on the next line.
 {% endif %}

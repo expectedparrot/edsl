@@ -24,6 +24,8 @@ class OpenAIService(InferenceServiceABC):
     _sync_client_instance = None
     _async_client_instance = None
 
+    key_sequence = ["choices", 0, "message", "content"]
+
     @classmethod
     def sync_client(cls):
         cls._sync_client_instance = cls._sync_client_(
@@ -65,6 +67,8 @@ class OpenAIService(InferenceServiceABC):
         "text-embedding-3-small",
         "text-embedding-ada-002",
         "ft:davinci-002:mit-horton-lab::8OfuHgoo",
+        "gpt-3.5-turbo-instruct-0914",
+        "gpt-3.5-turbo-instruct",
     ]
     _models_list_cache: List[str] = []
 
@@ -111,6 +115,7 @@ class OpenAIService(InferenceServiceABC):
             Child class of LanguageModel for interacting with OpenAI models
             """
 
+            key_sequence = cls.key_sequence
             _inference_service_ = cls._inference_service_
             _model_ = model_name
             _parameters_ = {
@@ -211,24 +216,6 @@ class OpenAIService(InferenceServiceABC):
                 }
                 response = await client.chat.completions.create(**params)
                 return response.model_dump()
-
-            @staticmethod
-            def parse_response(raw_response: dict[str, Any]) -> str:
-                """Parses the API response and returns the response text."""
-                try:
-                    response = raw_response["choices"][0]["message"]["content"]
-                except KeyError:
-                    print("Tried to parse response but failed:")
-                    print(raw_response)
-                pattern = r"^```json(?:\\n|\n)(.+?)(?:\\n|\n)```$"
-                match = re.match(pattern, response, re.DOTALL)
-                if match:
-                    return match.group(1)
-                else:
-                    out = fix_partial_correct_response(response)
-                    if "error" not in out:
-                        response = out["extracted_json"]
-                    return response
 
         LLM.__name__ = "LanguageModel"
 

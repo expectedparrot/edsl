@@ -23,7 +23,7 @@ class RankResponse(BaseResponse):
     """
     >>> nr = RankResponse(answer=[1, 2], comment="I like custard")
     >>> nr.dict()
-    {'answer': [1, 2], 'comment': 'I like custard'}
+    {'answer': [1, 2], 'comment': 'I like custard', 'generated_tokens': None}
     """
 
     answer: list[int]
