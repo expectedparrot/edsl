@@ -344,6 +344,17 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             new_scenarios.append(new_scenario)
         return ScenarioList(new_scenarios)
 
+    def transform(
+        self, field: str, func: Callable, new_name: Optional[str] = None
+    ) -> ScenarioList:
+        """Transform a field using a function."""
+        new_scenarios = []
+        for scenario in self:
+            new_scenario = scenario.copy()
+            new_scenario[new_name or field] = func(scenario[field])
+            new_scenarios.append(new_scenario)
+        return ScenarioList(new_scenarios)
+
     def mutate(
         self, new_var_string: str, functions_dict: Optional[dict[str, Callable]] = None
     ) -> ScenarioList:
