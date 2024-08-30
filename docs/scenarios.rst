@@ -3,7 +3,7 @@
 Scenarios
 =========
 
-A `Scenario` is a dictionary containing a key/value pair that is used to parameterize one or more questions in a survey, replacing a parameter in a question with a specific value.
+A `Scenario` is a dictionary containing a key/value pair that is used to add data or content to questions in a survey, replacing a parameter in a question with a specific value.
 A `ScenarioList` is a list of `Scenario` objects.
 
 Purpose 
@@ -64,16 +64,81 @@ This will return:
     }
 
 
-Using a Scenario
-----------------
+ScenarioList 
+^^^^^^^^^^^^
 
-We use a scenario by adding it to a question (or a survey of questions) with the `by()` method when we run it:
+If multiple values will be used, we can create a list of `Scenario` objects:
 
 .. code-block:: python
 
-    results = q.by(scenario).run()
+    scenarios = [Scenario({"item": item}) for item in ["color", "weekday"]]
 
-    results.select("item", "favorite_item").print(format="rich")
+
+We can inspect the scenarios:
+
+.. code-block:: python
+
+    scenarios 
+
+
+This will return:
+
+.. code-block:: python
+
+    [Scenario({'item': 'color'}), Scenario({'item': 'weekday'})]
+
+
+We can also create a `ScenarioList` object to store multiple scenarios:
+
+.. code-block:: python
+
+    from edsl import ScenarioList
+
+    scenariolist = ScenarioList([Scenario({"item": item}) for item in ["color", "weekday"]])
+
+
+We can inspect it:
+
+.. code-block:: python
+
+    scenariolist
+
+
+This will return:
+
+.. code-block:: python
+
+    {
+        "scenarios": [
+            {
+                "item": "color"
+            },
+            {
+                "item": "weekday"
+            }
+        ]
+    }
+
+
+Using a Scenario
+----------------
+
+We use a scenario (or scenariolist) by adding it to a question (or a survey of questions), either when constructing the question or else when running it.
+
+We use the `by()` method to add a scenario to a question when running it:
+
+.. code-block:: python
+
+    from edsl import QuestionFreeText, Scenario
+
+    q = QuestionFreeText(
+        question_name = "favorite_item",
+        question_text = "What is your favorite {{ item }}?",
+    )
+
+    scenario = Scenario({"item": "color"})
+
+    results = q.by(scenario).run()
 
 
 We can check the results to verify that the scenario has been used correctly:
@@ -93,6 +158,64 @@ This will print a table of the selected components of the results:
     ┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
     │ color    │ My favorite color is blue. │
     └──────────┴────────────────────────────┘
+
+
+We use the `loop()` method To add a scenario to a question when constructing it, passing a `ScenarioList`. 
+This will create a list containing a new question for each scenario that was passed.
+Note that we can optionally include the scenario key in the question name as well; otherwise a unique identifies is automatically added to each question name.
+
+.. code-block:: python
+
+    from edsl import QuestionFreeText, ScenarioList
+
+    q = QuestionFreeText(
+        question_name = "favorite_{{ item }}",
+        question_text = "What is your favorite {{ item }}?",
+    )
+
+    scenariolist = ScenarioList(
+        Scenario({"item": item}) for item in ["color", "weekday"]
+    )
+
+    questions = q.loop(scenariolist)
+
+
+We can inspect the questions to see that they have been created correctly:
+
+.. code-block:: python
+
+    questions
+
+
+This will return:
+
+.. code-block:: python
+
+    [Question('free_text', question_name = """favorite_color""", question_text = """What is your favorite color?"""),
+    Question('free_text', question_name = """favorite_weekday""", question_text = """What is your favorite weekday?""")]
+
+
+We can pass the questions to a survey and run it:
+
+.. code-block:: python
+
+    results = Survey(questions = questions).run()
+
+    results.select("answer.*").print(format="rich")
+
+
+This will print a table of the response for each question:
+
+.. code-block:: text
+
+    ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+    ┃ answer                     ┃ answer                                                                             ┃
+    ┃ .favorite_color            ┃ .favorite_weekday                                                                   ┃
+    ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+    │ My favorite color is blue. │ My favorite weekday is Friday because it marks the end of the workweek and the     │
+    │                            │ beginning of the weekend, offering a sense of relief and anticipation for leisure  │
+    │                            │ time.                                                                              │
+    └────────────────────────────┴────────────────────────────────────────────────────────────────────────────────────┘
 
 
 Multiple parameters
@@ -126,136 +249,6 @@ This will print a table of the selected components of the results:
     ┡━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
     │ inches   │ mile      │ There are 63,360 inches in a mile. │
     └──────────┴───────────┴────────────────────────────────────┘
-
-
-ScenarioList 
-^^^^^^^^^^^^
-
-If multiple values will be used, we can create a list of `Scenario` objects: 
-
-.. code-block:: python
-
-    scenarios = [Scenario({"item": item}) for item in ["color", "food"]]
-
-
-We can inspect the scenarios:
-
-.. code-block:: python
-
-    scenarios 
-
-
-This will return:
-
-.. code-block:: python
-
-    [Scenario({'item': 'color'}), Scenario({'item': 'food'})]
-
-
-We can also create a `ScenarioList` object to store multiple scenarios:
-
-.. code-block:: python
-
-    from edsl import ScenarioList
-
-    scenariolist = ScenarioList([Scenario({"item": item}) for item in ["color", "food"]])
-
-
-We can inspect it:
-
-.. code-block:: python
-
-    scenariolist
-
-
-This will return:
-
-.. code-block:: python
-
-    {
-        "scenarios": [
-            {
-                "item": "color"
-            },
-            {
-                "item": "food"
-            }
-        ]
-    }
-
-
-They can both be used in the same way as a single `Scenario` object:
-
-.. code-block:: python
-
-    from edsl import QuestionFreeText
-
-    q = QuestionFreeText(
-        question_name = "favorite_item",
-        question_text = "What is your favorite {{ item }}?",
-    )
-
-    scenariolist = ScenarioList([Scenario({"item": item}) for item in ["color", "food"]])
-
-    results = q.by(scenariolist).run()
-
-    results.select("item", "favorite_item").print(format="rich")
-
-
-This will print a table of the selected components of the results:
-
-.. code-block:: text
-
-    ┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-    ┃ scenario ┃ answer                                                                    ┃
-    ┃ .item    ┃ .favorite_item                                                            ┃
-    ┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-    │ color    │ My favorite color is blue.                                                │
-    ├──────────┼───────────────────────────────────────────────────────────────────────────┤
-    │ food     │ As an AI, I don't eat, but a popular favorite food among humans is pizza. │
-    └──────────┴───────────────────────────────────────────────────────────────────────────┘
-
-
-If we have multiple questions in a survey, we can add scenarios to the survey in the same way as we do a single question:
-
-.. code-block:: python
-
-    from edsl import QuestionFreeText, QuestionList, Survey, Scenario
-
-    q1 = QuestionFreeText(
-        question_name = "favorite_item",
-        question_text = "What is your favorite {{ item }}?",
-    )
-    q2 = QuestionList(
-        question_name = "items_list",
-        question_text = "What are some of your favorite {{ item }} preferences?",
-        
-    )
-
-    survey = Survey(questions = [q1, q2])
-
-    scenariolist = ScenarioList(
-        Scenario({"item": item}) for item in ["color", "food"]
-    )
-
-    results = survey.by(scenariolist).run()
-
-    results.select("item", "favorite_item", "items_list").print(format="rich")
-
-
-This will print a table of the responses for each scenario for each question:
-
-.. code-block:: text
-
-    ┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-    ┃ scenario ┃ answer                                            ┃ answer                                           ┃
-    ┃ .item    ┃ .favorite_item                                    ┃ .items_list                                      ┃
-    ┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-    │ color    │ My favorite color is blue.                        │ ['Blue', 'Green', 'Red']                         │
-    ├──────────┼───────────────────────────────────────────────────┼──────────────────────────────────────────────────┤
-    │ food     │ As an AI, I don't eat, but a popular favorite     │ ['Italian cuisine', 'sushi', 'fresh salads',     │
-    │          │ food among humans is pizza.                       │ 'barbecue', 'dark chocolate']                    │
-    └──────────┴───────────────────────────────────────────────────┴──────────────────────────────────────────────────┘
 
 
 To learn more about constructing surveys, please see the :ref:`surveys` module.
