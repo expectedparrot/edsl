@@ -2,6 +2,10 @@
 
 ## [0.1.33] - IN PROGRESS
 ### Added 
+- Permissive option when validating results (e.g., you can specify whether min/max selections for a checkbox question should be enforced)
+
+- `Results` now include `generated_tokens`
+
 - 'tree' visualization
 
 - `Question` method `loop()` allows you to create multiple versions of a question when you are constructing a survey. It takes a `ScenarioList` and automatically creates a copy of the question for each scenario, which can then be passed as a list to a `Survey`. This is different from adding scenarios to a question or survey (using the `by()` method) *at the time that the question or survey is run*. See the questions page for details, and example usage:
