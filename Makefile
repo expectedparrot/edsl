@@ -28,7 +28,12 @@ clean: ## Clean temp files
 	[ ! -d .temp ] || rm -rf .temp
 	[ ! -d dist ] || rm -rf dist
 	[ ! -d htmlcov ] || rm -rf htmlcov
+	[ ! -f output.html ] || rm output.html
 	[ ! -d prof ] || rm -rf prof
+	[ ! -f test.dta ] || rm test.dta
+	[ ! -f *.docx ] || rm *.docx
+	[ ! -f *.html ] || rm *.html
+	[ ! -f *.json ] || rm *.json
 	find . -type d -name '.venv' -prune -o -type f -name '*.db' -exec rm -rf {} +
 	find . -type d -name '.venv' -prune -o -type f -name '*.db.bak' -exec rm -rf {} +
 	find . -type d -name '.venv' -prune -o -type f -name '*.log' -exec rm -rf {} +
