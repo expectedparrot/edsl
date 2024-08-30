@@ -31,7 +31,7 @@ To use a scenario, we start by creating a question that takes a parameter in dou
 
 .. code-block:: python
 
-    from edsl.questions import QuestionFreeText
+    from edsl import QuestionFreeText
 
     q = QuestionFreeText(
         question_name = "favorite_item",
@@ -102,7 +102,7 @@ We can also create a `Scenario` for multiple parameters:
 
 .. code-block:: python
 
-    from edsl.questions import QuestionFreeText
+    from edsl import QuestionFreeText
 
     q = QuestionFreeText(
         question_name = "counting",
@@ -188,7 +188,7 @@ They can both be used in the same way as a single `Scenario` object:
 
 .. code-block:: python
 
-    from edsl.questions import QuestionFreeText
+    from edsl import QuestionFreeText
 
     q = QuestionFreeText(
         question_name = "favorite_item",
