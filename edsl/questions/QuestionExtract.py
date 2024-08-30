@@ -11,6 +11,43 @@ from edsl.questions.decorators import inject_exception
 from typing import Dict, Any
 from pydantic import create_model, Field
 
+import json
+import re
+
+
+def extract_json(text, expected_keys, verbose=False):
+    # Escape special regex characters in keys
+    escaped_keys = [re.escape(key) for key in expected_keys]
+
+    # Create a pattern that looks for all expected keys
+    pattern = r"\{[^}]*" + r"[^}]*".join(escaped_keys) + r"[^}]*\}"
+
+    json_match = re.search(pattern, text)
+
+    if json_match:
+        json_str = json_match.group(0)
+        try:
+            # Parse the extracted string as JSON
+            json_data = json.loads(json_str)
+
+            # Verify that all expected keys are present
+            if all(key in json_data for key in expected_keys):
+                return json_data
+            else:
+                if verbose:
+                    print(
+                        "Error: Not all expected keys were found in the extracted JSON."
+                    )
+                return None
+        except json.JSONDecodeError:
+            if verbose:
+                print("Error: The extracted content is not valid JSON.")
+            return None
+    else:
+        if verbose:
+            print("Error: No JSON-like structure found with all expected keys.")
+        return None
+
 
 def dict_to_pydantic_model(input_dict: Dict[str, Any]) -> Any:
     field_definitions = {
@@ -38,6 +75,19 @@ class ExtractResponseValidator(ResponseValidatorABC):
 
     def custom_validate(self, response) -> BaseResponse:
         return response.dict()
+
+    def fix(self, response, verbose=False):
+        raw_tokens = response["generated_tokens"]
+        if verbose:
+            print(f"Invalid response of QuestionExtract was: {raw_tokens}")
+        extracted_json = extract_json(raw_tokens, self.answer_template.keys(), verbose)
+        if verbose:
+            print("Proposed solution is: ", extracted_json)
+        return {
+            "answer": extracted_json,
+            "comment": response.get("comment", None),
+            "generated_tokens": raw_tokens,
+        }
 
 
 class QuestionExtract(QuestionBase):

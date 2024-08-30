@@ -156,12 +156,13 @@ class DatasetExportMixin:
         iframe_height: int = 200,
         iframe_width: int = 600,
         web=False,
-    ) -> None:
+        return_string: bool = False,
+    ) -> Union[None, str, "Results"]:
         """Print the results in a pretty format.
 
         :param pretty_labels: A dictionary of pretty labels for the columns.
         :param filename: The filename to save the results to.
-        :param format: The format to print the results in. Options are 'rich', 'html', or 'markdown'.
+        :param format: The format to print the results in. Options are 'rich', 'html', 'markdown', or 'latex'.
         :param interactive: Whether to print the results interactively in a Jupyter notebook.
         :param split_at_dot: Whether to split the column names at the last dot w/ a newline.
         :param max_rows: The maximum number of rows to print.
@@ -170,6 +171,9 @@ class DatasetExportMixin:
         :param iframe_height: The height of the iframe.
         :param iframe_width: The width of the iframe.
         :param web: Whether to display the table in a web browser.
+        :param return_string: Whether to return the output as a string instead of printing.
+
+        :return: None if tee is False and return_string is False, the dataset if tee is True, or a string if return_string is True.
 
         Example: Print in rich format at the terminal
 
@@ -253,11 +257,14 @@ class DatasetExportMixin:
 
         >>> r.select('how_feeling').print(format='latex')
         \\begin{tabular}{l}
-        \\toprule
         ...
+        \\end{tabular}
+        <BLANKLINE>
         """
         from IPython.display import HTML, display
         from edsl.utilities.utilities import is_notebook
+        import io
+        import sys
 
         def _determine_format(format):
             if format is None:
@@ -266,7 +273,9 @@ class DatasetExportMixin:
                 else:
                     format = "rich"
             if format not in ["rich", "html", "markdown", "latex"]:
-                raise ValueError("format must be one of 'rich', 'html', or 'markdown'.")
+                raise ValueError(
+                    "format must be one of 'rich', 'html', 'markdown', or 'latex'."
+                )
 
             return format
 
@@ -285,21 +294,24 @@ class DatasetExportMixin:
 
         new_data = list(_create_data())
 
+        # Capture output if return_string is True
+        if return_string:
+            old_stdout = sys.stdout
+            sys.stdout = io.StringIO()
+
+        output = None
+
         if format == "rich":
             from edsl.utilities.interface import print_dataset_with_rich
 
-            print_dataset_with_rich(
+            output = print_dataset_with_rich(
                 new_data, filename=filename, split_at_dot=split_at_dot
             )
-            return self if tee else None
-
-        if format == "markdown":
+        elif format == "markdown":
             from edsl.utilities.interface import print_list_of_dicts_as_markdown_table
 
-            print_list_of_dicts_as_markdown_table(new_data, filename=filename)
-            return self if tee else None
-
-        if format == "latex":
+            output = print_list_of_dicts_as_markdown_table(new_data, filename=filename)
+        elif format == "latex":
             df = self.to_pandas()
             df.columns = [col.replace("_", " ") for col in df.columns]
             latex_string = df.to_latex(index=False)
@@ -309,22 +321,13 @@ class DatasetExportMixin:
                     f.write(latex_string)
             else:
                 print(latex_string)
-
-            return self if tee else None
-
-        if format == "html":
+                output = latex_string
+        elif format == "html":
             from edsl.utilities.interface import print_list_of_dicts_as_html_table
 
             html_source = print_list_of_dicts_as_html_table(
                 new_data, interactive=interactive
             )
-
-            # if download_link:
-            #     from IPython.display import HTML, display
-            #     csv_file = output.getvalue()
-            #     b64 = base64.b64encode(csv_file.encode()).decode()
-            #     download_link = f'<a href="data:file/csv;base64,{b64}" download="my_data.csv">Download CSV file</a>'
-            #     #display(HTML(download_link))
 
             if iframe:
                 iframe = f""""
@@ -338,7 +341,18 @@ class DatasetExportMixin:
 
                 view_html(html_source)
 
-            return self if tee else None
+            output = html_source
+
+        # Restore stdout and get captured output if return_string is True
+        if return_string:
+            captured_output = sys.stdout.getvalue()
+            sys.stdout = old_stdout
+            return captured_output or output
+
+        if tee:
+            return self
+
+        return None
 
     def to_csv(
         self,

@@ -63,7 +63,7 @@ class QuestionBase(
 
         >>> from edsl import QuestionMultipleChoice as Q
         >>> Q.example().validator_parameters
-        ['question_options']
+        ['question_options', 'use_code']
 
         """
         return self.response_validator_class.required_params
@@ -74,7 +74,8 @@ class QuestionBase(
         if not hasattr(self, "_fake_data_factory"):
             from polyfactory.factories.pydantic_factory import ModelFactory
 
-            class FakeData(ModelFactory[self.response_model]): ...
+            class FakeData(ModelFactory[self.response_model]):
+                ...
 
             self._fake_data_factory = FakeData
         return self._fake_data_factory
@@ -231,6 +232,8 @@ class QuestionBase(
         >>> from edsl.language_models import LanguageModel
         >>> from edsl import QuestionFreeText as Q
         >>> m = Q._get_test_model(canned_response = "Yo, what's up?")
+        >>> m.execute_model_call("", "")
+        {'message': [{'text': "Yo, what's up?"}]}
         >>> Q.run_example(show_answer = True, model = m)
         ┏━━━━━━━━━━━━━━━━┓
         ┃ answer         ┃
@@ -261,7 +264,7 @@ class QuestionBase(
 
         """
         survey = self.to_survey()
-        results = survey(model=model, agent=agent, **kwargs)
+        results = survey(model=model, agent=agent, **kwargs, cache=False)
         if just_answer:
             return results.select(f"answer.{self.question_name}").first()
         else:

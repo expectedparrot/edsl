@@ -28,7 +28,12 @@ clean: ## Clean temp files
 	[ ! -d .temp ] || rm -rf .temp
 	[ ! -d dist ] || rm -rf dist
 	[ ! -d htmlcov ] || rm -rf htmlcov
+	[ ! -f output.html ] || rm output.html
 	[ ! -d prof ] || rm -rf prof
+	[ ! -f test.dta ] || rm test.dta
+	[ ! -f *.docx ] || rm *.docx
+	[ ! -f *.html ] || rm *.html
+	[ ! -f *.json ] || rm *.json
 	find . -type d -name '.venv' -prune -o -type f -name '*.db' -exec rm -rf {} +
 	find . -type d -name '.venv' -prune -o -type f -name '*.db.bak' -exec rm -rf {} +
 	find . -type d -name '.venv' -prune -o -type f -name '*.log' -exec rm -rf {} +
@@ -175,12 +180,13 @@ test-doctests: ## Run doctests
 
 test-integration: ## Run integration tests via pytest **consumes API credits**
 	cd integration/printing && python check_printing.py
-	pytest -v integration/test_example_notebooks.py
-	pytest -v integration/test_integration_jobs.py
-	pytest -v integration/test_memory.py
-	pytest -v integration/test_models.py
-	pytest -v integration/test_questions.py
-	pytest -v integration/test_runners.py
+	pytest -v integration/active
+	# pytest -v integration/test_example_notebooks.py
+	# pytest -v integration/test_integration_jobs.py
+	# pytest -v integration/test_memory.py
+	# pytest -v integration/test_models.py
+	# pytest -v integration/test_questions.py
+	# pytest -v integration/test_runners.py
 
 integration-job-running: # DOES NOT WORK!
 	pytest -v --log-cli-level=INFO integration/test_job_running.py
