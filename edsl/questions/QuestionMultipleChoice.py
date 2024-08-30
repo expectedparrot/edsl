@@ -81,14 +81,21 @@ def create_response_model_no_code(choices: list, include_comment: bool = True):
 
 
 class MultipleChoiceResponseValidator(ResponseValidatorABC):
-    required_params = ["question_options"]
+    required_params = ["question_options", "use_code"]
 
     def fix(self, response):
-        response_text = str(response).lower()
+        response_text = str(response)
         for idx, option in enumerate(self.question_options):
-            if option.lower() in response_text:
-                return {"answer": option, "comment": response_text}
-        return None
+            matches = []
+            if str(option) in response_text:
+                matches.append(option)
+        if len(matches) == 1:
+            return {
+                "answer": matches[0],
+                "generated_tokens": response.get("generated_tokens", None),
+            }
+        else:
+            return None
 
     valid_examples = [
         ({"answer": 1}, {"question_options": ["Good", "Great", "OK", "Bad"]})

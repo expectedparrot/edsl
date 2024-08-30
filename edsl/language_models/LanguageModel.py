@@ -114,6 +114,8 @@ def convert_answer(response_part):
 
 
 def extract_generated_tokens_from_raw_response(data, key_sequence):
+    if isinstance(data, str):
+        data = json.loads(data)
     current_data = data
     for i, key in enumerate(key_sequence):
         try:
@@ -133,7 +135,7 @@ def extract_generated_tokens_from_raw_response(data, key_sequence):
                     )
             else:
                 raise TypeError(
-                    f"Cannot index into {type(current_data).__name__} at position {i}"
+                    f"Cannot index into {type(current_data).__name__} at position {i}. Full response is: {data} of type {type(data)}. Key sequence is: {key_sequence}"
                 )
 
             current_data = current_data[key]
@@ -366,11 +368,10 @@ class LanguageModel(
         >>> m = LanguageModel.example(test_model = True)
         >>> async def test(): return await m.async_execute_model_call("Hello, model!", "You are a helpful agent.")
         >>> asyncio.run(test())
-        {'message': '{"answer": "Hello world"}'}
+        {'message': [{'text': 'Hello world'}]}
 
         >>> m.execute_model_call("Hello, model!", "You are a helpful agent.")
-        {'message': '{"answer": "Hello world"}'}
-
+        {'message': [{'text': 'Hello world'}]}
         """
         pass
 
@@ -510,7 +511,7 @@ class LanguageModel(
         >>> from edsl import Cache
         >>> m = LanguageModel.example(test_model = True)
         >>> m._get_intended_model_call_outcome(user_prompt = "Hello", system_prompt = "hello", cache = Cache())
-        IntendedModelCallOutcome(response = {'message': '{"answer": "Hello world"}'}, cache_used = False, cache_key = '24ff6ac2bc2f1729f817f261e0792577')
+        IntendedModelCallOutcome(response = {'message': [{'text': 'Hello world'}]}, cache_used = False, cache_key = '24ff6ac2bc2f1729f817f261e0792577')
         """
 
         if encoded_image:
@@ -694,6 +695,7 @@ class LanguageModel(
             _model_ = "test"
             _parameters_ = {"temperature": 0.5}
             _inference_service_ = InferenceServiceType.TEST.value
+            key_sequence = ["message", 0, "text"]
 
             async def async_execute_model_call(
                 self, user_prompt: str, system_prompt: str
@@ -702,10 +704,10 @@ class LanguageModel(
                 # return {"message": """{"answer": "Hello, world"}"""}
                 if throw_exception:
                     raise Exception("This is a test error")
-                return {"message": f'{{"answer": "{canned_response}"}}'}
+                return {"message": [{"text": f"{canned_response}"}]}
 
-            def parse_response(self, raw_response: dict[str, Any]) -> str:
-                return raw_response["message"]
+            # def parse_response(self, raw_response: dict[str, Any]) -> str:
+            #     return raw_response["message"]
 
         if test_model:
             m = TestLanguageModelGood()

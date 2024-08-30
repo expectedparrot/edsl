@@ -23,7 +23,7 @@ def create_numeric_response(
         field_kwargs["le"] = max_value
 
     class ConstrainedNumericResponse(BaseModel):
-        answer: Union[Decimal, None] = Field(**field_kwargs)
+        answer: Union[Decimal] = Field(**field_kwargs)
         comment: Optional[str] = None
 
     return ConstrainedNumericResponse
@@ -43,15 +43,17 @@ class NumericalResponseValidator(ResponseValidatorABC):
         ({}, {"min_value": 0, "max_value": 5}, "Answer key is missing"),
     ]
 
-    def fix(self, response):
+    def fix(self, response, verbose=False):
         response_text = str(response).lower()
         import re
 
-        # print(f"Ivalid generated tokens was was: {response_text}")
+        if verbose:
+            print(f"Ivalid generated tokens was was: {response_text}")
         pattern = r"\b\d+(?:\.\d+)?\b"
         match = re.search(pattern, response_text.replace(",", ""))
-        solution = match.group(0) if match else None
-        # print("Proposed solution is: ", solution)
+        solution = match.group(0) if match else response.get("answer")
+        if verbose:
+            print("Proposed solution is: ", solution)
         if "comment" in response:
             return {"answer": solution, "comment": response["comment"]}
         else:
