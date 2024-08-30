@@ -18,7 +18,7 @@ class ListResponse(BaseResponse):
     """
     >>> nr = ListResponse(answer = ["Apple", "Cherry"])
     >>> nr.dict()
-    {'answer': ['Apple', 'Cherry'], 'comment': None}
+    {'answer': ['Apple', 'Cherry'], 'comment': None, 'generated_tokens': None}
     """
 
     answer: list[Union[str, int, float, list, dict]]
@@ -45,7 +45,7 @@ class ListResponseValidator(ResponseValidatorABC):
         return response.dict()
 
     def fix(self, response):
-        answer = response["answer"]
+        answer = str(response.get("answer") or response.get("generated_tokens", ""))
         if len(answer.split(",")) > 0:
             return (
                 {"answer": answer.split(",")} | {"comment": response.get("comment")}

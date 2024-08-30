@@ -111,6 +111,8 @@ class CheckBoxResponseValidator(ResponseValidatorABC):
         if verbose:
             print("Invalid response of QuestionCheckBox was: ", response)
         response_text = response.get("generated_tokens")
+        if response_text is None or response_text == "":  # nothing to be done
+            return response
         # Maybe it's a comma separated list?
         proposed_list = response_text.split(",")
         proposed_list = [item.strip() for item in proposed_list]
