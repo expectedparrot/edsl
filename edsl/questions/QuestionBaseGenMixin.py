@@ -54,13 +54,15 @@ class QuestionBaseGenMixin:
         from jinja2 import Environment
         from edsl.questions.QuestionBase import QuestionBase
 
-        staring_name = self.question_name
+        starting_name = self.question_name
         questions = []
         for index, scenario in enumerate(scenario_list):
             env = Environment()
             new_data = self.to_dict().copy()
-            for key, value in new_data.items():
-                if isinstance(value, str):
+            for key, value in [(k, v) for k, v in new_data.items() if v is not None]:
+                if (
+                    isinstance(value, str) or isinstance(value, int)
+                ) and key != "question_options":
                     new_data[key] = env.from_string(value).render(scenario)
                 elif isinstance(value, list):
                     new_data[key] = [
@@ -80,11 +82,16 @@ class QuestionBaseGenMixin:
                         )
                         for k, v in value.items()
                     }
+                elif key == "question_options" and isinstance(value, str):
+                    new_data[key] = value
                 else:
-                    raise ValueError(f"Unexpected value type: {type(value)}")
+                    raise ValueError(
+                        f"Unexpected value type: {type(value)} for key '{key}'"
+                    )
 
-            if new_data["question_name"] == staring_name:
+            if new_data["question_name"] == starting_name:
                 new_data["question_name"] = new_data["question_name"] + f"_{index}"
+
             questions.append(QuestionBase.from_dict(new_data))
         return questions
 

@@ -1,35 +1,5 @@
 <div class="question">question_name: {{ question }}</div>
 
-<table border="1">
-    <tr>
-        <th>What</th>
-        <th>Values</th>
-    </tr>
-    <tr>
-        <td>Interview ID</td>
-        <td>{{ index }}</td>
-    </tr>
-    <tr>
-        <td>Question name (question_name)</td>
-        <td>{{ question }}</td>
-    </tr>
-    <tr>
-        <td>Human-readable question</td>
-        <td>{{ interview.survey.get_question(question).html() }}</td>
-    </tr>
-    <tr>
-        <td>Scenario</td>
-        <td>{{ interview.scenario._repr_html_() }}</td>
-    </tr>
-    <tr>
-        <td>Agent</td>
-        <td>{{ interview.agent._repr_html_() }}</td>
-    </tr>
-    <tr>
-        <td>Model</td>
-        <td>{{ interview.model._repr_html_() }}</td>
-    </tr>
-</table>
 
 <h2>Exception details</h2>
 
@@ -40,6 +10,65 @@
         <button class="toggle-btn">▼</button>
         </div>
         <div class="exception-content">
+        <table border="1">
+            <tr>
+                <th>Key</th>
+                <th>Value</th>
+            </tr>
+            <tr>
+                <td>Interview ID (index in results)</td>
+                <td>{{ index }}</td>
+            </tr>
+            <tr>
+                <td>Question name (question_name)</td>
+                <td>{{ question }}</td>
+            </tr>
+            <tr>
+                <td>Human-readable question</td>
+                <td>{{ interview.survey.get_question(question).html() }}</td>
+            </tr>
+            <tr>
+                <td>Scenario</td>
+                <td>{{ interview.scenario._repr_html_() }}</td>
+            </tr>
+            <tr>
+                <td>Agent</td>
+                <td>{{ interview.agent._repr_html_() }}</td>
+            </tr>
+            <tr>
+                <td>Model name</td>
+                <td>{{ interview.model.model }}</td>
+            </tr>
+            <tr>
+                <td>Inference service</td>
+                <td>{{ interview.model._inference_service_ }}</td>
+            </tr>
+            <tr>
+                <td>Model parameters</td>
+                <td>{{ interview.model._repr_html_() }}</td>
+            </tr>
+            <tr>
+                <td>User Prompt</td>
+                <td><pre>{{ exception_message.rendered_prompts['user_prompt'] }}</pre></td>
+            </tr>
+            <tr>
+                <td>System Prompt</td>
+                <td><pre>{{ exception_message.rendered_prompts['system_prompt'] }}</pre></td>
+            </tr>
+            <tr>
+                <td>Raw model response</td>
+                <td><pre>{{ exception_message.raw_model_response }}</pre>
+                </td>
+            </tr>
+            <tr>
+                <td>Generated token string (at {{ exception_message.key_sequence }}) in raw response</td>
+                <td><pre>{{ exception_message.generated_token_string }}</pre>
+                </td>
+            </tr>
+
+        </table>
+
+        
             {% if exception_message.exception.__class__.__name__ == 'QuestionAnswerValidationError' %}        
             <h3>Answer validation details</h3>
             <table border="1">
@@ -56,28 +85,8 @@
                 {% endfor %}
             </table>
         {% endif %}
-            <h3>Rendered prompts:</h3>
-            <p>For example, if the model is a text model, the rendered prompts will show the text that was sent to the model.</p>
-            <table border="1">
-                <tr>
-                    <th>Prompt Type</th>
-                    <th>Text</th>
-                </tr>
-                {% for prompt_type, value in exception_message.rendered_prompts.items() %}
-                <tr>
-                    <td>{{ prompt_type }}</td>
-                    <td>{{ value }}</td>
-                </tr>
-                {% endfor %}
-            </table>
 
-            <div class="exception-time">Time: {{ exception_message.time }}</div>
-            <h3>Full raw model response:</h3>
-            <div class="model-response">
-            <pre>
-            {{ exception_message.raw_model_response }}
-            </pre>
-            </div>            
+            <div class="exception-time">Time: {{ exception_message.time }}</div>          
             <div class="exception-traceback">Traceback: 
                 <text>
                 <pre>{{ exception_message.traceback }}</pre>

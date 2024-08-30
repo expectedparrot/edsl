@@ -84,14 +84,11 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
         This cleans up the raw response to make it suitable to pass to AgentResponseDict.
         """
         _ = agent
-        # breakpoint()
         try:
-            response = question._validate_answer(
-                json.loads(json_string := self.model.parse_response(raw_model_response))
+            edsl_answer = json.loads(
+                json_string := self.model.parse_response(raw_model_response)
             )
-            # response = question._validate_answer(
-            #    json.loads(raw_model_response["message"])
-            # )
+            response = question._validate_answer(edsl_answer)
         except json.JSONDecodeError as e:
             msg = f"""Error at line {e.lineno}, column {e.colno} (character {e.pos})"). Problematic part of the JSON: {json_string[e.pos-10:e.pos+10]}")"""
             self._remove_from_cache(raw_response)
