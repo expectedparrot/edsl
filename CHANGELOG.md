@@ -4,6 +4,8 @@
 ### Added 
 - 'tree' visualization
 
+- `Question` method `loop()` allows you to create multiple versions of a question when you are constructing a survey. It takes a `ScenarioList` and automatically creates a copy of the question for each scenario, which can then be passed as a list to a `Survey`. This is different from adding scenarios to a question or survey (using the `by()` method) *at the time that the question or survey is run*. See the questions page for details, and example usage:
+
 - `ScenarioList` method `unpivot()` allows you to expand a scenario list by specified identifiers; method `pivot()` allows you to undo this, collapsing scenarios by identifiers. 
 
 - `ScenarioList` method `give_valid_names()` allows you to automatically generate valid Pythonic identifiers for scenario keys. 
@@ -14,12 +16,14 @@
 
 - Ability to control exact prompt language and separate instructions from presentation of a question: `Question` objects now take optional parameters `answering_instructions` and `question_presentation` or else use default jinja2 templates in a templating system. 
 
-- Optional parameter `include_comments = False` can be passed to a `Question` object to turn off the comments field that is automatically added to all `Question` types other than `QuestionFreeText`.  
+- `Question` objects can now take an optional parameter `include_comments = False` to turn off the comments field that is automatically added to all question types other than `QuestionFreeText`.  
 
-- Allow partial match on key names in `select()` method (of `Results` and `ScenarioList`) to save typing.
+- The `select()` method (for `Results` and `ScenarioList`) now allows partial match on key names to save typing.
 
 ### Changed
 - Improved exceptions reporting.
+
+- Question validation methods no longer use JSON. This will eliminate exceptions relating to JSON errors previously common to certain models.
 
 - [In progress] `QuestionMultipleChoice` may be modified to allow combined options and free response "Other" option, as well as non-responsive answers. Previously, an error was thrown if the agent did not select one of the given options. Details TBD.
 
