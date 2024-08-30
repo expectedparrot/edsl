@@ -11,6 +11,7 @@ class AnthropicService(InferenceServiceABC):
 
     _inference_service_ = "anthropic"
     _env_key_name_ = "ANTHROPIC_API_KEY"
+    key_sequence = ["content", 0, "text"]  # ["content"][0]["text"]
 
     @classmethod
     def available(cls):
@@ -34,6 +35,7 @@ class AnthropicService(InferenceServiceABC):
             Child class of LanguageModel for interacting with OpenAI models
             """
 
+            key_sequence = cls.key_sequence
             _inference_service_ = cls._inference_service_
             _model_ = model_name
             _parameters_ = {
@@ -65,17 +67,6 @@ class AnthropicService(InferenceServiceABC):
                     ],
                 )
                 return response.model_dump()
-
-            @staticmethod
-            def parse_response(raw_response: dict[str, Any]) -> str:
-                """Parses the API response and returns the response text."""
-                response = raw_response["content"][0]["text"]
-                pattern = r"^```json(?:\\n|\n)(.+?)(?:\\n|\n)```$"
-                match = re.match(pattern, response, re.DOTALL)
-                if match:
-                    return match.group(1)
-                else:
-                    return response
 
         LLM.__name__ = model_class_name
 

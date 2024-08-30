@@ -268,7 +268,7 @@ class PromptConstructorMixin:
                     question_data["question_options"] = question_options
                     self.question.question_options = question_options
 
-            rendered_instructions = question_prompt.render(
+            replacement_dict = (
                 question_data
                 | self.scenario
                 | self.prior_answers_dict()
@@ -280,7 +280,9 @@ class PromptConstructorMixin:
                     ),
                 }
             )
-
+            # breakpoint()
+            rendered_instructions = question_prompt.render(replacement_dict)
+            # breakpoint()
             undefined_template_variables = (
                 rendered_instructions.undefined_template_variables({})
             )

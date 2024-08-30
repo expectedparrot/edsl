@@ -58,11 +58,18 @@ class Model(metaclass=Meta):
         return [r._inference_service_ for r in registry.services]
 
     @classmethod
-    def available(cls, search_term=None, name_only=False, registry=None):
+    def available(cls, search_term=None, name_only=False, registry=None, service=None):
         from edsl.inference_services.registry import default
 
         registry = registry or default
         full_list = registry.available()
+
+        if service is not None:
+            if service not in cls.services(registry=registry):
+                raise ValueError(f"Service {service} not found in available services.")
+
+            full_list = [m for m in full_list if m[1] == service]
+
         if search_term is None:
             if name_only:
                 return [m[0] for m in full_list]

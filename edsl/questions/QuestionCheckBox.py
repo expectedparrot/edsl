@@ -24,8 +24,8 @@ from typing import List, Literal, Optional, Annotated
 
 def create_checkbox_response_model(
     choices: list,
-    min_selections=None,
-    max_selections=None,
+    min_selections: Optional[int] = None,
+    max_selections: Optional[int] = None,
     include_comment: bool = True,
 ):
     """
@@ -38,10 +38,16 @@ def create_checkbox_response_model(
     # Convert the choices list to a tuple for use with Literal
     choice_tuple = tuple(choices)
 
+    field_params = {}
+    if min_selections is not None:
+        field_params["min_items"] = min_selections
+    if max_selections is not None:
+        field_params["max_items"] = max_selections
+
     class CheckboxResponse(BaseModel):
         answer: Annotated[
             List[Literal[choice_tuple]],
-            Field(min_items=min_selections, max_items=max_selections),
+            Field(..., **field_params),
         ] = Field(..., description="List of selected choices")
         comment: Optional[str] = Field(None, description="Optional comment field")
 
@@ -68,7 +74,12 @@ def create_checkbox_response_model(
 
 
 class CheckBoxResponseValidator(ResponseValidatorABC):
-    required_params = ["question_options", "min_selections", "max_selections"]
+    required_params = [
+        "question_options",
+        "min_selections",
+        "max_selections",
+        "use_code",
+    ]
 
     valid_examples = [
         ({"answer": [1, 2]}, {"question_options": ["Good", "Great", "OK", "Bad"]})
@@ -95,6 +106,64 @@ class CheckBoxResponseValidator(ResponseValidatorABC):
             "Too many options selected",
         ),
     ]
+
+    def fix(self, response, verbose=True):
+        if verbose:
+            print("Invalid response of QuestionCheckBox was: ", response)
+        response_text = response.get("generated_tokens")
+        if response_text is None or response_text == "":  # nothing to be done
+            return response
+        # Maybe it's a comma separated list?
+        proposed_list = response_text.split(",")
+        proposed_list = [item.strip() for item in proposed_list]
+        print("Using code? ", self.use_code)
+        if self.use_code:
+            try:
+                proposed_list = [int(i) for i in proposed_list]
+            except ValueError:
+                print("Could not convert to int")
+
+        print("Proposed solution is: ", proposed_list)
+
+        # print(f"Ivalid generated tokens was was: {response_text}")
+        if "comment" in response:
+            proposed_data = {
+                "answer": proposed_list,
+                "comment": response["comment"],
+                "generated_tokens": response_text,
+            }
+        else:
+            proposed_data = {"answer": proposed_list, "generated_tokens": response_text}
+
+        try:
+            self.response_model(**proposed_data)
+            return proposed_data
+        except Exception as e:
+            if verbose:
+                print(f"Proposed solution {proposed_data} is invalid. Error: {e}")
+            # return response
+        if verbose:
+            print("Now seeing if responses show up in the answer")
+        matches = []
+        for index, option in enumerate(self.question_options):
+            if self.use_code:
+                if str(index) in response_text:
+                    matches.append(index)
+            else:
+                if option in response_text:
+                    matches.append(index)
+        proposed_data = {
+            "answer": matches,
+            "comment": response.get("comment", None),
+            "generated_tokens": response_text,
+        }
+        try:
+            self.response_model(**proposed_data)
+            return proposed_data
+        except Exception as e:
+            if verbose:
+                print(f"Proposed solution {proposed_data} is invalid. Error: {e}")
+            return response
 
     def custom_validate(self, response) -> BaseResponse:
         if response.answer is None:
@@ -237,7 +306,7 @@ class QuestionCheckBox(QuestionBase):
     ################
     @classmethod
     @inject_exception
-    def example(cls) -> QuestionCheckBox:
+    def example(cls, include_comment=False, use_code=True) -> QuestionCheckBox:
         """Return an example checkbox question."""
         return cls(
             question_name="never_eat",
@@ -251,6 +320,8 @@ class QuestionCheckBox(QuestionBase):
             ],
             min_selections=2,
             max_selections=5,
+            use_code=use_code,
+            include_comment=include_comment,
         )
 
 

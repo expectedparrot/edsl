@@ -9,6 +9,7 @@ from edsl.exceptions import QuestionAnswerValidationError
 class BaseResponse(BaseModel):
     answer: Any
     comment: Optional[str] = None
+    generated_tokens: Optional[str] = None
 
 
 class ResponseValidatorABC(ABC):
@@ -45,22 +46,29 @@ class ResponseValidatorABC(ABC):
         for key, value in kwargs.items():
             setattr(self, key, value)
 
+        self.fixes_tried = 0
+
     def _base_validate(self, data):
-        response = self.response_model(**data)
-        return response
+        return self.response_model(**data)
 
     def validate(self, data):
         if self.exception_to_throw:
             raise self.exception_to_throw
+
         if self.override_answer:  # for testing
             data = self.override_answer
 
         try:
             response = self._base_validate(data)
         except Exception as e:
-            raise QuestionAnswerValidationError(
-                message=str(e), data=data, model=self.response_model
-            )
+            if self.fixes_tried == 0 and hasattr(self, "fix"):
+                self.fixes_tried += 1
+                fixed_data = self.fix(data)
+                return self.validate(fixed_data)
+            else:
+                raise QuestionAnswerValidationError(
+                    message=str(e), data=data, model=self.response_model
+                )
 
         try:
             return self.custom_validate(response)
