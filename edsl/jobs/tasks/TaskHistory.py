@@ -207,7 +207,9 @@ class TaskHistory:
         for interview in self.total_interviews:
             for question_name, exceptions in interview.exceptions.items():
                 for exception in exceptions:
-                    exception_type = exception["exception"]
+                    exception_type = exception.exception.__class__.__name__
+                    # exception_type = exception["exception"]
+                    # breakpoint()
                     if exception_type in exceptions_by_type:
                         exceptions_by_type[exception_type] += 1
                     else:
@@ -247,7 +249,7 @@ class TaskHistory:
         if css is None:
             css = self.css()
 
-        models_used = set([i.model for index, i in self._interviews.items()])
+        models_used = set([i.model.model for index, i in self._interviews.items()])
 
         from jinja2 import Environment, FileSystemLoader
         from edsl.TemplateLoader import TemplateLoader

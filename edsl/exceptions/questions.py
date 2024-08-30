@@ -17,7 +17,7 @@ class QuestionAnswerValidationError(QuestionErrors):
 
     documentation = "https://docs.expectedparrot.com/en/latest/exceptions.html"
 
-    explanation = """This when the answer coming from the Language Model does not conform to the expectatio for that question type.
+    explanation = """This when the answer coming from the Language Model does not conform to the expectation for that question type.
     For example, if the question is a multiple choice question, the answer should be drawn from the list of options provided.
     """
 
@@ -37,7 +37,7 @@ class QuestionAnswerValidationError(QuestionErrors):
         return {
             "error_type": ("Name of the exception", "p", "/p", self.__class__.__name__),
             "explaination": ("Explanation", "p", "/p", self.explanation),
-            "raw_response_from_model": (
+            "edsl answer": (
                 "What model returned",
                 "pre",
                 "/pre",
@@ -62,28 +62,6 @@ class QuestionAnswerValidationError(QuestionErrors):
                 self.documentation,
             ),
         }
-
-    # def to_json(self):
-    #     return json.dumps(
-    #         {
-    #             "error_type": self.__class__.__name__,
-    #             "data": self.data,
-    #             "model": self.model,
-    #             "message": self.message,
-    #         },
-    #         indent=2,
-    #     )
-
-    # def to_json(self):
-    #     return json.dumps(
-    #         {
-    #             "error_type": self.__class__.__name__,
-    #             "data": self.data,
-    #             "model": self.model,
-    #             "message": self.message,
-    #         },
-    #         indent=2,
-    #     )
 
 
 class QuestionCreationValidationError(QuestionErrors):

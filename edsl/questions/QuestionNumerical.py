@@ -47,11 +47,11 @@ class NumericalResponseValidator(ResponseValidatorABC):
         response_text = str(response).lower()
         import re
 
-        print(f"Ivalid generated tokens was was: {response_text}")
+        # print(f"Ivalid generated tokens was was: {response_text}")
         pattern = r"\b\d+(?:\.\d+)?\b"
         match = re.search(pattern, response_text.replace(",", ""))
         solution = match.group(0) if match else None
-        print("Proposed solution is: ", solution)
+        # print("Proposed solution is: ", solution)
         if "comment" in response:
             return {"answer": solution, "comment": response["comment"]}
         else:

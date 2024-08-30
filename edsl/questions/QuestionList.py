@@ -44,6 +44,15 @@ class ListResponseValidator(ResponseValidatorABC):
             raise QuestionAnswerValidationError("Too many items.")
         return response.dict()
 
+    def fix(self, response):
+        answer = response["answer"]
+        if len(answer.split(",")) > 0:
+            return (
+                {"answer": answer.split(",")} | {"comment": response.get("comment")}
+                if "comment" in response
+                else {}
+            )
+
 
 class QuestionList(QuestionBase):
     """This question prompts the agent to answer by providing a list of items as comma-separated strings."""

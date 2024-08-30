@@ -31,6 +31,20 @@ class InterviewExceptionEntry:
         return self.invigilator.get_prompts()
 
     @property
+    def key_sequence(self):
+        return self.invigilator.model.key_sequence
+
+    @property
+    def generated_token_string(self):
+        # return "POO"
+        if self.invigilator.raw_model_response is None:
+            return "No raw model response available."
+        else:
+            return self.invigilator.model.get_generated_token_string(
+                self.invigilator.raw_model_response
+            )
+
+    @property
     def raw_model_response(self):
         import json
 

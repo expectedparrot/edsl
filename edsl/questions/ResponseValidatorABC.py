@@ -9,6 +9,7 @@ from edsl.exceptions import QuestionAnswerValidationError
 class BaseResponse(BaseModel):
     answer: Any
     comment: Optional[str] = None
+    generated_tokens: Optional[str] = None
 
 
 class ResponseValidatorABC(ABC):
@@ -50,7 +51,7 @@ class ResponseValidatorABC(ABC):
             return self.response_model(**data)
         except Exception as e:
             if hasattr(self, "fix"):
-                print("Trying to fix the data")
+                # print("Trying to fix the data")
                 fixed_data = self.fix(data)
                 return self.response_model(**fixed_data)
             raise e

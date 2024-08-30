@@ -403,22 +403,31 @@ class LanguageModel(
 
         return main()
 
-    def parse_response(cls, raw_response: dict[str, Any]) -> EDSLAnswerDict:
-        """Parses the API response and returns the response text."""
-        generated_token_string = extract_generated_tokens_from_raw_response(
+    @classmethod
+    def get_generated_token_string(cls, raw_response: dict[str, Any]) -> str:
+        """Return the generated token string from the raw response."""
+        return extract_generated_tokens_from_raw_response(
             raw_response, cls.key_sequence
         )
+
+    def parse_response(cls, raw_response: dict[str, Any]) -> EDSLAnswerDict:
+        """Parses the API response and returns the response text."""
+        generated_token_string = cls.get_generated_token_string(raw_response)
         if len(generated_token_string.split("\n")) > 1:
             r = json.dumps(
                 {
                     "answer": convert_answer(generated_token_string.split("\n")[0]),
                     "comment": generated_token_string.split("\n")[-1].strip(),
+                    "generated_tokens": generated_token_string,
                 }
             )
             return r
         else:
             return json.dumps(
-                {"answer": convert_answer(generated_token_string.split("\n")[0])}
+                {
+                    "answer": convert_answer(generated_token_string.split("\n")[0]),
+                    "generated_tokens": generated_token_string,
+                }
             )
 
     async def _async_prepare_response(
