@@ -43,6 +43,14 @@ class NumericalResponseValidator(ResponseValidatorABC):
         ({}, {"min_value": 0, "max_value": 5}, "Answer key is missing"),
     ]
 
+    def fix(self, response):
+        response_text = str(response).lower()
+        import re
+
+        pattern = r"\b\d+(?:\.\d+)?\b"
+        match = re.search(pattern, response_text.replace(",", ""))
+        return match.group(0) if match else None
+
     def custom_validate(self, response):
         return response.dict()
 
