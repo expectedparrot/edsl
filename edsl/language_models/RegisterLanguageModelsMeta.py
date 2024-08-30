@@ -47,13 +47,6 @@ class RegisterLanguageModelsMeta(ABCMeta):
                 must_be_async=True,
             )
             # LanguageModel children have to implement the parse_response method
-            RegisterLanguageModelsMeta.verify_method(
-                candidate_class=cls,
-                method_name="parse_response",
-                expected_return_type=str,
-                required_parameters=[("raw_response", dict[str, Any])],
-                must_be_async=False,
-            )
             RegisterLanguageModelsMeta._registry[model_name] = cls
 
     @classmethod

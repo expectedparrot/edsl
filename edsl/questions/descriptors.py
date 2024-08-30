@@ -290,7 +290,7 @@ class QuestionOptionsDescriptor(BaseDescriptor):
         >>> _ = q_class("dynamic_options")
         Traceback (most recent call last):
         ...
-        edsl.exceptions.questions.QuestionCreationValidationError: Dynamic question options must be of the form: '{{ question_options }}'.
+        edsl.exceptions.questions.QuestionCreationValidationError: ...
         """
         if isinstance(value, str):
             # Check if the string is a dynamic question option

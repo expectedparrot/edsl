@@ -44,7 +44,7 @@ class TestLanguageModel(unittest.TestCase):
         from edsl.data.Cache import Cache
 
         m = self.good_class()
-        response, cached_response, cache_key = m.get_raw_response(
+        response, cached_response, cache_key = m._get_intended_model_call_outcome(
             user_prompt="Hello world",
             system_prompt="You are a helpful agent",
             cache=Cache(),

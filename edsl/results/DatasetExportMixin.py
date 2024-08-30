@@ -257,9 +257,9 @@ class DatasetExportMixin:
 
         >>> r.select('how_feeling').print(format='latex')
         \\begin{tabular}{l}
-        \\toprule
         ...
-        \\bottomrule
+        \\end{tabular}
+        <BLANKLINE>
         """
         from IPython.display import HTML, display
         from edsl.utilities.utilities import is_notebook
