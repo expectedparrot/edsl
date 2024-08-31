@@ -35,9 +35,6 @@ class FreeTextResponseValidator(ResponseValidatorABC):
         ),
     ]
 
-    def custom_validate(self, response) -> FreeTextResponse:
-        return response.dict()
-
 
 class QuestionFreeText(QuestionBase):
     """This question prompts the agent to respond with free text."""

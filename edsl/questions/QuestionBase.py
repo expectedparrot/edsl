@@ -74,8 +74,7 @@ class QuestionBase(
         if not hasattr(self, "_fake_data_factory"):
             from polyfactory.factories.pydantic_factory import ModelFactory
 
-            class FakeData(ModelFactory[self.response_model]):
-                ...
+            class FakeData(ModelFactory[self.response_model]): ...
 
             self._fake_data_factory = FakeData
         return self._fake_data_factory
@@ -91,6 +90,7 @@ class QuestionBase(
     class ValidatedAnswer(TypedDict):
         answer: Any
         comment: Optional[str]
+        generated_tokens: Optional[str]
 
     def _validate_answer(self, answer: dict) -> ValidatedAnswer:
         """Validate the answer.

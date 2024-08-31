@@ -12,6 +12,52 @@ from edsl.questions.ResponseValidatorABC import BaseResponse
 
 from edsl.exceptions import QuestionAnswerValidationError
 import textwrap
+import json
+
+from json_repair import repair_json
+
+
+def convert_string(s):
+    """Convert a string to a more appropriate type if possible.
+
+    >>> convert_string("3.14")
+    3.14
+    >>> convert_string("42")
+    42
+    >>> convert_string("hello")
+    'hello'
+    >>> convert_string('{"key": "value"}')
+    {'key': 'value'}
+    >>> convert_string("{'key': 'value'}")
+    {'key': 'value'}
+    """
+
+    if not isinstance(s, str):  # if it's not a string, return it as is
+        return s
+
+    # If the repair returns, continue on; otherwise, try to load it as JSON
+    if (repaired_json := repair_json(s)) == '""':
+        pass
+    else:
+        try:
+            return json.loads(repaired_json)
+        except json.JSONDecodeError:
+            pass
+
+    # Try to convert to float
+    try:
+        return float(s)
+    except ValueError:
+        pass
+
+    # Try to convert to int
+    try:
+        return int(s)
+    except ValueError:
+        pass
+
+    # If all conversions fail, return the original string
+    return s
 
 
 class ListResponse(BaseResponse):
@@ -36,13 +82,12 @@ class ListResponseValidator(ResponseValidatorABC):
         ),
     ]
 
-    def custom_validate(self, response) -> ListResponse:
+    def _check_constraints(self, response) -> None:
         if (
             self.max_list_items is not None
             and len(response.answer) > self.max_list_items
         ):
             raise QuestionAnswerValidationError("Too many items.")
-        return response.dict()
 
     def fix(self, response):
         answer = str(response.get("answer") or response.get("generated_tokens", ""))
@@ -52,6 +97,12 @@ class ListResponseValidator(ResponseValidatorABC):
                 if "comment" in response
                 else {}
             )
+
+    def _post_process(self, edsl_answer_dict):
+        edsl_answer_dict["answer"] = [
+            convert_string(item) for item in edsl_answer_dict["answer"]
+        ]
+        return edsl_answer_dict
 
 
 class QuestionList(QuestionBase):
