@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from pydantic import BaseModel, Field, field_validator
 from decimal import Decimal
-from typing import Optional, Any, List
+from typing import Optional, Any, List, TypedDict
 
 from edsl.exceptions import QuestionAnswerValidationError
 
@@ -48,47 +48,57 @@ class ResponseValidatorABC(ABC):
 
         self.fixes_tried = 0
 
-    def _base_validate(self, data):
-        return self.response_model(**data)
-
-    def validate(self, data):
+    def _preprocess(self, data):
         if self.exception_to_throw:
             raise self.exception_to_throw
+        return self.override_answer if self.override_answer else data
 
-        if self.override_answer:  # for testing
-            data = self.override_answer
+    def _base_validate(self, data) -> BaseModel:
+        return self.response_model(**data)
 
+    def post_validation_answer_convert(self, data):
+        return data
+
+    class RawEdslAnswerDict(TypedDict):
+        answer: Any
+        comment: Optional[str]
+        generated_tokens: Optional[str]
+
+    class EdslAnswerDict(TypedDict):
+        answer: Any
+        comment: Optional[str]
+        generated_tokens: Optional[str]
+
+    def validate(self, raw_edsl_answer_dict: RawEdslAnswerDict) -> EdslAnswerDict:
+        proposed_edsl_answer_dict = self._preprocess(raw_edsl_answer_dict)
         try:
-            response = self._base_validate(data)
+            pydantic_edsl_answer: BaseModel = self._base_validate(
+                proposed_edsl_answer_dict
+            )
+            self._check_constraints(pydantic_edsl_answer)
+            edsl_answer_dict = self._extract_answer(pydantic_edsl_answer)
+            return self._post_process(edsl_answer_dict)
         except Exception as e:
-            if self.fixes_tried == 0 and hasattr(self, "fix"):
-                self.fixes_tried += 1
-                fixed_data = self.fix(data)
-                return self.validate(fixed_data)
-            else:
-                raise QuestionAnswerValidationError(
-                    message=str(e), data=data, model=self.response_model
-                )
+            return self._handle_exception(e, raw_edsl_answer_dict)
 
-        try:
-            return self.custom_validate(response)
-        except Exception as e:
-            raise QuestionAnswerValidationError(str(e))
+    def _handle_exception(self, e: Exception, raw_edsl_answer_dict) -> EdslAnswerDict:
+        if self.fixes_tried == 0 and hasattr(self, "fix"):
+            self.fixes_tried += 1
+            fixed_data = self.fix(raw_edsl_answer_dict)
+            return self.validate(fixed_data)
+        else:
+            raise QuestionAnswerValidationError(
+                str(e), data=raw_edsl_answer_dict, model=self.response_model
+            )
 
-    @abstractmethod
-    def custom_validate(self, data: dict) -> BaseModel:
+    def _check_constraints(self, response) -> dict:
         pass
 
-    # def self_check(self):
-    #     for example in self.valid_examples:
-    #         self.validate(example)
-    #     for example in self.invalid_examples:
-    #         try:
-    #             self.validate(example)
-    #         except ValueError:
-    #             pass
-    #         else:
-    #             raise ValueError(f"Example {example} should have failed.")
+    def _extract_answer(self, response: BaseModel) -> EdslAnswerDict:
+        return response.model_dump()
+
+    def _post_process(self, edsl_answer_dict: EdslAnswerDict) -> EdslAnswerDict:
+        return edsl_answer_dict
 
 
 # Example usage
