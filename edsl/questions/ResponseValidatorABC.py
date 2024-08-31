@@ -27,13 +27,11 @@ class ResponseValidatorABC(ABC):
         response_model: type[BaseModel],
         exception_to_throw: Optional[Exception] = None,
         override_answer: Optional[dict] = None,
-        permissive: bool = False,
         **kwargs,
     ):
         self.response_model = response_model
         self.exception_to_throw = exception_to_throw  # for testing
         self.override_answer = override_answer  # for testing
-        self.permissive = permissive
 
         # Validate required parameters
         missing_params = [
@@ -48,6 +46,9 @@ class ResponseValidatorABC(ABC):
         for key, value in kwargs.items():
             setattr(self, key, value)
 
+        if not hasattr(self, "permissive"):
+            self.permissive = False
+
         self.fixes_tried = 0
 
     class RawEdslAnswerDict(TypedDict):
@@ -56,13 +57,25 @@ class ResponseValidatorABC(ABC):
         generated_tokens: Optional[str]
 
     def _preprocess(self, data: RawEdslAnswerDict) -> RawEdslAnswerDict:
-        """This is for testing purposes. A question can be given an exception to throw or an answer to always return."""
+        """This is for testing purposes. A question can be given an exception to throw or an answer to always return.
+
+        >>> rv = ResponseValidatorABC.example()
+        >>> rv.override_answer = {"answer": 42}
+        >>> rv.validate({"answer": 23})
+        {'answer': Decimal('42'), 'comment': None, 'generated_tokens': None}
+        """
         if self.exception_to_throw:
             raise self.exception_to_throw
         return self.override_answer if self.override_answer else data
 
     def _base_validate(self, data: RawEdslAnswerDict) -> BaseModel:
-        """This is the main validation function. It takes the response_model and checks the data against it, returning the instantiated model."""
+        """This is the main validation function. It takes the response_model and checks the data against it, returning the instantiated model.
+
+        >>> rv = ResponseValidatorABC.example("numerical")
+        >>> rv._base_validate({"answer": 42})
+        ConstrainedNumericResponse(answer=Decimal('42'), comment=None, generated_tokens=None)
+        """
+
         return self.response_model(**data)
 
     def post_validation_answer_convert(self, data):
@@ -74,6 +87,28 @@ class ResponseValidatorABC(ABC):
         generated_tokens: Optional[str]
 
     def validate(self, raw_edsl_answer_dict: RawEdslAnswerDict) -> EdslAnswerDict:
+        """This is the main validation function.
+
+        >>> rv = ResponseValidatorABC.example("numerical")
+        >>> rv.validate({"answer": 42})
+        {'answer': Decimal('42'), 'comment': None, 'generated_tokens': None}
+        >>> rv.max_value
+        86.7
+        >>> rv.validate({"answer": "120"})
+        Traceback (most recent call last):
+        ...
+        edsl.exceptions.questions.QuestionAnswerValidationError:...
+        >>> from edsl import QuestionNumerical
+        >>> q = QuestionNumerical.example()
+        >>> q.permissive = True
+        >>> rv = q.response_validator
+        >>> rv.validate({"answer": "120"})
+        {'answer': Decimal('120'), 'comment': None, 'generated_tokens': None}
+        >>> rv.validate({"answer": "poo"})
+        Traceback (most recent call last):
+        ...
+        edsl.exceptions.questions.QuestionAnswerValidationError:...
+        """
         proposed_edsl_answer_dict = self._preprocess(raw_edsl_answer_dict)
         try:
             pydantic_edsl_answer: BaseModel = self._base_validate(
@@ -105,7 +140,16 @@ class ResponseValidatorABC(ABC):
     def _post_process(self, edsl_answer_dict: EdslAnswerDict) -> EdslAnswerDict:
         return edsl_answer_dict
 
+    @classmethod
+    def example(cls, question_type="numerical"):
+        from edsl import Question
+
+        q = Question.example(question_type)
+        return q.response_validator
+
 
 # Example usage
 if __name__ == "__main__":
-    pass
+    import doctest
+
+    doctest.testmod(optionflags=doctest.ELLIPSIS)

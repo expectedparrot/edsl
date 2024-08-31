@@ -22,6 +22,7 @@ class FreeTextResponse(BaseModel):
     """
 
     answer: str
+    generated_tokens: Optional[str] = None
 
 
 class FreeTextResponseValidator(ResponseValidatorABC):
