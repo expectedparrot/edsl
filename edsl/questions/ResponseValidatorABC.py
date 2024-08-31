@@ -27,11 +27,13 @@ class ResponseValidatorABC(ABC):
         response_model: type[BaseModel],
         exception_to_throw: Optional[Exception] = None,
         override_answer: Optional[dict] = None,
+        permissive: bool = False,
         **kwargs,
     ):
         self.response_model = response_model
         self.exception_to_throw = exception_to_throw  # for testing
         self.override_answer = override_answer  # for testing
+        self.permissive = permissive
 
         # Validate required parameters
         missing_params = [
@@ -48,21 +50,23 @@ class ResponseValidatorABC(ABC):
 
         self.fixes_tried = 0
 
-    def _preprocess(self, data):
-        if self.exception_to_throw:
-            raise self.exception_to_throw
-        return self.override_answer if self.override_answer else data
-
-    def _base_validate(self, data) -> BaseModel:
-        return self.response_model(**data)
-
-    def post_validation_answer_convert(self, data):
-        return data
-
     class RawEdslAnswerDict(TypedDict):
         answer: Any
         comment: Optional[str]
         generated_tokens: Optional[str]
+
+    def _preprocess(self, data: RawEdslAnswerDict) -> RawEdslAnswerDict:
+        """This is for testing purposes. A question can be given an exception to throw or an answer to always return."""
+        if self.exception_to_throw:
+            raise self.exception_to_throw
+        return self.override_answer if self.override_answer else data
+
+    def _base_validate(self, data: RawEdslAnswerDict) -> BaseModel:
+        """This is the main validation function. It takes the response_model and checks the data against it, returning the instantiated model."""
+        return self.response_model(**data)
+
+    def post_validation_answer_convert(self, data):
+        return data
 
     class EdslAnswerDict(TypedDict):
         answer: Any
@@ -75,7 +79,8 @@ class ResponseValidatorABC(ABC):
             pydantic_edsl_answer: BaseModel = self._base_validate(
                 proposed_edsl_answer_dict
             )
-            self._check_constraints(pydantic_edsl_answer)
+            if not self.permissive:
+                self._check_constraints(pydantic_edsl_answer)
             edsl_answer_dict = self._extract_answer(pydantic_edsl_answer)
             return self._post_process(edsl_answer_dict)
         except Exception as e:
@@ -91,7 +96,7 @@ class ResponseValidatorABC(ABC):
                 str(e), data=raw_edsl_answer_dict, model=self.response_model
             )
 
-    def _check_constraints(self, response) -> dict:
+    def _check_constraints(self, pydantic_edsl_answer: BaseModel) -> dict:
         pass
 
     def _extract_answer(self, response: BaseModel) -> EdslAnswerDict:
