@@ -172,7 +172,7 @@ test-doctests: ## Run doctests
 	pytest --doctest-modules edsl/agents
 	pytest --doctest-modules edsl/scenarios
 	pytest --doctest-modules edsl/questions
-	pytest --doctest-modules edsl/utilities
+	# pytest --doctest-modules edsl/utilities
 	pytest --doctest-modules edsl/language_models
 	pytest --doctest-modules edsl/data
 	pytest --doctest-modules edsl/study

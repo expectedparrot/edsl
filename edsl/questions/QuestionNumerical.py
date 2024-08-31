@@ -14,23 +14,28 @@ from edsl.exceptions.questions import QuestionAnswerValidationError
 
 
 def create_numeric_response(
-    min_value: Optional[Decimal] = None, max_value: Optional[Decimal] = None
+    min_value: Optional[Decimal] = None,
+    max_value: Optional[Decimal] = None,
+    permissive=False,
 ):
     field_kwargs = {}
-    if min_value is not None:
-        field_kwargs["ge"] = min_value
-    if max_value is not None:
-        field_kwargs["le"] = max_value
+    if not permissive:
+        field_kwargs = {}
+        if min_value is not None:
+            field_kwargs["ge"] = min_value
+        if max_value is not None:
+            field_kwargs["le"] = max_value
 
     class ConstrainedNumericResponse(BaseModel):
         answer: Union[Decimal] = Field(**field_kwargs)
         comment: Optional[str] = None
+        generated_tokens: Optional[str] = None
 
     return ConstrainedNumericResponse
 
 
 class NumericalResponseValidator(ResponseValidatorABC):
-    required_params = ["min_value", "max_value"]
+    required_params = ["min_value", "max_value", "permissive"]
 
     valid_examples = [
         ({"answer": 1}, {"min_value": 0, "max_value": 10}),
@@ -59,8 +64,8 @@ class NumericalResponseValidator(ResponseValidatorABC):
         else:
             return {"answer": solution}
 
-    def custom_validate(self, response):
-        return response.dict()
+    def _check_constraints(self, pydantic_edsl_answer: BaseModel):
+        pass
 
 
 class QuestionNumerical(QuestionBase):
@@ -86,6 +91,7 @@ class QuestionNumerical(QuestionBase):
         include_comment: bool = True,
         question_presentation: Optional[str] = None,
         answering_instructions: Optional[str] = None,
+        permissive: bool = False,
     ):
         """Initialize the question.
 
@@ -102,9 +108,10 @@ class QuestionNumerical(QuestionBase):
         self.include_comment = include_comment
         self.question_presentation = question_presentation
         self.answering_instructions = answering_instructions
+        self.permissive = permissive
 
     def create_response_model(self):
-        return create_numeric_response(self.min_value, self.max_value)
+        return create_numeric_response(self.min_value, self.max_value, self.permissive)
 
     ################
     # Answer methods

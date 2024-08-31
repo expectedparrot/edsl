@@ -83,7 +83,7 @@ class QuestionBase(
         """Simulate a valid answer for debugging purposes (what the validator expects).
         >>> from edsl import QuestionFreeText as Q
         >>> Q.example()._simulate_answer()
-        {'answer': '...'}
+        {'answer': '...', 'generated_tokens': ...}
         """
         return self.fake_data_factory.build().dict()
 
@@ -97,7 +97,7 @@ class QuestionBase(
         >>> from edsl.exceptions import QuestionAnswerValidationError
         >>> from edsl import QuestionFreeText as Q
         >>> Q.example()._validate_answer({'answer': 'Hello'})
-        {'answer': 'Hello'}
+        {'answer': 'Hello', 'generated_tokens': None}
         >>> Q.example()._validate_answer({'shmanswer': 1})
         Traceback (most recent call last):
         ...
