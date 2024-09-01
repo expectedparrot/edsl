@@ -179,7 +179,7 @@ def test_test_QuestionList_extras():
 
 
 def test_repairs():
-    q = QuestionList.example()
+    q = QuestionList(question_text="Blah", question_name="list_of_foods")
     from edsl.language_models import LanguageModel
 
     m = LanguageModel.example(
