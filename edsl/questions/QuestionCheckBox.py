@@ -26,6 +26,7 @@ def create_checkbox_response_model(
     choices: list,
     min_selections: Optional[int] = None,
     max_selections: Optional[int] = None,
+    permissive: bool = False,
     include_comment: bool = True,
 ):
     """
@@ -39,9 +40,9 @@ def create_checkbox_response_model(
     choice_tuple = tuple(choices)
 
     field_params = {}
-    if min_selections is not None:
+    if min_selections is not None and not permissive:
         field_params["min_items"] = min_selections
-    if max_selections is not None:
+    if max_selections is not None and not permissive:
         field_params["max_items"] = max_selections
 
     class CheckboxResponse(BaseModel):
@@ -79,6 +80,7 @@ class CheckBoxResponseValidator(ResponseValidatorABC):
         "min_selections",
         "max_selections",
         "use_code",
+        "permissive",
     ]
 
     valid_examples = [
@@ -194,6 +196,7 @@ class QuestionCheckBox(QuestionBase):
         use_code: bool = True,
         question_presentation: Optional[str] = None,
         answering_instructions: Optional[str] = None,
+        permissive: bool = False,
     ):
         """Instantiate a new QuestionCheckBox.
 
@@ -211,6 +214,7 @@ class QuestionCheckBox(QuestionBase):
 
         self._include_comment = include_comment
         self._use_code = use_code
+        self.permissive = permissive
 
         self.question_presentation = question_presentation
         self.answering_instructions = answering_instructions
@@ -221,12 +225,14 @@ class QuestionCheckBox(QuestionBase):
                 self.question_options,
                 min_selections=self.min_selections,
                 max_selections=self.max_selections,  # include_comment=self._include_comment
+                permissive=self.permissive,
             )
         else:
             return create_checkbox_response_model(
                 list(range(len(self.question_options))),
                 min_selections=self.min_selections,
                 max_selections=self.max_selections,  # include_comment=self._include_comment
+                permissive=self.permissive,
             )
 
     def _translate_answer_code_to_answer(
