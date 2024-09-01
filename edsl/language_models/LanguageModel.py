@@ -414,19 +414,22 @@ class LanguageModel(
     def parse_response(cls, raw_response: dict[str, Any]) -> EDSLAnswerDict:
         """Parses the API response and returns the response text."""
         generated_token_string = cls.get_generated_token_string(raw_response)
-        if len(generated_token_string.split("\n")) > 1:
-            r = json.dumps(
+        last_newline = generated_token_string.rfind("\n")
+
+        if last_newline == -1:
+            # There is no comment
+            return json.dumps(
                 {
-                    "answer": convert_answer(generated_token_string.split("\n")[0]),
-                    "comment": generated_token_string.split("\n")[-1].strip(),
+                    "answer": convert_answer(generated_token_string),
                     "generated_tokens": generated_token_string,
+                    "comment": None,
                 }
             )
-            return r
         else:
             return json.dumps(
                 {
-                    "answer": convert_answer(generated_token_string.split("\n")[0]),
+                    "answer": convert_answer(generated_token_string[:last_newline]),
+                    "comment": generated_token_string[last_newline + 1 :].strip(),
                     "generated_tokens": generated_token_string,
                 }
             )

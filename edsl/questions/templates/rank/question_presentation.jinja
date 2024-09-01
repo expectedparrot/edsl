@@ -1,0 +1,15 @@
+{{question_text}}
+{% if use_code %}
+The options are
+{% for option in question_options %}
+{{ loop.index0 }}: {{option}}
+{% endfor %}
+{% else %}
+The options are:
+{% for option in question_options %}
+{{option}}
+{% endfor %}
+{% endif %}
+{% if num_selections %}
+You can inlcude up to {{num_selections}} options in your answer.
+{% endif %}

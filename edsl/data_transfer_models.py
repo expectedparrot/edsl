@@ -19,6 +19,7 @@ class AgentResponseDict(UserDict):
         simple_model_raw_response=None,
         cache_used=None,
         cache_key=None,
+        generated_tokens: str = None
     ):
         """Initialize the AgentResponseDict object."""
         usage = usage or {"prompt_tokens": 0, "completion_tokens": 0}
@@ -34,5 +35,6 @@ class AgentResponseDict(UserDict):
                 "simple_model_raw_response": simple_model_raw_response,
                 "cache_used": cache_used,
                 "cache_key": cache_key,
+                "generated_tokens": generated_tokens,
             }
         )

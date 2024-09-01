@@ -249,6 +249,11 @@ def test_QuestionCheckBox_answers():
     with pytest.raises(QuestionAnswerValidationError):
         q._validate_answer({"answer": [1, 2, 3, 4]})
 
+    # check when permissive is True
+    q = QuestionCheckBox(**valid_question | {"permissive": True})
+    q._validate_answer({"answer": [1]})
+    q._validate_answer({"answer": [1, 2, 3, 4]})
+
 
 def test_QuestionCheckBox_extras():
     """Test QuestionFreeText extra functionalities."""
