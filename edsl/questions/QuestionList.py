@@ -6,7 +6,7 @@ from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.descriptors import IntegerOrNoneDescriptor
 from edsl.questions.decorators import inject_exception
 
-from pydantic import field_validator
+from pydantic import field_validator, Field
 from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
 from edsl.questions.ResponseValidatorABC import BaseResponse
 
@@ -60,18 +60,36 @@ def convert_string(s):
     return s
 
 
-class ListResponse(BaseResponse):
-    """
-    >>> nr = ListResponse(answer = ["Apple", "Cherry"])
-    >>> nr.dict()
-    {'answer': ['Apple', 'Cherry'], 'comment': None, 'generated_tokens': None}
-    """
+def create_model(max_list_items: int, permissive):
+    from pydantic import BaseModel
 
-    answer: list[Union[str, int, float, list, dict]]
+    if permissive or max_list_items is None:
+
+        class ListResponse(BaseModel):
+            answer: list[Union[str, int, float, list, dict]]
+            comment: Optional[str] = None
+            generated_tokens: Optional[str] = None
+
+    else:
+
+        class ListResponse(BaseModel):
+            """
+            >>> nr = ListResponse(answer=["Apple", "Cherry"])
+            >>> nr.dict()
+            {'answer': ['Apple', 'Cherry'], 'comment': None, 'generated_tokens': None}
+            """
+
+            answer: list[Union[str, int, float, list, dict]] = Field(
+                ..., min_items=0, max_items=max_list_items
+            )
+            comment: Optional[str] = None
+            generated_tokens: Optional[int] = None
+
+    return ListResponse
 
 
 class ListResponseValidator(ResponseValidatorABC):
-    required_params = ["max_list_items"]
+    required_params = ["max_list_items", "permissive"]
     valid_examples = [({"answer": ["hello", "world"]}, {"max_list_items": 5})]
 
     invalid_examples = [
@@ -110,7 +128,7 @@ class QuestionList(QuestionBase):
 
     question_type = "list"
     max_list_items: int = IntegerOrNoneDescriptor()
-    _response_model = ListResponse
+    _response_model = None
     response_validator_class = ListResponseValidator
 
     def __init__(
@@ -121,6 +139,7 @@ class QuestionList(QuestionBase):
         include_comment: bool = True,
         answering_instructions: Optional[str] = None,
         question_presentation: Optional[str] = None,
+        permissive: bool = False,
     ):
         """Instantiate a new QuestionList.
 
@@ -133,10 +152,14 @@ class QuestionList(QuestionBase):
         self.question_name = question_name
         self.question_text = question_text
         self.max_list_items = max_list_items
+        self.permissive = permissive
 
         self.include_comment = include_comment
         self.answering_instructions = answering_instructions
         self.question_presentations = question_presentation
+
+    def create_response_model(self):
+        return create_model(self.max_list_items, self.permissive)
 
     @property
     def question_html_content(self) -> str:
@@ -168,13 +191,16 @@ class QuestionList(QuestionBase):
     ################
     @classmethod
     @inject_exception
-    def example(cls, include_comment=True) -> QuestionList:
+    def example(
+        cls, include_comment=True, max_list_items=None, permissive=False
+    ) -> QuestionList:
         """Return an example of a list question."""
         return cls(
             question_name="list_of_foods",
             question_text="What are your favorite foods?",
-            max_list_items=5,
             include_comment=include_comment,
+            max_list_items=max_list_items,
+            permissive=permissive,
         )
 
 
@@ -182,7 +208,7 @@ def main():
     """Create an example of a list question and demonstrate its functionality."""
     from edsl.questions.QuestionList import QuestionList
 
-    q = QuestionList.example()
+    q = QuestionList.example(max_list_items=5)
     q.question_text
     q.question_name
     q.max_list_items
