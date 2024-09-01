@@ -1062,7 +1062,9 @@ class Results(UserList, Mixins, Base):
         def has_single_equals(string):
             if "!=" in string:
                 return False
-            if "=" in string and not "==" in string:
+            if "=" in string and not (
+                "==" in string or "<=" in string or ">=" in string
+            ):
                 return True
 
         if has_single_equals(expression):
