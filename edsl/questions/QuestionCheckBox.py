@@ -27,7 +27,6 @@ def create_checkbox_response_model(
     min_selections: Optional[int] = None,
     max_selections: Optional[int] = None,
     permissive: bool = False,
-    include_comment: bool = True,
 ):
     """
     Dynamically create a CheckboxResponse model with a predefined list of choices.
@@ -60,18 +59,7 @@ def create_checkbox_response_model(
                     if prop.get("title") == "answer":
                         prop["items"] = {"enum": choices}
 
-        @classmethod
-        def with_comment(cls):
-            return cls
-
-        @classmethod
-        def without_comment(cls):
-            return cls.model_exclude({"comment"})
-
-    if include_comment:
-        return CheckboxResponse.with_comment()
-    else:
-        return CheckboxResponse.without_comment()
+    return CheckboxResponse
 
 
 class CheckBoxResponseValidator(ResponseValidatorABC):

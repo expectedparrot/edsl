@@ -85,7 +85,12 @@ class QuestionBase(
         >>> Q.example()._simulate_answer()
         {'answer': '...', 'generated_tokens': ...}
         """
-        return self.fake_data_factory.build().dict()
+        simulated_answer = self.fake_data_factory.build().dict()
+        if human_readable and hasattr(self, "question_options") and self.use_code:
+            simulated_answer["answer"] = [
+                self.question_options[index] for index in simulated_answer["answer"]
+            ]
+        return simulated_answer
 
     class ValidatedAnswer(TypedDict):
         answer: Any
