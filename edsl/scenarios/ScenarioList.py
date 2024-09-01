@@ -320,6 +320,36 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
                 new_scenarios.append(new_scenario)
         return ScenarioList(new_scenarios)
 
+    def concatenate(self, fields: List[str], separator: str = ";") -> "ScenarioList":
+        """Concatenate specified fields into a single field.
+
+        Args:
+            fields (List[str]): List of field names to concatenate.
+            separator (str, optional): Separator to use between field values. Defaults to ";".
+
+        Returns:
+            ScenarioList: A new ScenarioList with concatenated fields.
+
+        Example:
+            >>> s = ScenarioList([Scenario({'a': 1, 'b': 2, 'c': 3}), Scenario({'a': 4, 'b': 5, 'c': 6})])
+            >>> s.concatenate(['a', 'b', 'c'])
+            ScenarioList([Scenario({'concat_a_b_c': '1;2;3'}), Scenario({'concat_a_b_c': '4;5;6'})])
+        """
+        new_scenarios = []
+        for scenario in self:
+            new_scenario = scenario.copy()
+            concat_values = []
+            for field in fields:
+                if field in new_scenario:
+                    concat_values.append(str(new_scenario[field]))
+                    del new_scenario[field]
+
+            new_field_name = f"concat_{'_'.join(fields)}"
+            new_scenario[new_field_name] = separator.join(concat_values)
+            new_scenarios.append(new_scenario)
+
+        return ScenarioList(new_scenarios)
+
     def unpack_dict(
         self, field: str, prefix: Optional[str] = None, drop_field: bool = False
     ) -> ScenarioList:
@@ -586,37 +616,6 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
     def from_latex(cls, tex_file_path: str):
         with open(tex_file_path, "r") as file:
             lines = file.readlines()
-
-        processed_lines = []
-        non_blank_lines = [
-            (i, line.strip()) for i, line in enumerate(lines) if line.strip()
-        ]
-
-        for index, (line_no, text) in enumerate(non_blank_lines):
-            entry = {
-                "line_no": line_no + 1,  # Using 1-based index for line numbers
-                "text": text,
-                "line_before": non_blank_lines[index - 1][1] if index > 0 else None,
-                "line_after": (
-                    non_blank_lines[index + 1][1]
-                    if index < len(non_blank_lines) - 1
-                    else None
-                ),
-            }
-            processed_lines.append(entry)
-
-        return ScenarioList([Scenario(entry) for entry in processed_lines])
-
-    @classmethod
-    def from_docx(cls, docx_file_path: str):
-        from docx import Document
-
-        doc = Document(docx_file_path)
-        lines = []
-
-        # Extract text from paragraphs, treating each paragraph as a line
-        for para in doc.paragraphs:
-            lines.extend(para.text.splitlines())
 
         processed_lines = []
         non_blank_lines = [
