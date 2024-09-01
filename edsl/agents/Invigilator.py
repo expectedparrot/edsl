@@ -38,7 +38,11 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
             "raw_model_response": raw_response["raw_model_response"],
         }
         response = self._format_raw_response(**data)
-        return AgentResponseDict(**response)
+        # assert response["generated_tokens"] is not None
+        return response
+        # breakpoint()
+        # return AgentResponseDict(**response)
+        # return response
 
     async def async_get_response(
         self,
@@ -85,9 +89,12 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
         """
         _ = agent
         try:
+            # Parse the raw model response
             edsl_answer = json.loads(
                 json_string := self.model.parse_response(raw_model_response)
             )
+            # breakpoint()
+
             response = question._validate_answer(edsl_answer)
         except json.JSONDecodeError as e:
             msg = f"""Error at line {e.lineno}, column {e.colno} (character {e.pos})"). Problematic part of the JSON: {json_string[e.pos-10:e.pos+10]}")"""
@@ -100,17 +107,20 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
             raise e
 
         question_dict = self.survey.question_names_to_questions()
+
+        # iterates through the current answers and updates the question_dict (which is all questions)
         for other_question, answer in self.current_answers.items():
             if other_question in question_dict:
                 question_dict[other_question].answer = answer
             else:
-                # adds a comment to the question
+                # it might be a comment
                 if (
                     new_question := other_question.split("_comment")[0]
                 ) in question_dict:
                     question_dict[new_question].comment = answer
 
         combined_dict = {**question_dict, **scenario}
+        # sometimes the answer is a code, so we need to translate it
         answer = question._translate_answer_code_to_answer(
             response["answer"], combined_dict
         )
@@ -126,7 +136,9 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
             "raw_model_response": raw_model_response,
             "cache_used": raw_response.get("cache_used", False),
             "cache_key": raw_response.get("cache_key", None),
+            "generated_tokens": response.get("generated_tokens", None),
         }
+        # breakpoint()
         return AgentResponseDict(**data)
 
     get_response = sync_wrapper(async_get_response)

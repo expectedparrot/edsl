@@ -207,15 +207,16 @@ def test_normal_run():
         _model_ = "test"
         _parameters_ = {"temperature": 0.5}
         _inference_service_ = InferenceServiceType.TEST.value
+        key_sequence = ["message", 0, "text"]
 
         async def async_execute_model_call(
             self, user_prompt: str, system_prompt: str
         ) -> dict[str, Any]:
             await asyncio.sleep(0.0)
-            return {"message": """{"answer": "SPAM!"}"""}
+            return {"message": [{"text": "SPAM!"}]}
 
-        def parse_response(self, raw_response: dict[str, Any]) -> str:
-            return raw_response["message"]
+        # def parse_response(self, raw_response: dict[str, Any]) -> str:
+        #     return raw_response["message"]
 
     model = TestLanguageModelGood()
     from edsl.questions import QuestionFreeText
@@ -225,7 +226,8 @@ def test_normal_run():
 
     cache = Cache()
     results = q.by(model).run(cache=cache)
-    assert results[0]["answer"] == {"name": "SPAM!"}
+    # breakpoint()
+    assert results[0]["answer"]["name"] == "SPAM!"
 
 
 def test_handle_model_exception():
