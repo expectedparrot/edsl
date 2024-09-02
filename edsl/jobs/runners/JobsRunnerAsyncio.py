@@ -328,6 +328,9 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         results.failed_questions = {}
         results.has_exceptions = task_history.has_exceptions
 
+        # breakpoint()
+        results.bucket_collection = self.bucket_collection
+
         if results.has_exceptions:
             # put the failed interviews in the results object as a list
             failed_interviews = [

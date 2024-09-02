@@ -33,6 +33,7 @@ class AzureAIService(InferenceServiceABC):
         "AZURE_ENDPOINT_URL_AND_KEY"  # Environment variable for Azure API key
     )
     _model_id_to_endpoint_and_key = {}
+    model_exclude_list = ["Cohere-command-r-plus-xncmg"]
 
     @classmethod
     def available(cls):
