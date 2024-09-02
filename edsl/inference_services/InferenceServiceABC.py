@@ -12,6 +12,10 @@ class InferenceServiceABC(ABC):
             raise NotImplementedError(
                 f"Class {cls.__name__} must have a 'key_sequence' attribute."
             )
+        if not hasattr(cls, "model_exclude_list"):
+            raise NotImplementedError(
+                f"Class {cls.__name__} must have a 'model_exclude_list' attribute."
+            )
 
     @abstractmethod
     def available() -> list[str]:
