@@ -176,3 +176,16 @@ def test_test_QuestionList_extras():
     assert "answer" in simulated_answer
     assert isinstance(simulated_answer["answer"], list)
     # form elements
+
+
+def test_repairs():
+    q = QuestionList(question_text="Blah", question_name="list_of_foods")
+    from edsl.language_models import LanguageModel
+
+    m = LanguageModel.example(
+        test_model=True, canned_response="""["{'a':1}", "{'b':2}"]"""
+    )
+    results = q.by(m).run()
+    results.select("answer.list_of_foods").print()
+    assert results.select("answer.list_of_foods").to_list()[0][0]["a"] == 1
+    assert results.select("answer.list_of_foods").to_list()[0][1]["b"] == 2

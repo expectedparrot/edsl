@@ -18,26 +18,50 @@ from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
 from edsl.questions.ResponseValidatorABC import BaseResponse
 from edsl.exceptions import QuestionAnswerValidationError
 
+from pydantic import BaseModel, Field, create_model
+from typing import Optional, Any, List, Annotated, Literal
 
-class RankResponse(BaseResponse):
-    """
-    >>> nr = RankResponse(answer=[1, 2], comment="I like custard")
-    >>> nr.dict()
-    {'answer': [1, 2], 'comment': 'I like custard', 'generated_tokens': None}
-    """
 
-    answer: list[int]
+def create_response_model(
+    choices: list,
+    num_selections: Optional[int] = None,
+    permissive: bool = False,
+):
+    """
+    :param choices: A list of allowed values for the answer field.
+    :param include_comment: Whether to include a comment field in the model.
+    :return: A new Pydantic model class.
+    """
+    # Convert the choices list to a tuple for use with Literal
+    choice_tuple = tuple(choices)
+
+    field_params = {}
+    if num_selections is not None and not permissive:
+        field_params["min_items"] = num_selections
+        field_params["max_items"] = num_selections
+
+    class RankResponse(BaseModel):
+        answer: Annotated[
+            List[Literal[choice_tuple]],
+            Field(..., **field_params),
+        ] = Field(..., description="List of selected choices")
+        comment: Optional[str] = Field(None, description="Optional comment field")
+
+        class Config:
+            @staticmethod
+            def json_schema_extra(schema: dict, model: BaseModel) -> None:
+                # Add the list of choices to the schema for better documentation
+                for prop in schema.get("properties", {}).values():
+                    if prop.get("title") == "answer":
+                        prop["items"] = {"enum": choices}
+
+    return RankResponse
 
 
 class RankResponseValidator(ResponseValidatorABC):
-    required_params = []
+    required_params = ["num_selections", "permissive"]
     valid_examples = []
     invalid_examples = []
-
-    def custom_validate(self, response) -> RankResponse:
-        if len(response.answer) != len(set(response.answer)):
-            raise QuestionAnswerValidationError("Answer must be unique")
-        return response.dict()
 
 
 class QuestionRank(QuestionBase):
@@ -58,6 +82,9 @@ class QuestionRank(QuestionBase):
         num_selections: Optional[int] = None,
         question_presentation: Optional[str] = None,
         answering_instructions: Optional[str] = None,
+        permissive: bool = False,
+        use_code: bool = True,
+        include_comment: bool = True,
     ):
         """Initialize the question.
 
@@ -73,16 +100,31 @@ class QuestionRank(QuestionBase):
         self.num_selections = num_selections or len(question_options)
         self.question_presentation = question_presentation
         self.answering_instructions = answering_instructions
+        self.permissive = permissive
+        self.use_code = use_code
+        self.include_comment = include_comment
+
+    def create_response_model(self):
+        choices = (
+            self.question_options
+            if not self.use_code
+            else range(len(self.question_options))
+        )
+        return create_response_model(
+            choices=choices,
+            num_selections=self.num_selections,
+            permissive=self.permissive,
+        )
 
     ################
     # Answer methods
     ################
-    def _validate_answer(self, answer: Any) -> dict[str, list[int]]:
-        """Validate the answer."""
-        self._validate_answer_template_basic(answer)
-        self._validate_answer_key_value(answer, "answer", list)
-        self._validate_answer_rank(answer)
-        return answer
+    # def _validate_answer(self, answer: Any) -> dict[str, list[int]]:
+    #     """Validate the answer."""
+    #     self._validate_answer_template_basic(answer)
+    #     self._validate_answer_key_value(answer, "answer", list)
+    #     self._validate_answer_rank(answer)
+    #     return answer
 
     def _translate_answer_code_to_answer(
         self, answer_codes, scenario: Scenario = None
@@ -96,24 +138,27 @@ class QuestionRank(QuestionBase):
         ]
         translated_codes = []
         for answer_code in answer_codes:
-            translated_codes.append(translated_options[int(answer_code)])
+            if self._use_code:
+                translated_codes.append(translated_options[int(answer_code)])
+            else:
+                translated_codes.append(answer_code)
         return translated_codes
 
-    def _simulate_answer(self, human_readable=True) -> dict[str, Union[int, str]]:
-        """Simulate a valid answer for debugging purposes."""
-        from edsl.utilities.utilities import random_string
+    # def _simulate_answer(self, human_readable=True) -> dict[str, Union[int, str]]:
+    #     """Simulate a valid answer for debugging purposes."""
+    #     from edsl.utilities.utilities import random_string
 
-        if human_readable:
-            selected = random.sample(self.question_options, self.num_selections)
-        else:
-            selected = random.sample(
-                range(len(self.question_options)), self.num_selections
-            )
-        answer = {
-            "answer": selected,
-            "comment": random_string(),
-        }
-        return answer
+    #     if human_readable:
+    #         selected = random.sample(self.question_options, self.num_selections)
+    #     else:
+    #         selected = random.sample(
+    #             range(len(self.question_options)), self.num_selections
+    #         )
+    #     answer = {
+    #         "answer": selected,
+    #         "comment": random_string(),
+    #     }
+    #     return answer
 
     @property
     def question_html_content(self) -> str:
@@ -165,13 +210,15 @@ class QuestionRank(QuestionBase):
     # Helpful methods
     ################
     @classmethod
-    def example(cls) -> QuestionRank:
+    def example(cls, use_code=False, include_comment=True) -> QuestionRank:
         """Return an example question."""
         return cls(
             question_name="rank_foods",
             question_text="Rank your favorite foods.",
             question_options=["Pizza", "Pasta", "Salad", "Soup"],
             num_selections=2,
+            use_code=use_code,
+            include_comment=include_comment,
         )
 
 
@@ -179,7 +226,7 @@ def main():
     """Show example usage."""
     from edsl.questions.QuestionRank import QuestionRank
 
-    q = QuestionRank.example()
+    q = QuestionRank.example(use_code=True)
     q.question_text
     q.question_name
     q.question_options
@@ -188,7 +235,7 @@ def main():
     answer = {"answer": [0, 1], "comment": "I like pizza and pasta."}
     q._validate_answer(answer)
     # translate an answer code to an answer
-    q._translate_answer_code_to_answer([0, 1])
+    # q._translate_answer_code_to_answer([0, 1])
     # simulate answer
     q._simulate_answer()
     q._simulate_answer(human_readable=False)
@@ -196,6 +243,10 @@ def main():
     # serialization (inherits from Question)
     q.to_dict()
     assert q.from_dict(q.to_dict()) == q
+
+    q = QuestionRank.example(use_code=False)
+    answer = {"answer": ["Pizza", "Pasta"], "comment": "I like pizza and pasta."}
+    q._validate_answer(answer)
 
     import doctest
 

@@ -296,7 +296,6 @@ class PromptConstructorMixin:
                     )
 
             if undefined_template_variables:
-                print(undefined_template_variables)
                 raise QuestionScenarioRenderError(
                     f"Question instructions still has variables: {undefined_template_variables}."
                 )

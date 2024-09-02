@@ -22,6 +22,7 @@ class FreeTextResponse(BaseModel):
     """
 
     answer: str
+    generated_tokens: Optional[str] = None
 
 
 class FreeTextResponseValidator(ResponseValidatorABC):
@@ -34,9 +35,6 @@ class FreeTextResponseValidator(ResponseValidatorABC):
             "Answer code must not be missing.",
         ),
     ]
-
-    def custom_validate(self, response) -> FreeTextResponse:
-        return response.dict()
 
 
 class QuestionFreeText(QuestionBase):
