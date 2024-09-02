@@ -168,7 +168,7 @@ def test_QuestionRank_answers():
 
     # answer validation
     q._validate_answer(response_good)
-    q._validate_answer({"answer": ["2", "1"]})
+    q._validate_answer({"answer": [2, 1]})
     with pytest.raises(QuestionAnswerValidationError):
         q._validate_answer(response_terrible)
     with pytest.raises(QuestionAnswerValidationError):
@@ -220,5 +220,7 @@ def test_QuestionRank_extras():
     assert "comment" in simulated_answer
     assert isinstance(simulated_answer["answer"], list)
     assert len(simulated_answer["answer"]) > 0
-    assert len(simulated_answer["answer"][0]) <= Settings.MAX_ANSWER_LENGTH
+    assert len(str(simulated_answer["answer"][0])) <= Settings.MAX_ANSWER_LENGTH
+
+    simulated_answer = q._simulate_answer(human_readable=True)
     assert simulated_answer["answer"][0] in q.question_options

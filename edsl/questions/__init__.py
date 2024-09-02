@@ -14,6 +14,7 @@ from edsl.questions.QuestionList import QuestionList
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 from edsl.questions.QuestionNumerical import QuestionNumerical
 from edsl.questions.QuestionBudget import QuestionBudget
+from edsl.questions.QuestionRank import QuestionRank
 
 # # # Questions derived from core questions
 from edsl.questions.derived.QuestionLikertFive import QuestionLikertFive

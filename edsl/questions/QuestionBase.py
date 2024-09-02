@@ -74,8 +74,7 @@ class QuestionBase(
         if not hasattr(self, "_fake_data_factory"):
             from polyfactory.factories.pydantic_factory import ModelFactory
 
-            class FakeData(ModelFactory[self.response_model]):
-                ...
+            class FakeData(ModelFactory[self.response_model]): ...
 
             self._fake_data_factory = FakeData
         return self._fake_data_factory
@@ -84,20 +83,26 @@ class QuestionBase(
         """Simulate a valid answer for debugging purposes (what the validator expects).
         >>> from edsl import QuestionFreeText as Q
         >>> Q.example()._simulate_answer()
-        {'answer': '...'}
+        {'answer': '...', 'generated_tokens': ...}
         """
-        return self.fake_data_factory.build().dict()
+        simulated_answer = self.fake_data_factory.build().dict()
+        if human_readable and hasattr(self, "question_options") and self.use_code:
+            simulated_answer["answer"] = [
+                self.question_options[index] for index in simulated_answer["answer"]
+            ]
+        return simulated_answer
 
     class ValidatedAnswer(TypedDict):
         answer: Any
         comment: Optional[str]
+        generated_tokens: Optional[str]
 
     def _validate_answer(self, answer: dict) -> ValidatedAnswer:
         """Validate the answer.
         >>> from edsl.exceptions import QuestionAnswerValidationError
         >>> from edsl import QuestionFreeText as Q
         >>> Q.example()._validate_answer({'answer': 'Hello'})
-        {'answer': 'Hello'}
+        {'answer': 'Hello', 'generated_tokens': None}
         >>> Q.example()._validate_answer({'shmanswer': 1})
         Traceback (most recent call last):
         ...
