@@ -78,8 +78,6 @@ polyfactory = "^2.16.2"
 [[tool.poetry.packages]]
 include = "edsl"
 
-
-
 [tool.tomlsort]
 all = true
 in_place = true
@@ -87,11 +85,9 @@ spaces_before_inline_comment = 2
 spaces_indent_inline_array = 4
 trailing_comma_inline_array = true
 
-include = [
-    "edsl/questions/templates/**/*.jinja",
-]
-
 [tool.tomlsort.overrides."tool.poetry.dependencies"]
 table_keys = false
 
-
+include = [
+    "edsl/questions/templates/**/*.jinja",
+]
