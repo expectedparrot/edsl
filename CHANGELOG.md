@@ -2,11 +2,26 @@
 
 ## [0.1.33] - IN PROGRESS
 ### Added 
-- Permissive option when validating results (e.g., you can specify whether min/max selections for a checkbox question should be enforced)
 
 - `Results` now include `generated_tokens`
 
 - 'tree' visualization
+
+
+- Ability to control exact prompt language and separate instructions from presentation of a question: `Question` objects now take optional parameters `answering_instructions` and `question_presentation` or else use default jinja2 templates in a templating system. 
+
+- New fields for all `Question` objects:
+    `include_comment`: bool = True 
+    `answering_instructions`: Optional[str] = None
+    `question_presentation`: Optional[str] = None
+    `permissive`: bool = False
+
+- `Question` objects parameter `include_comments = False` allows you to turn off the comments field that is automatically added to all question types other than `QuestionFreeText`. By default comments are included.
+
+- `Question` objects parameters `answering_instructions` and `question_presentation` allow you to control the exact prompt language and separate the instructions from the presentation of a question. Example:
+
+- `Question` objects parameter `permissive` allows you to turn off enforcement of validation checks (e.g., if min/max selections for a checkbox question have been specified, you can set `permissive = True` to allow responses that do not complay with the min/max). Example:
+
 
 - `Question` method `loop()` allows you to create multiple versions of a question when you are constructing a survey. It takes a `ScenarioList` and automatically creates a copy of the question for each scenario, which can then be passed as a list to a `Survey`. This is different from adding scenarios to a question or survey (using the `by()` method) *at the time that the question or survey is run*. See the questions page for details, and example usage:
 
@@ -17,10 +32,6 @@
 - `ScenarioList` method `group_by()` allows you to group scenarios by specified identifies and apply a function to the values of the specified variables.
 
 - `ScenarioList` method `from_wikipedia_table()` allows you to convert a Wikipedia table into a scenario list. Example usage: https://www.expectedparrot.com/content/247589dd-ad1e-45f4-9c82-e71dbeac8c96 (Notebook: *Using an LLM to Augment Existing Tabular Data*)
-
-- Ability to control exact prompt language and separate instructions from presentation of a question: `Question` objects now take optional parameters `answering_instructions` and `question_presentation` or else use default jinja2 templates in a templating system. 
-
-- `Question` objects can now take an optional parameter `include_comments = False` to turn off the comments field that is automatically added to all question types other than `QuestionFreeText`.  
 
 - The `select()` method (for `Results` and `ScenarioList`) now allows partial match on key names to save typing.
 

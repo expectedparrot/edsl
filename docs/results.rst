@@ -4,10 +4,10 @@ Results
 =======
 A `Results` object is the result of running a survey. 
 It is a list of individual `Result` objects, each of which represents a response to a `Survey` for each combination of `Agent`, `Model` and `Scenario` objects that were used with the survey.
-For example, the `Results` of a survey administered to 2 agents and 2 models and no question scenarios will contain 4 individual `Result` objects.
-If the survey questions are parameterized with 2 scenarios then 8 `Result` objects are generated.
+For example, the `Results` of a survey administered to 2 agents and 2 language models with no question scenarios will contain 4 individual `Result` objects.
+If the survey questions are parameterized with 2 scenarios then the survey `Results` will include 8 `Result` objects.
 
-A `Results` object is not typically instantiated directly, but is returned by calling the `run()` method of a survey after optionally specifying any agents, models and scenarios. 
+A `Results` object is not typically instantiated directly, but is returned by calling the `run()` method of a survey after any agents, language models and scenarios are added to it. 
 To inspect the form of an example `Results` we can call the `example()` method (it is long -- we show it at the end of this page):
 
 .. code-block:: python
@@ -59,7 +59,7 @@ Output:
    edsl.results.Results.Result
 
 
-**Note:** You must have API keys for language models in order to generate your own results. 
+**Note:** You must have API keys for language models in order to generate results. 
 Please see the :ref:`api_keys` section for instructions on activating :ref:`remote_inference` from your :ref:`coop` account or storing your own API keys.
 
 For purposes of demonstrating how to unpack and interact with results, we'll use the following code to generate results for a simple survey.
@@ -68,12 +68,12 @@ Note that specifying agent traits, scenarios (question parameter values) and lan
 .. code-block:: python
 
    # Create questions
-   from edsl.questions import QuestionLinearScale, QuestionFreeText, QuestionYesNo
+   from edsl import QuestionLinearScale, QuestionFreeText, QuestionYesNo
 
    q1 = QuestionLinearScale(
       question_name = "important",
       question_text = "How much do you care about {{ topic }}?",
-      question_options = [0,1,2,3,4,5],
+      question_options = [0, 1, 2, 3, 4, 5],
       option_labels = {0:"Not at all", 5:"A lot"}
    )
 
@@ -105,7 +105,7 @@ Note that specifying agent traits, scenarios (question parameter values) and lan
    from edsl import ModelList, Model
 
    models = ModelList(
-      Model(m) for m in ['gpt-4-0125-preview', 'gpt-3.5-turbo']
+      Model(m) for m in ['claude-3-5-sonnet-20240620', 'gemini-pro', 'gpt-4o']
    )
 
    # Create a survey with the questions
