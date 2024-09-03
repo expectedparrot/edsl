@@ -26,19 +26,41 @@ class OpenAIService(InferenceServiceABC):
 
     key_sequence = ["choices", 0, "message", "content"]
 
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        # so subclasses have to create their own instances of the clients
+        cls._sync_client_instance = None
+        cls._async_client_instance = None
+
     @classmethod
     def sync_client(cls):
-        cls._sync_client_instance = cls._sync_client_(
-            api_key=os.getenv(cls._env_key_name_), base_url=cls._base_url_
-        )
+        if cls._sync_client_instance is None:
+            cls._sync_client_instance = cls._sync_client_(
+                api_key=os.getenv(cls._env_key_name_), base_url=cls._base_url_
+            )
         return cls._sync_client_instance
 
     @classmethod
     def async_client(cls):
-        cls._async_client_instance = cls._async_client_(
-            api_key=os.getenv(cls._env_key_name_), base_url=cls._base_url_
-        )
+        if cls._async_client_instance is None:
+            cls._async_client_instance = cls._async_client_(
+                api_key=os.getenv(cls._env_key_name_), base_url=cls._base_url_
+            )
         return cls._async_client_instance
+
+    # @classmethod
+    # def sync_client(cls):
+    #     cls._sync_client_instance = cls._sync_client_(
+    #         api_key=os.getenv(cls._env_key_name_), base_url=cls._base_url_
+    #     )
+    #     return cls._sync_client_instance
+
+    # @classmethod
+    # def async_client(cls):
+    #     cls._async_client_instance = cls._async_client_(
+    #         api_key=os.getenv(cls._env_key_name_), base_url=cls._base_url_
+    #     )
+    #     return cls._async_client_instance
 
     # @classmethod
     # def sync_client(cls):
