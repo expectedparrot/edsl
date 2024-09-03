@@ -59,9 +59,70 @@ def create_response_model(
 
 
 class RankResponseValidator(ResponseValidatorABC):
-    required_params = ["num_selections", "permissive"]
+    required_params = ["num_selections", "permissive", "use_code", "question_options"]
     valid_examples = []
     invalid_examples = []
+
+    def fix(self, response, verbose=True):
+        if verbose:
+            print("Invalid response of QuestionRank was: ", response)
+        response_text = response.get("generated_tokens")
+        if response_text is None or response_text == "":  # nothing to be done
+            return response
+        # Maybe it's a comma separated list?
+        proposed_list = response_text.split(",")
+        proposed_list = [item.strip() for item in proposed_list]
+        if verbose:
+            print("Using code? ", self.use_code)
+        if self.use_code:
+            try:
+                proposed_list = [int(i) for i in proposed_list]
+            except ValueError:
+                # print("Could not convert to int")
+                pass
+
+        if verbose:
+            print("Proposed solution is: ", proposed_list)
+
+        # print(f"Ivalid generated tokens was was: {response_text}")
+        if "comment" in response:
+            proposed_data = {
+                "answer": proposed_list,
+                "comment": response["comment"],
+                "generated_tokens": response_text,
+            }
+        else:
+            proposed_data = {"answer": proposed_list, "generated_tokens": response_text}
+
+        try:
+            self.response_model(**proposed_data)
+            return proposed_data
+        except Exception as e:
+            if verbose:
+                print(f"Proposed solution {proposed_data} is invalid. Error: {e}")
+            # return response
+        if verbose:
+            print("Now seeing if responses show up in the answer")
+        matches = []
+        for index, option in enumerate(self.question_options):
+            if self.use_code:
+                if str(index) in response_text:
+                    matches.append(index)
+            else:
+                if option in response_text:
+                    matches.append(index)
+        proposed_data = {
+            "answer": matches,
+            "comment": response.get("comment", None),
+            "generated_tokens": response_text,
+        }
+        try:
+            self.response_model(**proposed_data)
+            return proposed_data
+        except Exception as e:
+            if verbose:
+                print(f"Proposed solution {proposed_data} is invalid. Error: {e}")
+            return response
 
 
 class QuestionRank(QuestionBase):
