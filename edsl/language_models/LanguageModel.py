@@ -98,6 +98,8 @@ from json_repair import repair_json
 def convert_answer(response_part):
     import json
 
+    response_part = response_part.strip()
+
     if response_part == "None":
         return None
 

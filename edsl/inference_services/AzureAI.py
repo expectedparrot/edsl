@@ -33,7 +33,11 @@ class AzureAIService(InferenceServiceABC):
         "AZURE_ENDPOINT_URL_AND_KEY"  # Environment variable for Azure API key
     )
     _model_id_to_endpoint_and_key = {}
-    model_exclude_list = ["Cohere-command-r-plus-xncmg"]
+    model_exclude_list = [
+        "Cohere-command-r-plus-xncmg",
+        "Mistral-Nemo-klfsi",
+        "Mistral-large-2407-ojfld",
+    ]
 
     @classmethod
     def available(cls):
@@ -86,7 +90,7 @@ class AzureAIService(InferenceServiceABC):
 
             except Exception as e:
                 raise e
-        return out
+        return [m for m in out if m not in cls.model_exclude_list]
 
     @classmethod
     def create_model(

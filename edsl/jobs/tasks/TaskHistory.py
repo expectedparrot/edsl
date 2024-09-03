@@ -217,6 +217,18 @@ class TaskHistory:
         return exceptions_by_type
 
     @property
+    def exceptions_by_service(self) -> dict:
+        """Return a dictionary of exceptions tallied by service."""
+        exceptions_by_service = {}
+        for interview in self.total_interviews:
+            service = interview.model._inference_service_
+            if service not in exceptions_by_service:
+                exceptions_by_service[service] = 0
+            if interview.exceptions != {}:
+                exceptions_by_service[service] += len(interview.exceptions)
+        return exceptions_by_service
+
+    @property
     def exceptions_by_question_name(self) -> dict:
         """Return a dictionary of exceptions tallied by question name."""
         exceptions_by_question_name = {}
@@ -236,11 +248,12 @@ class TaskHistory:
         """Return a dictionary of exceptions tallied by model and question name."""
         exceptions_by_model = {}
         for interview in self.total_interviews:
-            model = interview.model
-            if model not in exceptions_by_model:
-                exceptions_by_model[model.model] = 0
+            model = interview.model.model
+            service = interview.model._inference_service_
+            if (service, model) not in exceptions_by_model:
+                exceptions_by_model[(service, model)] = 0
             if interview.exceptions != {}:
-                exceptions_by_model[model.model] += len(interview.exceptions)
+                exceptions_by_model[(service, model)] += len(interview.exceptions)
         return exceptions_by_model
 
     def generate_html_report(self, css: Optional[str]):
@@ -270,6 +283,7 @@ class TaskHistory:
             exceptions_by_type=self.exceptions_by_type,
             exceptions_by_question_name=self.exceptions_by_question_name,
             exceptions_by_model=self.exceptions_by_model,
+            exceptions_by_service=self.exceptions_by_service,
             models_used=models_used,
         )
         return output
