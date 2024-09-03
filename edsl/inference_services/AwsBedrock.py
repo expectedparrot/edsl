@@ -17,6 +17,7 @@ class AwsBedrockService(InferenceServiceABC):
         "AWS_ACCESS_KEY_ID"  # or any other environment key for AWS credentials
     )
     key_sequence = ["output", "message", "content", 0, "text"]
+    model_exclude_list = []
 
     @classmethod
     def available(cls):

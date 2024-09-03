@@ -101,9 +101,9 @@ class Interview(InterviewStatusMixin):
         self.debug = debug
         self.iteration = iteration
         self.cache = cache
-        self.answers: dict[
-            str, str
-        ] = Answers()  # will get filled in as interview progresses
+        self.answers: dict[str, str] = (
+            Answers()
+        )  # will get filled in as interview progresses
         self.sidecar_model = sidecar_model
 
         # Trackers
@@ -323,6 +323,7 @@ class Interview(InterviewStatusMixin):
                 response: AgentResponseDict = await self._attempt_to_answer_question(
                     invigilator, task
                 )
+                # breakpoint()
 
                 self._add_answer(response=response, question=question)
                 self._cancel_skipped_questions(question)
@@ -401,9 +402,10 @@ class Interview(InterviewStatusMixin):
 
         """
         try:
-            return await asyncio.wait_for(
+            response = await asyncio.wait_for(
                 invigilator.async_answer_question(), timeout=TIMEOUT
             )
+            return response
         except asyncio.TimeoutError as e:
             self._handle_exception(e, invigilator, task)
             raise InterviewTimeoutError(f"Task timed out after {TIMEOUT} seconds.")
@@ -422,11 +424,11 @@ class Interview(InterviewStatusMixin):
         """
         current_question_index: int = self.to_index[current_question.question_name]
 
-        next_question: Union[
-            int, EndOfSurvey
-        ] = self.survey.rule_collection.next_question(
-            q_now=current_question_index,
-            answers=self.answers | self.scenario | self.agent["traits"],
+        next_question: Union[int, EndOfSurvey] = (
+            self.survey.rule_collection.next_question(
+                q_now=current_question_index,
+                answers=self.answers | self.scenario | self.agent["traits"],
+            )
         )
 
         next_question_index = next_question.next_q

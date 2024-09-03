@@ -132,7 +132,7 @@ class QuestionTaskCreator(UserList):
             self.waiting = True
             self.task_status = TaskStatus.WAITING_FOR_REQUEST_CAPACITY
 
-        await self.tokens_bucket.get_tokens(1)
+        await self.requests_bucket.get_tokens(1, cheat_bucket_capacity=True)
 
         self.task_status = TaskStatus.API_CALL_IN_PROGRESS
         try:

@@ -113,6 +113,9 @@ def convert_answer(response_part):
         return response_part
 
 
+from edsl.exceptions.language_models import LanguageModelBadResponseError
+
+
 def extract_generated_tokens_from_raw_response(data, key_sequence):
     if isinstance(data, str):
         data = json.loads(data)
@@ -141,9 +144,11 @@ def extract_generated_tokens_from_raw_response(data, key_sequence):
             current_data = current_data[key]
         except Exception as e:
             path = " -> ".join(map(str, key_sequence[: i + 1]))
-            raise ValueError(
-                f"Error accessing path: {path}. {str(e)}. Full response is: '{data}'"
-            ) from e
+            if "error" in data:
+                msg = data["error"]
+            else:
+                msg = f"Error accessing path: {path}. {str(e)}. Full response is: '{data}'"
+            raise LanguageModelBadResponseError(message=msg, response_json=data)
 
     return current_data.strip()  # in case any whitespace was added
 
