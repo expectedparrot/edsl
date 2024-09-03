@@ -240,7 +240,7 @@ class LanguageModel(
                 self._api_token = os.getenv(key_name)
                 missing_token = self._api_token is None
             if missing_token and self._inference_service_ != "test" and not self.remote:
-                print("rainsing error")
+                print("raising error")
                 raise MissingAPIKeyError(
                     f"""The key for service: `{self._inference_service_}` is not set.
                         Need a key with name {key_name} in your .env file."""
