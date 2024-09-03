@@ -12,6 +12,7 @@ class AnthropicService(InferenceServiceABC):
     _inference_service_ = "anthropic"
     _env_key_name_ = "ANTHROPIC_API_KEY"
     key_sequence = ["content", 0, "text"]  # ["content"][0]["text"]
+    model_exclude_list = []
 
     @classmethod
     def available(cls):

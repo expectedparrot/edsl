@@ -50,7 +50,7 @@ def test_str_list_examples():
     
     There are my comments.
 
-    
+
     """
 
     examples = [example_1]
@@ -64,3 +64,13 @@ def test_str_list_examples():
             model_response["comment"] == "These are my comments."
             or model_response["comment"] == None
         )
+
+
+# def test_example():
+#     examples = [
+#         """Agree. I enjoy the calming effect that rain has on me. It's like a natural therapy that helps me relax and rejuvenate. Plus, I love the smell of rain and the way it makes everything look so serene and beautiful."""
+#     ]
+#     for generated_tokens in examples:
+#         m = LanguageModel.example(test_model=True, canned_response=generated_tokens)
+#         raw_model_response = m.execute_model_call("", "")
+#         model_response = json.loads(m.parse_response(raw_model_response))

@@ -145,6 +145,7 @@ class QuestionBase(
             "_use_code",
             "_answering_instructions",
             "_question_presentation",
+            "_model_instructions",
         ]
         candidate_data = {
             k.replace("_", "", 1): v
