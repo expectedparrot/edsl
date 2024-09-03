@@ -77,9 +77,6 @@ uvicorn = "^0.30.6"
 [[tool.poetry.packages]]
 include = "edsl"
 
-[[tool.poetry.packages]]
-include = "edsl/questions/templates/**/*.jinja"
-
 [tool.tomlsort]
 all = true
 in_place = true
