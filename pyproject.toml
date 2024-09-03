@@ -43,6 +43,7 @@ boto3 = "^1.34.161"
 azure-ai-inference = "^1.0.0b3"
 openpyxl = "^3.1.5"
 json-repair = "^0.28.4"
+mistralai = "^1.0.2"
 
 [tool.poetry.dependencies.black]
 extras = ["jupyter"]
@@ -50,10 +51,12 @@ version = "^24.4.2"
 
 [tool.poetry.group.dev.dependencies]
 coverage = "^7.3.3"
+fastapi = "^0.112.1"
 mypy = "^1.7.1"
 myst-parser = "^3.0.1"
 nbformat = "^5.9.2"
 nbsphinx = "^0.9.3"
+polyfactory = "^2.16.2"
 pre-commit = "^3.6.0"
 pydocstyle = "^6.3.0"
 pylint = "^3.1.0"
@@ -70,12 +73,13 @@ sphinx-fontawesome = "^0.0.6"
 sphinx-rtd-theme = "^2.0.0"
 toml = "^0.10.2"
 toml-sort = "^0.23.1"
-fastapi = "^0.112.1"
 uvicorn = "^0.30.6"
-polyfactory = "^2.16.2"
 
 [[tool.poetry.packages]]
-include = "edsl"
+include = [
+    "edsl",
+    "edsl/questions/templates/**/*.jinja",
+]
 
 [tool.tomlsort]
 all = true
@@ -86,7 +90,3 @@ trailing_comma_inline_array = true
 
 [tool.tomlsort.overrides."tool.poetry.dependencies"]
 table_keys = false
-
-include = [
-    "edsl/questions/templates/**/*.jinja",
-]
