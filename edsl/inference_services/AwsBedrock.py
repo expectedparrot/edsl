@@ -17,7 +17,14 @@ class AwsBedrockService(InferenceServiceABC):
         "AWS_ACCESS_KEY_ID"  # or any other environment key for AWS credentials
     )
     key_sequence = ["output", "message", "content", 0, "text"]
-    model_exclude_list = []
+    model_exclude_list = [
+        "ai21.j2-grande-instruct",
+        "ai21.j2-jumbo-instruct",
+        "ai21.j2-mid",
+        "ai21.j2-mid-v1",
+        "ai21.j2-ultra",
+        "ai21.j2-ultra-v1",
+    ]
 
     @classmethod
     def available(cls):
@@ -30,7 +37,7 @@ class AwsBedrockService(InferenceServiceABC):
         else:
             all_models_ids = cls._models_list_cache
 
-        return all_models_ids
+        return [m for m in all_models_ids if m not in cls.model_exclude_list]
 
     @classmethod
     def create_model(
