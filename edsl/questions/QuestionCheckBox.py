@@ -97,7 +97,7 @@ class CheckBoxResponseValidator(ResponseValidatorABC):
         ),
     ]
 
-    def fix(self, response, verbose=True):
+    def fix(self, response, verbose=False):
         if verbose:
             print("Invalid response of QuestionCheckBox was: ", response)
         response_text = response.get("generated_tokens")
@@ -106,14 +106,17 @@ class CheckBoxResponseValidator(ResponseValidatorABC):
         # Maybe it's a comma separated list?
         proposed_list = response_text.split(",")
         proposed_list = [item.strip() for item in proposed_list]
-        print("Using code? ", self.use_code)
+        if verbose:
+            print("Using code? ", self.use_code)
         if self.use_code:
             try:
                 proposed_list = [int(i) for i in proposed_list]
             except ValueError:
-                print("Could not convert to int")
+                # print("Could not convert to int")
+                pass
 
-        print("Proposed solution is: ", proposed_list)
+        if verbose:
+            print("Proposed solution is: ", proposed_list)
 
         # print(f"Ivalid generated tokens was was: {response_text}")
         if "comment" in response:

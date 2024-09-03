@@ -11,6 +11,7 @@ from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
 class GoogleService(InferenceServiceABC):
     _inference_service_ = "google"
     key_sequence = ["candidates", 0, "content", "parts", 0, "text"]
+    model_exclude_list = []
 
     @classmethod
     def available(cls):

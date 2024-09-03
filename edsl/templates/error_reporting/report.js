@@ -13,3 +13,13 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
 });
+
+function copyCode() {
+    const textarea = document.getElementById('codeToCopy');
+    textarea.select();
+    textarea.setSelectionRange(0, 99999); // For mobile devices
+    document.execCommand("copy");
+
+    // Optionally, you can display an alert or change the button text to indicate success
+    alert("Code copied to clipboard!");
+}
