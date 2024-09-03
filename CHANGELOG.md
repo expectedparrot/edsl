@@ -20,7 +20,7 @@
 
 - `Question` objects parameters `answering_instructions` and `question_presentation` allow you to control the exact prompt language and separate the instructions from the presentation of a question. Example:
 
-- `Question` objects parameter `permissive` allows you to turn off enforcement of validation checks (e.g., if min/max selections for a checkbox question have been specified, you can set `permissive = True` to allow responses that do not complay with the min/max). Example:
+- `Question` objects parameter `permissive` allows you to turn off enforcement of question instructions (e.g., if min/max selections for a checkbox question have been specified, you can set `permissive = True` to allow responses that do not complay with the min/max). Example:
 
 
 - `Question` method `loop()` allows you to create multiple versions of a question when you are constructing a survey. It takes a `ScenarioList` and automatically creates a copy of the question for each scenario, which can then be passed as a list to a `Survey`. This is different from adding scenarios to a question or survey (using the `by()` method) *at the time that the question or survey is run*. See the questions page for details, and example usage:
@@ -32,6 +32,9 @@
 - `ScenarioList` method `group_by()` allows you to group scenarios by specified identifies and apply a function to the values of the specified variables.
 
 - `ScenarioList` method `from_wikipedia_table()` allows you to convert a Wikipedia table into a scenario list. Example usage: https://www.expectedparrot.com/content/247589dd-ad1e-45f4-9c82-e71dbeac8c96 (Notebook: *Using an LLM to Augment Existing Tabular Data*)
+
+- ability to export Scenario Lists as structured Docx documents
+
 
 - The `select()` method (for `Results` and `ScenarioList`) now allows partial match on key names to save typing.
 
