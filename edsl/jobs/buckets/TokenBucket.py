@@ -82,23 +82,30 @@ class TokenBucket:
         >>> bucket.refill()
         >>> bucket.tokens > 0
         True
-
         """
+        """Refill the bucket with new tokens based on elapsed time."""
         now = time.monotonic()
+        # print(f"Time is now: {now}; Last refill time: {self.last_refill}")
         elapsed = now - self.last_refill
+        # print("Elapsed time: ", elapsed)
         refill_amount = elapsed * self.refill_rate
         self.tokens = min(self.capacity, self.tokens + refill_amount)
         self.last_refill = now
+
+        if self.tokens < self.capacity:
+            pass
+            # print(f"Refilled. Current tokens: {self.tokens:.4f}")
+            # print(f"Elapsed time: {elapsed:.4f} seconds")
+            # print(f"Refill amount: {refill_amount:.4f}")
 
         self.log.append((now, self.tokens))
 
     def wait_time(self, requested_tokens: Union[float, int]) -> float:
         """Calculate the time to wait for the requested number of tokens."""
-        now = time.monotonic()
-        elapsed = now - self.last_refill
-        refill_amount = elapsed * self.refill_rate
-        available_tokens = min(self.capacity, self.tokens + refill_amount)
-        return max(0, requested_tokens - available_tokens) / self.refill_rate
+        # self.refill()  # Update the current token count
+        if self.tokens >= requested_tokens:
+            return 0
+        return (requested_tokens - self.tokens) / self.refill_rate
 
     async def get_tokens(
         self, amount: Union[int, float] = 1, cheat_bucket_capacity=True
@@ -123,22 +130,39 @@ class TokenBucket:
         ...
         ValueError: Requested amount exceeds bucket capacity. Bucket capacity: 10, requested amount: 11. As the bucket never overflows, the requested amount will never be available.
         >>> asyncio.run(bucket.get_tokens(11, cheat_bucket_capacity=True))
+        The requested amount, 11, exceeds the current bucket capacity of 10.Increasing bucket capacity to 11 * 1.10 accommodate the requested amount.
         """
-        if amount > self.capacity:
+        if amount >= self.capacity:
             if not cheat_bucket_capacity:
                 msg = f"Requested amount exceeds bucket capacity. Bucket capacity: {self.capacity}, requested amount: {amount}. As the bucket never overflows, the requested amount will never be available."
                 raise ValueError(msg)
             else:
-                self.tokens = 0  # clear the bucket but let it go through
-                return
+                # self.tokens = 0  # clear the bucket but let it go through
+                print(
+                    f"""The requested amount, {amount}, exceeds the current bucket capacity of {self.capacity}.Increasing bucket capacity to {amount} * 1.10 accommodate the requested amount."""
+                )
+                self.capacity = amount * 1.10
+                self._old_capacity = self.capacity
 
-        while self.tokens < amount:
-            self.refill()
-            await asyncio.sleep(0.01)  # Sleep briefly to prevent busy waiting
-        self.tokens -= amount
+        start_time = time.monotonic()
+        while True:
+            self.refill()  # Refill based on elapsed time
+            if self.tokens >= amount:
+                self.tokens -= amount
+                break
+
+            wait_time = self.wait_time(amount)
+            # print(f"Waiting for {wait_time:.4f} seconds")
+            if wait_time > 0:
+                # print(f"Waiting for {wait_time:.4f} seconds")
+                await asyncio.sleep(wait_time)
+
+        # total_elapsed = time.monotonic() - start_time
+        # print(f"Total time to acquire tokens: {total_elapsed:.4f} seconds")
 
         now = time.monotonic()
         self.log.append((now, self.tokens))
+        return None
 
     def get_log(self) -> list[tuple]:
         return self.log

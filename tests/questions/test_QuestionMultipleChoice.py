@@ -183,6 +183,25 @@ def test_QuestionMultipleChoice_answers():
         q._validate_answer({"answer": {"answer": 0}})
 
 
+def test_permissive():
+    q = QuestionMultipleChoice(**valid_question | {"permissive": True})
+    q._validate_response({"answer": "Poop"})
+
+
+def test_instructions_overrride():
+    q = QuestionMultipleChoice(**valid_question)
+    assert q.answering_instructions is not None
+    q = QuestionMultipleChoice(
+        **valid_question | {"answering_instructions": "Please answer"}
+    )
+    assert q.answering_instructions == "Please answer"
+
+
+def test_not_using_code():
+    q = QuestionMultipleChoice(**(valid_question | {"use_code": False}))
+    q._validate_answer({"answer": "OK"})
+
+
 def test_QuestionMultipleChoice_extras():
     """Test QuestionFreeText extra functionalities."""
     q = QuestionMultipleChoice(**valid_question)

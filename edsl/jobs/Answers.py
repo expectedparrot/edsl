@@ -19,7 +19,10 @@ class Answers(UserDict):
         """
         answer = response.get("answer")
         comment = response.pop("comment", None)
+        generated_tokens = response.pop("generated_tokens", None)
         # record the answer
+        if generated_tokens:
+            self[question.question_name + "_generated_tokens"] = generated_tokens
         self[question.question_name] = answer
         if comment:
             self[question.question_name + "_comment"] = comment
