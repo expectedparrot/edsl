@@ -31,7 +31,7 @@
  
             <tr>
                 <td>Human-readable question</td>
-                <td>{{ interview.survey.get_question(question).html() }}</td>
+                <td>{{ interview.survey.get_question(question).html(scenario = interview.scenario, agent = interview.agent) }}</td>
             </tr>
             <tr>
                 <td>Scenario</td>
