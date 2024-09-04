@@ -43,7 +43,7 @@ class NumericalResponseValidator(ResponseValidatorABC):
     ]
 
     invalid_examples = [
-        ({"answer": 10}, {"min_value": 0, "max_value": 5}, "Answer if out of range"),
+        ({"answer": 10}, {"min_value": 0, "max_value": 5}, "Answer is out of range"),
         ({"answer": "ten"}, {"min_value": 0, "max_value": 5}, "Answer is not a number"),
         ({}, {"min_value": 0, "max_value": 5}, "Answer key is missing"),
     ]
