@@ -28,6 +28,7 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
         """
         params = self.get_prompts() | {"iteration": self.iteration}
         raw_response = await self.async_get_response(**params)
+
         # logs the raw response in the invigilator
         self.raw_model_response = raw_response["raw_model_response"]
         data = {
@@ -38,11 +39,7 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
             "raw_model_response": raw_response["raw_model_response"],
         }
         response = self._format_raw_response(**data)
-        # assert response["generated_tokens"] is not None
         return response
-        # breakpoint()
-        # return AgentResponseDict(**response)
-        # return response
 
     async def async_get_response(
         self,
@@ -62,6 +59,7 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
             if encoded_image:
                 params["encoded_image"] = encoded_image
             response = await self.model.async_get_response(**params)
+            # breakpoint()
 
         # TODO: I *don't* think we need to delete the cache key here because I think
         # it will not have been set yet; the exception would have been raised before.
@@ -88,14 +86,17 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
         This cleans up the raw response to make it suitable to pass to AgentResponseDict.
         """
         _ = agent
+        # breakpoint()
         try:
             # Parse the raw model response
             edsl_answer = json.loads(
                 json_string := self.model.parse_response(raw_model_response)
             )
+            response = question._validate_answer(edsl_answer)
+            assert "generated_tokens" in response
+            assert response.get("generated_tokens") is not None
             # breakpoint()
 
-            response = question._validate_answer(edsl_answer)
         except json.JSONDecodeError as e:
             msg = f"""Error at line {e.lineno}, column {e.colno} (character {e.pos})"). Problematic part of the JSON: {json_string[e.pos-10:e.pos+10]}")"""
             self._remove_from_cache(raw_response)

@@ -109,6 +109,7 @@ class QuestionBase(
         edsl.exceptions.questions.QuestionAnswerValidationError:...
         ...
         """
+        assert "generated_tokens" in self.response_model.__fields__
         return self.response_validator.validate(answer)
 
     # endregion

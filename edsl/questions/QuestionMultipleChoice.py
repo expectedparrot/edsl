@@ -69,19 +69,35 @@ def create_response_model(choices: List[str], permissive: bool = False):
 class MultipleChoiceResponseValidator(ResponseValidatorABC):
     required_params = ["question_options", "use_code"]
 
-    def fix(self, response):
-        response_text = str(response)
+    def fix(self, response, verbose=False):
+        response_text = response.get("answer")
+        if verbose:
+            print(f"Invalid generated tokens was: {response_text}")
+
+        matches = []
         for idx, option in enumerate(self.question_options):
-            matches = []
+            if verbose:
+                print("The options are: ", self.question_options)
             if str(option) in response_text:
-                matches.append(option)
+                if verbose:
+                    print("Match found with option ", option)
+                if option not in matches:
+                    matches.append(option)
+
+        if verbose:
+            print("The matches are: ", matches)
         if len(matches) == 1:
-            return {
+            proposed_data = {
                 "answer": matches[0],
                 "generated_tokens": response.get("generated_tokens", None),
             }
-        else:
-            return None
+            try:
+                self.response_model(**proposed_data)
+                return proposed_data
+            except Exception as e:
+                if verbose:
+                    print(f"Proposed solution {proposed_data} is invalid. Error: {e}")
+            return response
 
     valid_examples = [
         ({"answer": 1}, {"question_options": ["Good", "Great", "OK", "Bad"]})

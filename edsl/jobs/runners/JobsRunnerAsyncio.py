@@ -164,7 +164,6 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             for k in set(answer.keys())
             if not k.endswith("_comment") and not k.endswith("_generated_tokens")
         }
-        # breakpoint()
 
         assert len(valid_results) == len(answer_key_names)
 
@@ -174,6 +173,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         #    generated_tokens_dict[question_name + "_generated_tokens"] = result[
         #        "generated_tokens"
         #    ]
+        # breakpoint()
         generated_tokens_dict = {
             k: v for k, v in answer.items() if k.endswith("_generated_tokens")
         }
