@@ -999,6 +999,7 @@ This will return a table of the selected components of the first 4 results:
 
 Sampling results
 ^^^^^^^^^^^^^^^^
+
 We can select a sample of `n` results by passing the desired number of random results to the `sample()` method.
 This can be useful for checking a random subset of the results with different parameters:
 
@@ -1091,6 +1092,26 @@ This will return the number of results:
 .. code-block:: text
 
    16
+
+
+Displaying results in a tree format
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+We can also display the results in a tree format using the `tree` method, which displays the results in a nested format for each of the components: `model`, `scenario`, `agent`, `answer`, `question`, `iteration`.
+The method takes a list parameter `fold_attributes` for the attributes to be folded, and an option list parmeter `drop` for fields to be excluded from the display.
+
+For example, the following code will display the results in a tree format for the `model` and `scenario` components, excluding the `iteration` component:
+
+.. code-block:: python
+
+   results.tree(fold_attributes=["model", "scenario"], drop=["iteration"])
+
+
+This will display the results in a tree format:
+
+.. code-block:: text
+
+   
 
 
 
