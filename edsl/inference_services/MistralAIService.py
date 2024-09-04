@@ -21,6 +21,7 @@ class MistralAIService(InferenceServiceABC):
     _async_client = Mistral
 
     _models_list_cache: List[str] = []
+    model_exclude_list = []
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -87,7 +88,7 @@ class MistralAIService(InferenceServiceABC):
                 s = self.async_client()
 
                 res = await s.chat.complete_async(
-                    model="mistral-small-latest",
+                    model=model_name,
                     messages=[
                         {
                             "content": user_prompt,
