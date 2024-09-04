@@ -153,6 +153,7 @@ def language_model_good():
         _model_ = "test"
         _parameters_ = {"temperature": 0.5}
         _inference_service_ = InferenceServiceType.TEST.value
+        key_sequence = ["message", "answer"]
 
         async def async_execute_model_call(
             self, user_prompt: str, system_prompt: str
@@ -160,8 +161,8 @@ def language_model_good():
             await asyncio.sleep(0.1)
             return {"message": """{"answer": "Hello world"}"""}
 
-        def parse_response(self, raw_response: dict[str, Any]) -> str:
-            return raw_response["message"]
+        # def parse_response(self, raw_response: dict[str, Any]) -> str:
+        #     return raw_response["message"]
 
     return TestLanguageModelGood()
 

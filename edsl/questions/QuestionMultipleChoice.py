@@ -16,68 +16,54 @@ from edsl.exceptions import QuestionAnswerValidationError
 
 from pydantic import BaseModel, Field, create_model
 
+from typing import List, Any, Literal
 
-def create_response_model_code(
-    min_value: int, max_value: int, include_comment: bool = True
-):
+
+def create_response_model(choices: List[str], permissive: bool = False):
     """
-    Dynamically create a RestrictedMultipleChoiceResponse model with custom min and max values.
-
-    :param min_value: The minimum allowed value for the answer field.
-    :param max_value: The maximum allowed value for the answer field.
-    :return: A new Pydantic model class.
-    """
-    if include_comment:
-        return create_model(
-            "DynamicRestrictedMultipleChoiceResponse",
-            answer=(int, Field(..., ge=min_value, le=max_value)),
-            comment=(str, ""),
-            __base__=BaseModel,
-        )
-    else:
-        return create_model(
-            "DynamicRestrictedMultipleChoiceResponse",
-            answer=(int, Field(..., ge=min_value, le=max_value)),
-            __base__=BaseModel,
-        )
-
-
-def create_response_model_no_code(choices: list, include_comment: bool = True):
-    """
-    Dynamically create a MultipleChoiceResponse model with a predefined list of choices.
+    Create a ChoiceResponse model class with a predefined list of choices.
 
     :param choices: A list of allowed values for the answer field.
-    :param include_comment: Whether to include the comment field in the model.
+    :param permissive: If True, any value will be accepted as an answer.
     :return: A new Pydantic model class.
     """
     # Convert the choices list to a tuple for use with Literal
     choice_tuple = tuple(choices)
 
-    fields = {
-        "answer": (
-            Literal[choice_tuple],
-            Field(..., description="Must be one of the predefined choices"),
-        )
-    }
+    if not permissive:
 
-    if include_comment:
-        fields["comment"] = (
-            Optional[str],
-            Field(None, description="Optional comment field"),
-        )
+        class ChoiceResponse(BaseModel):
+            answer: Literal[choice_tuple] = Field(description="Selected choice")
+            comment: Optional[str] = Field(None, description="Optional comment field")
+            generated_tokens: Optional[Any] = Field(
+                None, description="Generated tokens"
+            )
 
-    class Config:
-        @staticmethod
-        def json_schema_extra(schema: dict, model: BaseModel) -> None:
-            # Add the list of choices to the schema for better documentation
-            for prop in schema.get("properties", {}).values():
-                if "allOf" in prop:
-                    prop["enum"] = choices
+            class Config:
+                @staticmethod
+                def json_schema_extra(schema: dict, model: BaseModel) -> None:
+                    for prop in schema.get("properties", {}).values():
+                        if prop.get("title") == "answer":
+                            prop["enum"] = choices
 
-    MultipleChoiceResponse = create_model("MultipleChoiceResponse", **fields)
-    MultipleChoiceResponse.Config = Config
+    else:
 
-    return MultipleChoiceResponse
+        class ChoiceResponse(BaseModel):
+            answer: Any = Field(description="Selected choice (can be any value)")
+            comment: Optional[str] = Field(None, description="Optional comment field")
+            generated_tokens: Optional[Any] = Field(
+                None, description="Generated tokens"
+            )
+
+            class Config:
+                @staticmethod
+                def json_schema_extra(schema: dict, model: BaseModel) -> None:
+                    for prop in schema.get("properties", {}).values():
+                        if prop.get("title") == "answer":
+                            prop["description"] += f". Suggested choices are: {choices}"
+                    schema["title"] += " (Permissive)"
+
+    return ChoiceResponse
 
 
 class MultipleChoiceResponseValidator(ResponseValidatorABC):
@@ -114,9 +100,6 @@ class MultipleChoiceResponseValidator(ResponseValidatorABC):
         ),
     ]
 
-    def custom_validate(self, response) -> BaseResponse:
-        return response.dict()
-
 
 class QuestionMultipleChoice(QuestionBase):
     """This question prompts the agent to select one option from a list of options.
@@ -127,9 +110,9 @@ class QuestionMultipleChoice(QuestionBase):
 
     question_type = "multiple_choice"
     purpose = "When options are known and limited"
-    question_options: Union[
-        list[str], list[list], list[float], list[int]
-    ] = QuestionOptionsDescriptor()
+    question_options: Union[list[str], list[list], list[float], list[int]] = (
+        QuestionOptionsDescriptor()
+    )
     _response_model = None
     response_validator_class = MultipleChoiceResponseValidator
 
@@ -142,6 +125,7 @@ class QuestionMultipleChoice(QuestionBase):
         use_code: bool = False,
         answering_instructions: Optional[str] = None,
         question_presentation: Optional[str] = None,
+        permissive: bool = False,
     ):
         """Instantiate a new QuestionMultipleChoice.
 
@@ -158,21 +142,19 @@ class QuestionMultipleChoice(QuestionBase):
         self.use_code = use_code
         self.answering_instructions = answering_instructions
         self.question_presentation = question_presentation
+        self.permissive = permissive
 
     ################
     # Answer methods
     ################
 
     def create_response_model(self):
-        if self._use_code:
-            response_model = create_response_model_code(
-                0, len(self.question_options) - 1, self._include_comment
+        if self.use_code:
+            return create_response_model(
+                list(range(len(self.question_options))), self.permissive
             )
         else:
-            response_model = create_response_model_no_code(
-                self.question_options, self._include_comment
-            )
-        return response_model
+            return create_response_model(self.question_options, self.permissive)
 
     def _translate_answer_code_to_answer(
         self, answer_code: int, scenario: Optional["Scenario"] = None

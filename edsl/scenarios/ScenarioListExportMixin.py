@@ -41,3 +41,12 @@ class ScenarioListExportMixin(DatasetExportMixin):
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         decorate_methods_from_mixin(cls, DatasetExportMixin)
+
+    def to_docx(self, filename: str):
+        """Export the ScenarioList to a .docx file."""
+        dataset = self.to_dataset()
+        from edsl.results.DatasetTree import Tree
+
+        tree = Tree(dataset)
+        tree.construct_tree()
+        tree.to_docx(filename)

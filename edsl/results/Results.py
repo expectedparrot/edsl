@@ -82,6 +82,7 @@ class Results(UserList, Mixins, Base):
         "question_options",
         "question_type",
         "comment",
+        "generated_tokens",
     ]
 
     def __init__(
@@ -1062,7 +1063,9 @@ class Results(UserList, Mixins, Base):
         def has_single_equals(string):
             if "!=" in string:
                 return False
-            if "=" in string and not "==" in string:
+            if "=" in string and not (
+                "==" in string or "<=" in string or ">=" in string
+            ):
                 return True
 
         if has_single_equals(expression):
@@ -1117,7 +1120,7 @@ class Results(UserList, Mixins, Base):
 
         c = Cache()
         job = Jobs.example(randomize=randomize)
-        results = job.run(cache=c, debug=debug)
+        results = job.run(cache=c, debug=debug, stop_on_exception=True, skip_retry=True)
         return results
 
     def rich_print(self):

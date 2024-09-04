@@ -32,6 +32,7 @@ def create_language_model(
         _model_ = "test"
         _parameters_ = {"temperature": 0.5}
         _inference_service_ = InferenceServiceType.TEST.value
+        key_sequence = ["message", "answer"]
 
         async def async_execute_model_call(
             self, user_prompt: str, system_prompt: str
@@ -47,9 +48,9 @@ def create_language_model(
                     await exception()
                 else:
                     raise exception
-            return {"message": """{"answer": "SPAM!"}"""}
+            return {"message": {"answer": "SPAM!"}}
 
-        def parse_response(self, raw_response: dict[str, Any]) -> str:
-            return raw_response["message"]
+        # def parse_response(self, raw_response: dict[str, Any]) -> str:
+        #     return raw_response["message"]
 
     return TestLanguageModel
