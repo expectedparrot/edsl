@@ -8,6 +8,7 @@ from typing import Any, Union, Optional
 import numpy as np
 
 from edsl.results.ResultsExportMixin import ResultsExportMixin
+from edsl.results.DatasetTree import Tree
 
 
 class Dataset(UserList, ResultsExportMixin):
@@ -29,6 +30,15 @@ class Dataset(UserList, ResultsExportMixin):
         """
         _, values = list(self.data[0].items())[0]
         return len(values)
+
+    def keys(self):
+        """Return the keys of the first observation in the dataset.
+
+        >>> d = Dataset([{'a.b':[1,2,3,4]}])
+        >>> d.keys()
+        ['a.b']
+        """
+        return [list(o.keys())[0] for o in self]
 
     def __repr__(self) -> str:
         """Return a string representation of the dataset."""
@@ -244,6 +254,16 @@ class Dataset(UserList, ResultsExportMixin):
             new_data.append({key: new_values})
 
         return Dataset(new_data)
+
+    @property
+    def tree(self):
+        """Return a tree representation of the dataset.
+
+        >>> d = Dataset([{'a':[1,2,3,4]}, {'b':[4,3,2,1]}])
+        >>> d.tree.print_tree()
+        Tree has not been constructed yet.
+        """
+        return Tree(self)
 
     @classmethod
     def example(self):

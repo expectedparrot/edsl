@@ -23,9 +23,15 @@
                 <td>Question name (question_name)</td>
                 <td>{{ question }}</td>
             </tr>
+ 
+            <tr>
+                <td>Question type (question_type)</td>
+                <td>{{ exception_message.question_type }}</td>
+            </tr>
+ 
             <tr>
                 <td>Human-readable question</td>
-                <td>{{ interview.survey.get_question(question).html() }}</td>
+                <td>{{ interview.survey.get_question(question).html(scenario = interview.scenario, agent = interview.agent) }}</td>
             </tr>
             <tr>
                 <td>Scenario</td>
@@ -64,6 +70,13 @@
                 <td>Generated token string (at {{ exception_message.key_sequence }}) in raw response</td>
                 <td><pre>{{ exception_message.generated_token_string }}</pre>
                 </td>
+            </tr>
+            <tr>
+            <td>Code to (likely) reproduce the error</td>
+            <td>
+                <textarea id="codeToCopy" rows="10" cols="90">{{ exception_message.code_to_reproduce }}</textarea>
+                <button onclick="copyCode()">Copy</button>
+            </td>
             </tr>
 
         </table>

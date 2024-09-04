@@ -6,28 +6,32 @@ Questions
 .. This module contains the Question class, which is the base class for all questions in EDSL.
 
 EDSL provides templates for many common question types, including multiple choice, checkbox, free text, numerical, linear scale and others.
-The `Question` class has subclasses for each of these types (`QuestionMultipleChoice`, `QuestionCheckBox`, `QuestionFreeText`, `QuestionNumerical`, `QuestionLinearScale`, etc.) which have methods for validating answers and responses from language models.
+The `Question` class has subclasses for each of these types: `QuestionMultipleChoice`, `QuestionCheckBox`, `QuestionFreeText`, `QuestionNumerical`, `QuestionLinearScale`, etc., 
+which have methods for validating answers and responses from language models.
 
 
 Question type templates 
 -----------------------
-Each question type requires a `question_name` and `question_text`. 
+
+A question is constructed by creating an instance of a question type class and passing the required fields.
+Questions are formatted as dictionaries with specific keys based on the question type.
+All question types require a `question_name` and `question_text`. 
 The `question_name` is a unique Pythonic identifier for a question (e.g., "favorite_color" but not "favorite color").
 The `question_text` is the text of the question itself written as a string (e.g., "What is your favorite color?").
-
-Individual question types other than free text also require certain additional fields.
-For example, multiple choice, checkbox, linear scale, rank, top k and budget questions each require a `question_options` list of possible answer options.
-See examples below for details on required fields and formatting for each type.
+Question types other than free text require a `question_options` list of possible answer options.
+See examples below for more details on required fields, optional additional fields (e.g., minimum and maximum values) and formatting for each type.
 
 
 Constructing a question
 -----------------------
+
 To construct a question, we start by importing the appropriate question type for the desired result. 
 For example, if we want the response to be a single option selected from a given list we can create a multiple choice question:
 
 .. code-block:: python
 
    from edsl import QuestionMultipleChoice
+
 
 Next we format a question in the question type template. 
 A multiple choice question requires a question name, question text and list of question options:
@@ -40,32 +44,40 @@ A multiple choice question requires a question name, question text and list of q
       question_options = ["red", "yellow", "blue"] 
    )
 
+
 Details and examples of each question type can be found at the bottom of this page.
 
 
 Creating a survey
 -----------------
-We can combine questions into a survey by passing a list of questions to a `Survey` object:
+
+We can combine multiple questions into a survey by passing them as a list to a `Survey` object:
 
 .. code-block:: python 
 
-   from edsl.questions import QuestionFreeText
-   from edsl import Survey 
+   from edsl import QuestionLinearScale, QuestionFreeText, QuestionNumerical, Survey 
 
-   q1 = QuestionFreeText(
-      question_name = "favorite_color",
-      question_text = "Which is your favorite color?"
+   q1 = QuestionLinearScale(
+      question_name = "likely_to_vote",
+      question_text = "On a scale from 1 to 5, how likely are you to vote in the upcoming U.S. election?",
+      question_options = [1, 2, 3, 4, 5],
+      option_labels = {1: "Not at all likely", 5: "Very likely"}
    )
+
    q2 = QuestionFreeText(
-      question_name = "favorite_pet",
-      question_text = "Which is your favorite pet?"
+      question_name = "largest_us_city",
+      question_text = "What is the largest U.S. city?"
    )
-   q3 = QuestionFreeText(
-      question_name = "favorite_movie",
-      question_text = "Which is your favorite movie?"
+
+   q3 = QuestionNumerical(
+      question_name = "us_pop",
+      question_text = "What was the U.S. population in 2020?"
    )
 
    survey = Survey(questions = [q1, q2, q3])
+
+   results = survey.run()
+
 
 This allows us to administer multiple questions at once, either asynchronously (by default) or according to specified logic (e.g., skip or stop rules).
 To learn more about designing surveys with conditional logic, please see the :ref:`surveys` section.
@@ -73,12 +85,14 @@ To learn more about designing surveys with conditional logic, please see the :re
 
 Simulating a response 
 ---------------------
+
 We generate a response to a question by delivering it to a language model.
 This is done by calling the `run` method for the question:
 
 .. code-block:: python
 
    results = q.run()
+
 
 This will generate a `Results` object that contains a single `Result` representing the response to the question and information about the model used.
 If the model to be used has not been specified (as in the above example), the `run` method delivers the question to the default LLM (GPT 4).
@@ -87,25 +101,39 @@ For example, we can print just the `answer` to the question:
 
 .. code-block:: python 
 
-   results.select("answer.favorite_primary_color").print()
+   results.select("answer.favorite_primary_color").print(format="rich")
+
 
 Output:
 
-.. code-block::
+.. code-block:: text
 
-   blue
+   ┏━━━━━━━━━━━━━━━━━━━━━━━━━┓
+   ┃ answer                  ┃
+   ┃ .favorite_primary_color ┃
+   ┡━━━━━━━━━━━━━━━━━━━━━━━━━┩
+   │ blue                    │
+   └─────────────────────────┘
+
 
 Or to inspect the model:
 
 .. code-block:: python 
 
-   results.select("model").print()
+   results.select("model").print(format="rich")
+
 
 Output: 
 
-.. code-block::
+.. code-block:: text
 
-   gpt-4-1106-preview
+   ┏━━━━━━━━━━━━━━━━━━━━┓
+   ┃ model              ┃
+   ┃ .model             ┃
+   ┡━━━━━━━━━━━━━━━━━━━━┩
+   │ gpt-4-1106-preview │
+   └────────────────────┘
+
 
 If questions have been combined in a survey, the `run` method is called directly on the survey instead:
 
@@ -113,13 +141,29 @@ If questions have been combined in a survey, the `run` method is called directly
 
    results = survey.run()
 
+   results.select("answer.*").print(format="rich")
+
+
+Output:
+
+.. code-block:: text
+
+   ┏━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┓
+   ┃ answer          ┃ answer                                                ┃ answer    ┃
+   ┃ .likely_to_vote ┃ .largest_us_city                                      ┃ .us_pop   ┃
+   ┡━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━┩
+   │ 4               │ The largest U.S. city by population is New York City. │ 331449281 │
+   └─────────────────┴───────────────────────────────────────────────────────┴───────────┘
+
+
 For a survey, each `Result` represents a response for the set of survey questions. 
 To learn more about analyzing results, please see the :ref:`results` section.
 
 
 Parameterizing a question
 -------------------------
-A question can also be constructed to take one or more parameters that are replaced with specified values when the question is run.
+
+A question can also be constructed to take one or more parameters that are replaced with specified values either when the question is constructed or when the question is run.
 This allows us to easily create and administer multiple versions of a question at once.
 
 *Key steps*:
@@ -135,6 +179,7 @@ Create a question text that takes a parameter in double braces:
       question_text = "What is your favorite {{ item }}?",
    )
 
+
 Create a dictionary for each value that will replace the parameter and store them in `Scenario` objects:
 
 .. code-block:: python
@@ -145,26 +190,93 @@ Create a dictionary for each value that will replace the parameter and store the
       Scenario({"item": item}) for item in ["color", "food"]
    )
 
-Pass the scenario or scenarios to the question with the `by` method when the question is run. 
-If multiple scenarios are to be used, they are passed as a list:
+
+To create multiple versions of the question when constructing a survey (i.e., before running it), pass the scenarios to the question `loop` method:
+
+.. code-block:: python
+
+   questions = q.loop(scenarios)
+
+
+We can inspect the questions that have been created: 
+
+.. code-block:: python
+
+   questions 
+
+
+Output:
+
+.. code-block:: text
+
+   [Question('free_text', question_name = """favorite_item_0""", question_text = """What is your favorite color?"""),
+   Question('free_text', question_name = """favorite_item_1""", question_text = """What is your favorite food?""")]
+
+
+Note that a unique `question_name` has been automatically generated based on the parameter values.
+We can also specify that the paramater values be inserted in the question name (so long as they are Pythonic):
+
+.. code-block:: python
+
+   from edsl import QuestionFreeText, ScenarioList, Scenario
+
+   q = QuestionFreeText(
+      question_name = "favorite_{{ item }}",
+      question_text = "What is your favorite {{ item }}?",
+   )
+
+   scenarios = ScenarioList(
+      Scenario({"item": item}) for item in ["color", "food"]
+   )
+
+   questions = q.loop(scenarios)
+
+
+Output:
+
+.. code-block:: text
+
+   [Question('free_text', question_name = """favorite_color""", question_text = """What is your favorite color?"""),
+   Question('free_text', question_name = """favorite_food""", question_text = """What is your favorite food?""")]
+
+
+To run the questions, we pass them to a `Survey` and then call the `run` method, as before:
+
+.. code-block:: python
+
+   from edsl import Survey
+
+   survey = Survey(questions = questions)
+
+   results = survey.run()
+
+
+Alternatively, we can pass the scenario or scenarios to the question with the `by` method when the question is run:
 
 .. code-block:: python 
+
+   from edsl import QuestionFreeText, ScenarioList, Scenario
+
+   q = QuestionFreeText(
+      question_name = "favorite_item",
+      question_text = "What is your favorite {{ item }}?",
+   )
+
+   scenarios = ScenarioList(
+      Scenario({"item": item}) for item in ["color", "food"]
+   )
 
    results = q.by(scenarios).run()
 
-The `Results` that are generated will include an individual `Result` for each version of the question that was answered.
-Scenarios can also be passed to a survey of questions in the same way:
 
-.. code-block:: python 
+Each of the `Results` that are generated will include an individual `Result` for each version of the question that was answered.
 
-   results = survey.by(scenarios).run()
-
-This will generate `Results` where each `Result` includes responses for all the scenarios of each question in the survey.
 To learn more about using scenarios, please see the :ref:`Scenarios` section.
 
 
 Designing AI agents 
 -------------------
+
 A key feature of EDSL is the ability to design AI agents with personas and other traits for language models to use in responding to questions.
 The use of agents allows us to simulate survey results for target audiences at scale.
 This is done by creating `Agent` objects with dictionaries of desired traits and adding them to questions when they are run.
@@ -197,7 +309,8 @@ We can also generate responses for multiple agents at once by passing them as a 
       Agent(traits = {"persona":p}) for p in ["Dog catcher", "Magician", "Spy"]
    )
 
-   results = q.by(agents).run()
+   results = q.by(scenarios).by(agents).run()
+
 
 The `Results` will contain a `Result` for each agent that answered the question.
 To learn more about designing agents, please see the :ref:`agents` section.
@@ -217,81 +330,7 @@ To check available models:
 
    Model.available()
 
-This will return a list of names of models that we can choose from:
-
-.. code-block:: python
-
-   [['01-ai/Yi-34B-Chat', 'deep_infra', 0],
-   ['Austism/chronos-hermes-13b-v2', 'deep_infra', 1],
-   ['Gryphe/MythoMax-L2-13b', 'deep_infra', 2],
-   ['Gryphe/MythoMax-L2-13b-turbo', 'deep_infra', 3],
-   ['HuggingFaceH4/zephyr-orpo-141b-A35b-v0.1', 'deep_infra', 4],
-   ['Phind/Phind-CodeLlama-34B-v2', 'deep_infra', 5],
-   ['Qwen/Qwen2-72B-Instruct', 'deep_infra', 6],
-   ['Qwen/Qwen2-7B-Instruct', 'deep_infra', 7],
-   ['Sao10K/L3-70B-Euryale-v2.1', 'deep_infra', 8],
-   ['bigcode/starcoder2-15b', 'deep_infra', 9],
-   ['bigcode/starcoder2-15b-instruct-v0.1', 'deep_infra', 10],
-   ['claude-3-5-sonnet-20240620', 'anthropic', 11],
-   ['claude-3-haiku-20240307', 'anthropic', 12],
-   ['claude-3-opus-20240229', 'anthropic', 13],
-   ['claude-3-sonnet-20240229', 'anthropic', 14],
-   ['codellama/CodeLlama-34b-Instruct-hf', 'deep_infra', 15],
-   ['codellama/CodeLlama-70b-Instruct-hf', 'deep_infra', 16],
-   ['cognitivecomputations/dolphin-2.6-mixtral-8x7b', 'deep_infra', 17],
-   ['cognitivecomputations/dolphin-2.9.1-llama-3-70b', 'deep_infra', 18],
-   ['databricks/dbrx-instruct', 'deep_infra', 19],
-   ['deepinfra/airoboros-70b', 'deep_infra', 20],
-   ['gemini-pro', 'google', 21],
-   ['google/codegemma-7b-it', 'deep_infra', 22],
-   ['google/gemma-1.1-7b-it', 'deep_infra', 23],
-   ['google/gemma-2-27b-it', 'deep_infra', 24],
-   ['google/gemma-2-9b-it', 'deep_infra', 25],
-   ['gpt-3.5-turbo', 'openai', 26],
-   ['gpt-3.5-turbo-0125', 'openai', 27],
-   ['gpt-3.5-turbo-0301', 'openai', 28],
-   ['gpt-3.5-turbo-0613', 'openai', 29],
-   ['gpt-3.5-turbo-1106', 'openai', 30],
-   ['gpt-3.5-turbo-16k', 'openai', 31],
-   ['gpt-3.5-turbo-16k-0613', 'openai', 32],
-   ['gpt-3.5-turbo-instruct', 'openai', 33],
-   ['gpt-3.5-turbo-instruct-0914', 'openai', 34],
-   ['gpt-4', 'openai', 35],
-   ['gpt-4-0125-preview', 'openai', 36],
-   ['gpt-4-0613', 'openai', 37],
-   ['gpt-4-1106-preview', 'openai', 38],
-   ['gpt-4-1106-vision-preview', 'openai', 39],
-   ['gpt-4-turbo', 'openai', 40],
-   ['gpt-4-turbo-2024-04-09', 'openai', 41],
-   ['gpt-4-turbo-preview', 'openai', 42],
-   ['gpt-4-vision-preview', 'openai', 43],
-   ['gpt-4o', 'openai', 44],
-   ['gpt-4o-2024-05-13', 'openai', 45],
-   ['gpt-4o-mini', 'openai', 46],
-   ['gpt-4o-mini-2024-07-18', 'openai', 47],
-   ['lizpreciatior/lzlv_70b_fp16_hf', 'deep_infra', 48],
-   ['llava-hf/llava-1.5-7b-hf', 'deep_infra', 49],
-   ['meta-llama/Llama-2-13b-chat-hf', 'deep_infra', 50],
-   ['meta-llama/Llama-2-70b-chat-hf', 'deep_infra', 51],
-   ['meta-llama/Llama-2-7b-chat-hf', 'deep_infra', 52],
-   ['meta-llama/Meta-Llama-3-70B-Instruct', 'deep_infra', 53],
-   ['meta-llama/Meta-Llama-3-8B-Instruct', 'deep_infra', 54],
-   ['meta-llama/Meta-Llama-3.1-405B-Instruct', 'deep_infra', 55],
-   ['meta-llama/Meta-Llama-3.1-70B-Instruct', 'deep_infra', 56],
-   ['meta-llama/Meta-Llama-3.1-8B-Instruct', 'deep_infra', 57],
-   ['microsoft/Phi-3-medium-4k-instruct', 'deep_infra', 58],
-   ['microsoft/WizardLM-2-7B', 'deep_infra', 59],
-   ['microsoft/WizardLM-2-8x22B', 'deep_infra', 60],
-   ['mistralai/Mistral-7B-Instruct-v0.1', 'deep_infra', 61],
-   ['mistralai/Mistral-7B-Instruct-v0.2', 'deep_infra', 62],
-   ['mistralai/Mistral-7B-Instruct-v0.3', 'deep_infra', 63],
-   ['mistralai/Mixtral-8x22B-Instruct-v0.1', 'deep_infra', 64],
-   ['mistralai/Mixtral-8x22B-v0.1', 'deep_infra', 65],
-   ['mistralai/Mixtral-8x7B-Instruct-v0.1', 'deep_infra', 66],
-   ['nvidia/Nemotron-4-340B-Instruct', 'deep_infra', 67],
-   ['openchat/openchat-3.6-8b', 'deep_infra', 68],
-   ['openchat/openchat_3.5', 'deep_infra', 69]]
-   
+This will return a list of names of models that we can choose from.
 
 We can also check the models for which we have already added API keys:
 
@@ -299,7 +338,7 @@ We can also check the models for which we have already added API keys:
 
    Model.check_models()
 
-(See instructions on storing :ref:`api_keys` for the models that you want to use in your `.env` file.)
+See instructions on storing :ref:`api_keys` for the models that you want to use, or activating :ref:`remote_inference` to use the Expected Parrot server to access available models.
 
 To specify models for a survey we first create `Model` objects:
 
@@ -311,17 +350,20 @@ To specify models for a survey we first create `Model` objects:
       Model(m) for m in ['claude-3-opus-20240229', 'llama-2-70b-chat-hf']
    )
 
+
 Then we add them to a question or survey with the `by` method when running it:
 
 .. code-block:: python 
 
    results = q.by(models).run()
 
+
 If scenarios and/or agents are also specified, each component is added in its own `by` call, chained together in any order, with the `run` method appended last:
 
 .. code-block:: python 
 
    results = q.by(scenarios).by(agents).by(models).run()
+   
 
 Note that multiple scenarios, agents and models are always passed as lists in the same `by` call.
 

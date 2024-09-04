@@ -26,7 +26,7 @@ def create_checkbox_response_model(
     choices: list,
     min_selections: Optional[int] = None,
     max_selections: Optional[int] = None,
-    include_comment: bool = True,
+    permissive: bool = False,
 ):
     """
     Dynamically create a CheckboxResponse model with a predefined list of choices.
@@ -39,9 +39,9 @@ def create_checkbox_response_model(
     choice_tuple = tuple(choices)
 
     field_params = {}
-    if min_selections is not None:
+    if min_selections is not None and not permissive:
         field_params["min_items"] = min_selections
-    if max_selections is not None:
+    if max_selections is not None and not permissive:
         field_params["max_items"] = max_selections
 
     class CheckboxResponse(BaseModel):
@@ -59,18 +59,7 @@ def create_checkbox_response_model(
                     if prop.get("title") == "answer":
                         prop["items"] = {"enum": choices}
 
-        @classmethod
-        def with_comment(cls):
-            return cls
-
-        @classmethod
-        def without_comment(cls):
-            return cls.model_exclude({"comment"})
-
-    if include_comment:
-        return CheckboxResponse.with_comment()
-    else:
-        return CheckboxResponse.without_comment()
+    return CheckboxResponse
 
 
 class CheckBoxResponseValidator(ResponseValidatorABC):
@@ -79,6 +68,7 @@ class CheckBoxResponseValidator(ResponseValidatorABC):
         "min_selections",
         "max_selections",
         "use_code",
+        "permissive",
     ]
 
     valid_examples = [
@@ -107,7 +97,7 @@ class CheckBoxResponseValidator(ResponseValidatorABC):
         ),
     ]
 
-    def fix(self, response, verbose=True):
+    def fix(self, response, verbose=False):
         if verbose:
             print("Invalid response of QuestionCheckBox was: ", response)
         response_text = response.get("generated_tokens")
@@ -116,14 +106,17 @@ class CheckBoxResponseValidator(ResponseValidatorABC):
         # Maybe it's a comma separated list?
         proposed_list = response_text.split(",")
         proposed_list = [item.strip() for item in proposed_list]
-        print("Using code? ", self.use_code)
+        if verbose:
+            print("Using code? ", self.use_code)
         if self.use_code:
             try:
                 proposed_list = [int(i) for i in proposed_list]
             except ValueError:
-                print("Could not convert to int")
+                # print("Could not convert to int")
+                pass
 
-        print("Proposed solution is: ", proposed_list)
+        if verbose:
+            print("Proposed solution is: ", proposed_list)
 
         # print(f"Ivalid generated tokens was was: {response_text}")
         if "comment" in response:
@@ -194,6 +187,7 @@ class QuestionCheckBox(QuestionBase):
         use_code: bool = True,
         question_presentation: Optional[str] = None,
         answering_instructions: Optional[str] = None,
+        permissive: bool = False,
     ):
         """Instantiate a new QuestionCheckBox.
 
@@ -211,6 +205,7 @@ class QuestionCheckBox(QuestionBase):
 
         self._include_comment = include_comment
         self._use_code = use_code
+        self.permissive = permissive
 
         self.question_presentation = question_presentation
         self.answering_instructions = answering_instructions
@@ -221,12 +216,14 @@ class QuestionCheckBox(QuestionBase):
                 self.question_options,
                 min_selections=self.min_selections,
                 max_selections=self.max_selections,  # include_comment=self._include_comment
+                permissive=self.permissive,
             )
         else:
             return create_checkbox_response_model(
                 list(range(len(self.question_options))),
                 min_selections=self.min_selections,
                 max_selections=self.max_selections,  # include_comment=self._include_comment
+                permissive=self.permissive,
             )
 
     def _translate_answer_code_to_answer(

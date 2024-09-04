@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from pydantic import BaseModel, Field, field_validator
 from decimal import Decimal
-from typing import Optional, Any, List
+from typing import Optional, Any, List, TypedDict
 
 from edsl.exceptions import QuestionAnswerValidationError
 
@@ -46,51 +46,110 @@ class ResponseValidatorABC(ABC):
         for key, value in kwargs.items():
             setattr(self, key, value)
 
+        if not hasattr(self, "permissive"):
+            self.permissive = False
+
         self.fixes_tried = 0
 
-    def _base_validate(self, data):
-        return self.response_model(**data)
+    class RawEdslAnswerDict(TypedDict):
+        answer: Any
+        comment: Optional[str]
+        generated_tokens: Optional[str]
 
-    def validate(self, data):
+    def _preprocess(self, data: RawEdslAnswerDict) -> RawEdslAnswerDict:
+        """This is for testing purposes. A question can be given an exception to throw or an answer to always return.
+
+        >>> rv = ResponseValidatorABC.example()
+        >>> rv.override_answer = {"answer": 42}
+        >>> rv.validate({"answer": 23})
+        {'answer': Decimal('42'), 'comment': None, 'generated_tokens': None}
+        """
         if self.exception_to_throw:
             raise self.exception_to_throw
+        return self.override_answer if self.override_answer else data
 
-        if self.override_answer:  # for testing
-            data = self.override_answer
+    def _base_validate(self, data: RawEdslAnswerDict) -> BaseModel:
+        """This is the main validation function. It takes the response_model and checks the data against it, returning the instantiated model.
 
+        >>> rv = ResponseValidatorABC.example("numerical")
+        >>> rv._base_validate({"answer": 42})
+        ConstrainedNumericResponse(answer=Decimal('42'), comment=None, generated_tokens=None)
+        """
+
+        return self.response_model(**data)
+
+    def post_validation_answer_convert(self, data):
+        return data
+
+    class EdslAnswerDict(TypedDict):
+        answer: Any
+        comment: Optional[str]
+        generated_tokens: Optional[str]
+
+    def validate(self, raw_edsl_answer_dict: RawEdslAnswerDict) -> EdslAnswerDict:
+        """This is the main validation function.
+
+        >>> rv = ResponseValidatorABC.example("numerical")
+        >>> rv.validate({"answer": 42})
+        {'answer': Decimal('42'), 'comment': None, 'generated_tokens': None}
+        >>> rv.max_value
+        86.7
+        >>> rv.validate({"answer": "120"})
+        Traceback (most recent call last):
+        ...
+        edsl.exceptions.questions.QuestionAnswerValidationError:...
+        >>> from edsl import QuestionNumerical
+        >>> q = QuestionNumerical.example()
+        >>> q.permissive = True
+        >>> rv = q.response_validator
+        >>> rv.validate({"answer": "120"})
+        {'answer': Decimal('120'), 'comment': None, 'generated_tokens': None}
+        >>> rv.validate({"answer": "poo"})
+        Traceback (most recent call last):
+        ...
+        edsl.exceptions.questions.QuestionAnswerValidationError:...
+        """
+        proposed_edsl_answer_dict = self._preprocess(raw_edsl_answer_dict)
         try:
-            response = self._base_validate(data)
+            pydantic_edsl_answer: BaseModel = self._base_validate(
+                proposed_edsl_answer_dict
+            )
+            if not self.permissive:
+                self._check_constraints(pydantic_edsl_answer)
+            edsl_answer_dict = self._extract_answer(pydantic_edsl_answer)
+            return self._post_process(edsl_answer_dict)
         except Exception as e:
-            if self.fixes_tried == 0 and hasattr(self, "fix"):
-                self.fixes_tried += 1
-                fixed_data = self.fix(data)
-                return self.validate(fixed_data)
-            else:
-                raise QuestionAnswerValidationError(
-                    message=str(e), data=data, model=self.response_model
-                )
+            return self._handle_exception(e, raw_edsl_answer_dict)
 
-        try:
-            return self.custom_validate(response)
-        except Exception as e:
-            raise QuestionAnswerValidationError(str(e))
+    def _handle_exception(self, e: Exception, raw_edsl_answer_dict) -> EdslAnswerDict:
+        if self.fixes_tried == 0 and hasattr(self, "fix"):
+            self.fixes_tried += 1
+            fixed_data = self.fix(raw_edsl_answer_dict)
+            return self.validate(fixed_data)
+        else:
+            raise QuestionAnswerValidationError(
+                str(e), data=raw_edsl_answer_dict, model=self.response_model
+            )
 
-    @abstractmethod
-    def custom_validate(self, data: dict) -> BaseModel:
+    def _check_constraints(self, pydantic_edsl_answer: BaseModel) -> dict:
         pass
 
-    # def self_check(self):
-    #     for example in self.valid_examples:
-    #         self.validate(example)
-    #     for example in self.invalid_examples:
-    #         try:
-    #             self.validate(example)
-    #         except ValueError:
-    #             pass
-    #         else:
-    #             raise ValueError(f"Example {example} should have failed.")
+    def _extract_answer(self, response: BaseModel) -> EdslAnswerDict:
+        return response.model_dump()
+
+    def _post_process(self, edsl_answer_dict: EdslAnswerDict) -> EdslAnswerDict:
+        return edsl_answer_dict
+
+    @classmethod
+    def example(cls, question_type="numerical"):
+        from edsl import Question
+
+        q = Question.example(question_type)
+        return q.response_validator
 
 
 # Example usage
 if __name__ == "__main__":
-    pass
+    import doctest
+
+    doctest.testmod(optionflags=doctest.ELLIPSIS)

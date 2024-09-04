@@ -98,6 +98,8 @@ from json_repair import repair_json
 def convert_answer(response_part):
     import json
 
+    response_part = response_part.strip()
+
     if response_part == "None":
         return None
 
@@ -111,6 +113,9 @@ def convert_answer(response_part):
     except json.JSONDecodeError as j:
         # last resort
         return response_part
+
+
+from edsl.exceptions.language_models import LanguageModelBadResponseError
 
 
 def extract_generated_tokens_from_raw_response(data, key_sequence):
@@ -141,9 +146,11 @@ def extract_generated_tokens_from_raw_response(data, key_sequence):
             current_data = current_data[key]
         except Exception as e:
             path = " -> ".join(map(str, key_sequence[: i + 1]))
-            raise ValueError(
-                f"Error accessing path: {path}. {str(e)}. Full response is: '{data}'"
-            ) from e
+            if "error" in data:
+                msg = data["error"]
+            else:
+                msg = f"Error accessing path: {path}. {str(e)}. Full response is: '{data}'"
+            raise LanguageModelBadResponseError(message=msg, response_json=data)
 
     return current_data.strip()  # in case any whitespace was added
 
@@ -414,19 +421,22 @@ class LanguageModel(
     def parse_response(cls, raw_response: dict[str, Any]) -> EDSLAnswerDict:
         """Parses the API response and returns the response text."""
         generated_token_string = cls.get_generated_token_string(raw_response)
-        if len(generated_token_string.split("\n")) > 1:
-            r = json.dumps(
+        last_newline = generated_token_string.rfind("\n")
+
+        if last_newline == -1:
+            # There is no comment
+            return json.dumps(
                 {
-                    "answer": convert_answer(generated_token_string.split("\n")[0]),
-                    "comment": generated_token_string.split("\n")[-1].strip(),
+                    "answer": convert_answer(generated_token_string),
                     "generated_tokens": generated_token_string,
+                    "comment": None,
                 }
             )
-            return r
         else:
             return json.dumps(
                 {
-                    "answer": convert_answer(generated_token_string.split("\n")[0]),
+                    "answer": convert_answer(generated_token_string[:last_newline]),
+                    "comment": generated_token_string[last_newline + 1 :].strip(),
                     "generated_tokens": generated_token_string,
                 }
             )

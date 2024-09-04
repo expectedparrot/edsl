@@ -6,26 +6,90 @@ from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.descriptors import IntegerOrNoneDescriptor
 from edsl.questions.decorators import inject_exception
 
-from pydantic import field_validator
+from pydantic import field_validator, Field
 from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
 from edsl.questions.ResponseValidatorABC import BaseResponse
 
 from edsl.exceptions import QuestionAnswerValidationError
 import textwrap
+import json
+
+from json_repair import repair_json
 
 
-class ListResponse(BaseResponse):
+def convert_string(s):
+    """Convert a string to a more appropriate type if possible.
+
+    >>> convert_string("3.14")
+    3.14
+    >>> convert_string("42")
+    42
+    >>> convert_string("hello")
+    'hello'
+    >>> convert_string('{"key": "value"}')
+    {'key': 'value'}
+    >>> convert_string("{'key': 'value'}")
+    {'key': 'value'}
     """
-    >>> nr = ListResponse(answer = ["Apple", "Cherry"])
-    >>> nr.dict()
-    {'answer': ['Apple', 'Cherry'], 'comment': None, 'generated_tokens': None}
-    """
 
-    answer: list[Union[str, int, float, list, dict]]
+    if not isinstance(s, str):  # if it's not a string, return it as is
+        return s
+
+    # If the repair returns, continue on; otherwise, try to load it as JSON
+    if (repaired_json := repair_json(s)) == '""':
+        pass
+    else:
+        try:
+            return json.loads(repaired_json)
+        except json.JSONDecodeError:
+            pass
+
+    # Try to convert to float
+    try:
+        return float(s)
+    except ValueError:
+        pass
+
+    # Try to convert to int
+    try:
+        return int(s)
+    except ValueError:
+        pass
+
+    # If all conversions fail, return the original string
+    return s
+
+
+def create_model(max_list_items: int, permissive):
+    from pydantic import BaseModel
+
+    if permissive or max_list_items is None:
+
+        class ListResponse(BaseModel):
+            answer: list[Union[str, int, float, list, dict]]
+            comment: Optional[str] = None
+            generated_tokens: Optional[str] = None
+
+    else:
+
+        class ListResponse(BaseModel):
+            """
+            >>> nr = ListResponse(answer=["Apple", "Cherry"])
+            >>> nr.dict()
+            {'answer': ['Apple', 'Cherry'], 'comment': None, 'generated_tokens': None}
+            """
+
+            answer: list[Union[str, int, float, list, dict]] = Field(
+                ..., min_items=0, max_items=max_list_items
+            )
+            comment: Optional[str] = None
+            generated_tokens: Optional[int] = None
+
+    return ListResponse
 
 
 class ListResponseValidator(ResponseValidatorABC):
-    required_params = ["max_list_items"]
+    required_params = ["max_list_items", "permissive"]
     valid_examples = [({"answer": ["hello", "world"]}, {"max_list_items": 5})]
 
     invalid_examples = [
@@ -36,13 +100,12 @@ class ListResponseValidator(ResponseValidatorABC):
         ),
     ]
 
-    def custom_validate(self, response) -> ListResponse:
+    def _check_constraints(self, response) -> None:
         if (
             self.max_list_items is not None
             and len(response.answer) > self.max_list_items
         ):
             raise QuestionAnswerValidationError("Too many items.")
-        return response.dict()
 
     def fix(self, response):
         answer = str(response.get("answer") or response.get("generated_tokens", ""))
@@ -53,13 +116,19 @@ class ListResponseValidator(ResponseValidatorABC):
                 else {}
             )
 
+    def _post_process(self, edsl_answer_dict):
+        edsl_answer_dict["answer"] = [
+            convert_string(item) for item in edsl_answer_dict["answer"]
+        ]
+        return edsl_answer_dict
+
 
 class QuestionList(QuestionBase):
     """This question prompts the agent to answer by providing a list of items as comma-separated strings."""
 
     question_type = "list"
     max_list_items: int = IntegerOrNoneDescriptor()
-    _response_model = ListResponse
+    _response_model = None
     response_validator_class = ListResponseValidator
 
     def __init__(
@@ -70,6 +139,7 @@ class QuestionList(QuestionBase):
         include_comment: bool = True,
         answering_instructions: Optional[str] = None,
         question_presentation: Optional[str] = None,
+        permissive: bool = False,
     ):
         """Instantiate a new QuestionList.
 
@@ -82,10 +152,14 @@ class QuestionList(QuestionBase):
         self.question_name = question_name
         self.question_text = question_text
         self.max_list_items = max_list_items
+        self.permissive = permissive
 
         self.include_comment = include_comment
         self.answering_instructions = answering_instructions
         self.question_presentations = question_presentation
+
+    def create_response_model(self):
+        return create_model(self.max_list_items, self.permissive)
 
     @property
     def question_html_content(self) -> str:
@@ -117,13 +191,16 @@ class QuestionList(QuestionBase):
     ################
     @classmethod
     @inject_exception
-    def example(cls, include_comment=True) -> QuestionList:
+    def example(
+        cls, include_comment=True, max_list_items=None, permissive=False
+    ) -> QuestionList:
         """Return an example of a list question."""
         return cls(
             question_name="list_of_foods",
             question_text="What are your favorite foods?",
-            max_list_items=5,
             include_comment=include_comment,
+            max_list_items=max_list_items,
+            permissive=permissive,
         )
 
 
@@ -131,7 +208,7 @@ def main():
     """Create an example of a list question and demonstrate its functionality."""
     from edsl.questions.QuestionList import QuestionList
 
-    q = QuestionList.example()
+    q = QuestionList.example(max_list_items=5)
     q.question_text
     q.question_name
     q.max_list_items
