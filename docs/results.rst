@@ -1097,7 +1097,7 @@ This will return the number of results:
 Displaying results in a tree format
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-We can also display the results in a tree format using the `tree` method, which displays the results in a nested format for each of the components: `model`, `scenario`, `agent`, `answer`, `question`, `iteration`.
+We can display the results in a tree format using the `tree` method, which displays the results in a nested format for each of the components: `model`, `scenario`, `agent`, `answer`, `question`, `iteration`.
 The method takes a list parameter `fold_attributes` for the attributes to be folded, and an option list parmeter `drop` for fields to be excluded from the display.
 
 For example, the following code will display the results in a tree format for the `model` and `scenario` components, excluding the `iteration` component:
@@ -1112,13 +1112,23 @@ This will display the results in a tree format:
 .. code-block:: text
 
    
+Generating HTML reports
+^^^^^^^^^^^^^^^^^^^^^^^
+
+We can generate an HTML report of the results by calling the `generate_html` and `save_html` methods.
+The `generate_html` method will create an HTML report of the results, and the `save_html` method will save the report to a specified file path (default filename: `output.html`).
 
 
+.. code-block:: python
 
+   results.generate_html().save_html("output.html")
+
+
+   
 Interacting via SQL
 ^^^^^^^^^^^^^^^^^^^
 
-We can also interact with the results via SQL using the `sql` method.
+We can interact with the results via SQL using the `sql` method.
 This is done by passing a SQL query and a `shape` ("long" or "wide") for the resulting table, where the table name in the query is "self".
 
 The "wide" shape will return a table with each result as a row and columns for the selected columns of the results.
