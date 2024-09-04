@@ -50,6 +50,7 @@ def create_checkbox_response_model(
             Field(..., **field_params),
         ] = Field(..., description="List of selected choices")
         comment: Optional[str] = Field(None, description="Optional comment field")
+        generated_tokens: Optional[Any]
 
         class Config:
             @staticmethod
@@ -123,13 +124,18 @@ class CheckBoxResponseValidator(ResponseValidatorABC):
             proposed_data = {
                 "answer": proposed_list,
                 "comment": response["comment"],
-                "generated_tokens": response_text,
+                "generated_tokens": response.get("generated_tokens", None),
             }
         else:
-            proposed_data = {"answer": proposed_list, "generated_tokens": response_text}
+            proposed_data = {
+                "answer": proposed_list,
+                "generated_tokens": response.get("generated_tokens", None),
+            }
 
         try:
             self.response_model(**proposed_data)
+            print("Proposed solution is valid")
+            print("Returning proposed data: ", proposed_data)
             return proposed_data
         except Exception as e:
             if verbose:
@@ -148,7 +154,7 @@ class CheckBoxResponseValidator(ResponseValidatorABC):
         proposed_data = {
             "answer": matches,
             "comment": response.get("comment", None),
-            "generated_tokens": response_text,
+            "generated_tokens": response.get("generated_tokens", None),
         }
         try:
             self.response_model(**proposed_data)
