@@ -234,14 +234,34 @@ class TaskHistory:
         exceptions_by_question_name = {}
         for interview in self.total_interviews:
             for question_name, exceptions in interview.exceptions.items():
-                if question_name not in exceptions_by_question_name:
-                    exceptions_by_question_name[question_name] = 0
-                exceptions_by_question_name[question_name] += len(exceptions)
+                question_type = interview.survey.get_question(
+                    question_name
+                ).question_type
+                # breakpoint()
+                if (question_name, question_type) not in exceptions_by_question_name:
+                    exceptions_by_question_name[(question_name, question_type)] = 0
+                exceptions_by_question_name[(question_name, question_type)] += len(
+                    exceptions
+                )
 
         for question in self.total_interviews[0].survey.questions:
-            if question.question_name not in exceptions_by_question_name:
-                exceptions_by_question_name[question.question_name] = 0
-        return exceptions_by_question_name
+            if (
+                question.question_name,
+                question.question_type,
+            ) not in exceptions_by_question_name:
+                exceptions_by_question_name[
+                    (question.question_name, question.question_type)
+                ] = 0
+
+        sorted_exceptions_by_question_name = {
+            k: v
+            for k, v in sorted(
+                exceptions_by_question_name.items(),
+                key=lambda item: item[1],
+                reverse=True,
+            )
+        }
+        return sorted_exceptions_by_question_name
 
     @property
     def exceptions_by_model(self) -> dict:
@@ -254,7 +274,15 @@ class TaskHistory:
                 exceptions_by_model[(service, model)] = 0
             if interview.exceptions != {}:
                 exceptions_by_model[(service, model)] += len(interview.exceptions)
-        return exceptions_by_model
+
+        # sort the exceptions by model
+        sorted_exceptions_by_model = {
+            k: v
+            for k, v in sorted(
+                exceptions_by_model.items(), key=lambda item: item[1], reverse=True
+            )
+        }
+        return sorted_exceptions_by_model
 
     def generate_html_report(self, css: Optional[str]):
         performance_plot_html = self.plot(num_periods=100, get_embedded_html=True)
