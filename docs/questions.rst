@@ -172,7 +172,7 @@ Create a question text that takes a parameter in double braces:
 
 .. code-block:: python
 
-   from edsl.questions import QuestionFreeText
+   from edsl import QuestionFreeText
 
    q = QuestionFreeText(
       question_name = "favorite_item",
@@ -396,7 +396,7 @@ Example usage:
 
 .. code-block:: python
 
-   from edsl.questions import QuestionMultipleChoice
+   from edsl import QuestionMultipleChoice
 
    q = QuestionMultipleChoice(
       question_name = "color",
@@ -429,7 +429,7 @@ Example usage:
 
 .. code-block:: python
 
-   from edsl.questions import QuestionCheckBox
+   from edsl import QuestionCheckBox
 
    q = QuestionCheckBox(
       question_name = "favorite_days",
@@ -464,7 +464,7 @@ Example usage:
 
 .. code-block:: python
 
-   from edsl.questions import QuestionFreeText
+   from edsl import QuestionFreeText
 
    q = QuestionFreeText(
       question_name = "food",
@@ -495,7 +495,7 @@ Example usage:
 
 .. code-block:: python
 
-   from edsl.questions import QuestionLinearScale
+   from edsl import QuestionLinearScale
 
    q = QuestionLinearScale(
       question_name = "studying",
@@ -528,7 +528,7 @@ Example usage:
 
 .. code-block:: python
 
-   from edsl.questions import QuestionNumerical
+   from edsl import QuestionNumerical
 
    q = QuestionNumerical(
       question_name = "work_days",
@@ -560,7 +560,7 @@ Example usage:
 
 .. code-block:: python
 
-   from edsl.questions import QuestionLikertFive
+   from edsl import QuestionLikertFive
 
    q = QuestionLikertFive(
       question_name = "happy",
@@ -592,7 +592,7 @@ Example usage:
 
 .. code-block:: python
 
-   from edsl.questions import QuestionRank
+   from edsl import QuestionRank
 
    q = QuestionRank(
       question_name = "foods_rank",
@@ -626,7 +626,7 @@ Example usage:
 
 .. code-block:: python
 
-    from edsl.questions import QuestionTopK
+    from edsl import QuestionTopK
 
     q = QuestionTopK(
         question_name = "foods_rank", 
@@ -658,7 +658,7 @@ Example usage:
 
 .. code-block:: python
 
-    from edsl.questions import QuestionYesNo
+    from edsl import QuestionYesNo
 
     q = QuestionYesNo(
         question_name = "student",
@@ -717,7 +717,7 @@ Example usage:
 
 .. code-block:: python
 
-   from edsl.questions import QuestionBudget
+   from edsl import QuestionBudget
 
    q = QuestionBudget(
       question_name = "food_budget", 
@@ -748,7 +748,7 @@ Example usage:
 
 .. code-block:: python
 
-    from edsl.questions import QuestionExtract
+    from edsl import QuestionExtract
 
     q = QuestionExtract(
         question_name = "course_schedule",
@@ -787,8 +787,7 @@ Say we have some survey results where we asked some agents to pick a random numb
 
 .. code-block:: python
 
-   from edsl.questions import QuestionNumerical
-   from edsl import Agent
+   from edsl import QuestionNumerical, Agent
 
    q_random = QuestionNumerical(
       question_name = "random",
@@ -822,7 +821,7 @@ The responses are passed to the function as scenarios, and then the function is 
 
 .. code-block:: python
 
-   from edsl.questions import QuestionFunctional
+   from edsl import QuestionFunctional
 
    def my_function(scenario, agent_traits):
       if scenario.get("persona") == "Magician":
