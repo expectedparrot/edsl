@@ -156,7 +156,11 @@ class Jobs(Base):
         from edsl.results.Dataset import Dataset
 
         for interview_index, interview in enumerate(interviews):
-            invigilators = list(interview._build_invigilators(debug=False))
+            invigilators = [
+                interview._get_invigilator(question)
+                for question in self.survey.questions
+            ]
+            # list(interview._build_invigilators(debug=False))
             for _, invigilator in enumerate(invigilators):
                 prompts = invigilator.get_prompts()
                 user_prompts.append(prompts["user_prompt"])
@@ -344,6 +348,7 @@ class Jobs(Base):
                 scenario=scenario,
                 model=model,
                 skip_retry=self.skip_retry,
+                raise_validation_errors=self.raise_validation_errors,
             )
 
     def create_bucket_collection(self) -> BucketCollection:
@@ -461,6 +466,12 @@ class Jobs(Base):
             return False
         return self._skip_retry
 
+    @property
+    def raise_validation_errors(self):
+        if not hasattr(self, "_raise_validation_errors"):
+            return False
+        return self._raise_validation_errors
+
     def run(
         self,
         n: int = 1,
@@ -476,6 +487,7 @@ class Jobs(Base):
         remote_cache_description: Optional[str] = None,
         remote_inference_description: Optional[str] = None,
         skip_retry: bool = False,
+        raise_validation_errors: bool = False,
     ) -> Results:
         """
         Runs the Job: conducts Interviews and returns their results.
@@ -495,6 +507,7 @@ class Jobs(Base):
 
         self._check_parameters()
         self._skip_retry = skip_retry
+        self._raise_validation_errors = raise_validation_errors
 
         if batch_mode is not None:
             raise NotImplementedError(
@@ -605,6 +618,7 @@ class Jobs(Base):
                 stop_on_exception=stop_on_exception,
                 sidecar_model=sidecar_model,
                 print_exceptions=print_exceptions,
+                raise_validation_errors=raise_validation_errors,
             )
 
             results.cache = cache.new_entries_cache()

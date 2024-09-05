@@ -69,6 +69,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         stop_on_exception: bool = False,
         sidecar_model: Optional["LanguageModel"] = None,
         total_interviews: Optional[List["Interview"]] = None,
+        raise_validation_errors: bool = False,
     ) -> AsyncGenerator["Result", None]:
         """Creates the tasks, runs them asynchronously, and returns the results as a Results object.
 
@@ -96,6 +97,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                 debug=debug,
                 stop_on_exception=stop_on_exception,
                 sidecar_model=sidecar_model,
+                raise_validation_errors=raise_validation_errors,
             )
             tasks.append(asyncio.create_task(interviewing_task))
 
@@ -139,6 +141,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         debug: bool,
         stop_on_exception: bool = False,
         sidecar_model: Optional["LanguageModel"] = None,
+        raise_validation_errors: bool = False,
     ) -> "Result":
         """Conducts an interview and returns the result.
 
@@ -155,6 +158,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             model_buckets=model_buckets,
             stop_on_exception=stop_on_exception,
             sidecar_model=sidecar_model,
+            raise_validation_errors=raise_validation_errors,
         )
 
         # we should have a valid result for each question
@@ -232,6 +236,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         progress_bar: bool = False,
         sidecar_model: Optional[LanguageModel] = None,
         print_exceptions: bool = True,
+        raise_validation_errors: bool = False,
     ) -> "Coroutine":
         """Runs a collection of interviews, handling both async and sync contexts."""
         from rich.console import Console
@@ -259,6 +264,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                 stop_on_exception=stop_on_exception,
                 cache=cache,
                 sidecar_model=sidecar_model,
+                raise_validation_errors=raise_validation_errors,
             ):
                 self.results.append(result)
                 if progress_bar_context:

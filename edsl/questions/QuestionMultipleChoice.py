@@ -70,7 +70,10 @@ class MultipleChoiceResponseValidator(ResponseValidatorABC):
     required_params = ["question_options", "use_code"]
 
     def fix(self, response, verbose=False):
-        response_text = response.get("answer")
+        response_text = str(response.get("answer"))
+        if response_text is None:
+            response_text = response.get("generated_tokens", "")
+
         if verbose:
             print(f"Invalid generated tokens was: {response_text}")
 

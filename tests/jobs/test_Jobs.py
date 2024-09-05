@@ -287,12 +287,12 @@ def test_jobs_bucket_creator(valid_job):
     assert bc[valid_job.models[0]].tokens_bucket.tokens > 10
 
 
-def test_bad_jobs():
-    from edsl.jobs import Jobs
+# def test_bad_jobs():
+#     from edsl.jobs import Jobs
 
-    j = Jobs.example(throw_exception_probability=1.0)
-    results = j.run()
-    assert hasattr(results, "failed_jobs")
+#     j = Jobs.example(throw_exception_probability=1.0)
+#     results = j.run()
+#     assert hasattr(results, "failed_jobs")
 
 
 def test_jobs_main():

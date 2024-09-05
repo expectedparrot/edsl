@@ -4,6 +4,7 @@ from decimal import Decimal
 from typing import Optional, Any, List, TypedDict
 
 from edsl.exceptions import QuestionAnswerValidationError
+from pydantic import ValidationError
 
 
 class BaseResponse(BaseModel):
@@ -76,8 +77,10 @@ class ResponseValidatorABC(ABC):
         >>> rv._base_validate({"answer": 42})
         ConstrainedNumericResponse(answer=Decimal('42'), comment=None, generated_tokens=None)
         """
-
-        return self.response_model(**data)
+        try:
+            return self.response_model(**data)
+        except ValidationError as e:
+            raise QuestionAnswerValidationError(e, data=data, model=self.response_model)
 
     def post_validation_answer_convert(self, data):
         return data
