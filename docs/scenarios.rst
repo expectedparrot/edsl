@@ -621,6 +621,8 @@ Example usage:
 
 This will return a list of scenarios for the first table on the Wikipedia page:
 
+.. code-block:: text
+
     ┏━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┓
     ┃ Rank ┃ Company              ┃ State          ┃ Industry                                 ┃ Revenue in USD ┃
     ┡━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━┩
