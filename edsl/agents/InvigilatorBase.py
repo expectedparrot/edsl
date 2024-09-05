@@ -8,11 +8,12 @@ from edsl.data_transfer_models import AgentResponseDict
 
 from edsl.data.Cache import Cache
 
-# from edsl.agents.Agent import Agent
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.scenarios.Scenario import Scenario
 from edsl.surveys.MemoryPlan import MemoryPlan
 from edsl.language_models.LanguageModel import LanguageModel
+
+from edsl.data_transfer_models import EDSLResultObjectInput
 
 
 class InvigilatorBase(ABC):
@@ -51,6 +52,7 @@ class InvigilatorBase(ABC):
         iteration: Optional[int] = 1,
         additional_prompt_data: Optional[dict] = None,
         sidecar_model: Optional[LanguageModel] = None,
+        raise_validation_errors: Optional[bool] = True,
     ):
         """Initialize a new Invigilator."""
         self.agent = agent
@@ -64,6 +66,7 @@ class InvigilatorBase(ABC):
         self.cache = cache
         self.sidecar_model = sidecar_model
         self.survey = survey
+        self.raise_validation_errors = raise_validation_errors
 
         self.raw_model_response = (
             None  # placeholder for the raw response from the model
@@ -140,18 +143,47 @@ class InvigilatorBase(ABC):
         """
         return f"{self.__class__.__name__}(agent={repr(self.agent)}, question={repr(self.question)}, scneario={repr(self.scenario)}, model={repr(self.model)}, memory_plan={repr(self.memory_plan)}, current_answers={repr(self.current_answers)}, iteration{repr(self.iteration)}, additional_prompt_data={repr(self.additional_prompt_data)}, cache={repr(self.cache)}, sidecarmodel={repr(self.sidecar_model)})"
 
-    def get_failed_task_result(self) -> AgentResponseDict:
+    def get_failed_task_result(self, failure_reason) -> EDSLResultObjectInput:
         """Return an AgentResponseDict used in case the question-asking fails.
+
+        Possible reasons include:
+        - Legimately skipped because of skip logic
+        - Failed to get response from the model
 
         >>> InvigilatorBase.example().get_failed_task_result()
         {'answer': None, 'comment': 'Failed to get response', ...}
         """
-        return AgentResponseDict(
-            answer=None,
-            comment="Failed to get response",
-            question_name=self.question.question_name,
-            prompts=self.get_prompts(),
-        )
+        data = {
+            "answer": None,
+            "generated_tokens": None,
+            "comment": failure_reason,
+            "question_name": self.question.question_name,
+            "prompts": self.get_prompts(),
+            "cached_response": None,
+            "raw_model_response": None,
+            "cache_used": None,
+            "cache_key": None,
+        }
+        return EDSLResultObjectInput(**data)
+
+        # breakpoint()
+        # if hasattr(self, "augmented_model_response"):
+        #     import json
+
+        #     generated_tokens = json.loads(self.augmented_model_response)["answer"][
+        #         "generated_tokens"
+        #     ]
+        # else:
+        #     generated_tokens = "Filled in by InvigilatorBase.get_failed_task_result"
+        # agent_response_dict = AgentResponseDict(
+        #     answer=None,
+        #     comment="Failed to get usable response",
+        #     generated_tokens=generated_tokens,
+        #     question_name=self.question.question_name,
+        #     prompts=self.get_prompts(),
+        # )
+        # # breakpoint()
+        # return agent_response_dict
 
     def get_prompts(self) -> Dict[str, Prompt]:
         """Return the prompt used."""

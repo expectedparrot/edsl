@@ -32,50 +32,54 @@ from typing import (
 )
 from abc import ABC, abstractmethod
 
+from edsl.data_transfer_models import (
+    ModelResponse,
+    ModelInputs,
+    EDSLOutput,
+    AgentResponseDict,
+)
 
-class EDSLAnswerDict(TypedDict):
-    answer: Any
-    comment: Optional[str]
+# "cache_used": model_call_outcome.cache_used,
+# "cache_key": model_call_outcome.cache_key,
+# "usage": model_call_outcome.response.get("usage", {}),
+# "raw_model_response": model_call_outcome.response,
 
-    # "cache_used": model_call_outcome.cache_used,
-    # "cache_key": model_call_outcome.cache_key,
-    # "usage": model_call_outcome.response.get("usage", {}),
-    # "raw_model_response": model_call_outcome.response,
-
-
-class EDSLAugmentedResponse(TypedDict):
-    cache_used: bool
-    cache_key: str
-    usage: dict[str, Any]
-    raw_model_response: dict[str, Any]
-    answer: Any
-    comment: Optional[str]
+# from edsl.data_transfer_models import EDSLOutput
 
 
-class IntendedModelCallOutcome:
-    "This is a tuple-like class that holds the response, cache_used, and cache_key."
+# class EDSLAugmentedResponse(TypedDict):
+#     cache_used: bool
+#     cache_key: str
+#     usage: dict[str, Any]
+#     raw_model_response: dict[str, Any]
+#     answer: Any
+#     comment: Optional[str]
 
-    def __init__(self, response: dict, cache_used: bool, cache_key: str):
-        self.response = response
-        self.cache_used = cache_used
-        self.cache_key = cache_key
 
-    def __iter__(self):
-        """Iterate over the class attributes.
+# class IntendedModelCallOutcome:
+#     "This is a tuple-like class that holds the response, cache_used, and cache_key."
 
-        >>> a, b, c = IntendedModelCallOutcome({'answer': "yes"}, True, 'x1289')
-        >>> a
-        {'answer': 'yes'}
-        """
-        yield self.response
-        yield self.cache_used
-        yield self.cache_key
+#     def __init__(self, response: dict, cache_used: bool, cache_key: str):
+#         self.response = response
+#         self.cache_used = cache_used
+#         self.cache_key = cache_key
 
-    def __len__(self):
-        return 3
+#     def __iter__(self):
+#         """Iterate over the class attributes.
 
-    def __repr__(self):
-        return f"IntendedModelCallOutcome(response = {self.response}, cache_used = {self.cache_used}, cache_key = '{self.cache_key}')"
+#         >>> a, b, c = IntendedModelCallOutcome({'answer': "yes"}, True, 'x1289')
+#         >>> a
+#         {'answer': 'yes'}
+#         """
+#         yield self.response
+#         yield self.cache_used
+#         yield self.cache_key
+
+#     def __len__(self):
+#         return 3
+
+#     def __repr__(self):
+#         return f"IntendedModelCallOutcome(response = {self.response}, cache_used = {self.cache_used}, cache_key = '{self.cache_key}')"
 
 
 from edsl.config import CONFIG
@@ -418,61 +422,71 @@ class LanguageModel(
             raw_response, cls.key_sequence
         )
 
-    def parse_response(cls, raw_response: dict[str, Any]) -> EDSLAnswerDict:
+    @classmethod
+    def parse_response(cls, raw_response: dict[str, Any]) -> EDSLOutput:
         """Parses the API response and returns the response text."""
         generated_token_string = cls.get_generated_token_string(raw_response)
         last_newline = generated_token_string.rfind("\n")
 
         if last_newline == -1:
             # There is no comment
-            return json.dumps(
-                {
-                    "answer": convert_answer(generated_token_string),
-                    "generated_tokens": generated_token_string,
-                    "comment": None,
-                }
-            )
+            edsl_dict = {
+                "answer": convert_answer(generated_token_string),
+                "generated_tokens": generated_token_string,
+                "comment": None,
+            }
         else:
-            return json.dumps(
-                {
-                    "answer": convert_answer(generated_token_string[:last_newline]),
-                    "comment": generated_token_string[last_newline + 1 :].strip(),
-                    "generated_tokens": generated_token_string,
-                }
-            )
+            edsl_dict = {
+                "answer": convert_answer(generated_token_string[:last_newline]),
+                "comment": generated_token_string[last_newline + 1 :].strip(),
+                "generated_tokens": generated_token_string,
+            }
+        return EDSLOutput(**edsl_dict)
 
-    async def _async_prepare_response(
-        self, model_call_outcome: IntendedModelCallOutcome, cache: "Cache"
-    ) -> EDSLAugmentedResponse:
-        """Prepare the response for return."""
+    # async def _async_prepare_response(
+    #     self, model_call_outcome: IntendedModelCallOutcome, cache: "Cache"
+    # ) -> AgentResponseDict:
+    #     """Prepare the response for return."""
 
-        model_response = {
-            "cache_used": model_call_outcome.cache_used,
-            "cache_key": model_call_outcome.cache_key,
-            "usage": model_call_outcome.response.get("usage", {}),
-            "raw_model_response": model_call_outcome.response,
-        }
+    #     model_response = {
+    #         "cache_used": model_call_outcome.cache_used,
+    #         "cache_key": model_call_outcome.cache_key,
+    #         "usage": model_call_outcome.response.get("usage", {}),
+    #         "raw_model_response": model_call_outcome.response,
+    #     }
+    #     model_response = ModelResponse(
+    #         cach
 
-        answer_portion = self.parse_response(model_call_outcome.response)
-        answer_portion = json.dumps({"answer": str(answer_portion)})
+    #     )
 
-        try:
-            answer_dict = json.loads(answer_portion)
-        except json.JSONDecodeError as e:
-            # TODO: Turn into logs to generate issues
-            print("Bad JSON response from model.")
-            print(answer_portion)
-            print("The exception was: ", e)
+    #     (NamedTuple):
+    # "This is the metadata that is returned by the model and includes info about the cache"
+    # cached_response: Optional[str] = None
+    # raw_model_response: Optional[str] = None
+    # simple_model_raw_response: Optional[str] = None
+    # cache_used: Optional[bool] = None
+    # cache_key: Optional[str] = None
+    # cached_response: Optional[str] = None
 
-            answer_dict, success = await repair(
-                bad_json=answer_portion, error_message=str(e), cache=cache
-            )
-            if not success:
-                raise Exception(
-                    f"""Even the repair failed. The error was: {e}. The response was: {answer_portion}."""
-                )
+    # answer_portion = self.parse_response(model_call_outcome.response)
+    # answer_portion = json.dumps({"answer": str(answer_portion)})
 
-        return {**model_response, **answer_dict}
+    # try:
+    #     answer_dict = json.loads(answer_portion)
+    # except json.JSONDecodeError as e:
+    #     # TODO: Turn into logs to generate issues
+    #     print("Bad JSON response from model.")
+    #     print(answer_portion)
+    #     print("The exception was: ", e)
+
+    #     answer_dict, success = await repair(
+    #         bad_json=answer_portion, error_message=str(e), cache=cache
+    #     )
+    #     if not success:
+    #         raise Exception(
+    #             f"""Even the repair failed. The error was: {e}. The response was: {answer_portion}."""
+    #         )
+    # return {**model_response, **answer_dict}
 
     # async def async_get_raw_response(
     #     self,
@@ -556,8 +570,11 @@ class LanguageModel(
             )  # store the response in the cache
             assert new_cache_key == cache_key  # should be the same
 
-        return IntendedModelCallOutcome(
-            response=response, cache_used=cache_used, cache_key=cache_key
+        return ModelResponse(
+            response=response,
+            cache_used=cache_used,
+            cache_key=cache_key,
+            cached_response=cached_response,
         )
 
     _get_intended_model_call_outcome = sync_wrapper(
@@ -603,8 +620,17 @@ class LanguageModel(
             "cache": cache,
             **({"encoded_image": encoded_image} if encoded_image else {}),
         }
-        model_call_outcome = await self._async_get_intended_model_call_outcome(**params)
-        return await self._async_prepare_response(model_call_outcome, cache=cache)
+        model_inputs = ModelInputs(user_prompt=user_prompt, system_prompt=system_prompt)
+        model_outputs = await self._async_get_intended_model_call_outcome(**params)
+        edsl_dict = self.parse_response(model_outputs.response)
+        agent_response_dict = AgentResponseDict(
+            model_inputs=model_inputs,
+            model_outputs=model_outputs,
+            edsl_dict=edsl_dict,
+        )
+        return agent_response_dict
+
+        # return await self._async_prepare_response(model_call_outcome, cache=cache)
 
     get_response = sync_wrapper(async_get_response)
 
