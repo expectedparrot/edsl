@@ -117,11 +117,9 @@ class ResponseValidatorABC(ABC):
             pydantic_edsl_answer: BaseModel = self._base_validate(
                 proposed_edsl_answer_dict
             )
-            # if not self.permissive: # not needed - used to construct the response model.
-            #    self._check_constraints(pydantic_edsl_answer)
             edsl_answer_dict = self._extract_answer(pydantic_edsl_answer)
             return self._post_process(edsl_answer_dict)
-        except Exception as e:
+        except QuestionAnswerValidationError as e:
             return self._handle_exception(e, raw_edsl_answer_dict)
 
     def _handle_exception(self, e: Exception, raw_edsl_answer_dict) -> EdslAnswerDict:

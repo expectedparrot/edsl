@@ -152,7 +152,6 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
 
         # get the results of the interview
         answer, valid_results = await interview.async_conduct_interview(
-            debug=debug,
             model_buckets=model_buckets,
             stop_on_exception=stop_on_exception,
             sidecar_model=sidecar_model,
@@ -164,27 +163,26 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             for k in set(answer.keys())
             if not k.endswith("_comment") and not k.endswith("_generated_tokens")
         }
-
+        answer = {k: answer[k] for k in answer_key_names}
         assert len(valid_results) == len(answer_key_names)
 
-        # generated_tokens_dict = {}
-        # for answer in [a for a in answer.kes() if a.endswith("_generated_tokens")]:
-        #    question_name = result["question_name"]
-        #    generated_tokens_dict[question_name + "_generated_tokens"] = result[
-        #        "generated_tokens"
-        #    ]
-        # breakpoint()
         generated_tokens_dict = {
-            k: v for k, v in answer.items() if k.endswith("_generated_tokens")
+            k + "_generated_tokens": v.generated_tokens
+            for k, v in zip(answer_key_names, valid_results)
         }
+
+        comments_dict = {
+            k + "_comment": v.comment for k, v in zip(answer_key_names, valid_results)
+        }
+        # breakpoint()
 
         # TODO: move this down into Interview
         question_name_to_prompts = dict({})
         for result in valid_results:
-            question_name = result["question_name"]
+            question_name = result.question_name
             question_name_to_prompts[question_name] = {
-                "user_prompt": result["prompts"]["user_prompt"],
-                "system_prompt": result["prompts"]["system_prompt"],
+                "user_prompt": result.prompts["user_prompt"],
+                "system_prompt": result.prompts["system_prompt"],
             }
 
         prompt_dictionary = {}
@@ -198,9 +196,9 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
 
         raw_model_results_dictionary = {}
         for result in valid_results:
-            question_name = result["question_name"]
+            question_name = result.question_name
             raw_model_results_dictionary[question_name + "_raw_model_response"] = (
-                result["raw_model_response"]
+                result.raw_model_response
             )
 
         # breakpoint()
@@ -214,6 +212,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             raw_model_response=raw_model_results_dictionary,
             survey=interview.survey,
             generated_tokens=generated_tokens_dict,
+            comments_dict=comments_dict,
         )
         result.interview_hash = hash(interview)
 
