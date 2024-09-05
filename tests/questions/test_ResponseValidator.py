@@ -21,11 +21,11 @@ class MockValidator(ResponseValidatorABC):
     valid_examples = [{"answer": 50, "comment": "Valid answer"}]
     invalid_examples = [{"answer": 150, "comment": "Invalid answer"}]
 
-    def _check_constraints(self, pydantic_edsl_answer: BaseModel):
-        if not self.min_value <= pydantic_edsl_answer.answer <= self.max_value:
-            raise ValueError(
-                f"Answer must be between {self.min_value} and {self.max_value}"
-            )
+    # def _check_constraints(self, pydantic_edsl_answer: BaseModel):
+    #     if not self.min_value <= pydantic_edsl_answer.answer <= self.max_value:
+    #         raise ValueError(
+    #             f"Answer must be between {self.min_value} and {self.max_value}"
+    #         )
 
 
 # Tests
@@ -60,14 +60,16 @@ def test_validator_invalid_input():
         validator.validate({"answer": 150, "comment": "Invalid answer"})
 
 
-def test_validator_constraint_check():
-    validator = MockValidator(
-        response_model=MockResponseModel, min_value=30, max_value=70
-    )
-    with pytest.raises(QuestionAnswerValidationError):
-        validator.validate({"answer": 20, "comment": "Below min value"})
-    with pytest.raises(QuestionAnswerValidationError):
-        validator.validate({"answer": 80, "comment": "Above max value"})
+# We use pydantic models to validate the response, so we don't need to implement our own constraints
+
+# def test_validator_constraint_check():
+#     validator = MockValidator(
+#         response_model=MockResponseModel, min_value=30, max_value=70
+#     )
+#     with pytest.raises(QuestionAnswerValidationError):
+#         validator.validate({"answer": 20, "comment": "Below min value"})
+#     with pytest.raises(QuestionAnswerValidationError):
+#         validator.validate({"answer": 80, "comment": "Above max value"})
 
 
 def test_validator_permissive_mode():

@@ -28,8 +28,8 @@ def create_numeric_response(
 
     class ConstrainedNumericResponse(BaseModel):
         answer: Union[Decimal] = Field(**field_kwargs)
-        comment: Optional[str] = None
-        generated_tokens: Optional[Any]
+        comment: Optional[str] = Field(None)
+        generated_tokens: Optional[Any] = Field(None)
 
     return ConstrainedNumericResponse
 

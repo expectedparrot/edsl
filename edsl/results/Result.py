@@ -115,7 +115,7 @@ class Result(Base, UserDict):
             "prompt": prompt or {},
             "raw_model_response": raw_model_response or {},
             "question_to_attributes": question_to_attributes,
-            "generated_tokens": generated_tokens,
+            "generated_tokens": generated_tokens or {},
         }
         super().__init__(**data)
         # but also store the data as attributes
@@ -129,7 +129,7 @@ class Result(Base, UserDict):
         self.survey = survey
         self.question_to_attributes = question_to_attributes
         self.generated_tokens = generated_tokens
-        self.comments_dict = comments_dict
+        self.comments_dict = comments_dict or {}
 
         self._combined_dict = None
         self._problem_keys = None

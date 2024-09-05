@@ -41,6 +41,10 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
 
         agent_response_dict = await self.model.async_get_response(**params)
 
+        # Store the raw response in case fails #
+        self.raw_model_response = agent_response_dict.model_outputs.response
+        self.generated_tokens = agent_response_dict.edsl_dict.generated_tokens
+
         result_data = self.extract_edsl_result_entry(agent_response_dict)
         return result_data
 
@@ -135,7 +139,9 @@ class InvigilatorHuman(InvigilatorBase):
                 )
         except Exception as e:
             answer = None
-            comment = f"Failed to get response. The exception is {str(e)}"
+            comment = f"Validation error - the exception is {str(e)}"
+            if self.raise_validation_errors:
+                raise e
 
         return EDSLResultObjectInput(
             generated_tokens=str(answer),

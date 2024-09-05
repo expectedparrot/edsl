@@ -68,7 +68,9 @@ class InterviewExceptionEntry:
 
         m = LanguageModel.example(test_model=True)
         q = QuestionFreeText.example(exception_to_throw=ValueError)
-        results = q.by(m).run(skip_retry=True, print_exceptions=False)
+        results = q.by(m).run(
+            skip_retry=True, print_exceptions=False, raise_validation_errors=True
+        )
         return results.task_history.exceptions[0]["how_are_you"][0]
 
     @property
@@ -79,7 +81,7 @@ class InterviewExceptionEntry:
         lines = []
         lines.append("from edsl import Question, Model, Scenario, Agent")
 
-        lines.append(f"q = {repr(self.invigilator.question.question)}")
+        lines.append(f"q = {repr(self.invigilator.question)}")
         lines.append(f"scenario = {repr(self.invigilator.scenario)}")
         lines.append(f"agent = {repr(self.invigilator.agent)}")
         lines.append(f"m = Model('{self.invigilator.model.model}')")

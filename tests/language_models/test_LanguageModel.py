@@ -19,39 +19,19 @@ def create_temp_env_file(contents):
 
 class TestLanguageModel(unittest.TestCase):
     def setUp(self):
-
-        class TestLanguageModelGood(LanguageModel):
-            _model_ = "test"
-            key_sequence = ["message", "text"]
-            _parameters_ = {"temperature": 0.5}
-            _inference_service_ = InferenceServiceType.TEST.value
-
-            async def async_execute_model_call(
-                self, user_prompt: str, system_prompt: str
-            ) -> dict[str, Any]:
-                await asyncio.sleep(0.1)
-                return {
-                    "message": {
-                        "text": "Hello world",
-                        "cached_response": False,
-                        "usage": {},
-                    }
-                }
-
-        self.good_class = TestLanguageModelGood
+        pass
 
     def test_execute_model_call(self):
         from edsl.data.Cache import Cache
 
-        m = self.good_class()
-        response, cached_response, cache_key = m._get_intended_model_call_outcome(
+        m = LanguageModel.example(test_model=True, canned_response="Hello, world!")
+        imco = m._get_intended_model_call_outcome(
             user_prompt="Hello world",
             system_prompt="You are a helpful agent",
             cache=Cache(),
         )
-        print(response)
-        self.assertEqual(response["message"]["text"], "Hello world")
-        self.assertEqual(cached_response, False)
+        self.assertEqual(imco.response, {"message": [{"text": "Hello, world!"}]})
+        self.assertEqual(imco.cached_response, None)
 
     # def test_get_response(self):
     #     from edsl.data.Cache import Cache

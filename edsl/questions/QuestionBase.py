@@ -7,6 +7,7 @@ import copy
 
 from edsl.exceptions import (
     QuestionResponseValidationError,
+    QuestionAnswerValidationError,
     QuestionSerializationError,
 )
 from edsl.questions.descriptors import QuestionNameDescriptor, QuestionTextDescriptor
@@ -109,6 +110,7 @@ class QuestionBase(
         edsl.exceptions.questions.QuestionAnswerValidationError:...
         ...
         """
+
         return self.response_validator.validate(answer)
 
     # endregion

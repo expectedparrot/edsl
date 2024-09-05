@@ -280,6 +280,7 @@ class Agent(Base):
         current_answers: Optional[dict] = None,
         iteration: int = 1,
         sidecar_model=None,
+        raise_validation_errors: bool = True,
     ) -> "InvigilatorBase":
         """Create an Invigilator.
 
@@ -311,6 +312,7 @@ class Agent(Base):
             iteration=iteration,
             cache=cache,
             sidecar_model=sidecar_model,
+            raise_validation_errors=raise_validation_errors,
         )
         if hasattr(self, "validate_response"):
             invigilator.validate_response = self.validate_response
@@ -381,6 +383,7 @@ class Agent(Base):
         current_answers: Optional[dict] = None,
         iteration: int = 0,
         sidecar_model=None,
+        raise_validation_errors: bool = True,
     ) -> "InvigilatorBase":
         """Create an Invigilator."""
         from edsl import Model
@@ -434,6 +437,7 @@ class Agent(Base):
             iteration=iteration,
             cache=cache,
             sidecar_model=sidecar_model,
+            raise_validation_errors=raise_validation_errors,
         )
         return invigilator
 

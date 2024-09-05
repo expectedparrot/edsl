@@ -67,6 +67,7 @@ class Interview(InterviewStatusMixin):
         cache: Optional["Cache"] = None,
         sidecar_model: Optional["LanguageModel"] = None,
         skip_retry: bool = False,
+        raise_validation_errors: bool = True,
     ):
         """Initialize the Interview instance.
 
@@ -111,6 +112,7 @@ class Interview(InterviewStatusMixin):
         self.exceptions = InterviewExceptionCollection()
         self._task_status_log_dict = InterviewStatusLog()
         self.skip_retry = skip_retry
+        self.raise_validation_errors = raise_validation_errors
 
         # dictionary mapping question names to their index in the survey.
         self.to_index = {
@@ -272,7 +274,6 @@ class Interview(InterviewStatusMixin):
     ) -> "AgentResponseDict":
         """Answer a question and records the task.
 
-        This in turn calls the the passed-in agent's async_answer_question method, which returns a response dictionary.
         Note that is updates answers dictionary with the response.
         """
 
@@ -317,6 +318,7 @@ class Interview(InterviewStatusMixin):
             iteration=self.iteration,
             cache=self.cache,
             sidecar_model=self.sidecar_model,
+            raise_validation_errors=self.raise_validation_errors,
         )
         """Return an invigilator for the given question."""
         return invigilator
@@ -385,6 +387,7 @@ class Interview(InterviewStatusMixin):
         model_buckets: Optional[ModelBuckets] = None,
         stop_on_exception: bool = False,
         sidecar_model: Optional["LanguageModel"] = None,
+        raise_validation_errors: bool = True,
     ) -> tuple["Answers", List[dict[str, Any]]]:
         """
         Conduct an Interview asynchronously.

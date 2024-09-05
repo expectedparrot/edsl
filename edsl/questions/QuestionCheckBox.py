@@ -50,7 +50,7 @@ def create_checkbox_response_model(
             Field(..., **field_params),
         ] = Field(..., description="List of selected choices")
         comment: Optional[str] = Field(None, description="Optional comment field")
-        generated_tokens: Optional[Any]
+        generated_tokens: Optional[Any] = Field(default=None)
 
         class Config:
             @staticmethod
