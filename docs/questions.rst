@@ -15,37 +15,193 @@ Question type templates
 
 A question is constructed by creating an instance of a question type class and passing the required fields.
 Questions are formatted as dictionaries with specific keys based on the question type.
+
+
+Question types 
+^^^^^^^^^^^^^^
+
+The following question types are available:
+
+* `QuestionMultipleChoice` - multiple choice questions
+* `QuestionCheckBox` - checkbox questions
+* `QuestionFreeText` - free text questions
+* `QuestionNumerical` - numerical questions
+* `QuestionLinearScale` - linear scale questions
+* `QuestionLikertFive` - Likert scale questions
+* `QuestionRank` - ranked list questions
+* `QuestionTopK` - top-k list questions
+* `QuestionYesNo` - yes/no questions (multiple choice with fixed options)
+* `QuestionList` - list questions
+* `QuestionBudget` - budget allocation questions
+* `QuestionExtract` - information extraction questions 
+* `QuestionFunctional` - functional questions   
+
+
+Required fields
+^^^^^^^^^^^^^^^
+
 All question types require a `question_name` and `question_text`. 
 The `question_name` is a unique Pythonic identifier for a question (e.g., "favorite_color" but not "favorite color").
 The `question_text` is the text of the question itself written as a string (e.g., "What is your favorite color?").
 Question types other than free text require a `question_options` list of possible answer options.
-See examples below for more details on required fields, optional additional fields (e.g., minimum and maximum values) and formatting for each type.
+The `question_options` list can be a list of strings, integers or other types depending on the question type.
 
-
-Constructing a question
------------------------
-
-To construct a question, we start by importing the appropriate question type for the desired result. 
-For example, if we want the response to be a single option selected from a given list we can create a multiple choice question:
+For example, to create a multiple choice question where the respondent must select one option from a list of colors, 
+we import the `QuestionMultipleChoice` class and create an instance of it with the required fields:
 
 .. code-block:: python
 
    from edsl import QuestionMultipleChoice
 
-
-Next we format a question in the question type template. 
-A multiple choice question requires a question name, question text and list of question options:
-
-.. code-block:: python
-
    q = QuestionMultipleChoice(
-      question_name = "favorite_primary_color",
-      question_text = "Which is your favorite primary color?",
-      question_options = ["red", "yellow", "blue"] 
+      question_name = "favorite_color",
+      question_text = "What is your favorite color?",
+      question_options = ["Red", "Blue", "Green", "Yellow"]
    )
 
 
-Details and examples of each question type can be found at the bottom of this page.
+Optional fields for specific question types
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+`min_selections` and `max_selections` - Parameters that can be added to `checkbox` and `rank` questions to specify the minimum and maximum number of options that can be selected.
+For example, in a checkbox question where the respondent can select multiple options, we can specify that at least 2 options must be selected and at most 3 can be selected:
+
+.. code-block:: python
+
+   from edsl import QuestionCheckBox
+
+   q = QuestionCheckBox(
+      question_name = "favorite_days",
+      question_text = "What are your favorite days of the week?",
+      question_options = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+      min_selections = 2,
+      max_selections = 3
+   )
+
+
+`min_value` and `max_value` - Parameters that can be added to `numerical` questions to specify the minimum and maximum values that can be entered.
+For example, in a numerical question where the respondent must enter a number between 1 and 10:
+
+.. code-block:: python
+
+   from edsl import QuestionNumerical
+
+   q = QuestionNumerical(
+      question_name = "age",
+      question_text = "How old are you?",
+      min_value = 1,
+      max_value = 10
+   )
+
+
+`option_labels` - A parameter that can be added to `linear_scale` questions to specify labels for the scale options.
+For example, in a linear scale question where the respondent must rate their agreement with a statement on a scale from 1 to 5:
+
+.. code-block:: python
+
+   from edsl import QuestionLinearScale
+
+   q = QuestionLinearScale(
+      question_name = "agree",
+      question_text = "Please indicate whether you agree with the following statement: I am only happy when it rains.",
+      question_options = [1, 2, 3, 4, 5],
+      option_labels = {1: "Strongly disagree", 5: "Strongly agree"}
+   )
+
+
+`num_selections` - A parameter that can be added to `rank` questions to specify the number of options that must be ranked.
+For example, in a rank question where the respondent must rank their top 3 favorite foods:
+
+.. code-block:: python
+
+   from edsl import QuestionRank
+
+   q = QuestionRank(
+      question_name = "foods_rank",
+      question_text = "Rank your top 3 favorite foods.",
+      question_options = ["Pizza", "Pasta", "Salad", "Soup"],
+      num_selections = 3
+   )
+
+
+`answer_template` - A parameter that can be added to `extract` questions to specify a template for the extracted information.
+For example, in an extract question where the respondent must extract information from a given text:
+
+.. code-block:: python
+
+   from edsl import QuestionExtract
+
+   q = QuestionExtract(
+      question_name = "course_schedule",
+      question_text = """This semester we are offering courses on calligraphy on Friday mornings.""",
+      answer_template = {"course_topic": "AI", "days": ["Monday", "Wednesday"]}
+   )
+
+
+`func` - A parameter that can be added to `functional` questions to specify a function that generates the answer.
+For example, in a functional question where the answer is generated by a function:
+
+.. code-block:: python
+
+   from edsl import QuestionFunctional, ScenarioList, Scenario
+   import random
+
+   scenarios = ScenarioList(
+      [Scenario({"persona": p, "random": random.randint(0, 1000)}) for p in ["Magician", "Economist"]]
+   )
+
+   def my_function(scenario, agent_traits):
+      if scenario.get("persona") == "Magician":
+         return "Magicians never pick randomly!"
+      elif scenario.get("random") > 500:
+         return "Top half"
+      else:
+         return "Bottom half"
+
+   q = QuestionFunctional(
+      question_name = "evaluate",
+      func = my_function
+   )
+
+   results = q.by(scenarios).run()
+
+   results.select("persona", "random", "evaluate").print(format="rich")
+
+
+Example results:
+
+.. code-block:: text
+
+   ┏━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+   ┃ scenario  ┃ scenario ┃ answer                         ┃
+   ┃ .persona  ┃ .random  ┃ .evaluate                      ┃
+   ┡━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+   │ Magician  │ 301      │ Magicians never pick randomly! │
+   ├───────────┼──────────┼────────────────────────────────┤
+   │ Economist │ 395      │ Bottom half                    │
+   └───────────┴──────────┴────────────────────────────────┘
+
+
+
+Optional additional parameters
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+`include_comment = False` - A boolean value that can be added to any question type (other than free text) to exclude the `comment` field.
+
+By default, a `comment` field is automatically added to all question types other than free text.
+It is a free text field that allows a model to provide any commentary on its response to the question, such as why a certain answer was chosen or how the model arrived at its answer.
+It can be useful for debugging unexpected responses and reducing the likelihood that a model fails to follow formatting instructions for the main response (e.g., just selecting an answer option) because it wants to be more verbose.
+It can also be helpful in constructing sequences of questions with context about prior responses (e.g., simulating a chain of thought).
+(See the :ref:`survey` section for more information about adding question memory to a survey.)
+
+`question_presentation` - A string that can be added to any question type to specify how the question should be presented to the model.
+It can be used to provide additional context or instructions to the model about how to interpret the question.
+
+`answering_instructions` - A string that can be added to any question type to specify how the model should answer the question.
+It can be used to provide additional context or instructions to the model about how to format its response.
+
+`permissive = False` - A boolean value that can be added to any question type to specify whether the model should be allowed to provide an answer that violates the question constraints (e.g., selecting fewer or more than the allowed number of options in a checkbox question).
+(By default, `permissive` is set to `False` to enforce any question constraints.) 
 
 
 Creating a survey
