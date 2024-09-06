@@ -39,6 +39,8 @@ class EDSLResultObjectInput(NamedTuple):
     cache_key: str
     answer: Any
     comment: str
+    validated: bool = False
+    exception_occurred: Exception = None
 
 
 # from collections import UserDict

@@ -1083,13 +1083,11 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     def run(self, *args, **kwargs) -> "Results":
         """Turn the survey into a Job and runs it.
 
-        Here we run a survey but with debug mode on (so LLM calls are not made)
-
         >>> from edsl import QuestionFreeText
         >>> s = Survey([QuestionFreeText.example()])
         >>> from edsl.language_models import LanguageModel
         >>> m = LanguageModel.example(test_model = True, canned_response = "Great!")
-        >>> results = s.by(m).run(debug = True, cache = False)
+        >>> results = s.by(m).run(cache = False)
         >>> results.select('answer.*')
         Dataset([{'answer.how_are_you': ['Great!']}])
         """

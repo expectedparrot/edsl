@@ -14,9 +14,14 @@ from edsl.agents.PromptConstructionMixin import PromptConstructorMixin
 
 from edsl.agents.InvigilatorBase import InvigilatorBase
 
-from edsl.exceptions.questions import QuestionResponseValidationError
+from edsl.exceptions.questions import (
+    QuestionResponseValidationError,
+    QuestionAnswerValidationError,
+)
 
 from edsl.data_transfer_models import AgentResponseDict, EDSLResultObjectInput
+
+from dataclasses import dataclass
 
 
 class NotApplicable(str):
@@ -77,42 +82,48 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
         # sometimes the answer is a code, so we need to translate it
         return self.question._translate_answer_code_to_answer(raw_answer, combined_dict)
 
-    def extract_edsl_result_entry(self, agent_response_dict: dict) -> AgentResponseDict:
-        """Return formatted raw response."""
-        # raw_model_response = augmented_response["raw_model_response"]
+    def extract_edsl_result_entry(self, agent_response_dict: dict):
         validation_successful = False
         edsl_dict = agent_response_dict.edsl_dict._asdict()
+        exception_occurred = None
         try:
             validated_edsl_dict = self.question._validate_answer(edsl_dict)
             validation_successful = True
-        except QuestionResponseValidationError as e:
-            """If the response is invalid, remove it from the cache and raise the exception."""
+        except QuestionAnswerValidationError as e:
             if self.raise_validation_errors:
-                raise e
+                exception_occurred = e
         except Exception as non_validation_error:
-            # print("Non-validation error", non_validation_error)
-            raise non_validation_error
+            exception_occurred = non_validation_error
+        finally:
+            data = {
+                "generated_tokens": agent_response_dict.edsl_dict.generated_tokens,
+                "question_name": self.question.question_name,
+                "prompts": self.get_prompts(),
+                "cached_response": agent_response_dict.model_outputs.cached_response,
+                "raw_model_response": agent_response_dict.model_outputs.response,
+                "cache_used": agent_response_dict.model_outputs.cache_used,
+                "cache_key": agent_response_dict.model_outputs.cache_key,
+            }
+            if not validation_successful:
+                self._remove_from_cache(agent_response_dict.model_outputs.cache_key)
+                data["answer"] = None
+                data["comment"] = "The response was not valid."
+                data["validated"] = False
+            else:
+                data["answer"] = self.determine_answer(validated_edsl_dict["answer"])
+                data["comment"] = validated_edsl_dict.get("comment", "")
+                data["validated"] = True
 
-        data = {
-            "generated_tokens": agent_response_dict.edsl_dict.generated_tokens,
-            "question_name": self.question.question_name,
-            "prompts": self.get_prompts(),
-            "cached_response": agent_response_dict.model_outputs.cached_response,
-            "raw_model_response": agent_response_dict.model_outputs.response,
-            "cache_used": agent_response_dict.model_outputs.cache_used,
-            "cache_key": agent_response_dict.model_outputs.cache_key,
-        }
-        if not validation_successful:
-            self._remove_from_cache(agent_response_dict.model_outputs.cache_key)
-            data["answer"] = None
-            data["comment"] = "The response was not valid."
-        else:
-            data["answer"] = self.determine_answer(validated_edsl_dict["answer"])
-            data["comment"] = validated_edsl_dict.get("comment", "")
+            if exception_occurred:
+                data["exception_occurred"] = exception_occurred
 
-        return EDSLResultObjectInput(**data)
+            result = EDSLResultObjectInput(**data)
+            return result
 
     answer_question = sync_wrapper(async_answer_question)
+
+
+from edsl.exceptions.questions import QuestionAnswerValidationError
 
 
 class InvigilatorHuman(InvigilatorBase):
@@ -129,8 +140,12 @@ class InvigilatorHuman(InvigilatorBase):
         def __repr__(self):
             return f"{self.literal}"
 
+        exception_occurred = None
+        validated = False
+
         try:
             answer = self.agent.answer_question_directly(self.question, self.scenario)
+            # breakpoint()
             self.raw_model_response = answer
             if self.validate_response:
                 _ = self.question._validate_answer({"answer": answer})
@@ -138,11 +153,17 @@ class InvigilatorHuman(InvigilatorBase):
                 answer = self.question._translate_answer_code_to_answer(
                     answer, self.scenario
                 )
-        except Exception as e:
+            validated = True
+        except QuestionAnswerValidationError as e:
             answer = None
             comment = f"Validation error - the exception is {str(e)}"
             if self.raise_validation_errors:
-                raise e
+                exception_occurred = e
+        except Exception as e:
+            answer = None
+            comment = f"An exception occurred - the exception is {str(e)}"
+            if self.raise_validation_errors:
+                exception_occurred = e
 
         return EDSLResultObjectInput(
             generated_tokens=str(answer),
@@ -153,6 +174,8 @@ class InvigilatorHuman(InvigilatorBase):
             cache_used=NotApplicable(),
             cache_key=NotApplicable(),
             answer=answer,
+            exception_occurred=exception_occurred,
+            validated=validated,
             comment=comment,
         )
 
@@ -169,6 +192,7 @@ class InvigilatorFunctional(InvigilatorBase):
         #     "question_name": self.question.question_name,
         # }
         answer = func(scenario=self.scenario, agent_traits=self.agent.traits)
+        # breakpoint()
 
         return EDSLResultObjectInput(
             generated_tokens=str(answer),
@@ -180,6 +204,8 @@ class InvigilatorFunctional(InvigilatorBase):
             cache_key=NotApplicable(),
             answer=answer["answer"],
             comment="This is the result of a functional question.",
+            validated=True,
+            exception_occurred=None,
         )
 
         # try:

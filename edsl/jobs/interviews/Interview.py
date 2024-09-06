@@ -288,17 +288,30 @@ class Interview(InterviewStatusMixin):
             response: EDSLResultObjectInput = await asyncio.wait_for(
                 invigilator.async_answer_question(), timeout=TIMEOUT
             )
-            self.answers.add_answer(response=response, question=question)
-            self._cancel_skipped_questions(question)
+            if response.validated:
+                self.answers.add_answer(response=response, question=question)
+                self._cancel_skipped_questions(question)
+            else:
+                if (
+                    hasattr(response, "exception_occurred")
+                    and response.exception_occurred
+                ):
+                    raise response.exception_occurred
+
+        except QuestionAnswerValidationError as e:
+            # these should only appear if not suppressed earlier if self.raise_validation_errors is True
+            self._handle_exception(e, invigilator, task)
+            # raise e
 
         except asyncio.TimeoutError as e:
             self._handle_exception(e, invigilator, task)
-            raise InterviewTimeoutError(f"Task timed out after {TIMEOUT} seconds.")
+            # raise InterviewTimeoutError(f"Task timed out after {TIMEOUT} seconds.")
 
         except Exception as e:
             self._handle_exception(e, invigilator, task)
-            raise e
+            # raise e
 
+        # breakpoint()
         return response
 
     def _get_invigilator(self, question: QuestionBase) -> InvigilatorBase:

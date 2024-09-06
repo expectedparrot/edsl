@@ -124,7 +124,10 @@ from edsl.exceptions.language_models import LanguageModelBadResponseError
 
 def extract_generated_tokens_from_raw_response(data, key_sequence):
     if isinstance(data, str):
-        data = json.loads(data)
+        try:
+            data = json.loads(data)
+        except json.JSONDecodeError as e:
+            return data
     current_data = data
     for i, key in enumerate(key_sequence):
         try:
