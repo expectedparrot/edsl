@@ -614,9 +614,9 @@ Example usage:
 
     from edsl import ScenarioList
 
-    scenariolist = ScenarioList.from_wikipedia_table("https://en.wikipedia.org/wiki/Fortune_500", 0)
+    scenariolist = ScenarioList.from_wikipedia("https://en.wikipedia.org/wiki/Fortune_500", 0)
 
-    scenariolist
+    scenariolist.print()
 
 
 This will return a list of scenarios for the first table on the Wikipedia page:
@@ -683,7 +683,7 @@ The scenario list can be used in a survey to ask questions about the data in the
 
     results = survey.by(scenariolist).run()
 
-    results.select("Company", "Industry").print(format="rich")
+    (results.select("Company", "Industry").print(format="rich")
 
 
 Example output:
@@ -694,46 +694,47 @@ Example output:
     ┃ scenario             ┃ scenario                                 ┃
     ┃ .Company             ┃ .Industry                                ┃
     ┡━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+    │ Alphabet Inc.        │ Internet Services and Retailing          │
+    ├──────────────────────┼──────────────────────────────────────────┤
+    │ Amazon               │ Internet Services and Retailing          │
+    ├──────────────────────┼──────────────────────────────────────────┤
+    │ Apple                │ Computers, Office Equipment              │
+    ├──────────────────────┼──────────────────────────────────────────┤
+    │ Bank of America      │ Commercial Banks                         │
+    ├──────────────────────┼──────────────────────────────────────────┤
+    │ Berkshire Hathaway   │ Insurance: Property and Casualty (stock) │
+    ├──────────────────────┼──────────────────────────────────────────┤
+    │ CVS Health           │ Health Care: Pharmacy and Other Services │
+    ├──────────────────────┼──────────────────────────────────────────┤
+    │ Cardinal Health      │ Wholesalers: Health Care                 │
+    ├──────────────────────┼──────────────────────────────────────────┤
+    │ Cencora              │ Wholesalers: Health Care                 │
+    ├──────────────────────┼──────────────────────────────────────────┤
+    │ Chevron Corporation  │ Petroleum Refining                       │
+    ├──────────────────────┼──────────────────────────────────────────┤
+    │ Cigna                │ Health Care: Pharmacy and Other Services │
+    ├──────────────────────┼──────────────────────────────────────────┤
+    │ Costco               │ General Merchandisers                    │
+    ├──────────────────────┼──────────────────────────────────────────┤
+    │ Elevance Health      │ Health Care: Insurance and Managed Care  │
+    ├──────────────────────┼──────────────────────────────────────────┤
+    │ ExxonMobil           │ Petroleum Refining                       │
+    ├──────────────────────┼──────────────────────────────────────────┤
     │ Ford Motor Company   │ Motor Vehicles & Parts                   │
     ├──────────────────────┼──────────────────────────────────────────┤
     │ General Motors       │ Motor Vehicles & Parts                   │
     ├──────────────────────┼──────────────────────────────────────────┤
-    │ Bank of America      │ Commercial Banks                         │
-    ├──────────────────────┼──────────────────────────────────────────┤
-    │ Chevron Corporation  │ Petroleum Refining                       │
-    ├──────────────────────┼──────────────────────────────────────────┤
-    │ ExxonMobil           │ Petroleum Refining                       │
-    ├──────────────────────┼──────────────────────────────────────────┤
     │ JPMorgan Chase       │ Commercial Banks                         │
-    ├──────────────────────┼──────────────────────────────────────────┤
-    │ Costco               │ General Merchandisers                    │
-    ├──────────────────────┼──────────────────────────────────────────┤
-    │ Apple                │ Computers, Office Equipment              │
-    ├──────────────────────┼──────────────────────────────────────────┤
-    │ Elevance Health      │ Health Care: Insurance and Managed Care  │
-    ├──────────────────────┼──────────────────────────────────────────┤
-    │ UnitedHealth Group   │ Health Care: Insurance and Managed Care  │
-    ├──────────────────────┼──────────────────────────────────────────┤
-    │ Cencora              │ Wholesalers: Health Care                 │
-    ├──────────────────────┼──────────────────────────────────────────┤
-    │ Microsoft            │ Computer Software                        │
     ├──────────────────────┼──────────────────────────────────────────┤
     │ McKesson Corporation │ Wholesalers: Health Care                 │
     ├──────────────────────┼──────────────────────────────────────────┤
-    │ Alphabet Inc.        │ Internet Services and Retailing          │
+    │ Microsoft            │ Computer Software                        │
     ├──────────────────────┼──────────────────────────────────────────┤
-    │ Cigna                │ Health Care: Pharmacy and Other Services │
+    │ UnitedHealth Group   │ Health Care: Insurance and Managed Care  │
     ├──────────────────────┼──────────────────────────────────────────┤
     │ Walmart              │ General Merchandisers                    │
-    ├──────────────────────┼──────────────────────────────────────────┤
-    │ Amazon               │ Internet Services and Retailing          │
-    ├──────────────────────┼──────────────────────────────────────────┤
-    │ Berkshire Hathaway   │ Insurance: Property and Casualty (stock) │
-    ├──────────────────────┼──────────────────────────────────────────┤
-    │ Cardinal Health      │ Wholesalers: Health Care                 │
-    ├──────────────────────┼──────────────────────────────────────────┤
-    │ CVS Health           │ Health Care: Pharmacy and Other Services │
     └──────────────────────┴──────────────────────────────────────────┘
+
 
 Creating a scenario list from a CSV
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
