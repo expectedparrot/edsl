@@ -133,7 +133,7 @@ For example, in an extract question where the respondent must extract informatio
 
    q = QuestionExtract(
       question_name = "course_schedule",
-      question_text = """This semester we are offering courses on calligraphy on Friday mornings.""",
+      question_text = "This semester we are offering courses on calligraphy on Friday mornings.",
       answer_template = {"course_topic": "AI", "days": ["Monday", "Wednesday"]}
    )
 
