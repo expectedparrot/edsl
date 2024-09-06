@@ -535,7 +535,7 @@ class LanguageModel(
         >>> from edsl import Cache
         >>> m = LanguageModel.example(test_model = True)
         >>> m._get_intended_model_call_outcome(user_prompt = "Hello", system_prompt = "hello", cache = Cache())
-        IntendedModelCallOutcome(response = {'message': [{'text': 'Hello world'}]}, cache_used = False, cache_key = '24ff6ac2bc2f1729f817f261e0792577')
+        ModelResponse(response={'message': [{'text': 'Hello world'}]}, cache_used=False, cache_key='24ff6ac2bc2f1729f817f261e0792577', cached_response=None)
         """
 
         if encoded_image:

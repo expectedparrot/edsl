@@ -167,7 +167,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             for k in set(answer.keys())
             if not k.endswith("_comment") and not k.endswith("_generated_tokens")
         }
-        answer = {k: answer[k] for k in answer_key_names}
+        answer_dict = {k: answer[k] for k in answer_key_names}
         assert len(valid_results) == len(answer_key_names)
 
         generated_tokens_dict = {
@@ -211,7 +211,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             scenario=interview.scenario,
             model=interview.model,
             iteration=interview.iteration,
-            answer=answer,
+            answer=answer_dict,
             prompt=prompt_dictionary,
             raw_model_response=raw_model_results_dictionary,
             survey=interview.survey,

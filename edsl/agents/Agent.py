@@ -348,8 +348,8 @@ class Agent(Base):
         >>> a.add_direct_question_answering_method(lambda self, question, scenario: "I am a direct answer.")
         >>> from edsl import QuestionFreeText
         >>> q = QuestionFreeText.example()
-        >>> a.answer_question(question = q, cache = False)
-        {'answer': 'I am a direct answer.', 'comment': 'This is a real survey response from a human.', ...}
+        >>> a.answer_question(question = q, cache = False).answer
+        'I am a direct answer.'
 
         This is a function where an agent returns an answer to a particular question.
         However, there are several different ways an agent can answer a question, so the

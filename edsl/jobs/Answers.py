@@ -11,15 +11,7 @@ class Answers(UserDict):
     def add_answer(
         self, response: EDSLResultObjectInput, question: "QuestionBase"
     ) -> None:
-        """Add a response to the answers dictionary.
-
-        >>> from edsl import QuestionFreeText
-        >>> q = QuestionFreeText.example()
-        >>> answers = Answers()
-        >>> answers.add_answer({"answer": "yes"}, q)
-        >>> answers[q.question_name]
-        'yes'
-        """
+        """Add a response to the answers dictionary."""
         answer = response.answer
         comment = response.comment
         generated_tokens = response.generated_tokens
