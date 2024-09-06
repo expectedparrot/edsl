@@ -392,13 +392,13 @@ class QuestionBase(
         # from edsl.questions import compose_questions
         # return compose_questions(self, other_question_or_diff)
 
-    def _validate_response(self, response):
-        """Validate the response from the LLM. Behavior depends on the question type."""
-        if "answer" not in response:
-            raise QuestionResponseValidationError(
-                "Response from LLM does not have an answer"
-            )
-        return response
+    # def _validate_response(self, response):
+    #     """Validate the response from the LLM. Behavior depends on the question type."""
+    #     if "answer" not in response:
+    #         raise QuestionResponseValidationError(
+    #             "Response from LLM does not have an answer"
+    #         )
+    #     return response
 
     def _translate_answer_code_to_answer(
         self, answer, scenario: Optional["Scenario"] = None

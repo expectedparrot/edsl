@@ -475,13 +475,11 @@ class Jobs(Base):
     def run(
         self,
         n: int = 1,
-        debug: bool = False,
         progress_bar: bool = False,
         stop_on_exception: bool = False,
         cache: Union[Cache, bool] = None,
         check_api_keys: bool = False,
         sidecar_model: Optional[LanguageModel] = None,
-        batch_mode: Optional[bool] = None,
         verbose: bool = False,
         print_exceptions=True,
         remote_cache_description: Optional[str] = None,
@@ -493,7 +491,6 @@ class Jobs(Base):
         Runs the Job: conducts Interviews and returns their results.
 
         :param n: how many times to run each interview
-        :param debug: prints debug messages
         :param progress_bar: shows a progress bar
         :param stop_on_exception: stops the job if an exception is raised
         :param cache: a cache object to store results
@@ -508,11 +505,6 @@ class Jobs(Base):
         self._check_parameters()
         self._skip_retry = skip_retry
         self._raise_validation_errors = raise_validation_errors
-
-        if batch_mode is not None:
-            raise NotImplementedError(
-                "Batch mode is deprecated. Please update your code to not include 'batch_mode' in the 'run' method."
-            )
 
         self.verbose = verbose
 
@@ -612,7 +604,6 @@ class Jobs(Base):
         if not remote_cache:
             results = self._run_local(
                 n=n,
-                debug=debug,
                 progress_bar=progress_bar,
                 cache=cache,
                 stop_on_exception=stop_on_exception,
@@ -657,12 +648,12 @@ class Jobs(Base):
             self._output("Running job...")
             results = self._run_local(
                 n=n,
-                debug=debug,
                 progress_bar=progress_bar,
                 cache=cache,
                 stop_on_exception=stop_on_exception,
                 sidecar_model=sidecar_model,
                 print_exceptions=print_exceptions,
+                raise_validation_errors=raise_validation_errors,
             )
             self._output("Job completed!")
 
@@ -897,7 +888,7 @@ def main():
 
     job = Jobs.example()
     len(job) == 8
-    results = job.run(debug=True, cache=Cache())
+    results = job.run(cache=Cache())
     len(results) == 8
     results
 

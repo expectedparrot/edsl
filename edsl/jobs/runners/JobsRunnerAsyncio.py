@@ -65,7 +65,6 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         self,
         cache: "Cache",
         n: int = 1,
-        debug: bool = False,
         stop_on_exception: bool = False,
         sidecar_model: Optional["LanguageModel"] = None,
         total_interviews: Optional[List["Interview"]] = None,
@@ -76,7 +75,6 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         Completed tasks are yielded as they are completed.
 
         :param n: how many times to run each interview
-        :param debug:
         :param stop_on_exception: Whether to stop the interview if an exception is raised
         :param sidecar_model: a language model to use in addition to the interview's model
         :param total_interviews: A list of interviews to run can be provided instead.
@@ -94,7 +92,6 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         for interview in self.total_interviews:
             interviewing_task = self._build_interview_task(
                 interview=interview,
-                debug=debug,
                 stop_on_exception=stop_on_exception,
                 sidecar_model=sidecar_model,
                 raise_validation_errors=raise_validation_errors,
@@ -138,7 +135,6 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         self,
         *,
         interview: Interview,
-        debug: bool,
         stop_on_exception: bool = False,
         sidecar_model: Optional["LanguageModel"] = None,
         raise_validation_errors: bool = False,
@@ -146,7 +142,6 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         """Conducts an interview and returns the result.
 
         :param interview: the interview to conduct
-        :param debug: prints debug messages
         :param stop_on_exception: stops the interview if an exception is raised
         :param sidecar_model: a language model to use in addition to the interview's model
         """
@@ -231,7 +226,6 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         self,
         cache: Union[Cache, False, None],
         n: int = 1,
-        debug: bool = False,
         stop_on_exception: bool = False,
         progress_bar: bool = False,
         sidecar_model: Optional[LanguageModel] = None,
@@ -260,7 +254,6 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             """Processes results from interviews."""
             async for result in self.run_async_generator(
                 n=n,
-                debug=debug,
                 stop_on_exception=stop_on_exception,
                 cache=cache,
                 sidecar_model=sidecar_model,
