@@ -119,8 +119,8 @@ class QuestionTaskCreator(UserList):
 
         >>> qt = QuestionTaskCreator.example()
         >>> answers = asyncio.run(qt._run_focal_task())
-        >>> answers["answer"]
-        'Yo!'
+        >>> answers.answer
+        'This is an example answer'
         """
 
         requested_tokens = self.estimated_tokens()
@@ -179,8 +179,13 @@ class QuestionTaskCreator(UserList):
 
         m = ModelBuckets.infinity_bucket()
 
+        from collections import namedtuple
+
+        AnswerDict = namedtuple("AnswerDict", ["answer", "cache_used"])
+        answer = AnswerDict(answer="This is an example answer", cache_used=False)
+
         async def answer_question_func(question, task):
-            return {"answer": "Yo!"}
+            return answer
 
         return cls(
             question=QuestionFreeText.example(),

@@ -19,6 +19,13 @@ from edsl.exceptions.questions import QuestionResponseValidationError
 from edsl.data_transfer_models import AgentResponseDict, EDSLResultObjectInput
 
 
+class NotApplicable(str):
+    def __new__(cls):
+        instance = super().__new__(cls, "Not Applicable")
+        instance.literal = "Not Applicable"
+        return instance
+
+
 class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
     """An invigilator that uses an AI model to answer questions."""
 
@@ -83,7 +90,7 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
             if self.raise_validation_errors:
                 raise e
         except Exception as non_validation_error:
-            print("Non-validation error", non_validation_error)
+            # print("Non-validation error", non_validation_error)
             raise non_validation_error
 
         data = {
@@ -118,12 +125,6 @@ class InvigilatorHuman(InvigilatorBase):
         """Return the answer to the question."""
 
         comment = "This is a real survey response from a human."
-
-        class NotApplicable(str):
-            def __new__(cls):
-                instance = super().__new__(cls, "Not Applicable")
-                instance.literal = "Not Applicable"
-                return instance
 
         def __repr__(self):
             return f"{self.literal}"
@@ -162,22 +163,36 @@ class InvigilatorFunctional(InvigilatorBase):
     async def async_answer_question(self, iteration: int = 0) -> AgentResponseDict:
         """Return the answer to the question."""
         func = self.question.answer_question_directly
-        data = {
-            "comment": "Functional.",
-            "prompts": self.get_prompts(),
-            "question_name": self.question.question_name,
-        }
-        try:
-            answer = func(scenario=self.scenario, agent_traits=self.agent.traits)
-            return AgentResponseDict(**(data | answer))
-        except Exception as e:
-            agent_response_dict = AgentResponseDict(
-                **(data | {"answer": None, "comment": str(e)})
-            )
-            raise FailedTaskException(
-                f"Failed to get response. The exception is {str(e)}",
-                agent_response_dict,
-            ) from e
+        # data = {
+        #     "comment": "Functional.",
+        #     "prompts": self.get_prompts(),
+        #     "question_name": self.question.question_name,
+        # }
+        answer = func(scenario=self.scenario, agent_traits=self.agent.traits)
+
+        return EDSLResultObjectInput(
+            generated_tokens=str(answer),
+            question_name=self.question.question_name,
+            prompts=self.get_prompts(),
+            cached_response=NotApplicable(),
+            raw_model_response=NotApplicable(),
+            cache_used=NotApplicable(),
+            cache_key=NotApplicable(),
+            answer=answer["answer"],
+            comment="This is the result of a functional question.",
+        )
+
+        # try:
+        #     answer = func(scenario=self.scenario, agent_traits=self.agent.traits)
+        #     return AgentResponseDict(**(data | answer))
+        # except Exception as e:
+        #     agent_response_dict = AgentResponseDict(
+        #         **(data | {"answer": None, "comment": str(e)})
+        #     )
+        #     raise FailedTaskException(
+        #         f"Failed to get response. The exception is {str(e)}",
+        #         agent_response_dict,
+        #     ) from e
 
     def get_prompts(self) -> Dict[str, Prompt]:
         """Return the prompts used."""

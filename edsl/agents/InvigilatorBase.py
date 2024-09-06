@@ -22,8 +22,8 @@ class InvigilatorBase(ABC):
     >>> InvigilatorBase.example().answer_question()
     {'message': '{"answer": "SPAM!"}'}
 
-    >>> InvigilatorBase.example().get_failed_task_result()
-    {'answer': None, 'comment': 'Failed to get response', ...
+    >>> InvigilatorBase.example().get_failed_task_result(failure_reason="Failed to get response").comment
+    'Failed to get response'
 
     This returns an empty prompt because there is no memory the agent needs to have at q0.
 
@@ -150,8 +150,6 @@ class InvigilatorBase(ABC):
         - Legimately skipped because of skip logic
         - Failed to get response from the model
 
-        >>> InvigilatorBase.example().get_failed_task_result()
-        {'answer': None, 'comment': 'Failed to get response', ...}
         """
         data = {
             "answer": None,
