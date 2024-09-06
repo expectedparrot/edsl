@@ -1,8 +1,5 @@
 from typing import Any, List
-import re
 import os
-
-# from openai import AsyncOpenAI
 import openai
 
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
@@ -77,11 +74,9 @@ class OpenAIService(InferenceServiceABC):
 
     @classmethod
     def available(cls) -> List[str]:
-        # from openai import OpenAI
 
         if not cls._models_list_cache:
             try:
-                # client = OpenAI(api_key = os.getenv(cls._env_key_name_), base_url = cls._base_url_)
                 cls._models_list_cache = [
                     m.id
                     for m in cls.get_model_list()
@@ -89,15 +84,6 @@ class OpenAIService(InferenceServiceABC):
                 ]
             except Exception as e:
                 raise
-                # print(
-                #     f"""Error retrieving models: {e}.
-                #     See instructions about storing your API keys: https://docs.expectedparrot.com/en/latest/api_keys.html"""
-                # )
-                # cls._models_list_cache = [
-                #     "gpt-3.5-turbo",
-                #     "gpt-4-1106-preview",
-                #     "gpt-4",
-                # ]  # Fallback list
         return cls._models_list_cache
 
     @classmethod
@@ -131,15 +117,9 @@ class OpenAIService(InferenceServiceABC):
 
             @classmethod
             def available(cls) -> list[str]:
-                # import openai
-                # client = openai.OpenAI(api_key = os.getenv(cls._env_key_name_), base_url = cls._base_url_)
-                # return client.models.list()
                 return cls.sync_client().models.list()
 
             def get_headers(self) -> dict[str, Any]:
-                # from openai import OpenAI
-
-                # client = OpenAI(api_key = os.getenv(cls._env_key_name_), base_url = cls._base_url_)
                 client = self.sync_client()
                 response = client.chat.completions.with_raw_response.create(
                     messages=[
@@ -190,10 +170,6 @@ class OpenAIService(InferenceServiceABC):
                     )
                 else:
                     content = user_prompt
-                # self.client = AsyncOpenAI(
-                #     api_key = os.getenv(cls._env_key_name_),
-                #     base_url = cls._base_url_
-                #     )
                 client = self.async_client()
                 params = {
                     "model": self.model,

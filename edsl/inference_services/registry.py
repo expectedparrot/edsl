@@ -10,6 +10,7 @@ from edsl.inference_services.GroqService import GroqService
 from edsl.inference_services.AwsBedrock import AwsBedrockService
 from edsl.inference_services.AzureAI import AzureAIService
 from edsl.inference_services.OllamaService import OllamaService
+from edsl.inference_services.TestService import TestService
 
 default = InferenceServicesCollection(
     [
@@ -21,5 +22,6 @@ default = InferenceServicesCollection(
         AwsBedrockService,
         AzureAIService,
         OllamaService,
+        TestService,
     ]
 )

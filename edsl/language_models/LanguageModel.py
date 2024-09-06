@@ -32,6 +32,8 @@ from typing import (
 )
 from abc import ABC, abstractmethod
 
+from json_repair import repair_json
+
 from edsl.data_transfer_models import (
     ModelResponse,
     ModelInputs,
@@ -39,64 +41,16 @@ from edsl.data_transfer_models import (
     AgentResponseDict,
 )
 
-# "cache_used": model_call_outcome.cache_used,
-# "cache_key": model_call_outcome.cache_key,
-# "usage": model_call_outcome.response.get("usage", {}),
-# "raw_model_response": model_call_outcome.response,
-
-# from edsl.data_transfer_models import EDSLOutput
-
-
-# class EDSLAugmentedResponse(TypedDict):
-#     cache_used: bool
-#     cache_key: str
-#     usage: dict[str, Any]
-#     raw_model_response: dict[str, Any]
-#     answer: Any
-#     comment: Optional[str]
-
-
-# class IntendedModelCallOutcome:
-#     "This is a tuple-like class that holds the response, cache_used, and cache_key."
-
-#     def __init__(self, response: dict, cache_used: bool, cache_key: str):
-#         self.response = response
-#         self.cache_used = cache_used
-#         self.cache_key = cache_key
-
-#     def __iter__(self):
-#         """Iterate over the class attributes.
-
-#         >>> a, b, c = IntendedModelCallOutcome({'answer': "yes"}, True, 'x1289')
-#         >>> a
-#         {'answer': 'yes'}
-#         """
-#         yield self.response
-#         yield self.cache_used
-#         yield self.cache_key
-
-#     def __len__(self):
-#         return 3
-
-#     def __repr__(self):
-#         return f"IntendedModelCallOutcome(response = {self.response}, cache_used = {self.cache_used}, cache_key = '{self.cache_key}')"
-
-
 from edsl.config import CONFIG
-
 from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
-
 from edsl.language_models.repair import repair
 from edsl.enums import InferenceServiceType
 from edsl.Base import RichPrintingMixin, PersistenceMixin
 from edsl.enums import service_to_api_keyname
 from edsl.exceptions import MissingAPIKeyError
 from edsl.language_models.RegisterLanguageModelsMeta import RegisterLanguageModelsMeta
-
-
-import json
-from json_repair import repair_json
+from edsl.exceptions.language_models import LanguageModelBadResponseError
 
 
 def convert_answer(response_part):
@@ -117,9 +71,6 @@ def convert_answer(response_part):
     except json.JSONDecodeError as j:
         # last resort
         return response_part
-
-
-from edsl.exceptions.language_models import LanguageModelBadResponseError
 
 
 def extract_generated_tokens_from_raw_response(data, key_sequence):
@@ -744,9 +695,6 @@ class LanguageModel(
                 if throw_exception:
                     raise Exception("This is a test error")
                 return {"message": [{"text": f"{canned_response}"}]}
-
-            # def parse_response(self, raw_response: dict[str, Any]) -> str:
-            #     return raw_response["message"]
 
         if test_model:
             m = TestLanguageModelGood()
