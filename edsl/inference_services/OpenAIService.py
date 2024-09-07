@@ -1,5 +1,7 @@
-from typing import Any, List
+from __future__ import annotations
+from typing import Any, List, Optional
 import os
+
 import openai
 
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
@@ -22,6 +24,9 @@ class OpenAIService(InferenceServiceABC):
     _async_client_instance = None
 
     key_sequence = ["choices", 0, "message", "content"]
+    usage_sequence = ["usage"]
+    input_token_name = "prompt_tokens"
+    output_token_name = "completion_tokens"
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -97,6 +102,10 @@ class OpenAIService(InferenceServiceABC):
             """
 
             key_sequence = cls.key_sequence
+            usage_sequence = cls.usage_sequence
+            input_token_name = cls.input_token_name
+            output_token_name = cls.output_token_name
+
             _inference_service_ = cls._inference_service_
             _model_ = model_name
             _parameters_ = {
@@ -156,6 +165,9 @@ class OpenAIService(InferenceServiceABC):
                 user_prompt: str,
                 system_prompt: str = "",
                 encoded_image=None,
+                invigilator: Optional[
+                    "InvigilatorAI"
+                ] = None,  # TBD - can eventually be used for function-calling
             ) -> dict[str, Any]:
                 """Calls the OpenAI API and returns the API response."""
                 if encoded_image:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 import time
+import math
 import asyncio
 import functools
 from typing import Coroutine, List, AsyncGenerator, Optional, Union, Generator
@@ -199,6 +200,15 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             raw_model_results_dictionary[question_name + "_raw_model_response"] = (
                 result.raw_model_response
             )
+            raw_model_results_dictionary[question_name + "_cost"] = result.cost
+            one_use_buys = (
+                "NA"
+                if isinstance(result.cost, str)
+                or result.cost == 0
+                or result.cost is None
+                else 1.0 / result.cost
+            )
+            raw_model_results_dictionary[question_name + "_one_usd_buys"] = one_use_buys
 
         # breakpoint()
         result = Result(

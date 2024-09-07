@@ -1,27 +1,15 @@
 """Module for creating Invigilators, which are objects to administer a question to an Agent."""
 
-import json
 from typing import Dict, Any, Optional
 
 from edsl.exceptions import AgentRespondedWithBadJSONError
 from edsl.prompts.Prompt import Prompt
 from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
 from edsl.prompts.registry import get_classes as prompt_lookup
-
-# from edsl.data_transfer_models import AgentResponseDict
-from edsl.exceptions.agents import FailedTaskException
+from edsl.exceptions.questions import QuestionAnswerValidationError
 from edsl.agents.PromptConstructionMixin import PromptConstructorMixin
-
 from edsl.agents.InvigilatorBase import InvigilatorBase
-
-from edsl.exceptions.questions import (
-    QuestionResponseValidationError,
-    QuestionAnswerValidationError,
-)
-
 from edsl.data_transfer_models import AgentResponseDict, EDSLResultObjectInput
-
-from dataclasses import dataclass
 
 
 class NotApplicable(str):
@@ -39,7 +27,7 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
 
         >>> i = InvigilatorAI.example()
         >>> i.answer_question()
-        {'message': '{"answer": "SPAM!"}'}
+        {'message': [{'text': 'SPAM!'}], 'usage': {'prompt_tokens': 1, 'completion_tokens': 1}}
         """
         prompts = self.get_prompts()
         params = {
@@ -51,21 +39,21 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
 
         params.update({"iteration": self.iteration, "cache": self.cache})
 
-        agent_response_dict = await self.model.async_get_response(**params)
-
-        # Store the raw response in case fails #
+        agent_response_dict: AgentResponseDict = await self.model.async_get_response(
+            **params
+        )
+        # store to self in case validation failure
         self.raw_model_response = agent_response_dict.model_outputs.response
         self.generated_tokens = agent_response_dict.edsl_dict.generated_tokens
 
-        result_data = self.extract_edsl_result_entry(agent_response_dict)
-        return result_data
+        return self.extract_edsl_result_entry_and_validate(agent_response_dict)
 
     def _remove_from_cache(self, cache_key) -> None:
         """Remove an entry from the cache."""
         if cache_key:
             del self.cache.data[cache_key]
 
-    def determine_answer(self, raw_answer: str) -> str:
+    def determine_answer(self, raw_answer: str) -> Any:
         question_dict = self.survey.question_names_to_questions()
         # iterates through the current answers and updates the question_dict (which is all questions)
         for other_question, answer in self.current_answers.items():
@@ -82,20 +70,31 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
         # sometimes the answer is a code, so we need to translate it
         return self.question._translate_answer_code_to_answer(raw_answer, combined_dict)
 
-    def extract_edsl_result_entry(self, agent_response_dict: dict):
-        validation_successful = False
+    def extract_edsl_result_entry_and_validate(
+        self, agent_response_dict: AgentResponseDict
+    ) -> EDSLResultObjectInput:
         edsl_dict = agent_response_dict.edsl_dict._asdict()
         exception_occurred = None
+        validated = False
         try:
             validated_edsl_dict = self.question._validate_answer(edsl_dict)
-            validation_successful = True
+            answer = self.determine_answer(validated_edsl_dict["answer"])
+            comment = validated_edsl_dict.get("comment", "")
+            validated = True
         except QuestionAnswerValidationError as e:
+            answer = None
+            comment = "The response was not valid."
             if self.raise_validation_errors:
                 exception_occurred = e
         except Exception as non_validation_error:
+            answer = None
+            comment = "Some other error occurred."
             exception_occurred = non_validation_error
         finally:
+            # even if validation failes, we still return the result
             data = {
+                "answer": answer,
+                "comment": comment,
                 "generated_tokens": agent_response_dict.edsl_dict.generated_tokens,
                 "question_name": self.question.question_name,
                 "prompts": self.get_prompts(),
@@ -103,27 +102,14 @@ class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
                 "raw_model_response": agent_response_dict.model_outputs.response,
                 "cache_used": agent_response_dict.model_outputs.cache_used,
                 "cache_key": agent_response_dict.model_outputs.cache_key,
+                "validated": validated,
+                "exception_occurred": exception_occurred,
+                "cost": agent_response_dict.model_outputs.cost,
             }
-            if not validation_successful:
-                self._remove_from_cache(agent_response_dict.model_outputs.cache_key)
-                data["answer"] = None
-                data["comment"] = "The response was not valid."
-                data["validated"] = False
-            else:
-                data["answer"] = self.determine_answer(validated_edsl_dict["answer"])
-                data["comment"] = validated_edsl_dict.get("comment", "")
-                data["validated"] = True
-
-            if exception_occurred:
-                data["exception_occurred"] = exception_occurred
-
             result = EDSLResultObjectInput(**data)
             return result
 
     answer_question = sync_wrapper(async_answer_question)
-
-
-from edsl.exceptions.questions import QuestionAnswerValidationError
 
 
 class InvigilatorHuman(InvigilatorBase):
@@ -134,7 +120,6 @@ class InvigilatorHuman(InvigilatorBase):
 
     async def async_answer_question(self, iteration: int = 0) -> AgentResponseDict:
         """Return the answer to the question."""
-
         comment = "This is a real survey response from a human."
 
         def __repr__(self):
@@ -142,11 +127,10 @@ class InvigilatorHuman(InvigilatorBase):
 
         exception_occurred = None
         validated = False
-
         try:
             answer = self.agent.answer_question_directly(self.question, self.scenario)
-            # breakpoint()
             self.raw_model_response = answer
+
             if self.validate_response:
                 _ = self.question._validate_answer({"answer": answer})
             if self.translate_response:
@@ -156,28 +140,27 @@ class InvigilatorHuman(InvigilatorBase):
             validated = True
         except QuestionAnswerValidationError as e:
             answer = None
-            comment = f"Validation error - the exception is {str(e)}"
             if self.raise_validation_errors:
                 exception_occurred = e
         except Exception as e:
             answer = None
-            comment = f"An exception occurred - the exception is {str(e)}"
             if self.raise_validation_errors:
                 exception_occurred = e
-
-        return EDSLResultObjectInput(
-            generated_tokens=str(answer),
-            question_name=self.question.question_name,
-            prompts=self.get_prompts(),
-            cached_response=NotApplicable(),
-            raw_model_response=NotApplicable(),
-            cache_used=NotApplicable(),
-            cache_key=NotApplicable(),
-            answer=answer,
-            exception_occurred=exception_occurred,
-            validated=validated,
-            comment=comment,
-        )
+        finally:
+            data = {
+                "generated_tokens": NotApplicable(),
+                "question_name": self.question.question_name,
+                "prompts": self.get_prompts(),
+                "cached_response": NotApplicable(),
+                "raw_model_response": NotApplicable(),
+                "cache_used": NotApplicable(),
+                "cache_key": NotApplicable(),
+                "answer": answer,
+                "comment": comment,
+                "validated": validated,
+                "exception_occurred": exception_occurred,
+            }
+            return EDSLResultObjectInput(**data)
 
 
 class InvigilatorFunctional(InvigilatorBase):
@@ -186,13 +169,7 @@ class InvigilatorFunctional(InvigilatorBase):
     async def async_answer_question(self, iteration: int = 0) -> AgentResponseDict:
         """Return the answer to the question."""
         func = self.question.answer_question_directly
-        # data = {
-        #     "comment": "Functional.",
-        #     "prompts": self.get_prompts(),
-        #     "question_name": self.question.question_name,
-        # }
         answer = func(scenario=self.scenario, agent_traits=self.agent.traits)
-        # breakpoint()
 
         return EDSLResultObjectInput(
             generated_tokens=str(answer),
@@ -207,18 +184,6 @@ class InvigilatorFunctional(InvigilatorBase):
             validated=True,
             exception_occurred=None,
         )
-
-        # try:
-        #     answer = func(scenario=self.scenario, agent_traits=self.agent.traits)
-        #     return AgentResponseDict(**(data | answer))
-        # except Exception as e:
-        #     agent_response_dict = AgentResponseDict(
-        #         **(data | {"answer": None, "comment": str(e)})
-        #     )
-        #     raise FailedTaskException(
-        #         f"Failed to get response. The exception is {str(e)}",
-        #         agent_response_dict,
-        #     ) from e
 
     def get_prompts(self) -> Dict[str, Prompt]:
         """Return the prompts used."""

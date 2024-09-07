@@ -49,8 +49,10 @@ class InvigilatorTest(InvigilatorAI):
 
 def test_good_answer_cached():
     cache = Cache()
+    from edsl import Model
 
-    m = LanguageModel.example(test_model=True, canned_response="1")
+    # m = LanguageModel.example(test_model=True, canned_response="1")
+    m = Model("test", canned_response=1)
     results = q.by(m).run(cache=cache)
     results.select("answer.*").print()
     assert cache.data != {}

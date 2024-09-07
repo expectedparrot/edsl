@@ -30,7 +30,7 @@ class TestLanguageModel(unittest.TestCase):
             system_prompt="You are a helpful agent",
             cache=Cache(),
         )
-        self.assertEqual(imco.response, {"message": [{"text": "Hello, world!"}]})
+        self.assertEqual(imco.response["message"][0]["text"], "Hello, world!")
         self.assertEqual(imco.cached_response, None)
 
     # def test_get_response(self):

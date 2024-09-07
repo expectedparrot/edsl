@@ -20,7 +20,8 @@ def valid_job():
     )
     survey = Survey(questions=[q])
     agent = Agent(traits={"trait1": "value1"})
-    model = LanguageModel.example(test_model=True, canned_response="SPAM!")
+    # model = LanguageModel.example(test_model=True, canned_response="SPAM!")
+    model = Model("test", canned_response="SPAM!")
     scenario = Scenario({"price": 100, "quantity": 2})
     valid_job = Jobs(
         survey=survey,
@@ -46,15 +47,14 @@ def test_jobs_simple_stuf(valid_job):
     from edsl import AgentList
     from edsl import ModelList
 
-    # TODO: Add test_model to inference service
-    # assert isinstance(eval(repr(valid_job)), Jobs)
+    assert isinstance(eval(repr(valid_job)), Jobs)
     # serialization
     assert isinstance(valid_job.to_dict(), dict)
 
     ## When we have a test_model, we can uncomment this.
 
-    ## assert isinstance(Jobs.from_dict(valid_job.to_dict()), Jobs)
-    ##assert Jobs.from_dict(valid_job.to_dict()).to_dict() == valid_job.to_dict()
+    assert isinstance(Jobs.from_dict(valid_job.to_dict()), Jobs)
+    assert Jobs.from_dict(valid_job.to_dict()).to_dict() == valid_job.to_dict()
     # serialize and de-serialize an empty job
     empty_job = Jobs(survey=Survey(questions=[valid_job.survey._questions[0]]))
     assert Jobs.from_dict(empty_job.to_dict()).to_dict() == empty_job.to_dict()
@@ -208,22 +208,23 @@ def test_normal_run():
     import asyncio
     from typing import Any
 
-    class TestLanguageModelGood(LanguageModel):
-        _model_ = "test"
-        _parameters_ = {"temperature": 0.5}
-        _inference_service_ = InferenceServiceType.TEST.value
-        key_sequence = ["message", 0, "text"]
+    # class TestLanguageModelGood(LanguageModel):
+    #     _model_ = "test"
+    #     _parameters_ = {"temperature": 0.5}
+    #     _inference_service_ = InferenceServiceType.TEST.value
+    #     key_sequence = ["message", 0, "text"]
 
-        async def async_execute_model_call(
-            self, user_prompt: str, system_prompt: str
-        ) -> dict[str, Any]:
-            await asyncio.sleep(0.0)
-            return {"message": [{"text": "SPAM!"}]}
+    #     async def async_execute_model_call(
+    #         self, user_prompt: str, system_prompt: str
+    #     ) -> dict[str, Any]:
+    #         await asyncio.sleep(0.0)
+    #         return {"message": [{"text": "SPAM!"}]}
 
-        # def parse_response(self, raw_response: dict[str, Any]) -> str:
-        #     return raw_response["message"]
+    #     # def parse_response(self, raw_response: dict[str, Any]) -> str:
+    #     #     return raw_response["message"]
 
-    model = TestLanguageModelGood()
+    # model = TestLanguageModelGood()
+    model = Model("test", canned_response="SPAM!")
     from edsl.questions import QuestionFreeText
 
     q = QuestionFreeText(question_text="What is your name?", question_name="name")

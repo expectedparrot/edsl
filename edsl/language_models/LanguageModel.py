@@ -25,6 +25,7 @@ from typing import (
     Any,
     Callable,
     Type,
+    Union,
     List,
     get_type_hints,
     TypedDict,
@@ -73,7 +74,7 @@ def convert_answer(response_part):
         return response_part
 
 
-def extract_generated_tokens_from_raw_response(data, key_sequence):
+def extract_item_from_raw_response(data, key_sequence):
     if isinstance(data, str):
         try:
             data = json.loads(data)
@@ -109,8 +110,10 @@ def extract_generated_tokens_from_raw_response(data, key_sequence):
             else:
                 msg = f"Error accessing path: {path}. {str(e)}. Full response is: '{data}'"
             raise LanguageModelBadResponseError(message=msg, response_json=data)
-
-    return current_data.strip()  # in case any whitespace was added
+    if isinstance(current_data, str):
+        return current_data.strip()
+    else:
+        return current_data
 
 
 def handle_key_error(func):
@@ -333,10 +336,10 @@ class LanguageModel(
         >>> m = LanguageModel.example(test_model = True)
         >>> async def test(): return await m.async_execute_model_call("Hello, model!", "You are a helpful agent.")
         >>> asyncio.run(test())
-        {'message': [{'text': 'Hello world'}]}
+        {'message': [{'text': 'Hello world'}], ...}
 
         >>> m.execute_model_call("Hello, model!", "You are a helpful agent.")
-        {'message': [{'text': 'Hello world'}]}
+        {'message': [{'text': 'Hello world'}], ...}
         """
         pass
 
@@ -372,9 +375,16 @@ class LanguageModel(
     @classmethod
     def get_generated_token_string(cls, raw_response: dict[str, Any]) -> str:
         """Return the generated token string from the raw response."""
-        return extract_generated_tokens_from_raw_response(
-            raw_response, cls.key_sequence
-        )
+        return extract_item_from_raw_response(raw_response, cls.key_sequence)
+
+    @classmethod
+    def get_usage_dict(cls, raw_response: dict[str, Any]) -> dict[str, Any]:
+        """Return the usage dictionary from the raw response."""
+        if not hasattr(cls, "usage_sequence"):
+            raise NotImplementedError(
+                "This inference service does not have a usage_sequence."
+            )
+        return extract_item_from_raw_response(raw_response, cls.usage_sequence)
 
     @classmethod
     def parse_response(cls, raw_response: dict[str, Any]) -> EDSLOutput:
@@ -396,72 +406,6 @@ class LanguageModel(
                 "generated_tokens": generated_token_string,
             }
         return EDSLOutput(**edsl_dict)
-
-    # async def _async_prepare_response(
-    #     self, model_call_outcome: IntendedModelCallOutcome, cache: "Cache"
-    # ) -> AgentResponseDict:
-    #     """Prepare the response for return."""
-
-    #     model_response = {
-    #         "cache_used": model_call_outcome.cache_used,
-    #         "cache_key": model_call_outcome.cache_key,
-    #         "usage": model_call_outcome.response.get("usage", {}),
-    #         "raw_model_response": model_call_outcome.response,
-    #     }
-    #     model_response = ModelResponse(
-    #         cach
-
-    #     )
-
-    #     (NamedTuple):
-    # "This is the metadata that is returned by the model and includes info about the cache"
-    # cached_response: Optional[str] = None
-    # raw_model_response: Optional[str] = None
-    # simple_model_raw_response: Optional[str] = None
-    # cache_used: Optional[bool] = None
-    # cache_key: Optional[str] = None
-    # cached_response: Optional[str] = None
-
-    # answer_portion = self.parse_response(model_call_outcome.response)
-    # answer_portion = json.dumps({"answer": str(answer_portion)})
-
-    # try:
-    #     answer_dict = json.loads(answer_portion)
-    # except json.JSONDecodeError as e:
-    #     # TODO: Turn into logs to generate issues
-    #     print("Bad JSON response from model.")
-    #     print(answer_portion)
-    #     print("The exception was: ", e)
-
-    #     answer_dict, success = await repair(
-    #         bad_json=answer_portion, error_message=str(e), cache=cache
-    #     )
-    #     if not success:
-    #         raise Exception(
-    #             f"""Even the repair failed. The error was: {e}. The response was: {answer_portion}."""
-    #         )
-    # return {**model_response, **answer_dict}
-
-    # async def async_get_raw_response(
-    #     self,
-    #     user_prompt: str,
-    #     system_prompt: str,
-    #     cache: "Cache",
-    #     iteration: int = 0,
-    #     encoded_image=None,
-    # ) -> IntendedModelCallOutcome:
-    #     import warnings
-
-    #     warnings.warn(
-    #         "This method is deprecated. Use async_get_intended_model_call_outcome."
-    #     )
-    #     return await self._async_get_intended_model_call_outcome(
-    #         user_prompt=user_prompt,
-    #         system_prompt=system_prompt,
-    #         cache=cache,
-    #         iteration=iteration,
-    #         encoded_image=encoded_image,
-    #     )
 
     async def _async_get_intended_model_call_outcome(
         self,
@@ -489,8 +433,7 @@ class LanguageModel(
         >>> from edsl import Cache
         >>> m = LanguageModel.example(test_model = True)
         >>> m._get_intended_model_call_outcome(user_prompt = "Hello", system_prompt = "hello", cache = Cache())
-        ModelResponse(response={'message': [{'text': 'Hello world'}]}, cache_used=False, cache_key='24ff6ac2bc2f1729f817f261e0792577', cached_response=None)
-        """
+        ModelResponse(...)"""
 
         if encoded_image:
             # the image has is appended to the user_prompt for hash-lookup purposes
@@ -524,11 +467,14 @@ class LanguageModel(
             )  # store the response in the cache
             assert new_cache_key == cache_key  # should be the same
 
+        cost = self.cost(response)
+
         return ModelResponse(
             response=response,
             cache_used=cache_used,
             cache_key=cache_key,
             cached_response=cached_response,
+            cost=cost,
         )
 
     _get_intended_model_call_outcome = sync_wrapper(
@@ -588,9 +534,52 @@ class LanguageModel(
 
     get_response = sync_wrapper(async_get_response)
 
-    def cost(self, raw_response: dict[str, Any]) -> float:
+    def cost(self, raw_response: dict[str, Any]) -> Union[float, str]:
         """Return the dollar cost of a raw response."""
-        raise NotImplementedError
+
+        usage = self.get_usage_dict(raw_response)
+        from edsl.coop import Coop
+
+        c = Coop()
+        price_lookup = c.fetch_prices()
+        key = (self._inference_service_, self.model)
+        if key not in price_lookup:
+            return f"Could not find price for model {self.model} in the price lookup."
+
+        relevant_prices = price_lookup[key]
+        try:
+            input_tokens = int(usage[self.input_token_name])
+            output_tokens = int(usage[self.output_token_name])
+        except Exception as e:
+            return f"Could not fetch tokens from model response: {e}"
+
+        try:
+            inverse_output_price = relevant_prices["output"]["one_usd_buys"]
+            inverse_input_price = relevant_prices["input"]["one_usd_buys"]
+        except Exception as e:
+            if "output" not in relevant_prices:
+                return f"Could not fetch prices from {relevant_prices} - {e}; Missing 'output' key."
+            if "input" not in relevant_prices:
+                return f"Could not fetch prices from {relevant_prices} - {e}; Missing 'input' key."
+            return f"Could not fetch prices from {relevant_prices} - {e}"
+
+        if inverse_input_price == "infinity":
+            input_cost = 0
+        else:
+            try:
+                input_cost = input_tokens / float(inverse_input_price)
+            except Exception as e:
+                return f"Could not compute input price - {e}."
+
+        if inverse_output_price == "infinity":
+            output_cost = 0
+        else:
+            try:
+                output_cost = output_tokens / float(inverse_output_price)
+            except Exception as e:
+                return f"Could not compute output price - {e}"
+
+        return input_cost + output_cost
 
     #######################
     # SERIALIZATION METHODS
@@ -680,24 +669,24 @@ class LanguageModel(
         """
         from edsl import Model
 
-        class TestLanguageModelGood(LanguageModel):
-            use_cache = False
-            _model_ = "test"
-            _parameters_ = {"temperature": 0.5}
-            _inference_service_ = InferenceServiceType.TEST.value
-            key_sequence = ["message", 0, "text"]
+        # class TestLanguageModelGood(LanguageModel):
+        #     use_cache = False
+        #     _model_ = "test"
+        #     _parameters_ = {"temperature": 0.5}
+        #     _inference_service_ = InferenceServiceType.TEST.value
+        #     key_sequence = ["message", 0, "text"]
 
-            async def async_execute_model_call(
-                self, user_prompt: str, system_prompt: str
-            ) -> dict[str, Any]:
-                await asyncio.sleep(0.1)
-                # return {"message": """{"answer": "Hello, world"}"""}
-                if throw_exception:
-                    raise Exception("This is a test error")
-                return {"message": [{"text": f"{canned_response}"}]}
+        #     async def async_execute_model_call(
+        #         self, user_prompt: str, system_prompt: str
+        #     ) -> dict[str, Any]:
+        #         await asyncio.sleep(0.1)
+        #         # return {"message": """{"answer": "Hello, world"}"""}
+        #         if throw_exception:
+        #             raise Exception("This is a test error")
+        #         return {"message": [{"text": f"{canned_response}"}]}
 
         if test_model:
-            m = TestLanguageModelGood()
+            m = Model("test", canned_response=canned_response)
             return m
         else:
             return Model(skip_api_key_check=True)
