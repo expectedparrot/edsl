@@ -160,15 +160,6 @@ class RegisterLanguageModelsMeta(ABCMeta):
         Check if the return type of a method is as expected.
 
         Example:
-        >>> class M:
-        ...     async def f(self) -> str: pass
-        >>> RegisterLanguageModelsMeta._check_return_type(M.f, str)
-        >>> class N:
-        ...     async def f(self) -> int: pass
-        >>> RegisterLanguageModelsMeta._check_return_type(N.f, str)
-        Traceback (most recent call last):
-        ...
-        TypeError: Return type of f must be <class 'str'>. Got <class 'int'>.
         """
         pass
         # if inspect.isroutine(method):

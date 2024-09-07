@@ -669,22 +669,6 @@ class LanguageModel(
         """
         from edsl import Model
 
-        # class TestLanguageModelGood(LanguageModel):
-        #     use_cache = False
-        #     _model_ = "test"
-        #     _parameters_ = {"temperature": 0.5}
-        #     _inference_service_ = InferenceServiceType.TEST.value
-        #     key_sequence = ["message", 0, "text"]
-
-        #     async def async_execute_model_call(
-        #         self, user_prompt: str, system_prompt: str
-        #     ) -> dict[str, Any]:
-        #         await asyncio.sleep(0.1)
-        #         # return {"message": """{"answer": "Hello, world"}"""}
-        #         if throw_exception:
-        #             raise Exception("This is a test error")
-        #         return {"message": [{"text": f"{canned_response}"}]}
-
         if test_model:
             m = Model("test", canned_response=canned_response)
             return m
