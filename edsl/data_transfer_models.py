@@ -21,6 +21,7 @@ class ModelResponse(NamedTuple):
     cache_used: bool
     cache_key: str
     cached_response: Optional[Dict[str, Any]] = None
+    cost: Optional[float] = None
 
 
 class AgentResponseDict(NamedTuple):
@@ -41,6 +42,7 @@ class EDSLResultObjectInput(NamedTuple):
     comment: str
     validated: bool = False
     exception_occurred: Exception = None
+    cost: Optional[float] = None
 
 
 # from collections import UserDict

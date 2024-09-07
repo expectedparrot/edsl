@@ -241,7 +241,7 @@ class QuestionBase(
         >>> from edsl import QuestionFreeText as Q
         >>> m = Q._get_test_model(canned_response = "Yo, what's up?")
         >>> m.execute_model_call("", "")
-        {'message': [{'text': "Yo, what's up?"}]}
+        {'message': [{'text': "Yo, what's up?"}], 'usage': {'prompt_tokens': 1, 'completion_tokens': 1}}
         >>> Q.run_example(show_answer = True, model = m)
         ┏━━━━━━━━━━━━━━━━┓
         ┃ answer         ┃

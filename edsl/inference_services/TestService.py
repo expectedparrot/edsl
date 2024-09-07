@@ -15,6 +15,8 @@ class TestService(InferenceServiceABC):
     key_sequence = None
     model_exclude_list = []
     _inference_service_ = "test"
+    input_token_name = "prompt_tokens"
+    output_token_name = "completion_tokens"
 
     @classmethod
     def available(cls) -> list[str]:
@@ -25,23 +27,28 @@ class TestService(InferenceServiceABC):
 
         throw_exception = False
 
-        class TestLanguageModelGood(LanguageModel):
-            use_cache = False
+        class TestServiceLanguageModel(LanguageModel):
             _model_ = "test"
             _parameters_ = {"temperature": 0.5}
             _inference_service_ = InferenceServiceType.TEST.value
+            usage_sequence = ["usage"]
             key_sequence = ["message", 0, "text"]
+            input_token_name = cls.input_token_name
+            output_token_name = cls.output_token_name
 
             async def async_execute_model_call(
                 self, user_prompt: str, system_prompt: str
             ) -> dict[str, Any]:
                 await asyncio.sleep(0.1)
                 # return {"message": """{"answer": "Hello, world"}"""}
-                if throw_exception:
+                if hasattr(self, "throw_exception") and self.throw_exception:
                     raise Exception("This is a test error")
-                return {"message": [{"text": f"{self.canned_response}"}]}
+                return {
+                    "message": [{"text": f"{self.canned_response}"}],
+                    "usage": {"prompt_tokens": 1, "completion_tokens": 1},
+                }
 
-        return TestLanguageModelGood
+        return TestServiceLanguageModel
 
     # _inference_service_ = "openai"
     # _env_key_name_ = "OPENAI_API_KEY"

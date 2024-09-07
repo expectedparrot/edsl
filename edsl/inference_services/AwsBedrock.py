@@ -17,6 +17,9 @@ class AwsBedrockService(InferenceServiceABC):
         "AWS_ACCESS_KEY_ID"  # or any other environment key for AWS credentials
     )
     key_sequence = ["output", "message", "content", 0, "text"]
+    input_token_name = "inputTokens"
+    output_token_name = "outputTokens"
+    usage_sequence = ["usage"]
     model_exclude_list = [
         "ai21.j2-grande-instruct",
         "ai21.j2-jumbo-instruct",
@@ -52,6 +55,7 @@ class AwsBedrockService(InferenceServiceABC):
             """
 
             key_sequence = cls.key_sequence
+            usage_sequence = cls.usage_sequence
             _inference_service_ = cls._inference_service_
             _model_ = model_name
             _parameters_ = {
@@ -59,6 +63,8 @@ class AwsBedrockService(InferenceServiceABC):
                 "max_tokens": 512,
                 "top_p": 0.9,
             }
+            input_token_name = cls.input_token_name
+            output_token_name = cls.output_token_name
 
             async def async_execute_model_call(
                 self, user_prompt: str, system_prompt: str = ""

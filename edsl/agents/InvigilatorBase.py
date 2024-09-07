@@ -20,7 +20,7 @@ class InvigilatorBase(ABC):
     """An invigiator (someone who administers an exam) is a class that is responsible for administering a question to an agent.
 
     >>> InvigilatorBase.example().answer_question()
-    {'message': '{"answer": "SPAM!"}'}
+    {'message': [{'text': 'SPAM!'}], 'usage': {'prompt_tokens': 1, 'completion_tokens': 1}}
 
     >>> InvigilatorBase.example().get_failed_task_result(failure_reason="Failed to get response").comment
     'Failed to get response'
@@ -241,26 +241,28 @@ class InvigilatorBase(ABC):
 
         from edsl.enums import InferenceServiceType
 
-        class TestLanguageModelGood(LanguageModel):
-            """A test language model."""
+        from edsl import Model
 
-            _model_ = "test"
-            _parameters_ = {"temperature": 0.5}
-            _inference_service_ = InferenceServiceType.TEST.value
+        model = Model("test", canned_response="SPAM!")
+        # class TestLanguageModelGood(LanguageModel):
+        #     """A test language model."""
 
-            async def async_execute_model_call(
-                self, user_prompt: str, system_prompt: str
-            ) -> dict[str, Any]:
-                await asyncio.sleep(0.1)
-                if hasattr(self, "throw_an_exception"):
-                    raise Exception("Error!")
-                return {"message": """{"answer": "SPAM!"}"""}
+        #     _model_ = "test"
+        #     _parameters_ = {"temperature": 0.5}
+        #     _inference_service_ = InferenceServiceType.TEST.value
 
-            def parse_response(self, raw_response: dict[str, Any]) -> str:
-                """Parse the response from the model."""
-                return raw_response["message"]
+        #     async def async_execute_model_call(
+        #         self, user_prompt: str, system_prompt: str
+        #     ) -> dict[str, Any]:
+        #         await asyncio.sleep(0.1)
+        #         if hasattr(self, "throw_an_exception"):
+        #             raise Exception("Error!")
+        #         return {"message": """{"answer": "SPAM!"}"""}
 
-        model = TestLanguageModelGood()
+        #     def parse_response(self, raw_response: dict[str, Any]) -> str:
+        #         """Parse the response from the model."""
+        #         return raw_response["message"]
+
         if throw_an_exception:
             model.throw_an_exception = True
         agent = Agent.example()
