@@ -11,11 +11,15 @@ from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
 class GoogleService(InferenceServiceABC):
     _inference_service_ = "google"
     key_sequence = ["candidates", 0, "content", "parts", 0, "text"]
+    usage_sequence = ["usageMetadata"]
+    input_token_name = "promptTokenCount"
+    output_token_name = "candidatesTokenCount"
+
     model_exclude_list = []
 
     @classmethod
     def available(cls):
-        return ["gemini-pro"]
+        return ["gemini-pro", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.0-pro"]
 
     @classmethod
     def create_model(
@@ -27,7 +31,11 @@ class GoogleService(InferenceServiceABC):
         class LLM(LanguageModel):
             _model_ = model_name
             key_sequence = cls.key_sequence
+            usage_sequence = cls.usage_sequence
+            input_token_name = cls.input_token_name
+            output_token_name = cls.output_token_name
             _inference_service_ = cls._inference_service_
+
             _parameters_ = {
                 "temperature": 0.5,
                 "topP": 1,
@@ -53,7 +61,7 @@ class GoogleService(InferenceServiceABC):
                         "stopSequences": self.stopSequences,
                     },
                 }
-
+                print(combined_prompt)
                 async with aiohttp.ClientSession() as session:
                     async with session.post(
                         url, headers=headers, data=json.dumps(data)

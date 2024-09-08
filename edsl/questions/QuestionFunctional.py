@@ -100,6 +100,10 @@ class QuestionFunctional(QuestionBase):
         """Required by Question, but not used by QuestionFunctional."""
         raise NotImplementedError
 
+    @property
+    def question_html_content(self) -> str:
+        return "NA for QuestionFunctional"
+
     @add_edsl_version
     def to_dict(self):
         return {

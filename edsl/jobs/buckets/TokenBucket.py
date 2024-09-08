@@ -130,7 +130,8 @@ class TokenBucket:
         ...
         ValueError: Requested amount exceeds bucket capacity. Bucket capacity: 10, requested amount: 11. As the bucket never overflows, the requested amount will never be available.
         >>> asyncio.run(bucket.get_tokens(11, cheat_bucket_capacity=True))
-        The requested amount, 11, exceeds the current bucket capacity of 10.Increasing bucket capacity to 11 * 1.10 accommodate the requested amount.
+        >>> bucket.capacity
+        12.100000000000001
         """
         if amount >= self.capacity:
             if not cheat_bucket_capacity:
@@ -138,9 +139,9 @@ class TokenBucket:
                 raise ValueError(msg)
             else:
                 # self.tokens = 0  # clear the bucket but let it go through
-                print(
-                    f"""The requested amount, {amount}, exceeds the current bucket capacity of {self.capacity}.Increasing bucket capacity to {amount} * 1.10 accommodate the requested amount."""
-                )
+                # print(
+                #    f"""The requested amount, {amount}, exceeds the current bucket capacity of {self.capacity}.Increasing bucket capacity to {amount} * 1.10 accommodate the requested amount."""
+                # )
                 self.capacity = amount * 1.10
                 self._old_capacity = self.capacity
 

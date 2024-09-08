@@ -12,19 +12,20 @@ class InterviewExceptionEntry:
         self,
         *,
         exception: Exception,
-        failed_question: FailedQuestion,
+        # failed_question: FailedQuestion,
         invigilator: "Invigilator",
         traceback_format="text",
     ):
         self.time = datetime.datetime.now().isoformat()
         self.exception = exception
-        self.failed_question = failed_question
+        # self.failed_question = failed_question
         self.invigilator = invigilator
         self.traceback_format = traceback_format
 
     @property
     def question_type(self):
-        return self.failed_question.question.question_type
+        # return self.failed_question.question.question_type
+        return self.invigilator.question.question_type
 
     @property
     def name(self):
@@ -67,7 +68,9 @@ class InterviewExceptionEntry:
 
         m = LanguageModel.example(test_model=True)
         q = QuestionFreeText.example(exception_to_throw=ValueError)
-        results = q.by(m).run(skip_retry=True, print_exceptions=False)
+        results = q.by(m).run(
+            skip_retry=True, print_exceptions=False, raise_validation_errors=True
+        )
         return results.task_history.exceptions[0]["how_are_you"][0]
 
     @property
@@ -78,7 +81,7 @@ class InterviewExceptionEntry:
         lines = []
         lines.append("from edsl import Question, Model, Scenario, Agent")
 
-        lines.append(f"q = {repr(self.failed_question.question)}")
+        lines.append(f"q = {repr(self.invigilator.question)}")
         lines.append(f"scenario = {repr(self.invigilator.scenario)}")
         lines.append(f"agent = {repr(self.invigilator.agent)}")
         lines.append(f"m = Model('{self.invigilator.model.model}')")
@@ -144,7 +147,7 @@ class InterviewExceptionEntry:
             "exception": self.exception,
             "time": self.time,
             "traceback": self.traceback,
-            "failed_question": self.failed_question.to_dict(),
+            # "failed_question": self.failed_question.to_dict(),
             "invigilator": self.invigilator.to_dict(),
         }
 
