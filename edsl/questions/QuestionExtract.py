@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any
+from typing import Any, Optional, Dict
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.descriptors import AnswerTemplateDescriptor
 
@@ -56,10 +56,12 @@ def dict_to_pydantic_model(input_dict: Dict[str, Any]) -> Any:
 
     DynamicModel = create_model("DynamicModel", **field_definitions)
 
-    return create_model(
-        "AnswerModel",
-        answer=(DynamicModel, ...),  # ... means the field is required
-    )
+    class AnswerModel(BaseResponse):
+        answer: DynamicModel
+        generated_tokens: Optional[str] = None
+        comment: Optional[str] = None
+
+    return AnswerModel
 
 
 class ExtractResponseValidator(ResponseValidatorABC):

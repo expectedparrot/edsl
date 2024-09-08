@@ -640,33 +640,37 @@ class Coop:
         return response_json
 
     def fetch_prices(self):
-        import requests
-        import csv
-        from io import StringIO
+        from edsl.coop.PriceFetcher import PriceFetcher
 
-        sheet_id = "1SAO3Bhntefl0XQHJv27rMxpvu6uzKDWNXFHRa7jrUDs"
+        price_fetcher = PriceFetcher()
+        return price_fetcher.fetch_prices()
+        # import requests
+        # import csv
+        # from io import StringIO
 
-        # Construct the URL to fetch the CSV
-        url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
+        # sheet_id = "1SAO3Bhntefl0XQHJv27rMxpvu6uzKDWNXFHRa7jrUDs"
 
-        try:
-            # Fetch the CSV data
-            response = requests.get(url)
-            response.raise_for_status()  # Raise an exception for bad responses
+        # # Construct the URL to fetch the CSV
+        # url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
 
-            # Parse the CSV data
-            csv_data = StringIO(response.text)
-            reader = csv.reader(csv_data)
+        # try:
+        #     # Fetch the CSV data
+        #     response = requests.get(url)
+        #     response.raise_for_status()  # Raise an exception for bad responses
 
-            # Convert to list of dictionaries
-            headers = next(reader)
-            data = [dict(zip(headers, row)) for row in reader]
+        #     # Parse the CSV data
+        #     csv_data = StringIO(response.text)
+        #     reader = csv.reader(csv_data)
 
-            return data
+        #     # Convert to list of dictionaries
+        #     headers = next(reader)
+        #     data = [dict(zip(headers, row)) for row in reader]
 
-        except requests.RequestException as e:
-            print(f"An error occurred: {e}")
-            return None
+        #     return data
+
+        # except requests.RequestException as e:
+        #     print(f"An error occurred: {e}")
+        #     return None
 
 
 if __name__ == "__main__":

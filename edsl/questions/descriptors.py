@@ -244,6 +244,11 @@ class QuestionNameDescriptor(BaseDescriptor):
             # they're trying to use a dynamic question name - let's let this play out
             return None
 
+        if value.endswith("_comment") or value.endswith("_generated_tokens"):
+            raise QuestionCreationValidationError(
+                f"`question_name` cannot end with '_comment' or '_generated_tokens - (got {value})."
+            )
+
         if not is_valid_variable_name(value):
             raise QuestionCreationValidationError(
                 f"`question_name` is not a valid variable name (got {value})."
