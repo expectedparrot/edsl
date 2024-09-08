@@ -15,7 +15,7 @@ class GoogleService(InferenceServiceABC):
 
     @classmethod
     def available(cls):
-        return ["gemini-pro"]
+        return ["gemini-pro", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.0-pro"]
 
     @classmethod
     def create_model(
@@ -53,7 +53,7 @@ class GoogleService(InferenceServiceABC):
                         "stopSequences": self.stopSequences,
                     },
                 }
-
+                print(combined_prompt)
                 async with aiohttp.ClientSession() as session:
                     async with session.post(
                         url, headers=headers, data=json.dumps(data)
