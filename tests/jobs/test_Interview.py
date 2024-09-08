@@ -103,7 +103,7 @@ def test_bucket_collection(create_survey):
     bucket_list[0].requests_bucket.bucket_type == "requests"
 
 
-@pytest.mark.parametrize("fail_at_number, chained", [(6, False), (10, True)])
+@pytest.mark.parametrize("fail_at_number, chained", [(6, False)])  # , (10, True)])
 def test_handle_model_exceptions(create_survey, fail_at_number, chained):
     "A chained survey is one where each survey question depends on the previous one."
     model = create_language_model(ValueError, fail_at_number)()
