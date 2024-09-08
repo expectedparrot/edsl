@@ -35,8 +35,10 @@
 
 - `Results` methods `generate_html` and `save_html` can be called to generate and save HTML code for displaying results.
 
+- Ability to run a `Model` with a boolean parameter `raise_validation_errors = False` or `raise_validation_errors = True`. If False, exceptions will only be raised (interrupting survey execution) when the model returns nothing at all.
+
 ### Changed
-- Improved exceptions reporting.
+- Improvements to exceptions reports. 
 
 - Question validation methods no longer use JSON. This will eliminate exceptions relating to JSON errors previously common to certain models.
 
