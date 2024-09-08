@@ -1,6 +1,7 @@
 from abc import abstractmethod, ABC
 from typing import Any
 import re
+from edsl.config import CONFIG
 
 
 class InferenceServiceABC(ABC):
@@ -16,6 +17,18 @@ class InferenceServiceABC(ABC):
             raise NotImplementedError(
                 f"Class {cls.__name__} must have a 'model_exclude_list' attribute."
             )
+
+    def get_tpm(cls):
+        key = f"SERVICE_TPM_{cls._inference_service_.upper()}"
+        if key not in CONFIG:
+            key = "SERVICE_TPM_BASELINE"
+        return int(CONFIG.get(key))
+
+    def get_rpm(cls):
+        key = f"SERVICE_RPM_{cls._inference_service_.upper()}"
+        if key not in CONFIG:
+            key = "SERVICE_RPM_BASELINE"
+        return int(CONFIG.get(key))
 
     @abstractmethod
     def available() -> list[str]:

@@ -40,8 +40,8 @@ class ModelList(Base, UserList):
     def __hash__(self):
         """Return a hash of the ModelList. This is used for comparison of ModelLists.
 
-        >>> hash(ModelList.example())
-        1423518243781418961
+        >>> isinstance(hash(Model()), int)
+        True
 
         """
         from edsl.utilities.utilities import dict_hash

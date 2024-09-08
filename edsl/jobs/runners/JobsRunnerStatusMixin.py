@@ -208,7 +208,7 @@ class JobsRunnerStatusMixin:
         >>> model = interviews[0].model
         >>> num_waiting = 0
         >>> JobsRunnerStatusMixin()._get_model_info(model, num_waiting, models_to_tokens)
-        ModelInfo(model_name='gpt-4-1106-preview', TPM_limit_k=480.0, RPM_limit_k=4.0, num_tasks_waiting=0, token_usage_info=[ModelTokenUsageStats(token_usage_type='new_token_usage', details=[{'type': 'prompt_tokens', 'tokens': 0}, {'type': 'completion_tokens', 'tokens': 0}], cost='$0.00000'), ModelTokenUsageStats(token_usage_type='cached_token_usage', details=[{'type': 'prompt_tokens', 'tokens': 0}, {'type': 'completion_tokens', 'tokens': 0}], cost='$0.00000')])
+        ModelInfo(model_name='...', TPM_limit_k=..., RPM_limit_k=..., num_tasks_waiting=0, token_usage_info=[ModelTokenUsageStats(token_usage_type='new_token_usage', details=[{'type': 'prompt_tokens', 'tokens': 0}, {'type': 'completion_tokens', 'tokens': 0}], cost='$0.00000'), ModelTokenUsageStats(token_usage_type='cached_token_usage', details=[{'type': 'prompt_tokens', 'tokens': 0}, {'type': 'completion_tokens', 'tokens': 0}], cost='$0.00000')])
         """
 
         ## TODO: This should probably be a coop method

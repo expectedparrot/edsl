@@ -45,39 +45,26 @@ CONFIG_MAP = {
         "default": "https://www.expectedparrot.com",
         "info": "This env var holds the URL of the Expected Parrot API.",
     },
-    # "EXPECTED_PARROT_API_KEY": {
-    #     "default": None,
-    #     "info": "This env var holds your Expected Parrot API key (https://www.expectedparrot.com/).",
-    # },
-    # "OPENAI_API_KEY": {
-    #     "default": None,
-    #     "info": "This env var holds your OpenAI API key (https://platform.openai.com/api-keys).",
-    # },
-    # "DEEP_INFRA_API_KEY": {
-    #     "default": None,
-    #     "info": "This env var holds your DeepInfra API key (https://deepinfra.com/).",
-    # },
-    # "GOOGLE_API_KEY": {
-    #     "default": None,
-    #     "info": "This env var holds your Google API key (https://console.cloud.google.com/apis/credentials).",
-    # },
-    # "ANTHROPIC_API_KEY": {
-    #     "default": None,
-    #     "info": "This env var holds your Anthropic API key (https://www.anthropic.com/).",
-    # },
-    # "GROQ_API_KEY": {
-    #     "default": None,
-    #     "info": "This env var holds your GROQ API key (https://console.groq.com/login).",
-    # },
-    # "AWS_ACCESS_KEY_ID" :
-    #     "default": None,
-    #     "info": "This env var holds your AWS access key ID.",
-    # "AWS_SECRET_ACCESS_KEY:
-    #     "default": None,
-    #     "info": "This env var holds your AWS secret access key.",
-    # "AZURE_ENDPOINT_URL_AND_KEY":
-    #     "default": None,
-    #     "info": "This env var holds your Azure endpoint URL and key (URL:key). You can have several comma-separated URL-key pairs (URL1:key1,URL2:key2).",
+    "DEFAULT_EDSL_MODEL": {
+        "default": "gpt-4o",
+        "info": "This env var holds the default model name.",
+    },
+    "SERVICE_TPM_OPENAI": {
+        "default": "2000000",
+        "info": "This env var holds the maximum number of tokens per minute for OpenAI.",
+    },
+    "SERVICE_RPM_OPENAI": {
+        "default": "100",
+        "info": "This env var holds the maximum number of requests per minute for OpenAI.",
+    },
+    "SERVICE_TPM_BASELINE": {
+        "default": "2000000",
+        "info": "This env var holds the maximum number of tokens per minute for OpenAI.",
+    },
+    "SERVICE_RPM_BASELINE": {
+        "default": "100",
+        "info": "This env var holds the maximum number of requests per minute for OpenAI.",
+    },
 }
 
 
@@ -114,6 +101,12 @@ class Config:
         if self.EDSL_RUN_MODE == "development-testrun":
             override = False
         _ = load_dotenv(dotenv_path=find_dotenv(usecwd=True), override=override)
+
+    def __contains__(self, env_var: str) -> bool:
+        """
+        Checks if an env var is set.
+        """
+        return env_var in self.__dict__
 
     def _set_env_vars(self) -> None:
         """

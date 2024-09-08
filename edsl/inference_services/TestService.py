@@ -35,6 +35,15 @@ class TestService(InferenceServiceABC):
             key_sequence = ["message", 0, "text"]
             input_token_name = cls.input_token_name
             output_token_name = cls.output_token_name
+            _rpm = 1000
+            _tpm = 100000
+
+            @property
+            def _canned_response(self):
+                if hasattr(self, "canned_response"):
+                    return self.canned_response
+                else:
+                    return "Hello, world"
 
             async def async_execute_model_call(
                 self, user_prompt: str, system_prompt: str
@@ -44,7 +53,7 @@ class TestService(InferenceServiceABC):
                 if hasattr(self, "throw_exception") and self.throw_exception:
                     raise Exception("This is a test error")
                 return {
-                    "message": [{"text": f"{self.canned_response}"}],
+                    "message": [{"text": f"{self._canned_response}"}],
                     "usage": {"prompt_tokens": 1, "completion_tokens": 1},
                 }
 

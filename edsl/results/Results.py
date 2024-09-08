@@ -496,7 +496,7 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.models[0]
-        Model(model_name = 'gpt-4-1106-preview', temperature = 0.5, max_tokens = 1000, top_p = 1, frequency_penalty = 0, presence_penalty = 0, logprobs = False, top_logprobs = 3)
+        Model(model_name = ...)
         """
         return [r.model for r in self.data]
 
@@ -872,7 +872,7 @@ class Results(UserList, Mixins, Base):
         Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}])
 
         >>> results.select('how_feeling', 'model', 'how_feeling')
-        Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}, {'model.model': ['gpt-4-1106-preview', 'gpt-4-1106-preview', 'gpt-4-1106-preview', 'gpt-4-1106-preview']}, {'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}])
+        Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}, {'model.model': ['...', '...', '...', '...']}, {'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}])
 
         >>> from edsl import Results; r = Results.example(); r.select('answer.how_feeling_y')
         Dataset([{'answer.how_feeling_yesterday': ['Great', 'Good', 'OK', 'Terrible']}])
