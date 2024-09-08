@@ -14,7 +14,6 @@ jobs:
         python-version: ["3.12", "3.11", "3.10", "3.9"]
     env:
       POETRY_VERSION: "1.7.1"
-      EDSL_API_TIMEOUT: 2
     steps:
       - uses: actions/checkout@v3
       
