@@ -167,13 +167,19 @@ class LanguageModel(
     }  # TODO: Use the OpenAI Teir 1 rate limits
     _safety_factor = 0.8
 
-    def __init__(self, **kwargs):
+    def __init__(self, tpm=None, rpm=None, **kwargs):
         """Initialize the LanguageModel."""
         self.model = getattr(self, "_model_", None)
         default_parameters = getattr(self, "_parameters_", None)
         parameters = self._overide_default_parameters(kwargs, default_parameters)
         self.parameters = parameters
         self.remote = False
+
+        if rpm is not None:
+            self._rpm = rpm
+
+        if tpm is not None:
+            self._tpm = tpm
 
         for key, value in parameters.items():
             setattr(self, key, value)
@@ -275,7 +281,7 @@ class LanguageModel(
         >>> m = LanguageModel.example()
         >>> m.set_rate_limits(rpm=100, tpm=1000)
         >>> m.RPM
-        80.0
+        100
         """
         self._set_rate_limits(rpm=rpm, tpm=tpm)
 
@@ -296,8 +302,32 @@ class LanguageModel(
     @property
     def RPM(self):
         """Model's requests-per-minute limit."""
-        self._set_rate_limits()
-        return self._safety_factor * self.__rate_limits["rpm"]
+        # self._set_rate_limits()
+        # return self._safety_factor * self.__rate_limits["rpm"]
+        return self.rpm
+
+    @property
+    def TPM(self):
+        """Model's tokens-per-minute limit."""
+        # self._set_rate_limits()
+        # return self._safety_factor * self.__rate_limits["tpm"]
+        return self.tpm
+
+    @property
+    def rpm(self):
+        return self._rpm
+
+    @rpm.setter
+    def rpm(self, value):
+        self._rpm = value
+
+    @property
+    def tpm(self):
+        return self._tpm
+
+    @tpm.setter
+    def tpm(self, value):
+        self._tpm = value
 
     @property
     def TPM(self):
@@ -593,7 +623,7 @@ class LanguageModel(
 
         >>> m = LanguageModel.example()
         >>> m.to_dict()
-        {'model': 'gpt-4-1106-preview', 'parameters': {'temperature': 0.5, 'max_tokens': 1000, 'top_p': 1, 'frequency_penalty': 0, 'presence_penalty': 0, 'logprobs': False, 'top_logprobs': 3}, 'edsl_version': '...', 'edsl_class_name': 'LanguageModel'}
+        {'model': '...', 'parameters': {'temperature': ..., 'max_tokens': ..., 'top_p': ..., 'frequency_penalty': ..., 'presence_penalty': ..., 'logprobs': False, 'top_logprobs': ...}, 'edsl_version': '...', 'edsl_class_name': 'LanguageModel'}
         """
         return self._to_dict()
 
