@@ -24,7 +24,6 @@ class TestService(InferenceServiceABC):
 
     @classmethod
     def create_model(cls, model_name, model_class_name=None) -> LanguageModel:
-
         throw_exception = False
 
         class TestServiceLanguageModel(LanguageModel):

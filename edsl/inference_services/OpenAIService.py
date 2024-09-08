@@ -81,7 +81,6 @@ class OpenAIService(InferenceServiceABC):
 
     @classmethod
     def available(cls) -> List[str]:
-
         if not cls._models_list_cache:
             try:
                 cls._models_list_cache = [

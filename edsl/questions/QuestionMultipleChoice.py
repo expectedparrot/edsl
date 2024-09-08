@@ -65,9 +65,10 @@ def create_response_model(choices: List[str], permissive: bool = False):
 
     return ChoiceResponse
 
+
 def fix_multiple_choice(response, question_options, use_code, verbose=False):
     """Fix the response to a multiple choice question.
-    Respnse is a dictionary with keys: 
+    Respnse is a dictionary with keys:
     - answer: the answer code
     - generated_tokens: the generated tokens
     - comment: the comment
@@ -138,9 +139,9 @@ class QuestionMultipleChoice(QuestionBase):
 
     question_type = "multiple_choice"
     purpose = "When options are known and limited"
-    question_options: Union[list[str], list[list], list[float], list[int]] = (
-        QuestionOptionsDescriptor()
-    )
+    question_options: Union[
+        list[str], list[list], list[float], list[int]
+    ] = QuestionOptionsDescriptor()
     _response_model = None
     response_validator_class = MultipleChoiceResponseValidator
 

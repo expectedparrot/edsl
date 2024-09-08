@@ -114,8 +114,15 @@ def test_handle_model_exceptions(create_survey, fail_at_number, chained):
     cache = Cache()
 
     results = jobs.run(cache=cache, print_exceptions=False)
-    # breakpoint()
 
+    print(f"Results: {results}")
+    print(
+        f"Answer for question_{fail_at_number}: {results.select(f'answer.question_{fail_at_number}').first()}"
+    )
+    print(
+        f"Answer for question_{fail_at_number + 1}: {results.select(f'answer.question_{fail_at_number + 1}').first()}"
+    )
+    # raise Exception("Stop here")
     if not chained:
         assert results.select(f"answer.question_{fail_at_number}").first() is None
         assert (
