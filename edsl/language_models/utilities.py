@@ -36,8 +36,8 @@ def create_language_model(
         usage_sequence = ["usage"]
         input_token_name = "prompt_tokens"
         output_token_name = "completion_tokens"
-        _rpm = 1000
-        _tpm = 1000000
+        _rpm = 1000000000000
+        _tpm = 1000000000000
 
         async def async_execute_model_call(
             self, user_prompt: str, system_prompt: str
