@@ -138,9 +138,9 @@ class TokenBucket:
                 raise ValueError(msg)
             else:
                 # self.tokens = 0  # clear the bucket but let it go through
-                print(
-                    f"""The requested amount, {amount}, exceeds the current bucket capacity of {self.capacity}.Increasing bucket capacity to {amount} * 1.10 accommodate the requested amount."""
-                )
+                # print(
+                #    f"""The requested amount, {amount}, exceeds the current bucket capacity of {self.capacity}.Increasing bucket capacity to {amount} * 1.10 accommodate the requested amount."""
+                # )
                 self.capacity = amount * 1.10
                 self._old_capacity = self.capacity
 
