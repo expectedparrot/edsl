@@ -3,7 +3,7 @@
 ###############
 GIT_ROOT ?= $(shell git rev-parse --show-toplevel)
 PROJECT_NAME ?= $(shell basename $(GIT_ROOT))
-.PHONY: bump docs docstrings find help integration
+.PHONY: bump docs docstrings find help integration model-report
 
 ###############
 ##@Utils ⭐ 
@@ -57,6 +57,10 @@ clean-test: ## Clean test files
 	@for file in *.jsonl; do \
 		[ ! -f "$$file" ] || rm "$$file"; \
 	done
+
+model-report: ## Generate a model report
+	python integration/test_all_questions_and_models.py | tee >> model_report.txt
+	echo "Model report generated in model_report.txt"
 
 clean-all: ## Clean everything (including the venv)
 	@if [ -n "$$VIRTUAL_ENV" ]; then \

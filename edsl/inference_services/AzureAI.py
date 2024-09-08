@@ -118,6 +118,8 @@ class AzureAIService(InferenceServiceABC):
                 "max_tokens": 512,
                 "top_p": 0.9,
             }
+            _rpm = cls.get_rpm(cls)
+            _tpm = cls.get_tpm(cls)
 
             async def async_execute_model_call(
                 self, user_prompt: str, system_prompt: str = ""
