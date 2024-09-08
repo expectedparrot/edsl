@@ -65,6 +65,15 @@ def create_response_model(choices: List[str], permissive: bool = False):
 
     return ChoiceResponse
 
+def fix_multiple_choice(response, question_options, use_code, verbose=False):
+    """Fix the response to a multiple choice question.
+    Respnse is a dictionary with keys: 
+    - answer: the answer code
+    - generated_tokens: the generated tokens
+    - comment: the comment
+    """
+    pass
+
 
 class MultipleChoiceResponseValidator(ResponseValidatorABC):
     required_params = ["question_options", "use_code"]

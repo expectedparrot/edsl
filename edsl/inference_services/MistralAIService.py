@@ -5,6 +5,8 @@ from edsl.language_models.LanguageModel import LanguageModel
 import asyncio
 from mistralai import Mistral
 
+from edsl.exceptions.language_models import LanguageModelBadResponseError
+
 
 class MistralAIService(InferenceServiceABC):
     """Mistral AI service class."""
@@ -17,6 +19,11 @@ class MistralAIService(InferenceServiceABC):
     _env_key_name_ = "MISTRAL_API_KEY"  # Environment variable for Mistral API key
     input_token_name = "prompt_tokens"
     output_token_name = "completion_tokens"
+
+    __default_rate_limits = {
+        "rpm": 5 * 60,
+        "tpm": 2_000_000,
+    }
 
     _sync_client_instance = None
     _async_client_instance = None
@@ -70,6 +77,11 @@ class MistralAIService(InferenceServiceABC):
             Child class of LanguageModel for interacting with Mistral models.
             """
 
+            default_rate_limits = {
+                "rpm": 5 * 60,
+                "tpm": 2_000_000,
+            }
+
             key_sequence = cls.key_sequence
             usage_sequence = cls.usage_sequence
 
@@ -96,15 +108,18 @@ class MistralAIService(InferenceServiceABC):
                 """Calls the Mistral API and returns the API response."""
                 s = self.async_client()
 
-                res = await s.chat.complete_async(
-                    model=model_name,
-                    messages=[
-                        {
-                            "content": user_prompt,
-                            "role": "user",
-                        },
-                    ],
-                )
+                try:
+                    res = await s.chat.complete_async(
+                        model=model_name,
+                        messages=[
+                            {
+                                "content": user_prompt,
+                                "role": "user",
+                            },
+                        ],
+                    )
+                except Exception as e:
+                    raise LanguageModelBadResponseError(f"Error with Mistral API: {e}")
 
                 return res.model_dump()
 

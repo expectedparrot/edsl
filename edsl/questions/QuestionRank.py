@@ -64,7 +64,7 @@ class RankResponseValidator(ResponseValidatorABC):
     valid_examples = []
     invalid_examples = []
 
-    def fix(self, response, verbose=True):
+    def fix(self, response, verbose=False):
         if verbose:
             print("Invalid response of QuestionRank was: ", False)
         response_text = response.get("generated_tokens")
