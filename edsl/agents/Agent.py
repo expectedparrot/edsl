@@ -586,9 +586,9 @@ class Agent(Base):
             if dynamic_traits_func:
                 func = inspect.getsource(dynamic_traits_func)
                 raw_data["dynamic_traits_function_source_code"] = func
-                raw_data["dynamic_traits_function_name"] = (
-                    self.dynamic_traits_function_name
-                )
+                raw_data[
+                    "dynamic_traits_function_name"
+                ] = self.dynamic_traits_function_name
         if hasattr(self, "answer_question_directly"):
             raw_data.pop(
                 "answer_question_directly", None
@@ -604,9 +604,9 @@ class Agent(Base):
                 raw_data["answer_question_directly_source_code"] = inspect.getsource(
                     answer_question_directly_func
                 )
-                raw_data["answer_question_directly_function_name"] = (
-                    self.answer_question_directly_function_name
-                )
+                raw_data[
+                    "answer_question_directly_function_name"
+                ] = self.answer_question_directly_function_name
 
         return raw_data
 

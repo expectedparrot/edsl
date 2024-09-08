@@ -56,6 +56,9 @@ class AnthropicService(InferenceServiceABC):
                 "top_logprobs": 3,
             }
 
+            _tpm = cls.get_tpm(cls)
+            _rpm = cls.get_rpm(cls)
+
             async def async_execute_model_call(
                 self, user_prompt: str, system_prompt: str = ""
             ) -> dict[str, Any]:
