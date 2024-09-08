@@ -36,6 +36,9 @@ class GoogleService(InferenceServiceABC):
             output_token_name = cls.output_token_name
             _inference_service_ = cls._inference_service_
 
+            _tpm = cls.get_tpm(cls)
+            _rpm = cls.get_rpm(cls)
+
             _parameters_ = {
                 "temperature": 0.5,
                 "topP": 1,

@@ -153,15 +153,15 @@ class Result(Base, UserDict):
             if key in self.question_to_attributes:
                 # You might be tempted to just use the naked key
                 # but this is a bad idea because it pollutes the namespace
-                question_text_dict[key + "_question_text"] = (
-                    self.question_to_attributes[key]["question_text"]
-                )
-                question_options_dict[key + "_question_options"] = (
-                    self.question_to_attributes[key]["question_options"]
-                )
-                question_type_dict[key + "_question_type"] = (
-                    self.question_to_attributes[key]["question_type"]
-                )
+                question_text_dict[
+                    key + "_question_text"
+                ] = self.question_to_attributes[key]["question_text"]
+                question_options_dict[
+                    key + "_question_options"
+                ] = self.question_to_attributes[key]["question_options"]
+                question_type_dict[
+                    key + "_question_type"
+                ] = self.question_to_attributes[key]["question_type"]
 
         return {
             "agent": self.agent.traits

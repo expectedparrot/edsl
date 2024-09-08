@@ -11,7 +11,6 @@ from edsl.exceptions.language_models import LanguageModelBadResponseError
 class MistralAIService(InferenceServiceABC):
     """Mistral AI service class."""
 
-    # key_sequence = ["content", 0, "text"]  # ["content"][0]["text"]
     key_sequence = ["choices", 0, "message", "content"]
     usage_sequence = ["usage"]
 
@@ -19,11 +18,6 @@ class MistralAIService(InferenceServiceABC):
     _env_key_name_ = "MISTRAL_API_KEY"  # Environment variable for Mistral API key
     input_token_name = "prompt_tokens"
     output_token_name = "completion_tokens"
-
-    __default_rate_limits = {
-        "rpm": 5 * 60,
-        "tpm": 2_000_000,
-    }
 
     _sync_client_instance = None
     _async_client_instance = None
@@ -77,11 +71,6 @@ class MistralAIService(InferenceServiceABC):
             Child class of LanguageModel for interacting with Mistral models.
             """
 
-            default_rate_limits = {
-                "rpm": 5 * 60,
-                "tpm": 2_000_000,
-            }
-
             key_sequence = cls.key_sequence
             usage_sequence = cls.usage_sequence
 
@@ -95,6 +84,9 @@ class MistralAIService(InferenceServiceABC):
                 "max_tokens": 512,
                 "top_p": 0.9,
             }
+
+            _tpm = cls.get_tpm(cls)
+            _rpm = cls.get_rpm(cls)
 
             def sync_client(self):
                 return cls.sync_client()

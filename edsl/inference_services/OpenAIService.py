@@ -9,6 +9,8 @@ from edsl.language_models import LanguageModel
 from edsl.inference_services.rate_limits_cache import rate_limits
 from edsl.utilities.utilities import fix_partial_correct_response
 
+from edsl.config import CONFIG
+
 
 class OpenAIService(InferenceServiceABC):
     """OpenAI service class."""
@@ -79,7 +81,6 @@ class OpenAIService(InferenceServiceABC):
 
     @classmethod
     def available(cls) -> List[str]:
-
         if not cls._models_list_cache:
             try:
                 cls._models_list_cache = [
@@ -105,6 +106,9 @@ class OpenAIService(InferenceServiceABC):
             usage_sequence = cls.usage_sequence
             input_token_name = cls.input_token_name
             output_token_name = cls.output_token_name
+
+            _rpm = cls.get_rpm(cls)
+            _tpm = cls.get_tpm(cls)
 
             _inference_service_ = cls._inference_service_
             _model_ = model_name

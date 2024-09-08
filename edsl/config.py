@@ -41,43 +41,30 @@ CONFIG_MAP = {
         "default": "5",
         "info": "This env var determines the maximum number of times to retry a failed API call.",
     },
+    "DEFAULT_EDSL_MODEL": {
+        "default": "gpt-4o",
+        "info": "This env var holds the default model name.",
+    },
+    "SERVICE_TPM_BASELINE": {
+        "default": "2000000",
+        "info": "This env var holds the maximum number of tokens per minute for all models. Model-specific values such as SERVICE_TPM_OPENAI will override this.",
+    },
+    "SERVICE_RPM_BASELINE": {
+        "default": "100",
+        "info": "This env var holds the maximum number of requests per minute for OpenAI. Model-specific values such as SERVICE_RPM_OPENAI will override this.",
+    },
+    "SERVICE_TPM_OPENAI": {
+        "default": "2000000",
+        "info": "This env var holds the maximum number of tokens per minute for OpenAI.",
+    },
+    "SERVICE_RPM_OPENAI": {
+        "default": "100",
+        "info": "This env var holds the maximum number of requests per minute for OpenAI.",
+    },
     "EXPECTED_PARROT_URL": {
         "default": "https://www.expectedparrot.com",
         "info": "This env var holds the URL of the Expected Parrot API.",
     },
-    # "EXPECTED_PARROT_API_KEY": {
-    #     "default": None,
-    #     "info": "This env var holds your Expected Parrot API key (https://www.expectedparrot.com/).",
-    # },
-    # "OPENAI_API_KEY": {
-    #     "default": None,
-    #     "info": "This env var holds your OpenAI API key (https://platform.openai.com/api-keys).",
-    # },
-    # "DEEP_INFRA_API_KEY": {
-    #     "default": None,
-    #     "info": "This env var holds your DeepInfra API key (https://deepinfra.com/).",
-    # },
-    # "GOOGLE_API_KEY": {
-    #     "default": None,
-    #     "info": "This env var holds your Google API key (https://console.cloud.google.com/apis/credentials).",
-    # },
-    # "ANTHROPIC_API_KEY": {
-    #     "default": None,
-    #     "info": "This env var holds your Anthropic API key (https://www.anthropic.com/).",
-    # },
-    # "GROQ_API_KEY": {
-    #     "default": None,
-    #     "info": "This env var holds your GROQ API key (https://console.groq.com/login).",
-    # },
-    # "AWS_ACCESS_KEY_ID" :
-    #     "default": None,
-    #     "info": "This env var holds your AWS access key ID.",
-    # "AWS_SECRET_ACCESS_KEY:
-    #     "default": None,
-    #     "info": "This env var holds your AWS secret access key.",
-    # "AZURE_ENDPOINT_URL_AND_KEY":
-    #     "default": None,
-    #     "info": "This env var holds your Azure endpoint URL and key (URL:key). You can have several comma-separated URL-key pairs (URL1:key1,URL2:key2).",
 }
 
 
@@ -92,7 +79,7 @@ class Config:
 
     def _set_run_mode(self) -> None:
         """
-        Checks the validity and sets EDSL_RUN_MODE.
+        Sets EDSL_RUN_MODE as a class attribute.
         """
         run_mode = os.getenv("EDSL_RUN_MODE")
         default = CONFIG_MAP.get("EDSL_RUN_MODE").get("default")
@@ -107,27 +94,35 @@ class Config:
     def _load_dotenv(self) -> None:
         """
         Loads the .env
-        - Overrides existing env vars unless EDSL_RUN_MODE=="development-testrun"
+        - The .env will override existing env vars **unless** EDSL_RUN_MODE=="development-testrun"
         """
 
-        override = True
         if self.EDSL_RUN_MODE == "development-testrun":
             override = False
+        else:
+            override = True
         _ = load_dotenv(dotenv_path=find_dotenv(usecwd=True), override=override)
+
+    def __contains__(self, env_var: str) -> bool:
+        """
+        Checks if an env var is set as a class attribute.
+        """
+        return env_var in self.__dict__
 
     def _set_env_vars(self) -> None:
         """
-        Sets env vars as Config class attributes.
+        Sets env vars as class attributes.
+        - EDSL_RUN_MODE is not set my this method, but by _set_run_mode
         - If an env var is not set and has a default value in the CONFIG_MAP, sets it to the default value.
         """
         # for each env var in the CONFIG_MAP
         for env_var, config in CONFIG_MAP.items():
-            # we've set it already in _set_run_mode
+            # EDSL_RUN_MODE is already set by _set_run_mode
             if env_var == "EDSL_RUN_MODE":
                 continue
             value = os.getenv(env_var)
             default_value = config.get("default")
-            # if the env var is set, set it as a CONFIG attribute
+            # if an env var exists, set it as a class attribute
             if value:
                 setattr(self, env_var, value)
             # otherwise, if EDSL_RUN_MODE == "production" set it to its default value
