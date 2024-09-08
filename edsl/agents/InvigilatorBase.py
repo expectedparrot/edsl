@@ -8,21 +8,22 @@ from edsl.data_transfer_models import AgentResponseDict
 
 from edsl.data.Cache import Cache
 
-# from edsl.agents.Agent import Agent
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.scenarios.Scenario import Scenario
 from edsl.surveys.MemoryPlan import MemoryPlan
 from edsl.language_models.LanguageModel import LanguageModel
+
+from edsl.data_transfer_models import EDSLResultObjectInput
 
 
 class InvigilatorBase(ABC):
     """An invigiator (someone who administers an exam) is a class that is responsible for administering a question to an agent.
 
     >>> InvigilatorBase.example().answer_question()
-    {'message': '{"answer": "SPAM!"}'}
+    {'message': [{'text': 'SPAM!'}], 'usage': {'prompt_tokens': 1, 'completion_tokens': 1}}
 
-    >>> InvigilatorBase.example().get_failed_task_result()
-    {'answer': None, 'comment': 'Failed to get response', ...
+    >>> InvigilatorBase.example().get_failed_task_result(failure_reason="Failed to get response").comment
+    'Failed to get response'
 
     This returns an empty prompt because there is no memory the agent needs to have at q0.
 
@@ -51,6 +52,7 @@ class InvigilatorBase(ABC):
         iteration: Optional[int] = 1,
         additional_prompt_data: Optional[dict] = None,
         sidecar_model: Optional[LanguageModel] = None,
+        raise_validation_errors: Optional[bool] = True,
     ):
         """Initialize a new Invigilator."""
         self.agent = agent
@@ -64,6 +66,7 @@ class InvigilatorBase(ABC):
         self.cache = cache
         self.sidecar_model = sidecar_model
         self.survey = survey
+        self.raise_validation_errors = raise_validation_errors
 
         self.raw_model_response = (
             None  # placeholder for the raw response from the model
@@ -140,18 +143,45 @@ class InvigilatorBase(ABC):
         """
         return f"{self.__class__.__name__}(agent={repr(self.agent)}, question={repr(self.question)}, scneario={repr(self.scenario)}, model={repr(self.model)}, memory_plan={repr(self.memory_plan)}, current_answers={repr(self.current_answers)}, iteration{repr(self.iteration)}, additional_prompt_data={repr(self.additional_prompt_data)}, cache={repr(self.cache)}, sidecarmodel={repr(self.sidecar_model)})"
 
-    def get_failed_task_result(self) -> AgentResponseDict:
+    def get_failed_task_result(self, failure_reason) -> EDSLResultObjectInput:
         """Return an AgentResponseDict used in case the question-asking fails.
 
-        >>> InvigilatorBase.example().get_failed_task_result()
-        {'answer': None, 'comment': 'Failed to get response', ...}
+        Possible reasons include:
+        - Legimately skipped because of skip logic
+        - Failed to get response from the model
+
         """
-        return AgentResponseDict(
-            answer=None,
-            comment="Failed to get response",
-            question_name=self.question.question_name,
-            prompts=self.get_prompts(),
-        )
+        data = {
+            "answer": None,
+            "generated_tokens": None,
+            "comment": failure_reason,
+            "question_name": self.question.question_name,
+            "prompts": self.get_prompts(),
+            "cached_response": None,
+            "raw_model_response": None,
+            "cache_used": None,
+            "cache_key": None,
+        }
+        return EDSLResultObjectInput(**data)
+
+        # breakpoint()
+        # if hasattr(self, "augmented_model_response"):
+        #     import json
+
+        #     generated_tokens = json.loads(self.augmented_model_response)["answer"][
+        #         "generated_tokens"
+        #     ]
+        # else:
+        #     generated_tokens = "Filled in by InvigilatorBase.get_failed_task_result"
+        # agent_response_dict = AgentResponseDict(
+        #     answer=None,
+        #     comment="Failed to get usable response",
+        #     generated_tokens=generated_tokens,
+        #     question_name=self.question.question_name,
+        #     prompts=self.get_prompts(),
+        # )
+        # # breakpoint()
+        # return agent_response_dict
 
     def get_prompts(self) -> Dict[str, Prompt]:
         """Return the prompt used."""
@@ -211,26 +241,28 @@ class InvigilatorBase(ABC):
 
         from edsl.enums import InferenceServiceType
 
-        class TestLanguageModelGood(LanguageModel):
-            """A test language model."""
+        from edsl import Model
 
-            _model_ = "test"
-            _parameters_ = {"temperature": 0.5}
-            _inference_service_ = InferenceServiceType.TEST.value
+        model = Model("test", canned_response="SPAM!")
+        # class TestLanguageModelGood(LanguageModel):
+        #     """A test language model."""
 
-            async def async_execute_model_call(
-                self, user_prompt: str, system_prompt: str
-            ) -> dict[str, Any]:
-                await asyncio.sleep(0.1)
-                if hasattr(self, "throw_an_exception"):
-                    raise Exception("Error!")
-                return {"message": """{"answer": "SPAM!"}"""}
+        #     _model_ = "test"
+        #     _parameters_ = {"temperature": 0.5}
+        #     _inference_service_ = InferenceServiceType.TEST.value
 
-            def parse_response(self, raw_response: dict[str, Any]) -> str:
-                """Parse the response from the model."""
-                return raw_response["message"]
+        #     async def async_execute_model_call(
+        #         self, user_prompt: str, system_prompt: str
+        #     ) -> dict[str, Any]:
+        #         await asyncio.sleep(0.1)
+        #         if hasattr(self, "throw_an_exception"):
+        #             raise Exception("Error!")
+        #         return {"message": """{"answer": "SPAM!"}"""}
 
-        model = TestLanguageModelGood()
+        #     def parse_response(self, raw_response: dict[str, Any]) -> str:
+        #         """Parse the response from the model."""
+        #         return raw_response["message"]
+
         if throw_an_exception:
             model.throw_an_exception = True
         agent = Agent.example()

@@ -8,13 +8,19 @@ from edsl.jobs.tasks.task_status_enum import TaskStatus
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.exceptions import InterviewErrorPriorTaskCanceled
 
+from collections import namedtuple
+
+AnswerTuple = namedtuple("AnswerTuple", ["answer", "cache_used", "usage"])
+
+answer = AnswerTuple(
+    answer=42, cache_used=False, usage={"prompt_tokens": 10, "completion_tokens": 20}
+)
+
 
 class TestQuestionTaskCreator(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.question = MagicMock(spec=QuestionBase, question_name="test_question")
-        self.answer_question_func = AsyncMock(
-            return_value={"usage": {"prompt_tokens": 10, "completion_tokens": 20}}
-        )
+        self.answer_question_func = AsyncMock(return_value=answer)
         self.model_buckets = MagicMock(spec=ModelBuckets)
         self.model_buckets.requests_bucket = Mock(
             wait_time=Mock(return_value=0), get_tokens=AsyncMock()
@@ -47,12 +53,12 @@ class TestQuestionTaskCreator(unittest.IsolatedAsyncioTestCase):
     #     self.assertEqual(self.task_creator.token_usage().new_tokens.from_cache, False)
 
     async def test_generate_task(self):
-        task = self.task_creator.generate_task(debug=False)
+        task = self.task_creator.generate_task()
         self.assertIsInstance(task, asyncio.Task)
         self.assertIn("test_question", task.get_name())
 
     async def test_run_focal_task_success(self):
-        asyncio.run(self.task_creator._run_focal_task(debug=False))
+        asyncio.run(self.task_creator._run_focal_task())
         self.assertEqual(self.task_creator.task_status, TaskStatus.SUCCESS)
 
     async def test_dependency_failure_handling(self):
@@ -65,7 +71,7 @@ class TestQuestionTaskCreator(unittest.IsolatedAsyncioTestCase):
         self.task_creator.add_dependency(failing_task)
 
         with self.assertRaises(InterviewErrorPriorTaskCanceled):
-            asyncio.run(self.task_creator._run_task_async(debug=False))
+            asyncio.run(self.task_creator._run_task_async())
 
         self.assertEqual(self.task_creator.task_status, TaskStatus.PARENT_FAILED)
 

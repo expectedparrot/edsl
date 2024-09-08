@@ -12,7 +12,12 @@ from edsl.jobs.tasks.TaskHistory import TaskHistory
 @pytest.fixture
 def sample_task_history():
     j = Jobs.example(throw_exception_probability=1, test_model=True)
-    results = j.run(print_exceptions=False, skip_retry=True, cache=False)
+    results = j.run(
+        print_exceptions=False,
+        skip_retry=True,
+        cache=False,
+        raise_validation_errors=True,
+    )
     return TaskHistory(results.task_history.total_interviews)
 
 

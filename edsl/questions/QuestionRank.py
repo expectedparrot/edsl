@@ -46,6 +46,7 @@ def create_response_model(
             Field(..., **field_params),
         ] = Field(..., description="List of selected choices")
         comment: Optional[str] = Field(None, description="Optional comment field")
+        generated_tokens: Optional[Any] = Field(None)
 
         class Config:
             @staticmethod
@@ -63,15 +64,19 @@ class RankResponseValidator(ResponseValidatorABC):
     valid_examples = []
     invalid_examples = []
 
-    def fix(self, response, verbose=True):
+    def fix(self, response, verbose=False):
         if verbose:
-            print("Invalid response of QuestionRank was: ", response)
+            print("Invalid response of QuestionRank was: ", False)
         response_text = response.get("generated_tokens")
         if response_text is None or response_text == "":  # nothing to be done
             return response
         # Maybe it's a comma separated list?
-        proposed_list = response_text.split(",")
+        response_text = str(response.get("answer"))
+        proposed_list = (
+            response_text.replace("[", "").replace("]", "").replace("'", "").split(",")
+        )
         proposed_list = [item.strip() for item in proposed_list]
+
         if verbose:
             print("Using code? ", self.use_code)
         if self.use_code:
@@ -89,10 +94,13 @@ class RankResponseValidator(ResponseValidatorABC):
             proposed_data = {
                 "answer": proposed_list,
                 "comment": response["comment"],
-                "generated_tokens": response_text,
+                "generated_tokens": response.get("generated_tokens", None),
             }
         else:
-            proposed_data = {"answer": proposed_list, "generated_tokens": response_text}
+            proposed_data = {
+                "answer": proposed_list,
+                "generated_tokens": response.get("generated_tokens", None),
+            }
 
         try:
             self.response_model(**proposed_data)
@@ -107,14 +115,16 @@ class RankResponseValidator(ResponseValidatorABC):
         for index, option in enumerate(self.question_options):
             if self.use_code:
                 if str(index) in response_text:
-                    matches.append(index)
+                    if index not in matches:
+                        matches.append(index)
             else:
                 if option in response_text:
-                    matches.append(index)
+                    if option not in matches:
+                        matches.append(option)
         proposed_data = {
             "answer": matches,
             "comment": response.get("comment", None),
-            "generated_tokens": response_text,
+            "generated_tokens": response.get("generated_tokens", None),
         }
         try:
             self.response_model(**proposed_data)

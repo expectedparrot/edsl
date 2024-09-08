@@ -6,10 +6,16 @@ from edsl.jobs.tasks.QuestionTaskCreator import QuestionTaskCreator
 from edsl import QuestionFreeText
 from edsl.jobs.buckets.ModelBuckets import ModelBuckets
 
+from collections import namedtuple
 
-async def answer_question_func(question, debug, task=None):
+AnswerTuple = namedtuple("AnswerTuple", ["answer", "cache_used"])
+
+answer = AnswerTuple(answer=42, cache_used=False)
+
+
+async def answer_question_func(question, task=None):
     await asyncio.sleep(1)
-    return {"answer": 42}
+    return answer
 
 
 def test_instantiation():
@@ -29,10 +35,10 @@ async def test_task_creation():
         model_buckets=ModelBuckets.infinity_bucket(),
     )
 
-    task = await creator.generate_task(debug=False)
+    task = await creator.generate_task()
 
-    results = await creator._run_focal_task(debug=False)
-    assert results == {"answer": 42}
+    results = await creator._run_focal_task()
+    assert results == answer
 
     assert creator.task_status == TaskStatus.SUCCESS
 
@@ -40,9 +46,9 @@ async def test_task_creation():
 @pytest.mark.asyncio
 async def test_task_add_dependency():
 
-    async def answer_question_func(question, debug):
+    async def answer_question_func(question):
         await asyncio.sleep(1)
-        return {"answer": 42}
+        return answer
 
     creator_1 = QuestionTaskCreator(
         question=QuestionFreeText.example(),
@@ -56,13 +62,13 @@ async def test_task_add_dependency():
         model_buckets=ModelBuckets.infinity_bucket(),
     )
 
-    creator_2.add_dependency(creator_1.generate_task(debug=False))
+    creator_2.add_dependency(creator_1.generate_task())
 
-    assert creator_2.generate_task(debug=False).depends_on == [
+    assert creator_2.generate_task().depends_on == [
         QuestionFreeText.example().question_name
     ]
 
-    asyncio.run(creator_2._run_task_async(debug=False))
+    asyncio.run(creator_2._run_task_async())
     # breakpoint()
 
     # results = await creator._run_focal_task(debug=False)
@@ -74,9 +80,9 @@ async def test_task_add_dependency():
 @pytest.mark.asyncio
 async def test_task_add_dependency():
 
-    async def answer_question_func(question, debug):
+    async def answer_question_func(question):
         await asyncio.sleep(1)
-        return {"answer": 42}
+        return AnswerTuple(answer=42)
 
     creator_1 = QuestionTaskCreator(
         question=QuestionFreeText.example(),
@@ -90,7 +96,7 @@ async def test_task_add_dependency():
         model_buckets=ModelBuckets.infinity_bucket(),
     )
 
-    task_1 = creator_1.generate_task(debug=False)
+    task_1 = creator_1.generate_task()
     creator_2.add_dependency(task_1)
 
     # ## What should we do here?

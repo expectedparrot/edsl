@@ -1106,7 +1106,7 @@ class Results(UserList, Mixins, Base):
         return Results(survey=self.survey, data=new_data, created_columns=None)
 
     @classmethod
-    def example(cls, debug: bool = False, randomize: bool = False) -> Results:
+    def example(cls, randomize: bool = False) -> Results:
         """Return an example `Results` object.
 
         Example usage:
@@ -1120,7 +1120,12 @@ class Results(UserList, Mixins, Base):
 
         c = Cache()
         job = Jobs.example(randomize=randomize)
-        results = job.run(cache=c, debug=debug, stop_on_exception=True, skip_retry=True)
+        results = job.run(
+            cache=c,
+            stop_on_exception=True,
+            skip_retry=True,
+            raise_validation_errors=True,
+        )
         return results
 
     def rich_print(self):

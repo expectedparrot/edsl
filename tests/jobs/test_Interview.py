@@ -40,6 +40,10 @@ def test_order(create_survey):
     scenario_values = ["a", "b", "c", "d", "e"]
     random.shuffle(scenario_values)
     sl = ScenarioList.from_list("scenario_value", scenario_values)
+    # model = create_language_model(ValueError, 100)()
+    from edsl import Model
+
+    # model = Model("test")
     model = create_language_model(ValueError, 100)()
     jobs = survey.by(model).by(sl)
     results = jobs.run()

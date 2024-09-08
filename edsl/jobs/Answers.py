@@ -2,24 +2,19 @@
 
 from collections import UserDict
 from rich.table import Table
+from edsl.data_transfer_models import EDSLResultObjectInput
 
 
 class Answers(UserDict):
     """Helper class to hold the answers to a survey."""
 
-    def add_answer(self, response, question) -> None:
-        """Add a response to the answers dictionary.
-
-        >>> from edsl import QuestionFreeText
-        >>> q = QuestionFreeText.example()
-        >>> answers = Answers()
-        >>> answers.add_answer({"answer": "yes"}, q)
-        >>> answers[q.question_name]
-        'yes'
-        """
-        answer = response.get("answer")
-        comment = response.pop("comment", None)
-        generated_tokens = response.pop("generated_tokens", None)
+    def add_answer(
+        self, response: EDSLResultObjectInput, question: "QuestionBase"
+    ) -> None:
+        """Add a response to the answers dictionary."""
+        answer = response.answer
+        comment = response.comment
+        generated_tokens = response.generated_tokens
         # record the answer
         if generated_tokens:
             self[question.question_name + "_generated_tokens"] = generated_tokens

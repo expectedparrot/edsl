@@ -28,11 +28,14 @@ def create_survey(num_questions: int, chained: bool = True, take_scenario=False)
 def create_language_model(
     exception: Exception, fail_at_number: int, never_ending=False
 ):
-    class TestLanguageModel(LanguageModel):
+    class LanguageModelFromUtilities(LanguageModel):
         _model_ = "test"
         _parameters_ = {"temperature": 0.5}
         _inference_service_ = InferenceServiceType.TEST.value
-        key_sequence = ["message", "answer"]
+        key_sequence = ["message", 0, "text"]
+        usage_sequence = ["usage"]
+        input_token_name = "prompt_tokens"
+        output_token_name = "completion_tokens"
 
         async def async_execute_model_call(
             self, user_prompt: str, system_prompt: str
@@ -48,9 +51,9 @@ def create_language_model(
                     await exception()
                 else:
                     raise exception
-            return {"message": {"answer": "SPAM!"}}
+            return {
+                "message": [{"text": "SPAM!"}],
+                "usage": {"prompt_tokens": 1, "completion_tokens": 1},
+            }
 
-        # def parse_response(self, raw_response: dict[str, Any]) -> str:
-        #     return raw_response["message"]
-
-    return TestLanguageModel
+    return LanguageModelFromUtilities
