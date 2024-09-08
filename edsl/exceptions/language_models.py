@@ -1,4 +1,5 @@
 from textwrap import dedent
+from typing import Optional
 
 
 class LanguageModelExceptions(Exception):
@@ -14,7 +15,7 @@ class LanguageModelExceptions(Exception):
 class LanguageModelBadResponseError(LanguageModelExceptions):
     explanation = """This happens when the LLM API can be reached and responses, does not return a usable answer."""
 
-    def __init__(self, message, response_json):
+    def __init__(self, message, response_json: Optional[dict] = None):
         super().__init__(message)
         self.response_json = response_json
 

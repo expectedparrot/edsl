@@ -53,8 +53,8 @@ class Result(Base, UserDict):
 
     >>> import warnings
     >>> warnings.simplefilter("ignore", UserWarning)
-    >>> Result.example().answer
-    {'how_feeling': 'OK', 'how_feeling_comment': 'This is a real survey response from a human.', 'how_feeling_yesterday': 'Great', 'how_feeling_yesterday_comment': 'This is a real survey response from a human.'}
+    >>> Result.example().answer == {'how_feeling_yesterday': 'Great', 'how_feeling': 'OK'}
+    True
 
     Its main data is an Agent, a Scenario, a Model, an Iteration, and an Answer.
     These are stored both in the UserDict and as attributes.
@@ -74,6 +74,7 @@ class Result(Base, UserDict):
         survey: Optional["Survey"] = None,
         question_to_attributes: Optional[dict] = None,
         generated_tokens: Optional[dict] = None,
+        comments_dict: Optional[dict] = None,
     ):
         """Initialize a Result object.
 
@@ -114,7 +115,7 @@ class Result(Base, UserDict):
             "prompt": prompt or {},
             "raw_model_response": raw_model_response or {},
             "question_to_attributes": question_to_attributes,
-            "generated_tokens": generated_tokens,
+            "generated_tokens": generated_tokens or {},
         }
         super().__init__(**data)
         # but also store the data as attributes
@@ -128,6 +129,7 @@ class Result(Base, UserDict):
         self.survey = survey
         self.question_to_attributes = question_to_attributes
         self.generated_tokens = generated_tokens
+        self.comments_dict = comments_dict or {}
 
         self._combined_dict = None
         self._problem_keys = None
@@ -143,7 +145,7 @@ class Result(Base, UserDict):
         else:
             agent_name = self.agent.name
 
-        comments_dict = {k: v for k, v in self.answer.items() if k.endswith("_comment")}
+        # comments_dict = {k: v for k, v in self.answer.items() if k.endswith("_comment")}
         question_text_dict = {}
         question_options_dict = {}
         question_type_dict = {}
@@ -161,8 +163,6 @@ class Result(Base, UserDict):
                     self.question_to_attributes[key]["question_type"]
                 )
 
-        # breakpoint()
-
         return {
             "agent": self.agent.traits
             | {"agent_name": agent_name}
@@ -172,11 +172,11 @@ class Result(Base, UserDict):
             "answer": self.answer,
             "prompt": self.prompt,
             "raw_model_response": self.raw_model_response,
-            #            "iteration": {"iteration": self.iteration},
+            "iteration": {"iteration": self.iteration},
             "question_text": question_text_dict,
             "question_options": question_options_dict,
             "question_type": question_type_dict,
-            "comment": comments_dict,
+            "comment": self.comments_dict,
             "generated_tokens": self.generated_tokens,
         }
 
