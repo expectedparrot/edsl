@@ -592,7 +592,7 @@ class Jobs(Base):
                         )
 
         # handle cache
-        if cache is None:
+        if cache is None or cache is True:
             from edsl.data.CacheHandler import CacheHandler
 
             cache = CacheHandler().get_cache()
