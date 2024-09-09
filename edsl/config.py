@@ -41,25 +41,29 @@ CONFIG_MAP = {
         "default": "5",
         "info": "This env var determines the maximum number of times to retry a failed API call.",
     },
-    "DEFAULT_EDSL_MODEL": {
+    "EDSL_DEFAULT_MODEL": {
         "default": "gpt-4o",
         "info": "This env var holds the default model name.",
     },
-    "SERVICE_TPM_BASELINE": {
+    "EDSL_SERVICE_TPM_BASELINE": {
         "default": "2000000",
-        "info": "This env var holds the maximum number of tokens per minute for all models. Model-specific values such as SERVICE_TPM_OPENAI will override this.",
+        "info": "This env var holds the maximum number of tokens per minute for all models. Model-specific values such as EDSL_SERVICE_TPM_OPENAI will override this.",
     },
-    "SERVICE_RPM_BASELINE": {
+    "EDSL_SERVICE_RPM_BASELINE": {
         "default": "100",
-        "info": "This env var holds the maximum number of requests per minute for OpenAI. Model-specific values such as SERVICE_RPM_OPENAI will override this.",
+        "info": "This env var holds the maximum number of requests per minute for OpenAI. Model-specific values such as EDSL_SERVICE_RPM_OPENAI will override this.",
     },
-    "SERVICE_TPM_OPENAI": {
+    "EDSL_SERVICE_TPM_OPENAI": {
         "default": "2000000",
         "info": "This env var holds the maximum number of tokens per minute for OpenAI.",
     },
-    "SERVICE_RPM_OPENAI": {
+    "EDSL_SERVICE_RPM_OPENAI": {
         "default": "100",
         "info": "This env var holds the maximum number of requests per minute for OpenAI.",
+    },
+    "EDSL_FETCH_TOKEN_PRICES": {
+        "default": "True",
+        "info": "Whether to fetch the prices for tokens",
     },
     "EXPECTED_PARROT_URL": {
         "default": "https://www.expectedparrot.com",

@@ -157,23 +157,39 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             raise_validation_errors=raise_validation_errors,
         )
 
-        # we should have a valid result for each question
-        answer_key_names = {
-            k
-            for k in set(answer.keys())
-            if not k.endswith("_comment") and not k.endswith("_generated_tokens")
+        # answer_key_names = {
+        #     k
+        #     for k in set(answer.keys())
+        #     if not k.endswith("_comment") and not k.endswith("_generated_tokens")
+        # }
+
+        question_results = {}
+        for result in valid_results:
+            question_results[result.question_name] = result
+
+        answer_key_names = list(question_results.keys())
+
+        generated_tokens_dict = {
+            k + "_generated_tokens": question_results[k].generated_tokens
+            for k in answer_key_names
         }
+        comments_dict = {
+            "k" + "_comment": question_results[k].comment for k in answer_key_names
+        }
+
+        # we should have a valid result for each question
         answer_dict = {k: answer[k] for k in answer_key_names}
         assert len(valid_results) == len(answer_key_names)
 
-        generated_tokens_dict = {
-            k + "_generated_tokens": v.generated_tokens
-            for k, v in zip(answer_key_names, valid_results)
-        }
+        # breakpoint()
+        # generated_tokens_dict = {
+        #     k + "_generated_tokens": v.generated_tokens
+        #     for k, v in zip(answer_key_names, valid_results)
+        # }
 
-        comments_dict = {
-            k + "_comment": v.comment for k, v in zip(answer_key_names, valid_results)
-        }
+        # comments_dict = {
+        #    k + "_comment": v.comment for k, v in zip(answer_key_names, valid_results)
+        # }
         # breakpoint()
 
         # TODO: move this down into Interview
