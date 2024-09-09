@@ -2,10 +2,10 @@ import textwrap
 from random import random
 from edsl.config import CONFIG
 
-if "DEFAULT_EDSL_MODEL" not in CONFIG:
+if "EDSL_DEFAULT_MODEL" not in CONFIG:
     default_model = "test"
 else:
-    default_model = CONFIG.get("DEFAULT_EDSL_MODEL")
+    default_model = CONFIG.get("EDSL_DEFAULT_MODEL")
 
 
 def get_model_class(model_name, registry=None):

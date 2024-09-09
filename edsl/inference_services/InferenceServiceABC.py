@@ -19,15 +19,15 @@ class InferenceServiceABC(ABC):
             )
 
     def get_tpm(cls):
-        key = f"SERVICE_TPM_{cls._inference_service_.upper()}"
+        key = f"EDSL_SERVICE_TPM_{cls._inference_service_.upper()}"
         if key not in CONFIG:
-            key = "SERVICE_TPM_BASELINE"
+            key = "EDSL_SERVICE_TPM_BASELINE"
         return int(CONFIG.get(key))
 
     def get_rpm(cls):
-        key = f"SERVICE_RPM_{cls._inference_service_.upper()}"
+        key = f"EDSL_SERVICE_RPM_{cls._inference_service_.upper()}"
         if key not in CONFIG:
-            key = "SERVICE_RPM_BASELINE"
+            key = "EDSL_SERVICE_RPM_BASELINE"
         return int(CONFIG.get(key))
 
     @abstractmethod

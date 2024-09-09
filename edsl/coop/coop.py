@@ -644,7 +644,7 @@ class Coop:
 
         from edsl.config import CONFIG
 
-        if bool(CONFIG.get("FETCH_TOKEN_PRICES")):
+        if bool(CONFIG.get("EDSL_FETCH_TOKEN_PRICES")):
             price_fetcher = PriceFetcher()
             return price_fetcher.fetch_prices()
         else:
