@@ -123,6 +123,7 @@ class ResponseValidatorABC(ABC):
             edsl_answer_dict = self._extract_answer(pydantic_edsl_answer)
             return self._post_process(edsl_answer_dict)
         except QuestionAnswerValidationError as e:
+            print(e)
             return self._handle_exception(e, raw_edsl_answer_dict)
 
     def _handle_exception(self, e: Exception, raw_edsl_answer_dict) -> EdslAnswerDict:
