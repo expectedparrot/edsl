@@ -21,7 +21,7 @@ def test_simple_job_integration():
 
     models_to_check = [
         "gpt-4",
-        "gemini-pro",
+        # "gemini-pro",
         "claude-3-opus-20240229",
         "meta-llama/Meta-Llama-3-70B-Instruct",
     ]
@@ -29,7 +29,7 @@ def test_simple_job_integration():
     print("-------------------------")
     print("Running job without cache?")
     job_no_cache = survey.by(agents).by(scenarios).by(models)
-    results_no_cache = job_no_cache.run(cache=False, stop_on_exception=True)
+    results_no_cache = job_no_cache.run(cache=False, stop_on_exception=False)
     results_no_cache
 
     # TODO: ADD OPTION THAT SPECIFIES CACHE

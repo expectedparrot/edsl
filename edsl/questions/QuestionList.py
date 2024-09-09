@@ -66,7 +66,7 @@ def create_model(max_list_items: int, permissive):
     if permissive or max_list_items is None:
 
         class ListResponse(BaseModel):
-            answer: list[Union[str, int, float, list, dict]]
+            answer: list[Any]
             comment: Optional[str] = None
             generated_tokens: Optional[str] = None
 
@@ -79,11 +79,9 @@ def create_model(max_list_items: int, permissive):
             {'answer': ['Apple', 'Cherry'], 'comment': None, 'generated_tokens': None}
             """
 
-            answer: list[Union[str, int, float, list, dict]] = Field(
-                ..., min_items=0, max_items=max_list_items
-            )
+            answer: list[Any] = Field(..., min_items=0, max_items=max_list_items)
             comment: Optional[str] = None
-            generated_tokens: Optional[int] = None
+            generated_tokens: Optional[str] = None
 
     return ListResponse
 
@@ -107,7 +105,9 @@ class ListResponseValidator(ResponseValidatorABC):
         ):
             raise QuestionAnswerValidationError("Too many items.")
 
-    def fix(self, response):
+    def fix(self, response, verbose=True):
+        if verbose:
+            print(f"Fixing list response: {response}")
         answer = str(response.get("answer") or response.get("generated_tokens", ""))
         if len(answer.split(",")) > 0:
             return (
