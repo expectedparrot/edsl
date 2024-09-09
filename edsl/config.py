@@ -61,6 +61,10 @@ CONFIG_MAP = {
         "default": "100",
         "info": "This env var holds the maximum number of requests per minute for OpenAI.",
     },
+    "FETCH_TOKEN_PRICES": {
+        "default": "True",
+        "info": "Whether to fetch the prices for tokens",
+    },
     "EXPECTED_PARROT_URL": {
         "default": "https://www.expectedparrot.com",
         "info": "This env var holds the URL of the Expected Parrot API.",

@@ -102,9 +102,9 @@ class Interview(InterviewStatusMixin):
         self.debug = debug
         self.iteration = iteration
         self.cache = cache
-        self.answers: dict[
-            str, str
-        ] = Answers()  # will get filled in as interview progresses
+        self.answers: dict[str, str] = (
+            Answers()
+        )  # will get filled in as interview progresses
         self.sidecar_model = sidecar_model
 
         # Trackers
@@ -254,17 +254,17 @@ class Interview(InterviewStatusMixin):
                 raise ValueError(f"Prompt is of type {type(prompt)}")
         return len(combined_text) / 4.0
 
-    def create_failed_question(self, invigilator, e) -> FailedQuestion:
-        failed_question = FailedQuestion(
-            question=invigilator.question,
-            scenario=invigilator.scenario,
-            model=invigilator.model,
-            agent=invigilator.agent,
-            raw_model_response=invigilator.raw_model_response,
-            exception=e,
-            prompts=invigilator.get_prompts(),
-        )
-        return failed_question
+    # def create_failed_question(self, invigilator, e) -> FailedQuestion:
+    #     failed_question = FailedQuestion(
+    #         question=invigilator.question,
+    #         scenario=invigilator.scenario,
+    #         model=invigilator.model,
+    #         agent=invigilator.agent,
+    #         raw_model_response=invigilator.raw_model_response,
+    #         exception=e,
+    #         prompts=invigilator.get_prompts(),
+    #     )
+    #     return failed_question
 
     async def _answer_question_and_record_task(
         self,
@@ -371,11 +371,11 @@ class Interview(InterviewStatusMixin):
         """
         current_question_index: int = self.to_index[current_question.question_name]
 
-        next_question: Union[
-            int, EndOfSurvey
-        ] = self.survey.rule_collection.next_question(
-            q_now=current_question_index,
-            answers=self.answers | self.scenario | self.agent["traits"],
+        next_question: Union[int, EndOfSurvey] = (
+            self.survey.rule_collection.next_question(
+                q_now=current_question_index,
+                answers=self.answers | self.scenario | self.agent["traits"],
+            )
         )
 
         next_question_index = next_question.next_q
