@@ -91,7 +91,7 @@ class ResponseValidatorABC(ABC):
         generated_tokens: Optional[str]
 
     def validate(
-        self, raw_edsl_answer_dict: RawEdslAnswerDict, fix=False
+        self, raw_edsl_answer_dict: RawEdslAnswerDict, fix=False, verbose=False
     ) -> EdslAnswerDict:
         """This is the main validation function.
 
@@ -123,7 +123,8 @@ class ResponseValidatorABC(ABC):
             edsl_answer_dict = self._extract_answer(pydantic_edsl_answer)
             return self._post_process(edsl_answer_dict)
         except QuestionAnswerValidationError as e:
-            print(e)
+            if verbose:
+                print(f"Failed to validate {raw_edsl_answer_dict}; {str(e)}")
             return self._handle_exception(e, raw_edsl_answer_dict)
 
     def _handle_exception(self, e: Exception, raw_edsl_answer_dict) -> EdslAnswerDict:

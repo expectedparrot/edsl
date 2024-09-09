@@ -105,7 +105,7 @@ class ListResponseValidator(ResponseValidatorABC):
         ):
             raise QuestionAnswerValidationError("Too many items.")
 
-    def fix(self, response, verbose=True):
+    def fix(self, response, verbose=False):
         if verbose:
             print(f"Fixing list response: {response}")
         answer = str(response.get("answer") or response.get("generated_tokens", ""))
