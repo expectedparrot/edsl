@@ -137,9 +137,11 @@ def sqlite_dict():
     Yields a fresh SQLiteDict instance for each test.
     - Deletes the database file after the test.
     """
-    print(CONFIG.get("EDSL_DATABASE_PATH"))
-    yield SQLiteDict(db_path=CONFIG.get("EDSL_DATABASE_PATH"))
-    os.remove(CONFIG.get("EDSL_DATABASE_PATH").replace("sqlite:///", ""))
+    import uuid
+
+    db_path = CONFIG.get("EDSL_DATABASE_PATH") + str(uuid.uuid4())
+    yield SQLiteDict(db_path=db_path)
+    os.remove(db_path.replace("sqlite:///", ""))
 
 
 @pytest.fixture

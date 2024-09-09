@@ -51,6 +51,7 @@ clean-test: ## Clean test files
 	[ ! -f tests/edsl_cache_test.db ] || rm tests/edsl_cache_test.db
 	[ ! -f tests/interview.log ] || rm tests/interview.log
 	[ ! -f tests/test_pytest_report.html ] || rm tests/test_pytest_report.html
+	find tests -name '.temp_cache_*' -type d -exec rm -rf {} +
 	@for file in *.html; do \
 		[ ! -f "$$file" ] || rm "$$file"; \
 	done
@@ -140,7 +141,7 @@ visualize: ## Visualize the repo structure
 ###############
 test: ## Run regular tests (no Coop tests) 
 	make clean-test
-	pytest -xv tests --nocoop
+	pytest -xv -n auto tests --nocoop
 
 test-coop: ## Run Coop tests (no regular tests, requires Coop local server running)
 	make clean-test

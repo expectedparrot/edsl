@@ -32,7 +32,8 @@ docs/_build/
 dist
 htmlcov
 prof
-tests/temp_outputs
+tests/.temp_outputs
+tests/.temp_cache_*
 tests/assets
 venv
 # exceptions
