@@ -496,7 +496,7 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.models[0]
-        Model(model_name = 'gpt-4-1106-preview', temperature = 0.5, max_tokens = 1000, top_p = 1, frequency_penalty = 0, presence_penalty = 0, logprobs = False, top_logprobs = 3)
+        Model(model_name = ...)
         """
         return [r.model for r in self.data]
 
@@ -872,7 +872,7 @@ class Results(UserList, Mixins, Base):
         Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}])
 
         >>> results.select('how_feeling', 'model', 'how_feeling')
-        Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}, {'model.model': ['gpt-4-1106-preview', 'gpt-4-1106-preview', 'gpt-4-1106-preview', 'gpt-4-1106-preview']}, {'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}])
+        Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}, {'model.model': ['...', '...', '...', '...']}, {'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}])
 
         >>> from edsl import Results; r = Results.example(); r.select('answer.how_feeling_y')
         Dataset([{'answer.how_feeling_yesterday': ['Great', 'Good', 'OK', 'Terrible']}])
@@ -1106,7 +1106,7 @@ class Results(UserList, Mixins, Base):
         return Results(survey=self.survey, data=new_data, created_columns=None)
 
     @classmethod
-    def example(cls, debug: bool = False, randomize: bool = False) -> Results:
+    def example(cls, randomize: bool = False) -> Results:
         """Return an example `Results` object.
 
         Example usage:
@@ -1120,7 +1120,12 @@ class Results(UserList, Mixins, Base):
 
         c = Cache()
         job = Jobs.example(randomize=randomize)
-        results = job.run(cache=c, debug=debug, stop_on_exception=True, skip_retry=True)
+        results = job.run(
+            cache=c,
+            stop_on_exception=True,
+            skip_retry=True,
+            raise_validation_errors=True,
+        )
         return results
 
     def rich_print(self):

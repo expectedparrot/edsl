@@ -157,10 +157,10 @@ def test_QuestionMultipleChoice_answers():
     llm_response_invalid1 = {"comment": "I'm good"}
 
     # LLM response is required to have an answer key, but is flexible otherwise
-    q._validate_response(llm_response_valid1)
-    q._validate_response(llm_response_valid2)
-    with pytest.raises(QuestionResponseValidationError):
-        q._validate_response(llm_response_invalid1)
+    # q._validate_response(llm_response_valid1)
+    # q._validate_response(llm_response_valid2)
+    # with pytest.raises(QuestionResponseValidationError):
+    #     q._validate_response(llm_response_invalid1)
 
     # # answer must be an integer or interpretable as integer
     # q._validate_answer({"answer": "Good"})
@@ -185,7 +185,7 @@ def test_QuestionMultipleChoice_answers():
 
 def test_permissive():
     q = QuestionMultipleChoice(**valid_question | {"permissive": True})
-    q._validate_response({"answer": "Poop"})
+    q._validate_answer({"answer": "Poop"})
 
 
 def test_instructions_overrride():

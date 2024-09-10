@@ -23,23 +23,22 @@ def execute_notebook(notebook_path):
 
 full_list = [
     "docs/notebooks/critique_questions.ipynb",
-    "docs/notebooks/hiring_interviews.ipynb",  # no good - onet db broken
+    # "docs/notebooks/hiring_interviews.ipynb",  # no good - onet db broken
     "docs/notebooks/adding_metadata.ipynb",  # works
     "docs/notebooks/analyze_evaluations.ipynb",  # works
 ]
 
 
-@pytest.mark.parametrize(
-    "notebook_path",
-    ["docs/notebooks/hiring_interviews.ipynb"],
-    # [
-    #     os.path.join(dirpath, f)
-    #     for dirpath, _, files in os.walk("integration/notebooks")  # Update this path
-    #     for f in files
-    #     if f.endswith(".ipynb")
-    # ]
-    # + ,
-)
+@pytest.mark.parametrize("notebook_path", full_list)
+# ["docs/notebooks/hiring_interviews.ipynb"],
+# [
+#     os.path.join(dirpath, f)
+#     for dirpath, _, files in os.walk("integration/notebooks")  # Update this path
+#     for f in files
+#     if f.endswith(".ipynb")
+# ]
+# + ,
+# )
 def test_notebook_execution(notebook_path):
     """
     Test function that executes each Jupyter notebook found in the directory, and checks for exceptions.

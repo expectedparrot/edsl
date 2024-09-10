@@ -5,14 +5,19 @@ from edsl.language_models.LanguageModel import LanguageModel
 import asyncio
 from mistralai import Mistral
 
+from edsl.exceptions.language_models import LanguageModelBadResponseError
+
 
 class MistralAIService(InferenceServiceABC):
     """Mistral AI service class."""
 
-    # key_sequence = ["content", 0, "text"]  # ["content"][0]["text"]
     key_sequence = ["choices", 0, "message", "content"]
+    usage_sequence = ["usage"]
+
     _inference_service_ = "mistral"
     _env_key_name_ = "MISTRAL_API_KEY"  # Environment variable for Mistral API key
+    input_token_name = "prompt_tokens"
+    output_token_name = "completion_tokens"
 
     _sync_client_instance = None
     _async_client_instance = None
@@ -67,6 +72,11 @@ class MistralAIService(InferenceServiceABC):
             """
 
             key_sequence = cls.key_sequence
+            usage_sequence = cls.usage_sequence
+
+            input_token_name = cls.input_token_name
+            output_token_name = cls.output_token_name
+
             _inference_service_ = cls._inference_service_
             _model_ = model_name
             _parameters_ = {
@@ -74,6 +84,9 @@ class MistralAIService(InferenceServiceABC):
                 "max_tokens": 512,
                 "top_p": 0.9,
             }
+
+            _tpm = cls.get_tpm(cls)
+            _rpm = cls.get_rpm(cls)
 
             def sync_client(self):
                 return cls.sync_client()
@@ -87,15 +100,18 @@ class MistralAIService(InferenceServiceABC):
                 """Calls the Mistral API and returns the API response."""
                 s = self.async_client()
 
-                res = await s.chat.complete_async(
-                    model=model_name,
-                    messages=[
-                        {
-                            "content": user_prompt,
-                            "role": "user",
-                        },
-                    ],
-                )
+                try:
+                    res = await s.chat.complete_async(
+                        model=model_name,
+                        messages=[
+                            {
+                                "content": user_prompt,
+                                "role": "user",
+                            },
+                        ],
+                    )
+                except Exception as e:
+                    raise LanguageModelBadResponseError(f"Error with Mistral API: {e}")
 
                 return res.model_dump()
 

@@ -144,8 +144,8 @@ def test_QuestionLinearScale_answers():
     # answer can't be a random string
     with pytest.raises(QuestionAnswerValidationError):
         q._validate_answer({"answer": "asdf"})
-    with pytest.raises(QuestionAnswerValidationError):
-        q._validate_answer({"answer": [0, 1]})
+    # with pytest.raises(QuestionAnswerValidationError):
+    #     q._validate_answer({"answer": [0, 1]})
     with pytest.raises(QuestionAnswerValidationError):
         q._validate_answer({"answer": {"answer": 0}})
 

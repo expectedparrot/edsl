@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import os
 import warnings
+import copy
 from typing import Optional, Union
 from edsl.Base import Base
 from edsl.data.CacheEntry import CacheEntry
@@ -88,10 +89,23 @@ class Cache(Base):
         # raise NotImplementedError("This method is not implemented yet.")
 
     def keys(self):
+        """
+        >>> from edsl import Cache
+        >>> Cache.example().keys()
+        ['5513286eb6967abc0511211f0402587d']
+        """
         return list(self.data.keys())
 
     def values(self):
+        """
+        >>> from edsl import Cache
+        >>> Cache.example().values()
+        [CacheEntry(...)]
+        """
         return list(self.data.values())
+
+    def items(self):
+        return zip(self.keys(), self.values())
 
     def new_entries_cache(self) -> Cache:
         """Return a new Cache object with the new entries."""
@@ -160,7 +174,7 @@ class Cache(Base):
         parameters: str,
         system_prompt: str,
         user_prompt: str,
-        response: str,
+        response: dict,
         iteration: int,
     ) -> str:
         """
@@ -174,6 +188,15 @@ class Cache(Base):
         * The key-value pair is added to `self.new_entries`
         * If `immediate_write` is True , the key-value pair is added to `self.data`
         * If `immediate_write` is False, the key-value pair is added to `self.new_entries_to_write_later`
+
+        >>> from edsl import Cache, Model, Question
+        >>> m = Model("test")
+        >>> c = Cache()
+        >>> len(c)
+        0
+        >>> results = Question.example("free_text").by(m).run(cache = c)
+        >>> len(c)
+        1
         """
 
         entry = CacheEntry(
@@ -325,6 +348,17 @@ class Cache(Base):
         with open(path, "w") as f:
             for key, value in self.data.items():
                 f.write(json.dumps({key: value.to_dict()}) + "\n")
+
+    def to_scenario_list(self):
+        from edsl import ScenarioList, Scenario
+
+        scenarios = []
+        for key, value in self.data.items():
+            new_d = value.to_dict()
+            new_d["cache_key"] = key
+            s = Scenario(new_d)
+            scenarios.append(s)
+        return ScenarioList(scenarios)
 
     ####################
     # REMOTE

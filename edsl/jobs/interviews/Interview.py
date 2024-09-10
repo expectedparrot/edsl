@@ -9,7 +9,7 @@ from edsl import CONFIG
 from edsl.surveys.base import EndOfSurvey
 from edsl.exceptions import QuestionAnswerValidationError
 from edsl.exceptions import InterviewTimeoutError
-from edsl.data_transfer_models import AgentResponseDict
+from edsl.data_transfer_models import AgentResponseDict, EDSLResultObjectInput
 
 from edsl.jobs.FailedQuestion import FailedQuestion
 from edsl.jobs.buckets.ModelBuckets import ModelBuckets
@@ -67,6 +67,7 @@ class Interview(InterviewStatusMixin):
         cache: Optional["Cache"] = None,
         sidecar_model: Optional["LanguageModel"] = None,
         skip_retry: bool = False,
+        raise_validation_errors: bool = True,
     ):
         """Initialize the Interview instance.
 
@@ -101,9 +102,9 @@ class Interview(InterviewStatusMixin):
         self.debug = debug
         self.iteration = iteration
         self.cache = cache
-        self.answers: dict[str, str] = (
-            Answers()
-        )  # will get filled in as interview progresses
+        self.answers: dict[
+            str, str
+        ] = Answers()  # will get filled in as interview progresses
         self.sidecar_model = sidecar_model
 
         # Trackers
@@ -111,6 +112,7 @@ class Interview(InterviewStatusMixin):
         self.exceptions = InterviewExceptionCollection()
         self._task_status_log_dict = InterviewStatusLog()
         self.skip_retry = skip_retry
+        self.raise_validation_errors = raise_validation_errors
 
         # dictionary mapping question names to their index in the survey.
         self.to_index = {
@@ -163,42 +165,8 @@ class Interview(InterviewStatusMixin):
         """
         return self.survey.dag(textify=True)
 
-    def _build_invigilators(
-        self, debug: bool
-    ) -> Generator[InvigilatorBase, None, None]:
-        """Create an invigilator for each question.
-
-        :param debug: whether to use debug mode, in which case `InvigilatorDebug` is used.
-
-        An invigilator is responsible for answering a particular question in the survey.
-        """
-        for question in self.survey.questions:
-            yield self._get_invigilator(question=question, debug=debug)
-
-    def _get_invigilator(self, question: QuestionBase, debug: bool) -> InvigilatorBase:
-        """Return an invigilator for the given question.
-
-        :param question: the question to be answered
-        :param debug: whether to use debug mode, in which case `InvigilatorDebug` is used.
-        """
-        invigilator = self.agent.create_invigilator(
-            question=question,
-            scenario=self.scenario,
-            model=self.model,
-            debug=debug,
-            survey=self.survey,
-            memory_plan=self.survey.memory_plan,
-            current_answers=self.answers,
-            iteration=self.iteration,
-            cache=self.cache,
-            sidecar_model=self.sidecar_model,
-        )
-        """Return an invigilator for the given question."""
-        return invigilator
-
     def _build_question_tasks(
         self,
-        debug: bool,
         model_buckets: ModelBuckets,
     ) -> list[asyncio.Task]:
         """Create a task for each question, with dependencies on the questions that must be answered before this one can be answered.
@@ -217,7 +185,6 @@ class Interview(InterviewStatusMixin):
                 question=question,
                 tasks_that_must_be_completed_before=tasks_that_must_be_completed_before,
                 model_buckets=model_buckets,
-                debug=debug,
                 iteration=self.iteration,
             )
             tasks.append(question_task)
@@ -243,7 +210,6 @@ class Interview(InterviewStatusMixin):
         question: QuestionBase,
         tasks_that_must_be_completed_before: list[asyncio.Task],
         model_buckets: ModelBuckets,
-        debug: bool,
         iteration: int = 0,
     ) -> asyncio.Task:
         """Create a task that depends on the passed-in dependencies that are awaited before the task is run.
@@ -272,11 +238,11 @@ class Interview(InterviewStatusMixin):
         self.task_creators.update(
             {question.question_name: task_creator}
         )  # track this task creator
-        return task_creator.generate_task(debug)
+        return task_creator.generate_task()
 
     def _get_estimated_request_tokens(self, question) -> float:
         """Estimate the number of tokens that will be required to run the focal task."""
-        invigilator = self._get_invigilator(question=question, debug=False)
+        invigilator = self._get_invigilator(question=question)
         # TODO: There should be a way to get a more accurate estimate.
         combined_text = ""
         for prompt in invigilator.get_prompts().values():
@@ -288,84 +254,87 @@ class Interview(InterviewStatusMixin):
                 raise ValueError(f"Prompt is of type {type(prompt)}")
         return len(combined_text) / 4.0
 
-    def create_failed_question(self, invigilator, e) -> FailedQuestion:
-        failed_question = FailedQuestion(
-            question=invigilator.question,
-            scenario=invigilator.scenario,
-            model=invigilator.model,
-            agent=invigilator.agent,
-            raw_model_response=invigilator.raw_model_response,
-            exception=e,
-            prompts=invigilator.get_prompts(),
-        )
-        return failed_question
+    # def create_failed_question(self, invigilator, e) -> FailedQuestion:
+    #     failed_question = FailedQuestion(
+    #         question=invigilator.question,
+    #         scenario=invigilator.scenario,
+    #         model=invigilator.model,
+    #         agent=invigilator.agent,
+    #         raw_model_response=invigilator.raw_model_response,
+    #         exception=e,
+    #         prompts=invigilator.get_prompts(),
+    #     )
+    #     return failed_question
 
     async def _answer_question_and_record_task(
         self,
         *,
         question: "QuestionBase",
-        debug: bool,
         task=None,
     ) -> "AgentResponseDict":
         """Answer a question and records the task.
 
-        This in turn calls the the passed-in agent's async_answer_question method, which returns a response dictionary.
         Note that is updates answers dictionary with the response.
         """
 
-        async def _inner():
-            try:
-                invigilator = self._get_invigilator(question, debug=debug)
+        invigilator = self._get_invigilator(question)
 
-                if self._skip_this_question(question):
-                    return invigilator.get_failed_task_result()
+        if self._skip_this_question(question):
+            response = invigilator.get_failed_task_result(
+                failure_reason="Question skipped."
+            )
 
-                response: AgentResponseDict = await self._attempt_to_answer_question(
-                    invigilator, task
-                )
-                # breakpoint()
-
-                self._add_answer(response=response, question=question)
+        try:
+            response: EDSLResultObjectInput = await asyncio.wait_for(
+                invigilator.async_answer_question(), timeout=TIMEOUT
+            )
+            if response.validated:
+                self.answers.add_answer(response=response, question=question)
                 self._cancel_skipped_questions(question)
-                return AgentResponseDict(**response)
-            except QuestionAnswerValidationError as e:
-                failed_question = self.create_failed_question(invigilator, e)
-                self.failed_questions.append(failed_question)
-                raise e
-            except Exception as e:
-                failed_question = self.create_failed_question(invigilator, e)
-                self.failed_questions.append(failed_question)
-                raise e
+            else:
+                if (
+                    hasattr(response, "exception_occurred")
+                    and response.exception_occurred
+                ):
+                    raise response.exception_occurred
 
-        skip_retry = getattr(self, "skip_retry", False)
-        if not skip_retry:
+        except QuestionAnswerValidationError as e:
+            # these should only appear if not suppressed earlier if self.raise_validation_errors is True
+            self._handle_exception(e, invigilator, task)
+            # raise e
 
-            def retry_if_not_validation_error(func):
-                async def wrapper(*args, **kwargs):
-                    try:
-                        return await func(*args, **kwargs)
-                    except QuestionAnswerValidationError:
-                        raise  # Do not retry for QuestionAnswerValidationError
-                    except Exception as e:
-                        return await retry_strategy(func)(
-                            *args, **kwargs
-                        )  # Retry for other exceptions
+        except asyncio.TimeoutError as e:
+            self._handle_exception(e, invigilator, task)
+            # raise InterviewTimeoutError(f"Task timed out after {TIMEOUT} seconds.")
 
-                return wrapper
+        except Exception as e:
+            self._handle_exception(e, invigilator, task)
+            # raise e
 
-            _inner = retry_if_not_validation_error(_inner)
+        # breakpoint()
+        return response
 
-        return await _inner()
+    def _get_invigilator(self, question: QuestionBase) -> InvigilatorBase:
+        """Return an invigilator for the given question.
 
-    def _add_answer(
-        self, response: "AgentResponseDict", question: "QuestionBase"
-    ) -> None:
-        """Add the answer to the answers dictionary.
-
-        :param response: the response to the question.
-        :param question: the question that was answered.
+        :param question: the question to be answered
+        :param debug: whether to use debug mode, in which case `InvigilatorDebug` is used.
         """
-        self.answers.add_answer(response=response, question=question)
+        invigilator = self.agent.create_invigilator(
+            question=question,
+            scenario=self.scenario,
+            model=self.model,
+            debug=False,
+            survey=self.survey,
+            memory_plan=self.survey.memory_plan,
+            current_answers=self.answers,
+            iteration=self.iteration,
+            cache=self.cache,
+            sidecar_model=self.sidecar_model,
+            raise_validation_errors=self.raise_validation_errors,
+        )
+        """Return an invigilator for the given question."""
+        return invigilator
 
     def _skip_this_question(self, current_question: "QuestionBase") -> bool:
         """Determine if the current question should be skipped.
@@ -385,33 +354,11 @@ class Interview(InterviewStatusMixin):
     ):
         exception_entry = InterviewExceptionEntry(
             exception=e,
-            failed_question=self.create_failed_question(invigilator, e),
             invigilator=invigilator,
         )
         if task:
             task.task_status = TaskStatus.FAILED
         self.exceptions.add(invigilator.question.question_name, exception_entry)
-
-    async def _attempt_to_answer_question(
-        self, invigilator: "InvigilatorBase", task: asyncio.Task
-    ) -> "AgentResponseDict":
-        """Attempt to answer the question, and handle exceptions.
-
-        :param invigilator: the invigilator that will answer the question.
-        :param task: the task that is being run.
-
-        """
-        try:
-            response = await asyncio.wait_for(
-                invigilator.async_answer_question(), timeout=TIMEOUT
-            )
-            return response
-        except asyncio.TimeoutError as e:
-            self._handle_exception(e, invigilator, task)
-            raise InterviewTimeoutError(f"Task timed out after {TIMEOUT} seconds.")
-        except Exception as e:
-            self._handle_exception(e, invigilator, task)
-            raise e
 
     def _cancel_skipped_questions(self, current_question: QuestionBase) -> None:
         """Cancel the tasks for questions that are skipped.
@@ -424,11 +371,11 @@ class Interview(InterviewStatusMixin):
         """
         current_question_index: int = self.to_index[current_question.question_name]
 
-        next_question: Union[int, EndOfSurvey] = (
-            self.survey.rule_collection.next_question(
-                q_now=current_question_index,
-                answers=self.answers | self.scenario | self.agent["traits"],
-            )
+        next_question: Union[
+            int, EndOfSurvey
+        ] = self.survey.rule_collection.next_question(
+            q_now=current_question_index,
+            answers=self.answers | self.scenario | self.agent["traits"],
         )
 
         next_question_index = next_question.next_q
@@ -450,11 +397,10 @@ class Interview(InterviewStatusMixin):
     # region: Conducting the interview
     async def async_conduct_interview(
         self,
-        *,
         model_buckets: Optional[ModelBuckets] = None,
-        debug: bool = False,
         stop_on_exception: bool = False,
         sidecar_model: Optional["LanguageModel"] = None,
+        raise_validation_errors: bool = True,
     ) -> tuple["Answers", List[dict[str, Any]]]:
         """
         Conduct an Interview asynchronously.
@@ -474,19 +420,6 @@ class Interview(InterviewStatusMixin):
 
         >>> i = Interview.example(throw_exception = True)
         >>> result, _ = asyncio.run(i.async_conduct_interview())
-        Attempt 1 failed with exception 'Exception':This is a test error now waiting 1.00 seconds before retrying.Parameters: start=1.0, max=60.0, max_attempts=5.
-        <BLANKLINE>
-        <BLANKLINE>
-        Attempt 2 failed with exception 'Exception':This is a test error now waiting 2.00 seconds before retrying.Parameters: start=1.0, max=60.0, max_attempts=5.
-        <BLANKLINE>
-        <BLANKLINE>
-        Attempt 3 failed with exception 'Exception':This is a test error now waiting 4.00 seconds before retrying.Parameters: start=1.0, max=60.0, max_attempts=5.
-        <BLANKLINE>
-        <BLANKLINE>
-        Attempt 4 failed with exception 'Exception':This is a test error now waiting 8.00 seconds before retrying.Parameters: start=1.0, max=60.0, max_attempts=5.
-        <BLANKLINE>
-        <BLANKLINE>
-
         >>> i.exceptions
         {'q0': ...
         >>> i = Interview.example()
@@ -501,16 +434,14 @@ class Interview(InterviewStatusMixin):
         if model_buckets is None or hasattr(self.agent, "answer_question_directly"):
             model_buckets = ModelBuckets.infinity_bucket()
 
-        ## build the tasks using the InterviewTaskBuildingMixin
         ## This is the key part---it creates a task for each question,
         ## with dependencies on the questions that must be answered before this one can be answered.
-        self.tasks = self._build_question_tasks(
-            debug=debug, model_buckets=model_buckets
-        )
+        self.tasks = self._build_question_tasks(model_buckets=model_buckets)
 
         ## 'Invigilators' are used to administer the survey
-        self.invigilators = list(self._build_invigilators(debug=debug))
-        # await the tasks being conducted
+        self.invigilators = [
+            self._get_invigilator(question) for question in self.survey.questions
+        ]
         await asyncio.gather(*self.tasks, return_exceptions=not stop_on_exception)
         self.answers.replace_missing_answers_with_none(self.survey)
         valid_results = list(self._extract_valid_results())
@@ -531,8 +462,6 @@ class Interview(InterviewStatusMixin):
         >>> results = list(i._extract_valid_results())
         >>> len(results) == len(i.survey)
         True
-        >>> type(results[0])
-        <class 'edsl.data_transfer_models.AgentResponseDict'>
         """
         assert len(self.tasks) == len(self.invigilators)
 
@@ -543,56 +472,20 @@ class Interview(InterviewStatusMixin):
             try:
                 result = task.result()
             except asyncio.CancelledError as e:  # task was cancelled
-                result = invigilator.get_failed_task_result()
-            except Exception as e:  # any other kind of exception in the task
-                result = invigilator.get_failed_task_result()
-
-                # This is only after the re-tries have failed.
-                failed_question = FailedQuestion(
-                    question=invigilator.question,
-                    scenario=invigilator.scenario,
-                    model=invigilator.model,
-                    agent=invigilator.agent,
-                    raw_model_response=invigilator.raw_model_response,
-                    exception=e,
-                    prompts=invigilator.get_prompts(),
+                result = invigilator.get_failed_task_result(
+                    failure_reason="Task was cancelled."
                 )
-                self.failed_questions.append(failed_question)
-                self._record_exception(
-                    task=task,
+            except Exception as e:  # any other kind of exception in the task
+                result = invigilator.get_failed_task_result(
+                    failure_reason=f"Task failed with exception: {str(e)}."
+                )
+                exception_entry = InterviewExceptionEntry(
                     exception=e,
-                    failed_question=failed_question,
                     invigilator=invigilator,
                 )
+                self.exceptions.add(task.get_name(), exception_entry)
+
             yield result
-
-    def _record_exception(
-        self,
-        task,
-        exception: Exception,
-        failed_question: Optional[FailedQuestion],
-        invigilator: Optional["Invigilator"],
-    ) -> None:
-        """Record an exception in the Interview instance.
-
-        It records the exception in the Interview instance, with the task name and the exception entry.
-
-        >>> i = Interview.example()
-        >>> result, _ = asyncio.run(i.async_conduct_interview())
-        >>> i.exceptions
-        {}
-        >>> i = Interview.example(throw_exception = True)
-        >>> i.skip_retry = True
-        >>> result, _ = asyncio.run(i.async_conduct_interview())
-        >>> i.exceptions
-        {'q0': ...
-        """
-        exception_entry = InterviewExceptionEntry(
-            exception=exception,
-            failed_question=failed_question,
-            invigilator=invigilator,
-        )
-        self.exceptions.add(task.get_name(), exception_entry)
 
     # endregion
 

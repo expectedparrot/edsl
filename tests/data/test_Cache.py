@@ -141,8 +141,10 @@ def test_throw_file_note_found_error():
         assert True
 
 
-def test_caching(language_model_good):
-    m = language_model_good
+def test_caching():
+    from edsl import Model
+
+    m = Model("test")
     m.remote = False
     c = Cache()
     results1 = QuestionFreeText.example().by(m).run(cache=c, check_api_keys=False)

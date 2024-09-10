@@ -7,6 +7,7 @@ import copy
 
 from edsl.exceptions import (
     QuestionResponseValidationError,
+    QuestionAnswerValidationError,
     QuestionSerializationError,
 )
 from edsl.questions.descriptors import QuestionNameDescriptor, QuestionTextDescriptor
@@ -74,7 +75,8 @@ class QuestionBase(
         if not hasattr(self, "_fake_data_factory"):
             from polyfactory.factories.pydantic_factory import ModelFactory
 
-            class FakeData(ModelFactory[self.response_model]): ...
+            class FakeData(ModelFactory[self.response_model]):
+                ...
 
             self._fake_data_factory = FakeData
         return self._fake_data_factory
@@ -109,6 +111,7 @@ class QuestionBase(
         edsl.exceptions.questions.QuestionAnswerValidationError:...
         ...
         """
+
         return self.response_validator.validate(answer)
 
     # endregion
@@ -239,7 +242,7 @@ class QuestionBase(
         >>> from edsl import QuestionFreeText as Q
         >>> m = Q._get_test_model(canned_response = "Yo, what's up?")
         >>> m.execute_model_call("", "")
-        {'message': [{'text': "Yo, what's up?"}]}
+        {'message': [{'text': "Yo, what's up?"}], 'usage': {'prompt_tokens': 1, 'completion_tokens': 1}}
         >>> Q.run_example(show_answer = True, model = m)
         ┏━━━━━━━━━━━━━━━━┓
         ┃ answer         ┃
@@ -390,13 +393,13 @@ class QuestionBase(
         # from edsl.questions import compose_questions
         # return compose_questions(self, other_question_or_diff)
 
-    def _validate_response(self, response):
-        """Validate the response from the LLM. Behavior depends on the question type."""
-        if "answer" not in response:
-            raise QuestionResponseValidationError(
-                "Response from LLM does not have an answer"
-            )
-        return response
+    # def _validate_response(self, response):
+    #     """Validate the response from the LLM. Behavior depends on the question type."""
+    #     if "answer" not in response:
+    #         raise QuestionResponseValidationError(
+    #             "Response from LLM does not have an answer"
+    #         )
+    #     return response
 
     def _translate_answer_code_to_answer(
         self, answer, scenario: Optional["Scenario"] = None

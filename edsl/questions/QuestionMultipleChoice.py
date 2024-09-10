@@ -66,22 +66,51 @@ def create_response_model(choices: List[str], permissive: bool = False):
     return ChoiceResponse
 
 
+def fix_multiple_choice(response, question_options, use_code, verbose=False):
+    """Fix the response to a multiple choice question.
+    Respnse is a dictionary with keys:
+    - answer: the answer code
+    - generated_tokens: the generated tokens
+    - comment: the comment
+    """
+    pass
+
+
 class MultipleChoiceResponseValidator(ResponseValidatorABC):
     required_params = ["question_options", "use_code"]
 
-    def fix(self, response):
-        response_text = str(response)
+    def fix(self, response, verbose=False):
+        response_text = str(response.get("answer"))
+        if response_text is None:
+            response_text = response.get("generated_tokens", "")
+
+        if verbose:
+            print(f"Invalid generated tokens was: {response_text}")
+
+        matches = []
         for idx, option in enumerate(self.question_options):
-            matches = []
+            if verbose:
+                print("The options are: ", self.question_options)
             if str(option) in response_text:
-                matches.append(option)
+                if verbose:
+                    print("Match found with option ", option)
+                if option not in matches:
+                    matches.append(option)
+
+        if verbose:
+            print("The matches are: ", matches)
         if len(matches) == 1:
-            return {
+            proposed_data = {
                 "answer": matches[0],
                 "generated_tokens": response.get("generated_tokens", None),
             }
-        else:
-            return None
+            try:
+                self.response_model(**proposed_data)
+                return proposed_data
+            except Exception as e:
+                if verbose:
+                    print(f"Proposed solution {proposed_data} is invalid. Error: {e}")
+            return response
 
     valid_examples = [
         ({"answer": 1}, {"question_options": ["Good", "Great", "OK", "Bad"]})
@@ -110,9 +139,9 @@ class QuestionMultipleChoice(QuestionBase):
 
     question_type = "multiple_choice"
     purpose = "When options are known and limited"
-    question_options: Union[list[str], list[list], list[float], list[int]] = (
-        QuestionOptionsDescriptor()
-    )
+    question_options: Union[
+        list[str], list[list], list[float], list[int]
+    ] = QuestionOptionsDescriptor()
     _response_model = None
     response_validator_class = MultipleChoiceResponseValidator
 

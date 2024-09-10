@@ -11,6 +11,10 @@ from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
 class GoogleService(InferenceServiceABC):
     _inference_service_ = "google"
     key_sequence = ["candidates", 0, "content", "parts", 0, "text"]
+    usage_sequence = ["usageMetadata"]
+    input_token_name = "promptTokenCount"
+    output_token_name = "candidatesTokenCount"
+
     model_exclude_list = []
 
     @classmethod
@@ -27,7 +31,14 @@ class GoogleService(InferenceServiceABC):
         class LLM(LanguageModel):
             _model_ = model_name
             key_sequence = cls.key_sequence
+            usage_sequence = cls.usage_sequence
+            input_token_name = cls.input_token_name
+            output_token_name = cls.output_token_name
             _inference_service_ = cls._inference_service_
+
+            _tpm = cls.get_tpm(cls)
+            _rpm = cls.get_rpm(cls)
+
             _parameters_ = {
                 "temperature": 0.5,
                 "topP": 1,
