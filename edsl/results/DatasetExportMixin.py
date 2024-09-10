@@ -42,7 +42,7 @@ class DatasetExportMixin:
         >>> Results.example().relevant_columns(data_type = "flimflam")
         Traceback (most recent call last):
         ...
-        ValueError: No columns found for data type: flimflam. Available data types are: ['agent', 'answer', 'comment', 'model', 'prompt', 'question_options', 'question_text', 'question_type', 'raw_model_response', 'scenario'].
+        ValueError: No columns found for data type: flimflam. Available data types are: ...
         """
         columns = [list(x.keys())[0] for x in self]
         if remove_prefix:

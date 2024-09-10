@@ -1,5 +1,6 @@
 from __future__ import annotations
 import time
+import math
 import asyncio
 import functools
 from typing import Coroutine, List, AsyncGenerator, Optional, Union, Generator
@@ -65,17 +66,16 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         self,
         cache: "Cache",
         n: int = 1,
-        debug: bool = False,
         stop_on_exception: bool = False,
         sidecar_model: Optional["LanguageModel"] = None,
         total_interviews: Optional[List["Interview"]] = None,
+        raise_validation_errors: bool = False,
     ) -> AsyncGenerator["Result", None]:
         """Creates the tasks, runs them asynchronously, and returns the results as a Results object.
 
         Completed tasks are yielded as they are completed.
 
         :param n: how many times to run each interview
-        :param debug:
         :param stop_on_exception: Whether to stop the interview if an exception is raised
         :param sidecar_model: a language model to use in addition to the interview's model
         :param total_interviews: A list of interviews to run can be provided instead.
@@ -93,9 +93,9 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         for interview in self.total_interviews:
             interviewing_task = self._build_interview_task(
                 interview=interview,
-                debug=debug,
                 stop_on_exception=stop_on_exception,
                 sidecar_model=sidecar_model,
+                raise_validation_errors=raise_validation_errors,
             )
             tasks.append(asyncio.create_task(interviewing_task))
 
@@ -136,14 +136,13 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         self,
         *,
         interview: Interview,
-        debug: bool,
         stop_on_exception: bool = False,
         sidecar_model: Optional["LanguageModel"] = None,
+        raise_validation_errors: bool = False,
     ) -> "Result":
         """Conducts an interview and returns the result.
 
         :param interview: the interview to conduct
-        :param debug: prints debug messages
         :param stop_on_exception: stops the interview if an exception is raised
         :param sidecar_model: a language model to use in addition to the interview's model
         """
@@ -152,56 +151,80 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
 
         # get the results of the interview
         answer, valid_results = await interview.async_conduct_interview(
-            debug=debug,
             model_buckets=model_buckets,
             stop_on_exception=stop_on_exception,
             sidecar_model=sidecar_model,
+            raise_validation_errors=raise_validation_errors,
         )
 
-        # we should have a valid result for each question
-        answer_key_names = {
-            k
-            for k in set(answer.keys())
-            if not k.endswith("_comment") and not k.endswith("_generated_tokens")
-        }
-        # breakpoint()
+        # answer_key_names = {
+        #     k
+        #     for k in set(answer.keys())
+        #     if not k.endswith("_comment") and not k.endswith("_generated_tokens")
+        # }
 
+        question_results = {}
+        for result in valid_results:
+            question_results[result.question_name] = result
+
+        answer_key_names = list(question_results.keys())
+
+        generated_tokens_dict = {
+            k + "_generated_tokens": question_results[k].generated_tokens
+            for k in answer_key_names
+        }
+        comments_dict = {
+            "k" + "_comment": question_results[k].comment for k in answer_key_names
+        }
+
+        # we should have a valid result for each question
+        answer_dict = {k: answer[k] for k in answer_key_names}
         assert len(valid_results) == len(answer_key_names)
 
-        # generated_tokens_dict = {}
-        # for answer in [a for a in answer.kes() if a.endswith("_generated_tokens")]:
-        #    question_name = result["question_name"]
-        #    generated_tokens_dict[question_name + "_generated_tokens"] = result[
-        #        "generated_tokens"
-        #    ]
-        generated_tokens_dict = {
-            k: v for k, v in answer.items() if k.endswith("_generated_tokens")
-        }
+        # breakpoint()
+        # generated_tokens_dict = {
+        #     k + "_generated_tokens": v.generated_tokens
+        #     for k, v in zip(answer_key_names, valid_results)
+        # }
+
+        # comments_dict = {
+        #    k + "_comment": v.comment for k, v in zip(answer_key_names, valid_results)
+        # }
+        # breakpoint()
 
         # TODO: move this down into Interview
         question_name_to_prompts = dict({})
         for result in valid_results:
-            question_name = result["question_name"]
+            question_name = result.question_name
             question_name_to_prompts[question_name] = {
-                "user_prompt": result["prompts"]["user_prompt"],
-                "system_prompt": result["prompts"]["system_prompt"],
+                "user_prompt": result.prompts["user_prompt"],
+                "system_prompt": result.prompts["system_prompt"],
             }
 
         prompt_dictionary = {}
         for answer_key_name in answer_key_names:
-            prompt_dictionary[answer_key_name + "_user_prompt"] = (
-                question_name_to_prompts[answer_key_name]["user_prompt"]
-            )
-            prompt_dictionary[answer_key_name + "_system_prompt"] = (
-                question_name_to_prompts[answer_key_name]["system_prompt"]
-            )
+            prompt_dictionary[
+                answer_key_name + "_user_prompt"
+            ] = question_name_to_prompts[answer_key_name]["user_prompt"]
+            prompt_dictionary[
+                answer_key_name + "_system_prompt"
+            ] = question_name_to_prompts[answer_key_name]["system_prompt"]
 
         raw_model_results_dictionary = {}
         for result in valid_results:
-            question_name = result["question_name"]
-            raw_model_results_dictionary[question_name + "_raw_model_response"] = (
-                result["raw_model_response"]
+            question_name = result.question_name
+            raw_model_results_dictionary[
+                question_name + "_raw_model_response"
+            ] = result.raw_model_response
+            raw_model_results_dictionary[question_name + "_cost"] = result.cost
+            one_use_buys = (
+                "NA"
+                if isinstance(result.cost, str)
+                or result.cost == 0
+                or result.cost is None
+                else 1.0 / result.cost
             )
+            raw_model_results_dictionary[question_name + "_one_usd_buys"] = one_use_buys
 
         # breakpoint()
         result = Result(
@@ -209,11 +232,12 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             scenario=interview.scenario,
             model=interview.model,
             iteration=interview.iteration,
-            answer=answer,
+            answer=answer_dict,
             prompt=prompt_dictionary,
             raw_model_response=raw_model_results_dictionary,
             survey=interview.survey,
             generated_tokens=generated_tokens_dict,
+            comments_dict=comments_dict,
         )
         result.interview_hash = hash(interview)
 
@@ -228,11 +252,11 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         self,
         cache: Union[Cache, False, None],
         n: int = 1,
-        debug: bool = False,
         stop_on_exception: bool = False,
         progress_bar: bool = False,
         sidecar_model: Optional[LanguageModel] = None,
         print_exceptions: bool = True,
+        raise_validation_errors: bool = False,
     ) -> "Coroutine":
         """Runs a collection of interviews, handling both async and sync contexts."""
         from rich.console import Console
@@ -256,10 +280,10 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             """Processes results from interviews."""
             async for result in self.run_async_generator(
                 n=n,
-                debug=debug,
                 stop_on_exception=stop_on_exception,
                 cache=cache,
                 sidecar_model=sidecar_model,
+                raise_validation_errors=raise_validation_errors,
             ):
                 self.results.append(result)
                 if progress_bar_context:

@@ -280,6 +280,7 @@ class Agent(Base):
         current_answers: Optional[dict] = None,
         iteration: int = 1,
         sidecar_model=None,
+        raise_validation_errors: bool = True,
     ) -> "InvigilatorBase":
         """Create an Invigilator.
 
@@ -311,6 +312,7 @@ class Agent(Base):
             iteration=iteration,
             cache=cache,
             sidecar_model=sidecar_model,
+            raise_validation_errors=raise_validation_errors,
         )
         if hasattr(self, "validate_response"):
             invigilator.validate_response = self.validate_response
@@ -346,8 +348,8 @@ class Agent(Base):
         >>> a.add_direct_question_answering_method(lambda self, question, scenario: "I am a direct answer.")
         >>> from edsl import QuestionFreeText
         >>> q = QuestionFreeText.example()
-        >>> a.answer_question(question = q, cache = False)
-        {'answer': 'I am a direct answer.', 'comment': 'This is a real survey response from a human.', ...}
+        >>> a.answer_question(question = q, cache = False).answer
+        'I am a direct answer.'
 
         This is a function where an agent returns an answer to a particular question.
         However, there are several different ways an agent can answer a question, so the
@@ -381,6 +383,7 @@ class Agent(Base):
         current_answers: Optional[dict] = None,
         iteration: int = 0,
         sidecar_model=None,
+        raise_validation_errors: bool = True,
     ) -> "InvigilatorBase":
         """Create an Invigilator."""
         from edsl import Model
@@ -390,7 +393,6 @@ class Agent(Base):
         scenario = scenario or Scenario()
 
         from edsl.agents.Invigilator import (
-            InvigilatorDebug,
             InvigilatorHuman,
             InvigilatorFunctional,
             InvigilatorAI,
@@ -403,8 +405,9 @@ class Agent(Base):
             cache = Cache()
 
         if debug:
+            raise NotImplementedError("Debug mode is not yet implemented.")
             # use the question's _simulate_answer method
-            invigilator_class = InvigilatorDebug
+            # invigilator_class = InvigilatorDebug
         elif hasattr(question, "answer_question_directly"):
             # It's a functional question and the answer only depends on the agent's traits & the scenario
             invigilator_class = InvigilatorFunctional
@@ -434,6 +437,7 @@ class Agent(Base):
             iteration=iteration,
             cache=cache,
             sidecar_model=sidecar_model,
+            raise_validation_errors=raise_validation_errors,
         )
         return invigilator
 

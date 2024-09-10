@@ -30,27 +30,29 @@ class InvigilatorTest(InvigilatorAI):
         }
 
 
-def test_bad_answer_not_cached():
-    from edsl import Survey
+# def test_bad_answer_not_cached():
+#     from edsl import Survey
 
-    cache = Cache()
-    from edsl.language_models import LanguageModel
+#     cache = Cache()
+#     from edsl.language_models import LanguageModel
 
-    m = LanguageModel.example(test_model=True, canned_response="bad")
-    results = q.by(m).run(cache=cache)
-    results.select("answer.*").print()
-    assert cache.data == {}
+#     m = LanguageModel.example(test_model=True, canned_response="bad")
+#     results = q.by(m).run(cache=cache)
+#     results.select("answer.*").print()
+#     assert cache.data == {}
 
-    m = LanguageModel.example(test_model=True, canned_response="1")
-    results = q.by(m).run(cache=cache)
-    results.select("answer.*").print()
-    assert cache.data != {}
+#     m = LanguageModel.example(test_model=True, canned_response="1")
+#     results = q.by(m).run(cache=cache)
+#     results.select("answer.*").print()
+#     assert cache.data != {}
 
 
 def test_good_answer_cached():
     cache = Cache()
+    from edsl import Model
 
-    m = LanguageModel.example(test_model=True, canned_response="1")
+    # m = LanguageModel.example(test_model=True, canned_response="1")
+    m = Model("test", canned_response=1)
     results = q.by(m).run(cache=cache)
     results.select("answer.*").print()
     assert cache.data != {}

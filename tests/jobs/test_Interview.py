@@ -1,12 +1,6 @@
-import asyncio
 import pytest
-from typing import Any
 from edsl import Survey
-from edsl.config import CONFIG
-from edsl.enums import InferenceServiceType
-from edsl.language_models.LanguageModel import LanguageModel
 from edsl.questions import QuestionFreeText
-
 from edsl.language_models.utilities import create_language_model
 
 
@@ -40,6 +34,10 @@ def test_order(create_survey):
     scenario_values = ["a", "b", "c", "d", "e"]
     random.shuffle(scenario_values)
     sl = ScenarioList.from_list("scenario_value", scenario_values)
+    # model = create_language_model(ValueError, 100)()
+    from edsl import Model
+
+    # model = Model("test")
     model = create_language_model(ValueError, 100)()
     jobs = survey.by(model).by(sl)
     results = jobs.run()
@@ -100,8 +98,9 @@ def test_bucket_collection(create_survey):
 
 
 @pytest.mark.parametrize("fail_at_number, chained", [(6, False), (10, True)])
-def test_handle_model_exceptions(create_survey, fail_at_number, chained):
+def test_handle_model_exceptions(set_env_vars, create_survey, fail_at_number, chained):
     "A chained survey is one where each survey question depends on the previous one."
+    # set_env_vars(EDSL_API_TIMEOUT="5")
     model = create_language_model(ValueError, fail_at_number)()
     survey = create_survey(num_questions=20, chained=chained)
     jobs = survey.by(model)
@@ -110,8 +109,15 @@ def test_handle_model_exceptions(create_survey, fail_at_number, chained):
     cache = Cache()
 
     results = jobs.run(cache=cache, print_exceptions=False)
-    # breakpoint()
 
+    print(f"Results: {results}")
+    print(
+        f"Answer for question_{fail_at_number}: {results.select(f'answer.question_{fail_at_number}').first()}"
+    )
+    print(
+        f"Answer for question_{fail_at_number + 1}: {results.select(f'answer.question_{fail_at_number + 1}').first()}"
+    )
+    # raise Exception("Stop here")
     if not chained:
         assert results.select(f"answer.question_{fail_at_number}").first() is None
         assert (

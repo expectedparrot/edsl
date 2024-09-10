@@ -156,7 +156,11 @@ class Jobs(Base):
         from edsl.results.Dataset import Dataset
 
         for interview_index, interview in enumerate(interviews):
-            invigilators = list(interview._build_invigilators(debug=False))
+            invigilators = [
+                interview._get_invigilator(question)
+                for question in self.survey.questions
+            ]
+            # list(interview._build_invigilators(debug=False))
             for _, invigilator in enumerate(invigilators):
                 prompts = invigilator.get_prompts()
                 user_prompts.append(prompts["user_prompt"])
@@ -344,6 +348,7 @@ class Jobs(Base):
                 scenario=scenario,
                 model=model,
                 skip_retry=self.skip_retry,
+                raise_validation_errors=self.raise_validation_errors,
             )
 
     def create_bucket_collection(self) -> BucketCollection:
@@ -461,27 +466,31 @@ class Jobs(Base):
             return False
         return self._skip_retry
 
+    @property
+    def raise_validation_errors(self):
+        if not hasattr(self, "_raise_validation_errors"):
+            return False
+        return self._raise_validation_errors
+
     def run(
         self,
         n: int = 1,
-        debug: bool = False,
         progress_bar: bool = False,
         stop_on_exception: bool = False,
         cache: Union[Cache, bool] = None,
         check_api_keys: bool = False,
         sidecar_model: Optional[LanguageModel] = None,
-        batch_mode: Optional[bool] = None,
         verbose: bool = False,
         print_exceptions=True,
         remote_cache_description: Optional[str] = None,
         remote_inference_description: Optional[str] = None,
         skip_retry: bool = False,
+        raise_validation_errors: bool = False,
     ) -> Results:
         """
         Runs the Job: conducts Interviews and returns their results.
 
         :param n: how many times to run each interview
-        :param debug: prints debug messages
         :param progress_bar: shows a progress bar
         :param stop_on_exception: stops the job if an exception is raised
         :param cache: a cache object to store results
@@ -495,11 +504,7 @@ class Jobs(Base):
 
         self._check_parameters()
         self._skip_retry = skip_retry
-
-        if batch_mode is not None:
-            raise NotImplementedError(
-                "Batch mode is deprecated. Please update your code to not include 'batch_mode' in the 'run' method."
-            )
+        self._raise_validation_errors = raise_validation_errors
 
         self.verbose = verbose
 
@@ -587,7 +592,7 @@ class Jobs(Base):
                         )
 
         # handle cache
-        if cache is None:
+        if cache is None or cache is True:
             from edsl.data.CacheHandler import CacheHandler
 
             cache = CacheHandler().get_cache()
@@ -599,12 +604,12 @@ class Jobs(Base):
         if not remote_cache:
             results = self._run_local(
                 n=n,
-                debug=debug,
                 progress_bar=progress_bar,
                 cache=cache,
                 stop_on_exception=stop_on_exception,
                 sidecar_model=sidecar_model,
                 print_exceptions=print_exceptions,
+                raise_validation_errors=raise_validation_errors,
             )
 
             results.cache = cache.new_entries_cache()
@@ -643,12 +648,12 @@ class Jobs(Base):
             self._output("Running job...")
             results = self._run_local(
                 n=n,
-                debug=debug,
                 progress_bar=progress_bar,
                 cache=cache,
                 stop_on_exception=stop_on_exception,
                 sidecar_model=sidecar_model,
                 print_exceptions=print_exceptions,
+                raise_validation_errors=raise_validation_errors,
             )
             self._output("Job completed!")
 
@@ -883,7 +888,7 @@ def main():
 
     job = Jobs.example()
     len(job) == 8
-    results = job.run(debug=True, cache=Cache())
+    results = job.run(cache=Cache())
     len(results) == 8
     results
 

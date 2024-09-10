@@ -100,12 +100,16 @@ class Question(metaclass=Meta):
 
         >>> from edsl import Question
         >>> Question.available()
-        ['budget', 'checkbox', 'extract', 'free_text', 'functional', 'likert_five', 'linear_scale', 'list', 'multiple_choice', 'numerical', 'rank', 'top_k', 'yes_no']
+        ['checkbox', 'extract', 'free_text', 'functional', 'likert_five', 'linear_scale', 'list', 'multiple_choice', 'numerical', 'rank', 'top_k', 'yes_no']
         """
+        exclude = ["budget"]
         if show_class_names:
             return RegisterQuestionsMeta.question_types_to_classes()
         else:
-            return sorted(set(RegisterQuestionsMeta.question_types_to_classes().keys()))
+            question_list = sorted(
+                set(RegisterQuestionsMeta.question_types_to_classes().keys())
+            )
+            return [q for q in question_list if q not in exclude]
 
 
 def get_question_class(question_type):

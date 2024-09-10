@@ -12,6 +12,9 @@ class AnthropicService(InferenceServiceABC):
     _inference_service_ = "anthropic"
     _env_key_name_ = "ANTHROPIC_API_KEY"
     key_sequence = ["content", 0, "text"]  # ["content"][0]["text"]
+    usage_sequence = ["usage"]
+    input_token_name = "input_tokens"
+    output_token_name = "output_tokens"
     model_exclude_list = []
 
     @classmethod
@@ -37,6 +40,10 @@ class AnthropicService(InferenceServiceABC):
             """
 
             key_sequence = cls.key_sequence
+            usage_sequence = cls.usage_sequence
+            input_token_name = cls.input_token_name
+            output_token_name = cls.output_token_name
+
             _inference_service_ = cls._inference_service_
             _model_ = model_name
             _parameters_ = {
@@ -48,6 +55,9 @@ class AnthropicService(InferenceServiceABC):
                 "logprobs": False,
                 "top_logprobs": 3,
             }
+
+            _tpm = cls.get_tpm(cls)
+            _rpm = cls.get_rpm(cls)
 
             async def async_execute_model_call(
                 self, user_prompt: str, system_prompt: str = ""

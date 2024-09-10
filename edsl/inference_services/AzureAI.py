@@ -27,6 +27,9 @@ class AzureAIService(InferenceServiceABC):
 
     # key_sequence = ["content", 0, "text"]  # ["content"][0]["text"]
     key_sequence = ["choices", 0, "message", "content"]
+    usage_sequence = ["usage"]
+    input_token_name = "prompt_tokens"
+    output_token_name = "completion_tokens"
 
     _inference_service_ = "azure"
     _env_key_name_ = (
@@ -105,6 +108,9 @@ class AzureAIService(InferenceServiceABC):
             """
 
             key_sequence = cls.key_sequence
+            usage_sequence = cls.usage_sequence
+            input_token_name = cls.input_token_name
+            output_token_name = cls.output_token_name
             _inference_service_ = cls._inference_service_
             _model_ = model_name
             _parameters_ = {
@@ -112,6 +118,8 @@ class AzureAIService(InferenceServiceABC):
                 "max_tokens": 512,
                 "top_p": 0.9,
             }
+            _rpm = cls.get_rpm(cls)
+            _tpm = cls.get_tpm(cls)
 
             async def async_execute_model_call(
                 self, user_prompt: str, system_prompt: str = ""
