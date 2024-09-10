@@ -23,16 +23,10 @@ def execute_notebook(notebook_path):
             raise RuntimeError(f"Error executing the notebook '{notebook_path}': {e}")
 
 
-def get_notebooks(directory="docs/notebooks", exclude=None):
+def get_notebooks(directory="docs/notebooks"):
     # Use glob to find all .ipynb files in the specified directory
     notebook_pattern = os.path.join(directory, "*.ipynb")
     notebooks = glob.glob(notebook_pattern)
-
-    # If exclude is provided, remove the excluded notebooks
-    if exclude:
-        # Convert exclude to a set for faster lookup
-        exclude_set = set(exclude)
-        notebooks = [nb for nb in notebooks if os.path.basename(nb) not in exclude_set]
 
     # Sort the notebooks alphabetically
     notebooks.sort()
@@ -40,27 +34,14 @@ def get_notebooks(directory="docs/notebooks", exclude=None):
     return notebooks
 
 
-notebooks = get_notebooks()
-# Define the list of notebooks
-# notebooks = [
-#     "docs/notebooks/critique_questions.ipynb",
-#     "docs/notebooks/adding_metadata.ipynb",
-#     "docs/notebooks/analyze_evaluations.ipynb",
-#     "docs/notebooks/comparing_model_responses.ipynb",
-#     "docs/notebooks/example_agent_dynamic_traits.ipynb",
-# ]
-
-
-def pytest_generate_tests(metafunc):
-    if "notebook_path" in metafunc.fixturenames:
-        metafunc.parametrize(
-            "notebook_path", notebooks, ids=lambda x: os.path.basename(x)
-        )
-
-
+@pytest.mark.parametrize("notebook_path", get_notebooks())
 def test_notebook_execution(notebook_path):
     """
     Test function that executes each Jupyter notebook and checks for exceptions.
     """
     print(f"Executing {notebook_path}...")
     execute_notebook(notebook_path)
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])
