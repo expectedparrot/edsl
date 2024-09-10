@@ -1,5 +1,7 @@
 import os
 import pytest
+import glob
+
 import nbformat
 from nbconvert.preprocessors import ExecutePreprocessor, CellExecutionError
 
@@ -21,27 +23,44 @@ def execute_notebook(notebook_path):
             raise RuntimeError(f"Error executing the notebook '{notebook_path}': {e}")
 
 
-full_list = [
-    "docs/notebooks/critique_questions.ipynb",
-    # "docs/notebooks/hiring_interviews.ipynb",  # no good - onet db broken
-    "docs/notebooks/adding_metadata.ipynb",  # works
-    "docs/notebooks/analyze_evaluations.ipynb",  # works
-]
+def get_notebooks(directory="docs/notebooks", exclude=None):
+    # Use glob to find all .ipynb files in the specified directory
+    notebook_pattern = os.path.join(directory, "*.ipynb")
+    notebooks = glob.glob(notebook_pattern)
+
+    # If exclude is provided, remove the excluded notebooks
+    if exclude:
+        # Convert exclude to a set for faster lookup
+        exclude_set = set(exclude)
+        notebooks = [nb for nb in notebooks if os.path.basename(nb) not in exclude_set]
+
+    # Sort the notebooks alphabetically
+    notebooks.sort()
+
+    return notebooks
 
 
-@pytest.mark.parametrize("notebook_path", full_list)
-# ["docs/notebooks/hiring_interviews.ipynb"],
-# [
-#     os.path.join(dirpath, f)
-#     for dirpath, _, files in os.walk("integration/notebooks")  # Update this path
-#     for f in files
-#     if f.endswith(".ipynb")
+notebooks = get_notebooks()
+# Define the list of notebooks
+# notebooks = [
+#     "docs/notebooks/critique_questions.ipynb",
+#     "docs/notebooks/adding_metadata.ipynb",
+#     "docs/notebooks/analyze_evaluations.ipynb",
+#     "docs/notebooks/comparing_model_responses.ipynb",
+#     "docs/notebooks/example_agent_dynamic_traits.ipynb",
 # ]
-# + ,
-# )
+
+
+def pytest_generate_tests(metafunc):
+    if "notebook_path" in metafunc.fixturenames:
+        metafunc.parametrize(
+            "notebook_path", notebooks, ids=lambda x: os.path.basename(x)
+        )
+
+
 def test_notebook_execution(notebook_path):
     """
-    Test function that executes each Jupyter notebook found in the directory, and checks for exceptions.
+    Test function that executes each Jupyter notebook and checks for exceptions.
     """
     print(f"Executing {notebook_path}...")
     execute_notebook(notebook_path)
