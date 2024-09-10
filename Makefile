@@ -185,6 +185,9 @@ test-doctests: ## Run doctests
 test-services:
 	python integration/test_all_questions_and_models.py
 	
+test-notebooks: ## Run the notebooks tests
+	pytest -v integration/active/test_example_notebooks.py
+
 test-integration: ## Run integration tests via pytest **consumes API credits**
 	cd integration/printing && python check_printing.py
 	pytest -v integration/active

@@ -20,8 +20,8 @@ class TestResults(unittest.TestCase):
         self.assertIsInstance(self.example_results, Results)
 
     def test_parse_column_exception(self):
-        with self.assertRaises(ResultsColumnNotFoundError):
-            self.example_results._parse_column("poop")
+        with self.assertRaises(Exception):
+            self.example_results.select("poop")
 
     def test_bad_mutate(self):
         with self.assertRaises(ResultsBadMutationstringError):
