@@ -32,10 +32,6 @@ from edsl.utilities.utilities import dict_hash
 from edsl.Base import Base
 
 
-def find_matching_strings(string_list, short_string):
-    return [s for s in string_list if s.startswith(short_string)]
-
-
 class Mixins(
     ResultsExportMixin,
     ResultsDBMixin,
@@ -188,27 +184,6 @@ class Results(UserList, Mixins, Base):
 
             else:
                 return html_content
-
-    def _matching_columns(self, partial_name: str) -> list[str]:
-        """
-        Return a list of strings that match the short_string.
-
-        >>> r = Results.example()
-        >>> r._matching_columns('answer.how')
-        ['answer.how_feeling', 'answer.how_feeling_yesterday']
-        >>> r._matching_columns('answer.how_feeling')
-        ['answer.how_feeling']
-        """
-        if "." in partial_name:
-            search_in_list = self.columns
-        else:
-            search_in_list = [s.split(".")[1] for s in self.columns]
-
-        matches = find_matching_strings(search_in_list, partial_name)
-        for match in matches:  # if it's a perfect match, return it
-            if match == partial_name:
-                return [match]
-        return matches
 
     def code(self):
         raise NotImplementedError
@@ -578,39 +553,6 @@ class Results(UserList, Mixins, Base):
         )
         return sorted(list(all_keys))
 
-    def _parse_column(self, column: str) -> tuple[str, str]:
-        """
-        Parses a column name into a tuple containing a data type and a key.
-
-        >>> r = Results.example()
-        >>> r._parse_column("answer.how_feeling")
-        ('answer', 'how_feeling')
-
-        The standard way a column is specified is with a dot-separated string, e.g. _parse_column("agent.status")
-        But you can also specify a single key, e.g. "status", in which case it will look up the data type.
-        """
-        if "." in column:
-            data_type, key = column.split(".")
-        else:
-            try:
-                data_type, key = self._key_to_data_type[column], column
-            except KeyError:
-                import difflib
-
-                close_matches = difflib.get_close_matches(
-                    column, self._key_to_data_type.keys()
-                )
-                if close_matches:
-                    suggestions = ", ".join(close_matches)
-                    raise ResultsColumnNotFoundError(
-                        f"Column '{column}' not found in data. Did you mean: {suggestions}?"
-                    )
-                else:
-                    raise ResultsColumnNotFoundError(
-                        f"Column {column} not found in data"
-                    )
-        return data_type, key
-
     def first(self) -> "Result":
         """Return the first observation in the results.
 
@@ -878,8 +820,8 @@ class Results(UserList, Mixins, Base):
         Dataset([{'answer.how_feeling_yesterday': ['Great', 'Good', 'OK', 'Terrible']}])
         """
 
-        if len(self) == 0:
-            raise Exception("No data to select from---the Results object is empty.")
+        # if len(self) == 0:
+        #    raise Exception("No data to select from---the Results object is empty.")
 
         if not columns or columns == ("*",) or columns == (None,):
             # is the users passes nothing, then we'll return all the columns
@@ -958,6 +900,21 @@ class Results(UserList, Mixins, Base):
 
         return Dataset(sorted_new_data)
 
+    def select(self, *columns: Union[str, list[str]]) -> "Results":
+        from edsl.results.Selector import Selector
+
+        if len(self) == 0:
+            raise Exception("No data to select from---the Results object is empty.")
+
+        selector = Selector(
+            known_data_types=self.known_data_types,
+            data_type_to_keys=self._data_type_to_keys,
+            key_to_data_type=self._key_to_data_type,
+            fetch_list_func=self._fetch_list,
+            columns=self.columns,
+        )
+        return selector.select(*columns)
+
     def sort_by(self, *columns: str, reverse: bool = False) -> Results:
         import warnings
 
@@ -965,6 +922,11 @@ class Results(UserList, Mixins, Base):
             "sort_by is deprecated. Use order_by instead.", DeprecationWarning
         )
         return self.order_by(*columns, reverse=reverse)
+
+    def _parse_column(self, column: str) -> tuple[str, str]:
+        if "." in column:
+            return column.split(".")
+        return self._key_to_data_type[column], column
 
     def order_by(self, *columns: str, reverse: bool = False) -> Results:
         """Sort the results by one or more columns.

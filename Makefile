@@ -184,7 +184,27 @@ test-doctests: ## Run doctests
 
 test-services:
 	python integration/test_all_questions_and_models.py
-	
+
+# Directory containing the notebooks
+NOTEBOOK_DIR := docs/notebooks
+
+.PHONY: test-notebooks
+
+# Test notebooks
+test-notebooks:
+	@if [ -z "$(notebook)" ]; then \
+		echo "Testing all notebooks..."; \
+		pytest -v integration/active/test_notebooks.py; \
+	else \
+		echo "Testing notebook: $(notebook)"; \
+		pytest -v integration/active/test_notebooks.py -k "$(notebook)"; \
+	fi
+
+
+# .PHONY: test-notebooks	
+# test-notebooks: ## Run the notebooks tests
+# 	pytest -v integration/active/test_example_notebooks.py
+
 test-integration: ## Run integration tests via pytest **consumes API credits**
 	cd integration/printing && python check_printing.py
 	pytest -v integration/active
