@@ -12,8 +12,17 @@ class LanguageModelExceptions(Exception):
         self.message = message
 
 
+class LanguageModelNoResponseError(LanguageModelExceptions):
+    explanation = (
+        """This happens when the LLM API cannot be reached and/or does not respond."""
+    )
+
+    def __init__(self, message):
+        super().__init__(message)
+
+
 class LanguageModelBadResponseError(LanguageModelExceptions):
-    explanation = """This happens when the LLM API can be reached and responses, does not return a usable answer."""
+    explanation = """This happens when the LLM API can be reached and responds, does not return a usable answer."""
 
     def __init__(self, message, response_json: Optional[dict] = None):
         super().__init__(message)
