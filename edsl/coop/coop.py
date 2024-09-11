@@ -59,6 +59,7 @@ class Coop:
         Send a request to the server and return the response.
         """
         url = f"{self.url}/{uri}"
+        timeout = max(5, (len(payload["json_string"]) // (1024 * 1024)))
         try:
             method = method.upper()
             if method in ["GET", "DELETE"]:
@@ -87,6 +88,7 @@ class Coop:
         """
         if response.status_code >= 400:
             message = response.json().get("detail")
+            print(response.text)
             if "Authorization" in message:
                 print(message)
                 message = "Please provide an Expected Parrot API key."
