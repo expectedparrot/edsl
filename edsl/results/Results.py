@@ -675,9 +675,11 @@ class Results(UserList, Mixins, Base):
         """
         if functions_dict is None:
             functions_dict = {}
-        return EvalWithCompoundTypes(
+        evaluator = EvalWithCompoundTypes(
             names=result.combined_dict, functions=functions_dict
         )
+        evaluator.functions.update(int=int, float=float)
+        return evaluator
 
     def mutate(
         self, new_var_string: str, functions_dict: Optional[dict] = None
