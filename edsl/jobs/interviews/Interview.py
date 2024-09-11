@@ -36,8 +36,6 @@ from edsl.exceptions import QuestionAnswerValidationError
 # from rich.console import Console
 # from rich.traceback import Traceback
 
-TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
-
 
 # def run_async(coro):
 #    return asyncio.run(coro)
@@ -102,9 +100,9 @@ class Interview(InterviewStatusMixin):
         self.debug = debug
         self.iteration = iteration
         self.cache = cache
-        self.answers: dict[
-            str, str
-        ] = Answers()  # will get filled in as interview progresses
+        self.answers: dict[str, str] = (
+            Answers()
+        )  # will get filled in as interview progresses
         self.sidecar_model = sidecar_model
 
         # Trackers
@@ -285,9 +283,7 @@ class Interview(InterviewStatusMixin):
             )
 
         try:
-            response: EDSLResultObjectInput = await asyncio.wait_for(
-                invigilator.async_answer_question(), timeout=TIMEOUT
-            )
+            response: EDSLResultObjectInput = await invigilator.async_answer_question()
             if response.validated:
                 self.answers.add_answer(response=response, question=question)
                 self._cancel_skipped_questions(question)
@@ -301,17 +297,17 @@ class Interview(InterviewStatusMixin):
         except QuestionAnswerValidationError as e:
             # these should only appear if not suppressed earlier if self.raise_validation_errors is True
             self._handle_exception(e, invigilator, task)
-            # raise e
 
         except asyncio.TimeoutError as e:
             self._handle_exception(e, invigilator, task)
-            # raise InterviewTimeoutError(f"Task timed out after {TIMEOUT} seconds.")
 
         except Exception as e:
             self._handle_exception(e, invigilator, task)
-            # raise e
 
-        # breakpoint()
+        if "response" not in locals():
+            breakpoint()
+            print("Response not defined.")
+
         return response
 
     def _get_invigilator(self, question: QuestionBase) -> InvigilatorBase:
@@ -371,11 +367,11 @@ class Interview(InterviewStatusMixin):
         """
         current_question_index: int = self.to_index[current_question.question_name]
 
-        next_question: Union[
-            int, EndOfSurvey
-        ] = self.survey.rule_collection.next_question(
-            q_now=current_question_index,
-            answers=self.answers | self.scenario | self.agent["traits"],
+        next_question: Union[int, EndOfSurvey] = (
+            self.survey.rule_collection.next_question(
+                q_now=current_question_index,
+                answers=self.answers | self.scenario | self.agent["traits"],
+            )
         )
 
         next_question_index = next_question.next_q
