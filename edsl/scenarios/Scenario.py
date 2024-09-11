@@ -48,6 +48,35 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         if not hasattr(self, "_has_image"):
             self._has_image = False
         return self._has_image
+    
+    @property 
+    def has_jinja_braces(self) -> bool:
+        """Return whether the scenario has jinja braces. This matters for rendering.
+        
+        >>> s = Scenario({"food": "I love {{wood chips}}"})
+        >>> s.has_jinja_braces
+        True
+        """
+        for key, value in self.items():
+            if "{{" in str(value) and "}}" in value:
+                return True
+        return False
+    
+    def convert_jinja_braces(self, replacement_left = "<<", replacement_right = ">>") -> Scenario:
+        """Convert Jinja braces to some other character.
+        
+        >>> s = Scenario({"food": "I love {{wood chips}}"})
+        >>> s.convert_jinja_braces()
+        Scenario({'food': 'I love <<wood chips>>'})
+        
+        """
+        new_scenario = Scenario()
+        for key, value in self.items():
+            if isinstance(value, str):
+                new_scenario[key] = value.replace("{{", replacement_left).replace("}}", replacement_right)
+            else:
+                new_scenario[key] = value
+        return new_scenario
 
     @has_image.setter
     def has_image(self, value):
