@@ -58,7 +58,7 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         True
         """
         for key, value in self.items():
-            if "{{" in value and "}}" in value:
+            if "{{" in str(value) and "}}" in value:
                 return True
         return False
     
@@ -72,7 +72,10 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         """
         new_scenario = Scenario()
         for key, value in self.items():
-            new_scenario[key] = value.replace("{{", replacement_left).replace("}}", replacement_right)
+            if isinstance(value, str):
+                new_scenario[key] = value.replace("{{", replacement_left).replace("}}", replacement_right)
+            else:
+                new_scenario[key] = value
         return new_scenario
 
     @has_image.setter
