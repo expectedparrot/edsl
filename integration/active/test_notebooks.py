@@ -6,13 +6,21 @@ import nbformat
 from nbconvert.preprocessors import ExecutePreprocessor, CellExecutionError
 
 
+class SkipTaggedCells(ExecutePreprocessor):
+    def preprocess_cell(self, cell, resources, cell_index):
+        if "tags" in cell.metadata and "skip-execution" in cell.metadata["tags"]:
+            return cell, resources
+        return super().preprocess_cell(cell, resources, cell_index)
+
+
 def execute_notebook(notebook_path):
     """
     Execute a Jupyter notebook and either returns True if successful or raises an exception.
+    Skips cells tagged with 'skip-execution'.
     """
     with open(notebook_path) as f:
         nb = nbformat.read(f, as_version=4)
-        ep = ExecutePreprocessor(timeout=600, kernel_name="python3")
+        ep = SkipTaggedCells(timeout=600, kernel_name="python3")
 
         try:
             # Attempt to execute the notebook
