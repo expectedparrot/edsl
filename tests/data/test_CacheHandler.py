@@ -9,7 +9,9 @@ from edsl.data.Cache import Cache
 @pytest.fixture
 def cache_handler():
     # Create a temporary directory for testing
-    temp_dir = "tests/.temp_cache"
+    import uuid
+
+    temp_dir = "tests/.temp_cache_" + str(uuid.uuid4())
     os.makedirs(temp_dir, exist_ok=True)
 
     # Update the cache path to use the temporary directory
@@ -18,28 +20,32 @@ def cache_handler():
     # Create an instance of CacheHandler
     handler = CacheHandler(test=True)
 
-    yield handler
+    yield handler, temp_dir
 
     # Clean up the temporary directory after testing
     shutil.rmtree(temp_dir)
 
 
 def test_create_cache_directory(cache_handler):
-    assert os.path.exists("tests/.temp_cache")
+    cache_handler, temp_dir = cache_handler
+    assert os.path.exists(temp_dir)
 
 
 def test_gen_cache(cache_handler):
+    cache_handler, _ = cache_handler
     cache = cache_handler.gen_cache()
     assert isinstance(cache, Cache)
 
 
 def test_get_cache(cache_handler):
+    cache_handler, _ = cache_handler
     cache = cache_handler.get_cache()
     assert isinstance(cache, Cache)
 
 
 @pytest.mark.linux_only
 def test_from_old_sqlite_cache_db(cache_handler, tmp_path):
+    cache_handler, _ = cache_handler
     # Create a temporary old-style cache database for testing
     old_cache_path = os.path.join(tmp_path, "old_cache.db")
     conn = sqlite3.connect(old_cache_path)
@@ -86,6 +92,7 @@ def test_from_old_sqlite_cache_db(cache_handler, tmp_path):
 
 
 def test_add_from_dict(cache_handler):
+    cache_handler, temp_dir = cache_handler
     newdata = {
         "key1": CacheEntry(
             model="model1",

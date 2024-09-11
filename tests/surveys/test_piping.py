@@ -1,5 +1,4 @@
-import pytest
-from edsl import QuestionList, QuestionMultipleChoice, Survey, Agent
+from edsl import QuestionList, QuestionMultipleChoice, Survey, Agent, Cache
 from edsl.language_models import LanguageModel
 
 
@@ -28,9 +27,5 @@ def test_survey_flow():
     )
 
     survey = Survey([q1, q3])
-    results = survey.by(a).by(m).run()
+    results = survey.by(a).by(m).run(cache=Cache())
     assert results.select("q1", "q3").to_list() == [(["red", "green", "blue"], "red")]
-
-
-if __name__ == "__main__":
-    pytest.main()
