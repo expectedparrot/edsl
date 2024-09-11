@@ -39,7 +39,7 @@ class QuestionLinearScale(QuestionMultipleChoice):
         )
         self.question_options = question_options
         self.option_labels = (
-            {int(k): v for k, v in option_labels.items()} if option_labels else None
+            {int(k): v for k, v in option_labels.items()} if option_labels else {}
         )
         self.answering_instructions = answering_instructions
         self.question_presentation = question_presentation

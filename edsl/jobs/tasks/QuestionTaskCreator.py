@@ -238,8 +238,6 @@ class QuestionTaskCreator(UserList):
                 if isinstance(result, Exception):
                     raise result
 
-            return await self._run_focal_task()
-
         except asyncio.CancelledError:
             self.task_status = TaskStatus.CANCELLED
             raise
@@ -250,6 +248,8 @@ class QuestionTaskCreator(UserList):
             raise InterviewErrorPriorTaskCanceled(
                 f"Required tasks failed for {self.question.question_name}"
             ) from e
+
+        return await self._run_focal_task()
 
 
 if __name__ == "__main__":
