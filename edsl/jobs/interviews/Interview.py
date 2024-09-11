@@ -5,13 +5,11 @@ import asyncio
 from typing import Any, Type, List, Generator, Optional, Union
 
 from edsl import CONFIG
-
 from edsl.surveys.base import EndOfSurvey
 from edsl.exceptions import QuestionAnswerValidationError
 from edsl.exceptions import InterviewTimeoutError
 from edsl.data_transfer_models import AgentResponseDict, EDSLResultObjectInput
 
-from edsl.jobs.FailedQuestion import FailedQuestion
 from edsl.jobs.buckets.ModelBuckets import ModelBuckets
 from edsl.jobs.Answers import Answers
 from edsl.jobs.tasks.QuestionTaskCreator import QuestionTaskCreator
@@ -33,19 +31,16 @@ from edsl.jobs.tasks.QuestionTaskCreator import QuestionTaskCreator
 
 from edsl.exceptions import QuestionAnswerValidationError
 
-# from rich.console import Console
-# from rich.traceback import Traceback
-
-TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
-
-
-# def run_async(coro):
-#    return asyncio.run(coro)
-
 from edsl import Agent, Survey, Scenario, Cache
 from edsl.language_models import LanguageModel
 from edsl.questions import QuestionBase
 from edsl.agents.InvigilatorBase import InvigilatorBase
+
+from edsl.exceptions.language_models import LanguageModelNoResponseError
+
+
+class RetryableLanguageModelNoResponseError(LanguageModelNoResponseError):
+    pass
 
 
 class Interview(InterviewStatusMixin):
@@ -102,9 +97,9 @@ class Interview(InterviewStatusMixin):
         self.debug = debug
         self.iteration = iteration
         self.cache = cache
-        self.answers: dict[
-            str, str
-        ] = Answers()  # will get filled in as interview progresses
+        self.answers: dict[str, str] = (
+            Answers()
+        )  # will get filled in as interview progresses
         self.sidecar_model = sidecar_model
 
         # Trackers
@@ -254,28 +249,13 @@ class Interview(InterviewStatusMixin):
                 raise ValueError(f"Prompt is of type {type(prompt)}")
         return len(combined_text) / 4.0
 
-    # def create_failed_question(self, invigilator, e) -> FailedQuestion:
-    #     failed_question = FailedQuestion(
-    #         question=invigilator.question,
-    #         scenario=invigilator.scenario,
-    #         model=invigilator.model,
-    #         agent=invigilator.agent,
-    #         raw_model_response=invigilator.raw_model_response,
-    #         exception=e,
-    #         prompts=invigilator.get_prompts(),
-    #     )
-    #     return failed_question
-
     async def _answer_question_and_record_task(
         self,
         *,
         question: "QuestionBase",
         task=None,
     ) -> "AgentResponseDict":
-        """Answer a question and records the task.
-
-        Note that is updates answers dictionary with the response.
-        """
+        """Answer a question and records the task."""
 
         invigilator = self._get_invigilator(question)
 
@@ -285,9 +265,7 @@ class Interview(InterviewStatusMixin):
             )
 
         try:
-            response: EDSLResultObjectInput = await asyncio.wait_for(
-                invigilator.async_answer_question(), timeout=TIMEOUT
-            )
+            response: EDSLResultObjectInput = await invigilator.async_answer_question()
             if response.validated:
                 self.answers.add_answer(response=response, question=question)
                 self._cancel_skipped_questions(question)
@@ -299,19 +277,23 @@ class Interview(InterviewStatusMixin):
                     raise response.exception_occurred
 
         except QuestionAnswerValidationError as e:
-            # these should only appear if not suppressed earlier if self.raise_validation_errors is True
+            # there's a response, but it couldn't be validated
             self._handle_exception(e, invigilator, task)
-            # raise e
 
         except asyncio.TimeoutError as e:
+            # the API timed-out - this is recorded but as a response isn't generated, the LanguageModelNoResponseError will also be raised
             self._handle_exception(e, invigilator, task)
-            # raise InterviewTimeoutError(f"Task timed out after {TIMEOUT} seconds.")
 
         except Exception as e:
+            # there was some other exception
             self._handle_exception(e, invigilator, task)
-            # raise e
 
-        # breakpoint()
+        if "response" not in locals():
+
+            raise LanguageModelNoResponseError(
+                f"Language model did not return a response for question '{question.question_name}.'"
+            )
+
         return response
 
     def _get_invigilator(self, question: QuestionBase) -> InvigilatorBase:
@@ -371,11 +353,11 @@ class Interview(InterviewStatusMixin):
         """
         current_question_index: int = self.to_index[current_question.question_name]
 
-        next_question: Union[
-            int, EndOfSurvey
-        ] = self.survey.rule_collection.next_question(
-            q_now=current_question_index,
-            answers=self.answers | self.scenario | self.agent["traits"],
+        next_question: Union[int, EndOfSurvey] = (
+            self.survey.rule_collection.next_question(
+                q_now=current_question_index,
+                answers=self.answers | self.scenario | self.agent["traits"],
+            )
         )
 
         next_question_index = next_question.next_q

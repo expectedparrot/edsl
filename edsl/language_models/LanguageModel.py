@@ -42,6 +42,7 @@ from edsl.data_transfer_models import (
     AgentResponseDict,
 )
 
+
 from edsl.config import CONFIG
 from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
@@ -52,6 +53,8 @@ from edsl.enums import service_to_api_keyname
 from edsl.exceptions import MissingAPIKeyError
 from edsl.language_models.RegisterLanguageModelsMeta import RegisterLanguageModelsMeta
 from edsl.exceptions.language_models import LanguageModelBadResponseError
+
+TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
 
 
 def convert_answer(response_part):
@@ -444,7 +447,7 @@ class LanguageModel(
         cache: "Cache",
         iteration: int = 0,
         encoded_image=None,
-    ) -> IntendedModelCallOutcome:
+    ) -> ModelResponse:
         """Handle caching of responses.
 
         :param user_prompt: The user's prompt.
@@ -491,7 +494,8 @@ class LanguageModel(
                 "system_prompt": system_prompt,
                 **({"encoded_image": encoded_image} if encoded_image else {}),
             }
-            response = await f(**params)
+            # response = await f(**params)
+            response = await asyncio.wait_for(f(**params), timeout=TIMEOUT)
             new_cache_key = cache.store(
                 **cache_call_params, response=response
             )  # store the response in the cache
