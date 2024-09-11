@@ -174,7 +174,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             for k in answer_key_names
         }
         comments_dict = {
-            "k" + "_comment": question_results[k].comment for k in answer_key_names
+            k + "_comment": question_results[k].comment for k in answer_key_names
         }
 
         # we should have a valid result for each question

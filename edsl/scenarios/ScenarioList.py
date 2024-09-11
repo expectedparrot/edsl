@@ -39,6 +39,15 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             super().__init__([])
         self.codebook = codebook or {}
 
+    @property
+    def has_jinja_braces(self) -> bool:
+        """Check if the ScenarioList has Jinja braces."""
+        return any([scenario.has_jinja_braces for scenario in self])
+    
+    def convert_jinja_braces(self) -> ScenarioList:
+        """Convert Jinja braces to Python braces."""
+        return ScenarioList([scenario.convert_jinja_braces() for scenario in self])
+
     def give_valid_names(self) -> ScenarioList:
         """Give valid names to the scenario keys.
 
