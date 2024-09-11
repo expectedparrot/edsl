@@ -460,6 +460,12 @@ class Jobs(Base):
                 if warn:
                     warnings.warn(message)
 
+        if self.scenarios.has_jinja_braces:
+            warnings.warn(
+                "The scenarios have Jinja braces ({{ and }}). Converting to '<<' and '>>'. If you want a different conversion, use the convert_jinja_braces method first to modify the scenario."
+            )
+            self.scenarios = self.scenarios.convert_jinja_braces()
+
     @property
     def skip_retry(self):
         if not hasattr(self, "_skip_retry"):
