@@ -33,7 +33,7 @@ def test_QuestionLinearScale_construction():
     assert q.question_name == valid_question["question_name"]
     assert q.question_text == valid_question["question_text"]
     assert q.question_options == valid_question["question_options"]
-    assert q.option_labels == None
+    assert q.option_labels == {}
 
     assert q.data != valid_question
 
@@ -93,7 +93,7 @@ def test_QuestionLinearScale_serialization():
         "question_text": "On a scale from 1 to 5, how much do you like pizza?",
         "question_options": [1, 2, 3, 4, 5],
         "question_name": "pizza",
-        "option_labels": None,
+        "option_labels": {},
         "question_type": "linear_scale",
     }.items() <= q.to_dict().items()
 
@@ -110,7 +110,7 @@ def test_QuestionLinearScale_serialization():
                 "question_text": "On a scale from 1 to 5, how much do you like pizza?",
                 "question_options": [1, -2, 3, 4, 5],
                 "question_name": "pizza",
-                "option_labels": None,
+                "option_labels": {},
                 "question_type": "linear_scale",
             }
         )
