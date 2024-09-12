@@ -185,7 +185,6 @@ Information about additional functionality for developers.
    notebooks/example_agent_dynamic_traits.ipynb
    notebooks/research_methods.ipynb
    notebooks/edsl_components.ipynb
-   notebooks/export_survey_updates.ipynb
    notebooks/question_extract_example.ipynb
    notebooks/data_cleaning.ipynb
 
@@ -203,7 +202,6 @@ Information about additional functionality for developers.
    notebooks/conduct_interview.ipynb
    notebooks/qualitative_research.ipynb
    notebooks/random_numbers.ipynb
-   notebooks/model_walkoff.ipynb
    notebooks/concept_induction.ipynb
    notebooks/testing_training_data.ipynb
    notebooks/comparing_model_responses.ipynb
@@ -214,7 +212,6 @@ Information about additional functionality for developers.
    notebooks/explore_survey_contexts.ipynb
    notebooks/free_responses.ipynb
    notebooks/digital_twin.ipynb
-   notebooks/river_problem.ipynb
    notebooks/writing_style.ipynb
    notebooks/edsl_polling.ipynb
    notebooks/ces_data_edsl.ipynb
