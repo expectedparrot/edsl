@@ -185,7 +185,6 @@ Information about additional functionality for developers.
    notebooks/example_agent_dynamic_traits.ipynb
    notebooks/research_methods.ipynb
    notebooks/edsl_components.ipynb
-   notebooks/export_survey_updates.ipynb
    notebooks/question_extract_example.ipynb
    notebooks/data_cleaning.ipynb
 
