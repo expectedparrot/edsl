@@ -281,6 +281,17 @@ class SQLiteFileStore(FileStore):
         os.system(f"sqlite3 {sqlite_path}")
 
 
+class HTMLFileStore(FileStore):
+    def __init__(self, filename):
+        super().__init__(filename, suffix=".html")
+
+    def view(self):
+        import webbrowser
+
+        html_path = self.to_tempfile()
+        webbrowser.open("file://" + html_path)
+
+
 if __name__ == "__main__":
     # file_path = "../conjure/examples/Ex11-2.sav"
     # fs = FileStore(file_path)
