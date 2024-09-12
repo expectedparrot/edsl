@@ -182,8 +182,11 @@ class RuleCollection(UserList):
         NextQuestion(next_q=3, num_rules_found=2, expressions_evaluating_to_true=1, priority=1)
 
         """
+        #breakpoint()
         # What rules apply at the current node?
+        
 
+        #breakpoint()    
         expressions_evaluating_to_true = 0
         next_q = None
         highest_priority = -2  # start with -2 to 'pick up' the default rule added
@@ -204,6 +207,11 @@ class RuleCollection(UserList):
             raise SurveyRuleCollectionHasNoRulesAtNodeError(
                 f"No rules found for question {q_now}"
             )
+        
+        ## Now we need to check if the next question has any 'before; rules that we should follow 
+        for rule in self.applicable_rules(next_q, before_rule=True):
+            if rule.evaluate(answers): # rule evaluates to True
+                return self.next_question(next_q, answers)
 
         return NextQuestion(
             next_q, num_rules_found, expressions_evaluating_to_true, highest_priority
