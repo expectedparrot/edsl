@@ -126,8 +126,16 @@ class FileStore(Scenario):
 
 
 class CSVFileStore(FileStore):
-    def __init__(self, filename):
-        super().__init__(filename, suffix=".csv")
+    def __init__(
+        self,
+        filename,
+        binary: Optional[bool] = None,
+        suffix: Optional[str] = None,
+        base64_string: Optional[str] = None,
+    ):
+        super().__init__(
+            filename, binary=binary, base64_string=base64_string, suffix=".csv"
+        )
 
     @classmethod
     def example(cls):
