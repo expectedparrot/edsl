@@ -381,6 +381,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             if print_exceptions:
                 from edsl.scenarios.FileStore import HTMLFileStore
                 from edsl.config import CONFIG
+                from edsl.coop.coop import Coop
 
                 msg = f"Exceptions were raised in {len(results.task_history.indices)} out of {len(self.total_interviews)} interviews.\n"
 
@@ -395,7 +396,15 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                     open_in_browser=True,
                     return_link=True,
                 )
-                if CONFIG.get("EDSL_UPLOAD_ERROR") == "True":
+
+                try:
+                    coop = Coop()
+                    user_edsl_settings = coop.edsl_settings
+                    remote_logging = user_edsl_settings["remote_logging"]
+                except Exception as e:
+                    print(e)
+                    remote_logging = False
+                if remote_logging:
                     filestore = HTMLFileStore(filepath)
                     coop_details = filestore.push(description="Error report")
                     print(coop_details)
