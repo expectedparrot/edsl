@@ -89,7 +89,7 @@ class Coop:
         """
         if response.status_code >= 400:
             message = response.json().get("detail")
-            print(response.text)
+            # print(response.text)
             if "Authorization" in message:
                 print(message)
                 message = "Please provide an Expected Parrot API key."
