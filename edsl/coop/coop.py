@@ -59,10 +59,12 @@ class Coop:
         Send a request to the server and return the response.
         """
         url = f"{self.url}/{uri}"
-        method = method.upper()
-        if method == "POST" and payload is not None and "json_string" in payload:
-            timeout = max(5, (len(payload["json_string"]) // (1024 * 1024)))
+        if payload is None:
+            timeout = 5
+        elif "json_string" in payload:
+            timeout = max(5, (len(payload.get("json_string", "")) // (1024 * 1024)))
         try:
+            method = method.upper()
             if method in ["GET", "DELETE"]:
                 response = requests.request(
                     method, url, params=params, headers=self.headers, timeout=timeout
@@ -77,8 +79,7 @@ class Coop:
                     timeout=timeout,
                 )
             else:
-                message = f"Invalid {method=}."
-                raise Exception(message)
+                raise Exception(f"Invalid {method=}.")
         except requests.ConnectionError:
             raise requests.ConnectionError("Could not connect to the server.")
 
@@ -90,7 +91,9 @@ class Coop:
         """
         if response.status_code >= 400:
             message = response.json().get("detail")
+            # print(response.text)
             if "Authorization" in message:
+                print(message)
                 message = "Please provide an Expected Parrot API key."
             raise Exception(message)
 
