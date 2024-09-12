@@ -202,7 +202,6 @@ Information about additional functionality for developers.
    notebooks/conduct_interview.ipynb
    notebooks/qualitative_research.ipynb
    notebooks/random_numbers.ipynb
-   notebooks/model_walkoff.ipynb
    notebooks/concept_induction.ipynb
    notebooks/testing_training_data.ipynb
    notebooks/comparing_model_responses.ipynb
