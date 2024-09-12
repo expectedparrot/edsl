@@ -203,19 +203,19 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
 
         prompt_dictionary = {}
         for answer_key_name in answer_key_names:
-            prompt_dictionary[answer_key_name + "_user_prompt"] = (
-                question_name_to_prompts[answer_key_name]["user_prompt"]
-            )
-            prompt_dictionary[answer_key_name + "_system_prompt"] = (
-                question_name_to_prompts[answer_key_name]["system_prompt"]
-            )
+            prompt_dictionary[
+                answer_key_name + "_user_prompt"
+            ] = question_name_to_prompts[answer_key_name]["user_prompt"]
+            prompt_dictionary[
+                answer_key_name + "_system_prompt"
+            ] = question_name_to_prompts[answer_key_name]["system_prompt"]
 
         raw_model_results_dictionary = {}
         for result in valid_results:
             question_name = result.question_name
-            raw_model_results_dictionary[question_name + "_raw_model_response"] = (
-                result.raw_model_response
-            )
+            raw_model_results_dictionary[
+                question_name + "_raw_model_response"
+            ] = result.raw_model_response
             raw_model_results_dictionary[question_name + "_cost"] = result.cost
             one_use_buys = (
                 "NA"
@@ -379,6 +379,10 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                 [interview for interview in failed_interviews]
             )
             if print_exceptions:
+                from edsl.scenarios.FileStore import HTMLFileStore
+                from edsl.config import CONFIG
+                from edsl.coop.coop import Coop
+
                 msg = f"Exceptions were raised in {len(results.task_history.indices)} out of {len(self.total_interviews)} interviews.\n"
 
                 if len(results.task_history.indices) > 5:
@@ -387,9 +391,24 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                 shared_globals["edsl_runner_exceptions"] = task_history
                 print(msg)
                 # this is where exceptions are opening up
-                task_history.html(
-                    cta="Open report to see details.", open_in_browser=True
+                filepath = task_history.html(
+                    cta="Open report to see details.",
+                    open_in_browser=True,
+                    return_link=True,
                 )
+
+                try:
+                    coop = Coop()
+                    user_edsl_settings = coop.edsl_settings
+                    remote_logging = user_edsl_settings["remote_logging"]
+                except Exception as e:
+                    print(e)
+                    remote_logging = False
+                if remote_logging:
+                    filestore = HTMLFileStore(filepath)
+                    coop_details = filestore.push(description="Error report")
+                    print(coop_details)
+
                 print(
                     "Also see: https://docs.expectedparrot.com/en/latest/exceptions.html"
                 )
