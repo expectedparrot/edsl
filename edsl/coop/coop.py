@@ -59,7 +59,7 @@ class Coop:
         Send a request to the server and return the response.
         """
         url = f"{self.url}/{uri}"
-        if payload is not None:
+        if method == "POST" and payload != None and "json_string" in payload:
             timeout = max(5, (len(payload["json_string"]) // (1024 * 1024)))
         try:
             method = method.upper()
