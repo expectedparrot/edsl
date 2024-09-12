@@ -64,7 +64,7 @@ class GoogleService(InferenceServiceABC):
                         "stopSequences": self.stopSequences,
                     },
                 }
-                print(combined_prompt)
+                # print(combined_prompt)
                 async with aiohttp.ClientSession() as session:
                     async with session.post(
                         url, headers=headers, data=json.dumps(data)
