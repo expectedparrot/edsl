@@ -65,10 +65,6 @@ CONFIG_MAP = {
         "default": "True",
         "info": "Whether to fetch the prices for tokens",
     },
-    "EDSL_UPLOAD_ERROR": {
-        "default": "False",
-        "info": "Whether to upload error reports to Coop",
-    },
     "EXPECTED_PARROT_URL": {
         "default": "https://www.expectedparrot.com",
         "info": "This env var holds the URL of the Expected Parrot API.",
