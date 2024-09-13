@@ -42,15 +42,22 @@ class InferenceServiceABC(ABC):
 
     @abstractmethod
     def available() -> list[str]:
+        """
+        Returns a list of available models for the service.
+        """
         pass
 
     @abstractmethod
     def create_model():
+        """
+        Returns a LanguageModel object.
+        """
         pass
 
     @staticmethod
     def to_class_name(s):
-        """Convert a string to a valid class name.
+        """
+        Converts a string to a valid class name.
 
         >>> InferenceServiceABC.to_class_name("hello world")
         'HelloWorld'
