@@ -1,14 +1,20 @@
 from abc import abstractmethod, ABC
-from typing import Any
+import os
 import re
 from edsl.config import CONFIG
 
 
 class InferenceServiceABC(ABC):
-    """Abstract class for inference services."""
+    """
+    Abstract class for inference services.
+    """
 
-    # check if child class has cls attribute "key_sequence"
     def __init_subclass__(cls):
+        """
+        Check that the subclass has the required attributes.
+        - `key_sequence` attribute determines...
+        - `model_exclude_list` attribute determines...
+        """
         if not hasattr(cls, "key_sequence"):
             raise NotImplementedError(
                 f"Class {cls.__name__} must have a 'key_sequence' attribute."
@@ -18,17 +24,21 @@ class InferenceServiceABC(ABC):
                 f"Class {cls.__name__} must have a 'model_exclude_list' attribute."
             )
 
-    def get_tpm(cls):
+    def get_tpm(cls) -> int:
+        """
+        Returns the TPM for the service. If the service is not defined in the environment variables, it will return the baseline TPM.
+        """
         key = f"EDSL_SERVICE_TPM_{cls._inference_service_.upper()}"
-        if key not in CONFIG:
-            key = "EDSL_SERVICE_TPM_BASELINE"
-        return int(CONFIG.get(key))
+        tpm = os.getenv(key) or CONFIG.get("EDSL_SERVICE_TPM_BASELINE")
+        return int(tpm)
 
     def get_rpm(cls):
+        """
+        Returns the RPM for the service. If the service is not defined in the environment variables, it will return the baseline RPM.
+        """
         key = f"EDSL_SERVICE_RPM_{cls._inference_service_.upper()}"
-        if key not in CONFIG:
-            key = "EDSL_SERVICE_RPM_BASELINE"
-        return int(CONFIG.get(key))
+        rpm = os.getenv(key) or CONFIG.get("EDSL_SERVICE_RPM_BASELINE")
+        return int(rpm)
 
     @abstractmethod
     def available() -> list[str]:
