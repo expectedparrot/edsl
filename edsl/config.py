@@ -1,73 +1,65 @@
 """This module provides a Config class that loads environment variables from a .env file and sets them as class attributes."""
 
 import os
+from dotenv import load_dotenv, find_dotenv
 from edsl.exceptions import (
     InvalidEnvironmentVariableError,
     MissingEnvironmentVariableError,
 )
-from dotenv import load_dotenv, find_dotenv
 
 # valid values for EDSL_RUN_MODE
-EDSL_RUN_MODES = ["development", "development-testrun", "production"]
+EDSL_RUN_MODES = [
+    "development",
+    "development-testrun",
+    "production",
+]
 
 # `default` is used to impute values only in "production" mode
 # `info` gives a brief description of the env var
 CONFIG_MAP = {
     "EDSL_RUN_MODE": {
         "default": "production",
-        "info": "This env var determines the run mode of the application.",
-    },
-    "EDSL_DATABASE_PATH": {
-        "default": f"sqlite:///{os.path.join(os.getcwd(), '.edsl_cache/data.db')}",
-        "info": "This env var determines the path to the cache file.",
-    },
-    "EDSL_LOGGING_PATH": {
-        "default": f"{os.path.join(os.getcwd(), 'interview.log')}",
-        "info": "This env var determines the path to the log file.",
+        "info": "This config var determines the run mode of the application.",
     },
     "EDSL_API_TIMEOUT": {
         "default": "60",
-        "info": "This env var determines the maximum number of seconds to wait for an API call to return.",
+        "info": "This config var determines the maximum number of seconds to wait for an API call to return.",
     },
     "EDSL_BACKOFF_START_SEC": {
         "default": "1",
-        "info": "This env var determines the number of seconds to wait before retrying a failed API call.",
+        "info": "This config var determines the number of seconds to wait before retrying a failed API call.",
     },
-    "EDSL_MAX_BACKOFF_SEC": {
+    "EDSL_BACKOFF_MAX_SEC": {
         "default": "60",
-        "info": "This env var determines the maximum number of seconds to wait before retrying a failed API call.",
+        "info": "This config var determines the maximum number of seconds to wait before retrying a failed API call.",
     },
-    "EDSL_MAX_ATTEMPTS": {
-        "default": "5",
-        "info": "This env var determines the maximum number of times to retry a failed API call.",
+    "EDSL_DATABASE_PATH": {
+        "default": f"sqlite:///{os.path.join(os.getcwd(), '.edsl_cache/data.db')}",
+        "info": "This config var determines the path to the cache file.",
     },
     "EDSL_DEFAULT_MODEL": {
         "default": "gpt-4o",
-        "info": "This env var holds the default model name.",
-    },
-    "EDSL_SERVICE_TPM_BASELINE": {
-        "default": "2000000",
-        "info": "This env var holds the maximum number of tokens per minute for all models. Model-specific values such as EDSL_SERVICE_TPM_OPENAI will override this.",
-    },
-    "EDSL_SERVICE_RPM_BASELINE": {
-        "default": "100",
-        "info": "This env var holds the maximum number of requests per minute for OpenAI. Model-specific values such as EDSL_SERVICE_RPM_OPENAI will override this.",
-    },
-    "EDSL_SERVICE_TPM_OPENAI": {
-        "default": "2000000",
-        "info": "This env var holds the maximum number of tokens per minute for OpenAI.",
-    },
-    "EDSL_SERVICE_RPM_OPENAI": {
-        "default": "100",
-        "info": "This env var holds the maximum number of requests per minute for OpenAI.",
+        "info": "This config var holds the default model that will be used if a model is not explicitly passed.",
     },
     "EDSL_FETCH_TOKEN_PRICES": {
         "default": "True",
-        "info": "Whether to fetch the prices for tokens",
+        "info": "This config var determines whether to fetch prices for tokens used in remote inference",
+    },
+    "EDSL_MAX_ATTEMPTS": {
+        "default": "5",
+        "info": "This config var determines the maximum number of times to retry a failed API call.",
+    },
+    "EDSL_SERVICE_RPM_BASELINE": {
+        "default": "100",
+        "info": "This config var holds the maximum number of requests per minute for OpenAI. Model-specific values provided in env vars such as EDSL_SERVICE_RPM_OPENAI will override this. value for the corresponding model",
+    },
+    "EDSL_SERVICE_TPM_BASELINE": {
+        "default": "2000000",
+        "info": "This config var holds the maximum number of tokens per minute for all models. Model-specific values provided in env vars such as EDSL_SERVICE_TPM_OPENAI will override this value for the corresponding model.",
     },
     "EXPECTED_PARROT_URL": {
         "default": "https://www.expectedparrot.com",
-        "info": "This env var holds the URL of the Expected Parrot API.",
+        "info": "This config var holds the URL of the Expected Parrot API.",
     },
 }
 
