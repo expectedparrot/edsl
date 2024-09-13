@@ -367,7 +367,7 @@ class Result(Base, UserDict):
                 "raw_model_response", {"raw_model_response": "No raw model response"}
             ),
             question_to_attributes=json_dict.get("question_to_attributes", None),
-            generated_tokens=json_dict.get("generated_tokens", None),
+            generated_tokens=json_dict.get("generated_tokens", {}),
         )
         return result
 
