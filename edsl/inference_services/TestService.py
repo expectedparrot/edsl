@@ -12,9 +12,19 @@ from edsl.enums import InferenceServiceType
 class TestService(InferenceServiceABC):
     """OpenAI service class."""
 
-    key_sequence = None
-    model_exclude_list = []
     _inference_service_ = "test"
+    _env_key_name_ = None
+    _base_url_ = None
+
+    _sync_client_ = None
+    _async_client_ = None
+
+    _sync_client_instance = None
+    _async_client_instance = None
+
+    key_sequence = None
+    usage_sequence = None
+    model_exclude_list = []
     input_token_name = "prompt_tokens"
     output_token_name = "completion_tokens"
 
