@@ -492,6 +492,7 @@ class Jobs(Base):
         remote_inference_description: Optional[str] = None,
         skip_retry: bool = False,
         raise_validation_errors: bool = False,
+        disable_remote_inference: bool = False,
     ) -> Results:
         """
         Runs the Job: conducts Interviews and returns their results.
@@ -514,14 +515,16 @@ class Jobs(Base):
 
         self.verbose = verbose
 
-        try:
-            coop = Coop()
-            user_edsl_settings = coop.edsl_settings
-            remote_cache = user_edsl_settings["remote_caching"]
-            remote_inference = user_edsl_settings["remote_inference"]
-        except Exception:
-            remote_cache = False
-            remote_inference = False
+        remote_cache = False
+        remote_inference = False
+
+        if not disable_remote_inference:
+            try:
+                user_edsl_settings = Coop().edsl_settings
+                remote_cache = user_edsl_settings.get("remote_caching", False)
+                remote_inference = user_edsl_settings.get("remote_inference", False)
+            except Exception:
+                pass
 
         if remote_inference:
             import time
