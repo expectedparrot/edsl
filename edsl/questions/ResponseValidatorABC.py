@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from pydantic import BaseModel, Field, field_validator
-from decimal import Decimal
+
+# from decimal import Decimal
 from typing import Optional, Any, List, TypedDict
 
 from edsl.exceptions import QuestionAnswerValidationError
@@ -64,7 +65,7 @@ class ResponseValidatorABC(ABC):
         >>> rv = ResponseValidatorABC.example()
         >>> rv.override_answer = {"answer": 42}
         >>> rv.validate({"answer": 23})
-        {'answer': Decimal('42'), 'comment': None, 'generated_tokens': None}
+        {'answer': 42, 'comment': None, 'generated_tokens': None}
         """
         if self.exception_to_throw:
             raise self.exception_to_throw
@@ -75,7 +76,7 @@ class ResponseValidatorABC(ABC):
 
         >>> rv = ResponseValidatorABC.example("numerical")
         >>> rv._base_validate({"answer": 42})
-        ConstrainedNumericResponse(answer=Decimal('42'), comment=None, generated_tokens=None)
+        ConstrainedNumericResponse(answer=42, comment=None, generated_tokens=None)
         """
         try:
             return self.response_model(**data)
@@ -97,7 +98,7 @@ class ResponseValidatorABC(ABC):
 
         >>> rv = ResponseValidatorABC.example("numerical")
         >>> rv.validate({"answer": 42})
-        {'answer': Decimal('42'), 'comment': None, 'generated_tokens': None}
+        {'answer': 42, 'comment': None, 'generated_tokens': None}
         >>> rv.max_value
         86.7
         >>> rv.validate({"answer": "120"})
@@ -109,7 +110,7 @@ class ResponseValidatorABC(ABC):
         >>> q.permissive = True
         >>> rv = q.response_validator
         >>> rv.validate({"answer": "120"})
-        {'answer': Decimal('120'), 'comment': None, 'generated_tokens': None}
+        {'answer': 120, 'comment': None, 'generated_tokens': None}
         >>> rv.validate({"answer": "poo"})
         Traceback (most recent call last):
         ...
