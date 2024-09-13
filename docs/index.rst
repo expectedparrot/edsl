@@ -191,7 +191,6 @@ Information about additional functionality for developers.
    :hidden:
 
    notebooks/scenariolist_unpivot.ipynb
-   notebooks/google_form_to_edsl.ipynb
    notebooks/nps_survey.ipynb
    notebooks/agentifying_responses.ipynb
    notebooks/summarizing_transcripts.ipynb
