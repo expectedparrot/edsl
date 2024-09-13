@@ -3,8 +3,8 @@
 Starter Tutorial
 ================
 
-This tutorial demonstrates basic steps for conducting an AI-powered survey using EDSL. 
-You can also `view this notebook at the Coop <https://www.expectedparrot.com/content/6e6508ca-353e-41f7-866e-7a3c6232e0fd>`_.
+This tutorial demonstrates basic steps for conducting an AI-powered survey using EDSL and storing it at the Coop. 
+You can also `view this notebook at the Coop <https://www.expectedparrot.com/content/ef05e6dd-c176-4812-8143-46141d7f1833>`_.
 
 
 Technical setup
@@ -28,19 +28,19 @@ In the steps below we show how to create and run a simple question in EDSL.
 Then we show how to design a more complex survey with AI agents and different language models.
 
 
-Run a simple question
-~~~~~~~~~~~~~~~~~~~~~
+Running a simple question
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
-In this first example we create a simple multiple choice question, administer it to a language model and inspect the response:
+Here we create a multiple choice question, administer it to the default language model (GPT 4 preview) and inspect the response:
 
 .. code-block:: python 
 
     # Import a question type
-    from edsl.questions import QuestionMultipleChoice
+    from edsl import QuestionMultipleChoice
     
     # Construct a question in the question type template
     q = QuestionMultipleChoice(
-        question_name = "example_question",
+        question_name = "my_example",
         question_text = "How do you feel today?",
         question_options = ["Bad", "OK", "Good"]
     )
@@ -49,7 +49,7 @@ In this first example we create a simple multiple choice question, administer it
     results = q.run()
     
     # Inspect the results
-    results.select("example_question").print()
+    results.select("my_example").print()
 
 
 Output:
@@ -58,13 +58,13 @@ Output:
 
     ┏━━━━━━━━━━━━━━━━━━━┓
     ┃ answer            ┃
-    ┃ .example_question ┃
+    ┃ .my_question      ┃
     ┡━━━━━━━━━━━━━━━━━━━┩
     │ Good              │
     └───────────────────┘
 
 
-*Note:* The default language model is currently GPT 4; you will need an API key for OpenAI to run this example locally.
+*Note:* The default language model is currently GPT 4 preview; you will need an API key for OpenAI to run this example locally.
 See instructions on storing your own :ref:`api_keys`. 
 Alternatively, you can activate :ref:`remote_inference` at your :ref:`coop` account to run the example on the Expected Parrot server.
 
@@ -78,7 +78,7 @@ This can be useful for comparing responses for different data, agents and models
 
 We also show how to filter, sort, select and print components of the dataset of results.
 
-To see examples of all EDSL question types, run:
+To see examples of all EDSL question types, run the following code:
 
 .. code-block:: python
 
@@ -87,15 +87,37 @@ To see examples of all EDSL question types, run:
     Question.available()
 
 
+Output:
+
+.. code-block:: text 
+
+    ['checkbox',
+    'extract',
+    'free_text',
+    'functional',
+    'likert_five',
+    'linear_scale',
+    'list',
+    'multiple_choice',
+    'numerical',
+    'rank',
+    'top_k',
+    'yes_no']
+
+
 Newly released language models are automatically added to EDSL when they become available. 
-To see a current list of available models, run:
+To see a current list of available models, run the following code:
 
 .. code-block:: python
 
     from edsl import Model
 
     Model.available()
-    
+
+
+A complete list of available models will be displayed. (We do not print it here because it is long.)
+
+Now let's create a survey with multiple questions, scenarios, agents and models, and inspect the results:
 
 .. code-block:: python
 
@@ -167,31 +189,32 @@ Output:
     ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
     ┃ Model                      ┃ Activity ┃ Agent persona ┃ Enjoy ┃ Recent                                          ┃
     ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-    │ claude-3-5-sonnet-20240620 │ reading  │ chef          │ 4     │ As a chef, I recently found myself engrossed in │
-    │                            │          │               │       │ a new cookbook featuring innovative             │
-    │                            │          │               │       │ Mediterranean cuisine. I was curled up in my    │
-    │                            │          │               │       │ favorite armchair, poring over vibrant photos   │
-    │                            │          │               │       │ of colorful dishes and studying intricate       │
-    │                            │          │               │       │ flavor combinations. The pages were filled with │
-    │                            │          │               │       │ enticing recipes that sparked my culinary       │
-    │                            │          │               │       │ imagination. I took notes on interesting        │
-    │                            │          │               │       │ techniques and ingredient pairings, eager to    │
-    │                            │          │               │       │ incorporate these fresh ideas into my own       │
-    │                            │          │               │       │ cooking. Reading cookbooks is not just a        │
-    │                            │          │               │       │ pastime for me; it's an essential part of my    │
-    │                            │          │               │       │ professional development and a source of        │
-    │                            │          │               │       │ endless inspiration in the kitchen.             │
+    │ claude-3-5-sonnet-20240620 │ reading  │ chef          │ 3     │ As a chef, I'm always reading cookbooks,        │
+    │                            │          │               │       │ culinary magazines, and food blogs to stay      │
+    │                            │          │               │       │ up-to-date with the latest trends and           │
+    │                            │          │               │       │ techniques in the culinary world. Just          │
+    │                            │          │               │       │ yesterday, I was poring over a new cookbook     │
+    │                            │          │               │       │ featuring modern interpretations of classic     │
+    │                            │          │               │       │ French cuisine. I was particularly interested   │
+    │                            │          │               │       │ in a section on innovative sauces and           │
+    │                            │          │               │       │ reductions. Reading about food is an essential  │
+    │                            │          │               │       │ part of my professional development and helps   │
+    │                            │          │               │       │ inspire new ideas for my own cooking. It's not  │
+    │                            │          │               │       │ just about recipes, but also understanding      │
+    │                            │          │               │       │ flavor combinations, plating techniques, and    │
+    │                            │          │               │       │ the cultural significance of different dishes.  │
     ├────────────────────────────┼──────────┼───────────────┼───────┼─────────────────────────────────────────────────┤
     │ gpt-4o                     │ reading  │ chef          │ 4     │ The most recent time I was reading, I was       │
-    │                            │          │               │       │ flipping through a cookbook that focused on     │
+    │                            │          │               │       │ flipping through a cookbook that focuses on     │
     │                            │          │               │       │ Mediterranean cuisine. I was particularly       │
     │                            │          │               │       │ interested in a recipe for a traditional Greek  │
-    │                            │          │               │       │ moussaka. The book had beautiful photographs    │
-    │                            │          │               │       │ and detailed instructions, which really helped  │
-    │                            │          │               │       │ me visualize the steps. I made some notes on    │
-    │                            │          │               │       │ how I could add my own twist to the dish,       │
-    │                            │          │               │       │ perhaps by incorporating some locally sourced   │
-    │                            │          │               │       │ ingredients.                                    │
+    │                            │          │               │       │ moussaka. The layers of eggplant, seasoned      │
+    │                            │          │               │       │ ground meat, and creamy béchamel sauce sounded  │
+    │                            │          │               │       │ divine. I was taking notes on the different     │
+    │                            │          │               │       │ spices and techniques used, thinking about how  │
+    │                            │          │               │       │ I could incorporate some of those flavors into  │
+    │                            │          │               │       │ my own dishes. It was a delightful and          │
+    │                            │          │               │       │ inspiring read!                                 │
     └────────────────────────────┴──────────┴───────────────┴───────┴─────────────────────────────────────────────────┘
 
 
@@ -223,6 +246,9 @@ Output:
     'answer.enjoy',
     'answer.recent',
     'comment.enjoy_comment',
+    'comment.recent_comment',
+    'generated_tokens.enjoy_generated_tokens',
+    'generated_tokens.recent_generated_tokens',
     'iteration.iteration',
     'model.frequency_penalty',
     'model.logprobs',
@@ -242,7 +268,11 @@ Output:
     'question_text.recent_question_text',
     'question_type.enjoy_question_type',
     'question_type.recent_question_type',
+    'raw_model_response.enjoy_cost',
+    'raw_model_response.enjoy_one_usd_buys',
     'raw_model_response.enjoy_raw_model_response',
+    'raw_model_response.recent_cost',
+    'raw_model_response.recent_one_usd_buys',
     'raw_model_response.recent_raw_model_response',
     'scenario.activity']
 
@@ -254,6 +284,8 @@ The `Results` object also supports SQL-like queries:
     # Execute an SQL-like query on the results
     results.sql("select * from self", shape="wide")
 
+
+View this notebook at the Coop to see output: `Starter Tutorial <https://www.expectedparrot.com/content/ef05e6dd-c176-4812-8143-46141d7f1833>`_.
 
 Learn more about working with results in the :ref:`results` section.
 

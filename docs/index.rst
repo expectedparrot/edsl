@@ -5,25 +5,22 @@ EDSL: AI-Powered Research
 
 *Expected Parrot Domain-Specific Language* (EDSL) is an open-source Python package for conducting AI-powered research.
    
-.. raw:: html
+EDSL is developed by `Expected Parrot <https://www.expectedparrot.com>`_ and available under the MIT License.
 
-   EDSL is developed by <a href="https://www.expectedparrot.com" target="_blank">Expected Parrot</a> and available under the MIT License.
-   <br><br>
-
-This page provides documentation, tutorials and demo notebooks for the EDSL package and the Coop: a platform for creating, storing and sharing AI research.
+This page provides documentation, tutorials and demo notebooks for the EDSL package and the `Coop <https://www.expectedparrot.com/explore>`_: a platform for creating, storing and sharing AI research. 
 The contents are organized into key sections to help you get started:
 
 
 Links
 -----
 
-- Download the latest version of EDSL on `PyPI <https://pypi.org/project/edsl>`_.
+- Download the current version of EDSL at `PyPI <https://pypi.org/project/edsl>`_.
 
-- Get the latest EDSL updates on `GitHub <https://github.com/expectedparrot/edsl>`_.
+- Get the latest EDSL updates at `GitHub <https://github.com/expectedparrot/edsl>`_.
 
 - Create a `Coop account <https://www.expectedparrot.com/login>`_.
 
-- Join our `Discord channel <https://discord.com/invite/mxAYkjfy9m>`_ to discuss AI research.
+- Join our `Discord channel <https://discord.com/invite/mxAYkjfy9m>`_.
 
 - Follow us on social media:
 
@@ -194,7 +191,6 @@ Information about additional functionality for developers.
    :hidden:
 
    notebooks/scenariolist_unpivot.ipynb
-   notebooks/google_form_to_edsl.ipynb
    notebooks/nps_survey.ipynb
    notebooks/agentifying_responses.ipynb
    notebooks/summarizing_transcripts.ipynb

@@ -76,3 +76,10 @@ html_show_sphinx = False
 html_show_sourcelink = False
 html_logo = "static/logo.png"
 html_favicon = "static/favicon.ico"
+
+html_context = {
+    "display_github": False,
+    "github_user": "",
+    "github_repo": "",
+    "github_version": "",
+}
