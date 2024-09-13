@@ -2,10 +2,10 @@ import textwrap
 from random import random
 from edsl.config import CONFIG
 
-if "EDSL_DEFAULT_MODEL" not in CONFIG:
-    default_model = "test"
-else:
-    default_model = CONFIG.get("EDSL_DEFAULT_MODEL")
+# if "EDSL_DEFAULT_MODEL" not in CONFIG:
+#     default_model = "test"
+# else:
+#     default_model = CONFIG.get("EDSL_DEFAULT_MODEL")
 
 
 def get_model_class(model_name, registry=None):
@@ -33,7 +33,7 @@ class Meta(type):
 
 
 class Model(metaclass=Meta):
-    default_model = default_model
+    default_model = CONFIG.get("EDSL_DEFAULT_MODEL")
 
     def __new__(cls, model_name=None, registry=None, *args, **kwargs):
         # Map index to the respective subclass

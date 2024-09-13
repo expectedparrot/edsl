@@ -100,7 +100,6 @@ def test_bucket_collection(create_survey):
 @pytest.mark.parametrize("fail_at_number, chained", [(6, False), (10, True)])
 def test_handle_model_exceptions(set_env_vars, create_survey, fail_at_number, chained):
     "A chained survey is one where each survey question depends on the previous one."
-    # set_env_vars(EDSL_API_TIMEOUT="5")
     model = create_language_model(ValueError, fail_at_number)()
     survey = create_survey(num_questions=20, chained=chained)
     jobs = survey.by(model)
