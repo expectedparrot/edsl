@@ -520,6 +520,7 @@ class Jobs(Base):
 
         if not disable_remote_inference:
             try:
+                coop = Coop()
                 user_edsl_settings = Coop().edsl_settings
                 remote_cache = user_edsl_settings.get("remote_caching", False)
                 remote_inference = user_edsl_settings.get("remote_inference", False)
