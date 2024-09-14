@@ -18,6 +18,7 @@ with a low (-1) priority.
 """
 
 import ast
+import random
 from typing import Any, Union, List
 
 from jinja2 import Template
@@ -254,8 +255,16 @@ class Rule:
             msg = f"""Exception in evaluation: {e}. The expression is: {self.expression}. The current info env trying to substitute in is: {current_info_env}. After the substition, the expression was: {to_evaluate}."""
             raise SurveyRuleCannotEvaluateError(msg)
 
+        random_functions = {
+            "randint": random.randint,
+            "choice": random.choice,
+            "random": random.random,
+            "uniform": random.uniform,
+            # Add any other random functions you want to allow
+        }
+
         try:
-            return EvalWithCompoundTypes().eval(to_evaluate)
+            return EvalWithCompoundTypes(functions=random_functions).eval(to_evaluate)
         except Exception as e:
             msg = f"""Exception in evaluation: {e}. The expression is: {self.expression}. The current info env trying to substitute in is: {current_info_env}. After the substition, the expression was: {to_evaluate}."""
             raise SurveyRuleCannotEvaluateError(msg)
