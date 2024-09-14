@@ -1,6 +1,8 @@
 import pytest
 
 from edsl import Study
+from edsl import QuestionFreeText, QuestionMultipleChoice
+from uuid import UUID
 
 
 def test_instantiate():
@@ -89,3 +91,37 @@ def test_versions():
     assert len(study2.versions()["q"]) == 2
 
     del q
+
+
+def test_delete_object():
+    import tempfile
+
+    f = tempfile.NamedTemporaryFile()
+
+    with Study(filename=f.name, verbose=False) as study:
+        q1 = QuestionFreeText.example()
+        q2 = QuestionMultipleChoice.example()
+
+    assert len(study) == 2
+
+    # Test deleting by variable name
+    study.delete_object("q1")
+    assert len(study) == 1
+    assert "q1" not in study.name_to_object
+    assert "q2" in study.name_to_object
+
+    # Test deleting by hash
+    q2_hash = next(iter(study.objects.keys()))
+    study.delete_object(q2_hash)  # Pass the hash string directly
+    assert len(study) == 0
+
+    # Test deleting non-existent object
+    with pytest.raises(ValueError):
+        study.delete_object("non_existent")
+
+    with pytest.raises(ValueError):
+        study.delete_object("00000000-0000-0000-0000-000000000000")  # Use a string UUID
+
+    # Test with invalid identifier type
+    with pytest.raises(TypeError):
+        study.delete_object(123)
