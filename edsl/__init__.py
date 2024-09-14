@@ -23,6 +23,7 @@ from edsl.questions import QuestionNumerical
 from edsl.questions import QuestionYesNo
 from edsl.questions import QuestionBudget
 from edsl.questions import QuestionRank
+from edsl.questions import QuestionTopK
 
 from edsl.scenarios import Scenario
 from edsl.scenarios import ScenarioList
