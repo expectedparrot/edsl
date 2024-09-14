@@ -47,21 +47,27 @@ class PersistenceMixin:
         self,
         description: Optional[str] = None,
         visibility: Optional[str] = "unlisted",
+        expected_parrot_url: Optional[str] = None,
     ):
         """Post the object to coop."""
         from edsl.coop import Coop
 
-        c = Coop()
+        c = Coop(url=expected_parrot_url)
         return c.create(self, description, visibility)
 
     @classmethod
-    def pull(cls, uuid: Optional[Union[str, UUID]] = None, url: Optional[str] = None):
+    def pull(
+        cls,
+        uuid: Optional[Union[str, UUID]] = None,
+        url: Optional[str] = None,
+        expected_parrot_url: Optional[str] = None,
+    ):
         """Pull the object from coop."""
         from edsl.coop import Coop
         from edsl.coop.utils import ObjectRegistry
 
         object_type = ObjectRegistry.get_object_type_by_edsl_class(cls)
-        coop = Coop()
+        coop = Coop(url=expected_parrot_url)
         return coop.get(uuid, url, object_type)
 
     @classmethod
