@@ -1173,9 +1173,15 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         Question('multiple_choice', question_name = \"""q0\""", question_text = \"""Do you like school?\""", question_options = ['yes', 'no'])
         >>> i2.send({"q0": "no"})
         Question('multiple_choice', question_name = \"""q1\""", question_text = \"""Why not?\""", question_options = ['killer bees in cafeteria', 'other'])
+
+
         """
         self.answers = {}
         question = self._questions[0]
+        # should the first question be skipped?
+        if self.rule_collection.skip_question_before_running(0, self.answers):
+            question = self.next_question(question, self.answers)
+
         while not question == EndOfSurvey:
             # breakpoint()
             answer = yield question

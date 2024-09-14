@@ -120,8 +120,8 @@ class FileStore(Scenario):
         return info
 
     @classmethod
-    def pull(cls, uuid):
-        scenario_version = Scenario.pull(uuid)
+    def pull(cls, uuid, expected_parrot_url: Optional[str] = None):
+        scenario_version = Scenario.pull(uuid, expected_parrot_url=expected_parrot_url)
         return cls.from_dict(scenario_version.to_dict())
 
 

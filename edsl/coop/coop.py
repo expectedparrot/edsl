@@ -85,7 +85,7 @@ class Coop:
             else:
                 raise Exception(f"Invalid {method=}.")
         except requests.ConnectionError:
-            raise requests.ConnectionError("Could not connect to the server.")
+            raise requests.ConnectionError(f"Could not connect to the server at {url}.")
 
         return response
 
