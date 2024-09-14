@@ -469,6 +469,38 @@ class Study:
         coop = Coop()
         return coop.create(self, description=self.description)
 
+    def delete_object(self, identifier: Union[str, UUID]):
+        """
+        Delete an EDSL object from the study.
+
+        :param identifier: Either the variable name or the hash of the object to delete
+        :raises ValueError: If the object is not found in the study
+        """
+        if isinstance(identifier, str):
+            # If identifier is a variable name or a string representation of UUID
+            for hash, obj_entry in list(self.objects.items()):
+                if obj_entry.variable_name == identifier or hash == identifier:
+                    del self.objects[hash]
+                    self._create_mapping_dicts()  # Update internal mappings
+                    if self.verbose:
+                        print(f"Deleted object with identifier: {identifier}")
+                    return
+            raise ValueError(f"No object found with identifier: {identifier}")
+        elif isinstance(identifier, UUID):
+            # If identifier is a UUID object
+            hash_str = str(identifier)
+            if hash_str in self.objects:
+                del self.objects[hash_str]
+                self._create_mapping_dicts()  # Update internal mappings
+                if self.verbose:
+                    print(f"Deleted object with hash: {hash_str}")
+                return
+            raise ValueError(f"No object found with hash: {hash_str}")
+        else:
+            raise TypeError(
+                "Identifier must be either a string (variable name or hash) or a UUID object"
+            )
+
     @classmethod
     def pull(cls, uuid: Optional[Union[str, UUID]] = None, url: Optional[str] = None):
         """Pull the object from coop."""
