@@ -75,8 +75,7 @@ class QuestionBase(
         if not hasattr(self, "_fake_data_factory"):
             from polyfactory.factories.pydantic_factory import ModelFactory
 
-            class FakeData(ModelFactory[self.response_model]):
-                ...
+            class FakeData(ModelFactory[self.response_model]): ...
 
             self._fake_data_factory = FakeData
         return self._fake_data_factory
@@ -471,6 +470,7 @@ class QuestionBase(
         self,
         scenario: Optional[dict] = None,
         agent: Optional[dict] = {},
+        answers: Optional[dict] = None,
         include_question_name: bool = False,
         height: Optional[int] = None,
         width: Optional[int] = None,
@@ -501,13 +501,25 @@ class QuestionBase(
 
         base_template = Template(base_template)
 
-        params = {
-            "question_name": self.question_name,
-            "question_text": Template(self.question_text).render(scenario, agent=agent),
-            "question_type": self.question_type,
-            "question_content": Template(question_content).render(scenario),
-            "include_question_name": include_question_name,
+        context = {
+            "scenario": scenario,
+            "agent": agent,
+            self.question_name: {"answer": answers.get(self.question_name, None)},
         }
+        question_text = Template(self.question_text).render(context)
+        breakpoint()
+        try:
+            params = {
+                "question_name": self.question_name,
+                "question_text": Template(self.question_text).render(
+                    scenario, agent=agent, answer=d
+                ),
+                "question_type": self.question_type,
+                "question_content": Template(question_content).render(scenario),
+                "include_question_name": include_question_name,
+            }
+        except Exception as e:
+            breakpoint()
         rendered_html = base_template.render(**params)
 
         if iframe:
