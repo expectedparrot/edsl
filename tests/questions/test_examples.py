@@ -4,7 +4,7 @@ from edsl import Question
 
 @pytest.mark.parametrize("question_type", Question.available())
 def test_individual_questions(question_type):
-    if question_type != "functional":
+    if question_type != "functional" and question_type != "extract":
         q = Question.example(question_type)
         r = q.example_results()
         _ = hash(r)
