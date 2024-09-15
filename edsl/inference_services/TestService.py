@@ -74,15 +74,3 @@ class TestService(InferenceServiceABC):
                 }
 
         return TestServiceLanguageModel
-
-    # _inference_service_ = "openai"
-    # _env_key_name_ = "OPENAI_API_KEY"
-    # _base_url_ = None
-
-    # _sync_client_ = openai.OpenAI
-    # _async_client_ = openai.AsyncOpenAI
-
-    # _sync_client_instance = None
-    # _async_client_instance = None
-
-    # key_sequence = ["choices", 0, "message", "content"]

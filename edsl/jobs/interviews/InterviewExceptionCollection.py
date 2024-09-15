@@ -10,6 +10,10 @@ class InterviewExceptionCollection(UserDict):
         super().__init__()
         self.fixed = set()
 
+    def unfixed_exceptions(self) -> list:
+        """Return a list of unfixed exceptions."""
+        return {k: v for k, v in self.data.items() if k not in self.fixed}
+
     def num_unfixed(self) -> list:
         """Return a list of unfixed questions."""
         return len([k for k in self.data.keys() if k not in self.fixed])
