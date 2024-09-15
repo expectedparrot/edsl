@@ -1,13 +1,13 @@
-from edsl import Question
 import pytest
+from edsl import Question
 
 
-def test_all_question():
-    questions = Question.available()
-    for question in questions:
-        print(question)
-        if question != "functional":
-            q = Question.example(question)
-            r = q.example_results()
-            _ = hash(r)
-            _ = r._repr_html_()
+@pytest.mark.parametrize("question_type", Question.available())
+def test_individual_questions(question_type):
+    if question_type != "functional":
+        q = Question.example(question_type)
+        r = q.example_results()
+        _ = hash(r)
+        _ = r._repr_html_()
+    else:
+        pytest.skip("Skipping functional question type")
