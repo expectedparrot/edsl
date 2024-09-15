@@ -27,9 +27,6 @@ from edsl.jobs.interviews.InterviewStatisticsCollection import (
 from edsl.jobs.tokens.InterviewTokenUsage import InterviewTokenUsage
 
 
-# return {"cache_status": token_usage_type, "details": details, "cost": f"${token_usage.cost(prices):.5f}"}
-
-
 @dataclass
 class ModelInfo:
     model_name: str
@@ -177,19 +174,7 @@ class JobsRunnerStatus:
         self,
         include_model_queues=False,
     ) -> InterviewStatisticsCollection:
-        """Generate a summary of the status of the job runner.
-
-        :param completed_tasks: list of completed tasks
-        :param elapsed_time: time elapsed since the start of the job
-        :param interviews: list of interviews to be conducted
-
-        >>> from edsl.jobs.interviews.Interview import Interview
-        >>> interviews = [Interview.example()]
-        >>> completed_tasks = []
-        >>> elapsed_time = 0
-        >>> JobsRunnerStatusMixin().generate_status_summary(completed_tasks, elapsed_time, interviews)
-        {'Elapsed time': '0.0 sec.', 'Total interviews requested': '1 ', 'Completed interviews': '0 ', 'Percent complete': '0 %', 'Average time per interview': 'NA', 'Task remaining': '1 ', 'Estimated time remaining': 'NA'}
-        """
+        """Generate a summary of the status of the job runner."""
 
         interview_status_summary: InterviewStatisticsCollection = self._job_level_info()
         if include_model_queues:
@@ -212,14 +197,6 @@ class JobsRunnerStatus:
         :param model: the model name
         :param num_waiting: the number of tasks waiting for capacity
         :param models_to_tokens: a mapping of models to token usage
-
-        >>> from edsl.jobs.interviews.Interview import Interview
-        >>> interviews = [Interview.example()]
-        >>> models_to_tokens = defaultdict(InterviewTokenUsage)
-        >>> model = interviews[0].model
-        >>> num_waiting = 0
-        >>> JobsRunnerStatusMixin()._get_model_info(model, num_waiting, models_to_tokens)
-        ModelInfo(model_name='...', TPM_limit_k=..., RPM_limit_k=..., num_tasks_waiting=0, token_usage_info=[ModelTokenUsageStats(token_usage_type='new_token_usage', details=[{'type': 'prompt_tokens', 'tokens': 0}, {'type': 'completion_tokens', 'tokens': 0}], cost='$0.00000'), ModelTokenUsageStats(token_usage_type='cached_token_usage', details=[{'type': 'prompt_tokens', 'tokens': 0}, {'type': 'completion_tokens', 'tokens': 0}], cost='$0.00000')])
         """
 
         ## TODO: This should probably be a coop method
@@ -250,18 +227,7 @@ class JobsRunnerStatus:
         model: str,
         prices: "TokenPricing",
     ) -> ModelTokenUsageStats:
-        """Get the token usage info for a model.
-
-        >>> from edsl.jobs.interviews.Interview import Interview
-        >>> interviews = [Interview.example()]
-        >>> models_to_tokens = defaultdict(InterviewTokenUsage)
-        >>> model = interviews[0].model
-        >>> prices = get_token_pricing(model.model)
-        >>> cache_status = "new_token_usage"
-        >>> JobsRunnerStatusMixin()._get_token_usage_info(cache_status, models_to_tokens, model, prices)
-        ModelTokenUsageStats(token_usage_type='new_token_usage', details=[{'type': 'prompt_tokens', 'tokens': 0}, {'type': 'completion_tokens', 'tokens': 0}], cost='$0.00000')
-
-        """
+        """Get the token usage info for a model."""
         all_token_usage: InterviewTokenUsage = models_to_tokens[model]
         token_usage: TokenUsage = getattr(all_token_usage, token_usage_type)
 

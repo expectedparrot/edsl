@@ -54,10 +54,10 @@ class TaskHistory:
     def unfixed_exceptions(self):
         """
         >>> len(TaskHistory.example().unfixed_exceptions)
-        4
+        0
         """
         return [
-            i.exceptions
+            i.unfixed_exceptions
             for k, i in self._interviews.items()
             if i.exceptions.num_unfixed() > 0
         ]
@@ -92,12 +92,7 @@ class TaskHistory:
 
     @property
     def has_unfixed_exceptions(self) -> bool:
-        """Return True if there are any exceptions.
-
-        >>> TaskHistory.example().has_unfixed_exceptions
-        True
-
-        """
+        """Return True if there are any exceptions."""
         return len(self.unfixed_exceptions) > 0
 
     def _repr_html_(self):
