@@ -76,6 +76,7 @@ class JobsRunnerStatus:
                 "task_remaining",
                 "estimated_time_remaining",
                 "exceptions",
+                "unfixed_exceptions",
             ]
         else:
             self.statistics = progress_bar_stats
@@ -136,6 +137,11 @@ class JobsRunnerStatus:
             "exceptions": lambda: InterviewStatistic(
                 "exceptions",
                 value=sum(len(i.exceptions) for i in self.total_interviews),
+                units="",
+            ),
+            "unfixed_exceptions": lambda: InterviewStatistic(
+                "unfixed_exceptions",
+                value=sum(i.exceptions.num_unfixed() for i in self.total_interviews),
                 units="",
             ),
         }

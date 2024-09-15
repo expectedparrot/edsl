@@ -6,6 +6,18 @@ from edsl.jobs.interviews.InterviewExceptionEntry import InterviewExceptionEntry
 class InterviewExceptionCollection(UserDict):
     """A collection of exceptions that occurred during the interview."""
 
+    def __init__(self):
+        super().__init__()
+        self.fixed = set()
+
+    def num_unfixed(self) -> list:
+        """Return a list of unfixed questions."""
+        return len([k for k in self.data.keys() if k not in self.fixed])
+
+    def record_fixed_question(self, question_name: str) -> None:
+        """Record that a question has been fixed."""
+        self.fixed.add(question_name)
+
     def add(self, question_name: str, entry: InterviewExceptionEntry) -> None:
         """Add an exception entry to the collection."""
         question_name = question_name

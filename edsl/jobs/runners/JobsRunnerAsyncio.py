@@ -9,10 +9,7 @@ from collections import UserList
 
 from edsl import shared_globals
 from edsl.jobs.interviews.Interview import Interview
-
-# from edsl.jobs.runners.JobsRunnerStatusMixin import JobsRunnerStatusMixin
-
-from edsl.jobs.runners.JobsRunnerStatusMixin import JobsRunnerStatus
+from edsl.jobs.runners.JobsRunnerStatus import JobsRunnerStatus
 
 from edsl.jobs.tasks.TaskHistory import TaskHistory
 from edsl.jobs.buckets.BucketCollection import BucketCollection
@@ -20,27 +17,6 @@ from edsl.utilities.decorators import jupyter_nb_handler
 from edsl.data.Cache import Cache
 from edsl.results.Result import Result
 from edsl.results.Results import Results
-from edsl.jobs.FailedQuestion import FailedQuestion
-
-
-def cache_with_timeout(timeout):
-    """ "Used to keep the generate table from being run too frequetly."""
-
-    def decorator(func):
-        cached_result = {}
-        last_computation_time = [0]  # Using list to store mutable value
-
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            current_time = time.time()
-            if (current_time - last_computation_time[0]) >= timeout:
-                cached_result["value"] = func(*args, **kwargs)
-                last_computation_time[0] = current_time
-            return cached_result["value"]
-
-        return wrapper
-
-    return decorator
 
 
 class StatusTracker(UserList):
@@ -87,6 +63,7 @@ class JobsRunnerAsyncio:
         :param stop_on_exception: Whether to stop the interview if an exception is raised
         :param sidecar_model: a language model to use in addition to the interview's model
         :param total_interviews: A list of interviews to run can be provided instead.
+        :param raise_validation_errors: Whether to raise validation errors
         """
         tasks = []
         if total_interviews:  # was already passed in total interviews
@@ -336,11 +313,11 @@ class JobsRunnerAsyncio:
         results.task_history = task_history
 
         results.failed_questions = {}
-        results.has_exceptions = task_history.has_exceptions
+        results.has_unfixed_exceptions = task_history.has_unfixed_exceptions
 
         results.bucket_collection = self.bucket_collection
 
-        if results.has_exceptions:
+        if results.has_unfixed_exceptions:
             failed_interviews = [
                 interview.duplicate(
                     iteration=interview.iteration, cache=interview.cache
