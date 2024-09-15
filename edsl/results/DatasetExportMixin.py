@@ -472,7 +472,11 @@ class DatasetExportMixin:
         from edsl import ScenarioList, Scenario
 
         list_of_dicts = self.to_dicts(remove_prefix=remove_prefix)
-        return ScenarioList([Scenario(d) for d in list_of_dicts])
+        scenarios = []
+        for d in list_of_dicts:
+            scenarios.append(Scenario(d))
+        return ScenarioList(scenarios)
+        # return ScenarioList([Scenario(d) for d in list_of_dicts])
 
     def to_agent_list(self, remove_prefix: bool = True):
         """Convert the results to a list of dictionaries, one per agent.
