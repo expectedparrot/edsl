@@ -57,7 +57,7 @@ class TaskHistory:
         0
         """
         return [
-            i.unfixed_exceptions
+            i.exceptions
             for k, i in self._interviews.items()
             if i.exceptions.num_unfixed() > 0
         ]

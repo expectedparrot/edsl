@@ -27,7 +27,6 @@ from edsl.jobs.interviews.InterviewExceptionCollection import (
     InterviewExceptionCollection,
 )
 
-from edsl.jobs.interviews.InterviewExceptionEntry import InterviewExceptionEntry
 from edsl.jobs.interviews.InterviewStatusMixin import InterviewStatusMixin
 
 from edsl.surveys.base import EndOfSurvey
@@ -374,9 +373,13 @@ class Interview(InterviewStatusMixin):
     def _handle_exception(
         self, e: Exception, invigilator: "InvigilatorBase", task=None
     ):
+        import copy
+
+        answers = copy.copy(self.answers)
         exception_entry = InterviewExceptionEntry(
             exception=e,
             invigilator=invigilator,
+            answers=answers,
         )
         if task:
             task.task_status = TaskStatus.FAILED
