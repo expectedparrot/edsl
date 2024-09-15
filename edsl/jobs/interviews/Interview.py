@@ -4,6 +4,13 @@ from __future__ import annotations
 import asyncio
 from typing import Any, Type, List, Generator, Optional, Union
 
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+)
+
 from edsl import CONFIG
 from edsl.surveys.base import EndOfSurvey
 from edsl.exceptions import QuestionAnswerValidationError
@@ -37,10 +44,6 @@ from edsl.questions import QuestionBase
 from edsl.agents.InvigilatorBase import InvigilatorBase
 
 from edsl.exceptions.language_models import LanguageModelNoResponseError
-
-
-class RetryableLanguageModelNoResponseError(LanguageModelNoResponseError):
-    pass
 
 
 class Interview(InterviewStatusMixin):
@@ -249,6 +252,11 @@ class Interview(InterviewStatusMixin):
                 raise ValueError(f"Prompt is of type {type(prompt)}")
         return len(combined_text) / 4.0
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        retry=retry_if_exception_type(LanguageModelNoResponseError),
+    )
     async def _answer_question_and_record_task(
         self,
         *,
@@ -281,15 +289,17 @@ class Interview(InterviewStatusMixin):
             self._handle_exception(e, invigilator, task)
 
         except asyncio.TimeoutError as e:
-            # the API timed-out - this is recorded but as a response isn't generated, the LanguageModelNoResponseError will also be raised
+            # the API timed-out - this is recorded but as a response isn't generated,
+            # the LanguageModelNoResponseError will also be raised
             self._handle_exception(e, invigilator, task)
 
         except Exception as e:
-            # there was some other exception
+            # there was some other exception of some kind
             self._handle_exception(e, invigilator, task)
 
         if "response" not in locals():
-
+            # This is a catch-all for the case where the language model doesn't return a response.
+            # THis is the only thing that should cause a retry.
             raise LanguageModelNoResponseError(
                 f"Language model did not return a response for question '{question.question_name}.'"
             )

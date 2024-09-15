@@ -9,7 +9,11 @@ from collections import UserList
 
 from edsl import shared_globals
 from edsl.jobs.interviews.Interview import Interview
-from edsl.jobs.runners.JobsRunnerStatusMixin import JobsRunnerStatusMixin
+
+# from edsl.jobs.runners.JobsRunnerStatusMixin import JobsRunnerStatusMixin
+
+from edsl.jobs.runners.JobsRunnerStatusMixin import JobsRunnerStatus
+
 from edsl.jobs.tasks.TaskHistory import TaskHistory
 from edsl.jobs.buckets.BucketCollection import BucketCollection
 from edsl.utilities.decorators import jupyter_nb_handler
@@ -48,7 +52,7 @@ class StatusTracker(UserList):
         return print(f"Completed: {len(self.data)} of {self.total_tasks}", end="\r")
 
 
-class JobsRunnerAsyncio(JobsRunnerStatusMixin):
+class JobsRunnerAsyncio:
     """A class for running a collection of interviews asynchronously.
 
     It gets instaniated from a Jobs object.
@@ -61,6 +65,10 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         self.interviews: List["Interview"] = jobs.interviews()
         self.bucket_collection: "BucketCollection" = jobs.bucket_collection
         self.total_interviews: List["Interview"] = []
+
+        self.jobs_runner_status = JobsRunnerStatus(
+            self,  # progress_bar_stats=["percent_complete"]
+        )
 
     async def run_async_generator(
         self,
@@ -88,8 +96,6 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                 self._populate_total_interviews(n=n)
             )  # Populate self.total_interviews before creating tasks
 
-        # print("Interviews created")
-
         for interview in self.total_interviews:
             interviewing_task = self._build_interview_task(
                 interview=interview,
@@ -99,11 +105,9 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             )
             tasks.append(asyncio.create_task(interviewing_task))
 
-        # print("Tasks created")
-
         for task in asyncio.as_completed(tasks):
-            # print(f"Task {task} completed")
             result = await task
+            self.jobs_runner_status.add_completed_interview(result)
             yield result
 
     def _populate_total_interviews(
@@ -157,12 +161,6 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             raise_validation_errors=raise_validation_errors,
         )
 
-        # answer_key_names = {
-        #     k
-        #     for k in set(answer.keys())
-        #     if not k.endswith("_comment") and not k.endswith("_generated_tokens")
-        # }
-
         question_results = {}
         for result in valid_results:
             question_results[result.question_name] = result
@@ -181,17 +179,6 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         answer_dict = {k: answer[k] for k in answer_key_names}
         assert len(valid_results) == len(answer_key_names)
 
-        # breakpoint()
-        # generated_tokens_dict = {
-        #     k + "_generated_tokens": v.generated_tokens
-        #     for k, v in zip(answer_key_names, valid_results)
-        # }
-
-        # comments_dict = {
-        #    k + "_comment": v.comment for k, v in zip(answer_key_names, valid_results)
-        # }
-        # breakpoint()
-
         # TODO: move this down into Interview
         question_name_to_prompts = dict({})
         for result in valid_results:
@@ -203,19 +190,19 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
 
         prompt_dictionary = {}
         for answer_key_name in answer_key_names:
-            prompt_dictionary[
-                answer_key_name + "_user_prompt"
-            ] = question_name_to_prompts[answer_key_name]["user_prompt"]
-            prompt_dictionary[
-                answer_key_name + "_system_prompt"
-            ] = question_name_to_prompts[answer_key_name]["system_prompt"]
+            prompt_dictionary[answer_key_name + "_user_prompt"] = (
+                question_name_to_prompts[answer_key_name]["user_prompt"]
+            )
+            prompt_dictionary[answer_key_name + "_system_prompt"] = (
+                question_name_to_prompts[answer_key_name]["system_prompt"]
+            )
 
         raw_model_results_dictionary = {}
         for result in valid_results:
             question_name = result.question_name
-            raw_model_results_dictionary[
-                question_name + "_raw_model_response"
-            ] = result.raw_model_response
+            raw_model_results_dictionary[question_name + "_raw_model_response"] = (
+                result.raw_model_response
+            )
             raw_model_results_dictionary[question_name + "_cost"] = result.cost
             one_use_buys = (
                 "NA"
@@ -226,7 +213,6 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             )
             raw_model_results_dictionary[question_name + "_one_usd_buys"] = one_use_buys
 
-        # breakpoint()
         result = Result(
             agent=interview.agent,
             scenario=interview.scenario,
@@ -272,9 +258,9 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         from rich.live import Live
         from rich.console import Console
 
-        @cache_with_timeout(1)
+        # @cache_with_timeout(1)
         def generate_table():
-            return self.status_table(self.results, self.elapsed_time)
+            return self.jobs_runner_status.status_table()
 
         async def process_results(cache, progress_bar_context=None):
             """Processes results from interviews."""
@@ -310,7 +296,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                 yield
 
         with conditional_context(
-            progress_bar, Live(generate_table(), console=console, refresh_per_second=1)
+            progress_bar, Live(generate_table(), console=console, refresh_per_second=5)
         ) as progress_bar_context:
             with cache as c:
                 progress_task = asyncio.create_task(
@@ -352,11 +338,9 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         results.failed_questions = {}
         results.has_exceptions = task_history.has_exceptions
 
-        # breakpoint()
         results.bucket_collection = self.bucket_collection
 
         if results.has_exceptions:
-            # put the failed interviews in the results object as a list
             failed_interviews = [
                 interview.duplicate(
                     iteration=interview.iteration, cache=interview.cache
