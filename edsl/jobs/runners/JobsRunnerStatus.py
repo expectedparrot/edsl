@@ -1,6 +1,11 @@
 from __future__ import annotations
-from typing import List, DefaultDict
-import asyncio
+
+from dataclasses import dataclass, asdict
+from rich.text import Text
+from rich.box import SIMPLE
+from rich.table import Table
+
+from typing import List, DefaultDict, Optional
 from typing import Type
 from collections import defaultdict
 
@@ -20,15 +25,6 @@ from edsl.jobs.interviews.InterviewStatisticsCollection import (
     InterviewStatisticsCollection,
 )
 from edsl.jobs.tokens.InterviewTokenUsage import InterviewTokenUsage
-
-
-# return {"cache_status": token_usage_type, "details": details, "cost": f"${token_usage.cost(prices):.5f}"}
-
-from dataclasses import dataclass, asdict
-
-from rich.text import Text
-from rich.box import SIMPLE
-from rich.table import Table
 
 
 @dataclass
@@ -52,18 +48,49 @@ class Stats:
         InterviewStatistic("elapsed_time", value=elapsed_time, digits=1, units="sec.")
 
 
-class JobsRunnerStatusMixin:
-    # @staticmethod
-    # def status_dict(interviews: List[Type["Interview"]]) -> List[Type[InterviewStatusDictionary]]:
-    #     """
-    #     >>> from edsl.jobs.interviews.Interview import Interview
-    #     >>> interviews = [Interview.example()]
-    #     >>> JobsRunnerStatusMixin().status_dict(interviews)
-    #     [InterviewStatusDictionary({<TaskStatus.NOT_STARTED: 1>: 0, <TaskStatus.WAITING_FOR_DEPENDENCIES: 2>: 0, <TaskStatus.CANCELLED: 3>: 0, <TaskStatus.PARENT_FAILED: 4>: 0, <TaskStatus.WAITING_FOR_REQUEST_CAPACITY: 5>: 0, <TaskStatus.WAITING_FOR_TOKEN_CAPACITY: 6>: 0, <TaskStatus.API_CALL_IN_PROGRESS: 7>: 0, <TaskStatus.SUCCESS: 8>: 0, <TaskStatus.FAILED: 9>: 0, 'number_from_cache': 0})]
-    #     """
-    #     return [interview.interview_status for interview in interviews]
+import time
 
-    def _compute_statistic(stat_name: str, completed_tasks, elapsed_time, interviews):
+
+class JobsRunnerStatus:
+
+    def __init__(
+        self,
+        jobs_runner: "JobsRunnerAsyncio",
+        progress_bar_stats: Optional[List[str]] = None,
+    ):
+        self.jobs_runner = jobs_runner
+        self.start_time = time.time()
+        self.completed_interviews = []
+        self.refresh = False  # only refresh if a new interview is added
+
+        if progress_bar_stats is None:
+            self.statistics = [
+                "elapsed_time",
+                "total_interviews_requested",
+                "completed_interviews",
+                "percent_complete",
+                "average_time_per_interview",
+                "task_remaining",
+                "estimated_time_remaining",
+                "exceptions",
+                "unfixed_exceptions",
+            ]
+        else:
+            self.statistics = progress_bar_stats
+
+    @property
+    def total_interviews(self):
+        return self.jobs_runner.total_interviews
+
+    def add_completed_interview(self, result):
+        self.refresh = True
+        self.completed_interviews.append(result.interview_hash)
+
+    def _compute_statistic(self, stat_name: str):
+        completed_tasks = self.completed_interviews
+        elapsed_time = time.time() - self.start_time
+        interviews = self.total_interviews
+
         stat_definitions = {
             "elapsed_time": lambda: InterviewStatistic(
                 "elapsed_time", value=elapsed_time, digits=1, units="sec."
@@ -104,6 +131,16 @@ class JobsRunnerStatusMixin:
                 digits=1,
                 units="sec.",
             ),
+            "exceptions": lambda: InterviewStatistic(
+                "exceptions",
+                value=sum(len(i.exceptions) for i in self.total_interviews),
+                units="",
+            ),
+            "unfixed_exceptions": lambda: InterviewStatistic(
+                "unfixed_exceptions",
+                value=sum(i.exceptions.num_unfixed() for i in self.total_interviews),
+                units="",
+            ),
         }
         if stat_name not in stat_definitions:
             raise ValueError(
@@ -111,29 +148,11 @@ class JobsRunnerStatusMixin:
             )
         return stat_definitions[stat_name]()
 
-    @staticmethod
-    def _job_level_info(
-        completed_tasks: List[Type[asyncio.Task]],
-        elapsed_time: float,
-        interviews: List[Type["Interview"]],
-    ) -> InterviewStatisticsCollection:
+    def _job_level_info(self) -> InterviewStatisticsCollection:
         interview_statistics = InterviewStatisticsCollection()
 
-        default_statistics = [
-            "elapsed_time",
-            "total_interviews_requested",
-            "completed_interviews",
-            "percent_complete",
-            "average_time_per_interview",
-            "task_remaining",
-            "estimated_time_remaining",
-        ]
-        for stat_name in default_statistics:
-            interview_statistics.add_stat(
-                JobsRunnerStatusMixin._compute_statistic(
-                    stat_name, completed_tasks, elapsed_time, interviews
-                )
-            )
+        for stat_name in self.statistics:
+            interview_statistics.add_stat(self._compute_statistic(stat_name))
 
         return interview_statistics
 
@@ -149,41 +168,18 @@ class JobsRunnerStatusMixin:
             waiting_dict[interview.model] += interview.interview_status.waiting
 
         for model, num_waiting in waiting_dict.items():
-            yield JobsRunnerStatusMixin._get_model_info(
-                model, num_waiting, models_to_tokens
-            )
+            yield JobsRunnerStatus._get_model_info(model, num_waiting, models_to_tokens)
 
-    @staticmethod
     def generate_status_summary(
-        completed_tasks: List[Type[asyncio.Task]],
-        elapsed_time: float,
-        interviews: List[Type["Interview"]],
+        self,
         include_model_queues=False,
     ) -> InterviewStatisticsCollection:
-        """Generate a summary of the status of the job runner.
+        """Generate a summary of the status of the job runner."""
 
-        :param completed_tasks: list of completed tasks
-        :param elapsed_time: time elapsed since the start of the job
-        :param interviews: list of interviews to be conducted
-
-        >>> from edsl.jobs.interviews.Interview import Interview
-        >>> interviews = [Interview.example()]
-        >>> completed_tasks = []
-        >>> elapsed_time = 0
-        >>> JobsRunnerStatusMixin().generate_status_summary(completed_tasks, elapsed_time, interviews)
-        {'Elapsed time': '0.0 sec.', 'Total interviews requested': '1 ', 'Completed interviews': '0 ', 'Percent complete': '0 %', 'Average time per interview': 'NA', 'Task remaining': '1 ', 'Estimated time remaining': 'NA'}
-        """
-
-        interview_status_summary: InterviewStatisticsCollection = (
-            JobsRunnerStatusMixin._job_level_info(
-                completed_tasks=completed_tasks,
-                elapsed_time=elapsed_time,
-                interviews=interviews,
-            )
-        )
+        interview_status_summary: InterviewStatisticsCollection = self._job_level_info()
         if include_model_queues:
             interview_status_summary.model_queues = list(
-                JobsRunnerStatusMixin._get_model_queues_info(interviews)
+                self._get_model_queues_info(interviews)
             )
         else:
             interview_status_summary.model_queues = None
@@ -201,14 +197,6 @@ class JobsRunnerStatusMixin:
         :param model: the model name
         :param num_waiting: the number of tasks waiting for capacity
         :param models_to_tokens: a mapping of models to token usage
-
-        >>> from edsl.jobs.interviews.Interview import Interview
-        >>> interviews = [Interview.example()]
-        >>> models_to_tokens = defaultdict(InterviewTokenUsage)
-        >>> model = interviews[0].model
-        >>> num_waiting = 0
-        >>> JobsRunnerStatusMixin()._get_model_info(model, num_waiting, models_to_tokens)
-        ModelInfo(model_name='...', TPM_limit_k=..., RPM_limit_k=..., num_tasks_waiting=0, token_usage_info=[ModelTokenUsageStats(token_usage_type='new_token_usage', details=[{'type': 'prompt_tokens', 'tokens': 0}, {'type': 'completion_tokens', 'tokens': 0}], cost='$0.00000'), ModelTokenUsageStats(token_usage_type='cached_token_usage', details=[{'type': 'prompt_tokens', 'tokens': 0}, {'type': 'completion_tokens', 'tokens': 0}], cost='$0.00000')])
         """
 
         ## TODO: This should probably be a coop method
@@ -217,7 +205,7 @@ class JobsRunnerStatusMixin:
         token_usage_info = []
         for token_usage_type in ["new_token_usage", "cached_token_usage"]:
             token_usage_info.append(
-                JobsRunnerStatusMixin._get_token_usage_info(
+                JobsRunnerStatus._get_token_usage_info(
                     token_usage_type, models_to_tokens, model, prices
                 )
             )
@@ -239,18 +227,7 @@ class JobsRunnerStatusMixin:
         model: str,
         prices: "TokenPricing",
     ) -> ModelTokenUsageStats:
-        """Get the token usage info for a model.
-
-        >>> from edsl.jobs.interviews.Interview import Interview
-        >>> interviews = [Interview.example()]
-        >>> models_to_tokens = defaultdict(InterviewTokenUsage)
-        >>> model = interviews[0].model
-        >>> prices = get_token_pricing(model.model)
-        >>> cache_status = "new_token_usage"
-        >>> JobsRunnerStatusMixin()._get_token_usage_info(cache_status, models_to_tokens, model, prices)
-        ModelTokenUsageStats(token_usage_type='new_token_usage', details=[{'type': 'prompt_tokens', 'tokens': 0}, {'type': 'completion_tokens', 'tokens': 0}], cost='$0.00000')
-
-        """
+        """Get the token usage info for a model."""
         all_token_usage: InterviewTokenUsage = models_to_tokens[model]
         token_usage: TokenUsage = getattr(all_token_usage, token_usage_type)
 
@@ -284,7 +261,7 @@ class JobsRunnerStatusMixin:
         )
 
         ### Job-level statistics
-        JobsRunnerStatusMixin._add_statistics_to_table(table, status_summary)
+        JobsRunnerStatus._add_statistics_to_table(table, status_summary)
 
         ## Model-level statistics
         spacing = " "
@@ -318,12 +295,16 @@ class JobsRunnerStatusMixin:
 
         return table
 
-    def status_table(self, completed_tasks: List[asyncio.Task], elapsed_time: float):
-        summary_data = JobsRunnerStatusMixin.generate_status_summary(
-            completed_tasks=completed_tasks,
-            elapsed_time=elapsed_time,
-            interviews=self.total_interviews,
-        )
+    @property
+    def summary_data(self):
+        "Return the summary data, refreshing it if necessary."
+        if self.refresh is True:
+            self._summary_data = self.generate_status_summary()
+            self.refresh = False
+        return self._summary_data
+
+    def status_table(self):
+        summary_data = self.generate_status_summary()
         return self.display_status_table(summary_data)
 
 
