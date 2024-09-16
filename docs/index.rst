@@ -211,7 +211,6 @@ Information about additional functionality for developers.
    notebooks/writing_style.ipynb
    notebooks/edsl_polling.ipynb
    notebooks/ces_data_edsl.ipynb
-   notebooks/ces_agents.ipynb
 
 .. toctree::
    :maxdepth: 2
