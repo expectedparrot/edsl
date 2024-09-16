@@ -43,7 +43,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
     def has_jinja_braces(self) -> bool:
         """Check if the ScenarioList has Jinja braces."""
         return any([scenario.has_jinja_braces for scenario in self])
-    
+
     def convert_jinja_braces(self) -> ScenarioList:
         """Convert Jinja braces to Python braces."""
         return ScenarioList([scenario.convert_jinja_braces() for scenario in self])
@@ -282,6 +282,10 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         for s in data["scenarios"]:
             _ = s.pop("edsl_version")
             _ = s.pop("edsl_class_name")
+        for scenario in data["scenarios"]:
+            for key, value in scenario.items():
+                if hasattr(value, "to_dict"):
+                    data[key] = value.to_dict()
         return data_to_html(data)
 
     def tally(self, field) -> dict:
