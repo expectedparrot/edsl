@@ -7,6 +7,7 @@ from edsl.inference_services.rate_limits_cache import rate_limits
 from edsl.utilities.utilities import fix_partial_correct_response
 
 from edsl.enums import InferenceServiceType
+import random
 
 
 class TestService(InferenceServiceABC):
@@ -60,22 +61,16 @@ class TestService(InferenceServiceABC):
                 await asyncio.sleep(0.1)
                 # return {"message": """{"answer": "Hello, world"}"""}
                 if hasattr(self, "throw_exception") and self.throw_exception:
-                    raise Exception("This is a test error")
+                    if hasattr(self, "exception_probability"):
+                        p = self.exception_probability
+                    else:
+                        p = 1
+
+                    if random.random() < p:
+                        raise Exception("This is a test error")
                 return {
                     "message": [{"text": f"{self._canned_response}"}],
                     "usage": {"prompt_tokens": 1, "completion_tokens": 1},
                 }
 
         return TestServiceLanguageModel
-
-    # _inference_service_ = "openai"
-    # _env_key_name_ = "OPENAI_API_KEY"
-    # _base_url_ = None
-
-    # _sync_client_ = openai.OpenAI
-    # _async_client_ = openai.AsyncOpenAI
-
-    # _sync_client_instance = None
-    # _async_client_instance = None
-
-    # key_sequence = ["choices", 0, "message", "content"]

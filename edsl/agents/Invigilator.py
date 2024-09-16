@@ -2,14 +2,13 @@
 
 from typing import Dict, Any, Optional
 
-from edsl.exceptions import AgentRespondedWithBadJSONError
 from edsl.prompts.Prompt import Prompt
 from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
 from edsl.prompts.registry import get_classes as prompt_lookup
 from edsl.exceptions.questions import QuestionAnswerValidationError
-from edsl.agents.PromptConstructionMixin import PromptConstructorMixin
 from edsl.agents.InvigilatorBase import InvigilatorBase
 from edsl.data_transfer_models import AgentResponseDict, EDSLResultObjectInput
+from edsl.agents.PromptConstructor import PromptConstructor
 
 
 class NotApplicable(str):
@@ -19,8 +18,12 @@ class NotApplicable(str):
         return instance
 
 
-class InvigilatorAI(PromptConstructorMixin, InvigilatorBase):
+class InvigilatorAI(InvigilatorBase):
     """An invigilator that uses an AI model to answer questions."""
+
+    def get_prompts(self) -> Dict[str, Prompt]:
+        """Return the prompts used."""
+        return self.prompt_constructor.get_prompts()
 
     async def async_answer_question(self) -> AgentResponseDict:
         """Answer a question using the AI model.
