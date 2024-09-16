@@ -20,6 +20,14 @@ from html import escape
 from typing import Callable, Union
 
 
+class CustomEncoder(json.JSONEncoder):
+    def default(self, obj):
+        try:
+            return json.JSONEncoder.default(self, obj)
+        except TypeError:
+            return str(obj)
+
+
 def time_it(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -124,7 +132,7 @@ def data_to_html(data, replace_new_lines=False):
     from pygments.formatters import HtmlFormatter
     from IPython.display import HTML
 
-    json_str = json.dumps(data, indent=4)
+    json_str = json.dumps(data, indent=4, cls=CustomEncoder)
     formatted_json = highlight(
         json_str,
         JsonLexer(),
