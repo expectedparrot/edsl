@@ -14,6 +14,7 @@ from edsl.surveys.MemoryPlan import MemoryPlan
 from edsl.language_models.LanguageModel import LanguageModel
 
 from edsl.data_transfer_models import EDSLResultObjectInput
+from edsl.agents.PromptConstructor import PromptConstructor
 
 
 class InvigilatorBase(ABC):
@@ -27,16 +28,7 @@ class InvigilatorBase(ABC):
 
     This returns an empty prompt because there is no memory the agent needs to have at q0.
 
-    >>> InvigilatorBase.example().create_memory_prompt("q0")
-    Prompt(text=\"""\""")
 
-    >>> i = InvigilatorBase.example()
-    >>> i.current_answers = {"q0": "Prior answer"}
-    >>> i.memory_plan.add_single_memory("q1", "q0")
-    >>> i.create_memory_prompt("q1")
-    Prompt(text=\"""
-            Before the question you are now answering, you already answered the following question(s):
-    ...
     """
 
     def __init__(
@@ -71,6 +63,11 @@ class InvigilatorBase(ABC):
         self.raw_model_response = (
             None  # placeholder for the raw response from the model
         )
+
+    @property
+    def prompt_constructor(self) -> PromptConstructor:
+        """Return the prompt constructor."""
+        return PromptConstructor(self)
 
     def to_dict(self):
         attributes = [
@@ -207,22 +204,6 @@ class InvigilatorBase(ABC):
 
         return main()
 
-    def create_memory_prompt(self, question_name: str) -> Prompt:
-        """Create a memory for the agent.
-
-        The returns a memory prompt for the agent.
-
-        >>> i = InvigilatorBase.example()
-        >>> i.current_answers = {"q0": "Prior answer"}
-        >>> i.memory_plan.add_single_memory("q1", "q0")
-        >>> p = i.create_memory_prompt("q1")
-        >>> p.text.strip().replace("\\n", " ").replace("\\t", " ")
-        'Before the question you are now answering, you already answered the following question(s):          Question: Do you like school?  Answer: Prior answer'
-        """
-        return self.memory_plan.get_memory_prompt_fragment(
-            question_name, self.current_answers
-        )
-
     @classmethod
     def example(
         cls, throw_an_exception=False, question=None, scenario=None, survey=None
@@ -285,9 +266,9 @@ class InvigilatorBase(ABC):
 
         memory_plan = MemoryPlan(survey=survey)
         current_answers = None
-        from edsl.agents.PromptConstructionMixin import PromptConstructorMixin
+        from edsl.agents.PromptConstructor import PromptConstructor
 
-        class InvigilatorExample(PromptConstructorMixin, InvigilatorBase):
+        class InvigilatorExample(InvigilatorBase):
             """An example invigilator."""
 
             async def async_answer_question(self):

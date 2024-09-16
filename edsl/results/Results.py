@@ -245,7 +245,9 @@ class Results(UserList, Mixins, Base):
         )
 
     def __repr__(self) -> str:
-        return f"Results(data = {self.data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
+        import reprlib
+
+        return f"Results(data = {reprlib.repr(self.data)}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
 
     def _repr_html_(self) -> str:
         from IPython.display import HTML

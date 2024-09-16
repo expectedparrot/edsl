@@ -15,12 +15,14 @@ class InterviewExceptionEntry:
         # failed_question: FailedQuestion,
         invigilator: "Invigilator",
         traceback_format="text",
+        answers=None,
     ):
         self.time = datetime.datetime.now().isoformat()
         self.exception = exception
         # self.failed_question = failed_question
         self.invigilator = invigilator
         self.traceback_format = traceback_format
+        self.answers = answers
 
     @property
     def question_type(self):

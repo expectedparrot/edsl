@@ -137,7 +137,7 @@ class PromptPlan:
         }
 
 
-class PromptConstructorMixin:
+class PromptConstructor:
     """Mixin for constructing prompts for the LLM call.
 
     The pieces of a prompt are:
@@ -149,14 +149,25 @@ class PromptConstructorMixin:
     This is mixed into the Invigilator class.
     """
 
-    prompt_plan = PromptPlan()
+    def __init__(self, invigilator):
+        self.invigilator = invigilator
+        self.agent = invigilator.agent
+        self.question = invigilator.question
+        self.scenario = invigilator.scenario
+        self.survey = invigilator.survey
+        self.model = invigilator.model
+        self.current_answers = invigilator.current_answers
+        self.memory_plan = invigilator.memory_plan
+        self.prompt_plan = PromptPlan()  # Assuming PromptPlan is defined elsewhere
+
+        # prompt_plan = PromptPlan()
 
     @property
     def agent_instructions_prompt(self) -> Prompt:
         """
         >>> from edsl.agents.InvigilatorBase import InvigilatorBase
         >>> i = InvigilatorBase.example()
-        >>> i.agent_instructions_prompt
+        >>> i.prompt_constructor.agent_instructions_prompt
         Prompt(text=\"""You are answering questions as if you were a human. Do not break character.\""")
         """
         if not hasattr(self, "_agent_instructions_prompt"):
@@ -176,7 +187,7 @@ class PromptConstructorMixin:
         """
         >>> from edsl.agents.InvigilatorBase import InvigilatorBase
         >>> i = InvigilatorBase.example()
-        >>> i.agent_persona_prompt
+        >>> i.prompt_constructor.agent_persona_prompt
         Prompt(text=\"""You are an agent with the following persona:
         {'age': 22, 'hair': 'brown', 'height': 5.5}\""")
 
@@ -231,7 +242,7 @@ class PromptConstructorMixin:
         """
         >>> from edsl.agents.InvigilatorBase import InvigilatorBase
         >>> i = InvigilatorBase.example()
-        >>> i.question_instructions_prompt
+        >>> i.prompt_constructor.question_instructions_prompt
         Prompt(text=\"""...
         ...
         """
@@ -328,6 +339,23 @@ class PromptConstructorMixin:
                 ).render(self.scenario | self.prior_answers_dict())
             self._prior_question_memory_prompt = memory_prompt
         return self._prior_question_memory_prompt
+
+    def create_memory_prompt(self, question_name: str) -> Prompt:
+        """Create a memory for the agent.
+
+        The returns a memory prompt for the agent.
+
+        >>> from edsl.agents.InvigilatorBase import InvigilatorBase
+        >>> i = InvigilatorBase.example()
+        >>> i.current_answers = {"q0": "Prior answer"}
+        >>> i.memory_plan.add_single_memory("q1", "q0")
+        >>> p = i.prompt_constructor.create_memory_prompt("q1")
+        >>> p.text.strip().replace("\\n", " ").replace("\\t", " ")
+        'Before the question you are now answering, you already answered the following question(s):          Question: Do you like school?  Answer: Prior answer'
+        """
+        return self.memory_plan.get_memory_prompt_fragment(
+            question_name, self.current_answers
+        )
 
     def construct_system_prompt(self) -> Prompt:
         """Construct the system prompt for the LLM call."""
