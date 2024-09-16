@@ -5,6 +5,8 @@ import copy
 import base64
 import hashlib
 import os
+import reprlib
+
 from collections import UserDict
 from typing import Union, List, Optional, Generator
 from uuid import uuid4
@@ -48,11 +50,11 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         if not hasattr(self, "_has_image"):
             self._has_image = False
         return self._has_image
-    
-    @property 
+
+    @property
     def has_jinja_braces(self) -> bool:
         """Return whether the scenario has jinja braces. This matters for rendering.
-        
+
         >>> s = Scenario({"food": "I love {{wood chips}}"})
         >>> s.has_jinja_braces
         True
@@ -61,19 +63,23 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
             if "{{" in str(value) and "}}" in value:
                 return True
         return False
-    
-    def convert_jinja_braces(self, replacement_left = "<<", replacement_right = ">>") -> Scenario:
+
+    def convert_jinja_braces(
+        self, replacement_left="<<", replacement_right=">>"
+    ) -> Scenario:
         """Convert Jinja braces to some other character.
-        
+
         >>> s = Scenario({"food": "I love {{wood chips}}"})
         >>> s.convert_jinja_braces()
         Scenario({'food': 'I love <<wood chips>>'})
-        
+
         """
         new_scenario = Scenario()
         for key, value in self.items():
             if isinstance(value, str):
-                new_scenario[key] = value.replace("{{", replacement_left).replace("}}", replacement_right)
+                new_scenario[key] = value.replace("{{", replacement_left).replace(
+                    "}}", replacement_right
+                )
             else:
                 new_scenario[key] = value
         return new_scenario
@@ -171,7 +177,7 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         print_json(json.dumps(self.to_dict()))
 
     def __repr__(self):
-        return "Scenario(" + repr(self.data) + ")"
+        return "Scenario(" + reprlib.repr(self.data) + ")"
 
     def _repr_html_(self):
         from edsl.utilities.utilities import data_to_html
