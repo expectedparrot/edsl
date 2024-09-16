@@ -155,8 +155,16 @@ class CSVFileStore(FileStore):
 
 
 class PDFFileStore(FileStore):
-    def __init__(self, filename):
-        super().__init__(filename, suffix=".pdf")
+    def __init__(
+        self,
+        filename,
+        binary: Optional[bool] = None,
+        suffix: Optional[str] = None,
+        base64_string: Optional[str] = None,
+    ):
+        super().__init__(
+            filename, binary=binary, base64_string=base64_string, suffix=".pdf"
+        )
 
     def view(self):
         pdf_path = self.to_tempfile()
