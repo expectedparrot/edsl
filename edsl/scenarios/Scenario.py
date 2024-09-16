@@ -177,7 +177,8 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         print_json(json.dumps(self.to_dict()))
 
     def __repr__(self):
-        return "Scenario(" + reprlib.repr(self.data) + ")"
+        # return "Scenario(" + reprlib.repr(self.data) + ")"
+        return "Scenario(" + repr(self.data) + ")"
 
     def _repr_html_(self):
         from edsl.utilities.utilities import data_to_html

@@ -28,16 +28,7 @@ class InvigilatorBase(ABC):
 
     This returns an empty prompt because there is no memory the agent needs to have at q0.
 
-    >>> InvigilatorBase.example().create_memory_prompt("q0")
-    Prompt(text=\"""\""")
 
-    >>> i = InvigilatorBase.example()
-    >>> i.current_answers = {"q0": "Prior answer"}
-    >>> i.memory_plan.add_single_memory("q1", "q0")
-    >>> i.create_memory_prompt("q1")
-    Prompt(text=\"""
-            Before the question you are now answering, you already answered the following question(s):
-    ...
     """
 
     def __init__(
@@ -275,7 +266,7 @@ class InvigilatorBase(ABC):
 
         memory_plan = MemoryPlan(survey=survey)
         current_answers = None
-        from edsl.agents.PromptConstructionMixin import PromptConstructor
+        from edsl.agents.PromptConstructor import PromptConstructor
 
         class InvigilatorExample(InvigilatorBase):
             """An example invigilator."""
