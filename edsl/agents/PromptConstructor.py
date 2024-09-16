@@ -167,7 +167,7 @@ class PromptConstructor:
         """
         >>> from edsl.agents.InvigilatorBase import InvigilatorBase
         >>> i = InvigilatorBase.example()
-        >>> i.agent_instructions_prompt
+        >>> i.prompt_constructor.agent_instructions_prompt
         Prompt(text=\"""You are answering questions as if you were a human. Do not break character.\""")
         """
         if not hasattr(self, "_agent_instructions_prompt"):
@@ -187,7 +187,7 @@ class PromptConstructor:
         """
         >>> from edsl.agents.InvigilatorBase import InvigilatorBase
         >>> i = InvigilatorBase.example()
-        >>> i.agent_persona_prompt
+        >>> i.prompt_constructor.agent_persona_prompt
         Prompt(text=\"""You are an agent with the following persona:
         {'age': 22, 'hair': 'brown', 'height': 5.5}\""")
 
@@ -242,7 +242,7 @@ class PromptConstructor:
         """
         >>> from edsl.agents.InvigilatorBase import InvigilatorBase
         >>> i = InvigilatorBase.example()
-        >>> i.question_instructions_prompt
+        >>> i.prompt_constructor.question_instructions_prompt
         Prompt(text=\"""...
         ...
         """
@@ -345,10 +345,11 @@ class PromptConstructor:
 
         The returns a memory prompt for the agent.
 
+        >>> from edsl.agents.InvigilatorBase import InvigilatorBase
         >>> i = InvigilatorBase.example()
         >>> i.current_answers = {"q0": "Prior answer"}
         >>> i.memory_plan.add_single_memory("q1", "q0")
-        >>> p = i.create_memory_prompt("q1")
+        >>> p = i.prompt_constructor.create_memory_prompt("q1")
         >>> p.text.strip().replace("\\n", " ").replace("\\t", " ")
         'Before the question you are now answering, you already answered the following question(s):          Question: Do you like school?  Answer: Prior answer'
         """
