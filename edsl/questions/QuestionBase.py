@@ -482,6 +482,13 @@ class QuestionBase(
         if scenario is None:
             scenario = {}
 
+        prior_answers_dict = {}
+        for key, value in answers.items():
+            if not key.endswith("_comment") and not key.endswith("_generated_tokens"):
+                prior_answers_dict[key] = {"answer": value}
+
+        # breakpoint()
+
         base_template = """
         <div id="{{ question_name }}" class="survey_question" data-type="{{ question_type }}">
             {% if include_question_name %}
@@ -504,22 +511,22 @@ class QuestionBase(
         context = {
             "scenario": scenario,
             "agent": agent,
-            self.question_name: {"answer": answers.get(self.question_name, None)},
-        }
+        } | prior_answers_dict
         question_text = Template(self.question_text).render(context)
-        breakpoint()
+        # breakpoint()
+
         try:
             params = {
                 "question_name": self.question_name,
-                "question_text": Template(self.question_text).render(
-                    scenario, agent=agent, answer=d
-                ),
+                "question_text": question_text,
                 "question_type": self.question_type,
                 "question_content": Template(question_content).render(scenario),
                 "include_question_name": include_question_name,
             }
         except Exception as e:
-            breakpoint()
+            raise ValueError(
+                f"Error rendering question: params = {params}, error = {e}"
+            )
         rendered_html = base_template.render(**params)
 
         if iframe:
