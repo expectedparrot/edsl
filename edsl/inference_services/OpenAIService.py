@@ -187,12 +187,15 @@ class OpenAIService(InferenceServiceABC):
                 else:
                     content = user_prompt
                 client = self.async_client()
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": content},
+                ]
+                if system_prompt == "" and self.omit_system_prompt_if_empty:
+                    messages = messages[1:]
                 params = {
                     "model": self.model,
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": content},
-                    ],
+                    "messages": messages,
                     "temperature": self.temperature,
                     "max_tokens": self.max_tokens,
                     "top_p": self.top_p,
