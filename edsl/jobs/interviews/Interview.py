@@ -268,6 +268,8 @@ class Interview(InterviewStatusMixin):
     ) -> "AgentResponseDict":
         """Answer a question and records the task."""
 
+        had_language_model_no_response_error = False
+
         @retry(
             stop=stop_after_attempt(EDSL_MAX_ATTEMPTS),
             wait=wait_exponential(
@@ -277,6 +279,8 @@ class Interview(InterviewStatusMixin):
             reraise=True,
         )
         async def attempt_answer():
+            nonlocal had_language_model_no_response_error
+
             invigilator = self._get_invigilator(question)
 
             if self._skip_this_question(question):
@@ -306,6 +310,7 @@ class Interview(InterviewStatusMixin):
 
             except asyncio.TimeoutError as e:
                 self._handle_exception(e, invigilator, task)
+                had_language_model_no_response_error = True
                 raise LanguageModelNoResponseError(
                     f"Language model timed out for question '{question.question_name}.'"
                 )
@@ -314,14 +319,17 @@ class Interview(InterviewStatusMixin):
                 self._handle_exception(e, invigilator, task)
 
             if "response" not in locals():
+                had_language_model_no_response_error = True
                 raise LanguageModelNoResponseError(
                     f"Language model did not return a response for question '{question.question_name}.'"
                 )
 
-            # it got fixed!
-            if question.question_name in self.exceptions:
+            # if it gets here, it means the no response error was fixed
+            if (
+                question.question_name in self.exceptions
+                and had_language_model_no_response_error
+            ):
                 self.exceptions.record_fixed_question(question.question_name)
-                # breakpoint()
 
             return response
 
@@ -375,6 +383,8 @@ class Interview(InterviewStatusMixin):
     ):
         import copy
 
+        # breakpoint()
+
         answers = copy.copy(self.answers)
         exception_entry = InterviewExceptionEntry(
             exception=e,
@@ -384,6 +394,10 @@ class Interview(InterviewStatusMixin):
         if task:
             task.task_status = TaskStatus.FAILED
         self.exceptions.add(invigilator.question.question_name, exception_entry)
+
+        if self.raise_validation_errors:
+            if isinstance(e, QuestionAnswerValidationError):
+                raise e
 
         if hasattr(self, "stop_on_exception"):
             stop_on_exception = self.stop_on_exception
