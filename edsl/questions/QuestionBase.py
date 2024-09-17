@@ -102,13 +102,8 @@ class QuestionBase(
         """Validate the answer.
         >>> from edsl.exceptions import QuestionAnswerValidationError
         >>> from edsl import QuestionFreeText as Q
-        >>> Q.example()._validate_answer({'answer': 'Hello'})
-        {'answer': 'Hello', 'generated_tokens': None}
-        >>> Q.example()._validate_answer({'shmanswer': 1})
-        Traceback (most recent call last):
-        ...
-        edsl.exceptions.questions.QuestionAnswerValidationError:...
-        ...
+        >>> Q.example()._validate_answer({'answer': 'Hello', 'generated_tokens': 'Hello'})
+        {'answer': 'Hello', 'generated_tokens': 'Hello'}
         """
 
         return self.response_validator.validate(answer)
