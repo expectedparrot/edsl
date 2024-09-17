@@ -249,7 +249,7 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         Example:
         >>> s = Scenario.from_image(Scenario.example_image())
         >>> s
-        Scenario({'file_path': '...', 'file_name': '...', 'image_format': '...', 'file_size': ..., 'encoded_image': '...'})
+        Scenario({'logo': ...})
         """
         if not os.path.exists(image_path):
             raise FileNotFoundError(f"Image file not found: {image_path}")
