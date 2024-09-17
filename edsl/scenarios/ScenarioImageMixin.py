@@ -13,7 +13,7 @@ class ScenarioImageMixin:
         >>> from edsl.scenarios.Scenario import Scenario
         >>> s = Scenario({"food": "wood chips"})
         >>> s.add_image(Scenario.example_image())
-        Scenario({'food': 'wood chips', 'file_path': '...', 'encoded_image': '...'})
+        Scenario({'food': 'wood chips', 'logo': ...})
         """
         new_scenario = self.from_image(image_path)
         return self + new_scenario
@@ -33,7 +33,7 @@ class ScenarioImageMixin:
         >>> from edsl.scenarios.Scenario import Scenario
         >>> s = Scenario.from_image(Scenario.example_image())
         >>> s
-        Scenario({'file_path': '...', 'encoded_image': '...'})
+        Scenario({'logo': ...})
         """
 
         if image_path.startswith("http://") or image_path.startswith("https://"):
