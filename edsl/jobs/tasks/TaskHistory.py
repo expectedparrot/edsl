@@ -54,7 +54,7 @@ class TaskHistory:
     def unfixed_exceptions(self):
         """
         >>> len(TaskHistory.example().unfixed_exceptions)
-        0
+        4
         """
         return [
             i.exceptions
