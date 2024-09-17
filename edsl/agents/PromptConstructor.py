@@ -1,15 +1,14 @@
 from __future__ import annotations
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Set
 from collections import UserList
+import enum
 
-# from functools import reduce
+from jinja2 import Environment, meta
+
 from edsl.prompts.Prompt import Prompt
-
-# from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
+from edsl.data_transfer_models import ImageInfo
 from edsl.prompts.registry import get_classes as prompt_lookup
 from edsl.exceptions import QuestionScenarioRenderError
-
-import enum
 
 
 class PromptComponent(enum.Enum):
@@ -18,6 +17,20 @@ class PromptComponent(enum.Enum):
     QUESTION_INSTRUCTIONS = "question_instructions"
     PRIOR_QUESTION_MEMORY = "prior_question_memory"
 
+
+def get_jinja2_variables(template_str: str) -> Set[str]:
+    """
+    Extracts all variable names from a Jinja2 template using Jinja2's built-in parsing.
+    
+    Args:
+    template_str (str): The Jinja2 template string
+    
+    Returns:
+    Set[str]: A set of variable names found in the template
+    """
+    env = Environment()
+    ast = env.parse(template_str)
+    return meta.find_undeclared_variables(ast)
 
 class PromptList(UserList):
     separator = Prompt(" ")
@@ -163,6 +176,15 @@ class PromptConstructor:
         # prompt_plan = PromptPlan()
 
     @property
+    def scenario_image_keys(self):
+        image_entries = []
+
+        for key, value in self.scenario.items():
+            if isinstance(value, ImageInfo):
+                image_entries.append(key)
+        return image_entries
+
+    @property
     def agent_instructions_prompt(self) -> Prompt:
         """
         >>> from edsl.agents.InvigilatorBase import InvigilatorBase
@@ -236,7 +258,17 @@ class PromptConstructor:
                 if (new_question := question.split("_comment")[0]) in d:
                     d[new_question].comment = answer
         return d
-
+    
+    @property
+    def question_image_keys(self):
+        raw_question_text = self.question.question_text
+        variables = get_jinja2_variables(raw_question_text)
+        question_image_keys = []
+        for var in variables:
+            if var in self.scenario_image_keys:
+                question_image_keys.append(var)
+        return question_image_keys
+    
     @property
     def question_instructions_prompt(self) -> Prompt:
         """
@@ -249,15 +281,9 @@ class PromptConstructor:
         if not hasattr(self, "_question_instructions_prompt"):
             question_prompt = self.question.get_instructions(model=self.model.model)
 
-            # TODO: Try to populate the answers in the question object if they are available
-            # d = self.survey.question_names_to_questions()
-            # for question, answer in self.current_answers.items():
-            #     if question in d:
-            #         d[question].answer = answer
-            #     else:
-            #         # adds a comment to the question
-            #         if (new_question := question.split("_comment")[0]) in d:
-            #             d[new_question].comment = answer
+
+
+            # Are any of the scenario values ImageInfo
 
             question_data = self.question.data.copy()
 
@@ -265,7 +291,6 @@ class PromptConstructor:
             # This is used when the user is using the question_options as a variable from a sceario
             # if "question_options" in question_data:
             if isinstance(self.question.data.get("question_options", None), str):
-                from jinja2 import Environment, meta
 
                 env = Environment()
                 parsed_content = env.parse(self.question.data["question_options"])
@@ -280,8 +305,9 @@ class PromptConstructor:
                     self.question.question_options = question_options
 
             replacement_dict = (
-                question_data
-                | self.scenario
+                {key: "<see image>" for key in self.scenario_image_keys}
+                | question_data
+                | {k:v for k,v in self.scenario.items() if k not in self.scenario_image_keys} # don't include images in the replacement dict
                 | self.prior_answers_dict()
                 | {"agent": self.agent}
                 | {
@@ -291,13 +317,15 @@ class PromptConstructor:
                     ),
                 }
             )
-            # breakpoint()
+
+
             rendered_instructions = question_prompt.render(replacement_dict)
-            # breakpoint()
+            
+            # is there anything left to render?
             undefined_template_variables = (
                 rendered_instructions.undefined_template_variables({})
             )
-
+            
             # Check if it's the name of a question in the survey
             for question_name in self.survey.question_names:
                 if question_name in undefined_template_variables:
@@ -311,7 +339,9 @@ class PromptConstructor:
                     f"Question instructions still has variables: {undefined_template_variables}."
                 )
 
-            # Check if question has an instructions
+            ####################################
+            # Check if question has instructions - these are instructions in a Survey that can apply to multiple follow-on questions
+            ####################################
             relevant_instructions = self.survey.relevant_instructions(
                 self.question.question_name
             )
@@ -391,9 +421,11 @@ class PromptConstructor:
             question_instructions=self.question_instructions_prompt,
             prior_question_memory=self.prior_question_memory_prompt,
         )
+        if len(self.question_image_keys) > 1:
+            raise ValueError("We can only handle one image per question.")
+        elif len(self.question_image_keys) == 1:
+            prompts["encoded_image"] = self.scenario[self.question_image_keys[0]].encoded_image
 
-        if hasattr(self.scenario, "has_image") and self.scenario.has_image:
-            prompts["encoded_image"] = self.scenario["encoded_image"]
         return prompts
 
     def _get_scenario_with_image(self) -> Scenario:
