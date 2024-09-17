@@ -279,6 +279,8 @@ class Interview(InterviewStatusMixin):
             reraise=True,
         )
         async def attempt_answer():
+            nonlocal had_language_model_no_response_error
+
             invigilator = self._get_invigilator(question)
 
             if self._skip_this_question(question):
@@ -322,11 +324,13 @@ class Interview(InterviewStatusMixin):
                     f"Language model did not return a response for question '{question.question_name}.'"
                 )
 
-            
             # if it gets here, it means the no response error was fixed
-            if question.question_name in self.exceptions and had_language_model_no_response_error:
+            if (
+                question.question_name in self.exceptions
+                and had_language_model_no_response_error
+            ):
                 self.exceptions.record_fixed_question(question.question_name)
-                
+
             return response
 
         try:
@@ -379,7 +383,7 @@ class Interview(InterviewStatusMixin):
     ):
         import copy
 
-        #breakpoint()
+        # breakpoint()
 
         answers = copy.copy(self.answers)
         exception_entry = InterviewExceptionEntry(
