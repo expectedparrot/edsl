@@ -6,6 +6,8 @@ import base64
 import hashlib
 import os
 import reprlib
+import imghdr
+
 
 from collections import UserDict
 from typing import Union, List, Optional, Generator
@@ -14,6 +16,8 @@ from edsl.Base import Base
 from edsl.scenarios.ScenarioImageMixin import ScenarioImageMixin
 from edsl.scenarios.ScenarioHtmlMixin import ScenarioHtmlMixin
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
+
+from edsl.data_transfer_models import ImageInfo
 
 
 class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
@@ -232,26 +236,46 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         return cls({"url": url, field_name: text})
 
     @classmethod
-    def from_image(cls, image_path: str) -> str:
-        """Creates a scenario with a base64 encoding of an image.
+    def from_image(cls, image_path: str, image_name: Optional[str] = None) -> 'Scenario':
+        """
+        Creates a scenario with a base64 encoding of an image.
+
+        Args:
+            image_path (str): Path to the image file.
+
+        Returns:
+            Scenario: A new Scenario instance with image information.
 
         Example:
-
         >>> s = Scenario.from_image(Scenario.example_image())
         >>> s
-        Scenario({'file_path': '...', 'encoded_image': '...'})
+        Scenario({'logo': ...})
         """
+        if not os.path.exists(image_path):
+            raise FileNotFoundError(f"Image file not found: {image_path}")
+
         with open(image_path, "rb") as image_file:
-            s = cls(
-                {
-                    "file_path": image_path,
-                    "encoded_image": base64.b64encode(image_file.read()).decode(
-                        "utf-8"
-                    ),
-                }
-            )
-            s.has_image = True
-            return s
+            file_content = image_file.read()
+
+        file_name = os.path.basename(image_path)
+        file_size = os.path.getsize(image_path)
+        image_format = imghdr.what(image_path) or "unknown"
+
+        if image_name is None:
+            image_name = file_name.split(".")[0]
+
+        image_info = ImageInfo(
+            file_path=image_path,
+            file_name=file_name,
+            image_format=image_format,
+            file_size=file_size,
+            encoded_image=base64.b64encode(file_content).decode("utf-8"),
+        )
+
+        scenario_data = {image_name: image_info}
+        s = cls(scenario_data)
+        s.has_image = True
+        return s
 
     @classmethod
     def from_pdf(cls, pdf_path):
@@ -465,18 +489,21 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         return table
 
     @classmethod
-    def example(cls, randomize: bool = False) -> Scenario:
+    def example(cls, randomize: bool = False, has_image = False) -> Scenario:
         """
         Returns an example Scenario instance.
 
         :param randomize: If True, adds a random string to the value of the example key.
         """
-        addition = "" if not randomize else str(uuid4())
-        return cls(
-            {
-                "persona": f"A reseacher studying whether LLMs can be used to generate surveys.{addition}",
-            }
-        )
+        if not has_image:
+            addition = "" if not randomize else str(uuid4())
+            return cls(
+                {
+                    "persona": f"A reseacher studying whether LLMs can be used to generate surveys.{addition}",
+                }
+            )
+        else:
+            return cls.from_image(cls.example_image())
 
     def code(self) -> List[str]:
         """Return the code for the scenario."""

@@ -36,6 +36,13 @@ class FreeTextResponseValidator(ResponseValidatorABC):
         ),
     ]
 
+    def fix(self, response, verbose=False):
+        return {
+            'answer': str(response.get('generated_tokens')),
+            'generated_tokens': str(response.get('generated_tokens'))
+        }
+
+
 
 class QuestionFreeText(QuestionBase):
     """This question prompts the agent to respond with free text."""
