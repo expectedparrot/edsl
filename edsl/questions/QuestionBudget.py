@@ -10,6 +10,7 @@ from edsl.questions.descriptors import IntegerDescriptor, QuestionOptionsDescrip
 
 from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
 
+
 class BudgewResponseValidator(ResponseValidatorABC):
     valid_examples = []
 
@@ -25,19 +26,23 @@ class BudgewResponseValidator(ResponseValidatorABC):
                 if "comment" in response
                 else {}
             )
-    
-def create_budget_model(budget_sum: float, permissive: bool, question_options: List[str]):
+
+
+def create_budget_model(
+    budget_sum: float, permissive: bool, question_options: List[str]
+):
+
     class BudgetResponse(BaseModel):
         answer: List[float] = Field(
             ...,
             description="List of non-negative numbers representing budget allocation",
             min_items=len(question_options),
-            max_items=len(question_options)
+            max_items=len(question_options),
         )
         comment: Optional[str] = None
         generated_tokens: Optional[str] = None
 
-        @validator('answer')
+        @validator("answer")
         def validate_answer(cls, v):
             if len(v) != len(question_options):
                 raise ValueError(f"Must provide {len(question_options)} values")
@@ -51,9 +56,10 @@ def create_budget_model(budget_sum: float, permissive: bool, question_options: L
             return v
 
         class Config:
-            extra = 'forbid'
+            extra = "forbid"
 
     return BudgetResponse
+
 
 class QuestionBudget(QuestionBase):
     """This question prompts the agent to allocate a budget among options."""
@@ -92,9 +98,13 @@ class QuestionBudget(QuestionBase):
         self.include_comment = include_comment
 
     def create_response_model(self):
-        return create_budget_model(self.budget_sum, self.permissive, self.question_options)
+        return create_budget_model(
+            self.budget_sum, self.permissive, self.question_options
+        )
 
-    def _translate_answer_code_to_answer(self, answer_code, combined_dict) -> list[dict]:
+    def _translate_answer_code_to_answer(
+        self, answer_code, combined_dict
+    ) -> list[dict]:
         """
         Translate the answer codes to the actual answers.
 
@@ -216,4 +226,5 @@ if __name__ == "__main__":
     # results = q.run()
 
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)
