@@ -170,13 +170,16 @@ class LanguageModel(
     }  # TODO: Use the OpenAI Teir 1 rate limits
     _safety_factor = 0.8
 
-    def __init__(self, tpm=None, rpm=None, **kwargs):
+    def __init__(
+        self, tpm=None, rpm=None, omit_system_prompt_if_empty_string=True, **kwargs
+    ):
         """Initialize the LanguageModel."""
         self.model = getattr(self, "_model_", None)
         default_parameters = getattr(self, "_parameters_", None)
         parameters = self._overide_default_parameters(kwargs, default_parameters)
         self.parameters = parameters
         self.remote = False
+        self.omit_system_prompt_if_empty = omit_system_prompt_if_empty_string
 
         if rpm is not None:
             self._rpm = rpm

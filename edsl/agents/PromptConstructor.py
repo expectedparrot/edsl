@@ -170,6 +170,10 @@ class PromptConstructor:
         >>> i.prompt_constructor.agent_instructions_prompt
         Prompt(text=\"""You are answering questions as if you were a human. Do not break character.\""")
         """
+        from edsl import Agent
+
+        if self.agent == Agent():  # if agent is empty, then return an empty prompt
+            return Prompt(text="")
         if not hasattr(self, "_agent_instructions_prompt"):
             applicable_prompts = prompt_lookup(
                 component_type="agent_instructions",

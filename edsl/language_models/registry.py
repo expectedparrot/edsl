@@ -38,12 +38,14 @@ class Model(metaclass=Meta):
     def __new__(cls, model_name=None, registry=None, *args, **kwargs):
         # Map index to the respective subclass
         if model_name is None:
-            model_name = cls.default_model
+            model_name = (
+                cls.default_model
+            )  # when model_name is None, use the default model, set in the config file
         from edsl.inference_services.registry import default
 
         registry = registry or default
 
-        if isinstance(model_name, int):
+        if isinstance(model_name, int):  # can refer to a model by index
             model_name = cls.available(name_only=True)[model_name]
 
         factory = registry.create_model_factory(model_name)
