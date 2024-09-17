@@ -1,5 +1,5 @@
 from typing import NamedTuple, Dict, List, Optional, Any
-
+from dataclasses import dataclass
 
 class ModelInputs(NamedTuple):
     "This is what was send by the agent to the model"
@@ -44,6 +44,14 @@ class EDSLResultObjectInput(NamedTuple):
     exception_occurred: Exception = None
     cost: Optional[float] = None
 
+
+@dataclass
+class ImageInfo:
+    file_path: str
+    file_name: str
+    image_format: str
+    file_size: int
+    encoded_image: str
 
 # from collections import UserDict
 
