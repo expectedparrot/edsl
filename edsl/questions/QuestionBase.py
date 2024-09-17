@@ -482,10 +482,13 @@ class QuestionBase(
         if scenario is None:
             scenario = {}
 
+
         prior_answers_dict = {}
-        for key, value in answers.items():
-            if not key.endswith("_comment") and not key.endswith("_generated_tokens"):
-                prior_answers_dict[key] = {"answer": value}
+
+        if isinstance(answers, dict):
+            for key, value in answers.items():
+                if not key.endswith("_comment") and not key.endswith("_generated_tokens"):
+                    prior_answers_dict[key] = {"answer": value}
 
         # breakpoint()
 
