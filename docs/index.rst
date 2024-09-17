@@ -172,7 +172,7 @@ Information about additional functionality for developers.
    :hidden:
 
    notebooks/data_labeling_example.ipynb
-   notebooks/cheatsheet_scenarios.ipynb
+   notebooks/image_scenario_example.ipynb
    notebooks/question_loop_scenario.ipynb
    notebooks/scenario_list_wikipedia.ipynb
    notebooks/scenario_from_pdf.ipynb
