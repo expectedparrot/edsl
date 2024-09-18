@@ -171,6 +171,7 @@ Information about additional functionality for developers.
    :caption: How-to Guides
    :hidden:
 
+   notebooks/edsl_intro.ipynb
    notebooks/data_labeling_example.ipynb
    notebooks/image_scenario_example.ipynb
    notebooks/question_loop_scenario.ipynb
