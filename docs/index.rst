@@ -191,6 +191,7 @@ Information about additional functionality for developers.
    :caption: Notebooks
    :hidden:
 
+   notebooks/next_token_probs.ipynb
    notebooks/scenariolist_unpivot.ipynb
    notebooks/nps_survey.ipynb
    notebooks/agentifying_responses.ipynb
