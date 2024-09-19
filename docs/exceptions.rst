@@ -4,67 +4,7 @@ Exceptions & Debugging
 ======================
 
 An exception is an error that occurs during the execution of a question or survey. 
-When an exception is raised, EDSL will display a message about the error that includes a link to a report with more details.
-
-Example 
--------
-
-Here's an example of a poorly written question that is likely to raise an exception:
-
-.. code-block:: python
-
-    from edsl.questions import QuestionMultipleChoice
-
-    q = QuestionMultipleChoice(
-        question_name = "bad_instruction",
-        question_text = "What is your favorite color?",
-        question_options = ["breakfast", "lunch", "dinner"] # Non-sensical options for the question
-    )
-
-    results = q.run()
-
-
-The above code will likely raise a `QuestionAnswerValidationError` exception because the question options are not related to the question text.
-Output:
-
-.. code-block:: text
-
-    Attempt 1 failed with exception:Answer code must be a string, a bytes-like object or a real number (got Invalid). now waiting 1.00 seconds before retrying.Parameters: start=1.0, max=60.0, max_attempts=5.
-
-
-    Attempt 2 failed with exception:Answer code must be a string, a bytes-like object or a real number (got The question asks for a favorite color, but the options provided are meal times, not colors. Therefore, I cannot select an option that accurately reflects a favorite color.). now waiting 2.00 seconds before retrying.Parameters: start=1.0, max=60.0, max_attempts=5.
-
-
-    Attempt 3 failed with exception:Answer code must be a string, a bytes-like object or a real number (got The question does not match the provided options as they pertain to meals, not colors.). now waiting 4.00 seconds before retrying.Parameters: start=1.0, max=60.0, max_attempts=5.
-
-
-    Attempt 4 failed with exception:Answer code must be a string, a bytes-like object or a real number (got This is an invalid question since colors are not listed as options. The options provided are meals, not colors.). now waiting 8.00 seconds before retrying.Parameters: start=1.0, max=60.0, max_attempts=5.
-
-
-    Exceptions were raised in 1 out of 1 interviews.
-
-    Open report to see details.
-
-
-Exceptions report 
------------------
-
-The exceptions report can be accessed by clicking on the link provided in the exceptions message.
-It contains details on the exceptions that were raised:
-
-.. image:: /static/exceptions_message.png
-    :width: 800
-    :align: center
-
-
-Performance plot 
-^^^^^^^^^^^^^^^^
-
-The report includes a Performance Plot with graphical details about the API calls that were made (started, failed, in progress, canceled, etc.; scroll to the end of the report to view it):
-
-.. image:: /static/exceptions_performance_plot.png
-    :width: 800
-    :align: center
+When an exception is raised, EDSL will display a message about the error and an interactive report with more details in a new browser tab.
 
 
 Help debugging
@@ -77,16 +17,12 @@ You can use the following code to generate a link to your notebook:
 
 .. code-block:: python
 
-    from edsl import Coop, notebook
+    from edsl import notebook
 
-    coop = Coop()
+    n = Notebook(path="path/to/your/notebook.ipynb")
 
-    notebook = Notebook(path="path/to/your/notebook.ipynb")
+    n.push(description="Notebook with code that raises an exception", visibility="private")
 
-    coop.create(notebook, description="Notebook with code that raises an exception", visibility="private")
-
-
-A notebook showing the above example question and exception message is available at the Coop: https://www.expectedparrot.com/content/f6a19c77-3f57-4900-b0c9-436058a2ad27
 
 
 Common exceptions
@@ -111,14 +47,6 @@ The default settings (which can be modified) are as follows:
     MIN_NUM_OPTIONS = 2
     MAX_OPTION_LENGTH = 10000
     MAX_QUESTION_LENGTH = 100000
-
-
-JSON errors
-^^^^^^^^^^^
-
-Some exceptions may indicate that the response from the language model is not properly formatted JSON.
-This can be caused by a problem with the inference provider or the way that the question has been constructed (e.g., the model is not capable of following the question prompts as written).
-A useful starting point for debugging these exceptions is to check the `Settings` class for the `Questions` model (see *Answer validation errors* above) and try variations in the question prompts and types (e.g., does `QuestionFreeText` produce an answer to the same question formatted as a different question type).
 
 
 Missing API key 
