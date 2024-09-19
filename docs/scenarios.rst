@@ -536,7 +536,7 @@ Example usage:
 
     from edsl import Scenario
 
-    s = Scenario.from_image("<filepath>.png") # Replace with your own local file
+    s = Scenario.from_image("logo.png") # Replace with your own local file
 
 
 Here we use the example scenario, which is the Expected Parrot logo:
