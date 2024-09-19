@@ -147,7 +147,7 @@ Information about additional functionality for developers.
    results
    data
    exceptions
-   token_limits
+   token_usage
 
 .. toctree::
    :maxdepth: 2
