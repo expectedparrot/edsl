@@ -21,9 +21,9 @@
 
 - `ScenarioList` method `give_valid_names()` allows you to automatically generate valid Pythonic identifiers for scenario keys. 
 
-- `ScenarioList` method `group_by()` allows you to group scenarios by specified identifies and apply a function to the values of the specified variables.
+- `ScenarioList` method `group_by()` allows you to group scenarios by specified identities and apply a function to the values of the specified variables.
 
-- `ScenarioList` method `from_wikipedia_table()` allows you to convert a Wikipedia table into a scenario list. Example usage: https://www.expectedparrot.com/content/247589dd-ad1e-45f4-9c82-e71dbeac8c96 (Notebook: *Using an LLM to Augment Existing Tabular Data*)
+- `ScenarioList` method `from_wikipedia_table()` allows you to convert a Wikipedia table into a scenario list. Example usage: https://docs.expectedparrot.com/en/latest/notebooks/scenario_list_wikipedia.html
 
 - `ScenarioList` method `to_docx()` allows you to export scenario lists as structured Docx documents.
 
@@ -35,7 +35,7 @@
 
 - `Results` methods `generate_html` and `save_html` can be called to generate and save HTML code for displaying results.
 
-- Ability to run a `Model` with a boolean parameter `raise_validation_errors = False` or `raise_validation_errors = True`. If False, exceptions will only be raised (interrupting survey execution) when the model returns nothing at all.
+- Ability to run a `Model` with a boolean parameter `raise_validation_errors = False` or `raise_validation_errors = True`. If False, exceptions will only be raised (interrupting survey execution) when the model returns nothing at all. Another optional parameter `print_exceptions = False` can be passed to not print exceptions at all.
 
 ### Changed
 - Improvements to exceptions reports. 

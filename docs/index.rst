@@ -66,7 +66,7 @@ Working with Results
 - :ref:`results`: Access built-in methods for analyzing and utilizing survey results as datasets.
 - :ref:`caching`: Learn about caching and sharing results.
 - :ref:`exceptions`: Identify and handle exceptions in your survey design.
-- :ref:`token_limits`: Manage token limits for language models.
+- :ref:`token_usage`: Manage token limits for language models, and monitor and reduce token usage as desired.
 
 Coop 
 ----
@@ -147,7 +147,7 @@ Information about additional functionality for developers.
    results
    data
    exceptions
-   token_limits
+   token_usage
 
 .. toctree::
    :maxdepth: 2
@@ -171,6 +171,7 @@ Information about additional functionality for developers.
    :caption: How-to Guides
    :hidden:
 
+   notebooks/edsl_intro.ipynb
    notebooks/data_labeling_example.ipynb
    notebooks/image_scenario_example.ipynb
    notebooks/question_loop_scenario.ipynb
@@ -190,6 +191,7 @@ Information about additional functionality for developers.
    :caption: Notebooks
    :hidden:
 
+   notebooks/next_token_probs.ipynb
    notebooks/scenariolist_unpivot.ipynb
    notebooks/nps_survey.ipynb
    notebooks/agentifying_responses.ipynb
