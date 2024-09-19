@@ -83,3 +83,5 @@ html_context = {
     "github_repo": "",
     "github_version": "",
 }
+
+nbsphinx_allow_errors = True
