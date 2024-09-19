@@ -66,7 +66,7 @@ Working with Results
 - :ref:`results`: Access built-in methods for analyzing and utilizing survey results as datasets.
 - :ref:`caching`: Learn about caching and sharing results.
 - :ref:`exceptions`: Identify and handle exceptions in your survey design.
-- :ref:`token_limits`: Manage token limits for language models.
+- :ref:`token_usage`: Manage token limits for language models, and monitor and reduce token usage as desired.
 
 Coop 
 ----
