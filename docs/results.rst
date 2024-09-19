@@ -746,7 +746,7 @@ For example, the following code will print a table showing the answers for `read
    results.select("model", "persona", "topic", "read", "important").print(format="rich")
 
 
-The following table will be printed:
+A table with the selected columns will be printed:
 
 .. code-block:: text
 
@@ -779,10 +779,11 @@ We can sort the columns by calling the `sort_by` method and passing it the colum
 
 .. code-block:: python
 
-   (results
-   .sort_by("model", reverse=False)
-   .select("model", "persona", "topic", "read", "important")
-   .print(format="rich")
+   (
+      results
+      .sort_by("model", reverse=False)
+      .select("model", "persona", "topic", "read", "important")
+      .print(format="rich")
    )
 
 
@@ -816,11 +817,12 @@ The `sort_by` method can be applied multiple times:
 
 .. code-block:: python
 
-   (results
-   .sort_by("model", reverse=False)
-   .sort_by("persona", reverse=True)
-   .select("model", "persona", "topic", "read", "important")
-   .print(format="rich")
+   (
+      results
+      .sort_by("model", reverse=False)
+      .sort_by("persona", reverse=True)
+      .select("model", "persona", "topic", "read", "important")
+      .print(format="rich")
    )
 
 
@@ -858,17 +860,18 @@ We can also add some table labels by passing a dictionary to the `pretty_labels`
 
 .. code-block:: python
 
-   (results
-   .sort_by("model", reverse=False)
-   .sort_by("persona", reverse=True)
-   .select("model", "persona", "topic", "read", "important")
-   .print(pretty_labels={
-      "model.model": "LLM", 
-      "agent.persona": "Agent", 
-      "scenario.topic": "Topic", 
-      "answer.read": q3.question_text,
-      "answer.important": q1.question_text
-      }, format="rich")
+   (
+      results
+      .sort_by("model", reverse=False)
+      .sort_by("persona", reverse=True)
+      .select("model", "persona", "topic", "read", "important")
+      .print(pretty_labels={
+         "model.model": "LLM", 
+         "agent.persona": "Agent", 
+         "scenario.topic": "Topic", 
+         "answer.read": q3.question_text,
+         "answer.important": q1.question_text
+         }, format="rich")
    )
 
 
@@ -907,10 +910,11 @@ For example, the following code will filter results where the answer to `importa
 
 .. code-block:: python
 
-   (results
-   .filter("important == 5")
-   .select("topic", "important_comment")
-   .print(format="rich")
+   (
+      results
+      .filter("important == 5")
+      .select("topic", "important_comment")
+      .print(format="rich")
    )
 
 
@@ -942,10 +946,11 @@ However, because the `model.model` column name is also a prefix, we need to incl
 
 .. code-block:: python
 
-   (results
-   .filter("model.model == 'gpt-4o'")
-   .select("model", "persona", "topic", "read", "important")
-   .print(format="rich")
+   (
+      results
+      .filter("model.model == 'gpt-4o'")
+      .select("model", "persona", "topic", "read", "important")
+      .print(format="rich")
    )
 
 
@@ -975,9 +980,10 @@ This can be useful for quickly checking the first few results:
 
 .. code-block:: python
 
-   (results
-   .select("model", "persona", "topic", "read", "important")
-   .print(max_rows=4, format="rich")
+   (
+      results
+      .select("model", "persona", "topic", "read", "important")
+      .print(max_rows=4, format="rich")
    )
 
 
@@ -999,7 +1005,6 @@ This will return a table of the selected components of the first 4 results:
    └────────────────────────────┴──────────┴────────────────┴────────┴────────────┘
 
 
-
 Sampling results
 ^^^^^^^^^^^^^^^^
 
@@ -1010,10 +1015,11 @@ This can be useful for checking a random subset of the results with different pa
 
    sample_results = results.sample(2)
 
-   (sample_results
-   .sort_by("model", reverse=False)
-   .select("model", "persona", "topic", "read", "important")
-   .print(format="rich")
+   (
+      sample_results
+      .sort_by("model", reverse=False)
+      .select("model", "persona", "topic", "read", "important")
+      .print(format="rich")
    )
 
 
@@ -1021,14 +1027,14 @@ This will return a table of the specified number of randomly selected results:
 
 .. code-block:: text
 
-   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━┓
-   ┃ model                      ┃ agent     ┃ scenario       ┃ answer ┃ answer     ┃
-   ┃ .model                     ┃ .persona  ┃ .topic         ┃ .read  ┃ .important ┃
-   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━┩
-   │ claude-3-5-sonnet-20240620 │ celebrity │ climate change │ Yes    │ 4          │
-   ├────────────────────────────┼───────────┼────────────────┼────────┼────────────┤
-   │ gpt-4o                     │ celebrity │ climate change │ Yes    │ 5          │
-   └────────────────────────────┴───────────┴────────────────┴────────┴────────────┘
+   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━┓
+   ┃ model                      ┃ agent    ┃ scenario       ┃ answer ┃ answer     ┃
+   ┃ .model                     ┃ .persona ┃ .topic         ┃ .read  ┃ .important ┃
+   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━┩
+   │ claude-3-5-sonnet-20240620 │ student  │ data privacy   │ No     │ 3          │
+   ├────────────────────────────┼──────────┼────────────────┼────────┼────────────┤
+   │ claude-3-5-sonnet-20240620 │ student  │ climate change │ Yes    │ 4          │
+   └────────────────────────────┴──────────┴────────────────┴────────┴────────────┘
 
 
 Shuffling results
@@ -1041,9 +1047,10 @@ This can be useful for quickly checking the first few results:
 
    shuffle_results = results.shuffle()
 
-   (shuffle_results
-   .select("model", "persona", "topic", "read", "important")
-   .print(format="rich")
+   (
+      shuffle_results
+      .select("model", "persona", "topic", "read", "important")
+      .print(format="rich")
    )
 
 
@@ -1055,21 +1062,21 @@ This will return a table of shuffled results:
    ┃ model                      ┃ agent     ┃ scenario       ┃ answer ┃ answer     ┃
    ┃ .model                     ┃ .persona  ┃ .topic         ┃ .read  ┃ .important ┃
    ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━┩
-   │ claude-3-5-sonnet-20240620 │ celebrity │ data privacy   │ No     │ 4          │
+   │ claude-3-5-sonnet-20240620 │ celebrity │ climate change │ Yes    │ 4          │
+   ├────────────────────────────┼───────────┼────────────────┼────────┼────────────┤
+   │ claude-3-5-sonnet-20240620 │ student   │ climate change │ Yes    │ 4          │
    ├────────────────────────────┼───────────┼────────────────┼────────┼────────────┤
    │ claude-3-5-sonnet-20240620 │ student   │ data privacy   │ No     │ 3          │
    ├────────────────────────────┼───────────┼────────────────┼────────┼────────────┤
    │ gpt-4o                     │ celebrity │ data privacy   │ Yes    │ 5          │
    ├────────────────────────────┼───────────┼────────────────┼────────┼────────────┤
-   │ claude-3-5-sonnet-20240620 │ student   │ climate change │ Yes    │ 4          │
-   ├────────────────────────────┼───────────┼────────────────┼────────┼────────────┤
-   │ claude-3-5-sonnet-20240620 │ celebrity │ climate change │ Yes    │ 4          │
-   ├────────────────────────────┼───────────┼────────────────┼────────┼────────────┤
-   │ gpt-4o                     │ celebrity │ climate change │ Yes    │ 5          │
+   │ gpt-4o                     │ student   │ data privacy   │ Yes    │ 5          │
    ├────────────────────────────┼───────────┼────────────────┼────────┼────────────┤
    │ gpt-4o                     │ student   │ climate change │ Yes    │ 5          │
    ├────────────────────────────┼───────────┼────────────────┼────────┼────────────┤
-   │ gpt-4o                     │ student   │ data privacy   │ Yes    │ 5          │
+   │ gpt-4o                     │ celebrity │ climate change │ Yes    │ 5          │
+   ├────────────────────────────┼───────────┼────────────────┼────────┼────────────┤
+   │ claude-3-5-sonnet-20240620 │ celebrity │ data privacy   │ No     │ 4          │
    └────────────────────────────┴───────────┴────────────────┴────────┴────────────┘
 
 
@@ -1114,7 +1121,11 @@ This will display the results in a tree format:
 
 .. code-block:: text
 
+   model: Model(model_name = 'claude-3-5-sonnet-20240620', temperature = 0.5, max_tokens = 1000, top_p = 1, frequency_penalty = 0, presence_penalty = 0, logprobs = False, top_logprobs = 3)
    
+   model: Model(model_name = 'gpt-4o', temperature = 0.5, max_tokens = 1000, top_p = 1, frequency_penalty = 0, presence_penalty = 0, logprobs = False, top_logprobs = 3) 
+   
+
 Generating HTML reports
 ^^^^^^^^^^^^^^^^^^^^^^^
 
