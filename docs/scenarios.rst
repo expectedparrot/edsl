@@ -10,7 +10,7 @@ Purpose
 -------
 
 Scenarios allow you create variations and versions of questions efficiently.
-For example, we could create a question `"What is your favorite {{ item }}?"` and use scenarios to replace the parameter `item` with `color` or `food` or other items.
+For example, we could create a question `"How much do you enjoy {{ activity }}?"` and use scenarios to replace the parameter `activity` with `running` or `reading` or other activities.
 When we add the scenarios to the question, the question will be asked multiple times, once for each scenario, with the parameter replaced by the value in the scenario.
 This allows us to straightforwardly administer multiple versions of the question together in a survey, either asynchronously (by default) or according to :ref:`surveys` rules that we can specify (e.g., skip/stop logic).
 
@@ -31,11 +31,12 @@ To use a scenario, we start by creating a question that takes a parameter in dou
 
 .. code-block:: python
 
-    from edsl import QuestionFreeText
+    from edsl import QuestionMultipleChoice
 
-    q = QuestionFreeText(
-        question_name = "favorite_item",
-        question_text = "What is your favorite {{ item }}?",
+    q = QuestionMultipleChoice(
+        question_name = "enjoy",
+        question_text = "How much do you enjoy {{ activity }}?",
+        question_options = ["Not at all", "Somewhat", "Very much"]
     )
 
 
@@ -45,7 +46,7 @@ Next we create a dictionary for a value that will replace the parameter and stor
 
     from edsl import Scenario 
 
-    scenario = Scenario({"item": "color"})
+    scenario = Scenario({"activity": "running"})
 
 
 We can inspect the scenario and see that it consists of the key/value pair that we created:
@@ -60,7 +61,7 @@ This will return:
 .. code-block:: python
 
     {
-        "item": "color"
+        "activity": "running"
     }
 
 
@@ -71,7 +72,7 @@ If multiple values will be used, we can create a list of `Scenario` objects:
 
 .. code-block:: python
 
-    scenarios = [Scenario({"item": item}) for item in ["color", "weekday"]]
+    scenarios = [Scenario({"activity": a}) for a in ["running", "reading"]]
 
 
 We can inspect the scenarios:
@@ -85,7 +86,7 @@ This will return:
 
 .. code-block:: python
 
-    [Scenario({'item': 'color'}), Scenario({'item': 'weekday'})]
+    [Scenario({'activity': 'running'}), Scenario({'activity': 'reading'})]
 
 
 We can also create a `ScenarioList` object to store multiple scenarios:
@@ -94,7 +95,7 @@ We can also create a `ScenarioList` object to store multiple scenarios:
 
     from edsl import ScenarioList
 
-    scenariolist = ScenarioList([Scenario({"item": item}) for item in ["color", "weekday"]])
+    scenariolist = ScenarioList([Scenario({"activity": a}) for a in ["running", "reading"]])
 
 
 We can inspect it:
@@ -111,10 +112,10 @@ This will return:
     {
         "scenarios": [
             {
-                "item": "color"
+                "activity": "running"
             },
             {
-                "item": "weekday"
+                "activity": "reading"
             }
         ]
     }
@@ -129,55 +130,64 @@ We use the `by()` method to add a scenario to a question when running it:
 
 .. code-block:: python
 
-    from edsl import QuestionFreeText, Scenario
+    from edsl import QuestionMultipleChoice, Scenario, Agent
 
-    q = QuestionFreeText(
-        question_name = "favorite_item",
-        question_text = "What is your favorite {{ item }}?",
+    q = QuestionMultipleChoice(
+        question_name = "enjoy",
+        question_text = "How much do you enjoy {{ activity }}?",
+        question_options = ["Not at all", "Somewhat", "Very much"]
     )
 
-    scenario = Scenario({"item": "color"})
+    s = Scenario({"activity": "running"})
 
-    results = q.by(scenario).run()
+    a = Agent(traits = {"persona":"You are a human."})
+
+    results = q.by(s).by(a).run()
 
 
 We can check the results to verify that the scenario has been used correctly:
 
 .. code-block:: python
 
-    results.select("item", "favorite_item").print(format="rich")
+    results.select("activity", "enjoy").print(format="rich")
 
 
 This will print a table of the selected components of the results:
 
 .. code-block:: text
 
-    ┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-    ┃ scenario ┃ answer                     ┃
-    ┃ .item    ┃ .favorite_item             ┃
-    ┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-    │ color    │ My favorite color is blue. │
-    └──────────┴────────────────────────────┘
+    ┏━━━━━━━━━━━┳━━━━━━━━━━┓
+    ┃ scenario  ┃ answer   ┃
+    ┃ .activity ┃ .enjoy   ┃
+    ┡━━━━━━━━━━━╇━━━━━━━━━━┩
+    │ running   │ Somewhat │
+    └───────────┴──────────┘
 
 
-We use the `loop()` method To add a scenario to a question when constructing it, passing a `ScenarioList`. 
-This will create a list containing a new question for each scenario that was passed.
+Looping  
+-------
+
+We use the `loop()` method to add a scenario to a question when constructing it, passing it a `ScenarioList`. 
+This creates a list containing a new question for each scenario that was passed.
 Note that we can optionally include the scenario key in the question name as well; otherwise a unique identifies is automatically added to each question name.
+
+For example: 
 
 .. code-block:: python
 
-    from edsl import QuestionFreeText, ScenarioList
+    from edsl import QuestionMultipleChoice, ScenarioList, Scenario
 
-    q = QuestionFreeText(
-        question_name = "favorite_{{ item }}",
-        question_text = "What is your favorite {{ item }}?",
+    q = QuestionMultipleChoice(
+        question_name = "enjoy_{{ activity }}",
+        question_text = "How much do you enjoy {{ activity }}?",
+        question_options = ["Not at all", "Somewhat", "Very much"]
     )
 
-    scenariolist = ScenarioList(
-        Scenario({"item": item}) for item in ["color", "weekday"]
+    sl = ScenarioList(
+        Scenario({"activity": a}) for a in ["running", "reading"]
     )
 
-    questions = q.loop(scenariolist)
+    questions = q.loop(sl)
 
 
 We can inspect the questions to see that they have been created correctly:
@@ -191,31 +201,35 @@ This will return:
 
 .. code-block:: python
 
-    [Question('free_text', question_name = """favorite_color""", question_text = """What is your favorite color?"""),
-    Question('free_text', question_name = """favorite_weekday""", question_text = """What is your favorite weekday?""")]
+    [Question('multiple_choice', question_name = """enjoy_running""", question_text = """How much do you enjoy running?""", question_options = ['Not at all', 'Somewhat', 'Very much']),
+    Question('multiple_choice', question_name = """enjoy_reading""", question_text = """How much do you enjoy reading?""", question_options = ['Not at all', 'Somewhat', 'Very much'])]
 
 
 We can pass the questions to a survey and run it:
 
 .. code-block:: python
 
-    results = Survey(questions = questions).run()
+    from edsl import Survey, Agent 
+
+    survey = Survey(questions = questions)
+
+    a = Agent(traits = {"persona": "You are a human."})
+
+    results = survey.by(a).run()
 
     results.select("answer.*").print(format="rich")
 
 
-This will print a table of the response for each question:
+This will print a table of the response for each question (note that "activity" is no longer in a separate scenario field):
 
 .. code-block:: text
 
-    ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-    ┃ answer                     ┃ answer                                                                             ┃
-    ┃ .favorite_color            ┃ .favorite_weekday                                                                   ┃
-    ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-    │ My favorite color is blue. │ My favorite weekday is Friday because it marks the end of the workweek and the     │
-    │                            │ beginning of the weekend, offering a sense of relief and anticipation for leisure  │
-    │                            │ time.                                                                              │
-    └────────────────────────────┴────────────────────────────────────────────────────────────────────────────────────┘
+    ┏━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┓
+    ┃ answer         ┃ answer         ┃
+    ┃ .enjoy_reading ┃ .enjoy_running ┃
+    ┡━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━┩
+    │ Very much      │ Somewhat       │
+    └────────────────┴────────────────┘
 
 
 Multiple parameters
@@ -416,7 +430,7 @@ Say we have some results from a survey where we asked agents to choose a random 
         question_text = "Choose a random number between 1 and 1000."
     )
 
-    agents = [Agent({"persona":p}) for p in ["Dog catcher", "Magician", "Spy"]]
+    agents = [Agent({"persona":p}) for p in ["Child", "Magician", "Olympic breakdancer"]]
 
     results = q_random.by(agents).run()
     results.select("persona", "random").print(format="rich")
@@ -426,23 +440,23 @@ Our results are:
 
 .. code-block:: text
 
-    ┏━━━━━━━━━━━━━┳━━━━━━━━━┓
-    ┃ agent       ┃ answer  ┃
-    ┃ .persona    ┃ .random ┃
-    ┡━━━━━━━━━━━━━╇━━━━━━━━━┩
-    │ Dog catcher │ 472     │
-    ├─────────────┼─────────┤
-    │ Magician    │ 537     │
-    ├─────────────┼─────────┤
-    │ Spy         │ 528     │
-    └─────────────┴─────────┘
+    ┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┓
+    ┃ agent               ┃ answer  ┃
+    ┃ .persona            ┃ .random ┃
+    ┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━┩
+    │ Child               │ 7       │
+    ├─────────────────────┼─────────┤
+    │ Magician            │ 472     │
+    ├─────────────────────┼─────────┤
+    │ Olympic breakdancer │ 529     │
+    └─────────────────────┴─────────┘
 
 
 We can use the `to_scenario_list()` method turn components of the results into a list of scenarios to use in a new survey:
 
 .. code-block:: python
 
-    scenarios = results.to_scenario_list()
+    scenarios = results.select("persona", "random").to_scenario_list() # excluding other columns of the results
 
     scenarios 
 
@@ -451,9 +465,22 @@ We can inspect the scenarios to see that they have been created correctly:
 
 .. code-block:: text
 
-    [Scenario({'persona': 'Dog catcher', 'random': 472}),
-    Scenario({'persona': 'Magician', 'random': 537}),
-    Scenario({'persona': 'Spy', 'random': 528})]
+    {
+        "scenarios": [
+            {
+                "persona": "Child",
+                "random": 7
+            },
+            {
+                "persona": "Magician",
+                "random": 472
+            },
+            {
+                "persona": "Olympic breakdancer",
+                "random": 529
+            }
+        ]
+    }
 
 
 PDFs as textual scenarios
@@ -500,43 +527,91 @@ See a demo notebook of this method in the notebooks section of the docs index: "
 Image scenarios
 ^^^^^^^^^^^^^^^
 
-The `Scenario` method `from_image('path/to/image_file')` turns a PNG into into a scenario to be used with an image model (e.g., GPT-4o).
-The scenario has the following keys: `file_path`, `encoded_image`.
-
-Note that we do *not* need to use a placeholder `{{ text }}` in the question text in order to add the scenario to the question.
-Instead, we simply write the question with no parameters and add the scenario to the survey when running it as usual.
+The `Scenario` method `from_image('<filepath>.png')` converts a PNG into into a scenario that can be used with an image model (e.g., `gpt-4o`).
+This method generates a scenario with a single key - `<filepath>` - that can be used in a question text the same as scenarios from other data sources.
 
 Example usage:
 
 .. code-block:: python
 
-    from edsl import QuestionFreeText, QuestionList, Scenario, Survey, Model 
+    from edsl import Scenario
 
-    m = Model("gpt-4o") # Need to use a vision model for image scenarios
+    s = Scenario.from_image("logo.png") # Replace with your own local file
+
+
+Here we use the example scenario, which is the Expected Parrot logo:
+
+.. code-block:: python
+
+    from edsl import Scenario
+
+    s = Scenario.example(has_image = True) 
+
+
+We can verify the scenario key (the filepath for the image from which the scenario was generated):
+
+.. code-block:: python 
+
+    s.keys()
+
+
+Output:
+
+.. code-block:: text 
+
+    ['logo']
+
+
+We can add the key to questions as we do scenarios from other data sources:
+
+.. code-block:: python
+
+    from edsl import Model, QuestionFreeText, QuestionList, Survey
+
+    m = Model("gpt-4o") # This is the default model; we specify it for demonstration purposes to highlight that a vision model is needed
 
     q1 = QuestionFreeText(
-        question_name = "show",
-        question_text = "What does this image show?",
+        question_name = "identify",
+        question_text = "What animal is in this picture: {{ logo }}" # The scenario key is the filepath
     )
 
     q2 = QuestionList(
-        question_name = "count",
-        question_text = "How many things are in this image?",
+        question_name = "colors",
+        question_text = "What colors do you see in this picture: {{ logo }}"
     )
 
     survey = Survey([q1, q2])
 
-    scenario = Scenario.from_image("path/to/image_file")
+    results = survey.by(s).run()
 
-    results = survey.by(scenario).run()
+    results.select("logo", "identify", "colors").print(format="rich")
 
-    results.select("file_path", "answer.*").print(format="rich")
+
+Output using the Expected Parrot logo:
+
+.. code-block:: text 
+
+    ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+    ┃ answer                                                   ┃ answer                                               ┃
+    ┃ .identify                                                ┃ .colors                                              ┃
+    ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+    │ The image shows a large letter "E" followed by a pair of │ ['gray', 'green', 'orange', 'pink', 'blue', 'black'] │
+    │ square brackets containing an illustration of a parrot.  │                                                      │
+    │ The parrot is green with a yellow beak and some red and  │                                                      │
+    │ blue coloring on its body. This combination suggests the │                                                      │
+    │ mathematical notation for the expected value, often      │                                                      │
+    │ denoted as "E" followed by a random variable in          │                                                      │
+    │ brackets, commonly used in probability and statistics.   │                                                      │
+    └──────────────────────────────────────────────────────────┴──────────────────────────────────────────────────────┘
+
+
+See an example of this method in the notebooks section of the docs index: `Using images in a survey <https://docs.expectedparrot.com/en/latest/notebooks/image_scenario_example.html>`_.
 
 
 Creating a scenario list from a list
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The `ScenarioList` method `from_list()` can be used to create a list of scenarios for a specified key and list of values that is passed.
+The `ScenarioList` method `from_list()` creates a list of scenarios for a specified key and list of values that is passed to it.
 
 Example usage:
 
@@ -571,15 +646,45 @@ This will return:
 Creating a scenario list from a dictionary
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The `ScenarioList` method `from_dict()` can be used to create a list of scenarios for a specified key and dictionary of values that is passed.
+The `Scenario` method `from_dict()` creates a scenario for a dictionary that is passed to it.
+
+The `ScenarioList` method `from_nested_dict()` creates a list of scenarios for a specified key and nested dictionary.
 
 Example usage:
 
 .. code-block:: python
 
+    # Example dictionary
+    d = {"item": ["color", "food", "animal"]}
+
+
+    from edsl import Scenario
+
+    scenario = Scenario.from_dict(d)
+
+    scenario
+
+
+This will return a single scenario for the list of items in the dict:
+
+.. code-block:: text 
+
+    {
+        "item": [
+            "color",
+            "food",
+            "animal"
+        ]
+    }
+
+
+If we instead want to create a scenario for each item in the list individually:
+
+.. code-block:: python 
+
     from edsl import ScenarioList
 
-    scenariolist = ScenarioList.from_dict({"item": ["color", "food", "animal"]})
+    scenariolist = ScenarioList.from_nested_dict(d)
 
     scenariolist
 
@@ -614,7 +719,7 @@ Example usage:
 
     from edsl import ScenarioList
 
-    scenarios = ScenarioList.from_wikipedia("https://en.wikipedia.org/wiki/1990s_in_film", 0)
+    scenarios = ScenarioList.from_wikipedia("https://en.wikipedia.org/wiki/1990s_in_film", 3)
 
     scenarios.print(format="rich")
 
@@ -761,10 +866,11 @@ The scenarios can be used to ask questions about the data in the table:
 
     results = q_leads.by(scenarios).run()
 
-    (results
-    .sort_by("Title")
-    .select("Title", "leads")
-    .print(format="rich")
+    (
+        results
+        .sort_by("Title")
+        .select("Title", "leads")
+        .print(format="rich")
     )
 
 
@@ -906,13 +1012,10 @@ Output:
 Creating a scenario list from a CSV
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The `ScenarioList` method `from_csv('path/to/csv')` can be used to create a list of scenarios from a CSV file.
+The `ScenarioList` method `from_csv('<filepath>.csv')` creates a list of scenarios from a CSV file.
 The method reads the CSV file and creates a scenario for each row in the file, with the keys as the column names and the values as the row values.
 
-
-Example usage:
-
-Say we have a CSV file with the following data:
+For example, say we have a CSV file containing the following data:
 
 .. code-block:: text
 
@@ -929,12 +1032,12 @@ We can create a list of scenarios from the CSV file:
 
     from edsl import ScenarioList
 
-    scenariolist = ScenarioList.from_csv("path/to/csv_file.csv")
+    scenariolist = ScenarioList.from_csv("<filepath>.csv")
 
     scenariolist
 
 
-This will return a list consisting of a scenario for each row with the keys as the column names and the values as the row values:
+This will return a scenario for each row:
 
 .. code-block:: text
 
@@ -987,7 +1090,7 @@ We can create a list of scenarios from the CSV file:
 
     from edsl import ScenarioList
 
-    scenariolist = ScenarioList.from_csv("path/to/csv_file.csv")
+    scenariolist = ScenarioList.from_csv("<filepath>.csv")
 
     scenariolist = scenariolist.give_valid_names()
 
@@ -1076,21 +1179,20 @@ Methods for un/pivoting and grouping scenarios
 
 There are a variety of methods for modifying scenarios and scenario lists.
 
+
 Unpivoting a scenario list
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The `ScenarioList` method `unpivot()` can be used to unpivot a scenario list based on one or more specified identifiers.
 It takes a list of `id_vars` which are the names of the key/value pairs to keep in each new scenario, and a list of `value_vars` which are the names of the key/value pairs to unpivot.
 
-Example usage:
-
-Say we have a scenario list for the above CSV file:
+For example, say we have a scenario list for the above CSV file:
 
 .. code-block:: python
 
     from edsl import ScenarioList
 
-    scenariolist = ScenarioList.from_csv("path/to/csv_file.csv")
+    scenariolist = ScenarioList.from_csv("<filepath>.csv")
 
     scenariolist
 
@@ -1268,19 +1370,18 @@ This will return a list of scenarios with the `a` and `b` key/value pairs groupe
 Data labeling tasks
 -------------------
 
-Scenarios are particularly useful for conducting data labeling or data coding tasks, where we can design the task as a question or series of questions about each piece of data in our dataset.
-For example, say we have a dataset of text messages that we want to sort by topic.
-We could perform this task by running multiple choice questions such as `"What is the primary topic of this message: {{ message }}?"` or `"Does this message mention a safety issue? {{ message }}"` where each text message is inserted in the `message` placeholder of the question text.
+Scenarios are particularly useful for conducting data labeling or data coding tasks, where the task can be designed as a survey of questions about each piece of data in a dataset.
 
-The following code demonstrates how to use scenarios to conduct this task.
-For more step-by-step details, please see the next section below: `Constructing a Scenario`.
+For example, say we have a dataset of text messages that we want to sort by topic.
+We can perform this task by using a language model to answer questions such as `"What is the primary topic of this message: {{ message }}?"` or `"Does this message mention a safety issue? {{ message }}"`, where each text message is inserted in the `message` placeholder of the question text.
+
+Here we use scenarios to conduct the task:
 
 .. code-block:: python
 
-    from edsl.questions import QuestionMultipleChoice
-    from edsl import Survey, Scenario
+    from edsl import QuestionMultipleChoice, Survey, Scenario
 
-    # Create a question with a parameter
+    # Create a question with that takes a parameter
     q1 = QuestionMultipleChoice(
         question_name = "topic",
         question_text = "What is the topic of this message: {{ message }}?",
@@ -1313,7 +1414,7 @@ We can then analyze the results to see how the agent answered the questions for 
 
 .. code-block:: python
 
-    results.select("message", "topic", "safety").print(format="rich")
+    results.select("message", "safety", "topic").print(format="rich")
 
 
 This will print a table of the scenarios and the answers to the questions for each scenario:
@@ -1326,11 +1427,11 @@ This will print a table of the scenarios and the answers to the questions for ea
     ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━━┩
     │ I can't log in...             │ No      │ Login issue     │
     ├───────────────────────────────┼─────────┼─────────────────┤
+    │ I need help with a product... │ No      │ Product support │
+    ├───────────────────────────────┼─────────┼─────────────────┤
     │ I need help with my bill...   │ No      │ Billing         │
     ├───────────────────────────────┼─────────┼─────────────────┤
     │ I have a safety concern...    │ Yes     │ Safety          │
-    ├───────────────────────────────┼─────────┼─────────────────┤
-    │ I need help with a product... │ Unclear │ Product support │
     └───────────────────────────────┴─────────┴─────────────────┘
 
 
@@ -1344,8 +1445,7 @@ Note that the question texts are unchanged:
 
 .. code-block:: python
 
-    from edsl.questions import QuestionMultipleChoice
-    from edsl import Survey, Scenario
+    from edsl import QuestionMultipleChoice, Survey, ScenarioList, Scenario
 
     # Create a question with a parameter
     q1 = QuestionMultipleChoice(
@@ -1366,11 +1466,11 @@ Note that the question texts are unchanged:
         {"message": "I need help with my bill...", "user": "Bob", "source": "Phone", "date": "2022-01-02"}, 
         {"message": "I have a safety concern...", "user": "Charlie", "source": "Email", "date": "2022-01-03"}, 
         {"message": "I need help with a product...", "user": "David", "source": "Chat", "date": "2022-01-04"}
-        ]
-    scenarios = [Scenario({"message": msg["message"],
-                        "user": msg["user"],
-                        "source": msg["source"],
-                        "date": msg["date"]}) for msg in user_messages]
+    ]
+
+    scenarios = ScenarioList(
+        Scenario.from_dict(m) for m in user_messages
+    )
 
     # Create a survey with the question
     survey = Survey(questions = [q1, q2])
@@ -1378,23 +1478,26 @@ Note that the question texts are unchanged:
     # Run the survey with the scenarios
     results = survey.by(scenarios).run()
 
+    # Inspect the results
+    results.select("scenario.*", "answer.*").print(format="rich")
 
-We can then analyze the results to see how the agent answered the questions for each scenario, including the metadata:
+
+We can see how the agent answered the questions for each scenario, together with the metadata that was not included in the question text:
 
 .. code-block:: text
 
-    ┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━━┓
-    ┃ scenario ┃ scenario         ┃ scenario   ┃ scenario                      ┃ answer  ┃ answer          ┃
-    ┃ .user    ┃ .source          ┃ .date      ┃ .message                      ┃ .safety ┃ .topic          ┃
-    ┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━━┩
-    │ Alice    │ Customer support │ 2022-01-01 │ I can't log in...             │ No      │ Login issue     │
-    ├──────────┼──────────────────┼────────────┼───────────────────────────────┼─────────┼─────────────────┤
-    │ Bob      │ Phone            │ 2022-01-02 │ I need help with my bill...   │ No      │ Billing         │
-    ├──────────┼──────────────────┼────────────┼───────────────────────────────┼─────────┼─────────────────┤
-    │ Charlie  │ Email            │ 2022-01-03 │ I have a safety concern...    │ Yes     │ Safety          │
-    ├──────────┼──────────────────┼────────────┼───────────────────────────────┼─────────┼─────────────────┤
-    │ David    │ Chat             │ 2022-01-04 │ I need help with a product... │ Unclear │ Product support │
-    └──────────┴──────────────────┴────────────┴───────────────────────────────┴─────────┴─────────────────┘
+    ┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━┓
+    ┃ scenario ┃ scenario         ┃ scenario                      ┃ scenario   ┃ answer          ┃ answer  ┃
+    ┃ .user    ┃ .source          ┃ .message                      ┃ .date      ┃ .topic          ┃ .safety ┃
+    ┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━┩
+    │ Alice    │ Customer support │ I can't log in...             │ 2022-01-01 │ Login issue     │ No      │
+    ├──────────┼──────────────────┼───────────────────────────────┼────────────┼─────────────────┼─────────┤
+    │ Bob      │ Phone            │ I need help with my bill...   │ 2022-01-02 │ Billing         │ No      │
+    ├──────────┼──────────────────┼───────────────────────────────┼────────────┼─────────────────┼─────────┤
+    │ Charlie  │ Email            │ I have a safety concern...    │ 2022-01-03 │ Safety          │ Yes     │
+    ├──────────┼──────────────────┼───────────────────────────────┼────────────┼─────────────────┼─────────┤
+    │ David    │ Chat             │ I need help with a product... │ 2022-01-04 │ Product support │ No      │
+    └──────────┴──────────────────┴───────────────────────────────┴────────────┴─────────────────┴─────────┘
 
 
 To learn more about accessing, analyzing and visualizing survey results, please see the :ref:`results` section.
@@ -1418,10 +1521,11 @@ Example usage:
 
     text_scenario = Scenario({"my_text": my_haiku})
 
-    word_chunks_scenariolist = text_scenario.chunk("my_text", 
-                                                num_words = 5, # use num_words or num_lines but not both
-                                                include_original = True, # optional 
-                                                hash_original = True # optional
+    word_chunks_scenariolist = text_scenario.chunk(
+        "my_text", 
+        num_words = 5, # use num_words or num_lines but not both
+        include_original = True, # optional 
+        hash_original = True # optional
     )
     word_chunks_scenariolist
 
