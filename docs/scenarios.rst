@@ -568,8 +568,8 @@ We can add the key to questions as we do scenarios from other data sources:
 
     from edsl import Model, QuestionFreeText, QuestionList, Survey
 
-    m = Model("gpt-4o") # This is the default model; we specify it for demonstration purposes to highlight that a vision model is needed
-
+    m = Model("gpt-4o") 
+    
     q1 = QuestionFreeText(
         question_name = "identify",
         question_text = "What animal is in this picture: {{ logo }}" # The scenario key is the filepath
