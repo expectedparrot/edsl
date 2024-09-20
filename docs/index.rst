@@ -210,6 +210,7 @@ Information about additional functionality for developers.
    notebooks/free_responses.ipynb
    notebooks/digital_twin.ipynb
    notebooks/writing_style.ipynb
+   notebooks/google_form_to_edsl.ipynb
    notebooks/edsl_polling.ipynb
    notebooks/ces_data_edsl.ipynb
 
