@@ -211,18 +211,19 @@ We can combine multiple questions into a survey by passing them as a list to a `
 
 .. code-block:: python 
 
-   from edsl import QuestionLinearScale, QuestionFreeText, QuestionNumerical, Survey 
+   from edsl import QuestionLinearScale, QuestionList, QuestionNumerical, Survey 
 
    q1 = QuestionLinearScale(
-      question_name = "likely_to_vote",
-      question_text = "On a scale from 1 to 5, how likely are you to vote in the upcoming U.S. election?",
+      question_name = "dc_state",
+      question_text = "How likely is Washington, D.C. to become a U.S. state?",
       question_options = [1, 2, 3, 4, 5],
       option_labels = {1: "Not at all likely", 5: "Very likely"}
    )
 
-   q2 = QuestionFreeText(
-      question_name = "largest_us_city",
-      question_text = "What is the largest U.S. city?"
+   q2 = QuestionList(
+      question_name = "largest_us_cities",
+      question_text = "What are the largest U.S. cities by population?",
+      max_list_items = 3
    )
 
    q3 = QuestionNumerical(
@@ -231,8 +232,6 @@ We can combine multiple questions into a survey by passing them as a list to a `
    )
 
    survey = Survey(questions = [q1, q2, q3])
-
-   results = survey.run()
 
 
 This allows us to administer multiple questions at once, either asynchronously (by default) or according to specified logic (e.g., skip or stop rules).
@@ -247,29 +246,37 @@ This is done by calling the `run` method for the question:
 
 .. code-block:: python
 
+   from edsl import QuestionCheckBox
+
+   q = QuestionCheckBox(
+      question_name = "primary_colors",
+      question_text = "Which of the following colors are primary?",
+      question_options = ["Red", "Orange", "Yellow", "Green", "Blue", "Purple"]
+   )
+
    results = q.run()
 
 
 This will generate a `Results` object that contains a single `Result` representing the response to the question and information about the model used.
-If the model to be used has not been specified (as in the above example), the `run` method delivers the question to the default LLM (GPT 4).
+If the model to be used has not been specified (as in the above example), the `run` method delivers the question to the default LLM (run `Model()` to check the current default LLM).
 We can inspect the response and model used by calling the `select` and `print` methods on the components of the results that we want to display.
 For example, we can print just the `answer` to the question:
 
 .. code-block:: python 
 
-   results.select("answer.favorite_primary_color").print(format="rich")
+   results.select("primary_colors").print(format="rich")
 
 
 Output:
 
 .. code-block:: text
 
-   ┏━━━━━━━━━━━━━━━━━━━━━━━━━┓
-   ┃ answer                  ┃
-   ┃ .favorite_primary_color ┃
-   ┡━━━━━━━━━━━━━━━━━━━━━━━━━┩
-   │ blue                    │
-   └─────────────────────────┘
+   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+   ┃ answer                    ┃
+   ┃ .primary_colors           ┃
+   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+   │ ['Red', 'Yellow', 'Blue'] │
+   └───────────────────────────┘
 
 
 Or to inspect the model:
@@ -283,17 +290,39 @@ Output:
 
 .. code-block:: text
 
-   ┏━━━━━━━━━━━━━━━━━━━━┓
-   ┃ model              ┃
-   ┃ .model             ┃
-   ┡━━━━━━━━━━━━━━━━━━━━┩
-   │ gpt-4-1106-preview │
-   └────────────────────┘
+   ┏━━━━━━━━┓
+   ┃ model  ┃
+   ┃ .model ┃
+   ┡━━━━━━━━┩
+   │ gpt-4o │
+   └────────┘
 
 
 If questions have been combined in a survey, the `run` method is called directly on the survey instead:
 
 .. code-block:: python
+
+   from edsl import QuestionLinearScale, QuestionList, QuestionNumerical, Survey 
+
+   q1 = QuestionLinearScale(
+      question_name = "dc_state",
+      question_text = "How likely is Washington, D.C. to become a U.S. state?",
+      question_options = [1, 2, 3, 4, 5],
+      option_labels = {1: "Not at all likely", 5: "Very likely"}
+   )
+
+   q2 = QuestionList(
+      question_name = "largest_us_cities",
+      question_text = "What are the largest U.S. cities by population?",
+      max_list_items = 3
+   )
+
+   q3 = QuestionNumerical(
+      question_name = "us_pop",
+      question_text = "What was the U.S. population in 2020?"
+   )
+
+   survey = Survey(questions = [q1, q2, q3])
 
    results = survey.run()
 
@@ -304,12 +333,12 @@ Output:
 
 .. code-block:: text
 
-   ┏━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┓
-   ┃ answer          ┃ answer                                                ┃ answer    ┃
-   ┃ .likely_to_vote ┃ .largest_us_city                                      ┃ .us_pop   ┃
-   ┡━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━┩
-   │ 4               │ The largest U.S. city by population is New York City. │ 331449281 │
-   └─────────────────┴───────────────────────────────────────────────────────┴───────────┘
+   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┓
+   ┃ answer                                 ┃ answer    ┃ answer    ┃
+   ┃ .largest_us_cities                     ┃ .dc_state ┃ .us_pop   ┃
+   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━┩
+   │ ['New York', 'Los Angeles', 'Chicago'] │ 2         │ 331449281 │
+   └────────────────────────────────────────┴───────────┴───────────┘
 
 
 For a survey, each `Result` represents a response for the set of survey questions. 
@@ -474,7 +503,8 @@ To learn more about designing agents, please see the :ref:`agents` section.
 
 Specifying language models
 --------------------------
-In the above examples we did not specify a language model for the question or survey, so the default model (GPT 4) was used.
+
+In the above examples we did not specify a language model for the question or survey, so the default model was used (run `Model()` to check the current default model).
 Similar to the way that we optionally passed scenarios to a question and added AI agents, we can also use the `by` method to specify one or more LLMs to use in generating results.
 This is done by creating `Model` objects for desired models and optionally specifying model parameters, such as temperature.
 
@@ -486,6 +516,7 @@ To check available models:
 
    Model.available()
 
+
 This will return a list of names of models that we can choose from.
 
 We can also check the models for which we have already added API keys:
@@ -493,6 +524,7 @@ We can also check the models for which we have already added API keys:
 .. code-block:: python 
 
    Model.check_models()
+
 
 See instructions on storing :ref:`api_keys` for the models that you want to use, or activating :ref:`remote_inference` to use the Expected Parrot server to access available models.
 
@@ -503,7 +535,7 @@ To specify models for a survey we first create `Model` objects:
    from edsl import ModelList, Model 
 
    models = ModelList(
-      Model(m) for m in ['claude-3-opus-20240229', 'llama-2-70b-chat-hf']
+      Model(m) for m in ['gpt-4o', 'gemini-1.5-pro']
    )
 
 
@@ -573,7 +605,7 @@ An example can also created using the `example` method:
    :show-inheritance:
    :special-members: __init__
    :exclude-members: purpose, question_type, question_options, main
-   
+
 
 QuestionCheckBox class
 ^^^^^^^^^^^^^^^^^^^^^^
