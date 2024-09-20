@@ -123,6 +123,7 @@ Calculating next token probabilities
 ------------------------------------
 
 
+
 Methods for reducing token usage 
 --------------------------------
 
@@ -186,3 +187,142 @@ Output:
     │ 4         │ 1         │ 5      │ None         │
     └───────────┴───────────┴────────┴──────────────┘
 
+
+Coding question options 
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Question instructions can be modified to prompt a model to use codes (integers) in lieu of text responses for answer options, reducing generated tokens.
+
+This is done by passing a boolean parameter `use_code = True` to a `Question` when it is constructed. For example:
+
+.. code-block:: python 
+
+    from edsl import QuestionMultipleChoice
+
+    q = QuestionMultipleChoice(
+        question_name = "income_pref_coded", 
+        question_text = "Which of the following is more important to you: ", 
+        question_options = ["Financial stability", "Moving up the income ladder"], 
+        use_code = True
+    )
+
+
+We can inspect the difference in the question prompt that is created by creating an identical question without the parameter and comparing the job prompts.
+Here we also pass the parameter `include_comment = False`:
+
+.. code-block:: python 
+
+    from edsl import QuestionMultipleChoice, Survey, Agent, Model
+
+    q1 = QuestionMultipleChoice(
+        question_name = "income_pref", 
+        question_text = "Which of the following is more important to you: ", 
+        question_options = ["Financial stability", "Moving up the income ladder"]
+    )
+
+    q2 = QuestionMultipleChoice(
+        question_name = "income_pref_coded", 
+        question_text = "Which of the following is more important to you: ", 
+        question_options = ["Financial stability", "Moving up the income ladder"], 
+        use_code = True,
+        include_comment = False
+    )
+
+    survey = Survey([q1, q2])
+
+    # Construct a job with the survey and the default model
+    job = survey.by(Model())
+
+    # Inspect the question prompts
+    job.prompts().select("question_index", "user_prompt").print(format="rich")
+
+
+Output:
+
+    ┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+    ┃ question_index    ┃ user_prompt                                                                                 ┃
+    ┡━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+    │ income_pref       │                                                                                             │
+    │                   │ Which of the following is more important to you:                                            │
+    │                   │                                                                                             │
+    │                   │                                                                                             │
+    │                   │ Financial stability                                                                         │
+    │                   │                                                                                             │
+    │                   │ Moving up the income ladder                                                                 │
+    │                   │                                                                                             │
+    │                   │                                                                                             │
+    │                   │ Only 1 option may be selected.                                                              │
+    │                   │                                                                                             │
+    │                   │ Respond only with a string corresponding to one of the options.                             │
+    │                   │                                                                                             │
+    │                   │                                                                                             │
+    │                   │ After the answer, you can put a comment explaining why you chose that option on the next    │
+    │                   │ line.                                                                                       │
+    ├───────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────┤
+    │ income_pref_coded │                                                                                             │
+    │                   │ Which of the following is more important to you:                                            │
+    │                   │                                                                                             │
+    │                   │ 0: Financial stability                                                                      │
+    │                   │                                                                                             │
+    │                   │ 1: Moving up the income ladder                                                              │
+    │                   │                                                                                             │
+    │                   │                                                                                             │
+    │                   │ Only 1 option may be selected.                                                              │
+    │                   │                                                                                             │
+    │                   │ Respond only with the code corresponding to one of the options.                             │
+    └───────────────────┴─────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+The prompts can also be inspected after the survey is run:
+
+.. code-block:: python
+
+    results = survey.by(Model()).run()
+
+    (
+        results
+        .select(
+            "income_pref_user_prompt", "income_pref_generated_tokens",
+            "income_pref_coded_user_prompt", "income_pref_coded_generated_tokens"
+        )
+        .print(format="rich")
+    )
+
+
+Output:
+
+    ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+    ┃ prompt                    ┃ generated_tokens           ┃ prompt                    ┃ generated_tokens           ┃
+    ┃ .income_pref_user_prompt  ┃ .income_pref_generated_to… ┃ .income_pref_coded_user_… ┃ .income_pref_coded_genera… ┃
+    ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+    │                           │ Financial stability        │                           │ 0                          │
+    │ Which of the following is │                            │ Which of the following is │                            │
+    │ more important to you:    │ Financial stability        │ more important to you:    │                            │
+    │                           │ provides a secure          │                           │                            │
+    │                           │ foundation and peace of    │ 0: Financial stability    │                            │
+    │ Financial stability       │ mind, allowing for better  │                           │                            │
+    │                           │ long-term planning and     │ 1: Moving up the income   │                            │
+    │ Moving up the income      │ resilience against         │ ladder                    │                            │
+    │ ladder                    │ unexpected challenges.     │                           │                            │
+    │                           │                            │                           │                            │
+    │                           │                            │ Only 1 option may be      │                            │
+    │ Only 1 option may be      │                            │ selected.                 │                            │
+    │ selected.                 │                            │                           │                            │
+    │                           │                            │ Respond only with the     │                            │
+    │ Respond only with a       │                            │ code corresponding to one │                            │
+    │ string corresponding to   │                            │ of the options.           │                            │
+    │ one of the options.       │                            │                           │                            │
+    │                           │                            │                           │                            │
+    │                           │                            │                           │                            │
+    │ After the answer, you can │                            │                           │                            │
+    │ put a comment explaining  │                            │                           │                            │
+    │ why you chose that option │                            │                           │                            │
+    │ on the next line.         │                            │                           │                            │
+    └───────────────────────────┴────────────────────────────┴───────────────────────────┴────────────────────────────┘
+
+
+No agent instructions
+^^^^^^^^^^^^^^^^^^^^^
+
+If no agents are used with the survey, the base agent instructions are not sent to the model, reducing overall tokens.
+(This is a change from prior versions of EDSL.)
