@@ -5,13 +5,16 @@
 
 - New fields for `Question` objects:
     `include_comment`: bool = True 
+    `use_code`: bool = False
     `answering_instructions`: Optional[str] = None
     `question_presentation`: Optional[str] = None
     `permissive`: bool = False
 
-- Optional `Question` paramaters `answering_instructions` and `question_presentation` allow you to control exact prompt language and separate instructions for the presentation of a question. 
-
 - Optional `Question` parameter `include_comment = False` allows you to turn off the comment field that is automatically added to all question types other than `QuestionFreeText`. 
+
+- Optional `Question` parameter `use_code = True` modifies the question prompt to instruct the model to return the (integer) code for the selected question option in lieu of the question option text.
+
+- Optional `Question` paramaters `answering_instructions` and `question_presentation` allow you to control exact prompt language and separate instructions for the presentation of a question. 
 
 - Optional boolean `Question` parameter `permissive` allows you to turn off enforcement of question constraints (e.g., if min/max selections for a checkbox question have been specified, you can set `permissive = True` to allow responses that fewer or greater selections). 
 
@@ -45,6 +48,8 @@
 - Improvements to exceptions reports. 
 
 - Question validation methods no longer use JSON. This will eliminate exceptions relating to JSON errors previously common to certain models.
+
+- Base agent instructions template is not added to a job if no agent is used with a survey (reducing tokens).
 
 ### Fixed
 - Bug in enforcement of token/rate limits.
