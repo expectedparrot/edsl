@@ -19,6 +19,7 @@ class QuestionYesNo(QuestionMultipleChoice):
         question_options: list[str] = ["No", "Yes"],
         answering_instructions: Optional[str] = None,
         question_presentation: Optional[str] = None,
+        include_comment: Optional[bool] = True,
     ):
         """Instantiate a new QuestionYesNo.
 
@@ -33,6 +34,7 @@ class QuestionYesNo(QuestionMultipleChoice):
             use_code=False,
             answering_instructions=answering_instructions,
             question_presentation=question_presentation,
+            include_comment=include_comment,
         )
         self.question_options = question_options
 
