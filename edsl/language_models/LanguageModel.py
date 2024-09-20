@@ -164,10 +164,6 @@ class LanguageModel(
         None  # This should be something like ["choices", 0, "message", "content"]
     )
     __rate_limits = None
-    __default_rate_limits = {
-        "rpm": 10_000,
-        "tpm": 2_000_000,
-    }  # TODO: Use the OpenAI Teir 1 rate limits
     _safety_factor = 0.8
 
     def __init__(
@@ -181,6 +177,7 @@ class LanguageModel(
         self.remote = False
         self.omit_system_prompt_if_empty = omit_system_prompt_if_empty_string
 
+        # self._rpm / _tpm comes from the class
         if rpm is not None:
             self._rpm = rpm
 
@@ -289,35 +286,40 @@ class LanguageModel(
         >>> m.RPM
         100
         """
-        self._set_rate_limits(rpm=rpm, tpm=tpm)
+        if rpm is not None:
+            self._rpm = rpm
+        if tpm is not None:
+            self._tpm = tpm
+        return None
+        # self._set_rate_limits(rpm=rpm, tpm=tpm)
 
-    def _set_rate_limits(self, rpm=None, tpm=None) -> None:
-        """Set the rate limits for the model.
+    # def _set_rate_limits(self, rpm=None, tpm=None) -> None:
+    #     """Set the rate limits for the model.
 
-        If the model does not have rate limits, use the default rate limits."""
-        if rpm is not None and tpm is not None:
-            self.__rate_limits = {"rpm": rpm, "tpm": tpm}
-            return
+    #     If the model does not have rate limits, use the default rate limits."""
+    #     if rpm is not None and tpm is not None:
+    #         self.__rate_limits = {"rpm": rpm, "tpm": tpm}
+    #         return
 
-        if self.__rate_limits is None:
-            if hasattr(self, "get_rate_limits"):
-                self.__rate_limits = self.get_rate_limits()
-            else:
-                self.__rate_limits = self.__default_rate_limits
+    #     if self.__rate_limits is None:
+    #         if hasattr(self, "get_rate_limits"):
+    #             self.__rate_limits = self.get_rate_limits()
+    #         else:
+    #             self.__rate_limits = self.__default_rate_limits
 
     @property
     def RPM(self):
         """Model's requests-per-minute limit."""
         # self._set_rate_limits()
         # return self._safety_factor * self.__rate_limits["rpm"]
-        return self.rpm
+        return self._rpm
 
     @property
     def TPM(self):
         """Model's tokens-per-minute limit."""
         # self._set_rate_limits()
         # return self._safety_factor * self.__rate_limits["tpm"]
-        return self.tpm
+        return self._tpm
 
     @property
     def rpm(self):
@@ -334,17 +336,6 @@ class LanguageModel(
     @tpm.setter
     def tpm(self, value):
         self._tpm = value
-
-    @property
-    def TPM(self):
-        """Model's tokens-per-minute limit.
-
-        >>> m = LanguageModel.example()
-        >>> m.TPM > 0
-        True
-        """
-        self._set_rate_limits()
-        return self._safety_factor * self.__rate_limits["tpm"]
 
     @staticmethod
     def _overide_default_parameters(passed_parameter_dict, default_parameter_dict):
