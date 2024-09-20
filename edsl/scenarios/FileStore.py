@@ -241,8 +241,16 @@ class PDFFileStore(FileStore):
 
 
 class PNGFileStore(FileStore):
-    def __init__(self, filename):
-        super().__init__(filename, suffix=".png")
+    def __init__(
+        self,
+        filename,
+        binary: Optional[bool] = None,
+        suffix: Optional[str] = None,
+        base64_string: Optional[str] = None,
+    ):
+        super().__init__(
+            filename, binary=binary, base64_string=base64_string, suffix=".png"
+        )
 
     @classmethod
     def example(cls):
@@ -267,8 +275,17 @@ class PNGFileStore(FileStore):
 
 
 class SQLiteFileStore(FileStore):
-    def __init__(self, filename):
-        super().__init__(filename, suffix=".sqlite")
+
+    def __init__(
+        self,
+        filename,
+        binary: Optional[bool] = None,
+        suffix: Optional[str] = None,
+        base64_string: Optional[str] = None,
+    ):
+        super().__init__(
+            filename, binary=binary, base64_string=base64_string, suffix=".sqlite"
+        )
 
     @classmethod
     def example(cls):
@@ -281,6 +298,8 @@ class SQLiteFileStore(FileStore):
             c.execute("""CREATE TABLE stocks (date text)""")
             conn.commit()
 
+            return cls(f.name)
+
     def view(self):
         import subprocess
         import os
@@ -290,8 +309,25 @@ class SQLiteFileStore(FileStore):
 
 
 class HTMLFileStore(FileStore):
-    def __init__(self, filename):
-        super().__init__(filename, suffix=".html")
+
+    def __init__(
+        self,
+        filename,
+        binary: Optional[bool] = None,
+        suffix: Optional[str] = None,
+        base64_string: Optional[str] = None,
+    ):
+        super().__init__(
+            filename, binary=binary, base64_string=base64_string, suffix=".html"
+        )
+
+    @classmethod
+    def example(cls):
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
+            f.write("<html><body><h1>Test</h1></body></html>".encode())
+            return cls(f.name)
 
     def view(self):
         import webbrowser
