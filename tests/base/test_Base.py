@@ -16,6 +16,7 @@ class SaveLoadFail(Warning):
 
 class TestBaseModels:
     def test_register_subclasses_meta(self):
+
         for key, value in RegisterSubclassesMeta.get_registry().items():
             assert key in [
                 "Result",
@@ -30,6 +31,12 @@ class TestBaseModels:
                 "Cache",
                 "Notebook",
                 "ModelList",
+                "FileStore",
+                "HTMLFileStore",
+                "CSVFileStore",
+                "PDFFileStore",
+                "PNGFileStore",
+                "SQLiteFileStore",
             ]
 
         methods = [

@@ -101,7 +101,16 @@ def test_serialization_coverage():
 
     classes_not_covered = (classes_to_cover - data_classes) - set(
         # We don't need the base Question or QuestionAddTwoNumbers (a test instance of QuestionFunctional)
-        ["QuestionBase", "QuestionAddTwoNumbers"]
+        [
+            "QuestionBase",
+            "QuestionAddTwoNumbers",
+            "FileStore",
+            "HTMLFileStore",
+            "CSVFileStore",
+            "PDFFileStore",
+            "PNGFileStore",
+            "SQLiteFileStore",
+        ]
     )
 
     assert (

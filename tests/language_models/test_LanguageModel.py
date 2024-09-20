@@ -21,6 +21,19 @@ class TestLanguageModel(unittest.TestCase):
     def setUp(self):
         pass
 
+    def test_tokens(self):
+        import random
+
+        random_tpm = random.randint(0, 100)
+        random_tpm = random.randint(0, 100)
+        m = LanguageModel.example()
+        m.set_rate_limits(tpm=random_tpm, rpm=random_tpm)
+        self.assertEqual(m.tpm, random_tpm)
+        self.assertEqual(m.rpm, random_tpm)
+
+        m.rpm = 45
+        self.assertEqual(m.rpm, 45)
+
     def test_execute_model_call(self):
         from edsl.data.Cache import Cache
 
