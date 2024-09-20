@@ -7,8 +7,8 @@ EDSL comes with a variety of features for monitoring token usage.
 These include:
 
 * A method for setting the requests per minute (RPM) and tokens per minute (TPM) for a model that you are using.
-* Methods for turning off default prompt features to reduce token usage. 
 * Features for calculating next token probabilities.
+* Methods for turning off default prompt features to reduce token usage. 
 
 
 Token limits 
@@ -73,15 +73,14 @@ This will show the following information:
 
 .. code-block:: python
 
-    [100, 480000.0]
+    [100, 2000000]
 
 
 
 Modifying token limits
 ----------------------
 
-We can reset the default RPM and TPM and then check the new values.
-Note that the new RPM and TPM are automatically offset by 20% of the specified values to ensure that the model does not exceed the token limits:
+We can reset the default RPM and TPM and then check the new values:
 
 .. code-block:: python
 
@@ -94,7 +93,7 @@ This will show the following information:
 
 .. code-block:: python
 
-    [8.0, 8.0]
+    [10, 10]
 
 
 Here we change it again:
@@ -108,15 +107,20 @@ Here we change it again:
     [model.RPM, model.TPM]
 
 
-This will again show the specified values have been reset with a 20% offset:
+Output:
 
 .. code-block:: python
 
-    [80.0, 800.0]
+    [100, 1000]
 
 
 Please note that the token limits are subject to the constraints of the model and the API key associated with the model.
 Let us know if you have any questions or need further assistance with token limits. 
+
+
+
+Calculating next token probabilities
+------------------------------------
 
 
 Methods for reducing token usage 
