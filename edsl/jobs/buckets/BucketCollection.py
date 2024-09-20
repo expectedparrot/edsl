@@ -13,6 +13,8 @@ class BucketCollection(UserDict):
     def __init__(self, infinity_buckets=False):
         super().__init__()
         self.infinity_buckets = infinity_buckets
+        self.models_to_services = {}
+        self.services_to_buckets = {}
 
     def __repr__(self):
         return f"BucketCollection({self.data})"
@@ -21,6 +23,7 @@ class BucketCollection(UserDict):
         """Adds a model to the bucket collection.
 
         This will create the token and request buckets for the model."""
+
         # compute the TPS and RPS from the model
         if not self.infinity_buckets:
             TPS = model.TPM / 60.0
@@ -29,22 +32,28 @@ class BucketCollection(UserDict):
             TPS = float("inf")
             RPS = float("inf")
 
-        # create the buckets
-        requests_bucket = TokenBucket(
-            bucket_name=model.model,
-            bucket_type="requests",
-            capacity=RPS,
-            refill_rate=RPS,
-        )
-        tokens_bucket = TokenBucket(
-            bucket_name=model.model, bucket_type="tokens", capacity=TPS, refill_rate=TPS
-        )
-        model_buckets = ModelBuckets(requests_bucket, tokens_bucket)
-        if model in self:
-            # it if already exists, combine the buckets
-            self[model] += model_buckets
+        if model.model not in self.models_to_services:
+            service = model._inference_service_
+            if service not in self.services_to_buckets:
+                requests_bucket = TokenBucket(
+                    bucket_name=service,
+                    bucket_type="requests",
+                    capacity=RPS,
+                    refill_rate=RPS,
+                )
+                tokens_bucket = TokenBucket(
+                    bucket_name=service,
+                    bucket_type="tokens",
+                    capacity=TPS,
+                    refill_rate=TPS,
+                )
+                self.services_to_buckets[service] = ModelBuckets(
+                    requests_bucket, tokens_bucket
+                )
+            self.models_to_services[model.model] = service
+            self[model] = self.services_to_buckets[service]
         else:
-            self[model] = model_buckets
+            self[model] = self.services_to_buckets[self.models_to_services[model.model]]
 
     def visualize(self) -> dict:
         """Visualize the token and request buckets for each model."""
