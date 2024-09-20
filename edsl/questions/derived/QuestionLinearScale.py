@@ -22,6 +22,7 @@ class QuestionLinearScale(QuestionMultipleChoice):
         option_labels: Optional[dict[int, str]] = None,
         answering_instructions: Optional[str] = None,
         question_presentation: Optional[str] = None,
+        include_comment: Optional[bool] = True,
     ):
         """Instantiate a new QuestionLinearScale.
 
@@ -36,6 +37,7 @@ class QuestionLinearScale(QuestionMultipleChoice):
             question_text=question_text,
             question_options=question_options,
             use_code=False,  # question linear scale will have it's own code
+            include_comment=include_comment,
         )
         self.question_options = question_options
         self.option_labels = (
