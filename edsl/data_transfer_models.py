@@ -1,5 +1,7 @@
 from typing import NamedTuple, Dict, List, Optional, Any
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
+import reprlib
+
 
 
 class ModelInputs(NamedTuple):
@@ -54,77 +56,19 @@ class ImageInfo:
     file_size: int
     encoded_image: str
 
+    def __repr__(self):
+        reprlib_instance = reprlib.Repr()
+        reprlib_instance.maxstring = 30  # Limit the string length for the encoded image
 
-# from collections import UserDict
+        # Get all fields except encoded_image
+        field_reprs = [
+            f"{f.name}={getattr(self, f.name)!r}"
+            for f in fields(self)
+            if f.name != "encoded_image"
+        ]
 
+        # Add the reprlib-restricted encoded_image field
+        field_reprs.append(f"encoded_image={reprlib_instance.repr(self.encoded_image)}")
 
-# class AgentResponseDict(UserDict):
-#     """A dictionary to store the response of the agent to a question."""
-
-#     def __init__(
-#         self,
-#         *,
-#         question_name,
-#         answer,
-#         prompts,
-#         generated_tokens: str,
-#         usage=None,
-#         comment=None,
-#         cached_response=None,
-#         raw_model_response=None,
-#         simple_model_raw_response=None,
-#         cache_used=None,
-#         cache_key=None,
-#     ):
-#         """Initialize the AgentResponseDict object."""
-#         usage = usage or {"prompt_tokens": 0, "completion_tokens": 0}
-#         if generated_tokens is None:
-#             raise ValueError("generated_tokens must be provided")
-#         self.data = {
-#             "answer": answer,
-#             "comment": comment,
-#             "question_name": question_name,
-#             "prompts": prompts,
-#             "usage": usage,
-#             "cached_response": cached_response,
-#             "raw_model_response": raw_model_response,
-#             "simple_model_raw_response": simple_model_raw_response,
-#             "cache_used": cache_used,
-#             "cache_key": cache_key,
-#             "generated_tokens": generated_tokens,
-#         }
-
-#     @property
-#     def data(self):
-#         return self._data
-
-#     @data.setter
-#     def data(self, value):
-#         self._data = value
-
-#     def __getitem__(self, key):
-#         return self.data.get(key, None)
-
-#     def __setitem__(self, key, value):
-#         self.data[key] = value
-
-#     def __delitem__(self, key):
-#         del self.data[key]
-
-#     def __iter__(self):
-#         return iter(self.data)
-
-#     def __len__(self):
-#         return len(self.data)
-
-#     def keys(self):
-#         return self.data.keys()
-
-#     def values(self):
-#         return self.data.values()
-
-#     def items(self):
-#         return self.data.items()
-
-#     def is_this_same_model(self):
-#         return True
+        # Join everything to create the repr
+        return f"{self.__class__.__name__}({', '.join(field_reprs)})"
