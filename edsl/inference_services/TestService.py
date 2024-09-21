@@ -56,10 +56,14 @@ class TestService(InferenceServiceABC):
                     return "Hello, world"
 
             async def async_execute_model_call(
-                self, user_prompt: str, system_prompt: str
+                self,
+                user_prompt: str,
+                system_prompt: str,
+                encoded_image=None,
             ) -> dict[str, Any]:
                 await asyncio.sleep(0.1)
                 # return {"message": """{"answer": "Hello, world"}"""}
+
                 if hasattr(self, "throw_exception") and self.throw_exception:
                     if hasattr(self, "exception_probability"):
                         p = self.exception_probability
