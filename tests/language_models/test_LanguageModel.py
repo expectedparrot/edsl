@@ -79,6 +79,10 @@ class TestLanguageModel(unittest.TestCase):
             hashlib.md5(scenario["logo"].encoded_image.encode()).hexdigest()
         )
         assert image_hash in list(image_cache.data.values())[0]["user_prompt"]
+
+        # with no agent, should be empty
+        assert list(image_cache.data.values())[0]["system_prompt"] == ""
+
         # breakpoint()
 
         # self.assertEqual(m.image_hash, "hello")
