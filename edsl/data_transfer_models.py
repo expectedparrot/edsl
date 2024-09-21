@@ -1,6 +1,7 @@
 from typing import NamedTuple, Dict, List, Optional, Any
 from dataclasses import dataclass
 
+
 class ModelInputs(NamedTuple):
     "This is what was send by the agent to the model"
     user_prompt: str
@@ -52,6 +53,7 @@ class ImageInfo:
     image_format: str
     file_size: int
     encoded_image: str
+
 
 # from collections import UserDict
 
