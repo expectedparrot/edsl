@@ -52,7 +52,6 @@ import time
 
 
 class JobsRunnerStatus:
-
     def __init__(
         self,
         jobs_runner: "JobsRunnerAsyncio",

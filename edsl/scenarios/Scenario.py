@@ -236,7 +236,9 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         return cls({"url": url, field_name: text})
 
     @classmethod
-    def from_image(cls, image_path: str, image_name: Optional[str] = None) -> 'Scenario':
+    def from_image(
+        cls, image_path: str, image_name: Optional[str] = None
+    ) -> "Scenario":
         """
         Creates a scenario with a base64 encoding of an image.
 
@@ -489,7 +491,7 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         return table
 
     @classmethod
-    def example(cls, randomize: bool = False, has_image = False) -> Scenario:
+    def example(cls, randomize: bool = False, has_image=False) -> Scenario:
         """
         Returns an example Scenario instance.
 
