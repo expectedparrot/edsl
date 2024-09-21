@@ -299,7 +299,6 @@ class PromptConstructor:
             # This is used when the user is using the question_options as a variable from a sceario
             # if "question_options" in question_data:
             if isinstance(self.question.data.get("question_options", None), str):
-
                 env = Environment()
                 parsed_content = env.parse(self.question.data["question_options"])
                 question_option_key = list(
