@@ -465,12 +465,13 @@ class LanguageModel(
         if encoded_image:
             # the image has is appended to the user_prompt for hash-lookup purposes
             image_hash = hashlib.md5(encoded_image.encode()).hexdigest()
+            user_prompt += f" {image_hash}"
 
         cache_call_params = {
             "model": str(self.model),
             "parameters": self.parameters,
             "system_prompt": system_prompt,
-            "user_prompt": user_prompt + "" if not encoded_image else f" {image_hash}",
+            "user_prompt": user_prompt,
             "iteration": iteration,
         }
         cached_response, cache_key = cache.fetch(**cache_call_params)

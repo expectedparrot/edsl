@@ -220,6 +220,11 @@ class PromptConstructor:
 
         """
         if not hasattr(self, "_agent_persona_prompt"):
+            from edsl import Agent
+
+            if self.agent == Agent():  # if agent is empty, then return an empty prompt
+                return Prompt(text="")
+
             if not hasattr(self.agent, "agent_persona"):
                 applicable_prompts = prompt_lookup(
                     component_type="agent_persona",
