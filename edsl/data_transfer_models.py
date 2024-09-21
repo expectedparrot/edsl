@@ -3,6 +3,7 @@ from dataclasses import dataclass, fields
 import reprlib
 
 
+
 class ModelInputs(NamedTuple):
     "This is what was send by the agent to the model"
     user_prompt: str
