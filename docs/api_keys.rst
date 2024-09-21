@@ -42,7 +42,18 @@ Replace `your_key_here` with your actual API key for each service that you plan 
    DEEP_INFRA_API_KEY='your_key_here'
    GOOGLE_API_KEY='your_key_here'
    GROQ_API_KEY='your_key_here'
+   MISTRAL_API_KEY='your_key_here'
    OPENAI_API_KEY='your_key_here'
+   REPLICATE_API_KEY='your_key_here'
+
+
+AWS Bedrock requires multiple keys:
+
+.. code-block:: python
+
+   AWS_ACCESS_KEY_ID='your_key_here'
+   AWS_SECRET_ACCESS_KEY='your_key_here'
+   AZURE_ENDPOINT_URL_AND_KEY='your_key_here'
 
 
 Using a `.env file` allows you to store your keys once and avoid repeatedly enter your API keys each time you start a session with EDSL.
@@ -56,11 +67,14 @@ This method stores the keys in your system's memory only for the duration of the
 .. code-block:: python
 
    import os
+
    os.environ['ANTHROPIC_API_KEY'] = 'your_key_here'
    os.environ['DEEP_INFRA_API_KEY'] = 'your_key_here'
    os.environ['GOOGLE_API_KEY'] = 'your_key_here'
    os.environ['GROQ_API_KEY'] = 'your_key_here'
+   os.environ['MISTRAL_API_KEY'] = 'your_key_here'
    os.environ['OPENAI_API_KEY'] = 'your_key_here'
+   os.environ['REPLICATE_API_KEY'] = 'your_key_here'
 
 
 Remember, if you restart your session, you will need to re-enter your API keys.
@@ -69,42 +83,47 @@ It is also important to remove your API keys from your code before sharing it wi
 
 Caution
 ~~~~~~~
+
 Treat your API keys as sensitive information, akin to passwords. 
 Never share them publicly or upload files containing your API keys to public repositories.
 
 
 Troubleshooting
 ~~~~~~~~~~~~~~~
+
 In addition to API keys, you must also have credits available on your account with a language model provider in order to run surveys with some models.
 
-If you do not specify a model to use for a survey, EDSL will attempt to run it with the default model; currently, this is GPT 4 Preview.
+If you do not specify a model to use for a survey, EDSL will attempt to run it with the default model.
 In practice, this means that the following sets of commands are equivalent:
 
 *Version 1*:
 
 .. code-block:: python
 
-   results = survey.run()
+   from edsl import Survey 
+
+   results = Survey.example().run()
 
 
-*Version 1*:
-
-.. code-block:: python
-
-   from edsl import Model 
-
-   results = survey.by(Model('gpt-4-1106-preview')).run()
-
-
-*Version 1*:
+*Version 2*:
 
 .. code-block:: python
 
-   from edsl import Model 
+   from edsl import Survey, Model 
 
-   model = Model('gpt-4-1106-preview')
+   results = Survey.example().by(Model()).run() 
 
-   results = survey.by(model).run()
+
+*Version 3*:
+
+.. code-block:: python
+
+   from edsl import Survey, Model 
+
+   s = Survey.example()
+   m = Model()
+
+   results = s.by(m).run()
 
 
 If you have not provided an API key for the default model you will receive an error message about an exception.
