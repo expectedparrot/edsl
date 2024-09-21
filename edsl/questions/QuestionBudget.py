@@ -31,7 +31,6 @@ class BudgewResponseValidator(ResponseValidatorABC):
 def create_budget_model(
     budget_sum: float, permissive: bool, question_options: List[str]
 ):
-
     class BudgetResponse(BaseModel):
         answer: List[float] = Field(
             ...,

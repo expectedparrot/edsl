@@ -105,9 +105,9 @@ class Interview(InterviewStatusMixin):
         self.debug = debug
         self.iteration = iteration
         self.cache = cache
-        self.answers: dict[str, str] = (
-            Answers()
-        )  # will get filled in as interview progresses
+        self.answers: dict[
+            str, str
+        ] = Answers()  # will get filled in as interview progresses
         self.sidecar_model = sidecar_model
 
         # self.stop_on_exception = False
@@ -418,11 +418,11 @@ class Interview(InterviewStatusMixin):
         """
         current_question_index: int = self.to_index[current_question.question_name]
 
-        next_question: Union[int, EndOfSurvey] = (
-            self.survey.rule_collection.next_question(
-                q_now=current_question_index,
-                answers=self.answers | self.scenario | self.agent["traits"],
-            )
+        next_question: Union[
+            int, EndOfSurvey
+        ] = self.survey.rule_collection.next_question(
+            q_now=current_question_index,
+            answers=self.answers | self.scenario | self.agent["traits"],
         )
 
         next_question_index = next_question.next_q

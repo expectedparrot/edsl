@@ -275,7 +275,6 @@ class PNGFileStore(FileStore):
 
 
 class SQLiteFileStore(FileStore):
-
     def __init__(
         self,
         filename,
@@ -309,7 +308,6 @@ class SQLiteFileStore(FileStore):
 
 
 class HTMLFileStore(FileStore):
-
     def __init__(
         self,
         filename,
