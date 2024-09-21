@@ -172,18 +172,18 @@ Information about additional functionality for developers.
    :hidden:
 
    notebooks/edsl_intro.ipynb
+   notebooks/edsl_components.ipynb
    notebooks/data_labeling_example.ipynb
+   notebooks/data_cleaning.ipynb
+   notebooks/scenario_from_pdf.ipynb
    notebooks/image_scenario_example.ipynb
    notebooks/question_loop_scenario.ipynb
    notebooks/scenario_list_wikipedia.ipynb
-   notebooks/scenario_from_pdf.ipynb
    notebooks/batching_results.ipynb
    notebooks/adding_metadata.ipynb
    notebooks/example_agent_dynamic_traits.ipynb
    notebooks/research_methods.ipynb
-   notebooks/edsl_components.ipynb
    notebooks/question_extract_example.ipynb
-   notebooks/data_cleaning.ipynb
 
 .. toctree::
    :maxdepth: 2
@@ -191,18 +191,18 @@ Information about additional functionality for developers.
    :hidden:
 
    notebooks/next_token_probs.ipynb
-   notebooks/scenariolist_unpivot.ipynb
-   notebooks/nps_survey.ipynb
    notebooks/agentifying_responses.ipynb
    notebooks/summarizing_transcripts.ipynb
-   notebooks/data_labeling_agent.ipynb
+   notebooks/analyze_evaluations.ipynb
+   notebooks/concept_induction.ipynb
    notebooks/conduct_interview.ipynb
    notebooks/qualitative_research.ipynb
+   notebooks/nps_survey.ipynb
+   notebooks/data_labeling_agent.ipynb
+   notebooks/scenariolist_unpivot.ipynb
    notebooks/random_numbers.ipynb
-   notebooks/concept_induction.ipynb
    notebooks/testing_training_data.ipynb
    notebooks/comparing_model_responses.ipynb
-   notebooks/analyze_evaluations.ipynb
    notebooks/evaluating_job_posts.ipynb
    notebooks/explore_llm_biases.ipynb
    notebooks/research_random_silicon_sampling.ipynb
