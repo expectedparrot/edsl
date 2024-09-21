@@ -51,13 +51,14 @@ class QuestionLinearScale(QuestionMultipleChoice):
     ################
     @classmethod
     @inject_exception
-    def example(cls) -> QuestionLinearScale:
+    def example(cls, include_comment: bool = True) -> QuestionLinearScale:
         """Return an example of a linear scale question."""
         return cls(
             question_text="How much do you like ice cream?",
             question_options=[1, 2, 3, 4, 5],
             question_name="ice_cream",
             option_labels={1: "I hate it", 5: "I love it"},
+            include_comment=include_comment,
         )
 
 
