@@ -37,14 +37,51 @@ class TestLanguageModel(unittest.TestCase):
     def test_execute_model_call(self):
         from edsl.data.Cache import Cache
 
+        example_cache = Cache()
+
         m = LanguageModel.example(test_model=True, canned_response="Hello, world!")
         imco = m._get_intended_model_call_outcome(
             user_prompt="Hello world",
             system_prompt="You are a helpful agent",
-            cache=Cache(),
+            cache=example_cache,
         )
         self.assertEqual(imco.response["message"][0]["text"], "Hello, world!")
         self.assertEqual(imco.cached_response, None)
+
+        self.assertEqual(len(example_cache), 1)
+
+        self.assertEqual(
+            list(example_cache.data.values())[0]["user_prompt"], "Hello world"
+        )
+
+        imco = m._get_intended_model_call_outcome(
+            user_prompt="Hello world",
+            system_prompt="You are a helpful agent",
+            cache=example_cache,
+        )
+
+        self.assertEqual(len(example_cache), 1)
+
+    def test_image_hash_append(self):
+        m = LanguageModel.example(test_model=True, canned_response="oh, a picture!")
+        from edsl import Scenario, QuestionFreeText, Cache
+
+        image_cache = Cache()
+        scenario = Scenario.example(has_image=True)
+        q = QuestionFreeText(
+            question_text="What is this image {{ logo }} about?",
+            question_name="example_question",
+        )
+        results = q.by(m).by(scenario).run(cache=image_cache)
+        import hashlib
+
+        image_hash = str(
+            hashlib.md5(scenario["logo"].encoded_image.encode()).hexdigest()
+        )
+        assert image_hash in list(image_cache.data.values())[0]["user_prompt"]
+        # breakpoint()
+
+        # self.assertEqual(m.image_hash, "hello")
 
     # def test_get_response(self):
     #     from edsl.data.Cache import Cache
