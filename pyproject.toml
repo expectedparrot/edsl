@@ -47,6 +47,7 @@ azure-ai-inference = "^1.0.0b3"
 openpyxl = "^3.1.5"
 json-repair = "^0.28.4"
 mistralai = "^1.0.2"
+urllib3 = ">=1.25.4,<1.27"
 
 [tool.poetry.dependencies.black]
 extras = ["jupyter"]
