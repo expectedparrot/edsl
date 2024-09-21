@@ -179,7 +179,6 @@ Information about additional functionality for developers.
    notebooks/scenario_from_pdf.ipynb
    notebooks/batching_results.ipynb
    notebooks/adding_metadata.ipynb
-   notebooks/survey_memories.ipynb
    notebooks/example_agent_dynamic_traits.ipynb
    notebooks/research_methods.ipynb
    notebooks/edsl_components.ipynb
@@ -211,6 +210,7 @@ Information about additional functionality for developers.
    notebooks/free_responses.ipynb
    notebooks/digital_twin.ipynb
    notebooks/writing_style.ipynb
+   notebooks/google_form_to_edsl.ipynb
    notebooks/edsl_polling.ipynb
    notebooks/ces_data_edsl.ipynb
 
