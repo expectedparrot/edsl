@@ -120,7 +120,6 @@ def fetch_and_save_pdf(url, filename):
 
 
 class ScenarioListPdfMixin:
-
     @classmethod
     def from_pdf(cls, filename_or_url, collapse_pages=False):
         # Check if the input is a URL

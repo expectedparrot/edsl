@@ -82,7 +82,9 @@ class ResultsSerializationCases(SerializationBase):
     def test_simple_survey(self):
         s = Survey.example()
         s = self.configure_agents_and_models(s)
-        result = s.run(cache=False, print_exceptions=False)
+        result = s.run(
+            cache=False, print_exceptions=False, disable_remote_inference=True
+        )
         return result
 
     def test_all_questions_survey(self):
@@ -95,7 +97,9 @@ class ResultsSerializationCases(SerializationBase):
         questions = [q.example() for q in all_question_types]
         s = Survey(questions=questions)
         s = self.configure_agents_and_models(s)
-        result = s.run(cache=False, print_exceptions=False)
+        result = s.run(
+            cache=False, print_exceptions=False, disable_remote_inference=True
+        )
         return result
 
     def test_scenario_survey(self):
@@ -141,7 +145,9 @@ class ResultsSerializationCases(SerializationBase):
         ]
         s = Survey(questions=questions).by(scenarios)
         s = self.configure_agents_and_models(s)
-        result = s.run(cache=False, print_exceptions=False)
+        result = s.run(
+            cache=False, print_exceptions=False, disable_remote_inference=True
+        )
         return result
 
     def test_skip_logic_survey(self):
@@ -185,5 +191,7 @@ class ResultsSerializationCases(SerializationBase):
         s = s.set_lagged_memory(2)
         s = s.add_memory_collection(q_birds_tk, [q_color_mc])
         s = self.configure_agents_and_models(s)
-        result = s.run(cache=False, print_exceptions=False)
+        result = s.run(
+            cache=False, print_exceptions=False, disable_remote_inference=True
+        )
         return result
