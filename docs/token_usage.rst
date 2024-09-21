@@ -241,6 +241,8 @@ Here we also pass the parameter `include_comment = False`:
 
 Output:
 
+.. code-block:: text
+
     ┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
     ┃ question_index    ┃ user_prompt                                                                                 ┃
     ┡━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
@@ -292,6 +294,8 @@ The prompts can also be inspected after the survey is run:
 
 
 Output:
+
+.. code-block:: text
 
     ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
     ┃ prompt                    ┃ generated_tokens           ┃ prompt                    ┃ generated_tokens           ┃
