@@ -3,48 +3,41 @@
 Coop
 ====
 
-.. raw:: html
-
-  The <a href="https://www.expectedparrot.com/explore">Coop</a> is a platform for creating, storing and sharing AI research. It is integrated with the EDSL library, allowing you to post, download and update objects directly from your workspace and at the web app.
-
-  <br><br>
-
-
-The Coop also provides access to features for running EDSL surveys and storing results remotely at the Expected Parrot server.
-Learn more about these features in the :ref:`remote_inference` and :ref:`remote_caching` sections.
+The `Coop <https://www.expectedparrot.com/explore>`_ is a platform for creating, storing and sharing LLM-based research. 
+It is integrated with the EDSL library, allowing you to post, download and update objects directly from your workspace and at the web app.
 
 
 How it works
 ------------
 
-.. raw:: html
+To use the Coop with EDSL, you need to:
 
-  <a href="https://www.expectedparrot.com/login">Create an account</a> to get access to the Coop API, which allows you to:
+1. `Create an account <https://www.expectedparrot.com/login>`_ at the Coop.
+2. Store your Expected Parrot API key in your `.env` file.
 
-  <br><br>
+*Your API key is used to authenticate your account and allow you to post content to the Coop.*
 
 
-- Post notebooks and EDSL objects at the Coop web app (surveys, agents, results, etc.) 
-- Choose the visibility of your content: *public*, *private* or *unlisted*
-- Share projects with your team
-- View and download public and shared content
-- Collaborate with other users by sharing code and examples
+This will allow you to:
 
-Choose whether to use EDSL locally or at the Expected Parrot server:
+* Post content to the Coop: surveys, agents, results, notebooks, files, etc.
+* Choose the visibility of your content: *public*, *private* or *unlisted*.
+* Explore, download and contribute to other users' shared content.
 
-- :ref:`remote_inference`: Run surveys on the Expected Parrot server to save time and resources, and avoid needing to manage your own API keys for language models.
-- :ref:`remote_caching`: Automatically store EDSL survey results on the Expected Parrot server to easily access and share them from anywhere. 
+
+Remote features
+---------------
+
+The Coop also provides access to features for working with EDSL remotely at the Expected Parrot server:
+
+- :ref:`remote_inference`: Run surveys at the Expected Parrot server to save time and resources, and avoid managing your own API keys for language models.
+- :ref:`remote_caching`: Automatically store EDSL survey results at the Expected Parrot server to easily access and share them from anywhere. 
 
 
 1. Create an account
 ^^^^^^^^^^^^^^^^^^^^
 
-.. raw:: html
-
-  Navigate to the Coop <a href="https://www.expectedparrot.com/login">login page</a> and select <b>Sign Up</b>.
-
-  <br><br>
-
+Navigate to the Coop `login page <https://www.expectedparrot.com/login>`_ and select **Sign up**.
 
 .. image:: static/coop_signup.png
   :alt: Create an account at the Coop
@@ -61,44 +54,16 @@ Create an account with your email address and a password, or log in with your Go
 If you create an account with your email address, verify it by clicking the link in the email that you receive.
 
 
-2. Complete your profile
-^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. raw:: html
-
-  Navigate to your <a href="https://www.expectedparrot.com/home/profile">Profile</a> page and choose a username:
-
-  <br><br>
-
-.. image:: static/coop_profile_username.png
-  :alt: Create a username at your profile
-  :align: center
-  :width: 500px
-
-
-.. raw:: html
-
-  <br><br>
-
-
-Your username will be associated with content that you post on the Coop.
-(You can change this at any time, and also post content anonymously.)
-
-
-3. Store your Expected Parrot API key
+2. Store your Expected Parrot API key
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. raw:: html
-
-  Go to the <a href="https://www.expectedparrot.com/home/api">Coop API</a> page of your account and copy your API key.
-
-  <br><br>
+Navigate to the `Coop API <https://www.expectedparrot.com/home/api>`_ page of your account and copy your API key.
 
 
 .. image:: static/coop_api_key.png
   :alt: Copy your Expected Parrot API key
   :align: center
-  :width: 300px
+  :width: 500px
   
 
 .. raw:: html
@@ -117,37 +82,59 @@ This will save your Expected Parrot API key as an environment variable that EDSL
 You can regenerate your key (and update your `.env` file) at any time.
 
 
-4. Create EDSL objects and notebooks
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Create notebooks and other objects in EDSL: `Agent`, `Question`, `Survey`, `Job`, `Results`, `Cache`, etc.
+3. Complete your profile
+^^^^^^^^^^^^^^^^^^^^^^^^
 
-See sections of the documentation for different object types for more information about creating objects in EDSL.
+Navigate to your `profile page <https://www.expectedparrot.com/home/profile>`_ and choose a username:
+
+.. image:: static/coop_profile_username.png
+  :alt: Create a username at your profile
+  :align: center
+  :width: 500px
 
 
-5. Post content to the Coop
+.. raw:: html
+
+  <br><br>
+
+
+Your username will be associated with content that you post on the Coop.
+You can change this at any time, and also post content anonymously.
+
+
+4. Post content to the Coop
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 Post objects to the Coop using the `edsl.coop` module and object methods.
+You can post files, notebooks and any EDSL objects - `Agent`, `Question`, `Survey`, `Job`, `Results`, `Cache`, etc. - directly from your workspace.
+You can set the visibility of an object when you post it to the Coop, or update it later from your workspace or the web app.
 
-See below for details and examples of methods for uploading, downloading, updating and deleting content on the Coop.
+For example:
+
+.. code-block:: python 
+
+  from edsl import QuestionMultipleChoice
+
+  q = QuestionMultipleChoice.example()
+
+  q.push(description="This is an example question", visibility="public")
 
 
-6. Choose the visibility of your content
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-You can set the visibility of an object when you post it to the Coop or update it later. 
-
-There are 3 options:
+There are 3 visibility options:
 
 * `public`: Visible to everyone 
 * `private`: Visible to logged in users that you have granted access
 * `unlisted`: Visible to anyone with the link but not listed in search results
 
 By default, objects are posted as *unlisted*.
-See below for details on setting and changing the visibility of an object.
+
+See below for details and more examples of methods for uploading, downloading, updating and deleting content on the Coop.
 
 
-7. Explore content
+5. Explore content
 ^^^^^^^^^^^^^^^^^^
-Search for other users' public or privately shared content by object type, keyword, author, topic, etc.
+
+Search other users' public or privately shared content by object type, keyword, author, topic, etc.
 Copy code and examples to modify or rerun them.
 
 *Note:* To access an unlisted object you must have the object `uuid` or URL.
@@ -182,7 +169,7 @@ Here we post a question object by calling the `push()` method on it:
 This will return information about the object that has been posted, including the URL for viewing it at the Coop web app and the `uuid` for the object which you can use to access it later.
 We can see that the object is `unlisted` by default:
 
-.. code-block:: text
+.. code-block:: python
 
   {'description': None,
   'object_type': 'question',
@@ -204,7 +191,7 @@ Here we post the same object with a description and visibility:
 
 We can see the description and visibility status that we specified in the information that is returned:
 
-.. code-block:: text
+.. code-block:: python
 
   {'description': 'This is an example question',
   'object_type': 'question',
@@ -250,6 +237,7 @@ There are 3 methods for updating/editing an object to the Coop:
 3. Calling the `patch()` method on a `Coop` client object  
 
 For each `patch()` method, pass the `uuid` of the object and the parameter(s) that you want to update: 
+
 * `description` 
 * `visibility`
 * `value`
@@ -322,7 +310,7 @@ Here we update the `description` and `visibility` of the question created and up
 
 This will return a status message:
 
-.. code-block:: text
+.. code-block:: python
 
   {'status': 'success'}
 
@@ -409,12 +397,12 @@ Here we download the question posted above by calling the `pull()` method on the
 
 This will return the object (the example free text question that replaced the example multiple choice question):
 
-.. code-block:: text
+.. code-block:: python
 
   {
-      "question_name": "how_are_you",
-      "question_text": "How are you?",
-      "question_type": "free_text"
+    "question_name": "how_are_you",
+    "question_text": "How are you?",
+    "question_type": "free_text"
   }
 
 
@@ -472,7 +460,7 @@ Here we delete the question object that we posted above by calling the `delete()
 
 This will return a status message:
 
-.. code-block:: text
+.. code-block:: python
 
   {'status': 'success'}
 
