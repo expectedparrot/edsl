@@ -75,7 +75,8 @@ class QuestionBase(
         if not hasattr(self, "_fake_data_factory"):
             from polyfactory.factories.pydantic_factory import ModelFactory
 
-            class FakeData(ModelFactory[self.response_model]): ...
+            class FakeData(ModelFactory[self.response_model]):
+                ...
 
             self._fake_data_factory = FakeData
         return self._fake_data_factory
@@ -477,12 +478,13 @@ class QuestionBase(
         if scenario is None:
             scenario = {}
 
-
         prior_answers_dict = {}
 
         if isinstance(answers, dict):
             for key, value in answers.items():
-                if not key.endswith("_comment") and not key.endswith("_generated_tokens"):
+                if not key.endswith("_comment") and not key.endswith(
+                    "_generated_tokens"
+                ):
                     prior_answers_dict[key] = {"answer": value}
 
         # breakpoint()
