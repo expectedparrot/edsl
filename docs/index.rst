@@ -156,8 +156,8 @@ Information about additional functionality for developers.
 
    coop
    notebooks
-   remote_caching
    remote_inference
+   remote_caching
 
 .. toctree::
    :maxdepth: 2
