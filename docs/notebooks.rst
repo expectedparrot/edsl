@@ -3,7 +3,7 @@
 Notebooks
 =========
 
-The `Notebook` object allows you to share your .ipynb files with others by uploading them to Coop.
+The `Notebook` object allows you to share your *.ipynb* files by uploading them to Coop.
 You can also view and pull notebooks that other users have uploaded.
 
 Creating a `Notebook` object
@@ -11,19 +11,22 @@ Creating a `Notebook` object
 
 There are three ways to create a `Notebook` object:
 
-1. From file
-^^^^^^^^^^^^
-Pass the path to your .ipynb file to the constructor (you must include `path` as a keyword argument):
+
+1. From a file
+^^^^^^^^^^^^^^
+
+Pass the path to your *.ipynb* file to the constructor (*note:* you must include `path` as a keyword argument):
 
 .. code-block:: python
 
     from edsl import Notebook
 
-    notebook = Notebook(path="notebooks/test-notebook.ipynb")
+    notebook = Notebook(path="notebooks/test-notebook.ipynb") # replace with your file path
 
 
 2. From data
 ^^^^^^^^^^^^
+
 Your data must be a Python `dict` that conforms to the official Jupyter notebook format. 
 Learn more about the format `here <https://nbformat.readthedocs.io/en/latest/format_description.html>`_.
 
@@ -49,6 +52,7 @@ Learn more about the format `here <https://nbformat.readthedocs.io/en/latest/for
 
 3. From self
 ^^^^^^^^^^^^
+
 To create a `Notebook` for a notebook that you are currently working in:
 
 .. code-block:: python
@@ -60,6 +64,7 @@ To create a `Notebook` for a notebook that you are currently working in:
 
 
 .. warning::
+
     For now, this method only works if you are using the VS Code IDE. 
 
     
@@ -93,7 +98,7 @@ Or alternatively using the `Coop` client object:
 
 This will return a message with information about the object that was posted, and you will be able to view your notebook at the Coop: `My Content  <https://www.expectedparrot.com/home/content/>`_.
 
-.. code-block:: text
+.. code-block:: python
 
   {'description': 'This is a test notebook',
   'object_type': 'notebook',
@@ -106,10 +111,10 @@ This will return a message with information about the object that was posted, an
 Saving a Coop notebook to file
 ------------------------------
 
-You can access notebooks that other users have posted publicly at the `Explore <https://www.expectedparrot.com/explore/explore/>`_ page.
+You can access notebooks that other users have posted publicly at the Coop `Explore <https://www.expectedparrot.com/explore/explore/>`_ page.
 
 Notebooks can be copied and downloaded the same way as other EDSL objects: by calling the `pull()` method on the `Notebook` class or the `get` method on a `Coop` client object and passing the notebook's `uuid`.
-We can also use the `to_file()` method to save the notebook to a file:
+You can also use the `to_file()` method to save the notebook to a file:
 
 .. code-block:: python
 
