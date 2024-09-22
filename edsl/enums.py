@@ -63,6 +63,7 @@ class InferenceServiceType(EnumWithChecks):
     AZURE = "azure"
     OLLAMA = "ollama"
     MISTRAL = "mistral"
+    TOGHETER = "togheter"
 
 
 service_to_api_keyname = {
@@ -76,6 +77,7 @@ service_to_api_keyname = {
     InferenceServiceType.GROQ.value: "GROQ_API_KEY",
     InferenceServiceType.BEDROCK.value: ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"],
     InferenceServiceType.MISTRAL.value: "MISTRAL_API_KEY",
+    InferenceServiceType.TOGHETER.value: "TOGHETER_API_KEY",
 }
 
 
