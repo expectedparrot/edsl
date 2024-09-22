@@ -1274,7 +1274,7 @@ Result class
 ------------
 
 .. automodule:: edsl.results.Result
-   :members: rich_print, 
+   :members:  
    :inherited-members:
    :exclude-members: 
    :undoc-members:
