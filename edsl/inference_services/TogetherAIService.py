@@ -166,6 +166,5 @@ class TogetherAIService(OpenAIService):
                     if m["id"] not in cls.model_exclude_list
                 ]
             except Exception as e:
-                print(e)
                 raise
         return cls._models_list_cache
