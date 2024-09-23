@@ -877,13 +877,13 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         │ 2         │ True        │ 3      │ -1       │ False       │
         └───────────┴─────────────┴────────┴──────────┴─────────────┘
         >>> Survey.example().clear_non_default_rules().show_rules()
-        ┏━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━┓
-        ┃ current_q ┃ expression  ┃ next_q ┃ priority ┃ before_rule ┃
-        ┡━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━┩
-        │ 0         │ True        │ 1      │ -1       │ False       │
-        │ 1         │ True        │ 2      │ -1       │ False       │
-        │ 2         │ True        │ 3      │ -1       │ False       │
-        └───────────┴─────────────┴────────┴──────────┴─────────────┘
+        ┏━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━┓
+        ┃ current_q ┃ expression ┃ next_q ┃ priority ┃ before_rule ┃
+        ┡━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━┩
+        │ 0         │ True       │ 1      │ -1       │ False       │
+        │ 1         │ True       │ 2      │ -1       │ False       │
+        │ 2         │ True       │ 3      │ -1       │ False       │
+        └───────────┴────────────┴────────┴──────────┴─────────────┘
         """
         s = Survey()
         for question in self.questions:
