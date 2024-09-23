@@ -12,6 +12,7 @@ from edsl.inference_services.AzureAI import AzureAIService
 from edsl.inference_services.OllamaService import OllamaService
 from edsl.inference_services.TestService import TestService
 from edsl.inference_services.MistralAIService import MistralAIService
+from edsl.inference_services.TogetherAIService import TogetherAIService
 
 default = InferenceServicesCollection(
     [
@@ -25,5 +26,6 @@ default = InferenceServicesCollection(
         OllamaService,
         TestService,
         MistralAIService,
+        TogetherAIService,
     ]
 )
