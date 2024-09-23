@@ -12,7 +12,7 @@ Help debugging
 
 If you would like help debugging an error that you are encountering, please feel free to share your code, objects and exceptions report with us.
 
-A simple way to do this is to post a notebook with your code to the :ref:`coop` and share the link with us at info@expectedparrot.com.
+An easy way to do this is to post a notebook with your code to the :ref:`coop` and share the link with us at info@expectedparrot.com.
 You can use the following code to generate a link to your notebook:
 
 .. code-block:: python

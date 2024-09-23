@@ -1272,8 +1272,9 @@ See the :ref:`exceptions` section for more information on exceptions.
 
 Result class
 ------------
+
 .. automodule:: edsl.results.Result
-   :members: rich_print, 
+   :members:  
    :inherited-members:
    :exclude-members: 
    :undoc-members:
@@ -1281,6 +1282,7 @@ Result class
 
 Results class
 -------------
+
 .. automodule:: edsl.results.Results
    :members:
    :inherited-members:

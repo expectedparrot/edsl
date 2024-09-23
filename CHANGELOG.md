@@ -47,6 +47,8 @@
 ### Changed
 - Improvements to exceptions reports. 
 
+- Improvements to the progress bar: `survey.run(progress_bar=True)`
+
 - Question validation methods no longer use JSON. This will eliminate exceptions relating to JSON errors previously common to certain models.
 
 - Base agent instructions template is not added to a job if no agent is used with a survey (reducing tokens).
