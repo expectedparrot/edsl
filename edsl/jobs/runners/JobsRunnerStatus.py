@@ -466,6 +466,15 @@ class EnhancedJobsRunnerStatus:
                     f"  Completed",
                     str(getattr(bucket, bucket_type).num_released),
                 )
+                if bucket_type == "tokens_bucket":
+                    rate_name = "TPM"
+                else:
+                    rate_name = "RPM"
+                target_rate = getattr(bucket, bucket_type).target_rate
+                table.add_row(
+                    f"  Empirical {rate_name} (target = {target_rate})",
+                    str(round(getattr(bucket, bucket_type).get_throughput(), 0)),
+                )
 
             # table.add_row("Bucket", str(bucket.tokens))
 
