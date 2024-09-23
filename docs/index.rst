@@ -158,6 +158,7 @@ Information about additional functionality for developers.
    notebooks
    remote_inference
    remote_caching
+   filestore
 
 .. toctree::
    :maxdepth: 2

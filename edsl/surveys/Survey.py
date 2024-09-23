@@ -866,6 +866,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
     def clear_non_default_rules(self) -> Survey:
         """Remove all non-default rules from the survey.
+
         >>> Survey.example().show_rules()
         ┏━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━┓
         ┃ current_q ┃ expression  ┃ next_q ┃ priority ┃ before_rule ┃
