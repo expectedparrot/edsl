@@ -274,6 +274,7 @@ class JobsRunnerAsyncio:
 
         return results
 
+    # @jupyter_nb_handler
     def run(
         self,
         cache: Union[Cache, False, None],
@@ -296,6 +297,7 @@ class JobsRunnerAsyncio:
         # Event to stop threads gracefully
         stop_event = threading.Event()
 
+        # @jupyter_nb_handler
         async def async_run_wrapper():
             try:
                 await self._async_run(

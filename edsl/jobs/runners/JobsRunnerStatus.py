@@ -448,29 +448,32 @@ class EnhancedJobsRunnerStatus:
         table.add_column("Value", style="magenta")
         # table.add_row("Bucket collection", str(self.jobs_runner.bucket_collection))
         for model, bucket in self.jobs_runner.bucket_collection.items():
-            # for token_bucket in bucket:
-            # for token_bucket in bucket.buckets:
             table.add_row(Text(model.model, style="bold blue"), "")
             bucket_types = ["requests_bucket", "tokens_bucket"]
             for bucket_type in bucket_types:
                 table.add_row(Text(" " + bucket_type, style="green"), "")
+                # table.add_row(
+                #     f"  Current level (capacity = {round(getattr(bucket, bucket_type).capacity, 3)})",
+                #     str(round(getattr(bucket, bucket_type).tokens, 3)),
+                # )
+                num_requests = getattr(bucket, bucket_type).num_requests
+                num_released = getattr(bucket, bucket_type).num_released
+                # table.add_row(
+                #     f"  Requested",
+                #     str(num_requests),
+                # )
+                # table.add_row(
+                #     f"  Completed",
+                #     str(num_released),
+                # )
                 table.add_row(
-                    f"  Current level (capacity = {round(getattr(bucket, bucket_type).capacity, 3)})",
-                    str(round(getattr(bucket, bucket_type).tokens, 3)),
-                )
-                table.add_row(
-                    f"  Requested",
-                    str(getattr(bucket, bucket_type).num_requests),
-                )
-                table.add_row(
-                    f"  Completed",
-                    str(getattr(bucket, bucket_type).num_released),
+                    "  Completed vs. Requested", f"{num_released} vs. {num_requests}"
                 )
                 if bucket_type == "tokens_bucket":
                     rate_name = "TPM"
                 else:
                     rate_name = "RPM"
-                target_rate = getattr(bucket, bucket_type).target_rate
+                target_rate = round(getattr(bucket, bucket_type).target_rate, 1)
                 table.add_row(
                     f"  Empirical {rate_name} (target = {target_rate})",
                     str(round(getattr(bucket, bucket_type).get_throughput(), 0)),
@@ -522,6 +525,14 @@ class EnhancedJobsRunnerStatus:
             )
             task_ids.append((model, task_id))
 
+        # Adjust these heights to sum around 10
+        progress_height = min(
+            5, 2 + len(self.distinct_models)
+        )  # Progress height based on the number of models
+        # bottom_height = (
+        #     10 - progress_height
+        # )  # Bottom height to balance to a total of 10 lines
+
         layout = Layout()
 
         # Create the top row with only the progress panel
@@ -534,10 +545,9 @@ class EnhancedJobsRunnerStatus:
                     box=box.ROUNDED,
                 ),
                 name="progress",
-                size=2
-                + len(self.distinct_models),  # Set the height to the number of models
+                size=progress_height,  # Adjusted size
             ),
-            Layout(name="bottom_row"),
+            Layout(name="bottom_row"),  # Adjusted size
         )
 
         # Split the bottom row into two columns for metrics and model queues
@@ -584,7 +594,9 @@ class EnhancedJobsRunnerStatus:
     def update_progress(self):
         layout, progress, task_ids = self.generate_layout()
 
-        with Live(layout, refresh_per_second=int(1 / self.refresh_rate)) as live:
+        with Live(
+            layout, refresh_per_second=int(1 / self.refresh_rate), transient=True
+        ) as live:
             while len(self.completed_interviews) < len(
                 self.jobs_runner.total_interviews
             ):
@@ -618,30 +630,30 @@ class EnhancedJobsRunnerStatus:
 
                 time.sleep(self.refresh_rate)
 
-            # # Final update
-            # for model, task_id in task_ids:
-            #     completed_tasks = len(self.completed_interview_by_model[model])
-            #     progress.update(
-            #         task_id,
-            #         completed=completed_tasks,
-            #         description=f"[cyan]Conducting interviews for {model}...",
-            #     )
+            # Final update
+            for model, task_id in task_ids:
+                completed_tasks = len(self.completed_interview_by_model[model])
+                progress.update(
+                    task_id,
+                    completed=completed_tasks,
+                    description=f"[cyan]Conducting interviews for {model}...",
+                )
 
-            # # progress.update(
-            # #     task_id,
-            # #     completed=total_tasks,
-            # #     description=f"[cyan]Interviews completed ({total_tasks}/{total_tasks})",
-            # # )
-            # layout["metrics"].update(
-            #     Panel(
-            #         self.generate_metrics_table(),
-            #         title="Final Metrics",
-            #         border_style="magenta",
-            #         box=box.ROUNDED,
-            #     )
+            # progress.update(
+            #     task_id,
+            #     completed=total_tasks,
+            #     description=f"[cyan]Interviews completed ({total_tasks}/{total_tasks})",
             # )
-            # live.update(layout)
-            # time.sleep(1)  # Show final state for 1 second
+            layout["metrics"].update(
+                Panel(
+                    self.generate_metrics_table(),
+                    title="Final Metrics",
+                    border_style="magenta",
+                    box=box.ROUNDED,
+                )
+            )
+            live.update(layout)
+            time.sleep(1)  # Show final state for 1 second
 
 
 if __name__ == "__main__":
