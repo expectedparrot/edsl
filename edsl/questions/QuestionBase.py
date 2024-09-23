@@ -477,12 +477,13 @@ class QuestionBase(
         if scenario is None:
             scenario = {}
 
-
         prior_answers_dict = {}
 
         if isinstance(answers, dict):
             for key, value in answers.items():
-                if not key.endswith("_comment") and not key.endswith("_generated_tokens"):
+                if not key.endswith("_comment") and not key.endswith(
+                    "_generated_tokens"
+                ):
                     prior_answers_dict[key] = {"answer": value}
 
         # breakpoint()
@@ -510,15 +511,30 @@ class QuestionBase(
             "scenario": scenario,
             "agent": agent,
         } | prior_answers_dict
-        question_text = Template(self.question_text).render(context)
-        # breakpoint()
+
+        # Render the question text
+        try:
+            question_text = Template(self.question_text).render(context)
+        except Exception as e:
+            print(
+                f"Error rendering question: question_text = {self.question_text}, error = {e}"
+            )
+            question_text = self.question_text
+
+        try:
+            question_content = Template(question_content).render(context)
+        except Exception as e:
+            print(
+                f"Error rendering question: question_content = {question_content}, error = {e}"
+            )
+            question_content = question_content
 
         try:
             params = {
                 "question_name": self.question_name,
                 "question_text": question_text,
                 "question_type": self.question_type,
-                "question_content": Template(question_content).render(scenario),
+                "question_content": question_content,
                 "include_question_name": include_question_name,
             }
         except Exception as e:
