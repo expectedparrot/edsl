@@ -319,7 +319,7 @@ class JobsRunnerAsyncio:
         main_thread = threading.Thread(target=run_async_task)
 
         def progress_update_task():
-            while not stop_event.is_set():
+            while not stop_event.is_set() and not self.completed:
                 self.jobs_runner_status.update_progress()
                 time.sleep(0.1)  # Adjust interval as needed
 
@@ -327,6 +327,7 @@ class JobsRunnerAsyncio:
         main_thread.start()
 
         # Start progress bar thread, if enabled
+        progress_thread = None
         if progress_bar:
             progress_thread = threading.Thread(target=progress_update_task)
             progress_thread.start()
@@ -341,6 +342,10 @@ class JobsRunnerAsyncio:
             main_thread.join()
             if progress_bar:
                 progress_thread.join()
+
+        stop_event.set()
+        if progress_thread:
+            progress_thread.join()
 
         return self.process_results(self.results, cache)
 

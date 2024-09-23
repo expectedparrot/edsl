@@ -609,22 +609,30 @@ class EnhancedJobsRunnerStatus:
 
                 time.sleep(self.refresh_rate)
 
-            # Final update
-            progress.update(
-                task_id,
-                completed=total_tasks,
-                description=f"[cyan]Interviews completed ({total_tasks}/{total_tasks})",
-            )
-            layout["metrics"].update(
-                Panel(
-                    self.generate_metrics_table(),
-                    title="Final Metrics",
-                    border_style="magenta",
-                    box=box.ROUNDED,
-                )
-            )
-            live.update(layout)
-            time.sleep(1)  # Show final state for 1 second
+            # # Final update
+            # for model, task_id in task_ids:
+            #     completed_tasks = len(self.completed_interview_by_model[model])
+            #     progress.update(
+            #         task_id,
+            #         completed=completed_tasks,
+            #         description=f"[cyan]Conducting interviews for {model}...",
+            #     )
+
+            # # progress.update(
+            # #     task_id,
+            # #     completed=total_tasks,
+            # #     description=f"[cyan]Interviews completed ({total_tasks}/{total_tasks})",
+            # # )
+            # layout["metrics"].update(
+            #     Panel(
+            #         self.generate_metrics_table(),
+            #         title="Final Metrics",
+            #         border_style="magenta",
+            #         box=box.ROUNDED,
+            #     )
+            # )
+            # live.update(layout)
+            # time.sleep(1)  # Show final state for 1 second
 
 
 if __name__ == "__main__":
