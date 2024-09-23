@@ -126,6 +126,7 @@ def test_wide_format():
         csv=True,
         remove_prefix=False,
     )
+    output_string = 'answer.how_feeling\nOK\nGreat\nOK\nTerrible\n'
     output_string = "answer.how_feeling\nOK\nGreat\nTerrible\nOK\n"
     assert sql_results == output_string
 

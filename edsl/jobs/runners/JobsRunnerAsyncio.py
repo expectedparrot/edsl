@@ -80,7 +80,7 @@ class JobsRunnerAsyncio:
             self.total_interviews = list(self._populate_total_interviews(n=n))
             import random
 
-            random.shuffle(self.total_interviews)
+            # random.shuffle(self.total_interviews)
 
         tasks = []
         for interview in self.total_interviews:
@@ -115,6 +115,7 @@ class JobsRunnerAsyncio:
     async def run_async(self, cache: Optional["Cache"] = None, n: int = 1) -> Results:
         self.cache = Cache() if cache is None else cache
         data = []
+        self.jobs_runner_status = JobsRunnerStatus(self, n=n)
         async for result in self.run_async_generator(cache=self.cache, n=n):
             data.append(result)
         return Results(survey=self.jobs.survey, data=data)
@@ -220,7 +221,9 @@ class JobsRunnerAsyncio:
     def elapsed_time(self):
         return time.monotonic() - self.start_time
 
-    def process_results(self, raw_results: Results, cache: Cache):
+    def process_results(
+        self, raw_results: Results, cache: Cache, print_exceptions: bool
+    ):
         interview_lookup = {
             hash(interview): index
             for index, interview in enumerate(self.total_interviews)
@@ -240,7 +243,7 @@ class JobsRunnerAsyncio:
         results.has_unfixed_exceptions = results.task_history.has_unfixed_exceptions
         results.bucket_collection = self.bucket_collection
 
-        if results.has_unfixed_exceptions:
+        if results.has_unfixed_exceptions and print_exceptions:
             from edsl.scenarios.FileStore import HTMLFileStore
             from edsl.config import CONFIG
             from edsl.coop.coop import Coop
@@ -310,8 +313,6 @@ class JobsRunnerAsyncio:
             except asyncio.CancelledError:
                 print("Async tasks cancelled")
             except Exception as e:
-                if print_exceptions:
-                    print(f"Exception in async task: {e}")
                 if stop_on_exception:
                     stop_event.set()  # Signal to stop everything
 
@@ -349,7 +350,7 @@ class JobsRunnerAsyncio:
         if progress_thread:
             progress_thread.join()
 
-        return self.process_results(self.results, cache)
+        return self.process_results(self.results, cache, print_exceptions)
 
     # @jupyter_nb_handler
     # def run(
