@@ -105,6 +105,7 @@ class JobsRunnerAsyncio:
                     yield interview
 
     async def run_async(self, cache: Optional["Cache"] = None, n: int = 1) -> Results:
+        self.jobs_runner_status = JobsRunnerStatus(self, n=n)
         self.cache = Cache() if cache is None else cache
         data = []
         async for result in self.run_async_generator(cache=self.cache, n=n):
