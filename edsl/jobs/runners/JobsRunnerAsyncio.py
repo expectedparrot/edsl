@@ -37,7 +37,6 @@ class JobsRunnerAsyncio:
 
     def __init__(self, jobs: "Jobs"):
         self.jobs = jobs
-        # this creates the interviews, which can take a while
         self.interviews: List["Interview"] = jobs.interviews()
         self.bucket_collection: "BucketCollection" = jobs.bucket_collection
         self.total_interviews: List["Interview"] = []
@@ -167,19 +166,19 @@ class JobsRunnerAsyncio:
 
         prompt_dictionary = {}
         for answer_key_name in answer_key_names:
-            prompt_dictionary[
-                answer_key_name + "_user_prompt"
-            ] = question_name_to_prompts[answer_key_name]["user_prompt"]
-            prompt_dictionary[
-                answer_key_name + "_system_prompt"
-            ] = question_name_to_prompts[answer_key_name]["system_prompt"]
+            prompt_dictionary[answer_key_name + "_user_prompt"] = (
+                question_name_to_prompts[answer_key_name]["user_prompt"]
+            )
+            prompt_dictionary[answer_key_name + "_system_prompt"] = (
+                question_name_to_prompts[answer_key_name]["system_prompt"]
+            )
 
         raw_model_results_dictionary = {}
         for result in valid_results:
             question_name = result.question_name
-            raw_model_results_dictionary[
-                question_name + "_raw_model_response"
-            ] = result.raw_model_response
+            raw_model_results_dictionary[question_name + "_raw_model_response"] = (
+                result.raw_model_response
+            )
             raw_model_results_dictionary[question_name + "_cost"] = result.cost
             one_use_buys = (
                 "NA"
@@ -209,6 +208,62 @@ class JobsRunnerAsyncio:
     @property
     def elapsed_time(self):
         return time.monotonic() - self.start_time
+
+    def process_results(
+        self, raw_results: Results, cache: Cache, print_exceptions: bool
+    ):
+        interview_lookup = {
+            hash(interview): index
+            for index, interview in enumerate(self.total_interviews)
+        }
+        interview_hashes = list(interview_lookup.keys())
+
+        results = Results(
+            survey=self.jobs.survey,
+            data=sorted(
+                raw_results, key=lambda x: interview_hashes.index(x.interview_hash)
+            ),
+        )
+        results.cache = cache
+        results.task_history = TaskHistory(
+            self.total_interviews, include_traceback=False
+        )
+        results.has_unfixed_exceptions = results.task_history.has_unfixed_exceptions
+        results.bucket_collection = self.bucket_collection
+
+        if results.has_unfixed_exceptions and print_exceptions:
+            from edsl.scenarios.FileStore import HTMLFileStore
+            from edsl.config import CONFIG
+            from edsl.coop.coop import Coop
+
+            msg = f"Exceptions were raised in {len(results.task_history.indices)} out of {len(self.total_interviews)} interviews.\n"
+
+            if len(results.task_history.indices) > 5:
+                msg += f"Exceptions were raised in the following interviews: {results.task_history.indices}.\n"
+
+            print(msg)
+            # this is where exceptions are opening up
+            filepath = results.task_history.html(
+                cta="Open report to see details.",
+                open_in_browser=True,
+                return_link=True,
+            )
+
+            try:
+                coop = Coop()
+                user_edsl_settings = coop.edsl_settings
+                remote_logging = user_edsl_settings["remote_logging"]
+            except Exception as e:
+                print(e)
+                remote_logging = False
+            if remote_logging:
+                filestore = HTMLFileStore(filepath)
+                coop_details = filestore.push(description="Error report")
+                print(coop_details)
+
+            print("Also see: https://docs.expectedparrot.com/en/latest/exceptions.html")
+
+        return results
 
     @jupyter_nb_handler
     async def run(
@@ -298,80 +353,6 @@ class JobsRunnerAsyncio:
                     if progress_bar_context:
                         progress_bar_context.update(generate_table())
 
-        # puts results in the same order as the total interviews
-        interview_lookup = {
-            hash(interview): index
-            for index, interview in enumerate(self.total_interviews)
-        }
-        interview_hashes = list(interview_lookup.keys())
-        self.results = sorted(
-            self.results, key=lambda x: interview_hashes.index(x.interview_hash)
+        return self.process_results(
+            raw_results=self.results, cache=cache, print_exceptions=print_exceptions
         )
-
-        results = Results(survey=self.jobs.survey, data=self.results)
-        task_history = TaskHistory(self.total_interviews, include_traceback=False)
-        results.task_history = task_history
-
-        results.failed_questions = {}
-        results.has_unfixed_exceptions = task_history.has_unfixed_exceptions
-
-        results.bucket_collection = self.bucket_collection
-
-        if results.has_unfixed_exceptions:
-            failed_interviews = [
-                interview.duplicate(
-                    iteration=interview.iteration, cache=interview.cache
-                )
-                for interview in self.total_interviews
-                if interview.has_exceptions
-            ]
-
-            failed_questions = {}
-            for interview in self.total_interviews:
-                if interview.has_exceptions:
-                    index = interview_lookup[hash(interview)]
-                    failed_questions[index] = interview.failed_questions
-
-            results.failed_questions = failed_questions
-
-            from edsl.jobs.Jobs import Jobs
-
-            results.failed_jobs = Jobs.from_interviews(
-                [interview for interview in failed_interviews]
-            )
-            if print_exceptions:
-                from edsl.scenarios.FileStore import HTMLFileStore
-                from edsl.config import CONFIG
-                from edsl.coop.coop import Coop
-
-                msg = f"Exceptions were raised in {len(results.task_history.indices)} out of {len(self.total_interviews)} interviews.\n"
-
-                if len(results.task_history.indices) > 5:
-                    msg += f"Exceptions were raised in the following interviews: {results.task_history.indices}.\n"
-
-                shared_globals["edsl_runner_exceptions"] = task_history
-                print(msg)
-                # this is where exceptions are opening up
-                filepath = task_history.html(
-                    cta="Open report to see details.",
-                    open_in_browser=True,
-                    return_link=True,
-                )
-
-                try:
-                    coop = Coop()
-                    user_edsl_settings = coop.edsl_settings
-                    remote_logging = user_edsl_settings["remote_logging"]
-                except Exception as e:
-                    print(e)
-                    remote_logging = False
-                if remote_logging:
-                    filestore = HTMLFileStore(filepath)
-                    coop_details = filestore.push(description="Error report")
-                    print(coop_details)
-
-                print(
-                    "Also see: https://docs.expectedparrot.com/en/latest/exceptions.html"
-                )
-
-        return results
