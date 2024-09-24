@@ -14,7 +14,9 @@ from rich.console import Console
 
 from edsl import shared_globals
 from edsl.jobs.interviews.Interview import Interview
-from edsl.jobs.runners.JobsRunnerStatus import JobsRunnerStatus
+from edsl.jobs.runners.JobsRunnerStatus import (
+    EnhancedJobsRunnerStatus as JobsRunnerStatus,
+)
 
 from edsl.jobs.tasks.TaskHistory import TaskHistory
 from edsl.jobs.buckets.BucketCollection import BucketCollection
@@ -46,9 +48,7 @@ class JobsRunnerAsyncio:
         self.bucket_collection: "BucketCollection" = jobs.bucket_collection
         self.total_interviews: List["Interview"] = []
 
-        self.jobs_runner_status = JobsRunnerStatus(
-            self,  # progress_bar_stats=["percent_complete"]
-        )
+        self.jobs_runner_status = JobsRunnerStatus(self, n=1)
 
     async def run_async_generator(
         self,
@@ -77,6 +77,7 @@ class JobsRunnerAsyncio:
                 self._populate_total_interviews(n=n)
             )  # Populate self.total_interviews before creating tasks
 
+        self.jobs_runner_status = JobsRunnerStatus(self, n=n)
         for interview in self.total_interviews:
             interviewing_task = self._build_interview_task(
                 interview=interview,
@@ -290,8 +291,8 @@ class JobsRunnerAsyncio:
         self.cache = cache
         self.sidecar_model = sidecar_model
 
-        def generate_table():
-            return self.jobs_runner_status.status_table()
+        # def generate_table():
+        #     return self.jobs_runner_status.status_table()
 
         async def process_results(cache):
             """Processes results from interviews."""
@@ -307,12 +308,13 @@ class JobsRunnerAsyncio:
 
         def run_progress_bar():
             """Runs the progress bar in a separate thread."""
-            with Live(generate_table(), console=console, refresh_per_second=5) as live:
-                while not self.completed:
-                    live.update(generate_table())
-                    time.sleep(0.1)  # Update interval
-                live.update(generate_table())  # Final update
-                time.sleep(1)  # Short delay to show the final status
+            self.jobs_runner_status.update_progress()
+            # with Live(generate_table(), console=console, refresh_per_second=5) as live:
+            #     while not self.completed:
+            #         live.update(generate_table())
+            #         time.sleep(0.1)  # Update interval
+            #     live.update(generate_table())  # Final update
+            #     time.sleep(1)  # Short delay to show the final status
 
         if progress_bar:
             progress_thread = threading.Thread(target=run_progress_bar)
