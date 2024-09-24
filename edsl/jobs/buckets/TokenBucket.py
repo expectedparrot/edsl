@@ -17,6 +17,7 @@ class TokenBucket:
         self.bucket_name = bucket_name
         self.bucket_type = bucket_type
         self.capacity = capacity  # Maximum number of tokens
+        self.added_tokens = 0
 
         self.target_rate = (
             capacity * 60
@@ -34,6 +35,7 @@ class TokenBucket:
 
         self.num_requests = 0
         self.num_released = 0
+        self.tokens_returned = 0
 
     def turbo_mode_on(self):
         """Set the refill rate to infinity."""
@@ -79,6 +81,7 @@ class TokenBucket:
         >>> bucket.tokens
         10
         """
+        self.tokens_returned += tokens
         self.tokens = min(self.capacity, self.tokens + tokens)
         self.log.append((time.monotonic(), self.tokens))
 
