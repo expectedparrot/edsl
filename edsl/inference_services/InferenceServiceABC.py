@@ -7,7 +7,14 @@ from edsl.config import CONFIG
 class InferenceServiceABC(ABC):
     """
     Abstract class for inference services.
+    Anthropic: https://docs.anthropic.com/en/api/rate-limits
     """
+
+    default_levels = {
+        "google": {"tpm": 2_000_000, "rpm": 15},
+        "openai": {"tpm": 2_000_000, "rpm": 10_000},
+        "anthropic": {"tpm": 2_000_000, "rpm": 500},
+    }
 
     def __init_subclass__(cls):
         """
@@ -24,21 +31,28 @@ class InferenceServiceABC(ABC):
                 f"Class {cls.__name__} must have a 'model_exclude_list' attribute."
             )
 
+    @classmethod
+    def _get_limt(cls, limit_type: str) -> int:
+        key = f"EDSL_SERVICE_{limit_type.upper()}_{cls._inference_service_.upper()}"
+        if key in os.environ:
+            return int(os.getenv(key))
+
+        if cls._inference_service_ in cls.default_levels:
+            return int(cls.default_levels[cls._inference_service_][limit_type])
+
+        return int(CONFIG.get(f"EDSL_SERVICE_{limit_type.upper()}_BASELINE"))
+
     def get_tpm(cls) -> int:
         """
         Returns the TPM for the service. If the service is not defined in the environment variables, it will return the baseline TPM.
         """
-        key = f"EDSL_SERVICE_TPM_{cls._inference_service_.upper()}"
-        tpm = os.getenv(key) or CONFIG.get("EDSL_SERVICE_TPM_BASELINE")
-        return int(tpm)
+        return cls._get_limt(limit_type="tpm")
 
     def get_rpm(cls):
         """
         Returns the RPM for the service. If the service is not defined in the environment variables, it will return the baseline RPM.
         """
-        key = f"EDSL_SERVICE_RPM_{cls._inference_service_.upper()}"
-        rpm = os.getenv(key) or CONFIG.get("EDSL_SERVICE_RPM_BASELINE")
-        return int(rpm)
+        return cls._get_limt(limit_type="rpm")
 
     @abstractmethod
     def available() -> list[str]:
