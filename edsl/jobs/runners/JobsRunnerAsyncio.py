@@ -105,6 +105,7 @@ class JobsRunnerAsyncio:
                     yield interview
 
     async def run_async(self, cache: Optional["Cache"] = None, n: int = 1) -> Results:
+        """Used for some other modules that have a non-standard way of running interviews."""
         self.jobs_runner_status = JobsRunnerStatus(self, n=n)
         self.cache = Cache() if cache is None else cache
         data = []
@@ -282,7 +283,6 @@ class JobsRunnerAsyncio:
     ) -> "Coroutine":
         """Runs a collection of interviews, handling both async and sync contexts."""
 
-        console = Console()
         self.results = []
         self.start_time = time.monotonic()
         self.completed = False
@@ -290,9 +290,6 @@ class JobsRunnerAsyncio:
         self.sidecar_model = sidecar_model
 
         self.jobs_runner_status = JobsRunnerStatus(self, n=n)
-
-        # def generate_table():
-        #     return self.jobs_runner_status.status_table()
 
         async def process_results(cache):
             """Processes results from interviews."""
@@ -309,12 +306,6 @@ class JobsRunnerAsyncio:
         def run_progress_bar():
             """Runs the progress bar in a separate thread."""
             self.jobs_runner_status.update_progress()
-            # with Live(generate_table(), console=console, refresh_per_second=5) as live:
-            #     while not self.completed:
-            #         live.update(generate_table())
-            #         time.sleep(0.1)  # Update interval
-            #     live.update(generate_table())  # Final update
-            #     time.sleep(1)  # Short delay to show the final status
 
         if progress_bar:
             progress_thread = threading.Thread(target=run_progress_bar)

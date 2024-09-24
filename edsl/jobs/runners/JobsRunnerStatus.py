@@ -174,6 +174,7 @@ class JobsRunnerStatus:
                 # )
                 num_requests = getattr(bucket, bucket_type).num_requests
                 num_released = getattr(bucket, bucket_type).num_released
+                tokens_returned = getattr(bucket, bucket_type).tokens_returned
                 # table.add_row(
                 #     f"  Requested",
                 #     str(num_requests),
@@ -184,6 +185,10 @@ class JobsRunnerStatus:
                 # )
                 table.add_row(
                     "  Completed vs. Requested", f"{num_released} vs. {num_requests}"
+                )
+                table.add_row(
+                    "  Added tokens (from cache)",
+                    str(tokens_returned),
                 )
                 if bucket_type == "tokens_bucket":
                     rate_name = "TPM"
