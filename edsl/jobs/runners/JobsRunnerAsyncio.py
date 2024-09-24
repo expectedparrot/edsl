@@ -14,9 +14,7 @@ from rich.console import Console
 
 from edsl import shared_globals
 from edsl.jobs.interviews.Interview import Interview
-from edsl.jobs.runners.JobsRunnerStatus import (
-    EnhancedJobsRunnerStatus as JobsRunnerStatus,
-)
+from edsl.jobs.runners.JobsRunnerStatus import JobsRunnerStatus
 
 from edsl.jobs.tasks.TaskHistory import TaskHistory
 from edsl.jobs.buckets.BucketCollection import BucketCollection
@@ -48,7 +46,7 @@ class JobsRunnerAsyncio:
         self.bucket_collection: "BucketCollection" = jobs.bucket_collection
         self.total_interviews: List["Interview"] = []
 
-        self.jobs_runner_status = JobsRunnerStatus(self, n=1)
+        # self.jobs_runner_status = JobsRunnerStatus(self, n=1)
 
     async def run_async_generator(
         self,
@@ -77,7 +75,6 @@ class JobsRunnerAsyncio:
                 self._populate_total_interviews(n=n)
             )  # Populate self.total_interviews before creating tasks
 
-        self.jobs_runner_status = JobsRunnerStatus(self, n=n)
         for interview in self.total_interviews:
             interviewing_task = self._build_interview_task(
                 interview=interview,
@@ -290,6 +287,8 @@ class JobsRunnerAsyncio:
         self.completed = False
         self.cache = cache
         self.sidecar_model = sidecar_model
+
+        self.jobs_runner_status = JobsRunnerStatus(self, n=n)
 
         # def generate_table():
         #     return self.jobs_runner_status.status_table()
