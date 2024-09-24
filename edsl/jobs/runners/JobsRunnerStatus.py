@@ -106,11 +106,9 @@ class JobsRunnerStatus:
 
     def add_completed_interview(self, result):
         self.completed_interviews.append(result.interview_hash)
-        print(f"Added an interview; {len(self.completed_interviews)} completed.")
 
         relevant_model = result.model.model
         self.completed_interview_by_model[relevant_model].append(result.interview_hash)
-        # breakpoint()
 
     def _compute_statistic(self, stat_name: str):
         completed_tasks = self.completed_interviews
