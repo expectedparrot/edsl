@@ -51,7 +51,7 @@ CONFIG_MAP = {
     },
     "EDSL_SERVICE_RPM_BASELINE": {
         "default": "100",
-        "info": "This config var holds the maximum number of requests per minute for OpenAI. Model-specific values provided in env vars such as EDSL_SERVICE_RPM_OPENAI will override this. value for the corresponding model",
+        "info": "This config var holds the maximum number of requests per minute. Model-specific values provided in env vars such as EDSL_SERVICE_RPM_OPENAI will override this. value for the corresponding model",
     },
     "EDSL_SERVICE_TPM_BASELINE": {
         "default": "2000000",

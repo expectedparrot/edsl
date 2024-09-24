@@ -25,6 +25,9 @@ class TokenBucket:
         self.log: List[Any] = []
         self.turbo_mode = False
 
+        self.num_requests = 0
+        self.num_released = 0
+
     def turbo_mode_on(self):
         """Set the refill rate to infinity."""
         if self.turbo_mode:
@@ -133,15 +136,12 @@ class TokenBucket:
         >>> bucket.capacity
         12.100000000000001
         """
+        self.num_requests += amount
         if amount >= self.capacity:
             if not cheat_bucket_capacity:
                 msg = f"Requested amount exceeds bucket capacity. Bucket capacity: {self.capacity}, requested amount: {amount}. As the bucket never overflows, the requested amount will never be available."
                 raise ValueError(msg)
             else:
-                # self.tokens = 0  # clear the bucket but let it go through
-                # print(
-                #    f"""The requested amount, {amount}, exceeds the current bucket capacity of {self.capacity}.Increasing bucket capacity to {amount} * 1.10 accommodate the requested amount."""
-                # )
                 self.capacity = amount * 1.10
                 self._old_capacity = self.capacity
 
@@ -153,14 +153,10 @@ class TokenBucket:
                 break
 
             wait_time = self.wait_time(amount)
-            # print(f"Waiting for {wait_time:.4f} seconds")
             if wait_time > 0:
-                # print(f"Waiting for {wait_time:.4f} seconds")
                 await asyncio.sleep(wait_time)
 
-        # total_elapsed = time.monotonic() - start_time
-        # print(f"Total time to acquire tokens: {total_elapsed:.4f} seconds")
-
+        self.num_released += amount
         now = time.monotonic()
         self.log.append((now, self.tokens))
         return None
