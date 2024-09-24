@@ -3,9 +3,14 @@ import time
 import math
 import asyncio
 import functools
+import threading
 from typing import Coroutine, List, AsyncGenerator, Optional, Union, Generator
 from contextlib import contextmanager
 from collections import UserList
+
+from edsl.results.Results import Results
+from rich.live import Live
+from rich.console import Console
 
 from edsl import shared_globals
 from edsl.jobs.interviews.Interview import Interview
@@ -265,6 +270,96 @@ class JobsRunnerAsyncio:
 
         return results
 
+    # @jupyter_nb_handler
+    # async def run(
+    #     self,
+    #     cache: Union[Cache, False, None],
+    #     n: int = 1,
+    #     stop_on_exception: bool = False,
+    #     progress_bar: bool = False,
+    #     sidecar_model: Optional[LanguageModel] = None,
+    #     print_exceptions: bool = True,
+    #     raise_validation_errors: bool = False,
+    # ) -> "Coroutine":
+    #     """Runs a collection of interviews, handling both async and sync contexts."""
+    #     from rich.console import Console
+
+    #     console = Console()
+    #     self.results = []
+    #     self.start_time = time.monotonic()
+    #     self.completed = False
+    #     self.cache = cache
+    #     self.sidecar_model = sidecar_model
+
+    #     from edsl.results.Results import Results
+    #     from rich.live import Live
+    #     from rich.console import Console
+
+    #     def generate_table():
+    #         return self.jobs_runner_status.status_table()
+
+    #     async def process_results(cache, progress_bar_context=None):
+    #         """Processes results from interviews."""
+    #         async for result in self.run_async_generator(
+    #             n=n,
+    #             stop_on_exception=stop_on_exception,
+    #             cache=cache,
+    #             sidecar_model=sidecar_model,
+    #             raise_validation_errors=raise_validation_errors,
+    #         ):
+    #             self.results.append(result)
+    #             if progress_bar_context:
+    #                 progress_bar_context.update(generate_table())
+    #         self.completed = True
+
+    #     async def update_progress_bar(progress_bar_context):
+    #         """Updates the progress bar at fixed intervals."""
+    #         if progress_bar_context is None:
+    #             return
+
+    #         while True:
+    #             progress_bar_context.update(generate_table())
+    #             await asyncio.sleep(0.1)  # Update interval
+    #             if self.completed:
+    #                 break
+
+    #     @contextmanager
+    #     def conditional_context(condition, context_manager):
+    #         if condition:
+    #             with context_manager as cm:
+    #                 yield cm
+    #         else:
+    #             yield
+
+    #     with conditional_context(
+    #         progress_bar, Live(generate_table(), console=console, refresh_per_second=5)
+    #     ) as progress_bar_context:
+    #         with cache as c:
+    #             progress_task = asyncio.create_task(
+    #                 update_progress_bar(progress_bar_context)
+    #             )
+
+    #             try:
+    #                 await asyncio.gather(
+    #                     progress_task,
+    #                     process_results(
+    #                         cache=c, progress_bar_context=progress_bar_context
+    #                     ),
+    #                 )
+    #             except asyncio.CancelledError:
+    #                 pass
+    #             finally:
+    #                 progress_task.cancel()  # Cancel the progress_task when process_results is done
+    #                 await progress_task
+
+    #                 await asyncio.sleep(1)  # short delay to show the final status
+
+    #                 if progress_bar_context:
+    #                     progress_bar_context.update(generate_table())
+
+    #     return self.process_results(
+    #         raw_results=self.results, cache=cache, print_exceptions=print_exceptions
+    #     )
     @jupyter_nb_handler
     async def run(
         self,
@@ -277,7 +372,6 @@ class JobsRunnerAsyncio:
         raise_validation_errors: bool = False,
     ) -> "Coroutine":
         """Runs a collection of interviews, handling both async and sync contexts."""
-        from rich.console import Console
 
         console = Console()
         self.results = []
@@ -286,15 +380,10 @@ class JobsRunnerAsyncio:
         self.cache = cache
         self.sidecar_model = sidecar_model
 
-        from edsl.results.Results import Results
-        from rich.live import Live
-        from rich.console import Console
-
-        # @cache_with_timeout(1)
         def generate_table():
             return self.jobs_runner_status.status_table()
 
-        async def process_results(cache, progress_bar_context=None):
+        async def process_results(cache):
             """Processes results from interviews."""
             async for result in self.run_async_generator(
                 n=n,
@@ -304,54 +393,37 @@ class JobsRunnerAsyncio:
                 raise_validation_errors=raise_validation_errors,
             ):
                 self.results.append(result)
-                if progress_bar_context:
-                    progress_bar_context.update(generate_table())
             self.completed = True
 
-        async def update_progress_bar(progress_bar_context):
-            """Updates the progress bar at fixed intervals."""
-            if progress_bar_context is None:
-                return
+        def run_progress_bar():
+            """Runs the progress bar in a separate thread."""
+            with Live(generate_table(), console=console, refresh_per_second=5) as live:
+                while not self.completed:
+                    live.update(generate_table())
+                    time.sleep(0.1)  # Update interval
+                live.update(generate_table())  # Final update
+                time.sleep(1)  # Short delay to show the final status
 
-            while True:
-                progress_bar_context.update(generate_table())
-                await asyncio.sleep(0.1)  # Update interval
-                if self.completed:
-                    break
+        # @contextmanager
+        # def conditional_thread(condition, target):
+        #     if condition:
+        #         thread = threading.Thread(target=target)
+        #         thread.start()
+        #         yield thread
+        #         thread.join()
+        #     else:
+        #         yield None
 
-        @contextmanager
-        def conditional_context(condition, context_manager):
-            if condition:
-                with context_manager as cm:
-                    yield cm
-            else:
-                yield
+        if progress_bar:
+            progress_thread = threading.Thread(target=run_progress_bar)
+            progress_thread.start()
 
-        with conditional_context(
-            progress_bar, Live(generate_table(), console=console, refresh_per_second=5)
-        ) as progress_bar_context:
-            with cache as c:
-                progress_task = asyncio.create_task(
-                    update_progress_bar(progress_bar_context)
-                )
+        # with conditional_thread(progress_bar, run_progress_bar) as progress_thread:
+        with cache as c:
+            await process_results(cache=c)
 
-                try:
-                    await asyncio.gather(
-                        progress_task,
-                        process_results(
-                            cache=c, progress_bar_context=progress_bar_context
-                        ),
-                    )
-                except asyncio.CancelledError:
-                    pass
-                finally:
-                    progress_task.cancel()  # Cancel the progress_task when process_results is done
-                    await progress_task
-
-                    await asyncio.sleep(1)  # short delay to show the final status
-
-                    if progress_bar_context:
-                        progress_bar_context.update(generate_table())
+        if progress_bar:
+            progress_thread.join()
 
         return self.process_results(
             raw_results=self.results, cache=cache, print_exceptions=print_exceptions
