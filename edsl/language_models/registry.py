@@ -35,7 +35,9 @@ class Meta(type):
 class Model(metaclass=Meta):
     default_model = CONFIG.get("EDSL_DEFAULT_MODEL")
 
-    def __new__(cls, model_name=None, registry=None, *args, **kwargs):
+    def __new__(
+        cls, model_name=None, registry=None, service_name=None, *args, **kwargs
+    ):
         # Map index to the respective subclass
         if model_name is None:
             model_name = (
@@ -48,7 +50,7 @@ class Model(metaclass=Meta):
         if isinstance(model_name, int):  # can refer to a model by index
             model_name = cls.available(name_only=True)[model_name]
 
-        factory = registry.create_model_factory(model_name)
+        factory = registry.create_model_factory(model_name, service_name=service_name)
         return factory(*args, **kwargs)
 
     @classmethod
