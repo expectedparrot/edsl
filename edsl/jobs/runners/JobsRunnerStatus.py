@@ -1,47 +1,26 @@
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, asdict
+
+from typing import List, DefaultDict, Optional, Type, Literal
+from collections import UserDict, defaultdict
+
 from rich.text import Text
 from rich.box import SIMPLE
 from rich.table import Table
-
-from typing import List, DefaultDict, Optional
-from typing import Type
-from collections import defaultdict
-
-from typing import Literal, List, Type, DefaultDict
-from collections import UserDict, defaultdict
+from rich.live import Live
+from rich.panel import Panel
+from rich.progress import Progress, TextColumn, BarColumn, TaskProgressColumn
+from rich.layout import Layout
+from rich.console import Group
+from rich import box
 
 from edsl.jobs.interviews.InterviewStatusDictionary import InterviewStatusDictionary
 from edsl.jobs.tokens.InterviewTokenUsage import InterviewTokenUsage
 from edsl.jobs.tokens.TokenUsage import TokenUsage
 from edsl.enums import get_token_pricing
 from edsl.jobs.tasks.task_status_enum import TaskStatus
-
-from rich.live import Live
-from rich.panel import Panel
-from rich.progress import Progress, TextColumn, BarColumn, TaskProgressColumn
-from rich.layout import Layout
-from rich import box
-import time
-
-from rich.live import Live
-from rich.panel import Panel
-from rich.progress import Progress, TextColumn, BarColumn, TaskProgressColumn
-from rich.layout import Layout
-from rich.console import Group
-from rich import box
-import time
-
-from rich.live import Live
-from rich.panel import Panel
-from rich.progress import Progress, TextColumn, BarColumn, TaskProgressColumn
-from rich.layout import Layout
-from rich.console import Group
-from rich import box
-import time
-
-from collections import defaultdict
 
 InterviewTokenUsageMapping = DefaultDict[str, InterviewTokenUsage]
 
@@ -71,9 +50,6 @@ class ModelTokenUsageStats:
 class Stats:
     def elapsed_time(self):
         InterviewStatistic("elapsed_time", value=elapsed_time, digits=1, units="sec.")
-
-
-import time
 
 
 class JobsRunnerStatus:
@@ -231,7 +207,6 @@ class JobsRunnerStatus:
             )
             task_ids.append((model, task_id))
 
-        # Adjust these heights to sum around 10
         progress_height = min(5, 2 + len(self.distinct_models))
         layout = Layout()
 
