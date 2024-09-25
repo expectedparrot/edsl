@@ -44,7 +44,7 @@ class TestSurvey(unittest.TestCase):
         survey = survey.add_skip_rule(q2, "True")
         next_question = survey.next_question("like_school", {})
         assert next_question == q3
-        #breakpoint()
+        # breakpoint()
         # self.assertEqual(q3, s.next_question("like_school", {"like_school": "no"}))
         # s = self.gen_survey()
         # with self.assertRaises(ValueError):
@@ -184,6 +184,34 @@ class TestSurvey(unittest.TestCase):
 
         with tempfile.NamedTemporaryFile(suffix=".png") as f:
             s.show_flow(filename=f.name)
+
+    def test_insertion(self):
+        survey = self.gen_survey()
+        q1, q2, q3 = survey._questions
+        survey.add_rule(q1, "like_school == 'no'", q3)
+
+        original_length = len(survey._questions)
+        from edsl import QuestionFreeText
+
+        new_q = QuestionFreeText(
+            question_text="Where are you from?", question_name="hometown"
+        )
+        # insert a new question at the begining
+        insertion_index = 1
+        survey.add_question(new_q, index=insertion_index)
+        assert len(survey._questions) == original_length + 1
+        assert survey._questions[insertion_index] == new_q
+
+        path = survey.gen_path_through_survey()
+        survey._questions[0] = next(path)
+        breakpoint()
+        # breakpoint()
+        # survey.show_flow()
+
+        # survey.add_rule(q1, "like_school == 'no'", q3)
+        # self.assertEqual(q3, s.next_question("like_school", {"like_school": "no"}))
+
+        # breakpoint()
 
 
 if __name__ == "__main__":
