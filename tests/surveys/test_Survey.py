@@ -204,7 +204,7 @@ class TestSurvey(unittest.TestCase):
 
         path = survey.gen_path_through_survey()
         survey._questions[0] = next(path)
-        breakpoint()
+        # breakpoint()
         # breakpoint()
         # survey.show_flow()
 
