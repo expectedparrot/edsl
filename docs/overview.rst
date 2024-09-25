@@ -17,7 +17,7 @@ Why EDSL?
 ---------
 
 Most new software for large language models (LLMs) focuses on tools for constructing agents and real-time systems, such as chatbots. 
-Less attention is being paid to efficiently managing large-scale tasks such as survey responses or data labeling that involve varying agent behaviors and model parameters. 
+Less attention is being paid to efficiently managing large-scale tasks such as complex surveys or data labeling that involve varying agent behaviors and model parameters. 
 These tasks often include intricate dependencies, such as agent memory or conditional logic, which complicates execution. 
 EDSL addresses this gap by offering robust tools for designing, executing, and managing data-intensive tasks using LLMs, particularly in social science research.
 
@@ -45,7 +45,7 @@ Key components
 The following concepts form the basic classes of the EDSL package, and are described in detail in the linked pages:
 
 :ref:`questions`: A `Question` serves as the foundational element for research design in EDSL. 
-It allows users to choose from various question types, such as free text or multiple choice, depending on the desired outcome for format of the responses.
+It allows users to choose from various question types, such as free text or multiple choice, depending on the desired formats of the responses.
 
 :ref:`surveys`: A `Survey` aggregates multiple questions, which can be administered either asynchronously (by default) or according to predefined rules. 
 Surveys are versatile, supporting different agents and models to yield varied responses. 
@@ -61,237 +61,8 @@ EDSL is designed to be model-agnostic, enabling the integration of multiple mode
 This feature allows for dynamic parameterization of questions, enabling the same question to be adapted and asked across varied contexts efficiently.
 
 :ref:`results`: A `Result` is the direct output obtained from executing a question. 
-Results include information about the question, agent, model, and the generated response.
+Results include information about the question, agent, model, prompts, generated tokens and the raw and formatted responses.
 They can be analyzed, visualized, shared, and utilized to refine further inquiries or enhance the structure of subsequent surveys.
-
-
-How it works
-------------
-
-EDSL operates by combining these key components to create and execute surveys, generating responses from AI agents using language models.
-
-A quick example 
-^^^^^^^^^^^^^^^
-
-An EDSL survey can be as simple as a single question. 
-We select a question type (e.g., multiple choice), construct a question and call the `run()` method to generate a response from the default language model (GPT-4):
-
-.. code-block:: python
-
-   from edsl import QuestionMultipleChoice
-
-   q = QuestionMultipleChoice(
-      question_name = "registered",
-      question_text = "Are you currently registered to vote?",
-      question_options = ["Yes", "No", "I don't know"]
-   )
-
-   results = q.run()
-
-
-We can use built-in methods to inspect the response:
-
-.. code-block:: python
-
-   results.select("model", "registered").print(format="rich")
-
-
-This will return:
-
-.. code-block:: text
-
-   ┏━━━━━━━━━━━━━┓
-   ┃ answer      ┃
-   ┃ .registered ┃
-   ┡━━━━━━━━━━━━━┩
-   │ Yes         │
-   └─────────────┘
-
-
-A more complex example
-^^^^^^^^^^^^^^^^^^^^^^
-
-We can administer multiple questions at once by passing them to a `Survey` object.
-We can also add survey rules and agent memory of other questions to control the flow of questions and responses:
-
-.. code-block:: python
-
-   from edsl import QuestionMultipleChoice, QuestionYesNo, QuestionFreeText, QuestionCheckBox, Survey
-
-   q1 = QuestionMultipleChoice(
-      question_name = "registered",
-      question_text = "Are you currently registered to vote?",
-      question_options = ["Yes", "No", "I don't know"]
-   )
-   q2 = QuestionYesNo(
-      question_name = "eligible",
-      question_text = "Are you eligible to vote?"
-   )
-   q3 = QuestionFreeText(
-      question_name = "factors",
-      question_text = "What factors most influence your decision to vote in an election?"
-   )
-   q4 = QuestionCheckBox(
-      question_name = "issues",
-      question_text = "Which issues are most important to you?",
-      question_options = ["Economy", "Healthcare", "Education", "Climate change", "National security", "Other"]
-   )
-
-   survey = (
-      Survey([q1, q2, q3, q4])  # Add questions to the survey
-      .add_skip_rule(q2, "registered == 'Yes'")  # Add conditional logic 
-      .add_targeted_memory(q4, q3)  # Add agent memory
-   )
-
-   results = survey.run()
-
-   results.select("registered", "eligible", "factors", "issues").print(format="rich")
-
-
-Output:
-
-.. code-block:: text
-
-   ┏━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━┓
-   ┃ answer      ┃ answer    ┃ answer                                                           ┃ answer             ┃
-   ┃ .registered ┃ .eligible ┃ .factors                                                         ┃ .issues            ┃
-   ┡━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━┩
-   │ Yes         │ None      │ The factors that most influence my decision to vote in an        │ ['Climate change'] │
-   │             │           │ election include the candidates' policies and their alignment    │                    │
-   │             │           │ with my personal values, the impact of the election on local and │                    │
-   │             │           │ national issues, the integrity and track record of the           │                    │
-   │             │           │ candidates, the importance of civic duty and the democratic      │                    │
-   │             │           │ process, and the potential for meaningful change or the          │                    │
-   │             │           │ preservation of stability within the community and the country.  │                    │
-   └─────────────┴───────────┴──────────────────────────────────────────────────────────────────┴────────────────────┘
-
-
-Agents & Models 
-^^^^^^^^^^^^^^^
-
-We can design personas for AI agents and select language models to generate responses:
-
-.. code-block:: python
-
-   from edsl import AgentList, Agent, ModelList, Model
-
-   agents = AgentList(
-      Agent(traits = {"party":p, "age":a}) 
-      for p in ["Democrat", "Republican", "Independent"] for a in [25, 60]
-   )
-
-   models = ModelList(
-      Model(m) for m in ["gpt-4", "claude-3-5-sonnet-20240620"]
-   )
-
-   results = survey.by(agents).by(models).run()
-
-
-We can then filter, sort, and select specific results for analysis:
-
-.. code-block:: python
-
-   (results
-   .filter("age == 60")
-   .sort_by("model", "party")
-   .select("model", "party", "age", "issues")
-   .print(pretty_labels = {
-      "model.model":"Model", 
-      "agent.party":"Party", 
-      "agent.age":"Age", 
-      "answer.issues":q4.question_text + "\n" + ", ".join(q4.question_options)},
-         format="rich")
-   )
-
-
-Output:
-
-.. code-block:: text
-
-   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-   ┃                            ┃             ┃     ┃ Which issues are most important to you?                        ┃
-   ┃                            ┃             ┃     ┃ Economy, Healthcare, Education, Climate change, National       ┃
-   ┃ Model                      ┃ Party       ┃ Age ┃ security, Other                                                ┃
-   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-   │ claude-3-5-sonnet-20240620 │ Democrat    │ 60  │ ['Healthcare', 'Climate change']                               │
-   ├────────────────────────────┼─────────────┼─────┼────────────────────────────────────────────────────────────────┤
-   │ claude-3-5-sonnet-20240620 │ Independent │ 60  │ ['Economy', 'Healthcare', 'National security']                 │
-   ├────────────────────────────┼─────────────┼─────┼────────────────────────────────────────────────────────────────┤
-   │ claude-3-5-sonnet-20240620 │ Republican  │ 60  │ ['Economy', 'National security']                               │
-   ├────────────────────────────┼─────────────┼─────┼────────────────────────────────────────────────────────────────┤
-   │ gpt-4                      │ Democrat    │ 60  │ ['Healthcare', 'Education', 'Climate change']                  │
-   ├────────────────────────────┼─────────────┼─────┼────────────────────────────────────────────────────────────────┤
-   │ gpt-4                      │ Independent │ 60  │ ['Economy', 'Healthcare', 'Climate change', 'National          │
-   │                            │             │     │ security']                                                     │
-   ├────────────────────────────┼─────────────┼─────┼────────────────────────────────────────────────────────────────┤
-   │ gpt-4                      │ Republican  │ 60  │ ['Economy', 'National security']                               │
-   └────────────────────────────┴─────────────┴─────┴────────────────────────────────────────────────────────────────┘
-
-
-Creating scenarios of questions
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-We can parameterize questions with context or data to administer multiple versions of questions at once.
-This is done by creating `Scenario` objects that are added to a survey in the same way as agents and models.
-Scenarios can be particularly useful for data labeling tasks or when conducting surveys across different contexts:
-
-.. code-block:: python
-
-   from edsl import QuestionLinearScale, ScenarioList, Scenario
-
-   q6 = QuestionMultipleChoice(
-      question_name = "primary_news_source",
-      question_text = "What is your primary source of news about {{ topic }}?",
-      question_options = [
-         "Television",
-         "Online news websites",
-         "Social media",
-         "Newspapers",
-         "Radio",
-         "Other"
-      ]
-   )
-   q7 = QuestionLinearScale(
-      question_name = "optimistic",
-      question_text = "On a scale from 1 to 10, how optimistic do you feel about {{ topic }}?",
-      question_options = [1,2,3,4,5,6,7,8,9,10],
-      option_labels = {1:"Not at all optimistic", 10:"Very optimistic"}
-   )
-
-   survey = Survey([q6, q7])
-
-   scenarios = ScenarioList(
-      Scenario({"topic":t}) for t in ["Economy", "Healthcare", "Education", "Climate change", "National security"]
-   )
-
-   results = survey.by(scenarios).by(agents).run()
-
-   (results
-   .filter("optimistic > '7' and age == 25")
-   .sort_by("optimistic", "party")
-   .select("party", "age", "topic", "primary_news_source", "optimistic")
-   .print(format="rich")
-   )
-
-
-Output:  
-
-.. code-block:: text
-
-   ┏━━━━━━━━━━━━━┳━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┓
-   ┃ agent       ┃ agent ┃ scenario          ┃ answer               ┃ answer      ┃
-   ┃ .party      ┃ .age  ┃ .topic            ┃ .primary_news_source ┃ .optimistic ┃
-   ┡━━━━━━━━━━━━━╇━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━┩
-   │ Democrat    │ 25    │ Education         │ Online news websites │ 8           │
-   ├─────────────┼───────┼───────────────────┼──────────────────────┼─────────────┤
-   │ Independent │ 25    │ Education         │ Online news websites │ 8           │
-   ├─────────────┼───────┼───────────────────┼──────────────────────┼─────────────┤
-   │ Republican  │ 25    │ National security │ Online news websites │ 8           │
-   └─────────────┴───────┴───────────────────┴──────────────────────┴─────────────┘
-
-
-EDSL comes with built-in methods for data analysis and visualization, making it easy to explore and interpret the results of your research.
-Examples of these methods are provided in the :ref:`results` section.
 
 
 Key features 
@@ -349,6 +120,213 @@ Potential applications include:
 **Data Augmentation:** Enhance datasets by generating synthetic, yet realistic, data additions.
 
 **Synthetic Data Generation:** Produce completely new data sets that mimic real-world data for training and testing models.
+
+
+How it works
+------------
+
+EDSL operates by combining these key components to create and execute surveys, generating responses from AI agents using language models.
+Below we share a few quick examples to illustrate how to use EDSL.
+Please also see the :ref:`starter_tutorial` for a more detailed guide on how to get started with EDSL, including technical setup steps, and the how-to guides and notebooks for examples of special methods and use cases.
+
+A quick example 
+^^^^^^^^^^^^^^^
+
+An EDSL survey can be as simple as a single question. 
+We select a question type (e.g., multiple choice), construct a question and call the `run` method to generate a response from a language model:
+
+.. code-block:: python
+
+   from edsl import QuestionMultipleChoice
+
+   q = QuestionMultipleChoice(
+      question_name = "capital",
+      question_text = "What is the capital of France?",
+      question_options = ["Berlin", "Rome", "Paris", "Madrid", "London"]
+   )
+
+   results = q.run()
+
+
+We can use built-in methods to inspect the response and other components of the results that are generated, such as the name of the model that was used:
+
+.. code-block:: python
+
+   results.select("model", "capital").print(format="rich")
+
+
+This will return:
+
+.. code-block:: text
+
+   ┏━━━━━━━━┳━━━━━━━━━━┓
+   ┃ model  ┃ answer   ┃
+   ┃ .model ┃ .capital ┃
+   ┡━━━━━━━━╇━━━━━━━━━━┩
+   │ gpt-4o │ Paris    │
+   └────────┴──────────┘
+
+
+A more complex example
+^^^^^^^^^^^^^^^^^^^^^^
+
+We can administer multiple questions at once by combining them in a `Survey`.
+This allows us to add survey rules and agent memory of other questions to control the flow of questions and responses:
+
+.. code-block:: python
+
+   from edsl import QuestionMultipleChoice, QuestionYesNo, QuestionFreeText, QuestionCheckBox, Survey
+
+   q1 = QuestionMultipleChoice(
+      question_name = "registered",
+      question_text = "Are you currently registered to vote?",
+      question_options = ["Yes", "No", "I don't know"]
+   )
+   q2 = QuestionYesNo(
+      question_name = "eligible",
+      question_text = "Are you eligible to vote?"
+   )
+   q3 = QuestionFreeText(
+      question_name = "factors",
+      question_text = "What factors most influence your decision to vote in an election?"
+   )
+   q4 = QuestionCheckBox(
+      question_name = "issues",
+      question_text = "Which issues are most important to you?",
+      question_options = ["Economy", "Healthcare", "Education", "Climate change", "National security", "Other"]
+   )
+
+   survey = (
+      Survey([q1, q2, q3, q4])  # Add questions to the survey
+      .add_skip_rule(q2, "registered == 'Yes'")  # Add conditional logic 
+      .add_targeted_memory(q4, q3)  # Add agent memory
+   )
+
+
+Agents and models
+^^^^^^^^^^^^^^^^^
+
+We can also design agents with unique traits and select language models to generate responses:
+
+
+.. code-block:: python
+
+   from edsl import AgentList, Agent, ModelList, Model
+
+   agents = AgentList(
+      Agent(traits = {"party":p, "age":a}) 
+      for p in ["Democrat", "Republican", "Independent"] for a in [25, 60]
+   )
+
+   models = ModelList(
+      Model(m) for m in ["gpt-4", "claude-3-5-sonnet-20240620"]
+   )
+
+
+We can then run the survey with the agents and models we have created, and analyze the results:
+
+.. code-block:: python
+
+   results = survey.by(agents).by(models).run()
+
+   (
+      results
+      .filter("age == 60")
+      .sort_by("model", "party")
+      .select("model", "party", "age", "issues")
+      .print(pretty_labels = {
+         "model.model":"Model", 
+         "agent.party":"Party", 
+         "agent.age":"Age", 
+         "answer.issues":q4.question_text + "\n" + ", ".join(q4.question_options)},
+            format="rich")
+   )
+
+
+Example output:
+
+.. code-block:: text
+
+   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+   ┃                            ┃             ┃     ┃ Which issues are most important to you?                        ┃
+   ┃                            ┃             ┃     ┃ Economy, Healthcare, Education, Climate change, National       ┃
+   ┃ Model                      ┃ Party       ┃ Age ┃ security, Other                                                ┃
+   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+   │ claude-3-5-sonnet-20240620 │ Democrat    │ 60  │ ['Healthcare', 'Education', 'Climate change']                  │
+   ├────────────────────────────┼─────────────┼─────┼────────────────────────────────────────────────────────────────┤
+   │ claude-3-5-sonnet-20240620 │ Independent │ 60  │ ['Economy', 'Healthcare', 'Education', 'Climate change']       │
+   ├────────────────────────────┼─────────────┼─────┼────────────────────────────────────────────────────────────────┤
+   │ claude-3-5-sonnet-20240620 │ Republican  │ 60  │ ['Economy', 'National security']                               │
+   ├────────────────────────────┼─────────────┼─────┼────────────────────────────────────────────────────────────────┤
+   │ gpt-4                      │ Democrat    │ 60  │ ['Healthcare', 'Education', 'Climate change']                  │
+   ├────────────────────────────┼─────────────┼─────┼────────────────────────────────────────────────────────────────┤
+   │ gpt-4                      │ Independent │ 60  │ ['Economy', 'Healthcare', 'Education', 'Climate change']       │
+   ├────────────────────────────┼─────────────┼─────┼────────────────────────────────────────────────────────────────┤
+   │ gpt-4                      │ Republican  │ 60  │ ['Economy', 'Healthcare', 'National security']                 │
+   └────────────────────────────┴─────────────┴─────┴────────────────────────────────────────────────────────────────┘
+
+
+Creating scenarios of questions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+We can parameterize questions with context or data to administer multiple versions of questions at once.
+This is done by creating `Scenario` objects that are added to a survey in the same way as agents and models.
+Scenarios can be particularly useful for data labeling tasks or when conducting surveys across different contexts:
+
+.. code-block:: python
+
+   from edsl import QuestionLinearScale, ScenarioList, Scenario
+
+   q6 = QuestionMultipleChoice(
+      question_name = "primary_news_source",
+      question_text = "What is your primary source of news about {{ topic }}?",
+      question_options = [
+         "Television",
+         "Online news websites",
+         "Social media",
+         "Newspapers",
+         "Radio",
+         "Other"
+      ]
+   )
+   q7 = QuestionLinearScale(
+      question_name = "optimistic",
+      question_text = "On a scale from 1 to 10, how optimistic do you feel about {{ topic }}?",
+      question_options = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      option_labels = {1:"Not at all optimistic", 10:"Very optimistic"}
+   )
+
+   survey = Survey([q6, q7])
+
+   scenarios = ScenarioList(
+      Scenario({"topic":t}) for t in ["Economy", "Healthcare", "Education", "Climate change", "National security"]
+   )
+
+   results = survey.by(scenarios).by(agents).run()
+
+   (
+      results
+      .filter("optimistic > 7 and age == 25")
+      .sort_by("optimistic", "party")
+      .select("party", "age", "topic", "primary_news_source", "optimistic")
+      .print(format="rich")
+   )
+
+
+Example output:  
+
+.. code-block:: text
+
+   ┏━━━━━━━━━━┳━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┓
+   ┃ agent    ┃ agent ┃ scenario  ┃ answer               ┃ answer      ┃
+   ┃ .party   ┃ .age  ┃ .topic    ┃ .primary_news_source ┃ .optimistic ┃
+   ┡━━━━━━━━━━╇━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━┩
+   │ Democrat │ 25    │ Education │ Online news websites │ 8           │
+   └──────────┴───────┴───────────┴──────────────────────┴─────────────┘
+
+
+EDSL comes with built-in methods for data analysis and visualization, making it easy to explore and interpret the results of your research.
+Examples of these methods are provided in the :ref:`results` section.
 
 
 Getting help 
