@@ -120,13 +120,13 @@ class RuleCollection(UserList):
         :param answers: The answers to the survey questions.
 
         >>> rule_collection = RuleCollection()
-        >>> r = Rule(current_q=1, expression="True", next_q=1, priority=1, question_name_to_index={}, before_rule = True)
+        >>> r = Rule(current_q=1, expression="True", next_q=2, priority=1, question_name_to_index={}, before_rule = True)
         >>> rule_collection.add_rule(r)
         >>> rule_collection.skip_question_before_running(1, {})
         True
 
         >>> rule_collection = RuleCollection()
-        >>> r = Rule(current_q=1, expression="False", next_q=1, priority=1, question_name_to_index={}, before_rule = True)
+        >>> r = Rule(current_q=1, expression="False", next_q=2, priority=1, question_name_to_index={}, before_rule = True)
         >>> rule_collection.add_rule(r)
         >>> rule_collection.skip_question_before_running(1, {})
         False
