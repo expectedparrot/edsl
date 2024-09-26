@@ -570,6 +570,97 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         return Survey(questions=self.questions + other.questions)
 
+    def move_question(self, identifier: Union[str, int], new_index: int):
+        if isinstance(identifier, str):
+            if identifier not in self.question_names:
+                raise ValueError(
+                    f"Question name '{identifier}' does not exist in the survey."
+                )
+            index = self.question_name_to_index[identifier]
+        elif isinstance(identifier, int):
+            if identifier < 0 or identifier >= len(self.questions):
+                raise ValueError(f"Index {identifier} is out of range.")
+            index = identifier
+        else:
+            raise TypeError(
+                "Identifier must be either a string (question name) or an integer (question index)."
+            )
+
+        moving_question = self._questions[index]
+
+        new_survey = self.delete_question(index)
+        new_survey.add_question(moving_question, new_index)
+        return new_survey
+
+    def delete_question(self, identifier: Union[str, int]) -> Survey:
+        """
+        Delete a question from the survey.
+
+        :param identifier: The name or index of the question to delete.
+        :return: The updated Survey object.
+
+        >>> from edsl import QuestionMultipleChoice, Survey
+        >>> q1 = QuestionMultipleChoice(question_text="Q1", question_options=["A", "B"], question_name="q1")
+        >>> q2 = QuestionMultipleChoice(question_text="Q2", question_options=["C", "D"], question_name="q2")
+        >>> s = Survey().add_question(q1).add_question(q2)
+        >>> _ = s.delete_question("q1")
+        >>> len(s.questions)
+        1
+        >>> _ = s.delete_question(0)
+        >>> len(s.questions)
+        0
+        """
+        if isinstance(identifier, str):
+            if identifier not in self.question_names:
+                raise ValueError(
+                    f"Question name '{identifier}' does not exist in the survey."
+                )
+            index = self.question_name_to_index[identifier]
+        elif isinstance(identifier, int):
+            if identifier < 0 or identifier >= len(self.questions):
+                raise ValueError(f"Index {identifier} is out of range.")
+            index = identifier
+        else:
+            raise TypeError(
+                "Identifier must be either a string (question name) or an integer (question index)."
+            )
+
+        # Remove the question
+        deleted_question = self._questions.pop(index)
+        del self.pseudo_indices[deleted_question.question_name]
+        # del self.question_name_to_index[deleted_question.question_name]
+
+        # Update indices
+        for question_name, old_index in self.pseudo_indices.items():
+            if old_index > index:
+                self.pseudo_indices[question_name] = old_index - 1
+
+        # for question_name, old_index in self.question_name_to_index.items():
+        #     if old_index > index:
+        #         self.question_name_to_index[question_name] = old_index - 1
+
+        # Update rules
+        new_rule_collection = RuleCollection()
+        for rule in self.rule_collection:
+            if rule.current_q == index:
+                continue  # Remove rules associated with the deleted question
+            if rule.current_q > index:
+                rule.current_q -= 1
+            if rule.next_q > index:
+                rule.next_q -= 1
+            if rule.next_q == index:
+                rule.next_q = min(
+                    rule.next_q, len(self.questions) - 1
+                )  # Adjust to last question if necessary
+            new_rule_collection.add_rule(rule)
+        self.rule_collection = new_rule_collection
+
+        # Update memory plan if it exists
+        if hasattr(self, "memory_plan"):
+            self.memory_plan.remove_question(deleted_question.question_name)
+
+        return self
+
     def add_question(
         self, question: QuestionBase, index: Optional[int] = None
     ) -> Survey:
@@ -620,10 +711,10 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         self.pseudo_indices[question.question_name] = index
 
-        ## Re-do question_name to index
-        for question_name, old_index in self.question_name_to_index.items():
-            if old_index >= index:
-                self.question_name_to_index[question_name] = old_index + 1
+        ## Re-do question_name to index - this is done automatically
+        # for question_name, old_index in self.question_name_to_index.items():
+        #     if old_index >= index:
+        #         self.question_name_to_index[question_name] = old_index + 1
 
         ## Need to re-do the rule collection and the indices of the questions
 
