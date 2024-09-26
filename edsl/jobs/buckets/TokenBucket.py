@@ -1,4 +1,4 @@
-from typing import Union, List, Any
+from typing import Union, List, Any, Optional
 import asyncio
 import time
 
@@ -17,6 +17,12 @@ class TokenBucket:
         self.bucket_name = bucket_name
         self.bucket_type = bucket_type
         self.capacity = capacity  # Maximum number of tokens
+        self.added_tokens = 0
+
+        self.target_rate = (
+            capacity * 60
+        )  # set this here because it can change with turbo mode
+
         self._old_capacity = capacity
         self.tokens = capacity  # Current number of available tokens
         self.refill_rate = refill_rate  # Rate at which tokens are refilled
@@ -24,6 +30,12 @@ class TokenBucket:
         self.last_refill = time.monotonic()  # Last refill time
         self.log: List[Any] = []
         self.turbo_mode = False
+
+        self.creation_time = time.monotonic()
+
+        self.num_requests = 0
+        self.num_released = 0
+        self.tokens_returned = 0
 
     def turbo_mode_on(self):
         """Set the refill rate to infinity."""
@@ -69,6 +81,7 @@ class TokenBucket:
         >>> bucket.tokens
         10
         """
+        self.tokens_returned += tokens
         self.tokens = min(self.capacity, self.tokens + tokens)
         self.log.append((time.monotonic(), self.tokens))
 
@@ -133,15 +146,12 @@ class TokenBucket:
         >>> bucket.capacity
         12.100000000000001
         """
+        self.num_requests += amount
         if amount >= self.capacity:
             if not cheat_bucket_capacity:
                 msg = f"Requested amount exceeds bucket capacity. Bucket capacity: {self.capacity}, requested amount: {amount}. As the bucket never overflows, the requested amount will never be available."
                 raise ValueError(msg)
             else:
-                # self.tokens = 0  # clear the bucket but let it go through
-                # print(
-                #    f"""The requested amount, {amount}, exceeds the current bucket capacity of {self.capacity}.Increasing bucket capacity to {amount} * 1.10 accommodate the requested amount."""
-                # )
                 self.capacity = amount * 1.10
                 self._old_capacity = self.capacity
 
@@ -153,14 +163,10 @@ class TokenBucket:
                 break
 
             wait_time = self.wait_time(amount)
-            # print(f"Waiting for {wait_time:.4f} seconds")
             if wait_time > 0:
-                # print(f"Waiting for {wait_time:.4f} seconds")
                 await asyncio.sleep(wait_time)
 
-        # total_elapsed = time.monotonic() - start_time
-        # print(f"Total time to acquire tokens: {total_elapsed:.4f} seconds")
-
+        self.num_released += amount
         now = time.monotonic()
         self.log.append((now, self.tokens))
         return None
@@ -186,6 +192,54 @@ class TokenBucket:
         plt.grid(True)
         plt.tight_layout()
         plt.show()
+
+    def get_throughput(self, time_window: Optional[float] = None) -> float:
+        """
+        Calculate the empirical bucket throughput in tokens per minute for the specified time window.
+
+        :param time_window: The time window in seconds to calculate the throughput for.
+        :return: The throughput in tokens per minute.
+
+        >>> bucket = TokenBucket(bucket_name="test", bucket_type="test", capacity=100, refill_rate=10)
+        >>> asyncio.run(bucket.get_tokens(50))
+        >>> time.sleep(1)  # Wait for 1 second
+        >>> asyncio.run(bucket.get_tokens(30))
+        >>> throughput = bucket.get_throughput(1)
+        >>> 4750 < throughput < 4850
+        True
+        """
+        now = time.monotonic()
+
+        if time_window is None:
+            start_time = self.creation_time
+        else:
+            start_time = now - time_window
+
+        if start_time < self.creation_time:
+            start_time = self.creation_time
+
+        elapsed_time = now - start_time
+
+        return (self.num_released / elapsed_time) * 60
+
+        # # Filter log entries within the time window
+        # relevant_log = [(t, tokens) for t, tokens in self.log if t >= start_time]
+
+        # if len(relevant_log) < 2:
+        #     return 0  # Not enough data points to calculate throughput
+
+        # # Calculate total tokens used
+        # initial_tokens = relevant_log[0][1]
+        # final_tokens = relevant_log[-1][1]
+        # tokens_used = self.num_released - (final_tokens - initial_tokens)
+
+        # # Calculate actual time elapsed
+        # actual_time_elapsed = relevant_log[-1][0] - relevant_log[0][0]
+
+        # # Calculate throughput in tokens per minute
+        # throughput = (tokens_used / actual_time_elapsed) * 60
+
+        # return throughput
 
 
 if __name__ == "__main__":

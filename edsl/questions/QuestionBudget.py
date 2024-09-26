@@ -1,13 +1,10 @@
 from __future__ import annotations
-import random
 from typing import Any, Optional, Union, List
-
 
 from pydantic import Field, BaseModel, validator
 
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.descriptors import IntegerDescriptor, QuestionOptionsDescriptor
-
 from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
 
 
@@ -187,13 +184,14 @@ class QuestionBudget(QuestionBase):
     # Helpful methods
     ################
     @classmethod
-    def example(cls) -> QuestionBudget:
+    def example(cls, include_comment: bool = True) -> QuestionBudget:
         """Return an example of a budget question."""
         return cls(
             question_name="food_budget",
             question_text="How would you allocate $100?",
             question_options=["Pizza", "Ice Cream", "Burgers", "Salad"],
             budget_sum=100,
+            include_comment=include_comment,
         )
 
 
