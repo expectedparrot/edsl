@@ -1,6 +1,9 @@
 import os
-from typing import Any
+import httpx
+import requests
+from typing import Any, Dict
 import re
+from datetime import datetime
 from anthropic import AsyncAnthropic
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
 from edsl.language_models.LanguageModel import LanguageModel
@@ -78,6 +81,67 @@ class AnthropicService(InferenceServiceABC):
                     ],
                 )
                 return response.model_dump()
+
+            def get_headers(self) -> Dict[str, str]:
+                """
+                Makes a minimal API call to Anthropic and returns the response headers.
+
+                Returns:
+                    A dictionary containing the response headers.
+                """
+                api_key = os.environ.get("ANTHROPIC_API_KEY")
+
+                headers = {
+                    "x-api-key": api_key,
+                    "anthropic-version": "2023-06-01",
+                    "content-type": "application/json",
+                }
+
+                # Minimal request body to get a response with headers
+                data = {
+                    "model": "claude-3-opus-20240229",
+                    "max_tokens": 1,
+                    "messages": [{"role": "user", "content": "Hello"}],
+                }
+
+                response = requests.post(
+                    "https://api.anthropic.com/v1/messages", headers=headers, json=data
+                )
+
+                response.raise_for_status()
+
+                return dict(response.headers)
+
+            def get_rate_limits(self) -> Dict[str, any]:
+                """
+                Retrieves the current rate limits (RPM and TPM) for the Anthropic API.
+
+                Returns:
+                    A dictionary containing rate limit information from the response headers.
+                """
+                headers = self.get_headers()
+
+                return {
+                    "requests_limit": int(
+                        headers.get("anthropic-ratelimit-requests-limit", 0)
+                    ),
+                    "requests_remaining": int(
+                        headers.get("anthropic-ratelimit-requests-remaining", 0)
+                    ),
+                    # "requests_reset": datetime.fromisoformat(
+                    #     headers.get("anthropic-ratelimit-requests-reset", "")
+                    # ).isoformat(),
+                    "tokens_limit": int(
+                        headers.get("anthropic-ratelimit-tokens-limit", 0)
+                    ),
+                    "tokens_remaining": int(
+                        headers.get("anthropic-ratelimit-tokens-remaining", 0)
+                    ),
+                    # "tokens_reset": datetime.fromisoformat(
+                    #     headers.get("anthropic-ratelimit-tokens-reset", "")
+                    # ).isoformat(),
+                    "retry_after": int(headers.get("retry-after", 0)),
+                }
 
         LLM.__name__ = model_class_name
 
