@@ -321,6 +321,40 @@ class RuleCollection(UserList):
 
         return DAG(dict(sorted(children_to_parents.items())))
 
+    def detect_cycles(self):
+        """
+        Detect cycles in the survey rules using depth-first search.
+
+        :return: A list of cycles if any are found, otherwise an empty list.
+        """
+        dag = self.dag
+        visited = set()
+        path = []
+        cycles = []
+
+        def dfs(node):
+            if node in path:
+                cycle = path[path.index(node) :]
+                cycles.append(cycle + [node])
+                return
+
+            if node in visited:
+                return
+
+            visited.add(node)
+            path.append(node)
+
+            for child in dag.get(node, []):
+                dfs(child)
+
+            path.pop()
+
+        for node in dag:
+            if node not in visited:
+                dfs(node)
+
+        return cycles
+
     @classmethod
     def example(cls):
         """Create an example RuleCollection object."""

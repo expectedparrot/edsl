@@ -11,6 +11,7 @@ class DAG(UserDict):
         """Initialize the DAG class."""
         super().__init__(data)
         self.reverse_mapping = self._create_reverse_mapping()
+        self.validate_no_cycles()
 
     def _create_reverse_mapping(self):
         """
@@ -96,6 +97,49 @@ class DAG(UserDict):
         """Return an example of the `DAG`."""
         data = {"a": ["b", "c"], "b": ["d"], "c": [], "d": []}
         return cls(data)
+
+    def detect_cycles(self):
+        """
+        Detect cycles in the DAG using depth-first search.
+
+        :return: A list of cycles if any are found, otherwise an empty list.
+        """
+        visited = set()
+        path = []
+        cycles = []
+
+        def dfs(node):
+            if node in path:
+                cycle = path[path.index(node) :]
+                cycles.append(cycle + [node])
+                return
+
+            if node in visited:
+                return
+
+            visited.add(node)
+            path.append(node)
+
+            for child in self.get(node, []):
+                dfs(child)
+
+            path.pop()
+
+        for node in self:
+            if node not in visited:
+                dfs(node)
+
+        return cycles
+
+    def validate_no_cycles(self):
+        """
+        Validate that the DAG does not contain any cycles.
+
+        :raises ValueError: If cycles are detected in the DAG.
+        """
+        cycles = self.detect_cycles()
+        if cycles:
+            raise ValueError(f"Cycles detected in the DAG: {cycles}")
 
 
 if __name__ == "__main__":
