@@ -286,16 +286,54 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
     # region: Simulation methods
 
+    @classmethod
+    def random_survey(self):
+        """Create a random survey."""
+        from edsl.questions import QuestionMultipleChoice, QuestionFreeText
+        from random import choice
+
+        num_questions = 10
+        questions = []
+        for i in range(num_questions):
+            if choice([True, False]):
+                q = QuestionMultipleChoice(
+                    question_text="nothing",
+                    question_name="q_" + str(i),
+                    question_options=list(range(3)),
+                )
+                questions.append(q)
+            else:
+                questions.append(
+                    QuestionFreeText(
+                        question_text="nothing", question_name="q_" + str(i)
+                    )
+                )
+        s = Survey(questions)
+        start_index = choice(range(num_questions - 1))
+        end_index = choice(range(start_index + 1, 10))
+        s = s.add_rule(f"q_{start_index}", "True", f"q_{end_index}")
+        question_to_delete = choice(range(num_questions))
+        s.delete_question(f"q_{question_to_delete}")
+        return s
+
     def simulate(self) -> dict:
         """Simulate the survey and return the answers."""
         i = self.gen_path_through_survey()
         q = next(i)
+        num_passes = 0
         while True:
+            num_passes += 1
             try:
                 answer = q._simulate_answer()
+                print("Answer:", answer)
                 q = i.send({q.question_name: answer["answer"]})
+                print("Next question:", q)
             except StopIteration:
                 break
+
+            if num_passes > 100:
+                print("Too many passes.")
+                breakpoint()
         return self.answers
 
     def create_agent(self) -> "Agent":
@@ -648,10 +686,15 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
                 rule.current_q -= 1
             if rule.next_q > index:
                 rule.next_q -= 1
+
             if rule.next_q == index:
-                rule.next_q = min(
-                    rule.next_q, len(self.questions) - 1
-                )  # Adjust to last question if necessary
+                rule.next_q = min(index, len(self.questions) - 1)
+
+            # if rule.next_q == index:
+            #     rule.next_q = min(
+            #         rule.next_q, len(self.questions) - 1
+            #     )  # Adjust to last question if necessary
+
             new_rule_collection.add_rule(rule)
         self.rule_collection = new_rule_collection
 

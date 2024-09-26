@@ -270,6 +270,12 @@ class TestSurvey(unittest.TestCase):
 
         # breakpoint()
 
+    def test_simulations(self):
+        for index in range(10):
+            print("Running simulation:" + str(index))
+            s = Survey.random_survey()
+            s.simulate()
+
 
 if __name__ == "__main__":
     unittest.main()
