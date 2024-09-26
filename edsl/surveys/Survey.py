@@ -688,7 +688,12 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
                 rule.next_q -= 1
 
             if rule.next_q == index:
-                rule.next_q = min(index, len(self.questions) - 1)
+                if index == len(self.questions):
+                    rule.next_q = EndOfSurvey
+                else:
+                    rule.next_q = index
+                # rule.next_q = min(index, len(self.questions) - 1)
+                # continue
 
             # if rule.next_q == index:
             #     rule.next_q = min(
