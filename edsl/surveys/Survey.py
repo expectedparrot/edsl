@@ -333,7 +333,8 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
             if num_passes > 100:
                 print("Too many passes.")
-                breakpoint()
+                # breakpoint()
+                raise Exception("Too many passes.")
         return self.answers
 
     def create_agent(self) -> "Agent":
