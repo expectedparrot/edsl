@@ -204,6 +204,63 @@ class TestSurvey(unittest.TestCase):
 
         path = survey.gen_path_through_survey()
         survey._questions[0] = next(path)
+
+    def test_deletion(self):
+        survey = self.gen_survey()
+        q1, q2, q3 = survey._questions
+        survey.add_rule(q1, "like_school == 'no'", q3)
+
+        original_length = len(survey._questions)
+
+        # Remember the question to be deleted
+        question_to_delete = survey._questions[1]  # q2
+
+        # Delete the second question
+        deletion_index = 1
+        new_survey = survey.delete_question(deletion_index)
+
+        # Assert that the new survey is returned
+        assert isinstance(new_survey, type(survey))
+
+        # Check that the survey length has decreased
+        assert len(new_survey._questions) == original_length - 1
+
+        # Check that the deleted question is no longer in the survey
+        assert question_to_delete not in new_survey._questions
+
+        # Check that the remaining questions are in the correct order
+        assert new_survey._questions == [q1, q3]
+
+        # # Check that the rule has been updated (q3 should now be at index 1)
+        # assert new_survey._rules == {0: {("like_school == 'no'", 1)}}
+
+        # Check that the memory plan has been updated
+        assert (
+            question_to_delete.question_name
+            not in new_survey.memory_plan.survey_question_names
+        )
+        assert (
+            question_to_delete.question_text
+            not in new_survey.memory_plan.question_texts
+        )
+
+        # If the deleted question was part of any memory, check that it's been removed
+        for memory in new_survey.memory_plan.values():
+            assert question_to_delete.question_name not in memory.prior_questions
+
+        # Generate a new path through the survey to ensure it still works
+        path = new_survey.gen_path_through_survey()
+        first_question = next(path)
+        assert first_question == q1
+
+        # If first question's answer triggers the rule, next question should be q3
+        # if first_question.answer == "no":
+        #     assert next(path) == q3
+        # else:
+        #     # If the rule isn't triggered, the path should be exhausted
+        #     with self.assertRaises(StopIteration):
+        #         next(path)
+
         # breakpoint()
         # breakpoint()
         # survey.show_flow()

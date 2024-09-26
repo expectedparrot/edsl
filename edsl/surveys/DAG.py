@@ -73,6 +73,24 @@ class DAG(UserDict):
         # else:
         #     return DAG(d)
 
+    def remove_node(self, node: int) -> None:
+        """Remove a node and all its connections from the DAG."""
+        self.pop(node, None)
+        for connections in self.values():
+            connections.discard(node)
+        # Adjust remaining nodes if necessary
+        self._adjust_nodes_after_removal(node)
+
+    def _adjust_nodes_after_removal(self, removed_node: int) -> None:
+        """Adjust node indices after a node is removed."""
+        new_dag = {}
+        for node, connections in self.items():
+            new_node = node if node < removed_node else node - 1
+            new_connections = {c if c < removed_node else c - 1 for c in connections}
+            new_dag[new_node] = new_connections
+        self.clear()
+        self.update(new_dag)
+
     @classmethod
     def example(cls):
         """Return an example of the `DAG`."""
