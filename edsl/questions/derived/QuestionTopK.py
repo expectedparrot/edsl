@@ -54,7 +54,7 @@ class QuestionTopK(QuestionCheckBox):
     ################
     @classmethod
     @inject_exception
-    def example(cls) -> QuestionTopK:
+    def example(cls, include_comment: bool = True) -> QuestionTopK:
         """Return an example question."""
         return cls(
             question_name="two_fruits",
@@ -62,6 +62,7 @@ class QuestionTopK(QuestionCheckBox):
             question_options=["apple", "banana", "carrot", "durian"],
             min_selections=2,
             max_selections=2,
+            include_comment=include_comment,
         )
 
 

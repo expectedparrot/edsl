@@ -75,8 +75,7 @@ class QuestionBase(
         if not hasattr(self, "_fake_data_factory"):
             from polyfactory.factories.pydantic_factory import ModelFactory
 
-            class FakeData(ModelFactory[self.response_model]):
-                ...
+            class FakeData(ModelFactory[self.response_model]): ...
 
             self._fake_data_factory = FakeData
         return self._fake_data_factory
@@ -512,15 +511,30 @@ class QuestionBase(
             "scenario": scenario,
             "agent": agent,
         } | prior_answers_dict
-        question_text = Template(self.question_text).render(context)
-        # breakpoint()
+
+        # Render the question text
+        try:
+            question_text = Template(self.question_text).render(context)
+        except Exception as e:
+            print(
+                f"Error rendering question: question_text = {self.question_text}, error = {e}"
+            )
+            question_text = self.question_text
+
+        try:
+            question_content = Template(question_content).render(context)
+        except Exception as e:
+            print(
+                f"Error rendering question: question_content = {question_content}, error = {e}"
+            )
+            question_content = question_content
 
         try:
             params = {
                 "question_name": self.question_name,
                 "question_text": question_text,
                 "question_type": self.question_type,
-                "question_content": Template(question_content).render(scenario),
+                "question_content": question_content,
                 "include_question_name": include_question_name,
             }
         except Exception as e:

@@ -1,22 +1,14 @@
 from __future__ import annotations
-from typing import Union, Literal, Optional
+from typing import Union, Literal, Optional, List, Any
+
 from jinja2 import Template
-
 from pydantic import BaseModel, Field
-from typing import Optional, Literal
 
+from edsl.scenarios.Scenario import Scenario
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.descriptors import QuestionOptionsDescriptor
 from edsl.questions.decorators import inject_exception
-
 from edsl.questions.ResponseValidatorABC import ResponseValidatorABC
-from edsl.questions.ResponseValidatorABC import BaseResponse
-
-from edsl.exceptions import QuestionAnswerValidationError
-
-from pydantic import BaseModel, Field, create_model
-
-from typing import List, Any, Literal
 
 
 def create_response_model(choices: List[str], permissive: bool = False):
@@ -27,7 +19,6 @@ def create_response_model(choices: List[str], permissive: bool = False):
     :param permissive: If True, any value will be accepted as an answer.
     :return: A new Pydantic model class.
     """
-    # Convert the choices list to a tuple for use with Literal
     choice_tuple = tuple(choices)
 
     if not permissive:
@@ -64,16 +55,6 @@ def create_response_model(choices: List[str], permissive: bool = False):
                     schema["title"] += " (Permissive)"
 
     return ChoiceResponse
-
-
-def fix_multiple_choice(response, question_options, use_code, verbose=False):
-    """Fix the response to a multiple choice question.
-    Respnse is a dictionary with keys:
-    - answer: the answer code
-    - generated_tokens: the generated tokens
-    - comment: the comment
-    """
-    pass
 
 
 class MultipleChoiceResponseValidator(ResponseValidatorABC):
@@ -139,9 +120,9 @@ class QuestionMultipleChoice(QuestionBase):
 
     question_type = "multiple_choice"
     purpose = "When options are known and limited"
-    question_options: Union[
-        list[str], list[list], list[float], list[int]
-    ] = QuestionOptionsDescriptor()
+    question_options: Union[list[str], list[list], list[float], list[int]] = (
+        QuestionOptionsDescriptor()
+    )
     _response_model = None
     response_validator_class = MultipleChoiceResponseValidator
 
@@ -161,6 +142,11 @@ class QuestionMultipleChoice(QuestionBase):
         :param question_name: The name of the question.
         :param question_text: The text of the question.
         :param question_options: The options the agent should select from.
+        :param include_comment: Whether to include a comment field.
+        :param use_code: Whether to use code for the options.
+        :param answering_instructions: Instructions for the question.
+        :param question_presentation: The presentation of the question.
+        :param permissive: Whether to force the answer to be one of the options.
 
         """
         self.question_name = question_name
@@ -202,7 +188,6 @@ class QuestionMultipleChoice(QuestionBase):
         'Happy'
 
         """
-        from edsl.scenarios.Scenario import Scenario
 
         scenario = scenario or Scenario()
 
