@@ -390,8 +390,8 @@ class QuestionTextDescriptor(BaseDescriptor):
 
     def validate(self, value, instance):
         """Validate the value is a string."""
-        if len(value) > Settings.MAX_QUESTION_LENGTH:
-            raise Exception("Question is too long!")
+        # if len(value) > Settings.MAX_QUESTION_LENGTH:
+        #     raise Exception("Question is too long!")
         if len(value) < 1:
             raise Exception("Question is too short!")
         if not isinstance(value, str):
