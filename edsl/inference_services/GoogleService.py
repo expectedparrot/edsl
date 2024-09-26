@@ -1,24 +1,24 @@
 import os
-import aiohttp
-import json
-from typing import Any
+from typing import Any, Dict, List
+import google.generativeai as genai
+from google.generativeai.types import GenerationConfig
 from edsl.exceptions import MissingAPIKeyError
 from edsl.language_models.LanguageModel import LanguageModel
-
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
 
 
+# \'usage_metadata\': {\'prompt_token_count\': 5, \'candidates_token_count\':
 class GoogleService(InferenceServiceABC):
     _inference_service_ = "google"
     key_sequence = ["candidates", 0, "content", "parts", 0, "text"]
-    usage_sequence = ["usageMetadata"]
-    input_token_name = "promptTokenCount"
-    output_token_name = "candidatesTokenCount"
+    usage_sequence = ["usage_metadata"]
+    input_token_name = "prompt_token_count"
+    output_token_name = "candidates_token_count"
 
     model_exclude_list = []
 
     @classmethod
-    def available(cls):
+    def available(cls) -> List[str]:
         return ["gemini-pro", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.0-pro"]
 
     @classmethod
@@ -47,33 +47,54 @@ class GoogleService(InferenceServiceABC):
                 "stopSequences": [],
             }
 
+            api_token = None
+            model = None
+
+            @classmethod
+            def initialize(cls):
+                if cls.api_token is None:
+                    cls.api_token = os.getenv("GOOGLE_API_KEY")
+                    if not cls.api_token:
+                        raise MissingAPIKeyError(
+                            "GOOGLE_API_KEY environment variable is not set"
+                        )
+                    genai.configure(api_key=cls.api_token)
+                    cls.generative_model = genai.GenerativeModel(cls._model_)
+
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.initialize()
+
+            def get_generation_config(self) -> GenerationConfig:
+                return GenerationConfig(
+                    temperature=self.temperature,
+                    top_p=self.topP,
+                    top_k=self.topK,
+                    max_output_tokens=self.maxOutputTokens,
+                    stop_sequences=self.stopSequences,
+                )
+
             async def async_execute_model_call(
                 self, user_prompt: str, system_prompt: str = ""
-            ) -> dict[str, Any]:
-                # self.api_token = os.getenv("GOOGLE_API_KEY")
-                combined_prompt = user_prompt + system_prompt
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={self.api_token}"
-                headers = {"Content-Type": "application/json"}
-                data = {
-                    "contents": [{"parts": [{"text": combined_prompt}]}],
-                    "generationConfig": {
-                        "temperature": self.temperature,
-                        "topK": self.topK,
-                        "topP": self.topP,
-                        "maxOutputTokens": self.maxOutputTokens,
-                        "stopSequences": self.stopSequences,
-                    },
-                }
-                # print(combined_prompt)
-                async with aiohttp.ClientSession() as session:
-                    async with session.post(
-                        url, headers=headers, data=json.dumps(data)
-                    ) as response:
-                        raw_response_text = await response.text()
-                        return json.loads(raw_response_text)
+            ) -> Dict[str, Any]:
+                generation_config = self.get_generation_config()
+
+                # Combine system and user prompts
+                combined_prompt = []
+                if system_prompt:
+                    combined_prompt.append(
+                        {"role": "system", "parts": [{"text": system_prompt}]}
+                    )
+                combined_prompt.append(
+                    {"role": "user", "parts": [{"text": user_prompt}]}
+                )
+
+                response = await self.generative_model.generate_content_async(
+                    contents=combined_prompt, generation_config=generation_config
+                )
+                return response.to_dict()
 
         LLM.__name__ = model_name
-
         return LLM
 
 

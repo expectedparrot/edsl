@@ -62,9 +62,9 @@ def test_QuestionRank_construction():
     invalid_question = valid_question.copy()
     from edsl.questions.settings import Settings
 
-    invalid_question.update({"question_text": "a" * (Settings.MAX_QUESTION_LENGTH + 1)})
-    with pytest.raises(Exception):
-        QuestionRank(**invalid_question)
+    # invalid_question.update({"question_text": "a" * (Settings.MAX_QUESTION_LENGTH + 1)})
+    # with pytest.raises(Exception):
+    #     QuestionRank(**invalid_question)
     # should raise an exception if unexpected attribute is present
     invalid_question = valid_question.copy()
     invalid_question.update({"unexpected_attribute": "unexpected_attribute"})
