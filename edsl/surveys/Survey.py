@@ -325,15 +325,12 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
             num_passes += 1
             try:
                 answer = q._simulate_answer()
-                print("Answer:", answer)
                 q = i.send({q.question_name: answer["answer"]})
-                print("Next question:", q)
             except StopIteration:
                 break
 
             if num_passes > 100:
                 print("Too many passes.")
-                # breakpoint()
                 raise Exception("Too many passes.")
         return self.answers
 
