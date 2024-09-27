@@ -115,22 +115,26 @@ class PersistenceMixin:
         if filename.endswith("json.gz"):
             import warnings
 
-            warnings.warn(
-                "Do not apply the file extensions. The filename should not end with 'json.gz'."
-            )
+            # warnings.warn(
+            #    "Do not apply the file extensions. The filename should not end with 'json.gz'."
+            # )
             filename = filename[:-7]
         if filename.endswith("json"):
             filename = filename[:-4]
-            warnings.warn(
-                "Do not apply the file extensions. The filename should not end with 'json'."
-            )
+            # warnings.warn(
+            #    "Do not apply the file extensions. The filename should not end with 'json'."
+            # )
 
         if compress:
-            with gzip.open(filename + ".json.gz", "wb") as f:
+            full_file_name = filename + ".json.gz"
+            with gzip.open(full_file_name, "wb") as f:
                 f.write(json.dumps(self.to_dict()).encode("utf-8"))
         else:
+            full_file_name = filename + ".json"
             with open(filename + ".json", "w") as f:
                 f.write(json.dumps(self.to_dict()))
+
+        print("Saved to", full_file_name)
 
     @staticmethod
     def open_compressed_file(filename):
@@ -160,11 +164,11 @@ class PersistenceMixin:
             d = cls.open_regular_file(filename)
         else:
             try:
-                d = cls.open_compressed_file(filename)
+                d = cls.open_compressed_file(filename + ".json.gz")
             except:
-                d = cls.open_regular_file(filename)
-            finally:
-                raise ValueError("File must be a json or json.gz file")
+                d = cls.open_regular_file(filename + ".json")
+            # finally:
+            #    raise ValueError("File must be a json or json.gz file")
 
         return cls.from_dict(d)
 
