@@ -10,6 +10,7 @@ from edsl.data_transfer_models import ImageInfo
 from edsl.prompts.registry import get_classes as prompt_lookup
 from edsl.exceptions import QuestionScenarioRenderError
 
+#from edsl.scenarios.FileStore import FileStore
 
 class PromptComponent(enum.Enum):
     AGENT_INSTRUCTIONS = "agent_instructions"
@@ -175,15 +176,19 @@ class PromptConstructor:
         self.prompt_plan = PromptPlan()  # Assuming PromptPlan is defined elsewhere
 
         # prompt_plan = PromptPlan()
-
+    
     @property
-    def scenario_image_keys(self):
-        image_entries = []
+    def scenario_file_keys(self):
+        """We need to find all the keys in the scenario that refer to FileStore objects.
+        These will be used to append to the prompt a list of files that are part of the scenario.
+        """
+        from edsl.scenarios.FileStore import FileStore
 
+        file_entries = []
         for key, value in self.scenario.items():
-            if isinstance(value, ImageInfo):
-                image_entries.append(key)
-        return image_entries
+            if isinstance(value, FileStore):
+                file_entries.append(key)
+        return file_entries
 
     @property
     def agent_instructions_prompt(self) -> Prompt:
@@ -270,14 +275,14 @@ class PromptConstructor:
         return d
 
     @property
-    def question_image_keys(self):
+    def question_file_keys(self):
         raw_question_text = self.question.question_text
         variables = get_jinja2_variables(raw_question_text)
-        question_image_keys = []
+        question_file_keys = []
         for var in variables:
-            if var in self.scenario_image_keys:
-                question_image_keys.append(var)
-        return question_image_keys
+            if var in self.scenario_file_keys:
+                question_file_keys.append(var)
+        return question_file_keys
 
     @property
     def question_instructions_prompt(self) -> Prompt:
@@ -312,12 +317,12 @@ class PromptConstructor:
                     self.question.question_options = question_options
 
             replacement_dict = (
-                {key: "<see image>" for key in self.scenario_image_keys}
+                {key: f"<see file {key}>" for key in self.scenario_file_keys}
                 | question_data
                 | {
                     k: v
                     for k, v in self.scenario.items()
-                    if k not in self.scenario_image_keys
+                    if k not in self.scenario_file_keys
                 }  # don't include images in the replacement dict
                 | self.prior_answers_dict()
                 | {"agent": self.agent}
@@ -425,19 +430,18 @@ class PromptConstructor:
         >>> i.get_prompts()
         {'user_prompt': ..., 'system_prompt': ...}
         """
+        #breakpoint()
         prompts = self.prompt_plan.get_prompts(
             agent_instructions=self.agent_instructions_prompt,
             agent_persona=self.agent_persona_prompt,
             question_instructions=self.question_instructions_prompt,
             prior_question_memory=self.prior_question_memory_prompt,
         )
-        if len(self.question_image_keys) > 1:
-            raise ValueError("We can only handle one image per question.")
-        elif len(self.question_image_keys) == 1:
-            prompts["encoded_image"] = self.scenario[
-                self.question_image_keys[0]
-            ].encoded_image
-
+        if self.question_file_keys:
+            files_list = []
+            for key in self.question_file_keys:
+                files_list.append(self.scenario[key])
+            prompts["files_list"] = files_list
         return prompts
 
     def _get_scenario_with_image(self) -> Scenario:
@@ -453,5 +457,6 @@ class PromptConstructor:
 
 if __name__ == "__main__":
     import doctest
-
     doctest.testmod(optionflags=doctest.ELLIPSIS)
+
+
