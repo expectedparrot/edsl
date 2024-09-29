@@ -312,19 +312,26 @@ class JobsRunnerAsyncio:
             progress_thread = threading.Thread(target=run_progress_bar)
             progress_thread.start()
 
-        with cache as c:
-            await process_results(cache=c)
+        # with cache as c:
+        #     await process_results(cache=c)
 
+        exception_to_raise = None
         try:
             with cache as c:
                 await process_results(cache=c)
         except KeyboardInterrupt:
             print("Keyboard interrupt received. Stopping gracefully...")
+        except Exception as e:
+            if stop_on_exception:
+               exception_to_raise = e
         finally:
             if progress_bar:
-                self.jobs_runner_status.stop_event.set()
+                #self.jobs_runner_status.stop_event.set()
                 if progress_thread:
                     progress_thread.join()
+
+            if exception_to_raise:
+                raise exception_to_raise
 
             return self.process_results(
                 raw_results=self.results, cache=cache, print_exceptions=print_exceptions

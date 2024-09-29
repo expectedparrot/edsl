@@ -134,7 +134,7 @@ class FileStore(Scenario):
 
         # Create a named temporary file
         mode = "wb" if self.binary else "w"
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=suffix, mode=mode)
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix="." + suffix, mode=mode)
 
         if self.binary:
             temp_file.write(file_like_object.read())
