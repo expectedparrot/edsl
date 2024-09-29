@@ -1,9 +1,9 @@
 import os
 from typing import Any, Dict, List, Optional
 import google
-from edsl.language_models.multimodal.files import FileList
 import google.generativeai as genai
 from google.generativeai.types import GenerationConfig
+
 from edsl.exceptions import MissingAPIKeyError
 from edsl.language_models.LanguageModel import LanguageModel
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
