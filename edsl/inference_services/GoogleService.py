@@ -1,13 +1,32 @@
 import os
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
+import google
+from edsl.language_models.multimodal.files import FileList
 import google.generativeai as genai
 from google.generativeai.types import GenerationConfig
 from edsl.exceptions import MissingAPIKeyError
 from edsl.language_models.LanguageModel import LanguageModel
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
 
+safety_settings = [
+    {
+        "category": "HARM_CATEGORY_HARASSMENT",
+        "threshold": "BLOCK_NONE",
+    },
+    {
+        "category": "HARM_CATEGORY_HATE_SPEECH",
+        "threshold": "BLOCK_NONE",
+    },
+    {
+        "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+        "threshold": "BLOCK_NONE",
+    },
+    {
+        "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+        "threshold": "BLOCK_NONE",
+    },
+]
 
-# \'usage_metadata\': {\'prompt_token_count\': 5, \'candidates_token_count\':
 class GoogleService(InferenceServiceABC):
     _inference_service_ = "google"
     key_sequence = ["candidates", 0, "content", "parts", 0, "text"]
@@ -59,7 +78,7 @@ class GoogleService(InferenceServiceABC):
                             "GOOGLE_API_KEY environment variable is not set"
                         )
                     genai.configure(api_key=cls.api_token)
-                    cls.generative_model = genai.GenerativeModel(cls._model_)
+                    cls.generative_model = genai.GenerativeModel(cls._model_, safety_settings=safety_settings)
 
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
@@ -75,22 +94,30 @@ class GoogleService(InferenceServiceABC):
                 )
 
             async def async_execute_model_call(
-                self, user_prompt: str, system_prompt: str = ""
+                self, user_prompt: str, 
+                system_prompt: str = "", 
+                files_list: Optional['Files'] = None
             ) -> Dict[str, Any]:
                 generation_config = self.get_generation_config()
 
-                # Combine system and user prompts
-                combined_prompt = []
-                if system_prompt:
-                    combined_prompt.append(
-                        {"role": "system", "parts": [{"text": system_prompt}]}
-                    )
-                combined_prompt.append(
-                    {"role": "user", "parts": [{"text": user_prompt}]}
-                )
+                #breakpoint()
 
-                response = await self.generative_model.generate_content_async(
-                    contents=combined_prompt, generation_config=generation_config
+                if files_list is None:
+                    files_list = []
+
+                if system_prompt is not None and system_prompt != "":
+                    self.generative_model = genai.GenerativeModel(self._model_, 
+                                                                safety_settings=safety_settings, 
+                                                                system_instruction=system_prompt)
+
+
+                combined_prompt = [user_prompt]
+                for file in files_list:
+                    gen_ai_file = google.generativeai.types.file_types.File(file.external_locations['google'])
+                    combined_prompt.append(gen_ai_file)
+
+                response = await self.generative_model.generate_content_async(combined_prompt,
+                    generation_config=generation_config
                 )
                 return response.to_dict()
 
