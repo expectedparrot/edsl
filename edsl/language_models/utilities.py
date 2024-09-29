@@ -1,5 +1,5 @@
 import asyncio
-from typing import Any
+from typing import Any, Optional, List
 from edsl import Survey
 from edsl.config import CONFIG
 from edsl.enums import InferenceServiceType
@@ -40,7 +40,8 @@ def create_language_model(
         _tpm = 1000000000000
 
         async def async_execute_model_call(
-            self, user_prompt: str, system_prompt: str
+            self, user_prompt: str, system_prompt: str, 
+            files_list: Optional[List[Any]] = None
         ) -> dict[str, Any]:
             question_number = int(
                 user_prompt.split("XX")[1]
