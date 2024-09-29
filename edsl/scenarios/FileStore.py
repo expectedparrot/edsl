@@ -21,13 +21,16 @@ from urllib.parse import urlparse
 class FileStore(Scenario):
     def __init__(
         self,
-        path: str,
+        path: Optional[str] = None,
         mime_type: Optional[str] = None,
         binary: Optional[bool] = None,
         suffix: Optional[str] = None,
         base64_string: Optional[str] = None,
         external_locations: Optional[Dict[str, str]] = None,
+        **kwargs,
     ):
+        if path is None and 'filename' in kwargs:
+            path = kwargs['filename']
         self.path = path
         self.suffix = suffix or path.split(".")[-1]
         self.binary = binary or False
