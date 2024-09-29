@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional
 import google
 import google.generativeai as genai
 from google.generativeai.types import GenerationConfig
+from google.api_core.exceptions import InvalidArgument
 
 from edsl.exceptions import MissingAPIKeyError
 from edsl.language_models.LanguageModel import LanguageModel
@@ -36,9 +37,17 @@ class GoogleService(InferenceServiceABC):
 
     model_exclude_list = []
 
+    # @classmethod
+    # def available(cls) -> List[str]:
+    #     return ["gemini-pro", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.0-pro"]
+    
     @classmethod
     def available(cls) -> List[str]:
-        return ["gemini-pro", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.0-pro"]
+        model_list = [] 
+        for m in genai.list_models():
+            if "generateContent" in m.supported_generation_methods:
+                model_list.append(m.name.split("/")[-1])
+        return model_list 
 
     @classmethod
     def create_model(
@@ -100,16 +109,19 @@ class GoogleService(InferenceServiceABC):
             ) -> Dict[str, Any]:
                 generation_config = self.get_generation_config()
 
-                #breakpoint()
-
                 if files_list is None:
                     files_list = []
 
-                if system_prompt is not None and system_prompt != "":
-                    self.generative_model = genai.GenerativeModel(self._model_, 
-                                                                safety_settings=safety_settings, 
-                                                                system_instruction=system_prompt)
-
+                if system_prompt is not None and system_prompt != "" and self._model_ != "gemini-pro":
+                    try:
+                        self.generative_model = genai.GenerativeModel(self._model_, 
+                                                                    safety_settings=safety_settings, 
+                                                                    system_instruction=system_prompt)
+                    except InvalidArgument as e:
+                        print(f"This model, {self._model_}, does not support system_instruction")
+                        print("Will add system_prompt to user_prompt")
+                        user_prompt = f"{system_prompt}\n{user_prompt}"
+                    
 
                 combined_prompt = [user_prompt]
                 for file in files_list:
