@@ -1,5 +1,5 @@
 import os
-from typing import Any
+from typing import Any, List, Optional
 import re
 import boto3
 from botocore.exceptions import ClientError
@@ -69,7 +69,10 @@ class AwsBedrockService(InferenceServiceABC):
             _tpm = cls.get_tpm(cls)
 
             async def async_execute_model_call(
-                self, user_prompt: str, system_prompt: str = ""
+                self,
+                user_prompt: str,
+                system_prompt: str = "",
+                files_list: Optional[List["FileStore"]] = None,
             ) -> dict[str, Any]:
                 """Calls the AWS Bedrock API and returns the API response."""
 

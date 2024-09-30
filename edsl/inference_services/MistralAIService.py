@@ -1,5 +1,5 @@
 import os
-from typing import Any, List
+from typing import Any, List, Optional
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
 from edsl.language_models.LanguageModel import LanguageModel
 import asyncio
@@ -95,7 +95,10 @@ class MistralAIService(InferenceServiceABC):
                 return cls.async_client()
 
             async def async_execute_model_call(
-                self, user_prompt: str, system_prompt: str = ""
+                self,
+                user_prompt: str,
+                system_prompt: str = "",
+                files_list: Optional[List["FileStore"]] = None,
             ) -> dict[str, Any]:
                 """Calls the Mistral API and returns the API response."""
                 s = self.async_client()
