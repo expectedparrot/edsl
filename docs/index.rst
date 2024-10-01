@@ -181,7 +181,6 @@ Information about additional functionality for developers.
    :hidden:
 
    notebooks/edsl_intro.ipynb
-   notebooks/edsl_components.ipynb
    notebooks/data_labeling_example.ipynb
    notebooks/data_cleaning.ipynb
    notebooks/scenario_from_pdf.ipynb
