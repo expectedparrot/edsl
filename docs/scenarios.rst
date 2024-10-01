@@ -233,7 +233,7 @@ This will print a table of the response for each question (note that "activity" 
 
 
 Multiple parameters
-^^^^^^^^^^^^^^^^^^^
+-------------------
 
 We can also create a `Scenario` for multiple parameters:
 
@@ -269,7 +269,7 @@ To learn more about constructing surveys, please see the :ref:`surveys` module.
 
 
 Scenarios for question options
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+------------------------------
 
 In the above examples we created scenarios in the `question_text`.
 We can also create a `Scenario` for `question_options`, e.g., in a multiple choice, checkbox, linear scale or other question type that requires them:
