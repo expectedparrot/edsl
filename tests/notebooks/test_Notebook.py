@@ -79,7 +79,7 @@ def test_notebook_creation_from_path_valid():
 
     notebook = Notebook(path="docs/notebooks/starter_tutorial.ipynb")
     assert notebook.data["nbformat"] == 4
-    assert notebook.data["nbformat_minor"] == 4
+    assert notebook.data["nbformat_minor"] == 5
     assert notebook.data["cells"][0]["cell_type"] == "markdown"
 
 
