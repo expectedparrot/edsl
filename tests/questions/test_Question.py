@@ -109,3 +109,27 @@ def test_hashing():
     assert (
         sum(hashes) > 0  # == 16668425656756741917
     )  # 16761523895673820409 == 16761523895673820409
+
+
+def test_validation_with_rendering():
+    from edsl import QuestionMultipleChoice, Scenario
+
+    s = Scenario({"city": ["Paris", "London", "Berlin", "Madrid"]})
+
+    q = QuestionMultipleChoice(
+        question_text="What is the capital of France?",
+        question_name="capital_of_france",
+        question_options=[
+            "{{city[0]}}",
+            "{{city[1]}}",
+            "{{city[2]}}",
+            "{{city[3]}}",
+        ],
+    )
+    from edsl.exceptions.questions import QuestionAnswerValidationError
+
+    with pytest.raises(QuestionAnswerValidationError):
+        q._validate_answer({"answer": "Paris"})
+
+    new_q = q.render(s)
+    new_q._validate_answer({"answer": "Paris"})

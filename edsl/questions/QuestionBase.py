@@ -44,6 +44,13 @@ class QuestionBase(
     _answering_instructions = None
     _question_presentation = None
 
+    @property
+    def response_model(self) -> type["BaseModel"]:
+        if self._response_model is not None:
+            return self._response_model
+        else:
+            return self.create_response_model()
+
     # region: Validation and simulation methods
     @property
     def response_validator(self) -> "ResponseValidatorBase":
@@ -75,8 +82,7 @@ class QuestionBase(
         if not hasattr(self, "_fake_data_factory"):
             from polyfactory.factories.pydantic_factory import ModelFactory
 
-            class FakeData(ModelFactory[self.response_model]):
-                ...
+            class FakeData(ModelFactory[self.response_model]): ...
 
             self._fake_data_factory = FakeData
         return self._fake_data_factory
@@ -99,7 +105,9 @@ class QuestionBase(
         comment: Optional[str]
         generated_tokens: Optional[str]
 
-    def _validate_answer(self, answer: dict) -> ValidatedAnswer:
+    def _validate_answer(
+        self, answer: dict, replacement_dict: dict = None
+    ) -> ValidatedAnswer:
         """Validate the answer.
         >>> from edsl.exceptions import QuestionAnswerValidationError
         >>> from edsl import QuestionFreeText as Q
@@ -107,7 +115,7 @@ class QuestionBase(
         {'answer': 'Hello', 'generated_tokens': 'Hello'}
         """
 
-        return self.response_validator.validate(answer)
+        return self.response_validator.validate(answer, replacement_dict)
 
     # endregion
 
