@@ -10,7 +10,8 @@ from edsl.data_transfer_models import ImageInfo
 from edsl.prompts.registry import get_classes as prompt_lookup
 from edsl.exceptions import QuestionScenarioRenderError
 
-#from edsl.scenarios.FileStore import FileStore
+# from edsl.scenarios.FileStore import FileStore
+
 
 class PromptComponent(enum.Enum):
     AGENT_INSTRUCTIONS = "agent_instructions"
@@ -176,7 +177,7 @@ class PromptConstructor:
         self.prompt_plan = PromptPlan()  # Assuming PromptPlan is defined elsewhere
 
         # prompt_plan = PromptPlan()
-    
+
     @property
     def scenario_file_keys(self):
         """We need to find all the keys in the scenario that refer to FileStore objects.
@@ -265,6 +266,15 @@ class PromptConstructor:
 
     def prior_answers_dict(self) -> dict:
         d = self.survey.question_names_to_questions()
+
+        # Every prior question should be answered
+        # parent_questions_that_should_be_answered = self.survey.dag(textify=True).get(
+        #     self.question.question_name, []
+        # )
+        # for parent_question in parent_questions_that_should_be_answered:
+        #     assert parent_question in self.current_answers
+
+        # This attaches the answer to the question
         for question, answer in self.current_answers.items():
             if question in d:
                 d[question].answer = answer
@@ -293,15 +303,18 @@ class PromptConstructor:
         Prompt(text=\"""...
         ...
         """
+        # The user might have passed a custom prompt, which would be stored in _question_instructions_prompt
         if not hasattr(self, "_question_instructions_prompt"):
+
+            # Gets the instructions for the question - this is how the question should be answered
             question_prompt = self.question.get_instructions(model=self.model.model)
 
-            # Are any of the scenario values ImageInfo
-
+            # Get the data for the question - this is a dictionary of the question data
+            # e.g., {'question_text': 'Do you like school?', 'question_name': 'q0', 'question_options': ['yes', 'no']}
             question_data = self.question.data.copy()
 
             # check to see if the question_options is actually a string
-            # This is used when the user is using the question_options as a variable from a sceario
+            # This is used when the user is using the question_options as a variable from a scenario
             # if "question_options" in question_data:
             if isinstance(self.question.data.get("question_options", None), str):
                 env = Environment()
@@ -310,6 +323,7 @@ class PromptConstructor:
                     meta.find_undeclared_variables(parsed_content)
                 )[0]
 
+                # look to see if the question_option_key is in the scenario
                 if isinstance(
                     question_options := self.scenario.get(question_option_key), list
                 ):
@@ -350,6 +364,7 @@ class PromptConstructor:
                     )
 
             if undefined_template_variables:
+                # breakpoint()
                 raise QuestionScenarioRenderError(
                     f"Question instructions still has variables: {undefined_template_variables}."
                 )
@@ -430,7 +445,7 @@ class PromptConstructor:
         >>> i.get_prompts()
         {'user_prompt': ..., 'system_prompt': ...}
         """
-        #breakpoint()
+        # breakpoint()
         prompts = self.prompt_plan.get_prompts(
             agent_instructions=self.agent_instructions_prompt,
             agent_persona=self.agent_persona_prompt,
@@ -457,6 +472,5 @@ class PromptConstructor:
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod(optionflags=doctest.ELLIPSIS)
-
-
