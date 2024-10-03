@@ -325,14 +325,15 @@ class QuestionOptionsDescriptor(BaseDescriptor):
             )
         if not self.linear_scale:
             if not self.q_budget:
-                if not (
-                    value
-                    and all(type(x) == type(value[0]) for x in value)
-                    and isinstance(value[0], (str, list, int, float))
-                ):
-                    raise QuestionCreationValidationError(
-                        f"Question options must be all same type (got {value}).)"
-                    )
+                pass
+            #     if not (
+            #         value
+            #         and all(type(x) == type(value[0]) for x in value)
+            #         and isinstance(value[0], (str, list, int, float))
+            #     ):
+            #         raise QuestionCreationValidationError(
+            #             f"Question options must be all same type (got {value}).)"
+            #         )
             else:
                 if not all(isinstance(x, (str)) for x in value):
                     raise QuestionCreationValidationError(

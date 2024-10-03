@@ -9,6 +9,7 @@ from edsl.prompts.Prompt import Prompt
 from edsl.data_transfer_models import ImageInfo
 from edsl.prompts.registry import get_classes as prompt_lookup
 from edsl.exceptions import QuestionScenarioRenderError
+from edsl import Agent
 
 # from edsl.scenarios.FileStore import FileStore
 
@@ -154,8 +155,7 @@ class PromptPlan:
 
 
 class PromptConstructor:
-    """Mixin for constructing prompts for the LLM call.
-
+    """
     The pieces of a prompt are:
     - The agent instructions - "You are answering questions as if you were a human. Do not break character."
     - The persona prompt - "You are an agent with the following persona: {'age': 22, 'hair': 'brown', 'height': 5.5}"
@@ -225,42 +225,43 @@ class PromptConstructor:
         {'age': 22, 'hair': 'brown', 'height': 5.5}\""")
 
         """
-        if not hasattr(self, "_agent_persona_prompt"):
-            from edsl import Agent
+        if hasattr(self, "_agent_persona_prompt"):
+            return self._agent_persona_prompt
 
-            if self.agent == Agent():  # if agent is empty, then return an empty prompt
-                return Prompt(text="")
+        if self.agent == Agent():  # if agent is empty, then return an empty prompt
+            return Prompt(text="")
 
-            if not hasattr(self.agent, "agent_persona"):
-                applicable_prompts = prompt_lookup(
-                    component_type="agent_persona",
-                    model=self.model.model,
-                )
-                persona_prompt_template = applicable_prompts[0]()
-            else:
-                persona_prompt_template = self.agent.agent_persona
-
-            # TODO: This multiple passing of agent traits - not sure if it is necessary. Not harmful.
-            if undefined := persona_prompt_template.undefined_template_variables(
-                self.agent.traits
-                | {"traits": self.agent.traits}
-                | {"codebook": self.agent.codebook}
-                | {"traits": self.agent.traits}
-            ):
-                raise QuestionScenarioRenderError(
-                    f"Agent persona still has variables that were not rendered: {undefined}"
-                )
-
-            persona_prompt = persona_prompt_template.render(
-                self.agent.traits | {"traits": self.agent.traits},
-                codebook=self.agent.codebook,
-                traits=self.agent.traits,
+        if not hasattr(self.agent, "agent_persona"):
+            applicable_prompts = prompt_lookup(
+                component_type="agent_persona",
+                model=self.model.model,
             )
-            if persona_prompt.has_variables:
-                raise QuestionScenarioRenderError(
-                    "Agent persona still has variables that were not rendered."
-                )
-            self._agent_persona_prompt = persona_prompt
+            persona_prompt_template = applicable_prompts[0]()
+        else:
+            persona_prompt_template = self.agent.agent_persona
+
+        # TODO: This multiple passing of agent traits - not sure if it is necessary. Not harmful.
+        template_parameter_dictionary = (
+            self.agent.traits
+            | {"traits": self.agent.traits}
+            | {"codebook": self.agent.codebook}
+            | {"traits": self.agent.traits}
+        )
+
+        if undefined := persona_prompt_template.undefined_template_variables(
+            template_parameter_dictionary
+        ):
+            raise QuestionScenarioRenderError(
+                f"Agent persona still has variables that were not rendered: {undefined}"
+            )
+
+        persona_prompt = persona_prompt_template.render(template_parameter_dictionary)
+        if persona_prompt.has_variables:
+            raise QuestionScenarioRenderError(
+                "Agent persona still has variables that were not rendered."
+            )
+
+        self._agent_persona_prompt = persona_prompt
 
         return self._agent_persona_prompt
 
