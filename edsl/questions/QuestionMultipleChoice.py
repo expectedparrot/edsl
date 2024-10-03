@@ -120,9 +120,9 @@ class QuestionMultipleChoice(QuestionBase):
 
     question_type = "multiple_choice"
     purpose = "When options are known and limited"
-    question_options: Union[
-        list[str], list[list], list[float], list[int]
-    ] = QuestionOptionsDescriptor()
+    question_options: Union[list[str], list[list], list[float], list[int]] = (
+        QuestionOptionsDescriptor()
+    )
     _response_model = None
     response_validator_class = MultipleChoiceResponseValidator
 
@@ -163,7 +163,11 @@ class QuestionMultipleChoice(QuestionBase):
     # Answer methods
     ################
 
-    def create_response_model(self):
+    def create_response_model(self, replacement_dict: dict = None):
+        if replacement_dict is None:
+            replacement_dict = {}
+            # The replacement dict that could be from scenario, current answers, etc. to populate the response model
+
         if self.use_code:
             return create_response_model(
                 list(range(len(self.question_options))), self.permissive

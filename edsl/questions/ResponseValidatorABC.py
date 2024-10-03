@@ -92,7 +92,11 @@ class ResponseValidatorABC(ABC):
         generated_tokens: Optional[str]
 
     def validate(
-        self, raw_edsl_answer_dict: RawEdslAnswerDict, fix=False, verbose=False
+        self,
+        raw_edsl_answer_dict: RawEdslAnswerDict,
+        fix=False,
+        verbose=False,
+        replacement_dict: dict = None,
     ) -> EdslAnswerDict:
         """This is the main validation function.
 
