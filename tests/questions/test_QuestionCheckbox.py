@@ -214,6 +214,19 @@ def test_QuestionCheckBox_serialization():
         )
 
 
+def test_int_options():
+    from edsl import QuestionCheckBox
+    from edsl import Model
+
+    m = Model("test", canned_response="2,3,5,7")
+    q = QuestionCheckBox(
+        question_name="prime_numbers",
+        question_text="Select all the numbers that are prime.",
+        question_options=[0, 1, 2, 3, 5, 7, 9],
+    )
+    results = q.by(m).run()
+
+
 def test_QuestionCheckBox_answers():
     q = QuestionCheckBox(**valid_question)
     llm_response_valid1 = {
