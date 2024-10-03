@@ -303,7 +303,7 @@ class QuestionOptionsDescriptor(BaseDescriptor):
                 return None
             else:
                 raise QuestionCreationValidationError(
-                    f"Dynamic question options must have jina2 braces - instead received: {value}."
+                    f"Dynamic question options must have jinja2 braces - instead received: {value}."
                 )
         if not isinstance(value, list):
             raise QuestionCreationValidationError(
