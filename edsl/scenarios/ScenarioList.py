@@ -538,7 +538,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         >>> ScenarioList.from_list('name', ['Alice', 'Bob'])
         ScenarioList([Scenario({'name': 'Alice'}), Scenario({'name': 'Bob'})])
         """
-        return cls([Scenario({name: value}) for value in values])
+        return cls([Scenario({name: str(value)}) for value in values])
 
     def to_dataset(self) -> "Dataset":
         """

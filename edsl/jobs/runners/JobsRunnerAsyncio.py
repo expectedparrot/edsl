@@ -341,10 +341,3 @@ class JobsRunnerAsyncio:
             return self.process_results(
                 raw_results=self.results, cache=cache, print_exceptions=print_exceptions
             )
-
-        # if progress_bar:
-        #     progress_thread.join()
-
-        # return self.process_results(
-        #     raw_results=self.results, cache=cache, print_exceptions=print_exceptions
-        # )
