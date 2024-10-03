@@ -77,7 +77,7 @@ def test_filestore_init(sample_files, file_type, FileStoreClass):
     file_path = sample_files[file_type]
     fs = FileStoreClass(file_path)
     # assert fs.filename == os.path.basename(file_path)
-    assert fs.suffix == f".{file_type}"
+    assert fs.suffix == f"{file_type}"
     assert isinstance(fs.base64_string, str)
 
 
@@ -115,6 +115,7 @@ def test_filestore_to_tempfile(sample_files, file_type, FileStoreClass):
     fs = FileStoreClass(file_path)
     temp_path = fs.to_tempfile()
     assert os.path.exists(temp_path)
+    #breakpoint()
     assert temp_path.endswith(f".{file_type}")
     os.unlink(temp_path)
 
@@ -166,7 +167,7 @@ def test_filestore_push_pull(sample_files, file_type, FileStoreClass):
     ) as mock_pull:
         pulled_fs = FileStoreClass.pull(mock_uuid)
         mock_pull.assert_called_once_with(mock_uuid, expected_parrot_url=None)
-        assert pulled_fs.filename == fs.filename
+        assert pulled_fs.path == fs.path
         assert pulled_fs.base64_string == fs.base64_string
         assert pulled_fs.suffix == fs.suffix
 

@@ -1,5 +1,5 @@
 import os
-from typing import Any
+from typing import Any, Optional, List
 import re
 from anthropic import AsyncAnthropic
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
@@ -60,7 +60,10 @@ class AnthropicService(InferenceServiceABC):
             _rpm = cls.get_rpm(cls)
 
             async def async_execute_model_call(
-                self, user_prompt: str, system_prompt: str = ""
+                self,
+                user_prompt: str,
+                system_prompt: str = "",
+                files_list: Optional[List["Files"]] = None,
             ) -> dict[str, Any]:
                 """Calls the OpenAI API and returns the API response."""
 

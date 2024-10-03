@@ -248,17 +248,23 @@ class Interview(InterviewStatusMixin):
 
     def _get_estimated_request_tokens(self, question) -> float:
         """Estimate the number of tokens that will be required to run the focal task."""
+        from edsl.scenarios.FileStore import FileStore
         invigilator = self._get_invigilator(question=question)
         # TODO: There should be a way to get a more accurate estimate.
         combined_text = ""
+        file_tokens = 0
         for prompt in invigilator.get_prompts().values():
             if hasattr(prompt, "text"):
                 combined_text += prompt.text
             elif isinstance(prompt, str):
                 combined_text += prompt
+            elif isinstance(prompt, list):
+                for file in prompt:
+                    if isinstance(file, FileStore):
+                        file_tokens += file.size * 0.25 
             else:
                 raise ValueError(f"Prompt is of type {type(prompt)}")
-        return len(combined_text) / 4.0
+        return len(combined_text) / 4.0 + file_tokens
 
     async def _answer_question_and_record_task(
         self,
