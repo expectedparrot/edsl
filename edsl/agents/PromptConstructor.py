@@ -9,7 +9,8 @@ from edsl.prompts.Prompt import Prompt
 from edsl.data_transfer_models import ImageInfo
 from edsl.prompts.registry import get_classes as prompt_lookup
 from edsl.exceptions import QuestionScenarioRenderError
-from edsl import Agent
+
+# from edsl import Agent
 
 # from edsl.scenarios.FileStore import FileStore
 
@@ -225,6 +226,8 @@ class PromptConstructor:
         {'age': 22, 'hair': 'brown', 'height': 5.5}\""")
 
         """
+        from edsl import Agent
+
         if hasattr(self, "_agent_persona_prompt"):
             return self._agent_persona_prompt
 
