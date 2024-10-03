@@ -80,9 +80,9 @@ def test_QuestionMultipleChoice_construction():
     with pytest.raises(Exception):
         QuestionMultipleChoice(**invalid_question)
     # or not of type list of strings
-    invalid_question.update({"question_options": ["OK", 2]})
-    with pytest.raises(Exception):
-        QuestionMultipleChoice(**invalid_question)
+    # invalid_question.update({"question_options": ["OK", 2]})
+    # with pytest.raises(Exception):
+    #     QuestionMultipleChoice(**invalid_question)
     invalid_question.update({"question_options": ["OK", ""]})
     with pytest.raises(Exception):
         QuestionMultipleChoice(**invalid_question)

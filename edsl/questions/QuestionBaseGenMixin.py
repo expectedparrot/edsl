@@ -95,6 +95,18 @@ class QuestionBaseGenMixin:
             questions.append(QuestionBase.from_dict(new_data))
         return questions
 
+    def render(self, replacement_dict: dict) -> QuestionBase:
+        """Render the question components as jinja2 templates with the replacement dictionary."""
+        from jinja2 import Environment
+
+        def render_string(value: str) -> str:
+            if value is None:
+                return value
+
+            return Environment().from_string(value).render(replacement_dict)
+
+        return self.apply_function(render_string)
+
     def apply_function(self, func: Callable, exclude_components=None) -> QuestionBase:
         """Apply a function to the question parts
 
