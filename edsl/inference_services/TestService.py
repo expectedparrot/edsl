@@ -67,7 +67,9 @@ class TestService(InferenceServiceABC):
 
                 if hasattr(self, "func"):
                     return {
-                        "message": [{"text": self.func(user_prompt, system_prompt)}],
+                        "message": [
+                            {"text": self.func(user_prompt, system_prompt, files_list)}
+                        ],
                         "usage": {"prompt_tokens": 1, "completion_tokens": 1},
                     }
 
