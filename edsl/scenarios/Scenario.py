@@ -88,9 +88,6 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
                 new_scenario[key] = value
         return new_scenario
 
-    @has_image.setter
-    def has_image(self, value):
-        self._has_image = value
 
     def __add__(self, other_scenario: "Scenario") -> "Scenario":
         """Combine two scenarios by taking the union of their keys
@@ -114,8 +111,6 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
             data1 = copy.deepcopy(self.data)
             data2 = copy.deepcopy(other_scenario.data)
             s = Scenario(data1 | data2)
-            if self.has_image or other_scenario.has_image:
-                s._has_image = True
             return s
 
     def rename(self, replacement_dict: dict) -> "Scenario":
@@ -234,6 +229,13 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
 
         text = requests.get(url).text
         return cls({"url": url, field_name: text})
+    
+    @classmethod
+    def from_file(cls, file_path: str, field_name: str) -> "Scenario":
+        """Creates a scenario from a file."""
+        from edsl.scenarios.FileStore import FileStore
+        fs = FileStore(file_path) 
+        return cls({field_name: fs})
 
     @classmethod
     def from_image(
@@ -256,28 +258,11 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         if not os.path.exists(image_path):
             raise FileNotFoundError(f"Image file not found: {image_path}")
 
-        with open(image_path, "rb") as image_file:
-            file_content = image_file.read()
-
-        file_name = os.path.basename(image_path)
-        file_size = os.path.getsize(image_path)
-        image_format = imghdr.what(image_path) or "unknown"
-
         if image_name is None:
-            image_name = file_name.split(".")[0]
+            image_name = os.path.basename(image_path).split(".")[0]
 
-        image_info = ImageInfo(
-            file_path=image_path,
-            file_name=file_name,
-            image_format=image_format,
-            file_size=file_size,
-            encoded_image=base64.b64encode(file_content).decode("utf-8"),
-        )
+        return cls.from_file(image_path, image_name)
 
-        scenario_data = {image_name: image_info}
-        s = cls(scenario_data)
-        s.has_image = True
-        return s
 
     @classmethod
     def from_pdf(cls, pdf_path):

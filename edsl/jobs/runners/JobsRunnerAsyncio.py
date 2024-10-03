@@ -8,10 +8,10 @@ from typing import Coroutine, List, AsyncGenerator, Optional, Union, Generator
 from contextlib import contextmanager
 from collections import UserList
 
-from edsl.results.Results import Results
 from rich.live import Live
 from rich.console import Console
 
+from edsl.results.Results import Results
 from edsl import shared_globals
 from edsl.jobs.interviews.Interview import Interview
 from edsl.jobs.runners.JobsRunnerStatus import JobsRunnerStatus
@@ -22,7 +22,8 @@ from edsl.utilities.decorators import jupyter_nb_handler
 from edsl.data.Cache import Cache
 from edsl.results.Result import Result
 from edsl.results.Results import Results
-
+from edsl.language_models.LanguageModel import LanguageModel
+from edsl.data.Cache import Cache
 
 class StatusTracker(UserList):
     def __init__(self, total_tasks: int):
@@ -50,10 +51,10 @@ class JobsRunnerAsyncio:
 
     async def run_async_generator(
         self,
-        cache: "Cache",
+        cache: Cache,
         n: int = 1,
         stop_on_exception: bool = False,
-        sidecar_model: Optional["LanguageModel"] = None,
+        sidecar_model: Optional[LanguageModel] = None,
         total_interviews: Optional[List["Interview"]] = None,
         raise_validation_errors: bool = False,
     ) -> AsyncGenerator["Result", None]:
@@ -104,7 +105,7 @@ class JobsRunnerAsyncio:
                     interview.cache = self.cache
                     yield interview
 
-    async def run_async(self, cache: Optional["Cache"] = None, n: int = 1) -> Results:
+    async def run_async(self, cache: Optional[Cache] = None, n: int = 1) -> Results:
         """Used for some other modules that have a non-standard way of running interviews."""
         self.jobs_runner_status = JobsRunnerStatus(self, n=n)
         self.cache = Cache() if cache is None else cache
@@ -311,12 +312,34 @@ class JobsRunnerAsyncio:
             progress_thread = threading.Thread(target=run_progress_bar)
             progress_thread.start()
 
-        with cache as c:
-            await process_results(cache=c)
+        # with cache as c:
+        #     await process_results(cache=c)
 
-        if progress_bar:
-            progress_thread.join()
+        exception_to_raise = None
+        try:
+            with cache as c:
+                await process_results(cache=c)
+        except KeyboardInterrupt:
+            print("Keyboard interrupt received. Stopping gracefully...")
+        except Exception as e:
+            if stop_on_exception:
+               exception_to_raise = e
+        finally:
+            if progress_bar:
+                #self.jobs_runner_status.stop_event.set()
+                if progress_thread:
+                    progress_thread.join()
 
-        return self.process_results(
-            raw_results=self.results, cache=cache, print_exceptions=print_exceptions
-        )
+            if exception_to_raise:
+                raise exception_to_raise
+
+            return self.process_results(
+                raw_results=self.results, cache=cache, print_exceptions=print_exceptions
+            )
+    
+        # if progress_bar:
+        #     progress_thread.join()
+
+        # return self.process_results(
+        #     raw_results=self.results, cache=cache, print_exceptions=print_exceptions
+        # )

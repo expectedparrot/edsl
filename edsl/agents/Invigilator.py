@@ -39,6 +39,8 @@ class InvigilatorAI(InvigilatorBase):
         }
         if "encoded_image" in prompts:
             params["encoded_image"] = prompts["encoded_image"]
+        if "files_list" in prompts:
+            params["files_list"] = prompts["files_list"]
 
         params.update({"iteration": self.iteration, "cache": self.cache})
 
