@@ -530,7 +530,9 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         return ScenarioList([scenario.drop(fields) for scenario in self.data])
 
     @classmethod
-    def from_list(cls, name, values) -> ScenarioList:
+    def from_list(
+        cls, name: str, values: list, func: Optional[Callable] = None
+    ) -> ScenarioList:
         """Create a ScenarioList from a list of values.
 
         Example:
@@ -538,7 +540,9 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         >>> ScenarioList.from_list('name', ['Alice', 'Bob'])
         ScenarioList([Scenario({'name': 'Alice'}), Scenario({'name': 'Bob'})])
         """
-        return cls([Scenario({name: str(value)}) for value in values])
+        if not func:
+            func = lambda x: x
+        return cls([Scenario({name: func(value)}) for value in values])
 
     def to_dataset(self) -> "Dataset":
         """
