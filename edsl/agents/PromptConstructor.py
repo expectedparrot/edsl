@@ -330,6 +330,16 @@ class PromptConstructor:
                     question_data["question_options"] = question_options
                     self.question.question_options = question_options
 
+                # might be getting it from the prior answers
+                if isinstance(
+                    question_options := self.prior_answers_dict()
+                    .get(question_option_key)
+                    .answer,
+                    list,
+                ):
+                    question_data["question_options"] = question_options
+                    self.question.question_options = question_options
+
             replacement_dict = (
                 {key: f"<see file {key}>" for key in self.scenario_file_keys}
                 | question_data
