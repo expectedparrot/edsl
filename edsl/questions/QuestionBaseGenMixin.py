@@ -98,12 +98,19 @@ class QuestionBaseGenMixin:
     def render(self, replacement_dict: dict) -> QuestionBase:
         """Render the question components as jinja2 templates with the replacement dictionary."""
         from jinja2 import Environment
+        from edsl import Scenario
+
+        strings_only_replacement_dict = {
+            k: v for k, v in replacement_dict.items() if not isinstance(v, Scenario)
+        }
 
         def render_string(value: str) -> str:
             if value is None:
                 return value
 
-            return Environment().from_string(value).render(replacement_dict)
+            return (
+                Environment().from_string(value).render(strings_only_replacement_dict)
+            )
 
         return self.apply_function(render_string)
 

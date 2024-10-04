@@ -17,6 +17,36 @@ from typing import Dict, Any, IO, Optional
 import mimetypes
 import requests
 from urllib.parse import urlparse
+from edsl.utilities.utilities import is_notebook
+
+
+def view_pdf(pdf_path):
+    import os
+    import subprocess
+
+    if is_notebook():
+        from IPython.display import IFrame
+        from IPython.display import display, HTML
+
+        # Replace 'path/to/your/file.pdf' with the actual path to your PDF file
+        IFrame(pdf_path, width=700, height=600)
+        display(HTML(f'<a href="{pdf_path}" target="_blank">Open PDF</a>'))
+        return
+
+    if os.path.exists(pdf_path):
+        try:
+            if os.name == "posix":
+                # for cool kids
+                subprocess.run(["open", pdf_path], check=True)  # macOS
+            elif os.name == "nt":
+                os.startfile(pdf_path)  # Windows
+            else:
+                subprocess.run(["xdg-open", pdf_path], check=True)  # Linux
+        except Exception as e:
+            print(f"Error opening PDF: {e}")
+    else:
+        print("PDF file was not created successfully.")
+
 
 class FileStore(Scenario):
     def __init__(
@@ -29,15 +59,15 @@ class FileStore(Scenario):
         external_locations: Optional[Dict[str, str]] = None,
         **kwargs,
     ):
-        if path is None and 'filename' in kwargs:
-            path = kwargs['filename']
+        if path is None and "filename" in kwargs:
+            path = kwargs["filename"]
         self.path = path
         self.suffix = suffix or path.split(".")[-1]
         self.binary = binary or False
-        self.mime_type = mime_type or mimetypes.guess_type(path)[0] or "application/octet-stream"
-        self.base64_string = base64_string or self.encode_file_to_base64_string(
-            path
+        self.mime_type = (
+            mime_type or mimetypes.guess_type(path)[0] or "application/octet-stream"
         )
+        self.base64_string = base64_string or self.encode_file_to_base64_string(path)
         self.external_locations = external_locations or {}
         super().__init__(
             {
@@ -50,22 +80,24 @@ class FileStore(Scenario):
             }
         )
 
+    def __str__(self):
+        return "FileStore: self.path"
+
     @property
     def size(self):
         return os.path.getsize(self.path)
 
-    def upload_google(self, refresh = False):
+    def upload_google(self, refresh=False):
         genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
         google_info = genai.upload_file(self.path, mime_type=self.mime_type)
         #
-        #self.set_url("google", google_url)
+        # self.set_url("google", google_url)
         self.external_locations["google"] = google_info.to_dict()
-
 
     @classmethod
     @remove_edsl_version
     def from_dict(cls, d):
-        #return cls(d["filename"], d["binary"], d["suffix"], d["base64_string"])
+        # return cls(d["filename"], d["binary"], d["suffix"], d["base64_string"])
         return cls(**d)
 
     def __repr__(self):
@@ -137,7 +169,9 @@ class FileStore(Scenario):
 
         # Create a named temporary file
         mode = "wb" if self.binary else "w"
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix="." + suffix, mode=mode)
+        temp_file = tempfile.NamedTemporaryFile(
+            delete=False, suffix="." + suffix, mode=mode
+        )
 
         if self.binary:
             temp_file.write(file_like_object.read())
@@ -147,6 +181,34 @@ class FileStore(Scenario):
         temp_file.close()
 
         return temp_file.name
+
+    def view(self, max_size=300):
+        if self.suffix == "pdf":
+            view_pdf(self.path)
+
+        if self.suffix == "png" or self.suffix == "jpg" or self.suffix == "jpeg":
+            if is_notebook():
+                from IPython.display import Image
+                from PIL import Image as PILImage
+
+                if max_size:
+                    # Open the image using Pillow
+                    with PILImage.open(self.path) as img:
+                        # Get original width and height
+                        original_width, original_height = img.size
+
+                        # Calculate the scaling factor
+                        scale = min(
+                            max_size / original_width, max_size / original_height
+                        )
+
+                        # Calculate new dimensions
+                        new_width = int(original_width * scale)
+                        new_height = int(original_height * scale)
+
+                        return Image(self.path, width=new_width, height=new_height)
+                else:
+                    return Image(self.path)
 
     def push(self, description=None):
         scenario_version = Scenario.from_dict(self.to_dict())
@@ -159,9 +221,11 @@ class FileStore(Scenario):
     def pull(cls, uuid, expected_parrot_url: Optional[str] = None):
         scenario_version = Scenario.pull(uuid, expected_parrot_url=expected_parrot_url)
         return cls.from_dict(scenario_version.to_dict())
-    
+
     @classmethod
-    def from_url(cls, url: str, download_path: str = None, mime_type: Optional[str] = None) -> 'File':
+    def from_url(
+        cls, url: str, download_path: str = None, mime_type: Optional[str] = None
+    ) -> "File":
         response = requests.get(url, stream=True)
         response.raise_for_status()  # Raises an HTTPError for bad responses
 
@@ -169,21 +233,20 @@ class FileStore(Scenario):
         if download_path is None:
             filename = os.path.basename(urlparse(url).path)
             if not filename:
-                filename = 'downloaded_file'
-            #download_path = filename
+                filename = "downloaded_file"
+            # download_path = filename
             download_path = os.path.join(os.getcwd(), filename)
 
         # Ensure the directory exists
         os.makedirs(os.path.dirname(download_path), exist_ok=True)
 
         # Write the file
-        with open(download_path, 'wb') as file:
+        with open(download_path, "wb") as file:
             for chunk in response.iter_content(chunk_size=8192):
                 file.write(chunk)
 
         # Create and return a new File instance
-        return cls(download_path, mime_type = mime_type)
-
+        return cls(download_path, mime_type=mime_type)
 
 
 class CSVFileStore(FileStore):
@@ -362,9 +425,9 @@ if __name__ == "__main__":
     # fs.view()
     # from edsl import Conjure
     pass
-    #fs = PNGFileStore("logo.png")
-    #fs.view()
-    #fs.upload_google()
+    # fs = PNGFileStore("logo.png")
+    # fs.view()
+    # fs.upload_google()
 
     # c = Conjure(datafile_name=fs.to_tempfile())
     # f = PDFFileStore("paper.pdf")
