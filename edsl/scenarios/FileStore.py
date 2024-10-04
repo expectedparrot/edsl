@@ -210,11 +210,11 @@ class FileStore(Scenario):
                 else:
                     return Image(self.path)
 
-    def push(self, description=None):
+    def push(self, description: Optional[str] = None, visibility: str = "unlisted"):
         scenario_version = Scenario.from_dict(self.to_dict())
         if description is None:
             description = "File: " + self.path
-        info = scenario_version.push(description=description)
+        info = scenario_version.push(description=description, visibility=visibility)
         return info
 
     @classmethod
