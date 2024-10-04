@@ -440,7 +440,7 @@ class LanguageModel(
         system_prompt: str,
         cache: "Cache",
         iteration: int = 0,
-        encoded_image=None,
+        files_list=None,
     ) -> ModelResponse:
         """Handle caching of responses.
 
@@ -462,16 +462,18 @@ class LanguageModel(
         >>> m._get_intended_model_call_outcome(user_prompt = "Hello", system_prompt = "hello", cache = Cache())
         ModelResponse(...)"""
 
-        if encoded_image:
-            # the image has is appended to the user_prompt for hash-lookup purposes
-            image_hash = hashlib.md5(encoded_image.encode()).hexdigest()
-            user_prompt += f" {image_hash}"
+        if files_list:
+            files_hash = "+".join([str(hash(file)) for file in files_list])
+            # print(f"Files hash: {files_hash}")
+            user_prompt_with_hashes = user_prompt + f" {files_hash}"
+        else:
+            user_prompt_with_hashes = user_prompt
 
         cache_call_params = {
             "model": str(self.model),
             "parameters": self.parameters,
             "system_prompt": system_prompt,
-            "user_prompt": user_prompt,
+            "user_prompt": user_prompt_with_hashes,
             "iteration": iteration,
         }
         cached_response, cache_key = cache.fetch(**cache_call_params)
@@ -487,7 +489,8 @@ class LanguageModel(
             params = {
                 "user_prompt": user_prompt,
                 "system_prompt": system_prompt,
-                **({"encoded_image": encoded_image} if encoded_image else {}),
+                "files_list": files_list
+                #**({"encoded_image": encoded_image} if encoded_image else {}),
             }
             # response = await f(**params)
             response = await asyncio.wait_for(f(**params), timeout=TIMEOUT)
@@ -531,7 +534,7 @@ class LanguageModel(
         system_prompt: str,
         cache: "Cache",
         iteration: int = 1,
-        encoded_image=None,
+        files_list: Optional[List['File']] = None,
     ) -> dict:
         """Get response, parse, and return as string.
 
@@ -547,7 +550,7 @@ class LanguageModel(
             "system_prompt": system_prompt,
             "iteration": iteration,
             "cache": cache,
-            **({"encoded_image": encoded_image} if encoded_image else {}),
+            "files_list": files_list,
         }
         model_inputs = ModelInputs(user_prompt=user_prompt, system_prompt=system_prompt)
         model_outputs = await self._async_get_intended_model_call_outcome(**params)

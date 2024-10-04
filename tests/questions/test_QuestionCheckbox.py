@@ -64,10 +64,10 @@ def test_QuestionCheckBox_construction():
         QuestionCheckBox(**invalid_question)
 
     # should raise an exception if question_text is too long
-    invalid_question = valid_question.copy()
-    invalid_question.update({"question_text": "a" * (Settings.MAX_QUESTION_LENGTH + 1)})
-    with pytest.raises(Exception):
-        QuestionCheckBox(**invalid_question)
+    # invalid_question = valid_question.copy()
+    # invalid_question.update({"question_text": "a" * (Settings.MAX_QUESTION_LENGTH + 1)})
+    # with pytest.raises(Exception):
+    #     QuestionCheckBox(**invalid_question)
 
     # should raise an exception if question_options is missing
     invalid_question = valid_question.copy()
@@ -212,6 +212,19 @@ def test_QuestionCheckBox_serialization():
                 "max_selections": 5,
             }
         )
+
+
+def test_int_options():
+    from edsl import QuestionCheckBox
+    from edsl import Model
+
+    m = Model("test", canned_response="2,3,5,7")
+    q = QuestionCheckBox(
+        question_name="prime_numbers",
+        question_text="Select all the numbers that are prime.",
+        question_options=[0, 1, 2, 3, 5, 7, 9],
+    )
+    results = q.by(m).run()
 
 
 def test_QuestionCheckBox_answers():

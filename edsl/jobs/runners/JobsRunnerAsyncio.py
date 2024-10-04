@@ -8,10 +8,10 @@ from typing import Coroutine, List, AsyncGenerator, Optional, Union, Generator
 from contextlib import contextmanager
 from collections import UserList
 
-from edsl.results.Results import Results
 from rich.live import Live
 from rich.console import Console
 
+from edsl.results.Results import Results
 from edsl import shared_globals
 from edsl.jobs.interviews.Interview import Interview
 from edsl.jobs.runners.JobsRunnerStatus import JobsRunnerStatus
@@ -22,6 +22,8 @@ from edsl.utilities.decorators import jupyter_nb_handler
 from edsl.data.Cache import Cache
 from edsl.results.Result import Result
 from edsl.results.Results import Results
+from edsl.language_models.LanguageModel import LanguageModel
+from edsl.data.Cache import Cache
 
 
 class StatusTracker(UserList):
@@ -50,10 +52,10 @@ class JobsRunnerAsyncio:
 
     async def run_async_generator(
         self,
-        cache: "Cache",
+        cache: Cache,
         n: int = 1,
         stop_on_exception: bool = False,
-        sidecar_model: Optional["LanguageModel"] = None,
+        sidecar_model: Optional[LanguageModel] = None,
         total_interviews: Optional[List["Interview"]] = None,
         raise_validation_errors: bool = False,
     ) -> AsyncGenerator["Result", None]:
@@ -104,7 +106,7 @@ class JobsRunnerAsyncio:
                     interview.cache = self.cache
                     yield interview
 
-    async def run_async(self, cache: Optional["Cache"] = None, n: int = 1) -> Results:
+    async def run_async(self, cache: Optional[Cache] = None, n: int = 1) -> Results:
         """Used for some other modules that have a non-standard way of running interviews."""
         self.jobs_runner_status = JobsRunnerStatus(self, n=n)
         self.cache = Cache() if cache is None else cache
@@ -171,19 +173,19 @@ class JobsRunnerAsyncio:
 
         prompt_dictionary = {}
         for answer_key_name in answer_key_names:
-            prompt_dictionary[
-                answer_key_name + "_user_prompt"
-            ] = question_name_to_prompts[answer_key_name]["user_prompt"]
-            prompt_dictionary[
-                answer_key_name + "_system_prompt"
-            ] = question_name_to_prompts[answer_key_name]["system_prompt"]
+            prompt_dictionary[answer_key_name + "_user_prompt"] = (
+                question_name_to_prompts[answer_key_name]["user_prompt"]
+            )
+            prompt_dictionary[answer_key_name + "_system_prompt"] = (
+                question_name_to_prompts[answer_key_name]["system_prompt"]
+            )
 
         raw_model_results_dictionary = {}
         for result in valid_results:
             question_name = result.question_name
-            raw_model_results_dictionary[
-                question_name + "_raw_model_response"
-            ] = result.raw_model_response
+            raw_model_results_dictionary[question_name + "_raw_model_response"] = (
+                result.raw_model_response
+            )
             raw_model_results_dictionary[question_name + "_cost"] = result.cost
             one_use_buys = (
                 "NA"
@@ -291,6 +293,8 @@ class JobsRunnerAsyncio:
 
         self.jobs_runner_status = JobsRunnerStatus(self, n=n)
 
+        stop_event = threading.Event()
+
         async def process_results(cache):
             """Processes results from interviews."""
             async for result in self.run_async_generator(
@@ -303,20 +307,37 @@ class JobsRunnerAsyncio:
                 self.results.append(result)
             self.completed = True
 
-        def run_progress_bar():
+        def run_progress_bar(stop_event):
             """Runs the progress bar in a separate thread."""
-            self.jobs_runner_status.update_progress()
+            self.jobs_runner_status.update_progress(stop_event)
 
         if progress_bar:
-            progress_thread = threading.Thread(target=run_progress_bar)
+            progress_thread = threading.Thread(
+                target=run_progress_bar, args=(stop_event,)
+            )
             progress_thread.start()
 
-        with cache as c:
-            await process_results(cache=c)
+        exception_to_raise = None
+        try:
+            with cache as c:
+                await process_results(cache=c)
+        except KeyboardInterrupt:
+            print("Keyboard interrupt received. Stopping gracefully...")
+            stop_event.set()
+        except Exception as e:
+            if stop_on_exception:
+                exception_to_raise = e
+            stop_event.set()
+        finally:
+            stop_event.set()
+            if progress_bar:
+                # self.jobs_runner_status.stop_event.set()
+                if progress_thread:
+                    progress_thread.join()
 
-        if progress_bar:
-            progress_thread.join()
+            if exception_to_raise:
+                raise exception_to_raise
 
-        return self.process_results(
-            raw_results=self.results, cache=cache, print_exceptions=print_exceptions
-        )
+            return self.process_results(
+                raw_results=self.results, cache=cache, print_exceptions=print_exceptions
+            )

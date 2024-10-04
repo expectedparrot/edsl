@@ -265,14 +265,15 @@ class JobsRunnerStatus:
             table.add_row(pretty_name, value)
         return table
 
-    def update_progress(self):
+    def update_progress(self, stop_event):
         layout, progress, task_ids = self.generate_layout()
 
         with Live(
             layout, refresh_per_second=int(1 / self.refresh_rate), transient=True
         ) as live:
-            while len(self.completed_interviews) < len(
-                self.jobs_runner.total_interviews
+            while (
+                len(self.completed_interviews) < len(self.jobs_runner.total_interviews)
+                and not stop_event.is_set()
             ):
                 completed_tasks = len(self.completed_interviews)
                 total_tasks = len(self.jobs_runner.total_interviews)

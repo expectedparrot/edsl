@@ -3,37 +3,73 @@ import base64
 import io
 import tempfile
 from typing import Optional
+import mimetypes
 
+from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
+
+import google.generativeai as genai
+
+# https://arxiv.org/pdf/2404.11794
+
+import os
+import base64
+from typing import Dict, Any, IO, Optional
+import mimetypes
+import requests
+from urllib.parse import urlparse
 
 class FileStore(Scenario):
     def __init__(
         self,
-        filename: str,
+        path: Optional[str] = None,
+        mime_type: Optional[str] = None,
         binary: Optional[bool] = None,
         suffix: Optional[str] = None,
         base64_string: Optional[str] = None,
+        external_locations: Optional[Dict[str, str]] = None,
+        **kwargs,
     ):
-        self.filename = filename
-        self.suffix = suffix or "." + filename.split(".")[-1]
+        if path is None and 'filename' in kwargs:
+            path = kwargs['filename']
+        self.path = path
+        self.suffix = suffix or path.split(".")[-1]
         self.binary = binary or False
+        self.mime_type = mime_type or mimetypes.guess_type(path)[0] or "application/octet-stream"
         self.base64_string = base64_string or self.encode_file_to_base64_string(
-            filename
+            path
         )
+        self.external_locations = external_locations or {}
         super().__init__(
             {
-                "filename": self.filename,
+                "path": self.path,
                 "base64_string": self.base64_string,
                 "binary": self.binary,
                 "suffix": self.suffix,
+                "mime_type": self.mime_type,
+                "external_locations": self.external_locations,
             }
         )
 
+    @property
+    def size(self):
+        return os.path.getsize(self.path)
+
+    def upload_google(self, refresh = False):
+        genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+        google_info = genai.upload_file(self.path, mime_type=self.mime_type)
+        #
+        #self.set_url("google", google_url)
+        self.external_locations["google"] = google_info.to_dict()
+
+
     @classmethod
+    @remove_edsl_version
     def from_dict(cls, d):
-        return cls(d["filename"], d["binary"], d["suffix"], d["base64_string"])
+        #return cls(d["filename"], d["binary"], d["suffix"], d["base64_string"])
+        return cls(**d)
 
     def __repr__(self):
-        return f"FileStore(filename='{self.filename}', binary='{self.binary}', 'suffix'={self.suffix})"
+        return f"FileStore({self.path})"
 
     def encode_file_to_base64_string(self, file_path):
         try:
@@ -101,7 +137,7 @@ class FileStore(Scenario):
 
         # Create a named temporary file
         mode = "wb" if self.binary else "w"
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=suffix, mode=mode)
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix="." + suffix, mode=mode)
 
         if self.binary:
             temp_file.write(file_like_object.read())
@@ -115,7 +151,7 @@ class FileStore(Scenario):
     def push(self, description=None):
         scenario_version = Scenario.from_dict(self.to_dict())
         if description is None:
-            description = "File: " + self["filename"]
+            description = "File: " + self.path
         info = scenario_version.push(description=description)
         return info
 
@@ -123,19 +159,34 @@ class FileStore(Scenario):
     def pull(cls, uuid, expected_parrot_url: Optional[str] = None):
         scenario_version = Scenario.pull(uuid, expected_parrot_url=expected_parrot_url)
         return cls.from_dict(scenario_version.to_dict())
+    
+    @classmethod
+    def from_url(cls, url: str, download_path: str = None, mime_type: Optional[str] = None) -> 'File':
+        response = requests.get(url, stream=True)
+        response.raise_for_status()  # Raises an HTTPError for bad responses
+
+        # Get the filename from the URL if download_path is not provided
+        if download_path is None:
+            filename = os.path.basename(urlparse(url).path)
+            if not filename:
+                filename = 'downloaded_file'
+            #download_path = filename
+            download_path = os.path.join(os.getcwd(), filename)
+
+        # Ensure the directory exists
+        os.makedirs(os.path.dirname(download_path), exist_ok=True)
+
+        # Write the file
+        with open(download_path, 'wb') as file:
+            for chunk in response.iter_content(chunk_size=8192):
+                file.write(chunk)
+
+        # Create and return a new File instance
+        return cls(download_path, mime_type = mime_type)
+
 
 
 class CSVFileStore(FileStore):
-    def __init__(
-        self,
-        filename,
-        binary: Optional[bool] = None,
-        suffix: Optional[str] = None,
-        base64_string: Optional[str] = None,
-    ):
-        super().__init__(
-            filename, binary=binary, base64_string=base64_string, suffix=".csv"
-        )
 
     @classmethod
     def example(cls):
@@ -155,16 +206,6 @@ class CSVFileStore(FileStore):
 
 
 class PDFFileStore(FileStore):
-    def __init__(
-        self,
-        filename,
-        binary: Optional[bool] = None,
-        suffix: Optional[str] = None,
-        base64_string: Optional[str] = None,
-    ):
-        super().__init__(
-            filename, binary=binary, base64_string=base64_string, suffix=".pdf"
-        )
 
     def view(self):
         pdf_path = self.to_tempfile()
@@ -241,16 +282,6 @@ class PDFFileStore(FileStore):
 
 
 class PNGFileStore(FileStore):
-    def __init__(
-        self,
-        filename,
-        binary: Optional[bool] = None,
-        suffix: Optional[str] = None,
-        base64_string: Optional[str] = None,
-    ):
-        super().__init__(
-            filename, binary=binary, base64_string=base64_string, suffix=".png"
-        )
 
     @classmethod
     def example(cls):
@@ -275,16 +306,6 @@ class PNGFileStore(FileStore):
 
 
 class SQLiteFileStore(FileStore):
-    def __init__(
-        self,
-        filename,
-        binary: Optional[bool] = None,
-        suffix: Optional[str] = None,
-        base64_string: Optional[str] = None,
-    ):
-        super().__init__(
-            filename, binary=binary, base64_string=base64_string, suffix=".sqlite"
-        )
 
     @classmethod
     def example(cls):
@@ -308,16 +329,6 @@ class SQLiteFileStore(FileStore):
 
 
 class HTMLFileStore(FileStore):
-    def __init__(
-        self,
-        filename,
-        binary: Optional[bool] = None,
-        suffix: Optional[str] = None,
-        base64_string: Optional[str] = None,
-    ):
-        super().__init__(
-            filename, binary=binary, base64_string=base64_string, suffix=".html"
-        )
 
     @classmethod
     def example(cls):
@@ -350,9 +361,10 @@ if __name__ == "__main__":
     # fs = PDFFileStore("paper.pdf")
     # fs.view()
     # from edsl import Conjure
-
-    fs = PNGFileStore("robot.png")
-    fs.view()
+    pass
+    #fs = PNGFileStore("logo.png")
+    #fs.view()
+    #fs.upload_google()
 
     # c = Conjure(datafile_name=fs.to_tempfile())
     # f = PDFFileStore("paper.pdf")

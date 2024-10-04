@@ -168,13 +168,14 @@ class OpenAIService(InferenceServiceABC):
                 self,
                 user_prompt: str,
                 system_prompt: str = "",
-                encoded_image=None,
+                files_list: Optional[List["Files"]] = None,
                 invigilator: Optional[
                     "InvigilatorAI"
                 ] = None,  # TBD - can eventually be used for function-calling
             ) -> dict[str, Any]:
                 """Calls the OpenAI API and returns the API response."""
-                if encoded_image:
+                if files_list:
+                    encoded_image = files_list[0].base64_string
                     content = [{"type": "text", "text": user_prompt}]
                     content.append(
                         {

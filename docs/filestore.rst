@@ -31,7 +31,7 @@ CSV example:
 
     fs = CSVFileStore("example.csv")
     info = fs.push()
-    print(info) # to display the URL and Coop uuid of the stored file to use for retriving it later
+    print(info) # display the URL and Coop uuid of the stored file for retrieving it later
 
 
 Example output:
@@ -54,7 +54,7 @@ PDF example:
 
     fs = PDFFileStore("top_secret.pdf")
     info = fs.push()
-    print(info) # to display the URL and Coop uuid of the stored file to use for retriving it later
+    print(info) # display the URL and Coop uuid of the stored file for retrieving it later
 
 
 Example output:
@@ -77,7 +77,7 @@ PNG example:
 
     fs = PNGFileStore("parrot_logo.png")
     info = fs.push()
-    print(info) # to display the URL and Coop uuid of the stored file to use for retriving it later
+    print(info) # display the URL and Coop uuid of the stored file for retrieving it later
 
 
 Example output:
