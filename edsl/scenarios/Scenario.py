@@ -2,25 +2,18 @@
 
 from __future__ import annotations
 import copy
-import base64
 import hashlib
 import os
-import reprlib
-import imghdr
-
-
 from collections import UserDict
 from typing import Union, List, Optional, Generator
 from uuid import uuid4
+
 from edsl.Base import Base
-from edsl.scenarios.ScenarioImageMixin import ScenarioImageMixin
 from edsl.scenarios.ScenarioHtmlMixin import ScenarioHtmlMixin
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
-from edsl.data_transfer_models import ImageInfo
 
-
-class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
+class Scenario(Base, UserDict, ScenarioHtmlMixin):
     """A Scenario is a dictionary of keys/values.
 
     They can be used parameterize edsl questions."""
@@ -48,12 +41,12 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
 
         return ScenarioList([copy.deepcopy(self) for _ in range(n)])
 
-    @property
-    def has_image(self) -> bool:
-        """Return whether the scenario has an image."""
-        if not hasattr(self, "_has_image"):
-            self._has_image = False
-        return self._has_image
+    # @property
+    # def has_image(self) -> bool:
+    #     """Return whether the scenario has an image."""
+    #     if not hasattr(self, "_has_image"):
+    #         self._has_image = False
+    #     return self._has_image
 
     @property
     def has_jinja_braces(self) -> bool:
@@ -63,9 +56,10 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         >>> s.has_jinja_braces
         True
         """
-        for key, value in self.items():
-            if "{{" in str(value) and "}}" in value:
-                return True
+        for _, value in self.items():
+            if isinstance(value, str):
+                if "{{" in value and "}}" in value:
+                    return True
         return False
 
     def convert_jinja_braces(
@@ -87,7 +81,6 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
             else:
                 new_scenario[key] = value
         return new_scenario
-
 
     def __add__(self, other_scenario: "Scenario") -> "Scenario":
         """Combine two scenarios by taking the union of their keys
@@ -229,12 +222,13 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
 
         text = requests.get(url).text
         return cls({"url": url, field_name: text})
-    
+
     @classmethod
     def from_file(cls, file_path: str, field_name: str) -> "Scenario":
         """Creates a scenario from a file."""
         from edsl.scenarios.FileStore import FileStore
-        fs = FileStore(file_path) 
+
+        fs = FileStore(file_path)
         return cls({field_name: fs})
 
     @classmethod
@@ -250,10 +244,6 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         Returns:
             Scenario: A new Scenario instance with image information.
 
-        Example:
-        >>> s = Scenario.from_image(Scenario.example_image())
-        >>> s
-        Scenario({'logo': ...})
         """
         if not os.path.exists(image_path):
             raise FileNotFoundError(f"Image file not found: {image_path}")
@@ -262,7 +252,6 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
             image_name = os.path.basename(image_path).split(".")[0]
 
         return cls.from_file(image_path, image_name)
-
 
     @classmethod
     def from_pdf(cls, pdf_path):
