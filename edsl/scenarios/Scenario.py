@@ -2,25 +2,18 @@
 
 from __future__ import annotations
 import copy
-import base64
 import hashlib
 import os
-import reprlib
-import imghdr
-
-
 from collections import UserDict
 from typing import Union, List, Optional, Generator
 from uuid import uuid4
+
 from edsl.Base import Base
-from edsl.scenarios.ScenarioImageMixin import ScenarioImageMixin
 from edsl.scenarios.ScenarioHtmlMixin import ScenarioHtmlMixin
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
-from edsl.data_transfer_models import ImageInfo
 
-
-class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
+class Scenario(Base, UserDict, ScenarioHtmlMixin):
     """A Scenario is a dictionary of keys/values.
 
     They can be used parameterize edsl questions."""
@@ -48,16 +41,12 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
 
         return ScenarioList([copy.deepcopy(self) for _ in range(n)])
 
-    @property
-    def has_image(self) -> bool:
-        """Return whether the scenario has an image."""
-        if not hasattr(self, "_has_image"):
-            self._has_image = False
-        return self._has_image
-
-    # def __str__(self):
-    #     breakpoint()
-    #     return str(self.data)
+    # @property
+    # def has_image(self) -> bool:
+    #     """Return whether the scenario has an image."""
+    #     if not hasattr(self, "_has_image"):
+    #         self._has_image = False
+    #     return self._has_image
 
     @property
     def has_jinja_braces(self) -> bool:
@@ -67,7 +56,7 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         >>> s.has_jinja_braces
         True
         """
-        for key, value in self.items():
+        for _, value in self.items():
             if isinstance(value, str):
                 if "{{" in value and "}}" in value:
                     return True
@@ -255,10 +244,6 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         Returns:
             Scenario: A new Scenario instance with image information.
 
-        Example:
-        >>> s = Scenario.from_image(Scenario.example_image())
-        >>> s
-        Scenario({'logo': ...})
         """
         if not os.path.exists(image_path):
             raise FileNotFoundError(f"Image file not found: {image_path}")
