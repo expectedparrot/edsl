@@ -55,6 +55,10 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
             self._has_image = False
         return self._has_image
 
+    # def __str__(self):
+    #     breakpoint()
+    #     return str(self.data)
+
     @property
     def has_jinja_braces(self) -> bool:
         """Return whether the scenario has jinja braces. This matters for rendering.
@@ -64,8 +68,9 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         True
         """
         for key, value in self.items():
-            if "{{" in str(value) and "}}" in value:
-                return True
+            if isinstance(value, str):
+                if "{{" in value and "}}" in value:
+                    return True
         return False
 
     def convert_jinja_braces(
@@ -87,7 +92,6 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
             else:
                 new_scenario[key] = value
         return new_scenario
-
 
     def __add__(self, other_scenario: "Scenario") -> "Scenario":
         """Combine two scenarios by taking the union of their keys
@@ -229,12 +233,13 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
 
         text = requests.get(url).text
         return cls({"url": url, field_name: text})
-    
+
     @classmethod
     def from_file(cls, file_path: str, field_name: str) -> "Scenario":
         """Creates a scenario from a file."""
         from edsl.scenarios.FileStore import FileStore
-        fs = FileStore(file_path) 
+
+        fs = FileStore(file_path)
         return cls({field_name: fs})
 
     @classmethod
@@ -262,7 +267,6 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
             image_name = os.path.basename(image_path).split(".")[0]
 
         return cls.from_file(image_path, image_name)
-
 
     @classmethod
     def from_pdf(cls, pdf_path):
