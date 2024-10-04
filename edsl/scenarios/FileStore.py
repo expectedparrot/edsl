@@ -1,22 +1,16 @@
-from edsl import Scenario
 import base64
 import io
 import tempfile
-from typing import Optional
 import mimetypes
-
-from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
+import os
+from typing import Dict, Any, IO, Optional
+import requests
+from urllib.parse import urlparse
 
 import google.generativeai as genai
 
-# https://arxiv.org/pdf/2404.11794
-
-import os
-import base64
-from typing import Dict, Any, IO, Optional
-import mimetypes
-import requests
-from urllib.parse import urlparse
+from edsl import Scenario
+from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 from edsl.utilities.utilities import is_notebook
 
 
@@ -35,10 +29,10 @@ def view_pdf(pdf_path):
 
     if os.path.exists(pdf_path):
         try:
-            if os.name == "posix":
+            if (os_name := os.name) == "posix":
                 # for cool kids
                 subprocess.run(["open", pdf_path], check=True)  # macOS
-            elif os.name == "nt":
+            elif os_name == "nt":
                 os.startfile(pdf_path)  # Windows
             else:
                 subprocess.run(["xdg-open", pdf_path], check=True)  # Linux
@@ -84,14 +78,12 @@ class FileStore(Scenario):
         return "FileStore: self.path"
 
     @property
-    def size(self):
+    def size(self) -> int:
         return os.path.getsize(self.path)
 
-    def upload_google(self, refresh=False):
+    def upload_google(self, refresh: bool = False) -> None:
         genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
         google_info = genai.upload_file(self.path, mime_type=self.mime_type)
-        #
-        # self.set_url("google", google_url)
         self.external_locations["google"] = google_info.to_dict()
 
     @classmethod
@@ -103,7 +95,7 @@ class FileStore(Scenario):
     def __repr__(self):
         return f"FileStore({self.path})"
 
-    def encode_file_to_base64_string(self, file_path):
+    def encode_file_to_base64_string(self, file_path: str):
         try:
             # Attempt to open the file in text mode
             with open(file_path, "r") as text_file:
@@ -124,14 +116,14 @@ class FileStore(Scenario):
 
         return base64_string
 
-    def open(self):
+    def open(self) -> "IO":
         if self.binary:
             return self.base64_to_file(self["base64_string"], is_binary=True)
         else:
             return self.base64_to_text_file(self["base64_string"])
 
     @staticmethod
-    def base64_to_text_file(base64_string):
+    def base64_to_text_file(base64_string) -> "IO":
         # Decode the base64 string to bytes
         text_data_bytes = base64.b64decode(base64_string)
 
@@ -182,7 +174,7 @@ class FileStore(Scenario):
 
         return temp_file.name
 
-    def view(self, max_size=300):
+    def view(self, max_size: int = 300) -> None:
         if self.suffix == "pdf":
             view_pdf(self.path)
 
@@ -210,7 +202,14 @@ class FileStore(Scenario):
                 else:
                     return Image(self.path)
 
-    def push(self, description: Optional[str] = None, visibility: str = "unlisted"):
+    def push(
+        self, description: Optional[str] = None, visibility: str = "unlisted"
+    ) -> dict:
+        """
+        Push the object to Coop.
+        :param description: The description of the object to push.
+        :param visibility: The visibility of the object to push.
+        """
         scenario_version = Scenario.from_dict(self.to_dict())
         if description is None:
             description = "File: " + self.path
@@ -218,14 +217,28 @@ class FileStore(Scenario):
         return info
 
     @classmethod
-    def pull(cls, uuid, expected_parrot_url: Optional[str] = None):
+    def pull(cls, uuid: str, expected_parrot_url: Optional[str] = None) -> "FileStore":
+        """
+        :param uuid: The UUID of the object to pull.
+        :param expected_parrot_url: The URL of the Parrot server to use.
+        :return: The object pulled from the Parrot server.
+        """
         scenario_version = Scenario.pull(uuid, expected_parrot_url=expected_parrot_url)
         return cls.from_dict(scenario_version.to_dict())
 
     @classmethod
     def from_url(
-        cls, url: str, download_path: str = None, mime_type: Optional[str] = None
-    ) -> "File":
+        cls,
+        url: str,
+        download_path: Optional[str] = None,
+        mime_type: Optional[str] = None,
+    ) -> "FileStore":
+        """
+        :param url: The URL of the file to download.
+        :param download_path: The path to save the downloaded file.
+        :param mime_type: The MIME type of the file. If None, it will be guessed from the file extension.
+        """
+
         response = requests.get(url, stream=True)
         response.raise_for_status()  # Raises an HTTPError for bad responses
 
