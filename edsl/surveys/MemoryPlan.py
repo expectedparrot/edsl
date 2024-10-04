@@ -211,6 +211,32 @@ class MemoryPlan(UserDict):
         mp.add_single_memory("q1", "q0")
         return mp
 
+    def remove_question(self, question_name: str) -> None:
+        """Remove a question from the memory plan.
+
+        :param question_name: The name of the question to remove.
+        """
+        self._check_valid_question_name(question_name)
+
+        # Remove the question from survey_question_names and question_texts
+        index = self.survey_question_names.index(question_name)
+        self.survey_question_names.pop(index)
+        self.question_texts.pop(index)
+
+        # Remove the question from the memory plan if it's a focal question
+        self.pop(question_name, None)
+
+        # Remove the question from all memories where it appears as a prior question
+        for focal_question, memory in self.items():
+            memory.remove_prior_question(question_name)
+
+        # Update the DAG
+        self.dag.remove_node(index)
+
+    def remove_prior_question(self, question_name: str) -> None:
+        """Remove a prior question from the memory."""
+        self.prior_questions = [q for q in self.prior_questions if q != question_name]
+
 
 if __name__ == "__main__":
     import doctest

@@ -39,6 +39,8 @@ class InvigilatorAI(InvigilatorBase):
         }
         if "encoded_image" in prompts:
             params["encoded_image"] = prompts["encoded_image"]
+        if "files_list" in prompts:
+            params["files_list"] = prompts["files_list"]
 
         params.update({"iteration": self.iteration, "cache": self.cache})
 
@@ -80,15 +82,32 @@ class InvigilatorAI(InvigilatorBase):
         exception_occurred = None
         validated = False
         try:
-            validated_edsl_dict = self.question._validate_answer(edsl_dict)
+            # if the question has jinja parameters, it might be easier to make a new question
+            # with those all filled in & then validate that
+            # breakpoint()
+            if self.question.parameters:
+                prior_answers_dict = self.prompt_constructor.prior_answers_dict()
+                question_with_validators = self.question.render(
+                    self.scenario | prior_answers_dict
+                )
+                question_with_validators.use_code = self.question.use_code
+                # if question_with_validators.parameters:
+                #     raise ValueError(
+                #         f"The question still has parameters after rendering: {question_with_validators}"
+                #     )
+            else:
+                question_with_validators = self.question
+
+            # breakpoint()
+            validated_edsl_dict = question_with_validators._validate_answer(edsl_dict)
             answer = self.determine_answer(validated_edsl_dict["answer"])
             comment = validated_edsl_dict.get("comment", "")
             validated = True
         except QuestionAnswerValidationError as e:
             answer = None
             comment = "The response was not valid."
-            if self.raise_validation_errors:
-                exception_occurred = e
+            # if self.raise_validation_errors:
+            exception_occurred = e
         except Exception as non_validation_error:
             answer = None
             comment = "Some other error occurred."

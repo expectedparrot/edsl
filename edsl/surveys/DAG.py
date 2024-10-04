@@ -11,6 +11,7 @@ class DAG(UserDict):
         """Initialize the DAG class."""
         super().__init__(data)
         self.reverse_mapping = self._create_reverse_mapping()
+        self.validate_no_cycles()
 
     def _create_reverse_mapping(self):
         """
@@ -73,11 +74,72 @@ class DAG(UserDict):
         # else:
         #     return DAG(d)
 
+    def remove_node(self, node: int) -> None:
+        """Remove a node and all its connections from the DAG."""
+        self.pop(node, None)
+        for connections in self.values():
+            connections.discard(node)
+        # Adjust remaining nodes if necessary
+        self._adjust_nodes_after_removal(node)
+
+    def _adjust_nodes_after_removal(self, removed_node: int) -> None:
+        """Adjust node indices after a node is removed."""
+        new_dag = {}
+        for node, connections in self.items():
+            new_node = node if node < removed_node else node - 1
+            new_connections = {c if c < removed_node else c - 1 for c in connections}
+            new_dag[new_node] = new_connections
+        self.clear()
+        self.update(new_dag)
+
     @classmethod
     def example(cls):
         """Return an example of the `DAG`."""
         data = {"a": ["b", "c"], "b": ["d"], "c": [], "d": []}
         return cls(data)
+
+    def detect_cycles(self):
+        """
+        Detect cycles in the DAG using depth-first search.
+
+        :return: A list of cycles if any are found, otherwise an empty list.
+        """
+        visited = set()
+        path = []
+        cycles = []
+
+        def dfs(node):
+            if node in path:
+                cycle = path[path.index(node) :]
+                cycles.append(cycle + [node])
+                return
+
+            if node in visited:
+                return
+
+            visited.add(node)
+            path.append(node)
+
+            for child in self.get(node, []):
+                dfs(child)
+
+            path.pop()
+
+        for node in self:
+            if node not in visited:
+                dfs(node)
+
+        return cycles
+
+    def validate_no_cycles(self):
+        """
+        Validate that the DAG does not contain any cycles.
+
+        :raises ValueError: If cycles are detected in the DAG.
+        """
+        cycles = self.detect_cycles()
+        if cycles:
+            raise ValueError(f"Cycles detected in the DAG: {cycles}")
 
 
 if __name__ == "__main__":

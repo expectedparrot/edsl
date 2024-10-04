@@ -1,7 +1,7 @@
 import aiohttp
 import json
 import requests
-from typing import Any, List
+from typing import Any, List, Optional
 
 # from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
 from edsl.language_models import LanguageModel

@@ -46,10 +46,12 @@ Technical Setup
 - Create a :ref:`coop` to create, store and share content on the Expected Parrot server. 
 - :ref:`api_keys`: (*Optional*) Instructions for storing API keys for language models to use EDSL locally.
 
+
 Getting Started
 ---------------
 
 - :ref:`starter_tutorial`: A tutorial to help you get started using EDSL.
+
 
 Core Concepts
 -------------
@@ -60,6 +62,7 @@ Core Concepts
 - :ref:`agents`: Design and implement AI agents to respond to surveys.
 - :ref:`language_models`: Select language models to generate results.
 
+
 Working with Results
 --------------------
 
@@ -67,6 +70,7 @@ Working with Results
 - :ref:`caching`: Learn about caching and sharing results.
 - :ref:`exceptions`: Identify and handle exceptions in your survey design.
 - :ref:`token_usage`: Manage token limits for language models, and monitor and reduce token usage as desired.
+
 
 Coop 
 ----
@@ -78,6 +82,7 @@ Coop is a platform for creating, storing and sharing EDSL content and AI researc
 - :ref:`remote_inference`: Use remote inference to run jobs on the Expected Parrot server. 
 - :ref:`notebooks`: Instructions for sharing `.ipynb` files with other users at the Coop. 
 
+
 Importing Data
 --------------
 
@@ -87,6 +92,7 @@ Importing Data
   * Create AI agents for respondents and conduct follow-on interviews
   * Extend your results with new questions and surveys
   * Store and share your data on the Coop
+
 
 How-to Guides
 -------------
@@ -98,11 +104,13 @@ Examples of special methods and use cases for EDSL, including:
 * Dynamic agent traits
 * Creating new methods
 
+
 Notebooks
 ---------
 
 Templates and example code for using EDSL to conduct different kinds of research.
 *We're happy to create a new notebook for your use case!*
+
 
 Developers
 ----------
@@ -173,13 +181,13 @@ Information about additional functionality for developers.
    :hidden:
 
    notebooks/edsl_intro.ipynb
-   notebooks/edsl_components.ipynb
    notebooks/data_labeling_example.ipynb
    notebooks/data_cleaning.ipynb
    notebooks/scenario_from_pdf.ipynb
    notebooks/image_scenario_example.ipynb
    notebooks/question_loop_scenario.ipynb
    notebooks/scenario_list_wikipedia.ipynb
+   notebooks/scenarios_filestore_example.ipynb
    notebooks/batching_results.ipynb
    notebooks/adding_metadata.ipynb
    notebooks/example_agent_dynamic_traits.ipynb

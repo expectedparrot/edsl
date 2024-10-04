@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any, List, Optional
 import os
 import asyncio
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
@@ -59,10 +59,19 @@ class TestService(InferenceServiceABC):
                 self,
                 user_prompt: str,
                 system_prompt: str,
-                encoded_image=None,
+                # func: Optional[callable] = None,
+                files_list: Optional[List["File"]] = None,
             ) -> dict[str, Any]:
                 await asyncio.sleep(0.1)
                 # return {"message": """{"answer": "Hello, world"}"""}
+
+                if hasattr(self, "func"):
+                    return {
+                        "message": [
+                            {"text": self.func(user_prompt, system_prompt, files_list)}
+                        ],
+                        "usage": {"prompt_tokens": 1, "completion_tokens": 1},
+                    }
 
                 if hasattr(self, "throw_exception") and self.throw_exception:
                     if hasattr(self, "exception_probability"):

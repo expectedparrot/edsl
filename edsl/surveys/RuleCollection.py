@@ -120,13 +120,13 @@ class RuleCollection(UserList):
         :param answers: The answers to the survey questions.
 
         >>> rule_collection = RuleCollection()
-        >>> r = Rule(current_q=1, expression="True", next_q=1, priority=1, question_name_to_index={}, before_rule = True)
+        >>> r = Rule(current_q=1, expression="True", next_q=2, priority=1, question_name_to_index={}, before_rule = True)
         >>> rule_collection.add_rule(r)
         >>> rule_collection.skip_question_before_running(1, {})
         True
 
         >>> rule_collection = RuleCollection()
-        >>> r = Rule(current_q=1, expression="False", next_q=1, priority=1, question_name_to_index={}, before_rule = True)
+        >>> r = Rule(current_q=1, expression="False", next_q=2, priority=1, question_name_to_index={}, before_rule = True)
         >>> rule_collection.add_rule(r)
         >>> rule_collection.skip_question_before_running(1, {})
         False
@@ -320,6 +320,40 @@ class RuleCollection(UserList):
                     children_to_parents[focal_q].add(q)
 
         return DAG(dict(sorted(children_to_parents.items())))
+
+    def detect_cycles(self):
+        """
+        Detect cycles in the survey rules using depth-first search.
+
+        :return: A list of cycles if any are found, otherwise an empty list.
+        """
+        dag = self.dag
+        visited = set()
+        path = []
+        cycles = []
+
+        def dfs(node):
+            if node in path:
+                cycle = path[path.index(node) :]
+                cycles.append(cycle + [node])
+                return
+
+            if node in visited:
+                return
+
+            visited.add(node)
+            path.append(node)
+
+            for child in dag.get(node, []):
+                dfs(child)
+
+            path.pop()
+
+        for node in dag:
+            if node not in visited:
+                dfs(node)
+
+        return cycles
 
     @classmethod
     def example(cls):

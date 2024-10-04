@@ -156,19 +156,6 @@ class QuestionTaskCreator(UserList):
             self.tokens_bucket.turbo_mode_off()
             self.requests_bucket.turbo_mode_off()
 
-        # breakpoint()
-        # _ = results.pop("cached_response", None)
-
-        # tracker = self.cached_token_usage if self.from_cache else self.new_token_usage
-
-        # TODO: This is hacky. The 'func' call should return an object that definitely has a 'usage' key.
-        # usage = results.get("usage", {"prompt_tokens": 0, "completion_tokens": 0})
-        # prompt_tokens = usage.get("prompt_tokens", 0)
-        # completion_tokens = usage.get("completion_tokens", 0)
-        # tracker.add_tokens(
-        #    prompt_tokens=prompt_tokens, completion_tokens=completion_tokens
-        # )
-
         return results
 
     @classmethod
@@ -249,6 +236,7 @@ class QuestionTaskCreator(UserList):
                 f"Required tasks failed for {self.question.question_name}"
             ) from e
 
+        # this only runs if all the dependencies are successful
         return await self._run_focal_task()
 
 

@@ -10,6 +10,10 @@ from edsl.data_transfer_models import ImageInfo
 from edsl.prompts.registry import get_classes as prompt_lookup
 from edsl.exceptions import QuestionScenarioRenderError
 
+# from edsl import Agent
+
+# from edsl.scenarios.FileStore import FileStore
+
 
 class PromptComponent(enum.Enum):
     AGENT_INSTRUCTIONS = "agent_instructions"
@@ -152,8 +156,7 @@ class PromptPlan:
 
 
 class PromptConstructor:
-    """Mixin for constructing prompts for the LLM call.
-
+    """
     The pieces of a prompt are:
     - The agent instructions - "You are answering questions as if you were a human. Do not break character."
     - The persona prompt - "You are an agent with the following persona: {'age': 22, 'hair': 'brown', 'height': 5.5}"
@@ -177,13 +180,17 @@ class PromptConstructor:
         # prompt_plan = PromptPlan()
 
     @property
-    def scenario_image_keys(self):
-        image_entries = []
+    def scenario_file_keys(self):
+        """We need to find all the keys in the scenario that refer to FileStore objects.
+        These will be used to append to the prompt a list of files that are part of the scenario.
+        """
+        from edsl.scenarios.FileStore import FileStore
 
+        file_entries = []
         for key, value in self.scenario.items():
-            if isinstance(value, ImageInfo):
-                image_entries.append(key)
-        return image_entries
+            if isinstance(value, FileStore):
+                file_entries.append(key)
+        return file_entries
 
     @property
     def agent_instructions_prompt(self) -> Prompt:
@@ -219,47 +226,59 @@ class PromptConstructor:
         {'age': 22, 'hair': 'brown', 'height': 5.5}\""")
 
         """
-        if not hasattr(self, "_agent_persona_prompt"):
-            from edsl import Agent
+        from edsl import Agent
 
-            if self.agent == Agent():  # if agent is empty, then return an empty prompt
-                return Prompt(text="")
+        if hasattr(self, "_agent_persona_prompt"):
+            return self._agent_persona_prompt
 
-            if not hasattr(self.agent, "agent_persona"):
-                applicable_prompts = prompt_lookup(
-                    component_type="agent_persona",
-                    model=self.model.model,
-                )
-                persona_prompt_template = applicable_prompts[0]()
-            else:
-                persona_prompt_template = self.agent.agent_persona
+        if self.agent == Agent():  # if agent is empty, then return an empty prompt
+            return Prompt(text="")
 
-            # TODO: This multiple passing of agent traits - not sure if it is necessary. Not harmful.
-            if undefined := persona_prompt_template.undefined_template_variables(
-                self.agent.traits
-                | {"traits": self.agent.traits}
-                | {"codebook": self.agent.codebook}
-                | {"traits": self.agent.traits}
-            ):
-                raise QuestionScenarioRenderError(
-                    f"Agent persona still has variables that were not rendered: {undefined}"
-                )
-
-            persona_prompt = persona_prompt_template.render(
-                self.agent.traits | {"traits": self.agent.traits},
-                codebook=self.agent.codebook,
-                traits=self.agent.traits,
+        if not hasattr(self.agent, "agent_persona"):
+            applicable_prompts = prompt_lookup(
+                component_type="agent_persona",
+                model=self.model.model,
             )
-            if persona_prompt.has_variables:
-                raise QuestionScenarioRenderError(
-                    "Agent persona still has variables that were not rendered."
-                )
-            self._agent_persona_prompt = persona_prompt
+            persona_prompt_template = applicable_prompts[0]()
+        else:
+            persona_prompt_template = self.agent.agent_persona
+
+        # TODO: This multiple passing of agent traits - not sure if it is necessary. Not harmful.
+        template_parameter_dictionary = (
+            self.agent.traits
+            | {"traits": self.agent.traits}
+            | {"codebook": self.agent.codebook}
+            | {"traits": self.agent.traits}
+        )
+
+        if undefined := persona_prompt_template.undefined_template_variables(
+            template_parameter_dictionary
+        ):
+            raise QuestionScenarioRenderError(
+                f"Agent persona still has variables that were not rendered: {undefined}"
+            )
+
+        persona_prompt = persona_prompt_template.render(template_parameter_dictionary)
+        if persona_prompt.has_variables:
+            raise QuestionScenarioRenderError(
+                "Agent persona still has variables that were not rendered."
+            )
+
+        self._agent_persona_prompt = persona_prompt
 
         return self._agent_persona_prompt
 
     def prior_answers_dict(self) -> dict:
         d = self.survey.question_names_to_questions()
+
+        # Every prior question should be answered
+        # parent_questions_that_should_be_answered = self.survey.dag(textify=True).get(
+        #     self.question.question_name, []
+        # )
+        # for parent_question in parent_questions_that_should_be_answered:
+        #     assert parent_question in self.current_answers
+
+        # This attaches the answer to the question
         for question, answer in self.current_answers.items():
             if question in d:
                 d[question].answer = answer
@@ -270,14 +289,14 @@ class PromptConstructor:
         return d
 
     @property
-    def question_image_keys(self):
+    def question_file_keys(self):
         raw_question_text = self.question.question_text
         variables = get_jinja2_variables(raw_question_text)
-        question_image_keys = []
+        question_file_keys = []
         for var in variables:
-            if var in self.scenario_image_keys:
-                question_image_keys.append(var)
-        return question_image_keys
+            if var in self.scenario_file_keys:
+                question_file_keys.append(var)
+        return question_file_keys
 
     @property
     def question_instructions_prompt(self) -> Prompt:
@@ -288,15 +307,18 @@ class PromptConstructor:
         Prompt(text=\"""...
         ...
         """
+        # The user might have passed a custom prompt, which would be stored in _question_instructions_prompt
         if not hasattr(self, "_question_instructions_prompt"):
+
+            # Gets the instructions for the question - this is how the question should be answered
             question_prompt = self.question.get_instructions(model=self.model.model)
 
-            # Are any of the scenario values ImageInfo
-
+            # Get the data for the question - this is a dictionary of the question data
+            # e.g., {'question_text': 'Do you like school?', 'question_name': 'q0', 'question_options': ['yes', 'no']}
             question_data = self.question.data.copy()
 
             # check to see if the question_options is actually a string
-            # This is used when the user is using the question_options as a variable from a sceario
+            # This is used when the user is using the question_options as a variable from a scenario
             # if "question_options" in question_data:
             if isinstance(self.question.data.get("question_options", None), str):
                 env = Environment()
@@ -305,19 +327,30 @@ class PromptConstructor:
                     meta.find_undeclared_variables(parsed_content)
                 )[0]
 
+                # look to see if the question_option_key is in the scenario
                 if isinstance(
                     question_options := self.scenario.get(question_option_key), list
                 ):
                     question_data["question_options"] = question_options
                     self.question.question_options = question_options
 
+                # might be getting it from the prior answers
+                if isinstance(
+                    question_options := self.prior_answers_dict()
+                    .get(question_option_key)
+                    .answer,
+                    list,
+                ):
+                    question_data["question_options"] = question_options
+                    self.question.question_options = question_options
+
             replacement_dict = (
-                {key: "<see image>" for key in self.scenario_image_keys}
+                {key: f"<see file {key}>" for key in self.scenario_file_keys}
                 | question_data
                 | {
                     k: v
                     for k, v in self.scenario.items()
-                    if k not in self.scenario_image_keys
+                    if k not in self.scenario_file_keys
                 }  # don't include images in the replacement dict
                 | self.prior_answers_dict()
                 | {"agent": self.agent}
@@ -345,6 +378,7 @@ class PromptConstructor:
                     )
 
             if undefined_template_variables:
+                # breakpoint()
                 raise QuestionScenarioRenderError(
                     f"Question instructions still has variables: {undefined_template_variables}."
                 )
@@ -425,19 +459,18 @@ class PromptConstructor:
         >>> i.get_prompts()
         {'user_prompt': ..., 'system_prompt': ...}
         """
+        # breakpoint()
         prompts = self.prompt_plan.get_prompts(
             agent_instructions=self.agent_instructions_prompt,
             agent_persona=self.agent_persona_prompt,
             question_instructions=self.question_instructions_prompt,
             prior_question_memory=self.prior_question_memory_prompt,
         )
-        if len(self.question_image_keys) > 1:
-            raise ValueError("We can only handle one image per question.")
-        elif len(self.question_image_keys) == 1:
-            prompts["encoded_image"] = self.scenario[
-                self.question_image_keys[0]
-            ].encoded_image
-
+        if self.question_file_keys:
+            files_list = []
+            for key in self.question_file_keys:
+                files_list.append(self.scenario[key])
+            prompts["files_list"] = files_list
         return prompts
 
     def _get_scenario_with_image(self) -> Scenario:
