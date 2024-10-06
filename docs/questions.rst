@@ -31,9 +31,9 @@ The following question types are available:
 * `QuestionRank` - ranked list questions
 * `QuestionTopK` - top-k list questions
 * `QuestionYesNo` - yes/no questions (multiple choice with fixed options)
-* `QuestionList` - list questions
-* `QuestionBudget` - budget allocation questions
-* `QuestionExtract` - information extraction questions 
+* `QuestionList` - list questions (the response is formatted as a list of strings)
+* `QuestionBudget` - budget allocation questions (the response is a dictionary of allocated amounts)
+* `QuestionExtract` - information extraction questions (the response is formatted according to a specified template)
 * `QuestionFunctional` - functional questions   
 
 
@@ -41,12 +41,12 @@ Required fields
 ^^^^^^^^^^^^^^^
 
 All question types require a `question_name` and `question_text`. 
-The `question_name` is a unique Pythonic identifier for a question (e.g., "favorite_color" but not "favorite color").
+The `question_name` is a unique Pythonic identifier for a question (e.g., "favorite_color").
 The `question_text` is the text of the question itself written as a string (e.g., "What is your favorite color?").
 Question types other than free text require a `question_options` list of possible answer options.
-The `question_options` list can be a list of strings, integers or other types depending on the question type.
+The `question_options` list can be a list of strings, integers, a list of lists or other data types depending on the question type.
 
-For example, to create a multiple choice question where the respondent must select one option from a list of colors, 
+For example, to create a multiple choice question where the response should be a single option selected from a list of colors, 
 we import the `QuestionMultipleChoice` class and create an instance of it with the required fields:
 
 .. code-block:: python
@@ -56,7 +56,7 @@ we import the `QuestionMultipleChoice` class and create an instance of it with t
    q = QuestionMultipleChoice(
       question_name = "favorite_color",
       question_text = "What is your favorite color?",
-      question_options = ["Red", "Blue", "Green", "Yellow"]
+      question_options = ["Red", "Orange", "Yellow", "Green", "Blue", "Purple"]
    )
 
 
@@ -64,7 +64,7 @@ Optional fields for specific question types
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 `min_selections` and `max_selections` - Parameters that can be added to `checkbox` and `rank` questions to specify the minimum and maximum number of options that can be selected.
-For example, in a checkbox question where the respondent can select multiple options, we can specify that at least 2 options must be selected and at most 3 can be selected:
+For example, in a checkbox question where the response must include at least 2 and at most 3 of the options:
 
 .. code-block:: python
 
@@ -72,15 +72,15 @@ For example, in a checkbox question where the respondent can select multiple opt
 
    q = QuestionCheckBox(
       question_name = "favorite_days",
-      question_text = "What are your favorite days of the week?",
-      question_options = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+      question_text = "What are your 2-3 favorite days of the week?",
+      question_options = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
       min_selections = 2,
       max_selections = 3
    )
 
 
 `min_value` and `max_value` - Parameters that can be added to `numerical` questions to specify the minimum and maximum values that can be entered.
-For example, in a numerical question where the respondent must enter a number between 1 and 10:
+For example, in a numerical question where the respondent must enter a number between 1 and 100:
 
 .. code-block:: python
 
@@ -88,14 +88,14 @@ For example, in a numerical question where the respondent must enter a number be
 
    q = QuestionNumerical(
       question_name = "age",
-      question_text = "How old are you?",
+      question_text = "How old are you (in years)?",
       min_value = 1,
-      max_value = 10
+      max_value = 100
    )
 
 
 `option_labels` - A parameter that can be added to `linear_scale` questions to specify labels for the scale options.
-For example, in a linear scale question where the respondent must rate their agreement with a statement on a scale from 1 to 5:
+For example, in a linear scale question where the response must be an integer between 1 and 5 reflecting the respondent's agreement with a statement:
 
 .. code-block:: python
 
