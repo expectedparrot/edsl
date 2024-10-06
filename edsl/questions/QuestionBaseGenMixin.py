@@ -95,7 +95,7 @@ class QuestionBaseGenMixin:
             questions.append(QuestionBase.from_dict(new_data))
         return questions
 
-    def render(self, replacement_dict: dict) -> QuestionBase:
+    def render(self, replacement_dict: dict) -> "QuestionBase":
         """Render the question components as jinja2 templates with the replacement dictionary."""
         from jinja2 import Environment
         from edsl import Scenario
@@ -105,12 +105,21 @@ class QuestionBaseGenMixin:
         }
 
         def render_string(value: str) -> str:
-            if value is None:
+            if value is None or not isinstance(value, str):
                 return value
+            else:
+                try:
+                    return (
+                        Environment()
+                        .from_string(value)
+                        .render(strings_only_replacement_dict)
+                    )
+                except Exception as e:
+                    import warnings
 
-            return (
-                Environment().from_string(value).render(strings_only_replacement_dict)
-            )
+                    warnings.warn("Failed to render string: " + value)
+                    # breakpoint()
+                    return value
 
         return self.apply_function(render_string)
 
