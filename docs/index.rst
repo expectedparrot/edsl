@@ -34,6 +34,7 @@ Introduction
 - :ref:`overview`: An overview of the purpose, concepts and goals of the EDSL package.
 - :ref:`whitepaper`: A whitepaper about the EDSL package (*in progress*).
 - :ref:`citation`: How to cite the package in your work.
+- :ref:`papers`: Research papers and articles that use EDSL.
 
 
 Technical Setup
