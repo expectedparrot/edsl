@@ -16,10 +16,11 @@ Links
 
 - Download the current version of EDSL at `PyPI <https://pypi.org/project/edsl>`_.
 - Get the latest EDSL updates at `GitHub <https://github.com/expectedparrot/edsl>`_.
-- Create a `Coop account <https://www.expectedparrot.com/login>`_ to store and share your research, and access special features:
+- Create a `Coop account <https://www.expectedparrot.com/login>`_ to store and share your research and access special features, including:
   
   * :ref:`survey_builder`: An interface for launching hybrid human-AI surveys
-  * :ref:`remote_inference` and :ref:`remote_caching`: Work with EDSL on the Expected Parrot server
+  * :ref:`remote_inference`: Run surveys on the Expected Parrot server
+  * :ref:`remote_caching`: Automatically store results and API calls on the Expected Parrot server
   * :ref:`filestore`: Store and share files for use in EDSL projects
 
 - Explore research at the `Coop <https://www.expectedparrot.com/explore>`_.
@@ -40,7 +41,7 @@ Technical Setup
 
 - :ref:`installation`: Instructions for installing the EDSL package.
 - :ref:`coop`: Create, store and share research on the Expected Parrot server. 
-- :ref:`api_keys`: Instructions for storing API keys to use EDSL locally.
+- :ref:`api_keys`: Instructions for storing API keys to use EDSL locally (*optional*).
 
 
 Getting Started
