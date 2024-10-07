@@ -12,7 +12,7 @@ Help debugging
 
 If you would like help debugging an error that you are encountering, please feel free to share your code, objects and exceptions report with us.
 
-An easy way to do this is to post a notebook with your code to the :ref:`coop` and share the link with us at info@expectedparrot.com.
+An easy way to do this is to post a notebook with your code to the :ref:`coop` and **share the link with us at info@expectedparrot.com**.
 You can use the following code to generate a link to your notebook:
 
 .. code-block:: python
@@ -36,7 +36,7 @@ For example, you may intend for the answer to be formatted as a list but receive
 Or a question may be unanswered and the model has returned `None`.
 These exceptions are typically raised by the `Question` class and are subclassed from `QuestionAnswerValidationError`.
 
-A useful starting point for debugging these exceptions is to check the `Settings` class for the `Questions` model.
+A useful starting point for debugging these exceptions is to check the `Settings` class for the `Questions` model (https://github.com/expectedparrot/edsl/blob/main/edsl/questions/settings.py).
 The default settings (which can be modified) are as follows:
 
 .. code-block:: python
