@@ -803,8 +803,9 @@ def main():
     ##############
     job = Jobs.example()
     coop.remote_inference_cost(job)
-    results = coop.remote_inference_create(job)
-    coop.remote_inference_get(results.get("uuid"))
+    job_coop_object = coop.remote_inference_create(job)
+    job_coop_results = coop.remote_inference_get(job_coop_object.get("uuid"))
+    coop.get(uuid=job_coop_results.get("results_uuid"))
 
     ##############
     # E. Errors
