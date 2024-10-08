@@ -3,9 +3,11 @@
 Papers
 ======
 
-This page contains a list of papers that use or cite EDSL.
+| This page contains a list of papers that use or cite EDSL.
+| *Please let us know of any omissions!*
 
-*Please let us know of any omissions!*
+| **Are you using EDSL for a research project? We'd love to hear about your experience!**
+| Send us an email at info@expectedparrot.com and we'll provide credits to run your project at the Expected Parrot server or a gift card for your time.
 
 
 | *Theorizing with Large Language Models*
