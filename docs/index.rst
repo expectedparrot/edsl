@@ -135,7 +135,9 @@ Information about additional functionality for developers.
    :hidden:
 
    overview
+   whitepaper
    citation
+   papers
 
 .. toctree::
    :maxdepth: 2

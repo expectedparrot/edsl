@@ -2,4 +2,5 @@
 
 Whitepaper
 ==========
-Coming soon.
+
+*Coming soon!*
