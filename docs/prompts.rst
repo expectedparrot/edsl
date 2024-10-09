@@ -18,8 +18,8 @@ These prompts can be used as is or customized to suit specific requirements by c
 Note: If an `Agent` is not used with a survey the `system_prompt` base text is not sent to the model.
 
 
-Showing prompts 
-^^^^^^^^^^^^^^^
+Show prompts 
+------------
 
 Before a survey is run, EDSL creates a `Jobs` object. 
 You can see the prompts it will use by calling `prompts()` on it. 

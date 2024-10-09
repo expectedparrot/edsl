@@ -3,27 +3,30 @@
 File Store
 ==========
 
-`FileStore` is a module for storing and sharing data on the Coop that you want to use in your EDSL projects, such as survey data, PDFs, CSVs or images.
-It can be particularly useful for storing files to be used as as `Scenario` objects with a survey, and allows you to include code for retrieving and processing the files in your EDSL project.
+`FileStore` is a module for storing and sharing data on the Coop to use in EDSL projects, such as survey data, PDFs, CSVs, docs or images.
+It can be particularly useful for storing data intended to be used with surveys as `Scenario` objects, such as in data labeling tasks, 
+and allows you to include code for retrieving and processing the data files in your EDSL project to facilitate collaboration and replication of results.
 
 
 File types 
 ----------
 
-The following file types are supported by the FileStore:
+The following file types are currently supported by the FileStore:
 
-- CSV
-- PDF
-- PNG 
+* CSV
+* PDF
+* PNG (image)
 
 
 Posting a file
 --------------
 
-To store a file, you need to create a `FileStore` object with the path to the file you want to store.
-You can then use the `push` method to store the file on the Coop and get a URL for accessing the file.
+To post a file, import the `FileStore` type (`CSVFileStore`, `PDFFileStore` or `PNGFileStore`) and create an object with the path to the file.
+Then call the `push` method to store the file on the Coop and get a URL and uuid for accessing it.
+You can optionally pass a `description` and `visibility` parameter to the `push` method (Coop objects can be *public*, *private* or *unlisted* by default).
 
-CSV example:
+CSV example
+^^^^^^^^^^^
 
 .. code-block:: python
 
@@ -34,7 +37,7 @@ CSV example:
     print(info) # display the URL and Coop uuid of the stored file for retrieving it later
 
 
-Example output:
+Example output (showing the default description and visibility setting):
 
 .. code-block:: python
 
@@ -46,7 +49,8 @@ Example output:
     'visibility': 'unlisted'}
 
 
-PDF example:
+PDF example
+^^^^^^^^^^^
 
 .. code-block:: python
 
@@ -69,7 +73,8 @@ Example output:
     'visibility': 'unlisted'}
 
 
-PNG example:
+PNG example
+^^^^^^^^^^^
 
 .. code-block:: python
 
@@ -95,22 +100,22 @@ Example output:
 Retrieving and using a file
 ---------------------------
 
-To retrieve a file, you need to create a `FileStore` object with the Coop uuid of the file you want to retrieve.
-You can then use the `pull` method to retrieve the file from the Coop.
+To retrieve a file, create a `FileStore` object (`CSVFileStore`, `PDFFileStore` or `PNGFileStore`) 
+and pass it the Coop uuid of the file you want to retrieve and the Expected Parrot URL.
+Then call the `pull` method to retrieve the file from the Coop.
 
-Once you have retrieved a file, you can use it in your EDSL project as a `Scenario` object.
-Each file type has a method for converting the file into a scenario:
+Once retrieved, a file can be converted into scenarios by calling the relevant method on a `ScenarioList` object:
 
-- `from_csv` for CSV files
-- `from_pdf` for PDF files
-- `from_image` for PNG files
+* `ScenarioList.from_csv()` for CSV files
+* `ScenarioList.from_pdf()` for PDF files
+* `ScenarioList.from_image()` for PNG files
 
 
 CSV example
 ^^^^^^^^^^^
 
-For CSV files we use the `from_csv` method of the `ScenarioList` class.
-They keys are the column names of the CSV file, which can be modified with the `rename` method.
+Here we retrieve the CSV file posted above and then convert it into a `ScenarioList` object with the `from_csv()` method.
+The keys are the column names of the CSV file, which can be modified with the `rename` method.
 
 .. code-block:: python
 
@@ -125,7 +130,7 @@ They keys are the column names of the CSV file, which can be modified with the `
 PDF example
 ^^^^^^^^^^^
 
-For PDF files we use the `from_pdf` method of the `ScenarioList` class.
+Here we retrieve the PDF file posted above and then convert it into a `ScenarioList` object with the `from_pdf()` method.
 The default keys are `filename`, `page`, `text`, which can be modified with the `rename` method.
 
 .. code-block:: python
@@ -155,7 +160,8 @@ Output:
 PNG example
 ^^^^^^^^^^^
 
-For PNG files we use the `from_image` method which takes the PNG file and (optionally) the name of a key to use for the scenario object.
+Here we retrieve the PNG file posted above and then convert it into a `ScenarioList` object with the `from_image()` method.
+We can optionally pass the name of a key to use for the scenario object, or edit the key later.
 
 .. code-block:: python
 
@@ -170,7 +176,7 @@ For PNG files we use the `from_image` method which takes the PNG file and (optio
 Working with scenarios 
 ----------------------
 
-Before using the scenario, verify the key and value of the scenario object (e.g., by printing), and rename the key as desired to use in survey questions.
+Before using the scenario, we can verify the key and value of the scenario object (e.g., by printing), and rename the key as desired to use in survey questions.
 
 For a single `Scenario` we can check the key:
 
