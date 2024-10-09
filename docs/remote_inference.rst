@@ -57,15 +57,15 @@ Save it to a *.env* file in your working directory. Your *.env* file should incl
 
 When remote inference is on, surveys that you run will be sent to the Expected Parrot server for processing.
 
-You can also toggle *Remote cache* to turn on remote caching.
+You can also toggle *Remote caching* to turn on remote caching.
 Learn more about using remote caching with remote inference in the :ref:`remote_caching` section.
 
 
 Using remote inference
 ----------------------
 
-Use remote inference by passing a `remote_inference_description` string to the `run()` method of a survey.
-This string will be used to identify your job on the Expected Parrot server.
+With remote inference activated, calling the `run()` method will send a survey to the Expected Parrot server.
+You can optionally pass a `remote_inference_description` string to identify the job at the Coop
 
 Example
 ^^^^^^^
@@ -74,11 +74,20 @@ We start by creating an example survey:
 
 .. code-block:: python
 
-  from edsl import QuestionMultipleChoice, Survey
+  from edsl import QuestionFreeText, QuestionMultipleChoice, Survey
 
-  q = QuestionMultipleChoice.example()
+  q1 = QuestionFreeText(
+      question_name = "sky",
+      question_text = "Why is the sky blue?"
+  )
 
-  survey = Survey(questions=[q])
+  q2 = QuestionMultipleChoice(
+      question_name = "ice_cream",
+      question_text = "What is the most popular flavor of ice cream?",
+      question_options = ["Chocolate", "Vanilla", "Strawberry", "Something else", "I don't know"]
+  )
+
+  survey = Survey(questions = [q1, q2])
 
 
 Estimating cost
