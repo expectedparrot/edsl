@@ -29,7 +29,7 @@ Links
   * :ref:`survey_builder`: An interface for launching hybrid human-AI surveys
   * :ref:`remote_inference`: Run surveys on the Expected Parrot server
   * :ref:`remote_caching`: Automatically store results and API calls on the Expected Parrot server
-  * :ref:`filestore`: Store and share files for use in EDSL projects
+  * :ref:`filestore`: Store and share data files for use in EDSL projects
 
 - Explore research at the `Coop <https://www.expectedparrot.com/explore>`_.
 - Join the `Discord channel <https://discord.com/invite/mxAYkjfy9m>`_.
@@ -42,7 +42,7 @@ Introduction
 - :ref:`overview`: An overview of the purpose, concepts and goals of the EDSL package.
 - :ref:`whitepaper`: A whitepaper about the EDSL package (*in progress*).
 - :ref:`citation`: How to cite the package in your work.
-- :ref:`papers`: Research papers and articles that use EDSL.
+- :ref:`papers`: Research papers and articles that use or cite EDSL.
 
 
 Technical Setup
