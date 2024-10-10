@@ -90,12 +90,14 @@ We start by creating an example survey:
   survey = Survey(questions = [q1, q2])
 
 
-Estimating cost
-^^^^^^^^^^^^^^^
+Estimating costs
+^^^^^^^^^^^^^^^^
 
 Running jobs on the Expected Parrot server requires credits (1 credit = $0.01 USD).
 
-We can estimate the cost of running a survey by creating a `Coop` client object and passing the survey in the `remote_inference_cost()` method:
+**The best way to estimate the cost of running a survey is to run a sample and check the cost.**
+
+We can also roughly estimate the cost of running a survey by creating a `Coop` client object and passing the survey in the `remote_inference_cost()` method:
 
 .. code-block:: python
 
@@ -113,7 +115,7 @@ Output:
   2   
 
 
-This survey will cost approximately 2 credits to run.
+This survey is expected to cost approximately 2 credits to run.
 
 Additional credits can be purchased at the `Purchases page <https://www.expectedparrot.com/home/purchases>`_.
 
