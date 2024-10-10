@@ -183,7 +183,6 @@ class Jobs(Base):
 
         c = Coop()
         price_lookup = c.fetch_prices()
-        # key = (self._inference_service_, self.model)
         # if key not in price_lookup:
         #     return f"Could not find price for model {self.model} in the price lookup."
 
@@ -196,7 +195,12 @@ class Jobs(Base):
             text_len += len(str(prompt))
 
         for model in self.models:
-            print(model.model)
+            key = (model._inference_service_, model.model)
+            relevant_prices = price_lookup[key]
+            inverse_output_price = relevant_prices["output"]["one_usd_buys"]
+            inverse_input_price = relevant_prices["input"]["one_usd_buys"]
+            print(key)
+            print(inverse_input_price, inverse_output_price)
         input_token_aproximations = text_len // 4
 
         return input_token_aproximations
