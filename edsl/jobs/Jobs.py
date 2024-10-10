@@ -194,16 +194,26 @@ class Jobs(Base):
         for prompt in prompts:
             text_len += len(str(prompt))
 
+        input_token_aproximations = text_len // 4
+
+        input_aproximation_cost = {}
+
         for model in self.models:
             key = (model._inference_service_, model.model)
             relevant_prices = price_lookup[key]
             inverse_output_price = relevant_prices["output"]["one_usd_buys"]
             inverse_input_price = relevant_prices["input"]["one_usd_buys"]
-            print(key)
-            print(inverse_input_price, inverse_output_price)
-        input_token_aproximations = text_len // 4
 
-        return input_token_aproximations
+            input_aproximation_cost[key] = input_token_aproximations / float(
+                inverse_input_price
+            )
+
+        out = {
+            "input_token_aproximations": input_token_aproximations,
+            "models_costs": input_aproximation_cost,
+        }
+
+        return out
 
     @staticmethod
     def _get_container_class(object):
