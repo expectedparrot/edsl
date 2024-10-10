@@ -178,6 +178,29 @@ class Jobs(Base):
             ]
         )
 
+    def aproximate_job_cost(self):
+        from edsl import Coop
+
+        c = Coop()
+        price_lookup = c.fetch_prices()
+        # key = (self._inference_service_, self.model)
+        # if key not in price_lookup:
+        #     return f"Could not find price for model {self.model} in the price lookup."
+
+        # relevant_prices = price_lookup[key]
+
+        prompts = self.prompts()
+
+        text_len = 0
+        for prompt in prompts:
+            text_len += len(str(prompt))
+
+        for model in self.models:
+            print(model.model)
+        input_token_aproximations = text_len // 4
+
+        return input_token_aproximations
+
     @staticmethod
     def _get_container_class(object):
         from edsl.agents.AgentList import AgentList
