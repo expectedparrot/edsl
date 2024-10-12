@@ -178,7 +178,7 @@ class Jobs(Base):
             ]
         )
 
-    def aproximate_job_cost(self):
+    def estimate_job_cost(self):
         from edsl import Coop
 
         c = Coop()
@@ -193,7 +193,7 @@ class Jobs(Base):
         input_token_aproximations = text_len // 4
 
         aproximation_cost = {}
-
+        total_cost = 0
         for model in self.models:
             key = (model._inference_service_, model.model)
             relevant_prices = price_lookup[key]
@@ -204,10 +204,17 @@ class Jobs(Base):
                 "input": input_token_aproximations / float(inverse_input_price),
                 "output": input_token_aproximations / float(inverse_output_price),
             }
+            ##TODO curenlty we approximate the number of output tokens with the number
+            # of input tokens. A better solution will be to compute the quesito answer options lenght and sum them
+            # to compute the output tokens
+
+            total_cost += input_token_aproximations / float(inverse_input_price)
+            total_cost += input_token_aproximations / float(inverse_output_price)
 
         out = {
             "input_token_aproximations": input_token_aproximations,
             "models_costs": aproximation_cost,
+            "estimated_total_cost": total_cost,
         }
 
         return out
@@ -543,7 +550,6 @@ class Jobs(Base):
         """
         from edsl.coop.coop import Coop
 
-        print(self.aproximate_job_cost())
         self._check_parameters()
         self._skip_retry = skip_retry
         self._raise_validation_errors = raise_validation_errors
