@@ -183,10 +183,6 @@ class Jobs(Base):
 
         c = Coop()
         price_lookup = c.fetch_prices()
-        # if key not in price_lookup:
-        #     return f"Could not find price for model {self.model} in the price lookup."
-
-        # relevant_prices = price_lookup[key]
 
         prompts = self.prompts()
 
@@ -196,7 +192,7 @@ class Jobs(Base):
 
         input_token_aproximations = text_len // 4
 
-        input_aproximation_cost = {}
+        aproximation_cost = {}
 
         for model in self.models:
             key = (model._inference_service_, model.model)
@@ -204,13 +200,14 @@ class Jobs(Base):
             inverse_output_price = relevant_prices["output"]["one_usd_buys"]
             inverse_input_price = relevant_prices["input"]["one_usd_buys"]
 
-            input_aproximation_cost[key] = input_token_aproximations / float(
-                inverse_input_price
-            )
+            aproximation_cost[key] = {
+                "input": input_token_aproximations / float(inverse_input_price),
+                "output": input_token_aproximations / float(inverse_output_price),
+            }
 
         out = {
             "input_token_aproximations": input_token_aproximations,
-            "models_costs": input_aproximation_cost,
+            "models_costs": aproximation_cost,
         }
 
         return out
@@ -546,6 +543,7 @@ class Jobs(Base):
         """
         from edsl.coop.coop import Coop
 
+        print(self.aproximate_job_cost())
         self._check_parameters()
         self._skip_retry = skip_retry
         self._raise_validation_errors = raise_validation_errors
