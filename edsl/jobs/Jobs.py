@@ -211,10 +211,13 @@ class Jobs(Base):
             total_cost += input_token_aproximations / float(inverse_input_price)
             total_cost += input_token_aproximations / float(inverse_output_price)
 
+        multiply_factor = len(self.agents or [1]) * len(self.scenarios or [1])
         out = {
             "input_token_aproximations": input_token_aproximations,
             "models_costs": aproximation_cost,
-            "estimated_total_cost": total_cost,
+            "estimated_total_cost": total_cost * multiply_factor,
+            "multiply_factor": multiply_factor,
+            "single_config_cost": total_cost,
         }
 
         return out
