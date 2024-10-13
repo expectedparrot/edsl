@@ -8,7 +8,7 @@ This tutorial provides example code for basic features of `EDSL, an open-source 
 In the steps below we show how to construct and run a simple question in EDSL, and then how to design more complex surveys with AI agents and different language models.
 We also demonstrate methods for applying logic and rules to surveys, piping answers and adding data to questions, and analyzing survey results as datasets.
 
-You can also `view this notebook at the Coop <https://www.expectedparrot.com/content/c7001765-a312-4db4-9838-8e783a376039>`_.
+You can also `view this notebook at the Coop <https://www.expectedparrot.com/content/2d0c7905-933c-441a-8203-741d9dd942c9>`_.
 
 
 Technical setup
