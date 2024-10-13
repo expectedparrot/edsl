@@ -178,6 +178,50 @@ class Jobs(Base):
             ]
         )
 
+    def estimate_job_cost(self):
+        from edsl import Coop
+
+        c = Coop()
+        price_lookup = c.fetch_prices()
+
+        prompts = self.prompts()
+
+        text_len = 0
+        for prompt in prompts:
+            text_len += len(str(prompt))
+
+        input_token_aproximations = text_len // 4
+
+        aproximation_cost = {}
+        total_cost = 0
+        for model in self.models:
+            key = (model._inference_service_, model.model)
+            relevant_prices = price_lookup[key]
+            inverse_output_price = relevant_prices["output"]["one_usd_buys"]
+            inverse_input_price = relevant_prices["input"]["one_usd_buys"]
+
+            aproximation_cost[key] = {
+                "input": input_token_aproximations / float(inverse_input_price),
+                "output": input_token_aproximations / float(inverse_output_price),
+            }
+            ##TODO curenlty we approximate the number of output tokens with the number
+            # of input tokens. A better solution will be to compute the quesito answer options lenght and sum them
+            # to compute the output tokens
+
+            total_cost += input_token_aproximations / float(inverse_input_price)
+            total_cost += input_token_aproximations / float(inverse_output_price)
+
+        multiply_factor = len(self.agents or [1]) * len(self.scenarios or [1])
+        out = {
+            "input_token_aproximations": input_token_aproximations,
+            "models_costs": aproximation_cost,
+            "estimated_total_cost": total_cost * multiply_factor,
+            "multiply_factor": multiply_factor,
+            "single_config_cost": total_cost,
+        }
+
+        return out
+
     @staticmethod
     def _get_container_class(object):
         from edsl.agents.AgentList import AgentList
