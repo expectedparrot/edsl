@@ -28,7 +28,7 @@ def create_numeric_response(
             field_kwargs["le"] = max_value
 
     class ConstrainedNumericResponse(BaseModel):
-        answer: Union[int, float, None] = Field(**field_kwargs)
+        answer: Union[int, float] = Field(**field_kwargs)
         comment: Optional[str] = Field(None)
         generated_tokens: Optional[Any] = Field(None)
 
