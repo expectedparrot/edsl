@@ -263,7 +263,6 @@ class FileStore(Scenario):
 
 
 class CSVFileStore(FileStore):
-
     @classmethod
     def example(cls):
         from edsl.results.Results import Results
@@ -282,7 +281,6 @@ class CSVFileStore(FileStore):
 
 
 class PDFFileStore(FileStore):
-
     def view(self):
         pdf_path = self.to_tempfile()
         print(f"PDF path: {pdf_path}")  # Print the path to ensure it exists
@@ -358,7 +356,6 @@ class PDFFileStore(FileStore):
 
 
 class PNGFileStore(FileStore):
-
     @classmethod
     def example(cls):
         import textwrap
@@ -382,7 +379,6 @@ class PNGFileStore(FileStore):
 
 
 class SQLiteFileStore(FileStore):
-
     @classmethod
     def example(cls):
         import sqlite3
@@ -405,7 +401,6 @@ class SQLiteFileStore(FileStore):
 
 
 class HTMLFileStore(FileStore):
-
     @classmethod
     def example(cls):
         import tempfile
