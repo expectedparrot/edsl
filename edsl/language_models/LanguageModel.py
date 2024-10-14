@@ -42,6 +42,7 @@ from edsl.data_transfer_models import (
     AgentResponseDict,
 )
 
+
 from edsl.config import CONFIG
 from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
@@ -52,6 +53,8 @@ from edsl.enums import service_to_api_keyname
 from edsl.exceptions import MissingAPIKeyError
 from edsl.language_models.RegisterLanguageModelsMeta import RegisterLanguageModelsMeta
 from edsl.exceptions.language_models import LanguageModelBadResponseError
+
+TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
 
 
 def convert_answer(response_part):
@@ -161,20 +164,20 @@ class LanguageModel(
         None  # This should be something like ["choices", 0, "message", "content"]
     )
     __rate_limits = None
-    __default_rate_limits = {
-        "rpm": 10_000,
-        "tpm": 2_000_000,
-    }  # TODO: Use the OpenAI Teir 1 rate limits
     _safety_factor = 0.8
 
-    def __init__(self, tpm=None, rpm=None, **kwargs):
+    def __init__(
+        self, tpm=None, rpm=None, omit_system_prompt_if_empty_string=True, **kwargs
+    ):
         """Initialize the LanguageModel."""
         self.model = getattr(self, "_model_", None)
         default_parameters = getattr(self, "_parameters_", None)
         parameters = self._overide_default_parameters(kwargs, default_parameters)
         self.parameters = parameters
         self.remote = False
+        self.omit_system_prompt_if_empty = omit_system_prompt_if_empty_string
 
+        # self._rpm / _tpm comes from the class
         if rpm is not None:
             self._rpm = rpm
 
@@ -283,35 +286,40 @@ class LanguageModel(
         >>> m.RPM
         100
         """
-        self._set_rate_limits(rpm=rpm, tpm=tpm)
+        if rpm is not None:
+            self._rpm = rpm
+        if tpm is not None:
+            self._tpm = tpm
+        return None
+        # self._set_rate_limits(rpm=rpm, tpm=tpm)
 
-    def _set_rate_limits(self, rpm=None, tpm=None) -> None:
-        """Set the rate limits for the model.
+    # def _set_rate_limits(self, rpm=None, tpm=None) -> None:
+    #     """Set the rate limits for the model.
 
-        If the model does not have rate limits, use the default rate limits."""
-        if rpm is not None and tpm is not None:
-            self.__rate_limits = {"rpm": rpm, "tpm": tpm}
-            return
+    #     If the model does not have rate limits, use the default rate limits."""
+    #     if rpm is not None and tpm is not None:
+    #         self.__rate_limits = {"rpm": rpm, "tpm": tpm}
+    #         return
 
-        if self.__rate_limits is None:
-            if hasattr(self, "get_rate_limits"):
-                self.__rate_limits = self.get_rate_limits()
-            else:
-                self.__rate_limits = self.__default_rate_limits
+    #     if self.__rate_limits is None:
+    #         if hasattr(self, "get_rate_limits"):
+    #             self.__rate_limits = self.get_rate_limits()
+    #         else:
+    #             self.__rate_limits = self.__default_rate_limits
 
     @property
     def RPM(self):
         """Model's requests-per-minute limit."""
         # self._set_rate_limits()
         # return self._safety_factor * self.__rate_limits["rpm"]
-        return self.rpm
+        return self._rpm
 
     @property
     def TPM(self):
         """Model's tokens-per-minute limit."""
         # self._set_rate_limits()
         # return self._safety_factor * self.__rate_limits["tpm"]
-        return self.tpm
+        return self._tpm
 
     @property
     def rpm(self):
@@ -328,17 +336,6 @@ class LanguageModel(
     @tpm.setter
     def tpm(self, value):
         self._tpm = value
-
-    @property
-    def TPM(self):
-        """Model's tokens-per-minute limit.
-
-        >>> m = LanguageModel.example()
-        >>> m.TPM > 0
-        True
-        """
-        self._set_rate_limits()
-        return self._safety_factor * self.__rate_limits["tpm"]
 
     @staticmethod
     def _overide_default_parameters(passed_parameter_dict, default_parameter_dict):
@@ -443,8 +440,8 @@ class LanguageModel(
         system_prompt: str,
         cache: "Cache",
         iteration: int = 0,
-        encoded_image=None,
-    ) -> IntendedModelCallOutcome:
+        files_list=None,
+    ) -> ModelResponse:
         """Handle caching of responses.
 
         :param user_prompt: The user's prompt.
@@ -465,15 +462,18 @@ class LanguageModel(
         >>> m._get_intended_model_call_outcome(user_prompt = "Hello", system_prompt = "hello", cache = Cache())
         ModelResponse(...)"""
 
-        if encoded_image:
-            # the image has is appended to the user_prompt for hash-lookup purposes
-            image_hash = hashlib.md5(encoded_image.encode()).hexdigest()
+        if files_list:
+            files_hash = "+".join([str(hash(file)) for file in files_list])
+            # print(f"Files hash: {files_hash}")
+            user_prompt_with_hashes = user_prompt + f" {files_hash}"
+        else:
+            user_prompt_with_hashes = user_prompt
 
         cache_call_params = {
             "model": str(self.model),
             "parameters": self.parameters,
             "system_prompt": system_prompt,
-            "user_prompt": user_prompt + "" if not encoded_image else f" {image_hash}",
+            "user_prompt": user_prompt_with_hashes,
             "iteration": iteration,
         }
         cached_response, cache_key = cache.fetch(**cache_call_params)
@@ -489,9 +489,11 @@ class LanguageModel(
             params = {
                 "user_prompt": user_prompt,
                 "system_prompt": system_prompt,
-                **({"encoded_image": encoded_image} if encoded_image else {}),
+                "files_list": files_list
+                #**({"encoded_image": encoded_image} if encoded_image else {}),
             }
-            response = await f(**params)
+            # response = await f(**params)
+            response = await asyncio.wait_for(f(**params), timeout=TIMEOUT)
             new_cache_key = cache.store(
                 **cache_call_params, response=response
             )  # store the response in the cache
@@ -532,7 +534,7 @@ class LanguageModel(
         system_prompt: str,
         cache: "Cache",
         iteration: int = 1,
-        encoded_image=None,
+        files_list: Optional[List['File']] = None,
     ) -> dict:
         """Get response, parse, and return as string.
 
@@ -548,7 +550,7 @@ class LanguageModel(
             "system_prompt": system_prompt,
             "iteration": iteration,
             "cache": cache,
-            **({"encoded_image": encoded_image} if encoded_image else {}),
+            "files_list": files_list,
         }
         model_inputs = ModelInputs(user_prompt=user_prompt, system_prompt=system_prompt)
         model_outputs = await self._async_get_intended_model_call_outcome(**params)

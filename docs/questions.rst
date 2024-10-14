@@ -31,9 +31,9 @@ The following question types are available:
 * `QuestionRank` - ranked list questions
 * `QuestionTopK` - top-k list questions
 * `QuestionYesNo` - yes/no questions (multiple choice with fixed options)
-* `QuestionList` - list questions
-* `QuestionBudget` - budget allocation questions
-* `QuestionExtract` - information extraction questions 
+* `QuestionList` - list questions (the response is formatted as a list of strings)
+* `QuestionBudget` - budget allocation questions (the response is a dictionary of allocated amounts)
+* `QuestionExtract` - information extraction questions (the response is formatted according to a specified template)
 * `QuestionFunctional` - functional questions   
 
 
@@ -41,12 +41,12 @@ Required fields
 ^^^^^^^^^^^^^^^
 
 All question types require a `question_name` and `question_text`. 
-The `question_name` is a unique Pythonic identifier for a question (e.g., "favorite_color" but not "favorite color").
+The `question_name` is a unique Pythonic identifier for a question (e.g., "favorite_color").
 The `question_text` is the text of the question itself written as a string (e.g., "What is your favorite color?").
 Question types other than free text require a `question_options` list of possible answer options.
-The `question_options` list can be a list of strings, integers or other types depending on the question type.
+The `question_options` list can be a list of strings, integers, a list of lists or other data types depending on the question type.
 
-For example, to create a multiple choice question where the respondent must select one option from a list of colors, 
+For example, to create a multiple choice question where the response should be a single option selected from a list of colors, 
 we import the `QuestionMultipleChoice` class and create an instance of it with the required fields:
 
 .. code-block:: python
@@ -56,7 +56,7 @@ we import the `QuestionMultipleChoice` class and create an instance of it with t
    q = QuestionMultipleChoice(
       question_name = "favorite_color",
       question_text = "What is your favorite color?",
-      question_options = ["Red", "Blue", "Green", "Yellow"]
+      question_options = ["Red", "Orange", "Yellow", "Green", "Blue", "Purple"]
    )
 
 
@@ -64,7 +64,7 @@ Optional fields for specific question types
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 `min_selections` and `max_selections` - Parameters that can be added to `checkbox` and `rank` questions to specify the minimum and maximum number of options that can be selected.
-For example, in a checkbox question where the respondent can select multiple options, we can specify that at least 2 options must be selected and at most 3 can be selected:
+For example, in a checkbox question where the response must include at least 2 and at most 3 of the options:
 
 .. code-block:: python
 
@@ -72,15 +72,15 @@ For example, in a checkbox question where the respondent can select multiple opt
 
    q = QuestionCheckBox(
       question_name = "favorite_days",
-      question_text = "What are your favorite days of the week?",
-      question_options = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+      question_text = "What are your 2-3 favorite days of the week?",
+      question_options = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
       min_selections = 2,
       max_selections = 3
    )
 
 
 `min_value` and `max_value` - Parameters that can be added to `numerical` questions to specify the minimum and maximum values that can be entered.
-For example, in a numerical question where the respondent must enter a number between 1 and 10:
+For example, in a numerical question where the respondent must enter a number between 1 and 100:
 
 .. code-block:: python
 
@@ -88,14 +88,14 @@ For example, in a numerical question where the respondent must enter a number be
 
    q = QuestionNumerical(
       question_name = "age",
-      question_text = "How old are you?",
+      question_text = "How old are you (in years)?",
       min_value = 1,
-      max_value = 10
+      max_value = 100
    )
 
 
 `option_labels` - A parameter that can be added to `linear_scale` questions to specify labels for the scale options.
-For example, in a linear scale question where the respondent must rate their agreement with a statement on a scale from 1 to 5:
+For example, in a linear scale question where the response must be an integer between 1 and 5 reflecting the respondent's agreement with a statement:
 
 .. code-block:: python
 
@@ -211,18 +211,19 @@ We can combine multiple questions into a survey by passing them as a list to a `
 
 .. code-block:: python 
 
-   from edsl import QuestionLinearScale, QuestionFreeText, QuestionNumerical, Survey 
+   from edsl import QuestionLinearScale, QuestionList, QuestionNumerical, Survey 
 
    q1 = QuestionLinearScale(
-      question_name = "likely_to_vote",
-      question_text = "On a scale from 1 to 5, how likely are you to vote in the upcoming U.S. election?",
+      question_name = "dc_state",
+      question_text = "How likely is Washington, D.C. to become a U.S. state?",
       question_options = [1, 2, 3, 4, 5],
       option_labels = {1: "Not at all likely", 5: "Very likely"}
    )
 
-   q2 = QuestionFreeText(
-      question_name = "largest_us_city",
-      question_text = "What is the largest U.S. city?"
+   q2 = QuestionList(
+      question_name = "largest_us_cities",
+      question_text = "What are the largest U.S. cities by population?",
+      max_list_items = 3
    )
 
    q3 = QuestionNumerical(
@@ -231,8 +232,6 @@ We can combine multiple questions into a survey by passing them as a list to a `
    )
 
    survey = Survey(questions = [q1, q2, q3])
-
-   results = survey.run()
 
 
 This allows us to administer multiple questions at once, either asynchronously (by default) or according to specified logic (e.g., skip or stop rules).
@@ -247,29 +246,37 @@ This is done by calling the `run` method for the question:
 
 .. code-block:: python
 
+   from edsl import QuestionCheckBox
+
+   q = QuestionCheckBox(
+      question_name = "primary_colors",
+      question_text = "Which of the following colors are primary?",
+      question_options = ["Red", "Orange", "Yellow", "Green", "Blue", "Purple"]
+   )
+
    results = q.run()
 
 
 This will generate a `Results` object that contains a single `Result` representing the response to the question and information about the model used.
-If the model to be used has not been specified (as in the above example), the `run` method delivers the question to the default LLM (GPT 4).
+If the model to be used has not been specified (as in the above example), the `run` method delivers the question to the default LLM (run `Model()` to check the current default LLM).
 We can inspect the response and model used by calling the `select` and `print` methods on the components of the results that we want to display.
 For example, we can print just the `answer` to the question:
 
 .. code-block:: python 
 
-   results.select("answer.favorite_primary_color").print(format="rich")
+   results.select("primary_colors").print(format="rich")
 
 
 Output:
 
 .. code-block:: text
 
-   ┏━━━━━━━━━━━━━━━━━━━━━━━━━┓
-   ┃ answer                  ┃
-   ┃ .favorite_primary_color ┃
-   ┡━━━━━━━━━━━━━━━━━━━━━━━━━┩
-   │ blue                    │
-   └─────────────────────────┘
+   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+   ┃ answer                    ┃
+   ┃ .primary_colors           ┃
+   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+   │ ['Red', 'Yellow', 'Blue'] │
+   └───────────────────────────┘
 
 
 Or to inspect the model:
@@ -283,17 +290,39 @@ Output:
 
 .. code-block:: text
 
-   ┏━━━━━━━━━━━━━━━━━━━━┓
-   ┃ model              ┃
-   ┃ .model             ┃
-   ┡━━━━━━━━━━━━━━━━━━━━┩
-   │ gpt-4-1106-preview │
-   └────────────────────┘
+   ┏━━━━━━━━┓
+   ┃ model  ┃
+   ┃ .model ┃
+   ┡━━━━━━━━┩
+   │ gpt-4o │
+   └────────┘
 
 
 If questions have been combined in a survey, the `run` method is called directly on the survey instead:
 
 .. code-block:: python
+
+   from edsl import QuestionLinearScale, QuestionList, QuestionNumerical, Survey 
+
+   q1 = QuestionLinearScale(
+      question_name = "dc_state",
+      question_text = "How likely is Washington, D.C. to become a U.S. state?",
+      question_options = [1, 2, 3, 4, 5],
+      option_labels = {1: "Not at all likely", 5: "Very likely"}
+   )
+
+   q2 = QuestionList(
+      question_name = "largest_us_cities",
+      question_text = "What are the largest U.S. cities by population?",
+      max_list_items = 3
+   )
+
+   q3 = QuestionNumerical(
+      question_name = "us_pop",
+      question_text = "What was the U.S. population in 2020?"
+   )
+
+   survey = Survey(questions = [q1, q2, q3])
 
    results = survey.run()
 
@@ -304,12 +333,12 @@ Output:
 
 .. code-block:: text
 
-   ┏━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┓
-   ┃ answer          ┃ answer                                                ┃ answer    ┃
-   ┃ .likely_to_vote ┃ .largest_us_city                                      ┃ .us_pop   ┃
-   ┡━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━┩
-   │ 4               │ The largest U.S. city by population is New York City. │ 331449281 │
-   └─────────────────┴───────────────────────────────────────────────────────┴───────────┘
+   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┓
+   ┃ answer                                 ┃ answer    ┃ answer    ┃
+   ┃ .largest_us_cities                     ┃ .dc_state ┃ .us_pop   ┃
+   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━┩
+   │ ['New York', 'Los Angeles', 'Chicago'] │ 2         │ 331449281 │
+   └────────────────────────────────────────┴───────────┴───────────┘
 
 
 For a survey, each `Result` represents a response for the set of survey questions. 
@@ -474,7 +503,8 @@ To learn more about designing agents, please see the :ref:`agents` section.
 
 Specifying language models
 --------------------------
-In the above examples we did not specify a language model for the question or survey, so the default model (GPT 4) was used.
+
+In the above examples we did not specify a language model for the question or survey, so the default model was used (run `Model()` to check the current default model).
 Similar to the way that we optionally passed scenarios to a question and added AI agents, we can also use the `by` method to specify one or more LLMs to use in generating results.
 This is done by creating `Model` objects for desired models and optionally specifying model parameters, such as temperature.
 
@@ -486,6 +516,7 @@ To check available models:
 
    Model.available()
 
+
 This will return a list of names of models that we can choose from.
 
 We can also check the models for which we have already added API keys:
@@ -493,6 +524,7 @@ We can also check the models for which we have already added API keys:
 .. code-block:: python 
 
    Model.check_models()
+
 
 See instructions on storing :ref:`api_keys` for the models that you want to use, or activating :ref:`remote_inference` to use the Expected Parrot server to access available models.
 
@@ -503,7 +535,7 @@ To specify models for a survey we first create `Model` objects:
    from edsl import ModelList, Model 
 
    models = ModelList(
-      Model(m) for m in ['claude-3-opus-20240229', 'llama-2-70b-chat-hf']
+      Model(m) for m in ['gpt-4o', 'gemini-1.5-pro']
    )
 
 
@@ -573,7 +605,7 @@ An example can also created using the `example` method:
    :show-inheritance:
    :special-members: __init__
    :exclude-members: purpose, question_type, question_options, main
-   
+
 
 QuestionCheckBox class
 ^^^^^^^^^^^^^^^^^^^^^^

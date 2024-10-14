@@ -44,6 +44,13 @@ class QuestionBase(
     _answering_instructions = None
     _question_presentation = None
 
+    @property
+    def response_model(self) -> type["BaseModel"]:
+        if self._response_model is not None:
+            return self._response_model
+        else:
+            return self.create_response_model()
+
     # region: Validation and simulation methods
     @property
     def response_validator(self) -> "ResponseValidatorBase":
@@ -75,8 +82,7 @@ class QuestionBase(
         if not hasattr(self, "_fake_data_factory"):
             from polyfactory.factories.pydantic_factory import ModelFactory
 
-            class FakeData(ModelFactory[self.response_model]):
-                ...
+            class FakeData(ModelFactory[self.response_model]): ...
 
             self._fake_data_factory = FakeData
         return self._fake_data_factory
@@ -99,20 +105,17 @@ class QuestionBase(
         comment: Optional[str]
         generated_tokens: Optional[str]
 
-    def _validate_answer(self, answer: dict) -> ValidatedAnswer:
+    def _validate_answer(
+        self, answer: dict, replacement_dict: dict = None
+    ) -> ValidatedAnswer:
         """Validate the answer.
         >>> from edsl.exceptions import QuestionAnswerValidationError
         >>> from edsl import QuestionFreeText as Q
-        >>> Q.example()._validate_answer({'answer': 'Hello'})
-        {'answer': 'Hello', 'generated_tokens': None}
-        >>> Q.example()._validate_answer({'shmanswer': 1})
-        Traceback (most recent call last):
-        ...
-        edsl.exceptions.questions.QuestionAnswerValidationError:...
-        ...
+        >>> Q.example()._validate_answer({'answer': 'Hello', 'generated_tokens': 'Hello'})
+        {'answer': 'Hello', 'generated_tokens': 'Hello'}
         """
 
-        return self.response_validator.validate(answer)
+        return self.response_validator.validate(answer, replacement_dict)
 
     # endregion
 
@@ -471,6 +474,7 @@ class QuestionBase(
         self,
         scenario: Optional[dict] = None,
         agent: Optional[dict] = {},
+        answers: Optional[dict] = None,
         include_question_name: bool = False,
         height: Optional[int] = None,
         width: Optional[int] = None,
@@ -481,6 +485,17 @@ class QuestionBase(
 
         if scenario is None:
             scenario = {}
+
+        prior_answers_dict = {}
+
+        if isinstance(answers, dict):
+            for key, value in answers.items():
+                if not key.endswith("_comment") and not key.endswith(
+                    "_generated_tokens"
+                ):
+                    prior_answers_dict[key] = {"answer": value}
+
+        # breakpoint()
 
         base_template = """
         <div id="{{ question_name }}" class="survey_question" data-type="{{ question_type }}">
@@ -501,13 +516,40 @@ class QuestionBase(
 
         base_template = Template(base_template)
 
-        params = {
-            "question_name": self.question_name,
-            "question_text": Template(self.question_text).render(scenario, agent=agent),
-            "question_type": self.question_type,
-            "question_content": Template(question_content).render(scenario),
-            "include_question_name": include_question_name,
-        }
+        context = {
+            "scenario": scenario,
+            "agent": agent,
+        } | prior_answers_dict
+
+        # Render the question text
+        try:
+            question_text = Template(self.question_text).render(context)
+        except Exception as e:
+            print(
+                f"Error rendering question: question_text = {self.question_text}, error = {e}"
+            )
+            question_text = self.question_text
+
+        try:
+            question_content = Template(question_content).render(context)
+        except Exception as e:
+            print(
+                f"Error rendering question: question_content = {question_content}, error = {e}"
+            )
+            question_content = question_content
+
+        try:
+            params = {
+                "question_name": self.question_name,
+                "question_text": question_text,
+                "question_type": self.question_type,
+                "question_content": question_content,
+                "include_question_name": include_question_name,
+            }
+        except Exception as e:
+            raise ValueError(
+                f"Error rendering question: params = {params}, error = {e}"
+            )
         rendered_html = base_template.render(**params)
 
         if iframe:
@@ -525,6 +567,21 @@ class QuestionBase(
             return None
 
         return rendered_html
+
+    @classmethod
+    def example_model(cls):
+        from edsl import Model
+
+        q = cls.example()
+        m = Model("test", canned_response=cls._simulate_answer(q)["answer"])
+
+        return m
+
+    @classmethod
+    def example_results(cls):
+        m = cls.example_model()
+        q = cls.example()
+        return q.by(m).run(cache=False)
 
     def rich_print(self):
         """Print the question in a rich format."""

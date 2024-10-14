@@ -14,23 +14,31 @@
 #     "Warning for save and load fail"
 
 
-# class TestBaseModels:
-#     def test_register_subclasses_meta(self):
-#         for key, value in RegisterSubclassesMeta.get_registry().items():
-#             assert key in [
-#                 "Result",
-#                 "Results",
-#                 "Survey",
-#                 "Agent",
-#                 "AgentList",
-#                 "Scenario",
-#                 "ScenarioList",
-#                 "AgentList",
-#                 "Jobs",
-#                 "Cache",
-#                 "Notebook",
-#                 "ModelList",
-#             ]
+class TestBaseModels:
+    def test_register_subclasses_meta(self):
+
+        for key, value in RegisterSubclassesMeta.get_registry().items():
+            assert key in [
+                "Result",
+                "Results",
+                "Survey",
+                "Agent",
+                "AgentList",
+                "Scenario",
+                "ScenarioList",
+                "AgentList",
+                "Jobs",
+                "Cache",
+                "Notebook",
+                "ModelList",
+                "FileStore",
+                "HTMLFileStore",
+                "CSVFileStore",
+                "PDFFileStore",
+                "PNGFileStore",
+                "SQLiteFileStore",
+            ]
+
 
 #         methods = [
 #             "example",

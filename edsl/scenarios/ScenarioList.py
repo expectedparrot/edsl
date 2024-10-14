@@ -39,6 +39,15 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             super().__init__([])
         self.codebook = codebook or {}
 
+    @property
+    def has_jinja_braces(self) -> bool:
+        """Check if the ScenarioList has Jinja braces."""
+        return any([scenario.has_jinja_braces for scenario in self])
+
+    def convert_jinja_braces(self) -> ScenarioList:
+        """Convert Jinja braces to Python braces."""
+        return ScenarioList([scenario.convert_jinja_braces() for scenario in self])
+
     def give_valid_names(self) -> ScenarioList:
         """Give valid names to the scenario keys.
 
@@ -273,6 +282,10 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         for s in data["scenarios"]:
             _ = s.pop("edsl_version")
             _ = s.pop("edsl_class_name")
+        for scenario in data["scenarios"]:
+            for key, value in scenario.items():
+                if hasattr(value, "to_dict"):
+                    data[key] = value.to_dict()
         return data_to_html(data)
 
     def tally(self, field) -> dict:
@@ -517,7 +530,9 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         return ScenarioList([scenario.drop(fields) for scenario in self.data])
 
     @classmethod
-    def from_list(cls, name, values) -> ScenarioList:
+    def from_list(
+        cls, name: str, values: list, func: Optional[Callable] = None
+    ) -> ScenarioList:
         """Create a ScenarioList from a list of values.
 
         Example:
@@ -525,7 +540,9 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         >>> ScenarioList.from_list('name', ['Alice', 'Bob'])
         ScenarioList([Scenario({'name': 'Alice'}), Scenario({'name': 'Bob'})])
         """
-        return cls([Scenario({name: value}) for value in values])
+        if not func:
+            func = lambda x: x
+        return cls([Scenario({name: func(value)}) for value in values])
 
     def to_dataset(self) -> "Dataset":
         """

@@ -2,19 +2,18 @@
 
 from __future__ import annotations
 import copy
-import base64
 import hashlib
 import os
 from collections import UserDict
 from typing import Union, List, Optional, Generator
 from uuid import uuid4
+
 from edsl.Base import Base
-from edsl.scenarios.ScenarioImageMixin import ScenarioImageMixin
 from edsl.scenarios.ScenarioHtmlMixin import ScenarioHtmlMixin
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
 
-class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
+class Scenario(Base, UserDict, ScenarioHtmlMixin):
     """A Scenario is a dictionary of keys/values.
 
     They can be used parameterize edsl questions."""
@@ -42,16 +41,46 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
 
         return ScenarioList([copy.deepcopy(self) for _ in range(n)])
 
-    @property
-    def has_image(self) -> bool:
-        """Return whether the scenario has an image."""
-        if not hasattr(self, "_has_image"):
-            self._has_image = False
-        return self._has_image
+    # @property
+    # def has_image(self) -> bool:
+    #     """Return whether the scenario has an image."""
+    #     if not hasattr(self, "_has_image"):
+    #         self._has_image = False
+    #     return self._has_image
 
-    @has_image.setter
-    def has_image(self, value):
-        self._has_image = value
+    @property
+    def has_jinja_braces(self) -> bool:
+        """Return whether the scenario has jinja braces. This matters for rendering.
+
+        >>> s = Scenario({"food": "I love {{wood chips}}"})
+        >>> s.has_jinja_braces
+        True
+        """
+        for _, value in self.items():
+            if isinstance(value, str):
+                if "{{" in value and "}}" in value:
+                    return True
+        return False
+
+    def convert_jinja_braces(
+        self, replacement_left="<<", replacement_right=">>"
+    ) -> Scenario:
+        """Convert Jinja braces to some other character.
+
+        >>> s = Scenario({"food": "I love {{wood chips}}"})
+        >>> s.convert_jinja_braces()
+        Scenario({'food': 'I love <<wood chips>>'})
+
+        """
+        new_scenario = Scenario()
+        for key, value in self.items():
+            if isinstance(value, str):
+                new_scenario[key] = value.replace("{{", replacement_left).replace(
+                    "}}", replacement_right
+                )
+            else:
+                new_scenario[key] = value
+        return new_scenario
 
     def __add__(self, other_scenario: "Scenario") -> "Scenario":
         """Combine two scenarios by taking the union of their keys
@@ -75,8 +104,6 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
             data1 = copy.deepcopy(self.data)
             data2 = copy.deepcopy(other_scenario.data)
             s = Scenario(data1 | data2)
-            if self.has_image or other_scenario.has_image:
-                s._has_image = True
             return s
 
     def rename(self, replacement_dict: dict) -> "Scenario":
@@ -142,6 +169,7 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         print_json(json.dumps(self.to_dict()))
 
     def __repr__(self):
+        # return "Scenario(" + reprlib.repr(self.data) + ")"
         return "Scenario(" + repr(self.data) + ")"
 
     def _repr_html_(self):
@@ -196,26 +224,34 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         return cls({"url": url, field_name: text})
 
     @classmethod
-    def from_image(cls, image_path: str) -> str:
-        """Creates a scenario with a base64 encoding of an image.
+    def from_file(cls, file_path: str, field_name: str) -> "Scenario":
+        """Creates a scenario from a file."""
+        from edsl.scenarios.FileStore import FileStore
 
-        Example:
+        fs = FileStore(file_path)
+        return cls({field_name: fs})
 
-        >>> s = Scenario.from_image(Scenario.example_image())
-        >>> s
-        Scenario({'file_path': '...', 'encoded_image': '...'})
+    @classmethod
+    def from_image(
+        cls, image_path: str, image_name: Optional[str] = None
+    ) -> "Scenario":
         """
-        with open(image_path, "rb") as image_file:
-            s = cls(
-                {
-                    "file_path": image_path,
-                    "encoded_image": base64.b64encode(image_file.read()).decode(
-                        "utf-8"
-                    ),
-                }
-            )
-            s.has_image = True
-            return s
+        Creates a scenario with a base64 encoding of an image.
+
+        Args:
+            image_path (str): Path to the image file.
+
+        Returns:
+            Scenario: A new Scenario instance with image information.
+
+        """
+        if not os.path.exists(image_path):
+            raise FileNotFoundError(f"Image file not found: {image_path}")
+
+        if image_name is None:
+            image_name = os.path.basename(image_path).split(".")[0]
+
+        return cls.from_file(image_path, image_name)
 
     @classmethod
     def from_pdf(cls, pdf_path):
@@ -429,18 +465,21 @@ class Scenario(Base, UserDict, ScenarioImageMixin, ScenarioHtmlMixin):
         return table
 
     @classmethod
-    def example(cls, randomize: bool = False) -> Scenario:
+    def example(cls, randomize: bool = False, has_image=False) -> Scenario:
         """
         Returns an example Scenario instance.
 
         :param randomize: If True, adds a random string to the value of the example key.
         """
-        addition = "" if not randomize else str(uuid4())
-        return cls(
-            {
-                "persona": f"A reseacher studying whether LLMs can be used to generate surveys.{addition}",
-            }
-        )
+        if not has_image:
+            addition = "" if not randomize else str(uuid4())
+            return cls(
+                {
+                    "persona": f"A reseacher studying whether LLMs can be used to generate surveys.{addition}",
+                }
+            )
+        else:
+            return cls.from_image(cls.example_image())
 
     def code(self) -> List[str]:
         """Return the code for the scenario."""

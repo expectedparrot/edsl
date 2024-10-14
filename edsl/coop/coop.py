@@ -59,8 +59,16 @@ class Coop:
         Send a request to the server and return the response.
         """
         url = f"{self.url}/{uri}"
+        method = method.upper()
+        if payload is None:
+            timeout = 20
+        elif (
+            method.upper() == "POST"
+            and "json_string" in payload
+            and payload.get("json_string") is not None
+        ):
+            timeout = max(20, (len(payload.get("json_string", "")) // (1024 * 1024)))
         try:
-            method = method.upper()
             if method in ["GET", "DELETE"]:
                 response = requests.request(
                     method, url, params=params, headers=self.headers, timeout=timeout
@@ -77,7 +85,7 @@ class Coop:
             else:
                 raise Exception(f"Invalid {method=}.")
         except requests.ConnectionError:
-            raise requests.ConnectionError("Could not connect to the server.")
+            raise requests.ConnectionError(f"Could not connect to the server at {url}.")
 
         return response
 
@@ -87,6 +95,7 @@ class Coop:
         """
         if response.status_code >= 400:
             message = response.json().get("detail")
+            # print(response.text)
             if "Authorization" in message:
                 print(message)
                 message = "Please provide an Expected Parrot API key."
@@ -794,8 +803,9 @@ def main():
     ##############
     job = Jobs.example()
     coop.remote_inference_cost(job)
-    results = coop.remote_inference_create(job)
-    coop.remote_inference_get(results.get("uuid"))
+    job_coop_object = coop.remote_inference_create(job)
+    job_coop_results = coop.remote_inference_get(job_coop_object.get("uuid"))
+    coop.get(uuid=job_coop_results.get("results_uuid"))
 
     ##############
     # E. Errors

@@ -18,6 +18,7 @@ with a low (-1) priority.
 """
 
 import ast
+import random
 from typing import Any, Union, List
 
 from jinja2 import Template
@@ -37,8 +38,28 @@ from edsl.utilities.ast_utilities import extract_variable_names
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
 
+class QuestionIndex:
+    def __set_name__(self, owner, name):
+        self.name = f"_{name}"
+
+    def __get__(self, obj, objtype=None):
+        return getattr(obj, self.name)
+
+    def __set__(self, obj, value):
+        if not isinstance(value, (int, EndOfSurvey.__class__)):
+            raise ValueError(f"{self.name} must be an integer or EndOfSurvey")
+        if self.name == "_next_q" and isinstance(value, int):
+            current_q = getattr(obj, "_current_q")
+            if value <= current_q:
+                raise ValueError("next_q must be greater than current_q")
+        setattr(obj, self.name, value)
+
+
 class Rule:
     """The Rule class defines a "rule" for determining the next question presented to an agent."""
+
+    current_q = QuestionIndex()
+    next_q = QuestionIndex()
 
     # Not implemented but nice to have:
     # We could potentially use the question pydantic models to check for rule conflicts, as
@@ -73,6 +94,10 @@ class Rule:
         self.question_name_to_index = question_name_to_index
         self.priority = priority
         self.before_rule = before_rule
+
+        if not self.next_q == EndOfSurvey:
+            if self.next_q <= self.current_q:
+                raise SurveyRuleSendsYouBackwardsError
 
         if not self.next_q == EndOfSurvey and self.current_q > self.next_q:
             raise SurveyRuleSendsYouBackwardsError
@@ -254,8 +279,16 @@ class Rule:
             msg = f"""Exception in evaluation: {e}. The expression is: {self.expression}. The current info env trying to substitute in is: {current_info_env}. After the substition, the expression was: {to_evaluate}."""
             raise SurveyRuleCannotEvaluateError(msg)
 
+        random_functions = {
+            "randint": random.randint,
+            "choice": random.choice,
+            "random": random.random,
+            "uniform": random.uniform,
+            # Add any other random functions you want to allow
+        }
+
         try:
-            return EvalWithCompoundTypes().eval(to_evaluate)
+            return EvalWithCompoundTypes(functions=random_functions).eval(to_evaluate)
         except Exception as e:
             msg = f"""Exception in evaluation: {e}. The expression is: {self.expression}. The current info env trying to substitute in is: {current_info_env}. After the substition, the expression was: {to_evaluate}."""
             raise SurveyRuleCannotEvaluateError(msg)

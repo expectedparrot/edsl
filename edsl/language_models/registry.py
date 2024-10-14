@@ -2,10 +2,10 @@ import textwrap
 from random import random
 from edsl.config import CONFIG
 
-if "EDSL_DEFAULT_MODEL" not in CONFIG:
-    default_model = "test"
-else:
-    default_model = CONFIG.get("EDSL_DEFAULT_MODEL")
+# if "EDSL_DEFAULT_MODEL" not in CONFIG:
+#     default_model = "test"
+# else:
+#     default_model = CONFIG.get("EDSL_DEFAULT_MODEL")
 
 
 def get_model_class(model_name, registry=None):
@@ -33,20 +33,24 @@ class Meta(type):
 
 
 class Model(metaclass=Meta):
-    default_model = default_model
+    default_model = CONFIG.get("EDSL_DEFAULT_MODEL")
 
-    def __new__(cls, model_name=None, registry=None, *args, **kwargs):
+    def __new__(
+        cls, model_name=None, registry=None, service_name=None, *args, **kwargs
+    ):
         # Map index to the respective subclass
         if model_name is None:
-            model_name = cls.default_model
+            model_name = (
+                cls.default_model
+            )  # when model_name is None, use the default model, set in the config file
         from edsl.inference_services.registry import default
 
         registry = registry or default
 
-        if isinstance(model_name, int):
+        if isinstance(model_name, int):  # can refer to a model by index
             model_name = cls.available(name_only=True)[model_name]
 
-        factory = registry.create_model_factory(model_name)
+        factory = registry.create_model_factory(model_name, service_name=service_name)
         return factory(*args, **kwargs)
 
     @classmethod

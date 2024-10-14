@@ -1,5 +1,5 @@
 import os
-from typing import Any
+from typing import Any, Optional, List
 import re
 from openai import AsyncAzureOpenAI
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
@@ -122,7 +122,10 @@ class AzureAIService(InferenceServiceABC):
             _tpm = cls.get_tpm(cls)
 
             async def async_execute_model_call(
-                self, user_prompt: str, system_prompt: str = ""
+                self,
+                user_prompt: str,
+                system_prompt: str = "",
+                files_list: Optional[List["FileStore"]] = None,
             ) -> dict[str, Any]:
                 """Calls the Azure OpenAI API and returns the API response."""
 

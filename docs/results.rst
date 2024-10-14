@@ -89,11 +89,9 @@ Note that specifying agent traits, scenarios (question parameter values) and lan
    )
 
    # Optionally parameterize the questions with scenarios
-   from edsl import ScenarioList, Scenario
+   from edsl import ScenarioList
 
-   scenarios = ScenarioList(
-      Scenario({"topic": t}) for t in ["climate change", "data privacy"]
-   )
+   scenarios = ScenarioList.from_list("topic", ["climate change", "data privacy"])
 
    # Optionally create agents with traits
    from edsl import AgentList, Agent
@@ -195,29 +193,24 @@ We can readily inspect a result:
       },
       "iteration": 0,
       "answer": {
-         "important_generated_tokens": "4\n\nAs a student, I'm quite concerned about climate change and its potential impacts on my future. I've learned about it in classes and feel it's an important issue, though I may not be as actively engaged as some climate activists.",
          "important": 4,
-         "important_comment": "As a student, I'm quite concerned about climate change and its potential impacts on my future. I've learned about it in classes and feel it's an important issue, though I may not be as actively engaged as some climate activists.",
-         "opinions_generated_tokens": "As a student, I'm still learning about climate change and forming my views on it. From what I've studied so far in my science classes, the scientific consensus seems to be that climate change is a real phenomenon and human activities are contributing to it. I find the topic really interesting and important to understand. I try to stay up to date by reading articles and reports from reputable scientific sources. At the same time, I know there's still a lot of debate around the specific impacts and best solutions. I'm eager to continue learning more as I progress in my studies.",
          "opinions": "As a student, I'm still learning about climate change and forming my views on it. From what I've studied so far in my science classes, the scientific consensus seems to be that climate change is a real phenomenon and human activities are contributing to it. I find the topic really interesting and important to understand. I try to stay up to date by reading articles and reports from reputable scientific sources. At the same time, I know there's still a lot of debate around the specific impacts and best solutions. I'm eager to continue learning more as I progress in my studies.",
-         "read_generated_tokens": "Yes\n\nAs a student, I've likely had to read at least one book about climate change for a science or environmental studies class. It's a major topic covered in many curricula these days.",
-         "read": "Yes",
-         "read_comment": "As a student, I've likely had to read at least one book about climate change for a science or environmental studies class. It's a major topic covered in many curricula these days."
+         "read": "Yes"
       },
       "prompt": {
+         "important_user_prompt": {
+               "text": "On a scale from 1 to 5, how important to you is climate change?\n\n0 : Not at all\n\n1 : \n\n2 : \n\n3 : \n\n4 : \n\n5 : Very much\n\nOnly 1 option may be selected.\n\nRespond only with the code corresponding to one of the options. E.g., \"1\" or \"5\" by itself.\n\nAfter the answer, you can put a comment explaining why you chose that option on the next line.",
+               "class_name": "Prompt"
+         },
+         "important_system_prompt": {
+               "text": "You are answering questions as if you were a human. Do not break character. You are an agent with the following persona:\n{'persona': 'student'}",
+               "class_name": "AgentInstruction"
+         },
          "opinions_user_prompt": {
                "text": "What are your opinions on climate change?",
                "class_name": "Prompt"
          },
          "opinions_system_prompt": {
-               "text": "You are answering questions as if you were a human. Do not break character. You are an agent with the following persona:\n{'persona': 'student'}",
-               "class_name": "AgentInstruction"
-         },
-         "important_user_prompt": {
-               "text": "On a scale from 1 to 5, how important to you is climate change?\n\n0 : Not at all\n\n1 : \n\n2 : \n\n3 : \n\n4 : \n\n5 : A lot\n\nOnly 1 option may be selected.\n\nRespond only with the code corresponding to one of the options. E.g., \"1\" or \"5\" by itself.\n\nAfter the answer, you can put a comment explaining why you chose that option on the next line.",
-               "class_name": "Prompt"
-         },
-         "important_system_prompt": {
                "text": "You are answering questions as if you were a human. Do not break character. You are an agent with the following persona:\n{'persona': 'student'}",
                "class_name": "AgentInstruction"
          },
@@ -232,10 +225,10 @@ We can readily inspect a result:
       },
       "raw_model_response": {
          "important_raw_model_response": {
-               "id": "msg_01RtUw3KtpdSTKfxRGqF6vGt",
+               "id": "msg_01HGaPNDtj6fkCLdbdy3h4HA",
                "content": [
                   {
-                     "text": "4\n\nAs a student, I'm quite concerned about climate change and its potential impacts on my future. I've learned about it in classes and feel it's an important issue, though I may not be as actively engaged as some climate activists.",
+                     "text": "4\n\nAs a student, I'm quite concerned about climate change and its long-term impacts on our planet and future generations. It's a major issue we learn about in school, and I feel it's important to be informed and take action where we can.",
                      "type": "text"
                   }
                ],
@@ -246,9 +239,11 @@ We can readily inspect a result:
                "type": "message",
                "usage": {
                   "input_tokens": 152,
-                  "output_tokens": 53
+                  "output_tokens": 57
                }
          },
+         "important_cost": 0.001310994813023199,
+         "important_one_usd_buys": 762.779524423873,
          "opinions_raw_model_response": {
                "id": "msg_017mQNAmbkvzuLLtpe7HzhiS",
                "content": [
@@ -267,6 +262,8 @@ We can readily inspect a result:
                   "output_tokens": 119
                }
          },
+         "opinions_cost": 0.0019319907810452126,
+         "opinions_one_usd_buys": 517.6008135292432,
          "read_raw_model_response": {
                "id": "msg_01VwAiiNMiwTZQ6Q4jU5hPof",
                "content": [
@@ -284,7 +281,9 @@ We can readily inspect a result:
                   "input_tokens": 114,
                   "output_tokens": 43
                }
-         }
+         },
+         "read_cost": 0.000986996091017493,
+         "read_one_usd_buys": 1013.1752385859008
       },
       "question_to_attributes": {
          "important": {
@@ -315,7 +314,7 @@ We can readily inspect a result:
          }
       },
       "generated_tokens": {
-         "important_generated_tokens": "4\n\nAs a student, I'm quite concerned about climate change and its potential impacts on my future. I've learned about it in classes and feel it's an important issue, though I may not be as actively engaged as some climate activists.",
+         "important_generated_tokens": "4\n\nAs a student, I'm quite concerned about climate change and its long-term impacts on our planet and future generations. It's a major issue we learn about in school, and I feel it's important to be informed and take action where we can.",
          "opinions_generated_tokens": "As a student, I'm still learning about climate change and forming my views on it. From what I've studied so far in my science classes, the scientific consensus seems to be that climate change is a real phenomenon and human activities are contributing to it. I find the topic really interesting and important to understand. I try to stay up to date by reading articles and reports from reputable scientific sources. At the same time, I know there's still a lot of debate around the specific impacts and best solutions. I'm eager to continue learning more as I progress in my studies.",
          "read_generated_tokens": "Yes\n\nAs a student, I've likely had to read at least one book about climate change for a science or environmental studies class. It's a major topic covered in many curricula these days."
       }
@@ -340,7 +339,7 @@ We can use the `rich_print` method to display the `Result` object in a more read
    │                        │ ┃ Attribute                   ┃ Value                                                ┃ │
    │                        │ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩ │
    │                        │ │ _name                       │ None                                                 │ │
-   │                        │ │ _traits                     │ {'persona': 'celebrity'}                             │ │
+   │                        │ │ _traits                     │ {'persona': 'student'}                               │ │
    │                        │ │ _codebook                   │ {}                                                   │ │
    │                        │ │ _instruction                │ 'You are answering questions as if you were a human. │ │
    │                        │ │                             │ Do not break character.'                             │ │
@@ -352,23 +351,23 @@ We can use the `rich_print` method to display the `Result` object in a more read
    │                        │ │                             │ books about {{ topic }}?""", question_options =      │ │
    │                        │ │                             │ ['Yes', 'No', 'I do not know'])                      │ │
    │                        │ └─────────────────────────────┴──────────────────────────────────────────────────────┘ │
-   │ scenario               │            Scenario Attributes                                                         │
-   │                        │ ┏━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                                             │
-   │                        │ ┃ Attribute  ┃ Value                     ┃                                             │
-   │                        │ ┡━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━┩                                             │
-   │                        │ │ data       │ {'topic': 'data privacy'} │                                             │
-   │                        │ │ name       │ None                      │                                             │
-   │                        │ │ _has_image │ False                     │                                             │
-   │                        │ └────────────┴───────────────────────────┘                                             │
+   │ scenario               │             Scenario Attributes                                                        │
+   │                        │ ┏━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                                            │
+   │                        │ ┃ Attribute ┃ Value                       ┃                                            │
+   │                        │ ┡━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩                                            │
+   │                        │ │ data      │ {'topic': 'climate change'} │                                            │
+   │                        │ │ name      │ None                        │                                            │
+   │                        │ └───────────┴─────────────────────────────┘                                            │
    │ model                  │                                     Language Model                                     │
    │                        │ ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
    │                        │ ┃ Attribute                   ┃ Value                                                ┃ │
    │                        │ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩ │
-   │                        │ │ model                       │ 'gpt-4o'                                             │ │
+   │                        │ │ model                       │ 'claude-3-5-sonnet-20240620'                         │ │
    │                        │ │ parameters                  │ {'temperature': 0.5, 'max_tokens': 1000, 'top_p': 1, │ │
    │                        │ │                             │ 'frequency_penalty': 0, 'presence_penalty': 0,       │ │
    │                        │ │                             │ 'logprobs': False, 'top_logprobs': 3}                │ │
    │                        │ │ remote                      │ False                                                │ │
+   │                        │ │ omit_system_prompt_if_empty │ True                                                 │ │
    │                        │ │ temperature                 │ 0.5                                                  │ │
    │                        │ │ max_tokens                  │ 1000                                                 │ │
    │                        │ │ top_p                       │ 1                                                    │ │
@@ -376,63 +375,29 @@ We can use the `rich_print` method to display the `Result` object in a more read
    │                        │ │ presence_penalty            │ 0                                                    │ │
    │                        │ │ logprobs                    │ False                                                │ │
    │                        │ │ top_logprobs                │ 3                                                    │ │
-   │                        │ │ _LanguageModel__rate_limits │ {'rpm': 5000, 'tpm': 600000}                         │ │
+   │                        │ │ _LanguageModel__rate_limits │ {'rpm': 10000, 'tpm': 2000000}                       │ │
    │                        │ └─────────────────────────────┴──────────────────────────────────────────────────────┘ │
-   │ iteration              │ 2                                                                                      │
-   │ answer                 │                                        Answers                                         │
-   │                        │ ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
-   │                        │ ┃ Attribute                  ┃ Value                                                 ┃ │
-   │                        │ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩ │
-   │                        │ │ opinions_generated_tokens  │ "As a celebrity, I think data privacy is incredibly   │ │
-   │                        │ │                            │ important. In today's digital age, personal           │ │
-   │                        │ │                            │ information can be easily accessed and misused, which │ │
-   │                        │ │                            │ can have serious consequences for anyone, not just    │ │
-   │                        │ │                            │ public figures. I believe it's crucial for            │ │
-   │                        │ │                            │ individuals to be aware of how their data is being    │ │
-   │                        │ │                            │ used and to take steps to protect their privacy. This │ │
-   │                        │ │                            │ includes being cautious about what we share online,   │ │
-   │                        │ │                            │ using strong passwords, and supporting regulations    │ │
-   │                        │ │                            │ that safeguard our personal information. It's all     │ │
-   │                        │ │                            │ about finding a balance between staying connected and │ │
-   │                        │ │                            │ protecting our private lives."                        │ │
-   │                        │ │ opinions                   │ "As a celebrity, I think data privacy is incredibly   │ │
-   │                        │ │                            │ important. In today's digital age, personal           │ │
-   │                        │ │                            │ information can be easily accessed and misused, which │ │
-   │                        │ │                            │ can have serious consequences for anyone, not just    │ │
-   │                        │ │                            │ public figures. I believe it's crucial for            │ │
-   │                        │ │                            │ individuals to be aware of how their data is being    │ │
-   │                        │ │                            │ used and to take steps to protect their privacy. This │ │
-   │                        │ │                            │ includes being cautious about what we share online,   │ │
-   │                        │ │                            │ using strong passwords, and supporting regulations    │ │
-   │                        │ │                            │ that safeguard our personal information. It's all     │ │
-   │                        │ │                            │ about finding a balance between staying connected and │ │
-   │                        │ │                            │ protecting our private lives."                        │ │
-   │                        │ │ read_generated_tokens      │ "Yes\n\nAs a celebrity, it's crucial to stay informed │ │
-   │                        │ │                            │ about data privacy to protect personal information    │ │
-   │                        │ │                            │ and understand how it can impact one's public image." │ │
-   │                        │ │ read                       │ 'Yes'                                                 │ │
-   │                        │ │ read_comment               │ "As a celebrity, it's crucial to stay informed about  │ │
-   │                        │ │                            │ data privacy to protect personal information and      │ │
-   │                        │ │                            │ understand how it can impact one's public image."     │ │
-   │                        │ │ important_generated_tokens │ '5  \nAs a celebrity, data privacy is crucial to      │ │
-   │                        │ │                            │ protect my personal information and maintain my       │ │
-   │                        │ │                            │ safety and security.'                                 │ │
-   │                        │ │ important                  │ 5                                                     │ │
-   │                        │ │ important_comment          │ 'As a celebrity, data privacy is crucial to protect   │ │
-   │                        │ │                            │ my personal information and maintain my safety and    │ │
-   │                        │ │                            │ security.'                                            │ │
-   │                        │ └────────────────────────────┴───────────────────────────────────────────────────────┘ │
+   │ iteration              │ 0                                                                                      │
+   │ answer                 │ ┏━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
+   │                        │ ┃ Attribute ┃ Value                                                                  ┃ │
+   │                        │ ┡━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩ │
+   │                        │ │ important │ 4                                                                      │ │
+   │                        │ │ opinions  │ "As a student, I'm still learning about climate change and forming my  │ │
+   │                        │ │           │ views on it. From what I've studied so far in my science classes, the  │ │
+   │                        │ │           │ scientific consensus seems to be that climate change is a real         │ │
+   │                        │ │           │ phenomenon and human activities are contributing to it. I find the     │ │
+   │                        │ │           │ topic really interesting and important to understand. I try to stay up │ │
+   │                        │ │           │ to date by reading articles and reports from reputable scientific      │ │
+   │                        │ │           │ sources. At the same time, I know there's still a lot of debate around │ │
+   │                        │ │           │ the specific impacts and best solutions. I'm eager to continue         │ │
+   │                        │ │           │ learning more as I progress in my studies."                            │ │
+   │                        │ │ read      │ 'Yes'                                                                  │ │
+   │                        │ └───────────┴────────────────────────────────────────────────────────────────────────┘ │
    │ prompt                 │ ┏━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
    │                        │ ┃ Attribute               ┃ Value                                                    ┃ │
    │                        │ ┡━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩ │
-   │                        │ │ opinions_user_prompt    │ Prompt(text="""What are your opinions on data            │ │
-   │                        │ │                         │ privacy?""")                                             │ │
-   │                        │ │ opinions_system_prompt  │ Prompt(text="""You are answering questions as if you     │ │
-   │                        │ │                         │ were a human. Do not break character. You are an agent   │ │
-   │                        │ │                         │ with the following persona:                              │ │
-   │                        │ │                         │ {'persona': 'celebrity'}""")                             │ │
    │                        │ │ important_user_prompt   │ Prompt(text="""On a scale from 1 to 5, how important to  │ │
-   │                        │ │                         │ you is data privacy?                                     │ │
+   │                        │ │                         │ you is climate change?                                   │ │
    │                        │ │                         │                                                          │ │
    │                        │ │                         │ 0 : Not at all                                           │ │
    │                        │ │                         │                                                          │ │
@@ -456,9 +421,15 @@ We can use the `rich_print` method to display the `Result` object in a more read
    │                        │ │ important_system_prompt │ Prompt(text="""You are answering questions as if you     │ │
    │                        │ │                         │ were a human. Do not break character. You are an agent   │ │
    │                        │ │                         │ with the following persona:                              │ │
-   │                        │ │                         │ {'persona': 'celebrity'}""")                             │ │
+   │                        │ │                         │ {'persona': 'student'}""")                               │ │
+   │                        │ │ opinions_user_prompt    │ Prompt(text="""What are your opinions on climate         │ │
+   │                        │ │                         │ change?""")                                              │ │
+   │                        │ │ opinions_system_prompt  │ Prompt(text="""You are answering questions as if you     │ │
+   │                        │ │                         │ were a human. Do not break character. You are an agent   │ │
+   │                        │ │                         │ with the following persona:                              │ │
+   │                        │ │                         │ {'persona': 'student'}""")                               │ │
    │                        │ │ read_user_prompt        │ Prompt(text="""                                          │ │
-   │                        │ │                         │ Have you read any books about data privacy?              │ │
+   │                        │ │                         │ Have you read any books about climate change?            │ │
    │                        │ │                         │                                                          │ │
    │                        │ │                         │                                                          │ │
    │                        │ │                         │ Yes                                                      │ │
@@ -479,58 +450,56 @@ We can use the `rich_print` method to display the `Result` object in a more read
    │                        │ │ read_system_prompt      │ Prompt(text="""You are answering questions as if you     │ │
    │                        │ │                         │ were a human. Do not break character. You are an agent   │ │
    │                        │ │                         │ with the following persona:                              │ │
-   │                        │ │                         │ {'persona': 'celebrity'}""")                             │ │
+   │                        │ │                         │ {'persona': 'student'}""")                               │ │
    │                        │ └─────────────────────────┴──────────────────────────────────────────────────────────┘ │
    │ raw_model_response     │ ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
    │                        │ ┃ Attribute                    ┃ Value                                               ┃ │
    │                        │ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩ │
-   │                        │ │ important_raw_model_response │ {'id': 'chatcmpl-A3S3zVw0KL6RvYBXadctM6jxroRzC',    │ │
-   │                        │ │                              │ 'choices': [{'finish_reason': 'stop', 'index': 0,   │ │
-   │                        │ │                              │ 'logprobs': None, 'message': {'content': '5  \nAs a │ │
-   │                        │ │                              │ celebrity, data privacy is crucial to protect my    │ │
-   │                        │ │                              │ personal information and maintain my safety and     │ │
-   │                        │ │                              │ security.', 'refusal': None, 'role': 'assistant',   │ │
-   │                        │ │                              │ 'function_call': None, 'tool_calls': None}}],       │ │
-   │                        │ │                              │ 'created': 1725386223, 'model':                     │ │
-   │                        │ │                              │ 'gpt-4o-2024-05-13', 'object': 'chat.completion',   │ │
-   │                        │ │                              │ 'service_tier': None, 'system_fingerprint':         │ │
-   │                        │ │                              │ 'fp_157b3831f5', 'usage': {'completion_tokens': 22, │ │
-   │                        │ │                              │ 'prompt_tokens': 138, 'total_tokens': 160}}         │ │
-   │                        │ │ opinions_raw_model_response  │ {'id': 'chatcmpl-A3RhxPQYKrWrIQjbSBoyQsDgLkQA6',    │ │
-   │                        │ │                              │ 'choices': [{'finish_reason': 'stop', 'index': 0,   │ │
-   │                        │ │                              │ 'logprobs': None, 'message': {'content': "As a      │ │
-   │                        │ │                              │ celebrity, I think data privacy is incredibly       │ │
-   │                        │ │                              │ important. In today's digital age, personal         │ │
-   │                        │ │                              │ information can be easily accessed and misused,     │ │
-   │                        │ │                              │ which can have serious consequences for anyone, not │ │
-   │                        │ │                              │ just public figures. I believe it's crucial for     │ │
-   │                        │ │                              │ individuals to be aware of how their data is being  │ │
-   │                        │ │                              │ used and to take steps to protect their privacy.    │ │
-   │                        │ │                              │ This includes being cautious about what we share    │ │
-   │                        │ │                              │ online, using strong passwords, and supporting      │ │
-   │                        │ │                              │ regulations that safeguard our personal             │ │
-   │                        │ │                              │ information. It's all about finding a balance       │ │
-   │                        │ │                              │ between staying connected and protecting our        │ │
-   │                        │ │                              │ private lives.", 'refusal': None, 'role':           │ │
-   │                        │ │                              │ 'assistant', 'function_call': None, 'tool_calls':   │ │
-   │                        │ │                              │ None}}], 'created': 1725384857, 'model':            │ │
-   │                        │ │                              │ 'gpt-4o-2024-05-13', 'object': 'chat.completion',   │ │
-   │                        │ │                              │ 'service_tier': None, 'system_fingerprint':         │ │
-   │                        │ │                              │ 'fp_157b3831f5', 'usage': {'completion_tokens':     │ │
-   │                        │ │                              │ 103, 'prompt_tokens': 52, 'total_tokens': 155}}     │ │
-   │                        │ │ read_raw_model_response      │ {'id': 'chatcmpl-A3RddQrfR1zTOAw75tW4iMJJRYFQq',    │ │
-   │                        │ │                              │ 'choices': [{'finish_reason': 'stop', 'index': 0,   │ │
-   │                        │ │                              │ 'logprobs': None, 'message': {'content': "Yes\n\nAs │ │
-   │                        │ │                              │ a celebrity, it's crucial to stay informed about    │ │
-   │                        │ │                              │ data privacy to protect personal information and    │ │
-   │                        │ │                              │ understand how it can impact one's public image.",  │ │
-   │                        │ │                              │ 'refusal': None, 'role': 'assistant',               │ │
-   │                        │ │                              │ 'function_call': None, 'tool_calls': None}}],       │ │
-   │                        │ │                              │ 'created': 1725384589, 'model':                     │ │
-   │                        │ │                              │ 'gpt-4o-2024-05-13', 'object': 'chat.completion',   │ │
-   │                        │ │                              │ 'service_tier': None, 'system_fingerprint':         │ │
-   │                        │ │                              │ 'fp_157b3831f5', 'usage': {'completion_tokens': 28, │ │
-   │                        │ │                              │ 'prompt_tokens': 104, 'total_tokens': 132}}         │ │
+   │                        │ │ important_raw_model_response │ {'id': 'msg_01HGaPNDtj6fkCLdbdy3h4HA', 'content':   │ │
+   │                        │ │                              │ [{'text': "4\n\nAs a student, I'm quite concerned   │ │
+   │                        │ │                              │ about climate change and its long-term impacts on   │ │
+   │                        │ │                              │ our planet and future generations. It's a major     │ │
+   │                        │ │                              │ issue we learn about in school, and I feel it's     │ │
+   │                        │ │                              │ important to be informed and take action where we   │ │
+   │                        │ │                              │ can.", 'type': 'text'}], 'model':                   │ │
+   │                        │ │                              │ 'claude-3-5-sonnet-20240620', 'role': 'assistant',  │ │
+   │                        │ │                              │ 'stop_reason': 'end_turn', 'stop_sequence': None,   │ │
+   │                        │ │                              │ 'type': 'message', 'usage': {'input_tokens': 152,   │ │
+   │                        │ │                              │ 'output_tokens': 57}}                               │ │
+   │                        │ │ important_cost               │ 0.001310994813023199                                │ │
+   │                        │ │ important_one_usd_buys       │ 762.779524423873                                    │ │
+   │                        │ │ opinions_raw_model_response  │ {'id': 'msg_017mQNAmbkvzuLLtpe7HzhiS', 'content':   │ │
+   │                        │ │                              │ [{'text': "As a student, I'm still learning about   │ │
+   │                        │ │                              │ climate change and forming my views on it. From     │ │
+   │                        │ │                              │ what I've studied so far in my science classes, the │ │
+   │                        │ │                              │ scientific consensus seems to be that climate       │ │
+   │                        │ │                              │ change is a real phenomenon and human activities    │ │
+   │                        │ │                              │ are contributing to it. I find the topic really     │ │
+   │                        │ │                              │ interesting and important to understand. I try to   │ │
+   │                        │ │                              │ stay up to date by reading articles and reports     │ │
+   │                        │ │                              │ from reputable scientific sources. At the same      │ │
+   │                        │ │                              │ time, I know there's still a lot of debate around   │ │
+   │                        │ │                              │ the specific impacts and best solutions. I'm eager  │ │
+   │                        │ │                              │ to continue learning more as I progress in my       │ │
+   │                        │ │                              │ studies.", 'type': 'text'}], 'model':               │ │
+   │                        │ │                              │ 'claude-3-5-sonnet-20240620', 'role': 'assistant',  │ │
+   │                        │ │                              │ 'stop_reason': 'end_turn', 'stop_sequence': None,   │ │
+   │                        │ │                              │ 'type': 'message', 'usage': {'input_tokens': 49,    │ │
+   │                        │ │                              │ 'output_tokens': 119}}                              │ │
+   │                        │ │ opinions_cost                │ 0.0019319907810452126                               │ │
+   │                        │ │ opinions_one_usd_buys        │ 517.6008135292432                                   │ │
+   │                        │ │ read_raw_model_response      │ {'id': 'msg_01VwAiiNMiwTZQ6Q4jU5hPof', 'content':   │ │
+   │                        │ │                              │ [{'text': "Yes\n\nAs a student, I've likely had to  │ │
+   │                        │ │                              │ read at least one book about climate change for a   │ │
+   │                        │ │                              │ science or environmental studies class. It's a      │ │
+   │                        │ │                              │ major topic covered in many curricula these days.", │ │
+   │                        │ │                              │ 'type': 'text'}], 'model':                          │ │
+   │                        │ │                              │ 'claude-3-5-sonnet-20240620', 'role': 'assistant',  │ │
+   │                        │ │                              │ 'stop_reason': 'end_turn', 'stop_sequence': None,   │ │
+   │                        │ │                              │ 'type': 'message', 'usage': {'input_tokens': 114,   │ │
+   │                        │ │                              │ 'output_tokens': 43}}                               │ │
+   │                        │ │ read_cost                    │ 0.000986996091017493                                │ │
+   │                        │ │ read_one_usd_buys            │ 1013.1752385859008                                  │ │
    │                        │ └──────────────────────────────┴─────────────────────────────────────────────────────┘ │
    │ survey                 │ ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
    │                        │ ┃ Questions                                                                          ┃ │
@@ -571,25 +540,40 @@ We can use the `rich_print` method to display the `Result` object in a more read
    │ generated_tokens       │ ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
    │                        │ ┃ Attribute                  ┃ Value                                                 ┃ │
    │                        │ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩ │
-   │                        │ │ opinions_generated_tokens  │ "As a celebrity, I think data privacy is incredibly   │ │
-   │                        │ │                            │ important. In today's digital age, personal           │ │
-   │                        │ │                            │ information can be easily accessed and misused, which │ │
-   │                        │ │                            │ can have serious consequences for anyone, not just    │ │
-   │                        │ │                            │ public figures. I believe it's crucial for            │ │
-   │                        │ │                            │ individuals to be aware of how their data is being    │ │
-   │                        │ │                            │ used and to take steps to protect their privacy. This │ │
-   │                        │ │                            │ includes being cautious about what we share online,   │ │
-   │                        │ │                            │ using strong passwords, and supporting regulations    │ │
-   │                        │ │                            │ that safeguard our personal information. It's all     │ │
-   │                        │ │                            │ about finding a balance between staying connected and │ │
-   │                        │ │                            │ protecting our private lives."                        │ │
-   │                        │ │ read_generated_tokens      │ "Yes\n\nAs a celebrity, it's crucial to stay informed │ │
-   │                        │ │                            │ about data privacy to protect personal information    │ │
-   │                        │ │                            │ and understand how it can impact one's public image." │ │
-   │                        │ │ important_generated_tokens │ '5  \nAs a celebrity, data privacy is crucial to      │ │
-   │                        │ │                            │ protect my personal information and maintain my       │ │
-   │                        │ │                            │ safety and security.'                                 │ │
+   │                        │ │ important_generated_tokens │ "4\n\nAs a student, I'm quite concerned about climate │ │
+   │                        │ │                            │ change and its long-term impacts on our planet and    │ │
+   │                        │ │                            │ future generations. It's a major issue we learn about │ │
+   │                        │ │                            │ in school, and I feel it's important to be informed   │ │
+   │                        │ │                            │ and take action where we can."                        │ │
+   │                        │ │ opinions_generated_tokens  │ "As a student, I'm still learning about climate       │ │
+   │                        │ │                            │ change and forming my views on it. From what I've     │ │
+   │                        │ │                            │ studied so far in my science classes, the scientific  │ │
+   │                        │ │                            │ consensus seems to be that climate change is a real   │ │
+   │                        │ │                            │ phenomenon and human activities are contributing to   │ │
+   │                        │ │                            │ it. I find the topic really interesting and important │ │
+   │                        │ │                            │ to understand. I try to stay up to date by reading    │ │
+   │                        │ │                            │ articles and reports from reputable scientific        │ │
+   │                        │ │                            │ sources. At the same time, I know there's still a lot │ │
+   │                        │ │                            │ of debate around the specific impacts and best        │ │
+   │                        │ │                            │ solutions. I'm eager to continue learning more as I   │ │
+   │                        │ │                            │ progress in my studies."                              │ │
+   │                        │ │ read_generated_tokens      │ "Yes\n\nAs a student, I've likely had to read at      │ │
+   │                        │ │                            │ least one book about climate change for a science or  │ │
+   │                        │ │                            │ environmental studies class. It's a major topic       │ │
+   │                        │ │                            │ covered in many curricula these days."                │ │
    │                        │ └────────────────────────────┴───────────────────────────────────────────────────────┘ │
+   │ comments_dict          │ ┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
+   │                        │ ┃ Attribute         ┃ Value                                                          ┃ │
+   │                        │ ┡━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩ │
+   │                        │ │ important_comment │ "As a student, I'm quite concerned about climate change and    │ │
+   │                        │ │                   │ its long-term impacts on our planet and future generations.    │ │
+   │                        │ │                   │ It's a major issue we learn about in school, and I feel it's   │ │
+   │                        │ │                   │ important to be informed and take action where we can."        │ │
+   │                        │ │ opinions_comment  │ ''                                                             │ │
+   │                        │ │ read_comment      │ "As a student, I've likely had to read at least one book about │ │
+   │                        │ │                   │ climate change for a science or environmental studies class.   │ │
+   │                        │ │                   │ It's a major topic covered in many curricula these days."      │ │
+   │                        │ └───────────────────┴────────────────────────────────────────────────────────────────┘ │
    │ _combined_dict         │ None                                                                                   │
    │ _problem_keys          │ None                                                                                   │
    │ interview_hash         │ 1646262796627658719                                                                    │
@@ -618,10 +602,12 @@ The following list will be returned for the results generated by the above code:
    'answer.opinions',
    'answer.read',
    'comment.important_comment',
+   'comment.opinions_comment',
    'comment.read_comment',
    'generated_tokens.important_generated_tokens',
    'generated_tokens.opinions_generated_tokens',
    'generated_tokens.read_generated_tokens',
+   'iteration.iteration',
    'model.frequency_penalty',
    'model.logprobs',
    'model.max_tokens',
@@ -645,11 +631,17 @@ The following list will be returned for the results generated by the above code:
    'question_type.important_question_type',
    'question_type.opinions_question_type',
    'question_type.read_question_type',
+   'raw_model_response.important_cost',
+   'raw_model_response.important_one_usd_buys',
    'raw_model_response.important_raw_model_response',
+   'raw_model_response.opinions_cost',
+   'raw_model_response.opinions_one_usd_buys',
    'raw_model_response.opinions_raw_model_response',
+   'raw_model_response.read_cost',
+   'raw_model_response.read_one_usd_buys',
    'raw_model_response.read_raw_model_response',
    'scenario.topic']
-
+   
 
 The columns include information about each *agent*, *model* and corresponding *prompts* used to simulate the *answer* to each *question* and *scenario* in the survey, together with each *raw model response*.
 If the survey was run multiple times (`run(n=<integer>)`) then the `iteration.iteration` column will show the iteration number for each result.
@@ -666,9 +658,12 @@ If the survey was run multiple times (`run(n=<integer>)`) then the `iteration.it
 * **answer.opinions**: Agent responses to the free text `opinions` question.
 * **answer.read**: Agent responses to the multiple choice `read` question.
 
-A "comment" field is automatically included for every question in a survey other than free text questions, to allow the agent to optionally provide additional information about its response to the question:
-* **answer.important_comment**: Agent commentary on responses to the `important` question.
-* **answer.read_comment**: Agent commentary on responses to the `read` question.
+A "comment" field is automatically included for every question in a survey other than free text questions, 
+to allow the agent to optionally provide additional information about its response to the question
+(unless the parameter `include_comment=False` is passed to a question when constructed):
+* **comment.important_comment**: Agent commentary on responses to the `important` question.
+* **comment.opinions_comment**: Agent commentary on responses to the `opinion` question. *Note that this field is empty because the question type is `free_text`.*
+* **comment.read_comment**: Agent commentary on responses to the `read` question.
 
 *Generated tokens* information:
 
@@ -718,9 +713,17 @@ For more details about prompts, please see the :ref:`prompts` section.
 
 *Raw model response* information:
 
+* **raw_model_response.important_cost**: The cost of the result for the `important` question, applying the token quanities & prices.
+* **raw_model_response.important_one_usd_buys**: The number of identical results for the `important` question that 1USD would cover. 
 * **raw_model_response.important_raw_model_response**: The raw model response for the `important` question.
+* **raw_model_response.opinions_cost**: The cost of the result for the `opinions` question, applying the token quanities & prices.
+* **raw_model_response.opinions_one_usd_buys**: The number of identical results for the `opinions` question that 1USD would cover.
 * **raw_model_response.opinions_raw_model_response**: The raw model response for the `opinions` question.
+* **raw_model_response.read_cost**: The cost of the result for the `read` question, applying the token quanities & prices.
+* **raw_model_response.read_one_usd_buys**: The number of identical results for the `read` question that 1USD would cover.
 * **raw_model_response.read_raw_model_response**: The raw model response for the `read` question.
+
+Note that the cost of a result for a question is specific to the components (scenario, agent, model used with it). 
 
 *Scenario* information:
 
@@ -743,7 +746,7 @@ For example, the following code will print a table showing the answers for `read
    results.select("model", "persona", "topic", "read", "important").print(format="rich")
 
 
-The following table will be printed:
+A table with the selected columns will be printed:
 
 .. code-block:: text
 
@@ -776,10 +779,11 @@ We can sort the columns by calling the `sort_by` method and passing it the colum
 
 .. code-block:: python
 
-   (results
-   .sort_by("model", reverse=False)
-   .select("model", "persona", "topic", "read", "important")
-   .print(format="rich")
+   (
+      results
+      .sort_by("model", reverse=False)
+      .select("model", "persona", "topic", "read", "important")
+      .print(format="rich")
    )
 
 
@@ -813,11 +817,12 @@ The `sort_by` method can be applied multiple times:
 
 .. code-block:: python
 
-   (results
-   .sort_by("model", reverse=False)
-   .sort_by("persona", reverse=True)
-   .select("model", "persona", "topic", "read", "important")
-   .print(format="rich")
+   (
+      results
+      .sort_by("model", reverse=False)
+      .sort_by("persona", reverse=True)
+      .select("model", "persona", "topic", "read", "important")
+      .print(format="rich")
    )
 
 
@@ -855,17 +860,18 @@ We can also add some table labels by passing a dictionary to the `pretty_labels`
 
 .. code-block:: python
 
-   (results
-   .sort_by("model", reverse=False)
-   .sort_by("persona", reverse=True)
-   .select("model", "persona", "topic", "read", "important")
-   .print(pretty_labels={
-      "model.model": "LLM", 
-      "agent.persona": "Agent", 
-      "scenario.topic": "Topic", 
-      "answer.read": q3.question_text,
-      "answer.important": q1.question_text
-      }, format="rich")
+   (
+      results
+      .sort_by("model", reverse=False)
+      .sort_by("persona", reverse=True)
+      .select("model", "persona", "topic", "read", "important")
+      .print(pretty_labels={
+         "model.model": "LLM", 
+         "agent.persona": "Agent", 
+         "scenario.topic": "Topic", 
+         "answer.read": q3.question_text,
+         "answer.important": q1.question_text
+         }, format="rich")
    )
 
 
@@ -904,10 +910,11 @@ For example, the following code will filter results where the answer to `importa
 
 .. code-block:: python
 
-   (results
-   .filter("important == 5")
-   .select("topic", "important_comment")
-   .print(format="rich")
+   (
+      results
+      .filter("important == 5")
+      .select("topic", "important_comment")
+      .print(format="rich")
    )
 
 
@@ -939,10 +946,11 @@ However, because the `model.model` column name is also a prefix, we need to incl
 
 .. code-block:: python
 
-   (results
-   .filter("model.model == 'gpt-4o'")
-   .select("model", "persona", "topic", "read", "important")
-   .print(format="rich")
+   (
+      results
+      .filter("model.model == 'gpt-4o'")
+      .select("model", "persona", "topic", "read", "important")
+      .print(format="rich")
    )
 
 
@@ -972,9 +980,10 @@ This can be useful for quickly checking the first few results:
 
 .. code-block:: python
 
-   (results
-   .select("model", "persona", "topic", "read", "important")
-   .print(max_rows=4, format="rich")
+   (
+      results
+      .select("model", "persona", "topic", "read", "important")
+      .print(max_rows=4, format="rich")
    )
 
 
@@ -996,7 +1005,6 @@ This will return a table of the selected components of the first 4 results:
    └────────────────────────────┴──────────┴────────────────┴────────┴────────────┘
 
 
-
 Sampling results
 ^^^^^^^^^^^^^^^^
 
@@ -1007,10 +1015,11 @@ This can be useful for checking a random subset of the results with different pa
 
    sample_results = results.sample(2)
 
-   (sample_results
-   .sort_by("model", reverse=False)
-   .select("model", "persona", "topic", "read", "important")
-   .print(format="rich")
+   (
+      sample_results
+      .sort_by("model", reverse=False)
+      .select("model", "persona", "topic", "read", "important")
+      .print(format="rich")
    )
 
 
@@ -1018,14 +1027,14 @@ This will return a table of the specified number of randomly selected results:
 
 .. code-block:: text
 
-   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━┓
-   ┃ model                      ┃ agent     ┃ scenario       ┃ answer ┃ answer     ┃
-   ┃ .model                     ┃ .persona  ┃ .topic         ┃ .read  ┃ .important ┃
-   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━┩
-   │ claude-3-5-sonnet-20240620 │ celebrity │ climate change │ Yes    │ 4          │
-   ├────────────────────────────┼───────────┼────────────────┼────────┼────────────┤
-   │ gpt-4o                     │ celebrity │ climate change │ Yes    │ 5          │
-   └────────────────────────────┴───────────┴────────────────┴────────┴────────────┘
+   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━┓
+   ┃ model                      ┃ agent    ┃ scenario       ┃ answer ┃ answer     ┃
+   ┃ .model                     ┃ .persona ┃ .topic         ┃ .read  ┃ .important ┃
+   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━┩
+   │ claude-3-5-sonnet-20240620 │ student  │ data privacy   │ No     │ 3          │
+   ├────────────────────────────┼──────────┼────────────────┼────────┼────────────┤
+   │ claude-3-5-sonnet-20240620 │ student  │ climate change │ Yes    │ 4          │
+   └────────────────────────────┴──────────┴────────────────┴────────┴────────────┘
 
 
 Shuffling results
@@ -1038,9 +1047,10 @@ This can be useful for quickly checking the first few results:
 
    shuffle_results = results.shuffle()
 
-   (shuffle_results
-   .select("model", "persona", "topic", "read", "important")
-   .print(format="rich")
+   (
+      shuffle_results
+      .select("model", "persona", "topic", "read", "important")
+      .print(format="rich")
    )
 
 
@@ -1052,21 +1062,21 @@ This will return a table of shuffled results:
    ┃ model                      ┃ agent     ┃ scenario       ┃ answer ┃ answer     ┃
    ┃ .model                     ┃ .persona  ┃ .topic         ┃ .read  ┃ .important ┃
    ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━┩
-   │ claude-3-5-sonnet-20240620 │ celebrity │ data privacy   │ No     │ 4          │
+   │ claude-3-5-sonnet-20240620 │ celebrity │ climate change │ Yes    │ 4          │
+   ├────────────────────────────┼───────────┼────────────────┼────────┼────────────┤
+   │ claude-3-5-sonnet-20240620 │ student   │ climate change │ Yes    │ 4          │
    ├────────────────────────────┼───────────┼────────────────┼────────┼────────────┤
    │ claude-3-5-sonnet-20240620 │ student   │ data privacy   │ No     │ 3          │
    ├────────────────────────────┼───────────┼────────────────┼────────┼────────────┤
    │ gpt-4o                     │ celebrity │ data privacy   │ Yes    │ 5          │
    ├────────────────────────────┼───────────┼────────────────┼────────┼────────────┤
-   │ claude-3-5-sonnet-20240620 │ student   │ climate change │ Yes    │ 4          │
-   ├────────────────────────────┼───────────┼────────────────┼────────┼────────────┤
-   │ claude-3-5-sonnet-20240620 │ celebrity │ climate change │ Yes    │ 4          │
-   ├────────────────────────────┼───────────┼────────────────┼────────┼────────────┤
-   │ gpt-4o                     │ celebrity │ climate change │ Yes    │ 5          │
+   │ gpt-4o                     │ student   │ data privacy   │ Yes    │ 5          │
    ├────────────────────────────┼───────────┼────────────────┼────────┼────────────┤
    │ gpt-4o                     │ student   │ climate change │ Yes    │ 5          │
    ├────────────────────────────┼───────────┼────────────────┼────────┼────────────┤
-   │ gpt-4o                     │ student   │ data privacy   │ Yes    │ 5          │
+   │ gpt-4o                     │ celebrity │ climate change │ Yes    │ 5          │
+   ├────────────────────────────┼───────────┼────────────────┼────────┼────────────┤
+   │ claude-3-5-sonnet-20240620 │ celebrity │ data privacy   │ No     │ 4          │
    └────────────────────────────┴───────────┴────────────────┴────────┴────────────┘
 
 
@@ -1111,7 +1121,11 @@ This will display the results in a tree format:
 
 .. code-block:: text
 
+   model: Model(model_name = 'claude-3-5-sonnet-20240620', temperature = 0.5, max_tokens = 1000, top_p = 1, frequency_penalty = 0, presence_penalty = 0, logprobs = False, top_logprobs = 3)
    
+   model: Model(model_name = 'gpt-4o', temperature = 0.5, max_tokens = 1000, top_p = 1, frequency_penalty = 0, presence_penalty = 0, logprobs = False, top_logprobs = 3) 
+   
+
 Generating HTML reports
 ^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -1258,8 +1272,9 @@ See the :ref:`exceptions` section for more information on exceptions.
 
 Result class
 ------------
+
 .. automodule:: edsl.results.Result
-   :members: rich_print, 
+   :members:  
    :inherited-members:
    :exclude-members: 
    :undoc-members:
@@ -1267,6 +1282,7 @@ Result class
 
 Results class
 -------------
+
 .. automodule:: edsl.results.Results
    :members:
    :inherited-members:

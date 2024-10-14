@@ -35,7 +35,8 @@ Activating remote inference
     <br>
 
 
-Save it to a *.env* file in your working directory. Your *.env* file should include the following line (replace `your_key_here` with your actual Expected Parrot API key):
+Save it to a *.env* file in your working directory. 
+Your *.env* file should include the following line (replace `your_key_here` with your actual Expected Parrot API key):
 
 .. code-block:: python
 
@@ -57,83 +58,38 @@ Save it to a *.env* file in your working directory. Your *.env* file should incl
 
 When remote inference is on, surveys that you run will be sent to the Expected Parrot server for processing.
 
-You can also toggle *Remote cache* to turn on remote caching.
+You can also toggle *Remote caching* to turn on remote caching.
 Learn more about using remote caching with remote inference in the :ref:`remote_caching` section.
 
 
 Using remote inference
 ----------------------
 
-Use remote inference by passing a `remote_inference_description` string to the `run()` method of a survey.
-This string will be used to identify your job on the Expected Parrot server.
+With remote inference activated, calling the `run()` method will send a survey to the Expected Parrot server.
+You can optionally pass a `remote_inference_description` string to identify the job at the Coop.
 
-Example
-^^^^^^^
-
-We start by creating an example survey:
+Example:
 
 .. code-block:: python
 
-  from edsl import QuestionMultipleChoice, Survey
+  from edsl import Survey
 
-  q = QuestionMultipleChoice.example()
+  survey = Survey.example()
 
-  survey = Survey(questions=[q])
-
-
-Estimating cost
-^^^^^^^^^^^^^^^
-
-Running jobs on the Expected Parrot server requires credits (1 credit = $0.01 USD).
-
-We can estimate the cost of running a survey by creating a `Coop` client object and passing the survey in the `remote_inference_cost()` method:
-
-.. code-block:: python
-
-  from edsl import Coop
-
-  coop = Coop()
-
-  coop.remote_inference_cost(survey)
+  results = survey.run(remote_inference_description="Example survey", verbose=True)
 
 
-Output:
-
-.. code-block:: python
-
-  2   
-
-
-This survey will cost approximately 2 credits to run.
-
-Additional credits can be purchased at the `Purchases page <https://www.expectedparrot.com/home/purchases>`_.
-
-
-Running a job
-^^^^^^^^^^^^^
-
-We can run the survey remotely by passing a `remote_inference_description` string to the `run` method:
-
-.. code-block:: python
-
-  survey.run(remote_inference_description="Example survey", verbose=True)
-
-
-Output (actual details will be unique to your job):
+Output (actual details will be unique to your actual job):
 
 .. code-block:: text
 
   Remote inference activated. Sending job to server...
-  Job sent!
-  ┏━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━┓
-  ┃ answer             ┃ answer                               ┃ answer  ┃ answer      ┃
-  ┃ .info              ┃ .uuid                                ┃ .status ┃ .version    ┃
-  ┡━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━┩
-  │ Remote job details │ 1234abcd-abcd-1234-abcd-1234abcd1234 │ queued  │ 0.1.31      │
-  └────────────────────┴──────────────────────────────────────┴─────────┴─────────────┘
+  Remote caching activated. The remote cache will be used for this job.
+  Remote inference started (Job uuid=db60986e-1628-4dad-b578-833deda382f2).
+  Job completed and Results stored on Coop (Results uuid=6b7358e5-9694-4ab0-aba1-3ff2f974d062).
 
 
-The job will appear at your `Remote Inference page <https://www.expectedparrot.com/home/remote-inference>`_ with a status of "Queued":
+While it is running, the job will appear at your `Remote Inference page <https://www.expectedparrot.com/home/remote-inference>`_ with a status of "Queued":
 
 .. image:: static/coop_remote_inference_jobs_queued.png
   :alt: Remote inference page on the Coop web app. There is one job shown, and it has a status of "Queued."

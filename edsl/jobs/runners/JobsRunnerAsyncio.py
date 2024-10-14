@@ -3,40 +3,27 @@ import time
 import math
 import asyncio
 import functools
+import threading
 from typing import Coroutine, List, AsyncGenerator, Optional, Union, Generator
 from contextlib import contextmanager
 from collections import UserList
 
+from rich.live import Live
+from rich.console import Console
+
+from edsl.results.Results import Results
 from edsl import shared_globals
 from edsl.jobs.interviews.Interview import Interview
-from edsl.jobs.runners.JobsRunnerStatusMixin import JobsRunnerStatusMixin
+from edsl.jobs.runners.JobsRunnerStatus import JobsRunnerStatus
+
 from edsl.jobs.tasks.TaskHistory import TaskHistory
 from edsl.jobs.buckets.BucketCollection import BucketCollection
 from edsl.utilities.decorators import jupyter_nb_handler
 from edsl.data.Cache import Cache
 from edsl.results.Result import Result
 from edsl.results.Results import Results
-from edsl.jobs.FailedQuestion import FailedQuestion
-
-
-def cache_with_timeout(timeout):
-    """ "Used to keep the generate table from being run too frequetly."""
-
-    def decorator(func):
-        cached_result = {}
-        last_computation_time = [0]  # Using list to store mutable value
-
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            current_time = time.time()
-            if (current_time - last_computation_time[0]) >= timeout:
-                cached_result["value"] = func(*args, **kwargs)
-                last_computation_time[0] = current_time
-            return cached_result["value"]
-
-        return wrapper
-
-    return decorator
+from edsl.language_models.LanguageModel import LanguageModel
+from edsl.data.Cache import Cache
 
 
 class StatusTracker(UserList):
@@ -48,7 +35,7 @@ class StatusTracker(UserList):
         return print(f"Completed: {len(self.data)} of {self.total_tasks}", end="\r")
 
 
-class JobsRunnerAsyncio(JobsRunnerStatusMixin):
+class JobsRunnerAsyncio:
     """A class for running a collection of interviews asynchronously.
 
     It gets instaniated from a Jobs object.
@@ -57,17 +44,18 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
 
     def __init__(self, jobs: "Jobs"):
         self.jobs = jobs
-        # this creates the interviews, which can take a while
         self.interviews: List["Interview"] = jobs.interviews()
         self.bucket_collection: "BucketCollection" = jobs.bucket_collection
         self.total_interviews: List["Interview"] = []
 
+        # self.jobs_runner_status = JobsRunnerStatus(self, n=1)
+
     async def run_async_generator(
         self,
-        cache: "Cache",
+        cache: Cache,
         n: int = 1,
         stop_on_exception: bool = False,
-        sidecar_model: Optional["LanguageModel"] = None,
+        sidecar_model: Optional[LanguageModel] = None,
         total_interviews: Optional[List["Interview"]] = None,
         raise_validation_errors: bool = False,
     ) -> AsyncGenerator["Result", None]:
@@ -79,6 +67,7 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         :param stop_on_exception: Whether to stop the interview if an exception is raised
         :param sidecar_model: a language model to use in addition to the interview's model
         :param total_interviews: A list of interviews to run can be provided instead.
+        :param raise_validation_errors: Whether to raise validation errors
         """
         tasks = []
         if total_interviews:  # was already passed in total interviews
@@ -87,8 +76,6 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             self.total_interviews = list(
                 self._populate_total_interviews(n=n)
             )  # Populate self.total_interviews before creating tasks
-
-        # print("Interviews created")
 
         for interview in self.total_interviews:
             interviewing_task = self._build_interview_task(
@@ -99,11 +86,9 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             )
             tasks.append(asyncio.create_task(interviewing_task))
 
-        # print("Tasks created")
-
         for task in asyncio.as_completed(tasks):
-            # print(f"Task {task} completed")
             result = await task
+            self.jobs_runner_status.add_completed_interview(result)
             yield result
 
     def _populate_total_interviews(
@@ -121,7 +106,9 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                     interview.cache = self.cache
                     yield interview
 
-    async def run_async(self, cache: Optional["Cache"] = None, n: int = 1) -> Results:
+    async def run_async(self, cache: Optional[Cache] = None, n: int = 1) -> Results:
+        """Used for some other modules that have a non-standard way of running interviews."""
+        self.jobs_runner_status = JobsRunnerStatus(self, n=n)
         self.cache = Cache() if cache is None else cache
         data = []
         async for result in self.run_async_generator(cache=self.cache, n=n):
@@ -157,12 +144,6 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             raise_validation_errors=raise_validation_errors,
         )
 
-        # answer_key_names = {
-        #     k
-        #     for k in set(answer.keys())
-        #     if not k.endswith("_comment") and not k.endswith("_generated_tokens")
-        # }
-
         question_results = {}
         for result in valid_results:
             question_results[result.question_name] = result
@@ -174,23 +155,12 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             for k in answer_key_names
         }
         comments_dict = {
-            "k" + "_comment": question_results[k].comment for k in answer_key_names
+            k + "_comment": question_results[k].comment for k in answer_key_names
         }
 
         # we should have a valid result for each question
         answer_dict = {k: answer[k] for k in answer_key_names}
         assert len(valid_results) == len(answer_key_names)
-
-        # breakpoint()
-        # generated_tokens_dict = {
-        #     k + "_generated_tokens": v.generated_tokens
-        #     for k, v in zip(answer_key_names, valid_results)
-        # }
-
-        # comments_dict = {
-        #    k + "_comment": v.comment for k, v in zip(answer_key_names, valid_results)
-        # }
-        # breakpoint()
 
         # TODO: move this down into Interview
         question_name_to_prompts = dict({})
@@ -203,19 +173,19 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
 
         prompt_dictionary = {}
         for answer_key_name in answer_key_names:
-            prompt_dictionary[
-                answer_key_name + "_user_prompt"
-            ] = question_name_to_prompts[answer_key_name]["user_prompt"]
-            prompt_dictionary[
-                answer_key_name + "_system_prompt"
-            ] = question_name_to_prompts[answer_key_name]["system_prompt"]
+            prompt_dictionary[answer_key_name + "_user_prompt"] = (
+                question_name_to_prompts[answer_key_name]["user_prompt"]
+            )
+            prompt_dictionary[answer_key_name + "_system_prompt"] = (
+                question_name_to_prompts[answer_key_name]["system_prompt"]
+            )
 
         raw_model_results_dictionary = {}
         for result in valid_results:
             question_name = result.question_name
-            raw_model_results_dictionary[
-                question_name + "_raw_model_response"
-            ] = result.raw_model_response
+            raw_model_results_dictionary[question_name + "_raw_model_response"] = (
+                result.raw_model_response
+            )
             raw_model_results_dictionary[question_name + "_cost"] = result.cost
             one_use_buys = (
                 "NA"
@@ -226,7 +196,6 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
             )
             raw_model_results_dictionary[question_name + "_one_usd_buys"] = one_use_buys
 
-        # breakpoint()
         result = Result(
             agent=interview.agent,
             scenario=interview.scenario,
@@ -247,6 +216,62 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
     def elapsed_time(self):
         return time.monotonic() - self.start_time
 
+    def process_results(
+        self, raw_results: Results, cache: Cache, print_exceptions: bool
+    ):
+        interview_lookup = {
+            hash(interview): index
+            for index, interview in enumerate(self.total_interviews)
+        }
+        interview_hashes = list(interview_lookup.keys())
+
+        results = Results(
+            survey=self.jobs.survey,
+            data=sorted(
+                raw_results, key=lambda x: interview_hashes.index(x.interview_hash)
+            ),
+        )
+        results.cache = cache
+        results.task_history = TaskHistory(
+            self.total_interviews, include_traceback=False
+        )
+        results.has_unfixed_exceptions = results.task_history.has_unfixed_exceptions
+        results.bucket_collection = self.bucket_collection
+
+        if results.has_unfixed_exceptions and print_exceptions:
+            from edsl.scenarios.FileStore import HTMLFileStore
+            from edsl.config import CONFIG
+            from edsl.coop.coop import Coop
+
+            msg = f"Exceptions were raised in {len(results.task_history.indices)} out of {len(self.total_interviews)} interviews.\n"
+
+            if len(results.task_history.indices) > 5:
+                msg += f"Exceptions were raised in the following interviews: {results.task_history.indices}.\n"
+
+            print(msg)
+            # this is where exceptions are opening up
+            filepath = results.task_history.html(
+                cta="Open report to see details.",
+                open_in_browser=True,
+                return_link=True,
+            )
+
+            try:
+                coop = Coop()
+                user_edsl_settings = coop.edsl_settings
+                remote_logging = user_edsl_settings["remote_logging"]
+            except Exception as e:
+                print(e)
+                remote_logging = False
+            if remote_logging:
+                filestore = HTMLFileStore(filepath)
+                coop_details = filestore.push(description="Error report")
+                print(coop_details)
+
+            print("Also see: https://docs.expectedparrot.com/en/latest/exceptions.html")
+
+        return results
+
     @jupyter_nb_handler
     async def run(
         self,
@@ -259,24 +284,18 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
         raise_validation_errors: bool = False,
     ) -> "Coroutine":
         """Runs a collection of interviews, handling both async and sync contexts."""
-        from rich.console import Console
 
-        console = Console()
         self.results = []
         self.start_time = time.monotonic()
         self.completed = False
         self.cache = cache
         self.sidecar_model = sidecar_model
 
-        from edsl.results.Results import Results
-        from rich.live import Live
-        from rich.console import Console
+        self.jobs_runner_status = JobsRunnerStatus(self, n=n)
 
-        @cache_with_timeout(1)
-        def generate_table():
-            return self.status_table(self.results, self.elapsed_time)
+        stop_event = threading.Event()
 
-        async def process_results(cache, progress_bar_context=None):
+        async def process_results(cache):
             """Processes results from interviews."""
             async for result in self.run_async_generator(
                 n=n,
@@ -286,112 +305,39 @@ class JobsRunnerAsyncio(JobsRunnerStatusMixin):
                 raise_validation_errors=raise_validation_errors,
             ):
                 self.results.append(result)
-                if progress_bar_context:
-                    progress_bar_context.update(generate_table())
             self.completed = True
 
-        async def update_progress_bar(progress_bar_context):
-            """Updates the progress bar at fixed intervals."""
-            if progress_bar_context is None:
-                return
+        def run_progress_bar(stop_event):
+            """Runs the progress bar in a separate thread."""
+            self.jobs_runner_status.update_progress(stop_event)
 
-            while True:
-                progress_bar_context.update(generate_table())
-                await asyncio.sleep(0.1)  # Update interval
-                if self.completed:
-                    break
-
-        @contextmanager
-        def conditional_context(condition, context_manager):
-            if condition:
-                with context_manager as cm:
-                    yield cm
-            else:
-                yield
-
-        with conditional_context(
-            progress_bar, Live(generate_table(), console=console, refresh_per_second=1)
-        ) as progress_bar_context:
-            with cache as c:
-                progress_task = asyncio.create_task(
-                    update_progress_bar(progress_bar_context)
-                )
-
-                try:
-                    await asyncio.gather(
-                        progress_task,
-                        process_results(
-                            cache=c, progress_bar_context=progress_bar_context
-                        ),
-                    )
-                except asyncio.CancelledError:
-                    pass
-                finally:
-                    progress_task.cancel()  # Cancel the progress_task when process_results is done
-                    await progress_task
-
-                    await asyncio.sleep(1)  # short delay to show the final status
-
-                    if progress_bar_context:
-                        progress_bar_context.update(generate_table())
-
-        # puts results in the same order as the total interviews
-        interview_lookup = {
-            hash(interview): index
-            for index, interview in enumerate(self.total_interviews)
-        }
-        interview_hashes = list(interview_lookup.keys())
-        self.results = sorted(
-            self.results, key=lambda x: interview_hashes.index(x.interview_hash)
-        )
-
-        results = Results(survey=self.jobs.survey, data=self.results)
-        task_history = TaskHistory(self.total_interviews, include_traceback=False)
-        results.task_history = task_history
-
-        results.failed_questions = {}
-        results.has_exceptions = task_history.has_exceptions
-
-        # breakpoint()
-        results.bucket_collection = self.bucket_collection
-
-        if results.has_exceptions:
-            # put the failed interviews in the results object as a list
-            failed_interviews = [
-                interview.duplicate(
-                    iteration=interview.iteration, cache=interview.cache
-                )
-                for interview in self.total_interviews
-                if interview.has_exceptions
-            ]
-
-            failed_questions = {}
-            for interview in self.total_interviews:
-                if interview.has_exceptions:
-                    index = interview_lookup[hash(interview)]
-                    failed_questions[index] = interview.failed_questions
-
-            results.failed_questions = failed_questions
-
-            from edsl.jobs.Jobs import Jobs
-
-            results.failed_jobs = Jobs.from_interviews(
-                [interview for interview in failed_interviews]
+        if progress_bar:
+            progress_thread = threading.Thread(
+                target=run_progress_bar, args=(stop_event,)
             )
-            if print_exceptions:
-                msg = f"Exceptions were raised in {len(results.task_history.indices)} out of {len(self.total_interviews)} interviews.\n"
+            progress_thread.start()
 
-                if len(results.task_history.indices) > 5:
-                    msg += f"Exceptions were raised in the following interviews: {results.task_history.indices}.\n"
+        exception_to_raise = None
+        try:
+            with cache as c:
+                await process_results(cache=c)
+        except KeyboardInterrupt:
+            print("Keyboard interrupt received. Stopping gracefully...")
+            stop_event.set()
+        except Exception as e:
+            if stop_on_exception:
+                exception_to_raise = e
+            stop_event.set()
+        finally:
+            stop_event.set()
+            if progress_bar:
+                # self.jobs_runner_status.stop_event.set()
+                if progress_thread:
+                    progress_thread.join()
 
-                shared_globals["edsl_runner_exceptions"] = task_history
-                print(msg)
-                # this is where exceptions are opening up
-                task_history.html(
-                    cta="Open report to see details.", open_in_browser=True
-                )
-                print(
-                    "Also see: https://docs.expectedparrot.com/en/latest/exceptions.html"
-                )
+            if exception_to_raise:
+                raise exception_to_raise
 
-        return results
+            return self.process_results(
+                raw_results=self.results, cache=cache, print_exceptions=print_exceptions
+            )

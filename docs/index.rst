@@ -3,35 +3,37 @@
 EDSL: AI-Powered Research
 =========================
 
-*Expected Parrot Domain-Specific Language* (EDSL) is an open-source Python package for conducting AI-powered research.
+*Expected Parrot Domain-Specific Language* (EDSL) is an `open-source Python package <https://github.com/expectedparrot/edsl>`_ for conducting AI-powered research.
    
-.. raw:: html
+EDSL is developed by `Expected Parrot <https://www.expectedparrot.com>`_ and available under the MIT License.
 
-   EDSL is developed by <a href="https://www.expectedparrot.com" target="_blank">Expected Parrot</a> and available under the MIT License.
-   <br><br>
+This page provides documentation, tutorials and demo notebooks for the EDSL package and the `Coop <https://www.expectedparrot.com/explore>`_: a platform for creating, storing and sharing AI research. 
+The contents are organized into key sections to help you get started.
 
-This page provides documentation, tutorials and demo notebooks for the EDSL package and the Coop: a platform for creating, storing and sharing AI research.
-The contents are organized into key sections to help you get started:
+
+Researchers
+-----------
+
+**Are you using EDSL for a research project? We'd love to hear about your experience!**
+
+Send us an email at info@expectedparrot.com and we'll provide credits to run your project or a gift card for your time.
 
 
 Links
 -----
 
-- Download the latest version of EDSL on `PyPI <https://pypi.org/project/edsl>`_.
-
-- Get the latest EDSL updates on `GitHub <https://github.com/expectedparrot/edsl>`_.
-
-- Create a `Coop account <https://www.expectedparrot.com/login>`_.
-
-- Join our `Discord channel <https://discord.com/invite/mxAYkjfy9m>`_ to discuss AI research.
-
-- Follow us on social media:
-
-  - `Twitter/X <https://twitter.com/expectedparrot>`_
-
-  - `LinkedIn <https://www.linkedin.com/company/expectedparrot>`_
+- Download the current version of EDSL at `PyPI <https://pypi.org/project/edsl>`_.
+- Get the latest EDSL updates at `GitHub <https://github.com/expectedparrot/edsl>`_.
+- Create a `Coop account <https://www.expectedparrot.com/login>`_ to store and share your research and access special features, including:
   
-  - `Blog <https://blog.expectedparrot.com>`_
+  * :ref:`survey_builder`: An interface for launching hybrid human-AI surveys
+  * :ref:`remote_inference`: Run surveys on the Expected Parrot server
+  * :ref:`remote_caching`: Automatically store results and API calls on the Expected Parrot server
+  * :ref:`filestore`: Store and share data files for use in EDSL projects
+
+- Explore research at the `Coop <https://www.expectedparrot.com/explore>`_.
+- Join the `Discord channel <https://discord.com/invite/mxAYkjfy9m>`_.
+- Follow on social media: `Twitter/X <https://twitter.com/expectedparrot>`_, `LinkedIn <https://www.linkedin.com/company/expectedparrot>`_, `Blog <https://blog.expectedparrot.com>`_
   
 
 Introduction
@@ -40,46 +42,54 @@ Introduction
 - :ref:`overview`: An overview of the purpose, concepts and goals of the EDSL package.
 - :ref:`whitepaper`: A whitepaper about the EDSL package (*in progress*).
 - :ref:`citation`: How to cite the package in your work.
+- :ref:`papers`: Research papers and articles that use or cite EDSL.
 
 
 Technical Setup
 ---------------
 
 - :ref:`installation`: Instructions for installing the EDSL package.
-- Create a :ref:`coop` to create, store and share content on the Expected Parrot server. 
-- :ref:`api_keys`: (*Optional*) Instructions for storing API keys for language models to use EDSL locally.
+- :ref:`coop`: Create, store and share research on the Expected Parrot server. 
+- :ref:`api_keys`: Instructions for storing API keys to use EDSL locally (*optional*).
+
 
 Getting Started
 ---------------
 
 - :ref:`starter_tutorial`: A tutorial to help you get started using EDSL.
 
+
 Core Concepts
 -------------
 
 - :ref:`questions`: Learn about different question types and applications.
 - :ref:`scenarios`: Explore how questions can be dynamically parameterized for tasks like data labeling.
-- :ref:`surveys`: Construct surveys and implement rules and conditions.
-- :ref:`agents`: Design and implement AI agents to respond to surveys.
+- :ref:`surveys`: Construct surveys with rules and conditions.
+- :ref:`agents`: Design AI agents with relevant traits to respond to surveys.
 - :ref:`language_models`: Select language models to generate results.
+
 
 Working with Results
 --------------------
 
-- :ref:`results`: Access built-in methods for analyzing and utilizing survey results as datasets.
+- :ref:`results`: Access built-in methods for analyzing survey results as datasets.
 - :ref:`caching`: Learn about caching and sharing results.
-- :ref:`exceptions`: Identify and handle exceptions in your survey design.
-- :ref:`token_limits`: Manage token limits for language models.
+- :ref:`exceptions`: Identify and handle exceptions in running surveys.
+- :ref:`token_usage`: Monitor token limits and usage for language models.
+
 
 Coop 
 ----
 
-Coop is a platform for creating, storing and sharing EDSL content and AI research.
+Coop is a platform for creating, storing and sharing EDSL content and AI-based research.
 
 - :ref:`coop`: Learn how to create, store and share content at the Coop. 
-- :ref:`remote_caching`: Use remote caching to automatically store survey results and API calls on the Expected Parrot server. 
-- :ref:`remote_inference`: Use remote inference to run jobs on the Expected Parrot server. 
-- :ref:`notebooks`: Instructions for sharing `.ipynb` files with other users at the Coop. 
+- :ref:`survey_builder`: An interface for launching hybrid human-AI surveys.
+- :ref:`filestore`: Store and share files for use in EDSL projects.
+- :ref:`remote_inference`: Run surveys on the Expected Parrot server. 
+- :ref:`remote_caching`: Automatically store survey results and API calls on the Expected Parrot server. 
+- :ref:`notebooks`: Instructions for posting `.ipynb` files to the Coop. 
+
 
 Importing Data
 --------------
@@ -91,21 +101,27 @@ Importing Data
   * Extend your results with new questions and surveys
   * Store and share your data on the Coop
 
+
 How-to Guides
 -------------
 
 Examples of special methods and use cases for EDSL, including:
 
-* Data labeling, cleaning and analysis
-* Cognitive testing
-* Dynamic agent traits
-* Creating new methods
+- Data labeling
+- Data cleaning
+- Analyzing survey results 
+- Adding data to surveys from CSVs, PDFs, images and other sources
+- Conducting agent conversations
+- Converting surveys into EDSL
+- Cognitive testing 
+
 
 Notebooks
 ---------
 
 Templates and example code for using EDSL to conduct different kinds of research.
 *We're happy to create a new notebook for your use case!*
+
 
 Developers
 ----------
@@ -119,7 +135,9 @@ Information about additional functionality for developers.
    :hidden:
 
    overview
+   whitepaper
    citation
+   papers
 
 .. toctree::
    :maxdepth: 2
@@ -150,7 +168,7 @@ Information about additional functionality for developers.
    results
    data
    exceptions
-   token_limits
+   token_usage
 
 .. toctree::
    :maxdepth: 2
@@ -159,8 +177,9 @@ Information about additional functionality for developers.
 
    coop
    notebooks
-   remote_caching
    remote_inference
+   remote_caching
+   filestore
 
 .. toctree::
    :maxdepth: 2
@@ -174,49 +193,49 @@ Information about additional functionality for developers.
    :caption: How-to Guides
    :hidden:
 
+   notebooks/edsl_intro.ipynb
+   notebooks/import_agents.ipynb
+   notebooks/yoga_studio_name_survey.ipynb
    notebooks/data_labeling_example.ipynb
-   notebooks/cheatsheet_scenarios.ipynb
-   notebooks/question_loop_scenario.ipynb
-   notebooks/scenario_from_pdf.ipynb
-   notebooks/batching_results.ipynb
-   notebooks/adding_metadata.ipynb
-   notebooks/survey_memories.ipynb
-   notebooks/example_agent_dynamic_traits.ipynb
-   notebooks/research_methods.ipynb
-   notebooks/edsl_components.ipynb
-   notebooks/export_survey_updates.ipynb
-   notebooks/question_extract_example.ipynb
    notebooks/data_cleaning.ipynb
+   notebooks/scenario_from_pdf.ipynb
+   notebooks/image_scenario_example.ipynb
+   notebooks/scenario_list_wikipedia.ipynb
+   notebooks/scenarios_filestore_example.ipynb
+   notebooks/adding_metadata.ipynb
+   notebooks/question_loop_scenarios.ipynb
+   notebooks/example_agent_dynamic_traits.ipynb
+   notebooks/agentifying_responses.ipynb
+   notebooks/batching_results.ipynb
+   notebooks/research_methods.ipynb
 
 .. toctree::
    :maxdepth: 2
    :caption: Notebooks
    :hidden:
 
-   notebooks/scenariolist_unpivot.ipynb
-   notebooks/google_form_to_edsl.ipynb
-   notebooks/agentifying_responses.ipynb
+   notebooks/next_token_probs.ipynb
    notebooks/summarizing_transcripts.ipynb
-   notebooks/data_labeling_agent.ipynb
+   notebooks/analyze_evaluations.ipynb
+   notebooks/concept_induction.ipynb
    notebooks/conduct_interview.ipynb
    notebooks/qualitative_research.ipynb
+   notebooks/nps_survey.ipynb
+   notebooks/data_labeling_agent.ipynb
+   notebooks/scenariolist_unpivot.ipynb
    notebooks/random_numbers.ipynb
-   notebooks/model_walkoff.ipynb
-   notebooks/concept_induction.ipynb
    notebooks/testing_training_data.ipynb
    notebooks/comparing_model_responses.ipynb
-   notebooks/analyze_evaluations.ipynb
    notebooks/evaluating_job_posts.ipynb
    notebooks/explore_llm_biases.ipynb
    notebooks/research_random_silicon_sampling.ipynb
    notebooks/explore_survey_contexts.ipynb
    notebooks/free_responses.ipynb
    notebooks/digital_twin.ipynb
-   notebooks/river_problem.ipynb
    notebooks/writing_style.ipynb
+   notebooks/google_form_to_edsl.ipynb
    notebooks/edsl_polling.ipynb
    notebooks/ces_data_edsl.ipynb
-   notebooks/ces_agents.ipynb
 
 .. toctree::
    :maxdepth: 2

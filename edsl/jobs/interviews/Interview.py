@@ -4,48 +4,51 @@ from __future__ import annotations
 import asyncio
 from typing import Any, Type, List, Generator, Optional, Union
 
-from edsl import CONFIG
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+    RetryError,
+)
 
+from edsl import CONFIG
 from edsl.surveys.base import EndOfSurvey
 from edsl.exceptions import QuestionAnswerValidationError
-from edsl.exceptions import InterviewTimeoutError
+from edsl.exceptions import QuestionAnswerValidationError
 from edsl.data_transfer_models import AgentResponseDict, EDSLResultObjectInput
 
-from edsl.jobs.FailedQuestion import FailedQuestion
 from edsl.jobs.buckets.ModelBuckets import ModelBuckets
 from edsl.jobs.Answers import Answers
 from edsl.jobs.tasks.QuestionTaskCreator import QuestionTaskCreator
 from edsl.jobs.tasks.TaskCreators import TaskCreators
 from edsl.jobs.interviews.InterviewStatusLog import InterviewStatusLog
-from edsl.jobs.interviews.interview_exception_tracking import (
+from edsl.jobs.interviews.InterviewExceptionCollection import (
     InterviewExceptionCollection,
 )
-from edsl.jobs.interviews.InterviewExceptionEntry import InterviewExceptionEntry
-from edsl.jobs.interviews.retry_management import retry_strategy
+
 from edsl.jobs.interviews.InterviewStatusMixin import InterviewStatusMixin
 
 from edsl.surveys.base import EndOfSurvey
 from edsl.jobs.buckets.ModelBuckets import ModelBuckets
 from edsl.jobs.interviews.InterviewExceptionEntry import InterviewExceptionEntry
-from edsl.jobs.interviews.retry_management import retry_strategy
 from edsl.jobs.tasks.task_status_enum import TaskStatus
 from edsl.jobs.tasks.QuestionTaskCreator import QuestionTaskCreator
 
-from edsl.exceptions import QuestionAnswerValidationError
-
-# from rich.console import Console
-# from rich.traceback import Traceback
-
-TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
-
-
-# def run_async(coro):
-#    return asyncio.run(coro)
 
 from edsl import Agent, Survey, Scenario, Cache
 from edsl.language_models import LanguageModel
 from edsl.questions import QuestionBase
 from edsl.agents.InvigilatorBase import InvigilatorBase
+
+from edsl.exceptions.language_models import LanguageModelNoResponseError
+
+
+from edsl import CONFIG
+
+EDSL_BACKOFF_START_SEC = float(CONFIG.get("EDSL_BACKOFF_START_SEC"))
+EDSL_BACKOFF_MAX_SEC = float(CONFIG.get("EDSL_BACKOFF_MAX_SEC"))
+EDSL_MAX_ATTEMPTS = int(CONFIG.get("EDSL_MAX_ATTEMPTS"))
 
 
 class Interview(InterviewStatusMixin):
@@ -102,14 +105,17 @@ class Interview(InterviewStatusMixin):
         self.debug = debug
         self.iteration = iteration
         self.cache = cache
-        self.answers: dict[
-            str, str
-        ] = Answers()  # will get filled in as interview progresses
+        self.answers: dict[str, str] = (
+            Answers()
+        )  # will get filled in as interview progresses
         self.sidecar_model = sidecar_model
+
+        # self.stop_on_exception = False
 
         # Trackers
         self.task_creators = TaskCreators()  # tracks the task creators
         self.exceptions = InterviewExceptionCollection()
+
         self._task_status_log_dict = InterviewStatusLog()
         self.skip_retry = skip_retry
         self.raise_validation_errors = raise_validation_errors
@@ -242,29 +248,24 @@ class Interview(InterviewStatusMixin):
 
     def _get_estimated_request_tokens(self, question) -> float:
         """Estimate the number of tokens that will be required to run the focal task."""
+        from edsl.scenarios.FileStore import FileStore
+
         invigilator = self._get_invigilator(question=question)
         # TODO: There should be a way to get a more accurate estimate.
         combined_text = ""
+        file_tokens = 0
         for prompt in invigilator.get_prompts().values():
             if hasattr(prompt, "text"):
                 combined_text += prompt.text
             elif isinstance(prompt, str):
                 combined_text += prompt
+            elif isinstance(prompt, list):
+                for file in prompt:
+                    if isinstance(file, FileStore):
+                        file_tokens += file.size * 0.25
             else:
                 raise ValueError(f"Prompt is of type {type(prompt)}")
-        return len(combined_text) / 4.0
-
-    # def create_failed_question(self, invigilator, e) -> FailedQuestion:
-    #     failed_question = FailedQuestion(
-    #         question=invigilator.question,
-    #         scenario=invigilator.scenario,
-    #         model=invigilator.model,
-    #         agent=invigilator.agent,
-    #         raw_model_response=invigilator.raw_model_response,
-    #         exception=e,
-    #         prompts=invigilator.get_prompts(),
-    #     )
-    #     return failed_question
+        return len(combined_text) / 4.0 + file_tokens
 
     async def _answer_question_and_record_task(
         self,
@@ -272,47 +273,85 @@ class Interview(InterviewStatusMixin):
         question: "QuestionBase",
         task=None,
     ) -> "AgentResponseDict":
-        """Answer a question and records the task.
+        """Answer a question and records the task."""
 
-        Note that is updates answers dictionary with the response.
-        """
+        had_language_model_no_response_error = False
 
-        invigilator = self._get_invigilator(question)
+        @retry(
+            stop=stop_after_attempt(EDSL_MAX_ATTEMPTS),
+            wait=wait_exponential(
+                multiplier=EDSL_BACKOFF_START_SEC, max=EDSL_BACKOFF_MAX_SEC
+            ),
+            retry=retry_if_exception_type(LanguageModelNoResponseError),
+            reraise=True,
+        )
+        async def attempt_answer():
+            nonlocal had_language_model_no_response_error
 
-        if self._skip_this_question(question):
-            response = invigilator.get_failed_task_result(
-                failure_reason="Question skipped."
-            )
+            invigilator = self._get_invigilator(question)
+
+            if self._skip_this_question(question):
+                return invigilator.get_failed_task_result(
+                    failure_reason="Question skipped."
+                )
+
+            try:
+                response: EDSLResultObjectInput = (
+                    await invigilator.async_answer_question()
+                )
+                if response.validated:
+                    self.answers.add_answer(response=response, question=question)
+                    self._cancel_skipped_questions(question)
+                else:
+                    # When a question is not validated, it is not added to the answers.
+                    # this should also cancel and dependent children questions.
+                    # Is that happening now?
+                    if (
+                        hasattr(response, "exception_occurred")
+                        and response.exception_occurred
+                    ):
+                        raise response.exception_occurred
+
+            except QuestionAnswerValidationError as e:
+                self._handle_exception(e, invigilator, task)
+                return invigilator.get_failed_task_result(
+                    failure_reason="Question answer validation failed."
+                )
+
+            except asyncio.TimeoutError as e:
+                self._handle_exception(e, invigilator, task)
+                had_language_model_no_response_error = True
+                raise LanguageModelNoResponseError(
+                    f"Language model timed out for question '{question.question_name}.'"
+                )
+
+            except Exception as e:
+                self._handle_exception(e, invigilator, task)
+
+            if "response" not in locals():
+                had_language_model_no_response_error = True
+                raise LanguageModelNoResponseError(
+                    f"Language model did not return a response for question '{question.question_name}.'"
+                )
+
+            # if it gets here, it means the no response error was fixed
+            if (
+                question.question_name in self.exceptions
+                and had_language_model_no_response_error
+            ):
+                self.exceptions.record_fixed_question(question.question_name)
+
+            return response
 
         try:
-            response: EDSLResultObjectInput = await asyncio.wait_for(
-                invigilator.async_answer_question(), timeout=TIMEOUT
+            return await attempt_answer()
+        except RetryError as retry_error:
+            # All retries have failed for LanguageModelNoResponseError
+            original_error = retry_error.last_attempt.exception()
+            self._handle_exception(
+                original_error, self._get_invigilator(question), task
             )
-            if response.validated:
-                self.answers.add_answer(response=response, question=question)
-                self._cancel_skipped_questions(question)
-            else:
-                if (
-                    hasattr(response, "exception_occurred")
-                    and response.exception_occurred
-                ):
-                    raise response.exception_occurred
-
-        except QuestionAnswerValidationError as e:
-            # these should only appear if not suppressed earlier if self.raise_validation_errors is True
-            self._handle_exception(e, invigilator, task)
-            # raise e
-
-        except asyncio.TimeoutError as e:
-            self._handle_exception(e, invigilator, task)
-            # raise InterviewTimeoutError(f"Task timed out after {TIMEOUT} seconds.")
-
-        except Exception as e:
-            self._handle_exception(e, invigilator, task)
-            # raise e
-
-        # breakpoint()
-        return response
+            raise original_error  # Re-raise the original error after handling
 
     def _get_invigilator(self, question: QuestionBase) -> InvigilatorBase:
         """Return an invigilator for the given question.
@@ -352,13 +391,31 @@ class Interview(InterviewStatusMixin):
     def _handle_exception(
         self, e: Exception, invigilator: "InvigilatorBase", task=None
     ):
+        import copy
+
+        # breakpoint()
+
+        answers = copy.copy(self.answers)
         exception_entry = InterviewExceptionEntry(
             exception=e,
             invigilator=invigilator,
+            answers=answers,
         )
         if task:
             task.task_status = TaskStatus.FAILED
         self.exceptions.add(invigilator.question.question_name, exception_entry)
+
+        if self.raise_validation_errors:
+            if isinstance(e, QuestionAnswerValidationError):
+                raise e
+
+        if hasattr(self, "stop_on_exception"):
+            stop_on_exception = self.stop_on_exception
+        else:
+            stop_on_exception = False
+
+        if stop_on_exception:
+            raise e
 
     def _cancel_skipped_questions(self, current_question: QuestionBase) -> None:
         """Cancel the tasks for questions that are skipped.
@@ -371,11 +428,11 @@ class Interview(InterviewStatusMixin):
         """
         current_question_index: int = self.to_index[current_question.question_name]
 
-        next_question: Union[
-            int, EndOfSurvey
-        ] = self.survey.rule_collection.next_question(
-            q_now=current_question_index,
-            answers=self.answers | self.scenario | self.agent["traits"],
+        next_question: Union[int, EndOfSurvey] = (
+            self.survey.rule_collection.next_question(
+                q_now=current_question_index,
+                answers=self.answers | self.scenario | self.agent["traits"],
+            )
         )
 
         next_question_index = next_question.next_q
@@ -429,6 +486,7 @@ class Interview(InterviewStatusMixin):
         asyncio.exceptions.CancelledError
         """
         self.sidecar_model = sidecar_model
+        self.stop_on_exception = stop_on_exception
 
         # if no model bucket is passed, create an 'infinity' bucket with no rate limits
         if model_buckets is None or hasattr(self.agent, "answer_question_directly"):
@@ -442,7 +500,9 @@ class Interview(InterviewStatusMixin):
         self.invigilators = [
             self._get_invigilator(question) for question in self.survey.questions
         ]
-        await asyncio.gather(*self.tasks, return_exceptions=not stop_on_exception)
+        await asyncio.gather(
+            *self.tasks, return_exceptions=not stop_on_exception
+        )  # not stop_on_exception)
         self.answers.replace_missing_answers_with_none(self.survey)
         valid_results = list(self._extract_valid_results())
         return self.answers, valid_results

@@ -1,5 +1,6 @@
 from __future__ import annotations
-from decimal import Decimal
+
+# from decimal import Decimal
 from random import uniform
 from typing import Any, Optional, Union, Literal
 
@@ -14,8 +15,8 @@ from edsl.exceptions.questions import QuestionAnswerValidationError
 
 
 def create_numeric_response(
-    min_value: Optional[Decimal] = None,
-    max_value: Optional[Decimal] = None,
+    min_value: Optional[float] = None,
+    max_value: Optional[float] = None,
     permissive=False,
 ):
     field_kwargs = {}
@@ -27,7 +28,7 @@ def create_numeric_response(
             field_kwargs["le"] = max_value
 
     class ConstrainedNumericResponse(BaseModel):
-        answer: Union[Decimal] = Field(**field_kwargs)
+        answer: Union[int, float] = Field(**field_kwargs)
         comment: Optional[str] = Field(None)
         generated_tokens: Optional[Any] = Field(None)
 

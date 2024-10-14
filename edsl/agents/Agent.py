@@ -513,8 +513,8 @@ class Agent(Base):
         if name == "has_dynamic_traits_function":
             return self.has_dynamic_traits_function
 
-        if name in self.traits:
-            return self.traits[name]
+        if name in self._traits:
+            return self._traits[name]
         raise AttributeError(
             f"'{type(self).__name__}' object has no attribute '{name}'"
         )

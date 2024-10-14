@@ -245,7 +245,7 @@ class QuestionCheckBox(QuestionBase):
 
         scenario = scenario or Scenario()
         translated_options = [
-            Template(option).render(scenario) for option in self.question_options
+            Template(str(option)).render(scenario) for option in self.question_options
         ]
         translated_codes = []
         for answer_code in answer_codes:

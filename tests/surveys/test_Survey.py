@@ -38,9 +38,13 @@ class TestSurvey(unittest.TestCase):
         self.assertEqual(q3, s.next_question("like_school", {"like_school": "no"}))
 
     def test_skip_question(self):
-        s = self.gen_survey()
-        q1, q2, q3 = s._questions
-        s = s.add_skip_rule(q2, "True")
+        survey = self.gen_survey()
+        q1, q2, q3 = survey._questions
+        # "like school", "favorite subject", "manual"
+        survey = survey.add_skip_rule(q2, "True")
+        next_question = survey.next_question("like_school", {})
+        assert next_question == q3
+        # breakpoint()
         # self.assertEqual(q3, s.next_question("like_school", {"like_school": "no"}))
         # s = self.gen_survey()
         # with self.assertRaises(ValueError):
@@ -180,6 +184,97 @@ class TestSurvey(unittest.TestCase):
 
         with tempfile.NamedTemporaryFile(suffix=".png") as f:
             s.show_flow(filename=f.name)
+
+    def test_insertion(self):
+        survey = self.gen_survey()
+        q1, q2, q3 = survey._questions
+        survey.add_rule(q1, "like_school == 'no'", q3)
+
+        original_length = len(survey._questions)
+        from edsl import QuestionFreeText
+
+        new_q = QuestionFreeText(
+            question_text="Where are you from?", question_name="hometown"
+        )
+        # insert a new question at the begining
+        insertion_index = 1
+        survey.add_question(new_q, index=insertion_index)
+        assert len(survey._questions) == original_length + 1
+        assert survey._questions[insertion_index] == new_q
+
+        path = survey.gen_path_through_survey()
+        survey._questions[0] = next(path)
+
+    def test_deletion(self):
+        survey = self.gen_survey()
+        q1, q2, q3 = survey._questions
+        survey.add_rule(q1, "like_school == 'no'", q3)
+
+        original_length = len(survey._questions)
+
+        # Remember the question to be deleted
+        question_to_delete = survey._questions[1]  # q2
+
+        # Delete the second question
+        deletion_index = 1
+        new_survey = survey.delete_question(deletion_index)
+
+        # Assert that the new survey is returned
+        assert isinstance(new_survey, type(survey))
+
+        # Check that the survey length has decreased
+        assert len(new_survey._questions) == original_length - 1
+
+        # Check that the deleted question is no longer in the survey
+        assert question_to_delete not in new_survey._questions
+
+        # Check that the remaining questions are in the correct order
+        assert new_survey._questions == [q1, q3]
+
+        # # Check that the rule has been updated (q3 should now be at index 1)
+        # assert new_survey._rules == {0: {("like_school == 'no'", 1)}}
+
+        # Check that the memory plan has been updated
+        assert (
+            question_to_delete.question_name
+            not in new_survey.memory_plan.survey_question_names
+        )
+        assert (
+            question_to_delete.question_text
+            not in new_survey.memory_plan.question_texts
+        )
+
+        # If the deleted question was part of any memory, check that it's been removed
+        for memory in new_survey.memory_plan.values():
+            assert question_to_delete.question_name not in memory.prior_questions
+
+        # Generate a new path through the survey to ensure it still works
+        path = new_survey.gen_path_through_survey()
+        first_question = next(path)
+        assert first_question == q1
+
+        # If first question's answer triggers the rule, next question should be q3
+        # if first_question.answer == "no":
+        #     assert next(path) == q3
+        # else:
+        #     # If the rule isn't triggered, the path should be exhausted
+        #     with self.assertRaises(StopIteration):
+        #         next(path)
+
+        # breakpoint()
+        # breakpoint()
+        # survey.show_flow()
+
+        # survey.add_rule(q1, "like_school == 'no'", q3)
+        # self.assertEqual(q3, s.next_question("like_school", {"like_school": "no"}))
+
+        # breakpoint()
+
+    def test_simulations(self):
+        for index in range(10):
+            print("Running simulation:" + str(index))
+            s = Survey.random_survey()
+            s.simulate()
 
 
 if __name__ == "__main__":

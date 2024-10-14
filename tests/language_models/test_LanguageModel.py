@@ -21,17 +21,46 @@ class TestLanguageModel(unittest.TestCase):
     def setUp(self):
         pass
 
+    def test_tokens(self):
+        import random
+
+        random_tpm = random.randint(0, 100)
+        random_tpm = random.randint(0, 100)
+        m = LanguageModel.example()
+        m.set_rate_limits(tpm=random_tpm, rpm=random_tpm)
+        self.assertEqual(m.tpm, random_tpm)
+        self.assertEqual(m.rpm, random_tpm)
+
+        m.rpm = 45
+        self.assertEqual(m.rpm, 45)
+
     def test_execute_model_call(self):
         from edsl.data.Cache import Cache
+
+        example_cache = Cache()
 
         m = LanguageModel.example(test_model=True, canned_response="Hello, world!")
         imco = m._get_intended_model_call_outcome(
             user_prompt="Hello world",
             system_prompt="You are a helpful agent",
-            cache=Cache(),
+            cache=example_cache,
         )
         self.assertEqual(imco.response["message"][0]["text"], "Hello, world!")
         self.assertEqual(imco.cached_response, None)
+
+        self.assertEqual(len(example_cache), 1)
+
+        self.assertEqual(
+            list(example_cache.data.values())[0]["user_prompt"], "Hello world"
+        )
+
+        imco = m._get_intended_model_call_outcome(
+            user_prompt="Hello world",
+            system_prompt="You are a helpful agent",
+            cache=example_cache,
+        )
+
+        self.assertEqual(len(example_cache), 1)
 
     # def test_get_response(self):
     #     from edsl.data.Cache import Cache

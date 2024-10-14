@@ -22,6 +22,7 @@ class QuestionLinearScale(QuestionMultipleChoice):
         option_labels: Optional[dict[int, str]] = None,
         answering_instructions: Optional[str] = None,
         question_presentation: Optional[str] = None,
+        include_comment: Optional[bool] = True,
     ):
         """Instantiate a new QuestionLinearScale.
 
@@ -36,10 +37,11 @@ class QuestionLinearScale(QuestionMultipleChoice):
             question_text=question_text,
             question_options=question_options,
             use_code=False,  # question linear scale will have it's own code
+            include_comment=include_comment,
         )
         self.question_options = question_options
         self.option_labels = (
-            {int(k): v for k, v in option_labels.items()} if option_labels else None
+            {int(k): v for k, v in option_labels.items()} if option_labels else {}
         )
         self.answering_instructions = answering_instructions
         self.question_presentation = question_presentation
@@ -49,13 +51,14 @@ class QuestionLinearScale(QuestionMultipleChoice):
     ################
     @classmethod
     @inject_exception
-    def example(cls) -> QuestionLinearScale:
+    def example(cls, include_comment: bool = True) -> QuestionLinearScale:
         """Return an example of a linear scale question."""
         return cls(
             question_text="How much do you like ice cream?",
             question_options=[1, 2, 3, 4, 5],
             question_name="ice_cream",
             option_labels={1: "I hate it", 5: "I love it"},
+            include_comment=include_comment,
         )
 
 

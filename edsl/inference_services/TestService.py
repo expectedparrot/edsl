@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any, List, Optional
 import os
 import asyncio
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
@@ -7,14 +7,25 @@ from edsl.inference_services.rate_limits_cache import rate_limits
 from edsl.utilities.utilities import fix_partial_correct_response
 
 from edsl.enums import InferenceServiceType
+import random
 
 
 class TestService(InferenceServiceABC):
     """OpenAI service class."""
 
-    key_sequence = None
-    model_exclude_list = []
     _inference_service_ = "test"
+    _env_key_name_ = None
+    _base_url_ = None
+
+    _sync_client_ = None
+    _async_client_ = None
+
+    _sync_client_instance = None
+    _async_client_instance = None
+
+    key_sequence = None
+    usage_sequence = None
+    model_exclude_list = []
     input_token_name = "prompt_tokens"
     output_token_name = "completion_tokens"
 
@@ -45,27 +56,34 @@ class TestService(InferenceServiceABC):
                     return "Hello, world"
 
             async def async_execute_model_call(
-                self, user_prompt: str, system_prompt: str
+                self,
+                user_prompt: str,
+                system_prompt: str,
+                # func: Optional[callable] = None,
+                files_list: Optional[List["File"]] = None,
             ) -> dict[str, Any]:
                 await asyncio.sleep(0.1)
                 # return {"message": """{"answer": "Hello, world"}"""}
+
+                if hasattr(self, "func"):
+                    return {
+                        "message": [
+                            {"text": self.func(user_prompt, system_prompt, files_list)}
+                        ],
+                        "usage": {"prompt_tokens": 1, "completion_tokens": 1},
+                    }
+
                 if hasattr(self, "throw_exception") and self.throw_exception:
-                    raise Exception("This is a test error")
+                    if hasattr(self, "exception_probability"):
+                        p = self.exception_probability
+                    else:
+                        p = 1
+
+                    if random.random() < p:
+                        raise Exception("This is a test error")
                 return {
                     "message": [{"text": f"{self._canned_response}"}],
                     "usage": {"prompt_tokens": 1, "completion_tokens": 1},
                 }
 
         return TestServiceLanguageModel
-
-    # _inference_service_ = "openai"
-    # _env_key_name_ = "OPENAI_API_KEY"
-    # _base_url_ = None
-
-    # _sync_client_ = openai.OpenAI
-    # _async_client_ = openai.AsyncOpenAI
-
-    # _sync_client_instance = None
-    # _async_client_instance = None
-
-    # key_sequence = ["choices", 0, "message", "content"]

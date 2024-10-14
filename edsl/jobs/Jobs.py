@@ -145,14 +145,21 @@ class Jobs(Base):
         >>> Jobs.example().prompts()
         Dataset(...)
         """
+        from edsl import Coop
+
+        c = Coop()
+        price_lookup = c.fetch_prices()
 
         interviews = self.interviews()
         # data = []
         interview_indices = []
-        question_indices = []
+        question_names = []
         user_prompts = []
         system_prompts = []
         scenario_indices = []
+        agent_indices = []
+        models = []
+        costs = []
         from edsl.results.Dataset import Dataset
 
         for interview_index, interview in enumerate(interviews):
@@ -160,23 +167,97 @@ class Jobs(Base):
                 interview._get_invigilator(question)
                 for question in self.survey.questions
             ]
-            # list(interview._build_invigilators(debug=False))
             for _, invigilator in enumerate(invigilators):
                 prompts = invigilator.get_prompts()
-                user_prompts.append(prompts["user_prompt"])
-                system_prompts.append(prompts["system_prompt"])
+                user_prompt = prompts["user_prompt"]
+                system_prompt = prompts["system_prompt"]
+                user_prompts.append(user_prompt)
+                system_prompts.append(system_prompt)
+                agent_index = self.agents.index(invigilator.agent)
+                agent_indices.append(agent_index)
                 interview_indices.append(interview_index)
-                scenario_indices.append(invigilator.scenario)
-                question_indices.append(invigilator.question.question_name)
-        return Dataset(
+                scenario_index = self.scenarios.index(invigilator.scenario)
+                scenario_indices.append(scenario_index)
+                models.append(invigilator.model.model)
+                question_names.append(invigilator.question.question_name)
+                # cost calculation
+                key = (invigilator.model._inference_service_, invigilator.model.model)
+                relevant_prices = price_lookup[key]
+                inverse_output_price = relevant_prices["output"]["one_usd_buys"]
+                inverse_input_price = relevant_prices["input"]["one_usd_buys"]
+                input_tokens = len(str(user_prompt) + str(system_prompt)) // 4
+                output_tokens = len(str(user_prompt) + str(system_prompt)) // 4
+                cost = input_tokens / float(
+                    inverse_input_price
+                ) + output_tokens / float(inverse_output_price)
+                costs.append(cost)
+
+        d = Dataset(
             [
-                {"interview_index": interview_indices},
-                {"question_index": question_indices},
                 {"user_prompt": user_prompts},
-                {"scenario_index": scenario_indices},
                 {"system_prompt": system_prompts},
+                {"interview_index": interview_indices},
+                {"question_name": question_names},
+                {"scenario_index": scenario_indices},
+                {"agent_index": agent_indices},
+                {"model": models},
+                {"estimated_cost": costs},
             ]
         )
+        return d
+        # if table:
+        #     d.to_scenario_list().print(format="rich")
+        # else:
+        #     return d
+
+    def show_prompts(self) -> None:
+        """Print the prompts."""
+        self.prompts().to_scenario_list().print(format="rich")
+
+    def estimate_job_cost(self):
+        from edsl import Coop
+
+        c = Coop()
+        price_lookup = c.fetch_prices()
+
+        prompts = self.prompts()
+
+        text_len = 0
+        for prompt in prompts:
+            text_len += len(str(prompt))
+
+        input_token_aproximations = text_len // 4
+
+        aproximation_cost = {}
+        total_cost = 0
+        for model in self.models:
+            key = (model._inference_service_, model.model)
+            relevant_prices = price_lookup[key]
+            inverse_output_price = relevant_prices["output"]["one_usd_buys"]
+            inverse_input_price = relevant_prices["input"]["one_usd_buys"]
+
+            aproximation_cost[key] = {
+                "input": input_token_aproximations / float(inverse_input_price),
+                "output": input_token_aproximations / float(inverse_output_price),
+            }
+            ##TODO curenlty we approximate the number of output tokens with the number
+            # of input tokens. A better solution will be to compute the quesiton answer options length and sum them
+            # to compute the output tokens
+
+            total_cost += input_token_aproximations / float(inverse_input_price)
+            total_cost += input_token_aproximations / float(inverse_output_price)
+
+        # multiply_factor = len(self.agents or [1]) * len(self.scenarios or [1])
+        multiply_factor = 1
+        out = {
+            "input_token_aproximations": input_token_aproximations,
+            "models_costs": aproximation_cost,
+            "estimated_total_cost": total_cost * multiply_factor,
+            "multiply_factor": multiply_factor,
+            "single_config_cost": total_cost,
+        }
+
+        return out
 
     @staticmethod
     def _get_container_class(object):
@@ -460,6 +541,12 @@ class Jobs(Base):
                 if warn:
                     warnings.warn(message)
 
+        if self.scenarios.has_jinja_braces:
+            warnings.warn(
+                "The scenarios have Jinja braces ({{ and }}). Converting to '<<' and '>>'. If you want a different conversion, use the convert_jinja_braces method first to modify the scenario."
+            )
+            self.scenarios = self.scenarios.convert_jinja_braces()
+
     @property
     def skip_retry(self):
         if not hasattr(self, "_skip_retry"):
@@ -486,6 +573,7 @@ class Jobs(Base):
         remote_inference_description: Optional[str] = None,
         skip_retry: bool = False,
         raise_validation_errors: bool = False,
+        disable_remote_inference: bool = False,
     ) -> Results:
         """
         Runs the Job: conducts Interviews and returns their results.
@@ -508,14 +596,17 @@ class Jobs(Base):
 
         self.verbose = verbose
 
-        try:
-            coop = Coop()
-            user_edsl_settings = coop.edsl_settings
-            remote_cache = user_edsl_settings["remote_caching"]
-            remote_inference = user_edsl_settings["remote_inference"]
-        except Exception:
-            remote_cache = False
-            remote_inference = False
+        remote_cache = False
+        remote_inference = False
+
+        if not disable_remote_inference:
+            try:
+                coop = Coop()
+                user_edsl_settings = Coop().edsl_settings
+                remote_cache = user_edsl_settings.get("remote_caching", False)
+                remote_inference = user_edsl_settings.get("remote_inference", False)
+            except Exception:
+                pass
 
         if remote_inference:
             import time

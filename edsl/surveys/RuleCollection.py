@@ -120,13 +120,13 @@ class RuleCollection(UserList):
         :param answers: The answers to the survey questions.
 
         >>> rule_collection = RuleCollection()
-        >>> r = Rule(current_q=1, expression="True", next_q=1, priority=1, question_name_to_index={}, before_rule = True)
+        >>> r = Rule(current_q=1, expression="True", next_q=2, priority=1, question_name_to_index={}, before_rule = True)
         >>> rule_collection.add_rule(r)
         >>> rule_collection.skip_question_before_running(1, {})
         True
 
         >>> rule_collection = RuleCollection()
-        >>> r = Rule(current_q=1, expression="False", next_q=1, priority=1, question_name_to_index={}, before_rule = True)
+        >>> r = Rule(current_q=1, expression="False", next_q=2, priority=1, question_name_to_index={}, before_rule = True)
         >>> rule_collection.add_rule(r)
         >>> rule_collection.skip_question_before_running(1, {})
         False
@@ -172,7 +172,8 @@ class RuleCollection(UserList):
 
     def next_question(self, q_now: int, answers: dict[str, Any]) -> NextQuestion:
         """Find the next question by index, given the rule collection.
-        This rule is applied after the question is asked.
+
+        This rule is applied after the question is answered.
 
         :param q_now: The current question index.
         :param answers: The answers to the survey questions so far, including the current question.
@@ -182,8 +183,17 @@ class RuleCollection(UserList):
         NextQuestion(next_q=3, num_rules_found=2, expressions_evaluating_to_true=1, priority=1)
 
         """
-        # What rules apply at the current node?
+        # # is this the first question? If it is, we need to check if it should be skipped.
+        # if q_now == 0:
+        #     if self.skip_question_before_running(q_now, answers):
+        #         return NextQuestion(
+        #             next_q=q_now + 1,
+        #             num_rules_found=0,
+        #             expressions_evaluating_to_true=0,
+        #             priority=-1,
+        #         )
 
+        # breakpoint()
         expressions_evaluating_to_true = 0
         next_q = None
         highest_priority = -2  # start with -2 to 'pick up' the default rule added
@@ -204,6 +214,12 @@ class RuleCollection(UserList):
             raise SurveyRuleCollectionHasNoRulesAtNodeError(
                 f"No rules found for question {q_now}"
             )
+
+        # breakpoint()
+        ## Now we need to check if the *next question* has any 'before; rules that we should follow
+        for rule in self.applicable_rules(next_q, before_rule=True):
+            if rule.evaluate(answers):  # rule evaluates to True
+                return self.next_question(next_q, answers)
 
         return NextQuestion(
             next_q, num_rules_found, expressions_evaluating_to_true, highest_priority
@@ -304,6 +320,40 @@ class RuleCollection(UserList):
                     children_to_parents[focal_q].add(q)
 
         return DAG(dict(sorted(children_to_parents.items())))
+
+    def detect_cycles(self):
+        """
+        Detect cycles in the survey rules using depth-first search.
+
+        :return: A list of cycles if any are found, otherwise an empty list.
+        """
+        dag = self.dag
+        visited = set()
+        path = []
+        cycles = []
+
+        def dfs(node):
+            if node in path:
+                cycle = path[path.index(node) :]
+                cycles.append(cycle + [node])
+                return
+
+            if node in visited:
+                return
+
+            visited.add(node)
+            path.append(node)
+
+            for child in dag.get(node, []):
+                dfs(child)
+
+            path.pop()
+
+        for node in dag:
+            if node not in visited:
+                dfs(node)
+
+        return cycles
 
     @classmethod
     def example(cls):

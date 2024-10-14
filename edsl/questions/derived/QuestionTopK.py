@@ -20,6 +20,7 @@ class QuestionTopK(QuestionCheckBox):
         max_selections: int,
         question_presentation: Optional[str] = None,
         answering_instructions: Optional[str] = None,
+        include_comment: Optional[bool] = True,
     ):
         """Initialize the question.
 
@@ -37,6 +38,7 @@ class QuestionTopK(QuestionCheckBox):
             max_selections=max_selections,
             question_presentation=question_presentation,
             answering_instructions=answering_instructions,
+            include_comment=include_comment,
         )
         if min_selections != max_selections:
             raise QuestionCreationValidationError(
@@ -52,7 +54,7 @@ class QuestionTopK(QuestionCheckBox):
     ################
     @classmethod
     @inject_exception
-    def example(cls) -> QuestionTopK:
+    def example(cls, include_comment: bool = True) -> QuestionTopK:
         """Return an example question."""
         return cls(
             question_name="two_fruits",
@@ -60,6 +62,7 @@ class QuestionTopK(QuestionCheckBox):
             question_options=["apple", "banana", "carrot", "durian"],
             min_selections=2,
             max_selections=2,
+            include_comment=include_comment,
         )
 
 

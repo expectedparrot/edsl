@@ -1,14 +1,27 @@
 from abc import abstractmethod, ABC
-from typing import Any
+import os
 import re
 from edsl.config import CONFIG
 
 
 class InferenceServiceABC(ABC):
-    """Abstract class for inference services."""
+    """
+    Abstract class for inference services.
+    Anthropic: https://docs.anthropic.com/en/api/rate-limits
+    """
 
-    # check if child class has cls attribute "key_sequence"
+    default_levels = {
+        "google": {"tpm": 2_000_000, "rpm": 15},
+        "openai": {"tpm": 2_000_000, "rpm": 10_000},
+        "anthropic": {"tpm": 2_000_000, "rpm": 500},
+    }
+
     def __init_subclass__(cls):
+        """
+        Check that the subclass has the required attributes.
+        - `key_sequence` attribute determines...
+        - `model_exclude_list` attribute determines...
+        """
         if not hasattr(cls, "key_sequence"):
             raise NotImplementedError(
                 f"Class {cls.__name__} must have a 'key_sequence' attribute."
@@ -18,29 +31,47 @@ class InferenceServiceABC(ABC):
                 f"Class {cls.__name__} must have a 'model_exclude_list' attribute."
             )
 
-    def get_tpm(cls):
-        key = f"EDSL_SERVICE_TPM_{cls._inference_service_.upper()}"
-        if key not in CONFIG:
-            key = "EDSL_SERVICE_TPM_BASELINE"
-        return int(CONFIG.get(key))
+    @classmethod
+    def _get_limt(cls, limit_type: str) -> int:
+        key = f"EDSL_SERVICE_{limit_type.upper()}_{cls._inference_service_.upper()}"
+        if key in os.environ:
+            return int(os.getenv(key))
+
+        if cls._inference_service_ in cls.default_levels:
+            return int(cls.default_levels[cls._inference_service_][limit_type])
+
+        return int(CONFIG.get(f"EDSL_SERVICE_{limit_type.upper()}_BASELINE"))
+
+    def get_tpm(cls) -> int:
+        """
+        Returns the TPM for the service. If the service is not defined in the environment variables, it will return the baseline TPM.
+        """
+        return cls._get_limt(limit_type="tpm")
 
     def get_rpm(cls):
-        key = f"EDSL_SERVICE_RPM_{cls._inference_service_.upper()}"
-        if key not in CONFIG:
-            key = "EDSL_SERVICE_RPM_BASELINE"
-        return int(CONFIG.get(key))
+        """
+        Returns the RPM for the service. If the service is not defined in the environment variables, it will return the baseline RPM.
+        """
+        return cls._get_limt(limit_type="rpm")
 
     @abstractmethod
     def available() -> list[str]:
+        """
+        Returns a list of available models for the service.
+        """
         pass
 
     @abstractmethod
     def create_model():
+        """
+        Returns a LanguageModel object.
+        """
         pass
 
     @staticmethod
     def to_class_name(s):
-        """Convert a string to a valid class name.
+        """
+        Converts a string to a valid class name.
 
         >>> InferenceServiceABC.to_class_name("hello world")
         'HelloWorld'
