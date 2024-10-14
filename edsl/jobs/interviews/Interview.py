@@ -3,6 +3,7 @@
 from __future__ import annotations
 import asyncio
 from typing import Any, Type, List, Generator, Optional, Union
+import copy
 
 from tenacity import (
     retry,
@@ -99,7 +100,9 @@ class Interview(InterviewStatusMixin):
 
         """
         self.agent = agent
-        self.survey = survey
+        # what I would like to do
+        self.survey = copy.deepcopy(survey)  # survey  copy.deepcopy(survey)
+        # self.survey = survey
         self.scenario = scenario
         self.model = model
         self.debug = debug
