@@ -490,7 +490,7 @@ class LanguageModel(
                 "user_prompt": user_prompt,
                 "system_prompt": system_prompt,
                 "files_list": files_list
-                #**({"encoded_image": encoded_image} if encoded_image else {}),
+                # **({"encoded_image": encoded_image} if encoded_image else {}),
             }
             # response = await f(**params)
             response = await asyncio.wait_for(f(**params), timeout=TIMEOUT)
@@ -534,7 +534,7 @@ class LanguageModel(
         system_prompt: str,
         cache: "Cache",
         iteration: int = 1,
-        files_list: Optional[List['File']] = None,
+        files_list: Optional[List["File"]] = None,
     ) -> dict:
         """Get response, parse, and return as string.
 
