@@ -194,6 +194,7 @@ Information about additional functionality for developers.
    :hidden:
 
    notebooks/edsl_intro.ipynb
+   notebooks/import_agents.ipynb
    notebooks/yoga_studio_name_survey.ipynb
    notebooks/data_labeling_example.ipynb
    notebooks/data_cleaning.ipynb
