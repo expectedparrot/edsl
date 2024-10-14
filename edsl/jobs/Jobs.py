@@ -137,7 +137,7 @@ class Jobs(Base):
         setattr(self, objects_key, new_objects)  # update the job
         return self
 
-    def prompts(self, table=True) -> "Dataset":
+    def prompts(self) -> "Dataset":
         """Return a Dataset of prompts that will be used.
 
 
@@ -204,10 +204,15 @@ class Jobs(Base):
                 {"estimated_cost": costs},
             ]
         )
-        if table:
-            d.to_scenario_list().print(format="rich")
-        else:
-            return d
+        return d
+        # if table:
+        #     d.to_scenario_list().print(format="rich")
+        # else:
+        #     return d
+
+    def show_prompts(self) -> None:
+        """Print the prompts."""
+        self.prompts().to_scenario_list().print(format="rich")
 
     def estimate_job_cost(self):
         from edsl import Coop
@@ -215,7 +220,7 @@ class Jobs(Base):
         c = Coop()
         price_lookup = c.fetch_prices()
 
-        prompts = self.prompts(table=False)
+        prompts = self.prompts()
 
         text_len = 0
         for prompt in prompts:
