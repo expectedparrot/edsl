@@ -1,14 +1,22 @@
 # Changelog
 
-## [0.1.34] - TBD (in progress)
+## [0.1.35] - TBD
 ### Added
+### Changed
+### Fixed
 
+
+## [0.1.34] - 2024-10-15
+### Added
 - Survey Builder is a new interface for creating and launching hybrid human-AI surveys. It is fully integrated with EDSL and Coop. Get access by activating beta features from your Coop account profile page. Learn more: https://docs.expectedparrot.com/en/latest/survey_builder.html
+
+- `Jobs` method `show_prompts()` returns a table showing the user and system prompts that will be used with a survey, together with information about the agent and model and estimated cost for each interview. `Jobs` method `prompts` returns the information in a dataset.
 
 - `Scenario` objects can contain multiple images to be presented to a model at once (works with Google models).
 
-### Changed
 ### Fixed
+- Bug in piping a `ScenarioList` containing multiple lists of `question_options` to use with questions.
+
 
 ## [0.1.33] - 2024-09-26
 ### Added 
