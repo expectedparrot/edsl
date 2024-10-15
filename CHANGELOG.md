@@ -4,8 +4,7 @@
 ### Added
 - Survey Builder is a new interface for creating and launching hybrid human-AI surveys, accessible from your Coop account. Request access to the beta version: info@expectedparrot.com
 
-- `Jobs` method `show_prompts`
-- `Jobs` method `prompts` returns a dataset; `job.prompts().print(format="rich")
+- `Jobs` method `show_prompts()` returns a table showing the user and system prompts that will be used with a survey, together with information about the agent and model and estimated cost for each interview. `Jobs` method `prompts` returns the information in a dataset.
 
 - `Scenario` objects can contain multiple images to be presented to a model at once (works with Google models).
 
