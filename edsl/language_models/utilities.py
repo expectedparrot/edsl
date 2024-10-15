@@ -40,8 +40,10 @@ def create_language_model(
         _tpm = 1000000000000
 
         async def async_execute_model_call(
-            self, user_prompt: str, system_prompt: str, 
-            files_list: Optional[List[Any]] = None
+            self,
+            user_prompt: str,
+            system_prompt: str,
+            files_list: Optional[List[Any]] = None,
         ) -> dict[str, Any]:
             question_number = int(
                 user_prompt.split("XX")[1]
