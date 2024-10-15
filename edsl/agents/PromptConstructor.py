@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Dict, Any, Optional, Set
 from collections import UserList
-import enum
+import pdb
 
 from jinja2 import Environment, meta
 
@@ -197,14 +197,15 @@ class PromptConstructor:
                     self.question.question_options = question_options
 
                 # might be getting it from the prior answers
-                if isinstance(
-                    question_options := self.prior_answers_dict()
-                    .get(question_option_key)
-                    .answer,
-                    list,
-                ):
-                    question_data["question_options"] = question_options
-                    self.question.question_options = question_options
+                if self.prior_answers_dict().get(question_option_key) is not None:
+                    if isinstance(
+                        question_options := self.prior_answers_dict()
+                        .get(question_option_key)
+                        .answer,
+                        list,
+                    ):
+                        question_data["question_options"] = question_options
+                        self.question.question_options = question_options
 
             replacement_dict = (
                 {key: f"<see file {key}>" for key in self.scenario_file_keys}
