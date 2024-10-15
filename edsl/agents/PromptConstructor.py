@@ -172,9 +172,6 @@ class PromptConstructor:
         """
         # The user might have passed a custom prompt, which would be stored in _question_instructions_prompt
         if not hasattr(self, "_question_instructions_prompt"):
-
-            # pdb.set_trace()
-
             # Gets the instructions for the question - this is how the question should be answered
             question_prompt = self.question.get_instructions(model=self.model.model)
 
