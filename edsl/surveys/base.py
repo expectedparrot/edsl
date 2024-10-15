@@ -36,6 +36,10 @@ class EndOfSurveyParent:
         """
         return self
 
+    def __deepcopy__(self, memo):
+        # Return the same instance when deepcopy is called
+        return self
+
     def __radd__(self, other):
         """Add the object to another object.
 
