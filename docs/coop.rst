@@ -220,7 +220,7 @@ For each `patch()` method, pass the `uuid` of the object and the parameter(s) th
 **At the Coop web app**
 You can manually update the `description` or `visibility` of an object at the Coop web app:
 
-Navigate to **Content** and select an object: https://www.expectedparrot.com/content/ 
+Navigate to **Content** and select an object: https://www.expectedparrot.com/content
 
 .. image:: static/coop_content.png
   :alt: Select an object on the Coop
