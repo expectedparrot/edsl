@@ -105,7 +105,7 @@ By default, objects are posted as *unlisted*.
 See below for details on setting and changing the visibility of an object.
 
 
-7. Explore content
+6. Explore content
 ^^^^^^^^^^^^^^^^^^
 
 Search for other users' public or privately shared content by object type, keyword, author, topic, etc.
@@ -147,9 +147,9 @@ We can see that the object is `unlisted` by default:
 
   {'description': None,
   'object_type': 'question',
-  'url': 'https://www.expectedparrot.com/content/1234abcd-abcd-1234-abcd-1234abcd1234',
-  'uuid': '1234abcd-abcd-1234-abcd-1234abcd1234',
-  'version': '0.1.30',
+  'url': 'https://www.expectedparrot.com/content/c543744e-08a2-48a1-a021-bfc292bac1b3',
+  'uuid': 'c543744e-08a2-48a1-a021-bfc292bac1b3',
+  'version': '0.1.34',
   'visibility': 'unlisted'}
 
 
@@ -169,9 +169,9 @@ We can see the description and visibility status that we specified in the inform
 
   {'description': 'This is an example question',
   'object_type': 'question',
-  'url': 'https://www.expectedparrot.com/content/1234abcd-abcd-1234-abcd-1234abcd1234',
-  'uuid': '1234abcd-abcd-1234-abcd-1234abcd1234',
-  'version': '0.1.30',
+  'url': 'https://www.expectedparrot.com/content/9c628bc6-d2ec-4160-85e0-f8aa3aae4aa1',
+  'uuid': '9c628bc6-d2ec-4160-85e0-f8aa3aae4aa1',
+  'version': '0.1.34',
   'visibility': 'public'}
 
 
@@ -210,19 +210,17 @@ There are 3 methods for updating/editing an object to the Coop:
 2. Calling the `patch()` method on the object directly
 3. Calling the `patch()` method on a `Coop` client object  
 
-For each `patch()` method, pass the `uuid` of the object and the parameter(s) that you want to update: 
+For each `patch()` method, pass the `uuid` of the object and the parameter(s) that you want to update: `description`, `visibility` and/or `value`.
 
-* `description` 
-* `visibility`
-* `value`
-
-The `value` parameter is used to update the content of an object, such as the text of a question or the code in a notebook.
+* The `description` parameter is used to update the description of an object, such as a question or survey.
+* The `visibility` parameter is used to update the visibility of an object: *public*, *private* or *unlisted*.
+* The `value` parameter is used to update the content of an object, such as the text of a question or the code in a notebook.
 
 
 **At the Coop web app**
 You can manually update the `description` or `visibility` of an object at the Coop web app:
 
-Navigate to **My Content** and select an object: https://www.expectedparrot.com/content/ 
+Navigate to **Content** and select an object: https://www.expectedparrot.com/content/ 
 
 .. image:: static/coop_content.png
   :alt: Select an object on the Coop
