@@ -275,7 +275,7 @@ Here we update the `description` and `visibility` of the question created and up
 
 .. code-block:: python
 
-  q.patch(uuid="1234abcd-abcd-1234-abcd-1234abcd1234",
+  q.patch(uuid="c543744e-08a2-48a1-a021-bfc292bac1b3",
           description="This is an updated question", 
           visibility="public")  
 
@@ -294,7 +294,7 @@ Here we change the question itself by modifying the `value` parameter:
   from edsl import QuestionFreeText
   
   new_q = QuestionFreeText.example()
-  q.patch(uuid="1234abcd-abcd-1234-abcd-1234abcd1234",
+  q.patch(uuid="c543744e-08a2-48a1-a021-bfc292bac1b3",
           value=new_q)  
 
 
@@ -306,7 +306,7 @@ Here we do the same using a `Coop` client object:
   from edsl import Coop
 
   c = Coop()  
-  c.patch(uuid="1234abcd-abcd-1234-abcd-1234abcd1234",
+  c.patch(uuid="c543744e-08a2-48a1-a021-bfc292bac1b3",
           description="This is an updated question",
           visibility="public")  
 
@@ -363,7 +363,7 @@ Here we download the question posted above by calling the `pull()` method on the
 
   from edsl import Question
 
-  q = Question.pull("1234abcd-abcd-1234-abcd-1234abcd1234")
+  q = Question.pull("c543744e-08a2-48a1-a021-bfc292bac1b3")
   q
 
 
@@ -386,7 +386,7 @@ Here we download the question by calling the `get()` method on a `Coop` client o
   from edsl import Coop
 
   c = Coop()
-  q = c.get(uuid="1234abcd-abcd-1234-abcd-1234abcd1234")
+  q = c.get(uuid="c543744e-08a2-48a1-a021-bfc292bac1b3")
   q
 
 
@@ -405,8 +405,8 @@ There are 3 methods for deleting an object from the Coop:
 **At the Coop web app**
 You can manually delete objects at the Coop web app:
 
-* Navigate to **My Content** and select an object: https://www.expectedparrot.com/content/ (see image above for *Uploading* content)
-* Go to the object's page (double-click on the object) (see image above for *Uploading* content)
+* Navigate to **Content** and select an object: https://www.expectedparrot.com/content/ (see image above for *Uploading* content)
+* Go to the object's page (double-click on the object) 
 * Select the option to **delete** the object:
 
 .. image:: static/coop_object_page_view_delete.png
@@ -421,7 +421,7 @@ You can manually delete objects at the Coop web app:
 
 
 **Directly**
-Here we delete the question object that we posted above by calling the `delete()` method on the class of the object (`Question`) and passing the `uuid` of the object:
+Here we delete a question object by calling the `delete()` method on the class of the object (`Question`) and passing the `uuid` of the object:
 
 .. code-block:: python
 
@@ -438,7 +438,7 @@ This will return a status message:
 
 
 **Using a Coop client**
-Here we delete the question by calling the `delete()` method on a `Coop` client object, passing the `uuid` of the object:
+Here we delete a question by calling the `delete()` method on a `Coop` client object, passing the `uuid` of the object:
 
 .. code-block:: python
 
