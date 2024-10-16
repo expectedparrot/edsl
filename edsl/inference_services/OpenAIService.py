@@ -188,12 +188,16 @@ class OpenAIService(InferenceServiceABC):
                 else:
                     content = user_prompt
                 client = self.async_client()
+
                 messages = [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": content},
                 ]
-                if system_prompt == "" and self.omit_system_prompt_if_empty:
+                if (
+                    system_prompt == "" and self.omit_system_prompt_if_empty
+                ) or "o1" in self.model:
                     messages = messages[1:]
+
                 params = {
                     "model": self.model,
                     "messages": messages,
@@ -205,7 +209,14 @@ class OpenAIService(InferenceServiceABC):
                     "logprobs": self.logprobs,
                     "top_logprobs": self.top_logprobs if self.logprobs else None,
                 }
-                response = await client.chat.completions.create(**params)
+                if "o1" in self.model:
+                    params.pop("max_tokens")
+                    params["max_completion_tokens"] = self.max_tokens
+                    params["temperature"] = 1
+                try:
+                    response = await client.chat.completions.create(**params)
+                except Exception as e:
+                    print(e)
                 return response.model_dump()
 
         LLM.__name__ = "LanguageModel"
