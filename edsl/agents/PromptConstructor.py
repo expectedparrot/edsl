@@ -241,10 +241,13 @@ class PromptConstructor:
                     )
 
             if undefined_template_variables:
-                # breakpoint()
-                raise QuestionScenarioRenderError(
-                    f"Question instructions still has variables: {undefined_template_variables}."
-                )
+                msg = f"Question instructions still has variables: {undefined_template_variables}."
+                import warnings
+
+                warnings.warn(msg)
+                # raise QuestionScenarioRenderError(
+                #     f"Question instructions still has variables: {undefined_template_variables}."
+                # )
 
             ####################################
             # Check if question has instructions - these are instructions in a Survey that can apply to multiple follow-on questions
