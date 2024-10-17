@@ -85,9 +85,7 @@ class PromptConstructor:
         >>> from edsl.agents.InvigilatorBase import InvigilatorBase
         >>> i = InvigilatorBase.example()
         >>> i.prompt_constructor.agent_persona_prompt
-        Prompt(text=\"""You are an agent with the following persona:
-        {'age': 22, 'hair': 'brown', 'height': 5.5}\""")
-
+        Prompt(text=\"""Your traits: {'age': 22, 'hair': 'brown', 'height': 5.5}\""")
         """
         from edsl import Agent
 
