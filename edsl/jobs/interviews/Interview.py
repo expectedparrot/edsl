@@ -28,7 +28,7 @@ from edsl.jobs.interviews.InterviewExceptionCollection import (
     InterviewExceptionCollection,
 )
 
-from edsl.jobs.interviews.InterviewStatusMixin import InterviewStatusMixin
+# from edsl.jobs.interviews.InterviewStatusMixin import InterviewStatusMixin
 
 from edsl.surveys.base import EndOfSurvey
 from edsl.jobs.buckets.ModelBuckets import ModelBuckets
@@ -56,7 +56,7 @@ EDSL_BACKOFF_MAX_SEC = float(CONFIG.get("EDSL_BACKOFF_MAX_SEC"))
 EDSL_MAX_ATTEMPTS = int(CONFIG.get("EDSL_MAX_ATTEMPTS"))
 
 
-class Interview(InterviewStatusMixin):
+class Interview:
     """
     An 'interview' is one agent answering one survey, with one language model, for a given scenario.
 

@@ -281,6 +281,7 @@ class PromptBase(
         try:
             previous_text = None
             for _ in range(MAX_NESTING):
+                # breakpoint()
                 rendered_text = env.from_string(text).render(
                     primary_replacement, **additional_replacements
                 )
