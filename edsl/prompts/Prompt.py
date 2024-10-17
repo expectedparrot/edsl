@@ -359,15 +359,15 @@ if __name__ == "__main__":
 
     doctest.testmod()
 
-from edsl.prompts.library.question_multiple_choice import *
-from edsl.prompts.library.agent_instructions import *
-from edsl.prompts.library.agent_persona import *
+# from edsl.prompts.library.question_multiple_choice import *
+# from edsl.prompts.library.agent_instructions import *
+# from edsl.prompts.library.agent_persona import *
 
-from edsl.prompts.library.question_budget import *
-from edsl.prompts.library.question_checkbox import *
-from edsl.prompts.library.question_freetext import *
-from edsl.prompts.library.question_linear_scale import *
-from edsl.prompts.library.question_numerical import *
-from edsl.prompts.library.question_rank import *
-from edsl.prompts.library.question_extract import *
-from edsl.prompts.library.question_list import *
+# from edsl.prompts.library.question_budget import *
+# from edsl.prompts.library.question_checkbox import *
+# from edsl.prompts.library.question_freetext import *
+# from edsl.prompts.library.question_linear_scale import *
+# from edsl.prompts.library.question_numerical import *
+# from edsl.prompts.library.question_rank import *
+# from edsl.prompts.library.question_extract import *
+# from edsl.prompts.library.question_list import *
