@@ -1,7 +1,7 @@
 .. _remote_inference:
 
 Remote Inference
-=================
+================
 
 Remote inference allows you to run EDSL surveys on the Expected Parrot server instead of your local machine.
 
