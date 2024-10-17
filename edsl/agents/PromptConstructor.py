@@ -7,7 +7,8 @@ from jinja2 import Environment, meta
 
 from edsl.prompts.Prompt import Prompt
 from edsl.data_transfer_models import ImageInfo
-from edsl.prompts.registry import get_classes as prompt_lookup
+
+# from edsl.prompts.registry import get_classes as prompt_lookup
 from edsl.exceptions import QuestionScenarioRenderError
 
 from edsl.agents.prompt_helpers import PromptComponent, PromptList, PromptPlan
