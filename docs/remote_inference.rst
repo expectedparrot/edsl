@@ -9,52 +9,33 @@ Remote inference allows you to run EDSL surveys on the Expected Parrot server in
 Activating remote inference
 ---------------------------
 
-1. Create a `Coop account <https://www.expectedparrot.com/login>`_. (Learn more about Coop features in the :ref:`coop` section.)
+1. Create a `Coop account <https://www.expectedparrot.com/login>`_. Learn more about Coop features in the :ref:`coop` section.
 
-2. Navigate to your `Coop API <https://www.expectedparrot.com/home/api>`_ settings page:
+2. Navigate to the `API Settings <a href="https://www.expectedparrot.com/home/api>`_ page of your account and copy your Expected Parrot API key.
 
-.. image:: static/coop_main_page.png
-  :alt: Coop main page
+.. image:: static/coop_api_key.png
+  :alt: Copy your Expected Parrot API key
   :align: center
-  :width: 500px
+  :width: 300px
+  
 
 .. raw:: html
-  
-    <br>
+
+  <br><br>
 
 
-3. Copy your **Expected Parrot API key**:
-
-.. image:: static/coop_ep_key.png
-  :alt: Coop main page
-  :align: center
-  :width: 500px
-
-.. raw:: html
-  
-    <br>
-
-
-Save it to a *.env* file in your working directory. 
-Your *.env* file should include the following line (replace `your_key_here` with your actual Expected Parrot API key):
+Then add the following line to your `.env` file in your `edsl` working directory (the same file where you store :ref:`api_keys` for language models that you use locally with EDSL):
 
 .. code-block:: python
 
-  EXPECTED_PARROT_API_KEY='your_key_here'
+  EXPECTED_PARROT_API_KEY='your_api_key_here'
 
 
+This will save your Expected Parrot API key as an environment variable that EDSL can access.
+You can regenerate your key (and update your `.env` file) at any time.
 
-4. Locate your **EDSL Settings** and toggle the slider for *Remote inference* to turn it on:
 
-.. image:: static/coop_edsl_settings_remote_inference.png
-  :alt: Remote inference toggle on the Coop web app
-  :align: center
-  :width: 500px
-
-.. raw:: html
-
-    <br>
-
+3. Toggle the slider for *Remote inference* to turn it on (also at your `API Settings <a href="https://www.expectedparrot.com/home/api>`_ page).
 
 When remote inference is on, surveys that you run will be sent to the Expected Parrot server for processing.
 
@@ -139,21 +120,6 @@ and passing the UUID assigned when the job was run:
   coop = Coop()
 
   coop.remote_cache_get("1234abcd-abcd-1234-abcd-1234abcd1234")
-
-
-Output:
-
-.. code-block:: python
-
-  {
-    "jobs_uuid": "1234abcd-abcd-1234-abcd-1234abcd1234",
-    "results_uuid": "5678wxyz-wxyz-5678-wxyz-5678wxyz5678",
-    "results_url": "https://www.expectedparrot.com/content/5678wxyz-wxyz-5678-wxyz-5678wxyz5678",
-    "status": "completed",
-    "reason": None,
-    "price": 2,
-    "version": "0.1.31",
-  }
 
 
 Job history
