@@ -39,6 +39,15 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             super().__init__([])
         self.codebook = codebook or {}
 
+    def unique(self) -> ScenarioList:
+        """Return a list of unique scenarios.
+
+        >>> s = ScenarioList([Scenario({'a': 1}), Scenario({'a': 1}), Scenario({'a': 2})])
+        >>> s.unique()
+        ScenarioList([Scenario({'a': 1}), Scenario({'a': 2})])
+        """
+        return ScenarioList(list(set(self)))
+
     @property
     def has_jinja_braces(self) -> bool:
         """Check if the ScenarioList has Jinja braces."""
