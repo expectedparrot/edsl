@@ -99,45 +99,44 @@ class PromptConstructor:
         """
         from edsl import Agent
 
-        if hasattr(self, "_agent_persona_prompt"):
-            return self._agent_persona_prompt
-
         if self.agent == Agent():  # if agent is empty, then return an empty prompt
             return Prompt(text="")
 
-        if not hasattr(self.agent, "agent_persona"):
-            applicable_prompts = prompt_lookup(
-                component_type="agent_persona",
-                model=self.model.model,
-            )
-            persona_prompt_template = applicable_prompts[0]()
-        else:
-            persona_prompt_template = self.agent.agent_persona
+        return self.agent.prompt()
 
-        # TODO: This multiple passing of agent traits - not sure if it is necessary. Not harmful.
-        template_parameter_dictionary = (
-            self.agent.traits
-            | {"traits": self.agent.traits}
-            | {"codebook": self.agent.codebook}
-            | {"traits": self.agent.traits}
-        )
+        # if not hasattr(self.agent, "agent_persona"):
+        #     applicable_prompts = prompt_lookup(
+        #         component_type="agent_persona",
+        #         model=self.model.model,
+        #     )
+        #     persona_prompt_template = applicable_prompts[0]()
+        # else:
+        #     persona_prompt_template = self.agent.agent_persona
 
-        if undefined := persona_prompt_template.undefined_template_variables(
-            template_parameter_dictionary
-        ):
-            raise QuestionScenarioRenderError(
-                f"Agent persona still has variables that were not rendered: {undefined}"
-            )
+        # # TODO: This multiple passing of agent traits - not sure if it is necessary. Not harmful.
+        # template_parameter_dictionary = (
+        #     self.agent.traits
+        #     | {"traits": self.agent.traits}
+        #     | {"codebook": self.agent.codebook}
+        #     | {"traits": self.agent.traits}
+        # )
 
-        persona_prompt = persona_prompt_template.render(template_parameter_dictionary)
-        if persona_prompt.has_variables:
-            raise QuestionScenarioRenderError(
-                "Agent persona still has variables that were not rendered."
-            )
+        # if undefined := persona_prompt_template.undefined_template_variables(
+        #     template_parameter_dictionary
+        # ):
+        #     raise QuestionScenarioRenderError(
+        #         f"Agent persona still has variables that were not rendered: {undefined}"
+        #     )
 
-        self._agent_persona_prompt = persona_prompt
+        # persona_prompt = persona_prompt_template.render(template_parameter_dictionary)
+        # if persona_prompt.has_variables:
+        #     raise QuestionScenarioRenderError(
+        #         "Agent persona still has variables that were not rendered."
+        #     )
 
-        return self._agent_persona_prompt
+        # self._agent_persona_prompt = persona_prompt
+
+        # return self._agent_persona_prompt
 
     def prior_answers_dict(self) -> dict:
         d = self.survey.question_names_to_questions()
