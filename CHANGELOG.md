@@ -1,9 +1,14 @@
 # Changelog
 
-## [0.1.35] - TBD
+## [0.1.36] - TBD
 ### Added
 ### Changed
 ### Fixed
+
+
+## [0.1.35] - 2024-10-17
+### Fixed
+- Access to Open AI o1 models
 
 
 ## [0.1.34] - 2024-10-15
