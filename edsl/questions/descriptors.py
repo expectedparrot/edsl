@@ -54,32 +54,32 @@ class BaseDescriptor(ABC):
     def __set__(self, instance, value: Any) -> None:
         """Set the value of the attribute."""
         self.validate(value, instance)
-        from edsl.prompts.registry import get_classes
+        # from edsl.prompts.registry import get_classes
 
         instance.__dict__[self.name] = value
-        if self.name == "_instructions":
-            instructions = value
-            if value is not None:
-                instance.__dict__[self.name] = instructions
-                instance.set_instructions = True
-            else:
-                potential_prompt_classes = get_classes(
-                    question_type=instance.question_type
-                )
-                if len(potential_prompt_classes) > 0:
-                    instructions = potential_prompt_classes[0]().text
-                    instance.__dict__[self.name] = instructions
-                    instance.set_instructions = False
-                else:
-                    if not hasattr(instance, "default_instructions"):
-                        raise Exception(
-                            "No default instructions found and no matching prompts!"
-                        )
-                    instructions = instance.default_instructions
-                    instance.__dict__[self.name] = instructions
-                    instance.set_instructions = False
+        # if self.name == "_instructions":
+        #     instructions = value
+        #     if value is not None:
+        #         instance.__dict__[self.name] = instructions
+        #         instance.set_instructions = True
+        #     else:
+        #         potential_prompt_classes = get_classes(
+        #             question_type=instance.question_type
+        #         )
+        #         if len(potential_prompt_classes) > 0:
+        #             instructions = potential_prompt_classes[0]().text
+        #             instance.__dict__[self.name] = instructions
+        #             instance.set_instructions = False
+        #         else:
+        #             if not hasattr(instance, "default_instructions"):
+        #                 raise Exception(
+        #                     "No default instructions found and no matching prompts!"
+        #                 )
+        #             instructions = instance.default_instructions
+        #             instance.__dict__[self.name] = instructions
+        #             instance.set_instructions = False
 
-            # instance.set_instructions = value != instance.default_instructions
+        # instance.set_instructions = value != instance.default_instructions
 
     def __set_name__(self, owner, name: str) -> None:
         """Set the name of the attribute."""
