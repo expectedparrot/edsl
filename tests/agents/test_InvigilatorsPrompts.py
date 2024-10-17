@@ -2,9 +2,11 @@ import pytest
 from edsl.agents.Agent import Agent
 
 from edsl.prompts.Prompt import Prompt
-from edsl.prompts.registry import get_classes
+
+# from edsl.prompts.registry import get_classes
 from edsl.exceptions import QuestionScenarioRenderError
-from edsl.prompts.registry import get_classes
+
+# from edsl.prompts.registry import get_classes
 from edsl import Survey
 
 from edsl.agents.Invigilator import InvigilatorAI
@@ -46,11 +48,11 @@ def mock_question():
 
 
 def test_invigilator_ai_no_trait_template(mock_model, mock_question):
-    applicable_prompts = get_classes(
-        component_type="question_instructions",
-        question_type=mock_question.question_type,
-        model=mock_model.model,
-    )
+    # applicable_prompts = get_classes(
+    #     component_type="question_instructions",
+    #     question_type=mock_question.question_type,
+    #     model=mock_model.model,
+    # )
 
     a = Agent(
         instruction="You are a happy-go lucky agent.",
