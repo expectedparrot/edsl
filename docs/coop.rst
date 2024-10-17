@@ -67,7 +67,7 @@ Then add the following line to your `.env` file in your `edsl` working directory
 
 .. code-block:: python
 
-  EXPECTED_PARROT_API_KEY='<your_api_key_here>'
+  EXPECTED_PARROT_API_KEY='your_api_key_here'
 
 
 This will save your Expected Parrot API key as an environment variable that EDSL can access.
@@ -130,6 +130,7 @@ You can optionally pass a `description` and/or `visibility` parameter at the sam
 These can be changed at any time.
 
 **Direct method**
+
 Here we post a question object by calling the `push()` method on it:
 
 .. code-block:: python
@@ -176,6 +177,7 @@ We can see the description and visibility status that we specified in the inform
 
 
 **Using a Coop client**
+
 Here we post the same question by passing it to the `create()` method of a `Coop` client object:
 
 .. code-block:: python
@@ -218,6 +220,7 @@ For each `patch()` method, pass the `uuid` of the object and the parameter(s) th
 
 
 **At the Coop web app**
+
 You can manually update the `description` or `visibility` of an object at the Coop web app:
 
 Navigate to **Content** and select an object: https://www.expectedparrot.com/content
@@ -271,6 +274,7 @@ Select the option to change the **visibility** of the object (*public*, *private
 
 
 **Direct method**
+
 Here we update the `description` and `visibility` of the question created and uploaded in the examples above by calling the `patch()` method on it:
 
 .. code-block:: python
@@ -299,6 +303,7 @@ Here we change the question itself by modifying the `value` parameter:
 
 
 **Using a Coop client**
+
 Here we do the same using a `Coop` client object:
 
 .. code-block:: python
@@ -322,7 +327,9 @@ There are a variety of methods for replicating or downloading an object at the C
 2. Calling the `pull()` method on the class of the object
 3. Calling the `get()` method on a `Coop` client object
 
+
 **Copy code at the Coop web app**
+
 The Coop web app provides copyable code for downloading or reconstructing an object that has been posted:
 
 * Navigate to **Content** and select an object: https://www.expectedparrot.com/content 
@@ -357,6 +364,7 @@ Use this code in your workspace to download the object locally or to reconstruct
 
 
 **Class method**
+
 Here we download the question posted above by calling the `pull()` method on the object class (`Question`) and passing the `uuid` of the object:
 
 .. code-block:: python
@@ -379,6 +387,7 @@ This will return the object (the example free text question that replaced the ex
 
 
 **Using a Coop client**
+
 Here we download the question by calling the `get()` method on a `Coop` client object:
 
 .. code-block:: python
@@ -403,6 +412,7 @@ There are 3 methods for deleting an object from the Coop:
 3. Calling the `delete()` method on a `Coop` client object
 
 **At the Coop web app**
+
 You can manually delete objects at the Coop web app:
 
 * Navigate to **Content** and select an object: https://www.expectedparrot.com/content/ (see image above for *Uploading* content)
@@ -421,6 +431,7 @@ You can manually delete objects at the Coop web app:
 
 
 **Directly**
+
 Here we delete a question object by calling the `delete()` method on the class of the object (`Question`) and passing the `uuid` of the object:
 
 .. code-block:: python
@@ -438,6 +449,7 @@ This will return a status message:
 
 
 **Using a Coop client**
+
 Here we delete a question by calling the `delete()` method on a `Coop` client object, passing the `uuid` of the object:
 
 .. code-block:: python
