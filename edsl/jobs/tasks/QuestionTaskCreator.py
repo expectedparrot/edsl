@@ -1,20 +1,16 @@
 import asyncio
 from typing import Callable, Union, List
 from collections import UserList, UserDict
-import time
 
 from edsl.jobs.buckets import ModelBuckets
 from edsl.exceptions import InterviewErrorPriorTaskCanceled
 
 from edsl.jobs.interviews.InterviewStatusDictionary import InterviewStatusDictionary
 from edsl.jobs.tasks.task_status_enum import TaskStatus, TaskStatusDescriptor
-
-# from edsl.jobs.tasks.task_management import TokensUsed
 from edsl.jobs.tasks.TaskStatusLog import TaskStatusLog
 from edsl.jobs.tokens.InterviewTokenUsage import InterviewTokenUsage
 from edsl.jobs.tokens.TokenUsage import TokenUsage
 from edsl.jobs.Answers import Answers
-
 from edsl.questions.QuestionBase import QuestionBase
 
 
@@ -130,7 +126,7 @@ class QuestionTaskCreator(UserList):
         await self.tokens_bucket.get_tokens(requested_tokens)
 
         if (estimated_wait_time := self.requests_bucket.wait_time(1)) > 0:
-            self.waiting = True
+            self.waiting = True  #  do we need this?
             self.task_status = TaskStatus.WAITING_FOR_REQUEST_CAPACITY
 
         await self.requests_bucket.get_tokens(1, cheat_bucket_capacity=True)
