@@ -28,7 +28,7 @@ from edsl.jobs.interviews.InterviewExceptionCollection import (
     InterviewExceptionCollection,
 )
 
-from edsl.jobs.interviews.InterviewStatusMixin import InterviewStatusMixin
+# from edsl.jobs.interviews.InterviewStatusMixin import InterviewStatusMixin
 
 from edsl.surveys.base import EndOfSurvey
 from edsl.jobs.buckets.ModelBuckets import ModelBuckets
@@ -44,6 +44,10 @@ from edsl.agents.InvigilatorBase import InvigilatorBase
 
 from edsl.exceptions.language_models import LanguageModelNoResponseError
 
+from edsl.jobs.interviews.InterviewStatusLog import InterviewStatusLog
+from edsl.jobs.tokens.InterviewTokenUsage import InterviewTokenUsage
+from edsl.jobs.interviews.InterviewStatusDictionary import InterviewStatusDictionary
+
 
 from edsl import CONFIG
 
@@ -52,7 +56,7 @@ EDSL_BACKOFF_MAX_SEC = float(CONFIG.get("EDSL_BACKOFF_MAX_SEC"))
 EDSL_MAX_ATTEMPTS = int(CONFIG.get("EDSL_MAX_ATTEMPTS"))
 
 
-class Interview(InterviewStatusMixin):
+class Interview:
     """
     An 'interview' is one agent answering one survey, with one language model, for a given scenario.
 
@@ -100,20 +104,16 @@ class Interview(InterviewStatusMixin):
 
         """
         self.agent = agent
-        # what I would like to do
-        self.survey = copy.deepcopy(survey)  # survey  copy.deepcopy(survey)
-        # self.survey = survey
+        self.survey = copy.deepcopy(survey)
         self.scenario = scenario
         self.model = model
         self.debug = debug
         self.iteration = iteration
         self.cache = cache
-        self.answers: dict[
-            str, str
-        ] = Answers()  # will get filled in as interview progresses
+        self.answers: dict[str, str] = (
+            Answers()
+        )  # will get filled in as interview progresses
         self.sidecar_model = sidecar_model
-
-        # self.stop_on_exception = False
 
         # Trackers
         self.task_creators = TaskCreators()  # tracks the task creators
@@ -130,6 +130,33 @@ class Interview(InterviewStatusMixin):
         }
 
         self.failed_questions = []
+
+    @property
+    def has_exceptions(self) -> bool:
+        """Return True if there are exceptions."""
+        return len(self.exceptions) > 0
+
+    @property
+    def task_status_logs(self) -> InterviewStatusLog:
+        """Return the task status logs for the interview.
+
+        The keys are the question names; the values are the lists of status log changes for each task.
+        """
+        for task_creator in self.task_creators.values():
+            self._task_status_log_dict[task_creator.question.question_name] = (
+                task_creator.status_log
+            )
+        return self._task_status_log_dict
+
+    @property
+    def token_usage(self) -> InterviewTokenUsage:
+        """Determine how many tokens were used for the interview."""
+        return self.task_creators.token_usage
+
+    @property
+    def interview_status(self) -> InterviewStatusDictionary:
+        """Return a dictionary mapping task status codes to counts."""
+        return self.task_creators.interview_status
 
     # region: Serialization
     def _to_dict(self, include_exceptions=False) -> dict[str, Any]:
@@ -431,11 +458,11 @@ class Interview(InterviewStatusMixin):
         """
         current_question_index: int = self.to_index[current_question.question_name]
 
-        next_question: Union[
-            int, EndOfSurvey
-        ] = self.survey.rule_collection.next_question(
-            q_now=current_question_index,
-            answers=self.answers | self.scenario | self.agent["traits"],
+        next_question: Union[int, EndOfSurvey] = (
+            self.survey.rule_collection.next_question(
+                q_now=current_question_index,
+                answers=self.answers | self.scenario | self.agent["traits"],
+            )
         )
 
         next_question_index = next_question.next_q
