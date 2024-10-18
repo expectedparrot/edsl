@@ -8,6 +8,9 @@ from typing import Callable, Optional, Union, Any
 from uuid import uuid4
 from edsl.Base import Base
 
+from edsl.prompts import Prompt
+from edsl.exceptions import QuestionScenarioRenderError
+
 from edsl.exceptions.agents import (
     AgentCombinationError,
     AgentDirectAnswerFunctionError,
@@ -44,7 +47,6 @@ class Agent(Base):
 
     def __init__(
         self,
-        # *,
         traits: Optional[dict] = None,
         name: Optional[str] = None,
         codebook: Optional[dict] = None,
@@ -112,6 +114,7 @@ class Agent(Base):
         self.instruction = instruction or self.default_instruction
         self.dynamic_traits_function = dynamic_traits_function
 
+        # Deal with dynamic traits function
         if self.dynamic_traits_function:
             self.dynamic_traits_function_name = self.dynamic_traits_function.__name__
             self.has_dynamic_traits_function = True
@@ -124,6 +127,7 @@ class Agent(Base):
                 dynamic_traits_function_name, dynamic_traits_function
             )
 
+        # Deal with direct answer function
         if answer_question_directly_source_code:
             self.answer_question_directly_function_name = (
                 answer_question_directly_function_name
@@ -140,10 +144,34 @@ class Agent(Base):
         self.current_question = None
 
         if traits_presentation_template is not None:
-            from edsl.prompts.library.agent_persona import AgentPersona
-
             self.traits_presentation_template = traits_presentation_template
-            self.agent_persona = AgentPersona(text=self.traits_presentation_template)
+        else:
+            self.traits_presentation_template = """Your traits: {{ traits }}"""
+
+    @property
+    def agent_persona(self) -> Prompt:
+        return Prompt(text=self.traits_presentation_template)
+
+    def prompt(self) -> str:
+        """Return the prompt for the agent.
+
+        Example usage:
+
+        >>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
+        >>> a.prompt()
+        Prompt(text=\"""Your traits: {'age': 10, 'hair': 'brown', 'height': 5.5}\""")
+        """
+        replacement_dict = (
+            self.traits | {"traits": self.traits} | {"codebook": self.codebook}
+        )
+        if undefined := self.agent_persona.undefined_template_variables(
+            replacement_dict
+        ):
+            raise QuestionScenarioRenderError(
+                f"Agent persona still has variables that were not rendered: {undefined}"
+            )
+        else:
+            return self.agent_persona.render(replacement_dict)
 
     def _check_dynamic_traits_function(self) -> None:
         """Check whether dynamic trait function is valid.
@@ -252,7 +280,6 @@ class Agent(Base):
             warnings.warn(
                 "Warning: overwriting existing answer_question_directly method"
             )
-            # print("Warning: overwriting existing answer_question_directly method")
 
         self.validate_response = validate_response
         self.translate_response = translate_response
@@ -575,9 +602,6 @@ class Agent(Base):
         if self.name == None:
             raw_data.pop("name")
 
-        import inspect
-
-        # print(raw_data)
         if hasattr(self, "dynamic_traits_function"):
             raw_data.pop(
                 "dynamic_traits_function", None
@@ -586,9 +610,9 @@ class Agent(Base):
             if dynamic_traits_func:
                 func = inspect.getsource(dynamic_traits_func)
                 raw_data["dynamic_traits_function_source_code"] = func
-                raw_data[
-                    "dynamic_traits_function_name"
-                ] = self.dynamic_traits_function_name
+                raw_data["dynamic_traits_function_name"] = (
+                    self.dynamic_traits_function_name
+                )
         if hasattr(self, "answer_question_directly"):
             raw_data.pop(
                 "answer_question_directly", None
@@ -604,9 +628,9 @@ class Agent(Base):
                 raw_data["answer_question_directly_source_code"] = inspect.getsource(
                     answer_question_directly_func
                 )
-                raw_data[
-                    "answer_question_directly_function_name"
-                ] = self.answer_question_directly_function_name
+                raw_data["answer_question_directly_function_name"] = (
+                    self.answer_question_directly_function_name
+                )
 
         return raw_data
 

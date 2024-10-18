@@ -4,7 +4,8 @@ from typing import Dict, Any, Optional
 
 from edsl.prompts.Prompt import Prompt
 from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
-from edsl.prompts.registry import get_classes as prompt_lookup
+
+# from edsl.prompts.registry import get_classes as prompt_lookup
 from edsl.exceptions.questions import QuestionAnswerValidationError
 from edsl.agents.InvigilatorBase import InvigilatorBase
 from edsl.data_transfer_models import AgentResponseDict, EDSLResultObjectInput
