@@ -1,4 +1,3 @@
-import fitz  # PyMuPDF
 import os
 import copy
 import subprocess
@@ -17,6 +16,12 @@ import tempfile
 import os
 import atexit
 from urllib.parse import urlparse, parse_qs
+
+try:
+    import fitz  # PyMuPDF
+except Exception as e:
+    print(f"Error: {e}")
+    print("Please install the PyMuPDF package with: pip install pymupdf")
 
 
 class GoogleDriveDownloader:
