@@ -7,27 +7,45 @@ EDSL: AI-Powered Research
    
 EDSL is developed by `Expected Parrot <https://www.expectedparrot.com>`_ and available under the MIT License.
 
-This page provides documentation, tutorials and demo notebooks for the EDSL package and `Coop <https://www.expectedparrot.com/content/explore>`_: a platform for creating, storing and sharing AI research. 
+This page provides documentation, tutorials and demo notebooks for the EDSL package and `Coop <https://www.expectedparrot.com/content/explore>`_: a platform for creating, storing and sharing AI-based research. 
 The contents are organized into key sections to help you get started.
 
 
 Researchers
 -----------
 
-**Are you using EDSL for a research project?** 
-Email us at info@expectedparrot.com and we'll give you **free credits to run your project**.
+Are you using EDSL for a research project?
+Email us at info@expectedparrot.com and we'll give you free credits to run your project.
 
 
 Getting started 
 ---------------
 
-- :ref:`installation`: Install the EDSL package.
-- `Coop <https://docs.expectedparrot.com/en/latest/coop.html>`_: Create a `Coop account <https://www.expectedparrot.com/login>`_ to store and share your research.
-- :ref:`remote_inference`: Activate remote inference to run surveys on the Expected Parrot server. You can also use your own :ref:`api_keys` for models to run surveys locally.
-- :ref:`starter_tutorial`: Explore a tutorial for getting started using EDSL.
+Steps for getting started using the EDSL package: 
 
-**Support:** 
-Email us at **info@expectedparrot.com** or post questions at our `Discord channel <https://discord.com/invite/mxAYkjfy9m>`_.
+1. Download the EDSL package. See :ref:`installation` instructions.
+2. *(Optional)*  Create a `Coop account <https://www.expectedparrot.com/login>`_ to store and share research.
+3. Decide how you want to use EDSL: 
+
+   *To run surveys on the Expected Parrot server with available models:*
+   Activate :ref:`remote_inference` from your `Coop API Settings <https://www.expectedparrot.com/home/api>`_ page.
+   Copy and store your Expected Parrot API key.
+   
+   *To run surveys locally:*
+   Copy and store your own :ref:`api_keys` for language models.
+
+   We recommend storing your API keys in a *.env* file in your working directory. 
+   See instructions in the :ref:`api_keys` section.
+
+4. Explore a :ref:`starter_tutorial` and other how-to guides and notebooks for examples.
+
+
+Support
+-------
+
+- Send us an email: info@expectedparrot.com
+- Join the `Discord channel <https://discord.com/invite/mxAYkjfy9m>`_
+- Follow on social media: `Twitter/X <https://twitter.com/expectedparrot>`_, `LinkedIn <https://www.linkedin.com/company/expectedparrot>`_, `Blog <https://blog.expectedparrot.com>`_
  
 
 Introduction
@@ -62,8 +80,8 @@ Coop
 ----
 
 `Coop <https://docs.expectedparrot.com/en/latest/coop.html>`_ is a platform for AI-based research.
-
 `Create an account <https://www.expectedparrot.com/login>`_ to store and share your work and get access to special features, including: 
+
 - :ref:`remote_inference`: Run surveys with any available models on the Expected Parrot server. 
 - :ref:`remote_caching`: Automatically store results and API calls on the Expected Parrot server. 
 - :ref:`survey_builder`: Design and launch hybrid human-AI surveys.
