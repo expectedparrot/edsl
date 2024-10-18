@@ -7,7 +7,7 @@ EDSL: AI-Powered Research
    
 EDSL is developed by `Expected Parrot <https://www.expectedparrot.com>`_ and available under the MIT License.
 
-This page provides documentation, tutorials and demo notebooks for the EDSL package and `Coop <https://www.expectedparrot.com/explore>`_: a platform for creating, storing and sharing AI research. 
+This page provides documentation, tutorials and demo notebooks for the EDSL package and `Coop <https://www.expectedparrot.com/content/explore>`_: a platform for creating, storing and sharing AI research. 
 The contents are organized into key sections to help you get started.
 
 
