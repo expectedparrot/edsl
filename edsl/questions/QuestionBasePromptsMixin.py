@@ -38,29 +38,29 @@ class QuestionBasePromptsMixin:
     #     ) as file:
     #         return file.read()
 
-    @classmethod
-    def applicable_prompts(
-        cls, model: Optional[str] = None
-    ) -> list[type["PromptBase"]]:
-        """Get the prompts that are applicable to the question type.
+    # @classmethod
+    # def applicable_prompts(
+    #     cls, model: Optional[str] = None
+    # ) -> list[type["PromptBase"]]:
+    #     """Get the prompts that are applicable to the question type.
 
-        :param model: The language model to use.
+    #     :param model: The language model to use.
 
-        >>> from edsl.questions import QuestionFreeText
-        >>> QuestionFreeText.applicable_prompts()
-        [<class 'edsl.prompts.library.question_freetext.FreeText'>]
+    #     >>> from edsl.questions import QuestionFreeText
+    #     >>> QuestionFreeText.applicable_prompts()
+    #     [<class 'edsl.prompts.library.question_freetext.FreeText'>]
 
-        :param model: The language model to use. If None, assumes does not matter.
+    #     :param model: The language model to use. If None, assumes does not matter.
 
-        """
-        from edsl.prompts.registry import get_classes as prompt_lookup
+    #     """
+    #     from edsl.prompts.registry import get_classes as prompt_lookup
 
-        applicable_prompts = prompt_lookup(
-            component_type="question_instructions",
-            question_type=cls.question_type,
-            model=model,
-        )
-        return applicable_prompts
+    #     applicable_prompts = prompt_lookup(
+    #         component_type="question_instructions",
+    #         question_type=cls.question_type,
+    #         model=model,
+    #     )
+    #     return applicable_prompts
 
     @property
     def model_instructions(self) -> dict:
