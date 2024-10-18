@@ -180,17 +180,15 @@ class Jobs(Base):
                 scenario_indices.append(scenario_index)
                 models.append(invigilator.model.model)
                 question_names.append(invigilator.question.question_name)
-                # cost calculation
-                key = (invigilator.model._inference_service_, invigilator.model.model)
-                relevant_prices = price_lookup[key]
-                inverse_output_price = relevant_prices["output"]["one_usd_buys"]
-                inverse_input_price = relevant_prices["input"]["one_usd_buys"]
-                input_tokens = len(str(user_prompt) + str(system_prompt)) // 4
-                output_tokens = len(str(user_prompt) + str(system_prompt)) // 4
-                cost = input_tokens / float(
-                    inverse_input_price
-                ) + output_tokens / float(inverse_output_price)
-                costs.append(cost)
+
+                prompt_cost = self.estimate_prompt_cost(
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    price_lookup=price_lookup,
+                    inference_service=invigilator.model._inference_service_,
+                    model=invigilator.model.model,
+                )
+                costs.append(prompt_cost["cost"])
 
         d = Dataset(
             [
@@ -214,50 +212,150 @@ class Jobs(Base):
         """Print the prompts."""
         self.prompts().to_scenario_list().print(format="rich")
 
+    @staticmethod
+    def estimate_prompt_cost(
+        system_prompt: str,
+        user_prompt: str,
+        price_lookup: dict,
+        inference_service: str,
+        model: str,
+    ):
+        """Estimates the cost of a prompt. Takes piping into account."""
+
+        def get_piping_multiplier(prompt: str):
+            """Returns 2 if a prompt includes Jinja brances, and 1 otherwise."""
+
+            if "{{" in prompt and "}}" in prompt:
+                return 2
+            return 1
+
+        # Look up prices per token
+        key = (inference_service, model)
+        relevant_prices = price_lookup[key]
+        output_price_per_token = 1 / float(relevant_prices["output"]["one_usd_buys"])
+        input_price_per_token = 1 / float(relevant_prices["input"]["one_usd_buys"])
+
+        # Compute the number of characters (double if the question involves piping)
+        user_prompt_chars = len(str(user_prompt)) * get_piping_multiplier(
+            str(user_prompt)
+        )
+        system_prompt_chars = len(str(system_prompt)) * get_piping_multiplier(
+            str(system_prompt)
+        )
+
+        # Convert into tokens (1 token approx. equals 4 characters)
+        input_tokens = (user_prompt_chars + system_prompt_chars) // 4
+        output_tokens = input_tokens
+
+        cost = (
+            input_tokens * input_price_per_token
+            + output_tokens * output_price_per_token
+        )
+
+        return {
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "cost": cost,
+        }
+
+    def estimate_job_cost_from_external_prices(self, price_lookup: dict):
+        """
+        Estimates the cost of a job according to the following assumptions:
+
+        - 1 token = 4 characters.
+        - Input tokens = output tokens.
+
+        price_lookup is an external pricing dictionary.
+        """
+
+        import pandas as pd
+
+        interviews = self.interviews()
+        data = []
+        for interview in interviews:
+            invigilators = [
+                interview._get_invigilator(question)
+                for question in self.survey.questions
+            ]
+            for invigilator in invigilators:
+                prompts = invigilator.get_prompts()
+
+                # By this point, agent and scenario data has already been added to the prompts
+                user_prompt = prompts["user_prompt"]
+                system_prompt = prompts["system_prompt"]
+                inference_service = invigilator.model._inference_service_
+                model = invigilator.model.model
+
+                prompt_cost = self.estimate_prompt_cost(
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    price_lookup=price_lookup,
+                    inference_service=inference_service,
+                    model=model,
+                )
+
+                data.append(
+                    {
+                        "user_prompt": user_prompt,
+                        "system_prompt": system_prompt,
+                        "estimated_input_tokens": prompt_cost["input_tokens"],
+                        "estimated_output_tokens": prompt_cost["output_tokens"],
+                        "estimated_cost": prompt_cost["cost"],
+                        "inference_service": inference_service,
+                        "model": model,
+                    }
+                )
+
+        df = pd.DataFrame.from_records(data)
+
+        df = (
+            df.groupby(["inference_service", "model"])
+            .agg(
+                {
+                    "estimated_cost": "sum",
+                    "estimated_input_tokens": "sum",
+                    "estimated_output_tokens": "sum",
+                }
+            )
+            .reset_index()
+        )
+
+        estimated_costs_by_model = df.to_dict("records")
+
+        estimated_total_cost = sum(
+            model["estimated_cost"] for model in estimated_costs_by_model
+        )
+        estimated_total_input_tokens = sum(
+            model["estimated_input_tokens"] for model in estimated_costs_by_model
+        )
+        estimated_total_output_tokens = sum(
+            model["estimated_output_tokens"] for model in estimated_costs_by_model
+        )
+
+        output = {
+            "estimated_total_cost": estimated_total_cost,
+            "estimated_total_input_tokens": estimated_total_input_tokens,
+            "estimated_total_output_tokens": estimated_total_output_tokens,
+            "model_costs": estimated_costs_by_model,
+        }
+
+        return output
+
     def estimate_job_cost(self):
+        """
+        Estimates the cost of a job according to the following assumptions:
+
+        - 1 token = 4 characters.
+        - Input tokens = output tokens.
+
+        Fetches prices from Coop.
+        """
         from edsl import Coop
 
         c = Coop()
         price_lookup = c.fetch_prices()
 
-        prompts = self.prompts()
-
-        text_len = 0
-        for prompt in prompts:
-            text_len += len(str(prompt))
-
-        input_token_aproximations = text_len // 4
-
-        aproximation_cost = {}
-        total_cost = 0
-        for model in self.models:
-            key = (model._inference_service_, model.model)
-            relevant_prices = price_lookup[key]
-            inverse_output_price = relevant_prices["output"]["one_usd_buys"]
-            inverse_input_price = relevant_prices["input"]["one_usd_buys"]
-
-            aproximation_cost[key] = {
-                "input": input_token_aproximations / float(inverse_input_price),
-                "output": input_token_aproximations / float(inverse_output_price),
-            }
-            ##TODO curenlty we approximate the number of output tokens with the number
-            # of input tokens. A better solution will be to compute the quesiton answer options length and sum them
-            # to compute the output tokens
-
-            total_cost += input_token_aproximations / float(inverse_input_price)
-            total_cost += input_token_aproximations / float(inverse_output_price)
-
-        # multiply_factor = len(self.agents or [1]) * len(self.scenarios or [1])
-        multiply_factor = 1
-        out = {
-            "input_token_aproximations": input_token_aproximations,
-            "models_costs": aproximation_cost,
-            "estimated_total_cost": total_cost * multiply_factor,
-            "multiply_factor": multiply_factor,
-            "single_config_cost": total_cost,
-        }
-
-        return out
+        return self.estimate_job_cost_from_external_prices(price_lookup=price_lookup)
 
     @staticmethod
     def _get_container_class(object):

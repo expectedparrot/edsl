@@ -17,25 +17,23 @@ class PreserveUndefined(Undefined):
 
 
 from edsl.exceptions.prompts import TemplateRenderError
-from edsl.prompts.prompt_config import (
-    C2A,
-    names_to_component_types,
-    ComponentTypes,
-    NEGATIVE_INFINITY,
-)
-from edsl.prompts.registry import RegisterPromptsMeta
+
+# from edsl.prompts.prompt_config import (
+#     C2A,
+#     names_to_component_types,
+#     ComponentTypes,
+#     NEGATIVE_INFINITY,
+# )
+# from edsl.prompts.registry import RegisterPromptsMeta
 from edsl.Base import PersistenceMixin, RichPrintingMixin
 
 MAX_NESTING = 100
 
 
-class PromptBase(
-    PersistenceMixin, RichPrintingMixin, ABC, metaclass=RegisterPromptsMeta
-):
+class Prompt(PersistenceMixin, RichPrintingMixin):
     """Class for creating a prompt to be used in a survey."""
 
     default_instructions: Optional[str] = "Do good things, friendly LLM!"
-    component_type = ComponentTypes.GENERIC
 
     def _repr_html_(self):
         """Return an HTML representation of the Prompt."""
@@ -111,12 +109,6 @@ class PromptBase(
         with open(folder_path.joinpath(file_name), "r") as f:
             text = f.read()
         return cls(text=text)
-        # Resolve the path to get the absolute path
-        # absolute_path = folder_path.resolve()
-        # env = Environment(loader=FileSystemLoader(absolute_path))
-        # template = env.get_template(file_name)
-        # rendered_text = template.render({})
-        # return cls(text=rendered_text)
 
     @property
     def text(self):
@@ -281,6 +273,7 @@ class PromptBase(
         try:
             previous_text = None
             for _ in range(MAX_NESTING):
+                # breakpoint()
                 rendered_text = env.from_string(text).render(
                     primary_replacement, **additional_replacements
                 )
@@ -323,9 +316,8 @@ class PromptBase(
         Prompt(text=\"""Hello, {{person}}\""")
 
         """
-        class_name = data["class_name"]
-        cls = RegisterPromptsMeta._registry.get(class_name, Prompt)
-        return cls(text=data["text"])
+        # class_name = data["class_name"]
+        return Prompt(text=data["text"])
 
     def rich_print(self):
         """Display an object as a table."""
@@ -346,27 +338,21 @@ class PromptBase(
         return cls(cls.default_instructions)
 
 
-class Prompt(PromptBase):
-    """A prompt to be used in a survey."""
-
-    component_type = ComponentTypes.GENERIC
-
-
 if __name__ == "__main__":
     print("Running doctests...")
     import doctest
 
     doctest.testmod()
 
-from edsl.prompts.library.question_multiple_choice import *
-from edsl.prompts.library.agent_instructions import *
-from edsl.prompts.library.agent_persona import *
+# from edsl.prompts.library.question_multiple_choice import *
+# from edsl.prompts.library.agent_instructions import *
+# from edsl.prompts.library.agent_persona import *
 
-from edsl.prompts.library.question_budget import *
-from edsl.prompts.library.question_checkbox import *
-from edsl.prompts.library.question_freetext import *
-from edsl.prompts.library.question_linear_scale import *
-from edsl.prompts.library.question_numerical import *
-from edsl.prompts.library.question_rank import *
-from edsl.prompts.library.question_extract import *
-from edsl.prompts.library.question_list import *
+# from edsl.prompts.library.question_budget import *
+# from edsl.prompts.library.question_checkbox import *
+# from edsl.prompts.library.question_freetext import *
+# from edsl.prompts.library.question_linear_scale import *
+# from edsl.prompts.library.question_numerical import *
+# from edsl.prompts.library.question_rank import *
+# from edsl.prompts.library.question_extract import *
+# from edsl.prompts.library.question_list import *
