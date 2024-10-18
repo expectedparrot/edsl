@@ -3,11 +3,11 @@
 Coop
 ====
 
-`Coop <https://www.expectedparrot.com/explore>`_ is a platform for creating, storing and sharing AI research. 
-It is fully integrated with the EDSL library, allowing you to post, download and update objects directly from your workspace or at the web app.
+`Coop <https://www.expectedparrot.com/content/explore>`_ is a platform for creating, storing and sharing AI-based research. 
+It is fully integrated with the EDSL package, allowing you to post, download and update objects directly from your workspace or at the web app.
 
 Coop also provides access to special features for running EDSL surveys and storing results remotely at the Expected Parrot server.
-Learn more about these features in the :ref:`remote_inference` and :ref:`remote_caching` sections.
+Learn more about these features in the :ref:`remote_inference` and :ref:`remote_caching` sections of the documentation.
 
 
 How it works
@@ -50,7 +50,7 @@ If you create an account with your email address, verify it by clicking the link
 2. Store your Expected Parrot API key
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`API Settings <a href="https://www.expectedparrot.com/home/api>`_ page of your account and copy your Expected Parrot API key.
+Navigate to the `API Settings <a href="https://www.expectedparrot.com/home/api>`_ page of your account and copy your Expected Parrot API key.
 
 .. image:: static/coop_api_key.png
   :alt: Copy your Expected Parrot API key
