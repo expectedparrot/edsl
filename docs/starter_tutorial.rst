@@ -770,7 +770,7 @@ Output:
 Posting to the Coop
 -------------------
 
-The `Coop <https://www.expectedparrot.com/explore>`_ is a platform for creating, storing and sharing LLM-based research.
+The `Coop <https://www.expectedparrot.com/content/explore>`_ is a platform for creating, storing and sharing LLM-based research.
 It is fully integrated with EDSL and accessible from your workspace or Coop account page.
 Learn more about `creating an account <https://www.expectedparrot.com/login>`_ and `using the Coop <https://docs.expectedparrot.com/en/latest/coop.html>`_.
 
