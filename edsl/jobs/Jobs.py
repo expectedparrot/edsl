@@ -79,6 +79,7 @@ class Jobs(Base):
 
     @scenarios.setter
     def scenarios(self, value):
+        """Accepts a list of Scenario items but turns it into a ScenarioList"""
         from edsl import ScenarioList
 
         if value:
@@ -205,10 +206,6 @@ class Jobs(Base):
             ]
         )
         return d
-        # if table:
-        #     d.to_scenario_list().print(format="rich")
-        # else:
-        #     return d
 
     def show_prompts(self) -> None:
         """Print the prompts."""

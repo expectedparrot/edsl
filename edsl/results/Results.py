@@ -295,8 +295,8 @@ class Results(UserList, Mixins, Base):
             "b_not_a": [other_results[i] for i in indices_other],
         }
 
-    @add_edsl_version
-    def to_dict(self) -> dict[str, Any]:
+    # @add_edsl_version
+    def to_dict(self, add_edsl_verion=True) -> dict[str, Any]:
         """Convert the Results object to a dictionary.
 
         The dictionary can be quite large, as it includes all of the data in the Results object.
@@ -307,7 +307,13 @@ class Results(UserList, Mixins, Base):
         >>> r.to_dict().keys()
         dict_keys(['data', 'survey', 'created_columns', 'cache', 'edsl_version', 'edsl_class_name'])
         """
-        return self._to_dict()
+        d = self._to_dict()
+        if add_edsl_verion:
+            from edsl import __version__ as edsl_version
+
+            d["edsl_version"] = edsl_version
+            d["edsl_class_name"] = self.__class__.__name__
+        return d
 
     def __hash__(self) -> int:
         return dict_hash(self._to_dict(sort=True))

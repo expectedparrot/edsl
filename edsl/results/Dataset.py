@@ -18,6 +18,16 @@ class Dataset(UserList, ResultsExportMixin):
         """Initialize the dataset with the given data."""
         super().__init__(data)
 
+    def to_json(self):
+        """Export the dataset to a JSON file.
+
+        :param filename: The name of the file to export to.
+        :param kwargs: Additional arguments to pass to the JSON encoder.
+        """
+        import json
+
+        return json.dumps(self.data)
+
     def __len__(self) -> int:
         """Return the number of observations in the dataset.
 
