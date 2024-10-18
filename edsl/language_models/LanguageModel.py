@@ -348,6 +348,9 @@ class LanguageModel(
         """
         # parameters = dict({})
 
+        # this is the case when data is loaded from a dict after serialization
+        if "parameters" in passed_parameter_dict:
+            passed_parameter_dict = passed_parameter_dict["parameters"]
         return {
             parameter_name: passed_parameter_dict.get(parameter_name, default_value)
             for parameter_name, default_value in default_parameter_dict.items()
