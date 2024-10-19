@@ -9,7 +9,6 @@ class InterviewExceptionEntry:
         self,
         *,
         exception: Exception,
-        # failed_question: FailedQuestion,
         invigilator: "Invigilator",
         traceback_format="text",
         answers=None,
@@ -133,22 +132,41 @@ class InterviewExceptionEntry:
         )
         console.print(tb)
         return html_output.getvalue()
+    
+    @staticmethod
+    def serialize_exception(exception: Exception) -> dict:
+        return {
+            "type": type(exception).__name__,
+            "message": str(exception),
+            "traceback": "".join(traceback.format_exception(type(exception), exception, exception.__traceback__)),
+        }
+    
+    @staticmethod
+    def deserialize_exception(data: dict) -> Exception:
+        exception_class = globals()[data["type"]]
+        return exception_class(data["message"])
 
     def to_dict(self) -> dict:
         """Return the exception as a dictionary.
 
         >>> entry = InterviewExceptionEntry.example()
-        >>> entry.to_dict()['exception']
-        ValueError()
-
+        >>> _ = entry.to_dict()
         """
         return {
-            "exception": self.exception,
+            "exception": self.serialize_exception(self.exception),
             "time": self.time,
             "traceback": self.traceback,
-            # "failed_question": self.failed_question.to_dict(),
             "invigilator": self.invigilator.to_dict(),
         }
+    
+    @classmethod
+    def from_dict(cls, data: dict) -> "InterviewExceptionEntry":
+        """Create an InterviewExceptionEntry from a dictionary."""
+        from edsl.agents.Invigilator import InvigilatorAI
+
+        exception = cls.deserialize_exception(data["exception"])
+        invigilator = InvigilatorAI.from_dict(data["invigilator"])
+        return cls(exception=exception, invigilator=invigilator)
 
     def push(self):
         from edsl import Coop

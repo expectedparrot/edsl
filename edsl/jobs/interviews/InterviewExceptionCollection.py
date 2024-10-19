@@ -33,6 +33,15 @@ class InterviewExceptionCollection(UserDict):
         """Return the collection of exceptions as a dictionary."""
         newdata = {k: [e.to_dict() for e in v] for k, v in self.data.items()}
         return newdata
+    
+    @classmethod
+    def from_dict(cls, data: dict) -> "InterviewExceptionCollection":
+        """Create an InterviewExceptionCollection from a dictionary."""
+        collection = cls()
+        for question_name, entries in data.items():
+            for entry in entries:
+                collection.add(question_name, InterviewExceptionEntry.from_dict(entry))
+        return collection
 
     def _repr_html_(self) -> str:
         from edsl.utilities.utilities import data_to_html
