@@ -159,13 +159,13 @@ class Interview:
         return self.task_creators.interview_status
 
     # region: Serialization
-    def _to_dict(self, include_exceptions=False) -> dict[str, Any]:
+    def _to_dict(self, include_exceptions=True) -> dict[str, Any]:
         """Return a dictionary representation of the Interview instance.
         This is just for hashing purposes.
 
         >>> i = Interview.example()
         >>> hash(i)
-        1646262796627658719
+        1217840301076717434
         """
         d = {
             "agent": self.agent._to_dict(),
@@ -177,11 +177,29 @@ class Interview:
         }
         if include_exceptions:
             d["exceptions"] = self.exceptions.to_dict()
+        return d
+    
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "Interview":
+        """Return an Interview instance from a dictionary."""
+        agent = Agent.from_dict(d["agent"])
+        survey = Survey.from_dict(d["survey"])
+        scenario = Scenario.from_dict(d["scenario"])
+        model = LanguageModel.from_dict(d["model"])
+        iteration = d["iteration"]
+        return cls(agent=agent, survey=survey, scenario=scenario, model=model, iteration=iteration)
 
     def __hash__(self) -> int:
         from edsl.utilities.utilities import dict_hash
 
-        return dict_hash(self._to_dict())
+        return dict_hash(self._to_dict(include_exceptions=False))
+    
+    def __eq__(self, other: "Interview") -> bool:
+        """
+        >>> from edsl.jobs.interviews.Interview import Interview; i = Interview.example(); d = i._to_dict(); i2 = Interview.from_dict(d); i == i2
+        True
+        """
+        return hash(self) == hash(other)
 
     # endregion
 

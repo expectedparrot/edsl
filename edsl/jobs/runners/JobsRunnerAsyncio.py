@@ -1,15 +1,13 @@
 from __future__ import annotations
 import time
-import math
 import asyncio
-import functools
 import threading
 from typing import Coroutine, List, AsyncGenerator, Optional, Union, Generator
 from contextlib import contextmanager
 from collections import UserList
 
-from rich.live import Live
-from rich.console import Console
+#from rich.live import Live
+#from rich.console import Console
 
 from edsl.results.Results import Results
 from edsl import shared_globals
@@ -47,8 +45,6 @@ class JobsRunnerAsyncio:
         self.interviews: List["Interview"] = jobs.interviews()
         self.bucket_collection: "BucketCollection" = jobs.bucket_collection
         self.total_interviews: List["Interview"] = []
-
-        # self.jobs_runner_status = JobsRunnerStatus(self, n=1)
 
     async def run_async_generator(
         self,
@@ -225,16 +221,20 @@ class JobsRunnerAsyncio:
         }
         interview_hashes = list(interview_lookup.keys())
 
+        task_history = TaskHistory(self.total_interviews, include_traceback=False)
+
         results = Results(
             survey=self.jobs.survey,
             data=sorted(
                 raw_results, key=lambda x: interview_hashes.index(x.interview_hash)
             ),
+            task_history=task_history,
+            cache=cache,
         )
-        results.cache = cache
-        results.task_history = TaskHistory(
-            self.total_interviews, include_traceback=False
-        )
+        #results.cache = cache
+        #results.task_history = TaskHistory(
+        #    self.total_interviews, include_traceback=False
+        #)
         results.has_unfixed_exceptions = results.task_history.has_unfixed_exceptions
         results.bucket_collection = self.bucket_collection
 
@@ -263,6 +263,7 @@ class JobsRunnerAsyncio:
             except Exception as e:
                 print(e)
                 remote_logging = False
+
             if remote_logging:
                 filestore = HTMLFileStore(filepath)
                 coop_details = filestore.push(description="Error report")
