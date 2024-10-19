@@ -3,38 +3,50 @@
 EDSL: AI-Powered Research
 =========================
 
-*Expected Parrot Domain-Specific Language* (EDSL) is an `open-source Python package <https://github.com/expectedparrot/edsl>`_ for conducting AI-powered research.
+*Expected Parrot Domain-Specific Language* (EDSL) is an open-source Python package (`GitHub <https://github.com/expectedparrot/edsl>`_) for conducting AI-powered research.
    
 EDSL is developed by `Expected Parrot <https://www.expectedparrot.com>`_ and available under the MIT License.
 
-This page provides documentation, tutorials and demo notebooks for the EDSL package and the `Coop <https://www.expectedparrot.com/explore>`_: a platform for creating, storing and sharing AI research. 
+This page provides documentation, tutorials and demo notebooks for the EDSL package and `Coop <https://www.expectedparrot.com/content/explore>`_: a platform for creating, storing and sharing AI-based research. 
 The contents are organized into key sections to help you get started.
 
 
 Researchers
 -----------
 
-**Are you using EDSL for a research project? We'd love to hear about your experience!**
+Are you using EDSL for a research project?
+Email us at info@expectedparrot.com and we'll give you free credits to run your project.
 
-Send us an email at info@expectedparrot.com and we'll provide credits to run your project or a gift card for your time.
+
+Getting started 
+---------------
+
+Steps for getting started using the EDSL package: 
+
+1. Download the EDSL package. See :ref:`installation` instructions.
+2. *(Optional)*  Create a `Coop account <https://www.expectedparrot.com/login>`_ to store and share research.
+3. Decide how you want to use EDSL: 
+
+   *To run surveys on the Expected Parrot server with available models:*
+   Activate :ref:`remote_inference` from your `Coop API Settings <https://www.expectedparrot.com/home/api>`_ page.
+   Copy and store your Expected Parrot API key.
+   
+   *To run surveys locally:*
+   Copy and store your own :ref:`api_keys` for language models.
+
+   We recommend storing your API keys in a *.env* file in your working directory. 
+   See instructions in the :ref:`api_keys` section.
+
+4. Explore a :ref:`starter_tutorial` and other how-to guides and notebooks for examples.
 
 
-Links
------
+Support
+-------
 
-- Download the current version of EDSL at `PyPI <https://pypi.org/project/edsl>`_.
-- Get the latest EDSL updates at `GitHub <https://github.com/expectedparrot/edsl>`_.
-- Create a `Coop account <https://www.expectedparrot.com/login>`_ to store and share your research and access special features, including:
-  
-  * :ref:`survey_builder`: An interface for launching hybrid human-AI surveys
-  * :ref:`remote_inference`: Run surveys on the Expected Parrot server
-  * :ref:`remote_caching`: Automatically store results and API calls on the Expected Parrot server
-  * :ref:`filestore`: Store and share data files for use in EDSL projects
-
-- Explore research at the `Coop <https://www.expectedparrot.com/explore>`_.
-- Join the `Discord channel <https://discord.com/invite/mxAYkjfy9m>`_.
+- Send us an email: info@expectedparrot.com
+- Join the `Discord channel <https://discord.com/invite/mxAYkjfy9m>`_
 - Follow on social media: `Twitter/X <https://twitter.com/expectedparrot>`_, `LinkedIn <https://www.linkedin.com/company/expectedparrot>`_, `Blog <https://blog.expectedparrot.com>`_
-  
+ 
 
 Introduction
 ------------
@@ -43,20 +55,6 @@ Introduction
 - :ref:`whitepaper`: A whitepaper about the EDSL package (*in progress*).
 - :ref:`citation`: How to cite the package in your work.
 - :ref:`papers`: Research papers and articles that use or cite EDSL.
-
-
-Technical Setup
----------------
-
-- :ref:`installation`: Instructions for installing the EDSL package.
-- :ref:`coop`: Create, store and share research on the Expected Parrot server. 
-- :ref:`api_keys`: Instructions for storing API keys to use EDSL locally (*optional*).
-
-
-Getting Started
----------------
-
-- :ref:`starter_tutorial`: A tutorial to help you get started using EDSL.
 
 
 Core Concepts
@@ -81,29 +79,29 @@ Working with Results
 Coop 
 ----
 
-Coop is a platform for creating, storing and sharing EDSL content and AI-based research.
+`Coop <https://docs.expectedparrot.com/en/latest/coop.html>`_ is a platform for AI-based research.
+`Create an account <https://www.expectedparrot.com/login>`_ to store and share your work and get access to special features, including: 
 
-- :ref:`coop`: Learn how to create, store and share content at the Coop. 
-- :ref:`survey_builder`: An interface for launching hybrid human-AI surveys.
-- :ref:`filestore`: Store and share files for use in EDSL projects.
-- :ref:`remote_inference`: Run surveys on the Expected Parrot server. 
-- :ref:`remote_caching`: Automatically store survey results and API calls on the Expected Parrot server. 
-- :ref:`notebooks`: Instructions for posting `.ipynb` files to the Coop. 
+- :ref:`remote_inference`: Run surveys with any available models on the Expected Parrot server. 
+- :ref:`remote_caching`: Automatically store results and API calls on the Expected Parrot server. 
+- :ref:`survey_builder`: Design and launch hybrid human-AI surveys.
+- :ref:`notebooks`: Post `.ipynb` files to the Coop. 
+- :ref:`filestore`: Store and share data files for use in EDSL projects.
 
 
-Importing Data
---------------
+Importing Surveys
+-----------------
 
 - :ref:`conjure`: Automatically import other survey data into EDSL to:
   
   * Clean and analyze your data
-  * Create AI agents for respondents and conduct follow-on interviews
-  * Extend your results with new questions and surveys
-  * Store and share your data on the Coop
+  * Create AI agents and conduct follow-on interviews
+  * Extend results with new questions
+  * Store and share data at the Coop
 
 
-How-to Guides
--------------
+How-to Guides & Notebooks
+-------------------------
 
 Examples of special methods and use cases for EDSL, including:
 
@@ -114,20 +112,18 @@ Examples of special methods and use cases for EDSL, including:
 - Conducting agent conversations
 - Converting surveys into EDSL
 - Cognitive testing 
+- Research methods
 
-
-Notebooks
----------
-
-Templates and example code for using EDSL to conduct different kinds of research.
-*We're happy to create a new notebook for your use case!*
-
-
-Developers
-----------
-
-Information about additional functionality for developers.
  
+Links
+-----
+
+- Download the current version of EDSL at `PyPI <https://pypi.org/project/edsl>`_.
+- Get the latest EDSL updates at `GitHub <https://github.com/expectedparrot/edsl>`_.
+- Create a `Coop account <https://www.expectedparrot.com/login>`_.
+- Join the `Discord channel <https://discord.com/invite/mxAYkjfy9m>`_.
+- Follow on social media: `Twitter/X <https://twitter.com/expectedparrot>`_, `LinkedIn <https://www.linkedin.com/company/expectedparrot>`_, `Blog <https://blog.expectedparrot.com>`_
+
 
 .. toctree::
    :maxdepth: 2
@@ -194,9 +190,9 @@ Information about additional functionality for developers.
    :hidden:
 
    notebooks/edsl_intro.ipynb
-   notebooks/yoga_studio_name_survey.ipynb
    notebooks/data_labeling_example.ipynb
    notebooks/data_cleaning.ipynb
+   notebooks/yoga_studio_name_survey.ipynb
    notebooks/scenario_from_pdf.ipynb
    notebooks/image_scenario_example.ipynb
    notebooks/scenario_list_wikipedia.ipynb
@@ -248,16 +244,3 @@ Information about additional functionality for developers.
    interviews
    answers
    enums
-
-.. image:: https://colab.research.google.com/assets/colab-badge.svg
-   :target: https://colab.research.google.com/github/expectedparrot/edsl/blob/main/examples/create_agents.ipynb 
-   :alt: Open In Colab
-   :hidden:
-
-..
-   Indices and tables
-   ==================
-
-   * :ref:`genindex`
-   * :ref:`modindex`
-   * :ref:`search`
