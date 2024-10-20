@@ -231,9 +231,25 @@ class Jobs(Base):
 
         # Look up prices per token
         key = (inference_service, model)
-        relevant_prices = price_lookup[key]
-        output_price_per_token = 1 / float(relevant_prices["output"]["one_usd_buys"])
-        input_price_per_token = 1 / float(relevant_prices["input"]["one_usd_buys"])
+
+        try:
+            relevant_prices = price_lookup[key]
+            output_price_per_token = 1 / float(
+                relevant_prices["output"]["one_usd_buys"]
+            )
+            input_price_per_token = 1 / float(relevant_prices["input"]["one_usd_buys"])
+        except KeyError:
+            # A KeyError is likely to occur if we cannot retrieve prices (the price_lookup dict is empty)
+            # Use a sensible default
+
+            import warnings
+
+            warnings.warn(
+                "Price data could not be retrieved. Using default estimates for input and output token prices. Input: $0.15 / 1M tokens; Output: $0.60 / 1M tokens"
+            )
+
+            output_price_per_token = 0.00000015  # $0.15 / 1M tokens
+            input_price_per_token = 0.00000060  # $0.60 / 1M tokens
 
         # Compute the number of characters (double if the question involves piping)
         user_prompt_chars = len(str(user_prompt)) * get_piping_multiplier(
