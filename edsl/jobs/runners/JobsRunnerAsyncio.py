@@ -186,7 +186,10 @@ class JobsRunnerAsyncio:
             raw_model_results_dictionary[
                 question_name + "_raw_model_response"
             ] = result.raw_model_response
-            raw_model_results_dictionary[question_name + "_cost"] = result.cost
+            if result.cache_used:
+                raw_model_results_dictionary[question_name + "_cost"] = -result.cost
+            else:
+                raw_model_results_dictionary[question_name + "_cost"] = result.cost
             one_use_buys = (
                 "NA"
                 if isinstance(result.cost, str)
