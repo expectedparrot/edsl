@@ -16,30 +16,26 @@ class PriceFetcher:
         if self._cached_prices is not None:
             return self._cached_prices
 
+        import os
         import requests
-        import csv
-        from io import StringIO
-
-        sheet_id = "1SAO3Bhntefl0XQHJv27rMxpvu6uzKDWNXFHRa7jrUDs"
-
-        # Construct the URL to fetch the CSV
-        url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
+        from edsl import CONFIG
 
         try:
-            # Fetch the CSV data
-            response = requests.get(url)
+            # Fetch the pricing data
+            url = f"{CONFIG.EXPECTED_PARROT_URL}/api/v0/prices"
+            api_key = os.getenv("EXPECTED_PARROT_API_KEY")
+            headers = {}
+            if api_key:
+                headers["Authorization"] = f"Bearer {api_key}"
+            else:
+                headers["Authorization"] = f"Bearer None"
+
+            response = requests.get(url, headers=headers, timeout=20)
             response.raise_for_status()  # Raise an exception for bad responses
 
-            # Parse the CSV data
-            csv_data = StringIO(response.text)
-            reader = csv.reader(csv_data)
+            # Parse the data
+            data = response.json()
 
-            # Convert to list of dictionaries
-            headers = next(reader)
-            data = [dict(zip(headers, row)) for row in reader]
-
-            # self._cached_prices = data
-            # return data
             price_lookup = {}
             for entry in data:
                 service = entry.get("service", None)
