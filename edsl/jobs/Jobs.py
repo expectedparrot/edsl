@@ -219,7 +219,7 @@ class Jobs(Base):
         price_lookup: dict,
         inference_service: str,
         model: str,
-    ):
+    ) -> dict:
         """Estimates the cost of a prompt. Takes piping into account."""
 
         def get_piping_multiplier(prompt: str):
@@ -274,7 +274,7 @@ class Jobs(Base):
             "cost": cost,
         }
 
-    def estimate_job_cost_from_external_prices(self, price_lookup: dict):
+    def estimate_job_cost_from_external_prices(self, price_lookup: dict) -> dict:
         """
         Estimates the cost of a job according to the following assumptions:
 
@@ -357,7 +357,7 @@ class Jobs(Base):
 
         return output
 
-    def estimate_job_cost(self):
+    def estimate_job_cost(self) -> dict:
         """
         Estimates the cost of a job according to the following assumptions:
 
@@ -374,7 +374,7 @@ class Jobs(Base):
         return self.estimate_job_cost_from_external_prices(price_lookup=price_lookup)
 
     @staticmethod
-    def compute_job_cost(job_results: "Results"):
+    def compute_job_cost(job_results: "Results") -> float:
         """
         Computes the cost of a completed job in USD.
         """
