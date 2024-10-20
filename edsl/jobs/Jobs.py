@@ -805,13 +805,10 @@ class Jobs(Base):
             if results is None:
                 self._output("Job failed.")
             return results
-        
-        print(f"Remote inference setting: {remote_inference}")
-        
+                
         if check_api_keys:
             self.check_api_keys()
 
-        
         # handle cache
         if cache is None or cache is True:
             from edsl.data.CacheHandler import CacheHandler
@@ -823,7 +820,6 @@ class Jobs(Base):
             cache = Cache()
 
         remote_cache = self.use_remote_cache()
-        self._output(f"Remote cache setting: {remote_cache}")
         with RemoteCacheSync(coop = Coop(), cache = cache, output_func = self._output, remote_cache = remote_cache, remote_cache_description=remote_cache_description) as r:
                 results = self._run_local(
                     n=n,
@@ -837,46 +833,6 @@ class Jobs(Base):
 
         results.cache = cache.new_entries_cache()
         return results
-
-        #    self._output(f"There are {len(cache.keys()):,} entries in the local cache.")
-        # else:
-            
-        #     results = self._run_local(
-        #         n=n,
-        #         progress_bar=progress_bar,
-        #         cache=cache,
-        #         stop_on_exception=stop_on_exception,
-        #         sidecar_model=sidecar_model,
-        #         print_exceptions=print_exceptions,
-        #         raise_validation_errors=raise_validation_errors,
-        #     )
-        #     self._output("Job completed!")
-
-        #     new_cache_entries = list(
-        #         [entry for entry in cache.values() if entry.key not in old_entry_keys]
-        #     )
-        #     server_missing_cacheentries.extend(new_cache_entries)
-
-        #     new_entry_count = len(server_missing_cacheentries)
-        #     if new_entry_count > 0:
-        #         self._output(
-        #             f"Updating remote cache with {new_entry_count:,} new "
-        #             f"{'entry' if new_entry_count == 1 else 'entries'}..."
-        #         )
-        #         coop.remote_cache_create_many(
-        #             server_missing_cacheentries,
-        #             visibility="private",
-        #             description=remote_cache_description,
-        #         )
-        #         self._output("Remote cache updated!")
-        #     else:
-        #         self._output("No new entries to add to remote cache.")
-
-        #     results.cache = cache.new_entries_cache()
-
-        #     self._output(f"There are {len(cache.keys()):,} entries in the local cache.")
-
-        # return results
 
     def _run_local(self, *args, **kwargs):
         """Run the job locally."""
