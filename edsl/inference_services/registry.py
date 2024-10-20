@@ -11,21 +11,29 @@ from edsl.inference_services.AwsBedrock import AwsBedrockService
 from edsl.inference_services.AzureAI import AzureAIService
 from edsl.inference_services.OllamaService import OllamaService
 from edsl.inference_services.TestService import TestService
-from edsl.inference_services.MistralAIService import MistralAIService
 from edsl.inference_services.TogetherAIService import TogetherAIService
 
-default = InferenceServicesCollection(
-    [
-        OpenAIService,
-        AnthropicService,
-        DeepInfraService,
-        GoogleService,
-        GroqService,
-        AwsBedrockService,
-        AzureAIService,
-        OllamaService,
-        TestService,
-        MistralAIService,
-        TogetherAIService,
-    ]
-)
+try:
+    from edsl.inference_services.MistralAIService import MistralAIService
+
+    mistral_available = True
+except Exception as e:
+    mistral_available = False
+
+services = [
+    OpenAIService,
+    AnthropicService,
+    DeepInfraService,
+    GoogleService,
+    GroqService,
+    AwsBedrockService,
+    AzureAIService,
+    OllamaService,
+    TestService,
+    TogetherAIService,
+]
+
+if mistral_available:
+    services.append(MistralAIService)
+
+default = InferenceServicesCollection(services)
