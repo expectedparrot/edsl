@@ -3,6 +3,7 @@ from __future__ import annotations
 import warnings
 from itertools import product
 from typing import Optional, Union, Sequence, Generator
+
 from edsl.Base import Base
 from edsl.exceptions import MissingAPIKeyError
 from edsl.jobs.buckets.BucketCollection import BucketCollection
@@ -10,6 +11,7 @@ from edsl.jobs.interviews.Interview import Interview
 from edsl.jobs.runners.JobsRunnerAsyncio import JobsRunnerAsyncio
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
+from edsl.data.RemoteCacheSync import RemoteCacheSync
 
 class Jobs(Base):
     """
@@ -203,10 +205,6 @@ class Jobs(Base):
             ]
         )
         return d
-        # if table:
-        #     d.to_scenario_list().print(format="rich")
-        # else:
-        #     return d
 
     def show_prompts(self) -> None:
         """Print the prompts."""
@@ -219,7 +217,7 @@ class Jobs(Base):
         price_lookup: dict,
         inference_service: str,
         model: str,
-    ):
+    ) -> dict:
         """Estimates the cost of a prompt. Takes piping into account."""
 
         def get_piping_multiplier(prompt: str):
@@ -258,7 +256,7 @@ class Jobs(Base):
             "cost": cost,
         }
 
-    def estimate_job_cost_from_external_prices(self, price_lookup: dict):
+    def estimate_job_cost_from_external_prices(self, price_lookup: dict) -> dict:
         """
         Estimates the cost of a job according to the following assumptions:
 
@@ -580,7 +578,7 @@ class Jobs(Base):
 
     def _output(self, message) -> None:
         """Check if a Job is verbose. If so, print the message."""
-        if self.verbose:
+        if hasattr(self, "verbose") and self.verbose:
             print(message)
 
     def _check_parameters(self, strict=False, warn=False) -> None:
@@ -656,6 +654,110 @@ class Jobs(Base):
         if not hasattr(self, "_raise_validation_errors"):
             return False
         return self._raise_validation_errors
+    
+    def create_remote_inference_job(self, iterations: int = 1, remote_inference_description: Optional[str] = None):
+        """
+        """
+        from edsl.coop.coop import Coop
+        coop = Coop()   
+        self._output("Remote inference activated. Sending job to server...")
+        remote_job_creation_data = coop.remote_inference_create(
+            self,
+            description=remote_inference_description,
+            status="queued",
+            iterations=iterations,
+        )
+        return remote_job_creation_data
+    
+    @staticmethod
+    def check_status(job_uuid):
+        from edsl.coop.coop import Coop
+        coop = Coop()
+        return coop.remote_inference_get(job_uuid)
+    
+    def poll_remote_inference_job(self, remote_job_creation_data:dict) -> Union[Results, None]:
+        from edsl.coop.coop import Coop
+        import time
+        from datetime import datetime
+        from edsl.config import CONFIG
+        expected_parrot_url = CONFIG.get("EXPECTED_PARROT_URL")
+
+        job_uuid = remote_job_creation_data.get("uuid")
+
+        coop = Coop()
+        job_in_queue = True
+        while job_in_queue:
+            remote_job_data = coop.remote_inference_get(job_uuid)
+            status = remote_job_data.get("status")
+            if status == "cancelled":
+                print("\r" + " " * 80 + "\r", end="")
+                print("Job cancelled by the user.")
+                print(
+                    f"See {expected_parrot_url}/home/remote-inference for more details."
+                )
+                return None
+            elif status == "failed":
+                print("\r" + " " * 80 + "\r", end="")
+                print("Job failed.")
+                print(
+                    f"See {expected_parrot_url}/home/remote-inference for more details."
+                )
+                return None
+            elif status == "completed":
+                results_uuid = remote_job_data.get("results_uuid")
+                results = coop.get(results_uuid, expected_object_type="results")
+                print("\r" + " " * 80 + "\r", end="")
+                print(
+                    f"Job completed and Results stored on Coop (Results uuid={results_uuid})."
+                )
+                return results
+            else:
+                duration = 5
+                time_checked = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
+                frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+                start_time = time.time()
+                i = 0
+                while time.time() - start_time < duration:
+                    print(
+                        f"\r{frames[i % len(frames)]} Job status: {status} - last update: {time_checked}",
+                        end="",
+                        flush=True,
+                    )
+                    time.sleep(0.1)
+                    i += 1
+
+    def use_remote_inference(self, disable_remote_inference:bool):
+        if disable_remote_inference:
+            return False
+        if not disable_remote_inference:
+            try:
+                from edsl import Coop
+                user_edsl_settings = Coop().edsl_settings
+                return user_edsl_settings.get("remote_inference", False)
+            except Exception as e:
+                print(e)
+        
+        return False
+        
+    def use_remote_cache(self):
+        try:
+            from edsl import Coop
+            user_edsl_settings = Coop().edsl_settings
+            return user_edsl_settings.get("remote_caching", False)
+        except Exception as e:
+            print(e)
+        
+        return False
+        
+    def check_api_keys(self):
+        from edsl import Model
+        for model in self.models + [Model()]:
+            if not model.has_valid_api_key():
+                raise MissingAPIKeyError(
+                    model_name=str(model.model),
+                    inference_service=model._inference_service_,
+                )
+ 
 
     def run(
         self,
@@ -694,92 +796,22 @@ class Jobs(Base):
 
         self.verbose = verbose
 
-        remote_cache = False
-        remote_inference = False
-
-        if not disable_remote_inference:
-            try:
-                coop = Coop()
-                user_edsl_settings = Coop().edsl_settings
-                remote_cache = user_edsl_settings.get("remote_caching", False)
-                remote_inference = user_edsl_settings.get("remote_inference", False)
-            except Exception:
-                pass
-
-        if remote_inference:
-            import time
-            from datetime import datetime
-            from edsl.config import CONFIG
-
-            expected_parrot_url = CONFIG.get("EXPECTED_PARROT_URL")
-
-            self._output("Remote inference activated. Sending job to server...")
-            if remote_cache:
-                self._output(
-                    "Remote caching activated. The remote cache will be used for this job."
-                )
-
-            remote_job_creation_data = coop.remote_inference_create(
-                self,
-                description=remote_inference_description,
-                status="queued",
-                iterations=n,
+        if remote_inference := self.use_remote_inference(disable_remote_inference):
+            remote_job_creation_data = self.create_remote_inference_job(
+                iterations=n, 
+                remote_inference_description=remote_inference_description
             )
-            time_queued = datetime.now().strftime("%m/%d/%Y %I:%M:%S %p")
-            job_uuid = remote_job_creation_data.get("uuid")
-            print(f"Remote inference started (Job uuid={job_uuid}).")
-            # print(f"Job queued at {time_queued}.")
-            job_in_queue = True
-            while job_in_queue:
-                remote_job_data = coop.remote_inference_get(job_uuid)
-                status = remote_job_data.get("status")
-                if status == "cancelled":
-                    print("\r" + " " * 80 + "\r", end="")
-                    print("Job cancelled by the user.")
-                    print(
-                        f"See {expected_parrot_url}/home/remote-inference for more details."
-                    )
-                    return None
-                elif status == "failed":
-                    print("\r" + " " * 80 + "\r", end="")
-                    print("Job failed.")
-                    print(
-                        f"See {expected_parrot_url}/home/remote-inference for more details."
-                    )
-                    return None
-                elif status == "completed":
-                    results_uuid = remote_job_data.get("results_uuid")
-                    results = coop.get(results_uuid, expected_object_type="results")
-                    print("\r" + " " * 80 + "\r", end="")
-                    print(
-                        f"Job completed and Results stored on Coop (Results uuid={results_uuid})."
-                    )
-                    return results
-                else:
-                    duration = 5
-                    time_checked = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
-                    frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
-                    start_time = time.time()
-                    i = 0
-                    while time.time() - start_time < duration:
-                        print(
-                            f"\r{frames[i % len(frames)]} Job status: {status} - last update: {time_checked}",
-                            end="",
-                            flush=True,
-                        )
-                        time.sleep(0.1)
-                        i += 1
-        else:
-            if check_api_keys:
-                from edsl import Model
+            results = self.poll_remote_inference_job(remote_job_creation_data)            
+            if results is None:
+                self._output("Job failed.")
+            return results
+        
+        print(f"Remote inference setting: {remote_inference}")
+        
+        if check_api_keys:
+            self.check_api_keys()
 
-                for model in self.models + [Model()]:
-                    if not model.has_valid_api_key():
-                        raise MissingAPIKeyError(
-                            model_name=str(model.model),
-                            inference_service=model._inference_service_,
-                        )
-
+        
         # handle cache
         if cache is None or cache is True:
             from edsl.data.CacheHandler import CacheHandler
@@ -790,87 +822,61 @@ class Jobs(Base):
 
             cache = Cache()
 
-        if not remote_cache:
-            results = self._run_local(
-                n=n,
-                progress_bar=progress_bar,
-                cache=cache,
-                stop_on_exception=stop_on_exception,
-                sidecar_model=sidecar_model,
-                print_exceptions=print_exceptions,
-                raise_validation_errors=raise_validation_errors,
-            )
-
-            results.cache = cache.new_entries_cache()
-
-            self._output(f"There are {len(cache.keys()):,} entries in the local cache.")
-        else:
-            cache_difference = coop.remote_cache_get_diff(cache.keys())
-
-            client_missing_cacheentries = cache_difference.get(
-                "client_missing_cacheentries", []
-            )
-
-            missing_entry_count = len(client_missing_cacheentries)
-            if missing_entry_count > 0:
-                self._output(
-                    f"Updating local cache with {missing_entry_count:,} new "
-                    f"{'entry' if missing_entry_count == 1 else 'entries'} from remote..."
+        remote_cache = self.use_remote_cache()
+        self._output(f"Remote cache setting: {remote_cache}")
+        with RemoteCacheSync(coop = Coop(), cache = cache, output_func = self._output, remote_cache = remote_cache, remote_cache_description=remote_cache_description) as r:
+                results = self._run_local(
+                    n=n,
+                    progress_bar=progress_bar,
+                    cache=cache,
+                    stop_on_exception=stop_on_exception,
+                    sidecar_model=sidecar_model,
+                    print_exceptions=print_exceptions,
+                    raise_validation_errors=raise_validation_errors,
                 )
-                cache.add_from_dict(
-                    {entry.key: entry for entry in client_missing_cacheentries}
-                )
-                self._output("Local cache updated!")
-            else:
-                self._output("No new entries to add to local cache.")
 
-            server_missing_cacheentry_keys = cache_difference.get(
-                "server_missing_cacheentry_keys", []
-            )
-            server_missing_cacheentries = [
-                entry
-                for key in server_missing_cacheentry_keys
-                if (entry := cache.data.get(key)) is not None
-            ]
-            old_entry_keys = [key for key in cache.keys()]
-
-            self._output("Running job...")
-            results = self._run_local(
-                n=n,
-                progress_bar=progress_bar,
-                cache=cache,
-                stop_on_exception=stop_on_exception,
-                sidecar_model=sidecar_model,
-                print_exceptions=print_exceptions,
-                raise_validation_errors=raise_validation_errors,
-            )
-            self._output("Job completed!")
-
-            new_cache_entries = list(
-                [entry for entry in cache.values() if entry.key not in old_entry_keys]
-            )
-            server_missing_cacheentries.extend(new_cache_entries)
-
-            new_entry_count = len(server_missing_cacheentries)
-            if new_entry_count > 0:
-                self._output(
-                    f"Updating remote cache with {new_entry_count:,} new "
-                    f"{'entry' if new_entry_count == 1 else 'entries'}..."
-                )
-                coop.remote_cache_create_many(
-                    server_missing_cacheentries,
-                    visibility="private",
-                    description=remote_cache_description,
-                )
-                self._output("Remote cache updated!")
-            else:
-                self._output("No new entries to add to remote cache.")
-
-            results.cache = cache.new_entries_cache()
-
-            self._output(f"There are {len(cache.keys()):,} entries in the local cache.")
-
+        results.cache = cache.new_entries_cache()
         return results
+
+        #    self._output(f"There are {len(cache.keys()):,} entries in the local cache.")
+        # else:
+            
+        #     results = self._run_local(
+        #         n=n,
+        #         progress_bar=progress_bar,
+        #         cache=cache,
+        #         stop_on_exception=stop_on_exception,
+        #         sidecar_model=sidecar_model,
+        #         print_exceptions=print_exceptions,
+        #         raise_validation_errors=raise_validation_errors,
+        #     )
+        #     self._output("Job completed!")
+
+        #     new_cache_entries = list(
+        #         [entry for entry in cache.values() if entry.key not in old_entry_keys]
+        #     )
+        #     server_missing_cacheentries.extend(new_cache_entries)
+
+        #     new_entry_count = len(server_missing_cacheentries)
+        #     if new_entry_count > 0:
+        #         self._output(
+        #             f"Updating remote cache with {new_entry_count:,} new "
+        #             f"{'entry' if new_entry_count == 1 else 'entries'}..."
+        #         )
+        #         coop.remote_cache_create_many(
+        #             server_missing_cacheentries,
+        #             visibility="private",
+        #             description=remote_cache_description,
+        #         )
+        #         self._output("Remote cache updated!")
+        #     else:
+        #         self._output("No new entries to add to remote cache.")
+
+        #     results.cache = cache.new_entries_cache()
+
+        #     self._output(f"There are {len(cache.keys()):,} entries in the local cache.")
+
+        # return results
 
     def _run_local(self, *args, **kwargs):
         """Run the job locally."""

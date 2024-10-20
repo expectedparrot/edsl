@@ -6,11 +6,7 @@ from typing import Coroutine, List, AsyncGenerator, Optional, Union, Generator
 from contextlib import contextmanager
 from collections import UserList
 
-#from rich.live import Live
-#from rich.console import Console
-
 from edsl.results.Results import Results
-from edsl import shared_globals
 from edsl.jobs.interviews.Interview import Interview
 from edsl.jobs.runners.JobsRunnerStatus import JobsRunnerStatus
 
@@ -22,7 +18,6 @@ from edsl.results.Result import Result
 from edsl.results.Results import Results
 from edsl.language_models.LanguageModel import LanguageModel
 from edsl.data.Cache import Cache
-
 
 class StatusTracker(UserList):
     def __init__(self, total_tasks: int):
@@ -231,11 +226,6 @@ class JobsRunnerAsyncio:
             task_history=task_history,
             cache=cache,
         )
-        #results.cache = cache
-        #results.task_history = TaskHistory(
-        #    self.total_interviews, include_traceback=False
-        #)
-        results.has_unfixed_exceptions = results.task_history.has_unfixed_exceptions
         results.bucket_collection = self.bucket_collection
 
         if results.has_unfixed_exceptions and print_exceptions:

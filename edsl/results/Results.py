@@ -301,6 +301,10 @@ class Results(UserList, Mixins, Base):
             "b_not_a": [other_results[i] for i in indices_other],
         }
 
+    @property 
+    def has_unfixed_exceptions(self):
+        return self.task_history.has_unfixed_exceptions
+
     @add_edsl_version
     def to_dict(self) -> dict[str, Any]:
         """Convert the Results object to a dictionary.
