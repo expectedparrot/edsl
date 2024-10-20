@@ -223,7 +223,7 @@ class Jobs(Base):
         """Estimates the cost of a prompt. Takes piping into account."""
 
         def get_piping_multiplier(prompt: str):
-            """Returns 2 if a prompt includes Jinja brances, and 1 otherwise."""
+            """Returns 2 if a prompt includes Jinja braces, and 1 otherwise."""
 
             if "{{" in prompt and "}}" in prompt:
                 return 2
@@ -356,6 +356,21 @@ class Jobs(Base):
         price_lookup = c.fetch_prices()
 
         return self.estimate_job_cost_from_external_prices(price_lookup=price_lookup)
+
+    @staticmethod
+    def compute_job_cost(job_results: "Results"):
+        """
+        Computes the cost of a completed job in USD.
+        """
+        total_cost = 0
+        for result in job_results:
+            for key in result.raw_model_response:
+                if key.endswith("_cost"):
+                    result_cost = result.raw_model_response[key]
+                    if result_cost:
+                        total_cost += result_cost
+
+        return total_cost
 
     @staticmethod
     def _get_container_class(object):
