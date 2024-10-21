@@ -173,19 +173,20 @@ class JobsRunnerAsyncio:
 
         prompt_dictionary = {}
         for answer_key_name in answer_key_names:
-            prompt_dictionary[
-                answer_key_name + "_user_prompt"
-            ] = question_name_to_prompts[answer_key_name]["user_prompt"]
-            prompt_dictionary[
-                answer_key_name + "_system_prompt"
-            ] = question_name_to_prompts[answer_key_name]["system_prompt"]
+            prompt_dictionary[answer_key_name + "_user_prompt"] = (
+                question_name_to_prompts[answer_key_name]["user_prompt"]
+            )
+            prompt_dictionary[answer_key_name + "_system_prompt"] = (
+                question_name_to_prompts[answer_key_name]["system_prompt"]
+            )
 
         raw_model_results_dictionary = {}
+        cache_used_dictionary = {}
         for result in valid_results:
             question_name = result.question_name
-            raw_model_results_dictionary[
-                question_name + "_raw_model_response"
-            ] = result.raw_model_response
+            raw_model_results_dictionary[question_name + "_raw_model_response"] = (
+                result.raw_model_response
+            )
             raw_model_results_dictionary[question_name + "_cost"] = result.cost
             one_use_buys = (
                 "NA"
@@ -195,6 +196,7 @@ class JobsRunnerAsyncio:
                 else 1.0 / result.cost
             )
             raw_model_results_dictionary[question_name + "_one_usd_buys"] = one_use_buys
+            cache_used_dictionary[question_name] = result.cache_used
 
         result = Result(
             agent=interview.agent,
@@ -207,6 +209,7 @@ class JobsRunnerAsyncio:
             survey=interview.survey,
             generated_tokens=generated_tokens_dict,
             comments_dict=comments_dict,
+            cache_used_dict=cache_used_dictionary,
         )
         result.interview_hash = hash(interview)
 

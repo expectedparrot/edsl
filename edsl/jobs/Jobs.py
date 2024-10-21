@@ -219,11 +219,11 @@ class Jobs(Base):
         price_lookup: dict,
         inference_service: str,
         model: str,
-    ):
+    ) -> dict:
         """Estimates the cost of a prompt. Takes piping into account."""
 
         def get_piping_multiplier(prompt: str):
-            """Returns 2 if a prompt includes Jinja brances, and 1 otherwise."""
+            """Returns 2 if a prompt includes Jinja braces, and 1 otherwise."""
 
             if "{{" in prompt and "}}" in prompt:
                 return 2
@@ -231,9 +231,25 @@ class Jobs(Base):
 
         # Look up prices per token
         key = (inference_service, model)
-        relevant_prices = price_lookup[key]
-        output_price_per_token = 1 / float(relevant_prices["output"]["one_usd_buys"])
-        input_price_per_token = 1 / float(relevant_prices["input"]["one_usd_buys"])
+
+        try:
+            relevant_prices = price_lookup[key]
+            output_price_per_token = 1 / float(
+                relevant_prices["output"]["one_usd_buys"]
+            )
+            input_price_per_token = 1 / float(relevant_prices["input"]["one_usd_buys"])
+        except KeyError:
+            # A KeyError is likely to occur if we cannot retrieve prices (the price_lookup dict is empty)
+            # Use a sensible default
+
+            import warnings
+
+            warnings.warn(
+                "Price data could not be retrieved. Using default estimates for input and output token prices. Input: $0.15 / 1M tokens; Output: $0.60 / 1M tokens"
+            )
+
+            output_price_per_token = 0.00000015  # $0.15 / 1M tokens
+            input_price_per_token = 0.00000060  # $0.60 / 1M tokens
 
         # Compute the number of characters (double if the question involves piping)
         user_prompt_chars = len(str(user_prompt)) * get_piping_multiplier(
@@ -258,7 +274,7 @@ class Jobs(Base):
             "cost": cost,
         }
 
-    def estimate_job_cost_from_external_prices(self, price_lookup: dict):
+    def estimate_job_cost_from_external_prices(self, price_lookup: dict) -> dict:
         """
         Estimates the cost of a job according to the following assumptions:
 
@@ -341,7 +357,7 @@ class Jobs(Base):
 
         return output
 
-    def estimate_job_cost(self):
+    def estimate_job_cost(self) -> dict:
         """
         Estimates the cost of a job according to the following assumptions:
 
@@ -356,6 +372,25 @@ class Jobs(Base):
         price_lookup = c.fetch_prices()
 
         return self.estimate_job_cost_from_external_prices(price_lookup=price_lookup)
+
+    @staticmethod
+    def compute_job_cost(job_results: "Results") -> float:
+        """
+        Computes the cost of a completed job in USD.
+        """
+        total_cost = 0
+        for result in job_results:
+            for key in result.raw_model_response:
+                if key.endswith("_cost"):
+                    result_cost = result.raw_model_response[key]
+
+                    question_name = key.removesuffix("_cost")
+                    cache_used = result.cache_used_dict[question_name]
+
+                    if isinstance(result_cost, (int, float)) and not cache_used:
+                        total_cost += result_cost
+
+        return total_cost
 
     @staticmethod
     def _get_container_class(object):
