@@ -584,7 +584,10 @@ class Coop:
         )
         self._resolve_server_response(response)
         response_json = response.json()
-        return response_json.get("cost")
+        return {
+            "credits": response_json.get("cost_in_credits"),
+            "usd": response_json.get("cost_in_usd"),
+        }
 
     ################
     # Remote Errors
