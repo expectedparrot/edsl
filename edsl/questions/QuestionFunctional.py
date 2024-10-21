@@ -50,6 +50,7 @@ class QuestionFunctional(QuestionBase):
         requires_loop: Optional[bool] = False,
         function_source_code: Optional[str] = None,
         function_name: Optional[str] = None,
+        unsafe: Optional[bool] = False,
     ):
         super().__init__()
         if func:
@@ -61,9 +62,12 @@ class QuestionFunctional(QuestionBase):
 
         self.requires_loop = requires_loop
 
-        self.func = create_restricted_function(
-            self.function_name, self.function_source_code
-        )
+        if unsafe:
+            self.func = func
+        else:
+            self.func = create_restricted_function(
+                self.function_name, self.function_source_code
+            )
 
         self.question_name = question_name
         self.question_text = question_text
