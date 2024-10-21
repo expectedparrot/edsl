@@ -116,7 +116,7 @@ class Dataset(UserList, ResultsExportMixin):
 
         >>> d = Dataset([{'a.b':[1,2,3,4]}])
         >>> d.to_json()
-        '[{"a.b": [1, 2, 3, 4]}]'
+        [{'a.b': [1, 2, 3, 4]}]
         """
         return json.loads(
             json.dumps(self.data)
