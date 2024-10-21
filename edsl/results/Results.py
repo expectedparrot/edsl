@@ -29,6 +29,7 @@ from edsl.results.ResultsFetchMixin import ResultsFetchMixin
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 from edsl.utilities.utilities import dict_hash
 
+
 from edsl.Base import Base
 
 
@@ -89,6 +90,7 @@ class Results(UserList, Mixins, Base):
         cache: Optional["Cache"] = None,
         job_uuid: Optional[str] = None,
         total_results: Optional[int] = None,
+        task_history: Optional["TaskHistory"] = None,
     ):
         """Instantiate a `Results` object with a survey and a list of `Result` objects.
 
@@ -100,12 +102,15 @@ class Results(UserList, Mixins, Base):
         """
         super().__init__(data)
         from edsl.data.Cache import Cache
+        from edsl.jobs.tasks.TaskHistory import TaskHistory
 
         self.survey = survey
         self.created_columns = created_columns or []
         self._job_uuid = job_uuid
         self._total_results = total_results
         self.cache = cache or Cache()
+
+        self.task_history = task_history or TaskHistory(interviews = [])
 
         if hasattr(self, "_add_output_functions"):
             self._add_output_functions()
@@ -276,6 +281,7 @@ class Results(UserList, Mixins, Base):
             "survey": self.survey.to_dict(),
             "created_columns": self.created_columns,
             "cache": Cache() if not hasattr(self, "cache") else self.cache.to_dict(),
+            "task_history": self.task_history.to_dict(),
         }
 
     def compare(self, other_results):
@@ -295,6 +301,10 @@ class Results(UserList, Mixins, Base):
             "b_not_a": [other_results[i] for i in indices_other],
         }
 
+    @property 
+    def has_unfixed_exceptions(self):
+        return self.task_history.has_unfixed_exceptions
+
     @add_edsl_version
     def to_dict(self) -> dict[str, Any]:
         """Convert the Results object to a dictionary.
@@ -305,7 +315,7 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.to_dict().keys()
-        dict_keys(['data', 'survey', 'created_columns', 'cache', 'edsl_version', 'edsl_class_name'])
+        dict_keys(['data', 'survey', 'created_columns', 'cache', 'task_history', 'edsl_version', 'edsl_class_name'])
         """
         return self._to_dict()
 
@@ -358,6 +368,7 @@ class Results(UserList, Mixins, Base):
         """
         from edsl import Survey, Cache
         from edsl.results.Result import Result
+        from edsl.jobs.tasks.TaskHistory import TaskHistory
 
         try:
             results = cls(
@@ -367,6 +378,7 @@ class Results(UserList, Mixins, Base):
                 cache=(
                     Cache.from_dict(data.get("cache")) if "cache" in data else Cache()
                 ),
+                task_history=TaskHistory.from_dict(data.get("task_history")),
             )
         except Exception as e:
             raise ResultsDeserializationError(f"Error in Results.from_dict: {e}")
