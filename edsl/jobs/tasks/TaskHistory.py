@@ -8,7 +8,7 @@ from edsl.jobs.tasks.task_status_enum import TaskStatus
 
 
 class TaskHistory:
-    def __init__(self, interviews: List["Interview"], include_traceback=False):
+    def __init__(self, interviews: List["Interview"], include_traceback:bool=False):
         """
         The structure of a TaskHistory exception
 
@@ -25,6 +25,8 @@ class TaskHistory:
 
     @classmethod
     def example(cls):
+        """
+        """
         from edsl.jobs.interviews.Interview import Interview
 
         from edsl.jobs.Jobs import Jobs
@@ -72,13 +74,27 @@ class TaskHistory:
 
     def to_dict(self):
         """Return the TaskHistory as a dictionary."""
+        # return {
+        #     "exceptions": [
+        #         e.to_dict(include_traceback=self.include_traceback)
+        #         for e in self.exceptions
+        #     ],
+        #     "indices": self.indices,
+        # }
         return {
-            "exceptions": [
-                e.to_dict(include_traceback=self.include_traceback)
-                for e in self.exceptions
-            ],
-            "indices": self.indices,
+            'interviews': [i._to_dict() for i in self.total_interviews],
+            'include_traceback': self.include_traceback
         }
+    
+    @classmethod
+    def from_dict(cls, data: dict):
+        """Create a TaskHistory from a dictionary."""
+        if data is None:
+            return cls([], include_traceback=False)
+
+        from edsl.jobs.interviews.Interview import Interview
+        interviews = [Interview.from_dict(i) for i in data['interviews']]
+        return cls(interviews, include_traceback=data['include_traceback'])
 
     @property
     def has_exceptions(self) -> bool:
@@ -259,7 +275,6 @@ class TaskHistory:
                 question_type = interview.survey.get_question(
                     question_name
                 ).question_type
-                # breakpoint()
                 if (question_name, question_type) not in exceptions_by_question_name:
                     exceptions_by_question_name[(question_name, question_type)] = 0
                 exceptions_by_question_name[(question_name, question_type)] += len(
