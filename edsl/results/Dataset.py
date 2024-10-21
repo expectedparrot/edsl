@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 import random
+import json
 from collections import UserList
 from typing import Any, Union, Optional
 
@@ -109,6 +110,17 @@ class Dataset(UserList, ResultsExportMixin):
             if observation_key in keys:
                 new_data.append(observation)
         return Dataset(new_data)
+
+    def to_json(self):
+        """Return a JSON representation of the dataset.
+
+        >>> d = Dataset([{'a.b':[1,2,3,4]}])
+        >>> d.to_json()
+        [{'a.b': [1, 2, 3, 4]}]
+        """
+        return json.loads(
+            json.dumps(self.data)
+        )  # janky but I want to make sure it's serializable & deserializable
 
     def _repr_html_(self) -> str:
         """Return an HTML representation of the dataset."""

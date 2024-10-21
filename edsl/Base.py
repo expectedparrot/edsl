@@ -274,6 +274,9 @@ class Base(
         """This method should be implemented by subclasses."""
         raise NotImplementedError("This method is not implemented yet.")
 
+    def to_json(self):
+        return json.dumps(self.to_dict())
+
     @abstractmethod
     def from_dict():
         """This method should be implemented by subclasses."""
