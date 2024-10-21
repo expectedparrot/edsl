@@ -1,6 +1,7 @@
 # """The Jobs class is a collection of agents, scenarios and models and one survey."""
 from __future__ import annotations
 import warnings
+import requests
 from itertools import product
 from typing import Optional, Union, Sequence, Generator
 
@@ -12,6 +13,8 @@ from edsl.jobs.runners.JobsRunnerAsyncio import JobsRunnerAsyncio
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
 from edsl.data.RemoteCacheSync import RemoteCacheSync
+from edsl.exceptions.coop import CoopServerResponseError
+
 
 class Jobs(Base):
     """
@@ -654,12 +657,14 @@ class Jobs(Base):
         if not hasattr(self, "_raise_validation_errors"):
             return False
         return self._raise_validation_errors
-    
-    def create_remote_inference_job(self, iterations: int = 1, remote_inference_description: Optional[str] = None):
-        """
-        """
+
+    def create_remote_inference_job(
+        self, iterations: int = 1, remote_inference_description: Optional[str] = None
+    ):
+        """ """
         from edsl.coop.coop import Coop
-        coop = Coop()   
+
+        coop = Coop()
         self._output("Remote inference activated. Sending job to server...")
         remote_job_creation_data = coop.remote_inference_create(
             self,
@@ -668,18 +673,22 @@ class Jobs(Base):
             iterations=iterations,
         )
         return remote_job_creation_data
-    
+
     @staticmethod
     def check_status(job_uuid):
         from edsl.coop.coop import Coop
+
         coop = Coop()
         return coop.remote_inference_get(job_uuid)
-    
-    def poll_remote_inference_job(self, remote_job_creation_data:dict) -> Union[Results, None]:
+
+    def poll_remote_inference_job(
+        self, remote_job_creation_data: dict
+    ) -> Union[Results, None]:
         from edsl.coop.coop import Coop
         import time
         from datetime import datetime
         from edsl.config import CONFIG
+
         expected_parrot_url = CONFIG.get("EXPECTED_PARROT_URL")
 
         job_uuid = remote_job_creation_data.get("uuid")
@@ -726,38 +735,44 @@ class Jobs(Base):
                     time.sleep(0.1)
                     i += 1
 
-    def use_remote_inference(self, disable_remote_inference:bool):
+    def use_remote_inference(self, disable_remote_inference: bool):
         if disable_remote_inference:
             return False
         if not disable_remote_inference:
             try:
                 from edsl import Coop
+
                 user_edsl_settings = Coop().edsl_settings
                 return user_edsl_settings.get("remote_inference", False)
-            except Exception as e:
-                print(e)
-        
+            except requests.ConnectionError:
+                pass
+            except CoopServerResponseError as e:
+                pass
+
         return False
-        
+
     def use_remote_cache(self):
         try:
             from edsl import Coop
+
             user_edsl_settings = Coop().edsl_settings
             return user_edsl_settings.get("remote_caching", False)
-        except Exception as e:
-            print(e)
-        
+        except requests.ConnectionError:
+            pass
+        except CoopServerResponseError as e:
+            pass
+
         return False
-        
+
     def check_api_keys(self):
         from edsl import Model
+
         for model in self.models + [Model()]:
             if not model.has_valid_api_key():
                 raise MissingAPIKeyError(
                     model_name=str(model.model),
                     inference_service=model._inference_service_,
                 )
- 
 
     def run(
         self,
@@ -798,14 +813,13 @@ class Jobs(Base):
 
         if remote_inference := self.use_remote_inference(disable_remote_inference):
             remote_job_creation_data = self.create_remote_inference_job(
-                iterations=n, 
-                remote_inference_description=remote_inference_description
+                iterations=n, remote_inference_description=remote_inference_description
             )
-            results = self.poll_remote_inference_job(remote_job_creation_data)            
+            results = self.poll_remote_inference_job(remote_job_creation_data)
             if results is None:
                 self._output("Job failed.")
             return results
-                
+
         if check_api_keys:
             self.check_api_keys()
 
@@ -820,16 +834,22 @@ class Jobs(Base):
             cache = Cache()
 
         remote_cache = self.use_remote_cache()
-        with RemoteCacheSync(coop = Coop(), cache = cache, output_func = self._output, remote_cache = remote_cache, remote_cache_description=remote_cache_description) as r:
-                results = self._run_local(
-                    n=n,
-                    progress_bar=progress_bar,
-                    cache=cache,
-                    stop_on_exception=stop_on_exception,
-                    sidecar_model=sidecar_model,
-                    print_exceptions=print_exceptions,
-                    raise_validation_errors=raise_validation_errors,
-                )
+        with RemoteCacheSync(
+            coop=Coop(),
+            cache=cache,
+            output_func=self._output,
+            remote_cache=remote_cache,
+            remote_cache_description=remote_cache_description,
+        ) as r:
+            results = self._run_local(
+                n=n,
+                progress_bar=progress_bar,
+                cache=cache,
+                stop_on_exception=stop_on_exception,
+                sidecar_model=sidecar_model,
+                print_exceptions=print_exceptions,
+                raise_validation_errors=raise_validation_errors,
+            )
 
         results.cache = cache.new_entries_cache()
         return results
