@@ -8,7 +8,7 @@ from edsl.jobs.tasks.task_status_enum import TaskStatus
 
 
 class TaskHistory:
-    def __init__(self, interviews: List["Interview"], include_traceback:bool=False):
+    def __init__(self, interviews: List["Interview"], include_traceback: bool = False):
         """
         The structure of a TaskHistory exception
 
@@ -25,8 +25,7 @@ class TaskHistory:
 
     @classmethod
     def example(cls):
-        """
-        """
+        """ """
         from edsl.jobs.interviews.Interview import Interview
 
         from edsl.jobs.Jobs import Jobs
@@ -40,6 +39,7 @@ class TaskHistory:
             skip_retry=True,
             cache=False,
             raise_validation_errors=True,
+            disable_remote_inference=True,
         )
 
         return cls(results.task_history.total_interviews)
@@ -82,10 +82,10 @@ class TaskHistory:
         #     "indices": self.indices,
         # }
         return {
-            'interviews': [i._to_dict() for i in self.total_interviews],
-            'include_traceback': self.include_traceback
+            "interviews": [i._to_dict() for i in self.total_interviews],
+            "include_traceback": self.include_traceback,
         }
-    
+
     @classmethod
     def from_dict(cls, data: dict):
         """Create a TaskHistory from a dictionary."""
@@ -93,8 +93,9 @@ class TaskHistory:
             return cls([], include_traceback=False)
 
         from edsl.jobs.interviews.Interview import Interview
-        interviews = [Interview.from_dict(i) for i in data['interviews']]
-        return cls(interviews, include_traceback=data['include_traceback'])
+
+        interviews = [Interview.from_dict(i) for i in data["interviews"]]
+        return cls(interviews, include_traceback=data["include_traceback"])
 
     @property
     def has_exceptions(self) -> bool:
