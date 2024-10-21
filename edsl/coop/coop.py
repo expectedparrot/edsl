@@ -6,6 +6,7 @@ from typing import Any, Optional, Union, Literal
 from uuid import UUID
 import edsl
 from edsl import CONFIG, CacheEntry, Jobs, Survey
+from edsl.exceptions.coop import CoopNoUUIDError, CoopServerResponseError
 from edsl.coop.utils import (
     EDSLObject,
     ObjectRegistry,
@@ -99,7 +100,7 @@ class Coop:
             if "Authorization" in message:
                 print(message)
                 message = "Please provide an Expected Parrot API key."
-            raise Exception(message)
+            raise CoopServerResponseError(message)
 
     def _json_handle_none(self, value: Any) -> Any:
         """
@@ -116,7 +117,7 @@ class Coop:
         Resolve the uuid from a uuid or a url.
         """
         if not url and not uuid:
-            raise Exception("No uuid or url provided for the object.")
+            raise CoopNoUUIDError("No uuid or url provided for the object.")
         if not uuid and url:
             uuid = url.split("/")[-1]
         return uuid
