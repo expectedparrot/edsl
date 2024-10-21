@@ -75,6 +75,7 @@ class Result(Base, UserDict):
         question_to_attributes: Optional[dict] = None,
         generated_tokens: Optional[dict] = None,
         comments_dict: Optional[dict] = None,
+        cache_used_dict: Optional[dict] = None,
     ):
         """Initialize a Result object.
 
@@ -130,6 +131,7 @@ class Result(Base, UserDict):
         self.question_to_attributes = question_to_attributes
         self.generated_tokens = generated_tokens
         self.comments_dict = comments_dict or {}
+        self.cache_used_dict = cache_used_dict or {}
 
         self._combined_dict = None
         self._problem_keys = None
@@ -153,15 +155,15 @@ class Result(Base, UserDict):
             if key in self.question_to_attributes:
                 # You might be tempted to just use the naked key
                 # but this is a bad idea because it pollutes the namespace
-                question_text_dict[
-                    key + "_question_text"
-                ] = self.question_to_attributes[key]["question_text"]
-                question_options_dict[
-                    key + "_question_options"
-                ] = self.question_to_attributes[key]["question_options"]
-                question_type_dict[
-                    key + "_question_type"
-                ] = self.question_to_attributes[key]["question_type"]
+                question_text_dict[key + "_question_text"] = (
+                    self.question_to_attributes[key]["question_text"]
+                )
+                question_options_dict[key + "_question_options"] = (
+                    self.question_to_attributes[key]["question_options"]
+                )
+                question_type_dict[key + "_question_type"] = (
+                    self.question_to_attributes[key]["question_type"]
+                )
 
         return {
             "agent": self.agent.traits

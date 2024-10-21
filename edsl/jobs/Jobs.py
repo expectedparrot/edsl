@@ -383,7 +383,11 @@ class Jobs(Base):
             for key in result.raw_model_response:
                 if key.endswith("_cost"):
                     result_cost = result.raw_model_response[key]
-                    if result_cost:
+
+                    question_name = key.removesuffix("_cost")
+                    cache_used = result.cache_used_dict[question_name]
+
+                    if isinstance(result_cost, (int, float)) and not cache_used:
                         total_cost += result_cost
 
         return total_cost
