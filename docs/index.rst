@@ -6,20 +6,20 @@ Expected Parrot: Tools for AI-Powered Research
 This page provides documentation for *Expected Parrot Domain-Specific Language* (EDSL), a Python package for conducting research with AI agents and large language models.
 It also provides information about integrated applications and features for working with EDSL, including:
 
-* :ref:`remote_inference`: Access hundreds of models at once on the Expected Parrot server.
-* `Coop <https://www.expectedparrot.com/content/explore>`_: A platform for creating, storing and collaborating on AI research.
-* :ref:`survey_builder`: Design, launch and analyze hybrid human-AI surveys.
+* **:ref:`remote_inference`**: Access hundreds of models at once on the Expected Parrot server.
+* **`Coop <https://www.expectedparrot.com/content/explore>`_**: A platform for creating, storing and collaborating on AI research.
+* **:ref:`survey_builder`**: Design, launch and analyze hybrid human-AI surveys.
 
 
 Use cases
 ---------
 
-EDSL makes it easy to design and conduct surveys and analyze responses from humans or AI.
+EDSL makes it easy to design and conduct surveys and analyze responses -- from humans or AI.
 Common use cases include:
 
 | **Data labeling and cleaning** 
-| Design a data labeling or cleaning task as questions about your data, and then use language models to generate responses as a labeled dataset. 
-See `examples <>`_.
+| Design a data labeling or cleaning task as questions about your data, and then use language models to generate responses in a formatted dataset. 
+See `examples <https://docs.expectedparrot.com/en/latest/notebooks/data_labeling_example.html>`_.
 
 | **Market research** 
 | Administer surveys to gather insights about consumer preferences, behaviors, and trends. 
@@ -29,7 +29,7 @@ See `examples <>`_.
 | **User experience** 
 | Conduct user experience research by designing surveys that assess user satisfaction, usability, and engagement.
 Use AI agents to simulate different user profiles and analyze their feedback on products or services. 
-See `examples <>`_.
+See `examples <https://docs.expectedparrot.com/en/latest/notebooks/nps_survey.html>`_.
 
 | **Integrate human and AI data**
 | Combine human responses with AI-generated responses to create richer datasets. 
@@ -44,39 +44,39 @@ See `examples <>`_.
 Use AI agents to gather qualitative or quantitative data and analyze the results. 
 See `examples <>`_.
 
-Learn more about purposes and key features of EDSL in the :ref:`overview` section.
+Learn more about purposes and key features of EDSL in the **:ref:`overview`** section.
 
 
 Getting started 
 ---------------
 
 | **1. Install EDSL**
-| Download the EDSL package. See :ref:`installation` instructions.
+| Download the EDSL package. See **:ref:`installation`** instructions.
 
 | **2. Create a Coop account**
-| Create a `Coop account <https://www.expectedparrot.com/login>`_ to store and share your research projects.
+| Create a **`Coop account <https://www.expectedparrot.com/login>`_** to store and share your research projects.
 
 | **3. Choose how to access language models**
 | Decide how you want to use language models: 
 
 | *Access all available models at the Expected Parrot server:*
-| Activate :ref:`remote_inference` at your Coop account and store your Expected Parrot API key.
+| Activate **:ref:`remote_inference`** at your Coop account and store your Expected Parrot API key.
 
 OR
 
 | *On your own:*
-| Store your own :ref:`api_keys` for language models that you want to use locally.
+| Store your own **:ref:`api_keys`** for language models that you want to use locally.
 
 
 | **4. Explore examples**
-| Explore a :ref:`starter_tutorial` and other how-to guides and notebooks for examples and use cases.
+| Explore a **:ref:`starter_tutorial`** and other how-to guides and notebooks for examples and use cases.
 
 
 Researchers
 -----------
 
 Are you using EDSL for a research project?
-Send an email to info@expectedparrot.com and we'll give you free credits to run your project with language models of your choice.
+Send an email to info@expectedparrot.com and we'll give you free credits to run your project.
 
 
 Support
