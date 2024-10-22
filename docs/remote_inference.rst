@@ -3,20 +3,20 @@
 Remote Inference
 ================
 
-Remote inference allows you to run EDSL surveys on the Expected Parrot server instead of your local machine.
+Remote inference allows you to run EDSL surveys on the Expected Parrot server with a single API key for all available language models, instead of providing your own :ref:`api_keys` for language models to access them on your local machine.
 
 
 Activating remote inference
 ---------------------------
 
-1. Create a `Coop account <https://www.expectedparrot.com/login>`_. Learn more about Coop features in the :ref:`coop` section.
+1. Create a `Coop account <https://www.expectedparrot.com/login>`_. 
 
-2. Navigate to the `API Settings <a href="https://www.expectedparrot.com/home/api>`_ page of your account and copy your Expected Parrot API key.
+2. Navigate to the `API Settings <a href="https://www.expectedparrot.com/home/api>`_ page of your account. Toggle on the slider for *Remote inference* and copy your Expected Parrot API key.
 
 .. image:: static/coop_api_key.png
-  :alt: Copy your Expected Parrot API key
+  :alt: Toggle on remote inference and copy your Expected Parrot API key
   :align: center
-  :width: 300px
+  :width: 100%
   
 
 .. raw:: html
@@ -24,7 +24,11 @@ Activating remote inference
   <br><br>
 
 
-Then add the following line to your `.env` file in your `edsl` working directory (the same file where you store :ref:`api_keys` for language models that you use locally with EDSL):
+You can also toggle on *Remote caching* to automatically save all of your survey results and API calls at the Expected Parrot server.
+Learn more in the :ref:`remote_caching` section.
+
+
+3. Add the following line to your `.env` file in your `edsl` working directory (replace `your_api_key_here` with your actual Expected Parrot API key):
 
 .. code-block:: python
 
@@ -33,21 +37,16 @@ Then add the following line to your `.env` file in your `edsl` working directory
 
 This will save your Expected Parrot API key as an environment variable that EDSL can access.
 You can regenerate your key (and update your `.env` file) at any time.
-
-
-3. Toggle the slider for *Remote inference* to turn it on (also at your `API Settings <a href="https://www.expectedparrot.com/home/api>`_ page).
+(Your `.env` file is also where you can store :ref:`api_keys` for language models that you use locally with EDSL.)
 
 When remote inference is on, surveys that you run will be sent to the Expected Parrot server for processing.
-
-You can also toggle *Remote caching* to turn on remote caching.
-Learn more about using remote caching with remote inference in the :ref:`remote_caching` section.
 
 
 Using remote inference
 ----------------------
 
 With remote inference activated, calling the `run()` method will send a survey to the Expected Parrot server.
-You can optionally pass a `remote_inference_description` string to identify the job at the Coop.
+You can optionally pass a `remote_inference_description` string to identify the job at the Coop or edit it later.
 
 Example:
 
@@ -70,32 +69,22 @@ Output (actual details will be unique to your actual job):
   Job completed and Results stored on Coop (Results uuid=6b7358e5-9694-4ab0-aba1-3ff2f974d062).
 
 
-While it is running, the job will appear at your `Remote Inference page <https://www.expectedparrot.com/home/remote-inference>`_ with a status of "Queued":
+Viewing the results
+^^^^^^^^^^^^^^^^^^^
 
-.. image:: static/coop_remote_inference_jobs_queued.png
-  :alt: Remote inference page on the Coop web app. There is one job shown, and it has a status of "Queued."
+Navigate to the `Remote inference <https://www.expectedparrot.com/home/remote-inference>`_ section of your Coop account to view the status of your job and the results:
+
+.. image:: static/api_menu_remote_inference.png
+  :alt: Coop web app menu pane. "Remote inference" option is highlighted.
   :align: center
-  :width: 650px
+  :width: 250px
 
 .. raw:: html
 
   <br>
 
-
-There are 6 status indicators for a job:
-
-#. **Queued**: Your job has been added to the queue. 
-#. **Running**: Your job has started running.
-#. **Completed**: Your job has finished running successfully. 
-#. **Failed**: Your job threw an error.
-#. **Cancelling**: You have sent a cancellation request by pressing the **Cancel** button.
-#. **Cancelled**: Your cancellation request has been processed. Your job will no longer run. 
-
-
-Viewing the results
-^^^^^^^^^^^^^^^^^^^
-
-Once your job has finished, it will appear at the `Remote Inference page <https://www.expectedparrot.com/home/remote-inference>`_ with a status of "Completed"
+  
+Once your job has finished, it will appear at the with a status of *Completed*:
 
 .. image:: static/coop_remote_inference_jobs_completed.png
   :alt: Remote inference page on the Coop web app. There is one job shown, and it has a status of "Completed."
@@ -107,11 +96,10 @@ Once your job has finished, it will appear at the `Remote Inference page <https:
   <br>
 
 
-You can now click on the **View** link to access the results of your job.
-Your results are provided as an EDSL object for you to view, pull, and share with others. 
+You can then click on the **View** link to access the results of the job.
+Your results are provided as an EDSL object for you to view, pull and share with others. 
 
-You can also access the results URL from EDSL by calling `coop.remote_cache_get()` 
-and passing the UUID assigned when the job was run:
+You can also access the results URL from EDSL by calling `coop.remote_cache_get()` and passing the UUID assigned when the job was run:
 
 .. code-block:: python
 
