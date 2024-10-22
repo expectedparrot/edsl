@@ -1,52 +1,111 @@
 .. _index:
 
-EDSL: AI-Powered Research
-=========================
+Expected Parrot: Tools for AI-Powered Research
+==============================================
 
-*Expected Parrot Domain-Specific Language* (EDSL) is an open-source Python package (`GitHub <https://github.com/expectedparrot/edsl>`_) for conducting AI-powered research.
+This page provides documentation for *Expected Parrot Domain-Specific Language* (EDSL), a Python package for conducting research with AI agents and large language models. 
+It also provides information about integrated applications and features for working with EDSL, including:
+
+* `Coop <https://www.expectedparrot.com/content/explore>`_: A platform for creating, storing and sharing AI research projects.
+* :ref:`remote_inference`: Access hundreds of models at once on the Expected Parrot server.
+* :ref:`survey_builder`: An interface for launching and analyzing hybrid human-AI surveys.
+
+
+EDSL: A Python package for AI research
+--------------------------------------
+
+The purpose of EDSL is make it easy to design and conduct surveys with humans or AI, and analyze results.
+Learn more about the goals, purposes and key features of EDSL in the :ref:`overview` section.
+
+
+Use cases 
+^^^^^^^^^
+
+Common use cases include:
+
+| **Data labeling and cleaning:** 
+| Design a data labeling or cleaning task as questions about your data, and then use AI agents to generate responses. 
+See `examples <>`_.
+
+| **Market research:** 
+| Administer surveys to gather insights about consumer preferences, behaviors, and trends. 
+Use AI agents to simulate different customer personas and analyze their responses.
+See `examples <>`_.
+
+| **Integrate human and AI data:**
+| Combine human responses with AI-generated responses to create richer datasets. 
+See `examples <>`_.
+
+| **Analyze survey data:**
+| Import survey data from various sources, clean it, and analyze it using EDSL's built-in methods.
+See `examples <>`_.
+
+| **Academic research:**
+| Conduct academic research by designing surveys that explore specific hypotheses or research questions.
+Use AI agents to gather qualitative or quantitative data and analyze the results.
+See `examples <>`_.
    
-EDSL is developed by `Expected Parrot <https://www.expectedparrot.com>`_ and available under the MIT License.
-
-This page provides documentation, tutorials and demo notebooks for the EDSL package and `Coop <https://www.expectedparrot.com/content/explore>`_: a platform for creating, storing and sharing AI-based research. 
-The contents are organized into key sections to help you get started.
-
-
-Researchers
------------
-
-Are you using EDSL for a research project?
-Email us at info@expectedparrot.com and we'll give you free credits to run your project.
-
 
 Getting started 
 ---------------
 
-Steps for getting started using the EDSL package: 
+Steps for getting started using EDSL and Coop: 
 
-1. Download the EDSL package. See :ref:`installation` instructions.
-2. *(Optional)*  Create a `Coop account <https://www.expectedparrot.com/login>`_ to store and share research.
-3. Decide how you want to use EDSL: 
 
-   *To run surveys on the Expected Parrot server with available models:*
-   Activate :ref:`remote_inference` from your `Coop API Settings <https://www.expectedparrot.com/home/api>`_ page.
-   Copy and store your Expected Parrot API key.
-   
-   *To run surveys locally:*
-   Copy and store your own :ref:`api_keys` for language models.
+1. Install EDSL
+^^^^^^^^^^^^^^^
 
-   We recommend storing your API keys in a *.env* file in your working directory. 
-   See instructions in the :ref:`api_keys` section.
+Download the EDSL package. See :ref:`installation` instructions.
 
-4. Explore a :ref:`starter_tutorial` and other how-to guides and notebooks for examples.
+
+2. Create a Coop account
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Create a `Coop account <https://www.expectedparrot.com/login>`_ to store and share your research projects.
+
+
+3. Choose how to access language models
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Decide how you want to use language models: 
+
+| **Access all available models at the Expected Parrot server:**
+| Activate :ref:`remote_inference` from your `Coop API Settings <https://www.expectedparrot.com/home/api>`_.
+Store your Expected Parrot API key.
+
+OR
+
+| **On your own:**
+Store your own :ref:`api_keys` for language models that you want to use locally.
+
+
+4. Explore examples
+^^^^^^^^^^^^^^^^^^^
+
+Explore a :ref:`starter_tutorial` and other how-to guides and notebooks for examples.
+
+
+Researchers
+^^^^^^^^^^^
+
+Are you using EDSL for a research project?
+Send an email to info@expectedparrot.com and we'll give you free credits to run your project with language models of your choice.
 
 
 Support
 -------
 
-- Send us an email: info@expectedparrot.com
+- Send an email to *info@expectedparrot.com*
 - Join the `Discord channel <https://discord.com/invite/mxAYkjfy9m>`_
 - Follow on social media: `Twitter/X <https://twitter.com/expectedparrot>`_, `LinkedIn <https://www.linkedin.com/company/expectedparrot>`_, `Blog <https://blog.expectedparrot.com>`_
- 
+
+
+Expected Parrot 
+---------------
+
+EDSL and its applications are developed by `Expected Parrot <https://www.expectedparrot.com>`_, an early stage company building tools for conducting research with AI.
+EDSL is available under the MIT License.
+
 
 Introduction
 ------------
