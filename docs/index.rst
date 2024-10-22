@@ -3,7 +3,7 @@
 Expected Parrot: Tools for AI-Powered Research
 ==============================================
 
-This page provides documentation for *Expected Parrot Domain-Specific Language* (EDSL), a Python package for conducting research with AI agents and large language models. 
+This page provides documentation for *Expected Parrot Domain-Specific Language* (EDSL), a Python package for conducting research with AI agents and large language models.
 It also provides information about integrated applications and features for working with EDSL, including:
 
 * :ref:`remote_inference`: Access hundreds of models at once on the Expected Parrot server.
@@ -17,30 +17,30 @@ Use cases
 EDSL makes it easy to design and conduct surveys and analyze responses from humans or AI.
 Common use cases include:
 
-| **Data labeling and cleaning:** 
-Design a data labeling or cleaning task as questions about your data, and then use language models to generate responses as a labeled dataset. 
+| **Data labeling and cleaning** 
+| Design a data labeling or cleaning task as questions about your data, and then use language models to generate responses as a labeled dataset. 
 See `examples <>`_.
 
-| **Market research:** 
-Administer surveys to gather insights about consumer preferences, behaviors, and trends. 
+| **Market research** 
+| Administer surveys to gather insights about consumer preferences, behaviors, and trends. 
 Use AI agents to simulate different customer personas and analyze their responses. 
 See `examples <>`_.
 
-| **User experience:** 
-Conduct user experience research by designing surveys that assess user satisfaction, usability, and engagement.
+| **User experience** 
+| Conduct user experience research by designing surveys that assess user satisfaction, usability, and engagement.
 Use AI agents to simulate different user profiles and analyze their feedback on products or services. 
 See `examples <>`_.
 
-| **Integrate human and AI data:**
-Combine human responses with AI-generated responses to create richer datasets. 
+| **Integrate human and AI data**
+| Combine human responses with AI-generated responses to create richer datasets. 
 See `examples <>`_.
 
-| **Analyze survey data:**
-Import survey data from various sources, clean it, and analyze it using EDSL's built-in methods.
+| **Analyze survey data**
+| Import survey data from various sources, clean it, and analyze it using EDSL's built-in methods.
 See `examples <>`_.
 
-| **Academic research:**
-Conduct academic research by designing surveys that explore specific hypotheses or research questions.
+| **Social science research**
+| Conduct academic research by designing surveys that explore specific hypotheses or research questions.
 Use AI agents to gather qualitative or quantitative data and analyze the results. 
 See `examples <>`_.
 
@@ -51,25 +51,25 @@ Getting started
 ---------------
 
 | **1. Install EDSL**
-Download the EDSL package. See :ref:`installation` instructions.
+| Download the EDSL package. See :ref:`installation` instructions.
 
 | **2. Create a Coop account**
-Create a `Coop account <https://www.expectedparrot.com/login>`_ to store and share your research projects.
+| Create a `Coop account <https://www.expectedparrot.com/login>`_ to store and share your research projects.
 
 | **3. Choose how to access language models**
-Decide how you want to use language models: 
+| Decide how you want to use language models: 
 
 | *Access all available models at the Expected Parrot server:*
-Activate :ref:`remote_inference` at your Coop account and store your Expected Parrot API key.
+| Activate :ref:`remote_inference` at your Coop account and store your Expected Parrot API key.
 
 OR
 
 | *On your own:*
-Store your own :ref:`api_keys` for language models that you want to use locally.
+| Store your own :ref:`api_keys` for language models that you want to use locally.
 
 
 | **4. Explore examples**
-Explore a :ref:`starter_tutorial` and other how-to guides and notebooks for examples and use cases.
+| Explore a :ref:`starter_tutorial` and other how-to guides and notebooks for examples and use cases.
 
 
 Researchers
