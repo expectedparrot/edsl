@@ -577,3 +577,14 @@ More about question prompts
 ---------------------------
 
 See the :ref:`questions` section for `more details <https://docs.expectedparrot.com/en/latest/questions.html#optional-additional-parameters>`_ on how to create and customize question prompts with `question_presentation` and `answering_instructions` parameters in the `Question` type constructor.
+
+
+Prompts class 
+-------------
+
+.. automodule:: edsl.prompts.Prompt
+   :members: 
+   :undoc-members:
+   :show-inheritance:
+   :special-members: __init__
+   :exclude-members:

@@ -3,18 +3,19 @@
 Remote Inference
 ================
 
-Remote inference allows you to run EDSL surveys on the Expected Parrot server with a single API key for all available language models, instead of providing your own :ref:`api_keys` to access models on your local machine.
-You can also save survey results and API calls on the Expected Parrot server by activating :ref:`remote_caching`.
+Remote inference allows you to use a single API key to run surveys with any available language models at the Expected Parrot server, instead of obtaining your own :ref:`api_keys` for models to access on your own machine.
+
+You can also automatically save survey results and API calls on the Expected Parrot server by activating :ref:`remote_caching`.
 
 
 Activating remote inference
 ---------------------------
 
-1. Create a `Coop account <https://www.expectedparrot.com/login>`_. 
+1. Log into your `Coop account <https://www.expectedparrot.com/login>`_. 
 
-2. Navigate to the `API Settings <a href="https://www.expectedparrot.com/home/api>`_ page of your account. Toggle on the slider for *Remote inference* and copy your Expected Parrot API key.
+2. Navigate to `API Settings <a href="https://www.expectedparrot.com/home/api>`_. Toggle on the slider for *Remote inference* and copy your API key.
 
-.. image:: static/coop_api_key.png
+.. image:: static/api_settings_key_remote_inference.png
   :alt: Toggle on remote inference and copy your Expected Parrot API key
   :align: center
   :width: 100%
@@ -22,82 +23,44 @@ Activating remote inference
 
 .. raw:: html
 
-  <br><br>
+  <br>
+  
 
-
-You can also toggle on *Remote caching* to automatically save all of your survey results and API calls at the Expected Parrot server.
-Learn more in the :ref:`remote_caching` section.
-
-3. Add the following line to your `.env` file in your `edsl` working directory (replace `your_api_key_here` with your actual Expected Parrot API key):
+3. Add the following line to your `.env` file in your `edsl` working directory (replace `your_api_key_here` with your actual API key):
 
 .. code-block:: python
 
   EXPECTED_PARROT_API_KEY='your_api_key_here'
 
 
-This will save your Expected Parrot API key as an environment variable that EDSL can access.
 You can regenerate your key (and update your `.env` file) at any time.
-Your `.env` file is also where you can store :ref:`api_keys` for language models that you use locally with EDSL.
 
 
 Using remote inference
 ----------------------
 
-With remote inference activated, calling the `run()` method will send a survey to the Expected Parrot server.
-
-
-Estimating job costs
-^^^^^^^^^^^^^^^^^^^^
-
-Before running a job, we can estimate the cost by calling the `estimate_job_cost()` method on the job.
+With remote inference activated, calling the `run()` method will send a survey to the Expected Parrot server and allow you to access results and all information about it (job history, costs, etc.).
+We can optionally pass a `remote_inference_description` string to identify it at the Coop (or edit it later).
 
 Example:
 
 .. code-block:: python
 
-  from edsl import Survey, Model
+  from edsl import Survey 
 
   survey = Survey.example()
 
-  model = Model("gemini-1.5-flash")
-
-  job = survey.by(model)
-
-  survey.estimate_job_cost()
-
-
-Output:
-
-.. code-block:: text
-
-  xxxxxxxxxx
-  
-
-
-Running a job
-^^^^^^^^^^^^^
-
-When we run the job, we can optionally pass a `remote_inference_description` string to identify it at the Coop (or edit it later).
-
-Example:
-
-.. code-block:: python
-
-  from edsl import Survey, Model
-
-  survey = Survey.example()
-
-  model = Model("gemini-1.5-flash")
-
-  results = survey.by(model).run(remote_inference_description="Example survey")
+  results = survey.run(remote_inference_description="Example survey")
 
 
 Output (details will be unique to your job):
 
 .. code-block:: text
 
-  Remote inference activated. Sending job to server...
-  Job completed and Results stored on Coop (Results uuid=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx).
+  Job completed and Results stored on Coop: https://www.expectedparrot.com/content/642809b1-c887-42a9-b6c8-12ed5c6d856b.
+
+
+If we also have remote caching activated, the results will be stored automatically on the Expected Parrot server.
 
 
 Viewing the results
@@ -119,60 +82,17 @@ Once your job has finished, it will appear with a status of *Completed*:
 You can then select **View** to access the results of the job.
 Your results are provided as an EDSL object for you to view, pull and share with others. 
 
-You can also access the results URL by calling `coop.get()` and passing the results UUID that was assigned when the job was run:
-
-.. code-block:: python
-
-  from edsl import Coop
-
-  coop = Coop()
-
-  cached_results = coop.get("xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")
-
-
-We can verify that the results are the same (uncomment the line below to print the results):
-
-.. code-block:: python
-
-  # print(cached_results)
-
 
 Job details and costs 
 ---------------------
 
 When you run a job, you will be charged credits based on the number of tokens used. 
+
 You can view the cost of a job in your job history or by calling the `remote_inference_cost()` method and passing it the job UUID 
 (this is distinct from the results UUID, and can be found in your job history page).
 
-Example:
 
-.. code-block:: python
-
-  job_cost = coop.remote_inference_cost("xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx") 
-  job_cost 
-
-
-Output:
-
-.. code-block:: text
-
-  2.5
-
-
-You can also check the details of a job using the `remote_inference_get()` method:
-
-Example:
-
-.. code-block:: python
-
-  job_details = coop.remote_inference_get("xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")
-  
-
-Output:
-
-.. code-block:: text
-
-
+You can also check the details of a job using the `remote_inference_get()` method as pass it the job UUID.
 
 
 Job history
@@ -252,7 +172,7 @@ If the remote cache has been used for a particular job, the details will also sh
 
 .. raw:: html
 
-  <br>
+  <br><br>
 
 
 
