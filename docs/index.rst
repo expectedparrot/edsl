@@ -59,9 +59,9 @@ Getting started
 | Create a `Coop account <https://www.expectedparrot.com/login>`_ to store and share your research projects.
 
 | **3. Choose how to access language models**
-| Decide how you want to use language models: 
+| Decide how you want to use models: 
 
-| *Use any available models at the Expected Parrot server:*
+| *Choose from any available models at the Expected Parrot server:*
 | Activate :ref:`remote_inference` at your Coop account and store your Expected Parrot API key.
 
 *or*
