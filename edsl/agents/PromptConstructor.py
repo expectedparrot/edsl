@@ -212,9 +212,10 @@ class PromptConstructor:
             )
 
             if relevant_instructions != []:
-                preamble_text = Prompt(
-                    text="Before answer this question, you were given the following instructions: "
-                )
+                # preamble_text = Prompt(
+                #    text="You were given the following instructions: "
+                # )
+                preamble_text = Prompt(text="")
                 for instruction in relevant_instructions:
                     preamble_text += instruction.text
                 rendered_instructions = preamble_text + rendered_instructions

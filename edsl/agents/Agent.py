@@ -111,7 +111,11 @@ class Agent(Base):
         self.name = name
         self._traits = traits or dict()
         self.codebook = codebook or dict()
-        self.instruction = instruction or self.default_instruction
+        if instruction is None:
+            self.instruction = self.default_instruction
+        else:
+            self.instruction = instruction
+        # self.instruction = instruction or self.default_instruction
         self.dynamic_traits_function = dynamic_traits_function
 
         # Deal with dynamic traits function
