@@ -1,6 +1,7 @@
 from abc import abstractmethod, ABC
 import os
 import re
+from datetime import datetime, timedelta
 from edsl.config import CONFIG
 
 
@@ -9,6 +10,8 @@ class InferenceServiceABC(ABC):
     Abstract class for inference services.
     Anthropic: https://docs.anthropic.com/en/api/rate-limits
     """
+
+    _coop_config_vars = None
 
     default_levels = {
         "google": {"tpm": 2_000_000, "rpm": 15},
@@ -32,10 +35,35 @@ class InferenceServiceABC(ABC):
             )
 
     @classmethod
+    def _should_refresh_coop_config_vars(cls):
+        """
+        Returns True if config vars have been fetched over 24 hours ago, and False otherwise.
+        """
+
+        if cls._last_config_fetch is None:
+            return True
+        return (datetime.now() - cls._last_config_fetch) > timedelta(hours=24)
+
+    @classmethod
     def _get_limt(cls, limit_type: str) -> int:
         key = f"EDSL_SERVICE_{limit_type.upper()}_{cls._inference_service_.upper()}"
         if key in os.environ:
             return int(os.getenv(key))
+
+        if cls._coop_config_vars is None or cls._should_refresh_coop_config_vars():
+            try:
+                from edsl import Coop
+
+                c = Coop()
+                cls._coop_config_vars = c.fetch_rate_limit_config_vars()
+                cls._last_config_fetch = datetime.now()
+                if key in cls._coop_config_vars:
+                    return cls._coop_config_vars[key]
+            except Exception:
+                cls._coop_config_vars = None
+        else:
+            if key in cls._coop_config_vars:
+                return cls._coop_config_vars[key]
 
         if cls._inference_service_ in cls.default_levels:
             return int(cls.default_levels[cls._inference_service_][limit_type])
