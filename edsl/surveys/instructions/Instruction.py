@@ -5,9 +5,12 @@ from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
 
 class Instruction:
-    def __init__(self, name, text):
+    def __init__(
+        self, name, text, preamble="You were given the following instructions:"
+    ):
         self.name = name
         self.text = text
+        self.preamble = preamble
 
     def __str__(self):
         return self.text
@@ -16,7 +19,17 @@ class Instruction:
         return """Instruction(name="{}", text="{}")""".format(self.name, self.text)
 
     def _to_dict(self):
-        return {"name": self.name, "text": self.text, "edsl_class_name": "Instruction"}
+        return {
+            "name": self.name,
+            "text": self.text,
+            "edsl_class_name": "Instruction",
+            "preamble": self.preamble,
+        }
+
+    def add_question(self, question) -> "Survey":
+        from edsl import Survey
+
+        return Survey([self, question])
 
     @add_edsl_version
     def to_dict(self):
@@ -31,4 +44,8 @@ class Instruction:
     @classmethod
     @remove_edsl_version
     def from_dict(cls, data):
-        return cls(data["name"], data["text"])
+        return cls(
+            data["name"],
+            data["text"],
+            data.get("preamble", "You were given the following instructions:"),
+        )
