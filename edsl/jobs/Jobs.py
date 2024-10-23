@@ -209,9 +209,14 @@ class Jobs(Base):
         )
         return d
 
-    def show_prompts(self) -> None:
+    def show_prompts(self, all=False) -> None:
         """Print the prompts."""
-        self.prompts().to_scenario_list().print(format="rich")
+        if all:
+            self.prompts().to_scenario_list().print(format="rich")
+        else:
+            self.prompts().select(
+                "user_prompt", "system_prompt"
+            ).to_scenario_list().print(format="rich")
 
     @staticmethod
     def estimate_prompt_cost(
@@ -751,9 +756,8 @@ class Jobs(Base):
                 results_uuid = remote_job_data.get("results_uuid")
                 results = coop.get(results_uuid, expected_object_type="results")
                 print("\r" + " " * 80 + "\r", end="")
-                print(
-                    f"Job completed and Results stored on Coop (Results uuid={results_uuid})."
-                )
+                url = f"{expected_parrot_url}/content/{results_uuid}"
+                print(f"Job completed and Results stored on Coop: {url}.")
                 return results
             else:
                 duration = 5
