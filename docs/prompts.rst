@@ -13,61 +13,95 @@ They can include questions, instructions or any other textual information to be 
 Creating & showing prompts
 --------------------------
 
-Prompts are generated automatically when a `Question` or `Survey` is combined with a `Model` and (optionally) an `Agent` (using the `by()` method), creating a `Job`.
-The job contains the prompts that will be sent to the model when the `run()` method is called on it:
+There are two types of prompts:
 
 * A `user_prompt` contains the instructions for a question.
 * A `system_prompt` contains the instructions for the agent. 
 
-We can inspect these prompts, together with information about the question, model and estimated cost, by calling the `show_prompts()` method on the job.
 
-For example, here we create a job with a single question and model (and no agent) and show the prompts that will be used when the survey is run:
+Methods 
+^^^^^^^
+
+Methods for displaying prompts are available for both surveys and jobs:
+
+* Calling the `show_prompts()` method on a `Survey` will display the user prompts and the system prompts (if any agents are used) that will be sent to the model when the survey is run.
+* Calling the `prompts()` method on a `Job` (a survey combined with a model) will return a dataset of the prompts together with information about each question/scenario/agent/model combination and estimated cost.
+
+For example, here we create a survey consisting of a single question and use the `show_prompts()` method to inspect the prompts without adding an agent:
 
 .. code-block:: python
 
-   from edsl import QuestionFreeText, Model
+   from edsl import QuestionFreeText, Survey
 
    q = QuestionFreeText(
       question_name = "today",
       question_text = "How do you feel today?"
    )
 
-   m = Model("gpt-4o")
+   survey = Survey([q])
 
-   job = q.by(m) # no agent is used in this example
-
-   job.show_prompts()
+   survey.show_prompts()
 
 
 Output:
 
 .. code-block:: text
 
-   ┏━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━┓
-   ┃ user_prompt  ┃ system_prom… ┃ interview_i… ┃ question_na… ┃ scenario_ind… ┃ agent_index ┃ model  ┃ estimated_c… ┃
-   ┡━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━━┩
-   │ How do you   │              │ 0            │ today        │ 0             │ 0           │ gpt-4o │ 6.25e-05     │
-   │ feel today?  │              │              │              │               │             │        │              │
-   └──────────────┴──────────────┴──────────────┴──────────────┴───────────────┴─────────────┴────────┴──────────────┘
+   ┏━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+   ┃ user_prompt            ┃ system_prompt ┃
+   ┡━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+   │ How do you feel today? │               │
+   └────────────────────────┴───────────────┘
 
 
-In this example, the `user_prompt` is identical to the question text (there are no default additional instructions for free text questions) 
-and the `system_prompt` is blank because we did not use an agent.
+In this example, the `user_prompt` is identical to the question text because there are no default additional instructions for free text questions, and the `system_prompt` is blank because we did not use an agent.
 
-Here we create an agent, add it to the job and show the prompts again:
+Here we create an agent, add it to the survey and show the prompts again:
 
 .. code-block:: python
 
-   from edsl import Agent
+   from edsl import QuestionFreeText, Survey, Agent
 
-   a = Agent(traits = {
-      "persona": "You are a high school student.",
-      "age": 15
-   })
+   q = QuestionFreeText(
+      question_name = "today",
+      question_text = "How do you feel today?"
+   )
 
-   job = q.by(a).by(m) # using the question and model from the previous example
+   agent = Agent(
+      traits = {
+         "persona": "You are a high school student.",
+         "age": 15
+      }
+   )
 
-   job.show_prompts()
+   survey = Survey([q])
+
+   survey.by(agent).show_prompts()
+
+
+Output:
+
+.. code-block:: text
+
+   ┏━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+   ┃ user_prompt            ┃ system_prompt                                                                          ┃
+   ┡━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+   │ How do you feel today? │ You are answering questions as if you were a human. Do not break character. Your       │
+   │                        │ traits: {'persona': 'You are a high school student.', 'age': 15}                       │
+   └────────────────────────┴────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+This time we can see that the `system_prompt` includes the default agent instructions (*You are answering questions as if you were a human. Do not break character. Your traits:*) and the agent's traits.
+
+If we want to see more information about the question, we can create a job that combines the survey and a model, and call the `prompts()` method:
+
+.. code-block:: python
+
+   from edsl import Model
+
+   model = Model("gpt-4o")
+
+   survey.by(agent).by(model).prompts().print(format="rich") # to display the prompts in a rich format
 
 
 Output:
@@ -77,51 +111,20 @@ Output:
    ┏━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━┓
    ┃ user_prompt  ┃ system_prom… ┃ interview_i… ┃ question_na… ┃ scenario_ind… ┃ agent_index ┃ model  ┃ estimated_c… ┃
    ┡━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━━┩
-   │ How do you   │ You are      │ 0            │ today        │ 0             │ 0           │ gpt-4o │ 0.0006125    │
+   │ How do you   │ You are      │ 0            │ today        │ 0             │ 0           │ gpt-4o │ 3.074999999… │
    │ feel today?  │ answering    │              │              │               │             │        │              │
    │              │ questions as │              │              │               │             │        │              │
    │              │ if you were  │              │              │               │             │        │              │
    │              │ a human. Do  │              │              │               │             │        │              │
    │              │ not break    │              │              │               │             │        │              │
    │              │ character.   │              │              │               │             │        │              │
-   │              │ You are an   │              │              │               │             │        │              │
-   │              │ agent with   │              │              │               │             │        │              │
-   │              │ the          │              │              │               │             │        │              │
-   │              │ following    │              │              │               │             │        │              │
-   │              │ persona:     │              │              │               │             │        │              │
+   │              │ Your traits: │              │              │               │             │        │              │
    │              │ {'persona':  │              │              │               │             │        │              │
    │              │ 'You are a   │              │              │               │             │        │              │
    │              │ high school  │              │              │               │             │        │              │
    │              │ student.',   │              │              │               │             │        │              │
    │              │ 'age': 15}   │              │              │               │             │        │              │
    └──────────────┴──────────────┴──────────────┴──────────────┴───────────────┴─────────────┴────────┴──────────────┘
-
-
-This time we can see that the `system_prompt` includes the default agent instructions and the agent's traits.
-
-
-Prompts as a dataset 
-^^^^^^^^^^^^^^^^^^^^
-
-If we want to view the prompts alone, we can instead call the `prompts()` method to turn the prompts into a dataset,
-and then select the columns we want to display:
-
-.. code-block:: python
-
-   job.prompts().select("user_prompt", "system_prompt").print(format="rich")
-
-
-Output:
-
-.. code-block:: text 
-
-   ┏━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-   ┃ user_prompt            ┃ system_prompt                                                                          ┃
-   ┡━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-   │ How do you feel today? │ You are answering questions as if you were a human. Do not break character. You are an │
-   │                        │ agent with the following persona:                                                      │
-   │                        │ {'persona': 'You are a high school student.', 'age': 15}                               │
-   └────────────────────────┴────────────────────────────────────────────────────────────────────────────────────────┘
 
 
 Modifying agent instructions
@@ -146,51 +149,60 @@ Here we create agents with and without an instruction and compare the prompts:
       )
    ])
 
-   job = q.by(agents).by(m) # using the question and model from the previous example
-
-   job.show_prompts()
+   survey.by(agents).show_prompts() # using the survey from the previous examples
 
 
 Output:
 
 .. code-block:: text
 
+   ┏━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+   ┃ user_prompt            ┃ system_prompt                                                                          ┃
+   ┡━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+   │ How do you feel today? │ You are answering questions as if you were a human. Do not break character. Your       │
+   │                        │ traits: {'persona': 'You are a high school student.', 'age': 15}                       │
+   ├────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────┤
+   │ How do you feel today? │ You are tired. Your traits: {'persona': 'You are a high school student.', 'age': 15}   │
+   └────────────────────────┴────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+If we use the `prompts()` method to see more details, we will find that the `agent_index` is different for each agent, allowing us to distinguish between them in the survey results, and the `interview_index` is also incremented for each question/agent/model combination:
+
+.. code-block:: python
+
+   survey.by(agents).by(model).prompts().print(format="rich") # using the survey, agents and model from examples above
+
+
+Output:
+
+.. code-block:: text 
+
    ┏━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━┓
    ┃ user_prompt  ┃ system_prom… ┃ interview_i… ┃ question_na… ┃ scenario_ind… ┃ agent_index ┃ model  ┃ estimated_c… ┃
    ┡━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━━┩
-   │ How do you   │ You are      │ 0            │ today        │ 0             │ 0           │ gpt-4o │ 0.0006125    │
+   │ How do you   │ You are      │ 0            │ today        │ 0             │ 0           │ gpt-4o │ 3.074999999… │
    │ feel today?  │ answering    │              │              │               │             │        │              │
    │              │ questions as │              │              │               │             │        │              │
    │              │ if you were  │              │              │               │             │        │              │
    │              │ a human. Do  │              │              │               │             │        │              │
    │              │ not break    │              │              │               │             │        │              │
    │              │ character.   │              │              │               │             │        │              │
-   │              │ You are an   │              │              │               │             │        │              │
-   │              │ agent with   │              │              │               │             │        │              │
-   │              │ the          │              │              │               │             │        │              │
-   │              │ following    │              │              │               │             │        │              │
-   │              │ persona:     │              │              │               │             │        │              │
+   │              │ Your traits: │              │              │               │             │        │              │
    │              │ {'persona':  │              │              │               │             │        │              │
    │              │ 'You are a   │              │              │               │             │        │              │
    │              │ high school  │              │              │               │             │        │              │
    │              │ student.',   │              │              │               │             │        │              │
    │              │ 'age': 15}   │              │              │               │             │        │              │
    ├──────────────┼──────────────┼──────────────┼──────────────┼───────────────┼─────────────┼────────┼──────────────┤
-   │ How do you   │ You are      │ 1            │ today        │ 0             │ 1           │ gpt-4o │ 0.000425000… │
-   │ feel today?  │ tired. You   │              │              │               │             │        │              │
-   │              │ are an agent │              │              │               │             │        │              │
-   │              │ with the     │              │              │               │             │        │              │
-   │              │ following    │              │              │               │             │        │              │
-   │              │ persona:     │              │              │               │             │        │              │
+   │ How do you   │ You are      │ 1            │ today        │ 0             │ 1           │ gpt-4o │ 1.95e-05     │
+   │ feel today?  │ tired. Your  │              │              │               │             │        │              │
+   │              │ traits:      │              │              │               │             │        │              │
    │              │ {'persona':  │              │              │               │             │        │              │
    │              │ 'You are a   │              │              │               │             │        │              │
    │              │ high school  │              │              │               │             │        │              │
    │              │ student.',   │              │              │               │             │        │              │
    │              │ 'age': 15}   │              │              │               │             │        │              │
    └──────────────┴──────────────┴──────────────┴──────────────┴───────────────┴─────────────┴────────┴──────────────┘
-
-In addition to the changed system prompt, we can also see that the `agent_index` is different for each agent, allowing us to distinguish between them in the survey results.
-The `interview_index` is also incremented for each question/agent/model combination.
 
 
 Agent names 
@@ -214,7 +226,7 @@ For example, here we create a multiple choice question and inspect the user prom
 
 .. code-block:: python
 
-   from edsl import QuestionMultipleChoice
+   from edsl import QuestionMultipleChoice, Survey
 
    q = QuestionMultipleChoice(
       question_name = "favorite_subject",
@@ -222,11 +234,9 @@ For example, here we create a multiple choice question and inspect the user prom
       question_options = ["Math", "English", "Social studies", "Science", "Other"]
    )
 
-   job = q.by(a).by(m) # using the agent and model from previous examples
+   survey = Survey([q])
 
-   # job.show_prompts()
-
-   job.prompts().select("user_prompt").print(format="rich") # to display just the user prompt
+   survey.by(agent).prompts().select("user_prompt").print(format="rich") # to display just the user prompt
 
 
 Output:
@@ -282,7 +292,7 @@ For example, here we modify the multiple choice question above to not include a 
 
 .. code-block:: python
 
-   from edsl import QuestionMultipleChoice
+   from edsl import QuestionMultipleChoice, Survey
 
    q = QuestionMultipleChoice(
       question_name = "favorite_subject",
@@ -291,11 +301,9 @@ For example, here we modify the multiple choice question above to not include a 
       include_comment = False
    )
 
-   job = q.by(a).by(m) # using the agent and model from previous examples
+   survey = Survey([q])
 
-   # job.show_prompts()
-
-   job.prompts().select("user_prompt").print(format="rich") # to display just the user prompt
+   survey.by(agent).prompts().select("user_prompt").print(format="rich") # using the agent and model from previous examples
 
 
 Output:
@@ -326,10 +334,14 @@ Output:
    └─────────────────────────────────────────────────────────────────┘
 
 
-Jobs for surveys 
-^^^^^^^^^^^^^^^^
+There is no longer any instruction about a comment at the end of the user prompt.
 
-If a job is for a survey of questions, the `show_prompts()` and `prompts()` methods will display all of the prompts for each question/scenario/model/agent combination in the survey.
+
+Prompts for multiple questions 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If a survey consists of multiple questions, the `show_prompts()` and `prompts()` methods will display all of the prompts for each question/scenario/model/agent combination in the survey.
+
 For example:
 
 .. code-block:: python
@@ -349,9 +361,7 @@ For example:
 
    survey = Survey([q1, q2])
 
-   job = survey.by(a).by(m) # using the agent and model from previous examples
-
-   job.show_prompts()
+   survey.by(agent).by(model).prompts().print(format="rich") # using the agent and model from previous examples
 
 
 Output:
@@ -361,23 +371,23 @@ Output:
    ┏━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━━┓
    ┃ user_prompt  ┃ system_prom… ┃ interview_i… ┃ question_na… ┃ scenario_in… ┃ agent_index ┃ model  ┃ estimated_co… ┃
    ┡━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━━━┩
-   │              │ You are      │ 0            │ favorite_su… │ 0            │ 0           │ gpt-4o │ 0.0014750000… │
+   │              │ You are      │ 0            │ favorite_su… │ 0            │ 0           │ gpt-4o │ 8.2499999999… │
    │ What is your │ answering    │              │              │              │             │        │               │
    │ favorite     │ questions as │              │              │              │             │        │               │
    │ subject?     │ if you were  │              │              │              │             │        │               │
    │              │ a human. Do  │              │              │              │             │        │               │
    │              │ not break    │              │              │              │             │        │               │
    │ Math         │ character.   │              │              │              │             │        │               │
-   │              │ You are an   │              │              │              │             │        │               │
-   │ English      │ agent with   │              │              │              │             │        │               │
-   │              │ the          │              │              │              │             │        │               │
-   │ Social       │ following    │              │              │              │             │        │               │
-   │ studies      │ persona:     │              │              │              │             │        │               │
-   │              │ {'persona':  │              │              │              │             │        │               │
-   │ Science      │ 'You are a   │              │              │              │             │        │               │
-   │              │ high school  │              │              │              │             │        │               │
-   │ Other        │ student.',   │              │              │              │             │        │               │
+   │              │ Your traits: │              │              │              │             │        │               │
+   │ English      │ {'persona':  │              │              │              │             │        │               │
+   │              │ 'You are a   │              │              │              │             │        │               │
+   │ Social       │ high school  │              │              │              │             │        │               │
+   │ studies      │ student.',   │              │              │              │             │        │               │
    │              │ 'age': 15}   │              │              │              │             │        │               │
+   │ Science      │              │              │              │              │             │        │               │
+   │              │              │              │              │              │             │        │               │
+   │ Other        │              │              │              │              │             │        │               │
+   │              │              │              │              │              │             │        │               │
    │              │              │              │              │              │             │        │               │
    │ Only 1       │              │              │              │              │             │        │               │
    │ option may   │              │              │              │              │             │        │               │
@@ -402,23 +412,23 @@ Output:
    │ the next     │              │              │              │              │             │        │               │
    │ line.        │              │              │              │              │             │        │               │
    ├──────────────┼──────────────┼──────────────┼──────────────┼──────────────┼─────────────┼────────┼───────────────┤
-   │              │ You are      │ 0            │ college_plan │ 0            │ 0           │ gpt-4o │ 0.00115       │
+   │              │ You are      │ 0            │ college_plan │ 0            │ 0           │ gpt-4o │ 6.3e-05       │
    │ Do you plan  │ answering    │              │              │              │             │        │               │
    │ to go to     │ questions as │              │              │              │             │        │               │
    │ college?     │ if you were  │              │              │              │             │        │               │
    │              │ a human. Do  │              │              │              │             │        │               │
    │              │ not break    │              │              │              │             │        │               │
    │ No           │ character.   │              │              │              │             │        │               │
-   │              │ You are an   │              │              │              │             │        │               │
-   │ Yes          │ agent with   │              │              │              │             │        │               │
-   │              │ the          │              │              │              │             │        │               │
-   │              │ following    │              │              │              │             │        │               │
-   │ Only 1       │ persona:     │              │              │              │             │        │               │
-   │ option may   │ {'persona':  │              │              │              │             │        │               │
-   │ be selected. │ 'You are a   │              │              │              │             │        │               │
-   │ Please       │ high school  │              │              │              │             │        │               │
-   │ respond with │ student.',   │              │              │              │             │        │               │
-   │ just your    │ 'age': 15}   │              │              │              │             │        │               │
+   │              │ Your traits: │              │              │              │             │        │               │
+   │ Yes          │ {'persona':  │              │              │              │             │        │               │
+   │              │ 'You are a   │              │              │              │             │        │               │
+   │              │ high school  │              │              │              │             │        │               │
+   │ Only 1       │ student.',   │              │              │              │             │        │               │
+   │ option may   │ 'age': 15}   │              │              │              │             │        │               │
+   │ be selected. │              │              │              │              │             │        │               │
+   │ Please       │              │              │              │              │             │        │               │
+   │ respond with │              │              │              │              │             │        │               │
+   │ just your    │              │              │              │              │             │        │               │
    │ answer.      │              │              │              │              │             │        │               │
    │              │              │              │              │              │             │        │               │
    │              │              │              │              │              │             │        │               │
@@ -458,16 +468,9 @@ After a survey is run, we can inspect the prompts that were used by selecting th
 
 For example, here we run the survey from above and inspect the prompts that were used:
 
-.. code-block:: python
-
-   results = job.run() # using the job from the previous example
-   
-
-This is equivalent to running the following code:
-
 .. code-block:: python 
    
-   results = survey.by(a).by(m).run()
+   results = survey.by(agent).by(model).run() 
 
 
 To select all the `prompt` columns at once:
