@@ -4,7 +4,7 @@ Coop
 ====
 
 `Coop <https://www.expectedparrot.com/content/explore>`_ is a platform for creating, storing and sharing AI-based research. 
-It is fully integrated with the EDSL package, allowing you to post, download and update objects directly from your workspace or at the web app.
+It is fully integrated with EDSL, allowing you to post, download and update objects directly from your workspace or at the Coop web app.
 
 Coop also provides access to special features for running EDSL surveys and storing results remotely at the Expected Parrot server.
 Learn more about these features in the :ref:`remote_inference` and :ref:`remote_caching` sections of the documentation.
@@ -27,43 +27,14 @@ Then choose whether to use EDSL locally or at the Expected Parrot server:
 * :ref:`remote_caching`: Automatically store EDSL survey results on the Expected Parrot server to easily access and share them from anywhere. 
 
 
-1. Create an account
-^^^^^^^^^^^^^^^^^^^^
+Getting started
+---------------
 
-Navigate to the Coop `login page <a href="https://www.expectedparrot.com/login>`_ and select **Sign Up**.
+| **1. Create an account**
+| Create a `Coop account <a href="https://www.expectedparrot.com/login>`_ 
 
-.. image:: static/coop_signup.png
-  :alt: Create an account at the Coop
-  :align: center
-  :width: 300px
-
-
-.. raw:: html
-
-  <br><br>
-
-
-Create an account with your email address and a password, or log in with your Google or Microsoft account.
-If you create an account with your email address, verify it by clicking the link in the email that you receive.
-
-
-2. Store your Expected Parrot API key
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Navigate to the `API Settings <a href="https://www.expectedparrot.com/home/api>`_ page of your account and copy your Expected Parrot API key.
-
-.. image:: static/coop_api_key.png
-  :alt: Copy your Expected Parrot API key
-  :align: center
-  :width: 300px
-  
-
-.. raw:: html
-
-  <br><br>
-
-
-Then add the following line to your `.env` file in your `edsl` working directory (the same file where you store :ref:`api_keys` for language models that you use locally with EDSL):
+| **2. Store your Expected Parrot API key**
+| Navigate to the `API Settings <a href="https://www.expectedparrot.com/home/api>`_ page of your account and copy your Expected Parrot API key. Then add the following line to your `.env` file in your `edsl` working directory (the same file where you store :ref:`api_keys` for language models that you use locally with EDSL):
 
 .. code-block:: python
 
@@ -73,27 +44,14 @@ Then add the following line to your `.env` file in your `edsl` working directory
 This will save your Expected Parrot API key as an environment variable that EDSL can access.
 You can regenerate your key (and update your `.env` file) at any time.
 
+| **3. Create EDSL objects and notebooks**
+| Create notebooks and other objects in EDSL: `Agent`, `Question`, `Survey`, `Job`, `Results`, `Cache`, etc. See sections of the documentation for different object types for more information about creating objects in EDSL.
 
-3. Create EDSL objects and notebooks
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+| **4. Post content to the Coop**
+| Post objects to the Coop using the `edsl.coop` module and methods. See below for details and examples for uploading, downloading, updating and deleting content on the Coop.
 
-Create notebooks and other objects in EDSL: `Agent`, `Question`, `Survey`, `Job`, `Results`, `Cache`, etc.
-
-See sections of the documentation for different object types for more information about creating objects in EDSL.
-
-
-4. Post content to the Coop
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Post objects to the Coop using the `edsl.coop` module and object methods.
-
-See below for details and examples of methods for uploading, downloading, updating and deleting content on the Coop.
-
-
-5. Choose the visibility of your content
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-You can set the visibility of an object when you post it to the Coop or update it later. 
+| **5. Choose the visibility of your content**
+| You can set the visibility of an object when you post it to the Coop or update it later. 
 
 There are 3 options:
 
@@ -104,15 +62,8 @@ There are 3 options:
 By default, objects are posted as *unlisted*.
 See below for details on setting and changing the visibility of an object.
 
-
-6. Explore content
-^^^^^^^^^^^^^^^^^^
-
-Search for other users' public or privately shared content by object type, keyword, author, topic, etc.
-Copy code and examples to modify or rerun them.
-
-*Note:* To access an unlisted object you must have the object `uuid` or URL.
-
+| **6. Explore content**
+| `Search other public or shared content <https://www.expectedparrot.com/content/explore>`_. Copy code and examples to modify or rerun them.
 
 
 Methods 
@@ -223,7 +174,7 @@ For each `patch()` method, pass the `uuid` of the object and the parameter(s) th
 
 You can manually update the `description` or `visibility` of an object at the Coop web app:
 
-Navigate to **Content** and select an object: https://www.expectedparrot.com/content
+Navigate to the **Explore** page and select an object: https://www.expectedparrot.com/content/explore
 
 .. image:: static/coop_content.png
   :alt: Select an object on the Coop
@@ -332,10 +283,12 @@ There are a variety of methods for replicating or downloading an object at the C
 
 The Coop web app provides copyable code for downloading or reconstructing an object that has been posted:
 
-* Navigate to **Content** and select an object: https://www.expectedparrot.com/content 
+* Navigate to **Explore** and select an object: https://www.expectedparrot.com/content/explore 
 * Go to the object's page 
 * Select the option to **Download** the object 
+
 OR
+
 * Select the **Code** view of the object, and then **Pull** (to get the code for pulling the object using its `uuid`) or **Raw** (to get the code for constructing the object):
 
 .. image:: static/coop_object_page_view_code_pull.png
@@ -415,7 +368,7 @@ There are 3 methods for deleting an object from the Coop:
 
 You can manually delete objects at the Coop web app:
 
-* Navigate to **Content** and select an object: https://www.expectedparrot.com/content/ (see image above for *Uploading* content)
+* Navigate to **Explore** and select an object: https://www.expectedparrot.com/content/explore (see image above for *Uploading* content)
 * Go to the object's page (double-click on the object) 
 * Select the option to **delete** the object:
 
