@@ -48,7 +48,7 @@ You can regenerate your key (and update your `.env` file) at any time.
 | Decide how you want to use models: 
 
 | *Choose from any available models at the Expected Parrot server:*
-| Activate (toggle on) :ref:`remote_inference` at your API Settings.
+| Activate :ref:`remote_inference` at the API Settings page of your Coop account.
 
 *or*
 
@@ -62,19 +62,16 @@ You can regenerate your key (and update your `.env` file) at any time.
 | Post objects to the Coop using the `edsl.coop` module and methods. See below for details and examples for uploading, downloading, updating and deleting content on the Coop.
 
 | **6. Choose the visibility of your content**
-| You can set the visibility of an object when you post it to the Coop or update it later. 
-
-There are 3 options:
+| You can set the visibility of an object when you post it to the Coop or update it later. There are 3 options:
 
 * `public`: Visible to everyone 
 * `private`: Visible to logged in users that you have granted access
-* `unlisted`: Visible to anyone with the link but not listed in search results
+* `unlisted`: Visible to anyone with the link but not listed in search results (default)
 
-By default, objects are posted as *unlisted*.
 See below for details on setting and changing the visibility of an object.
 
 | **7. Explore content**
-| `Search other public or shared content <https://www.expectedparrot.com/content/explore>`_. Copy code and examples to modify or rerun them.
+| `Search other content at the Coop <https://www.expectedparrot.com/content/explore>`_. Copy code and examples to modify or rerun them.
 
 
 Methods 
