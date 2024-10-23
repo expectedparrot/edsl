@@ -31,10 +31,10 @@ Getting started
 ---------------
 
 | **1. Create an account**
-| Create a `Coop account <a href="https://www.expectedparrot.com/login>`_ 
+| Create a `Coop account <a href="https://www.expectedparrot.com/login>`_. 
 
 | **2. Store your Expected Parrot API key**
-| Navigate to the `API Settings <a href="https://www.expectedparrot.com/home/api>`_ page of your account and copy your Expected Parrot API key. Then add the following line to your `.env` file in your `edsl` working directory (the same file where you store :ref:`api_keys` for language models that you use locally with EDSL):
+| Navigate to the `API Settings <a href="https://www.expectedparrot.com/home/api>`_ page of your account and copy your Expected Parrot API key. Then add the following line to your `.env` file in your `edsl` working directory:
 
 .. code-block:: python
 
@@ -44,13 +44,24 @@ Getting started
 This will save your Expected Parrot API key as an environment variable that EDSL can access.
 You can regenerate your key (and update your `.env` file) at any time.
 
-| **3. Create EDSL objects and notebooks**
+| **3. Choose how to access language models**
+| Decide how you want to use models: 
+
+| *Choose from any available models at the Expected Parrot server:*
+| Activate (toggle on) :ref:`remote_inference` at your API Settings.
+
+*or*
+
+| *Use models your own:*
+| Store your own :ref:`api_keys` for language models.
+
+| **4. Create EDSL objects and notebooks**
 | Create notebooks and other objects in EDSL: `Agent`, `Question`, `Survey`, `Job`, `Results`, `Cache`, etc. See sections of the documentation for different object types for more information about creating objects in EDSL.
 
-| **4. Post content to the Coop**
+| **5. Post content to the Coop**
 | Post objects to the Coop using the `edsl.coop` module and methods. See below for details and examples for uploading, downloading, updating and deleting content on the Coop.
 
-| **5. Choose the visibility of your content**
+| **6. Choose the visibility of your content**
 | You can set the visibility of an object when you post it to the Coop or update it later. 
 
 There are 3 options:
@@ -62,7 +73,7 @@ There are 3 options:
 By default, objects are posted as *unlisted*.
 See below for details on setting and changing the visibility of an object.
 
-| **6. Explore content**
+| **7. Explore content**
 | `Search other public or shared content <https://www.expectedparrot.com/content/explore>`_. Copy code and examples to modify or rerun them.
 
 

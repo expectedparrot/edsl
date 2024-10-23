@@ -2,7 +2,10 @@
 
 ## [0.1.36] - TBD
 ### Added
+
 ### Changed
+- Method `show_prompts()` can now be called on a `Survey` or a `Job`. See examples: Learn more: https://docs.expectedparrot.com/en/latest/prompts.html
+
 ### Fixed
 
 
