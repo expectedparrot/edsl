@@ -3,7 +3,8 @@
 Remote Inference
 ================
 
-Remote inference allows you to run EDSL surveys on the Expected Parrot server with a single API key for all available language models, instead of providing your own :ref:`api_keys` for language models to access them on your local machine.
+Remote inference allows you to run EDSL surveys on the Expected Parrot server with a single API key for all available language models, instead of providing your own :ref:`api_keys` to access models on your local machine.
+You can also save survey results and API calls on the Expected Parrot server by activating :ref:`remote_caching`.
 
 
 Activating remote inference
@@ -27,7 +28,6 @@ Activating remote inference
 You can also toggle on *Remote caching* to automatically save all of your survey results and API calls at the Expected Parrot server.
 Learn more in the :ref:`remote_caching` section.
 
-
 3. Add the following line to your `.env` file in your `edsl` working directory (replace `your_api_key_here` with your actual Expected Parrot API key):
 
 .. code-block:: python
@@ -37,54 +37,74 @@ Learn more in the :ref:`remote_caching` section.
 
 This will save your Expected Parrot API key as an environment variable that EDSL can access.
 You can regenerate your key (and update your `.env` file) at any time.
-(Your `.env` file is also where you can store :ref:`api_keys` for language models that you use locally with EDSL.)
-
-When remote inference is on, surveys that you run will be sent to the Expected Parrot server for processing.
+Your `.env` file is also where you can store :ref:`api_keys` for language models that you use locally with EDSL.
 
 
 Using remote inference
 ----------------------
 
 With remote inference activated, calling the `run()` method will send a survey to the Expected Parrot server.
-You can optionally pass a `remote_inference_description` string to identify the job at the Coop or edit it later.
+
+
+Estimating job costs
+^^^^^^^^^^^^^^^^^^^^
+
+Before running a job, we can estimate the cost by calling the `estimate_job_cost()` method on the job.
 
 Example:
 
 .. code-block:: python
 
-  from edsl import Survey
+  from edsl import Survey, Model
 
   survey = Survey.example()
 
-  results = survey.run(remote_inference_description="Example survey", verbose=True)
+  model = Model("gemini-1.5-flash")
+
+  job = survey.by(model)
+
+  survey.estimate_job_cost()
 
 
-Output (actual details will be unique to your actual job):
+Output:
+
+.. code-block:: text
+
+  xxxxxxxxxx
+  
+
+
+Running a job
+^^^^^^^^^^^^^
+
+When we run the job, we can optionally pass a `remote_inference_description` string to identify it at the Coop (or edit it later).
+
+Example:
+
+.. code-block:: python
+
+  from edsl import Survey, Model
+
+  survey = Survey.example()
+
+  model = Model("gemini-1.5-flash")
+
+  results = survey.by(model).run(remote_inference_description="Example survey")
+
+
+Output (details will be unique to your job):
 
 .. code-block:: text
 
   Remote inference activated. Sending job to server...
-  Remote caching activated. The remote cache will be used for this job.
-  Remote inference started (Job uuid=db60986e-1628-4dad-b578-833deda382f2).
-  Job completed and Results stored on Coop (Results uuid=6b7358e5-9694-4ab0-aba1-3ff2f974d062).
+  Job completed and Results stored on Coop (Results uuid=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx).
 
 
 Viewing the results
-^^^^^^^^^^^^^^^^^^^
+-------------------
 
-Navigate to the `Remote inference <https://www.expectedparrot.com/home/remote-inference>`_ section of your Coop account to view the status of your job and the results:
-
-.. image:: static/api_menu_remote_inference.png
-  :alt: Coop web app menu pane. "Remote inference" option is highlighted.
-  :align: center
-  :width: 250px
-
-.. raw:: html
-
-  <br>
-
-  
-Once your job has finished, it will appear at the with a status of *Completed*:
+Navigate to the `Remote inference <https://www.expectedparrot.com/home/remote-inference>`_ section of your Coop account to view the status of your job and the results.
+Once your job has finished, it will appear with a status of *Completed*:
 
 .. image:: static/coop_remote_inference_jobs_completed.png
   :alt: Remote inference page on the Coop web app. There is one job shown, and it has a status of "Completed."
@@ -96,10 +116,10 @@ Once your job has finished, it will appear at the with a status of *Completed*:
   <br>
 
 
-You can then click on the **View** link to access the results of the job.
+You can then select **View** to access the results of the job.
 Your results are provided as an EDSL object for you to view, pull and share with others. 
 
-You can also access the results URL from EDSL by calling `coop.remote_cache_get()` and passing the UUID assigned when the job was run:
+You can also access the results URL by calling `coop.get()` and passing the results UUID that was assigned when the job was run:
 
 .. code-block:: python
 
@@ -107,14 +127,59 @@ You can also access the results URL from EDSL by calling `coop.remote_cache_get(
 
   coop = Coop()
 
-  coop.remote_cache_get("1234abcd-abcd-1234-abcd-1234abcd1234")
+  cached_results = coop.get("xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")
+
+
+We can verify that the results are the same (uncomment the line below to print the results):
+
+.. code-block:: python
+
+  # print(cached_results)
+
+
+Job details and costs 
+---------------------
+
+When you run a job, you will be charged credits based on the number of tokens used. 
+You can view the cost of a job in your job history or by calling the `remote_inference_cost()` method and passing it the job UUID 
+(this is distinct from the results UUID, and can be found in your job history page).
+
+Example:
+
+.. code-block:: python
+
+  job_cost = coop.remote_inference_cost("xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx") 
+  job_cost 
+
+
+Output:
+
+.. code-block:: text
+
+  2.5
+
+
+You can also check the details of a job using the `remote_inference_get()` method:
+
+Example:
+
+.. code-block:: python
+
+  job_details = coop.remote_inference_get("xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")
+  
+
+Output:
+
+.. code-block:: text
+
+
 
 
 Job history
 -----------
 
-You can click on any job to view its history. When a job fails, the job history logs
-will describe the error that caused the failure:
+You can click on any job to view its history. 
+When a job fails, the job history logs will describe the error that caused the failure:
 
 .. image:: static/coop_remote_inference_history_failed.png
   :alt: A screenshot of job history logs on the Coop web app. The job has failed due to insufficient funds.
@@ -126,7 +191,8 @@ will describe the error that caused the failure:
   <br>
 
 
-Job history can also provide important information about cancellation. When you cancel a job, one of two things must be true:
+Job history can also provide important information about cancellation. 
+When you cancel a job, one of two things must be true:
 
 1. **The job hasn't started running yet.** No credits will be deducted from your balance.
 2. **The job has started running.** Credits will be deducted.
@@ -158,15 +224,14 @@ When remote caching and remote inference are both turned on, your remote jobs wi
   <br>
 
 
-Let's rerun the survey from earlier:
+Here we rerun the survey from above:
 
 .. code-block:: python
 
-  survey.run(remote_inference_description="Example survey rerun", verbose=True)
+  survey.run(remote_inference_description="Example survey rerun")
 
 
-After running this survey, you will have a new entry in the remote cache.
-This is reflected in your remote cache logs:
+The remote cache now has a new entry in the remote cache logs:
 
 .. image:: static/coop_remote_inference_cache_logs.png
   :alt: Remote cache logs on the Coop web app. There is one log that reads, "Add 1 new cache entry from remote inference job."
@@ -188,6 +253,7 @@ If the remote cache has been used for a particular job, the details will also sh
 .. raw:: html
 
   <br>
+
 
 
 Remote inference methods
