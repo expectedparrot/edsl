@@ -423,9 +423,9 @@ Feature requests
 If you have a feature request for the Coop, please let us know! 
 There are several ways to do this:
 
-- Create an issue on GitHub: https://docs.expectedparrot.com/en/latest/contributing.html#suggesting-enhancements
-- Post a message at our Discord server: https://discord.com/invite/mxAYkjfy9m
-- Send us an email: info@expectedparrot.com
+- `Create an issue on GitHub <https://docs.expectedparrot.com/en/latest/contributing.html#suggesting-enhancements>`_
+- Post a message on Discord: https://discord.com/invite/mxAYkjfy9m
+- Send an email: info@expectedparrot.com
 
 
 
