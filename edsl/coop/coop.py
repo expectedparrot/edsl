@@ -522,7 +522,7 @@ class Coop:
         self._resolve_server_response(response)
         response_json = response.json()
         return {
-            "uuid": response_json.get("jobs_uuid"),
+            "uuid": response_json.get("job_uuid"),
             "description": response_json.get("description"),
             "status": response_json.get("status"),
             "iterations": response_json.get("iterations"),
@@ -530,29 +530,41 @@ class Coop:
             "version": self._edsl_version,
         }
 
-    def remote_inference_get(self, job_uuid: str) -> dict:
+    def remote_inference_get(
+        self, job_uuid: Optional[str] = None, results_uuid: Optional[str] = None
+    ) -> dict:
         """
         Get the details of a remote inference job.
+        You can pass either the job uuid or the results uuid as a parameter.
+        If you pass both, the job uuid will be prioritized.
 
         :param job_uuid: The UUID of the EDSL job.
+        :param results_uuid: The UUID of the results associated with the EDSL job.
 
         >>> coop.remote_inference_get("9f8484ee-b407-40e4-9652-4133a7236c9c")
         {'jobs_uuid': '9f8484ee-b407-40e4-9652-4133a7236c9c', 'results_uuid': 'dd708234-31bf-4fe1-8747-6e232625e026', 'results_url': 'https://www.expectedparrot.com/content/dd708234-31bf-4fe1-8747-6e232625e026', 'status': 'completed', 'reason': None, 'price': 16, 'version': '0.1.29.dev4'}
         """
+        if job_uuid is None and results_uuid is None:
+            raise ValueError("Either job_uuid or results_uuid must be provided.")
+        elif job_uuid is not None:
+            params = {"job_uuid": job_uuid}
+        else:
+            params = {"results_uuid": results_uuid}
+
         response = self._send_server_request(
             uri="api/v0/remote-inference",
             method="GET",
-            params={"uuid": job_uuid},
+            params=params,
         )
         self._resolve_server_response(response)
         data = response.json()
         return {
-            "jobs_uuid": data.get("jobs_uuid"),
+            "job_uuid": data.get("job_uuid"),
             "results_uuid": data.get("results_uuid"),
             "results_url": f"{self.url}/content/{data.get('results_uuid')}",
             "status": data.get("status"),
             "reason": data.get("reason"),
-            "price": data.get("price"),
+            "credits_consumed": data.get("price"),
             "version": data.get("version"),
         }
 
