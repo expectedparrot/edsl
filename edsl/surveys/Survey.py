@@ -1212,6 +1212,9 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         return Jobs(survey=self)
 
+    def show_prompts(self):
+        return self.to_jobs().show_prompts()
+
     # endregion
 
     # region: Running the survey
