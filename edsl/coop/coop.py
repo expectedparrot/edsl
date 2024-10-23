@@ -665,6 +665,10 @@ class Coop:
         return response_json
 
     def fetch_prices(self) -> dict:
+        """
+        Fetch model prices from Coop. If the request fails, return an empty dict.
+        """
+
         from edsl.coop.PriceFetcher import PriceFetcher
 
         from edsl.config import CONFIG
@@ -674,6 +678,20 @@ class Coop:
             return price_fetcher.fetch_prices()
         else:
             return {}
+
+    def fetch_rate_limit_config_vars(self) -> dict:
+        """
+        Fetch a dict of rate limit config vars from Coop.
+
+        The dict keys are RPM and TPM variables like EDSL_SERVICE_RPM_OPENAI.
+        """
+        response = self._send_server_request(
+            uri="api/v0/config-vars",
+            method="GET",
+        )
+        self._resolve_server_response(response)
+        data = response.json()
+        return data
 
 
 if __name__ == "__main__":
