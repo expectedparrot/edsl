@@ -134,7 +134,13 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
         >>> s.to_dict()
         {'food': 'wood chips', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}
         """
-        return self.data.copy()
+        from edsl.scenarios.FileStore import FileStore
+
+        d = self.data.copy()
+        for key, value in d.items():
+            if isinstance(value, FileStore):
+                d[key] = value.to_dict()
+        return d
 
     @add_edsl_version
     def to_dict(self) -> dict:
@@ -439,6 +445,11 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
         >>> Scenario.from_dict({"food": "wood chips"})
         Scenario({'food': 'wood chips'})
         """
+        from edsl.scenarios.FileStore import FileStore
+
+        for key, value in d.items():
+            if isinstance(value, FileStore):
+                d[key] = FileStore.from_dict(value)
         return cls(d)
 
     def _table(self) -> tuple[dict, list]:
