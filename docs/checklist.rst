@@ -39,6 +39,7 @@ Are you using appropriate question types?
 -----------------------------------------
 
 Ensure that the question type you are using is appropriate for the question you are presenting.
+
 * Use `QuestionYesNo` when you only want to allow "Yes" or "No" responses.
 * Use `QuestionMultipleChoice` when you want to require that only one option be selected.
 * Use `QuestionCheckBox` when you want to allow multiple (or no) selections or specify a number of selections.
@@ -48,6 +49,7 @@ Are question options correct and complete?
 ------------------------------------------
 
 Ensure that the question options make sense for the question text.
+
 * Does the question text ask for options not presented, or a different number of options?
 * Should the question options include an option for non-responses (e.g., "I do not know.")?
 
@@ -61,6 +63,7 @@ It also allows you to fine-tune and readily compare responses to versions of que
 
 If a question depends on or requires information about other questions in a survey, you need to add a rule specifying the logic to be applied.
 This can be done in a variety of ways:
+
 * Use `piping <https://docs.expectedparrot.com/en/latest/surveys.html#id2>`_ to add components of a question in another question (e.g., insert the answer to a question in the text of a follow-up question).
 * Use question `memory <https://docs.expectedparrot.com/en/latest/surveys.html#question-memory>`_ to include the entire context of a question/answer in the presentation of a different question (*"You were previously asked..."*). There are separate rules for adding the context of a single question, a set of questions, all prior questions, or a lagged number of questions.
 
