@@ -44,16 +44,16 @@ Data labeling and cleaning
    Design tasks that involve labeling or cleaning data through questionsa, and then use language models to generate responses in formatted datasets. See `examples <https://docs.expectedparrot.com/en/latest/notebooks/data_labeling_example.html>`_.
 
 Market research
-   Administer surveys to gather insights on consumer preferences, behaviors, and trends. Simulate customer personas with AI agents and analyze their responses. See `examples <file:///Users/a16174/edsl/.temp/docs/notebooks/yoga_studio_name_survey.html>`_.
+   Administer surveys to gather insights on consumer preferences, behaviors, and trends. Simulate customer personas with AI agents and analyze their responses. See `examples <https://docs.expectedparrot.com/en/latest/notebooks/yoga_studio_name_survey.html>`_.
 
 User experience research
    Design surveys to assess user satisfaction, usability, and engagement. Use AI agents to simulate user profiles and analyze their feedback on products or services. See `examples <https://docs.expectedparrot.com/en/latest/notebooks/nps_survey.html>`_.
 
 Integrate human and AI data
-   Combine human responses with AI-generated responses to create richer datasets. See `examples <file:///Users/a16174/edsl/.temp/docs/notebooks/import_agents.html>`_.
+   Combine human responses with AI-generated responses to create richer datasets. See `examples <https://docs.expectedparrot.com/en/latest/notebooks/import_agents.html>`_.
 
 Analyze survey data
-   Import survey data from various sources (SPSS, CSV), analyze it using EDSL's built-in tools. Simulate follow-up surveys and interviews using AI agents. See `examples <https://docs.expectedparrot.com/en/latest/conjure.html>`_.
+   Generate or import survey data and analyze it using EDSL's built-in tools. Simulate follow-up surveys and interviews using AI agents. See `examples <https://docs.expectedparrot.com/en/latest/notebooks/analyze_evaluations.html>`_.
 
 Social science research
    Design surveys to explore hypotheses and gather qualitative or quantitative data using AI agents. 
