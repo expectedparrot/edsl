@@ -60,15 +60,15 @@ class QuestionBaseGenMixin:
             env = Environment()
             new_data = self.to_dict().copy()
             for key, value in [(k, v) for k, v in new_data.items() if v is not None]:
-                if (
-                    isinstance(value, str) or isinstance(value, int)
-                ) and key != "question_options":
+                if isinstance(value, str) and key != "question_options":
                     new_data[key] = env.from_string(value).render(scenario)
                 elif isinstance(value, list):
                     new_data[key] = [
                         env.from_string(v).render(scenario) if isinstance(v, str) else v
                         for v in value
                     ]
+                elif isinstance(value, int) or isinstance(value, float):
+                    new_data[key] = value
                 elif isinstance(value, dict):
                     new_data[key] = {
                         (
