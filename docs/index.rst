@@ -1,52 +1,72 @@
 .. _index:
 
-EDSL: AI-Powered Research
-=========================
+Expected Parrot: Tools for AI-Powered Research
+==============================================
 
-*Expected Parrot Domain-Specific Language* (EDSL) is an open-source Python package (`GitHub <https://github.com/expectedparrot/edsl>`_) for conducting AI-powered research.
-   
-EDSL is developed by `Expected Parrot <https://www.expectedparrot.com>`_ and available under the MIT License.
+This page provides documentation for *Expected Parrot Domain-Specific Language* (EDSL), a Python package for conducting research with AI agents and large language models.
+It also provides information about key features and integrated applications, including:
 
-This page provides documentation, tutorials and demo notebooks for the EDSL package and `Coop <https://www.expectedparrot.com/content/explore>`_: a platform for creating, storing and sharing AI-based research. 
-The contents are organized into key sections to help you get started.
+* **Conduct research with hundreads of models:** A single API key to many popular models at once. `Learn more <https://docs.expectedparrot.com/en/latest/remote_inference.html>`_.
+* **Collaboration platform:** Create, store and share research projects at `Coop <https://www.expectedparrot.com/content/explore>`_.
+* **Easily import data:** Integrate and analyze data from many different sources. `Learn more <https://docs.expectedparrot.com/en/latest/scenarios.html>`_.
+* **Hybrid human-AI surveys:** Launch surveys and get responses from humans and AI. `Learn more <https://docs.expectedparrot.com/en/latest/survey_builder.html>`_.
+
+
+Use cases 
+---------
+
+EDSL and its integrated applications are designed to make it easy to conduct surveys and experiments and analyze responses -- from humans or AI.
+Common use cases include:
+
+| **Data labeling and cleaning** 
+| Design a data labeling or cleaning task as questions about your data, and then use language models to generate responses in a formatted dataset. See `examples <https://docs.expectedparrot.com/en/latest/notebooks/data_labeling_example.html>`_.
+
+| **Market research** 
+| Administer surveys to gather insights about consumer preferences, behaviors, and trends. Use AI agents to simulate customer personas and analyze their responses. See `examples <>`_.
+
+| **User experience** 
+| Conduct user experience research by designing surveys that assess user satisfaction, usability, and engagement. Use AI agents to simulate user profiles and analyze their feedback on products or services. See `examples <https://docs.expectedparrot.com/en/latest/notebooks/nps_survey.html>`_.
+
+| **Integrate human and AI data**
+| Combine human responses with AI-generated responses to create richer datasets. See `examples <>`_.
+
+| **Analyze survey data**
+| Import survey data from other sources (SPSS, CSV), analyze it using EDSL's built-in methods, and simulate follow-up surveys or interviews using AI agents. See `examples <https://docs.expectedparrot.com/en/latest/conjure.html>`_.
+
+| **Social science research**
+| Conduct academic research by designing surveys that explore specific hypotheses or research questions. Use AI agents to gather qualitative or quantitative data and analyze the results. See `examples <>`_.
+
+Learn more about purposes and key features of EDSL in the :ref:`overview` section.
+
+
+Getting started 
+---------------
+
+| **1. Install EDSL**
+| Download the EDSL package. See :ref:`installation` instructions.
+
+| **2. Create a Coop account**
+| `Create an account <https://www.expectedparrot.com/login>`_ to store and share your research projects.
+
+| **3. Choose how you want to access language models**
+| You can either access models remotely at the Expected Parrot server or use models locally with your own API keys. 
+
+| ***To access all available models at once:***
+| Activate :ref:`remote_inference` at your Coop account and store your Expected Parrot API key.
+
+| ***To access models your own:***
+| Store your own :ref:`api_keys` for language models that you want to use locally.
+
+| **4. Explore examples**
+| See our :ref:`starter_tutorial` and other how-to guides and notebooks.
 
 
 Researchers
 -----------
 
 Are you using EDSL for a research project?
-Email us at info@expectedparrot.com and we'll give you free credits to run your project.
+Send an email to *info@expectedparrot.com* and we'll give you free credits to run your project!
 
-
-Getting started 
----------------
-
-Steps for getting started using the EDSL package: 
-
-1. Download the EDSL package. See :ref:`installation` instructions.
-2. *(Optional)*  Create a `Coop account <https://www.expectedparrot.com/login>`_ to store and share research.
-3. Decide how you want to use EDSL: 
-
-   *To run surveys on the Expected Parrot server with available models:*
-   Activate :ref:`remote_inference` from your `Coop API Settings <https://www.expectedparrot.com/home/api>`_ page.
-   Copy and store your Expected Parrot API key.
-   
-   *To run surveys locally:*
-   Copy and store your own :ref:`api_keys` for language models.
-
-   We recommend storing your API keys in a *.env* file in your working directory. 
-   See instructions in the :ref:`api_keys` section.
-
-4. Explore a :ref:`starter_tutorial` and other how-to guides and notebooks for examples.
-
-
-Support
--------
-
-- Send us an email: info@expectedparrot.com
-- Join the `Discord channel <https://discord.com/invite/mxAYkjfy9m>`_
-- Follow on social media: `Twitter/X <https://twitter.com/expectedparrot>`_, `LinkedIn <https://www.linkedin.com/company/expectedparrot>`_, `Blog <https://blog.expectedparrot.com>`_
- 
 
 Introduction
 ------------
@@ -123,6 +143,7 @@ Links
 - Create a `Coop account <https://www.expectedparrot.com/login>`_.
 - Join the `Discord channel <https://discord.com/invite/mxAYkjfy9m>`_.
 - Follow on social media: `Twitter/X <https://twitter.com/expectedparrot>`_, `LinkedIn <https://www.linkedin.com/company/expectedparrot>`_, `Blog <https://blog.expectedparrot.com>`_
+- Send an email: *info@expectedparrot.com*
 
 
 .. toctree::
@@ -199,6 +220,7 @@ Links
    notebooks/scenarios_filestore_example.ipynb
    notebooks/adding_metadata.ipynb
    notebooks/question_loop_scenarios.ipynb
+   notebooks/skip_logic_scenarios.ipynb
    notebooks/example_agent_dynamic_traits.ipynb
    notebooks/import_agents.ipynb
    notebooks/agentifying_responses.ipynb
