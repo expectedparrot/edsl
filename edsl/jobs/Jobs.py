@@ -712,6 +712,8 @@ class Jobs(Base):
             status="queued",
             iterations=iterations,
         )
+        job_uuid = remote_job_creation_data.get("uuid")
+        print(f"Job sent to server. (Job uuid={job_uuid}).")
         return remote_job_creation_data
 
     @staticmethod
