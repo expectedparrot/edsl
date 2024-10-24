@@ -29,7 +29,7 @@ This approach enhances expressiveness, allowing users to achieve more with minim
 Key concepts
 ------------
 
-At its core, EDSL is built on the concept of a `Question` being answered by an AI `Agent`, which uses a large language `Model` to generate a response, returning it as a formatted `Result`.
+At its core, EDSL is built on the concept of a `Question` being answered by an AI `Agent`, using a large language `Model` to generate a response that is returned as a formatted `Result`.
 These results can be analyzed, visualized, shared, or further utilized to refine subsequent questions. 
 EDSL supports various question types (free text, multiple choice, etc.) that can be grouped into a `Survey` that operates either in parallel or based on specific rules and conditional logic. 
 

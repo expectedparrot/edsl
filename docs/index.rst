@@ -58,7 +58,7 @@ Getting started
 | Store your own :ref:`api_keys` for the language models that you wish to use.
 
 | **4. Explore examples**
-| Get started with our :ref:`starter_tutorial` and explore additional guides and notebooks.
+| Get started with our :ref:`starter_tutorial` and explore additional guides and notebooks. See `tips <https://docs.expectedparrot.com/en/latest/checklist.html>`_ on using EDSL effectively.
 
 
 Researchers
@@ -186,6 +186,7 @@ Links
    data
    exceptions
    token_usage
+   checklist
 
 .. toctree::
    :maxdepth: 2
