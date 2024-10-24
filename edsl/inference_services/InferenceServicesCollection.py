@@ -56,6 +56,12 @@ class InferenceServicesCollection:
         self.services.append(service)
 
     def create_model_factory(self, model_name: str, service_name=None, index=None):
+
+        if service_name:
+            for service in self.services:
+                if service_name == service._inference_service_:
+                    return service.create_model(model_name)
+
         for service in self.services:
             if model_name in self._get_service_available(service):
                 if service_name is None or service_name == service._inference_service_:
