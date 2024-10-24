@@ -3,14 +3,34 @@
 Expected Parrot: Tools for AI-Powered Research
 ==============================================
 
-Welcome to the documentation for the *Expected Parrot Domain-Specific Language* (EDSL), a Python package for conducting research with AI agents and large language models.
-This guide also highlights key features and integrated applications:
+Expected Parrot delivers powerful tools for conducting research with human and artificial intelligences.
+This page provides documentation for the **Expected Parrot Domain-Specific Language (EDSL)**, a Python package for conducting research with large numbers of AI agents and language models,
+and **Coop**, a platform for creating, storing and sharing AI-based research projects.
 
-* **Access to hundreds of models:** A single API key lets you conduct research with many popular models at once. `Learn more <https://docs.expectedparrot.com/en/latest/remote_inference.html>`_.
-* **Collaboration made easy:** Use `Coop <https://www.expectedparrot.com/content/explore>`_ to create, store, and share your research projects seamlessly.
-* **Data integrations:** Easily import and analyze data from various sources. `Learn more <https://docs.expectedparrot.com/en/latest/scenarios.html>`_.
-* **Hybrid human-AI surveys:** Launch surveys and collect responses from both humans and AI agents. `Learn more <https://docs.expectedparrot.com/en/latest/survey_builder.html>`_.
-* **Built-in analysis tools:** Analyze survey results with EDSL's built-in methods. `Learn more <https://docs.expectedparrot.com/en/latest/results.html>`_.
+EDSL is available at `PyPI <https://pypi.org/project/edsl/>`_ and `GitHub <https://github.com/expectedparrot/edsl>`_.
+Create an account at `Coop <https://www.expectedparrot.com/login>`_ to access special features and start `exploring research <https://www.expectedparrot.com/content/explore>`_.
+
+
+Key features 
+------------
+
+Key features of our tools and applications include:
+
+Access to hundreds of models
+   A single API key lets you conduct research with many popular models at once. `Learn more <https://docs.expectedparrot.com/en/latest/remote_inference.html>`_.
+
+Collaboration made easy
+   Use `Coop <https://www.expectedparrot.com/content/explore>`_ to create, store, and share your research projects seamlessly.
+
+Data integrations
+   Easily import and analyze data from various sources. `Learn more <https://docs.expectedparrot.com/en/latest/scenarios.html>`_.
+
+Hybrid human-AI surveys
+   Launch surveys and collect responses from both humans and AI agents. `Learn more <https://docs.expectedparrot.com/en/latest/survey_builder.html>`_.
+
+Built-in analysis tools
+   Analyze survey results with EDSL's built-in methods. `Learn more <https://docs.expectedparrot.com/en/latest/results.html>`_.
+
 
 Use cases 
 ---------
@@ -18,23 +38,23 @@ Use cases
 EDSL and its integrated applications are designed to simplify survey creation, experiment execution, and response analysis—whether from humans or AI. 
 Common use cases include:
 
-| **Data labeling and cleaning** 
-| Design tasks that involve labeling or cleaning data through questionsa, and then use language models to generate responses in formatted datasets. See `examples <https://docs.expectedparrot.com/en/latest/notebooks/data_labeling_example.html>`_.
+Data labeling and cleaning
+   Design tasks that involve labeling or cleaning data through questionsa, and then use language models to generate responses in formatted datasets. See `examples <https://docs.expectedparrot.com/en/latest/notebooks/data_labeling_example.html>`_.
 
-| **Market research** 
-| Administer surveys to gather insights on consumer preferences, behaviors, and trends. Simulate customer personas with AI agents and analyze their responses. See `examples <file:///Users/a16174/edsl/.temp/docs/notebooks/yoga_studio_name_survey.html>`_.
+Market research
+   Administer surveys to gather insights on consumer preferences, behaviors, and trends. Simulate customer personas with AI agents and analyze their responses. See `examples <https://docs.expectedparrot.com/en/latest/notebooks/yoga_studio_name_survey.html>`_.
 
-| **User experience research** 
-| Design surveys to assess user satisfaction, usability, and engagement. Use AI agents to simulate user profiles and analyze their feedback on products or services. See `examples <https://docs.expectedparrot.com/en/latest/notebooks/nps_survey.html>`_.
+User experience research
+   Design surveys to assess user satisfaction, usability, and engagement. Use AI agents to simulate user profiles and analyze their feedback on products or services. See `examples <https://docs.expectedparrot.com/en/latest/notebooks/nps_survey.html>`_.
 
-| **Integrate human and AI data**
-| Combine human responses with AI-generated responses to create richer datasets. See `examples <file:///Users/a16174/edsl/.temp/docs/notebooks/import_agents.html>`_.
+Integrate human and AI data
+   Combine human responses with AI-generated responses to create richer datasets. See `examples <https://docs.expectedparrot.com/en/latest/notebooks/import_agents.html>`_.
 
-| **Analyze survey data**
-| Import survey data from various sources (SPSS, CSV), analyze it using EDSL's built-in tools. Simulate follow-up surveys and interviews using AI agents. See `examples <https://docs.expectedparrot.com/en/latest/conjure.html>`_.
+Analyze survey data
+   Generate or import survey data and analyze it using EDSL's built-in tools. Simulate follow-up surveys and interviews using AI agents. See `examples <https://docs.expectedparrot.com/en/latest/notebooks/analyze_evaluations.html>`_.
 
-| **Social science research**
-| Design surveys to explore hypotheses and gather qualitative or quantitative data using AI agents. 
+Social science research
+   Design surveys to explore hypotheses and gather qualitative or quantitative data using AI agents. 
 
 For more on EDSL's key features and use cases, visit the :ref:`overview` section.
 
@@ -42,23 +62,20 @@ For more on EDSL's key features and use cases, visit the :ref:`overview` section
 Getting started 
 ---------------
 
-| **1. Install EDSL**
-| Download and install the EDSL package. :ref:`installation` instructions.
+1. Install the EDSL package. See :ref:`installation` instructions.
 
-| **2. Create a Coop account**
-| `Sign up <https://www.expectedparrot.com/login>`_ for an account to store and share your research projects.
 
-| **3. Choose your model access methods**
-| You can either access language models remotely through the Expected Parrot server or use your own API keys to access models locally. 
+2. Create a `Coop account <https://www.expectedparrot.com/login>`_.
 
-| ***For remote access to all available models:***
-| Activate :ref:`remote_inference` via your Coop account and store your Expected Parrot API key.
 
-| ***For local access to specific models:***
-| Store your own :ref:`api_keys` for the language models that you wish to use.
+3. Choose how you want to use language models. 
+   
+      **At the Coop:** Activate :ref:`remote_inference` and store your Expected Parrot API key.
+   
+      **On your own:** Store your own :ref:`api_keys` for the language models that you wish to use.
 
-| **4. Explore examples**
-| Get started with our :ref:`starter_tutorial` and explore additional guides and notebooks.
+
+4. Explore our :ref:`starter_tutorial`, how-to guides and notebooks, and see `tips <https://docs.expectedparrot.com/en/latest/checklist.html>`_ on using EDSL effectively.
 
 
 Researchers
@@ -186,6 +203,7 @@ Links
    data
    exceptions
    token_usage
+   checklist
 
 .. toctree::
    :maxdepth: 2
