@@ -85,7 +85,7 @@ EDSL offers a range of features that make it a powerful tool for conducting AI-p
 **Python Integration:** EDSL leverages Python's robust ecosystem, seamlessly integrating with existing Python tools. 
 It is ideally used within a notebook environment, facilitating the execution and detailed analysis of research outcomes. 
 
-**Model Agnosticism*:** The framework's design allows for the application of diverse language models and agents to the same set of questions, enabling comparative analysis across different models.
+**Model Agnosticism:** The framework's design allows for the application of diverse language models and agents to the same set of questions, enabling comparative analysis across different models.
 
 **Open Source Flexibility:** EDSL is open-source under a permissive license, offering the freedom to use, modify, and extend it for personal or commercial projects.
 

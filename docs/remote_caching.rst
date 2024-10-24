@@ -9,58 +9,35 @@ Remote caching allows you to store responses from language models on the Expecte
 Activating remote caching
 -------------------------
 
-1. `Create a Coop account <https://www.expectedparrot.com/login>`_.
+1. Log into your `Coop account <https://www.expectedparrot.com/login>`_.
 
-2. Navigate to your `Coop API <https://www.expectedparrot.com/home/api>`_ settings page:
+2. Navigate to `API Settings <a href="https://www.expectedparrot.com/home/api>`_. Toggle on the slider for *Remote caching* and copy your API key.
 
-.. image:: static/coop_main_page.png
-  :alt: Coop main page
+.. image:: static/api_settings_key_remote_caching.png
+  :alt: Toggle on remote caching and copy your Expected Parrot API key
   :align: center
-  :width: 500px
+  :width: 100%
+
 
 .. raw:: html
   
     <br>
 
 
-3. Copy your **Expected Parrot API key**:
-
-.. image:: static/coop_ep_key.png
-  :alt: Coop main page
-  :align: center
-  :width: 500px
-
-.. raw:: html
-  
-    <br>
-
-
-Save it to a *.env* file in your working directory. Your *.env* file should include the following line (replace `your_key_here` with your actual Expected Parrot API key):
+3. Add the following line to your `.env` file in your `edsl` working directory (replace `your_api_key_here` with your actual API key):
 
 .. code-block:: python
 
-  EXPECTED_PARROT_API_KEY='your_key_here'
+  EXPECTED_PARROT_API_KEY='your_api_key_here'
 
 
-
-4. Locate your **EDSL Settings** and toggle the slider for *Remote caching* to turn it on:
-
-.. image:: static/remote_caching_toggle_coop_api_page.png
-  :alt: Remote cache toggle on the Coop web app
-  :align: center
-  :width: 500px
-
-.. raw:: html
-
-    <br>
-
-
-When remote caching is on, the results of any question or survey that you run will be stored 
-automatically on the Expected Parrot server.
+You can regenerate your key (and update your `.env` file) at any time.
 
 
 Using remote caching
 --------------------
+
+When remote caching is on, the results of any question or survey that you run will be stored automatically on the Expected Parrot server.
 
 We can use remote caching by passing a `Cache` object to the `run` method of a survey.
 
@@ -74,8 +51,7 @@ See :ref:`caching` for more details on caching results locally.
 
 .. code-block:: python
 
-  from edsl import Cache, Survey
-  from edsl.questions import QuestionMultipleChoice, QuestionFreeText
+  from edsl import QuestionMultipleChoice, QuestionFreeText, Survey, Cache
 
   survey = Survey(questions=[QuestionMultipleChoice.example(), QuestionFreeText.example()])
 
@@ -85,18 +61,7 @@ See :ref:`caching` for more details on caching results locally.
 Remote cache logs
 -----------------
 
-We can inspect `Coop remote cache logs <https://www.expectedparrot.com/home/remote-cache>`_
-to verify that our results were cached successfully:
-
-.. image:: static/remote_cache_main_page.png
-  :alt: Remote cache link at the main page
-  :align: center
-  :width: 650px
-
-.. raw:: html
-  
-    <br>
-  
+We can inspect `Coop remote cache logs <https://www.expectedparrot.com/home/remote-cache>`_ to verify that our results were cached successfully.
 The logs will show that we have 2 remote cache entries:
 
 .. image:: static/coop_remote_cache_logs_1.png
@@ -219,8 +184,7 @@ Now, let's run a survey:
 
 .. code-block:: python
 
-  from edsl import Survey
-  from edsl.questions import QuestionCheckBox, QuestionNumerical
+  from edsl import Survey, QuestionCheckBox, QuestionNumerical
 
   survey = Survey(questions=[QuestionCheckBox.example(), QuestionNumerical.example()])
 
