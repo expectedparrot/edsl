@@ -169,6 +169,7 @@ class Conversation:
             agent=speaker,
             just_answer=False,
             cache=self.cache,
+            model=speaker.model,
         )
         return results[0]
 
@@ -179,7 +180,6 @@ class Conversation:
         i = 0
         while await self.continue_conversation():
             speaker = self.next_speaker()
-            # breakpoint()
 
             next_statement = AgentStatement(
                 statement=await self.get_next_statement(
