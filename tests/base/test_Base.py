@@ -107,6 +107,7 @@ def create_file_operations_test(child_class):
             warnings.warn(
                 f"Equality failure with (new_w != e) {child_class}:", EvalReprFail
             )
+            print("Equality failure - at new_w and e")
             breakpoint()
             raise
 

@@ -77,6 +77,15 @@ class FileStore(Scenario):
     def __str__(self):
         return "FileStore: self.path"
 
+    @classmethod
+    def example(self):
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as f:
+            f.write(b"Hello, World!")
+
+        return self(path=f.name)
+
     @property
     def size(self) -> int:
         return os.path.getsize(self.path)
@@ -93,7 +102,7 @@ class FileStore(Scenario):
         return cls(**d)
 
     def __repr__(self):
-        return f"FileStore({self.path})"
+        return f"FileStore(path='{self.path}')"
 
     def encode_file_to_base64_string(self, file_path: str):
         try:
@@ -272,7 +281,8 @@ class CSVFileStore(FileStore):
 
         with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as f:
             r.to_csv(filename=f.name)
-            return cls(f.name)
+
+        return cls(f.name)
 
     def view(self):
         import pandas as pd
@@ -352,7 +362,8 @@ class PDFFileStore(FileStore):
 
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
             f.write(pdf_string.encode())
-            return cls(f.name)
+
+        return cls(f.name)
 
 
 class PNGFileStore(FileStore):
@@ -367,7 +378,8 @@ class PNGFileStore(FileStore):
 
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
             f.write(png_string.encode())
-            return cls(f.name)
+
+        return cls(f.name)
 
     def view(self):
         import matplotlib.pyplot as plt
@@ -407,7 +419,8 @@ class HTMLFileStore(FileStore):
 
         with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
             f.write("<html><body><h1>Test</h1></body></html>".encode())
-            return cls(f.name)
+
+        return cls(f.name)
 
     def view(self):
         import webbrowser
