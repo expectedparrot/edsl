@@ -56,6 +56,10 @@ class InferenceServicesCollection:
         self.services.append(service)
 
     def create_model_factory(self, model_name: str, service_name=None, index=None):
+        from edsl.inference_services.TestService import TestService
+
+        if model_name == "test":
+            return TestService.create_model(model_name)
         for service in self.services:
             if model_name in self._get_service_available(service):
                 if service_name is None or service_name == service._inference_service_:
