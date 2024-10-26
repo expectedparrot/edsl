@@ -39,7 +39,7 @@ EDSL and its integrated applications are designed to simplify survey creation, e
 Common use cases include:
 
 Data labeling and cleaning
-   Design tasks that involve labeling or cleaning data through questionsa, and then use language models to generate responses in formatted datasets. See `examples <https://docs.expectedparrot.com/en/latest/notebooks/data_labeling_example.html>`_.
+   Design tasks that involve labeling or cleaning data through questions, and then use language models to generate responses in formatted datasets. See `examples <https://docs.expectedparrot.com/en/latest/notebooks/data_labeling_example.html>`_.
 
 Market research
    Administer surveys to gather insights on consumer preferences, behaviors, and trends. Simulate customer personas with AI agents and analyze their responses. See `examples <https://docs.expectedparrot.com/en/latest/notebooks/yoga_studio_name_survey.html>`_.
