@@ -67,9 +67,8 @@ Getting started
 
 3. Choose how to access language models: 
    
-      | **Remote:** Use your Expected Parrot API key to access all available models at Coop. See instructions on activating :ref:`remote_inference`.
-      | *or*
-      | **Local:** Use your own API keys for models to use on your own machine. See instructions on storing :ref:`api_keys`.
+   * **Remote:** Use your Expected Parrot API key to access all available models at Coop. See instructions on activating :ref:`remote_inference`.
+   * **Local:** Use your own API keys for models to use on your own machine. See instructions on storing :ref:`api_keys`.
 
 4. Explore a :ref:`starter_tutorial`, how-to guides and notebooks, and see `tips <https://docs.expectedparrot.com/en/latest/checklist.html>`_ on using EDSL effectively.
 
