@@ -132,18 +132,25 @@ class InterviewExceptionEntry:
         )
         console.print(tb)
         return html_output.getvalue()
-    
+
     @staticmethod
     def serialize_exception(exception: Exception) -> dict:
         return {
             "type": type(exception).__name__,
             "message": str(exception),
-            "traceback": "".join(traceback.format_exception(type(exception), exception, exception.__traceback__)),
+            "traceback": "".join(
+                traceback.format_exception(
+                    type(exception), exception, exception.__traceback__
+                )
+            ),
         }
-    
+
     @staticmethod
     def deserialize_exception(data: dict) -> Exception:
-        exception_class = globals()[data["type"]]
+        try:
+            exception_class = globals()[data["type"]]
+        except KeyError:
+            exception_class = Exception
         return exception_class(data["message"])
 
     def to_dict(self) -> dict:
@@ -158,7 +165,7 @@ class InterviewExceptionEntry:
             "traceback": self.traceback,
             "invigilator": self.invigilator.to_dict(),
         }
-    
+
     @classmethod
     def from_dict(cls, data: dict) -> "InterviewExceptionEntry":
         """Create an InterviewExceptionEntry from a dictionary."""
