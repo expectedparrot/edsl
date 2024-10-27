@@ -115,7 +115,11 @@ class InvigilatorBase(ABC):
         iteration = data["iteration"]
         additional_prompt_data = data["additional_prompt_data"]
         cache = Cache.from_dict(data["cache"])
-        sidecar_model = LanguageModel.from_dict(data["sidecar_model"])
+
+        if data["sidecar_model"] is None:
+            sidecar_model = None
+        else:
+            sidecar_model = LanguageModel.from_dict(data["sidecar_model"])
 
         return cls(
             agent=agent,
