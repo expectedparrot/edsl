@@ -27,6 +27,7 @@ from edsl.questions import QuestionTopK
 
 from edsl.scenarios import Scenario
 from edsl.scenarios import ScenarioList
+from edsl.scenarios.FileStore import FileStore
 
 # from edsl.utilities.interface import print_dict_with_rich
 from edsl.surveys.Survey import Survey
