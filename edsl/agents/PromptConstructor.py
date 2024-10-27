@@ -1,17 +1,11 @@
 from __future__ import annotations
 from typing import Dict, Any, Optional, Set
-from collections import UserList
-import pdb
 
 from jinja2 import Environment, meta
 
 from edsl.prompts.Prompt import Prompt
-from edsl.data_transfer_models import ImageInfo
 
-# from edsl.prompts.registry import get_classes as prompt_lookup
-from edsl.exceptions import QuestionScenarioRenderError
-
-from edsl.agents.prompt_helpers import PromptComponent, PromptList, PromptPlan
+from edsl.agents.prompt_helpers import PromptPlan
 
 
 def get_jinja2_variables(template_str: str) -> Set[str]:
@@ -153,14 +147,28 @@ class PromptConstructor:
 
                 # might be getting it from the prior answers
                 if self.prior_answers_dict().get(question_option_key) is not None:
-                    if isinstance(
-                        question_options := self.prior_answers_dict()
-                        .get(question_option_key)
-                        .answer,
-                        list,
-                    ):
-                        question_data["question_options"] = question_options
-                        self.question.question_options = question_options
+                    prior_question = self.prior_answers_dict().get(question_option_key)
+                    if hasattr(prior_question, "answer"):
+                        if isinstance(prior_question.answer, list):
+                            question_data["question_options"] = prior_question.answer
+                            self.question.question_options = prior_question.answer
+                    else:
+                        placeholder_options = [
+                            "N/A",
+                            "Will be populated by prior answer",
+                            "These are placeholder options",
+                        ]
+                        question_data["question_options"] = placeholder_options
+                        self.question.question_options = placeholder_options
+
+                    # if isinstance(
+                    #     question_options := self.prior_answers_dict()
+                    #     .get(question_option_key)
+                    #     .answer,
+                    #     list,
+                    # ):
+                    #     question_data["question_options"] = question_options
+                    #     self.question.question_options = question_options
 
             replacement_dict = (
                 {key: f"<see file {key}>" for key in self.scenario_file_keys}
