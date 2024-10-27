@@ -178,7 +178,7 @@ class Interview:
         if include_exceptions:
             d["exceptions"] = self.exceptions.to_dict()
         return d
-    
+
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "Interview":
         """Return an Interview instance from a dictionary."""
@@ -187,13 +187,23 @@ class Interview:
         scenario = Scenario.from_dict(d["scenario"])
         model = LanguageModel.from_dict(d["model"])
         iteration = d["iteration"]
-        return cls(agent=agent, survey=survey, scenario=scenario, model=model, iteration=iteration)
+        interview = cls(
+            agent=agent,
+            survey=survey,
+            scenario=scenario,
+            model=model,
+            iteration=iteration,
+        )
+        if "exceptions" in d:
+            exceptions = InterviewExceptionCollection.from_dict(d["exceptions"])
+            interview.exceptions = exceptions
+        return interview
 
     def __hash__(self) -> int:
         from edsl.utilities.utilities import dict_hash
 
         return dict_hash(self._to_dict(include_exceptions=False))
-    
+
     def __eq__(self, other: "Interview") -> bool:
         """
         >>> from edsl.jobs.interviews.Interview import Interview; i = Interview.example(); d = i._to_dict(); i2 = Interview.from_dict(d); i == i2
