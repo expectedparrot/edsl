@@ -79,6 +79,8 @@ class FileStore(Scenario):
 
     @property
     def size(self) -> int:
+        if self.base64_string != None:
+            return (len(self.base64_string) / 4.0) * 3  # from base64 to char size
         return os.path.getsize(self.path)
 
     def upload_google(self, refresh: bool = False) -> None:
