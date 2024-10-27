@@ -449,9 +449,9 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
 
         for key, value in d.items():
             # TODO: we should check this better if its a FileStore + add remote security check against path traversal
-            if ("base64_string" in value and "path" in value) or isinstance(
-                value, FileStore
-            ):
+            if (
+                isinstance(value, dict) and "base64_string" in value and "path" in value
+            ) or isinstance(value, FileStore):
                 d[key] = FileStore.from_dict(value)
         return cls(d)
 
