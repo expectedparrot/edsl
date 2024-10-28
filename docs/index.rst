@@ -179,6 +179,7 @@ Links
    starter_tutorial
    installation
    api_keys
+   colab_setup
 
 .. toctree::
    :maxdepth: 2
@@ -227,6 +228,8 @@ Links
    :hidden:
 
    notebooks/edsl_intro.ipynb
+   notebooks/updating_agents.ipynb
+   notebooks/save_load_objects_locally.ipynb
    notebooks/data_labeling_example.ipynb
    notebooks/data_cleaning.ipynb
    notebooks/yoga_studio_name_survey.ipynb
