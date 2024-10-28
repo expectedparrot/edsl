@@ -420,6 +420,184 @@ If scenarios and/or models are also specified for a survey, each component type 
 Learn more about :ref:`scenarios`, :ref:`language_models` and :ref:`results`.
 
 
+Updating agents 
+---------------
+
+Agents can be updated after they are created.
+
+
+Changing a trait
+^^^^^^^^^^^^^^^^
+
+Here we create an agent and then change one of its traits:
+
+.. code-block:: python
+
+    from edsl import Agent
+
+    a = Agent(traits = {"age": 22})
+    a.age = 23
+    a.age
+
+
+Output:
+
+.. code-block:: text
+
+    23
+
+
+Adding a trait
+^^^^^^^^^^^^^^
+
+We can also add a new trait to an agent:
+
+.. code-block:: python
+
+    from edsl import Agent
+
+    a = Agent(traits = {"age": 22})
+
+    a.add_trait({"location": "California"})
+    a
+
+
+Output:
+
+.. code-block:: text
+
+    {
+        "traits": {
+            "age": 22,
+            "location": "California"
+        }
+    }
+
+
+Removing a trait
+^^^^^^^^^^^^^^^^
+
+We can remove a trait from an agent:
+
+.. code-block:: python
+
+    from edsl import Agent
+
+    a = Agent(traits = {"age": 22, "location": "California"})
+
+    a.remove_trait("age")
+    a
+
+
+Output:
+
+.. code-block:: text
+
+    {
+        "traits": {
+            "location": "California"
+        }
+    }
+
+
+Using survey responses as new agent traits
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+After running a survey, we can use the responses to create new traits for an agent:
+
+.. code-block:: python
+
+    from edsl import Agent, QuestionMultipleChoice, Survey
+
+    a = Agent(traits = {"age": 22, "location": "California"})
+
+    q = QuestionMultipleChoice(
+        question_name = "surfing"
+        question_text = "How often do you go surfing?",
+        question_options = ["Never", "Sometimes", "Often"]
+    )
+
+    survey = Survey([q])
+    results = survey.by(a).run()
+
+    a = results.select("age", "location", "surfing").to_agent_list()[0] # create new agent with traits from results
+
+
+Output: 
+
+.. code-block:: text
+
+    {
+        "traits": {
+            "age": 22,
+            "location": "California",
+            "surfing": "Sometimes"
+        }
+    }
+
+
+Note that in the example above we simply replaced the original agent by selecting the first agent from the agent list that we created.
+This can be useful for creating agents that evolve over time based on their experiences or responses to surveys.
+
+Here we use the same method to update multiple agents at once:
+
+.. code-block:: python
+
+    from edsl import Agent, QuestionMultipleChoice, Survey, AgentList
+
+    agents = AgentList([
+        Agent(traits = {"age": 22, "location": "California"}),
+        Agent(traits = {"age": 30, "location": "New York"}),
+        Agent(traits = {"age": 40, "location": "Texas"}),
+    ])
+
+    q = QuestionMultipleChoice(
+        question_name = "surfing",
+        question_text = "How often do you go surfing?",
+        question_options = ["Never", "Sometimes", "Often"]
+    )
+
+    survey = Survey([q])
+    results = survey.by(agents).run()
+
+    agents = results.select("age", "location", "surfing").to_agent_list() 
+
+
+Output:
+
+.. code-block:: text
+
+    [
+        {
+            "traits": {
+                "age": 22,
+                "location": "California",
+                "surfing": "Sometimes"
+            },
+            "edsl_version": "0.1.36.dev1",
+            "edsl_class_name": "Agent"
+        },
+        {
+            "traits": {
+                "age": 40,
+                "location": "Texas",
+                "surfing": "Never"
+            },
+            "edsl_version": "0.1.36.dev1",
+            "edsl_class_name": "Agent"
+        },
+        {
+            "traits": {
+                "age": 30,
+                "location": "New York",
+                "surfing": "Never"
+            },
+            "edsl_version": "0.1.36.dev1",
+            "edsl_class_name": "Agent"
+        }
+    ]
+
+
 Agent class
 -----------
 .. automodule:: edsl.agents.Agent
