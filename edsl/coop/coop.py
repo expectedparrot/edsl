@@ -603,24 +603,6 @@ class Coop:
         }
 
     ################
-    # Remote Errors
-    ################
-    def error_create(self, error_data: str) -> dict:
-        """
-        Send an error message to the server.
-        """
-        response = self._send_server_request(
-            uri="api/v0/errors",
-            method="POST",
-            payload={
-                "json_string": json.dumps(error_data),
-                "version": self._edsl_version,
-            },
-        )
-        self._resolve_server_response(response)
-        return response.json()
-
-    ################
     # DUNDER METHODS
     ################
     def __repr__(self):
@@ -840,10 +822,3 @@ def main():
     job_coop_object = coop.remote_inference_create(job)
     job_coop_results = coop.remote_inference_get(job_coop_object.get("uuid"))
     coop.get(uuid=job_coop_results.get("results_uuid"))
-
-    ##############
-    # E. Errors
-    ##############
-    coop.error_create({"something": "This is an error message"})
-    coop.api_key = None
-    coop.error_create({"something": "This is an error message"})

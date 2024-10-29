@@ -175,13 +175,6 @@ class InterviewExceptionEntry:
         invigilator = InvigilatorAI.from_dict(data["invigilator"])
         return cls(exception=exception, invigilator=invigilator)
 
-    def push(self):
-        from edsl import Coop
-
-        coop = Coop()
-        results = coop.error_create(self.to_dict())
-        return results
-
 
 if __name__ == "__main__":
     import doctest
