@@ -110,7 +110,7 @@ class Results(UserList, Mixins, Base):
         self._total_results = total_results
         self.cache = cache or Cache()
 
-        self.task_history = task_history or TaskHistory(interviews = [])
+        self.task_history = task_history or TaskHistory(interviews=[])
 
         if hasattr(self, "_add_output_functions"):
             self._add_output_functions()
@@ -301,7 +301,7 @@ class Results(UserList, Mixins, Base):
             "b_not_a": [other_results[i] for i in indices_other],
         }
 
-    @property 
+    @property
     def has_unfixed_exceptions(self):
         return self.task_history.has_unfixed_exceptions
 

@@ -1,5 +1,7 @@
 class RemoteCacheSync:
-    def __init__(self, coop, cache, output_func, remote_cache=True, remote_cache_description=""):
+    def __init__(
+        self, coop, cache, output_func, remote_cache=True, remote_cache_description=""
+    ):
         self.coop = coop
         self.cache = cache
         self._output = output_func
@@ -21,34 +23,42 @@ class RemoteCacheSync:
 
     def _sync_from_remote(self):
         cache_difference = self.coop.remote_cache_get_diff(self.cache.keys())
-        client_missing_cacheentries = cache_difference.get("client_missing_cacheentries", [])
+        client_missing_cacheentries = cache_difference.get(
+            "client_missing_cacheentries", []
+        )
         missing_entry_count = len(client_missing_cacheentries)
-        
+
         if missing_entry_count > 0:
             self._output(
                 f"Updating local cache with {missing_entry_count:,} new "
                 f"{'entry' if missing_entry_count == 1 else 'entries'} from remote..."
             )
-            self.cache.add_from_dict({entry.key: entry for entry in client_missing_cacheentries})
+            self.cache.add_from_dict(
+                {entry.key: entry for entry in client_missing_cacheentries}
+            )
             self._output("Local cache updated!")
         else:
             self._output("No new entries to add to local cache.")
 
     def _sync_to_remote(self):
         cache_difference = self.coop.remote_cache_get_diff(self.cache.keys())
-        server_missing_cacheentry_keys = cache_difference.get("server_missing_cacheentry_keys", [])
+        server_missing_cacheentry_keys = cache_difference.get(
+            "server_missing_cacheentry_keys", []
+        )
         server_missing_cacheentries = [
             entry
             for key in server_missing_cacheentry_keys
             if (entry := self.cache.data.get(key)) is not None
         ]
-        
+
         new_cache_entries = [
-            entry for entry in self.cache.values() if entry.key not in self.old_entry_keys
+            entry
+            for entry in self.cache.values()
+            if entry.key not in self.old_entry_keys
         ]
         server_missing_cacheentries.extend(new_cache_entries)
         new_entry_count = len(server_missing_cacheentries)
-        
+
         if new_entry_count > 0:
             self._output(
                 f"Updating remote cache with {new_entry_count:,} new "
@@ -62,8 +72,11 @@ class RemoteCacheSync:
             self._output("Remote cache updated!")
         else:
             self._output("No new entries to add to remote cache.")
-        
-        self._output(f"There are {len(self.cache.keys()):,} entries in the local cache.")
+
+        self._output(
+            f"There are {len(self.cache.keys()):,} entries in the local cache."
+        )
+
 
 # # Usage example
 # def run_job(self, n, progress_bar, cache, stop_on_exception, sidecar_model, print_exceptions, raise_validation_errors, use_remote_cache=True):
@@ -79,6 +92,6 @@ class RemoteCacheSync:
 #             raise_validation_errors=raise_validation_errors,
 #         )
 #         self._output("Job completed!")
-    
+
 #     results.cache = cache.new_entries_cache()
 #     return results

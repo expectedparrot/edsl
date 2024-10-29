@@ -5,52 +5,89 @@ Agents
 `Agent` objects are used to simulate survey responses for target audiences. 
 They are created with specified traits, such as personas and relevant attributes for a survey, that are used together with language models to generate answers to questions. 
 
+
 Constructing an Agent
 ---------------------
+
 An `Agent` is created by passing a dictionary of `traits` for a language model to reference in answering questions. 
 Traits can be anything that might be relevant to the questions the agent will be asked, and constructed with single values or textual narratives.
+
 For example:
 
 .. code-block:: python
 
+    from edsl import Agent
+
     traits_dict = {
-        "persona": "You are a 45-old-woman living in Massachusetts...",
+        "persona": "You are an expert in machine learning.",
         "age": 45,
         "home_state": "Massachusetts"
     }
     a = Agent(traits = traits_dict)
 
+
 Note that `traits=` must be named explicitly in the construction, and the traits must use Python identifiers as keys (e.g., `home_state` but not `home state` or `home-state`).
     
+
 Agent names 
 -----------
+
 We can optionally give an agent a name when it is constructed:
 
 .. code-block:: python
 
-    agent = Agent(name = "Robin", traits = traits_dict)
+    a = Agent(name = "Ada", traits = traits_dict)
+
 
 If a name is not passed when the agent is created, an `agent_name` field is automatically added to results when a survey is administered to the agent.
 This field is a unique identifier for the agent and can be used to filter or group results by agent.
 
 Note that trying to create two agents with the same name or trying to include the name in the traits will raise an error.
 
+
 Agent lists
 -----------
+
 Agents can be created collectively and administered a survey together. 
 This is useful for comparing responses across agents.
-Here we create a list of agents with each combination of listed trait dimensions: 
+
+For example, here we create a list of agents with each combination of listed trait dimensions: 
 
 .. code-block:: python
 
+    from edsl import Agent, AgentList
+
     ages = [10, 20, 30, 40, 50]
     locations = ["New York", "California", "Texas", "Florida", "Washington"]
-    agents = [Agent(traits = {"age": age, "location": location}) for age, location in zip(ages, locations)]
+
+    agents = AgentList(
+        Agent(traits = {"age": age, "location": location}) for age, location in zip(ages, locations)
+    ) 
+
+
+This code will create a list of agents with different ages and locations, which can then be used in a survey.
+
+Example code for running a survey with the agents:
+
+.. code-block:: python
+
+    from edsl import Survey
+
+    survey = Survey.example()
+
+    results = survey.by(agents).run()
+
+
+This will generate a `Results` object that contains a `Result` for each agent's responses to the survey questions.
+Learn more about working with results in the :ref:`results` section.
+
 
 Dynamic traits function
 -----------------------
+
 Agents can also be created with a `dynamic_traits_function` parameter. 
 This function can be used to generate traits dynamically based on the question being asked or the scenario in which the question is asked.
+
 For example:
 
 .. code-block:: python
@@ -63,100 +100,152 @@ For example:
 
     a = Agent(dynamic_traits_function = dynamic_traits_function)
 
+
 When the agent is asked a question about age, the agent will return an age of 10. 
 When asked about hair, the agent will return "brown".
 This can be useful for creating agents that can answer questions about different topics without including potentially irrelevant traits in the agent's traits dictionary.
+
 Note that the traits returned by the function are *not* added to the agent's traits dictionary.
+
 
 Agent direct-answering methods
 ------------------------------
+
 Agents can also be created with a method that can answer a particular question type directly:
 
 .. code-block:: python
 
+    from edsl import Agent 
+
     a = Agent()
+
     def f(self, question, scenario): return "I am a direct answer."
+
     a.add_direct_question_answering_method(f)
     a.answer_question_directly(question = None, scenario = None)
 
-This code will return:
+
+Output:
 
 .. code-block:: text
 
     I am a direct answer.
 
+
 This can be useful for creating agents that can answer questions directly without needing to use a language model.
+
 
 Giving an agent instructions
 ----------------------------
+
 In addition to traits, agents can be given detailed instructions on how to answer questions.
+
 For example:
 
 .. code-block:: python
 
+    from edsl import Agent
+
     a = Agent(traits = {"age": 10}, instruction = "Answer in German.")
     a.instruction
 
-When the agent is assigned to a survey, the special instruction will be added to the prompts for generating responses.
 
+Output:
+
+.. code-block:: text
+
+    Answer in German.
+
+
+When the agent is assigned to a survey, the special instruction will be added to the prompts for generating responses.
 The instructions are stored in the `instruction` field of the agent and can be accessed directly in results.
+
+Learn more about how to use instructions in the :ref:`prompts` section.
 
 
 Controlling the presentation of the persona
 -------------------------------------------
+
 The `traits_presentation_template` parameter can be used to create a narrative persona for an agent.
 This is a template string that can be rendered with the agent's traits as variables.
+
 For example:
 
 .. code-block:: python
 
     a = Agent(traits = {'age': 22, 'hair': 'brown', 'gender': 'female'}, 
-        traits_presentation_template = \"\"\"
-            I am a {{ age }} year-old {{ gender }} with {{ hair }} hair.\"\"\")
+        traits_presentation_template = "I am a {{ age }} year-old {{ gender }} with {{ hair }} hair.")
+
     a.agent_persona.render(primary_replacement = a.traits)
 
-This code will return:
+
+Output:
 
 .. code-block:: text
 
     I am a 22 year-old female with brown hair.
+
 
 Note that the trait keys must be valid Python identifiers (e.g., `home_state` but not `home state` or `home-state`).
 This can be handled by using a dictionary with string keys and values, for example:
 
 .. code-block:: python
 
+    from edsl import Agent
+
     codebook = {'age': 'The age of the agent'}
+
     a = Agent(traits = {'age': 22}, 
         codebook = codebook, 
         traits_presentation_template = "{{ codebook['age'] }} is {{ age }}.")
+
     a.agent_persona.render(primary_replacement = a.traits)
 
-This code will return:
+
+Output:
 
 .. code-block:: text
 
     The age of the agent is 22.
 
+
 Note that it can be helpful to include traits mentioned in the persona as independent keys and values in order to analyze survey results by those dimensions individually.
 For example, we may want the narrative to include a sentence about the agent's age, but also be able to readily analyze or filter results by age.
 
-The following code will include the agent's age as a column of a table with any other selected components:
+The following code will include the agent's age as a column of a table with any other selected components (e.g., agent name and all the answers):
 
 .. code-block:: python
 
-    results.select("agent.age", ...).print()
+    results.select("agent.age", "agent.agent_name", "answer.*").print()
 
-And this code will let us filter the results by the agent's age:
+
+Note that the prefix "agent" can also be dropped. The following code is equivalent:
 
 .. code-block:: python
 
-    results.filter("agent.age == 22").print()
+    results.select("age", "agent_name", "answer.*").print()
+
+
+We can filter the results by an agent's traits:
+
+.. code-block:: python
+
+    results.filter("age == 22").print()
+
+
+We can also call the `filter()` method on an agent list to filter agents by their traits:
+
+.. code-block:: python
+
+    middle_aged_agents = agents.filter("40 <= age <= 60")
+
 
 
 Using agent traits in prompts 
 -----------------------------
+
 The `traits` of an agent can be used in the prompts of questions. 
+
 For example:
 
 .. code-block:: python
@@ -170,41 +259,55 @@ For example:
         question_name = "exmaple"
     )
 
-    jobs = q.by(a)
-    print(jobs.prompts().select('user_prompt').first().text)
+    job = q.by(a)
+    job.prompts().select("user_prompt").print(format="rich")
 
-This code will output the text of the prompt for the question:
+
+Output:
 
 .. code-block:: text
 
-    You are being asked the following question: What is your last name, John?
-    Return a valid JSON formatted like this:
-    {"answer": "<put free text answer here>"}
+    ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+    ┃ user_prompt                   ┃
+    ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+    │ What is your last name, John? │
+    └───────────────────────────────┘
+
+
+Learn more about user and system prompts in the :ref:`prompts` section.
 
 
 Accessing agent traits 
 ----------------------
+
 The `traits` of an agent can be accessed directly:
 
 .. code-block:: python
 
+    from edsl import Agent 
+
     a = Agent(traits = {'age': 22})
     a.traits
 
-This code will return:
+
+Output:
 
 .. code-block:: text
 
     {'age': 22}
 
+
 The `traits` of an agent can also be accessed as attributes of the agent:
 
 .. code-block:: python
 
+    from edsl import Agent
+
     a = Agent(traits = {'age': 22})
     a.age
 
-This code will return:
+
+Output:
 
 .. code-block:: text
 
@@ -213,29 +316,287 @@ This code will return:
 
 Simulating agent responses 
 --------------------------
-As with question scenarios and language models, an agent is assigned to a survey using the `by` method when the survey is run:
+    
+When a survey is run, agents can be assigned to it using the `by` method, which can be chained with other components like scenarios and models:
 
 .. code-block:: python 
 
-    agent = Agent(traits = {...})
+    from edsl import Agent, QuestionList, QuestionMultipleChoice, Survey
+
+    agent = Agent(
+        name = "college student",
+        traits = {
+            "persona": "You are a sophomore at a community college in upstate New York.",
+            "year": "sophomore",
+            "school": "community college",
+            "major": "biology",
+            "state": "New York"
+        }
+    )
+
+    q1 = QuestionList(
+        question_name = "favorite_courses",
+        question_text = "What are the names of your 3 favorite courses?",
+        max_list_items = 3
+    )
+
+    q2 = QuestionMultipleChoice(
+        question_name = "attend_grad_school",
+        question_text = "Do you plan to attend grad school?",
+        question_options = ["Yes", "No", "Undecided"]
+    )
+
+    survey = Survey([q1, q2])
+
     results = survey.by(agent).run()
 
+
 This will generate a `Results` object that contains a `Result` for each agent's responses to the survey questions.
+We can select and inspect components of the results, such as the agent's traits and their answers:
+
+.. code-block:: python
+
+    results.select("persona", "year", "school", "major", "state", "answer.*").print()
+
+
+Output:
+
+.. code-block:: text 
+
+    ┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━┓
+    ┃ agent             ┃ agent     ┃ agent             ┃ agent   ┃ agent    ┃ answer            ┃ answer             ┃
+    ┃ .persona          ┃ .year     ┃ .school           ┃ .major  ┃ .state   ┃ .favorite_courses ┃ .attend_grad_scho… ┃
+    ┡━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━┩
+    │ You are a         │ sophomore │ community college │ biology │ New York │ ['General Biology │ Undecided          │
+    │ sophomore at a    │           │                   │         │          │ II', 'Organic     │                    │
+    │ community college │           │                   │         │          │ Chemistry I',     │                    │
+    │ in upstate New    │           │                   │         │          │ 'Environmental    │                    │
+    │ York.             │           │                   │         │          │ Science']         │                    │
+    └───────────────────┴───────────┴───────────────────┴─────────┴──────────┴───────────────────┴────────────────────┘
+
+
+
 If multiple agents will be used with a survey, they are passed as a list in the same `by` call:
 
 .. code-block:: python 
 
-    agents = [AgentList(...)]
-    results = survey.by(agents).run()
+    from edsl import Agent, AgentList
+
+    agents = AgentList([
+        Agent(traits = {"major": "biology", "year": "sophomore"}),
+        Agent(traits = {"major": "history", "year": "junior"}),
+        Agent(traits = {"major": "mathematics", "year": "senior"}),
+    ])
+
+    results = survey.by(agents).run() # using the same survey as above
+
+    results.select("major", "year", "answer.*").print()
+
+
+Output:
+
+.. code-block:: text 
+
+    ┏━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┓
+    ┃ agent       ┃ agent     ┃ answer                                                          ┃ answer              ┃
+    ┃ .major      ┃ .year     ┃ .favorite_courses                                               ┃ .attend_grad_school ┃
+    ┡━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━┩
+    │ biology     │ sophomore │ ['Genetics', 'Ecology', 'Cell Biology']                         │ Undecided           │
+    ├─────────────┼───────────┼─────────────────────────────────────────────────────────────────┼─────────────────────┤
+    │ mathematics │ senior    │ ['Real Analysis', 'Abstract Algebra', 'Topology']               │ Undecided           │
+    ├─────────────┼───────────┼─────────────────────────────────────────────────────────────────┼─────────────────────┤
+    │ history     │ junior    │ ['History of Ancient Civilizations', 'Medieval European         │ Undecided           │
+    │             │           │ History', 'History of Modern Political Thought']                │                     │
+    └─────────────┴───────────┴─────────────────────────────────────────────────────────────────┴─────────────────────┘
+
 
 If scenarios and/or models are also specified for a survey, each component type is added in a separate `by` call that can be chained in any order with the `run` method appended last:
 
 .. code-block:: python 
 
-    results = survey.by(scenarios).by(agents).by(models).run()
+    results = survey.by(scenarios).by(agents).by(models).run() # example code - scenarios and models not defined here
 
 
 Learn more about :ref:`scenarios`, :ref:`language_models` and :ref:`results`.
+
+
+Updating agents 
+---------------
+
+Agents can be updated after they are created.
+
+
+Changing a trait
+^^^^^^^^^^^^^^^^
+
+Here we create an agent and then change one of its traits:
+
+.. code-block:: python
+
+    from edsl import Agent
+
+    a = Agent(traits = {"age": 22})
+    a.age = 23
+    a.age
+
+
+Output:
+
+.. code-block:: text
+
+    23
+
+
+Adding a trait
+^^^^^^^^^^^^^^
+
+We can also add a new trait to an agent:
+
+.. code-block:: python
+
+    from edsl import Agent
+
+    a = Agent(traits = {"age": 22})
+
+    a.add_trait({"location": "California"})
+    a
+
+
+Output:
+
+.. code-block:: text
+
+    {
+        "traits": {
+            "age": 22,
+            "location": "California"
+        }
+    }
+
+
+Removing a trait
+^^^^^^^^^^^^^^^^
+
+We can remove a trait from an agent:
+
+.. code-block:: python
+
+    from edsl import Agent
+
+    a = Agent(traits = {"age": 22, "location": "California"})
+
+    a.remove_trait("age")
+    a
+
+
+Output:
+
+.. code-block:: text
+
+    {
+        "traits": {
+            "location": "California"
+        }
+    }
+
+
+Using survey responses as new agent traits
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+After running a survey, we can use the responses to create new traits for an agent:
+
+.. code-block:: python
+
+    from edsl import Agent, QuestionMultipleChoice, Survey
+
+    a = Agent(traits = {"age": 22, "location": "California"})
+
+    q = QuestionMultipleChoice(
+        question_name = "surfing"
+        question_text = "How often do you go surfing?",
+        question_options = ["Never", "Sometimes", "Often"]
+    )
+
+    survey = Survey([q])
+    results = survey.by(a).run()
+
+    a = results.select("age", "location", "surfing").to_agent_list()[0] # create new agent with traits from results
+
+
+Output: 
+
+.. code-block:: text
+
+    {
+        "traits": {
+            "age": 22,
+            "location": "California",
+            "surfing": "Sometimes"
+        }
+    }
+
+
+Note that in the example above we simply replaced the original agent by selecting the first agent from the agent list that we created.
+This can be useful for creating agents that evolve over time based on their experiences or responses to surveys.
+
+Here we use the same method to update multiple agents at once:
+
+.. code-block:: python
+
+    from edsl import Agent, QuestionMultipleChoice, Survey, AgentList
+
+    agents = AgentList([
+        Agent(traits = {"age": 22, "location": "California"}),
+        Agent(traits = {"age": 30, "location": "New York"}),
+        Agent(traits = {"age": 40, "location": "Texas"}),
+    ])
+
+    q = QuestionMultipleChoice(
+        question_name = "surfing",
+        question_text = "How often do you go surfing?",
+        question_options = ["Never", "Sometimes", "Often"]
+    )
+
+    survey = Survey([q])
+    results = survey.by(agents).run()
+
+    agents = results.select("age", "location", "surfing").to_agent_list() 
+
+
+Output:
+
+.. code-block:: text
+
+    [
+        {
+            "traits": {
+                "age": 22,
+                "location": "California",
+                "surfing": "Sometimes"
+            },
+            "edsl_version": "0.1.36.dev1",
+            "edsl_class_name": "Agent"
+        },
+        {
+            "traits": {
+                "age": 40,
+                "location": "Texas",
+                "surfing": "Never"
+            },
+            "edsl_version": "0.1.36.dev1",
+            "edsl_class_name": "Agent"
+        },
+        {
+            "traits": {
+                "age": 30,
+                "location": "New York",
+                "surfing": "Never"
+            },
+            "edsl_version": "0.1.36.dev1",
+            "edsl_class_name": "Agent"
+        }
+    ]
+
 
 Agent class
 -----------

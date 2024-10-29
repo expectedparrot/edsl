@@ -4,15 +4,18 @@ API Keys
 ========
 API keys are required to access the services of large language models (LLMs) such as OpenAI's GPTs, Google's Gemini, Anthropic's Claude, Llama 2, Groq and others.
 
-To access LLMs using EDSL you can either use remote inference or local inference.
+To access LLMs with EDSL you can either use remote inference or local inference.
+
+***Note: ***
+***If you are using EDSL in a Colab notebook, please see special instructions on storing API keys as "secrets" and using them in your notebook:*** :ref:`colab_instructions`
 
 
 Remote inference 
 ----------------
 
-This method allows you to run EDSL surveys on the Expected Parrot server instead of your local machine and avoid managing your own API keys for different LLM providers.
+This method allows you to run EDSL surveys on the Expected Parrot server instead of your local machine, and avoid managing your own API keys for different LLM providers.
 
-To use remote inference you must activate it at your :ref:`coop` account and store your Expected Parrot API key in a `.env` file in your working directory.
+To use remote inference you must activate it at your `Coop <https://www.expectedparrot.com/home/api>`_ account and store your Expected Parrot API key in a `.env` file in your working directory.
 Your `.env` file should include the following line (replace `your_key_here` with your actual Expected Parrot API key from your Coop account):
 
 .. code-block:: python
@@ -20,19 +23,19 @@ Your `.env` file should include the following line (replace `your_key_here` with
    EXPECTED_PARROT_API_KEY='your_key_here'
 
 
-Please see the :ref:`remote_inference` section for instructions on how to activate remote inference and use it.
+Please see the :ref:`remote_inference` section for more details.
 
 
 Local inference 
 ---------------
 
 You can access LLMs with EDSL on your own machine by providing your own API keys for LLMs.
-
 There are two ways of providing your own API keys to EDSL:
 
 
 1. Using a .env file (*recommended*)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Create a `.env` file in your working directory and populate it with your API keys.
 Replace `your_key_here` with your actual API key for each service that you plan to use:
 
@@ -61,6 +64,7 @@ Using a `.env file` allows you to store your keys once and avoid repeatedly ente
 
 2. Setting API keys in your Python code
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Alternatively, you can directly set your API keys in your Python script before importing any EDSL objects. 
 This method stores the keys in your system's memory only for the duration of the session:
 
@@ -92,6 +96,7 @@ Troubleshooting
 ~~~~~~~~~~~~~~~
 
 In addition to API keys, you must also have credits available on your account with a language model provider in order to run surveys with some models.
+(If you are using remote inference, simply ensure that you have credits on your Expected Parrot account.)
 
 If you do not specify a model to use for a survey, EDSL will attempt to run it with the default model.
 In practice, this means that the following sets of commands are equivalent:
