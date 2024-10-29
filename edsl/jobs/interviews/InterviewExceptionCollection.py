@@ -33,7 +33,7 @@ class InterviewExceptionCollection(UserDict):
         """Return the collection of exceptions as a dictionary."""
         newdata = {k: [e.to_dict() for e in v] for k, v in self.data.items()}
         return newdata
-    
+
     @classmethod
     def from_dict(cls, data: dict) -> "InterviewExceptionCollection":
         """Create an InterviewExceptionCollection from a dictionary."""
