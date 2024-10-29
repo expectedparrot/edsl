@@ -7,6 +7,11 @@ Remote inference allows you to use a single API key to run surveys with any avai
 
 You can also automatically save survey results and API calls on the Expected Parrot server by activating :ref:`remote_caching`.
 
+*Note: You must have a Coop account and purchase credits and in order to use remote inference. 
+When you use remote inference, your credit balance will be reduced based on the number of language model tokens used and prices set by service providers.
+You may also be charged payment processing fees when purchasing credits.
+By using remote inference you agree to the terms of use of service providers, which Expected Parrot may accept on your behalf and enforce.*
+
 
 Activating remote inference
 ---------------------------
@@ -40,7 +45,7 @@ Using remote inference
 ----------------------
 
 With remote inference activated, calling the `run()` method will send a survey to the Expected Parrot server and allow you to access results and all information about it (job history, costs, etc.).
-We can optionally pass a `remote_inference_description` string to identify it at the Coop (or edit it later).
+You can optionally pass a `remote_inference_description` string to identify it at the Coop (or edit it later).
 
 Example:
 
@@ -60,7 +65,7 @@ Output (details will be unique to your job):
   Job completed and Results stored on Coop: https://www.expectedparrot.com/content/642809b1-c887-42a9-b6c8-12ed5c6d856b.
 
 
-If we also have remote caching activated, the results will be stored automatically on the Expected Parrot server.
+If you also have remote caching activated, the results will be stored automatically on the Expected Parrot server.
 
 
 Viewing the results
@@ -88,9 +93,38 @@ Job details and costs
 
 When you run a job, you will be charged credits based on the number of tokens used. 
 
-You can view the cost of a job in your job history or by calling the `remote_inference_cost()` method and passing it the job UUID 
-(this is distinct from the results UUID, and can be found in your job history page).
+Before running a job, you can estimate the tokens and cost by calling the `estimate_job_cost()` method on the job object (a survey combined with a model).
 
+Example:
+
+.. code-block:: python
+
+  from edsl import Survey, Model
+
+  survey = Survey.example()
+  model = Model("gpt-4o")
+  job = survey.by(model)
+
+  estimated_job_cost = job.estimate_job_cost()
+  estimated_job_cost 
+
+
+Output:
+
+.. code-block:: text
+
+  {'estimated_total_cost': 0.00013874999999999998,
+  'estimated_total_input_tokens': 185,
+  'estimated_total_output_tokens': 185,
+  'model_costs': [{'inference_service': 'openai',
+    'model': 'gpt-4o',
+    'estimated_cost': 0.00013874999999999998,
+    'estimated_input_tokens': 185,
+    'estimated_output_tokens': 185}]}
+
+
+After running a job, you can view the actual cost in your job history or by calling the `remote_inference_cost()` method and passing it the job UUID
+(this is distinct from the results UUID, and can be found in your job history page).
 
 You can also check the details of a job using the `remote_inference_get()` method as pass it the job UUID.
 
