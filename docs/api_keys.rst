@@ -5,9 +5,13 @@ API Keys
 API keys are required to access the services of large language models (LLMs) such as OpenAI's GPTs, Google's Gemini, Anthropic's Claude, Llama 2, Groq and others.
 
 To access LLMs with EDSL you can either use remote inference or local inference.
+Remote inference allows you to run EDSL surveys on the Expected Parrot server, while local inference allows you to run them on your own machine.
 
-***Note: ***
-***If you are using EDSL in a Colab notebook, please see special instructions on storing API keys as "secrets" and using them in your notebook:*** :ref:`colab_instructions`
+
+Special note for Colab users
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you are using EDSL in a Colab notebook, please also see special instructions on storing API keys as "secrets" and using them in your notebook: :ref:`colab_setup`.
 
 
 Remote inference 
