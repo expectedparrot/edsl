@@ -3,24 +3,27 @@
 Starter Tutorial
 ================
 
-This tutorial provides example code for basic features of `EDSL, an open-source Python library <https://pypi.org/project/edsl/>`_ for simulating surveys, experiments and other research using AI agents and large language models.
+This tutorial provides example code for basic features of EDSL, an open-source Python library for simulating surveys, experiments and other research using AI agents and large language models.
 
 In the steps below we show how to construct and run a simple question in EDSL, and then how to design more complex surveys with AI agents and different language models.
 We also demonstrate methods for applying logic and rules to surveys, piping answers and adding data to questions, and analyzing survey results as datasets.
 
-You can also `view this notebook at the Coop <https://www.expectedparrot.com/content/2d0c7905-933c-441a-8203-741d9dd942c9>`_.
+You can also `view this notebook at the Coop <https://www.expectedparrot.com/content/2d0c7905-933c-441a-8203-741d9dd942c9>`_, a platform for creating, storing and sharing AI-based research.
+Learn more about Coop in the `Coop <https://docs.expectedparrot.com/en/latest/coop.html>`_ section of the documentation.
+
+Please also see an :ref:`overview` of features and common use cases for EDSL, and a :ref:`checklist` of tips on using EDSL effectively.
 
 
 Technical setup
 ---------------
 
-Before running the code below, please ensure that you have completed technical steps for using EDSL:
+Before running the code below, please ensure that you have completed the following setup steps:
 
 1. Download the EDSL package. See :ref:`installation` instructions. 
 2. Choose how you want to use EDSL:
 
-    * Run surveys remotely on the Expected Parrot server by activating :ref:`remote_inference` at your :ref:`coop` account
-    * Run surveys locally by storing your own :ref:`api_keys` for language models that you want to use with EDSL
+    * Run surveys remotely on the Expected Parrot server by activating :ref:`remote_inference` at your :ref:`coop` account.
+    * Run surveys locally by storing your own :ref:`api_keys` for language models that you want to use with EDSL.
 
 If you encounter any issues or have questions, please email us at info@expectedparrot.com or post a question at our `Discord channel <https://discord.com/invite/mxAYkjfy9m>`_.
 
