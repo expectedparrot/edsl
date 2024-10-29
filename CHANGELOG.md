@@ -11,6 +11,8 @@
 ### Added
 - Method `show_prompts()` can be called on a `Survey` to display the user prompt and system prompt. This is in addition to the existing method `prompts()` that is called on a `Job` which will return the prompts and additional information about the questions, agents, models and estimated costs. Learn more: https://docs.expectedparrot.com/en/latest/prompts.html
 
+- Documentation on storing API keys as "secrets" for using EDSL in Colab.
+
 ### Changed
 - `Conversation` module works with multiple models at once.
 
