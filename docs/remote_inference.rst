@@ -8,9 +8,8 @@ Remote inference allows you to use a single API key to run surveys with any avai
 You can also automatically save survey results and API calls on the Expected Parrot server by activating :ref:`remote_caching`.
 
 *Note: You must have a Coop account and purchase credits and in order to use remote inference. 
-When you use remote inference, your credits will be deducted from your balance will based on the number of language model tokens used and prices set by service providers.
-You may also be charged payment processing fees when purchasing credits.
-By using remote inference you agree to the terms of use of service providers, which Expected Parrot may accept on your behalf and enforce in accordance with its `terms of use <https://www.expectedparrot.com/terms>`_*
+When you use remote inference, credits will be deducted from your balance based on tokens used and prices set by service providers.
+By using remote inference you agree to terms of use of service providers, which Expected Parrot may accept on your behalf and enforce in accordance with our own terms of use: https://www.expectedparrot.com/terms.*
 
 
 Activating remote inference
