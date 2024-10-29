@@ -6,6 +6,9 @@ API keys are required to access the services of large language models (LLMs) suc
 
 To access LLMs with EDSL you can either use remote inference or local inference.
 
+***Note: ***
+***If you are using EDSL in a Colab notebook, please see special instructions on storing API keys as "secrets" and using them in your notebook:*** :ref:`colab_instructions`
+
 
 Remote inference 
 ----------------
@@ -32,6 +35,7 @@ There are two ways of providing your own API keys to EDSL:
 
 1. Using a .env file (*recommended*)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Create a `.env` file in your working directory and populate it with your API keys.
 Replace `your_key_here` with your actual API key for each service that you plan to use:
 
@@ -60,6 +64,7 @@ Using a `.env file` allows you to store your keys once and avoid repeatedly ente
 
 2. Setting API keys in your Python code
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Alternatively, you can directly set your API keys in your Python script before importing any EDSL objects. 
 This method stores the keys in your system's memory only for the duration of the session:
 
