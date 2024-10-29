@@ -9,7 +9,7 @@ You can also automatically save survey results and API calls on the Expected Par
 
 *Note: You must have a Coop account and purchase credits in order to use remote inference. 
 Credits will be deducted from your balance based on tokens used and prices set by service providers.
-By using remote inference you agree to terms of use of service providers, which Expected Parrot may accept on your behalf and enforce in accordance with its own* `terms of use <https://www.expectedparrot.com/terms>`_.
+By using remote inference you agree to terms of use of service providers, which Expected Parrot may accept on your behalf and enforce in accordance with its own terms of use: https://www.expectedparrot.com/terms.*
 
 
 Activating remote inference
