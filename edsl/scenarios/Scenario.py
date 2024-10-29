@@ -448,7 +448,10 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
         from edsl.scenarios.FileStore import FileStore
 
         for key, value in d.items():
-            if isinstance(value, FileStore):
+            # TODO: we should check this better if its a FileStore + add remote security check against path traversal
+            if (
+                isinstance(value, dict) and "base64_string" in value and "path" in value
+            ) or isinstance(value, FileStore):
                 d[key] = FileStore.from_dict(value)
         return cls(d)
 

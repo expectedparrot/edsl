@@ -33,6 +33,7 @@ This will return a list of the services we can choose from:
    'azure',
    'ollama',
    'test',
+   'together',
    'mistral']
 
 

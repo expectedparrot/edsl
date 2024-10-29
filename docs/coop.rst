@@ -10,6 +10,17 @@ Coop also provides access to special features for running EDSL surveys and stori
 Learn more about these features in the :ref:`remote_inference` and :ref:`remote_caching` sections of the documentation.
 
 
+.. image:: static/coop_content2.png
+  :alt: Coop content
+  :align: center
+  :width: 80%
+  
+
+.. raw:: html
+
+  <br>
+  
+
 How it works
 ------------
 

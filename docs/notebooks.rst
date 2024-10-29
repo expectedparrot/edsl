@@ -3,7 +3,7 @@
 Notebooks
 =========
 
-The `Notebook` object allows you to share your *.ipynb* files by uploading them to Coop.
+The `Notebook` object allows you to share your notebooks and scripts (*.ipynb* and *.py* files) by uploading them to Coop.
 You can also view and pull notebooks that other users have uploaded and shared publicly or privately with you.
 
 Examples of methods below are also viewable in `this notebook at the Coop <https://www.expectedparrot.com/content/ffa113f4-4f2a-407b-8fc6-27bdf5e69d2f>`_.
@@ -15,8 +15,8 @@ Creating a `Notebook` object
 There are three ways to create a `Notebook` object:
 
 
-1. From a file
-^^^^^^^^^^^^^^
+1. From a *.ipynb* file
+^^^^^^^^^^^^^^^^^^^^^^^
 
 Pass the path to your *.ipynb* file to the constructor (*note:* you must include `path` as a keyword argument):
 
@@ -24,10 +24,22 @@ Pass the path to your *.ipynb* file to the constructor (*note:* you must include
 
     from edsl import Notebook
 
-    notebook = Notebook(path="demo_notebook.ipynb") # replace with your file path
+    notebook = Notebook(path="your_notebook.ipynb") # replace with your file path
 
 
-2. From data
+2. From a *.py* script
+^^^^^^^^^^^^^^^^^^^^^^
+
+Call the `from_script()` method on the constructor and pass it the path to your *.py* script:
+
+.. code-block:: python
+
+    from edsl import Notebook
+
+    notebook = Notebook.from_script("your_script.py") # replace with your script path
+
+
+3. From data
 ^^^^^^^^^^^^
 
 For this method, your data must be a Python `dict` that conforms to the official Jupyter notebook format. 
@@ -53,7 +65,7 @@ Learn more about the format `here <https://nbformat.readthedocs.io/en/latest/for
     notebook = Notebook(data=data)
 
 
-3. From self
+4. From self
 ^^^^^^^^^^^^
 
 To create a `Notebook` for a notebook that you are currently working in:
@@ -70,12 +82,12 @@ To create a `Notebook` for a notebook that you are currently working in:
 
     For now, this method only works if you are using the VS Code IDE. 
 
-    
+
+
 Uploading a notebook to Coop
 ----------------------------
 
 A notebook can be posted to Coop in the same ways as other EDSL objects: by calling the `push()` method on the object or calling the `create` method on a `Coop` object and passing it the notebook.
-The `description` and `visibility` arguments are optional and can be modified later (the default visibility is `unlisted`).
 
 Here we create a `Notebook` object and use the `push()` method to post it to Coop:
 
@@ -85,10 +97,46 @@ Here we create a `Notebook` object and use the `push()` method to post it to Coo
 
     notebook = Notebook(path="demo_notebook.ipynb")
 
-    notebook.push(description="This is a demo notebook", visibility="public")
+    notebook.push()
 
 
-Here we alternatively use the `Coop` client object:
+This will return a message with information about the object that was posted, and you will be able to view your notebook at the Coop: `Content  <https://www.expectedparrot.com/home/content>`_:
+
+.. code-block:: text
+
+    {'description': None,
+    'object_type': 'notebook',
+    'url': 'https://www.expectedparrot.com/content/fc671612-4144-4da3-a7b5-23587cc5a788',
+    'uuid': 'fc671612-4144-4da3-a7b5-23587cc5a788',
+    'version': '0.1.36.dev1',
+    'visibility': 'unlisted'}
+
+
+We can see that the notebook has at an unlisted (non-searchable) URL with no description.
+We can edit the description and the visibility status directly at the Coop or by passing the arguments to the `push()` method:
+
+.. code-block:: python
+
+    from edsl import Notebook
+
+    notebook = Notebook(path="demo_notebook.ipynb")
+
+    notebook.push(description="This is a demo notebook", visibility="public") # add description and make it public
+
+
+We can see that the notebook has been reposted publicly with a description:
+
+.. code-block:: text
+
+    {'description': 'This is a demo notebook',
+    'object_type': 'notebook',
+    'url': 'https://www.expectedparrot.com/content/1742e39d-9f6d-4997-bfea-eda99120cf06',
+    'uuid': '1742e39d-9f6d-4997-bfea-eda99120cf06',
+    'version': '0.1.36.dev1',
+    'visibility': 'public'}
+
+
+Here we alternatively use the `Coop` client object to post the notebook:
 
 .. code-block:: python
 
@@ -103,7 +151,7 @@ Here we alternatively use the `Coop` client object:
 
 This will return a message with information about the object that was posted, and you will be able to view your notebook at the Coop: `Content  <https://www.expectedparrot.com/home/content>`_.
 
-.. code-block:: python
+.. code-block:: text
 
     {'description': 'This is a demo notebook',
     'object_type': 'notebook',
