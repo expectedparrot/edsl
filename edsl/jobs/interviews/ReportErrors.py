@@ -36,8 +36,8 @@ class ReportErrors:
             print("No input received within the timeout period.")
 
     def upload(self):
-        coop = Coop()
-        coop.error_create(error_data=self.data)
+        # The previous implementation was removed because it relied on the old Coop ErrorModel
+        pass
 
 
 def main():
