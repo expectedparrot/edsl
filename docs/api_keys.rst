@@ -6,8 +6,7 @@ API keys are required to access the services of large language models (LLMs) suc
 
 To access LLMs with EDSL you can either use remote inference or local inference.
 
-***Note: ***
-***If you are using EDSL in a Colab notebook, please see special instructions on storing API keys as "secrets" and using them in your notebook:*** :ref:`colab_instructions`
+**Note: If you are using EDSL in a Colab notebook, please see special instructions on storing API keys as "secrets" and using them in your notebook:** :ref:`colab_setup`
 
 
 Remote inference 
