@@ -9,17 +9,17 @@ Remote inference allows you to run EDSL surveys on the Expected Parrot server, w
 
 
 Special note for Colab users
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+----------------------------
 
-If you are using EDSL in a Colab notebook, please also see special instructions on storing API keys as "secrets" and using them in your notebook: :ref:`colab_setup`.
+If you are using EDSL in a Colab notebook, please see special instructions on storing API keys as "secrets" in lieu of storing them in a `.env` file as described below: :ref:`colab_setup`.
 
 
 Remote inference 
-----------------
+^^^^^^^^^^^^^^^^
 
 This method allows you to run EDSL surveys on the Expected Parrot server instead of your local machine, and avoid managing your own API keys for different LLM providers.
 
-To use remote inference you must activate it at your `Coop <https://www.expectedparrot.com/home/api>`_ account and store your Expected Parrot API key in a `.env` file in your working directory.
+To use remote inference you must activate it at your `Coop <https://www.expectedparrot.com/home/api>`_ account and store your Expected Parrot API key in a `.env` file in your EDSL working directory.
 Your `.env` file should include the following line (replace `your_key_here` with your actual Expected Parrot API key from your Coop account):
 
 .. code-block:: python
@@ -31,16 +31,16 @@ Please see the :ref:`remote_inference` section for more details.
 
 
 Local inference 
----------------
+^^^^^^^^^^^^^^^
 
 You can access LLMs with EDSL on your own machine by providing your own API keys for LLMs.
 There are two ways of providing your own API keys to EDSL:
 
 
 1. Using a .env file (*recommended*)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+------------------------------------
 
-Create a `.env` file in your working directory and populate it with your API keys.
+Create a `.env` file in your EDSL working directory and populate it with your API keys.
 Replace `your_key_here` with your actual API key for each service that you plan to use:
 
 .. code-block:: python
@@ -67,7 +67,7 @@ Using a `.env file` allows you to store your keys once and avoid repeatedly ente
 
 
 2. Setting API keys in your Python code
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+---------------------------------------
 
 Alternatively, you can directly set your API keys in your Python script before importing any EDSL objects. 
 This method stores the keys in your system's memory only for the duration of the session:
