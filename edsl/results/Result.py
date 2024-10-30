@@ -117,6 +117,7 @@ class Result(Base, UserDict):
             "raw_model_response": raw_model_response or {},
             "question_to_attributes": question_to_attributes,
             "generated_tokens": generated_tokens or {},
+            "comments_dict": comments_dict or {},
         }
         super().__init__(**data)
         # but also store the data as attributes
@@ -370,6 +371,7 @@ class Result(Base, UserDict):
             ),
             question_to_attributes=json_dict.get("question_to_attributes", None),
             generated_tokens=json_dict.get("generated_tokens", {}),
+            comments_dict=json_dict.get("comments_dict", {}),
         )
         return result
 
