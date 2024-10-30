@@ -4,7 +4,6 @@ from typing import Dict, Any, Optional, Set
 from jinja2 import Environment, meta
 
 from edsl.prompts.Prompt import Prompt
-
 from edsl.agents.prompt_helpers import PromptPlan
 
 
@@ -34,7 +33,7 @@ class PromptConstructor:
     This is mixed into the Invigilator class.
     """
 
-    def __init__(self, invigilator):
+    def __init__(self, invigilator, prompt_plan: Optional["PromptPlan"] = None):
         self.invigilator = invigilator
         self.agent = invigilator.agent
         self.question = invigilator.question
@@ -43,7 +42,7 @@ class PromptConstructor:
         self.model = invigilator.model
         self.current_answers = invigilator.current_answers
         self.memory_plan = invigilator.memory_plan
-        self.prompt_plan = PromptPlan()
+        self.prompt_plan = prompt_plan or PromptPlan()
 
     @property
     def scenario_file_keys(self) -> list:
@@ -160,15 +159,6 @@ class PromptConstructor:
                         ]
                         question_data["question_options"] = placeholder_options
                         self.question.question_options = placeholder_options
-
-                    # if isinstance(
-                    #     question_options := self.prior_answers_dict()
-                    #     .get(question_option_key)
-                    #     .answer,
-                    #     list,
-                    # ):
-                    #     question_data["question_options"] = question_options
-                    #     self.question.question_options = question_options
 
             replacement_dict = (
                 {key: f"<see file {key}>" for key in self.scenario_file_keys}
