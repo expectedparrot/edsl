@@ -125,7 +125,7 @@ class AgentList(UserList, Base):
         return list(d.keys())
 
     @classmethod
-    def from_csv(cls, file_path: str):
+    def from_csv(cls, file_path: str, name_field: Optional[str] = None):
         """Load AgentList from a CSV file.
 
         >>> import csv
@@ -137,9 +137,13 @@ class AgentList(UserList, Base):
         >>> al = AgentList.from_csv('/tmp/agents.csv')
         >>> al
         AgentList([Agent(traits = {'age': '22', 'hair': 'brown', 'height': '5.5'})])
+        >>> al = AgentList.from_csv('/tmp/agents.csv', name_field='hair')
+        >>> al
+        AgentList([Agent(name = \"""brown\""", traits = {'age': '22', 'height': '5.5'})])
         >>> os.remove('/tmp/agents.csv')
 
         :param file_path: The path to the CSV file.
+        :param name_field: The name of the field to use as the agent name.
         """
         from edsl.agents.Agent import Agent
 
@@ -147,7 +151,11 @@ class AgentList(UserList, Base):
         with open(file_path, "r") as f:
             reader = csv.DictReader(f)
             for row in reader:
-                agent_list.append(Agent(row))
+                if name_field is not None:
+                    agent_name = row.pop(name_field)
+                    agent_list.append(Agent(traits=row, name=agent_name))
+                else:
+                    agent_list.append(Agent(traits=row))
         return cls(agent_list)
 
     def translate_traits(self, values_codebook: dict[str, str]):
