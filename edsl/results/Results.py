@@ -258,16 +258,18 @@ class Results(UserList, Mixins, Base):
         from IPython.display import HTML
 
         json_str = json.dumps(self.to_dict()["data"], indent=4)
-        from pygments import highlight
-        from pygments.lexers import JsonLexer
-        from pygments.formatters import HtmlFormatter
+        # from pygments import highlight
+        # from pygments.lexers import JsonLexer
+        # 3from pygments.formatters import HtmlFormatter
 
-        formatted_json = highlight(
-            json_str,
-            JsonLexer(),
-            HtmlFormatter(style="default", full=True, noclasses=True),
-        )
-        return HTML(formatted_json).data
+        # formatted_json = highlight(
+        #    json_str,
+        #    JsonLexer(),
+        #    HtmlFormatter(style="default", full=True, noclasses=True),
+        # )
+        # return HTML(formatted_json).data
+        # print(json_str)
+        return f"<pre>{json_str}</pre>"
 
     def _to_dict(self, sort=False):
         from edsl.data.Cache import Cache
