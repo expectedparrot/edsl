@@ -52,6 +52,9 @@ class Prompt(PersistenceMixin, RichPrintingMixin):
                 text = self.default_instructions
             else:
                 text = ""
+        if isinstance(text, Prompt):
+            # make it idempotent w/ a prompt
+            text = text.text
         self._text = text
 
     @classmethod

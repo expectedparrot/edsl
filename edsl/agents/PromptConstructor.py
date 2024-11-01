@@ -121,7 +121,9 @@ class PromptConstructor:
         # The user might have passed a custom prompt, which would be stored in _question_instructions_prompt
         if not hasattr(self, "_question_instructions_prompt"):
             # Gets the instructions for the question - this is how the question should be answered
-            question_prompt = self.question.get_instructions(model=self.model.model)
+            question_prompt = Prompt(
+                self.question.get_instructions(model=self.model.model)
+            )
 
             # Get the data for the question - this is a dictionary of the question data
             # e.g., {'question_text': 'Do you like school?', 'question_name': 'q0', 'question_options': ['yes', 'no']}
@@ -283,7 +285,7 @@ class PromptConstructor:
         prompts = self.prompt_plan.get_prompts(
             agent_instructions=self.agent_instructions_prompt,
             agent_persona=self.agent_persona_prompt,
-            question_instructions=self.question_instructions_prompt,
+            question_instructions=Prompt(self.question_instructions_prompt),
             prior_question_memory=self.prior_question_memory_prompt,
         )
         if self.question_file_keys:
