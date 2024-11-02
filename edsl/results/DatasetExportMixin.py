@@ -445,19 +445,20 @@ class DatasetExportMixin:
         :param remove_prefix: Whether to remove the prefix from the column names.
 
         """
-        if lists_as_strings:
-            return self._to_pandas_strings(remove_prefix=remove_prefix)
+        return self._to_pandas_strings(remove_prefix, lists_as_strings)
+        # if lists_as_strings:
+        #     return self._to_pandas_strings(remove_prefix=remove_prefix)
 
-        import pandas as pd
+        # import pandas as pd
 
-        df = pd.DataFrame(self.data)
+        # df = pd.DataFrame(self.data)
 
-        if remove_prefix:
-            # Optionally remove prefixes from column names
-            df.columns = [col.split(".")[-1] for col in df.columns]
+        # if remove_prefix:
+        #     # Optionally remove prefixes from column names
+        #     df.columns = [col.split(".")[-1] for col in df.columns]
 
-        df_sorted = df.sort_index(axis=1)  # Sort columns alphabetically
-        return df_sorted
+        # df_sorted = df.sort_index(axis=1)  # Sort columns alphabetically
+        # return df_sorted
 
     def _to_pandas_strings(self, remove_prefix: bool = False) -> "pd.DataFrame":
         """Convert the results to a pandas DataFrame.
