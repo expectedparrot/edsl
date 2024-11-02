@@ -951,6 +951,7 @@ class Jobs(Base):
             and not self.all_agents_answer_questions_directly()  # Accounts for Results.example()
         ):
             import secrets
+            from dotenv import load_dotenv
             from edsl import CONFIG
 
             edsl_auth_token = secrets.token_urlsafe(16)
@@ -970,7 +971,8 @@ class Jobs(Base):
             self.write_to_env(api_key)
             print("API key retrieved and written to .env file.")
 
-            # TODO: Retrieve key and continue job
+            # Retrieve API key so we can continue running the job
+            load_dotenv()
 
         if remote_inference := self.use_remote_inference(disable_remote_inference):
             remote_job_creation_data = self.create_remote_inference_job(
