@@ -680,19 +680,16 @@ class Coop:
         Given an EDSL auth token, find the corresponding user's API key.
         """
 
-        try:
-            response = self._send_server_request(
-                uri="api/v0/get-api-key",
-                method="POST",
-                payload={
-                    "edsl_auth_token": edsl_auth_token,
-                },
-            )
-            data = response.json()
-            api_key = data.get("api_key")
-            return api_key
-        except Exception:
-            return None
+        response = self._send_server_request(
+            uri="api/v0/get-api-key",
+            method="POST",
+            payload={
+                "edsl_auth_token": edsl_auth_token,
+            },
+        )
+        data = response.json()
+        api_key = data.get("api_key")
+        return api_key
 
 
 if __name__ == "__main__":

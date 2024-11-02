@@ -816,6 +816,12 @@ class Jobs(Base):
                 )
 
     def user_has_all_model_keys(self):
+        """
+        Returns True if the user has all model keys required to run their job.
+
+        Otherwise, returns False.
+        """
+
         try:
             self.check_api_keys()
             return True
@@ -825,6 +831,12 @@ class Jobs(Base):
             raise
 
     def user_has_ep_api_key(self):
+        """
+        Returns True if the user has an EXPECTED_PARROT_API_KEY in their env.
+
+        Otherwise, returns False.
+        """
+
         import os
 
         coop_api_key = os.getenv("EXPECTED_PARROT_API_KEY")
@@ -835,12 +847,13 @@ class Jobs(Base):
             return False
 
     def poll_for_ep_api_key(self, edsl_auth_token: str) -> Union[str, None]:
+        """
+        Given an EDSL auth token, attempts to retrieve the user's API key.
+        """
+
         from edsl.coop.coop import Coop
         import time
         from datetime import datetime
-        from edsl.config import CONFIG
-
-        expected_parrot_url = CONFIG.get("EXPECTED_PARROT_URL")
 
         coop = Coop()
         waiting_for_login = True
@@ -848,7 +861,6 @@ class Jobs(Base):
             api_key = coop.poll_for_api_key(edsl_auth_token)
             if api_key is not None:
                 print("\r" + " " * 80 + "\r", end="")
-                print("API key retrieved.")
                 return api_key
             else:
                 duration = 5
@@ -864,6 +876,20 @@ class Jobs(Base):
                     )
                     time.sleep(0.1)
                     i += 1
+
+    def all_agents_answer_questions_directly(self) -> bool:
+        """
+        Returns True if the job has agents and all agents have a direct question-answering method.
+
+        Otherwise, returns False.
+        """
+
+        if len(self.agents) > 0 and all(
+            [hasattr(a, "answer_question_directly") for a in self.agents]
+        ):
+            return True
+        else:
+            return False
 
     def write_to_env(self, api_key: str) -> None:
         """
@@ -919,7 +945,11 @@ class Jobs(Base):
 
         self.verbose = verbose
 
-        if not self.user_has_all_model_keys() and not self.user_has_ep_api_key():
+        if (
+            not self.user_has_all_model_keys()
+            and not self.user_has_ep_api_key()
+            and not self.all_agents_answer_questions_directly()  # Accounts for Results.example()
+        ):
             import secrets
             from edsl import CONFIG
 
