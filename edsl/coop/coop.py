@@ -675,6 +675,25 @@ class Coop:
         data = response.json()
         return data
 
+    def poll_for_api_key(self, edsl_auth_token: str):
+        """
+        Given an EDSL auth token, find the corresponding user's API key.
+        """
+
+        try:
+            response = self._send_server_request(
+                uri="api/v0/get-api-key",
+                method="POST",
+                payload={
+                    "edsl_auth_token": edsl_auth_token,
+                },
+            )
+            data = response.json()
+            api_key = data.get("api_key")
+            return api_key
+        except Exception:
+            return None
+
 
 if __name__ == "__main__":
     sheet_data = fetch_sheet_data()
