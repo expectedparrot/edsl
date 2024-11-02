@@ -815,6 +815,73 @@ class Jobs(Base):
                     inference_service=model._inference_service_,
                 )
 
+    def user_has_all_model_keys(self):
+        try:
+            self.check_api_keys()
+            return True
+        except MissingAPIKeyError:
+            return False
+        except Exception:
+            raise
+
+    def user_has_ep_api_key(self):
+        import os
+
+        coop_api_key = os.getenv("EXPECTED_PARROT_API_KEY")
+
+        if coop_api_key is not None:
+            return True
+        else:
+            return False
+
+    def poll_for_ep_api_key(self, edsl_auth_token: str) -> Union[str, None]:
+        from edsl.coop.coop import Coop
+        import time
+        from datetime import datetime
+        from edsl.config import CONFIG
+
+        expected_parrot_url = CONFIG.get("EXPECTED_PARROT_URL")
+
+        coop = Coop()
+        waiting_for_login = True
+        while waiting_for_login:
+            api_key = coop.poll_for_api_key(edsl_auth_token)
+            if api_key is not None:
+                print("\r" + " " * 80 + "\r", end="")
+                print("API key retrieved.")
+                return api_key
+            else:
+                duration = 5
+                time_checked = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
+                frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+                start_time = time.time()
+                i = 0
+                while time.time() - start_time < duration:
+                    print(
+                        f"\r{frames[i % len(frames)]} Waiting for login. Last checked: {time_checked}",
+                        end="",
+                        flush=True,
+                    )
+                    time.sleep(0.1)
+                    i += 1
+
+    def write_to_env(self, api_key: str) -> None:
+        """
+        Write the user's Expected Parrot key to their .env file.
+
+        If a .env file doesn't exist in the current directory, one will be created.
+        """
+        from pathlib import Path
+        from dotenv import set_key
+
+        # Create .env file if it doesn't exist
+        env_path = ".env"
+        env_file = Path(env_path)
+        env_file.touch(exist_ok=True)
+
+        # Write API key to file
+        set_key(env_path, "EXPECTED_PARROT_API_KEY", str(api_key))
+
     def run(
         self,
         n: int = 1,
@@ -851,6 +918,29 @@ class Jobs(Base):
         self._raise_validation_errors = raise_validation_errors
 
         self.verbose = verbose
+
+        if not self.user_has_all_model_keys() and not self.user_has_ep_api_key():
+            import secrets
+            from edsl import CONFIG
+
+            edsl_auth_token = secrets.token_urlsafe(16)
+
+            print("You're missing some of the API keys needed to run this job.")
+            print(
+                "You can either add the missing keys to your .env file, or use remote inference."
+            )
+            print("Remote inference allows you to run jobs on our server.")
+            print("To use remote inference, sign up at the following link:")
+            print(
+                f"{CONFIG.EXPECTED_PARROT_URL}/login?edsl_auth_token={edsl_auth_token}"
+            )
+
+            api_key = self.poll_for_ep_api_key(edsl_auth_token)
+
+            self.write_to_env(api_key)
+            print("API key retrieved and written to .env file.")
+
+            # TODO: Retrieve key and continue job
 
         if remote_inference := self.use_remote_inference(disable_remote_inference):
             remote_job_creation_data = self.create_remote_inference_job(
