@@ -33,6 +33,9 @@ class Coop:
             self.url = self.url[:-1]
         self._edsl_version = edsl.__version__
 
+    def get_progress_bar_url(self):
+        return "https://edsl-progress-bar-johnhorton.replit.app"
+
     ################
     # BASIC METHODS
     ################

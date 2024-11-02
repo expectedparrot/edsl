@@ -41,6 +41,7 @@ class JobsRunnerAsyncio:
         self.interviews: List["Interview"] = jobs.interviews()
         self.bucket_collection: "BucketCollection" = jobs.bucket_collection
         self.total_interviews: List["Interview"] = []
+        self._initialized = threading.Event()
 
     async def run_async_generator(
         self,
@@ -68,6 +69,8 @@ class JobsRunnerAsyncio:
             self.total_interviews = list(
                 self._populate_total_interviews(n=n)
             )  # Populate self.total_interviews before creating tasks
+
+        self._initialized.set()  # Signal that we're ready
 
         for interview in self.total_interviews:
             interviewing_task = self._build_interview_task(
@@ -286,8 +289,15 @@ class JobsRunnerAsyncio:
         self.cache = cache
         self.sidecar_model = sidecar_model
 
+        from edsl.coop import Coop
+
+        coop = Coop()
+        endpoint_url = coop.get_progress_bar_url()
+
         self.jobs_runner_status = JobsRunnerStatus(
-            self, n=n, endpoint_url="http://localhost:8000"
+            self,
+            n=n,
+            endpoint_url=endpoint_url,
         )
 
         stop_event = threading.Event()
