@@ -445,7 +445,7 @@ class DatasetExportMixin:
         :param remove_prefix: Whether to remove the prefix from the column names.
 
         """
-        return self._to_pandas_strings(remove_prefix, lists_as_strings)
+        return self._to_pandas_strings(remove_prefix)
         # if lists_as_strings:
         #     return self._to_pandas_strings(remove_prefix=remove_prefix)
 
