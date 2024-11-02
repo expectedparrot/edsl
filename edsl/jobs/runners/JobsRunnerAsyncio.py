@@ -165,20 +165,20 @@ class JobsRunnerAsyncio:
 
         prompt_dictionary = {}
         for answer_key_name in answer_key_names:
-            prompt_dictionary[
-                answer_key_name + "_user_prompt"
-            ] = question_name_to_prompts[answer_key_name]["user_prompt"]
-            prompt_dictionary[
-                answer_key_name + "_system_prompt"
-            ] = question_name_to_prompts[answer_key_name]["system_prompt"]
+            prompt_dictionary[answer_key_name + "_user_prompt"] = (
+                question_name_to_prompts[answer_key_name]["user_prompt"]
+            )
+            prompt_dictionary[answer_key_name + "_system_prompt"] = (
+                question_name_to_prompts[answer_key_name]["system_prompt"]
+            )
 
         raw_model_results_dictionary = {}
         cache_used_dictionary = {}
         for result in valid_results:
             question_name = result.question_name
-            raw_model_results_dictionary[
-                question_name + "_raw_model_response"
-            ] = result.raw_model_response
+            raw_model_results_dictionary[question_name + "_raw_model_response"] = (
+                result.raw_model_response
+            )
             raw_model_results_dictionary[question_name + "_cost"] = result.cost
             one_use_buys = (
                 "NA"
@@ -286,7 +286,9 @@ class JobsRunnerAsyncio:
         self.cache = cache
         self.sidecar_model = sidecar_model
 
-        self.jobs_runner_status = JobsRunnerStatus(self, n=n)
+        self.jobs_runner_status = JobsRunnerStatus(
+            self, n=n, endpoint_url="http://localhost:8000"
+        )
 
         stop_event = threading.Event()
 
@@ -307,6 +309,9 @@ class JobsRunnerAsyncio:
             self.jobs_runner_status.update_progress(stop_event)
 
         if progress_bar:
+            print(
+                f"Running with progress bar. View progress at {self.jobs_runner_status.viewing_url}"
+            )
             progress_thread = threading.Thread(
                 target=run_progress_bar, args=(stop_event,)
             )

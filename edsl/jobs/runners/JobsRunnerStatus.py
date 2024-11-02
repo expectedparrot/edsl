@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import time
+import requests
 from dataclasses import dataclass, asdict
 
-from typing import List, DefaultDict, Optional, Type, Literal
+from typing import List, DefaultDict, Optional, Type, Literal, Dict
 from collections import UserDict, defaultdict
 
 from rich.text import Text
@@ -54,9 +55,21 @@ class Stats:
 
 class JobsRunnerStatus:
     def __init__(
-        self, jobs_runner: "JobsRunnerAsyncio", n: int, refresh_rate: float = 0.25
+        self,
+        jobs_runner: "JobsRunnerAsyncio",
+        n: int,
+        refresh_rate: float = 0.25,
+        endpoint_url: Optional[str] = "http://localhost:8000",
     ):
         self.jobs_runner = jobs_runner
+        self.job_id = str(hash(jobs_runner.jobs)) + "-" + str(time.time())
+
+        # URLs
+        self.base_url = f"{endpoint_url}/{str(self.job_id)}"
+        self.viewing_url = f"{self.base_url}/view"
+        self.data_url = f"{self.base_url}/data"
+        self.update_url = f"{self.base_url}/update"
+
         self.start_time = time.time()
         self.completed_interviews = []
         self.refresh_rate = refresh_rate
@@ -79,6 +92,91 @@ class JobsRunnerStatus:
         )
 
         self.completed_interview_by_model = defaultdict(list)
+
+    def get_status_dict(self) -> Dict[str, Any]:
+        """Convert current status into a JSON-serializable dictionary"""
+        # Get all statistics
+        stats = {}
+        for stat_name in self.statistics:
+            stat = self._compute_statistic(stat_name)
+            name, value = list(stat.items())[0]
+            stats[name] = value
+
+        # Calculate overall progress
+        total_interviews = len(self.jobs_runner.total_interviews)
+        completed = len(self.completed_interviews)
+
+        # Get model-specific progress
+        model_progress = {}
+        for model in self.distinct_models:
+            completed_for_model = len(self.completed_interview_by_model[model])
+            target_for_model = int(
+                self.num_total_interviews / len(self.distinct_models)
+            )
+            model_progress[model] = {
+                "completed": completed_for_model,
+                "total": target_for_model,
+                "percent": (
+                    (completed_for_model / target_for_model * 100)
+                    if target_for_model > 0
+                    else 0
+                ),
+            }
+
+        status_dict = {
+            "overall_progress": {
+                "completed": completed,
+                "total": total_interviews,
+                "percent": (
+                    (completed / total_interviews * 100) if total_interviews > 0 else 0
+                ),
+            },
+            "model_progress": model_progress,
+            "statistics": stats,
+            "status": "completed" if completed >= total_interviews else "running",
+        }
+
+        model_queues = {}
+        for model, bucket in self.jobs_runner.bucket_collection.items():
+            model_name = model.model
+            model_queues[model_name] = {
+                "model_name": model_name,
+                "requests_bucket": {
+                    "completed": bucket.requests_bucket.num_released,
+                    "requested": bucket.requests_bucket.num_requests,
+                    "tokens_returned": bucket.requests_bucket.tokens_returned,
+                    "target_rate": round(bucket.requests_bucket.target_rate, 1),
+                    "current_rate": round(bucket.requests_bucket.get_throughput(), 1),
+                },
+                "tokens_bucket": {
+                    "completed": bucket.tokens_bucket.num_released,
+                    "requested": bucket.tokens_bucket.num_requests,
+                    "tokens_returned": bucket.tokens_bucket.tokens_returned,
+                    "target_rate": round(bucket.tokens_bucket.target_rate, 1),
+                    "current_rate": round(bucket.tokens_bucket.get_throughput(), 1),
+                },
+            }
+        status_dict["model_queues"] = model_queues
+        return status_dict
+
+    def send_status_update(self) -> None:
+        """Send current status to the web endpoint using the instance's job_id"""
+
+        try:
+            # Get the status dictionary and add the job_id
+            status_dict = self.get_status_dict()
+            status_dict["job_id"] = str(self.job_id)  # Ensure job_id is string
+
+            # Send the update
+            response = requests.post(
+                self.update_url,
+                json=status_dict,
+                headers={"Content-Type": "application/json"},
+                timeout=10,
+            )
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            print(f"Failed to send status update for job {self.job_id}: {e}")
 
     def add_completed_interview(self, result):
         self.completed_interviews.append(result.interview_hash)
@@ -168,21 +266,9 @@ class JobsRunnerStatus:
             bucket_types = ["requests_bucket", "tokens_bucket"]
             for bucket_type in bucket_types:
                 table.add_row(Text(" " + bucket_type, style="green"), "")
-                # table.add_row(
-                #     f"  Current level (capacity = {round(getattr(bucket, bucket_type).capacity, 3)})",
-                #     str(round(getattr(bucket, bucket_type).tokens, 3)),
-                # )
                 num_requests = getattr(bucket, bucket_type).num_requests
                 num_released = getattr(bucket, bucket_type).num_released
                 tokens_returned = getattr(bucket, bucket_type).tokens_returned
-                # table.add_row(
-                #     f"  Requested",
-                #     str(num_requests),
-                # )
-                # table.add_row(
-                #     f"  Completed",
-                #     str(num_released),
-                # )
                 table.add_row(
                     "  Completed vs. Requested", f"{num_released} vs. {num_requests}"
                 )
@@ -302,6 +388,7 @@ class JobsRunnerStatus:
                         box=box.ROUNDED,
                     )
                 )
+                self.send_status_update()
 
                 time.sleep(self.refresh_rate)
 
@@ -322,6 +409,8 @@ class JobsRunnerStatus:
                     box=box.ROUNDED,
                 )
             )
+            self.send_status_update()
+
             live.update(layout)
             time.sleep(1)  # Show final state for 1 second
 
