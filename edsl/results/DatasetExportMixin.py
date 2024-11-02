@@ -437,7 +437,29 @@ class DatasetExportMixin:
         b64 = base64.b64encode(csv_string.encode()).decode()
         return f'<a href="data:file/csv;base64,{b64}" download="my_data.csv">Download CSV file</a>'
 
-    def to_pandas(self, remove_prefix: bool = False) -> "pd.DataFrame":
+    def to_pandas(
+        self, remove_prefix: bool = False, lists_as_strings=False
+    ) -> "DataFrame":
+        """Convert the results to a pandas DataFrame, ensuring that lists remain as lists.
+
+        :param remove_prefix: Whether to remove the prefix from the column names.
+
+        """
+        if lists_as_strings:
+            return self._to_pandas_strings(remove_prefix=remove_prefix)
+
+        import pandas as pd
+
+        df = pd.DataFrame(self.data)
+
+        if remove_prefix:
+            # Optionally remove prefixes from column names
+            df.columns = [col.split(".")[-1] for col in df.columns]
+
+        df_sorted = df.sort_index(axis=1)  # Sort columns alphabetically
+        return df_sorted
+
+    def _to_pandas_strings(self, remove_prefix: bool = False) -> "pd.DataFrame":
         """Convert the results to a pandas DataFrame.
 
         :param remove_prefix: Whether to remove the prefix from the column names.
@@ -451,6 +473,7 @@ class DatasetExportMixin:
         2           Terrible
         3                 OK
         """
+
         import pandas as pd
 
         csv_string = self.to_csv(remove_prefix=remove_prefix)
