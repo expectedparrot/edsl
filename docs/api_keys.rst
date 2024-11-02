@@ -4,14 +4,12 @@ API Keys
 ========
 API keys are required to access the services of large language models (LLMs) such as OpenAI's GPTs, Google's Gemini, Anthropic's Claude, Llama 2, Groq and others.
 
-To access LLMs with EDSL you can either use remote inference or local inference.
-Remote inference allows you to run EDSL surveys on the Expected Parrot server, while local inference allows you to run them on your own machine.
+To access LLMs with EDSL you can either use *remote inference* or *local inference*.
+Remote inference allows you to run surveys on the Expected Parrot server with any available models while local inference allows you to run surveys on your own machine using your own API keys for models.
 
 
-Special note for Colab users
-----------------------------
-
-If you are using EDSL in a Colab notebook, please see special instructions on storing API keys as "secrets" in lieu of storing them in a `.env` file as described below: :ref:`colab_setup`.
+| *Special note for Colab users:*
+| If you are using EDSL in a Colab notebook, please see special instructions on storing API keys as "secrets" in lieu of storing them in a `.env` file as described below: :ref:`colab_setup`.
 
 
 Remote inference 
@@ -37,8 +35,7 @@ You can access LLMs with EDSL on your own machine by providing your own API keys
 There are two ways of providing your own API keys to EDSL:
 
 
-1. Using a .env file (*recommended*)
-------------------------------------
+**1. Using a .env file (*recommended*)**
 
 Create a `.env` file in your EDSL working directory and populate it with your API keys.
 Replace `your_key_here` with your actual API key for each service that you plan to use:
@@ -66,8 +63,7 @@ AWS Bedrock requires multiple keys:
 Using a `.env file` allows you to store your keys once and avoid repeatedly enter your API keys each time you start a session with EDSL.
 
 
-2. Setting API keys in your Python code
----------------------------------------
+**2. Setting API keys in your Python code**
 
 Alternatively, you can directly set your API keys in your Python script before importing any EDSL objects. 
 This method stores the keys in your system's memory only for the duration of the session:
