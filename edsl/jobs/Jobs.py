@@ -209,14 +209,14 @@ class Jobs(Base):
         )
         return d
 
-    def show_prompts(self, all=False) -> None:
+    def show_prompts(self, all=False, max_rows: Optional[int] = None) -> None:
         """Print the prompts."""
         if all:
-            self.prompts().to_scenario_list().print(format="rich")
+            self.prompts().to_scenario_list().print(format="rich", max_rows=max_rows)
         else:
             self.prompts().select(
                 "user_prompt", "system_prompt"
-            ).to_scenario_list().print(format="rich")
+            ).to_scenario_list().print(format="rich", max_rows=max_rows)
 
     @staticmethod
     def estimate_prompt_cost(
