@@ -16,10 +16,9 @@ class InferenceServicesCollection:
 
     @staticmethod
     def _get_service_available(service, warn: bool = False) -> list[str]:
-        from_api = True
         try:
             service_models = service.available()
-        except Exception as e:
+        except Exception:
             if warn:
                 warnings.warn(
                     f"""Error getting models for {service._inference_service_}. 
@@ -28,13 +27,30 @@ class InferenceServicesCollection:
                     Relying on cache.""",
                     UserWarning,
                 )
-            from edsl.inference_services.models_available_cache import models_available
 
-            service_models = models_available.get(service._inference_service_, [])
-            # cache results
-            service._models_list_cache = service_models
-            from_api = False
-        return service_models  # , from_api
+            # Use the list of models on Coop as a fallback
+            try:
+                from edsl import Coop
+
+                c = Coop()
+                models_from_coop = c.fetch_models()
+                service_models = models_from_coop.get(service._inference_service_, [])
+
+                # cache results
+                service._models_list_cache = service_models
+
+            # Finally, use the available models cache from the Python file
+            except Exception as e:
+                from edsl.inference_services.models_available_cache import (
+                    models_available,
+                )
+
+                service_models = models_available.get(service._inference_service_, [])
+
+                # cache results
+                service._models_list_cache = service_models
+
+        return service_models
 
     def available(self):
         total_models = []

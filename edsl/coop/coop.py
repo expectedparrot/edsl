@@ -661,6 +661,17 @@ class Coop:
         else:
             return {}
 
+    def fetch_models(self) -> dict:
+        """
+        Fetch a dict of available models from Coop.
+
+        Each key in the dict is an inference service, and each value is a list of models from that service.
+        """
+        response = self._send_server_request(uri="api/v0/models", method="GET")
+        self._resolve_server_response(response)
+        data = response.json()
+        return data
+
     def fetch_rate_limit_config_vars(self) -> dict:
         """
         Fetch a dict of rate limit config vars from Coop.
