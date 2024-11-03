@@ -968,6 +968,8 @@ class Jobs(Base):
             not self.user_has_all_model_keys()
             and not self.user_has_ep_api_key()
             and not self.all_agents_answer_questions_directly()  # Accounts for Results.example()
+            and not set([m.model for m in self.models])
+            == set(["test"])  # Accounts for InterviewExceptionEntry.example()
         ):
             import secrets
             from dotenv import load_dotenv
