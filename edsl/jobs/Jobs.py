@@ -896,19 +896,35 @@ class Jobs(Base):
                     time.sleep(0.1)
                     i += 1
 
-    def all_agents_answer_questions_directly(self) -> bool:
+    def needs_external_llms(self) -> bool:
         """
-        Returns True if the job has agents and all agents have a direct question-answering method.
+        Returns True if the job needs external LLMs to run.
 
         Otherwise, returns False.
         """
+        # These cases are necessary to skip the API key check during doctests
 
-        if len(self.agents) > 0 and all(
+        # Accounts for Results.example()
+        all_agents_answer_questions_directly = len(self.agents) > 0 and all(
             [hasattr(a, "answer_question_directly") for a in self.agents]
+        )
+
+        # Accounts for InterviewExceptionEntry.example()
+        only_model_is_test = set([m.model for m in self.models]) == set(["test"])
+
+        # Accounts for Survey.__call__
+        all_questions_are_functional = set(
+            [q.question_type for q in self.survey.questions]
+        ) == set(["functional"])
+
+        if (
+            all_agents_answer_questions_directly
+            or only_model_is_test
+            or all_questions_are_functional
         ):
-            return True
-        else:
             return False
+        else:
+            return True
 
     def write_to_env(self, api_key: str) -> None:
         """
@@ -967,9 +983,7 @@ class Jobs(Base):
         if (
             not self.user_has_all_model_keys()
             and not self.user_has_ep_api_key()
-            and not self.all_agents_answer_questions_directly()  # Accounts for Results.example()
-            and not set([m.model for m in self.models])
-            == set(["test"])  # Accounts for InterviewExceptionEntry.example()
+            and self.needs_external_llms()
         ):
             import secrets
             from dotenv import load_dotenv
