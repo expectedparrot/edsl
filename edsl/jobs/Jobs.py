@@ -815,6 +815,25 @@ class Jobs(Base):
                     inference_service=model._inference_service_,
                 )
 
+    def get_missing_api_keys(self) -> set:
+        """
+        Returns a list of the api keys that a user needs to run this job, but does not currently have in their .env file.
+        """
+
+        missing_api_keys = set()
+
+        from edsl import Model
+        from edsl.enums import service_to_api_keyname
+
+        for model in self.models + [Model()]:
+            if not model.has_valid_api_key():
+                key_name = service_to_api_keyname.get(
+                    model._inference_service_, "NOT FOUND"
+                )
+                missing_api_keys.add(key_name)
+
+        return missing_api_keys
+
     def user_has_all_model_keys(self):
         """
         Returns True if the user has all model keys required to run their job.
@@ -954,9 +973,13 @@ class Jobs(Base):
             from dotenv import load_dotenv
             from edsl import CONFIG
 
+            missing_api_keys = self.get_missing_api_keys()
+
             edsl_auth_token = secrets.token_urlsafe(16)
 
-            print("You're missing some of the API keys needed to run this job.")
+            print(
+                f"You're missing some of the API keys needed to run this job: {", ".join(missing_api_keys)}"
+            )
             print(
                 "You can either add the missing keys to your .env file, or use remote inference."
             )
