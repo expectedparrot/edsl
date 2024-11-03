@@ -16,6 +16,8 @@ from edsl.language_models.LanguageModel import LanguageModel
 from edsl.data_transfer_models import EDSLResultObjectInput
 from edsl.agents.PromptConstructor import PromptConstructor
 
+from edsl.agents.prompt_helpers import PromptPlan
+
 
 class InvigilatorBase(ABC):
     """An invigiator (someone who administers an exam) is a class that is responsible for administering a question to an agent.
@@ -45,6 +47,7 @@ class InvigilatorBase(ABC):
         additional_prompt_data: Optional[dict] = None,
         sidecar_model: Optional[LanguageModel] = None,
         raise_validation_errors: Optional[bool] = True,
+        prompt_plan: Optional["PromptPlan"] = None,
     ):
         """Initialize a new Invigilator."""
         self.agent = agent
@@ -59,6 +62,10 @@ class InvigilatorBase(ABC):
         self.sidecar_model = sidecar_model
         self.survey = survey
         self.raise_validation_errors = raise_validation_errors
+        if prompt_plan is None:
+            self.prompt_plan = PromptPlan()
+        else:
+            self.prompt_plan = prompt_plan
 
         self.raw_model_response = (
             None  # placeholder for the raw response from the model
@@ -67,7 +74,7 @@ class InvigilatorBase(ABC):
     @property
     def prompt_constructor(self) -> PromptConstructor:
         """Return the prompt constructor."""
-        return PromptConstructor(self)
+        return PromptConstructor(self, prompt_plan=self.prompt_plan)
 
     def to_dict(self):
         attributes = [
