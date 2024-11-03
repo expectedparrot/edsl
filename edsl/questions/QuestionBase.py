@@ -82,8 +82,7 @@ class QuestionBase(
         if not hasattr(self, "_fake_data_factory"):
             from polyfactory.factories.pydantic_factory import ModelFactory
 
-            class FakeData(ModelFactory[self.response_model]):
-                ...
+            class FakeData(ModelFactory[self.response_model]): ...
 
             self._fake_data_factory = FakeData
         return self._fake_data_factory
@@ -150,14 +149,21 @@ class QuestionBase(
             "_include_comment",
             "_fake_data_factory",
             "_use_code",
-            "_answering_instructions",
-            "_question_presentation",
             "_model_instructions",
         ]
+        only_if_not_na_list = ["_answering_instructions", "_question_presentation"]
+
+        def ok(key, value):
+            if not key.startswith("_"):
+                return False
+            if key in exclude_list:
+                return False
+            if key in only_if_not_na_list and value is None:
+                return False
+            return True
+
         candidate_data = {
-            k.replace("_", "", 1): v
-            for k, v in self.__dict__.items()
-            if k.startswith("_") and k not in exclude_list
+            k.replace("_", "", 1): v for k, v in self.__dict__.items() if ok(k, v)
         }
 
         if "func" in candidate_data:
@@ -176,7 +182,9 @@ class QuestionBase(
         """
         candidate_data = self.data.copy()
         candidate_data["question_type"] = self.question_type
-        return candidate_data
+        return {
+            key: value for key, value in candidate_data.items() if value is not None
+        }
 
     @add_edsl_version
     def to_dict(self) -> dict[str, Any]:
