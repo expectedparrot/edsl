@@ -993,23 +993,25 @@ class Jobs(Base):
 
             edsl_auth_token = secrets.token_urlsafe(16)
 
-            formatted_missing_api_keys = ", ".join(missing_api_keys)
+            print("You're missing some of the API keys needed to run this job:")
+            for api_key in missing_api_keys:
+                print(f"     🔑 {api_key}")
             print(
-                f"You're missing some of the API keys needed to run this job: {formatted_missing_api_keys}"
-            )
-            print(
-                "You can either add the missing keys to your .env file, or use remote inference."
+                "\nYou can either add the missing keys to your .env file, or use remote inference."
             )
             print("Remote inference allows you to run jobs on our server.")
-            print("To use remote inference, sign up at the following link:")
+            print("\n🚀 To use remote inference, sign up at the following link:")
             print(
-                f"{CONFIG.EXPECTED_PARROT_URL}/login?edsl_auth_token={edsl_auth_token}"
+                f"    {CONFIG.EXPECTED_PARROT_URL}/login?edsl_auth_token={edsl_auth_token}"
             )
 
+            print(
+                "\nOnce you log in, we will automatically retrieve your Expected Parrot API key and continue your job remotely."
+            )
             api_key = self.poll_for_ep_api_key(edsl_auth_token)
 
             self.write_to_env(api_key)
-            print("API key retrieved and written to .env file.")
+            print("✨ API key retrieved and written to .env file.\n")
 
             # Retrieve API key so we can continue running the job
             load_dotenv()
