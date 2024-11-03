@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from typing import Optional, Any, List
 
 from edsl.exceptions import QuestionAnswerValidationError
+from edsl.prompts.Prompt import Prompt
 
 
 class FreeTextResponse(BaseModel):

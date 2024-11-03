@@ -18,6 +18,9 @@ There are two types of prompts:
 * A `user_prompt` contains the instructions for a question.
 * A `system_prompt` contains the instructions for the agent. 
 
+*Note: Some models do not support system prompts, e.g., OpenAI's o1 models. 
+When using these models the system prompts will be ignored.*
+
 
 Methods 
 ^^^^^^^

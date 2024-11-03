@@ -228,6 +228,7 @@ Links
    :hidden:
 
    notebooks/edsl_intro.ipynb
+   notebooks/analyze_customer_call.ipynb
    notebooks/updating_agents.ipynb
    notebooks/save_load_objects_locally.ipynb
    notebooks/data_labeling_example.ipynb

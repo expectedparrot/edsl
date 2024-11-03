@@ -4,7 +4,6 @@ from typing import Dict, Any, Optional, Set
 from jinja2 import Environment, meta
 
 from edsl.prompts.Prompt import Prompt
-
 from edsl.agents.prompt_helpers import PromptPlan
 
 
@@ -34,7 +33,7 @@ class PromptConstructor:
     This is mixed into the Invigilator class.
     """
 
-    def __init__(self, invigilator):
+    def __init__(self, invigilator, prompt_plan: Optional["PromptPlan"] = None):
         self.invigilator = invigilator
         self.agent = invigilator.agent
         self.question = invigilator.question
@@ -43,7 +42,7 @@ class PromptConstructor:
         self.model = invigilator.model
         self.current_answers = invigilator.current_answers
         self.memory_plan = invigilator.memory_plan
-        self.prompt_plan = PromptPlan()
+        self.prompt_plan = prompt_plan or PromptPlan()
 
     @property
     def scenario_file_keys(self) -> list:
@@ -122,7 +121,9 @@ class PromptConstructor:
         # The user might have passed a custom prompt, which would be stored in _question_instructions_prompt
         if not hasattr(self, "_question_instructions_prompt"):
             # Gets the instructions for the question - this is how the question should be answered
-            question_prompt = self.question.get_instructions(model=self.model.model)
+            question_prompt = Prompt(
+                self.question.get_instructions(model=self.model.model)
+            )
 
             # Get the data for the question - this is a dictionary of the question data
             # e.g., {'question_text': 'Do you like school?', 'question_name': 'q0', 'question_options': ['yes', 'no']}
@@ -160,15 +161,6 @@ class PromptConstructor:
                         ]
                         question_data["question_options"] = placeholder_options
                         self.question.question_options = placeholder_options
-
-                    # if isinstance(
-                    #     question_options := self.prior_answers_dict()
-                    #     .get(question_option_key)
-                    #     .answer,
-                    #     list,
-                    # ):
-                    #     question_data["question_options"] = question_options
-                    #     self.question.question_options = question_options
 
             replacement_dict = (
                 {key: f"<see file {key}>" for key in self.scenario_file_keys}
@@ -293,7 +285,7 @@ class PromptConstructor:
         prompts = self.prompt_plan.get_prompts(
             agent_instructions=self.agent_instructions_prompt,
             agent_persona=self.agent_persona_prompt,
-            question_instructions=self.question_instructions_prompt,
+            question_instructions=Prompt(self.question_instructions_prompt),
             prior_question_memory=self.prior_question_memory_prompt,
         )
         if self.question_file_keys:

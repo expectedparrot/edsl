@@ -17,14 +17,6 @@ class PreserveUndefined(Undefined):
 
 
 from edsl.exceptions.prompts import TemplateRenderError
-
-# from edsl.prompts.prompt_config import (
-#     C2A,
-#     names_to_component_types,
-#     ComponentTypes,
-#     NEGATIVE_INFINITY,
-# )
-# from edsl.prompts.registry import RegisterPromptsMeta
 from edsl.Base import PersistenceMixin, RichPrintingMixin
 
 MAX_NESTING = 100
@@ -60,6 +52,9 @@ class Prompt(PersistenceMixin, RichPrintingMixin):
                 text = self.default_instructions
             else:
                 text = ""
+        if isinstance(text, Prompt):
+            # make it idempotent w/ a prompt
+            text = text.text
         self._text = text
 
     @classmethod
