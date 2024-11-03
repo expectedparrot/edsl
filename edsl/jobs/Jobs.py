@@ -977,8 +977,9 @@ class Jobs(Base):
 
             edsl_auth_token = secrets.token_urlsafe(16)
 
+            formatted_missing_api_keys = ", ".join(missing_api_keys)
             print(
-                f"You're missing some of the API keys needed to run this job: {", ".join(missing_api_keys)}"
+                f"You're missing some of the API keys needed to run this job: {formatted_missing_api_keys}"
             )
             print(
                 "You can either add the missing keys to your .env file, or use remote inference."
