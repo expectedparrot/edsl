@@ -111,6 +111,11 @@ class Coop:
             #         f"{CONFIG.EXPECTED_PARROT_URL}/login?edsl_auth_token={edsl_auth_token}\n"
             #     )
             #     api_key = self._poll_for_api_key(edsl_auth_token)
+
+            #     if api_key is None:
+            #         print("\nTimed out waiting for login. Please try again.")
+            #         return
+
             #     write_api_key_to_env(api_key)
             #     print("\n✨ API key retrieved and written to .env file.")
             #     print("Rerun your code to try again with a valid API key.")
@@ -122,15 +127,28 @@ class Coop:
 
             raise CoopServerResponseError(message)
 
-    def _poll_for_api_key(self, edsl_auth_token: str) -> None:
+    def _poll_for_api_key(
+        self, edsl_auth_token: str, timeout: int = 120
+    ) -> Union[str, None]:
         """
         Allows the user to retrieve their Expected Parrot API key by logging in with an EDSL auth token.
+
+        :param edsl_auth_token: The EDSL auth token to use for login
+        :param timeout: Maximum time to wait for login, in seconds (default: 120)
         """
         import time
         from datetime import datetime
 
+        start_poll_time = time.time()
         waiting_for_login = True
         while waiting_for_login:
+
+            elapsed_time = time.time() - start_poll_time
+            if elapsed_time > timeout:
+                # Timed out waiting for the user to log in
+                print("\r" + " " * 80 + "\r", end="")
+                return None
+
             api_key = self._get_api_key(edsl_auth_token)
             if api_key is not None:
                 print("\r" + " " * 80 + "\r", end="")
