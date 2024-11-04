@@ -865,17 +865,6 @@ class Jobs(Base):
         else:
             return False
 
-    def poll_for_ep_api_key(self, edsl_auth_token: str) -> Union[str, None]:
-        """
-        Given an EDSL auth token, attempts to retrieve the user's API key.
-        """
-
-        from edsl.coop.coop import Coop
-
-        coop = Coop()
-        api_key = coop._poll_for_api_key(edsl_auth_token)
-        return api_key
-
     def needs_external_llms(self) -> bool:
         """
         Returns True if the job needs external LLMs to run.
@@ -951,6 +940,7 @@ class Jobs(Base):
             import secrets
             from dotenv import load_dotenv
             from edsl import CONFIG
+            from edsl.coop.coop import Coop
             from edsl.utilities.utilities import write_api_key_to_env
 
             missing_api_keys = self.get_missing_api_keys()
@@ -968,11 +958,12 @@ class Jobs(Base):
             print(
                 f"    {CONFIG.EXPECTED_PARROT_URL}/login?edsl_auth_token={edsl_auth_token}"
             )
-
             print(
                 "\nOnce you log in, we will automatically retrieve your Expected Parrot API key and continue your job remotely."
             )
-            api_key = self.poll_for_ep_api_key(edsl_auth_token)
+
+            coop = Coop()
+            api_key = coop._poll_for_api_key(edsl_auth_token)
 
             write_api_key_to_env(api_key)
             print("✨ API key retrieved and written to .env file.\n")
