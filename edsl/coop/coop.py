@@ -97,10 +97,58 @@ class Coop:
         if response.status_code >= 400:
             message = response.json().get("detail")
             # print(response.text)
-            if "Authorization" in message:
+            if "The API key you provided is invalid" in message:
+                import secrets
+                from edsl.utilities.utilities import write_api_key_to_env
+
+                edsl_auth_token = secrets.token_urlsafe(16)
+
+                print("Your Expected Parrot API key is invalid.")
+                print(
+                    "\nUse the link below to log in to Expected Parrot so we can automatically update your API key."
+                )
+                print(
+                    f"{CONFIG.EXPECTED_PARROT_URL}/login?edsl_auth_token={edsl_auth_token}\n"
+                )
+                api_key = self._poll_for_api_key(edsl_auth_token)
+                write_api_key_to_env(api_key)
+                print("\n✨ API key retrieved and written to .env file.")
+                print("Rerun your code to try again with a valid API key.")
+                return
+
+            elif "Authorization" in message:
                 print(message)
                 message = "Please provide an Expected Parrot API key."
+
             raise CoopServerResponseError(message)
+
+    def _poll_for_api_key(self, edsl_auth_token: str) -> None:
+        """
+        Allows the user to retrieve their Expected Parrot API key by logging in with an EDSL auth token.
+        """
+        import time
+        from datetime import datetime
+
+        waiting_for_login = True
+        while waiting_for_login:
+            api_key = self.poll_for_api_key(edsl_auth_token)
+            if api_key is not None:
+                print("\r" + " " * 80 + "\r", end="")
+                return api_key
+            else:
+                duration = 5
+                time_checked = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
+                frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+                start_time = time.time()
+                i = 0
+                while time.time() - start_time < duration:
+                    print(
+                        f"\r{frames[i % len(frames)]} Waiting for login. Last checked: {time_checked}",
+                        end="",
+                        flush=True,
+                    )
+                    time.sleep(0.1)
+                    i += 1
 
     def _json_handle_none(self, value: Any) -> Any:
         """
