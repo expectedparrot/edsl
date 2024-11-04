@@ -131,7 +131,7 @@ class Coop:
 
         waiting_for_login = True
         while waiting_for_login:
-            api_key = self.poll_for_api_key(edsl_auth_token)
+            api_key = self._get_api_key(edsl_auth_token)
             if api_key is not None:
                 print("\r" + " " * 80 + "\r", end="")
                 return api_key
@@ -734,7 +734,7 @@ class Coop:
         data = response.json()
         return data
 
-    def poll_for_api_key(self, edsl_auth_token: str):
+    def _get_api_key(self, edsl_auth_token: str):
         """
         Given an EDSL auth token, find the corresponding user's API key.
         """
