@@ -965,6 +965,10 @@ class Jobs(Base):
             coop = Coop()
             api_key = coop._poll_for_api_key(edsl_auth_token)
 
+            if api_key is None:
+                print("\nTimed out waiting for login. Please try again.")
+                return
+
             write_api_key_to_env(api_key)
             print("✨ API key retrieved and written to .env file.\n")
 
