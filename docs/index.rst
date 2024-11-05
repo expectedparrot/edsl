@@ -211,6 +211,7 @@ Links
    :hidden:
 
    coop
+   credits
    notebooks
    remote_inference
    remote_caching
