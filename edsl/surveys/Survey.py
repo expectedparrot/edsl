@@ -1226,9 +1226,9 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         >>> def f(scenario, agent_traits): return "yes" if scenario["period"] == "morning" else "no"
         >>> q = QuestionFunctional(question_name = "q0", func = f)
         >>> s = Survey([q])
-        >>> s(period = "morning", cache = False).select("answer.q0").first()
+        >>> s(period = "morning", cache = False, disable_remote_cache = True, disable_remote_inference = True).select("answer.q0").first()
         'yes'
-        >>> s(period = "evening", cache = False).select("answer.q0").first()
+        >>> s(period = "evening", cache = False, disable_remote_cache = True, disable_remote_inference = True).select("answer.q0").first()
         'no'
         """
         job = self.get_job(model, agent, **kwargs)
