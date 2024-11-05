@@ -1262,7 +1262,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         >>> s = Survey([q])
         >>> async def test_run_async(): result = await s.run_async(period="morning"); print(result.select("answer.q0").first())
         >>> asyncio.run(test_run_async())
-        'yes'
+        yes
         >>> import asyncio
         >>> from edsl.questions import QuestionFunctional
         >>> def f(scenario, agent_traits): return "yes" if scenario["period"] == "morning" else "no"
@@ -1270,7 +1270,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         >>> s = Survey([q])
         >>> async def test_run_async(): result = await s.run_async(period="evening"); print(result.select("answer.q0").first())
         >>> asyncio.run(test_run_async())
-        'no'
+        no
         """
         # TODO: temp fix by creating a cache
         if cache is None:
