@@ -792,16 +792,19 @@ class Jobs(Base):
 
         return False
 
-    def use_remote_cache(self):
-        try:
-            from edsl import Coop
+    def use_remote_cache(self, disable_remote_cache: bool):
+        if disable_remote_cache:
+            return False
+        if not disable_remote_cache:
+            try:
+                from edsl import Coop
 
-            user_edsl_settings = Coop().edsl_settings
-            return user_edsl_settings.get("remote_caching", False)
-        except requests.ConnectionError:
-            pass
-        except CoopServerResponseError as e:
-            pass
+                user_edsl_settings = Coop().edsl_settings
+                return user_edsl_settings.get("remote_caching", False)
+            except requests.ConnectionError:
+                pass
+            except CoopServerResponseError as e:
+                pass
 
         return False
 
@@ -909,20 +912,22 @@ class Jobs(Base):
         remote_inference_description: Optional[str] = None,
         skip_retry: bool = False,
         raise_validation_errors: bool = False,
+        disable_remote_cache: bool = False,
         disable_remote_inference: bool = False,
     ) -> Results:
         """
         Runs the Job: conducts Interviews and returns their results.
 
-        :param n: how many times to run each interview
-        :param progress_bar: shows a progress bar
-        :param stop_on_exception: stops the job if an exception is raised
-        :param cache: a cache object to store results
-        :param check_api_keys: check if the API keys are valid
-        :param batch_mode: run the job in batch mode i.e., no expecation of interaction with the user
-        :param verbose: prints messages
-        :param remote_cache_description: specifies a description for this group of entries in the remote cache
-        :param remote_inference_description: specifies a description for the remote inference job
+        :param n: How many times to run each interview
+        :param progress_bar: Whether to show a progress bar
+        :param stop_on_exception: Stops the job if an exception is raised
+        :param cache: A Cache object to store results
+        :param check_api_keys: Raises an error if API keys are invalid
+        :param verbose: Prints extra messages
+        :param remote_cache_description: Specifies a description for this group of entries in the remote cache
+        :param remote_inference_description: Specifies a description for the remote inference job
+        :param disable_remote_cache: If True, the job will not use remote cache. This only works for local jobs!
+        :param disable_remote_inference: If True, the job will not use remote inference
         """
         from edsl.coop.coop import Coop
 
@@ -997,7 +1002,7 @@ class Jobs(Base):
 
             cache = Cache()
 
-        remote_cache = self.use_remote_cache()
+        remote_cache = self.use_remote_cache(disable_remote_cache)
         with RemoteCacheSync(
             coop=Coop(),
             cache=cache,

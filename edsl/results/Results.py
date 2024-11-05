@@ -1105,6 +1105,7 @@ class Results(UserList, Mixins, Base):
             stop_on_exception=True,
             skip_retry=True,
             raise_validation_errors=True,
+            disable_remote_cache=True,
             disable_remote_inference=True,
         )
         return results
