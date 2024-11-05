@@ -227,6 +227,7 @@ class Jobs(Base):
         model: str,
     ) -> dict:
         """Estimates the cost of a prompt. Takes piping into account."""
+        import math
 
         def get_piping_multiplier(prompt: str):
             """Returns 2 if a prompt includes Jinja braces, and 1 otherwise."""
@@ -267,7 +268,8 @@ class Jobs(Base):
 
         # Convert into tokens (1 token approx. equals 4 characters)
         input_tokens = (user_prompt_chars + system_prompt_chars) // 4
-        output_tokens = input_tokens
+
+        output_tokens = math.ceil(0.75 * input_tokens)
 
         cost = (
             input_tokens * input_price_per_token
@@ -280,12 +282,14 @@ class Jobs(Base):
             "cost": cost,
         }
 
-    def estimate_job_cost_from_external_prices(self, price_lookup: dict) -> dict:
+    def estimate_job_cost_from_external_prices(
+        self, price_lookup: dict, iterations: int = 1
+    ) -> dict:
         """
         Estimates the cost of a job according to the following assumptions:
 
         - 1 token = 4 characters.
-        - Input tokens = output tokens.
+        - For each prompt, output tokens = input tokens * 0.75, rounded up to the nearest integer.
 
         price_lookup is an external pricing dictionary.
         """
@@ -341,6 +345,9 @@ class Jobs(Base):
             )
             .reset_index()
         )
+        df["estimated_cost"] = df["estimated_cost"] * iterations
+        df["estimated_input_tokens"] = df["estimated_input_tokens"] * iterations
+        df["estimated_output_tokens"] = df["estimated_output_tokens"] * iterations
 
         estimated_costs_by_model = df.to_dict("records")
 
@@ -363,12 +370,12 @@ class Jobs(Base):
 
         return output
 
-    def estimate_job_cost(self) -> dict:
+    def estimate_job_cost(self, iterations: int = 1) -> dict:
         """
         Estimates the cost of a job according to the following assumptions:
 
         - 1 token = 4 characters.
-        - Input tokens = output tokens.
+        - For each prompt, output tokens = input tokens * 0.75, rounded up to the nearest integer.
 
         Fetches prices from Coop.
         """
@@ -377,7 +384,9 @@ class Jobs(Base):
         c = Coop()
         price_lookup = c.fetch_prices()
 
-        return self.estimate_job_cost_from_external_prices(price_lookup=price_lookup)
+        return self.estimate_job_cost_from_external_prices(
+            price_lookup=price_lookup, iterations=iterations
+        )
 
     @staticmethod
     def compute_job_cost(job_results: "Results") -> float:
