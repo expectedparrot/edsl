@@ -1219,20 +1219,32 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
     # region: Running the survey
 
-    def __call__(self, model=None, agent=None, cache=None, **kwargs):
+    def __call__(
+        self,
+        model=None,
+        agent=None,
+        cache=None,
+        disable_remote_cache: bool = False,
+        disable_remote_inference: bool = False,
+        **kwargs,
+    ):
         """Run the survey with default model, taking the required survey as arguments.
 
         >>> from edsl.questions import QuestionFunctional
         >>> def f(scenario, agent_traits): return "yes" if scenario["period"] == "morning" else "no"
         >>> q = QuestionFunctional(question_name = "q0", func = f)
         >>> s = Survey([q])
-        >>> s(period = "morning", cache = False).select("answer.q0").first() # doctest: +SKIP
+        >>> s(period = "morning", cache = False, disable_remote_cache = True, disable_remote_inference = True).select("answer.q0").first()
         'yes'
-        >>> s(period = "evening", cache = False).select("answer.q0").first() # doctest: +SKIP
+        >>> s(period = "evening", cache = False, disable_remote_cache = True, disable_remote_inference = True).select("answer.q0").first()
         'no'
         """
         job = self.get_job(model, agent, **kwargs)
-        return job.run(cache=cache)
+        return job.run(
+            cache=cache,
+            disable_remote_cache=disable_remote_cache,
+            disable_remote_inference=disable_remote_inference,
+        )
 
     async def run_async(self, model=None, agent=None, cache=None, **kwargs):
         """Run the survey with default model, taking the required survey as arguments.
