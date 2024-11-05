@@ -16,15 +16,15 @@ Free credits
 
 Your Coop account comes with a balance of 100 free credits that you can use to run surveys with remote inference.
 
-**Are you using EDSL for a research project?** 
-Send an email to *info@expectedparrot.com* to request additional free credits.
+| ***Are you using EDSL for a research project?*** 
+| Send an email to *info@expectedparrot.com* to request additional free credits.
 
 
 Purchasing credits
 ------------------
 
-To purchase credits, navigate to the `Credits <https://www.expectedparrot.com/home/purchases>`_ page of your Coop account and input the number of credits that you would like to purchase
-(1 USD buys 100 credits; the minimum purchase amount is 1 USD):
+To purchase credits, navigate to the `Credits <https://www.expectedparrot.com/home/purchases>`_ page of your Coop account and enter the number of credits that you would like to purchase
+(1 USD buys 100 credits, and the minimum purchase amount is 1 USD):
 
 .. image:: static/credits_page.png
    :alt: Purchase credits
@@ -33,7 +33,7 @@ To purchase credits, navigate to the `Credits <https://www.expectedparrot.com/ho
 
 .. html::
 
-    <br>
+    <br><br>
 
 
 Payments are processed by Stripe. 
@@ -70,9 +70,9 @@ Response details & token rates
 Details about a model's response are stored in the `raw_model_response` fields of the results dataset.
 For each question that was run, the following columns will appear in results:
 
-- `raw_model_response.<question_name>_cost`: The cost in USD for the API call to the language model service provider. (In the example above, this is USD 0.00049.)
-- `raw_model_response.<question_name>_one_usd_buys`: An estimate of the number of responses to the question that could be purchased with 1 USD (for reference).
-- `raw_model_response.<question_name>_raw_model_response`: A dictionary containing the raw response for the question, which includes the input text, output text, tokens and other information about the API call.
+* **raw_model_response.<question_name>_cost**: The cost in USD for the API call to the language model service provider. (In the example above, this is USD 0.00049.)
+* **raw_model_response.<question_name>_one_usd_buys**: An estimate of the number of responses to the question that could be purchased with 1 USD (for reference).
+* **raw_model_response.<question_name>_raw_model_response**: A dictionary containing the raw response for the question, which includes the input text, output text, tokens and other information about the API call.
 
 
 For example, here we run a question with two models and inspect the raw model response information:
@@ -213,12 +213,11 @@ We can see this number of credits consumed at the remote inference page of our C
 .. image:: static/remote_inference_job_details.png
   :alt: Coop remote inference jobs page
   :align: center
-  :width: 80%
   
 
 .. raw:: html
 
-  <br>
+  <br><br>
 
 
 We can also navigate to the results page and select the same columns of the results to display:
@@ -226,12 +225,11 @@ We can also navigate to the results page and select the same columns of the resu
 .. image:: static/remote_inference_job_list.png
   :alt: Coop remote inference jobs page
   :align: center
-  :width: 80%
   
 
 .. raw:: html
 
-  <br>
+  <br><br>
 
 
 
