@@ -1251,8 +1251,6 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         model=None,
         agent=None,
         cache=None,
-        disable_remote_cache: bool = False,
-        disable_remote_inference: bool = False,
         **kwargs,
     ):
         """Run the survey with default model, taking the required survey as arguments.
@@ -1261,9 +1259,15 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         >>> def f(scenario, agent_traits): return "yes" if scenario["period"] == "morning" else "no"
         >>> q = QuestionFunctional(question_name = "q0", func = f)
         >>> s = Survey([q])
-        >>> s(period = "morning", disable_remote_cache = True, disable_remote_inference = True).select("answer.q0").first()
+        >>> async def test_run_async(): result = await s.run_async(period="morning"); print(result.select("answer.q0").first())
+        >>> asyncio.run(test_run_async())
         'yes'
-        >>> s(period = "evening", disable_remote_cache = True, disable_remote_inference = True).select("answer.q0").first()
+        >>> from edsl.questions import QuestionFunctional
+        >>> def f(scenario, agent_traits): return "yes" if scenario["period"] == "morning" else "no"
+        >>> q = QuestionFunctional(question_name = "q0", func = f)
+        >>> s = Survey([q])
+        >>> async def test_run_async(): result = await s.run_async(period="evening"); print(result.select("answer.q0").first())
+        >>> asyncio.run(test_run_async())
         'no'
         """
         # TODO: temp fix by creating a cache
@@ -1274,11 +1278,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         else:
             c = cache
         jobs: "Jobs" = self.get_job(model, agent, **kwargs)
-        return await jobs.run_async(
-            cache=c,
-            disable_remote_cache=disable_remote_cache,
-            disable_remote_inference=disable_remote_inference,
-        )
+        return await jobs.run_async(cache=c)
 
     def run(self, *args, **kwargs) -> "Results":
         """Turn the survey into a Job and runs it.
