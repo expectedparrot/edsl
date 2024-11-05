@@ -1255,6 +1255,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     ):
         """Run the survey with default model, taking the required survey as arguments.
 
+        >>> import asyncio
         >>> from edsl.questions import QuestionFunctional
         >>> def f(scenario, agent_traits): return "yes" if scenario["period"] == "morning" else "no"
         >>> q = QuestionFunctional(question_name = "q0", func = f)
@@ -1262,6 +1263,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         >>> async def test_run_async(): result = await s.run_async(period="morning"); print(result.select("answer.q0").first())
         >>> asyncio.run(test_run_async())
         'yes'
+        >>> import asyncio
         >>> from edsl.questions import QuestionFunctional
         >>> def f(scenario, agent_traits): return "yes" if scenario["period"] == "morning" else "no"
         >>> q = QuestionFunctional(question_name = "q0", func = f)
