@@ -1263,7 +1263,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         >>> s = Survey([QuestionFreeText.example()])
         >>> from edsl.language_models import LanguageModel
         >>> m = LanguageModel.example(test_model = True, canned_response = "Great!")
-        >>> results = s.by(m).run(cache = False)
+        >>> results = s.by(m).run(cache = False, disable_remote_cache = True, disable_remote_inference = True)
         >>> results.select('answer.*')
         Dataset([{'answer.how_are_you': ['Great!']}])
         """
