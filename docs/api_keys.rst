@@ -6,7 +6,7 @@ API Keys
 API keys are required to access the services of large language models (LLMs) such as OpenAI's GPTs, Google's Gemini, Anthropic's Claude, Llama 2, Groq and others.
 
 To access LLMs with EDSL you can either use *remote inference* or *local inference*.
-Remote inference allows you to run surveys on the Expected Parrot server with any available models while local inference allows you to run surveys on your own machine using your own API keys for models.
+Remote inference allows you to run surveys on the Expected Parrot server with available models while local inference allows you to run surveys on your own machine using your own API keys for models.
 
 
 | ***Special note for Colab users:***
@@ -16,7 +16,7 @@ Remote inference allows you to run surveys on the Expected Parrot server with an
 Remote inference 
 ^^^^^^^^^^^^^^^^
 
-This method allows you to run EDSL surveys on the Expected Parrot server instead of your local machine, and avoid managing your own API keys for different LLM providers.
+This method allows you to purchase credits to run EDSL surveys on the Expected Parrot server instead of your local machine, and avoid managing your own API keys for different LLM providers.
 
 To use remote inference you must activate it at your `Coop <https://www.expectedparrot.com/home/api>`_ account and store your Expected Parrot API key in a `.env` file in your EDSL working directory.
 Your `.env` file should include the following line (replace `your_key_here` with your actual Expected Parrot API key from your Coop account):
@@ -26,7 +26,7 @@ Your `.env` file should include the following line (replace `your_key_here` with
    EXPECTED_PARROT_API_KEY='your_key_here'
 
 
-Please see the :ref:`remote_inference` section for more details.
+Please see the :ref:`remote_inference` section for more details on how to use remote inference with EDSL, and the :ref:`credits` section for information on purchasing and calculating credit costs.
 
 
 Local inference 
