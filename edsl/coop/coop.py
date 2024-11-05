@@ -97,31 +97,31 @@ class Coop:
         if response.status_code >= 400:
             message = response.json().get("detail")
             # print(response.text)
-            # if "The API key you provided is invalid" in message:
-            #     import secrets
-            #     from edsl.utilities.utilities import write_api_key_to_env
+            if "The API key you provided is invalid" in message:
+                import secrets
+                from edsl.utilities.utilities import write_api_key_to_env
 
-            #     edsl_auth_token = secrets.token_urlsafe(16)
+                edsl_auth_token = secrets.token_urlsafe(16)
 
-            #     print("Your Expected Parrot API key is invalid.")
-            #     print(
-            #         "\nUse the link below to log in to Expected Parrot so we can automatically update your API key."
-            #     )
-            #     print(
-            #         f"{CONFIG.EXPECTED_PARROT_URL}/login?edsl_auth_token={edsl_auth_token}\n"
-            #     )
-            #     api_key = self._poll_for_api_key(edsl_auth_token)
+                print("Your Expected Parrot API key is invalid.")
+                print(
+                    "\nUse the link below to log in to Expected Parrot so we can automatically update your API key."
+                )
+                print(
+                    f"{CONFIG.EXPECTED_PARROT_URL}/login?edsl_auth_token={edsl_auth_token}\n"
+                )
+                api_key = self._poll_for_api_key(edsl_auth_token)
 
-            #     if api_key is None:
-            #         print("\nTimed out waiting for login. Please try again.")
-            #         return
+                if api_key is None:
+                    print("\nTimed out waiting for login. Please try again.")
+                    return
 
-            #     write_api_key_to_env(api_key)
-            #     print("\n✨ API key retrieved and written to .env file.")
-            #     print("Rerun your code to try again with a valid API key.")
-            #     return
+                write_api_key_to_env(api_key)
+                print("\n✨ API key retrieved and written to .env file.")
+                print("Rerun your code to try again with a valid API key.")
+                return
 
-            if "Authorization" in message:
+            elif "Authorization" in message:
                 print(message)
                 message = "Please provide an Expected Parrot API key."
 
