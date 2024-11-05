@@ -114,6 +114,7 @@ Coop
 `Coop <https://www.expectedparrot.com/content/explore>`_ is a platform for creating, storing and sharing AI-based research.
 It is fully integrated with EDSL and provides access to special features for working with AI agents and language models, storage and collaboration tools, including:
 
+- :ref:`credits`: Get credits to use remote inference.
 - :ref:`remote_inference`: Run surveys with any available models on the Expected Parrot server. 
 - :ref:`remote_caching`: Automatically store results and API calls on the Expected Parrot server. 
 - :ref:`survey_builder`: Design and launch hybrid human-AI surveys.
@@ -210,6 +211,7 @@ Links
    :hidden:
 
    coop
+   credits
    notebooks
    remote_inference
    remote_caching
