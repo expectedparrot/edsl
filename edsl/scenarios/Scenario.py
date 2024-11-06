@@ -216,6 +216,23 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
                 new_scenario[key] = self[key]
         return new_scenario
 
+    def keep(self, list_of_keys: List[str]) -> "Scenario":
+        """Keep a subset of keys from a scenario.
+
+        :param list_of_keys: The keys to keep.
+
+        Example:
+
+        >>> s = Scenario({"food": "wood chips", "drink": "water"})
+        >>> s.keep(["food"])
+        Scenario({'food': 'wood chips'})
+        """
+        new_scenario = Scenario()
+        for key in self.keys():
+            if key in list_of_keys:
+                new_scenario[key] = self[key]
+        return new_scenario
+
     @classmethod
     def from_url(cls, url: str, field_name: Optional[str] = "text") -> "Scenario":
         """Creates a scenario from a URL.
