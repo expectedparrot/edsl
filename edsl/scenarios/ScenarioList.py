@@ -538,6 +538,17 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         """
         return ScenarioList([scenario.drop(fields) for scenario in self.data])
 
+    def keep(self, *fields) -> ScenarioList:
+        """Keep only the specified fields in the scenarios.
+
+        Example:
+
+        >>> s = ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
+        >>> s.keep('a')
+        ScenarioList([Scenario({'a': 1}), Scenario({'a': 1})])
+        """
+        return ScenarioList([scenario.keep(fields) for scenario in self.data])
+
     @classmethod
     def from_list(
         cls, name: str, values: list, func: Optional[Callable] = None
