@@ -9,7 +9,7 @@ To access these methods in Colab, please first complete the following steps to s
 
 
 1. Store your API key as a secret
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+---------------------------------
 
 In Google Colab, your API keys can be stored as "secrets" in lieu of storing them in a *.env* file as you would in other notebook types.
 
@@ -27,7 +27,7 @@ For example, you can store your Expected Parrot API key as follows:
   
 
 2. Install EDSL
-^^^^^^^^^^^^^^^
+---------------
 
 Run the following command in a code cell to install the EDSL package:
 
@@ -37,7 +37,7 @@ Run the following command in a code cell to install the EDSL package:
 
 
 3. Access your API key
-^^^^^^^^^^^^^^^^^^^^^^
+----------------------
 
 Run the following code to access your API key in your Colab notebook:
 
@@ -50,7 +50,7 @@ Run the following code to access your API key in your Colab notebook:
 
 
 4. Connect your Google Drive
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+----------------------------
 
 To access your files in Google Drive, you need to connect your Google Drive to Colab.
 Run the following code to do this, and accept the permissions request in the pop-up window:
@@ -71,7 +71,7 @@ You will see the following message returned:
 
 
 5. Access your files
-^^^^^^^^^^^^^^^^^^^^
+--------------------
 
 Run the following code to see the names of all the files in a Google Drive folder
 
@@ -93,7 +93,7 @@ Sample output:
 
 
 6. Post a notebook to Coop
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+--------------------------
 
 Now that you have your notebook ready, you can post it to Coop using the `Notebook` object.
 Modify the path to your notebook file path in your Google Drive as needed:
@@ -121,7 +121,7 @@ Example output:
 
 
 7. Update or edit a notebook at Coop
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+------------------------------------
 
 .. code:: python
 
