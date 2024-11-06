@@ -5,11 +5,11 @@ Colab Setup
 
 All of the examples, tutorials and demo notebooks in this documentation are designed to be executable in any type of Python notebook. 
 
-To run them in Colab, please follow these special instructions for technical setup:
+To run them in Colab, please follow the special instructions below for technical setup:
 
 
 1. Store your API key as a secret
----------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 In Google Colab, your API keys can be stored as "secrets" in lieu of storing them in a *.env* file as you would in other notebook types.
 
@@ -27,7 +27,7 @@ For example, you can store your Expected Parrot API key as follows:
   
 
 2. Install EDSL
----------------
+^^^^^^^^^^^^^^^
 
 Run the following command in a code cell to install the EDSL package:
 
@@ -37,9 +37,9 @@ Run the following command in a code cell to install the EDSL package:
 
 
 3. Access your API key
-----------------------
+^^^^^^^^^^^^^^^^^^^^^^
 
-To access your API key in your code, use the following code snippet:
+Run the following code to access your API key in your Colab notebook:
 
 .. code:: python
 
