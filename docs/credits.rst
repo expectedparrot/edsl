@@ -16,7 +16,7 @@ Free credits
 
 Your Coop account comes with a balance of 100 free credits that you can use to run surveys with remote inference.
 
-| ***Are you using EDSL for a research project?*** 
+| *Are you using EDSL for a research project?*
 | Send an email to *info@expectedparrot.com* to request additional free credits.
 
 
@@ -36,6 +36,7 @@ To purchase credits, navigate to the `Credits <https://www.expectedparrot.com/ho
     <br><br>
 
 
+*Note:*
 Payments are processed by Stripe. 
 You may be charged payment processing feeds when purchasing credits.
 
@@ -44,9 +45,9 @@ Using credits
 -------------
 
 When you run a survey with remote inference, the number of credits consumed (and deducted from your balance) is displayed at the `remote inference page <https://www.expectedparrot.com/home/remote-inference>`_ of your Coop account.
-This number is calculated based on the cost of each response in the results, each of which is determined by the number of tokens in the input text and the output text of the response, which can be inspected in the raw response details (see example below).
+This number is equal to the sum of the cost in credit of each response in the results.
 
-The cost in credits for each response is calculated as follows:
+The cost in credits of a response is calculated as follows:
 
 - The number of input tokens is multiplied by the input token rate set by the language model service provider.
 - The number of output tokens is multiplied by the output token rate set by the language model service provider.
@@ -61,7 +62,8 @@ Example calculation
 - Output tokens: 45
 - Input token rate: USD 2.50 per 1M tokens
 - Output token rate: USD 10.00 per 1M tokens
-- Total cost: (16 * USD 2.50/1,000,000) + (45 * USD 10.00/1,000,000) = USD 0.00049 = 0.05 credits
+- Total cost: (16 * USD 2.50/1,000,000) + (45 * USD 10.00/1,000,000) = USD 0.00049 
+- Total credits: 0.05 credits
 
 
 Response details & token rates
@@ -70,12 +72,12 @@ Response details & token rates
 Details about a model's response are stored in the `raw_model_response` fields of the results dataset.
 For each question that was run, the following columns will appear in results:
 
-* **raw_model_response.<question_name>_cost**: The cost in USD for the API call to the language model service provider. (In the example above, this is USD 0.00049.)
+* **raw_model_response.<question_name>_cost**: The cost in USD for the API call to a language model service provider. (In the example above, this is USD 0.00049.)
 * **raw_model_response.<question_name>_one_usd_buys**: An estimate of the number of responses to the question that could be purchased with 1 USD (for reference).
-* **raw_model_response.<question_name>_raw_model_response**: A dictionary containing the raw response for the question, which includes the input text, output text, tokens and other information about the API call.
+* **raw_model_response.<question_name>_raw_model_response**: A dictionary containing the raw response for the question, which includes the input text and tokens, output text and tokens, and other information about the API call. This dictionary is specific to the language model service provider and may contain additional information about the response.
 
 
-For example, here we run a question with two models and inspect the raw model response information:
+For example, here we run a question with two models and inspect the raw model response information (note that the raw response formats are not identical):
 
 .. code-block:: python
 
@@ -181,7 +183,7 @@ In the raw model response information for the response from *gpt-4o*, we can see
     'prompt_tokens': 16
 
 
-The total cost is then calculated based on the token rates set by the OpenAI (at the time of writing, USD 2.50 per 1M tokens for input and USD 10.00 per 1M tokens for output):
+The total cost of the response is calculated based on the token rates set by the OpenAI (at the time of writing, USD 2.50 per 1M tokens for input and USD 10.00 per 1M tokens for output):
 
 .. code-block:: text
 
@@ -198,7 +200,7 @@ In the raw model response information for the response from *claude-3-5-sonnet-2
     'output_tokens': 198
 
 
-The total cost is then calculated based on the token rates set by Anthropic (at the time of writing, USD 3.00 per 1M tokens for input and USD 15.00 per 1M tokens for output):
+The total cost of the response is calculated based on the token rates set by Anthropic (at the time of writing, USD 3.00 per 1M tokens for input and USD 15.00 per 1M tokens for output):
 
 .. code-block:: text
 

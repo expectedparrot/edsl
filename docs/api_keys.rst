@@ -26,7 +26,7 @@ Your `.env` file should include the following line (replace `your_key_here` with
    EXPECTED_PARROT_API_KEY='your_key_here'
 
 
-Please see the :ref:`remote_inference` section for more details on how to use remote inference with EDSL, and the :ref:`credits` section for information on purchasing and calculating credit costs.
+Please see the :ref:`remote_inference` section for more details on how to use remote inference with EDSL, and the `Credits <https://docs.expectedparrot.com/en/latest/credits.html>`_ section for information on purchasing and calculating credit costs.
 
 
 Local inference 
@@ -36,7 +36,7 @@ You can access LLMs with EDSL on your own machine by providing your own API keys
 There are two ways of providing your own API keys to EDSL:
 
 
-**1. Using a .env file (*recommended*)**
+**1. Using a .env file (recommended)**
 
 Create a `.env` file in your EDSL working directory and populate it with your API keys.
 Replace `your_key_here` with your actual API key for each service that you plan to use:
