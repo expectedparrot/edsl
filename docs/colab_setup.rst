@@ -5,22 +5,20 @@ Colab Setup
 
 All of the examples, tutorials and demo notebooks in this documentation are designed to be executable in any type of Python notebook. 
 
-To run them in Colab, please follow these steps for setup:
+To run them in Colab, please follow these special instructions for technical setup:
 
 
 1. Store your API key as a secret
 ---------------------------------
 
-In Google Colab, you can store an API key as a secret. 
-This way, you can keep your API key secure and avoid exposing it in your code. 
-(This is in lieu of using a `.env` file with other notebook types.)
+In Google Colab, your API keys can be stored as "secrets" in lieu of storing them in a *.env* file as you would in other notebook types.
 
 For example, you can store your Expected Parrot API key as follows:
 
-.. image:: static/colab_remote_inference_annotated_secret.png
+.. image:: static/colab_keys_secrets.png
   :alt: Storing API key in Google Colab
   :align: center
-  :width: 75%
+  :width: 80%
   
 
 .. raw:: html
@@ -48,14 +46,17 @@ To access your API key in your code, use the following code snippet:
     import os
     from google.colab import userdata
 
-    os.environ['EXPECTED_PARROT_API_KEY'] = userdata.get('EXPECTED_PARROT_API_KEY') # Replace with your secret key name
+    os.environ['EXPECTED_PARROT_API_KEY'] = userdata.get('EXPECTED_PARROT_API_KEY') 
 
 
+Example Colab code 
+------------------
 
-Here's a snapshot of how your Colab code might look.
-Note that you can install EDSL using pip or Git:
+EDSL methods for creating objects and posting them to the Coop are now available to you in Colab.
 
-.. image:: static/colab_remote_inference_annotated.png
+Here's a snapshot of how your Colab code might look:
+
+.. image:: static/colab_sample_code.png
   :alt: Storing and using API key in Google Colab
   :align: center
   :width: 80%
@@ -63,4 +64,10 @@ Note that you can install EDSL using pip or Git:
 
 .. raw:: html
 
-  <br>
+  <br><br>
+
+
+Posting Colab notebooks to Coop
+-------------------------------
+
+Special instructions for connecting your Google Drive to post Colab notebooks to Coop are available in the :ref:`colab_notebooks` section.

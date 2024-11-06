@@ -5,19 +5,20 @@ Colab Notebooks
 
 All of the methods for working with notebooks in EDSL are available in Colab.
 
-To access these methods in Colab, please first complete the following steps:
+To access these methods in Colab, please first complete the following steps to set up EDSL and connect your Google Drive:
 
 
 1. Store your API key as a secret
 ---------------------------------
 
-In Google Colab, your API keys can be stored as "secrets" in lieu of storing them in a *.env* file as you would in otherwise notebook types.
-See `specail instructions <https://docs.expectedparrot.com/en/latest/colab_setup.html>`_ for doing this.
+In Google Colab, your API keys can be stored as "secrets" in lieu of storing them in a *.env* file as you would in other notebook types.
 
-.. image:: static/colab_remote_inference_annotated_secret.png
+For example, you can store your Expected Parrot API key as follows:
+
+.. image:: static/colab_keys_secrets.png
   :alt: Storing API key in Google Colab
   :align: center
-  :width: 75%
+  :width: 80%
   
 
 .. raw:: html
@@ -51,7 +52,7 @@ To access your API key in your code, use the following code snippet:
 4. Connect your Google Drive
 ----------------------------
 
-To access your files in Google Drive, you need to connect your Google Drive to Colab.
+To access your files in Google Drive, you need to connect your Google Drive to Colab:
 
 .. code:: python
 
@@ -106,7 +107,8 @@ Example output:
 
 
 
-7. Update or edit a Coop object
+7. Update or edit a notebook at Coop
+------------------------------------
 
 .. code:: python
 
@@ -135,7 +137,7 @@ Example Colab code
 .. image:: static/colab_notebooks.png
   :alt: Posting a Colab notebook to Coop
   :align: center
-  :width: 75%
+  :width: 80%
   
 
 .. raw:: html
