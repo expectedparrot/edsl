@@ -9,7 +9,7 @@ To run them in Colab, please follow the special instructions below for technical
 
 
 1. Store your API key as a secret
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+---------------------------------
 
 In Google Colab, your API keys can be stored as "secrets" in lieu of storing them in a *.env* file as you would in other notebook types.
 
@@ -27,7 +27,7 @@ For example, you can store your Expected Parrot API key as follows:
   
 
 2. Install EDSL
-^^^^^^^^^^^^^^^
+---------------
 
 Run the following command in a code cell to install the EDSL package:
 
@@ -37,7 +37,7 @@ Run the following command in a code cell to install the EDSL package:
 
 
 3. Access your API key
-^^^^^^^^^^^^^^^^^^^^^^
+----------------------
 
 Run the following code to access your API key in your Colab notebook:
 
