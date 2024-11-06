@@ -52,7 +52,8 @@ Run the following code to access your API key in your Colab notebook:
 4. Connect your Google Drive
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To access your files in Google Drive, you need to connect your Google Drive to Colab:
+To access your files in Google Drive, you need to connect your Google Drive to Colab.
+Run the following code to do this, and accept the permissions request in the pop-up window:
 
 .. code:: python
 
@@ -73,8 +74,9 @@ You will see the following message returned:
 ^^^^^^^^^^^^^^^^^^^^
 
 Run the following code to see the names of all the files in a Google Drive folder
-(note that you will need to replace the path with the path to your own folder, 
-and you may need to adjust the path to match the structure of your Google Drive):
+
+Note that you will need to replace the path with the path to your own folder, and you may need to adjust the path to match the structure of your Google Drive
+(e.g., here the default Google Drive folder name "Colab Notebooks" has been changed to "ColabNotebooks" for convenience in specifying the path):
 
 .. code:: python
 
