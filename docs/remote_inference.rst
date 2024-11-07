@@ -90,10 +90,10 @@ Your results are provided as an EDSL object for you to view, pull and share with
 Job details and costs 
 ---------------------
 
-When you run a job, you will be charged credits based on the number of tokens used. 
+When you run a job, you are charged credits based on the number of tokens used. 
 
-Before running a job, you can estimate the job cost by calling the `estimate_job_cost()` method on the `Job` object (a survey combined with one or more models).
-This will return information about the estimated total cost, input tokens, output tokens, and model costs:
+Before running a job, you can estimate the cost of the job by calling the `estimate_job_cost()` method on the `Job` object (a survey combined with one or more models).
+This will return information about the estimated total cost, input tokens, output tokens, and per-model costs:
 
 Example:
 
