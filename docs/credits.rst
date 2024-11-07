@@ -16,8 +16,9 @@ Free credits
 
 Your Coop account comes with a balance of 100 free credits that you can use to run surveys with remote inference.
 
-| *Are you using EDSL for a research project?*
-| Send an email to *info@expectedparrot.com* to request additional free credits.
+*Are you using EDSL for a research project?*
+
+Send an email to *info@expectedparrot.com* to request additional free credits.
 
 
 Purchasing credits
