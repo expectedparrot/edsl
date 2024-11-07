@@ -190,6 +190,8 @@ Links
    installation
    api_keys
    colab_setup
+   estimating_costs
+   credits
 
 .. toctree::
    :maxdepth: 2
@@ -220,7 +222,6 @@ Links
    :hidden:
 
    coop
-   credits
    notebooks
    colab_notebooks
    remote_inference
@@ -240,6 +241,7 @@ Links
    :hidden:
 
    notebooks/edsl_intro.ipynb
+   notebooks/estimating_costs.ipynb
    notebooks/analyze_customer_call.ipynb
    notebooks/updating_agents.ipynb
    notebooks/save_load_objects_locally.ipynb
