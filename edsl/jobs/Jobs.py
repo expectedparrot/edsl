@@ -193,7 +193,7 @@ class Jobs(Base):
                     inference_service=invigilator.model._inference_service_,
                     model=invigilator.model.model,
                 )
-                costs.append(prompt_cost["cost"])
+                costs.append(prompt_cost["cost_usd"])
 
         d = Dataset(
             [
