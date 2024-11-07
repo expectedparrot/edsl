@@ -92,7 +92,8 @@ Job details and costs
 
 When you run a job, you will be charged credits based on the number of tokens used. 
 
-Before running a job, you can estimate the tokens and cost by calling the `estimate_job_cost()` method on the job object (a survey combined with a model).
+Before running a job, you can estimate the job cost by calling the `estimate_job_cost()` method on the `Job` object (a survey combined with one or more models).
+This will return information about the estimated total cost, input tokens, output tokens, and model costs:
 
 Example:
 
@@ -112,15 +113,36 @@ Output:
 
 .. code-block:: text
 
-  {'estimated_total_cost': 0.00013874999999999998,
-  'estimated_total_input_tokens': 185,
-  'estimated_total_output_tokens': 185,
-  'model_costs': [{'inference_service': 'openai',
-    'model': 'gpt-4o',
-    'estimated_cost': 0.00013874999999999998,
-    'estimated_input_tokens': 185,
-    'estimated_output_tokens': 185}]}
+  {'estimated_total_cost': 0.0018625,
+   'estimated_total_input_tokens': 185,
+   'estimated_total_output_tokens': 140,
+   'model_costs': [{'inference_service': 'openai',
+     'model': 'gpt-4o',
+     'estimated_cost': 0.0018625,
+     'estimated_input_tokens': 185,
+     'estimated_output_tokens': 140}]}
 
+
+You can also estimate the cost in credits to run the job remotely by passing the job to the `remote_inference_cost()` method of a `Coop` client object:
+
+.. code-block:: python
+
+  from edsl import Coop 
+
+  coop = Coop()
+
+  estimated_remote_inference_cost = coop.remote_inference_cost(job) # using the job object from above
+  estimated_remote_inference_cost
+
+
+Output:
+
+.. code-block:: text
+
+  {'credits': 0.24, 'usd': 0.00231}
+
+
+Details on these methods can be found in the :ref:`credits` section.
 
 After running a job, you can view the actual cost in your job history or by calling the `remote_inference_cost()` method and passing it the job UUID
 (this is distinct from the results UUID, and can be found in your job history page).
