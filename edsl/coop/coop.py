@@ -555,6 +555,7 @@ class Coop:
         description: Optional[str] = None,
         status: RemoteJobStatus = "queued",
         visibility: Optional[VisibilityType] = "unlisted",
+        initial_results_visibility: Optional[VisibilityType] = "unlisted",
         iterations: Optional[int] = 1,
     ) -> dict:
         """
@@ -583,6 +584,7 @@ class Coop:
                 "iterations": iterations,
                 "visibility": visibility,
                 "version": self._edsl_version,
+                "initial_results_visibility": initial_results_visibility,
             },
         )
         self._resolve_server_response(response)
