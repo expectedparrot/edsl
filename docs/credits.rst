@@ -251,7 +251,7 @@ Before running a survey, you can estimate the tokens and costs (in USD and credi
 
     This will return the total estimated cost in USD, the total estimated input and output tokens, and estimated costs and tokens for each inference service and model used. 
 
-* Call the `remote_job_cost()` method on a `Coop` client object and pass it the job.
+* Call the `remote_inference_cost()` method on a `Coop` client object and pass it the job.
 
     This will return the estimated cost in credits and USD. (Credits are required to run surveys remotely.)
 
@@ -304,7 +304,7 @@ Output:
 
 The `estimated_total_cost` is the total cost in USD to run the job, and the `estimated_total_input_tokens` and `estimated_total_output_tokens` are the estimated total input and output tokens, respectively for all the prompts in the survey.
 
-To get the estimated cost in credits to run the job remotely we can call the `remote_job_cost()` method on a `Coop` client object and pass it the job:
+To get the estimated cost in credits to run the job remotely we can call the `remote_inference_cost()` method on a `Coop` client object and pass it the job:
 
 .. code-block:: python
 

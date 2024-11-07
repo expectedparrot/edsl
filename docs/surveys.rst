@@ -845,10 +845,10 @@ Estimated costs
 ^^^^^^^^^^^^^^^
 
 Before running a survey, you can estimate the cost in USD of running the survey by calling the `estimate_job_cost()` method on a `Job` object (a survey combined with one or more models).
-This method returns a dictionary with the estimated costs and estimated tokens for each model used with the survey.
+This method returns a dictionary with the estimated costs and tokens for each model used with the survey.
 You can also estimate credits needed to run a survey remotely at the Expected Parrot server by passing the job to the `remote_inference_cost()` method of a `Coop` client object.
 
-For example:
+Example:
 
 .. code-block:: python
 
