@@ -193,7 +193,7 @@ class Jobs(Base):
                     inference_service=invigilator.model._inference_service_,
                     model=invigilator.model.model,
                 )
-                costs.append(prompt_cost["cost"])
+                costs.append(prompt_cost["cost_usd"])
 
         d = Dataset(
             [
@@ -241,10 +241,25 @@ class Jobs(Base):
 
         try:
             relevant_prices = price_lookup[key]
-            output_price_per_token = 1 / float(
-                relevant_prices["output"]["one_usd_buys"]
+
+            service_input_token_price = float(
+                relevant_prices["input"]["service_stated_token_price"]
             )
-            input_price_per_token = 1 / float(relevant_prices["input"]["one_usd_buys"])
+            service_input_token_qty = float(
+                relevant_prices["input"]["service_stated_token_qty"]
+            )
+            input_price_per_token = service_input_token_price / service_input_token_qty
+
+            service_output_token_price = float(
+                relevant_prices["output"]["service_stated_token_price"]
+            )
+            service_output_token_qty = float(
+                relevant_prices["output"]["service_stated_token_qty"]
+            )
+            output_price_per_token = (
+                service_output_token_price / service_output_token_qty
+            )
+
         except KeyError:
             # A KeyError is likely to occur if we cannot retrieve prices (the price_lookup dict is empty)
             # Use a sensible default
@@ -254,9 +269,8 @@ class Jobs(Base):
             warnings.warn(
                 "Price data could not be retrieved. Using default estimates for input and output token prices. Input: $0.15 / 1M tokens; Output: $0.60 / 1M tokens"
             )
-
-            output_price_per_token = 0.00000015  # $0.15 / 1M tokens
-            input_price_per_token = 0.00000060  # $0.60 / 1M tokens
+            input_price_per_token = 0.00000015  # $0.15 / 1M tokens
+            output_price_per_token = 0.00000060  # $0.60 / 1M tokens
 
         # Compute the number of characters (double if the question involves piping)
         user_prompt_chars = len(str(user_prompt)) * get_piping_multiplier(
@@ -279,7 +293,7 @@ class Jobs(Base):
         return {
             "input_tokens": input_tokens,
             "output_tokens": output_tokens,
-            "cost": cost,
+            "cost_usd": cost,
         }
 
     def estimate_job_cost_from_external_prices(
@@ -326,7 +340,7 @@ class Jobs(Base):
                         "system_prompt": system_prompt,
                         "estimated_input_tokens": prompt_cost["input_tokens"],
                         "estimated_output_tokens": prompt_cost["output_tokens"],
-                        "estimated_cost": prompt_cost["cost"],
+                        "estimated_cost_usd": prompt_cost["cost_usd"],
                         "inference_service": inference_service,
                         "model": model,
                     }
@@ -338,21 +352,21 @@ class Jobs(Base):
             df.groupby(["inference_service", "model"])
             .agg(
                 {
-                    "estimated_cost": "sum",
+                    "estimated_cost_usd": "sum",
                     "estimated_input_tokens": "sum",
                     "estimated_output_tokens": "sum",
                 }
             )
             .reset_index()
         )
-        df["estimated_cost"] = df["estimated_cost"] * iterations
+        df["estimated_cost_usd"] = df["estimated_cost_usd"] * iterations
         df["estimated_input_tokens"] = df["estimated_input_tokens"] * iterations
         df["estimated_output_tokens"] = df["estimated_output_tokens"] * iterations
 
         estimated_costs_by_model = df.to_dict("records")
 
         estimated_total_cost = sum(
-            model["estimated_cost"] for model in estimated_costs_by_model
+            model["estimated_cost_usd"] for model in estimated_costs_by_model
         )
         estimated_total_input_tokens = sum(
             model["estimated_input_tokens"] for model in estimated_costs_by_model
@@ -362,7 +376,7 @@ class Jobs(Base):
         )
 
         output = {
-            "estimated_total_cost": estimated_total_cost,
+            "estimated_total_cost_usd": estimated_total_cost,
             "estimated_total_input_tokens": estimated_total_input_tokens,
             "estimated_total_output_tokens": estimated_total_output_tokens,
             "model_costs": estimated_costs_by_model,
