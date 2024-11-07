@@ -831,6 +831,105 @@ Output:
    │                            │                           │                            │ Media']                   │
    └────────────────────────────┴───────────────────────────┴────────────────────────────┴───────────────────────────┘
     
+   
+
+Costs 
+-----
+
+Before running a survey, you can estimate the cost of running the survey in USD and the number of credits needed to run it remotely at the Expected Parrot server.
+After running a survey, you can see details on the actual cost of each response in the results.
+The costs are calculated based on the estimated and actual number of tokens used in the survey and the model(s) used to generate the prompts.
+ 
+
+Estimated costs 
+^^^^^^^^^^^^^^^
+
+Before running a survey, you can estimate the cost in USD of running the survey by calling the `estimate_job_cost()` method on a `Job` object (a survey combined with one or more models).
+This method returns a dictionary with the estimated costs and estimated tokens for each model used with the survey.
+You can also estimate credits needed to run a survey remotely at the Expected Parrot server by passing the job to the `remote_inference_cost()` method of a `Coop` client object.
+
+For example:
+
+.. code-block:: python
+
+    from edsl import QuestionFreeText, Survey, Agent, Model
+
+    q0 = QuestionFreeText(
+        question_name = "favorite_flower",
+        question_text = "What is the name of your favorite flower?"
+    )
+    q1 = QuestionFreeText(
+        question_name = "flower_color",
+        question_text = "What color is {{ favorite_flower.answer }}?"
+    )
+
+    survey = Survey(questions = [q0, q1])
+
+    a = Agent(traits = {"persona":"You are a botanist on Cape Cod."})
+
+    m = Model("gpt-4o")
+
+    job = survey.by(a).by(m)
+
+    estimated_job_cost = job.estimate_job_cost()
+    estimated_job_cost
+
+
+Output:
+
+.. code-block:: text
+
+    {'estimated_total_cost': 0.0009175000000000001,
+     'estimated_total_input_tokens': 91,
+     'estimated_total_output_tokens': 69,
+     'model_costs': [{'inference_service': 'openai',
+       'model': 'gpt-4o',
+       'estimated_cost': 0.0009175000000000001,
+       'estimated_input_tokens': 91,
+       'estimated_output_tokens': 69}]}
+
+
+To get the estimated cost in credits to run the job remotely:
+
+.. code-block:: python
+
+   from edsl import Coop
+
+   coop = Coop()
+
+   estimated_remote_inference_cost = coop.remote_inference_cost(job) # using the job object from above
+   estimated_remote_inference_cost
+
+
+Output:
+
+.. code-block:: text
+
+   {'credits': 0.1, 'usd': 0.00092}    
+
+
+Details of the calculations for these methods can be found in the :ref:`credits` section.
+
+
+Actual costs 
+^^^^^^^^^^^^
+
+The actual costs of running a survey are stored in the survey results.
+Details about the cost of each response can be accessed in the `raw_model_response` fields of the results dataset.
+For each question that was run, the following columns will appear in results:
+
+* **raw_model_response.<question_name>_cost**: The cost in USD for the API call to a language model service provider. 
+* **raw_model_response.<question_name>_one_usd_buys**: The number of tokens that can be purchased with 1 USD (for reference).
+* **raw_model_response.<question_name>_raw_model_response**: A dictionary containing the raw response for the question, which includes the input text and tokens, output text and tokens, and other information about the API call. This dictionary is specific to the language model service provider and may contain additional information about the response.
+
+The cost in credits of a response is calculated as follows:
+
+- The number of input tokens is multiplied by the input token rate set by the language model service provider.
+- The number of output tokens is multiplied by the output token rate set by the language model service provider.
+- The total cost in USD is converted to credits (1 USD = 100 credits).
+- The total cost in credits is rounded up to the nearest 1/100th of a credit.
+
+To learn more about these methods and calculations, please see the :ref:`credits` section.
 
 
 Survey class
