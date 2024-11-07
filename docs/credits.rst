@@ -312,8 +312,8 @@ To get the estimated cost in credits to run the job remotely we can call the `re
 
     coop = Coop()
 
-    estimated_remote_cost = coop.remote_inference_cost(job) # using the job from the previous example
-    estimated_remote_cost
+    estimated_remote_inference_cost = coop.remote_inference_cost(job) # using the job object from above
+    estimated_remote_inference_cost
 
 
 Output:
