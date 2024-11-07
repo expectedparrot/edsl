@@ -241,10 +241,25 @@ class Jobs(Base):
 
         try:
             relevant_prices = price_lookup[key]
-            output_price_per_token = 1 / float(
-                relevant_prices["output"]["one_usd_buys"]
+
+            service_input_token_price = float(
+                relevant_prices["input"]["service_stated_token_price"]
             )
-            input_price_per_token = 1 / float(relevant_prices["input"]["one_usd_buys"])
+            service_input_token_qty = float(
+                relevant_prices["input"]["service_stated_token_qty"]
+            )
+            input_price_per_token = service_input_token_price / service_input_token_qty
+
+            service_output_token_price = float(
+                relevant_prices["output"]["service_stated_token_price"]
+            )
+            service_output_token_qty = float(
+                relevant_prices["output"]["service_stated_token_qty"]
+            )
+            output_price_per_token = (
+                service_output_token_price / service_output_token_qty
+            )
+
         except KeyError:
             # A KeyError is likely to occur if we cannot retrieve prices (the price_lookup dict is empty)
             # Use a sensible default
