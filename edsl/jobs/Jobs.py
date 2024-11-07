@@ -254,9 +254,8 @@ class Jobs(Base):
             warnings.warn(
                 "Price data could not be retrieved. Using default estimates for input and output token prices. Input: $0.15 / 1M tokens; Output: $0.60 / 1M tokens"
             )
-
-            output_price_per_token = 0.00000015  # $0.15 / 1M tokens
-            input_price_per_token = 0.00000060  # $0.60 / 1M tokens
+            input_price_per_token = 0.00000015  # $0.15 / 1M tokens
+            output_price_per_token = 0.00000060  # $0.60 / 1M tokens
 
         # Compute the number of characters (double if the question involves piping)
         user_prompt_chars = len(str(user_prompt)) * get_piping_multiplier(
