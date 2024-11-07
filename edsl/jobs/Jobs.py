@@ -3,9 +3,10 @@ from __future__ import annotations
 import warnings
 import requests
 from itertools import product
-from typing import Optional, Union, Sequence, Generator
+from typing import Literal, Optional, Union, Sequence, Generator
 
 from edsl.Base import Base
+
 from edsl.exceptions import MissingAPIKeyError
 from edsl.jobs.buckets.BucketCollection import BucketCollection
 from edsl.jobs.interviews.Interview import Interview
@@ -699,7 +700,10 @@ class Jobs(Base):
         return self._raise_validation_errors
 
     def create_remote_inference_job(
-        self, iterations: int = 1, remote_inference_description: Optional[str] = None
+        self,
+        iterations: int = 1,
+        remote_inference_description: Optional[str] = None,
+        remote_inference_results_visibility: Optional[VisibilityType] = "unlisted",
     ):
         """ """
         from edsl.coop.coop import Coop
@@ -711,6 +715,7 @@ class Jobs(Base):
             description=remote_inference_description,
             status="queued",
             iterations=iterations,
+            initial_results_visibility=remote_inference_results_visibility,
         )
         job_uuid = remote_job_creation_data.get("uuid")
         print(f"Job sent to server. (Job uuid={job_uuid}).")
@@ -910,6 +915,9 @@ class Jobs(Base):
         print_exceptions=True,
         remote_cache_description: Optional[str] = None,
         remote_inference_description: Optional[str] = None,
+        remote_inference_results_visibility: Optional[
+            Literal["private", "public", "unlisted"]
+        ] = "unlisted",
         skip_retry: bool = False,
         raise_validation_errors: bool = False,
         disable_remote_cache: bool = False,
@@ -926,6 +934,7 @@ class Jobs(Base):
         :param verbose: Prints extra messages
         :param remote_cache_description: Specifies a description for this group of entries in the remote cache
         :param remote_inference_description: Specifies a description for the remote inference job
+        :param remote_inference_results_visibility: The initial visibility of the Results object on Coop. This will only be used for remote jobs!
         :param disable_remote_cache: If True, the job will not use remote cache. This only works for local jobs!
         :param disable_remote_inference: If True, the job will not use remote inference
         """
@@ -982,7 +991,9 @@ class Jobs(Base):
 
         if remote_inference := self.use_remote_inference(disable_remote_inference):
             remote_job_creation_data = self.create_remote_inference_job(
-                iterations=n, remote_inference_description=remote_inference_description
+                iterations=n,
+                remote_inference_description=remote_inference_description,
+                remote_inference_results_visibility=remote_inference_results_visibility,
             )
             results = self.poll_remote_inference_job(remote_job_creation_data)
             if results is None:
