@@ -9,12 +9,14 @@ To access LLMs with EDSL you can either use *remote inference* or *local inferen
 Remote inference allows you to run surveys on the Expected Parrot server with available models while local inference allows you to run surveys on your own machine using your own API keys for models.
 
 
-| ***Special note for Colab users:***
-| If you are using EDSL in a Colab notebook, please see `special instructions <https://docs.expectedparrot.com/en/latest/colab_setup.html>`_ on storing API keys as "secrets" in lieu of storing them in a `.env` file as described below (:ref:`colab_setup`).
+Special note for Colab users
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you are using EDSL in a Colab notebook, please see `special instructions <https://docs.expectedparrot.com/en/latest/colab_setup.html>`_ on storing API keys as "secrets" in lieu of storing them in a `.env` file as described below (:ref:`colab_setup`).
 
 
 Remote inference 
-^^^^^^^^^^^^^^^^
+----------------
 
 This method allows you to purchase credits to run EDSL surveys on the Expected Parrot server instead of your local machine, and avoid managing your own API keys for different LLM providers.
 
@@ -30,7 +32,7 @@ Please see the :ref:`remote_inference` section for more details on how to use re
 
 
 Local inference 
-^^^^^^^^^^^^^^^
+---------------
 
 You can access LLMs with EDSL on your own machine by providing your own API keys for LLMs.
 There are two ways of providing your own API keys to EDSL:

@@ -126,7 +126,8 @@ It is fully integrated with EDSL and provides access to special features for wor
 - :ref:`remote_inference`: Run surveys with any available models on the Expected Parrot server. 
 - :ref:`remote_caching`: Automatically store results and API calls on the Expected Parrot server. 
 - :ref:`survey_builder`: Design and launch hybrid human-AI surveys.
-- :ref:`notebooks`: Post `.ipynb` and `.py` files to the Coop. 
+- :ref:`notebooks` & :ref:`colab_notebooks`: Post `.ipynb` and `.py` files to the Coop. 
+
 - :ref:`filestore`: Store and share data files for use in EDSL projects.
 
 | `Log in <https://www.expectedparrot.com/login>`_ to access Coop. 
@@ -189,6 +190,8 @@ Links
    installation
    api_keys
    colab_setup
+   estimating_costs
+   credits
 
 .. toctree::
    :maxdepth: 2
@@ -219,8 +222,8 @@ Links
    :hidden:
 
    coop
-   credits
    notebooks
+   colab_notebooks
    remote_inference
    remote_caching
    filestore
@@ -238,6 +241,7 @@ Links
    :hidden:
 
    notebooks/edsl_intro.ipynb
+   notebooks/estimating_costs.ipynb
    notebooks/analyze_customer_call.ipynb
    notebooks/updating_agents.ipynb
    notebooks/save_load_objects_locally.ipynb
