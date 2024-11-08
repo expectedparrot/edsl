@@ -194,7 +194,7 @@ class Cache(Base):
         >>> c = Cache()
         >>> len(c)
         0
-        >>> results = Question.example("free_text").by(m).run(cache = c)
+        >>> results = Question.example("free_text").by(m).run(cache = c, disable_remote_cache = True, disable_remote_inference = True)
         >>> len(c)
         1
         """
