@@ -3,12 +3,14 @@
 
 ## [0.1.37] - TBD
 ### Added
+- Users can now log in with an EDSL auth token to retrieve their API key and write it to *.env*.
+
 ### Changed
-- Progress bar is now web-based. You still call it the same way: `run(progress_bar=True)`
+- The progress bar is now web-based. It is still called in the same way: `run(progress_bar=True)`
 
-- `AgentList.from_csv()` now allows you to include a CSV column "name" to pass an (optional) `name` to each `Agent` that is created from the CSV data. Other CSV columns are passed as agent `traits`. See an example:
+- The `AgentList` method `from_csv()` now allows you to include a CSV column "name" to pass an (optional) `name` to each `Agent` that is created from the CSV data. Other CSV columns are passed as agent `traits`. See an example:
 
-- The `run()` method of a job now takes a parameter `remote_inference_results_visibility` to set the visibility of results of jobs that are being run remotely. The allowed visibility settings are `public`, `private` and `unlisted` (the default setting is unlisted). This parameter has the same effect as passing the parameter `visibility` to the `push()` and `patch()` methods for posting and updating objects at the Coop. For example, these commands have the same effect when remote inference activated:
+- The `Job` method `run()` now takes a parameter `remote_inference_results_visibility` to set the visibility of results of jobs that are being run remotely. The allowed visibility settings are `public`, `private` and `unlisted` (the default setting is unlisted). This parameter has the same effect as passing the parameter `visibility` to the `push()` and `patch()` methods for posting and updating objects at the Coop. For example, these commands have the same effect when remote inference activated:
 
 ```
 Survey.example().run() 
