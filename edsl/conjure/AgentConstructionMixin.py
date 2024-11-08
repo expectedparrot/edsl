@@ -99,6 +99,8 @@ class AgentConstructionMixin:
         sample_size: int = None,
         seed: str = "edsl",
         dryrun=False,
+        disable_remote_cache: bool = False,
+        disable_remote_inference: bool = False,
     ) -> Union[Results, None]:
         """Return the results of the survey.
 
@@ -109,7 +111,7 @@ class AgentConstructionMixin:
 
         >>> from edsl.conjure.InputData import InputDataABC
         >>> id = InputDataABC.example()
-        >>> r = id.to_results()
+        >>> r = id.to_results(disable_remote_cache = True, disable_remote_inference = True)
         >>> len(r) == id.num_observations
         True
         """
@@ -125,7 +127,10 @@ class AgentConstructionMixin:
             import time
 
             start = time.time()
-            _ = survey.by(agent_list.sample(DRYRUN_SAMPLE)).run()
+            _ = survey.by(agent_list.sample(DRYRUN_SAMPLE)).run(
+                disable_remote_cache=disable_remote_cache,
+                disable_remote_inference=disable_remote_inference,
+            )
             end = time.time()
             print(f"Time to run {DRYRUN_SAMPLE} agents (s): {round(end - start, 2)}")
             time_per_agent = (end - start) / DRYRUN_SAMPLE
@@ -143,7 +148,10 @@ class AgentConstructionMixin:
                     f"Full sample will take about {round(full_sample_time / 3600, 2)} hours."
                 )
             return None
-        return survey.by(agent_list).run()
+        return survey.by(agent_list).run(
+            disable_remote_cache=disable_remote_cache,
+            disable_remote_inference=disable_remote_inference,
+        )
 
 
 if __name__ == "__main__":

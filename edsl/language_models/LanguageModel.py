@@ -492,7 +492,7 @@ class LanguageModel(
             params = {
                 "user_prompt": user_prompt,
                 "system_prompt": system_prompt,
-                "files_list": files_list
+                "files_list": files_list,
                 # **({"encoded_image": encoded_image} if encoded_image else {}),
             }
             # response = await f(**params)
@@ -699,7 +699,7 @@ class LanguageModel(
         True
         >>> from edsl import QuestionFreeText
         >>> q = QuestionFreeText(question_text = "What is your name?", question_name = 'example')
-        >>> q.by(m).run(cache = False).select('example').first()
+        >>> q.by(m).run(cache = False, disable_remote_cache = True, disable_remote_inference = True).select('example').first()
         'WOWZA!'
         """
         from edsl import Model

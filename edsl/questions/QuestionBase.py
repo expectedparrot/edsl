@@ -82,8 +82,7 @@ class QuestionBase(
         if not hasattr(self, "_fake_data_factory"):
             from polyfactory.factories.pydantic_factory import ModelFactory
 
-            class FakeData(ModelFactory[self.response_model]):
-                ...
+            class FakeData(ModelFactory[self.response_model]): ...
 
             self._fake_data_factory = FakeData
         return self._fake_data_factory
@@ -239,6 +238,8 @@ class QuestionBase(
         show_answer: bool = True,
         model: Optional["LanguageModel"] = None,
         cache=False,
+        disable_remote_cache: bool = False,
+        disable_remote_inference: bool = False,
         **kwargs,
     ):
         """Run an example of the question.
@@ -247,7 +248,7 @@ class QuestionBase(
         >>> m = Q._get_test_model(canned_response = "Yo, what's up?")
         >>> m.execute_model_call("", "")
         {'message': [{'text': "Yo, what's up?"}], 'usage': {'prompt_tokens': 1, 'completion_tokens': 1}}
-        >>> Q.run_example(show_answer = True, model = m)
+        >>> Q.run_example(show_answer = True, model = m, disable_remote_cache = True, disable_remote_inference = True)
         ┏━━━━━━━━━━━━━━━━┓
         ┃ answer         ┃
         ┃ .how_are_you   ┃
@@ -259,25 +260,48 @@ class QuestionBase(
             from edsl import Model
 
             model = Model()
-        results = cls.example(**kwargs).by(model).run(cache=cache)
+        results = (
+            cls.example(**kwargs)
+            .by(model)
+            .run(
+                cache=cache,
+                disable_remote_cache=disable_remote_cache,
+                disable_remote_inference=disable_remote_inference,
+            )
+        )
         if show_answer:
             results.select("answer.*").print()
         else:
             return results
 
-    def __call__(self, just_answer=True, model=None, agent=None, **kwargs):
+    def __call__(
+        self,
+        just_answer=True,
+        model=None,
+        agent=None,
+        disable_remote_cache: bool = False,
+        disable_remote_inference: bool = False,
+        **kwargs,
+    ):
         """Call the question.
 
 
         >>> from edsl import QuestionFreeText as Q
         >>> m = Q._get_test_model(canned_response = "Yo, what's up?")
         >>> q = Q(question_name = "color", question_text = "What is your favorite color?")
-        >>> q(model = m)
+        >>> q(model = m, disable_remote_cache = True, disable_remote_inference = True)
         "Yo, what's up?"
 
         """
         survey = self.to_survey()
-        results = survey(model=model, agent=agent, **kwargs, cache=False)
+        results = survey(
+            model=model,
+            agent=agent,
+            **kwargs,
+            cache=False,
+            disable_remote_cache=disable_remote_cache,
+            disable_remote_inference=disable_remote_inference,
+        )
         if just_answer:
             return results.select(f"answer.{self.question_name}").first()
         else:
@@ -308,7 +332,11 @@ class QuestionBase(
         Blue
         """
         survey = self.to_survey()
-        results = await survey.run_async(model=model, agent=agent, **kwargs)
+        results = await survey.run_async(
+            model=model,
+            agent=agent,
+            **kwargs,
+        )
         if just_answer:
             return results.select(f"answer.{self.question_name}").first()
         else:
