@@ -67,7 +67,11 @@ class InterviewExceptionEntry:
         m = LanguageModel.example(test_model=True)
         q = QuestionFreeText.example(exception_to_throw=ValueError)
         results = q.by(m).run(
-            skip_retry=True, print_exceptions=False, raise_validation_errors=True
+            skip_retry=True,
+            print_exceptions=False,
+            raise_validation_errors=True,
+            disable_remote_cache=True,
+            disable_remote_inference=True,
         )
         return results.task_history.exceptions[0]["how_are_you"][0]
 

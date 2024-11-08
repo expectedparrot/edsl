@@ -1219,32 +1219,58 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
     # region: Running the survey
 
-    def __call__(self, model=None, agent=None, cache=None, **kwargs):
+    def __call__(
+        self,
+        model=None,
+        agent=None,
+        cache=None,
+        disable_remote_cache: bool = False,
+        disable_remote_inference: bool = False,
+        **kwargs,
+    ):
         """Run the survey with default model, taking the required survey as arguments.
 
         >>> from edsl.questions import QuestionFunctional
         >>> def f(scenario, agent_traits): return "yes" if scenario["period"] == "morning" else "no"
         >>> q = QuestionFunctional(question_name = "q0", func = f)
         >>> s = Survey([q])
-        >>> s(period = "morning", cache = False).select("answer.q0").first()
+        >>> s(period = "morning", cache = False, disable_remote_cache = True, disable_remote_inference = True).select("answer.q0").first()
         'yes'
-        >>> s(period = "evening", cache = False).select("answer.q0").first()
+        >>> s(period = "evening", cache = False, disable_remote_cache = True, disable_remote_inference = True).select("answer.q0").first()
         'no'
         """
         job = self.get_job(model, agent, **kwargs)
-        return job.run(cache=cache)
+        return job.run(
+            cache=cache,
+            disable_remote_cache=disable_remote_cache,
+            disable_remote_inference=disable_remote_inference,
+        )
 
-    async def run_async(self, model=None, agent=None, cache=None, **kwargs):
+    async def run_async(
+        self,
+        model=None,
+        agent=None,
+        cache=None,
+        **kwargs,
+    ):
         """Run the survey with default model, taking the required survey as arguments.
 
+        >>> import asyncio
         >>> from edsl.questions import QuestionFunctional
         >>> def f(scenario, agent_traits): return "yes" if scenario["period"] == "morning" else "no"
         >>> q = QuestionFunctional(question_name = "q0", func = f)
         >>> s = Survey([q])
-        >>> s(period = "morning").select("answer.q0").first()
-        'yes'
-        >>> s(period = "evening").select("answer.q0").first()
-        'no'
+        >>> async def test_run_async(): result = await s.run_async(period="morning"); print(result.select("answer.q0").first())
+        >>> asyncio.run(test_run_async())
+        yes
+        >>> import asyncio
+        >>> from edsl.questions import QuestionFunctional
+        >>> def f(scenario, agent_traits): return "yes" if scenario["period"] == "morning" else "no"
+        >>> q = QuestionFunctional(question_name = "q0", func = f)
+        >>> s = Survey([q])
+        >>> async def test_run_async(): result = await s.run_async(period="evening"); print(result.select("answer.q0").first())
+        >>> asyncio.run(test_run_async())
+        no
         """
         # TODO: temp fix by creating a cache
         if cache is None:
@@ -1263,7 +1289,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         >>> s = Survey([QuestionFreeText.example()])
         >>> from edsl.language_models import LanguageModel
         >>> m = LanguageModel.example(test_model = True, canned_response = "Great!")
-        >>> results = s.by(m).run(cache = False)
+        >>> results = s.by(m).run(cache = False, disable_remote_cache = True, disable_remote_inference = True)
         >>> results.select('answer.*')
         Dataset([{'answer.how_are_you': ['Great!']}])
         """
