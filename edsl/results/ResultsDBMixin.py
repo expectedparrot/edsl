@@ -93,7 +93,7 @@ class ResultsDBMixin:
             from sqlalchemy import create_engine
 
             engine = create_engine("sqlite:///:memory:")
-            df = self.to_pandas(remove_prefix=remove_prefix)
+            df = self.to_pandas(remove_prefix=remove_prefix, lists_as_strings=True)
             df.to_sql("self", engine, index=False, if_exists="replace")
             return engine.connect()
         else:

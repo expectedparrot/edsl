@@ -39,6 +39,7 @@ class TaskHistory:
             skip_retry=True,
             cache=False,
             raise_validation_errors=True,
+            disable_remote_cache=True,
             disable_remote_inference=True,
         )
 

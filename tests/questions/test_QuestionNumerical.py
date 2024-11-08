@@ -70,6 +70,10 @@ def test_QuestionNumerical_construction():
         QuestionNumerical(**invalid_question)
 
 
+def remove_none_values(d):
+    return {k: v for k, v in d.items() if v is not None}
+
+
 def test_QuestionNumerical_serialization():
     """Test QuestionNumerical serialization."""
 
@@ -84,7 +88,10 @@ def test_QuestionNumerical_serialization():
     valid_question_wo_extras_w_type.update(
         {"question_type": "numerical", "min_value": None, "max_value": None}
     )
-    assert valid_question_wo_extras_w_type.items() <= q.to_dict().items()
+    assert (
+        remove_none_values(valid_question_wo_extras_w_type).items()
+        <= q.to_dict().items()
+    )
     # deserialization should return a QuestionNumericalEnhanced object
     q_lazarus = QuestionBase.from_dict(q.to_dict())
     assert isinstance(q_lazarus, QuestionNumerical)
