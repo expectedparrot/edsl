@@ -9,10 +9,6 @@ from edsl.questions import Settings
 from edsl.questions.QuestionCheckBox import QuestionCheckBox, main
 
 
-# def test_QuestionCheckBox_main():
-#     main()
-
-
 valid_question = {
     "question_text": "Which weekdays do you like? Select 2 or 3.",
     "question_options": ["Mon", "Tue", "Wed", "Thu", "Fri"],
@@ -142,8 +138,8 @@ def test_QuestionCheckBox_serialization():
         "question_name": "weekdays",
         "question_text": "Which weekdays do you like? Select 2 or 3.",
         "question_options": ["Mon", "Tue", "Wed", "Thu", "Fri"],
-        "min_selections": None,
-        "max_selections": None,
+        #        "min_selections": None,
+        #       "max_selections": None,
         "question_type": "checkbox",
     }.items() <= q_noextras.to_dict().items()
 
