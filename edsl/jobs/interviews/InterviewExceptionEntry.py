@@ -70,6 +70,7 @@ class InterviewExceptionEntry:
             skip_retry=True,
             print_exceptions=False,
             raise_validation_errors=True,
+            disable_remote_cache=True,
             disable_remote_inference=True,
         )
         return results.task_history.exceptions[0]["how_are_you"][0]
