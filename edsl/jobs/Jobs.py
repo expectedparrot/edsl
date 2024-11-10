@@ -727,6 +727,7 @@ class Jobs(Base):
         iterations: int = 1,
         remote_inference_description: Optional[str] = None,
         remote_inference_results_visibility: Optional[VisibilityType] = "unlisted",
+        verbose=False,
     ):
         """ """
         from edsl.coop.coop import Coop
@@ -741,7 +742,8 @@ class Jobs(Base):
             initial_results_visibility=remote_inference_results_visibility,
         )
         job_uuid = remote_job_creation_data.get("uuid")
-        print(f"Job sent to server. (Job uuid={job_uuid}).")
+        if verbose:
+            print(f"Job sent to server. (Job uuid={job_uuid}).")
         return remote_job_creation_data
 
     @staticmethod
@@ -752,7 +754,7 @@ class Jobs(Base):
         return coop.remote_inference_get(job_uuid)
 
     def poll_remote_inference_job(
-        self, remote_job_creation_data: dict
+        self, remote_job_creation_data: dict, verbose=False, poll_interval=5
     ) -> Union[Results, None]:
         from edsl.coop.coop import Coop
         import time
@@ -769,42 +771,46 @@ class Jobs(Base):
             remote_job_data = coop.remote_inference_get(job_uuid)
             status = remote_job_data.get("status")
             if status == "cancelled":
-                print("\r" + " " * 80 + "\r", end="")
-                print("Job cancelled by the user.")
-                print(
-                    f"See {expected_parrot_url}/home/remote-inference for more details."
-                )
+                if verbose:
+                    print("\r" + " " * 80 + "\r", end="")
+                    print("Job cancelled by the user.")
+                    print(
+                        f"See {expected_parrot_url}/home/remote-inference for more details."
+                    )
                 return None
             elif status == "failed":
-                print("\r" + " " * 80 + "\r", end="")
-                print("Job failed.")
-                print(
-                    f"See {expected_parrot_url}/home/remote-inference for more details."
-                )
+                if verbose:
+                    print("\r" + " " * 80 + "\r", end="")
+                    print("Job failed.")
+                    print(
+                        f"See {expected_parrot_url}/home/remote-inference for more details."
+                    )
                 return None
             elif status == "completed":
                 results_uuid = remote_job_data.get("results_uuid")
                 results = coop.get(results_uuid, expected_object_type="results")
-                print("\r" + " " * 80 + "\r", end="")
-                url = f"{expected_parrot_url}/content/{results_uuid}"
-                print(f"Job completed and Results stored on Coop: {url}.")
+                if verbose:
+                    print("\r" + " " * 80 + "\r", end="")
+                    url = f"{expected_parrot_url}/content/{results_uuid}"
+                    print(f"Job completed and Results stored on Coop: {url}.")
                 return results
             else:
-                duration = 5
+                duration = poll_interval
                 time_checked = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
                 frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
                 start_time = time.time()
                 i = 0
                 while time.time() - start_time < duration:
-                    print(
-                        f"\r{frames[i % len(frames)]} Job status: {status} - last update: {time_checked}",
-                        end="",
-                        flush=True,
-                    )
+                    if verbose:
+                        print(
+                            f"\r{frames[i % len(frames)]} Job status: {status} - last update: {time_checked}",
+                            end="",
+                            flush=True,
+                        )
                     time.sleep(0.1)
                     i += 1
 
-    def use_remote_inference(self, disable_remote_inference: bool):
+    def use_remote_inference(self, disable_remote_inference: bool) -> bool:
         if disable_remote_inference:
             return False
         if not disable_remote_inference:
@@ -820,7 +826,7 @@ class Jobs(Base):
 
         return False
 
-    def use_remote_cache(self, disable_remote_cache: bool):
+    def use_remote_cache(self, disable_remote_cache: bool) -> bool:
         if disable_remote_cache:
             return False
         if not disable_remote_cache:
@@ -836,7 +842,7 @@ class Jobs(Base):
 
         return False
 
-    def check_api_keys(self):
+    def check_api_keys(self) -> None:
         from edsl import Model
 
         for model in self.models + [Model()]:
@@ -880,7 +886,7 @@ class Jobs(Base):
         except Exception:
             raise
 
-    def user_has_ep_api_key(self):
+    def user_has_ep_api_key(self) -> bool:
         """
         Returns True if the user has an EXPECTED_PARROT_API_KEY in their env.
 
@@ -1057,15 +1063,82 @@ class Jobs(Base):
         results.cache = cache.new_entries_cache()
         return results
 
+    async def create_and_poll_remote_job(
+        self,
+        iterations: int = 1,
+        remote_inference_description: Optional[str] = None,
+        remote_inference_results_visibility: Optional[
+            Literal["private", "public", "unlisted"]
+        ] = "unlisted",
+    ) -> Union[Results, None]:
+        """
+        Creates and polls a remote inference job asynchronously.
+        Reuses existing synchronous methods but runs them in an async context.
+
+        :param iterations: Number of times to run each interview
+        :param remote_inference_description: Optional description for the remote job
+        :param remote_inference_results_visibility: Visibility setting for results
+        :return: Results object if successful, None if job fails or is cancelled
+        """
+        import asyncio
+        from functools import partial
+
+        # Create job using existing method
+        loop = asyncio.get_event_loop()
+        remote_job_creation_data = await loop.run_in_executor(
+            None,
+            partial(
+                self.create_remote_inference_job,
+                iterations=iterations,
+                remote_inference_description=remote_inference_description,
+                remote_inference_results_visibility=remote_inference_results_visibility,
+            ),
+        )
+
+        # Poll using existing method but with async sleep
+        return await loop.run_in_executor(
+            None, partial(self.poll_remote_inference_job, remote_job_creation_data)
+        )
+
+    async def run_async(
+        self,
+        cache=None,
+        n=1,
+        disable_remote_inference: bool = False,
+        remote_inference_description: Optional[str] = None,
+        remote_inference_results_visibility: Optional[
+            Literal["private", "public", "unlisted"]
+        ] = "unlisted",
+        **kwargs,
+    ):
+        """Run the job asynchronously, either locally or remotely.
+
+        :param cache: Cache object or boolean
+        :param n: Number of iterations
+        :param disable_remote_inference: If True, forces local execution
+        :param remote_inference_description: Description for remote jobs
+        :param remote_inference_results_visibility: Visibility setting for remote results
+        :param kwargs: Additional arguments passed to local execution
+        :return: Results object
+        """
+        # Check if we should use remote inference
+        if remote_inference := self.use_remote_inference(disable_remote_inference):
+            results = await self.create_and_poll_remote_job(
+                iterations=n,
+                remote_inference_description=remote_inference_description,
+                remote_inference_results_visibility=remote_inference_results_visibility,
+            )
+            if results is None:
+                self._output("Job failed.")
+            return results
+
+        # If not using remote inference, run locally with async
+        return await JobsRunnerAsyncio(self).run_async(cache=cache, n=n, **kwargs)
+
     def _run_local(self, *args, **kwargs):
         """Run the job locally."""
 
         results = JobsRunnerAsyncio(self).run(*args, **kwargs)
-        return results
-
-    async def run_async(self, cache=None, n=1, **kwargs):
-        """Run asynchronously."""
-        results = await JobsRunnerAsyncio(self).run_async(cache=cache, n=n, **kwargs)
         return results
 
     def all_question_parameters(self):
