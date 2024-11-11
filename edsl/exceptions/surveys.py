@@ -1,37 +1,37 @@
 from edsl.exceptions.BaseException import BaseException
 
 
-class SurveyErrors(BaseException):
+class SurveyError(BaseException):
     relevant_doc = "https://docs.expectedparrot.com/en/latest/surveys.html"
 
 
-class SurveyCreationError(SurveyErrors):
+class SurveyCreationError(SurveyError):
     pass
 
 
-class SurveyHasNoRulesError(SurveyErrors):
+class SurveyHasNoRulesError(SurveyError):
     pass
 
 
-class SurveyRuleSendsYouBackwardsError(SurveyErrors):
+class SurveyRuleSendsYouBackwardsError(SurveyError):
     pass
 
 
-class SurveyRuleSkipLogicSyntaxError(SurveyErrors):
+class SurveyRuleSkipLogicSyntaxError(SurveyError):
     pass
 
 
-class SurveyRuleReferenceInRuleToUnknownQuestionError(SurveyErrors):
+class SurveyRuleReferenceInRuleToUnknownQuestionError(SurveyError):
     pass
 
 
-class SurveyRuleRefersToFutureStateError(SurveyErrors):
+class SurveyRuleRefersToFutureStateError(SurveyError):
     pass
 
 
-class SurveyRuleCollectionHasNoRulesAtNodeError(SurveyErrors):
+class SurveyRuleCollectionHasNoRulesAtNodeError(SurveyError):
     pass
 
 
-class SurveyRuleCannotEvaluateError(SurveyErrors):
+class SurveyRuleCannotEvaluateError(SurveyError):
     pass
