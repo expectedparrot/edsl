@@ -1,26 +1,29 @@
-class ResultsErrors(Exception):
+from edsl.exceptions.BaseException import BaseException
+
+
+class ResultsError(BaseException):
+    relevant_docs = "https://docs.expectedparrot.com/en/latest/results.html"
+
+
+class ResultsDeserializationError(ResultsError):
     pass
 
 
-class ResultsDeserializationError(ResultsErrors):
+class ResultsBadMutationstringError(ResultsError):
     pass
 
 
-class ResultsBadMutationstringError(ResultsErrors):
+class ResultsColumnNotFoundError(ResultsError):
     pass
 
 
-class ResultsColumnNotFoundError(ResultsErrors):
+class ResultsInvalidNameError(ResultsError):
     pass
 
 
-class ResultsInvalidNameError(ResultsErrors):
+class ResultsMutateError(ResultsError):
     pass
 
 
-class ResultsMutateError(ResultsErrors):
-    pass
-
-
-class ResultsFilterError(ResultsErrors):
+class ResultsFilterError(ResultsError):
     pass
