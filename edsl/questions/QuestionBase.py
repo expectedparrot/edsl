@@ -328,6 +328,7 @@ class QuestionBase(
         just_answer: bool = True,
         model: Optional["Model"] = None,
         agent: Optional["Agent"] = None,
+        disable_remote_inference: bool = False,
         **kwargs,
     ) -> Union[Any, "Results"]:
         """Call the question asynchronously.
@@ -344,6 +345,7 @@ class QuestionBase(
         results = await survey.run_async(
             model=model,
             agent=agent,
+            disable_remote_inference=disable_remote_inference,
             **kwargs,
         )
         if just_answer:
