@@ -2,14 +2,15 @@
 
 Agents
 ======
-`Agent` objects are used to simulate survey responses for target audiences. 
-They are created with specified traits, such as personas and relevant attributes for a survey, that are used together with language models to generate answers to questions. 
+
+`Agent` objects are used to represent survey respondents and simulate their answers to questions. 
+They can be constructed with personas and any relevant attributes for language models to reference in generating responses. 
 
 
 Constructing an Agent
 ---------------------
 
-An `Agent` is created by passing a dictionary of `traits` for a language model to reference in answering questions. 
+An `Agent` is created by passing a dictionary of `traits`, such as a persona or background. 
 Traits can be anything that might be relevant to the questions the agent will be asked, and constructed with single values or textual narratives.
 
 For example:
@@ -49,7 +50,7 @@ Agent lists
 -----------
 
 Agents can be created collectively and administered a survey together. 
-This is useful for comparing responses across agents.
+This is useful for comparing responses among agents.
 
 For example, here we create a list of agents with each combination of listed trait dimensions: 
 
@@ -168,6 +169,7 @@ Controlling the presentation of the persona
 
 The `traits_presentation_template` parameter can be used to create a narrative persona for an agent.
 This is a template string that can be rendered with the agent's traits as variables.
+Note that each parameter in the template must be a key in the agent's traits dictionary.
 
 For example:
 
@@ -500,6 +502,36 @@ Output:
     }
 
 
+Adding agents 
+^^^^^^^^^^^^^
+
+Agents can be added together to create a new agent with the combined traits of the original agents.
+
+For example:
+
+.. code-block:: python
+
+    from edsl import Agent
+
+    a1 = Agent(traits = {"age": 10})
+    a2 = Agent(traits = {"height": 5.5})
+
+    a3 = a1 + a2
+    a3
+
+
+Output:
+
+.. code-block:: text
+
+    {
+        "traits": {
+            "age": 10,
+            "height": 5.5
+        }
+    }
+
+
 Using survey responses as new agent traits
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -596,6 +628,7 @@ Output:
             "edsl_class_name": "Agent"
         }
     ]
+
 
 
 Agent class
