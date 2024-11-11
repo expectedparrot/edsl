@@ -12,6 +12,7 @@ from typing import Optional, Callable, Any, Type, Union, List
 from simpleeval import EvalWithCompoundTypes
 
 from edsl.exceptions.results import (
+    ResultsError,
     ResultsBadMutationstringError,
     ResultsColumnNotFoundError,
     ResultsInvalidNameError,
@@ -235,11 +236,11 @@ class Results(UserList, Mixins, Base):
         >>> r3 = r + r2
         """
         if self.survey != other.survey:
-            raise Exception(
-                "The surveys are not the same so they cannot be added together."
+            raise ResultsError(
+                "The surveys are not the same so the the results cannot be added together."
             )
         if self.created_columns != other.created_columns:
-            raise Exception(
+            raise ResultsError(
                 "The created columns are not the same so they cannot be added together."
             )
 
@@ -949,6 +950,7 @@ class Results(UserList, Mixins, Base):
         Traceback (most recent call last):
         ...
         edsl.exceptions.results.ResultsFilterError: You must use '==' instead of '=' in the filter expression.
+        ...
 
         >>> r.filter("how_feeling == 'Great' or how_feeling == 'Terrible'").select('how_feeling').print()
         ┏━━━━━━━━━━━━━━┓
