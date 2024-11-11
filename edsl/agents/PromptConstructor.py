@@ -7,6 +7,23 @@ from edsl.prompts.Prompt import Prompt
 from edsl.agents.prompt_helpers import PromptPlan
 
 
+class PlaceholderAnswer:
+    """A placeholder answer for when a question is not yet answered."""
+
+    def __init__(self):
+        self.answer = "N/A"
+        self.comment = "Will be populated by prior answer"
+
+    def __getitem__(self, index):
+        return ""
+
+    def __str__(self):
+        return "<<PlaceholderAnswer>>"
+
+    def __repr__(self):
+        return "<<PlaceholderAnswer>>"
+
+
 def get_jinja2_variables(template_str: str) -> Set[str]:
     """
     Extracts all variable names from a Jinja2 template using Jinja2's built-in parsing.
@@ -88,15 +105,20 @@ class PromptConstructor:
         return self.agent.prompt()
 
     def prior_answers_dict(self) -> dict:
+        # this is all questions
         d = self.survey.question_names_to_questions()
         # This attaches the answer to the question
-        for question, answer in self.current_answers.items():
-            if question in d:
-                d[question].answer = answer
+        for question in d:
+            if question in self.current_answers:
+                d[question].answer = self.current_answers[question]
             else:
-                # adds a comment to the question
-                if (new_question := question.split("_comment")[0]) in d:
-                    d[new_question].comment = answer
+                d[question].answer = PlaceholderAnswer()
+
+                # if (new_question := question.split("_comment")[0]) in d:
+                #     d[new_question].comment = answer
+                # d[question].answer = PlaceholderAnswer()
+
+        # breakpoint()
         return d
 
     @property
