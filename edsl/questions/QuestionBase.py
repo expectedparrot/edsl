@@ -328,6 +328,7 @@ class QuestionBase(
         just_answer: bool = True,
         model: Optional["Model"] = None,
         agent: Optional["Agent"] = None,
+        disable_remote_inference: bool = False,
         **kwargs,
     ) -> Union[Any, "Results"]:
         """Call the question asynchronously.
@@ -336,7 +337,7 @@ class QuestionBase(
         >>> from edsl import QuestionFreeText as Q
         >>> m = Q._get_test_model(canned_response = "Blue")
         >>> q = Q(question_name = "color", question_text = "What is your favorite color?")
-        >>> async def test_run_async(): result = await q.run_async(model=m); print(result)
+        >>> async def test_run_async(): result = await q.run_async(model=m, disable_remote_inference = True); print(result)
         >>> asyncio.run(test_run_async())
         Blue
         """
@@ -344,6 +345,7 @@ class QuestionBase(
         results = await survey.run_async(
             model=model,
             agent=agent,
+            disable_remote_inference=disable_remote_inference,
             **kwargs,
         )
         if just_answer:

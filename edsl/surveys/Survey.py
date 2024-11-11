@@ -1248,9 +1248,10 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
     async def run_async(
         self,
-        model=None,
-        agent=None,
-        cache=None,
+        model: Optional["Model"] = None,
+        agent: Optional["Agent"] = None,
+        cache: Optional["Cache"] = None,
+        disable_remote_inference: bool = False,
         **kwargs,
     ):
         """Run the survey with default model, taking the required survey as arguments.
@@ -1260,7 +1261,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         >>> def f(scenario, agent_traits): return "yes" if scenario["period"] == "morning" else "no"
         >>> q = QuestionFunctional(question_name = "q0", func = f)
         >>> s = Survey([q])
-        >>> async def test_run_async(): result = await s.run_async(period="morning"); print(result.select("answer.q0").first())
+        >>> async def test_run_async(): result = await s.run_async(period="morning", disable_remote_inference = True); print(result.select("answer.q0").first())
         >>> asyncio.run(test_run_async())
         yes
         >>> import asyncio
@@ -1268,7 +1269,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         >>> def f(scenario, agent_traits): return "yes" if scenario["period"] == "morning" else "no"
         >>> q = QuestionFunctional(question_name = "q0", func = f)
         >>> s = Survey([q])
-        >>> async def test_run_async(): result = await s.run_async(period="evening"); print(result.select("answer.q0").first())
+        >>> async def test_run_async(): result = await s.run_async(period="evening", disable_remote_inference = True); print(result.select("answer.q0").first())
         >>> asyncio.run(test_run_async())
         no
         """
@@ -1279,8 +1280,10 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
             c = Cache()
         else:
             c = cache
-        jobs: "Jobs" = self.get_job(model, agent, **kwargs)
-        return await jobs.run_async(cache=c)
+        jobs: "Jobs" = self.get_job(model=model, agent=agent, **kwargs)
+        return await jobs.run_async(
+            cache=c, disable_remote_inference=disable_remote_inference
+        )
 
     def run(self, *args, **kwargs) -> "Results":
         """Turn the survey into a Job and runs it.
