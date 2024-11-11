@@ -156,15 +156,15 @@ class Result(Base, UserDict):
             if key in self.question_to_attributes:
                 # You might be tempted to just use the naked key
                 # but this is a bad idea because it pollutes the namespace
-                question_text_dict[
-                    key + "_question_text"
-                ] = self.question_to_attributes[key]["question_text"]
-                question_options_dict[
-                    key + "_question_options"
-                ] = self.question_to_attributes[key]["question_options"]
-                question_type_dict[
-                    key + "_question_type"
-                ] = self.question_to_attributes[key]["question_type"]
+                question_text_dict[key + "_question_text"] = (
+                    self.question_to_attributes[key]["question_text"]
+                )
+                question_options_dict[key + "_question_options"] = (
+                    self.question_to_attributes[key]["question_options"]
+                )
+                question_type_dict[key + "_question_type"] = (
+                    self.question_to_attributes[key]["question_type"]
+                )
 
         return {
             "agent": self.agent.traits
@@ -257,10 +257,25 @@ class Result(Base, UserDict):
 
         """
         d = {}
-        data_types = self.sub_dicts.keys()
+        problem_keys = []
+        data_types = sorted(self.sub_dicts.keys())
         for data_type in data_types:
             for key in self.sub_dicts[data_type]:
+                if key in d:
+                    import warnings
+
+                    warnings.warn(
+                        f"Key '{key}' of data type '{data_type}' is already in use. Renaming to {key}_{data_type}"
+                    )
+                    problem_keys.append((key, data_type))
+                    key = f"{key}_{data_type}"
+                    # raise ValueError(f"Key '{key}' is already in the dictionary")
                 d[key] = data_type
+
+        for key, data_type in problem_keys:
+            self.sub_dicts[data_type][f"{key}_{data_type}"] = self.sub_dicts[
+                data_type
+            ].pop(key)
         return d
 
     def rows(self, index) -> tuple[int, str, str, str]:

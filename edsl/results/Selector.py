@@ -12,6 +12,7 @@ class Selector:
         fetch_list_func,
         columns: List[str],
     ):
+        """Selects columns from a Results object"""
         self.known_data_types = known_data_types
         self._data_type_to_keys = data_type_to_keys
         self._key_to_data_type = key_to_data_type
@@ -21,10 +22,19 @@ class Selector:
     def select(self, *columns: Union[str, List[str]]) -> "Dataset":
         columns = self._normalize_columns(columns)
         to_fetch = self._get_columns_to_fetch(columns)
+        # breakpoint()
         new_data = self._fetch_data(to_fetch)
         return Dataset(new_data)
 
     def _normalize_columns(self, columns: Union[str, List[str]]) -> tuple:
+        """Normalize the columns to a tuple of strings
+
+        >>> s = Selector([], {}, {}, lambda x, y: x, [])
+        >>> s._normalize_columns([["a", "b"], ])
+        ('a', 'b')
+        >>> s._normalize_columns(None)
+        ('*.*',)
+        """
         if not columns or columns == ("*",) or columns == (None,):
             return ("*.*",)
         if isinstance(columns[0], list):
@@ -37,6 +47,7 @@ class Selector:
 
         for column in columns:
             matches = self._find_matching_columns(column)
+            # breakpoint()
             self._validate_matches(column, matches)
 
             if len(matches) == 1:
@@ -52,7 +63,7 @@ class Selector:
             search_in_list = self.columns
         else:
             search_in_list = [s.split(".")[1] for s in self.columns]
-
+        # breakpoint()
         matches = [s for s in search_in_list if s.startswith(partial_name)]
         return [partial_name] if partial_name in matches else matches
 
@@ -116,3 +127,9 @@ class Selector:
                 new_data.append({f"{data_type}.{key}": entries})
 
         return [d for key in self.items_in_order for d in new_data if key in d]
+
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod()
