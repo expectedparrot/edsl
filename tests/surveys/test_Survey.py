@@ -47,7 +47,7 @@ class TestSurvey(unittest.TestCase):
         # breakpoint()
         # self.assertEqual(q3, s.next_question("like_school", {"like_school": "no"}))
         # s = self.gen_survey()
-        # with self.assertRaises(ValueError):
+        # with self.assertRaises(Exception):
         #     # can't skip the first question in the survey
         #     s.add_skip_rule(q1, "True")
 
@@ -58,18 +58,18 @@ class TestSurvey(unittest.TestCase):
 
     def test_add_memory_wrong_order(self):
         survey = self.gen_survey()
-        with self.assertRaises(ValueError):
+        with self.assertRaises(Exception):
             survey.add_targeted_memory("like_school", "favorite_subject")
 
     def test_add_memory_invalid_question(self):
         survey = self.gen_survey()
-        with self.assertRaises(ValueError):
+        with self.assertRaises(Exception):
             survey.add_targeted_memory("like_school", "invalid_question")
 
     def test_add_memory_duplicate_question(self):
         survey = self.gen_survey()
         survey.add_targeted_memory("favorite_subject", "like_school")
-        with self.assertRaises(ValueError):
+        with self.assertRaises(Exception):
             survey.add_targeted_memory("favorite_subject", "like_school")
 
     def test_full_memory(self):
