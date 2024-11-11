@@ -1,8 +1,8 @@
 from .agents import (
-    AgentAttributeLookupCallbackError,
+    #    AgentAttributeLookupCallbackError,
     AgentCombinationError,
-    AgentLacksLLMError,
-    AgentRespondedWithBadJSONError,
+    #    AgentLacksLLMError,
+    #    AgentRespondedWithBadJSONError,
 )
 from .configuration import (
     InvalidEnvironmentVariableError,
@@ -12,6 +12,10 @@ from .data import (
     DatabaseConnectionError,
     DatabaseCRUDError,
     DatabaseIntegrityError,
+)
+
+from .scenarios import (
+    ScenarioError,
 )
 
 from .general import MissingAPIKeyError

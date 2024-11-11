@@ -48,9 +48,8 @@ class TraitsDescriptor:
         for key, value in traits_dict.items():
             if key == "name":
                 raise AgentNameError(
-                    """Trait keys cannot be 'name'. Instead, use the 'name' attribute directly e.g., 
-                    Agent(name="my_agent", traits={"trait1": "value1", "trait2": "value2"})
-                    """
+                    "Trait keys cannot be 'name'. Instead, use the 'name' attribute directly e.g.,\n"
+                    'Agent(name="my_agent", traits={"trait1": "value1", "trait2": "value2"})'
                 )
 
             if not is_valid_variable_name(key):
