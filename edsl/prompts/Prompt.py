@@ -240,10 +240,14 @@ class Prompt(PersistenceMixin, RichPrintingMixin):
         >>> p.render({"person": "Mr. {{last_name}}"})
         Prompt(text=\"""Hello, Mr. {{ last_name }}\""")
         """
-        new_text = self._render(
-            self.text, primary_replacement, **additional_replacements
-        )
-        return self.__class__(text=new_text)
+        try:
+            new_text = self._render(
+                self.text, primary_replacement, **additional_replacements
+            )
+            return self.__class__(text=new_text)
+        except Exception as e:
+            print(f"Error rendering prompt: {e}")
+            return self
 
     @staticmethod
     def _render(
