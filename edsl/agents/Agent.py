@@ -6,12 +6,13 @@ import inspect
 import types
 from typing import Callable, Optional, Union, Any
 from uuid import uuid4
-from edsl.Base import Base
 
+from edsl.Base import Base
 from edsl.prompts import Prompt
 from edsl.exceptions import QuestionScenarioRenderError
 
 from edsl.exceptions.agents import (
+    AgentErrors,
     AgentCombinationError,
     AgentDirectAnswerFunctionError,
     AgentDynamicTraitsFunctionError,
@@ -33,7 +34,9 @@ from edsl.utilities.restricted_python import create_restricted_function
 
 
 class Agent(Base):
-    """An Agent that can answer questions."""
+    """An class representing an agent that can answer questions."""
+
+    __doc__ = "https://docs.expectedparrot.com/en/latest/agents.html"
 
     default_instruction = """You are answering questions as if you were a human. Do not break character."""
 
@@ -181,13 +184,23 @@ class Agent(Base):
         """Check whether dynamic trait function is valid.
 
         This checks whether the dynamic traits function is valid.
+
+        >>> def f(question): return {"age": 10, "hair": "brown", "height": 5.5}
+        >>> a = Agent(dynamic_traits_function = f)
+        >>> a._check_dynamic_traits_function()
+
+        >>> def g(question, poo): return {"age": 10, "hair": "brown", "height": 5.5}
+        >>> a = Agent(dynamic_traits_function = g)
+        Traceback (most recent call last):
+        ...
+        edsl.exceptions.agents.AgentDynamicTraitsFunctionError: ...
         """
         if self.has_dynamic_traits_function:
             sig = inspect.signature(self.dynamic_traits_function)
             if "question" in sig.parameters:
                 if len(sig.parameters) > 1:
                     raise AgentDynamicTraitsFunctionError(
-                        f"The dynamic traits function {self.dynamic_traits_function} has too many parameters. It should only have one parameter: 'question'."
+                        message=f"The dynamic traits function {self.dynamic_traits_function} has too many parameters. It should only have one parameter: 'question'."
                     )
             else:
                 if len(sig.parameters) > 0:
@@ -221,7 +234,38 @@ class Agent(Base):
         else:
             return self._traits
 
-    def rename(self, old_name: str, new_name: str) -> Agent:
+    def rename(
+        self, old_name_or_dict: Union[str, dict], new_name: Optional[str] = None
+    ) -> Agent:
+        """Rename a trait.
+
+        Example usage:
+
+        >>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
+        >>> a.rename("age", "years") == Agent(traits = {'years': 10, 'hair': 'brown', 'height': 5.5})
+        True
+
+        >>> a.rename({'years': 'smage'})
+        Agent(traits = {'hair': 'brown', 'height': 5.5, 'smage': 10})
+
+        """
+        if isinstance(old_name_or_dict, dict) and new_name is None:
+            for old_name, new_name in old_name_or_dict.items():
+                self = self._rename(old_name, new_name)
+            return self
+
+        if isinstance(old_name_or_dict, dict) and new_name:
+            raise AgentErrors(
+                f"You passed a dict: {old_name_or_dict} and a new name: {new_name}. You should pass only a dict."
+            )
+
+        if isinstance(old_name_or_dict, str):
+            self._rename(old_name_or_dict, new_name)
+            return self
+
+        raise AgentErrors("Something is not right with Agent renaming")
+
+    def _rename(self, old_name: str, new_name: str) -> Agent:
         """Rename a trait.
 
         Example usage:
@@ -267,8 +311,11 @@ class Agent(Base):
         translate_response: bool = False,
     ) -> None:
         """Add a method to the agent that can answer a particular question type.
+        https://docs.expectedparrot.com/en/latest/agents.html#agent-direct-answering-methods
 
         :param method: A method that can answer a question directly.
+        :param validate_response: Whether to validate the response.
+        :param translate_response: Whether to translate the response.
 
         Example usage:
 
@@ -304,10 +351,10 @@ class Agent(Base):
         question: "QuestionBase",
         cache: "Cache",
         survey: Optional["Survey"] = None,
-        scenario: Optional[Scenario] = None,
-        model: Optional[LanguageModel] = None,
+        scenario: Optional["Scenario"] = None,
+        model: Optional["LanguageModel"] = None,
         debug: bool = False,
-        memory_plan: Optional[MemoryPlan] = None,
+        memory_plan: Optional["MemoryPlan"] = None,
         current_answers: Optional[dict] = None,
         iteration: int = 1,
         sidecar_model=None,
@@ -512,6 +559,7 @@ class Agent(Base):
         Traceback (most recent call last):
         ...
         edsl.exceptions.agents.AgentCombinationError: The agents have overlapping traits: {'age'}.
+        ...
         """
         if other_agent is None:
             return self
@@ -540,12 +588,12 @@ class Agent(Base):
 
     def __getattr__(self, name):
         # This will be called only if 'name' is not found in the usual places
-        # breakpoint()
         if name == "has_dynamic_traits_function":
             return self.has_dynamic_traits_function
 
         if name in self._traits:
             return self._traits[name]
+
         raise AttributeError(
             f"'{type(self).__name__}' object has no attribute '{name}'"
         )
@@ -614,9 +662,9 @@ class Agent(Base):
             if dynamic_traits_func:
                 func = inspect.getsource(dynamic_traits_func)
                 raw_data["dynamic_traits_function_source_code"] = func
-                raw_data[
-                    "dynamic_traits_function_name"
-                ] = self.dynamic_traits_function_name
+                raw_data["dynamic_traits_function_name"] = (
+                    self.dynamic_traits_function_name
+                )
         if hasattr(self, "answer_question_directly"):
             raw_data.pop(
                 "answer_question_directly", None
@@ -632,9 +680,9 @@ class Agent(Base):
                 raw_data["answer_question_directly_source_code"] = inspect.getsource(
                     answer_question_directly_func
                 )
-                raw_data[
-                    "answer_question_directly_function_name"
-                ] = self.answer_question_directly_function_name
+                raw_data["answer_question_directly_function_name"] = (
+                    self.answer_question_directly_function_name
+                )
 
         return raw_data
 
@@ -644,12 +692,12 @@ class Agent(Base):
         return dict_hash(self._to_dict())
 
     def _to_dict(self) -> dict[str, Union[dict, bool]]:
-        """Serialize to a dictionary."""
+        """Serialize to a dictionary without EDSL info"""
         return self.data
 
     @add_edsl_version
     def to_dict(self) -> dict[str, Union[dict, bool]]:
-        """Serialize to a dictionary.
+        """Serialize to a dictionary with EDSL info.
 
         Example usage:
 
@@ -691,14 +739,16 @@ class Agent(Base):
             return self
 
         if isinstance(trait_name_or_dict, dict) and value:
-            raise ValueError(f"You passed a dict: {trait_name_or_dict}")
+            raise AgentErrors(
+                f"You passed a dict: {trait_name_or_dict} and a value: {value}. You should pass only a dict."
+            )
 
         if isinstance(trait_name_or_dict, str):
             trait = trait_name_or_dict
             self.traits[trait] = value
             return self
 
-        raise Exception("Something is not right with adding")
+        raise AgentErrors("Something is not right with adding a trait to an Agent")
 
     def remove_trait(self, trait: str) -> Agent:
         """Remove a trait from the agent.

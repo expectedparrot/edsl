@@ -2,7 +2,7 @@ import re
 import textwrap
 
 
-class EDSLScenarioError(Exception):
+class ScenarioError(Exception):
     documentation = "https://docs.expectedparrot.com/en/latest/scenarios.html#module-edsl.scenarios.Scenario"
 
     def __init__(self, message: str):

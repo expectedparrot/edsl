@@ -1,8 +1,8 @@
 from .agents import (
-    AgentAttributeLookupCallbackError,
+    #    AgentAttributeLookupCallbackError,
     AgentCombinationError,
-    AgentLacksLLMError,
-    AgentRespondedWithBadJSONError,
+    #    AgentLacksLLMError,
+    #    AgentRespondedWithBadJSONError,
 )
 from .configuration import (
     InvalidEnvironmentVariableError,
@@ -15,7 +15,7 @@ from .data import (
 )
 
 from .scenarios import (
-    EDSLScenarioError,
+    ScenarioError,
 )
 
 from .general import MissingAPIKeyError
