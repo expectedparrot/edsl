@@ -71,6 +71,7 @@ class Conversation:
         conversation_index: Optional[int] = None,
         cache=None,
         disable_remote_inference=False,
+        default_model: Optional["LanguageModel"] = None,
     ):
         self.disable_remote_inference = disable_remote_inference
         self.per_round_message_template = per_round_message_template
@@ -81,6 +82,16 @@ class Conversation:
             self.cache = cache
 
         self.agent_list = agent_list
+
+        from edsl import Model
+
+        for agent in self.agent_list:
+            if not hasattr(agent, "model"):
+                if default_model is not None:
+                    agent.model = default_model
+                else:
+                    agent.model = Model()
+
         self.verbose = verbose
         self.agent_statements = []
         self._conversation_index = conversation_index
@@ -207,7 +218,8 @@ What do you say next?"""
                 "round_message": round_message,
             }
         )
-        jobs = q.by(s).by(speaker.model)
+        jobs = q.by(s).by(speaker).by(speaker.model)
+        jobs.show_prompts()
         results = await jobs.run_async(
             cache=self.cache, disable_remote_inference=self.disable_remote_inference
         )
