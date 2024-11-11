@@ -11,18 +11,26 @@ from uuid import uuid4
 from edsl.Base import Base
 from edsl.scenarios.ScenarioHtmlMixin import ScenarioHtmlMixin
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
+from edsl.exceptions.scenarios import ScenarioError
 
 
 class Scenario(Base, UserDict, ScenarioHtmlMixin):
     """A Scenario is a dictionary of keys/values.
 
-    They can be used parameterize edsl questions."""
+    They can be used parameterize EDSL questions."""
+
+    __doc__ = "https://docs.expectedparrot.com/en/latest/scenarios.html"
 
     def __init__(self, data: Union[dict, None] = None, name: str = None):
         """Initialize a new Scenario.
 
-        :param data: A dictionary of keys/values for parameterizing questions.
-        """
+        # :param data: A dictionary of keys/values for parameterizing questions.
+        #"""
+        if not isinstance(data, dict) and data is not None:
+            raise EDSLScenarioError(
+                "You must pass in a dictionary to initialize a Scenario."
+            )
+
         self.data = data if data is not None else {}
         self.name = name
 
@@ -40,13 +48,6 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
         from edsl.scenarios.ScenarioList import ScenarioList
 
         return ScenarioList([copy.deepcopy(self) for _ in range(n)])
-
-    # @property
-    # def has_image(self) -> bool:
-    #     """Return whether the scenario has an image."""
-    #     if not hasattr(self, "_has_image"):
-    #         self._has_image = False
-    #     return self._has_image
 
     @property
     def has_jinja_braces(self) -> bool:
@@ -106,7 +107,9 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
             s = Scenario(data1 | data2)
             return s
 
-    def rename(self, replacement_dict: dict) -> "Scenario":
+    def rename(
+        self, old_name_or_replacement_dict: dict, new_name: Optional[str] = None
+    ) -> "Scenario":
         """Rename the keys of a scenario.
 
         :param replacement_dict: A dictionary of old keys to new keys.
@@ -116,7 +119,16 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
         >>> s = Scenario({"food": "wood chips"})
         >>> s.rename({"food": "food_preference"})
         Scenario({'food_preference': 'wood chips'})
+
+        >>> s = Scenario({"food": "wood chips"})
+        >>> s.rename("food", "snack")
+        Scenario({'snack': 'wood chips'})
         """
+        if isinstance(old_name_or_replacement_dict, str) and new_name is not None:
+            replacement_dict = {old_name_or_replacement_dict: new_name}
+        else:
+            replacement_dict = old_name_or_replacement_dict
+
         new_scenario = Scenario()
         for key, value in self.items():
             if key in replacement_dict:
@@ -216,6 +228,19 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
                 new_scenario[key] = self[key]
         return new_scenario
 
+    def keep(self, list_of_keys: List[str]) -> "Scenario":
+        """Keep a subset of keys from a scenario.
+
+        :param list_of_keys: The keys to keep.
+
+        Example:
+
+        >>> s = Scenario({"food": "wood chips", "drink": "water"})
+        >>> s.keep(["food"])
+        Scenario({'food': 'wood chips'})
+        """
+        return self.select(list_of_keys)
+
     @classmethod
     def from_url(cls, url: str, field_name: Optional[str] = "text") -> "Scenario":
         """Creates a scenario from a URL.
@@ -231,7 +256,17 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
 
     @classmethod
     def from_file(cls, file_path: str, field_name: str) -> "Scenario":
-        """Creates a scenario from a file."""
+        """Creates a scenario from a file.
+
+        >>> import tempfile
+        >>> with tempfile.NamedTemporaryFile(suffix=".txt", mode="w") as f:
+        ...     _ = f.write("This is a test.")
+        ...     _ = f.flush()
+        ...     s = Scenario.from_file(f.name, "file")
+        >>> s
+        Scenario({'file': FileStore(path='...')})
+
+        """
         from edsl.scenarios.FileStore import FileStore
 
         fs = FileStore(file_path)
