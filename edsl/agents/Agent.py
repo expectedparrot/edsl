@@ -152,13 +152,16 @@ class Agent(Base):
 
         if traits_presentation_template is not None:
             self._traits_presentation_template = traits_presentation_template
+            self.traits_presentation_template = traits_presentation_template
+        else:
+            self.traits_presentation_template = "Your traits: {{traits}}"
 
-    @property
-    def traits_presentation_template(self) -> str:
-        """Return the traits presentation template."""
-        if self._traits_presentation_template is None:
-            return "Your traits: {{traits}}"
-        return self._traits_presentation_template
+    # @property
+    # def traits_presentation_template(self) -> str:
+    #     """Return the traits presentation template."""
+    #     if self._traits_presentation_template is None:
+    #         return "Your traits: {{traits}}"
+    #     return self._traits_presentation_template
 
     @property
     def agent_persona(self) -> Prompt:
