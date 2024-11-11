@@ -1061,7 +1061,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         elif isinstance(key, int):
             return super().__getitem__(key)
         else:
-            return self.to_dict()[key]
+            return self._to_dict()[key]
 
     def to_agent_list(self):
         """Convert the ScenarioList to an AgentList.

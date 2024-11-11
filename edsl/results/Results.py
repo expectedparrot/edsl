@@ -404,6 +404,8 @@ class Results(UserList, Mixins, Base):
             d.update(result.key_to_data_type)
         for column in self.created_columns:
             d[column] = "answer"
+
+        # breakpoint()
         return d
 
     @property
@@ -819,7 +821,7 @@ class Results(UserList, Mixins, Base):
 
         return Results(survey=self.survey, data=new_data, created_columns=None)
 
-    def select(self, *columns: Union[str, list[str]]) -> "Dataset":
+    def select(self, *columns: Union[str, list[str]]) -> "Results":
         """
         Select data from the results and format it.
 
@@ -832,93 +834,12 @@ class Results(UserList, Mixins, Base):
         Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}])
 
         >>> results.select('how_feeling', 'model', 'how_feeling')
-        Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}, {'model.model': ['...', '...', '...', '...']}, {'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}])
+        Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}, {'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}, {'model.model': ['...', '...', '...', '...']}, {'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}, {'answer.how_feeling': ['OK', 'Great', 'Terrible', 'OK']}])
 
         >>> from edsl import Results; r = Results.example(); r.select('answer.how_feeling_y')
         Dataset([{'answer.how_feeling_yesterday': ['Great', 'Good', 'OK', 'Terrible']}])
         """
 
-        # if len(self) == 0:
-        #    raise Exception("No data to select from---the Results object is empty.")
-
-        if not columns or columns == ("*",) or columns == (None,):
-            # is the users passes nothing, then we'll return all the columns
-            columns = ("*.*",)
-
-        if isinstance(columns[0], list):
-            columns = tuple(columns[0])
-
-        def get_data_types_to_return(parsed_data_type):
-            if parsed_data_type == "*":  # they want all of the columns
-                return self.known_data_types
-            else:
-                if parsed_data_type not in self.known_data_types:
-                    raise Exception(
-                        f"Data type {parsed_data_type} not found in data. Did you mean one of {self.known_data_types}"
-                    )
-                return [parsed_data_type]
-
-        # we're doing to populate this with the data we want to fetch
-        to_fetch = defaultdict(list)
-
-        new_data = []
-        items_in_order = []
-        # iterate through the passed columns
-        for column in columns:
-            # a user could pass 'result.how_feeling' or just 'how_feeling'
-            matches = self._matching_columns(column)
-            if len(matches) > 1:
-                raise Exception(
-                    f"Column '{column}' is ambiguous. Did you mean one of {matches}?"
-                )
-            if len(matches) == 0 and ".*" not in column:
-                raise Exception(f"Column '{column}' not found in data.")
-            if len(matches) == 1:
-                column = matches[0]
-
-            parsed_data_type, parsed_key = self._parse_column(column)
-            data_types = get_data_types_to_return(parsed_data_type)
-            found_once = False  # we need to track this to make sure we found the key at least once
-
-            for data_type in data_types:
-                # the keys for that data_type e.g.,# if data_type is 'answer', then the keys are 'how_feeling', 'how_feeling_comment', etc.
-                relevant_keys = self._data_type_to_keys[data_type]
-
-                for key in relevant_keys:
-                    if key == parsed_key or parsed_key == "*":
-                        found_once = True
-                        to_fetch[data_type].append(key)
-                        items_in_order.append(data_type + "." + key)
-
-            if not found_once:
-                raise Exception(f"Key {parsed_key} not found in data.")
-
-        for data_type in to_fetch:
-            for key in to_fetch[data_type]:
-                entries = self._fetch_list(data_type, key)
-                new_data.append({data_type + "." + key: entries})
-
-        def sort_by_key_order(dictionary):
-            # Extract the single key from the dictionary
-            single_key = next(iter(dictionary))
-            # Return the index of this key in the list_of_keys
-            return items_in_order.index(single_key)
-
-        # sorted(new_data, key=sort_by_key_order)
-        from edsl.results.Dataset import Dataset
-
-        sorted_new_data = []
-
-        # WORKS but slow
-        for key in items_in_order:
-            for d in new_data:
-                if key in d:
-                    sorted_new_data.append(d)
-                    break
-
-        return Dataset(sorted_new_data)
-
-    def select(self, *columns: Union[str, list[str]]) -> "Results":
         from edsl.results.Selector import Selector
 
         if len(self) == 0:
@@ -1105,6 +1026,7 @@ class Results(UserList, Mixins, Base):
             stop_on_exception=True,
             skip_retry=True,
             raise_validation_errors=True,
+            disable_remote_cache=True,
             disable_remote_inference=True,
         )
         return results

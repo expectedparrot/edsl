@@ -30,37 +30,6 @@ template_manager = TemplateManager()
 
 
 class QuestionBasePromptsMixin:
-    # @classmethod
-    # @lru_cache(maxsize=1)
-    # def _read_template(cls, template_name):
-    #     with resources.open_text(
-    #         f"edsl.questions.templates.{cls.question_type}", template_name
-    #     ) as file:
-    #         return file.read()
-
-    # @classmethod
-    # def applicable_prompts(
-    #     cls, model: Optional[str] = None
-    # ) -> list[type["PromptBase"]]:
-    #     """Get the prompts that are applicable to the question type.
-
-    #     :param model: The language model to use.
-
-    #     >>> from edsl.questions import QuestionFreeText
-    #     >>> QuestionFreeText.applicable_prompts()
-    #     [<class 'edsl.prompts.library.question_freetext.FreeText'>]
-
-    #     :param model: The language model to use. If None, assumes does not matter.
-
-    #     """
-    #     from edsl.prompts.registry import get_classes as prompt_lookup
-
-    #     applicable_prompts = prompt_lookup(
-    #         component_type="question_instructions",
-    #         question_type=cls.question_type,
-    #         model=model,
-    #     )
-    #     return applicable_prompts
 
     @property
     def model_instructions(self) -> dict:
@@ -231,7 +200,7 @@ class QuestionBasePromptsMixin:
     @property
     def new_default_instructions(self) -> "Prompt":
         "This is set up as a property because there are mutable question values that determine how it is rendered."
-        return self.question_presentation + self.answering_instructions
+        return Prompt(self.question_presentation) + Prompt(self.answering_instructions)
 
     @property
     def parameters(self) -> set[str]:

@@ -3,9 +3,10 @@ from __future__ import annotations
 import warnings
 import requests
 from itertools import product
-from typing import Optional, Union, Sequence, Generator
+from typing import Literal, Optional, Union, Sequence, Generator
 
 from edsl.Base import Base
+
 from edsl.exceptions import MissingAPIKeyError
 from edsl.jobs.buckets.BucketCollection import BucketCollection
 from edsl.jobs.interviews.Interview import Interview
@@ -193,7 +194,7 @@ class Jobs(Base):
                     inference_service=invigilator.model._inference_service_,
                     model=invigilator.model.model,
                 )
-                costs.append(prompt_cost["cost"])
+                costs.append(prompt_cost["cost_usd"])
 
         d = Dataset(
             [
@@ -209,14 +210,14 @@ class Jobs(Base):
         )
         return d
 
-    def show_prompts(self, all=False) -> None:
+    def show_prompts(self, all=False, max_rows: Optional[int] = None) -> None:
         """Print the prompts."""
         if all:
-            self.prompts().to_scenario_list().print(format="rich")
+            self.prompts().to_scenario_list().print(format="rich", max_rows=max_rows)
         else:
             self.prompts().select(
                 "user_prompt", "system_prompt"
-            ).to_scenario_list().print(format="rich")
+            ).to_scenario_list().print(format="rich", max_rows=max_rows)
 
     @staticmethod
     def estimate_prompt_cost(
@@ -241,10 +242,25 @@ class Jobs(Base):
 
         try:
             relevant_prices = price_lookup[key]
-            output_price_per_token = 1 / float(
-                relevant_prices["output"]["one_usd_buys"]
+
+            service_input_token_price = float(
+                relevant_prices["input"]["service_stated_token_price"]
             )
-            input_price_per_token = 1 / float(relevant_prices["input"]["one_usd_buys"])
+            service_input_token_qty = float(
+                relevant_prices["input"]["service_stated_token_qty"]
+            )
+            input_price_per_token = service_input_token_price / service_input_token_qty
+
+            service_output_token_price = float(
+                relevant_prices["output"]["service_stated_token_price"]
+            )
+            service_output_token_qty = float(
+                relevant_prices["output"]["service_stated_token_qty"]
+            )
+            output_price_per_token = (
+                service_output_token_price / service_output_token_qty
+            )
+
         except KeyError:
             # A KeyError is likely to occur if we cannot retrieve prices (the price_lookup dict is empty)
             # Use a sensible default
@@ -254,9 +270,8 @@ class Jobs(Base):
             warnings.warn(
                 "Price data could not be retrieved. Using default estimates for input and output token prices. Input: $0.15 / 1M tokens; Output: $0.60 / 1M tokens"
             )
-
-            output_price_per_token = 0.00000015  # $0.15 / 1M tokens
-            input_price_per_token = 0.00000060  # $0.60 / 1M tokens
+            input_price_per_token = 0.00000015  # $0.15 / 1M tokens
+            output_price_per_token = 0.00000060  # $0.60 / 1M tokens
 
         # Compute the number of characters (double if the question involves piping)
         user_prompt_chars = len(str(user_prompt)) * get_piping_multiplier(
@@ -279,7 +294,7 @@ class Jobs(Base):
         return {
             "input_tokens": input_tokens,
             "output_tokens": output_tokens,
-            "cost": cost,
+            "cost_usd": cost,
         }
 
     def estimate_job_cost_from_external_prices(
@@ -326,7 +341,7 @@ class Jobs(Base):
                         "system_prompt": system_prompt,
                         "estimated_input_tokens": prompt_cost["input_tokens"],
                         "estimated_output_tokens": prompt_cost["output_tokens"],
-                        "estimated_cost": prompt_cost["cost"],
+                        "estimated_cost_usd": prompt_cost["cost_usd"],
                         "inference_service": inference_service,
                         "model": model,
                     }
@@ -338,21 +353,21 @@ class Jobs(Base):
             df.groupby(["inference_service", "model"])
             .agg(
                 {
-                    "estimated_cost": "sum",
+                    "estimated_cost_usd": "sum",
                     "estimated_input_tokens": "sum",
                     "estimated_output_tokens": "sum",
                 }
             )
             .reset_index()
         )
-        df["estimated_cost"] = df["estimated_cost"] * iterations
+        df["estimated_cost_usd"] = df["estimated_cost_usd"] * iterations
         df["estimated_input_tokens"] = df["estimated_input_tokens"] * iterations
         df["estimated_output_tokens"] = df["estimated_output_tokens"] * iterations
 
         estimated_costs_by_model = df.to_dict("records")
 
         estimated_total_cost = sum(
-            model["estimated_cost"] for model in estimated_costs_by_model
+            model["estimated_cost_usd"] for model in estimated_costs_by_model
         )
         estimated_total_input_tokens = sum(
             model["estimated_input_tokens"] for model in estimated_costs_by_model
@@ -362,7 +377,7 @@ class Jobs(Base):
         )
 
         output = {
-            "estimated_total_cost": estimated_total_cost,
+            "estimated_total_cost_usd": estimated_total_cost,
             "estimated_total_input_tokens": estimated_total_input_tokens,
             "estimated_total_output_tokens": estimated_total_output_tokens,
             "model_costs": estimated_costs_by_model,
@@ -708,7 +723,11 @@ class Jobs(Base):
         return self._raise_validation_errors
 
     def create_remote_inference_job(
-        self, iterations: int = 1, remote_inference_description: Optional[str] = None
+        self,
+        iterations: int = 1,
+        remote_inference_description: Optional[str] = None,
+        remote_inference_results_visibility: Optional[VisibilityType] = "unlisted",
+        verbose=False,
     ):
         """ """
         from edsl.coop.coop import Coop
@@ -720,9 +739,11 @@ class Jobs(Base):
             description=remote_inference_description,
             status="queued",
             iterations=iterations,
+            initial_results_visibility=remote_inference_results_visibility,
         )
         job_uuid = remote_job_creation_data.get("uuid")
-        print(f"Job sent to server. (Job uuid={job_uuid}).")
+        if verbose:
+            print(f"Job sent to server. (Job uuid={job_uuid}).")
         return remote_job_creation_data
 
     @staticmethod
@@ -733,7 +754,7 @@ class Jobs(Base):
         return coop.remote_inference_get(job_uuid)
 
     def poll_remote_inference_job(
-        self, remote_job_creation_data: dict
+        self, remote_job_creation_data: dict, verbose=False, poll_interval=5
     ) -> Union[Results, None]:
         from edsl.coop.coop import Coop
         import time
@@ -750,42 +771,46 @@ class Jobs(Base):
             remote_job_data = coop.remote_inference_get(job_uuid)
             status = remote_job_data.get("status")
             if status == "cancelled":
-                print("\r" + " " * 80 + "\r", end="")
-                print("Job cancelled by the user.")
-                print(
-                    f"See {expected_parrot_url}/home/remote-inference for more details."
-                )
+                if verbose:
+                    print("\r" + " " * 80 + "\r", end="")
+                    print("Job cancelled by the user.")
+                    print(
+                        f"See {expected_parrot_url}/home/remote-inference for more details."
+                    )
                 return None
             elif status == "failed":
-                print("\r" + " " * 80 + "\r", end="")
-                print("Job failed.")
-                print(
-                    f"See {expected_parrot_url}/home/remote-inference for more details."
-                )
+                if verbose:
+                    print("\r" + " " * 80 + "\r", end="")
+                    print("Job failed.")
+                    print(
+                        f"See {expected_parrot_url}/home/remote-inference for more details."
+                    )
                 return None
             elif status == "completed":
                 results_uuid = remote_job_data.get("results_uuid")
                 results = coop.get(results_uuid, expected_object_type="results")
-                print("\r" + " " * 80 + "\r", end="")
-                url = f"{expected_parrot_url}/content/{results_uuid}"
-                print(f"Job completed and Results stored on Coop: {url}.")
+                if verbose:
+                    print("\r" + " " * 80 + "\r", end="")
+                    url = f"{expected_parrot_url}/content/{results_uuid}"
+                    print(f"Job completed and Results stored on Coop: {url}.")
                 return results
             else:
-                duration = 5
+                duration = poll_interval
                 time_checked = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
                 frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
                 start_time = time.time()
                 i = 0
                 while time.time() - start_time < duration:
-                    print(
-                        f"\r{frames[i % len(frames)]} Job status: {status} - last update: {time_checked}",
-                        end="",
-                        flush=True,
-                    )
+                    if verbose:
+                        print(
+                            f"\r{frames[i % len(frames)]} Job status: {status} - last update: {time_checked}",
+                            end="",
+                            flush=True,
+                        )
                     time.sleep(0.1)
                     i += 1
 
-    def use_remote_inference(self, disable_remote_inference: bool):
+    def use_remote_inference(self, disable_remote_inference: bool) -> bool:
         if disable_remote_inference:
             return False
         if not disable_remote_inference:
@@ -801,20 +826,23 @@ class Jobs(Base):
 
         return False
 
-    def use_remote_cache(self):
-        try:
-            from edsl import Coop
+    def use_remote_cache(self, disable_remote_cache: bool) -> bool:
+        if disable_remote_cache:
+            return False
+        if not disable_remote_cache:
+            try:
+                from edsl import Coop
 
-            user_edsl_settings = Coop().edsl_settings
-            return user_edsl_settings.get("remote_caching", False)
-        except requests.ConnectionError:
-            pass
-        except CoopServerResponseError as e:
-            pass
+                user_edsl_settings = Coop().edsl_settings
+                return user_edsl_settings.get("remote_caching", False)
+            except requests.ConnectionError:
+                pass
+            except CoopServerResponseError as e:
+                pass
 
         return False
 
-    def check_api_keys(self):
+    def check_api_keys(self) -> None:
         from edsl import Model
 
         for model in self.models + [Model()]:
@@ -823,6 +851,86 @@ class Jobs(Base):
                     model_name=str(model.model),
                     inference_service=model._inference_service_,
                 )
+
+    def get_missing_api_keys(self) -> set:
+        """
+        Returns a list of the api keys that a user needs to run this job, but does not currently have in their .env file.
+        """
+
+        missing_api_keys = set()
+
+        from edsl import Model
+        from edsl.enums import service_to_api_keyname
+
+        for model in self.models + [Model()]:
+            if not model.has_valid_api_key():
+                key_name = service_to_api_keyname.get(
+                    model._inference_service_, "NOT FOUND"
+                )
+                missing_api_keys.add(key_name)
+
+        return missing_api_keys
+
+    def user_has_all_model_keys(self):
+        """
+        Returns True if the user has all model keys required to run their job.
+
+        Otherwise, returns False.
+        """
+
+        try:
+            self.check_api_keys()
+            return True
+        except MissingAPIKeyError:
+            return False
+        except Exception:
+            raise
+
+    def user_has_ep_api_key(self) -> bool:
+        """
+        Returns True if the user has an EXPECTED_PARROT_API_KEY in their env.
+
+        Otherwise, returns False.
+        """
+
+        import os
+
+        coop_api_key = os.getenv("EXPECTED_PARROT_API_KEY")
+
+        if coop_api_key is not None:
+            return True
+        else:
+            return False
+
+    def needs_external_llms(self) -> bool:
+        """
+        Returns True if the job needs external LLMs to run.
+
+        Otherwise, returns False.
+        """
+        # These cases are necessary to skip the API key check during doctests
+
+        # Accounts for Results.example()
+        all_agents_answer_questions_directly = len(self.agents) > 0 and all(
+            [hasattr(a, "answer_question_directly") for a in self.agents]
+        )
+
+        # Accounts for InterviewExceptionEntry.example()
+        only_model_is_test = set([m.model for m in self.models]) == set(["test"])
+
+        # Accounts for Survey.__call__
+        all_questions_are_functional = set(
+            [q.question_type for q in self.survey.questions]
+        ) == set(["functional"])
+
+        if (
+            all_agents_answer_questions_directly
+            or only_model_is_test
+            or all_questions_are_functional
+        ):
+            return False
+        else:
+            return True
 
     def run(
         self,
@@ -836,22 +944,28 @@ class Jobs(Base):
         print_exceptions=True,
         remote_cache_description: Optional[str] = None,
         remote_inference_description: Optional[str] = None,
+        remote_inference_results_visibility: Optional[
+            Literal["private", "public", "unlisted"]
+        ] = "unlisted",
         skip_retry: bool = False,
         raise_validation_errors: bool = False,
+        disable_remote_cache: bool = False,
         disable_remote_inference: bool = False,
     ) -> Results:
         """
         Runs the Job: conducts Interviews and returns their results.
 
-        :param n: how many times to run each interview
-        :param progress_bar: shows a progress bar
-        :param stop_on_exception: stops the job if an exception is raised
-        :param cache: a cache object to store results
-        :param check_api_keys: check if the API keys are valid
-        :param batch_mode: run the job in batch mode i.e., no expecation of interaction with the user
-        :param verbose: prints messages
-        :param remote_cache_description: specifies a description for this group of entries in the remote cache
-        :param remote_inference_description: specifies a description for the remote inference job
+        :param n: How many times to run each interview
+        :param progress_bar: Whether to show a progress bar
+        :param stop_on_exception: Stops the job if an exception is raised
+        :param cache: A Cache object to store results
+        :param check_api_keys: Raises an error if API keys are invalid
+        :param verbose: Prints extra messages
+        :param remote_cache_description: Specifies a description for this group of entries in the remote cache
+        :param remote_inference_description: Specifies a description for the remote inference job
+        :param remote_inference_results_visibility: The initial visibility of the Results object on Coop. This will only be used for remote jobs!
+        :param disable_remote_cache: If True, the job will not use remote cache. This only works for local jobs!
+        :param disable_remote_inference: If True, the job will not use remote inference
         """
         from edsl.coop.coop import Coop
 
@@ -861,9 +975,54 @@ class Jobs(Base):
 
         self.verbose = verbose
 
+        if (
+            not self.user_has_all_model_keys()
+            and not self.user_has_ep_api_key()
+            and self.needs_external_llms()
+        ):
+            import secrets
+            from dotenv import load_dotenv
+            from edsl import CONFIG
+            from edsl.coop.coop import Coop
+            from edsl.utilities.utilities import write_api_key_to_env
+
+            missing_api_keys = self.get_missing_api_keys()
+
+            edsl_auth_token = secrets.token_urlsafe(16)
+
+            print("You're missing some of the API keys needed to run this job:")
+            for api_key in missing_api_keys:
+                print(f"     🔑 {api_key}")
+            print(
+                "\nYou can either add the missing keys to your .env file, or use remote inference."
+            )
+            print("Remote inference allows you to run jobs on our server.")
+            print("\n🚀 To use remote inference, sign up at the following link:")
+            print(
+                f"    {CONFIG.EXPECTED_PARROT_URL}/login?edsl_auth_token={edsl_auth_token}"
+            )
+            print(
+                "\nOnce you log in, we will automatically retrieve your Expected Parrot API key and continue your job remotely."
+            )
+
+            coop = Coop()
+            api_key = coop._poll_for_api_key(edsl_auth_token)
+
+            if api_key is None:
+                print("\nTimed out waiting for login. Please try again.")
+                return
+
+            write_api_key_to_env(api_key)
+            print("✨ API key retrieved and written to .env file.\n")
+
+            # Retrieve API key so we can continue running the job
+            load_dotenv()
+
         if remote_inference := self.use_remote_inference(disable_remote_inference):
             remote_job_creation_data = self.create_remote_inference_job(
-                iterations=n, remote_inference_description=remote_inference_description
+                iterations=n,
+                remote_inference_description=remote_inference_description,
+                remote_inference_results_visibility=remote_inference_results_visibility,
             )
             results = self.poll_remote_inference_job(remote_job_creation_data)
             if results is None:
@@ -883,7 +1042,7 @@ class Jobs(Base):
 
             cache = Cache()
 
-        remote_cache = self.use_remote_cache()
+        remote_cache = self.use_remote_cache(disable_remote_cache)
         with RemoteCacheSync(
             coop=Coop(),
             cache=cache,
@@ -904,15 +1063,82 @@ class Jobs(Base):
         results.cache = cache.new_entries_cache()
         return results
 
+    async def create_and_poll_remote_job(
+        self,
+        iterations: int = 1,
+        remote_inference_description: Optional[str] = None,
+        remote_inference_results_visibility: Optional[
+            Literal["private", "public", "unlisted"]
+        ] = "unlisted",
+    ) -> Union[Results, None]:
+        """
+        Creates and polls a remote inference job asynchronously.
+        Reuses existing synchronous methods but runs them in an async context.
+
+        :param iterations: Number of times to run each interview
+        :param remote_inference_description: Optional description for the remote job
+        :param remote_inference_results_visibility: Visibility setting for results
+        :return: Results object if successful, None if job fails or is cancelled
+        """
+        import asyncio
+        from functools import partial
+
+        # Create job using existing method
+        loop = asyncio.get_event_loop()
+        remote_job_creation_data = await loop.run_in_executor(
+            None,
+            partial(
+                self.create_remote_inference_job,
+                iterations=iterations,
+                remote_inference_description=remote_inference_description,
+                remote_inference_results_visibility=remote_inference_results_visibility,
+            ),
+        )
+
+        # Poll using existing method but with async sleep
+        return await loop.run_in_executor(
+            None, partial(self.poll_remote_inference_job, remote_job_creation_data)
+        )
+
+    async def run_async(
+        self,
+        cache=None,
+        n=1,
+        disable_remote_inference: bool = False,
+        remote_inference_description: Optional[str] = None,
+        remote_inference_results_visibility: Optional[
+            Literal["private", "public", "unlisted"]
+        ] = "unlisted",
+        **kwargs,
+    ):
+        """Run the job asynchronously, either locally or remotely.
+
+        :param cache: Cache object or boolean
+        :param n: Number of iterations
+        :param disable_remote_inference: If True, forces local execution
+        :param remote_inference_description: Description for remote jobs
+        :param remote_inference_results_visibility: Visibility setting for remote results
+        :param kwargs: Additional arguments passed to local execution
+        :return: Results object
+        """
+        # Check if we should use remote inference
+        if remote_inference := self.use_remote_inference(disable_remote_inference):
+            results = await self.create_and_poll_remote_job(
+                iterations=n,
+                remote_inference_description=remote_inference_description,
+                remote_inference_results_visibility=remote_inference_results_visibility,
+            )
+            if results is None:
+                self._output("Job failed.")
+            return results
+
+        # If not using remote inference, run locally with async
+        return await JobsRunnerAsyncio(self).run_async(cache=cache, n=n, **kwargs)
+
     def _run_local(self, *args, **kwargs):
         """Run the job locally."""
 
         results = JobsRunnerAsyncio(self).run(*args, **kwargs)
-        return results
-
-    async def run_async(self, cache=None, n=1, **kwargs):
-        """Run asynchronously."""
-        results = await JobsRunnerAsyncio(self).run_async(cache=cache, n=n, **kwargs)
         return results
 
     def all_question_parameters(self):

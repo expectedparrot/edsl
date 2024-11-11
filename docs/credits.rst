@@ -16,8 +16,9 @@ Free credits
 
 Your Coop account comes with a balance of 100 free credits that you can use to run surveys with remote inference.
 
-| ***Are you using EDSL for a research project?*** 
-| Send an email to *info@expectedparrot.com* to request additional free credits.
+*Are you using EDSL for a research project?*
+
+Send an email to *info@expectedparrot.com* to request additional free credits.
 
 
 Purchasing credits
@@ -36,6 +37,7 @@ To purchase credits, navigate to the `Credits <https://www.expectedparrot.com/ho
     <br><br>
 
 
+*Note:*
 Payments are processed by Stripe. 
 You may be charged payment processing feeds when purchasing credits.
 
@@ -44,9 +46,9 @@ Using credits
 -------------
 
 When you run a survey with remote inference, the number of credits consumed (and deducted from your balance) is displayed at the `remote inference page <https://www.expectedparrot.com/home/remote-inference>`_ of your Coop account.
-This number is calculated based on the cost of each response in the results, each of which is determined by the number of tokens in the input text and the output text of the response, which can be inspected in the raw response details (see example below).
+This number is equal to the sum of the cost in credit of each response in the results.
 
-The cost in credits for each response is calculated as follows:
+The cost in credits of a response is calculated as follows:
 
 - The number of input tokens is multiplied by the input token rate set by the language model service provider.
 - The number of output tokens is multiplied by the output token rate set by the language model service provider.
@@ -61,7 +63,8 @@ Example calculation
 - Output tokens: 45
 - Input token rate: USD 2.50 per 1M tokens
 - Output token rate: USD 10.00 per 1M tokens
-- Total cost: (16 * USD 2.50/1,000,000) + (45 * USD 10.00/1,000,000) = USD 0.00049 = 0.05 credits
+- Total cost: (16 * USD 2.50/1,000,000) + (45 * USD 10.00/1,000,000) = USD 0.00049 
+- Total credits: 0.05 credits
 
 
 Response details & token rates
@@ -70,12 +73,12 @@ Response details & token rates
 Details about a model's response are stored in the `raw_model_response` fields of the results dataset.
 For each question that was run, the following columns will appear in results:
 
-* **raw_model_response.<question_name>_cost**: The cost in USD for the API call to the language model service provider. (In the example above, this is USD 0.00049.)
-* **raw_model_response.<question_name>_one_usd_buys**: An estimate of the number of responses to the question that could be purchased with 1 USD (for reference).
-* **raw_model_response.<question_name>_raw_model_response**: A dictionary containing the raw response for the question, which includes the input text, output text, tokens and other information about the API call.
+* **raw_model_response.<question_name>_cost**: The cost in USD for the API call to a language model service provider. (In the example above, this is USD 0.00049.)
+* **raw_model_response.<question_name>_one_usd_buys**: The number of tokens that can be purchased with 1 USD (for reference).
+* **raw_model_response.<question_name>_raw_model_response**: A dictionary containing the raw response for the question, which includes the input text and tokens, output text and tokens, and other information about the API call. This dictionary is specific to the language model service provider and may contain additional information about the response.
 
 
-For example, here we run a question with two models and inspect the raw model response information:
+For example, here we run a question with two models and inspect the raw model response information (note that the raw response formats are not identical):
 
 .. code-block:: python
 
@@ -181,7 +184,7 @@ In the raw model response information for the response from *gpt-4o*, we can see
     'prompt_tokens': 16
 
 
-The total cost is then calculated based on the token rates set by the OpenAI (at the time of writing, USD 2.50 per 1M tokens for input and USD 10.00 per 1M tokens for output):
+The total cost of the response is calculated based on the token rates set by the OpenAI (at the time of writing, USD 2.50 per 1M tokens for input and USD 10.00 per 1M tokens for output):
 
 .. code-block:: text
 
@@ -198,7 +201,7 @@ In the raw model response information for the response from *claude-3-5-sonnet-2
     'output_tokens': 198
 
 
-The total cost is then calculated based on the token rates set by Anthropic (at the time of writing, USD 3.00 per 1M tokens for input and USD 15.00 per 1M tokens for output):
+The total cost of the response is calculated based on the token rates set by Anthropic (at the time of writing, USD 3.00 per 1M tokens for input and USD 15.00 per 1M tokens for output):
 
 .. code-block:: text
 
@@ -239,3 +242,380 @@ Token rates
 Model token rates used to calculate costs can be viewed at the `Pricing <https://www.expectedparrot.com/getting-started/coop-pricing>`_ page.
 This page is regularly updated to reflect the latest prices published by service providers.
 
+
+Estimating job costs
+--------------------
+
+Before running a survey, you can estimate the tokens and costs (in USD and credits) in 2 different ways:
+
+* Call the `estimate_job_cost()` method on the `Job` object (a survey combined with one or more models).
+
+    This will return the total estimated cost in USD, the total estimated input and output tokens, and estimated costs and tokens for each inference service and model used. 
+
+* Call the `remote_inference_cost()` method on a `Coop` client object and pass it the job.
+
+    This will return the estimated cost in credits and USD. (Credits are required to run surveys remotely.)
+
+
+Example
+^^^^^^^
+
+Here we create a survey and agent, select a model and combine them to create a job. 
+Then we call the above-mentioned methods for estimating costs and show the underlying calculations.
+The steps below can also be accessed as a notebook at the Coop web app (`notebook view <https://www.expectedparrot.com/content/c379241a-7039-4505-8d42-4c909a54c6e0>`_).
+
+.. code-block:: python
+
+    from edsl import QuestionFreeText, Survey, Agent, Model
+
+    q0 = QuestionFreeText(
+        question_name = "favorite_flower",
+        question_text = "What is the name of your favorite flower?"
+    )
+    q1 = QuestionFreeText(
+        question_name = "flower_color",
+        question_text = "What color is {{ favorite_flower.answer }}?"
+    )
+
+    survey = Survey(questions = [q0, q1])
+
+    a = Agent(traits = {"persona":"You are a botanist on Cape Cod."})
+
+    m = Model("gpt-4o")
+
+    job = survey.by(a).by(m)
+
+    estimated_job_cost = job.estimate_job_cost()
+    estimated_job_cost
+
+
+Output:
+
+.. code-block:: text
+
+    {'estimated_total_cost': 0.0009175000000000001,
+     'estimated_total_input_tokens': 91,
+     'estimated_total_output_tokens': 69,
+     'model_costs': [{'inference_service': 'openai',
+       'model': 'gpt-4o',
+       'estimated_cost': 0.0009175000000000001,
+       'estimated_input_tokens': 91,
+       'estimated_output_tokens': 69}]}
+
+
+The `estimated_total_cost` is the total cost in USD to run the job, and the `estimated_total_input_tokens` and `estimated_total_output_tokens` are the estimated total input and output tokens, respectively for all the prompts in the survey.
+
+To get the estimated cost in credits to run the job remotely we can call the `remote_inference_cost()` method on a `Coop` client object and pass it the job:
+
+.. code-block:: python
+
+    from edsl import Coop
+
+    coop = Coop()
+
+    estimated_remote_inference_cost = coop.remote_inference_cost(job) # using the job object from above
+    estimated_remote_inference_cost
+
+
+Output:
+
+.. code-block:: text
+
+    {'credits': 0.1, 'usd': 0.00092}    
+
+
+Formula details
+^^^^^^^^^^^^^^^
+
+Total job costs are estimated by performing the following calculation for each set of question prompts in the survey and summing the results:
+
+1. Estimate the input tokens.
+
+    * Compute the number of characters in the `user_prompt` and `system_prompt`, with any `Agent` and `Scenario` data piped in. (*Note:* Previous answers cannot be piped in because they are not available until the survey is run; they are left as Jinja-bracketed variables in the prompts for purposes of estimating tokens and costs.)
+    * Apply a piping multiplier of 2 to the number of characters in the user prompt if it has an answer piped in from a previous question (i.e., if the question has Jinja braces that cannot be filled in before the survey is run). Otherwise, apply a multiplier of 1.
+    * Convert the number of characters into the number of input tokens using a conversion factor of 4 characters per token, rounding down to the nearest whole number. (This approximation was `established by OpenAI <https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them>`_.)
+
+2. Estimate the output tokens.
+
+    * Apply a multiplier of 0.75 to the number of input tokens, rounding up to the nearest whole number.
+
+3. Apply the token rates for the model and inference service.
+
+    * Find the model and inference service for the question in the `Pricing <https://www.expectedparrot.com/getting-started/coop-pricing>`_ page:
+
+        Total cost in USD = (input tokens * input token rate) + (output tokens * output token rate)
+
+    * If a model and inference service are not found, use the following fallback token rates (for a low-cost OpenAI model) (you will see a warning message that actual model rates were not found):
+
+        * USD 0.60 per 1M input tokens
+        * USD 0.15 per 1M ouput tokens
+
+4. Convert the total cost in USD to credits.
+
+    * Total cost in credits = total cost in USD * 100, rounded up to the nearest 1/100th credit.
+
+Then sum the costs for all question prompts to get the total cost of the job.
+
+
+Calculations
+^^^^^^^^^^^^
+
+Here we show the calculations for the examples above.
+
+We can call the `show_prompts()` method on the job object to see the prompts for each question in the survey:
+
+.. code-block:: python
+
+    job.show_prompts()
+
+
+Output:
+
+.. code-block:: text
+
+    ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+    ┃ user_prompt                               ┃ system_prompt                                                       ┃
+    ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+    │ What is the name of your favorite flower? │ You are answering questions as if you were a human. Do not break    │
+    │                                           │ character. Your traits: {'persona': 'You are a botanist on Cape     │
+    │                                           │ Cod.'}                                                              │
+    ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
+    │ What color is {{ answer }}?               │ You are answering questions as if you were a human. Do not break    │
+    │                                           │ character. Your traits: {'persona': 'You are a botanist on Cape     │
+    │                                           │ Cod.'}                                                              │
+    └───────────────────────────────────────────┴─────────────────────────────────────────────────────────────────────┘
+
+
+Here we count the characters in each user prompt and system prompt:
+
+.. code-block:: python
+
+    q0_user_prompt_characters = len("What is the name of your favorite flower?")
+    q0_user_prompt_characters
+
+
+Output:
+
+.. code-block:: text
+
+    41
+
+
+.. code-block:: python 
+
+    q0_system_prompt_characters = len("You are answering questions as if you were a human. Do not break character. Your traits: {'persona': 'You are a botanist on Cape Cod.'}")
+    q0_system_prompt_characters
+
+
+Output:
+
+.. code-block:: text
+
+    135
+
+
+We apply the piping multiplier of 2 to the number of characters in the user prompt for q1 because the answer to q0 is piped in:
+
+.. code-block:: python
+
+    q1_user_prompt_characters = len("What color is {{ answer }}?") * 2
+    q1_user_prompt_characters
+
+
+Output:
+
+.. code-block:: text
+
+    54
+
+
+The system prompt characters are identical for the single agent used with the questions:
+
+.. code-block:: python
+
+    q1_system_prompt_characters = len("You are answering questions as if you were a human. Do not break character. Your traits: {'persona': 'You are a botanist on Cape Cod.'}")
+    q1_system_prompt_characters
+
+
+Output:
+
+.. code-block:: text
+
+    135
+
+
+Here we estimate the input and output tokens for each set of prompts:
+
+.. code-block:: python
+
+    q0_input_tokens = (q0_user_prompt_characters + q0_system_prompt_characters) // 4
+    q0_input_tokens
+
+
+Output:
+
+.. code-block:: text
+
+    44
+
+
+.. code-block:: python
+
+    q0_output_tokens = ceil(0.75 * q0_input_tokens) 
+    q0_output_tokens
+
+
+Output:
+
+.. code-block:: text
+
+    33
+
+
+.. code-block:: python
+
+    q1_input_tokens = (q1_user_prompt_characters + q1_system_prompt_characters) // 4
+    q1_input_tokens
+
+
+Output:
+
+.. code-block:: text
+
+    47
+
+
+.. code-block:: python
+
+    q1_output_tokens = ceil(0.75 * q1_input_tokens) 
+    q1_output_tokens
+
+
+Output:
+
+.. code-block:: text
+
+    36
+
+
+The total input tokens and output tokens for the job are:
+
+.. code-block:: python
+
+    total_input_tokens = q0_input_tokens + q1_input_tokens
+    total_input_tokens
+
+
+Output:
+
+.. code-block:: text
+
+    91
+
+
+.. code-block:: python
+
+    total_output_tokens = q0_output_tokens + q1_output_tokens
+    total_output_tokens
+
+
+Output:
+
+.. code-block:: text
+
+    69
+
+
+Next we apply the token rates for the model:
+
+.. code-block:: python
+
+    q0_tokens_cost = (2.50/1000000 * q0_input_tokens) + (10.00/1000000 * q0_output_tokens)
+    q0_tokens_cost
+
+
+Output:
+
+.. code-block:: text
+
+    0.00044000000000000007
+
+
+.. code-block:: python
+
+    q1_tokens_cost = (2.50/1000000 * q1_input_tokens) + (10.00/1000000 * q1_output_tokens)
+    q1_tokens_cost
+
+
+Output:
+
+.. code-block:: text
+
+    0.00047750000000000006
+
+
+The total cost of the job is:
+
+.. code-block:: python
+
+    total_cost_usd = q0_tokens_cost + q1_tokens_cost
+    total_cost_usd
+
+
+Output:
+
+.. code-block:: text
+
+    0.0009175000000000001
+
+
+We convert the total cost in USD to credits:
+
+.. code-block:: python
+
+    q0_credits = ceil(q0_tokens_cost * 100 * 100) / 100
+    q0_credits
+
+
+Output:
+
+.. code-block:: text
+
+    0.05
+
+
+.. code-block:: python
+
+    q1_credits = ceil(q1_tokens_cost * 100 * 100) / 100
+    q1_credits
+
+
+Output:
+
+.. code-block:: text
+
+    0.05
+
+
+We calculate the total cost in credits:
+
+.. code-block:: python
+
+    total_credits = q0_credits + q1_credits
+    total_credits
+
+
+Output:
+
+.. code-block:: text
+
+    0.1
+
+
+The total cost of the job is 0.00092 USD and 0.1 credits.
+
+
+Refunds
+-------
+
+Please send an email to *info@expectedparrot.com* if you have any questions about credits or refunds, or need assistance with your account.
