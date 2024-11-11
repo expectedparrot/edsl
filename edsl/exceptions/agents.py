@@ -1,37 +1,35 @@
-class AgentErrors(Exception):
-    pass
+from edsl.exceptions.BaseException import BaseException
+
+
+class AgentErrors(BaseException):
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/agents.html"
 
 
 class AgentDynamicTraitsFunctionError(AgentErrors):
-    pass
+    relevant_doc = (
+        "https://docs.expectedparrot.com/en/latest/agents.html#dynamic-traits-function"
+    )
+    relevant_notebook = "https://docs.expectedparrot.com/en/latest/notebooks/example_agent_dynamic_traits.html"
 
 
 class AgentDirectAnswerFunctionError(AgentErrors):
-    pass
-
-
-class AgentAttributeLookupCallbackError(AgentErrors):
-    pass
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/agents.html#agent-direct-answering-methods"
 
 
 class AgentCombinationError(AgentErrors):
-    pass
-
-
-class AgentLacksLLMError(AgentErrors):
-    pass
-
-
-class AgentRespondedWithBadJSONError(AgentErrors):
-    pass
+    relevant_doc = (
+        "https://docs.expectedparrot.com/en/latest/agents.html#combining-agents"
+    )
 
 
 class AgentNameError(AgentErrors):
-    pass
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/agents.html#agent-names"
 
 
 class AgentTraitKeyError(AgentErrors):
-    pass
+    relevant_doc = (
+        "https://docs.expectedparrot.com/en/latest/agents.html#constructing-an-agent"
+    )
 
 
 class FailedTaskException(Exception):

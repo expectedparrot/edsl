@@ -1,19 +1,24 @@
 import requests
+from typing import Optional
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 
 
 class ScenarioHtmlMixin:
     @classmethod
-    def from_html(cls, url: str) -> "Scenario":
+    def from_html(cls, url: str, field_name: Optional[str] = None) -> "Scenario":
         """Create a scenario from HTML content.
 
         :param html: The HTML content.
+        :param field_name: The name of the field containing the HTML content.
+
 
         """
         html = cls.fetch_html(url)
         text = cls.extract_text(html)
-        return cls({"url": url, "html": html, "text": text})
+        if not field_name:
+            field_name = "text"
+        return cls({"url": url, "html": html, field_name: text})
 
     def fetch_html(url):
         # Define the user-agent to mimic a browser

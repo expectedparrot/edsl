@@ -5,7 +5,7 @@ from typing import Optional, Callable
 from edsl import Agent, QuestionFreeText, Results, AgentList, ScenarioList, Scenario
 from edsl.questions import QuestionBase
 from edsl.results.Result import Result
-
+from jinja2 import Template
 from edsl.data import Cache
 
 from edsl.conversation.next_speaker_utilities import (
@@ -54,6 +54,9 @@ class Conversation:
     """A conversation between a list of agents. The first agent in the list is the first speaker.
     After that, order is determined by the next_speaker function.
     The question asked to each agent is determined by the next_statement_question.
+
+    If the user has passed in a "per_round_message_template", this will be displayed at the beginning of each round.
+    {{ round_message }} must be in the question_text.
     """
 
     def __init__(
@@ -64,9 +67,14 @@ class Conversation:
         next_statement_question: Optional[QuestionBase] = None,
         next_speaker_generator: Optional[Callable] = None,
         verbose: bool = False,
+        per_round_message_template: Optional[str] = None,
         conversation_index: Optional[int] = None,
         cache=None,
+        disable_remote_inference=False,
     ):
+        self.disable_remote_inference = disable_remote_inference
+        self.per_round_message_template = per_round_message_template
+
         if cache is None:
             self.cache = Cache()
         else:
@@ -76,16 +84,34 @@ class Conversation:
         self.verbose = verbose
         self.agent_statements = []
         self._conversation_index = conversation_index
-
         self.agent_statements = AgentStatements()
 
         self.max_turns = max_turns
 
         if next_statement_question is None:
+            import textwrap
+
+            base_question = textwrap.dedent(
+                """\
+You are {{ agent_name }}. This is the conversation so far: {{ conversation }}
+{% if round_message is not none %}
+{{ round_message }}
+{% endif %}
+What do you say next?"""
+            )
             self.next_statement_question = QuestionFreeText(
-                question_text="You are {{ agent_name }}. This is the converstaion so far: {{ conversation }}. What do you say next?",
+                question_text=base_question,
                 question_name="dialogue",
             )
+        else:
+            self.next_statement_question = next_statement_question
+            if (
+                per_round_message_template
+                and "{{ round_message }}" not in next_statement_question.question_text
+            ):
+                raise ValueError(
+                    "If you pass in a per_round_message_template, you must include {{ round_message }} in the question_text."
+                )
 
         # Determine how the next speaker is chosen
         if next_speaker_generator is None:
@@ -93,6 +119,7 @@ class Conversation:
         else:
             func = next_speaker_generator
 
+        # Choose the next speaker
         self.next_speaker = speaker_closure(
             agent_list=self.agent_list, generator_function=func
         )
@@ -158,18 +185,31 @@ class Conversation:
         }
         return Scenario(d)
 
-    async def get_next_statement(self, *, index, speaker, conversation):
+    async def get_next_statement(self, *, index, speaker, conversation) -> "Result":
+        """Get the next statement from the speaker."""
         q = self.next_statement_question
-        assert q.parameters == {"agent_name", "conversation"}, q.parameters
-        results = await q.run_async(
-            index=index,
-            conversation=conversation,
-            conversation_index=self.conversation_index,
-            agent_name=speaker.name,
-            agent=speaker,
-            just_answer=False,
-            cache=self.cache,
-            model=speaker.model,
+        # assert q.parameters == {"agent_name", "conversation"}, q.parameters
+        from edsl import Scenario
+
+        if self.per_round_message_template is None:
+            round_message = None
+        else:
+            round_message = Template(self.per_round_message_template).render(
+                {"max_turns": self.max_turns, "current_turn": index}
+            )
+
+        s = Scenario(
+            {
+                "agent_name": speaker.name,
+                "conversation": conversation,
+                "conversation_index": self.conversation_index,
+                "index": index,
+                "round_message": round_message,
+            }
+        )
+        jobs = q.by(s).by(speaker.model)
+        results = await jobs.run_async(
+            cache=self.cache, disable_remote_inference=self.disable_remote_inference
         )
         return results[0]
 

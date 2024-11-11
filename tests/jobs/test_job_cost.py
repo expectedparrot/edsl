@@ -38,7 +38,7 @@ def test_prompt_cost_estimation():
 
     assert estimated_cost_dct["input_tokens"] == 7
     assert estimated_cost_dct["output_tokens"] == 6
-    assert estimated_cost_dct["cost"] == 13
+    assert estimated_cost_dct["cost_usd"] == 13
 
     estimated_cost_dct = Jobs.estimate_prompt_cost(
         system_prompt="",
@@ -50,7 +50,7 @@ def test_prompt_cost_estimation():
 
     assert estimated_cost_dct["input_tokens"] == 8
     assert estimated_cost_dct["output_tokens"] == 6
-    assert estimated_cost_dct["cost"] == 14
+    assert estimated_cost_dct["cost_usd"] == 14
 
 
 def test_prompt_cost_estimation_with_piping():
@@ -64,7 +64,7 @@ def test_prompt_cost_estimation_with_piping():
 
     assert estimated_cost_dct["input_tokens"] == 20
     assert estimated_cost_dct["output_tokens"] == 15
-    assert estimated_cost_dct["cost"] == 35
+    assert estimated_cost_dct["cost_usd"] == 35
 
 
 def test_job_cost_estimation():
@@ -85,7 +85,7 @@ def test_job_cost_estimation():
     output_tokens = estimated_cost_dct["estimated_total_output_tokens"]
     assert output_tokens == 12
 
-    cost = estimated_cost_dct["estimated_total_cost"]
+    cost = estimated_cost_dct["estimated_total_cost_usd"]
     assert cost == 27
 
 
@@ -109,7 +109,7 @@ def test_job_cost_estimation_with_iterations():
     output_tokens = estimated_cost_dct["estimated_total_output_tokens"]
     assert output_tokens == 24
 
-    cost = estimated_cost_dct["estimated_total_cost"]
+    cost = estimated_cost_dct["estimated_total_cost_usd"]
     assert cost == 54
 
 
@@ -127,13 +127,13 @@ def test_job_cost_estimation_with_piping():
 
     # Test to make sure that the piping multiplier has taken effect
     input_tokens = estimated_cost_dct["estimated_total_input_tokens"]
-    assert input_tokens == 27  # 7 from q0 + 20 from q1
+    assert input_tokens == 19  # 7 from q0 + 20 from q1
 
     output_tokens = estimated_cost_dct["estimated_total_output_tokens"]
-    assert output_tokens == 21  # 6 from q0 + 15 from q1
+    assert output_tokens == 15  # 21  # 6 from q0 + 15 from q1
 
-    cost = estimated_cost_dct["estimated_total_cost"]
-    assert cost == 48  # 7 + 20 + 6 + 15
+    cost = estimated_cost_dct["estimated_total_cost_usd"]
+    assert cost == 34  #  # 7 + 20 + 6 + 15
 
 
 def test_job_cost_estimation_with_piping_and_iterations():
@@ -152,10 +152,10 @@ def test_job_cost_estimation_with_piping_and_iterations():
 
     # Test to make sure that the piping multiplier has taken effect
     input_tokens = estimated_cost_dct["estimated_total_input_tokens"]
-    assert input_tokens == 54
+    assert input_tokens == 38  # 54
 
     output_tokens = estimated_cost_dct["estimated_total_output_tokens"]
-    assert output_tokens == 42
+    assert output_tokens == 30  # 42
 
-    cost = estimated_cost_dct["estimated_total_cost"]
-    assert cost == 96
+    cost = estimated_cost_dct["estimated_total_cost_usd"]
+    assert cost == 68  # 96

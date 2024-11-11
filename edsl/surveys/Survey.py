@@ -9,6 +9,8 @@ from typing import Any, Generator, Optional, Union, List, Literal, Callable
 from uuid import uuid4
 from edsl.Base import Base
 from edsl.exceptions import SurveyCreationError, SurveyHasNoRulesError
+from edsl.exceptions.surveys import SurveyError
+
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.surveys.base import RulePriority, EndOfSurvey
 from edsl.surveys.DAG import DAG
@@ -30,7 +32,7 @@ from edsl.surveys.instructions.ChangeInstruction import ChangeInstruction
 class ValidatedString(str):
     def __new__(cls, content):
         if "<>" in content:
-            raise ValueError(
+            raise SurveyCreationError(
                 "The expression contains '<>', which is not allowed. You probably mean '!='."
             )
         return super().__new__(cls, content)
@@ -374,14 +376,15 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         >>> s._get_question_index("poop")
         Traceback (most recent call last):
         ...
-        ValueError: Question name poop not found in survey. The current question names are {'q0': 0, 'q1': 1, 'q2': 2}.
+        edsl.exceptions.surveys.SurveyError: Question name poop not found in survey. The current question names are {'q0': 0, 'q1': 1, 'q2': 2}.
+        ...
         """
         if q == EndOfSurvey:
             return EndOfSurvey
         else:
             question_name = q if isinstance(q, str) else q.question_name
             if question_name not in self.question_name_to_index:
-                raise ValueError(
+                raise SurveyError(
                     f"""Question name {question_name} not found in survey. The current question names are {self.question_name_to_index}."""
                 )
             return self.question_name_to_index[question_name]
@@ -397,7 +400,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         Question('multiple_choice', question_name = \"""q0\""", question_text = \"""Do you like school?\""", question_options = ['yes', 'no'])
         """
         if question_name not in self.question_name_to_index:
-            raise KeyError(f"Question name {question_name} not found in survey.")
+            raise SurveyError(f"Question name {question_name} not found in survey.")
         index = self.question_name_to_index[question_name]
         return self._questions[index]
 
@@ -421,7 +424,6 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         >>> s.question_names
         ['q0', 'q1', 'q2']
         """
-        # return list(self.question_name_to_index.keys())
         return [q.question_name for q in self.questions]
 
     @property
@@ -506,9 +508,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
                 return ChangeInstruction
             else:
-                # some data might not have the edsl_class_name
                 return QuestionBase
-                # raise ValueError(f"Class {pass_dict['edsl_class_name']} not found")
 
         questions = [
             get_class(q_dict).from_dict(q_dict) for q_dict in data["questions"]
@@ -589,7 +589,8 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         >>> s3 = s1 + s2
         Traceback (most recent call last):
         ...
-        ValueError: ('Cannot combine two surveys with non-default rules.', "Please use the 'clear_non_default_rules' method to remove non-default rules from the survey.")
+        edsl.exceptions.surveys.SurveyCreationError: ...
+        ...
         >>> s3 = s1.clear_non_default_rules() + s2
         >>> len(s3.questions)
         4
@@ -599,9 +600,8 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
             len(self.rule_collection.non_default_rules) > 0
             or len(other.rule_collection.non_default_rules) > 0
         ):
-            raise ValueError(
-                "Cannot combine two surveys with non-default rules.",
-                "Please use the 'clear_non_default_rules' method to remove non-default rules from the survey.",
+            raise SurveyCreationError(
+                "Cannot combine two surveys with non-default rules. Please use the 'clear_non_default_rules' method to remove non-default rules from the survey.",
             )
 
         return Survey(questions=self.questions + other.questions)
@@ -609,16 +609,16 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     def move_question(self, identifier: Union[str, int], new_index: int):
         if isinstance(identifier, str):
             if identifier not in self.question_names:
-                raise ValueError(
+                raise SurveyError(
                     f"Question name '{identifier}' does not exist in the survey."
                 )
             index = self.question_name_to_index[identifier]
         elif isinstance(identifier, int):
             if identifier < 0 or identifier >= len(self.questions):
-                raise ValueError(f"Index {identifier} is out of range.")
+                raise SurveyError(f"Index {identifier} is out of range.")
             index = identifier
         else:
-            raise TypeError(
+            raise SurveyError(
                 "Identifier must be either a string (question name) or an integer (question index)."
             )
 
@@ -648,32 +648,27 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         """
         if isinstance(identifier, str):
             if identifier not in self.question_names:
-                raise ValueError(
+                raise SurveyError(
                     f"Question name '{identifier}' does not exist in the survey."
                 )
             index = self.question_name_to_index[identifier]
         elif isinstance(identifier, int):
             if identifier < 0 or identifier >= len(self.questions):
-                raise ValueError(f"Index {identifier} is out of range.")
+                raise SurveyError(f"Index {identifier} is out of range.")
             index = identifier
         else:
-            raise TypeError(
+            raise SurveyError(
                 "Identifier must be either a string (question name) or an integer (question index)."
             )
 
         # Remove the question
         deleted_question = self._questions.pop(index)
         del self.pseudo_indices[deleted_question.question_name]
-        # del self.question_name_to_index[deleted_question.question_name]
 
         # Update indices
         for question_name, old_index in self.pseudo_indices.items():
             if old_index > index:
                 self.pseudo_indices[question_name] = old_index - 1
-
-        # for question_name, old_index in self.question_name_to_index.items():
-        #     if old_index > index:
-        #         self.question_name_to_index[question_name] = old_index - 1
 
         # Update rules
         new_rule_collection = RuleCollection()
@@ -690,13 +685,6 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
                     rule.next_q = EndOfSurvey
                 else:
                     rule.next_q = index
-                # rule.next_q = min(index, len(self.questions) - 1)
-                # continue
-
-            # if rule.next_q == index:
-            #     rule.next_q = min(
-            #         rule.next_q, len(self.questions) - 1
-            #     )  # Adjust to last question if necessary
 
             new_rule_collection.add_rule(rule)
         self.rule_collection = new_rule_collection
@@ -727,6 +715,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         Traceback (most recent call last):
         ...
         edsl.exceptions.surveys.SurveyCreationError: Question name 'q0' already exists in survey. Existing names are ['q0'].
+        ...
         """
         if question.question_name in self.question_names:
             raise SurveyCreationError(
@@ -736,11 +725,11 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
             index = len(self.questions)
 
         if index > len(self.questions):
-            raise ValueError(
+            raise SurveyCreationError(
                 f"Index {index} is greater than the number of questions in the survey."
             )
         if index < 0:
-            raise ValueError(f"Index {index} is less than 0.")
+            raise SurveyCreationError(f"Index {index} is less than 0.")
 
         interior_insertion = index != len(self.questions)
 
@@ -932,31 +921,32 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         >>> s = Survey.example().add_question_group("q0", "q2", "1group1")
         Traceback (most recent call last):
         ...
-        ValueError: Group name 1group1 is not a valid identifier.
-
-        The name of the group cannot be the same as an existing question name:
-
+        edsl.exceptions.surveys.SurveyCreationError: Group name 1group1 is not a valid identifier.
+        ...
         >>> s = Survey.example().add_question_group("q0", "q1", "q0")
         Traceback (most recent call last):
         ...
-        ValueError: Group name q0 already exists as a question name in the survey.
-
-        The start index must be less than the end index:
-
+        edsl.exceptions.surveys.SurveyCreationError: ...
+        ...
         >>> s = Survey.example().add_question_group("q1", "q0", "group1")
         Traceback (most recent call last):
         ...
-        ValueError: Start index 1 is greater than end index 0.
+        edsl.exceptions.surveys.SurveyCreationError: ...
+        ...
         """
 
         if not group_name.isidentifier():
-            raise ValueError(f"Group name {group_name} is not a valid identifier.")
+            raise SurveyCreationError(
+                f"Group name {group_name} is not a valid identifier."
+            )
 
         if group_name in self.question_groups:
-            raise ValueError(f"Group name {group_name} already exists in the survey.")
+            raise SurveyCreationError(
+                f"Group name {group_name} already exists in the survey."
+            )
 
         if group_name in self.question_name_to_index:
-            raise ValueError(
+            raise SurveyCreationError(
                 f"Group name {group_name} already exists as a question name in the survey."
             )
 
@@ -964,7 +954,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         end_index = self._get_question_index(end_question)
 
         if start_index > end_index:
-            raise ValueError(
+            raise SurveyCreationError(
                 f"Start index {start_index} is greater than end index {end_index}."
             )
 
@@ -973,15 +963,21 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
             existing_end_index,
         ) in self.question_groups.items():
             if start_index < existing_start_index and end_index > existing_end_index:
-                raise ValueError(
+                raise SurveyCreationError(
                     f"Group {group_name} contains the questions in the new group."
                 )
             if start_index > existing_start_index and end_index < existing_end_index:
-                raise ValueError(f"Group {group_name} is contained in the new group.")
+                raise SurveyCreationError(
+                    f"Group {group_name} is contained in the new group."
+                )
             if start_index < existing_start_index and end_index > existing_start_index:
-                raise ValueError(f"Group {group_name} overlaps with the new group.")
+                raise SurveyCreationError(
+                    f"Group {group_name} overlaps with the new group."
+                )
             if start_index < existing_end_index and end_index > existing_end_index:
-                raise ValueError(f"Group {group_name} overlaps with the new group.")
+                raise SurveyCreationError(
+                    f"Group {group_name} overlaps with the new group."
+                )
 
         self.question_groups[group_name] = (start_index, end_index)
         return self
@@ -1009,12 +1005,12 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         self, question: Union[QuestionBase, str], expression: str
     ) -> Survey:
         """Add a rule that stops the survey.
+        The rule is evaluated *after* the question is answered. If the rule is true, the survey ends.
 
         :param question: The question to add the stop rule to.
         :param expression: The expression to evaluate.
 
         If this rule is true, the survey ends.
-        The rule is evaluated *after* the question is answered. If the rule is true, the survey ends.
 
         Here, answering "yes" to q0 ends the survey:
 
@@ -1030,9 +1026,21 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         >>> s.add_stop_rule("q0", "q1 <> 'yes'")
         Traceback (most recent call last):
         ...
-        ValueError: The expression contains '<>', which is not allowed. You probably mean '!='.
+        edsl.exceptions.surveys.SurveyCreationError: The expression contains '<>', which is not allowed. You probably mean '!='.
+        ...
         """
         expression = ValidatedString(expression)
+        prior_question_appears = False
+        for prior_question in self.questions:
+            if prior_question.question_name in expression:
+                prior_question_appears = True
+
+        if not prior_question_appears:
+            import warnings
+
+            warnings.warn(
+                f"The expression {expression} does not contain any prior question names. This is probably a mistake."
+            )
         self.add_rule(question, expression, EndOfSurvey)
         return self
 
@@ -1219,32 +1227,59 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
     # region: Running the survey
 
-    def __call__(self, model=None, agent=None, cache=None, **kwargs):
+    def __call__(
+        self,
+        model=None,
+        agent=None,
+        cache=None,
+        disable_remote_cache: bool = False,
+        disable_remote_inference: bool = False,
+        **kwargs,
+    ):
         """Run the survey with default model, taking the required survey as arguments.
 
         >>> from edsl.questions import QuestionFunctional
         >>> def f(scenario, agent_traits): return "yes" if scenario["period"] == "morning" else "no"
         >>> q = QuestionFunctional(question_name = "q0", func = f)
         >>> s = Survey([q])
-        >>> s(period = "morning", cache = False).select("answer.q0").first()
+        >>> s(period = "morning", cache = False, disable_remote_cache = True, disable_remote_inference = True).select("answer.q0").first()
         'yes'
-        >>> s(period = "evening", cache = False).select("answer.q0").first()
+        >>> s(period = "evening", cache = False, disable_remote_cache = True, disable_remote_inference = True).select("answer.q0").first()
         'no'
         """
         job = self.get_job(model, agent, **kwargs)
-        return job.run(cache=cache)
+        return job.run(
+            cache=cache,
+            disable_remote_cache=disable_remote_cache,
+            disable_remote_inference=disable_remote_inference,
+        )
 
-    async def run_async(self, model=None, agent=None, cache=None, **kwargs):
+    async def run_async(
+        self,
+        model: Optional["Model"] = None,
+        agent: Optional["Agent"] = None,
+        cache: Optional["Cache"] = None,
+        disable_remote_inference: bool = False,
+        **kwargs,
+    ):
         """Run the survey with default model, taking the required survey as arguments.
 
+        >>> import asyncio
         >>> from edsl.questions import QuestionFunctional
         >>> def f(scenario, agent_traits): return "yes" if scenario["period"] == "morning" else "no"
         >>> q = QuestionFunctional(question_name = "q0", func = f)
         >>> s = Survey([q])
-        >>> s(period = "morning").select("answer.q0").first()
-        'yes'
-        >>> s(period = "evening").select("answer.q0").first()
-        'no'
+        >>> async def test_run_async(): result = await s.run_async(period="morning", disable_remote_inference = True); print(result.select("answer.q0").first())
+        >>> asyncio.run(test_run_async())
+        yes
+        >>> import asyncio
+        >>> from edsl.questions import QuestionFunctional
+        >>> def f(scenario, agent_traits): return "yes" if scenario["period"] == "morning" else "no"
+        >>> q = QuestionFunctional(question_name = "q0", func = f)
+        >>> s = Survey([q])
+        >>> async def test_run_async(): result = await s.run_async(period="evening", disable_remote_inference = True); print(result.select("answer.q0").first())
+        >>> asyncio.run(test_run_async())
+        no
         """
         # TODO: temp fix by creating a cache
         if cache is None:
@@ -1253,8 +1288,10 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
             c = Cache()
         else:
             c = cache
-        jobs: "Jobs" = self.get_job(model, agent, **kwargs)
-        return await jobs.run_async(cache=c)
+        jobs: "Jobs" = self.get_job(model=model, agent=agent, **kwargs)
+        return await jobs.run_async(
+            cache=c, disable_remote_inference=disable_remote_inference
+        )
 
     def run(self, *args, **kwargs) -> "Results":
         """Turn the survey into a Job and runs it.
@@ -1263,7 +1300,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         >>> s = Survey([QuestionFreeText.example()])
         >>> from edsl.language_models import LanguageModel
         >>> m = LanguageModel.example(test_model = True, canned_response = "Great!")
-        >>> results = s.by(m).run(cache = False)
+        >>> results = s.by(m).run(cache = False, disable_remote_cache = True, disable_remote_inference = True)
         >>> results.select('answer.*')
         Dataset([{'answer.how_are_you': ['Great!']}])
         """
@@ -1394,7 +1431,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
                 print(
                     f"The index is {index} but the length of the questions is {len(self.questions)}"
                 )
-                raise
+                raise SurveyError
 
         try:
             text_dag = {}
@@ -1640,20 +1677,6 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
             df.to_csv(filename, index=False)
         else:
             return df
-
-    def web(
-        self,
-        platform: Literal[
-            "google_forms", "lime_survey", "survey_monkey"
-        ] = "google_forms",
-        email=None,
-    ):
-        from edsl.coop import Coop
-
-        c = Coop()
-
-        res = c.web(self.to_dict(), platform, email)
-        return res
 
     # endregion
 
