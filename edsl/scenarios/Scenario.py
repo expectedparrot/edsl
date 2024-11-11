@@ -11,6 +11,7 @@ from uuid import uuid4
 from edsl.Base import Base
 from edsl.scenarios.ScenarioHtmlMixin import ScenarioHtmlMixin
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
+from edsl.exceptions.scenarios import EDSLScenarioError
 
 
 class Scenario(Base, UserDict, ScenarioHtmlMixin):
@@ -21,8 +22,13 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
     def __init__(self, data: Union[dict, None] = None, name: str = None):
         """Initialize a new Scenario.
 
-        :param data: A dictionary of keys/values for parameterizing questions.
-        """
+        # :param data: A dictionary of keys/values for parameterizing questions.
+        #"""
+        if not isinstance(data, dict) and data is not None:
+            raise EDSLScenarioError(
+                "You must pass in a dictionary to initialize a Scenario."
+            )
+
         self.data = data if data is not None else {}
         self.name = name
 

@@ -14,6 +14,10 @@ from .data import (
     DatabaseIntegrityError,
 )
 
+from .scenarios import (
+    EDSLScenarioError,
+)
+
 from .general import MissingAPIKeyError
 
 from .jobs import JobsRunError, InterviewErrorPriorTaskCanceled, InterviewTimeoutError
