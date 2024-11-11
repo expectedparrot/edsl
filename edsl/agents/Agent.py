@@ -151,9 +151,14 @@ class Agent(Base):
         self.current_question = None
 
         if traits_presentation_template is not None:
-            self.traits_presentation_template = traits_presentation_template
-        else:
-            self.traits_presentation_template = """Your traits: {{ traits }}"""
+            self._traits_presentation_template = traits_presentation_template
+
+    @property
+    def traits_presentation_template(self) -> str:
+        """Return the traits presentation template."""
+        if self._traits_presentation_template is None:
+            return "Your traits: {{traits}}"
+        return self._traits_presentation_template
 
     @property
     def agent_persona(self) -> Prompt:
@@ -646,6 +651,9 @@ class Agent(Base):
             for k, v in self.__dict__.items()
             if k.startswith("_")
         }
+        # if self.traits_presentation_template is not None:
+        #     raw_data["traits_presentation_template"] = self.traits_presentation_template
+
         if hasattr(self, "set_instructions"):
             if not self.set_instructions:
                 raw_data.pop("instruction")
