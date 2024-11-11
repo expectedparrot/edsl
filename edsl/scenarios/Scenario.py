@@ -239,6 +239,7 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
         >>> s.keep(["food"])
         Scenario({'food': 'wood chips'})
         """
+
         return self.select(list_of_keys)
 
     @classmethod
