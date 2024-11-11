@@ -9,6 +9,7 @@ from typing import Any, Generator, Optional, Union, List, Literal, Callable
 from uuid import uuid4
 from edsl.Base import Base
 from edsl.exceptions import SurveyCreationError, SurveyHasNoRulesError
+
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.surveys.base import RulePriority, EndOfSurvey
 from edsl.surveys.DAG import DAG
@@ -30,7 +31,7 @@ from edsl.surveys.instructions.ChangeInstruction import ChangeInstruction
 class ValidatedString(str):
     def __new__(cls, content):
         if "<>" in content:
-            raise ValueError(
+            raise SurveyCreationError(
                 "The expression contains '<>', which is not allowed. You probably mean '!='."
             )
         return super().__new__(cls, content)
@@ -727,6 +728,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         Traceback (most recent call last):
         ...
         edsl.exceptions.surveys.SurveyCreationError: Question name 'q0' already exists in survey. Existing names are ['q0'].
+        ...
         """
         if question.question_name in self.question_names:
             raise SurveyCreationError(
@@ -736,11 +738,11 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
             index = len(self.questions)
 
         if index > len(self.questions):
-            raise ValueError(
+            raise SurveyCreationError(
                 f"Index {index} is greater than the number of questions in the survey."
             )
         if index < 0:
-            raise ValueError(f"Index {index} is less than 0.")
+            raise SurveyCreationError(f"Index {index} is less than 0.")
 
         interior_insertion = index != len(self.questions)
 
@@ -950,13 +952,17 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         """
 
         if not group_name.isidentifier():
-            raise ValueError(f"Group name {group_name} is not a valid identifier.")
+            raise SurveyCreationError(
+                f"Group name {group_name} is not a valid identifier."
+            )
 
         if group_name in self.question_groups:
-            raise ValueError(f"Group name {group_name} already exists in the survey.")
+            raise SurveyCreationError(
+                f"Group name {group_name} already exists in the survey."
+            )
 
         if group_name in self.question_name_to_index:
-            raise ValueError(
+            raise SurveyCreationError(
                 f"Group name {group_name} already exists as a question name in the survey."
             )
 
@@ -964,7 +970,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         end_index = self._get_question_index(end_question)
 
         if start_index > end_index:
-            raise ValueError(
+            raise SurveyCreationError(
                 f"Start index {start_index} is greater than end index {end_index}."
             )
 
@@ -1030,7 +1036,8 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         >>> s.add_stop_rule("q0", "q1 <> 'yes'")
         Traceback (most recent call last):
         ...
-        ValueError: The expression contains '<>', which is not allowed. You probably mean '!='.
+        edsl.exceptions.surveys.SurveyCreationError: The expression contains '<>', which is not allowed. You probably mean '!='.
+        ...
         """
         expression = ValidatedString(expression)
         self.add_rule(question, expression, EndOfSurvey)
