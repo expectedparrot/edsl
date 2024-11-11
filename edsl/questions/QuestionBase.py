@@ -337,7 +337,7 @@ class QuestionBase(
         >>> from edsl import QuestionFreeText as Q
         >>> m = Q._get_test_model(canned_response = "Blue")
         >>> q = Q(question_name = "color", question_text = "What is your favorite color?")
-        >>> async def test_run_async(): result = await q.run_async(model=m); print(result)
+        >>> async def test_run_async(): result = await q.run_async(model=m, disable_remote_inference = True); print(result)
         >>> asyncio.run(test_run_async())
         Blue
         """
