@@ -7,7 +7,12 @@ from __future__ import annotations
 import json
 import random
 from collections import UserList, defaultdict
-from typing import Optional, Callable, Any, Type, Union, List
+from typing import Optional, Callable, Any, Type, Union, List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from edsl import Survey, Cache, AgentList, ModelList, ScenarioList
+    from edsl.results.Result import Result
+    from edsl.jobs.tasks.TaskHistory import TaskHistory
 
 from simpleeval import EvalWithCompoundTypes
 
@@ -41,7 +46,7 @@ class Mixins(
     ResultsGGMixin,
     ResultsToolsMixin,
 ):
-    def print_long(self, max_rows=None) -> None:
+    def print_long(self, max_rows: int = None) -> None:
         """Print the results in long format.
 
         >>> from edsl.results import Results
@@ -85,13 +90,13 @@ class Results(UserList, Mixins, Base):
 
     def __init__(
         self,
-        survey: Optional["Survey"] = None,
-        data: Optional[list["Result"]] = None,
+        survey: Optional[Survey] = None,
+        data: Optional[list[Result]] = None,
         created_columns: Optional[list[str]] = None,
-        cache: Optional["Cache"] = None,
+        cache: Optional[Cache] = None,
         job_uuid: Optional[str] = None,
         total_results: Optional[int] = None,
-        task_history: Optional["TaskHistory"] = None,
+        task_history: Optional[TaskHistory] = None,
     ):
         """Instantiate a `Results` object with a survey and a list of `Result` objects.
 
@@ -259,17 +264,6 @@ class Results(UserList, Mixins, Base):
         from IPython.display import HTML
 
         json_str = json.dumps(self.to_dict()["data"], indent=4)
-        # from pygments import highlight
-        # from pygments.lexers import JsonLexer
-        # 3from pygments.formatters import HtmlFormatter
-
-        # formatted_json = highlight(
-        #    json_str,
-        #    JsonLexer(),
-        #    HtmlFormatter(style="default", full=True, noclasses=True),
-        # )
-        # return HTML(formatted_json).data
-        # print(json_str)
         return f"<pre>{json_str}</pre>"
 
     def _to_dict(self, sort=False):
@@ -329,7 +323,7 @@ class Results(UserList, Mixins, Base):
     def hashes(self) -> set:
         return set(hash(result) for result in self.data)
 
-    def sample(self, n: int) -> "Results":
+    def sample(self, n: int) -> Results:
         """Return a random sample of the results.
 
         :param n: The number of samples to return.
@@ -347,7 +341,7 @@ class Results(UserList, Mixins, Base):
                 indices = list(range(len(values)))
                 sampled_indices = random.sample(indices, n)
                 if n > len(indices):
-                    raise ValueError(
+                    raise ResultsError(
                         f"Cannot sample {n} items from a list of length {len(indices)}."
                     )
             entry[key] = [values[i] for i in sampled_indices]
@@ -400,13 +394,12 @@ class Results(UserList, Mixins, Base):
         - Uses the key_to_data_type property of the Result class.
         - Includes any columns that the user has created with `mutate`
         """
-        d = {}
+        d: dict = {}
         for result in self.data:
             d.update(result.key_to_data_type)
         for column in self.created_columns:
             d[column] = "answer"
 
-        # breakpoint()
         return d
 
     @property
@@ -456,7 +449,7 @@ class Results(UserList, Mixins, Base):
         from edsl.utilities.utilities import shorten_string
 
         if not self.survey:
-            raise Exception("Survey is not defined so no answer keys are available.")
+            raise ResultsError("Survey is not defined so no answer keys are available.")
 
         answer_keys = self._data_type_to_keys["answer"]
         answer_keys = {k for k in answer_keys if "_comment" not in k}
@@ -469,7 +462,7 @@ class Results(UserList, Mixins, Base):
         return sorted_dict
 
     @property
-    def agents(self) -> "AgentList":
+    def agents(self) -> AgentList:
         """Return a list of all of the agents in the Results.
 
         Example:
@@ -483,7 +476,7 @@ class Results(UserList, Mixins, Base):
         return AgentList([r.agent for r in self.data])
 
     @property
-    def models(self) -> list[Type["LanguageModel"]]:
+    def models(self) -> ModelList:
         """Return a list of all of the models in the Results.
 
         Example:
@@ -492,10 +485,12 @@ class Results(UserList, Mixins, Base):
         >>> r.models[0]
         Model(model_name = ...)
         """
-        return [r.model for r in self.data]
+        from edsl import ModelList
+
+        return ModelList([r.model for r in self.data])
 
     @property
-    def scenarios(self) -> "ScenarioList":
+    def scenarios(self) -> ScenarioList:
         """Return a list of all of the scenarios in the Results.
 
         Example:
@@ -572,7 +567,7 @@ class Results(UserList, Mixins, Base):
         )
         return sorted(list(all_keys))
 
-    def first(self) -> "Result":
+    def first(self) -> Result:
         """Return the first observation in the results.
 
         Example:
@@ -822,7 +817,7 @@ class Results(UserList, Mixins, Base):
 
         return Results(survey=self.survey, data=new_data, created_columns=None)
 
-    def select(self, *columns: Union[str, list[str]]) -> "Results":
+    def select(self, *columns: Union[str, list[str]]) -> Results:
         """
         Select data from the results and format it.
 
@@ -1036,14 +1031,6 @@ class Results(UserList, Mixins, Base):
     def rich_print(self):
         """Display an object as a table."""
         pass
-        # with io.StringIO() as buf:
-        #     console = Console(file=buf, record=True)
-
-        #     for index, result in enumerate(self):
-        #         console.print(f"Result {index}")
-        #         console.print(result.rich_print())
-
-        #     return console.export_text()
 
     def __str__(self):
         data = self.to_dict()["data"]
