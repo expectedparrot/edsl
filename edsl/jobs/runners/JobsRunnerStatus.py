@@ -1,24 +1,19 @@
 from __future__ import annotations
 
+import os
 import time
 import requests
-from dataclasses import dataclass, asdict
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
 
-from typing import List, DefaultDict, Optional, Type, Literal, Dict
-from collections import UserDict, defaultdict
+from typing import Any, List, DefaultDict, Optional, Dict
+from collections import defaultdict
 
-from edsl.jobs.interviews.InterviewStatusDictionary import InterviewStatusDictionary
 from edsl.jobs.tokens.InterviewTokenUsage import InterviewTokenUsage
-from edsl.jobs.tokens.TokenUsage import TokenUsage
-from edsl.enums import get_token_pricing
-from edsl.jobs.tasks.task_status_enum import TaskStatus
 
 InterviewTokenUsageMapping = DefaultDict[str, InterviewTokenUsage]
 
 from edsl.jobs.interviews.InterviewStatistic import InterviewStatistic
-from edsl.jobs.interviews.InterviewStatisticsCollection import (
-    InterviewStatisticsCollection,
-)
 from edsl.jobs.tokens.InterviewTokenUsage import InterviewTokenUsage
 
 
@@ -38,18 +33,14 @@ class ModelTokenUsageStats:
     cost: str
 
 
-class Stats:
-    def elapsed_time(self):
-        InterviewStatistic("elapsed_time", value=elapsed_time, digits=1, units="sec.")
-
-
-class JobsRunnerStatus:
+class JobsRunnerStatusBase(ABC):
     def __init__(
         self,
         jobs_runner: "JobsRunnerAsyncio",
         n: int,
         refresh_rate: float = 1,
         endpoint_url: Optional[str] = "http://localhost:8000",
+        api_key: str = None,
     ):
         self.jobs_runner = jobs_runner
         self.job_id = str(hash(jobs_runner.jobs)) + "-" + str(time.time())
@@ -87,6 +78,13 @@ class JobsRunnerStatus:
         )
 
         self.completed_interview_by_model = defaultdict(list)
+
+        self.api_key = api_key or os.getenv("EXPECTED_PARROT_API_KEY")
+
+    @abstractmethod
+    def has_ep_api_key(self):
+        """Checks if the user has an Expected Parrot API key"""
+        pass
 
     def get_status_dict(self) -> Dict[str, Any]:
         """Convert current status into a JSON-serializable dictionary"""
@@ -154,24 +152,10 @@ class JobsRunnerStatus:
         status_dict["language_model_queues"] = model_queues
         return status_dict
 
-    def send_status_update(self) -> None:
-        """Send current status to the web endpoint using the instance's job_id"""
-
-        try:
-            # Get the status dictionary and add the job_id
-            status_dict = self.get_status_dict()
-            status_dict["job_id"] = str(self.job_id)  # Ensure job_id is string
-
-            # Send the update
-            response = requests.post(
-                self.update_url,
-                json=status_dict,
-                headers={"Content-Type": "application/json"},
-                timeout=1,
-            )
-            response.raise_for_status()
-        except requests.exceptions.RequestException as e:
-            print(f"Failed to send status update for job {self.job_id}: {e}")
+    @abstractmethod
+    def send_status_update(self):
+        """Updates the current status of the job"""
+        pass
 
     def add_completed_interview(self, result):
         self.completed_interviews.append(result.interview_hash)
@@ -252,6 +236,43 @@ class JobsRunnerStatus:
             time.sleep(self.refresh_rate)
 
         self.send_status_update()
+
+
+class JobsRunnerStatus(JobsRunnerStatusBase):
+
+    def send_status_update(self) -> None:
+        """Send current status to the web endpoint using the instance's job_id"""
+
+        try:
+            # Get the status dictionary and add the job_id
+            status_dict = self.get_status_dict()
+            status_dict["job_id"] = str(self.job_id)  # Ensure job_id is string
+
+            headers = {"Content-Type": "application/json"}
+
+            if self.api_key:
+                headers["Authorization"] = f"Bearer {self.api_key}"
+            else:
+                headers["Authorization"] = f"Bearer None"
+
+            # Send the update
+            response = requests.post(
+                self.update_url,
+                json=status_dict,
+                headers=headers,
+                timeout=1,
+            )
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            print(f"Failed to send status update for job {self.job_id}: {e}")
+
+    def has_ep_api_key(self) -> bool:
+        """Checks if the user has an Expected Parrot API key"""
+
+        if self.api_key is not None:
+            return True
+        else:
+            return False
 
 
 if __name__ == "__main__":

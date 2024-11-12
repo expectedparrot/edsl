@@ -2,13 +2,14 @@ from __future__ import annotations
 import time
 import asyncio
 import threading
+import warnings
 from typing import Coroutine, List, AsyncGenerator, Optional, Union, Generator
 from contextlib import contextmanager
 from collections import UserList
 
 from edsl.results.Results import Results
 from edsl.jobs.interviews.Interview import Interview
-from edsl.jobs.runners.JobsRunnerStatus import JobsRunnerStatus
+from edsl.jobs.runners.JobsRunnerStatus import JobsRunnerStatus, JobsRunnerStatusBase
 
 from edsl.jobs.tasks.TaskHistory import TaskHistory
 from edsl.jobs.buckets.BucketCollection import BucketCollection
@@ -278,6 +279,7 @@ class JobsRunnerAsyncio:
         stop_on_exception: bool = False,
         progress_bar: bool = False,
         sidecar_model: Optional[LanguageModel] = None,
+        jobs_runner_status: Optional[JobsRunnerStatusBase] = None,
         print_exceptions: bool = True,
         raise_validation_errors: bool = False,
     ) -> "Coroutine":
@@ -294,11 +296,14 @@ class JobsRunnerAsyncio:
         coop = Coop()
         endpoint_url = coop.get_progress_bar_url()
 
-        self.jobs_runner_status = JobsRunnerStatus(
-            self,
-            n=n,
-            endpoint_url=endpoint_url,
-        )
+        if jobs_runner_status is not None:
+            self.jobs_runner_status = jobs_runner_status
+        else:
+            self.jobs_runner_status = JobsRunnerStatus(
+                self,
+                n=n,
+                endpoint_url=endpoint_url,
+            )
 
         stop_event = threading.Event()
 
@@ -318,7 +323,7 @@ class JobsRunnerAsyncio:
             """Runs the progress bar in a separate thread."""
             self.jobs_runner_status.update_progress(stop_event)
 
-        if progress_bar:
+        if progress_bar and self.jobs_runner_status.has_ep_api_key():
             print(
                 f"Running with progress bar. View progress at {self.jobs_runner_status.viewing_url}"
             )
@@ -326,6 +331,10 @@ class JobsRunnerAsyncio:
                 target=run_progress_bar, args=(stop_event,)
             )
             progress_thread.start()
+        elif progress_bar:
+            warnings.warn(
+                "You need an Expected Parrot API key to view job progress bars."
+            )
 
         exception_to_raise = None
         try:
@@ -340,7 +349,7 @@ class JobsRunnerAsyncio:
             stop_event.set()
         finally:
             stop_event.set()
-            if progress_bar:
+            if progress_bar and self.jobs_runner_status.has_ep_api_key():
                 # self.jobs_runner_status.stop_event.set()
                 if progress_thread:
                     progress_thread.join()
