@@ -34,7 +34,7 @@ class Coop:
         self._edsl_version = edsl.__version__
 
     def get_progress_bar_url(self):
-        return "https://edsl-progress-bar-johnhorton.replit.app"
+        return f"{CONFIG.EXPECTED_PARROT_URL}"
 
     ################
     # BASIC METHODS
