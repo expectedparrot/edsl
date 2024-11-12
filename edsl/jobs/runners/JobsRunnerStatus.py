@@ -126,7 +126,7 @@ class JobsRunnerStatus:
                     (completed / total_interviews * 100) if total_interviews > 0 else 0
                 ),
             },
-            "model_progress": model_progress,
+            "language_model_progress": model_progress,
             "statistics": stats,
             "status": "completed" if completed >= total_interviews else "running",
         }
@@ -135,7 +135,7 @@ class JobsRunnerStatus:
         for model, bucket in self.jobs_runner.bucket_collection.items():
             model_name = model.model
             model_queues[model_name] = {
-                "model_name": model_name,
+                "language_model_name": model_name,
                 "requests_bucket": {
                     "completed": bucket.requests_bucket.num_released,
                     "requested": bucket.requests_bucket.num_requests,
@@ -151,7 +151,7 @@ class JobsRunnerStatus:
                     "current_rate": round(bucket.tokens_bucket.get_throughput(), 1),
                 },
             }
-        status_dict["model_queues"] = model_queues
+        status_dict["language_model_queues"] = model_queues
         return status_dict
 
     def send_status_update(self) -> None:
