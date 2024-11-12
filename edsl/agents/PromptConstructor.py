@@ -7,6 +7,23 @@ from edsl.prompts.Prompt import Prompt
 from edsl.agents.prompt_helpers import PromptPlan
 
 
+class PlaceholderAnswer:
+    """A placeholder answer for when a question is not yet answered."""
+
+    def __init__(self):
+        self.answer = "N/A"
+        self.comment = "Will be populated by prior answer"
+
+    def __getitem__(self, index):
+        return ""
+
+    def __str__(self):
+        return "<<PlaceholderAnswer>>"
+
+    def __repr__(self):
+        return "<<PlaceholderAnswer>>"
+
+
 def get_jinja2_variables(template_str: str) -> Set[str]:
     """
     Extracts all variable names from a Jinja2 template using Jinja2's built-in parsing.
@@ -88,15 +105,20 @@ class PromptConstructor:
         return self.agent.prompt()
 
     def prior_answers_dict(self) -> dict:
+        # this is all questions
         d = self.survey.question_names_to_questions()
         # This attaches the answer to the question
-        for question, answer in self.current_answers.items():
-            if question in d:
-                d[question].answer = answer
+        for question in d:
+            if question in self.current_answers:
+                d[question].answer = self.current_answers[question]
             else:
-                # adds a comment to the question
-                if (new_question := question.split("_comment")[0]) in d:
-                    d[new_question].comment = answer
+                d[question].answer = PlaceholderAnswer()
+
+                # if (new_question := question.split("_comment")[0]) in d:
+                #     d[new_question].comment = answer
+                # d[question].answer = PlaceholderAnswer()
+
+        # breakpoint()
         return d
 
     @property
@@ -109,6 +131,127 @@ class PromptConstructor:
                 question_file_keys.append(var)
         return question_file_keys
 
+    def build_replacement_dict(self, question_data: dict):
+        """
+        Builds a dictionary of replacement values by combining multiple data sources.
+        """
+        # File references dictionary
+        file_refs = {key: f"<see file {key}>" for key in self.scenario_file_keys}
+
+        # Scenario items excluding file keys
+        scenario_items = {
+            k: v for k, v in self.scenario.items() if k not in self.scenario_file_keys
+        }
+
+        # Question settings with defaults
+        question_settings = {
+            "use_code": getattr(self.question, "_use_code", True),
+            "include_comment": getattr(self.question, "_include_comment", False),
+        }
+
+        # Combine all dictionaries using dict.update() for clarity
+        replacement_dict = {}
+        for d in [
+            file_refs,
+            question_data,
+            scenario_items,
+            self.prior_answers_dict(),
+            {"agent": self.agent},
+            question_settings,
+        ]:
+            replacement_dict.update(d)
+
+        return replacement_dict
+
+    def _get_question_options(self, question_data):
+        question_options_entry = question_data.get("question_options", None)
+        question_options = question_options_entry
+
+        if isinstance(question_options_entry, str):
+            env = Environment()
+            parsed_content = env.parse(question_options_entry)
+            question_option_key = list(meta.find_undeclared_variables(parsed_content))[
+                0
+            ]
+            # print("question_option_key: ", question_option_key)
+            # breakpoint()
+            # look to see if the question_option_key is in the scenario
+            if isinstance(self.scenario.get(question_option_key), list):
+                question_options = self.scenario.get(question_option_key)
+
+            # breakpoint()
+
+            # might be getting it from the prior answers
+            if self.prior_answers_dict().get(question_option_key) is not None:
+                prior_question = self.prior_answers_dict().get(question_option_key)
+                if hasattr(prior_question, "answer"):
+                    if isinstance(prior_question.answer, list):
+                        question_options = prior_question.answer
+                else:
+                    question_options = [
+                        "N/A",
+                        "Will be populated by prior answer",
+                        "These are placeholder options",
+                    ]
+        return question_options
+
+    def build_question_instructions_prompt(self):
+        """Buils the question instructions prompt."""
+
+        question_prompt = Prompt(self.question.get_instructions(model=self.model.model))
+
+        # Get the data for the question - this is a dictionary of the question data
+        # e.g., {'question_text': 'Do you like school?', 'question_name': 'q0', 'question_options': ['yes', 'no']}
+        question_data = self.question.data.copy()
+
+        if "question_options" in question_data:
+            question_options = self._get_question_options(question_data)
+            question_data["question_options"] = question_options
+
+        # check to see if the question_options is actually a string
+        # This is used when the user is using the question_options as a variable from a scenario
+        # if "question_options" in question_data:
+        replacement_dict = self.build_replacement_dict(question_data)
+        rendered_instructions = question_prompt.render(replacement_dict)
+
+        # is there anything left to render?
+        undefined_template_variables = (
+            rendered_instructions.undefined_template_variables({})
+        )
+
+        # Check if it's the name of a question in the survey
+        for question_name in self.survey.question_names:
+            if question_name in undefined_template_variables:
+                print(
+                    "Question name found in undefined_template_variables: ",
+                    question_name,
+                )
+
+        if undefined_template_variables:
+            msg = f"Question instructions still has variables: {undefined_template_variables}."
+            import warnings
+
+            warnings.warn(msg)
+            # raise QuestionScenarioRenderError(
+            #     f"Question instructions still has variables: {undefined_template_variables}."
+            # )
+
+        # Check if question has instructions - these are instructions in a Survey that can apply to multiple follow-on questions
+        relevant_instructions = self.survey.relevant_instructions(
+            self.question.question_name
+        )
+
+        if relevant_instructions != []:
+            # preamble_text = Prompt(
+            #    text="You were given the following instructions: "
+            # )
+            preamble_text = Prompt(text="")
+            for instruction in relevant_instructions:
+                preamble_text += instruction.text
+            rendered_instructions = preamble_text + rendered_instructions
+
+        return rendered_instructions
+
     @property
     def question_instructions_prompt(self) -> Prompt:
         """
@@ -118,109 +261,11 @@ class PromptConstructor:
         Prompt(text=\"""...
         ...
         """
-        # The user might have passed a custom prompt, which would be stored in _question_instructions_prompt
         if not hasattr(self, "_question_instructions_prompt"):
-            # Gets the instructions for the question - this is how the question should be answered
-            question_prompt = Prompt(
-                self.question.get_instructions(model=self.model.model)
+            self._question_instructions_prompt = (
+                self.build_question_instructions_prompt()
             )
 
-            # Get the data for the question - this is a dictionary of the question data
-            # e.g., {'question_text': 'Do you like school?', 'question_name': 'q0', 'question_options': ['yes', 'no']}
-            question_data = self.question.data.copy()
-
-            # check to see if the question_options is actually a string
-            # This is used when the user is using the question_options as a variable from a scenario
-            # if "question_options" in question_data:
-            if isinstance(self.question.data.get("question_options", None), str):
-                env = Environment()
-                parsed_content = env.parse(self.question.data["question_options"])
-                question_option_key = list(
-                    meta.find_undeclared_variables(parsed_content)
-                )[0]
-
-                # look to see if the question_option_key is in the scenario
-                if isinstance(
-                    question_options := self.scenario.get(question_option_key), list
-                ):
-                    question_data["question_options"] = question_options
-                    self.question.question_options = question_options
-
-                # might be getting it from the prior answers
-                if self.prior_answers_dict().get(question_option_key) is not None:
-                    prior_question = self.prior_answers_dict().get(question_option_key)
-                    if hasattr(prior_question, "answer"):
-                        if isinstance(prior_question.answer, list):
-                            question_data["question_options"] = prior_question.answer
-                            self.question.question_options = prior_question.answer
-                    else:
-                        placeholder_options = [
-                            "N/A",
-                            "Will be populated by prior answer",
-                            "These are placeholder options",
-                        ]
-                        question_data["question_options"] = placeholder_options
-                        self.question.question_options = placeholder_options
-
-            replacement_dict = (
-                {key: f"<see file {key}>" for key in self.scenario_file_keys}
-                | question_data
-                | {
-                    k: v
-                    for k, v in self.scenario.items()
-                    if k not in self.scenario_file_keys
-                }  # don't include images in the replacement dict
-                | self.prior_answers_dict()
-                | {"agent": self.agent}
-                | {
-                    "use_code": getattr(self.question, "_use_code", True),
-                    "include_comment": getattr(
-                        self.question, "_include_comment", False
-                    ),
-                }
-            )
-
-            rendered_instructions = question_prompt.render(replacement_dict)
-
-            # is there anything left to render?
-            undefined_template_variables = (
-                rendered_instructions.undefined_template_variables({})
-            )
-
-            # Check if it's the name of a question in the survey
-            for question_name in self.survey.question_names:
-                if question_name in undefined_template_variables:
-                    print(
-                        "Question name found in undefined_template_variables: ",
-                        question_name,
-                    )
-
-            if undefined_template_variables:
-                msg = f"Question instructions still has variables: {undefined_template_variables}."
-                import warnings
-
-                warnings.warn(msg)
-                # raise QuestionScenarioRenderError(
-                #     f"Question instructions still has variables: {undefined_template_variables}."
-                # )
-
-            ####################################
-            # Check if question has instructions - these are instructions in a Survey that can apply to multiple follow-on questions
-            ####################################
-            relevant_instructions = self.survey.relevant_instructions(
-                self.question.question_name
-            )
-
-            if relevant_instructions != []:
-                # preamble_text = Prompt(
-                #    text="You were given the following instructions: "
-                # )
-                preamble_text = Prompt(text="")
-                for instruction in relevant_instructions:
-                    preamble_text += instruction.text
-                rendered_instructions = preamble_text + rendered_instructions
-
-            self._question_instructions_prompt = rendered_instructions
         return self._question_instructions_prompt
 
     @property

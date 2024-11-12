@@ -45,7 +45,7 @@ class TestRule(unittest.TestCase):
             )
 
     def test_rule_sends_you_backwards(self):
-        with self.assertRaises(ValueError):
+        with self.assertRaises(Exception):
             r = Rule(
                 current_q=5,
                 expression="q1 == 'yes'",

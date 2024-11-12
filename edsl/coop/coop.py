@@ -100,10 +100,76 @@ class Coop:
         if response.status_code >= 400:
             message = response.json().get("detail")
             # print(response.text)
-            if "Authorization" in message:
+            if "The API key you provided is invalid" in message:
+                import secrets
+                from edsl.utilities.utilities import write_api_key_to_env
+
+                edsl_auth_token = secrets.token_urlsafe(16)
+
+                print("Your Expected Parrot API key is invalid.")
+                print(
+                    "\nUse the link below to log in to Expected Parrot so we can automatically update your API key."
+                )
+                print(
+                    f"{CONFIG.EXPECTED_PARROT_URL}/login?edsl_auth_token={edsl_auth_token}\n"
+                )
+                api_key = self._poll_for_api_key(edsl_auth_token)
+
+                if api_key is None:
+                    print("\nTimed out waiting for login. Please try again.")
+                    return
+
+                write_api_key_to_env(api_key)
+                print("\n✨ API key retrieved and written to .env file.")
+                print("Rerun your code to try again with a valid API key.")
+                return
+
+            elif "Authorization" in message:
                 print(message)
                 message = "Please provide an Expected Parrot API key."
+
             raise CoopServerResponseError(message)
+
+    def _poll_for_api_key(
+        self, edsl_auth_token: str, timeout: int = 120
+    ) -> Union[str, None]:
+        """
+        Allows the user to retrieve their Expected Parrot API key by logging in with an EDSL auth token.
+
+        :param edsl_auth_token: The EDSL auth token to use for login
+        :param timeout: Maximum time to wait for login, in seconds (default: 120)
+        """
+        import time
+        from datetime import datetime
+
+        start_poll_time = time.time()
+        waiting_for_login = True
+        while waiting_for_login:
+
+            elapsed_time = time.time() - start_poll_time
+            if elapsed_time > timeout:
+                # Timed out waiting for the user to log in
+                print("\r" + " " * 80 + "\r", end="")
+                return None
+
+            api_key = self._get_api_key(edsl_auth_token)
+            if api_key is not None:
+                print("\r" + " " * 80 + "\r", end="")
+                return api_key
+            else:
+                duration = 5
+                time_checked = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
+                frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+                start_time = time.time()
+                i = 0
+                while time.time() - start_time < duration:
+                    print(
+                        f"\r{frames[i % len(frames)]} Waiting for login. Last checked: {time_checked}",
+                        end="",
+                        flush=True,
+                    )
+                    time.sleep(0.1)
+                    i += 1
 
     def _json_handle_none(self, value: Any) -> Any:
         """
@@ -492,6 +558,7 @@ class Coop:
         description: Optional[str] = None,
         status: RemoteJobStatus = "queued",
         visibility: Optional[VisibilityType] = "unlisted",
+        initial_results_visibility: Optional[VisibilityType] = "unlisted",
         iterations: Optional[int] = 1,
     ) -> dict:
         """
@@ -520,6 +587,7 @@ class Coop:
                 "iterations": iterations,
                 "visibility": visibility,
                 "version": self._edsl_version,
+                "initial_results_visibility": initial_results_visibility,
             },
         )
         self._resolve_server_response(response)
@@ -571,7 +639,9 @@ class Coop:
             "version": data.get("version"),
         }
 
-    def remote_inference_cost(self, input: Union[Jobs, Survey]) -> int:
+    def remote_inference_cost(
+        self, input: Union[Jobs, Survey], iterations: int = 1
+    ) -> int:
         """
         Get the cost of a remote inference job.
 
@@ -596,6 +666,7 @@ class Coop:
                     job.to_dict(),
                     default=self._json_handle_none,
                 ),
+                "iterations": iterations,
             },
         )
         self._resolve_server_response(response)
@@ -664,6 +735,17 @@ class Coop:
         else:
             return {}
 
+    def fetch_models(self) -> dict:
+        """
+        Fetch a dict of available models from Coop.
+
+        Each key in the dict is an inference service, and each value is a list of models from that service.
+        """
+        response = self._send_server_request(uri="api/v0/models", method="GET")
+        self._resolve_server_response(response)
+        data = response.json()
+        return data
+
     def fetch_rate_limit_config_vars(self) -> dict:
         """
         Fetch a dict of rate limit config vars from Coop.
@@ -677,6 +759,22 @@ class Coop:
         self._resolve_server_response(response)
         data = response.json()
         return data
+
+    def _get_api_key(self, edsl_auth_token: str):
+        """
+        Given an EDSL auth token, find the corresponding user's API key.
+        """
+
+        response = self._send_server_request(
+            uri="api/v0/get-api-key",
+            method="POST",
+            payload={
+                "edsl_auth_token": edsl_auth_token,
+            },
+        )
+        data = response.json()
+        api_key = data.get("api_key")
+        return api_key
 
 
 if __name__ == "__main__":
