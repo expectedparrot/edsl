@@ -25,6 +25,8 @@ from jinja2 import Template
 from rich import print
 from simpleeval import EvalWithCompoundTypes
 
+from edsl.exceptions.surveys import SurveyError
+
 from edsl.exceptions import (
     SurveyRuleCannotEvaluateError,
     SurveyRuleCollectionHasNoRulesAtNodeError,
@@ -47,11 +49,11 @@ class QuestionIndex:
 
     def __set__(self, obj, value):
         if not isinstance(value, (int, EndOfSurvey.__class__)):
-            raise ValueError(f"{self.name} must be an integer or EndOfSurvey")
+            raise SurveyError(f"{self.name} must be an integer or EndOfSurvey")
         if self.name == "_next_q" and isinstance(value, int):
             current_q = getattr(obj, "_current_q")
             if value <= current_q:
-                raise ValueError("next_q must be greater than current_q")
+                raise SurveyError("next_q must be greater than current_q")
         setattr(obj, self.name, value)
 
 
@@ -100,13 +102,17 @@ class Rule:
                 raise SurveyRuleSendsYouBackwardsError
 
         if not self.next_q == EndOfSurvey and self.current_q > self.next_q:
-            raise SurveyRuleSendsYouBackwardsError
+            raise SurveyRuleSendsYouBackwardsError(
+                f"current_q: {self.current_q}, next_q: {self.next_q}"
+            )
 
         # get the AST for the expression - used to extract the variables referenced in the expression
         try:
             self.ast_tree = ast.parse(self.expression)
         except SyntaxError:
-            raise SurveyRuleSkipLogicSyntaxError
+            raise SurveyRuleSkipLogicSyntaxError(
+                f"The expression {self.expression} is not valid Python syntax."
+            )
 
         # get the names of the variables in the expression
         # e.g., q1 == 'yes' -> ['q1']
