@@ -19,6 +19,8 @@ Survey.example().run(remote_inference_visibility="unlisted")
 ```
 
 ### Fixed
+- Bug in optional question parameters, which can be used to modify user prompts separately from question texts. Examples:
+
 
 
 ## [0.1.36] - 2024-10-28
