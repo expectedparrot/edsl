@@ -48,17 +48,22 @@ class JobsRunnerStatus:
         self,
         jobs_runner: "JobsRunnerAsyncio",
         n: int,
-        refresh_rate: float = 0.1,
+        refresh_rate: float = 1,
         endpoint_url: Optional[str] = "http://localhost:8000",
     ):
         self.jobs_runner = jobs_runner
         self.job_id = str(hash(jobs_runner.jobs)) + "-" + str(time.time())
 
         # URLs
-        self.base_url = f"{endpoint_url}/{str(self.job_id)}"
-        self.viewing_url = f"{self.base_url}/view"
-        self.data_url = f"{self.base_url}/data"
-        self.update_url = f"{self.base_url}/update"
+        self.base_url = f"{endpoint_url}"
+        self.viewing_url = f"{self.base_url}/home/job-progress/{str(self.job_id)}"
+
+        # I don't think we need this one
+        # self.data_url = f"{self.base_url}/data"
+
+        self.update_url = (
+            f"{self.base_url}/api/v0/job-progress/update/{str(self.job_id)}"
+        )
 
         self.start_time = time.time()
         self.completed_interviews = []
@@ -239,6 +244,9 @@ class JobsRunnerStatus:
         return stat_definitions[stat_name]()
 
     def update_progress(self, stop_event):
+        # Sleeping temporarily to avoid the throughput division by zero issue
+        time.sleep(0.01)
+
         while not stop_event.is_set():
             self.send_status_update()
             time.sleep(self.refresh_rate)
