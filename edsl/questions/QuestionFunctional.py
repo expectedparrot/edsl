@@ -19,7 +19,7 @@ class QuestionFunctional(QuestionBase):
     >>> question.activate()
     >>> scenario = Scenario({"numbers": [1, 2, 3, 4, 5]})
     >>> agent = Agent(traits={"multiplier": 10})
-    >>> results = question.by(scenario).by(agent).run()
+    >>> results = question.by(scenario).by(agent).run(disable_remote_cache = True, disable_remote_inference = True)
     >>> results.select("answer.*").to_list()[0] == 150
     True
 
@@ -27,7 +27,7 @@ class QuestionFunctional(QuestionBase):
 
     >>> from edsl.questions.QuestionBase import QuestionBase
     >>> new_question = QuestionBase.from_dict(question.to_dict())
-    >>> results = new_question.by(scenario).by(agent).run()
+    >>> results = new_question.by(scenario).by(agent).run(disable_remote_cache = True, disable_remote_inference = True)
     >>> results.select("answer.*").to_list()[0] == 150
     True
 

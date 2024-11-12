@@ -9,6 +9,12 @@ You can also view and pull notebooks that other users have uploaded and shared p
 Examples of methods below are also viewable in `this notebook at the Coop <https://www.expectedparrot.com/content/ffa113f4-4f2a-407b-8fc6-27bdf5e69d2f>`_.
 
 
+Special note for Colab users
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you are using EDSL in a Colab notebook, please see `special instructions <https://docs.expectedparrot.com/en/latest/colab_notebooks.html>`_ on posting Colab notebooks to Coop (:ref:`colab_notebooks`).
+
+
 Creating a `Notebook` object
 ----------------------------
 
