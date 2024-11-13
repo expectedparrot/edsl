@@ -4,12 +4,12 @@
 ### Added
 
 ### Changed
-- The progress bar is now web-based. It is still called in the same way: `run(progress_bar=True)`
+- *In progress:* The progress bar is now web-based. It is still called in the same way: `run(progress_bar=True)`
 
 ### Fixed
-- Bug in optional question parameters, which can be used to modify user prompts separately from modifying question texts. 
+- *In progress:* Bug in optional question parameters `answering_instructions` and `question_presentation`, which can be used to modify user prompts separately from modifying question texts. 
 
-- Bug in piping question components into question options.
+- *In progress:* Bug in piping question components into `question_options`.
 
 
 ## [0.1.37] - 2024-11-13
