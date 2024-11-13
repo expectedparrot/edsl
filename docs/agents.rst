@@ -2,15 +2,14 @@
 
 Agents
 ======
-
-`Agent` objects are used to represent survey respondents and simulate their answers to questions. 
-They can be constructed with personas and any relevant attributes for language models to reference in generating responses. 
+`Agent` objects are used to simulate survey responses for target audiences. 
+They are created with specified traits, such as personas and relevant attributes for a survey, that are used together with language models to generate answers to questions. 
 
 
 Constructing an Agent
 ---------------------
 
-An `Agent` is created by passing a dictionary of `traits`, such as a persona or background. 
+An `Agent` is created by passing a dictionary of `traits` for a language model to reference in answering questions. 
 Traits can be anything that might be relevant to the questions the agent will be asked, and constructed with single values or textual narratives.
 
 For example:
@@ -19,12 +18,12 @@ For example:
 
     from edsl import Agent
 
-    traits_dict = {
-        "persona": "You are an expert in machine learning.",
-        "age": 45,
-        "home_state": "Massachusetts"
-    }
-    a = Agent(traits = traits_dict)
+    agent = Agent(
+        traits = {
+            "persona": "You are an expert in machine learning.",
+            "age": 45,
+            "home_state": "Massachusetts"
+        })
 
 
 Note that `traits=` must be named explicitly in the construction, and the traits must use Python identifiers as keys (e.g., `home_state` but not `home state` or `home-state`).
@@ -37,26 +36,32 @@ We can optionally give an agent a name when it is constructed:
 
 .. code-block:: python
 
-    a = Agent(name = "Ada", traits = traits_dict)
+    agent = Agent(
+        name = "Ada", 
+        traits = {
+            "persona": "You are an expert in machine learning.",
+            "age": 45,
+            "home_state": "Massachusetts"
+        })
 
 
-If a name is not passed when the agent is created, an `agent_name` field is automatically added to results when a survey is administered to the agent.
+If a name is not passed when the agent is created, an `agent_name` field is automatically added to the `Results` that are generated when a survey is run with the agent.
 This field is a unique identifier for the agent and can be used to filter or group results by agent.
 
-Note that trying to create two agents with the same name or trying to include the name in the traits will raise an error.
+Note that trying to create two agents with the same name or trying to use a key "name" in the `traits` will raise an error.
 
 
 Agent lists
 -----------
 
 Agents can be created collectively and administered a survey together. 
-This is useful for comparing responses among agents.
+This is useful for comparing responses across agents.
 
-For example, here we create a list of agents with each combination of listed trait dimensions: 
+For example, here we create an a list of agents as an `AgentList` with different combinations of traits: 
 
 .. code-block:: python
 
-    from edsl import Agent, AgentList
+    from edsl import AgentList, Agent
 
     ages = [10, 20, 30, 40, 50]
     locations = ["New York", "California", "Texas", "Florida", "Washington"]
@@ -66,7 +71,7 @@ For example, here we create a list of agents with each combination of listed tra
     ) 
 
 
-This code will create a list of agents with different ages and locations, which can then be used in a survey.
+This code will create a list of agents that can then be used in a survey.
 
 Example code for running a survey with the agents:
 
@@ -81,6 +86,178 @@ Example code for running a survey with the agents:
 
 This will generate a `Results` object that contains a `Result` for each agent's responses to the survey questions.
 Learn more about working with results in the :ref:`results` section.
+
+
+Generating agents from data 
+---------------------------
+
+An `AgentList` can be automatically generated from data stored in a list, a dictionary or a CSV file.
+
+
+From a list
+^^^^^^^^^^^
+
+We can create a simple `AgentList` from a list using the `from_list()` method, which takes a single `trait_name` and a list of `values` for it and returns an agent for each value (each agent has a single trait):
+
+.. code-block:: python
+
+    from edsl import AgentList
+
+    agents = AgentList.from_list(trait_name="age", values=[10, 20, 30, 40])
+    agents
+
+
+Output:
+
+.. code-block:: text 
+
+    [
+        {
+            "traits": {
+                "age": 10
+            }
+        },
+        {
+            "traits": {
+                "age": 20
+            }
+        },
+        {
+            "traits": {
+                "age": 30
+            }
+        },
+        {
+            "traits": {
+                "age": 40
+            }
+        }
+    ]
+
+
+From a dictionary
+^^^^^^^^^^^^^^^^^
+
+We can create a more complex `AgentList` from a dictionary using the `from_dict()` method.
+It takes a dictionary with a key `agent_list` and a list of dictionaries, each of which must have a `traits` key with a dictionary of traits and an optional `name` key for the agent's name:
+
+.. code-block:: python
+
+    from edsl import AgentList
+
+    data = {
+        "agent_list": [
+            {"name":"agent1", "traits":{"age": 10, "location": "New York"}},
+            {"name":"agent2", "traits":{"age": 20, "location": "California"}},
+            {"name":"agent3", "traits":{"age": 30, "location": "Texas"}},
+            {"name":"agent4", "traits":{"age": 40, "location": "Florida"}},
+            {"name":"agent5", "traits":{"age": 50, "location": "Washington"}}
+        ]
+    }
+
+    agents = AgentList.from_dict(data)
+    agents
+
+
+Output:
+
+.. code-block:: text
+
+    [
+        {
+            "name": "agent1",
+            "traits": {
+                "age": 10,
+                "location": "New York"
+            }
+        },
+        {
+            "name": "agent2",
+            "traits": {
+                "age": 20,
+                "location": "California"
+            }
+        },
+        {
+            "name": "agent3",
+            "traits": {
+                "age": 30,
+                "location": "Texas"
+            }
+        },
+        {
+            "name": "agent4",
+            "traits": {
+                "age": 40,
+                "location": "Florida"
+            }
+        },
+        {
+            "name": "agent5",
+            "traits": {
+                "age": 50,
+                "location": "Washington"
+            }
+        }
+    ]
+
+
+From a CSV file
+^^^^^^^^^^^^^^^
+
+We can also create an `AgentList` from a CSV file using the `from_csv()` method.
+The CSV file must have a header row of Pythonic keys for the `traits`, and can optionally have a column "name" for the agent names:
+
+.. code-block:: python
+
+    from edsl import AgentList
+
+    # Creating a CSV file with agent data to use as an example
+    import pandas as pd
+
+    data = [
+        {"name": "Alice", "age": 25, "city": "New York"},
+        {"name": "Bob", "age": 30, "city": "San Francisco"},
+        {"name": "Charlie", "age": 35, "city": "Chicago"}
+    ]
+
+    df = pd.DataFrame(data)
+
+    df.to_csv("agent_data.csv", index=False)
+
+    # Creating an AgentList from the CSV file
+    agents = AgentList.from_csv("agent_data.csv")
+    agents
+
+
+Output:
+
+.. code-block:: text
+
+    [
+        {
+            "name": "Alice",
+            "traits": {
+                "age": 25,
+                "city": "New York"
+            }
+        },
+        {
+            "name": "Bob",
+            "traits": {
+                "age": 30,
+                "city": "San Francisco"
+            }
+        },
+        {
+            "name": "Charlie",
+            "traits": {
+                "age": 35,
+                "city": "Chicago"
+            }
+        }
+    ]
+
 
 
 Dynamic traits function
@@ -169,7 +346,6 @@ Controlling the presentation of the persona
 
 The `traits_presentation_template` parameter can be used to create a narrative persona for an agent.
 This is a template string that can be rendered with the agent's traits as variables.
-Note that each parameter in the template must be a key in the agent's traits dictionary.
 
 For example:
 
@@ -502,36 +678,6 @@ Output:
     }
 
 
-Adding agents 
-^^^^^^^^^^^^^
-
-Agents can be added together to create a new agent with the combined traits of the original agents.
-
-For example:
-
-.. code-block:: python
-
-    from edsl import Agent
-
-    a1 = Agent(traits = {"age": 10})
-    a2 = Agent(traits = {"height": 5.5})
-
-    a3 = a1 + a2
-    a3
-
-
-Output:
-
-.. code-block:: text
-
-    {
-        "traits": {
-            "age": 10,
-            "height": 5.5
-        }
-    }
-
-
 Using survey responses as new agent traits
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -605,30 +751,23 @@ Output:
                 "age": 22,
                 "location": "California",
                 "surfing": "Sometimes"
-            },
-            "edsl_version": "0.1.36.dev1",
-            "edsl_class_name": "Agent"
+            }
         },
         {
             "traits": {
                 "age": 40,
                 "location": "Texas",
                 "surfing": "Never"
-            },
-            "edsl_version": "0.1.36.dev1",
-            "edsl_class_name": "Agent"
+            }
         },
         {
             "traits": {
                 "age": 30,
                 "location": "New York",
                 "surfing": "Never"
-            },
-            "edsl_version": "0.1.36.dev1",
-            "edsl_class_name": "Agent"
+            }
         }
     ]
-
 
 
 Agent class
@@ -653,13 +792,23 @@ AgentList class
    
 .. automethod:: AgentList.from_dict
    :noindex:
-   
-.. automethod:: AgentList.rich_print
+
+.. automethod:: AgentList.from_csv
+   :noindex:
+
+.. automethod:: AgentList.from_list
    :noindex:
    
 .. automethod:: AgentList.to_dict
    :noindex:
-   
+
+.. automethod:: AgentList.to_csv
+   :noindex:
+
+.. automethod:: AgentList.rich_print
+   :noindex:
+
+
 .. Invigilator class
 .. -----------------
 .. The administration of Questions is managed by an `Invigilator`.
