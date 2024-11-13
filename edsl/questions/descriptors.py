@@ -53,33 +53,12 @@ class BaseDescriptor(ABC):
 
     def __set__(self, instance, value: Any) -> None:
         """Set the value of the attribute."""
-        self.validate(value, instance)
-        # from edsl.prompts.registry import get_classes
+        new_value = self.validate(value, instance)
 
-        instance.__dict__[self.name] = value
-        # if self.name == "_instructions":
-        #     instructions = value
-        #     if value is not None:
-        #         instance.__dict__[self.name] = instructions
-        #         instance.set_instructions = True
-        #     else:
-        #         potential_prompt_classes = get_classes(
-        #             question_type=instance.question_type
-        #         )
-        #         if len(potential_prompt_classes) > 0:
-        #             instructions = potential_prompt_classes[0]().text
-        #             instance.__dict__[self.name] = instructions
-        #             instance.set_instructions = False
-        #         else:
-        #             if not hasattr(instance, "default_instructions"):
-        #                 raise Exception(
-        #                     "No default instructions found and no matching prompts!"
-        #                 )
-        #             instructions = instance.default_instructions
-        #             instance.__dict__[self.name] = instructions
-        #             instance.set_instructions = False
-
-        # instance.set_instructions = value != instance.default_instructions
+        if new_value is not None:
+            instance.__dict__[self.name] = new_value
+        else:
+            instance.__dict__[self.name] = value
 
     def __set_name__(self, owner, name: str) -> None:
         """Set the name of the attribute."""
@@ -400,16 +379,32 @@ class QuestionTextDescriptor(BaseDescriptor):
         if contains_single_braced_substring(value):
             import warnings
 
+            # # warnings.warn(
+            # #     f"WARNING: Question text contains a single-braced substring: If you intended to parameterize the question with a Scenario this should be changed to a double-braced substring, e.g. {{variable}}.\nSee details on constructing Scenarios in the docs: https://docs.expectedparrot.com/en/latest/scenarios.html",
+            # #     UserWarning,
+            # # )
             warnings.warn(
-                f"WARNING: Question text contains a single-braced substring: If you intended to parameterize the question with a Scenario this should be changed to a double-braced substring, e.g. {{variable}}.\nSee details on constructing Scenarios in the docs: https://docs.expectedparrot.com/en/latest/scenarios.html",
+                "WARNING: Question text contains a single-braced substring. "
+                "If you intended to parameterize the question with a Scenario, this will "
+                "be changed to a double-braced substring, e.g. {{variable}}.\n"
+                "See details on constructing Scenarios in the docs: "
+                "https://docs.expectedparrot.com/en/latest/scenarios.html",
                 UserWarning,
             )
+            # Automatically replace single braces with double braces
+            # This is here because if the user is using an f-string, the double brace will get converted to a single brace. 
+            # This undoes that.
+            value = re.sub(r"\{([^\{\}]+)\}", r"{{\1}}", value)
+            return value 
+        
         # iterate through all doubles braces and check if they are valid python identifiers
         for match in re.finditer(r"\{\{([^\{\}]+)\}\}", value):
             if " " in match.group(1).strip():
                 raise QuestionCreationValidationError(
                     f"Question text contains an invalid identifier: '{match.group(1)}'"
                 )
+            
+        return None
 
 
 if __name__ == "__main__":
