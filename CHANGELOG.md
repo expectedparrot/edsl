@@ -1,14 +1,18 @@
 # Changelog
 
-
-## [0.1.37] - TBD
+## [0.1.38] - TBD
 ### Added
-- Users can now log in with an EDSL auth token to retrieve their API key and write it to *.env*.
 
 ### Changed
 - The progress bar is now web-based. It is still called in the same way: `run(progress_bar=True)`
 
-- The `AgentList` method `from_csv()` now allows you to include a CSV column "name" to pass an (optional) `name` to each `Agent` that is created from the CSV data. Other CSV columns are passed as agent `traits`. See an example:
+
+## [0.1.37] - 2024-11-13
+### Added
+- EDSL auth token: It will automatically retrieve your EXPECTED_PARROT_API_KEY and write it to your *.env* file. *How it works:* If you try to run a survey remotely without having stored your EXPECTED_PARROT_API_KEY, you will get a Coop login link that will automatically write your key to your *.env* file when you click on the link and log in.
+
+### Changed
+- The `AgentList` method `from_csv()` now allows you to (optionally) automatically specify the `name` parameters for agents by including a column "name" in the CSV. Other columns are (still) passed as agent `traits`. See an example:
 
 - The `Job` method `run()` now takes a parameter `remote_inference_results_visibility` to set the visibility of results of jobs that are being run remotely. The allowed visibility settings are `public`, `private` and `unlisted` (the default setting is unlisted). This parameter has the same effect as passing the parameter `visibility` to the `push()` and `patch()` methods for posting and updating objects at the Coop. For example, these commands have the same effect when remote inference activated:
 
@@ -19,7 +23,9 @@ Survey.example().run(remote_inference_visibility="unlisted")
 ```
 
 ### Fixed
-- Bug in optional question parameters, which can be used to modify user prompts separately from question texts. Examples:
+- Bug in optional question parameters, which can be used to modify user prompts separately from question texts. Example:
+
+- Bug in using f-strings and scenarios at once. Example:
 
 
 
