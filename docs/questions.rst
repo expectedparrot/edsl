@@ -3,8 +3,6 @@
 Questions
 =========
 
-.. This module contains the Question class, which is the base class for all questions in EDSL.
-
 EDSL provides templates for many common question types, including multiple choice, checkbox, free text, numerical, linear scale and others.
 The `Question` class has subclasses for each of these types: `QuestionMultipleChoice`, `QuestionCheckBox`, `QuestionFreeText`, `QuestionNumerical`, `QuestionLinearScale`, etc., 
 which have methods for validating answers and responses from language models.
@@ -60,10 +58,12 @@ we import the `QuestionMultipleChoice` class and create an instance of it with t
    )
 
 
-Optional fields for specific question types
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Additional fields for specific question types
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`min_selections` and `max_selections` - Parameters that can be added to `checkbox` and `rank` questions to specify the minimum and maximum number of options that can be selected.
+Some question types have additional parameters that are either optional or required to be added to the question when it is created:
+
+`min_selections` and `max_selections` - *Optional* parameters that can be added to `checkbox` and `rank` questions to specify the minimum and maximum number of options that can be selected.
 For example, in a checkbox question where the response must include at least 2 and at most 3 of the options:
 
 .. code-block:: python
@@ -74,12 +74,12 @@ For example, in a checkbox question where the response must include at least 2 a
       question_name = "favorite_days",
       question_text = "What are your 2-3 favorite days of the week?",
       question_options = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-      min_selections = 2,
-      max_selections = 3
+      min_selections = 2, # optional
+      max_selections = 3 # optional
    )
 
 
-`min_value` and `max_value` - Parameters that can be added to `numerical` questions to specify the minimum and maximum values that can be entered.
+`min_value` and `max_value` - *Optional* parameters that can be added to `numerical` questions to specify the minimum and maximum values that can be entered.
 For example, in a numerical question where the respondent must enter a number between 1 and 100:
 
 .. code-block:: python
@@ -89,12 +89,12 @@ For example, in a numerical question where the respondent must enter a number be
    q = QuestionNumerical(
       question_name = "age",
       question_text = "How old are you (in years)?",
-      min_value = 1,
-      max_value = 100
+      min_value = 1, # optioal
+      max_value = 100 # optional
    )
 
 
-`option_labels` - A parameter that can be added to `linear_scale` questions to specify labels for the scale options.
+`option_labels` - *Optional* parameter that can be added to `linear_scale` questions to specify labels for the scale options.
 For example, in a linear scale question where the response must be an integer between 1 and 5 reflecting the respondent's agreement with a statement:
 
 .. code-block:: python
@@ -105,11 +105,11 @@ For example, in a linear scale question where the response must be an integer be
       question_name = "agree",
       question_text = "Please indicate whether you agree with the following statement: I am only happy when it rains.",
       question_options = [1, 2, 3, 4, 5],
-      option_labels = {1: "Strongly disagree", 5: "Strongly agree"}
+      option_labels = {1: "Strongly disagree", 5: "Strongly agree"} # optional
    )
 
 
-`num_selections` - A parameter that can be added to `rank` questions to specify the number of options that must be ranked.
+`num_selections` - *Optional* parameter that can be added to `rank` questions to specify the number of options that must be ranked.
 For example, in a rank question where the respondent must rank their top 3 favorite foods:
 
 .. code-block:: python
@@ -120,11 +120,11 @@ For example, in a rank question where the respondent must rank their top 3 favor
       question_name = "foods_rank",
       question_text = "Rank your top 3 favorite foods.",
       question_options = ["Pizza", "Pasta", "Salad", "Soup"],
-      num_selections = 3
+      num_selections = 3 # optional
    )
 
 
-`answer_template` - A parameter that can be added to `extract` questions to specify a template for the extracted information.
+`answer_template` - *Required* parameter of `extract` questions to specify a template for the extracted information.
 For example, in an extract question where the respondent must extract information from a given text:
 
 .. code-block:: python
@@ -134,11 +134,11 @@ For example, in an extract question where the respondent must extract informatio
    q = QuestionExtract(
       question_name = "course_schedule",
       question_text = "This semester we are offering courses on calligraphy on Friday mornings.",
-      answer_template = {"course_topic": "AI", "days": ["Monday", "Wednesday"]}
+      answer_template = {"course_topic": "AI", "days": ["Monday", "Wednesday"]} # required
    )
 
 
-`func` - A parameter that can be added to `functional` questions to specify a function that generates the answer.
+`func` - *Required* parameter of `functional` questions to specify a function that generates the answer.
 For example, in a functional question where the answer is generated by a function:
 
 .. code-block:: python
@@ -348,8 +348,24 @@ To learn more about analyzing results, please see the :ref:`results` section.
 Parameterizing a question
 -------------------------
 
-A question can also be constructed to take one or more parameters that are replaced with specified values either when the question is constructed or when the question is run.
-This allows us to easily create and administer multiple versions of a question at once.
+A question can also be constructed to take parameters that are replaced with specified values either when the question is constructed or when the question is run.
+This operation can be done in a number of ways:
+
+* Use "piping" to pass answers or other components of previous questions to a subsequent question *when it is run*.
+* Use `Scenario` objects to pass values to a question *when it is run*.
+* Use `Scenario` objects to pass values to a question *when it is constructed*.
+* Use f-strings to pass values to a question *when it is constructed*.
+
+Each of these methods allows us to easily create and administer multiple versions of a question at once.
+
+In addition to the examples below, please also see the :ref:`scenarios` section for more information on constructing and using scenarios to parameterize questions.
+
+
+Scenarios 
+^^^^^^^^^
+
+A `Scenario` object is a dictionary of parameter values that can be passed to a question.
+Details about scenarios can be found in the :ref:`scenarios` section.
 
 *Key steps*:
 
@@ -365,7 +381,7 @@ Create a question text that takes a parameter in double braces:
    )
 
 
-Create a dictionary for each value that will replace the parameter and store them in `Scenario` objects:
+Then create a dictionary for each value that will replace the parameter and store them in `Scenario` objects:
 
 .. code-block:: python
 
@@ -376,11 +392,31 @@ Create a dictionary for each value that will replace the parameter and store the
    )
 
 
-To create multiple versions of the question when constructing a survey (i.e., before running it), pass the scenarios to the question `loop` method:
+We can pass scenarios to a question using the `by` method when the question is run:
+
+.. code-block:: python 
+
+   from edsl import QuestionFreeText, ScenarioList, Scenario
+
+   q = QuestionFreeText(
+      question_name = "favorite_item",
+      question_text = "What is your favorite {{ item }}?",
+   )
+
+   scenarios = ScenarioList(
+      Scenario({"item": item}) for item in ["color", "food"]
+   )
+
+   results = q.by(scenarios).run()
+
+
+Each of the `Results` that are generated will include an individual `Result` for each version of the question that was answered.
+
+Alternatively, we can create multiple versions of a question when constructing a survey (i.e., before running it), by passing scenarios to the question `loop` method:
 
 .. code-block:: python
 
-   questions = q.loop(scenarios)
+   questions = q.loop(scenarios) # using the scenarios from the example above
 
 
 We can inspect the questions that have been created: 
@@ -399,7 +435,9 @@ Output:
 
 
 Note that a unique `question_name` has been automatically generated based on the parameter values.
-We can also specify that the paramater values be inserted in the question name (so long as they are Pythonic):
+This is necessary in order to pass the questions to a `Survey` object.
+
+We can alternatively specify that the paramater values be inserted in the question name to create the unique identifiers (so long as they are Pythonic):
 
 .. code-block:: python
 
@@ -425,7 +463,7 @@ Output:
    Question('free_text', question_name = """favorite_food""", question_text = """What is your favorite food?""")]
 
 
-To run the questions, we pass them to a `Survey` and then call the `run` method, as before:
+To run the questions, we pass them to a `Survey` in the usual manner:
 
 .. code-block:: python
 
@@ -436,27 +474,92 @@ To run the questions, we pass them to a `Survey` and then call the `run` method,
    results = survey.run()
 
 
-Alternatively, we can pass the scenario or scenarios to the question with the `by` method when the question is run:
+Piping
+^^^^^^
 
-.. code-block:: python 
+Piping is a method for passing the answer or other components of previous questions into a subsequent question.
+Question components can be piped into question texts or options by using double braces with the name of the prior question and the key of the answer in the braces (e.g., `{{ <prior_question_name>.answer }}`).
+Note that piping can only be used when questions are run together in a survey.
 
-   from edsl import QuestionFreeText, ScenarioList, Scenario
+For example:
 
-   q = QuestionFreeText(
-      question_name = "favorite_item",
-      question_text = "What is your favorite {{ item }}?",
+.. code-block:: python
+
+   from edsl import QuestionMultipleChoice, QuestionFreeText, Survey
+
+   q1 = QuestionMultipleChoice(
+      question_name = "favorite_color",
+      question_text = "What is your favorite color?",
+      question_options = ["Red", "Orange", "Yellow", "Green", "Blue", "Purple"]
    )
+
+   q2 = QuestionFreeText(
+      question_name = "why_favorite",
+      question_text = "Why is {{ favorite_color.answer }} your favorite color?"
+   )
+
+   survey = Survey([q1, q2])
+
+   results = survey.run()
+
+
+When the survey is run, the answer to the first question will be piped into the second question text (unlike scenarios added to a survey when it is run, there is no additional field in results).
+
+For more details and examples of piping, please see the :ref:`surveys` module.
+
+
+F-strings
+^^^^^^^^^
+
+F-strings can be used to pass values to a question when it is constructed. 
+They function independently of scenarios and piping, but can be used at the same time.
+
+For example:
+
+.. code-block:: python
+
+   from edsl import QuestionFreeText, ScenarioList, Scenario, Survey
+
+   questions = []
+   sentiments = ["enjoy", "hate", "love"]
 
    scenarios = ScenarioList(
-      Scenario({"item": item}) for item in ["color", "food"]
+      Scenario({"activity": activity}) for activity in ["running", "reading"]
    )
 
-   results = q.by(scenarios).run()
+   for sentiment in sentiments:
+      q = QuestionFreeText(
+         question_name = f"{ sentiment }_activity",
+         question_text = f"How much do you { sentiment } {{ activity }}?"
+      )
+      q_list = q.loop(scenarios)
+      
+      questions = questions + q_list
+
+   questions
 
 
-Each of the `Results` that are generated will include an individual `Result` for each version of the question that was answered.
+Output:
 
-To learn more about using scenarios, please see the :ref:`Scenarios` section.
+.. code-block:: text 
+
+   [Question('free_text', question_name = """enjoy_activity_0""", question_text = """How much do you enjoy running?"""),
+   Question('free_text', question_name = """enjoy_activity_1""", question_text = """How much do you enjoy reading?"""),
+   Question('free_text', question_name = """hate_activity_0""", question_text = """How much do you hate running?"""),
+   Question('free_text', question_name = """hate_activity_1""", question_text = """How much do you hate reading?"""),
+   Question('free_text', question_name = """love_activity_0""", question_text = """How much do you love running?"""),
+   Question('free_text', question_name = """love_activity_1""", question_text = """How much do you love reading?""")]
+
+
+We can see that the question names and texts have been parameterized with the values of `sentiments` and `scenarios`, and the question names have been automatically incremented to ensure uniqueness.
+We can then pass the questions to a survey and run it:
+
+.. code-block:: python
+
+   survey = Survey(questions = questions)
+
+   results = survey.run()
+
 
 
 Designing AI agents 
