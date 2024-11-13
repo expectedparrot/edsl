@@ -56,6 +56,8 @@ from edsl.language_models.KeyLookup import KeyLookup
 TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
 
 
+# you might be tempated to move this to be a static method of LanguageModel, but this doesn't work
+# for reasons I don't understand. So leave it here.
 def extract_item_from_raw_response(data, key_sequence):
     if isinstance(data, str):
         try:
