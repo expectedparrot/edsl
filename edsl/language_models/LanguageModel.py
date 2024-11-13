@@ -56,26 +56,6 @@ from edsl.language_models.KeyLookup import KeyLookup
 TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
 
 
-def convert_answer(response_part):
-    import json
-
-    response_part = response_part.strip()
-
-    if response_part == "None":
-        return None
-
-    repaired = repair_json(response_part)
-    if repaired == '""':
-        # it was a literal string
-        return response_part
-
-    try:
-        return json.loads(repaired)
-    except json.JSONDecodeError as j:
-        # last resort
-        return response_part
-
-
 def extract_item_from_raw_response(data, key_sequence):
     if isinstance(data, str):
         try:
@@ -402,6 +382,26 @@ class LanguageModel(
             )
         return extract_item_from_raw_response(raw_response, cls.usage_sequence)
 
+    @staticmethod
+    def convert_answer(response_part):
+        import json
+
+        response_part = response_part.strip()
+
+        if response_part == "None":
+            return None
+
+        repaired = repair_json(response_part)
+        if repaired == '""':
+            # it was a literal string
+            return response_part
+
+        try:
+            return json.loads(repaired)
+        except json.JSONDecodeError as j:
+            # last resort
+            return response_part
+
     @classmethod
     def parse_response(cls, raw_response: dict[str, Any]) -> EDSLOutput:
         """Parses the API response and returns the response text."""
@@ -411,13 +411,13 @@ class LanguageModel(
         if last_newline == -1:
             # There is no comment
             edsl_dict = {
-                "answer": convert_answer(generated_token_string),
+                "answer": cls.convert_answer(generated_token_string),
                 "generated_tokens": generated_token_string,
                 "comment": None,
             }
         else:
             edsl_dict = {
-                "answer": convert_answer(generated_token_string[:last_newline]),
+                "answer": cls.convert_answer(generated_token_string[:last_newline]),
                 "comment": generated_token_string[last_newline + 1 :].strip(),
                 "generated_tokens": generated_token_string,
             }
