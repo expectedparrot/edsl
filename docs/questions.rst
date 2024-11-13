@@ -505,7 +505,7 @@ For example:
 
 When the survey is run, the answer to the first question will be piped into the second question text (unlike scenarios added to a survey when it is run, there is no additional field in results).
 
-For more details and examples of piping, please see the :ref:`surveys` module.
+For more details and examples of piping, please see the :ref:`surveys` module section on `piping <https://docs.expectedparrot.com/en/latest/surveys.html#id2>`_.
 
 
 F-strings
