@@ -62,7 +62,7 @@ Rules
 ^^^^^
 
 The `show_rules()` method displays a table of the conditional rules that have been applied to a survey, and the questions they apply to.
-See example below.
+See examples below.
 
 
 Prompts
@@ -71,7 +71,7 @@ Prompts
 The `show_prompts()` method displays the user and system prompts for each question in a survey.
 This is a companion method to the `prompts()` method of a `Job` object, which returns a dataset containing the prompts together with information about each question, scenario, agent, model and estimated cost.
 (A `Job` is created by adding a `Model` to a `Survey` or `Question`.)
-See example below.
+See examples below.
 
 
 Constructing a survey
@@ -171,7 +171,19 @@ for example:
 
 
 If remote inference is turned off, the survey will be run locally and results will be added to your local cache only.
-(Learn more about :ref:`data` and :ref:`remote_caching`.)
+Learn more about :ref:`data` and :ref:`remote_caching`.
+
+
+Optional parameters
+^^^^^^^^^^^^^^^^^^^
+
+There are optional parameters that can be passed to the `run()` method, including:
+
+* `n` - The number of responses to generate for each question (default is 1). Example: `run(n=5)` will administer the same exact question (and scenario, if any) to an agent and model 5 times.
+* `show_progress_bar` - A boolean value to show a progress bar while running the survey (default is False). Example: `run(show_progress_bar=True)`.
+* `cache` - A boolean value to cache the results of the survey (default is False). Example: `run(cache=False)`.
+* `disable_remote_inference` - A boolean value to indicate whether to run the survey locally while remote inference is activated (default is False). Example: `run(disable_remote_inference=True)`.
+* `remote_inference_results_visibility` - A string value to indicate the visibility of the results on the Expected Parrot server, when a survey is being run remotely. Possible values are "public", "unlisted" or "private" (default is "unlisted"). Visibility can also be modified at the Coop web app. Example: `run(remote_inference_results_visibility="public")`.
 
 
 Survey rules & logic
@@ -370,8 +382,8 @@ Output:
    └───────────────────────────────────────────────────────────┴─────────────────────────────────────────────────────┘
 
 
-If an answer is a list, we can index the items to use them as inputs.
-Here we use an answer in question options:
+If an answer is a list, we can use the list as the `question_options` in another question, or index items individually.
+Here we demonstrate examples of both:
 
 .. code-block:: python
 

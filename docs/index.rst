@@ -190,7 +190,6 @@ Links
    installation
    api_keys
    colab_setup
-   estimating_costs
    credits
 
 .. toctree::
