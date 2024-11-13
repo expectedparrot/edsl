@@ -6,13 +6,15 @@ Scenarios
 A `Scenario` is a dictionary containing a key/value pair that is used to add data or content to questions in a survey, replacing a parameter in a question with a specific value.
 A `ScenarioList` is a list of `Scenario` objects.
 
+
 Purpose 
 -------
 
 Scenarios allow you create variations and versions of questions efficiently.
 For example, we could create a question `"How much do you enjoy {{ activity }}?"` and use scenarios to replace the parameter `activity` with `running` or `reading` or other activities.
 When we add the scenarios to the question, the question will be asked multiple times, once for each scenario, with the parameter replaced by the value in the scenario.
-This allows us to straightforwardly administer multiple versions of the question together in a survey, either asynchronously (by default) or according to :ref:`surveys` rules that we can specify (e.g., skip/stop logic).
+This allows us to administer multiple versions of the question together in a survey, either asynchronously (by default) or according to :ref:`surveys` rules that we can specify (e.g., skip/stop logic), without having to create each question manually.
+
 
 Metadata
 ^^^^^^^^
@@ -119,6 +121,67 @@ This will return:
             }
         ]
     }
+
+
+A list of scenarios is used in the same way as a `ScenarioList`.
+The difference is that a `ScenarioList` is a class that can be used to create a list of scenarios from a variety of data sources, such as a list, dictionary, or a Wikipedia table (see examples below).
+
+
+Using f-strings with scenarios
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+It is possible to use scenarios and f-strings together in a question.
+An f-string must be evaluated when a question is constructed, whereas a scenario is evaluated when a question is run.
+
+For example, here we use an f-string to create different versions of a question that also takes a parameter `{{ activity }}`, together with a list of scenarios to replace the parameter when the questions are run.
+We optionally include the f-string in the question name as well as the question text in order to simultaneously create unique identifiers for the questions, which are needed in order to pass the questions that are created to a `Survey`.
+Then we use the `show_prompts()` method to examine the user prompts that are created when the scenarios are added to the questions:
+
+.. code-block:: python
+
+    from edsl import QuestionFreeText, ScenarioList, Scenario, Survey
+
+    questions = []
+    sentiments = ["enjoy", "hate", "love"]
+
+    for sentiment in sentiments:
+        q = QuestionFreeText(
+            question_name = f"{ sentiment }_activity",
+            question_text = f"How much do you { sentiment } {{ activity }}?"
+        )
+        questions.append(q)
+
+    scenarios = ScenarioList(
+        Scenario({"activity": activity}) for activity in ["running", "reading"]
+    )
+
+    survey = Survey(questions = questions)
+    survey.by(scenarios).show_prompts()
+
+
+This will print the questions created with the f-string with the scenarios added (not that the system prompts are blank because we have not created any agents):
+
+.. code-block:: text
+
+    ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+    ┃ user_prompt                    ┃ system_prompt ┃
+    ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+    │ How much do you enjoy running? │               │
+    ├────────────────────────────────┼───────────────┤
+    │ How much do you hate running?  │               │
+    ├────────────────────────────────┼───────────────┤
+    │ How much do you love running?  │               │
+    ├────────────────────────────────┼───────────────┤
+    │ How much do you enjoy reading? │               │
+    ├────────────────────────────────┼───────────────┤
+    │ How much do you hate reading?  │               │
+    ├────────────────────────────────┼───────────────┤
+    │ How much do you love reading?  │               │
+    └────────────────────────────────┴───────────────┘
+
+
+To learn more about prompts, please see the :ref:`prompts` section.
+
 
 
 Using a Scenario
