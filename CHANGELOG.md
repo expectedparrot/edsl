@@ -6,13 +6,8 @@
 ### Changed
 - *In progress:* The progress bar is now web-based. It is still called in the same way: `run(progress_bar=True)`
 
-### Fixed
-- *In progress:* Bug in optional question parameters `answering_instructions` and `question_presentation`, which can be used to modify user prompts separately from modifying question texts. 
 
-- *In progress:* Bug in piping question components into `question_options`.
-
-
-## [0.1.37] - 2024-11-13
+## [0.1.37] - 2024-11-14
 ### Added
 - EDSL auth token: It will automatically retrieve your EXPECTED_PARROT_API_KEY and write it to your *.env* file. *How it works:* If you try to run a survey remotely without storing your EXPECTED_PARROT_API_KEY, you will see a message with a Coop login link that will automatically write your key to your *.env* file when you click on the link and log in. Example message:
 ```
@@ -49,6 +44,7 @@ Survey.example().run(remote_inference_visibility="unlisted")
 ### Fixed
 - Bug in using f-strings and scenarios at once. Example usage: https://docs.expectedparrot.com/en/latest/scenarios.html#using-f-strings-with-scenarios
 
+- Bug in optional question parameters `answering_instructions` and `question_presentation`, which can be used to modify user prompts separately from modifying question texts. Example usage: https://docs.expectedparrot.com/en/latest/questions.html#optional-question-parameters
 
 
 ## [0.1.36] - 2024-10-28
