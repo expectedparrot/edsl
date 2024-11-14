@@ -142,7 +142,6 @@ class Coop:
         start_poll_time = time.time()
         waiting_for_login = True
         while waiting_for_login:
-
             elapsed_time = time.time() - start_poll_time
             if elapsed_time > timeout:
                 # Timed out waiting for the user to log in
