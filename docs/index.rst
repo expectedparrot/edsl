@@ -8,8 +8,8 @@ Expected Parrot delivers powerful tools for conducting research with human and a
 This page provides documentation for the **Expected Parrot Domain-Specific Language (EDSL)**, a Python package for performing research with AI agents and language models,
 and **Coop**, a platform for creating, storing and sharing AI-based research projects.
 
-* EDSL is available at `PyPI <https://pypi.org/project/edsl/>`_ and `GitHub <https://github.com/expectedparrot/edsl>`_.
-* Log in to `Coop <https://www.expectedparrot.com/login>`_ to access special features and `start collaborating <https://www.expectedparrot.com/content/explore>`_.
+* EDSL is available to download at `PyPI <https://pypi.org/project/edsl/>`_ and `GitHub <https://github.com/expectedparrot/edsl>`_.
+* Create a `Coop account <https://www.expectedparrot.com/login>`_ to access special features, storage and collaboration tools. Learn more about `how it works <https://docs.expectedparrot.com/en/latest/coop.html>`_ and start `exploring <https://www.expectedparrot.com/content/explore>`_.
 
 
 Key features 
