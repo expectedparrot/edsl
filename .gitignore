@@ -41,3 +41,4 @@ venv
 !tests/serialization/data/*.json
 .env*
 docs/notebooks/drafts/*
+test.py
