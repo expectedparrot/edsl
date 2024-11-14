@@ -392,18 +392,18 @@ class QuestionTextDescriptor(BaseDescriptor):
                 UserWarning,
             )
             # Automatically replace single braces with double braces
-            # This is here because if the user is using an f-string, the double brace will get converted to a single brace. 
+            # This is here because if the user is using an f-string, the double brace will get converted to a single brace.
             # This undoes that.
             value = re.sub(r"\{([^\{\}]+)\}", r"{{\1}}", value)
-            return value 
-        
+            return value
+
         # iterate through all doubles braces and check if they are valid python identifiers
         for match in re.finditer(r"\{\{([^\{\}]+)\}\}", value):
             if " " in match.group(1).strip():
                 raise QuestionCreationValidationError(
                     f"Question text contains an invalid identifier: '{match.group(1)}'"
                 )
-            
+
         return None
 
 

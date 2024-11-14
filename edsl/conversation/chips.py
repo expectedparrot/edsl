@@ -11,7 +11,6 @@ m = Model("gemini-1.5-flash")
 
 
 class ChipLover(Agent):
-
     def __init__(self, name, chip_values, initial_chips, model: Optional[Model] = None):
         self.chip_values = chip_values
         self.initial_chips = initial_chips
