@@ -40,3 +40,4 @@ venv
 !.vscode/settings.json
 !tests/serialization/data/*.json
 .env*
+docs/notebooks/drafts/*
