@@ -8,6 +8,7 @@ from dataclasses import dataclass
 
 from typing import Any, List, DefaultDict, Optional, Dict
 from collections import defaultdict
+from uuid import UUID
 
 from edsl.jobs.tokens.InterviewTokenUsage import InterviewTokenUsage
 
@@ -40,21 +41,15 @@ class JobsRunnerStatusBase(ABC):
         n: int,
         refresh_rate: float = 1,
         endpoint_url: Optional[str] = "http://localhost:8000",
+        job_uuid: Optional[UUID] = None,
         api_key: str = None,
     ):
         self.jobs_runner = jobs_runner
-        self.job_id = str(hash(jobs_runner.jobs)) + "-" + str(time.time())
 
-        # URLs
+        # The uuid of the job on Coop
+        self.job_uuid = job_uuid
+
         self.base_url = f"{endpoint_url}"
-        self.viewing_url = f"{self.base_url}/home/job-progress/{str(self.job_id)}"
-
-        # I don't think we need this one
-        # self.data_url = f"{self.base_url}/data"
-
-        self.update_url = (
-            f"{self.base_url}/api/v0/job-progress/update/{str(self.job_id)}"
-        )
 
         self.start_time = time.time()
         self.completed_interviews = []
@@ -153,6 +148,11 @@ class JobsRunnerStatusBase(ABC):
         return status_dict
 
     @abstractmethod
+    def setup(self):
+        """For any setup that needs to happen prior to sending status updates"""
+        pass
+
+    @abstractmethod
     def send_status_update(self):
         """Updates the current status of the job"""
         pass
@@ -240,13 +240,49 @@ class JobsRunnerStatusBase(ABC):
 
 class JobsRunnerStatus(JobsRunnerStatusBase):
 
-    def send_status_update(self) -> None:
-        """Send current status to the web endpoint using the instance's job_id"""
+    @property
+    def create_url(self) -> str:
+        return f"{self.base_url}/api/v0/local-job/create"
 
+    @property
+    def viewing_url(self) -> str:
+        return f"{self.base_url}/home/local-job-progress/{str(self.job_uuid)}"
+
+    @property
+    def update_url(self) -> str:
+        return f"{self.base_url}/api/v0/local-job/update/{str(self.job_uuid)}"
+
+    def setup(self) -> None:
+        """Creates a local job on Coop if one does not already exist"""
+
+        headers = {"Content-Type": "application/json"}
+
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        else:
+            headers["Authorization"] = f"Bearer None"
+
+        if self.job_uuid is None:
+            # Create a new local job
+            response = requests.post(
+                self.create_url,
+                headers=headers,
+                timeout=1,
+            )
+        response.raise_for_status()
+        data = response.json()
+        self.job_uuid = data.get("job_uuid")
+
+        print(f"Running with progress bar. View progress at {self.viewing_url}")
+
+    def send_status_update(self) -> None:
+        """Sends current status to the web endpoint using the instance's job_id"""
         try:
             # Get the status dictionary and add the job_id
             status_dict = self.get_status_dict()
-            status_dict["job_id"] = str(self.job_id)  # Ensure job_id is string
+
+            # Make the UUID JSON serializable
+            status_dict["job_id"] = str(self.job_uuid)
 
             headers = {"Content-Type": "application/json"}
 
@@ -256,7 +292,7 @@ class JobsRunnerStatus(JobsRunnerStatusBase):
                 headers["Authorization"] = f"Bearer None"
 
             # Send the update
-            response = requests.post(
+            response = requests.patch(
                 self.update_url,
                 json=status_dict,
                 headers=headers,
@@ -264,7 +300,7 @@ class JobsRunnerStatus(JobsRunnerStatusBase):
             )
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
-            print(f"Failed to send status update for job {self.job_id}: {e}")
+            print(f"Failed to send status update for job {self.job_uuid}: {e}")
 
     def has_ep_api_key(self) -> bool:
         """Checks if the user has an Expected Parrot API key"""
