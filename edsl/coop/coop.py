@@ -18,26 +18,22 @@ from edsl.coop.utils import (
 
 class Coop:
     """
-    Singleton client for the Expected Parrot API.
+    Client for the Expected Parrot API.
     """
 
     _instance = None
 
-    def __new__(cls, api_key: str = None, url: str = None) -> "Coop":
+    def __init__(self, api_key: str = None, url: str = None) -> None:
         """
-        Initialize the client as a singleton.
+        Initialize the client.
         - Provide an API key directly, or through an env variable.
         - Provide a URL directly, or use the default one.
         """
-        if not cls._instance:
-            cls._instance = super(Coop, cls).__new__(cls)
-            cls._instance.api_key = api_key or os.getenv("EXPECTED_PARROT_API_KEY")
-            cls._instance.url = url or CONFIG.EXPECTED_PARROT_URL
-            if cls._instance.url.endswith("/"):
-                cls._instance.url = cls._instance.url[:-1]
-            cls._instance._edsl_version = edsl.__version__
-
-        return cls._instance
+        self.api_key = api_key or os.getenv("EXPECTED_PARROT_API_KEY")
+        self.url = url or CONFIG.EXPECTED_PARROT_URL
+        if self.url.endswith("/"):
+            self.url = self.url[:-1]
+        self._edsl_version = edsl.__version__
 
     ################
     # BASIC METHODS
