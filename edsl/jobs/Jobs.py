@@ -742,7 +742,7 @@ class Jobs(Base):
             initial_results_visibility=remote_inference_results_visibility,
         )
         job_uuid = remote_job_creation_data.get("uuid")
-        if verbose:
+        if self.verbose:
             print(f"Job sent to server. (Job uuid={job_uuid}).")
         return remote_job_creation_data
 
@@ -771,7 +771,7 @@ class Jobs(Base):
             remote_job_data = coop.remote_inference_get(job_uuid)
             status = remote_job_data.get("status")
             if status == "cancelled":
-                if verbose:
+                if self.verbose:
                     print("\r" + " " * 80 + "\r", end="")
                     print("Job cancelled by the user.")
                     print(
@@ -779,7 +779,7 @@ class Jobs(Base):
                     )
                 return None
             elif status == "failed":
-                if verbose:
+                if self.verbose:
                     print("\r" + " " * 80 + "\r", end="")
                     print("Job failed.")
                     print(
@@ -789,7 +789,7 @@ class Jobs(Base):
             elif status == "completed":
                 results_uuid = remote_job_data.get("results_uuid")
                 results = coop.get(results_uuid, expected_object_type="results")
-                if verbose:
+                if self.verbose:
                     print("\r" + " " * 80 + "\r", end="")
                     url = f"{expected_parrot_url}/content/{results_uuid}"
                     print(f"Job completed and Results stored on Coop: {url}.")
@@ -801,7 +801,7 @@ class Jobs(Base):
                 start_time = time.time()
                 i = 0
                 while time.time() - start_time < duration:
-                    if verbose:
+                    if self.verbose:
                         print(
                             f"\r{frames[i % len(frames)]} Job status: {status} - last update: {time_checked}",
                             end="",
@@ -998,14 +998,14 @@ class Jobs(Base):
             )
             print("Remote inference allows you to run jobs on our server.")
             print("\n🚀 To use remote inference, sign up at the following link:")
-            print(
-                f"    {CONFIG.EXPECTED_PARROT_URL}/login?edsl_auth_token={edsl_auth_token}"
-            )
+
+            coop = Coop()
+            coop._display_login_url(edsl_auth_token=edsl_auth_token)
+
             print(
                 "\nOnce you log in, we will automatically retrieve your Expected Parrot API key and continue your job remotely."
             )
 
-            coop = Coop()
             api_key = coop._poll_for_api_key(edsl_auth_token)
 
             if api_key is None:
