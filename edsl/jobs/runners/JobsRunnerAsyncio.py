@@ -324,9 +324,7 @@ class JobsRunnerAsyncio:
             self.jobs_runner_status.update_progress(stop_event)
 
         if progress_bar and self.jobs_runner_status.has_ep_api_key():
-            print(
-                f"Running with progress bar. View progress at {self.jobs_runner_status.viewing_url}"
-            )
+            self.jobs_runner_status.setup()
             progress_thread = threading.Thread(
                 target=run_progress_bar, args=(stop_event,)
             )
