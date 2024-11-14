@@ -4,7 +4,15 @@ from __future__ import annotations
 import copy
 import inspect
 import types
-from typing import Callable, Optional, Union, Any
+from typing import Callable, Optional, Union, Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from edsl import Cache, Survey, Scenario
+    from edsl.language_models import LanguageModel
+    from edsl.surveys.MemoryPlan import MemoryPlan
+    from edsl.questions import QuestionBase
+    from edsl.agents.Invigilator import InvigilatorBase
+
 from uuid import uuid4
 
 from edsl.Base import Base
@@ -155,13 +163,6 @@ class Agent(Base):
             self.traits_presentation_template = traits_presentation_template
         else:
             self.traits_presentation_template = "Your traits: {{traits}}"
-
-    # @property
-    # def traits_presentation_template(self) -> str:
-    #     """Return the traits presentation template."""
-    #     if self._traits_presentation_template is None:
-    #         return "Your traits: {{traits}}"
-    #     return self._traits_presentation_template
 
     @property
     def agent_persona(self) -> Prompt:
@@ -409,13 +410,13 @@ class Agent(Base):
     async def async_answer_question(
         self,
         *,
-        question: "QuestionBase",
-        cache: "Cache",
-        scenario: Optional["Scenario"] = None,
-        survey: Optional["Survey"] = None,
-        model: Optional["LanguageModel"] = None,
+        question: QuestionBase,
+        cache: Cache,
+        scenario: Optional[Scenario] = None,
+        survey: Optional[Survey] = None,
+        model: Optional[LanguageModel] = None,
         debug: bool = False,
-        memory_plan: Optional["MemoryPlan"] = None,
+        memory_plan: Optional[MemoryPlan] = None,
         current_answers: Optional[dict] = None,
         iteration: int = 0,
     ) -> AgentResponseDict:
@@ -459,13 +460,13 @@ class Agent(Base):
 
     def _create_invigilator(
         self,
-        question: "QuestionBase",
-        cache: Optional["Cache"] = None,
-        scenario: Optional["Scenario"] = None,
-        model: Optional["LanguageModel"] = None,
-        survey: Optional["Survey"] = None,
+        question: QuestionBase,
+        cache: Optional[Cache] = None,
+        scenario: Optional[Scenario] = None,
+        model: Optional[LanguageModel] = None,
+        survey: Optional[Survey] = None,
         debug: bool = False,
-        memory_plan: Optional["MemoryPlan"] = None,
+        memory_plan: Optional[MemoryPlan] = None,
         current_answers: Optional[dict] = None,
         iteration: int = 0,
         sidecar_model=None,
@@ -548,9 +549,6 @@ class Agent(Base):
 
         return Agent(traits={trait: self.traits[trait] for trait in traits_to_select})
 
-    ################
-    # Dunder Methods
-    ################
     def __add__(self, other_agent: Optional[Agent] = None) -> Agent:
         """
         Combine two agents by joining their traits.
@@ -654,8 +652,6 @@ class Agent(Base):
             for k, v in self.__dict__.items()
             if k.startswith("_")
         }
-        # if self.traits_presentation_template is not None:
-        #     raw_data["traits_presentation_template"] = self.traits_presentation_template
 
         if hasattr(self, "set_instructions"):
             if not self.set_instructions:
@@ -681,8 +677,6 @@ class Agent(Base):
                 "answer_question_directly", None
             )  # in case answer_question_directly will appear with _ in self.__dict__
             answer_question_directly_func = self.answer_question_directly
-            # print(answer_question_directly_func)
-            # print(type(answer_question_directly_func), flush=True)
 
             if (
                 answer_question_directly_func
@@ -730,10 +724,6 @@ class Agent(Base):
 
         """
         return cls(**agent_dict)
-
-    ################
-    # DISPLAY Methods
-    ################
 
     def _table(self) -> tuple[dict, list]:
         """Prepare generic table data."""
