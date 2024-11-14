@@ -3,8 +3,7 @@ import time
 import asyncio
 import threading
 import warnings
-from typing import Coroutine, List, AsyncGenerator, Optional, Union, Generator
-from contextlib import contextmanager
+from typing import Coroutine, List, AsyncGenerator, Optional, Union, Generator, Type
 from collections import UserList
 
 from edsl.results.Results import Results
@@ -279,7 +278,7 @@ class JobsRunnerAsyncio:
         stop_on_exception: bool = False,
         progress_bar: bool = False,
         sidecar_model: Optional[LanguageModel] = None,
-        jobs_runner_status: Optional[JobsRunnerStatusBase] = None,
+        jobs_runner_status: Optional[Type[JobsRunnerStatusBase]] = None,
         print_exceptions: bool = True,
         raise_validation_errors: bool = False,
     ) -> "Coroutine":
@@ -297,7 +296,9 @@ class JobsRunnerAsyncio:
         endpoint_url = coop.get_progress_bar_url()
 
         if jobs_runner_status is not None:
-            self.jobs_runner_status = jobs_runner_status
+            self.jobs_runner_status = jobs_runner_status(
+                self, n=n, endpoint_url=endpoint_url
+            )
         else:
             self.jobs_runner_status = JobsRunnerStatus(
                 self,
