@@ -256,7 +256,6 @@ Links
    notebooks/skip_logic_scenarios.ipynb
    notebooks/example_agent_dynamic_traits.ipynb
    notebooks/import_agents.ipynb
-   notebooks/agentifying_responses.ipynb
    notebooks/batching_results.ipynb
    notebooks/research_methods.ipynb
 
