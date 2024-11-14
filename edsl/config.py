@@ -58,7 +58,7 @@ CONFIG_MAP = {
         "info": "This config var holds the maximum number of tokens per minute for all models. Model-specific values provided in env vars such as EDSL_SERVICE_TPM_OPENAI will override this value for the corresponding model.",
     },
     "EXPECTED_PARROT_URL": {
-        "default": "https://api.expectedparrot.com",
+        "default": "https://www.expectedparrot.com",
         "info": "This config var holds the URL of the Expected Parrot API.",
     },
 }
