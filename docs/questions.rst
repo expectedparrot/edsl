@@ -58,8 +58,8 @@ we import the `QuestionMultipleChoice` class and create an instance of it with t
    )
 
 
-Additional fields for specific question types
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Special parameters for question types
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Some question types have additional parameters that are either optional or required to be added to the question when it is created:
 
@@ -182,9 +182,8 @@ Example results:
    └───────────┴──────────┴────────────────────────────────┘
 
 
-
-Optional additional parameters
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Optional parameters
+^^^^^^^^^^^^^^^^^^^
 
 The following optional parameters can be added to any question type (examples of each are provided at the end of this section):
 
@@ -1236,10 +1235,9 @@ Example notebook: `Simulating randomness <https://docs.expectedparrot.com/en/lat
 Optional question parameters
 ----------------------------
 
-`include_comment` parameter
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Examples of optional question paramaters:
 
-This boolean parameter can be used to specify that the default comment field which is added to all types other than `free_text` should be excluded from a question (default: `include_comment = True`).
+`include_comment` - This boolean parameter can be used to specify that the default comment field which is added to all types other than `free_text` should be excluded from a question (default: `include_comment = True`).
 Example usage:
 
 .. code-block:: python
@@ -1299,6 +1297,8 @@ When we run the survey, the `comment` field will be included in the results for 
 
 Output:
 
+.. code-block:: text
+
    ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━┓
    ┃ comment                     ┃ comment            ┃
    ┃ .adding_v1_comment          ┃ .adding_v2_comment ┃
@@ -1310,10 +1310,7 @@ Output:
 See the :ref:`prompts` section for more information about various methods for inspecting user and system prompts.
 
 
-`question_presentation` and `answering_instructions` parameters
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-These parameters can be used to add additional context or modify the default instructions of a question.
+`question_presentation` and `answering_instructions` - These parameters can be used to add additional context or modify the default instructions of a question.
 
 * The parameter `question_presentation` interacts with the question text to specify how the question should be presented to the model (e.g., to modify the default instructions for a question).
 * The parameter `answering_instructions` is added to the end of the question text without modifying it. It can be used to specify how the model should answer the question and can be useful for questions that require a specific format for the answer.
@@ -1337,6 +1334,8 @@ Example usage:
 
 
 Output:
+
+.. code-block:: text
 
    ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
    ┃ user_prompt                                               ┃
