@@ -21,8 +21,6 @@ class Coop:
     Client for the Expected Parrot API.
     """
 
-    _instance = None
-
     def __init__(self, api_key: str = None, url: str = None) -> None:
         """
         Initialize the client.
@@ -810,15 +808,6 @@ class Coop:
 
         # Add API key to environment
         load_dotenv()
-
-
-if __name__ == "__main__":
-    sheet_data = fetch_sheet_data()
-    if sheet_data:
-        print(f"Successfully fetched {len(sheet_data)} rows of data.")
-        print("First row:", sheet_data[0])
-    else:
-        print("Failed to fetch sheet data.")
 
 
 def main():
