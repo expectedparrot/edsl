@@ -1,19 +1,28 @@
 [build-system]
 build-backend = "poetry.core.masonry.api"
-requires = ["poetry-core", "setuptools<72.0"]
+requires = [ "poetry-core", "setuptools<72.0",]
 
 [tool.poetry]
-authors = ["Apostolos Filippas <apostolos@expectedparrot.com>", "John Horton <john@expectedparrot.com>", "Robin Horton <robin@expectedparrot.com>"]
-classifiers = ["Topic :: Scientific/Engineering :: Artificial Intelligence", "Topic :: Software Development :: Libraries :: Application Frameworks", "Topic :: Software Development :: Libraries :: Python Modules"]
+authors = [ "Apostolos Filippas <apostolos@expectedparrot.com>", "John Horton <john@expectedparrot.com>", "Robin Horton <robin@expectedparrot.com>",]
+classifiers = [ "Topic :: Scientific/Engineering :: Artificial Intelligence", "Topic :: Software Development :: Libraries :: Application Frameworks", "Topic :: Software Development :: Libraries :: Python Modules",]
 description = "Create and analyze LLM-based surveys"
 documentation = "https://docs.expectedparrot.com"
 homepage = "https://www.expectedparrot.com/"
-include = ["edsl/questions/templates/**/*"]
-keywords = ["LLM", "social science", "surveys", "user research"]
+include = [ "edsl/questions/templates/**/*",]
+keywords = [ "LLM", "social science", "surveys", "user research",]
 license = "MIT"
 name = "edsl"
 readme = "README.md"
-version = "0.1.37.dev5"
+version = "0.1.37.dev6"
+[[tool.poetry.packages]]
+include = "edsl"
+
+[tool.tomlsort]
+all = true
+in_place = true
+spaces_before_inline_comment = 2
+spaces_indent_inline_array = 4
+trailing_comma_inline_array = true
 
 [tool.poetry.dependencies]
 python = ">=3.9.1,<3.13"
@@ -49,8 +58,11 @@ urllib3 = ">=1.25.4,<1.27"
 google-generativeai = "^0.8.2"
 
 [tool.poetry.dependencies.black]
-extras = ["jupyter"]
+extras = [ "jupyter",]
 version = "^24.4.2"
+
+[tool.tomlsort.overrides."tool.poetry.dependencies"]
+table_keys = false
 
 [tool.poetry.group.dev.dependencies]
 coverage = "^7.3.3"
@@ -77,16 +89,3 @@ sphinx-rtd-theme = "^2.0.0"
 toml = "^0.10.2"
 toml-sort = "^0.23.1"
 uvicorn = "^0.30.6"
-
-[[tool.poetry.packages]]
-include = "edsl"
-
-[tool.tomlsort]
-all = true
-in_place = true
-spaces_before_inline_comment = 2
-spaces_indent_inline_array = 4
-trailing_comma_inline_array = true
-
-[tool.tomlsort.overrides."tool.poetry.dependencies"]
-table_keys = false
