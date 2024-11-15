@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import time
 import requests
+import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
@@ -78,11 +79,15 @@ class JobsRunnerStatusBase(ABC):
 
     @abstractmethod
     def has_ep_api_key(self):
-        """Checks if the user has an Expected Parrot API key"""
+        """
+        Checks if the user has an Expected Parrot API key.
+        """
         pass
 
     def get_status_dict(self) -> Dict[str, Any]:
-        """Convert current status into a JSON-serializable dictionary"""
+        """
+        Converts current status into a JSON-serializable dictionary.
+        """
         # Get all statistics
         stats = {}
         for stat_name in self.statistics:
@@ -149,12 +154,18 @@ class JobsRunnerStatusBase(ABC):
 
     @abstractmethod
     def setup(self):
-        """For any setup that needs to happen prior to sending status updates"""
+        """
+        Conducts any setup that needs to happen prior to sending status updates.
+
+        Ex. For a local job, creates a job in the Coop database.
+        """
         pass
 
     @abstractmethod
     def send_status_update(self):
-        """Updates the current status of the job"""
+        """
+        Updates the current status of the job.
+        """
         pass
 
     def add_completed_interview(self, result):
@@ -242,7 +253,7 @@ class JobsRunnerStatus(JobsRunnerStatusBase):
 
     @property
     def create_url(self) -> str:
-        return f"{self.base_url}/api/v0/local-job/create"
+        return f"{self.base_url}/api/v0/local-job"
 
     @property
     def viewing_url(self) -> str:
@@ -250,10 +261,12 @@ class JobsRunnerStatus(JobsRunnerStatusBase):
 
     @property
     def update_url(self) -> str:
-        return f"{self.base_url}/api/v0/local-job/update/{str(self.job_uuid)}"
+        return f"{self.base_url}/api/v0/local-job/{str(self.job_uuid)}"
 
     def setup(self) -> None:
-        """Creates a local job on Coop if one does not already exist"""
+        """
+        Creates a local job on Coop if one does not already exist.
+        """
 
         headers = {"Content-Type": "application/json"}
 
@@ -276,7 +289,9 @@ class JobsRunnerStatus(JobsRunnerStatusBase):
         print(f"Running with progress bar. View progress at {self.viewing_url}")
 
     def send_status_update(self) -> None:
-        """Sends current status to the web endpoint using the instance's job_id"""
+        """
+        Sends current status to the web endpoint using the instance's job_uuid.
+        """
         try:
             # Get the status dictionary and add the job_id
             status_dict = self.get_status_dict()
@@ -303,7 +318,9 @@ class JobsRunnerStatus(JobsRunnerStatusBase):
             print(f"Failed to send status update for job {self.job_uuid}: {e}")
 
     def has_ep_api_key(self) -> bool:
-        """Checks if the user has an Expected Parrot API key"""
+        """
+        Returns True if the user has an Expected Parrot API key. Otherwise, returns False.
+        """
 
         if self.api_key is not None:
             return True
