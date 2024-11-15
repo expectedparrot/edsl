@@ -28,9 +28,18 @@ class Coop:
         - Provide a URL directly, or use the default one.
         """
         self.api_key = api_key or os.getenv("EXPECTED_PARROT_API_KEY")
+
         self.url = url or CONFIG.EXPECTED_PARROT_URL
         if self.url.endswith("/"):
             self.url = self.url[:-1]
+        if "chick.expectedparrot" in self.url:
+            self.api_url = "https://chickapi.expectedparrot.com"
+        elif "expectedparrot" in self.url:
+            self.api_url = "https://api.expectedparrot.com"
+        elif "localhost:1234" in self.url:
+            self.api_url = "http://localhost:8000"
+        else:
+            self.api_url = self.url
         self._edsl_version = edsl.__version__
 
     ################
@@ -59,7 +68,7 @@ class Coop:
         """
         Send a request to the server and return the response.
         """
-        url = f"{self.url}/{uri}"
+        url = f"{self.api_url}/{uri}"
         method = method.upper()
         if payload is None:
             timeout = 20
@@ -142,7 +151,6 @@ class Coop:
         start_poll_time = time.time()
         waiting_for_login = True
         while waiting_for_login:
-
             elapsed_time = time.time() - start_poll_time
             if elapsed_time > timeout:
                 # Timed out waiting for the user to log in
@@ -686,7 +694,7 @@ class Coop:
     async def remote_async_execute_model_call(
         self, model_dict: dict, user_prompt: str, system_prompt: str
     ) -> dict:
-        url = self.url + "/inference/"
+        url = self.api_url + "/inference/"
         # print("Now using url: ", url)
         data = {
             "model_dict": model_dict,
@@ -707,7 +715,7 @@ class Coop:
         ] = "lime_survey",
         email=None,
     ):
-        url = f"{self.url}/api/v0/export_to_{platform}"
+        url = f"{self.api_url}/api/v0/export_to_{platform}"
         if email:
             data = {"json_string": json.dumps({"survey": survey, "email": email})}
         else:
@@ -809,15 +817,6 @@ class Coop:
 
         # Add API key to environment
         load_dotenv()
-
-
-if __name__ == "__main__":
-    sheet_data = fetch_sheet_data()
-    if sheet_data:
-        print(f"Successfully fetched {len(sheet_data)} rows of data.")
-        print("First row:", sheet_data[0])
-    else:
-        print("Failed to fetch sheet data.")
 
 
 def main():
