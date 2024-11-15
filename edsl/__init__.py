@@ -41,7 +41,8 @@ from edsl.shared import shared_globals
 from edsl.jobs.Jobs import Jobs
 from edsl.notebooks.Notebook import Notebook
 from edsl.study.Study import Study
-from edsl.conjure.Conjure import Conjure
+
+# from edsl.conjure.Conjure import Conjure
 from edsl.coop.coop import Coop
 
 from edsl.surveys.instructions.Instruction import Instruction
