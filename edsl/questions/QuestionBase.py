@@ -146,12 +146,14 @@ class QuestionBase(
         """
         exclude_list = [
             "question_type",
-            "_include_comment",
+            # "_include_comment",
             "_fake_data_factory",
-            "_use_code",
+            # "_use_code",
             "_model_instructions",
         ]
         only_if_not_na_list = ["_answering_instructions", "_question_presentation"]
+
+        only_if_not_default_list = {"_include_comment": True, "_use_code": False}
 
         def ok(key, value):
             if not key.startswith("_"):
@@ -160,6 +162,12 @@ class QuestionBase(
                 return False
             if key in only_if_not_na_list and value is None:
                 return False
+            if (
+                key in only_if_not_default_list
+                and value == only_if_not_default_list[key]
+            ):
+                return False
+
             return True
 
         candidate_data = {
