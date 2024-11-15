@@ -30,7 +30,6 @@ template_manager = TemplateManager()
 
 
 class QuestionBasePromptsMixin:
-
     @property
     def model_instructions(self) -> dict:
         """Get the model-specific instructions for the question."""

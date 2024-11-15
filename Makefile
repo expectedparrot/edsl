@@ -220,14 +220,3 @@ integration-job-running: # DOES NOT WORK!
 
 integration-tricky-questions: # DOES NOT WORK!
 	pytest -v --log-cli-level=INFO integration/test_tricky_questions.py
-
-# ###############
-# ##@COOP 🪺
-# ###############
-# env-chick:
-# 	@echo "Setting up the environment"
-# 	cp .env_chick .env
-
-# env-local-coop: 
-# 	@echo "Setting up the environment"
-# 	cp .env_local_coop .env
