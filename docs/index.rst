@@ -227,12 +227,12 @@ Links
    remote_caching
    filestore
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Importing Data
-   :hidden:
+.. .. toctree::
+..    :maxdepth: 2
+..    :caption: Importing Data
+..    :hidden:
 
-   conjure
+..    conjure
 
 .. toctree::
    :maxdepth: 2
