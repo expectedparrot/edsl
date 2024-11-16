@@ -143,7 +143,7 @@ class MemoryPlan(UserDict):
         for question in prior_questions:
             self.add_single_memory(focal_question, question)
 
-    def to_dict(self) -> dict:
+    def to_dict(self, add_edsl_version=True) -> dict:
         """Serialize the memory plan to a dictionary.
 
         >>> mp = MemoryPlan.example()

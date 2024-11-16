@@ -46,14 +46,30 @@ class ModelList(Base, UserList):
         """
         from edsl.utilities.utilities import dict_hash
 
-        return dict_hash(self._to_dict(sort=True))
+        return dict_hash(self.to_dict(sort=True, add_edsl_version=False))
 
-    def _to_dict(self, sort=False):
+    def to_dict(self, sort=False, add_edsl_version=True):
         if sort:
             model_list = sorted([model for model in self], key=lambda x: hash(x))
-            return {"models": [model._to_dict() for model in model_list]}
+            d = {
+                "models": [
+                    model.to_dict(add_edsl_version=add_edsl_version)
+                    for model in model_list
+                ]
+            }
         else:
-            return {"models": [model._to_dict() for model in self]}
+            d = {
+                "models": [
+                    model.to_dict(add_edsl_version=add_edsl_version) for model in self
+                ]
+            }
+        if add_edsl_version:
+            from edsl import __version__
+
+            d["edsl_version"] = __version__
+            d["edsl_class_name"] = "ModelList"
+
+        return d
 
     @classmethod
     def from_names(self, *args, **kwargs):
@@ -61,15 +77,6 @@ class ModelList(Base, UserList):
         if len(args) == 1 and isinstance(args[0], list):
             args = args[0]
         return ModelList([Model(model_name, **kwargs) for model_name in args])
-
-    @add_edsl_version
-    def to_dict(self):
-        """
-        Convert the ModelList to a dictionary.
-        >>> ModelList.example().to_dict()
-        {'models': [...], 'edsl_version': '...', 'edsl_class_name': 'ModelList'}
-        """
-        return self._to_dict()
 
     @classmethod
     @remove_edsl_version

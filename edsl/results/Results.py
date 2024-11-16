@@ -261,25 +261,39 @@ class Results(UserList, Mixins, Base):
         return f"Results(data = {reprlib.repr(self.data)}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
 
     def _repr_html_(self) -> str:
-        from IPython.display import HTML
+        # from IPython.display import HTML
 
-        json_str = json.dumps(self.to_dict()["data"], indent=4)
+        json_str = json.dumps(self.to_dict(add_edsl_version=False)["data"], indent=4)
         return f"<pre>{json_str}</pre>"
 
-    def _to_dict(self, sort=False):
+    def to_dict(self, sort=False, add_edsl_version=False) -> dict[str, Any]:
         from edsl.data.Cache import Cache
 
         if sort:
             data = sorted([result for result in self.data], key=lambda x: hash(x))
         else:
             data = [result for result in self.data]
-        return {
-            "data": [result.to_dict() for result in data],
-            "survey": self.survey.to_dict(),
+
+        d = {
+            "data": [
+                result.to_dict(add_edsl_version=add_edsl_version) for result in data
+            ],
+            "survey": self.survey.to_dict(add_edsl_version=add_edsl_version),
             "created_columns": self.created_columns,
-            "cache": Cache() if not hasattr(self, "cache") else self.cache.to_dict(),
+            "cache": (
+                Cache()
+                if not hasattr(self, "cache")
+                else self.cache.to_dict(add_edsl_version=add_edsl_version)
+            ),
             "task_history": self.task_history.to_dict(),
         }
+        if add_edsl_version:
+            from edsl import __version__
+
+            d["edsl_version"] = __version__
+            d["edsl_class_name"] = "Results"
+
+        return d
 
     def compare(self, other_results):
         """
@@ -302,22 +316,8 @@ class Results(UserList, Mixins, Base):
     def has_unfixed_exceptions(self):
         return self.task_history.has_unfixed_exceptions
 
-    @add_edsl_version
-    def to_dict(self) -> dict[str, Any]:
-        """Convert the Results object to a dictionary.
-
-        The dictionary can be quite large, as it includes all of the data in the Results object.
-
-        Example: Illustrating just the keys of the dictionary.
-
-        >>> r = Results.example()
-        >>> r.to_dict().keys()
-        dict_keys(['data', 'survey', 'created_columns', 'cache', 'task_history', 'edsl_version', 'edsl_class_name'])
-        """
-        return self._to_dict()
-
     def __hash__(self) -> int:
-        return dict_hash(self._to_dict(sort=True))
+        return dict_hash(self.to_dict(sort=True, add_edsl_version=False))
 
     @property
     def hashes(self) -> set:

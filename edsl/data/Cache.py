@@ -396,15 +396,17 @@ class Cache(Base):
     ####################
     def __hash__(self):
         """Return the hash of the Cache."""
-        return dict_hash(self._to_dict())
+        return dict_hash(self.to_dict(add_edsl_version=False))
 
-    def _to_dict(self) -> dict:
-        return {k: v.to_dict() for k, v in self.data.items()}
+    def to_dict(self, add_edsl_version=True) -> dict:
+        d = {k: v.to_dict() for k, v in self.data.items()}
+        if add_edsl_version:
+            from edsl import __version__
 
-    @add_edsl_version
-    def to_dict(self) -> dict:
-        """Return the Cache as a dictionary."""
-        return self._to_dict()
+            d["edsl_version"] = __version__
+            d["edsl_class_name"] = "Cache"
+
+        return d
 
     def _repr_html_(self):
         from edsl.utilities.utilities import data_to_html
