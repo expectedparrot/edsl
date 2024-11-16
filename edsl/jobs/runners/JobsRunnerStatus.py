@@ -239,8 +239,6 @@ class JobsRunnerStatusBase(ABC):
         return stat_definitions[stat_name]()
 
     def update_progress(self, stop_event):
-        # Sleeping temporarily to avoid the throughput division by zero issue
-        time.sleep(0.01)
 
         while not stop_event.is_set():
             self.send_status_update()
