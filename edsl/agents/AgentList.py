@@ -14,7 +14,7 @@ from __future__ import annotations
 import csv
 import json
 from collections import UserList
-from typing import Any, List, Optional, Union
+from typing import Any, List, Optional, Union, TYPE_CHECKING
 from rich import print_json
 from rich.table import Table
 from simpleeval import EvalWithCompoundTypes
@@ -22,6 +22,11 @@ from edsl.Base import Base
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
 from collections.abc import Iterable
+
+from edsl.exceptions.agents import AgentListError
+
+if TYPE_CHECKING:
+    from edsl.scenarios.ScenarioList import ScenarioList
 
 
 def is_iterable(obj):
@@ -113,7 +118,7 @@ class AgentList(UserList, Base):
             ]
         except Exception as e:
             print(f"Exception:{e}")
-            raise Exception(f"Error in filter. Exception:{e}")
+            raise AgentListError(f"Error in filter. Exception:{e}")
 
         return AgentList(new_data)
 
@@ -208,7 +213,7 @@ class AgentList(UserList, Base):
             return self
 
         if len(values) != len(self):
-            raise ValueError(
+            raise AgentListError(
                 "The passed values have to be the same length as the agent list."
             )
         for agent, value in zip(self.data, values):
@@ -228,8 +233,6 @@ class AgentList(UserList, Base):
     def __hash__(self) -> int:
         from edsl.utilities.utilities import dict_hash
 
-        # data = self.to_dict(add_edsl_version)
-        # data['agent_list'] = sorted(data['agent_list'], key=lambda x: dict_hash(x)
         return dict_hash(self.to_dict(add_edsl_version=False, sorted=True))
 
     def to_dict(self, sorted=False, add_edsl_version=True):
@@ -270,7 +273,7 @@ class AgentList(UserList, Base):
 
         return data_to_html(self.to_dict()["agent_list"])
 
-    def to_scenario_list(self) -> "ScenarioList":
+    def to_scenario_list(self) -> ScenarioList:
         """Return a list of scenarios."""
         from edsl.scenarios.ScenarioList import ScenarioList
         from edsl.scenarios.Scenario import Scenario
