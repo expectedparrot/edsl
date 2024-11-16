@@ -36,7 +36,6 @@ def test_progress_bar():
             return True
 
         def send_status_update(self) -> None:
-            time.sleep(0.01)
             status_dict = self.get_status_dict()
 
     j = q.by(s).by(a)

@@ -220,6 +220,9 @@ class TokenBucket:
 
         elapsed_time = now - start_time
 
+        if elapsed_time == 0:
+            return self.num_released / 0.001
+
         return (self.num_released / elapsed_time) * 60
 
         # # Filter log entries within the time window
