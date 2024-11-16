@@ -229,26 +229,16 @@ class Base(
 
         return data_to_html(self.to_dict())
 
-    # def html(self):
-    #     html_string = self._repr_html_()
-    #     import tempfile
-    #     import webbrowser
-
-    #     with tempfile.NamedTemporaryFile("w", delete=False, suffix=".html") as f:
-    #         # print("Writing HTML to", f.name)
-    #         f.write(html_string)
-    #         webbrowser.open(f.name)
-
     def __eq__(self, other):
         """Return whether two objects are equal."""
         import inspect
 
         if not isinstance(other, self.__class__):
             return False
-        if "sort" in inspect.signature(self._to_dict).parameters:
-            return self._to_dict(sort=True) == other._to_dict(sort=True)
+        if "sort" in inspect.signature(self.to_dict).parameters:
+            return self.to_dict(sort=True) == other.to_dict(sort=True)
         else:
-            return self._to_dict() == other._to_dict()
+            return self.to_dict() == other.to_dict()
 
     @abstractmethod
     def example():

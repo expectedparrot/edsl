@@ -73,7 +73,7 @@ class TaskHistory:
         """Return a string representation of the TaskHistory."""
         return f"TaskHistory(interviews={self.total_interviews})."
 
-    def to_dict(self):
+    def to_dict(self, add_edsl_version=True):
         """Return the TaskHistory as a dictionary."""
         # return {
         #     "exceptions": [
@@ -82,10 +82,19 @@ class TaskHistory:
         #     ],
         #     "indices": self.indices,
         # }
-        return {
-            "interviews": [i._to_dict() for i in self.total_interviews],
+        d = {
+            "interviews": [
+                i.to_dict(add_edsl_version=add_edsl_version)
+                for i in self.total_interviews
+            ],
             "include_traceback": self.include_traceback,
         }
+        if add_edsl_version:
+            from edsl import __version__
+
+            d["edsl_version"] = __version__
+            d["edsl_class_name"] = "TaskHistory"
+        return d
 
     @classmethod
     def from_dict(cls, data: dict):
