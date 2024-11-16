@@ -11,7 +11,8 @@ from typing import Optional, Union
 from edsl.Base import Base
 from edsl.data.CacheEntry import CacheEntry
 from edsl.utilities.utilities import dict_hash
-from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
+from edsl.utilities.decorators import remove_edsl_version
+from edsl.exceptions.cache import CacheError
 
 
 class Cache(Base):
@@ -58,7 +59,7 @@ class Cache(Base):
 
         self.filename = filename
         if filename and data:
-            raise ValueError("Cannot provide both filename and data")
+            raise CacheError("Cannot provide both filename and data")
         if filename is None and data is None:
             data = {}
         if data is not None:
@@ -76,7 +77,7 @@ class Cache(Base):
                 if os.path.exists(filename):
                     self.add_from_sqlite(filename)
             else:
-                raise ValueError("Invalid file extension. Must be .jsonl or .db")
+                raise CacheError("Invalid file extension. Must be .jsonl or .db")
 
         self._perform_checks()
 
@@ -116,7 +117,7 @@ class Cache(Base):
         from edsl.data.CacheEntry import CacheEntry
 
         if any(not isinstance(value, CacheEntry) for value in self.data.values()):
-            raise Exception("Not all values are CacheEntry instances")
+            raise CacheError("Not all values are CacheEntry instances")
         if self.method is not None:
             warnings.warn("Argument `method` is deprecated", DeprecationWarning)
 
@@ -227,9 +228,9 @@ class Cache(Base):
         for key, value in new_data.items():
             if key in self.data:
                 if value != self.data[key]:
-                    raise Exception("Mismatch in values")
+                    raise CacheError("Mismatch in values")
             if not isinstance(value, CacheEntry):
-                raise Exception(f"Wrong type - the observed type is {type(value)}")
+                raise CacheError(f"Wrong type - the observed type is {type(value)}")
 
         self.new_entries.update(new_data)
         if write_now:
@@ -338,7 +339,7 @@ class Cache(Base):
         elif filename.endswith(".db"):
             self.write_sqlite_db(filename)
         else:
-            raise ValueError("Invalid file extension. Must be .jsonl or .db")
+            raise CacheError("Invalid file extension. Must be .jsonl or .db")
 
     def write_jsonl(self, filename: str) -> None:
         """
@@ -440,7 +441,7 @@ class Cache(Base):
         Combine two caches.
         """
         if not isinstance(other, Cache):
-            raise ValueError("Can only add two caches together")
+            raise CacheError("Can only add two caches together")
         self.data.update(other.data)
         return self
 
