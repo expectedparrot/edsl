@@ -669,9 +669,9 @@ class Agent(Base):
             if dynamic_traits_func:
                 func = inspect.getsource(dynamic_traits_func)
                 raw_data["dynamic_traits_function_source_code"] = func
-                raw_data[
-                    "dynamic_traits_function_name"
-                ] = self.dynamic_traits_function_name
+                raw_data["dynamic_traits_function_name"] = (
+                    self.dynamic_traits_function_name
+                )
         if hasattr(self, "answer_question_directly"):
             raw_data.pop(
                 "answer_question_directly", None
@@ -685,23 +685,19 @@ class Agent(Base):
                 raw_data["answer_question_directly_source_code"] = inspect.getsource(
                     answer_question_directly_func
                 )
-                raw_data[
-                    "answer_question_directly_function_name"
-                ] = self.answer_question_directly_function_name
+                raw_data["answer_question_directly_function_name"] = (
+                    self.answer_question_directly_function_name
+                )
 
         return raw_data
 
     def __hash__(self) -> int:
         from edsl.utilities.utilities import dict_hash
 
-        return dict_hash(self._to_dict())
+        return dict_hash(self.to_dict(add_edsl_version=False))
 
-    def _to_dict(self) -> dict[str, Union[dict, bool]]:
-        """Serialize to a dictionary without EDSL info"""
-        return self.data
-
-    @add_edsl_version
-    def to_dict(self) -> dict[str, Union[dict, bool]]:
+    # @add_edsl_version
+    def to_dict(self, add_edsl_version=True) -> dict[str, Union[dict, bool]]:
         """Serialize to a dictionary with EDSL info.
 
         Example usage:
@@ -710,7 +706,14 @@ class Agent(Base):
         >>> a.to_dict()
         {'name': 'Steve', 'traits': {'age': 10, 'hair': 'brown', 'height': 5.5}, 'edsl_version': '...', 'edsl_class_name': 'Agent'}
         """
-        return self._to_dict()
+        d = copy.deepcopy(self.data)
+        if add_edsl_version:
+            from edsl import __version__
+
+            d["edsl_version"] = __version__
+            d["edsl_class_name"] = self.__class__.__name__
+
+        return d
 
     @classmethod
     @remove_edsl_version

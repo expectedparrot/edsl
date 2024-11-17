@@ -46,7 +46,7 @@ class RuleCollection(UserList):
         """
         return f"RuleCollection(rules={self.data}, num_questions={self.num_questions})"
 
-    def to_dict(self):
+    def to_dict(self, add_edsl_version=True):
         """Create a dictionary representation of the RuleCollection object."""
         return {
             "rules": [rule.to_dict() for rule in self],

@@ -445,34 +445,26 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         """Return a hash of the question."""
         from edsl.utilities.utilities import dict_hash
 
-        return dict_hash(self._to_dict())
+        return dict_hash(self.to_dict(add_edsl_version=False))
 
-    def _to_dict(self) -> dict[str, Any]:
+    def to_dict(self, add_edsl_version=True) -> dict[str, Any]:
         """Serialize the Survey object to a dictionary.
 
         >>> s = Survey.example()
-        >>> s._to_dict().keys()
+        >>> s.to_dict(add_edsl_version = False).keys()
         dict_keys(['questions', 'memory_plan', 'rule_collection', 'question_groups'])
         """
         return {
             "questions": [
-                q._to_dict() for q in self.recombined_questions_and_instructions()
+                q.to_dict(add_edsl_version=add_edsl_version)
+                for q in self.recombined_questions_and_instructions()
             ],
-            "memory_plan": self.memory_plan.to_dict(),
-            "rule_collection": self.rule_collection.to_dict(),
+            "memory_plan": self.memory_plan.to_dict(add_edsl_version=add_edsl_version),
+            "rule_collection": self.rule_collection.to_dict(
+                add_edsl_version=add_edsl_version
+            ),
             "question_groups": self.question_groups,
         }
-
-    @add_edsl_version
-    def to_dict(self) -> dict[str, Any]:
-        """Serialize the Survey object to a dictionary.
-
-        >>> s = Survey.example()
-        >>> s.to_dict().keys()
-        dict_keys(['questions', 'memory_plan', 'rule_collection', 'question_groups', 'edsl_version', 'edsl_class_name'])
-
-        """
-        return self._to_dict()
 
     @classmethod
     @remove_edsl_version

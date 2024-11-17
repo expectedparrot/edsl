@@ -24,22 +24,24 @@ class ChangeInstruction:
     def __str__(self):
         return self.text
 
-    def _to_dict(self):
-        return {
+    def to_dict(self, add_edsl_version=True):
+        d = {
             "keep": self.keep,
             "drop": self.drop,
-            "edsl_class_name": "ChangeInstruction",
         }
+        if add_edsl_version:
+            from edsl import __version__
 
-    @add_edsl_version
-    def to_dict(self):
-        return self._to_dict()
+            d["edsl_version"] = __version__
+            d["edsl_class_name"] = "ChangeInstruction"
+
+        return d
 
     def __hash__(self) -> int:
         """Return a hash of the question."""
         from edsl.utilities.utilities import dict_hash
 
-        return dict_hash(self._to_dict())
+        return dict_hash(self.to_dict(add_edsl_version=False))
 
     @classmethod
     @remove_edsl_version

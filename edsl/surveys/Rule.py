@@ -148,10 +148,7 @@ class Rule:
     def _checks(self):
         pass
 
-    # def _to_dict(self):
-
-    # @add_edsl_version
-    def to_dict(self):
+    def to_dict(self, add_edsl_version=True):
         """Convert the rule to a dictionary for serialization.
 
         >>> r = Rule.example()
@@ -166,7 +163,6 @@ class Rule:
             "question_name_to_index": self.question_name_to_index,
             "before_rule": self.before_rule,
         }
-        # return self._to_dict()
 
     @classmethod
     @remove_edsl_version

@@ -108,15 +108,22 @@ class QuestionFunctional(QuestionBase):
     def question_html_content(self) -> str:
         return "NA for QuestionFunctional"
 
-    @add_edsl_version
-    def to_dict(self):
-        return {
+    # @add_edsl_version
+    def to_dict(self, add_edsl_version=True):
+        d = {
             "question_name": self.question_name,
             "function_source_code": self.function_source_code,
             "question_type": "functional",
             "requires_loop": self.requires_loop,
             "function_name": self.function_name,
         }
+        if add_edsl_version:
+            from edsl import __version__
+
+            d["edsl_version"] = __version__
+            d["edsl_class_name"] = self.__class__.__name__
+
+        return d
 
     @classmethod
     def example(cls):

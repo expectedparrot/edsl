@@ -138,7 +138,7 @@ class QuestionBaseGenMixin:
         if exclude_components is None:
             exclude_components = ["question_name", "question_type"]
 
-        d = copy.deepcopy(self._to_dict())
+        d = copy.deepcopy(self.to_dict(add_edsl_version=False))
         for key, value in d.items():
             if key in exclude_components:
                 continue

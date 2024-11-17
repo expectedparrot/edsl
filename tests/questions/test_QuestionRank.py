@@ -17,6 +17,7 @@ valid_question = {
     "question_options": ["Pizza", "Ice cream", "Cake", "Cereal"],
     "question_name": "food",
     "num_selections": 2,
+    "use_code": True,
 }
 
 valid_question_wo_extras = {

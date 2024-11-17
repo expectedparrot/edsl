@@ -21,6 +21,7 @@ class QuestionTopK(QuestionCheckBox):
         question_presentation: Optional[str] = None,
         answering_instructions: Optional[str] = None,
         include_comment: Optional[bool] = True,
+        use_code: Optional[bool] = True,
     ):
         """Initialize the question.
 
@@ -39,6 +40,7 @@ class QuestionTopK(QuestionCheckBox):
             question_presentation=question_presentation,
             answering_instructions=answering_instructions,
             include_comment=include_comment,
+            use_code=use_code,
         )
         if min_selections != max_selections:
             raise QuestionCreationValidationError(
