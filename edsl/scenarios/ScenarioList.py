@@ -20,7 +20,7 @@ from edsl.scenarios.Scenario import Scenario
 from edsl.scenarios.ScenarioListPdfMixin import ScenarioListPdfMixin
 from edsl.scenarios.ScenarioListExportMixin import ScenarioListExportMixin
 
-from edsl.conjure.naming_utilities import sanitize_string
+from edsl.utilities.naming_utilities import sanitize_string
 from edsl.utilities.utilities import is_valid_variable_name
 
 
@@ -239,7 +239,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         """
         from edsl.utilities.utilities import dict_hash
 
-        return dict_hash(self._to_dict(sort=True))
+        return dict_hash(self.to_dict(sort=True, add_edsl_version=False))
 
     def __repr__(self):
         return f"ScenarioList({self.data})"
@@ -958,24 +958,24 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
         return cls(observations)
 
-    def _to_dict(self, sort=False) -> dict:
+    def to_dict(self, sort=False, add_edsl_version=True) -> dict:
+        """
+        >>> s = ScenarioList([Scenario({'food': 'wood chips'}), Scenario({'food': 'wood-fired pizza'})])
+        >>> s.to_dict()
+        {'scenarios': [{'food': 'wood chips', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}, {'food': 'wood-fired pizza', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}], 'edsl_version': '...', 'edsl_class_name': 'ScenarioList'}
+
+        """
         if sort:
             data = sorted(self, key=lambda x: hash(x))
         else:
             data = self
-        return {"scenarios": [s._to_dict() for s in data]}
+        d = {"scenarios": [s.to_dict(add_edsl_version=add_edsl_version) for s in data]}
+        if add_edsl_version:
+            from edsl import __version__
 
-    @add_edsl_version
-    def to_dict(self) -> dict[str, Any]:
-        """Return the `ScenarioList` as a dictionary.
-
-        Example:
-
-        >>> s = ScenarioList([Scenario({'food': 'wood chips'}), Scenario({'food': 'wood-fired pizza'})])
-        >>> s.to_dict()
-        {'scenarios': [{'food': 'wood chips', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}, {'food': 'wood-fired pizza', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}], 'edsl_version': '...', 'edsl_class_name': 'ScenarioList'}
-        """
-        return {"scenarios": [s.to_dict() for s in self]}
+            d["edsl_version"] = __version__
+            d["edsl_class_name"] = self.__class__.__name__
+        return d
 
     @classmethod
     def gen(cls, scenario_dicts_list: List[dict]) -> ScenarioList:
@@ -1061,7 +1061,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         elif isinstance(key, int):
             return super().__getitem__(key)
         else:
-            return self._to_dict()[key]
+            return self.to_dict(add_edsl_version=False)[key]
 
     def to_agent_list(self):
         """Convert the ScenarioList to an AgentList.

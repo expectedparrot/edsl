@@ -641,7 +641,7 @@ class Jobs(Base):
         """
         from edsl.utilities.utilities import dict_hash
 
-        return dict_hash(self._to_dict())
+        return dict_hash(self.to_dict(add_edsl_version=False))
 
     def _output(self, message) -> None:
         """Check if a Job is verbose. If so, print the message."""
@@ -1188,18 +1188,29 @@ class Jobs(Base):
     # Serialization methods
     #######################
 
-    def _to_dict(self):
-        return {
-            "survey": self.survey._to_dict(),
-            "agents": [agent._to_dict() for agent in self.agents],
-            "models": [model._to_dict() for model in self.models],
-            "scenarios": [scenario._to_dict() for scenario in self.scenarios],
+    def to_dict(self, add_edsl_version=True):
+        d = {
+            "survey": self.survey.to_dict(add_edsl_version=add_edsl_version),
+            "agents": [
+                agent.to_dict(add_edsl_version=add_edsl_version)
+                for agent in self.agents
+            ],
+            "models": [
+                model.to_dict(add_edsl_version=add_edsl_version)
+                for model in self.models
+            ],
+            "scenarios": [
+                scenario.to_dict(add_edsl_version=add_edsl_version)
+                for scenario in self.scenarios
+            ],
         }
+        if add_edsl_version:
+            from edsl import __version__
 
-    @add_edsl_version
-    def to_dict(self) -> dict:
-        """Convert the Jobs instance to a dictionary."""
-        return self._to_dict()
+            d["edsl_version"] = __version__
+            d["edsl_class_name"] = "Jobs"
+
+        return d
 
     @classmethod
     @remove_edsl_version

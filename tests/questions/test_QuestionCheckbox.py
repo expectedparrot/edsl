@@ -15,6 +15,7 @@ valid_question = {
     "min_selections": 2,
     "max_selections": 3,
     "question_name": "weekdays",
+    "use_code": True,
 }
 
 valid_question_wo_extras = {
