@@ -1,13 +1,16 @@
 import pytest
 
-from edsl import Agent, Scenario
+import time
+from edsl import Agent, Cache, Scenario
 from edsl.questions import QuestionYesNo
+from edsl.jobs.runners.JobsRunnerStatus import JobsRunnerStatusBase
 
 
 def test_progress_bar():
     """Just makes sure that the progress bar doesn't throw an error."""
 
     def is_prime(self, question, scenario):
+        time.sleep(0.1)
         number = scenario["number"]
         if number < 2:
             return "Yes"
@@ -24,8 +27,22 @@ def test_progress_bar():
         question_text="Is this number prime: {{ number }}?", question_name="is_prime"
     )
 
-    from edsl.data.Cache import Cache
+    class TestJobsRunnerStatus(JobsRunnerStatusBase):
 
-    results = q.by(s).by(a).run(progress_bar=True, cache=Cache())
+        def setup(self) -> None:
+            return
 
-    # results.select('number', 'is_prime').print()
+        def has_ep_api_key(self) -> bool:
+            return True
+
+        def send_status_update(self) -> None:
+            status_dict = self.get_status_dict()
+
+    j = q.by(s).by(a)
+    results = j._run_local(
+        progress_bar=True, cache=Cache(), jobs_runner_status=TestJobsRunnerStatus
+    )
+
+
+if __name__ == "__main__":
+    pytest.main()
