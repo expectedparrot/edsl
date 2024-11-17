@@ -204,7 +204,8 @@ class AgentList(UserList, Base):
         >>> al.add_trait('new_trait', [1, 2, 3])
         Traceback (most recent call last):
         ...
-        ValueError: The passed values have to be the same length as the agent list.
+        edsl.exceptions.agents.AgentListError: The passed values have to be the same length as the agent list.
+        ...
         """
         if not is_iterable(values):
             value = values
