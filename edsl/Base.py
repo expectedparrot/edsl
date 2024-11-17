@@ -256,10 +256,10 @@ class Base(
 
         if not isinstance(other, self.__class__):
             return False
-        if "sort" in inspect.signature(self._to_dict).parameters:
-            return self._to_dict(sort=True) == other._to_dict(sort=True)
+        if "sort" in inspect.signature(self.to_dict).parameters:
+            return self.to_dict(sort=True) == other.to_dict(sort=True)
         else:
-            return self._to_dict() == other._to_dict()
+            return self.to_dict() == other.to_dict()
 
     @abstractmethod
     def example():

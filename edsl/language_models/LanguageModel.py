@@ -607,18 +607,20 @@ class LanguageModel(
     #######################
     # SERIALIZATION METHODS
     #######################
-    def _to_dict(self) -> dict[str, Any]:
-        return {"model": self.model, "parameters": self.parameters}
-
-    @add_edsl_version
-    def to_dict(self) -> dict[str, Any]:
-        """Convert instance to a dictionary.
+    def to_dict(self, add_edsl_version=True) -> dict[str, Any]:
+        """Convert instance to a dictionary
 
         >>> m = LanguageModel.example()
         >>> m.to_dict()
         {'model': '...', 'parameters': {'temperature': ..., 'max_tokens': ..., 'top_p': ..., 'frequency_penalty': ..., 'presence_penalty': ..., 'logprobs': False, 'top_logprobs': ...}, 'edsl_version': '...', 'edsl_class_name': 'LanguageModel'}
         """
-        return self._to_dict()
+        d = {"model": self.model, "parameters": self.parameters}
+        if add_edsl_version:
+            from edsl import __version__
+
+            d["edsl_version"] = __version__
+            d["edsl_class_name"] = self.__class__.__name__
+        return d
 
     @classmethod
     @remove_edsl_version
