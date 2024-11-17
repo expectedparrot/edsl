@@ -257,7 +257,7 @@ def sanitize_string(input_string, max_length=35):
 #         print()
 
 if __name__ == "__main__":
-    from edsl.conjure.InputData import InputDataABC
+    # from edsl.conjure.InputData import InputDataABC
     import doctest
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)
