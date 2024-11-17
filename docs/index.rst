@@ -134,15 +134,15 @@ It is fully integrated with EDSL and provides access to special features for wor
 | Learn more about `how it works <https://docs.expectedparrot.com/en/latest/coop.html>`_
 
 
-Importing Surveys
------------------
+.. Importing Surveys
+.. -----------------
 
-- :ref:`conjure`: Automatically import other survey data into EDSL to:
+.. - :ref:`conjure`: Automatically import other survey data into EDSL to:
   
-  * Clean and analyze your data
-  * Create AI agents and conduct follow-on interviews
-  * Extend results with new questions
-  * Store and share data at the Coop
+..   * Clean and analyze your data
+..   * Create AI agents and conduct follow-on interviews
+..   * Extend results with new questions
+..   * Store and share data at the Coop
 
 
 How-to Guides & Notebooks
@@ -227,12 +227,12 @@ Links
    remote_caching
    filestore
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Importing Data
-   :hidden:
+.. .. toctree::
+..    :maxdepth: 2
+..    :caption: Importing Data
+..    :hidden:
 
-   conjure
+..    conjure
 
 .. toctree::
    :maxdepth: 2

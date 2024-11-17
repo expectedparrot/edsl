@@ -20,7 +20,7 @@ from edsl.scenarios.Scenario import Scenario
 from edsl.scenarios.ScenarioListPdfMixin import ScenarioListPdfMixin
 from edsl.scenarios.ScenarioListExportMixin import ScenarioListExportMixin
 
-from edsl.conjure.naming_utilities import sanitize_string
+from edsl.utilities.naming_utilities import sanitize_string
 from edsl.utilities.utilities import is_valid_variable_name
 
 
