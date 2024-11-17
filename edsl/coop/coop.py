@@ -42,6 +42,9 @@ class Coop:
             self.api_url = self.url
         self._edsl_version = edsl.__version__
 
+    def get_progress_bar_url(self):
+        return f"{CONFIG.EXPECTED_PARROT_URL}"
+
     ################
     # BASIC METHODS
     ################

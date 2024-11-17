@@ -2,13 +2,13 @@ from __future__ import annotations
 import time
 import asyncio
 import threading
-from typing import Coroutine, List, AsyncGenerator, Optional, Union, Generator
-from contextlib import contextmanager
+import warnings
+from typing import Coroutine, List, AsyncGenerator, Optional, Union, Generator, Type
 from collections import UserList
 
 from edsl.results.Results import Results
 from edsl.jobs.interviews.Interview import Interview
-from edsl.jobs.runners.JobsRunnerStatus import JobsRunnerStatus
+from edsl.jobs.runners.JobsRunnerStatus import JobsRunnerStatus, JobsRunnerStatusBase
 
 from edsl.jobs.tasks.TaskHistory import TaskHistory
 from edsl.jobs.buckets.BucketCollection import BucketCollection
@@ -41,6 +41,7 @@ class JobsRunnerAsyncio:
         self.interviews: List["Interview"] = jobs.interviews()
         self.bucket_collection: "BucketCollection" = jobs.bucket_collection
         self.total_interviews: List["Interview"] = []
+        self._initialized = threading.Event()
 
     async def run_async_generator(
         self,
@@ -68,6 +69,8 @@ class JobsRunnerAsyncio:
             self.total_interviews = list(
                 self._populate_total_interviews(n=n)
             )  # Populate self.total_interviews before creating tasks
+
+        self._initialized.set()  # Signal that we're ready
 
         for interview in self.total_interviews:
             interviewing_task = self._build_interview_task(
@@ -165,20 +168,20 @@ class JobsRunnerAsyncio:
 
         prompt_dictionary = {}
         for answer_key_name in answer_key_names:
-            prompt_dictionary[
-                answer_key_name + "_user_prompt"
-            ] = question_name_to_prompts[answer_key_name]["user_prompt"]
-            prompt_dictionary[
-                answer_key_name + "_system_prompt"
-            ] = question_name_to_prompts[answer_key_name]["system_prompt"]
+            prompt_dictionary[answer_key_name + "_user_prompt"] = (
+                question_name_to_prompts[answer_key_name]["user_prompt"]
+            )
+            prompt_dictionary[answer_key_name + "_system_prompt"] = (
+                question_name_to_prompts[answer_key_name]["system_prompt"]
+            )
 
         raw_model_results_dictionary = {}
         cache_used_dictionary = {}
         for result in valid_results:
             question_name = result.question_name
-            raw_model_results_dictionary[
-                question_name + "_raw_model_response"
-            ] = result.raw_model_response
+            raw_model_results_dictionary[question_name + "_raw_model_response"] = (
+                result.raw_model_response
+            )
             raw_model_results_dictionary[question_name + "_cost"] = result.cost
             one_use_buys = (
                 "NA"
@@ -275,6 +278,7 @@ class JobsRunnerAsyncio:
         stop_on_exception: bool = False,
         progress_bar: bool = False,
         sidecar_model: Optional[LanguageModel] = None,
+        jobs_runner_status: Optional[Type[JobsRunnerStatusBase]] = None,
         print_exceptions: bool = True,
         raise_validation_errors: bool = False,
     ) -> "Coroutine":
@@ -286,7 +290,21 @@ class JobsRunnerAsyncio:
         self.cache = cache
         self.sidecar_model = sidecar_model
 
-        self.jobs_runner_status = JobsRunnerStatus(self, n=n)
+        from edsl.coop import Coop
+
+        coop = Coop()
+        endpoint_url = coop.get_progress_bar_url()
+
+        if jobs_runner_status is not None:
+            self.jobs_runner_status = jobs_runner_status(
+                self, n=n, endpoint_url=endpoint_url
+            )
+        else:
+            self.jobs_runner_status = JobsRunnerStatus(
+                self,
+                n=n,
+                endpoint_url=endpoint_url,
+            )
 
         stop_event = threading.Event()
 
@@ -306,11 +324,16 @@ class JobsRunnerAsyncio:
             """Runs the progress bar in a separate thread."""
             self.jobs_runner_status.update_progress(stop_event)
 
-        if progress_bar:
+        if progress_bar and self.jobs_runner_status.has_ep_api_key():
+            self.jobs_runner_status.setup()
             progress_thread = threading.Thread(
                 target=run_progress_bar, args=(stop_event,)
             )
             progress_thread.start()
+        elif progress_bar:
+            warnings.warn(
+                "You need an Expected Parrot API key to view job progress bars."
+            )
 
         exception_to_raise = None
         try:
@@ -325,7 +348,7 @@ class JobsRunnerAsyncio:
             stop_event.set()
         finally:
             stop_event.set()
-            if progress_bar:
+            if progress_bar and self.jobs_runner_status.has_ep_api_key():
                 # self.jobs_runner_status.stop_event.set()
                 if progress_thread:
                     progress_thread.join()
