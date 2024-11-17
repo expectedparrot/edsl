@@ -167,19 +167,16 @@ class PromptConstructor:
         question_options_entry = question_data.get("question_options", None)
         question_options = question_options_entry
 
+        placeholder = ["<< Option 1 - Placholder >>", "<< Option 2 - Placholder >>"]
+
         if isinstance(question_options_entry, str):
             env = Environment()
             parsed_content = env.parse(question_options_entry)
             question_option_key = list(meta.find_undeclared_variables(parsed_content))[
                 0
             ]
-            # print("question_option_key: ", question_option_key)
-            # breakpoint()
-            # look to see if the question_option_key is in the scenario
             if isinstance(self.scenario.get(question_option_key), list):
                 question_options = self.scenario.get(question_option_key)
-
-            # breakpoint()
 
             # might be getting it from the prior answers
             if self.prior_answers_dict().get(question_option_key) is not None:
@@ -187,12 +184,11 @@ class PromptConstructor:
                 if hasattr(prior_question, "answer"):
                     if isinstance(prior_question.answer, list):
                         question_options = prior_question.answer
+                    else:
+                        question_options = placeholder
                 else:
-                    question_options = [
-                        "N/A",
-                        "Will be populated by prior answer",
-                        "These are placeholder options",
-                    ]
+                    question_options = placeholder
+
         return question_options
 
     def build_question_instructions_prompt(self):

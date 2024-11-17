@@ -28,9 +28,18 @@ class Coop:
         - Provide a URL directly, or use the default one.
         """
         self.api_key = api_key or os.getenv("EXPECTED_PARROT_API_KEY")
+
         self.url = url or CONFIG.EXPECTED_PARROT_URL
         if self.url.endswith("/"):
             self.url = self.url[:-1]
+        if "chick.expectedparrot" in self.url:
+            self.api_url = "https://chickapi.expectedparrot.com"
+        elif "expectedparrot" in self.url:
+            self.api_url = "https://api.expectedparrot.com"
+        elif "localhost:1234" in self.url:
+            self.api_url = "http://localhost:8000"
+        else:
+            self.api_url = self.url
         self._edsl_version = edsl.__version__
 
     def get_progress_bar_url(self):
@@ -62,7 +71,7 @@ class Coop:
         """
         Send a request to the server and return the response.
         """
-        url = f"{self.url}/{uri}"
+        url = f"{self.api_url}/{uri}"
         method = method.upper()
         if payload is None:
             timeout = 20
@@ -93,14 +102,16 @@ class Coop:
 
         return response
 
-    def _resolve_server_response(self, response: requests.Response) -> None:
+    def _resolve_server_response(
+        self, response: requests.Response, check_api_key: bool = True
+    ) -> None:
         """
         Check the response from the server and raise errors as appropriate.
         """
         if response.status_code >= 400:
             message = response.json().get("detail")
             # print(response.text)
-            if "The API key you provided is invalid" in message:
+            if "The API key you provided is invalid" in message and check_api_key:
                 import secrets
                 from edsl.utilities.utilities import write_api_key_to_env
 
@@ -110,9 +121,7 @@ class Coop:
                 print(
                     "\nUse the link below to log in to Expected Parrot so we can automatically update your API key."
                 )
-                print(
-                    f"{CONFIG.EXPECTED_PARROT_URL}/login?edsl_auth_token={edsl_auth_token}\n"
-                )
+                self._display_login_url(edsl_auth_token=edsl_auth_token)
                 api_key = self._poll_for_api_key(edsl_auth_token)
 
                 if api_key is None:
@@ -145,7 +154,6 @@ class Coop:
         start_poll_time = time.time()
         waiting_for_login = True
         while waiting_for_login:
-
             elapsed_time = time.time() - start_poll_time
             if elapsed_time > timeout:
                 # Timed out waiting for the user to log in
@@ -203,7 +211,7 @@ class Coop:
             response = self._send_server_request(
                 uri="api/v0/edsl-settings", method="GET", timeout=5
             )
-            self._resolve_server_response(response)
+            self._resolve_server_response(response, check_api_key=False)
             return response.json()
         except Timeout:
             return {}
@@ -689,7 +697,7 @@ class Coop:
     async def remote_async_execute_model_call(
         self, model_dict: dict, user_prompt: str, system_prompt: str
     ) -> dict:
-        url = self.url + "/inference/"
+        url = self.api_url + "/inference/"
         # print("Now using url: ", url)
         data = {
             "model_dict": model_dict,
@@ -710,7 +718,7 @@ class Coop:
         ] = "lime_survey",
         email=None,
     ):
-        url = f"{self.url}/api/v0/export_to_{platform}"
+        url = f"{self.api_url}/api/v0/export_to_{platform}"
         if email:
             data = {"json_string": json.dumps({"survey": survey, "email": email})}
         else:
@@ -760,6 +768,18 @@ class Coop:
         data = response.json()
         return data
 
+    def _display_login_url(self, edsl_auth_token: str):
+        """
+        Uses rich.print to display a login URL.
+
+        - We need this function because URL detection with print() does not work alongside animations in VSCode.
+        """
+        from rich import print as rich_print
+
+        url = f"{CONFIG.EXPECTED_PARROT_URL}/login?edsl_auth_token={edsl_auth_token}"
+
+        rich_print(f"[#38bdf8][link={url}]{url}[/link][/#38bdf8]")
+
     def _get_api_key(self, edsl_auth_token: str):
         """
         Given an EDSL auth token, find the corresponding user's API key.
@@ -776,14 +796,30 @@ class Coop:
         api_key = data.get("api_key")
         return api_key
 
+    def login(self):
+        """
+        Starts the EDSL auth token login flow.
+        """
+        import secrets
+        from dotenv import load_dotenv
+        from edsl.utilities.utilities import write_api_key_to_env
 
-if __name__ == "__main__":
-    sheet_data = fetch_sheet_data()
-    if sheet_data:
-        print(f"Successfully fetched {len(sheet_data)} rows of data.")
-        print("First row:", sheet_data[0])
-    else:
-        print("Failed to fetch sheet data.")
+        edsl_auth_token = secrets.token_urlsafe(16)
+
+        print(
+            "\nUse the link below to log in to Expected Parrot so we can automatically update your API key."
+        )
+        self._display_login_url(edsl_auth_token=edsl_auth_token)
+        api_key = self._poll_for_api_key(edsl_auth_token)
+
+        if api_key is None:
+            raise Exception("Timed out waiting for login. Please try again.")
+
+        write_api_key_to_env(api_key)
+        print("\n✨ API key retrieved and written to .env file.")
+
+        # Add API key to environment
+        load_dotenv()
 
 
 def main():
