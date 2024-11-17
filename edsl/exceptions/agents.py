@@ -1,6 +1,10 @@
 from edsl.exceptions.BaseException import BaseException
 
 
+class AgentListError(BaseException):
+    relevant_doc = "https://docs.expectedparrot.com/en/latest/agents.html#agent-lists"
+
+
 class AgentErrors(BaseException):
     relevant_doc = "https://docs.expectedparrot.com/en/latest/agents.html"
 

@@ -110,9 +110,9 @@ class Interview:
         self.debug = debug
         self.iteration = iteration
         self.cache = cache
-        self.answers: dict[
-            str, str
-        ] = Answers()  # will get filled in as interview progresses
+        self.answers: dict[str, str] = (
+            Answers()
+        )  # will get filled in as interview progresses
         self.sidecar_model = sidecar_model
 
         # Trackers
@@ -143,9 +143,9 @@ class Interview:
         The keys are the question names; the values are the lists of status log changes for each task.
         """
         for task_creator in self.task_creators.values():
-            self._task_status_log_dict[
-                task_creator.question.question_name
-            ] = task_creator.status_log
+            self._task_status_log_dict[task_creator.question.question_name] = (
+                task_creator.status_log
+            )
         return self._task_status_log_dict
 
     @property
@@ -159,7 +159,7 @@ class Interview:
         return self.task_creators.interview_status
 
     # region: Serialization
-    def _to_dict(self, include_exceptions=True) -> dict[str, Any]:
+    def to_dict(self, include_exceptions=True, add_edsl_version=True) -> dict[str, Any]:
         """Return a dictionary representation of the Interview instance.
         This is just for hashing purposes.
 
@@ -168,10 +168,10 @@ class Interview:
         1217840301076717434
         """
         d = {
-            "agent": self.agent._to_dict(),
-            "survey": self.survey._to_dict(),
-            "scenario": self.scenario._to_dict(),
-            "model": self.model._to_dict(),
+            "agent": self.agent.to_dict(add_edsl_version=add_edsl_version),
+            "survey": self.survey.to_dict(add_edsl_version=add_edsl_version),
+            "scenario": self.scenario.to_dict(add_edsl_version=add_edsl_version),
+            "model": self.model.to_dict(add_edsl_version=add_edsl_version),
             "iteration": self.iteration,
             "exceptions": {},
         }
@@ -202,11 +202,11 @@ class Interview:
     def __hash__(self) -> int:
         from edsl.utilities.utilities import dict_hash
 
-        return dict_hash(self._to_dict(include_exceptions=False))
+        return dict_hash(self.to_dict(include_exceptions=False, add_edsl_version=False))
 
     def __eq__(self, other: "Interview") -> bool:
         """
-        >>> from edsl.jobs.interviews.Interview import Interview; i = Interview.example(); d = i._to_dict(); i2 = Interview.from_dict(d); i == i2
+        >>> from edsl.jobs.interviews.Interview import Interview; i = Interview.example(); d = i.to_dict(); i2 = Interview.from_dict(d); i == i2
         True
         """
         return hash(self) == hash(other)
@@ -486,11 +486,11 @@ class Interview:
         """
         current_question_index: int = self.to_index[current_question.question_name]
 
-        next_question: Union[
-            int, EndOfSurvey
-        ] = self.survey.rule_collection.next_question(
-            q_now=current_question_index,
-            answers=self.answers | self.scenario | self.agent["traits"],
+        next_question: Union[int, EndOfSurvey] = (
+            self.survey.rule_collection.next_question(
+                q_now=current_question_index,
+                answers=self.answers | self.scenario | self.agent["traits"],
+            )
         )
 
         next_question_index = next_question.next_q
