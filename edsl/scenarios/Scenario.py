@@ -137,7 +137,7 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
                 new_scenario[key] = value
         return new_scenario
 
-    def _to_dict(self) -> dict:
+    def to_dict(self, add_edsl_version=True) -> dict:
         """Convert a scenario to a dictionary.
 
         Example:
@@ -145,26 +145,24 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
         >>> s = Scenario({"food": "wood chips"})
         >>> s.to_dict()
         {'food': 'wood chips', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}
+
+        >>> s.to_dict(add_edsl_version = False)
+        {'food': 'wood chips'}
+
         """
         from edsl.scenarios.FileStore import FileStore
 
         d = self.data.copy()
         for key, value in d.items():
             if isinstance(value, FileStore):
-                d[key] = value.to_dict()
+                d[key] = value.to_dict(add_edsl_version=add_edsl_version)
+        if add_edsl_version:
+            from edsl import __version__
+
+            d["edsl_version"] = __version__
+            d["edsl_class_name"] = "Scenario"
+
         return d
-
-    @add_edsl_version
-    def to_dict(self) -> dict:
-        """Convert a scenario to a dictionary.
-
-        Example:
-
-        >>> s = Scenario({"food": "wood chips"})
-        >>> s.to_dict()
-        {'food': 'wood chips', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}
-        """
-        return self._to_dict()
 
     def __hash__(self) -> int:
         """
@@ -178,7 +176,7 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
         """
         from edsl.utilities.utilities import dict_hash
 
-        return dict_hash(self._to_dict())
+        return dict_hash(self.to_dict(add_edsl_version=False))
 
     def print(self):
         from rich import print_json
