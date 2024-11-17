@@ -3,8 +3,6 @@
 Questions
 =========
 
-.. This module contains the Question class, which is the base class for all questions in EDSL.
-
 EDSL provides templates for many common question types, including multiple choice, checkbox, free text, numerical, linear scale and others.
 The `Question` class has subclasses for each of these types: `QuestionMultipleChoice`, `QuestionCheckBox`, `QuestionFreeText`, `QuestionNumerical`, `QuestionLinearScale`, etc., 
 which have methods for validating answers and responses from language models.
@@ -60,10 +58,12 @@ we import the `QuestionMultipleChoice` class and create an instance of it with t
    )
 
 
-Optional fields for specific question types
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Special parameters for question types
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`min_selections` and `max_selections` - Parameters that can be added to `checkbox` and `rank` questions to specify the minimum and maximum number of options that can be selected.
+Some question types have additional parameters that are either optional or required to be added to the question when it is created:
+
+`min_selections` and `max_selections` - *Optional* parameters that can be added to `checkbox` and `rank` questions to specify the minimum and maximum number of options that can be selected.
 For example, in a checkbox question where the response must include at least 2 and at most 3 of the options:
 
 .. code-block:: python
@@ -74,12 +74,12 @@ For example, in a checkbox question where the response must include at least 2 a
       question_name = "favorite_days",
       question_text = "What are your 2-3 favorite days of the week?",
       question_options = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-      min_selections = 2,
-      max_selections = 3
+      min_selections = 2, # optional
+      max_selections = 3 # optional
    )
 
 
-`min_value` and `max_value` - Parameters that can be added to `numerical` questions to specify the minimum and maximum values that can be entered.
+`min_value` and `max_value` - *Optional* parameters that can be added to `numerical` questions to specify the minimum and maximum values that can be entered.
 For example, in a numerical question where the respondent must enter a number between 1 and 100:
 
 .. code-block:: python
@@ -89,12 +89,12 @@ For example, in a numerical question where the respondent must enter a number be
    q = QuestionNumerical(
       question_name = "age",
       question_text = "How old are you (in years)?",
-      min_value = 1,
-      max_value = 100
+      min_value = 1, # optioal
+      max_value = 100 # optional
    )
 
 
-`option_labels` - A parameter that can be added to `linear_scale` questions to specify labels for the scale options.
+`option_labels` - *Optional* parameter that can be added to `linear_scale` questions to specify labels for the scale options.
 For example, in a linear scale question where the response must be an integer between 1 and 5 reflecting the respondent's agreement with a statement:
 
 .. code-block:: python
@@ -105,11 +105,11 @@ For example, in a linear scale question where the response must be an integer be
       question_name = "agree",
       question_text = "Please indicate whether you agree with the following statement: I am only happy when it rains.",
       question_options = [1, 2, 3, 4, 5],
-      option_labels = {1: "Strongly disagree", 5: "Strongly agree"}
+      option_labels = {1: "Strongly disagree", 5: "Strongly agree"} # optional
    )
 
 
-`num_selections` - A parameter that can be added to `rank` questions to specify the number of options that must be ranked.
+`num_selections` - *Optional* parameter that can be added to `rank` questions to specify the number of options that must be ranked.
 For example, in a rank question where the respondent must rank their top 3 favorite foods:
 
 .. code-block:: python
@@ -120,11 +120,11 @@ For example, in a rank question where the respondent must rank their top 3 favor
       question_name = "foods_rank",
       question_text = "Rank your top 3 favorite foods.",
       question_options = ["Pizza", "Pasta", "Salad", "Soup"],
-      num_selections = 3
+      num_selections = 3 # optional
    )
 
 
-`answer_template` - A parameter that can be added to `extract` questions to specify a template for the extracted information.
+`answer_template` - *Required* parameter of `extract` questions to specify a template for the extracted information.
 For example, in an extract question where the respondent must extract information from a given text:
 
 .. code-block:: python
@@ -134,11 +134,11 @@ For example, in an extract question where the respondent must extract informatio
    q = QuestionExtract(
       question_name = "course_schedule",
       question_text = "This semester we are offering courses on calligraphy on Friday mornings.",
-      answer_template = {"course_topic": "AI", "days": ["Monday", "Wednesday"]}
+      answer_template = {"course_topic": "AI", "days": ["Monday", "Wednesday"]} # required
    )
 
 
-`func` - A parameter that can be added to `functional` questions to specify a function that generates the answer.
+`func` - *Required* parameter of `functional` questions to specify a function that generates the answer.
 For example, in a functional question where the answer is generated by a function:
 
 .. code-block:: python
@@ -182,11 +182,12 @@ Example results:
    └───────────┴──────────┴────────────────────────────────┘
 
 
+Optional parameters
+^^^^^^^^^^^^^^^^^^^
 
-Optional additional parameters
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The following optional parameters can be added to any question type (examples of each are provided at the end of this section):
 
-`include_comment = False` - A boolean value that can be added to any question type (other than free text) to exclude the `comment` field.
+`include_comment = False` - A boolean value that can be added to any question type (other than free text) to exclude the default instruction in the user prompt that instructs the model to include a comment about its response to the question, as well as the `comment` field that is otherwise automatically included in survey results for the question.
 
 By default, a `comment` field is automatically added to all question types other than free text.
 It is a free text field that allows a model to provide any commentary on its response to the question, such as why a certain answer was chosen or how the model arrived at its answer.
@@ -200,7 +201,7 @@ It can be used to provide additional context or instructions to the model about 
 `answering_instructions` - A string that can be added to any question type to specify how the model should answer the question.
 It can be used to provide additional context or instructions to the model about how to format its response.
 
-`permissive = False` - A boolean value that can be added to any question type to specify whether the model should be allowed to provide an answer that violates the question constraints (e.g., selecting fewer or more than the allowed number of options in a checkbox question).
+`permissive = True` - A boolean value that can be added to any question type to specify whether the model should be allowed to provide an answer that violates the question constraints (e.g., selecting fewer or more than the allowed number of options in a checkbox question).
 (By default, `permissive` is set to `False` to enforce any question constraints.) 
 
 
@@ -348,8 +349,24 @@ To learn more about analyzing results, please see the :ref:`results` section.
 Parameterizing a question
 -------------------------
 
-A question can also be constructed to take one or more parameters that are replaced with specified values either when the question is constructed or when the question is run.
-This allows us to easily create and administer multiple versions of a question at once.
+A question can also be constructed to take parameters that are replaced with specified values either when the question is constructed or when the question is run.
+This operation can be done in a number of ways:
+
+* Use "piping" to pass answers or other components of previous questions to a subsequent question *when it is run*.
+* Use `Scenario` objects to pass values to a question *when it is run*.
+* Use `Scenario` objects to pass values to a question *when it is constructed*.
+* Use f-strings to pass values to a question *when it is constructed*.
+
+Each of these methods allows us to easily create and administer multiple versions of a question at once.
+
+In addition to the examples below, please also see the :ref:`scenarios` section for more information on constructing and using scenarios to parameterize questions.
+
+
+Scenarios 
+^^^^^^^^^
+
+A `Scenario` object is a dictionary of parameter values that can be passed to a question.
+Details about scenarios can be found in the :ref:`scenarios` section.
 
 *Key steps*:
 
@@ -365,7 +382,7 @@ Create a question text that takes a parameter in double braces:
    )
 
 
-Create a dictionary for each value that will replace the parameter and store them in `Scenario` objects:
+Then create a dictionary for each value that will replace the parameter and store them in `Scenario` objects:
 
 .. code-block:: python
 
@@ -376,11 +393,31 @@ Create a dictionary for each value that will replace the parameter and store the
    )
 
 
-To create multiple versions of the question when constructing a survey (i.e., before running it), pass the scenarios to the question `loop` method:
+We can pass scenarios to a question using the `by` method when the question is run:
+
+.. code-block:: python 
+
+   from edsl import QuestionFreeText, ScenarioList, Scenario
+
+   q = QuestionFreeText(
+      question_name = "favorite_item",
+      question_text = "What is your favorite {{ item }}?",
+   )
+
+   scenarios = ScenarioList(
+      Scenario({"item": item}) for item in ["color", "food"]
+   )
+
+   results = q.by(scenarios).run()
+
+
+Each of the `Results` that are generated will include an individual `Result` for each version of the question that was answered.
+
+Alternatively, we can create multiple versions of a question when constructing a survey (i.e., before running it), by passing scenarios to the question `loop` method:
 
 .. code-block:: python
 
-   questions = q.loop(scenarios)
+   questions = q.loop(scenarios) # using the scenarios from the example above
 
 
 We can inspect the questions that have been created: 
@@ -399,7 +436,9 @@ Output:
 
 
 Note that a unique `question_name` has been automatically generated based on the parameter values.
-We can also specify that the paramater values be inserted in the question name (so long as they are Pythonic):
+This is necessary in order to pass the questions to a `Survey` object.
+
+We can alternatively specify that the paramater values be inserted in the question name to create the unique identifiers (so long as they are Pythonic):
 
 .. code-block:: python
 
@@ -425,7 +464,7 @@ Output:
    Question('free_text', question_name = """favorite_food""", question_text = """What is your favorite food?""")]
 
 
-To run the questions, we pass them to a `Survey` and then call the `run` method, as before:
+To run the questions, we pass them to a `Survey` in the usual manner:
 
 .. code-block:: python
 
@@ -436,27 +475,128 @@ To run the questions, we pass them to a `Survey` and then call the `run` method,
    results = survey.run()
 
 
-Alternatively, we can pass the scenario or scenarios to the question with the `by` method when the question is run:
+Piping
+^^^^^^
 
-.. code-block:: python 
+Piping is a method for passing the answer or other components of previous questions into a subsequent question.
+Question components can be piped into question texts or options by using double braces with the name of the prior question and the key of the answer in the braces (e.g., `{{ <prior_question_name>.answer }}`).
+Note that piping can only be used when questions are run together in a survey.
 
-   from edsl import QuestionFreeText, ScenarioList, Scenario
+For example:
 
-   q = QuestionFreeText(
-      question_name = "favorite_item",
-      question_text = "What is your favorite {{ item }}?",
+.. code-block:: python
+
+   from edsl import QuestionNumerical, QuestionList, QuestionMultipleChoice, Survey
+
+   q_age = QuestionNumerical(
+      question_name = "age",
+      question_text = "What is your age?"
    )
+
+   # Piping an answer in a question text
+   q_prime = QuestionMultipleChoice(
+      question_name = "prime",
+      question_text = "Is {{ age.answer }} a prime number?",
+      question_options = ["Yes", "No", "I don't know"]
+   )
+
+   q_favorite_colors = QuestionList(
+      question_name = "favorite_colors",
+      question_text = "What are your 3 favorite colors?", 
+      max_list_items = 3
+   )
+
+   # Using an item from a list response 
+   q_flowers = QuestionList(
+      question_name = "flowers",
+      question_text = "Name some flowers that are {{ favorite_colors.answer[0] }}."
+   )
+
+   # Using a list response as a complete set of question options
+   q_house_color = QuestionMultipleChoice(
+      question_name = "house_color",
+      question_text = "Pretend you are painting a house. Which color would you choose?", 
+      question_options = "{{ favorite_colors.answer }}" 
+   )
+
+   # Itemizing options from a list response in question options
+   q_car_color = QuestionMultipleChoice(
+      question_name = "car_color",
+      question_text = "Pretend you are buying a car. Which color would you choose?", 
+      question_options = [
+         "{{ favorite_colors.answer[0] }}",
+         "{{ favorite_colors.answer[1] }}",
+         "{{ favorite_colors.answer[2] }}",
+         "Other"
+      ]
+   )
+
+   survey = Survey([
+      q_age,
+      q_prime,
+      q_favorite_colors, 
+      q_flowers, 
+      q_car_color
+   ])
+
+
+When the survey is run, the answers will be piped as noted in the comments.
+
+For more details and examples of piping, please see the :ref:`surveys` module section on `piping <https://docs.expectedparrot.com/en/latest/surveys.html#id2>`_.
+
+
+F-strings
+^^^^^^^^^
+
+F-strings can be used to pass values to a question when it is constructed. 
+They function independently of scenarios and piping, but can be used at the same time.
+
+For example:
+
+.. code-block:: python
+
+   from edsl import QuestionFreeText, ScenarioList, Scenario, Survey
+
+   questions = []
+   sentiments = ["enjoy", "hate", "love"]
 
    scenarios = ScenarioList(
-      Scenario({"item": item}) for item in ["color", "food"]
+      Scenario({"activity": activity}) for activity in ["running", "reading"]
    )
 
-   results = q.by(scenarios).run()
+   for sentiment in sentiments:
+      q = QuestionFreeText(
+         question_name = f"{ sentiment }_activity",
+         question_text = f"How much do you { sentiment } {{ activity }}?"
+      )
+      q_list = q.loop(scenarios)
+      
+      questions = questions + q_list
+
+   questions
 
 
-Each of the `Results` that are generated will include an individual `Result` for each version of the question that was answered.
+Output:
 
-To learn more about using scenarios, please see the :ref:`Scenarios` section.
+.. code-block:: text 
+
+   [Question('free_text', question_name = """enjoy_activity_0""", question_text = """How much do you enjoy running?"""),
+   Question('free_text', question_name = """enjoy_activity_1""", question_text = """How much do you enjoy reading?"""),
+   Question('free_text', question_name = """hate_activity_0""", question_text = """How much do you hate running?"""),
+   Question('free_text', question_name = """hate_activity_1""", question_text = """How much do you hate reading?"""),
+   Question('free_text', question_name = """love_activity_0""", question_text = """How much do you love running?"""),
+   Question('free_text', question_name = """love_activity_1""", question_text = """How much do you love reading?""")]
+
+
+We can see that the question names and texts have been parameterized with the values of `sentiments` and `scenarios`, and the question names have been automatically incremented to ensure uniqueness.
+We can then pass the questions to a survey and run it:
+
+.. code-block:: python
+
+   survey = Survey(questions = questions)
+
+   results = survey.run()
+
 
 
 Designing AI agents 
@@ -578,6 +718,7 @@ Question type classes
 
 QuestionMultipleChoice class
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 A subclass of the `Question` class for creating multiple choice questions where the response is a single option selected from a list of options.
 It specially requires a `question_options` list of strings for the options.
 Example usage:
@@ -609,6 +750,7 @@ An example can also created using the `example` method:
 
 QuestionCheckBox class
 ^^^^^^^^^^^^^^^^^^^^^^
+
 A subclass of the `Question` class for creating questions where the response is a list of one or more of the given options.
 It specially requires a `question_options` list of strings for the options.
 The minimum number of options that *must* be selected and the maximum number that *may* be selected can be specified when creating the question (parameters `min_selections` and `max_selections`). 
@@ -645,6 +787,7 @@ An example can also be created using the `example` method:
 
 QuestionFreeText class
 ^^^^^^^^^^^^^^^^^^^^^^
+
 A subclass of the `Question` class for creating free response questions.
 There are no specially required fields (only `question_name` and `question_text`).
 The response is a single string of text.
@@ -676,6 +819,7 @@ An example can also be created using the `example` method:
 
 QuestionLinearScale class
 ^^^^^^^^^^^^^^^^^^^^^^^^^
+
 A subclass of the `QuestionMultipleChoice` class for creating linear scale questions.
 It requires a `question_options` list of integers for the scale.
 The `option_labels` parameter can be used to specify labels for the scale options.
@@ -710,6 +854,7 @@ An example can also be created using the `example` method:
 
 QuestionNumerical class
 ^^^^^^^^^^^^^^^^^^^^^^^
+
 A subclass of the `Question` class for creating questions where the response is a numerical value.
 The minimum and maximum values of the answer can be specified using the `min_value` and `max_value` parameters.
 Example usage:
@@ -742,6 +887,7 @@ An example can also be created using the `example` method:
 
 QuestionLikertFive class
 ^^^^^^^^^^^^^^^^^^^^^^^^
+
 A subclass of the `QuestionMultipleChoice` class for creating questions where the answer is a response to a given statement on a 5-point Likert scale.
 (The scale does *not* need to be added as a parameter.)
 Example usage:
@@ -772,6 +918,7 @@ An example can also be created using the `example` method:
 
 QuestionRank class
 ^^^^^^^^^^^^^^^^^^
+
 A subclass of the `Question` class for creating questions where the response is a ranked list of options.
 It specially requires a `question_options` list of strings for the options.
 The number of options that *must* be selected can be optionally specified when creating the question. 
@@ -808,6 +955,7 @@ Alternatively, `QuestionTopK` can be used to ask the respondent to select a spec
 
 QuestionTopK class
 ^^^^^^^^^^^^^^^^^^
+
 A subclass of the `QuestionMultipleChoice` class for creating questions where the response is a list of ranked items.
 It specially requires a `question_options` list of strings for the options and the number of options that must be selected (`num_selections`).
 Example usage:
@@ -841,6 +989,7 @@ An example can also be created using the `example` method:
 
 QuestionYesNo class
 ^^^^^^^^^^^^^^^^^^^
+
 A subclass of the `QuestionMultipleChoice` class for creating multiple choice questions where the answer options are already specified: ['Yes', 'No'].
 Example usage:
 
@@ -870,6 +1019,7 @@ An example can also be created using the `example` method:
 
 QuestionList class
 ^^^^^^^^^^^^^^^^^^
+
 A subclass of the `Question` class for creating questions where the response is a list of strings.
 The maximum number of items in the list can be specified using the `max_list_items` parameter.
 Example usage:
@@ -899,6 +1049,7 @@ An example can also be created using the `example` method:
 
 QuestionBudget class
 ^^^^^^^^^^^^^^^^^^^^
+
 A subclass of the `Question` class for creating questions where the response is an allocation of a sum among a list of options in the form of a dictionary where the keys are the options and the values are the allocated amounts.
 It specially requires a `question_options` list of strings for the options and a `budget_sum` number for the total sum to be allocated.
 Example usage:
@@ -931,6 +1082,7 @@ An example can also be created using the `example` method:
 
 QuestionExtract class
 ^^^^^^^^^^^^^^^^^^^^^
+
 A subclass of the `Question` class for creating questions where the response is information extracted (or extrapolated) from a given text and formatted according to a specified template.
 Example usage:
 
@@ -964,6 +1116,7 @@ An example can also be created using the `example` method:
 
 QuestionFunctional class
 ^^^^^^^^^^^^^^^^^^^^^^^^
+
 A subclass of the `Question` class for creating questions where the response is generated by a function instead of a lanugage model.
 The question type is not intended to be used directly in a survey, but rather to generate responses for other questions.
 This can be useful where a model is not needed for part of a survey, for questions that require some kind of initial computation, or for questions that are the result of a multi-step process.
@@ -1070,7 +1223,6 @@ Another example of `QuestionFunctional` can be seen in the following notebook, w
 Example notebook: `Simulating randomness <https://docs.expectedparrot.com/en/latest/notebooks/random_numbers.html>`_ 
 
 
-
 .. automodule:: edsl.questions.QuestionFunctional
    :members:
    :undoc-members:
@@ -1078,6 +1230,123 @@ Example notebook: `Simulating randomness <https://docs.expectedparrot.com/en/lat
    :special-members: __init__
    :exclude-members: question_type, answer_template, main
 
+
+
+Optional question parameters
+----------------------------
+
+Examples of optional question paramaters:
+
+`include_comment` - This boolean parameter can be used to specify that the default comment field which is added to all types other than `free_text` should be excluded from a question (default: `include_comment = True`).
+Example usage:
+
+.. code-block:: python
+
+   from edsl import QuestionNumerical, Survey
+
+   q1 = QuestionNumerical(
+      question_name = "adding_v1",
+      question_text = "What is 1+1?"
+   )
+
+   # The same question with the comment field excluded
+   q2 = QuestionNumerical(
+      question_name = "adding_v2",
+      question_text = "What is 1+1?",
+      include_comment = False
+   )
+
+   job = Survey([q1, q2]).to_jobs()
+
+   job.prompts().select("user_prompt", "question_name").print(format="rich")  
+
+
+We can see that the second version of the question does not include the comment instruction *"After the answer, put a comment explaining your choice on the next line."*:
+
+.. code-block:: text
+
+   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+   ┃ user_prompt                                                                                     ┃ question_name ┃
+   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+   │ What is 1+1?                                                                                    │ adding_v1     │
+   │                                                                                                 │               │
+   │ This question requires a numerical response in the form of an integer or decimal (e.g., -12, 0, │               │
+   │ 1, 2, 3.45, ...).                                                                               │               │
+   │ Respond with just your number on a single line.                                                 │               │
+   │ If your response is equivalent to zero, report '0'                                              │               │
+   │                                                                                                 │               │
+   │                                                                                                 │               │
+   │ After the answer, put a comment explaining your choice on the next line.                        │               │
+   ├─────────────────────────────────────────────────────────────────────────────────────────────────┼───────────────┤
+   │ What is 1+1?                                                                                    │ adding_v2     │
+   │                                                                                                 │               │
+   │ This question requires a numerical response in the form of an integer or decimal (e.g., -12, 0, │               │
+   │ 1, 2, 3.45, ...).                                                                               │               │
+   │ Respond with just your number on a single line.                                                 │               │
+   │ If your response is equivalent to zero, report '0'                                              │               │
+   └─────────────────────────────────────────────────────────────────────────────────────────────────┴───────────────┘
+
+
+When we run the survey, the `comment` field will be included in the results for the first question but not the second:
+
+.. code-block:: python
+
+   results = job.run()
+   results.select("comment.*").print(format="rich")
+
+
+Output:
+
+.. code-block:: text
+
+   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━┓
+   ┃ comment                     ┃ comment            ┃
+   ┃ .adding_v1_comment          ┃ .adding_v2_comment ┃
+   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━┩
+   │ The sum of 1 and 1 is 2.    │ None               │
+   └─────────────────────────────┴────────────────────┘
+
+
+See the :ref:`prompts` section for more information about various methods for inspecting user and system prompts.
+
+
+`question_presentation` and `answering_instructions` - These parameters can be used to add additional context or modify the default instructions of a question.
+
+* The parameter `question_presentation` interacts with the question text to specify how the question should be presented to the model (e.g., to modify the default instructions for a question).
+* The parameter `answering_instructions` is added to the end of the question text without modifying it. It can be used to specify how the model should answer the question and can be useful for questions that require a specific format for the answer.
+
+Example usage:
+
+.. code-block:: python
+
+   from edsl import QuestionNumerical, Survey
+
+   q = QuestionNumerical(
+      question_name = "adding",
+      question_text = "What is 1+1?",
+      question_presentation = "Please solve the following addition problem: {{ question_text }}",
+      answering_instructions = "\n\nRespond with just your number on a single line."
+   )
+
+   job = Survey([q]).to_jobs()
+
+   job.prompts().select("user_prompt").print(format="rich")
+
+
+Output:
+
+.. code-block:: text
+
+   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+   ┃ user_prompt                                               ┃
+   ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+   │ Please solve the following addition problem: What is 1+1? │
+   │                                                           │
+   │ Respond with just your number on a single line.           │
+   └───────────────────────────────────────────────────────────┘
+
+
+See the :ref:`prompts` section for more information about various methods for inspecting user and system prompts.
 
 
 Other classes & methods

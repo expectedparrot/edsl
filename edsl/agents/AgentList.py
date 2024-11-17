@@ -151,6 +151,11 @@ class AgentList(UserList, Base):
         with open(file_path, "r") as f:
             reader = csv.DictReader(f)
             for row in reader:
+                if "name" in row:
+                    import warnings
+
+                    warnings.warn("Using 'name' field in the CSV for the Agent name")
+                    name_field = "name"
                 if name_field is not None:
                     agent_name = row.pop(name_field)
                     agent_list.append(Agent(traits=row, name=agent_name))
