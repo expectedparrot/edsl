@@ -15,7 +15,7 @@ from edsl.surveys.Survey import Survey
 from edsl.questions.QuestionMultipleChoice import QuestionMultipleChoice
 from edsl.questions.QuestionFreeText import QuestionFreeText
 from edsl.auto.utilities import gen_pipeline
-from edsl.conjure.naming_utilities import sanitize_string
+from edsl.utilities.naming_utilities import sanitize_string
 
 
 m = Model()

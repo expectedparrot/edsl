@@ -82,8 +82,7 @@ class QuestionBase(
         if not hasattr(self, "_fake_data_factory"):
             from polyfactory.factories.pydantic_factory import ModelFactory
 
-            class FakeData(ModelFactory[self.response_model]):
-                ...
+            class FakeData(ModelFactory[self.response_model]): ...
 
             self._fake_data_factory = FakeData
         return self._fake_data_factory
@@ -135,7 +134,7 @@ class QuestionBase(
         """
         from edsl.utilities.utilities import dict_hash
 
-        return dict_hash(self._to_dict())
+        return dict_hash(self.to_dict(add_edsl_version=False))
 
     @property
     def data(self) -> dict:
@@ -147,12 +146,14 @@ class QuestionBase(
         """
         exclude_list = [
             "question_type",
-            "_include_comment",
+            # "_include_comment",
             "_fake_data_factory",
-            "_use_code",
+            # "_use_code",
             "_model_instructions",
         ]
         only_if_not_na_list = ["_answering_instructions", "_question_presentation"]
+
+        only_if_not_default_list = {"_include_comment": True, "_use_code": False}
 
         def ok(key, value):
             if not key.startswith("_"):
@@ -161,6 +162,12 @@ class QuestionBase(
                 return False
             if key in only_if_not_na_list and value is None:
                 return False
+            if (
+                key in only_if_not_default_list
+                and value == only_if_not_default_list[key]
+            ):
+                return False
+
             return True
 
         candidate_data = {
@@ -175,25 +182,22 @@ class QuestionBase(
 
         return candidate_data
 
-    def _to_dict(self):
+    def to_dict(self, add_edsl_version=True):
         """Convert the question to a dictionary that includes the question type (used in deserialization).
 
-        >>> from edsl import QuestionFreeText as Q; Q.example()._to_dict()
+        >>> from edsl import QuestionFreeText as Q; Q.example().to_dict(add_edsl_version = False)
         {'question_name': 'how_are_you', 'question_text': 'How are you?', 'question_type': 'free_text'}
         """
         candidate_data = self.data.copy()
         candidate_data["question_type"] = self.question_type
-        return {
-            key: value for key, value in candidate_data.items() if value is not None
-        }
+        d = {key: value for key, value in candidate_data.items() if value is not None}
+        if add_edsl_version:
+            from edsl import __version__
 
-    @add_edsl_version
-    def to_dict(self) -> dict[str, Any]:
-        """Convert the question to a dictionary that includes the question type (used in deserialization).
-        >>> from edsl import QuestionFreeText as Q; Q.example().to_dict()
-        {'question_name': 'how_are_you', 'question_text': 'How are you?', 'question_type': 'free_text', 'edsl_version': '...'}
-        """
-        return self._to_dict()
+            d["edsl_version"] = __version__
+            d["edsl_class_name"] = "QuestionBase"
+
+        return d
 
     @classmethod
     @remove_edsl_version
