@@ -13,10 +13,9 @@ from edsl.exceptions import (
 from edsl.questions.descriptors import QuestionNameDescriptor, QuestionTextDescriptor
 
 
-from edsl.questions.AnswerValidatorMixin import AnswerValidatorMixin
 from edsl.questions.RegisterQuestionsMeta import RegisterQuestionsMeta
-from edsl.Base import PersistenceMixin, RichPrintingMixin
-from edsl.BaseDiff import BaseDiff, BaseDiffCollection
+from edsl.base.Base import PersistenceMixin, RichPrintingMixin
+from edsl.base.BaseDiff import BaseDiff, BaseDiffCollection
 
 from edsl.questions.SimpleAskMixin import SimpleAskMixin
 from edsl.questions.QuestionBasePromptsMixin import QuestionBasePromptsMixin
@@ -31,7 +30,6 @@ class QuestionBase(
     QuestionBasePromptsMixin,
     QuestionBaseGenMixin,
     ABC,
-    # AnswerValidatorMixin,
     metaclass=RegisterQuestionsMeta,
 ):
     """ABC for the Question class. All questions inherit from this class.
