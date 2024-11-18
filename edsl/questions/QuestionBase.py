@@ -21,7 +21,7 @@ from edsl.BaseDiff import BaseDiff, BaseDiffCollection
 from edsl.questions.SimpleAskMixin import SimpleAskMixin
 from edsl.questions.QuestionBasePromptsMixin import QuestionBasePromptsMixin
 from edsl.questions.QuestionBaseGenMixin import QuestionBaseGenMixin
-from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
+from edsl.utilities.decorators import remove_edsl_version
 
 
 class QuestionBase(
@@ -31,7 +31,7 @@ class QuestionBase(
     QuestionBasePromptsMixin,
     QuestionBaseGenMixin,
     ABC,
-    AnswerValidatorMixin,
+    # AnswerValidatorMixin,
     metaclass=RegisterQuestionsMeta,
 ):
     """ABC for the Question class. All questions inherit from this class.
