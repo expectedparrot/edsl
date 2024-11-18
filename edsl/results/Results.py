@@ -7,11 +7,17 @@ from __future__ import annotations
 import json
 import random
 from collections import UserList, defaultdict
-from typing import Optional, Callable, Any, Type, Union, List
+from typing import Optional, Callable, Any, Type, Union, List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from edsl import Survey, Cache, AgentList, ModelList, ScenarioList
+    from edsl.results.Result import Result
+    from edsl.jobs.tasks.TaskHistory import TaskHistory
 
 from simpleeval import EvalWithCompoundTypes
 
 from edsl.exceptions.results import (
+    ResultsError,
     ResultsBadMutationstringError,
     ResultsColumnNotFoundError,
     ResultsInvalidNameError,
@@ -40,7 +46,7 @@ class Mixins(
     ResultsGGMixin,
     ResultsToolsMixin,
 ):
-    def print_long(self, max_rows=None) -> None:
+    def print_long(self, max_rows: int = None) -> None:
         """Print the results in long format.
 
         >>> from edsl.results import Results
@@ -84,13 +90,13 @@ class Results(UserList, Mixins, Base):
 
     def __init__(
         self,
-        survey: Optional["Survey"] = None,
-        data: Optional[list["Result"]] = None,
+        survey: Optional[Survey] = None,
+        data: Optional[list[Result]] = None,
         created_columns: Optional[list[str]] = None,
-        cache: Optional["Cache"] = None,
+        cache: Optional[Cache] = None,
         job_uuid: Optional[str] = None,
         total_results: Optional[int] = None,
-        task_history: Optional["TaskHistory"] = None,
+        task_history: Optional[TaskHistory] = None,
     ):
         """Instantiate a `Results` object with a survey and a list of `Result` objects.
 
@@ -235,11 +241,11 @@ class Results(UserList, Mixins, Base):
         >>> r3 = r + r2
         """
         if self.survey != other.survey:
-            raise Exception(
-                "The surveys are not the same so they cannot be added together."
+            raise ResultsError(
+                "The surveys are not the same so the the results cannot be added together."
             )
         if self.created_columns != other.created_columns:
-            raise Exception(
+            raise ResultsError(
                 "The created columns are not the same so they cannot be added together."
             )
 
@@ -255,36 +261,39 @@ class Results(UserList, Mixins, Base):
         return f"Results(data = {reprlib.repr(self.data)}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
 
     def _repr_html_(self) -> str:
-        from IPython.display import HTML
+        # from IPython.display import HTML
 
-        json_str = json.dumps(self.to_dict()["data"], indent=4)
-        # from pygments import highlight
-        # from pygments.lexers import JsonLexer
-        # 3from pygments.formatters import HtmlFormatter
-
-        # formatted_json = highlight(
-        #    json_str,
-        #    JsonLexer(),
-        #    HtmlFormatter(style="default", full=True, noclasses=True),
-        # )
-        # return HTML(formatted_json).data
-        # print(json_str)
+        json_str = json.dumps(self.to_dict(add_edsl_version=False)["data"], indent=4)
         return f"<pre>{json_str}</pre>"
 
-    def _to_dict(self, sort=False):
+    def to_dict(self, sort=False, add_edsl_version=False) -> dict[str, Any]:
         from edsl.data.Cache import Cache
 
         if sort:
             data = sorted([result for result in self.data], key=lambda x: hash(x))
         else:
             data = [result for result in self.data]
-        return {
-            "data": [result.to_dict() for result in data],
-            "survey": self.survey.to_dict(),
+
+        d = {
+            "data": [
+                result.to_dict(add_edsl_version=add_edsl_version) for result in data
+            ],
+            "survey": self.survey.to_dict(add_edsl_version=add_edsl_version),
             "created_columns": self.created_columns,
-            "cache": Cache() if not hasattr(self, "cache") else self.cache.to_dict(),
+            "cache": (
+                Cache()
+                if not hasattr(self, "cache")
+                else self.cache.to_dict(add_edsl_version=add_edsl_version)
+            ),
             "task_history": self.task_history.to_dict(),
         }
+        if add_edsl_version:
+            from edsl import __version__
+
+            d["edsl_version"] = __version__
+            d["edsl_class_name"] = "Results"
+
+        return d
 
     def compare(self, other_results):
         """
@@ -307,28 +316,14 @@ class Results(UserList, Mixins, Base):
     def has_unfixed_exceptions(self):
         return self.task_history.has_unfixed_exceptions
 
-    @add_edsl_version
-    def to_dict(self) -> dict[str, Any]:
-        """Convert the Results object to a dictionary.
-
-        The dictionary can be quite large, as it includes all of the data in the Results object.
-
-        Example: Illustrating just the keys of the dictionary.
-
-        >>> r = Results.example()
-        >>> r.to_dict().keys()
-        dict_keys(['data', 'survey', 'created_columns', 'cache', 'task_history', 'edsl_version', 'edsl_class_name'])
-        """
-        return self._to_dict()
-
     def __hash__(self) -> int:
-        return dict_hash(self._to_dict(sort=True))
+        return dict_hash(self.to_dict(sort=True, add_edsl_version=False))
 
     @property
     def hashes(self) -> set:
         return set(hash(result) for result in self.data)
 
-    def sample(self, n: int) -> "Results":
+    def sample(self, n: int) -> Results:
         """Return a random sample of the results.
 
         :param n: The number of samples to return.
@@ -346,7 +341,7 @@ class Results(UserList, Mixins, Base):
                 indices = list(range(len(values)))
                 sampled_indices = random.sample(indices, n)
                 if n > len(indices):
-                    raise ValueError(
+                    raise ResultsError(
                         f"Cannot sample {n} items from a list of length {len(indices)}."
                     )
             entry[key] = [values[i] for i in sampled_indices]
@@ -399,13 +394,12 @@ class Results(UserList, Mixins, Base):
         - Uses the key_to_data_type property of the Result class.
         - Includes any columns that the user has created with `mutate`
         """
-        d = {}
+        d: dict = {}
         for result in self.data:
             d.update(result.key_to_data_type)
         for column in self.created_columns:
             d[column] = "answer"
 
-        # breakpoint()
         return d
 
     @property
@@ -455,7 +449,7 @@ class Results(UserList, Mixins, Base):
         from edsl.utilities.utilities import shorten_string
 
         if not self.survey:
-            raise Exception("Survey is not defined so no answer keys are available.")
+            raise ResultsError("Survey is not defined so no answer keys are available.")
 
         answer_keys = self._data_type_to_keys["answer"]
         answer_keys = {k for k in answer_keys if "_comment" not in k}
@@ -468,7 +462,7 @@ class Results(UserList, Mixins, Base):
         return sorted_dict
 
     @property
-    def agents(self) -> "AgentList":
+    def agents(self) -> AgentList:
         """Return a list of all of the agents in the Results.
 
         Example:
@@ -482,7 +476,7 @@ class Results(UserList, Mixins, Base):
         return AgentList([r.agent for r in self.data])
 
     @property
-    def models(self) -> list[Type["LanguageModel"]]:
+    def models(self) -> ModelList:
         """Return a list of all of the models in the Results.
 
         Example:
@@ -491,10 +485,12 @@ class Results(UserList, Mixins, Base):
         >>> r.models[0]
         Model(model_name = ...)
         """
-        return [r.model for r in self.data]
+        from edsl import ModelList
+
+        return ModelList([r.model for r in self.data])
 
     @property
-    def scenarios(self) -> "ScenarioList":
+    def scenarios(self) -> ScenarioList:
         """Return a list of all of the scenarios in the Results.
 
         Example:
@@ -571,7 +567,7 @@ class Results(UserList, Mixins, Base):
         )
         return sorted(list(all_keys))
 
-    def first(self) -> "Result":
+    def first(self) -> Result:
         """Return the first observation in the results.
 
         Example:
@@ -821,7 +817,7 @@ class Results(UserList, Mixins, Base):
 
         return Results(survey=self.survey, data=new_data, created_columns=None)
 
-    def select(self, *columns: Union[str, list[str]]) -> "Results":
+    def select(self, *columns: Union[str, list[str]]) -> Results:
         """
         Select data from the results and format it.
 
@@ -949,6 +945,7 @@ class Results(UserList, Mixins, Base):
         Traceback (most recent call last):
         ...
         edsl.exceptions.results.ResultsFilterError: You must use '==' instead of '=' in the filter expression.
+        ...
 
         >>> r.filter("how_feeling == 'Great' or how_feeling == 'Terrible'").select('how_feeling').print()
         ┏━━━━━━━━━━━━━━┓
@@ -1034,14 +1031,6 @@ class Results(UserList, Mixins, Base):
     def rich_print(self):
         """Display an object as a table."""
         pass
-        # with io.StringIO() as buf:
-        #     console = Console(file=buf, record=True)
-
-        #     for index, result in enumerate(self):
-        #         console.print(f"Result {index}")
-        #         console.print(result.rich_print())
-
-        #     return console.export_text()
 
     def __str__(self):
         data = self.to_dict()["data"]

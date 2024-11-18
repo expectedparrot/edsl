@@ -1,14 +1,50 @@
 # Changelog
 
-
-## [0.1.37] - TBD
+## [0.1.38] - TBD
 ### Added
-### Changed
-- Progress bar is now web-based. You still call it the same way: `run(progress_bar=True)`
 
-- `AgentList.from_csv()` now allows you to include a CSV column "name" to pass an (optional) `name` to each `Agent` that is created from the CSV data. Other CSV columns are passed as agent `traits`. See an example:
+### Changed
+- *In progress:* The progress bar is now web-based. It is still called in the same way: `run(progress_bar=True)`
+
+
+## [0.1.37] - 2024-11-14
+### Added
+- EDSL auth token: It will automatically retrieve your EXPECTED_PARROT_API_KEY and write it to your *.env* file. *How it works:* If you try to run a survey remotely without storing your EXPECTED_PARROT_API_KEY, you will see a message with a Coop login link that will automatically write your key to your *.env* file when you click on the link and log in. Example message:
+```
+You're missing some of the API keys needed to run this job:
+     🔑 OPENAI_API_KEY
+
+You can either add the missing keys to your .env file, or use remote inference.
+Remote inference allows you to run jobs on our server.
+
+🚀 To use remote inference, sign up at the following link:
+    https://www.expectedparrot.com/login?edsl_auth_token=gVSxKvDcuB1x6d_dqa7xrA
+
+Once you log in, we will automatically retrieve your Expected Parrot API key and continue your job remotely.
+⠇ Waiting for login. Last checked: 2024-11-13 11:36:44 AM
+```
+
+Once you have logged in you will see a confirmation message:
+```
+✨ API key retrieved and written to .env file. 
+```
+
+### Changed
+- The `AgentList` method `from_csv()` now allows you to (optionally) automatically specify the `name` parameters for agents by including a column "name" in the CSV. Other columns are (still) passed as agent `traits`. See an example: https://docs.expectedparrot.com/en/latest/agents.html#from-a-csv-file
+
+- The `Job` method `run()` now takes a parameter `remote_inference_results_visibility` to set the visibility of results of jobs that are being run remotely. The allowed visibility settings are `public`, `private` and `unlisted` (the default setting is unlisted). This parameter has the same effect as passing the parameter `visibility` to the `push()` and `patch()` methods for posting and updating objects at the Coop. For example, these commands have the same effect when remote inference activated:
+
+```
+Survey.example().run() 
+```
+```
+Survey.example().run(remote_inference_visibility="unlisted")
+```
 
 ### Fixed
+- Bug in using f-strings and scenarios at once. Example usage: https://docs.expectedparrot.com/en/latest/scenarios.html#using-f-strings-with-scenarios
+
+- Bug in optional question parameters `answering_instructions` and `question_presentation`, which can be used to modify user prompts separately from modifying question texts. Example usage: https://docs.expectedparrot.com/en/latest/questions.html#optional-question-parameters
 
 
 ## [0.1.36] - 2024-10-28

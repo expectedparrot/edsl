@@ -8,8 +8,8 @@ Expected Parrot delivers powerful tools for conducting research with human and a
 This page provides documentation for the **Expected Parrot Domain-Specific Language (EDSL)**, a Python package for performing research with AI agents and language models,
 and **Coop**, a platform for creating, storing and sharing AI-based research projects.
 
-* EDSL is available at `PyPI <https://pypi.org/project/edsl/>`_ and `GitHub <https://github.com/expectedparrot/edsl>`_.
-* Log in to `Coop <https://www.expectedparrot.com/login>`_ to access special features and `start collaborating <https://www.expectedparrot.com/content/explore>`_.
+* EDSL is available to download at `PyPI <https://pypi.org/project/edsl/>`_ and `GitHub <https://github.com/expectedparrot/edsl>`_.
+* Create a `Coop account <https://www.expectedparrot.com/login>`_ to access special features, storage and collaboration tools. Learn more about `how it works <https://docs.expectedparrot.com/en/latest/coop.html>`_ and start `exploring <https://www.expectedparrot.com/content/explore>`_.
 
 
 Key features 
@@ -134,15 +134,15 @@ It is fully integrated with EDSL and provides access to special features for wor
 | Learn more about `how it works <https://docs.expectedparrot.com/en/latest/coop.html>`_
 
 
-Importing Surveys
------------------
+.. Importing Surveys
+.. -----------------
 
-- :ref:`conjure`: Automatically import other survey data into EDSL to:
+.. - :ref:`conjure`: Automatically import other survey data into EDSL to:
   
-  * Clean and analyze your data
-  * Create AI agents and conduct follow-on interviews
-  * Extend results with new questions
-  * Store and share data at the Coop
+..   * Clean and analyze your data
+..   * Create AI agents and conduct follow-on interviews
+..   * Extend results with new questions
+..   * Store and share data at the Coop
 
 
 How-to Guides & Notebooks
@@ -190,7 +190,6 @@ Links
    installation
    api_keys
    colab_setup
-   estimating_costs
    credits
 
 .. toctree::
@@ -228,12 +227,12 @@ Links
    remote_caching
    filestore
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Importing Data
-   :hidden:
+.. .. toctree::
+..    :maxdepth: 2
+..    :caption: Importing Data
+..    :hidden:
 
-   conjure
+..    conjure
 
 .. toctree::
    :maxdepth: 2
@@ -257,7 +256,6 @@ Links
    notebooks/skip_logic_scenarios.ipynb
    notebooks/example_agent_dynamic_traits.ipynb
    notebooks/import_agents.ipynb
-   notebooks/agentifying_responses.ipynb
    notebooks/batching_results.ipynb
    notebooks/research_methods.ipynb
 

@@ -2,7 +2,7 @@ from textwrap import dedent
 import random
 from typing import List, TypeVar, Generator, Optional
 from edsl.auto.StageBase import StageBase
-from edsl.conjure.naming_utilities import sanitize_string
+from edsl.utilities.naming_utilities import sanitize_string
 from edsl import Agent, Survey, Model, Cache, AgentList
 from edsl import QuestionFreeText, Scenario
 from edsl import QuestionMultipleChoice, Scenario, Agent, ScenarioList

@@ -17,9 +17,7 @@ import warnings
 from functools import wraps
 import asyncio
 import json
-import time
 import os
-import hashlib
 from typing import (
     Coroutine,
     Any,
@@ -30,6 +28,7 @@ from typing import (
     get_type_hints,
     TypedDict,
     Optional,
+    TYPE_CHECKING,
 )
 from abc import ABC, abstractmethod
 
@@ -49,34 +48,16 @@ from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 from edsl.language_models.repair import repair
 from edsl.enums import InferenceServiceType
 from edsl.Base import RichPrintingMixin, PersistenceMixin
-from edsl.enums import service_to_api_keyname
-from edsl.exceptions import MissingAPIKeyError
 from edsl.language_models.RegisterLanguageModelsMeta import RegisterLanguageModelsMeta
 from edsl.exceptions.language_models import LanguageModelBadResponseError
+
+from edsl.language_models.KeyLookup import KeyLookup
 
 TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
 
 
-def convert_answer(response_part):
-    import json
-
-    response_part = response_part.strip()
-
-    if response_part == "None":
-        return None
-
-    repaired = repair_json(response_part)
-    if repaired == '""':
-        # it was a literal string
-        return response_part
-
-    try:
-        return json.loads(repaired)
-    except json.JSONDecodeError as j:
-        # last resort
-        return response_part
-
-
+# you might be tempated to move this to be a static method of LanguageModel, but this doesn't work
+# for reasons I don't understand. So leave it here.
 def extract_item_from_raw_response(data, key_sequence):
     if isinstance(data, str):
         try:
@@ -167,7 +148,12 @@ class LanguageModel(
     _safety_factor = 0.8
 
     def __init__(
-        self, tpm=None, rpm=None, omit_system_prompt_if_empty_string=True, **kwargs
+        self,
+        tpm: float = None,
+        rpm: float = None,
+        omit_system_prompt_if_empty_string: bool = True,
+        key_lookup: Optional[KeyLookup] = None,
+        **kwargs,
     ):
         """Initialize the LanguageModel."""
         self.model = getattr(self, "_model_", None)
@@ -200,29 +186,26 @@ class LanguageModel(
             # Skip the API key check. Sometimes this is useful for testing.
             self._api_token = None
 
+        if key_lookup is not None:
+            self.key_lookup = key_lookup
+        else:
+            self.key_lookup = KeyLookup.from_os_environ()
+
     def ask_question(self, question):
         user_prompt = question.get_instructions().render(question.data).text
         system_prompt = "You are a helpful agent pretending to be a human."
         return self.execute_model_call(user_prompt, system_prompt)
 
+    def set_key_lookup(self, key_lookup: KeyLookup):
+        del self._api_token
+        self.key_lookup = key_lookup
+
     @property
     def api_token(self) -> str:
         if not hasattr(self, "_api_token"):
-            key_name = service_to_api_keyname.get(self._inference_service_, "NOT FOUND")
-            if self._inference_service_ == "bedrock":
-                self._api_token = [os.getenv(key_name[0]), os.getenv(key_name[1])]
-                # Check if any of the tokens are None
-                missing_token = any(token is None for token in self._api_token)
-            else:
-                self._api_token = os.getenv(key_name)
-                missing_token = self._api_token is None
-            if missing_token and self._inference_service_ != "test" and not self.remote:
-                print("raising error")
-                raise MissingAPIKeyError(
-                    f"""The key for service: `{self._inference_service_}` is not set.
-                        Need a key with name {key_name} in your .env file."""
-                )
-
+            self._api_token = self.key_lookup.get_api_token(
+                self._inference_service_, self.remote
+            )
         return self._api_token
 
     def __getitem__(self, key):
@@ -291,21 +274,6 @@ class LanguageModel(
         if tpm is not None:
             self._tpm = tpm
         return None
-        # self._set_rate_limits(rpm=rpm, tpm=tpm)
-
-    # def _set_rate_limits(self, rpm=None, tpm=None) -> None:
-    #     """Set the rate limits for the model.
-
-    #     If the model does not have rate limits, use the default rate limits."""
-    #     if rpm is not None and tpm is not None:
-    #         self.__rate_limits = {"rpm": rpm, "tpm": tpm}
-    #         return
-
-    #     if self.__rate_limits is None:
-    #         if hasattr(self, "get_rate_limits"):
-    #             self.__rate_limits = self.get_rate_limits()
-    #         else:
-    #             self.__rate_limits = self.__default_rate_limits
 
     @property
     def RPM(self):
@@ -416,6 +384,26 @@ class LanguageModel(
             )
         return extract_item_from_raw_response(raw_response, cls.usage_sequence)
 
+    @staticmethod
+    def convert_answer(response_part):
+        import json
+
+        response_part = response_part.strip()
+
+        if response_part == "None":
+            return None
+
+        repaired = repair_json(response_part)
+        if repaired == '""':
+            # it was a literal string
+            return response_part
+
+        try:
+            return json.loads(repaired)
+        except json.JSONDecodeError as j:
+            # last resort
+            return response_part
+
     @classmethod
     def parse_response(cls, raw_response: dict[str, Any]) -> EDSLOutput:
         """Parses the API response and returns the response text."""
@@ -425,13 +413,13 @@ class LanguageModel(
         if last_newline == -1:
             # There is no comment
             edsl_dict = {
-                "answer": convert_answer(generated_token_string),
+                "answer": cls.convert_answer(generated_token_string),
                 "generated_tokens": generated_token_string,
                 "comment": None,
             }
         else:
             edsl_dict = {
-                "answer": convert_answer(generated_token_string[:last_newline]),
+                "answer": cls.convert_answer(generated_token_string[:last_newline]),
                 "comment": generated_token_string[last_newline + 1 :].strip(),
                 "generated_tokens": generated_token_string,
             }
@@ -619,18 +607,20 @@ class LanguageModel(
     #######################
     # SERIALIZATION METHODS
     #######################
-    def _to_dict(self) -> dict[str, Any]:
-        return {"model": self.model, "parameters": self.parameters}
-
-    @add_edsl_version
-    def to_dict(self) -> dict[str, Any]:
-        """Convert instance to a dictionary.
+    def to_dict(self, add_edsl_version=True) -> dict[str, Any]:
+        """Convert instance to a dictionary
 
         >>> m = LanguageModel.example()
         >>> m.to_dict()
         {'model': '...', 'parameters': {'temperature': ..., 'max_tokens': ..., 'top_p': ..., 'frequency_penalty': ..., 'presence_penalty': ..., 'logprobs': False, 'top_logprobs': ...}, 'edsl_version': '...', 'edsl_class_name': 'LanguageModel'}
         """
-        return self._to_dict()
+        d = {"model": self.model, "parameters": self.parameters}
+        if add_edsl_version:
+            from edsl import __version__
+
+            d["edsl_version"] = __version__
+            d["edsl_class_name"] = self.__class__.__name__
+        return d
 
     @classmethod
     @remove_edsl_version

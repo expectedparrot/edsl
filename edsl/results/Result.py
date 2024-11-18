@@ -324,14 +324,24 @@ class Result(Base, UserDict):
     ###############
     # Serialization
     ###############
-    def _to_dict(self) -> dict[str, Any]:
-        """Return a dictionary representation of the Result object."""
+    def to_dict(self, add_edsl_version=True) -> dict[str, Any]:
+        """Return a dictionary representation of the Result object.
+
+        >>> r = Result.example()
+        >>> r.to_dict()['scenario']
+        {'period': 'morning', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}
+        """
+
+        def convert_value(value, add_edsl_version=True):
+            if hasattr(value, "to_dict"):
+                return value.to_dict(add_edsl_version=add_edsl_version)
+            else:
+                return value
+
         d = {}
         for key, value in self.items():
-            if hasattr(value, "to_dict"):
-                d[key] = value.to_dict()
-            else:
-                d[key] = value
+            d[key] = convert_value(value, add_edsl_version=add_edsl_version)
+
             if key == "prompt":
                 new_prompt_dict = {}
                 for prompt_name, prompt_obj in value.items():
@@ -341,23 +351,19 @@ class Result(Base, UserDict):
                         else prompt_obj.to_dict()
                     )
                 d[key] = new_prompt_dict
+        if add_edsl_version:
+            from edsl import __version__
+
+            d["edsl_version"] = __version__
+            d["edsl_class_name"] = "Result"
+
         return d
-
-    @add_edsl_version
-    def to_dict(self) -> dict[str, Any]:
-        """Return a dictionary representation of the Result object.
-
-        >>> r = Result.example()
-        >>> r.to_dict()['scenario']
-        {'period': 'morning', 'edsl_version': '...', 'edsl_class_name': 'Scenario'}
-        """
-        return self._to_dict()
 
     def __hash__(self):
         """Return a hash of the Result object."""
         from edsl.utilities.utilities import dict_hash
 
-        return dict_hash(self._to_dict())
+        return dict_hash(self.to_dict(add_edsl_version=False))
 
     @classmethod
     @remove_edsl_version
