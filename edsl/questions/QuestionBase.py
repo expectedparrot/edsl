@@ -307,12 +307,14 @@ class QuestionBase(
         "Yo, what's up?"
 
         """
+        if "cache" not in kwargs:
+            kwargs["cache"] = False
+
         survey = self.to_survey()
         results = survey(
             model=model,
             agent=agent,
             **kwargs,
-            cache=False,
             disable_remote_cache=disable_remote_cache,
             disable_remote_inference=disable_remote_inference,
         )

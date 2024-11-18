@@ -111,7 +111,15 @@ class AutoStudy:
 
 
 if __name__ == "__main__":
-    overall_question = "Should online platforms be regulated with respect to selling electric scooters?"
-    auto_study = AutoStudy(overall_question, population="US Adults")
+    overall_question = (
+        """I'm starting a survey software compan like Qualtrics. 
+    Should we do usage-based pricing (per response) or a subscription model?""",
+    )
+    auto_study = AutoStudy(
+        overall_question,
+        population="Mix of potential customers (academics, marketing professionals, etc.)",
+    )
 
     results = auto_study.results
+
+    results.save("pricing_results")
