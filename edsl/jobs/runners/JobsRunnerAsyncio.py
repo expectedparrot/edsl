@@ -4,6 +4,7 @@ import asyncio
 import threading
 import warnings
 from typing import Coroutine, List, AsyncGenerator, Optional, Union, Generator, Type
+from uuid import UUID
 from collections import UserList
 
 from edsl.results.Results import Results
@@ -279,6 +280,7 @@ class JobsRunnerAsyncio:
         progress_bar: bool = False,
         sidecar_model: Optional[LanguageModel] = None,
         jobs_runner_status: Optional[Type[JobsRunnerStatusBase]] = None,
+        job_uuid: Optional[UUID] = None,
         print_exceptions: bool = True,
         raise_validation_errors: bool = False,
     ) -> "Coroutine":
@@ -297,13 +299,11 @@ class JobsRunnerAsyncio:
 
         if jobs_runner_status is not None:
             self.jobs_runner_status = jobs_runner_status(
-                self, n=n, endpoint_url=endpoint_url
+                self, n=n, endpoint_url=endpoint_url, job_uuid=job_uuid
             )
         else:
             self.jobs_runner_status = JobsRunnerStatus(
-                self,
-                n=n,
-                endpoint_url=endpoint_url,
+                self, n=n, endpoint_url=endpoint_url, job_uuid=job_uuid
             )
 
         stop_event = threading.Event()
