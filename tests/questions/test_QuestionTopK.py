@@ -15,6 +15,7 @@ valid_question = {
     "min_selections": 2,
     "max_selections": 2,
     "question_name": "food",
+    "use_code": True,
 }
 
 

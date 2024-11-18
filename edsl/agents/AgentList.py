@@ -14,7 +14,7 @@ from __future__ import annotations
 import csv
 import json
 from collections import UserList
-from typing import Any, List, Optional, Union
+from typing import Any, List, Optional, Union, TYPE_CHECKING
 from rich import print_json
 from rich.table import Table
 from simpleeval import EvalWithCompoundTypes
@@ -22,6 +22,11 @@ from edsl.Base import Base
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
 from collections.abc import Iterable
+
+from edsl.exceptions.agents import AgentListError
+
+if TYPE_CHECKING:
+    from edsl.scenarios.ScenarioList import ScenarioList
 
 
 def is_iterable(obj):
@@ -113,7 +118,7 @@ class AgentList(UserList, Base):
             ]
         except Exception as e:
             print(f"Exception:{e}")
-            raise Exception(f"Error in filter. Exception:{e}")
+            raise AgentListError(f"Error in filter. Exception:{e}")
 
         return AgentList(new_data)
 
@@ -151,6 +156,11 @@ class AgentList(UserList, Base):
         with open(file_path, "r") as f:
             reader = csv.DictReader(f)
             for row in reader:
+                if "name" in row:
+                    import warnings
+
+                    warnings.warn("Using 'name' field in the CSV for the Agent name")
+                    name_field = "name"
                 if name_field is not None:
                     agent_name = row.pop(name_field)
                     agent_list.append(Agent(traits=row, name=agent_name))
@@ -194,7 +204,8 @@ class AgentList(UserList, Base):
         >>> al.add_trait('new_trait', [1, 2, 3])
         Traceback (most recent call last):
         ...
-        ValueError: The passed values have to be the same length as the agent list.
+        edsl.exceptions.agents.AgentListError: The passed values have to be the same length as the agent list.
+        ...
         """
         if not is_iterable(values):
             value = values
@@ -203,7 +214,7 @@ class AgentList(UserList, Base):
             return self
 
         if len(values) != len(self):
-            raise ValueError(
+            raise AgentListError(
                 "The passed values have to be the same length as the agent list."
             )
         for agent, value in zip(self.data, values):
@@ -223,33 +234,39 @@ class AgentList(UserList, Base):
     def __hash__(self) -> int:
         from edsl.utilities.utilities import dict_hash
 
-        data = self.to_dict()
-        # data['agent_list'] = sorted(data['agent_list'], key=lambda x: dict_hash(x)
-        return dict_hash(self._to_dict(sorted=True))
+        return dict_hash(self.to_dict(add_edsl_version=False, sorted=True))
 
-    def _to_dict(self, sorted=False):
+    def to_dict(self, sorted=False, add_edsl_version=True):
         if sorted:
             data = self.data[:]
             data.sort(key=lambda x: hash(x))
         else:
             data = self.data
 
-        return {"agent_list": [agent.to_dict() for agent in data]}
+        d = {
+            "agent_list": [
+                agent.to_dict(add_edsl_version=add_edsl_version) for agent in data
+            ]
+        }
+        if add_edsl_version:
+            from edsl import __version__
+
+            d["edsl_version"] = __version__
+            d["edsl_class_name"] = "AgentList"
+
+        return d
 
     def __eq__(self, other: AgentList) -> bool:
-        return self._to_dict(sorted=True) == other._to_dict(sorted=True)
-
-    @add_edsl_version
-    def to_dict(self):
-        """Return dictionary of AgentList to serialization."""
-        return self._to_dict()
+        return self.to_dict(sorted=True, add_edsl_version=False) == other.to_dict(
+            sorted=True, add_edsl_version=False
+        )
 
     def __repr__(self):
         return f"AgentList({self.data})"
 
     def print(self, format: Optional[str] = None):
         """Print the AgentList."""
-        print_json(json.dumps(self._to_dict()))
+        print_json(json.dumps(self.to_dict(add_edsl_version=False)))
 
     def _repr_html_(self):
         """Return an HTML representation of the AgentList."""
@@ -257,7 +274,7 @@ class AgentList(UserList, Base):
 
         return data_to_html(self.to_dict()["agent_list"])
 
-    def to_scenario_list(self) -> "ScenarioList":
+    def to_scenario_list(self) -> ScenarioList:
         """Return a list of scenarios."""
         from edsl.scenarios.ScenarioList import ScenarioList
         from edsl.scenarios.Scenario import Scenario

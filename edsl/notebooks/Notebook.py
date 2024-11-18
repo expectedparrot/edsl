@@ -102,18 +102,17 @@ class Notebook(Base):
 
         return dict_hash(self.data["cells"])
 
-    def _to_dict(self) -> dict:
+    def to_dict(self, add_edsl_version=False) -> dict:
         """
         Serialize to a dictionary.
         """
-        return {"name": self.name, "data": self.data}
+        d = {"name": self.name, "data": self.data}
+        if add_edsl_version:
+            from edsl import __version__
 
-    @add_edsl_version
-    def to_dict(self) -> dict:
-        """
-        Convert a Notebook to a dictionary.
-        """
-        return self._to_dict()
+            d["edsl_version"] = __version__
+            d["edsl_class_name"] = self.__class__.__name__
+        return d
 
     @classmethod
     @remove_edsl_version

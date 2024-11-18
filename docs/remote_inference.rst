@@ -44,7 +44,8 @@ Using remote inference
 ----------------------
 
 With remote inference activated, calling the `run()` method will send a survey to the Expected Parrot server and allow you to access results and all information about it (job history, costs, etc.).
-You can optionally pass a `remote_inference_description` string to identify it at the Coop (or edit it later).
+You can optionally pass a parameter `remote_inference_description` (a string) to identify the results at the Coop and a parameter `remote_inference_visibility` ("private", "public" or "unlisted") to specify the visibility of the results at the Coop.
+(Either of these settings can be edited later, either from your workspace or at the Coop web app.)
 
 Example:
 
@@ -54,7 +55,7 @@ Example:
 
   survey = Survey.example()
 
-  results = survey.run(remote_inference_description="Example survey")
+  results = survey.run(remote_inference_description="Example survey", remote_inference_visibility="public")
 
 
 Output (details will be unique to your job):
