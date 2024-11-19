@@ -36,6 +36,10 @@ def is_iterable(obj):
 class AgentList(UserList, Base):
     """A list of Agents."""
 
+    __documentation__ = (
+        "https://docs.expectedparrot.com/en/latest/agents.html#agentlist-class"
+    )
+
     def __init__(self, data: Optional[list["Agent"]] = None):
         """Initialize a new AgentList.
 
@@ -237,6 +241,7 @@ class AgentList(UserList, Base):
         return dict_hash(self.to_dict(add_edsl_version=False, sorted=True))
 
     def to_dict(self, sorted=False, add_edsl_version=True):
+        """Serialize the AgentList to a dictionary."""
         if sorted:
             data = self.data[:]
             data.sort(key=lambda x: hash(x))
@@ -264,15 +269,37 @@ class AgentList(UserList, Base):
     def __repr__(self):
         return f"AgentList({self.data})"
 
+    def _summary(self):
+        return {
+            "EDSL Class": "AgentList",
+            "Number of agents": len(self),
+            "Agent trait fields": self.all_traits,
+        }
+
     def print(self, format: Optional[str] = None):
         """Print the AgentList."""
         print_json(json.dumps(self.to_dict(add_edsl_version=False)))
 
     def _repr_html_(self):
         """Return an HTML representation of the AgentList."""
-        from edsl.utilities.utilities import data_to_html
+        # return (
+        #     str(self.summary(format="html")) + "<br>" + str(self.table(tablefmt="html"))
+        # )
+        footer = f"<a href={self.__documentation__}>(docs)</a>"
+        return str(self.summary(format="html")) + footer
 
-        return data_to_html(self.to_dict()["agent_list"])
+    # def _repr_html_(self):
+    #     """Return an HTML representation of the AgentList."""
+    #     from edsl.utilities.utilities import data_to_html
+
+    #     return data_to_html(self.to_dict()["agent_list"])
+
+    def to_csv(self, file_path: str):
+        """Save the AgentList to a CSV file.
+
+        :param file_path: The path to the CSV file.
+        """
+        self.to_scenario_list().to_csv(file_path)
 
     def to_scenario_list(self) -> ScenarioList:
         """Return a list of scenarios."""
@@ -280,6 +307,9 @@ class AgentList(UserList, Base):
         from edsl.scenarios.Scenario import Scenario
 
         return ScenarioList([Scenario(agent.traits) for agent in self.data])
+
+    def table(self, *fields, tablefmt="plain") -> Table:
+        return self.to_scenario_list().to_dataset().table(*fields, tablefmt=tablefmt)
 
     @classmethod
     @remove_edsl_version
@@ -315,6 +345,9 @@ class AgentList(UserList, Base):
 
         :param trait_name: The name of the trait.
         :param values: A list of values.
+
+        >>> AgentList.from_list('age', [22, 23])
+        AgentList([Agent(traits = {'age': 22}), Agent(traits = {'age': 23})])
         """
         from edsl.agents.Agent import Agent
 

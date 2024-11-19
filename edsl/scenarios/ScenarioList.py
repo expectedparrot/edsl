@@ -28,6 +28,26 @@ class ScenarioListMixin(ScenarioListPdfMixin, ScenarioListExportMixin):
     pass
 
 
+class TableDisplay:
+
+    def __init__(self, header, data, format):
+        from tabulate import tabulate
+
+        self.header = header
+        self.data = data
+        self.format = format
+
+    def __repr__(self):
+        from tabulate import tabulate
+
+        return tabulate(self.data, headers=self.header, tablefmt=self.format)
+
+    def _repr_html_(self):
+        from tabulate import tabulate
+
+        return tabulate(self.data, headers=self.header, tablefmt="html")
+
+
 class ScenarioList(Base, UserList, ScenarioListMixin):
     """Class for creating a list of scenarios to be used in a survey."""
 
@@ -563,6 +583,17 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         if not func:
             func = lambda x: x
         return cls([Scenario({name: func(value)}) for value in values])
+
+    def table(self, *fields, tablefmt="simple") -> str:
+        return self.to_dataset().table(*fields, tablefmt=tablefmt)
+
+    def _summary(self):
+        d = {
+            "edsl_class_name": "ScenarioList",
+            "num_scenarios": len(self),
+            "parameters": list(self.parameters),
+        }
+        return d
 
     def to_dataset(self) -> "Dataset":
         """

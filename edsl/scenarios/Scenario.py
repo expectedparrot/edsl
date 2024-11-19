@@ -4,6 +4,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import os
+import json
 from collections import UserDict
 from typing import Union, List, Optional, Generator
 from uuid import uuid4
@@ -12,6 +13,26 @@ from edsl.Base import Base
 from edsl.scenarios.ScenarioHtmlMixin import ScenarioHtmlMixin
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 from edsl.exceptions.scenarios import ScenarioError
+
+
+class DisplayJSON:
+
+    def __init__(self, dict):
+        self.text = json.dumps(dict, indent=4)
+
+    def __repr__(self):
+        return self.text
+
+
+class DisplayYAML:
+
+    def __init__(self, dict):
+        import yaml
+
+        self.text = yaml.dump(dict)
+
+    def __repr__(self):
+        return self.text
 
 
 class Scenario(Base, UserDict, ScenarioHtmlMixin):
@@ -137,6 +158,22 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
                 new_scenario[key] = value
         return new_scenario
 
+    def table(self, tablefmt: str = "grid") -> str:
+        from edsl.results.Dataset import Dataset
+
+        keys = [key for key, value in self.items()]
+        values = [value for key, value in self.items()]
+        d = Dataset([{"key": keys}, {"value": values}])
+        return d.table(tablefmt=tablefmt)
+
+    def json(self):
+        return DisplayJSON(self.to_dict(add_edsl_version=False))
+
+    def yaml(self):
+        import yaml
+
+        return DisplayYAML(self.to_dict(add_edsl_version=False))
+
     def to_dict(self, add_edsl_version=True) -> dict:
         """Convert a scenario to a dictionary.
 
@@ -188,10 +225,21 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
         # return "Scenario(" + reprlib.repr(self.data) + ")"
         return "Scenario(" + repr(self.data) + ")"
 
-    def _repr_html_(self):
-        from edsl.utilities.utilities import data_to_html
+    def to_dataset(self) -> "Dataset":
+        # d = Dataset([{'a.b':[1,2,3,4]}])
+        from edsl.results.Dataset import Dataset
 
-        return data_to_html(self.to_dict())
+        keys = [key for key, value in self.items()]
+        values = [value for key, value in self.items()]
+        return Dataset([{"key": keys}, {"value": values}])
+
+    def _repr_html_(self):
+        # d = self.to_dict(add_edsl_version=False)
+        # data = [[k, v] for k, v in d.items()]
+        # from tabulate import tabulate
+        return self.to_dataset()
+        # table = str(tabulate(data, headers=["keys", "values"], tablefmt="html"))
+        # return f"<pre>{table}</pre>"
 
     def select(self, list_of_keys: List[str]) -> "Scenario":
         """Select a subset of keys from a scenario.
