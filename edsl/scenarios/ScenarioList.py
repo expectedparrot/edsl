@@ -28,28 +28,12 @@ class ScenarioListMixin(ScenarioListPdfMixin, ScenarioListExportMixin):
     pass
 
 
-class TableDisplay:
-
-    def __init__(self, header, data, format):
-        from tabulate import tabulate
-
-        self.header = header
-        self.data = data
-        self.format = format
-
-    def __repr__(self):
-        from tabulate import tabulate
-
-        return tabulate(self.data, headers=self.header, tablefmt=self.format)
-
-    def _repr_html_(self):
-        from tabulate import tabulate
-
-        return tabulate(self.data, headers=self.header, tablefmt="html")
-
-
 class ScenarioList(Base, UserList, ScenarioListMixin):
     """Class for creating a list of scenarios to be used in a survey."""
+
+    __documentation__ = (
+        "https://docs.expectedparrot.com/en/latest/scenarios.html#scenariolist"
+    )
 
     def __init__(self, data: Optional[list] = None, codebook: Optional[dict] = None):
         """Initialize the ScenarioList class."""
@@ -302,20 +286,28 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         random.shuffle(self.data)
         return self
 
-    def _repr_html_(self) -> str:
-        from edsl.utilities.utilities import data_to_html
+    def _repr_html_(self):
+        """Return an HTML representation of the AgentList."""
+        # return (
+        #     str(self.summary(format="html")) + "<br>" + str(self.table(tablefmt="html"))
+        # )
+        footer = f"<a href={self.__documentation__}>(docs)</a>"
+        return str(self.summary(format="html")) + footer
 
-        data = self.to_dict()
-        _ = data.pop("edsl_version")
-        _ = data.pop("edsl_class_name")
-        for s in data["scenarios"]:
-            _ = s.pop("edsl_version")
-            _ = s.pop("edsl_class_name")
-        for scenario in data["scenarios"]:
-            for key, value in scenario.items():
-                if hasattr(value, "to_dict"):
-                    data[key] = value.to_dict()
-        return data_to_html(data)
+    # def _repr_html_(self) -> str:
+    # from edsl.utilities.utilities import data_to_html
+
+    # data = self.to_dict()
+    # _ = data.pop("edsl_version")
+    # _ = data.pop("edsl_class_name")
+    # for s in data["scenarios"]:
+    #     _ = s.pop("edsl_version")
+    #     _ = s.pop("edsl_class_name")
+    # for scenario in data["scenarios"]:
+    #     for key, value in scenario.items():
+    #         if hasattr(value, "to_dict"):
+    #             data[key] = value.to_dict()
+    # return data_to_html(data)
 
     def tally(self, field) -> dict:
         """Return a tally of the values in the field.
@@ -589,9 +581,9 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
     def _summary(self):
         d = {
-            "edsl_class_name": "ScenarioList",
-            "num_scenarios": len(self),
-            "parameters": list(self.parameters),
+            "EDSL Class name": "ScenarioList",
+            "# Scenarios": len(self),
+            "Scenario Keys": list(self.parameters),
         }
         return d
 

@@ -27,6 +27,8 @@ class Cache(Base):
     :param method: The method of storage to use for the cache.
     """
 
+    __documentation__ = "https://docs.expectedparrot.com/en/latest/data.html"
+
     data = {}
 
     def __init__(
@@ -409,10 +411,20 @@ class Cache(Base):
 
         return d
 
-    def _repr_html_(self):
-        from edsl.utilities.utilities import data_to_html
+    def _summary(self):
+        return {"EDSL Class": "Cache", "Number of entries": len(self.data)}
 
-        return data_to_html(self.to_dict())
+    def _repr_html_(self):
+        # from edsl.utilities.utilities import data_to_html
+        # return data_to_html(self.to_dict())
+        footer = f"<a href={self.__documentation__}>(docs)</a>"
+        return str(self.summary(format="html")) + footer
+
+    def table(self, *fields, tablefmt="simple") -> str:
+        return self.to_dataset().table(*fields, tablefmt=tablefmt)
+
+    def to_dataset(self):
+        return self.to_scenario_list().to_dataset()
 
     @classmethod
     @remove_edsl_version
