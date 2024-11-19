@@ -73,6 +73,8 @@ class Results(UserList, Mixins, Base):
     It also has a list of created_columns, which are columns that have been created with `mutate` and are not part of the original data.
     """
 
+    __documentation__ = "https://docs.expectedparrot.com/en/latest/results.html"
+
     known_data_types = [
         "answer",
         "scenario",
@@ -120,6 +122,24 @@ class Results(UserList, Mixins, Base):
 
         if hasattr(self, "_add_output_functions"):
             self._add_output_functions()
+
+    def _summary(self) -> dict:
+        import reprlib
+
+        # import yaml
+
+        d = {
+            "EDSL Class": "Results",
+            # "docs_url": self.__documentation__,
+            "# of agents": len(set(self.agents)),
+            "# of distinct models": len(set(self.models)),
+            "# of observations": len(self),
+            "# Scenarios": len(set(self.scenarios)),
+            "Survey Length (# questions)": len(self.survey),
+            "Survey question names": reprlib.repr(self.survey.question_names),
+            "Object hash": hash(self),
+        }
+        return d
 
     def leaves(self):
         leaves = []
@@ -260,11 +280,27 @@ class Results(UserList, Mixins, Base):
 
         return f"Results(data = {reprlib.repr(self.data)}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
 
+    def table(self, selector_string: Optional[str] = "*.*", *fields):
+        return (
+            self.select(f"{selector_string}")
+            .to_scenario_list()
+            .table(*fields, tablefmt="html")
+        )
+
     def _repr_html_(self) -> str:
         # from IPython.display import HTML
 
-        json_str = json.dumps(self.to_dict(add_edsl_version=False)["data"], indent=4)
-        return f"<pre>{json_str}</pre>"
+        # json_str = json.dumps(self.to_dict(add_edsl_version=False)["data"], indent=4)
+        # return f"<pre>{json_str}</pre>"
+        d = self._summary()
+        from edsl import Scenario
+
+        footer = f"<a href={self.__documentation__}>(docs)</a>"
+
+        s = Scenario(d)
+        td = s.to_dataset().table(tablefmt="html")
+        return td._repr_html_() + footer
+        # return str(self.summary(format="html")) + footer
 
     def to_dict(self, sort=False, add_edsl_version=False) -> dict[str, Any]:
         from edsl.data.Cache import Cache

@@ -12,6 +12,107 @@ from edsl.results.ResultsExportMixin import ResultsExportMixin
 from edsl.results.DatasetTree import Tree
 
 
+class TableDisplay:
+    max_height = 400
+
+    html_template = """
+    <div style="
+        height: {height}px;
+        max-width: 100%%;
+        overflow: auto;
+        border: 1px solid #ddd;
+        padding: 10px;
+        border-radius: 4px;
+        margin-left: 0; 
+    ">
+        <style>
+            .scroll-table {{
+                border-collapse: collapse;
+                width: auto;
+                white-space: nowrap;
+            }}
+            .scroll-table th, .scroll-table td {{
+                padding: 8px;
+                text-align: left !important;
+                border-bottom: 1px solid #ddd;
+                min-width: 100px;  /* Minimum column width */
+                max-width: 300px;  /* Maximum column width */
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }}
+            .scroll-table th {{
+                background-color: #f5f5f5;
+                position: sticky;
+                top: 0;
+                z-index: 1;
+            }}
+            .scroll-table tr:hover {{
+                background-color: #f5f5f5;
+            }}
+            /* Add horizontal scrollbar styles */
+            .scroll-table-wrapper {{
+                overflow-x: auto;
+                margin-bottom: 10px;
+            }}
+            /* Optional: Style scrollbars for webkit browsers */
+            .scroll-table-wrapper::-webkit-scrollbar {{
+                height: 8px;
+            }}
+            .scroll-table-wrapper::-webkit-scrollbar-track {{
+                background: #f1f1f1;
+            }}
+            .scroll-table-wrapper::-webkit-scrollbar-thumb {{
+                background: #888;
+                border-radius: 4px;
+            }}
+            .scroll-table-wrapper::-webkit-scrollbar-thumb:hover {{
+                background: #555;
+            }}
+        </style>
+        <div class="scroll-table-wrapper">
+            {table}
+        </div>
+    </div>
+    """
+
+    def __init__(self, headers, data, tablefmt="simple", raw_data_set=None):
+        self.headers = headers
+        self.data = data
+        self.tablefmt = tablefmt
+        self.raw_data_set = raw_data_set
+
+    def to_csv(self, filename: str):
+        self.raw_data_set.to_csv(filename)
+
+    def __repr__(self):
+        from tabulate import tabulate
+
+        return tabulate(self.data, headers=self.headers, tablefmt=self.tablefmt)
+
+    def _repr_html_(self):
+        from tabulate import tabulate
+
+        num_rows = len(self.data)
+        height = min(
+            num_rows * 30 + 50, self.max_height
+        )  # Added extra space for header
+
+        # Generate HTML table with the scroll-table class
+        html_content = tabulate(self.data, headers=self.headers, tablefmt="html")
+        html_content = html_content.replace("<table>", '<table class="scroll-table">')
+
+        return self.html_template.format(table=html_content, height=height)
+
+
+class DisplayTable:
+
+    def __init__(self, table_string: str):
+        self.table_string = table_string
+
+    def __repr__(self):
+        return self.table_string
+
+
 class Dataset(UserList, ResultsExportMixin):
     """A class to represent a dataset of observations."""
 
@@ -44,6 +145,30 @@ class Dataset(UserList, ResultsExportMixin):
     def __repr__(self) -> str:
         """Return a string representation of the dataset."""
         return f"Dataset({self.data})"
+
+    def _tabular(self):
+        # Extract headers
+        headers = []
+        for entry in self.data:
+            headers.extend(entry.keys())
+        headers = list(dict.fromkeys(headers))  # Ensure unique headers
+
+        # Extract data
+        max_len = max(len(values) for entry in self.data for values in entry.values())
+        rows = []
+        for i in range(max_len):
+            row = []
+            for header in headers:
+                for entry in self.data:
+                    if header in entry:
+                        values = entry[header]
+                        row.append(values[i] if i < len(values) else None)
+                        break
+                else:
+                    row.append(None)  # Default to None if header is missing
+            rows.append(row)
+
+        return headers, rows
 
     def _key_to_value(self, key: str) -> Any:
         """Retrieve the value associated with the given key from the dataset.
@@ -276,6 +401,50 @@ class Dataset(UserList, ResultsExportMixin):
         Tree has not been constructed yet.
         """
         return Tree(self)
+
+    def table(
+        self,
+        *fields,
+        tablefmt: Optional[str] = "simple",
+        max_rows: Optional[int] = None,
+    ):
+        # from tabulate import tabulate
+
+        headers, data = self._tabular()
+
+        if max_rows:
+            if len(data) < max_rows:
+                max_rows = None
+
+        if fields:
+            full_data = data
+            data = []
+            indices = []
+            for field in fields:
+                indices.append(headers.index(field))
+            headers = fields
+            for row in full_data:
+                data.append([row[i] for i in indices])
+
+        if max_rows is not None:
+            if max_rows > len(data):
+                raise ValueError(
+                    "max_rows cannot be greater than the number of rows in the dataset."
+                )
+            last_line = data[-1]
+            spaces = len(data[max_rows])
+            filler_line = ["." for i in range(spaces)]
+            # breakpoint()
+            data = data[:max_rows]
+            data.append(filler_line)
+            data.append(last_line)
+
+        return TableDisplay(
+            data=data, headers=headers, tablefmt=tablefmt, raw_data_set=self
+        )
+
+    def summary(self):
+        return Dataset([{"num_observations": [len(self)], "keys": [self.keys()]}])
 
     @classmethod
     def example(self):

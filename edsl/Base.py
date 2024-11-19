@@ -220,6 +220,21 @@ class Base(
     # def _repr_(self) -> str:
     #     raise NotImplementedError("This method is not implemented yet.")
 
+    def summary(self, format="table"):
+        from edsl import Scenario
+
+        d = self._summary()
+        if format == "table":
+            return Scenario(d).table()
+        if format == "dict":
+            return d
+        if format == "json":
+            return Scenario(d).json()
+        if format == "yaml":
+            return Scenario(d).yaml()
+        if format == "html":
+            return Scenario(d).table(tablefmt="html")
+
     def keys(self):
         """Return the keys of the object."""
         _keys = list(self.to_dict().keys())
