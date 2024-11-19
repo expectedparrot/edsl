@@ -41,6 +41,8 @@ class ValidatedString(str):
 class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     """A collection of questions that supports skip logic."""
 
+    __documentation__ = """https://docs.expectedparrot.com/en/latest/surveys.html"""
+
     questions = QuestionsDescriptor()
     """
     A collection of questions that supports skip logic.
@@ -1587,10 +1589,19 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         # question_names_string = ", ".join([repr(name) for name in self.question_names])
         return f"Survey(questions=[{questions_string}], memory_plan={self.memory_plan}, rule_collection={self.rule_collection}, question_groups={self.question_groups})"
 
-    def _repr_html_(self) -> str:
-        from edsl.utilities.utilities import data_to_html
+    def _summary(self) -> dict:
+        return {
+            "EDSL Class": "Survey",
+            "Number of Questions": len(self),
+            "Question Names": self.question_names,
+        }
 
-        return data_to_html(self.to_dict())
+    def _repr_html_(self) -> str:
+        footer = f"<a href={self.__documentation__}>(docs)</a>"
+        return str(self.summary(format="html")) + footer
+
+    def table(self, *fields, tablefmt="plain") -> Table:
+        return self.to_scenario_list().to_dataset().table(*fields, tablefmt=tablefmt)
 
     def rich_print(self) -> Table:
         """Print the survey in a rich format.

@@ -10,6 +10,9 @@ from edsl.utilities.utilities import dict_hash
 
 
 class ModelList(Base, UserList):
+
+    __documentation__ = """https://docs.expectedparrot.com/en/latest/language_models.html#module-edsl.language_models.ModelList"""
+
     def __init__(self, data: Optional[list] = None):
         """Initialize the ScenarioList class.
 
@@ -36,6 +39,9 @@ class ModelList(Base, UserList):
 
     def __repr__(self):
         return f"ModelList({super().__repr__()})"
+
+    def _summary(self):
+        return {"EDSL Class": "ModelList", "Number of Models": len(self)}
 
     def __hash__(self):
         """Return a hash of the ModelList. This is used for comparison of ModelLists.
@@ -70,6 +76,11 @@ class ModelList(Base, UserList):
             d["edsl_class_name"] = "ModelList"
 
         return d
+
+    def _repr_html_(self):
+        """Return an HTML representation of the ModelList."""
+        footer = f"<a href={self.__documentation__}>(docs)</a>"
+        return str(self.summary(format="html")) + footer
 
     @classmethod
     def from_names(self, *args, **kwargs):

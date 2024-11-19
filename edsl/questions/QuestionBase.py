@@ -362,16 +362,22 @@ class QuestionBase(
 
     # region: Magic methods
     def _repr_html_(self):
-        from edsl.utilities.utilities import data_to_html
+        # from edsl.utilities.utilities import data_to_html
 
-        data = self.to_dict()
-        try:
-            _ = data.pop("edsl_version")
-            _ = data.pop("edsl_class_name")
-        except KeyError:
-            print("Serialized question lacks edsl version, but is should have it.")
+        data = self.to_dict(add_edsl_version=False)
+        # keys = list(data.keys())
+        # values = list(data.values())
+        from tabulate import tabulate
 
-        return data_to_html(data)
+        return tabulate(data.items(), headers=["keys", "values"], tablefmt="html")
+
+        # try:
+        #     _ = data.pop("edsl_version")
+        #     _ = data.pop("edsl_class_name")
+        # except KeyError:
+        #     print("Serialized question lacks edsl version, but is should have it.")
+
+        # return data_to_html(data)
 
     def __getitem__(self, key: str) -> Any:
         """Get an attribute of the question so it can be treated like a dictionary.
