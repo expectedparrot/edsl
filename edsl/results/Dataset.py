@@ -5,7 +5,7 @@ import random
 import json
 from collections import UserList
 from typing import Any, Union, Optional
-
+import sys
 import numpy as np
 
 from edsl.results.ResultsExportMixin import ResultsExportMixin
@@ -83,6 +83,12 @@ class TableDisplay:
 
     def to_csv(self, filename: str):
         self.raw_data_set.to_csv(filename)
+
+    def to_pandas(self):
+        return self.raw_data_set.to_pandas()
+
+    def to_list(self):
+        return self.raw_data_set.to_list()
 
     def __repr__(self):
         from tabulate import tabulate
@@ -409,6 +415,20 @@ class Dataset(UserList, ResultsExportMixin):
             data = []
             indices = []
             for field in fields:
+                if field not in headers:
+                    print(
+                        f"Error: The following field was not found: {field}",
+                        file=sys.stderr,
+                    )
+                    print(f"\nAvailable fields are: {headers}", file=sys.stderr)
+
+                    # Optional: Suggest similar fields using difflib
+                    import difflib
+
+                    matches = difflib.get_close_matches(field, headers)
+                    if matches:
+                        print(f"\nDid you mean: {matches[0]} ?", file=sys.stderr)
+                    return None
                 indices.append(headers.index(field))
             headers = fields
             for row in full_data:
