@@ -14,6 +14,13 @@ from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 from edsl.utilities.utilities import is_notebook
 
 
+def view_csv(csv_path):
+    import pandas as pd
+
+    df = pd.read_csv(csv_path)
+    return df
+
+
 def view_html(html_path):
     import os
     import subprocess
@@ -165,16 +172,35 @@ class FileStore(Scenario):
 
     @classmethod
     def example(cls, example_type="text"):
-        if example_type == "text":
-            import tempfile
+        import textwrap
+        import tempfile
 
+        if example_type == "png" or example_type == "image":
+
+            import importlib.resources
+            from pathlib import Path
+
+            # Get package root directory
+            package_root = Path(__file__).parent.parent.parent
+            logo_path = package_root / "static" / "logo.png"
+            return cls(str(logo_path))
+
+        if example_type == "text":
             with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as f:
                 f.write(b"Hello, World!")
 
             return cls(path=f.name)
-        elif example_type == "pdf":
-            import textwrap
 
+        elif example_type == "csv":
+            from edsl.results.Results import Results
+
+            r = Results.example()
+
+            with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as f:
+                r.to_csv(filename=f.name)
+            return cls(f.name)
+
+        elif example_type == "pdf":
             pdf_string = textwrap.dedent(
                 """\
             %PDF-1.4
@@ -218,15 +244,12 @@ class FileStore(Scenario):
             318
             %%EOF"""
             )
-            import tempfile
-
             with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
                 f.write(pdf_string.encode())
 
             return cls(f.name)
 
         elif example_type == "html":
-            import tempfile
 
             with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
                 f.write("<html><body><h1>Test</h1></body></html>".encode())
@@ -334,6 +357,9 @@ class FileStore(Scenario):
 
     def view(self, max_size: int = 300) -> None:
         # with self.open() as f:
+        if self.suffix == "csv":
+            return view_csv(self.path)
+
         if self.suffix == "pdf":
             view_pdf(self.path)
 
