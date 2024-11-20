@@ -218,20 +218,17 @@ class Base(
 ):
     """Base class for all classes in the package."""
 
-    # def __getitem__(self, key):
-    #     return getattr(self, key)
+    def print(self, **kwargs):
+        # raise Exception("This method is deprecated.")
+        # print(self)
+        if "format" in kwargs:
+            if kwargs["format"] not in ["html", "markdown", "rich", "latex"]:
+                raise ValueError(f"Format '{kwargs['format']}' not supported.")
 
-    # @abstractmethod
-    # def _repr_html_(self) -> str:
-    #     raise NotImplementedError("This method is not implemented yet.")
-
-    # @abstractmethod
-    # def _repr_(self) -> str:
-    #     raise NotImplementedError("This method is not implemented yet.")
-
-    def print(self):
-        raise Exception("This method is deprecated.")
-        print(self)
+        if hasattr(self, "table"):
+            return self.table()
+        else:
+            return self
 
     def __str__(self):
         return self.__repr__()

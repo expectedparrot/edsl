@@ -276,9 +276,9 @@ class AgentList(UserList, Base):
             "Agent trait fields": self.all_traits,
         }
 
-    def print(self, format: Optional[str] = None):
-        """Print the AgentList."""
-        print_json(json.dumps(self.to_dict(add_edsl_version=False)))
+    # def print(self, format: Optional[str] = None):
+    #     """Print the AgentList."""
+    # print_json(json.dumps(self.to_dict(add_edsl_version=False)))
 
     def _repr_html_(self):
         """Return an HTML representation of the AgentList."""

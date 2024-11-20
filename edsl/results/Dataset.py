@@ -214,6 +214,24 @@ class Dataset(UserList, ResultsExportMixin):
 
         return get_values(self.data[0])[0]
 
+    def print(self, pretty_labels=None, **kwargs):
+        if "format" in kwargs:
+            if kwargs["format"] not in ["html", "markdown", "rich", "latex"]:
+                raise ValueError(f"Format '{kwargs['format']}' not supported.")
+        if pretty_labels is None:
+            pretty_labels = {}
+        else:
+            return self.rename(pretty_labels).print(**kwargs)
+        return self.table()
+
+    def rename(self, rename_dic) -> Dataset:
+        new_data = []
+        for observation in self.data:
+            key, values = list(observation.items())[0]
+            new_key = rename_dic.get(key, key)
+            new_data.append({new_key: values})
+        return Dataset(new_data)
+
     def select(self, *keys):
         """Return a new dataset with only the selected keys.
 
