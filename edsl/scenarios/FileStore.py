@@ -43,6 +43,9 @@ def view_pdf(pdf_path):
 
 
 class FileStore(Scenario):
+
+    __documentation__ = "https://docs.expectedparrot.com/en/latest/filestore.html"
+
     def __init__(
         self,
         path: Optional[str] = None,

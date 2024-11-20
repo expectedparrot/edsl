@@ -124,7 +124,7 @@ class Dataset(UserList, ResultsExportMixin):
         _, values = list(self.data[0].items())[0]
         return len(values)
 
-    def keys(self):
+    def keys(self) -> list[str]:
         """Return the keys of the first observation in the dataset.
 
         >>> d = Dataset([{'a.b':[1,2,3,4]}])

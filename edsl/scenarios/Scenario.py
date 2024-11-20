@@ -40,7 +40,7 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
 
     They can be used parameterize EDSL questions."""
 
-    __doc__ = "https://docs.expectedparrot.com/en/latest/scenarios.html"
+    __documentation__ = "https://docs.expectedparrot.com/en/latest/scenarios.html"
 
     def __init__(self, data: Union[dict, None] = None, name: str = None):
         """Initialize a new Scenario.
@@ -234,17 +234,23 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
 
     def _repr_html_(self):
         from tabulate import tabulate
+        import reprlib
 
         d = self.to_dict(add_edsl_version=False)
         # return self.to_dataset()
-        data = [[k, v] for k, v in d.items()]
+        r = reprlib.Repr()
+        r.maxstring = 70
+
+        data = [[k, r.repr(v)] for k, v in d.items()]
         from tabulate import tabulate
 
-        table = str(tabulate(data, headers=["keys", "values"], tablefmt="html"))
-        return f"<pre>{table}</pre>"
+        if hasattr(self, "__documentation__"):
+            footer = f"<a href='{self.__documentation__}'>(docs)</a></p>"
+        else:
+            footer = ""
 
-        # table = str(tabulate(data, headers=["keys", "values"], tablefmt="html"))
-        # return f"<pre>{table}</pre>"
+        table = str(tabulate(data, headers=["keys", "values"], tablefmt="html"))
+        return f"<pre>{table}</pre>" + footer
 
     def select(self, list_of_keys: List[str]) -> "Scenario":
         """Select a subset of keys from a scenario.
