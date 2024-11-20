@@ -222,7 +222,6 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
         print_json(json.dumps(self.to_dict()))
 
     def __repr__(self):
-        # return "Scenario(" + reprlib.repr(self.data) + ")"
         return "Scenario(" + repr(self.data) + ")"
 
     def to_dataset(self) -> "Dataset":
@@ -234,10 +233,16 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
         return Dataset([{"key": keys}, {"value": values}])
 
     def _repr_html_(self):
-        # d = self.to_dict(add_edsl_version=False)
-        # data = [[k, v] for k, v in d.items()]
-        # from tabulate import tabulate
-        return self.to_dataset()
+        from tabulate import tabulate
+
+        d = self.to_dict(add_edsl_version=False)
+        # return self.to_dataset()
+        data = [[k, v] for k, v in d.items()]
+        from tabulate import tabulate
+
+        table = str(tabulate(data, headers=["keys", "values"], tablefmt="html"))
+        return f"<pre>{table}</pre>"
+
         # table = str(tabulate(data, headers=["keys", "values"], tablefmt="html"))
         # return f"<pre>{table}</pre>"
 

@@ -104,15 +104,6 @@ class TableDisplay:
         return self.html_template.format(table=html_content, height=height)
 
 
-class DisplayTable:
-
-    def __init__(self, table_string: str):
-        self.table_string = table_string
-
-    def __repr__(self):
-        return self.table_string
-
-
 class Dataset(UserList, ResultsExportMixin):
     """A class to represent a dataset of observations."""
 
@@ -145,6 +136,9 @@ class Dataset(UserList, ResultsExportMixin):
     def __repr__(self) -> str:
         """Return a string representation of the dataset."""
         return f"Dataset({self.data})"
+
+    def _repr_html_(self):
+        return self.table()._repr_html_()
 
     def _tabular(self):
         # Extract headers
@@ -246,12 +240,6 @@ class Dataset(UserList, ResultsExportMixin):
         return json.loads(
             json.dumps(self.data)
         )  # janky but I want to make sure it's serializable & deserializable
-
-    def _repr_html_(self) -> str:
-        """Return an HTML representation of the dataset."""
-        from edsl.utilities.utilities import data_to_html
-
-        return data_to_html(self.data)
 
     def shuffle(self, seed=None) -> Dataset:
         """Return a new dataset with the observations shuffled.
