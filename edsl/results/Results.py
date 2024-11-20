@@ -911,31 +911,19 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.sort_by('how_feeling', reverse=False).select('how_feeling').print()
-        ┏━━━━━━━━━━━━━━┓
-        ┃ answer       ┃
-        ┃ .how_feeling ┃
-        ┡━━━━━━━━━━━━━━┩
-        │ Great        │
-        ├──────────────┤
-        │ OK           │
-        ├──────────────┤
-        │ OK           │
-        ├──────────────┤
-        │ Terrible     │
-        └──────────────┘
+        answer.how_feeling
+        --------------------
+        Great
+        OK
+        OK
+        Terrible
         >>> r.sort_by('how_feeling', reverse=True).select('how_feeling').print()
-        ┏━━━━━━━━━━━━━━┓
-        ┃ answer       ┃
-        ┃ .how_feeling ┃
-        ┡━━━━━━━━━━━━━━┩
-        │ Terrible     │
-        ├──────────────┤
-        │ OK           │
-        ├──────────────┤
-        │ OK           │
-        ├──────────────┤
-        │ Great        │
-        └──────────────┘
+        answer.how_feeling
+        --------------------
+        Terrible
+        OK
+        OK
+        Great
         """
 
         def to_numeric_if_possible(v):
@@ -968,12 +956,9 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.filter("how_feeling == 'Great'").select('how_feeling').print()
-        ┏━━━━━━━━━━━━━━┓
-        ┃ answer       ┃
-        ┃ .how_feeling ┃
-        ┡━━━━━━━━━━━━━━┩
-        │ Great        │
-        └──────────────┘
+        answer.how_feeling
+        --------------------
+        Great
 
         Example usage: Using an OR operator in the filter expression.
 
@@ -984,14 +969,10 @@ class Results(UserList, Mixins, Base):
         ...
 
         >>> r.filter("how_feeling == 'Great' or how_feeling == 'Terrible'").select('how_feeling').print()
-        ┏━━━━━━━━━━━━━━┓
-        ┃ answer       ┃
-        ┃ .how_feeling ┃
-        ┡━━━━━━━━━━━━━━┩
-        │ Great        │
-        ├──────────────┤
-        │ Terrible     │
-        └──────────────┘
+        answer.how_feeling
+        --------------------
+        Great
+        Terrible
         """
 
         def has_single_equals(string):
