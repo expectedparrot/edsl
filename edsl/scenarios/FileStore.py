@@ -14,6 +14,37 @@ from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 from edsl.utilities.utilities import is_notebook
 
 
+def view_html(html_path):
+    import os
+    import subprocess
+    from IPython.display import IFrame, display, HTML
+
+    if os.path.exists(html_path):
+        if is_notebook():
+            # Display the HTML inline in Jupyter Notebook
+            display(IFrame(src=html_path, width=700, height=600))
+            display(
+                HTML(
+                    f'<a href="{html_path}" target="_blank">Open HTML in a new tab</a>'
+                )
+            )
+        else:
+            try:
+                if (os_name := os.name) == "posix":
+                    # Open with the default browser on macOS
+                    subprocess.run(["open", html_path], check=True)
+                elif os_name == "nt":
+                    # Open with the default browser on Windows
+                    os.startfile(html_path)
+                else:
+                    # Open with the default browser on Linux
+                    subprocess.run(["xdg-open", html_path], check=True)
+            except Exception as e:
+                print(f"Error opening HTML file: {e}")
+    else:
+        print("HTML file was not found.")
+
+
 def view_pdf(pdf_path):
     import os
     import subprocess
@@ -58,7 +89,10 @@ class FileStore(Scenario):
     ):
         if path is None and "filename" in kwargs:
             path = kwargs["filename"]
-        self.path = path
+
+        self._path = path  # Store the original path privately
+        self._temp_path = None  # Track any generated temporary file
+
         self.suffix = suffix or path.split(".")[-1]
         self.binary = binary or False
         self.mime_type = (
@@ -76,6 +110,24 @@ class FileStore(Scenario):
                 "external_locations": self.external_locations,
             }
         )
+
+    @property
+    def path(self) -> str:
+        """
+        Property that returns a valid path to the file content.
+        If the original path doesn't exist, generates a temporary file from the base64 content.
+        """
+        # Check if original path exists and is accessible
+        if self._path and os.path.isfile(self._path):
+            return self._path
+
+        # If we already have a valid temporary file, use it
+        if self._temp_path and os.path.isfile(self._temp_path):
+            return self._temp_path
+
+        # Generate a new temporary file from base64 content
+        self._temp_path = self.to_tempfile(self.suffix)
+        return self._temp_path
 
     def __str__(self):
         return "FileStore: self.path"
@@ -189,6 +241,7 @@ class FileStore(Scenario):
         return temp_file.name
 
     def view(self, max_size: int = 300) -> None:
+        # with self.open() as f:
         if self.suffix == "pdf":
             view_pdf(self.path)
 
