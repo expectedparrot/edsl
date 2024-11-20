@@ -284,7 +284,7 @@ class Results(UserList, Mixins, Base):
         return (
             self.select(f"{selector_string}")
             .to_scenario_list()
-            .table(*fields, tablefmt="html")
+            .table(*fields)  # , tablefmt="html")
         )
 
     def _repr_html_(self) -> str:

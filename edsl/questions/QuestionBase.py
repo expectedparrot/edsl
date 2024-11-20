@@ -263,12 +263,9 @@ class QuestionBase(
         >>> m.execute_model_call("", "")
         {'message': [{'text': "Yo, what's up?"}], 'usage': {'prompt_tokens': 1, 'completion_tokens': 1}}
         >>> Q.run_example(show_answer = True, model = m, disable_remote_cache = True, disable_remote_inference = True)
-        ┏━━━━━━━━━━━━━━━━┓
-        ┃ answer         ┃
-        ┃ .how_are_you   ┃
-        ┡━━━━━━━━━━━━━━━━┩
-        │ Yo, what's up? │
-        └────────────────┘
+        answer.how_are_you
+        --------------------
+        Yo, what's up?
         """
         if model is None:
             from edsl import Model
@@ -284,7 +281,7 @@ class QuestionBase(
             )
         )
         if show_answer:
-            results.select("answer.*").print()
+            return results.select("answer.*").print()
         else:
             return results
 
