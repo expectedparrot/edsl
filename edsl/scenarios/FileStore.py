@@ -45,18 +45,49 @@ def view_html(html_path):
         print("HTML file was not found.")
 
 
+def view_html(html_path):
+    import os
+    from IPython.display import display, HTML
+
+    if is_notebook():
+        with open(html_path, "r") as f:
+            html_content = f.read()
+        display(HTML(html_content))
+    else:
+        if os.path.exists(html_path):
+            try:
+                if (os_name := os.name) == "posix":
+                    subprocess.run(["open", html_path], check=True)
+                elif os_name == "nt":
+                    os.startfile(html_path)
+                else:
+                    subprocess.run(["xdg-open", html_path], check=True)
+            except Exception as e:
+                print(f"Error opening file: {e}")
+        else:
+            print("File was not created successfully.")
+
+
 def view_pdf(pdf_path):
     import os
     import subprocess
+    import os
+    from IPython.display import HTML, display
 
     if is_notebook():
-        from IPython.display import IFrame
-        from IPython.display import display, HTML
+        # Convert to absolute path if needed
+        with open(pdf_path, "rb") as f:
+            base64_pdf = base64.b64encode(f.read()).decode("utf-8")
 
-        # Replace 'path/to/your/file.pdf' with the actual path to your PDF file
-        IFrame(pdf_path, width=700, height=600)
-        display(HTML(f'<a href="{pdf_path}" target="_blank">Open PDF</a>'))
-        return
+        html = f"""
+        <iframe
+            src="data:application/pdf;base64,{base64_pdf}"
+            width="800px"
+            height="800px"
+            type="application/pdf"
+        ></iframe>
+        """
+        display(HTML(html))
 
     if os.path.exists(pdf_path):
         try:
@@ -133,13 +164,74 @@ class FileStore(Scenario):
         return "FileStore: self.path"
 
     @classmethod
-    def example(self):
-        import tempfile
+    def example(cls, example_type="text"):
+        if example_type == "text":
+            import tempfile
 
-        with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as f:
-            f.write(b"Hello, World!")
+            with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as f:
+                f.write(b"Hello, World!")
 
-        return self(path=f.name)
+            return cls(path=f.name)
+        elif example_type == "pdf":
+            import textwrap
+
+            pdf_string = textwrap.dedent(
+                """\
+            %PDF-1.4
+            1 0 obj
+            << /Type /Catalog /Pages 2 0 R >>
+            endobj
+            2 0 obj
+            << /Type /Pages /Kids [3 0 R] /Count 1 >>
+            endobj
+            3 0 obj
+            << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >>
+            endobj
+            4 0 obj
+            << /Length 44 >>
+            stream
+            BT
+            /F1 24 Tf
+            100 700 Td
+            (Hello, World!) Tj
+            ET
+            endstream
+            endobj
+            5 0 obj
+            << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+            endobj
+            6 0 obj
+            << /ProcSet [/PDF /Text] /Font << /F1 5 0 R >> >>
+            endobj
+            xref
+            0 7
+            0000000000 65535 f 
+            0000000010 00000 n 
+            0000000053 00000 n 
+            0000000100 00000 n 
+            0000000173 00000 n 
+            0000000232 00000 n 
+            0000000272 00000 n 
+            trailer
+            << /Size 7 /Root 1 0 R >>
+            startxref
+            318
+            %%EOF"""
+            )
+            import tempfile
+
+            with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
+                f.write(pdf_string.encode())
+
+            return cls(f.name)
+
+        elif example_type == "html":
+            import tempfile
+
+            with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
+                f.write("<html><body><h1>Test</h1></body></html>".encode())
+
+            return cls(f.name)
 
     @property
     def size(self) -> int:
@@ -244,6 +336,9 @@ class FileStore(Scenario):
         # with self.open() as f:
         if self.suffix == "pdf":
             view_pdf(self.path)
+
+        if self.suffix == "html":
+            view_html(self.path)
 
         if self.suffix == "png" or self.suffix == "jpg" or self.suffix == "jpeg":
             if is_notebook():
