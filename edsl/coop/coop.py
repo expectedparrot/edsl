@@ -102,12 +102,57 @@ class Coop:
 
         return response
 
+    def _get_latest_stable_version(self, version: str) -> str:
+        """
+        Extract the latest stable PyPI version from a version string.
+
+        Examples:
+        - Decrement the patch number of a dev version: "0.1.38.dev1" -> "0.1.37"
+        - Return a stable version as is: "0.1.37" -> "0.1.37"
+        """
+        if "dev" not in version:
+            return version
+        else:
+            # For 0.1.38.dev1, split into ["0", "1", "38", "dev1"]
+            major, minor, patch = version.split(".")[:3]
+
+            current_patch = int(patch)
+            latest_patch = current_patch - 1
+            return f"{major}.{minor}.{latest_patch}"
+
+    def _user_version_is_outdated(
+        self, user_version_str: str, server_version_str: str
+    ) -> bool:
+        """
+        Check if the user's EDSL version is outdated compared to the server's.
+        """
+        server_stable_version_str = self._get_latest_stable_version(server_version_str)
+        user_stable_version_str = self._get_latest_stable_version(user_version_str)
+
+        # Turn the version strings into tuples of ints for comparison
+        user_stable_version = tuple(map(int, user_stable_version_str.split(".")))
+        server_stable_version = tuple(map(int, server_stable_version_str.split(".")))
+
+        return user_stable_version < server_stable_version
+
     def _resolve_server_response(
         self, response: requests.Response, check_api_key: bool = True
     ) -> None:
         """
         Check the response from the server and raise errors as appropriate.
         """
+        # Get EDSL version from header
+        server_edsl_version = response.headers.get("X-EDSL-Version")
+
+        if server_edsl_version:
+            if self._user_version_is_outdated(
+                user_version_str=self._edsl_version,
+                server_version_str=server_edsl_version,
+            ):
+                print(
+                    'Please upgrade your EDSL version to access our latest features. To upgrade, open your terminal and run "pip upgrade edsl."'
+                )
+
         if response.status_code >= 400:
             message = response.json().get("detail")
             # print(response.text)
