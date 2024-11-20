@@ -140,7 +140,7 @@ class FileStore(Scenario):
         self.external_locations = external_locations or {}
         super().__init__(
             {
-                "path": self.path,
+                "path": path,
                 "base64_string": self.base64_string,
                 "binary": self.binary,
                 "suffix": self.suffix,
