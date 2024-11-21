@@ -98,6 +98,13 @@ class TableDisplay:
         else:
             return tabulate(self.data, headers=self.headers, tablefmt=self.tablefmt)
 
+    def long(self):
+        new_header = ["row", "key", "value"]
+        new_data = []
+        for index, row in enumerate(self.data):
+            new_data.extend([[index, k, v] for k, v in zip(self.headers, row)])
+        return TableDisplay(new_header, new_data)
+
     def _repr_html_(self):
         if self.tablefmt is not None:
             return (
