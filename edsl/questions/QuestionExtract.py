@@ -112,7 +112,6 @@ class QuestionExtract(QuestionBase):
 
         :param question_name: The name of the question.
         :param question_text: The text of the question.
-        :param question_options: The options the respondent should select from.
         :param answer_template: The template for the answer.
         """
         self.question_name = question_name
