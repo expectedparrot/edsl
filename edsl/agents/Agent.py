@@ -243,6 +243,15 @@ class Agent(Base):
         else:
             return self._traits
 
+    def _repr_html_(self):
+        # d = self.to_dict(add_edsl_version=False)
+        d = self.traits
+        data = [[k, v] for k, v in d.items()]
+        from tabulate import tabulate
+
+        table = str(tabulate(data, headers=["keys", "values"], tablefmt="html"))
+        return f"<pre>{table}</pre>"
+
     def rename(
         self, old_name_or_dict: Union[str, dict], new_name: Optional[str] = None
     ) -> Agent:
@@ -631,10 +640,10 @@ class Agent(Base):
         ]
         return f"{class_name}({', '.join(items)})"
 
-    def _repr_html_(self):
-        from edsl.utilities.utilities import data_to_html
+    # def _repr_html_(self):
+    #     from edsl.utilities.utilities import data_to_html
 
-        return data_to_html(self.to_dict())
+    #     return data_to_html(self.to_dict())
 
     #######################
     # SERIALIZATION METHODS

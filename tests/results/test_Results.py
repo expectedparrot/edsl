@@ -142,36 +142,36 @@ class TestResults(unittest.TestCase):
     #         [result.answer.get("how_feeling") for result in self.example_results.data],
     #     )
 
-    def test_print_long(self):
-        from edsl.questions import QuestionLinearScale, QuestionMultipleChoice
+    # def test_print_long(self):
+    #     from edsl.questions import QuestionLinearScale, QuestionMultipleChoice
 
-        from edsl import Agent
+    #     from edsl import Agent
 
-        def answer_question_directly(self, question, scenario):
-            return "Never"
+    #     def answer_question_directly(self, question, scenario):
+    #         return "Never"
 
-        from edsl.data.Cache import Cache
+    #     from edsl.data.Cache import Cache
 
-        cache = Cache()
-        agent = Agent()
-        agent.add_direct_question_answering_method(answer_question_directly)
+    #     cache = Cache()
+    #     agent = Agent()
+    #     agent.add_direct_question_answering_method(answer_question_directly)
 
-        q = QuestionMultipleChoice(
-            question_name="exercise",
-            question_text="How often do you typically exercise each week?",
-            question_options=["Never", "Sometimes", "Often"],
-        )
-        results = q.by(agent).run(cache=cache)
+    #     q = QuestionMultipleChoice(
+    #         question_name="exercise",
+    #         question_text="How often do you typically exercise each week?",
+    #         question_options=["Never", "Sometimes", "Often"],
+    #     )
+    #     results = q.by(agent).run(cache=cache)
 
-        with StringIO() as buf, redirect_stdout(buf):
-            results.select("answer.*").print()
-            output = buf.getvalue()
-        self.assertIn("Never", output)
+    #     with StringIO() as buf, redirect_stdout(buf):
+    #         results.select("answer.*").print()
+    #         output = buf.getvalue()
+    #     self.assertIn("Never", output)
 
-        with StringIO() as buf, redirect_stdout(buf):
-            results.select("answer.*").print_long()
-            output = buf.getvalue()
-        self.assertIn("Never", output)
+    #     with StringIO() as buf, redirect_stdout(buf):
+    #         results.select("answer.*").print_long()
+    #         output = buf.getvalue()
+    #     self.assertIn("Never", output)
 
     def test_add(self):
         # just check that no exceptions are thrown

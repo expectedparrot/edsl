@@ -36,6 +36,10 @@ def is_iterable(obj):
 class AgentList(UserList, Base):
     """A list of Agents."""
 
+    __documentation__ = (
+        "https://docs.expectedparrot.com/en/latest/agents.html#agentlist-class"
+    )
+
     def __init__(self, data: Optional[list["Agent"]] = None):
         """Initialize a new AgentList.
 
@@ -200,7 +204,7 @@ class AgentList(UserList, Base):
         >>> al.add_trait('new_trait', 1)
         AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5, 'new_trait': 1}), Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5, 'new_trait': 1})])
         >>> al.select('new_trait').to_scenario_list().to_list()
-        [1, 1]
+        [(1, None), (1, None)]
         >>> al.add_trait('new_trait', [1, 2, 3])
         Traceback (most recent call last):
         ...
@@ -237,6 +241,7 @@ class AgentList(UserList, Base):
         return dict_hash(self.to_dict(add_edsl_version=False, sorted=True))
 
     def to_dict(self, sorted=False, add_edsl_version=True):
+        """Serialize the AgentList to a dictionary."""
         if sorted:
             data = self.data[:]
             data.sort(key=lambda x: hash(x))
@@ -264,22 +269,48 @@ class AgentList(UserList, Base):
     def __repr__(self):
         return f"AgentList({self.data})"
 
-    def print(self, format: Optional[str] = None):
-        """Print the AgentList."""
-        print_json(json.dumps(self.to_dict(add_edsl_version=False)))
+    def _summary(self):
+        return {
+            "EDSL Class": "AgentList",
+            "Number of agents": len(self),
+            "Agent trait fields": self.all_traits,
+        }
 
     def _repr_html_(self):
         """Return an HTML representation of the AgentList."""
-        from edsl.utilities.utilities import data_to_html
+        footer = f"<a href={self.__documentation__}>(docs)</a>"
+        return str(self.summary(format="html")) + footer
 
-        return data_to_html(self.to_dict()["agent_list"])
+    def to_csv(self, file_path: str):
+        """Save the AgentList to a CSV file.
+
+        :param file_path: The path to the CSV file.
+        """
+        self.to_scenario_list().to_csv(file_path)
 
     def to_scenario_list(self) -> ScenarioList:
         """Return a list of scenarios."""
         from edsl.scenarios.ScenarioList import ScenarioList
         from edsl.scenarios.Scenario import Scenario
 
-        return ScenarioList([Scenario(agent.traits) for agent in self.data])
+        return ScenarioList(
+            [Scenario(agent.traits | {"agent_name": agent.name}) for agent in self.data]
+        )
+
+    def table(
+        self,
+        *fields,
+        tablefmt: Optional[str] = None,
+        pretty_labels: Optional[dict] = None,
+    ) -> Table:
+        return (
+            self.to_scenario_list()
+            .to_dataset()
+            .table(*fields, tablefmt=tablefmt, pretty_labels=pretty_labels)
+        )
+
+    def tree(self, node_order: Optional[List[str]] = None):
+        return self.to_scenario_list().tree(node_order)
 
     @classmethod
     @remove_edsl_version
@@ -315,6 +346,9 @@ class AgentList(UserList, Base):
 
         :param trait_name: The name of the trait.
         :param values: A list of values.
+
+        >>> AgentList.from_list('age', [22, 23])
+        AgentList([Agent(traits = {'age': 22}), Agent(traits = {'age': 23})])
         """
         from edsl.agents.Agent import Agent
 
