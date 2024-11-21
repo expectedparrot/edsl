@@ -31,6 +31,10 @@ class ScenarioListMixin(ScenarioListPdfMixin, ScenarioListExportMixin):
 class ScenarioList(Base, UserList, ScenarioListMixin):
     """Class for creating a list of scenarios to be used in a survey."""
 
+    __documentation__ = (
+        "https://docs.expectedparrot.com/en/latest/scenarios.html#scenariolist"
+    )
+
     def __init__(self, data: Optional[list] = None, codebook: Optional[dict] = None):
         """Initialize the ScenarioList class."""
         if data is not None:
@@ -282,20 +286,28 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         random.shuffle(self.data)
         return self
 
-    def _repr_html_(self) -> str:
-        from edsl.utilities.utilities import data_to_html
+    def _repr_html_(self):
+        """Return an HTML representation of the AgentList."""
+        # return (
+        #     str(self.summary(format="html")) + "<br>" + str(self.table(tablefmt="html"))
+        # )
+        footer = f"<a href={self.__documentation__}>(docs)</a>"
+        return str(self.summary(format="html")) + footer
 
-        data = self.to_dict()
-        _ = data.pop("edsl_version")
-        _ = data.pop("edsl_class_name")
-        for s in data["scenarios"]:
-            _ = s.pop("edsl_version")
-            _ = s.pop("edsl_class_name")
-        for scenario in data["scenarios"]:
-            for key, value in scenario.items():
-                if hasattr(value, "to_dict"):
-                    data[key] = value.to_dict()
-        return data_to_html(data)
+    # def _repr_html_(self) -> str:
+    # from edsl.utilities.utilities import data_to_html
+
+    # data = self.to_dict()
+    # _ = data.pop("edsl_version")
+    # _ = data.pop("edsl_class_name")
+    # for s in data["scenarios"]:
+    #     _ = s.pop("edsl_version")
+    #     _ = s.pop("edsl_class_name")
+    # for scenario in data["scenarios"]:
+    #     for key, value in scenario.items():
+    #         if hasattr(value, "to_dict"):
+    #             data[key] = value.to_dict()
+    # return data_to_html(data)
 
     def tally(self, field) -> dict:
         """Return a tally of the values in the field.
@@ -563,6 +575,32 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         if not func:
             func = lambda x: x
         return cls([Scenario({name: func(value)}) for value in values])
+
+    def table(self, *fields, tablefmt=None, pretty_labels=None) -> str:
+        """Return the ScenarioList as a table."""
+
+        from tabulate import tabulate_formats
+
+        if tablefmt is not None and tablefmt not in tabulate_formats:
+            raise ValueError(
+                f"Invalid table format: {tablefmt}",
+                f"Valid formats are: {tabulate_formats}",
+            )
+        return self.to_dataset().table(
+            *fields, tablefmt=tablefmt, pretty_labels=pretty_labels
+        )
+
+    def tree(self, node_list: Optional[List[str]] = None) -> str:
+        """Return the ScenarioList as a tree."""
+        return self.to_dataset().tree(node_list)
+
+    def _summary(self):
+        d = {
+            "EDSL Class name": "ScenarioList",
+            "# Scenarios": len(self),
+            "Scenario Keys": list(self.parameters),
+        }
+        return d
 
     def to_dataset(self) -> "Dataset":
         """

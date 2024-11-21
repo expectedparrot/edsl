@@ -9,37 +9,46 @@ from uuid import UUID
 
 # from edsl.utilities.MethodSuggesterMixin import MethodSuggesterMixin
 
+from edsl.utilities.utilities import is_notebook
+
 
 class RichPrintingMixin:
-    """Mixin for rich printing and persistence of objects."""
+    pass
 
-    def _for_console(self):
-        """Return a string representation of the object for console printing."""
-        from rich.console import Console
+    # def print(self):
+    #     print(self)
 
-        with io.StringIO() as buf:
-            console = Console(file=buf, record=True)
-            table = self.rich_print()
-            console.print(table)
-            return console.export_text()
 
-    def __str__(self):
-        """Return a string representation of the object for console printing."""
-        return self._for_console()
+#     """Mixin for rich printing and persistence of objects."""
 
-    def print(self):
-        """Print the object to the console."""
-        from edsl.utilities.utilities import is_notebook
+#     def _for_console(self):
+#         """Return a string representation of the object for console printing."""
+#         from rich.console import Console
 
-        if is_notebook():
-            from IPython.display import display
+#         with io.StringIO() as buf:
+#             console = Console(file=buf, record=True)
+#             table = self.rich_print()
+#             console.print(table)
+#             return console.export_text()
 
-            display(self.rich_print())
-        else:
-            from rich.console import Console
+#     def __str__(self):
+#         """Return a string representation of the object for console printing."""
+#         # return self._for_console()
+#         return self.__repr__()
 
-            console = Console()
-            console.print(self.rich_print())
+#     def print(self):
+#         """Print the object to the console."""
+#         from edsl.utilities.utilities import is_notebook
+
+#         if is_notebook():
+#             from IPython.display import display
+
+#             display(self.rich_print())
+#         else:
+#             from rich.console import Console
+
+#             console = Console()
+#             console.print(self.rich_print())
 
 
 class PersistenceMixin:
@@ -201,7 +210,7 @@ class DiffMethodsMixin:
 
 
 class Base(
-    RichPrintingMixin,
+    # RichPrintingMixin,
     PersistenceMixin,
     DiffMethodsMixin,
     ABC,
@@ -209,16 +218,36 @@ class Base(
 ):
     """Base class for all classes in the package."""
 
-    # def __getitem__(self, key):
-    #     return getattr(self, key)
+    def json(self):
+        return json.loads(json.dumps(self.to_dict(add_edsl_version=False)))
 
-    # @abstractmethod
-    # def _repr_html_(self) -> str:
-    #     raise NotImplementedError("This method is not implemented yet.")
+    def print(self, **kwargs):
+        if "format" in kwargs:
+            if kwargs["format"] not in ["html", "markdown", "rich", "latex"]:
+                raise ValueError(f"Format '{kwargs['format']}' not supported.")
 
-    # @abstractmethod
-    # def _repr_(self) -> str:
-    #     raise NotImplementedError("This method is not implemented yet.")
+        if hasattr(self, "table"):
+            return self.table()
+        else:
+            return self
+
+    def __str__(self):
+        return self.__repr__()
+
+    def summary(self, format="table"):
+        from edsl import Scenario
+
+        d = self._summary()
+        if format == "table":
+            return Scenario(d).table()
+        if format == "dict":
+            return d
+        if format == "json":
+            return Scenario(d).json()
+        if format == "yaml":
+            return Scenario(d).yaml()
+        if format == "html":
+            return Scenario(d).table(tablefmt="html")
 
     def keys(self):
         """Return the keys of the object."""

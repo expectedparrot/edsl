@@ -24,6 +24,8 @@ class Jobs(Base):
     The `JobsRunner` is chosen by the user, and is stored in the `jobs_runner_name` attribute.
     """
 
+    __documentation__ = "https://docs.expectedparrot.com/en/latest/jobs.html"
+
     def __init__(
         self,
         survey: "Survey",
@@ -213,11 +215,14 @@ class Jobs(Base):
     def show_prompts(self, all=False, max_rows: Optional[int] = None) -> None:
         """Print the prompts."""
         if all:
-            self.prompts().to_scenario_list().print(format="rich", max_rows=max_rows)
+            return (
+                self.prompts().to_scenario_list().table()
+            )  # print(format="rich", max_rows=max_rows)
         else:
-            self.prompts().select(
-                "user_prompt", "system_prompt"
-            ).to_scenario_list().print(format="rich", max_rows=max_rows)
+            return (
+                self.prompts().to_scenario_list().table("user_prompt", "system_prompt")
+            )
+            # ).to_scenario_list().#print(format="rich", max_rows=max_rows)
 
     @staticmethod
     def estimate_prompt_cost(
@@ -1162,11 +1167,18 @@ class Jobs(Base):
         """Return an eval-able string representation of the Jobs instance."""
         return f"Jobs(survey={repr(self.survey)}, agents={repr(self.agents)}, models={repr(self.models)}, scenarios={repr(self.scenarios)})"
 
-    def _repr_html_(self) -> str:
-        from rich import print_json
-        import json
+    def _summary(self):
+        return {
+            "EDSL Class": "Jobs",
+            "Number of questions": len(self.survey),
+            "Number of agents": len(self.agents),
+            "Number of models": len(self.models),
+            "Number of scenarios": len(self.scenarios),
+        }
 
-        print_json(json.dumps(self.to_dict()))
+    def _repr_html_(self) -> str:
+        footer = f"<a href={self.__documentation__}>(docs)</a>"
+        return str(self.summary(format="html")) + footer
 
     def __len__(self) -> int:
         """Return the maximum number of questions that will be asked while running this job.

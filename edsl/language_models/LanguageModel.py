@@ -212,9 +212,19 @@ class LanguageModel(
         return getattr(self, key)
 
     def _repr_html_(self):
-        from edsl.utilities.utilities import data_to_html
+        # d = self.to_dict(add_edsl_version=False)
+        # d = self.to_dict(add_edsl_version=False)
+        d = {"model": self.model}
+        d.update(self.parameters)
+        data = [[k, v] for k, v in d.items()]
+        from tabulate import tabulate
 
-        return data_to_html(self.to_dict())
+        table = str(tabulate(data, headers=["keys", "values"], tablefmt="html"))
+        return f"<pre>{table}</pre>"
+
+    # def _repr_html_(self):
+    # from edsl.utilities.utilities import data_to_html
+    # return data_to_html(self.to_dict())
 
     def hello(self, verbose=False):
         """Runs a simple test to check if the model is working."""

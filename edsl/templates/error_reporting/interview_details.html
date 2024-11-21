@@ -40,11 +40,11 @@
             </tr>
             <tr>
                 <td>Scenario</td>
-                <td>{{ interview.scenario._repr_html_() }}</td>
+                <td>{{ interview.scenario.__repr__() }}</td>
             </tr>
             <tr>
                 <td>Agent</td>
-                <td>{{ interview.agent._repr_html_() }}</td>
+                <td>{{ interview.agent.__repr__() }}</td>
             </tr>
             <tr>
                 <td>Model name</td>
@@ -56,7 +56,7 @@
             </tr>
             <tr>
                 <td>Model parameters</td>
-                <td>{{ interview.model._repr_html_() }}</td>
+                <td>{{ interview.model.__repr__() }}</td>
             </tr>
             <tr>
                 <td>User Prompt</td>
