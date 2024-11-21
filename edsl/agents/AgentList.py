@@ -72,6 +72,9 @@ class AgentList(UserList, Base):
         random.seed(seed)
         return AgentList(random.sample(self.data, n))
 
+    def tally(self):
+        return self.to_scenario_list().tally()
+
     def rename(self, old_name, new_name):
         """Rename a trait in the AgentList.
 
@@ -204,7 +207,7 @@ class AgentList(UserList, Base):
         >>> al.add_trait('new_trait', 1)
         AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5, 'new_trait': 1}), Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5, 'new_trait': 1})])
         >>> al.select('new_trait').to_scenario_list().to_list()
-        [(1, None), (1, None)]
+        [1, 1]
         >>> al.add_trait('new_trait', [1, 2, 3])
         Traceback (most recent call last):
         ...
