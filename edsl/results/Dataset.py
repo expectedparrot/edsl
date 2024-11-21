@@ -312,15 +312,14 @@ class Dataset(UserList, ResultsExportMixin):
 
         return Dataset(new_data)
 
-    @property
-    def tree(self):
+    def tree(self, node_order: Optional[list[str]] = None) -> Tree:
         """Return a tree representation of the dataset.
 
         >>> d = Dataset([{'a':[1,2,3,4]}, {'b':[4,3,2,1]}])
-        >>> d.tree.print_tree()
-        Tree has not been constructed yet.
+        >>> d.tree()
+        Tree(Dataset({'a': [1, 2, 3, 4], 'b': [4, 3, 2, 1]}))
         """
-        return Tree(self)
+        return Tree(self, node_order=node_order)
 
     def table(
         self,
