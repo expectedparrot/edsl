@@ -288,14 +288,23 @@ class AgentList(UserList, Base):
         """
         self.to_scenario_list().to_csv(file_path)
 
-    def to_scenario_list(self) -> ScenarioList:
+    def to_list(self, include_agent_name=False) -> list[tuple]:
+        """Return a list of tuples."""
+        return self.to_scenario_list(include_agent_name).to_list()
+
+    def to_scenario_list(self, include_agent_name=False) -> ScenarioList:
         """Return a list of scenarios."""
         from edsl.scenarios.ScenarioList import ScenarioList
         from edsl.scenarios.Scenario import Scenario
 
-        return ScenarioList(
-            [Scenario(agent.traits | {"agent_name": agent.name}) for agent in self.data]
-        )
+        if include_agent_name:
+            return ScenarioList(
+                [
+                    Scenario(agent.traits | {"agent_name": agent.name})
+                    for agent in self.data
+                ]
+            )
+        return ScenarioList([Scenario(agent.traits) for agent in self.data])
 
     def table(
         self,
