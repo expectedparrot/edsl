@@ -73,6 +73,17 @@ class TableDisplay:
     def to_csv(self, filename: str):
         self.raw_data_set.to_csv(filename)
 
+    def write(self, filename: str):
+        # pass
+        if self.tablefmt is None:
+            table = tabulate(self.data, headers=self.headers, tablefmt="simple")
+        else:
+            table = tabulate(self.data, headers=self.headers, tablefmt=self.tablefmt)
+
+        with open(filename, "w") as file:
+            print("Writing table to", filename)
+            file.write(table)
+
     def to_pandas(self):
         return self.raw_data_set.to_pandas()
 
