@@ -46,8 +46,13 @@ class Dataset(UserList, ResultsExportMixin):
         """Return a string representation of the dataset."""
         return f"Dataset({self.data})"
 
+    def write(self, filename: str, tablefmt: Optional[str] = None) -> None:
+        return self.table(tablefmt=tablefmt).write(filename)
+
     def _repr_html_(self):
+        # headers, data = self._tabular()
         return self.table()._repr_html_()
+        # return TableDisplay(headers=headers, data=data, raw_data_set=self)
 
     def _tabular(self) -> tuple[list[str], list[list[Any]]]:
         # Extract headers
@@ -325,6 +330,17 @@ class Dataset(UserList, ResultsExportMixin):
     ):
 
         headers, data = self._tabular()
+
+        if tablefmt is not None:
+            from tabulate import tabulate_formats
+
+            if tablefmt not in tabulate_formats:
+                print(
+                    f"Error: The following table format is not supported: {tablefmt}",
+                    file=sys.stderr,
+                )
+                print(f"\nAvailable formats are: {tabulate_formats}", file=sys.stderr)
+                return None
 
         if max_rows:
             if len(data) < max_rows:
