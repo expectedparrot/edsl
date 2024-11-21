@@ -54,6 +54,19 @@ class ModelList(Base, UserList):
 
         return dict_hash(self.to_dict(sort=True, add_edsl_version=False))
 
+    def to_scenario_list(self):
+        from edsl import ScenarioList, Scenario
+
+        sl = ScenarioList()
+        for model in self:
+            d = {"model": model.model}
+            d.update(model.parameters)
+            sl.append(Scenario(d))
+        return sl
+
+    def table(self, *fields, tablefmt: Optional[str] = None):
+        return self.to_scenario_list().table(*fields, tablefmt=tablefmt)
+
     def to_dict(self, sort=False, add_edsl_version=True):
         if sort:
             model_list = sorted([model for model in self], key=lambda x: hash(x))

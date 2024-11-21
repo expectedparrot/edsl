@@ -576,7 +576,16 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             func = lambda x: x
         return cls([Scenario({name: func(value)}) for value in values])
 
-    def table(self, *fields, tablefmt="simple") -> str:
+    def table(self, *fields, tablefmt=None) -> str:
+        """Return the ScenarioList as a table."""
+
+        from tabulate import tabulate_formats
+
+        if tablefmt is not None and tablefmt not in tabulate_formats:
+            raise ValueError(
+                f"Invalid table format: {tablefmt}",
+                f"Valid formats are: {tabulate_formats}",
+            )
         return self.to_dataset().table(*fields, tablefmt=tablefmt)
 
     def _summary(self):
