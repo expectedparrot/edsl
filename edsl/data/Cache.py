@@ -423,6 +423,9 @@ class Cache(Base):
     def table(self, *fields, tablefmt: Optional[str] = None) -> str:
         return self.to_dataset().table(*fields, tablefmt=tablefmt)
 
+    def tree(self, node_list: Optional[list[str]] = None):
+        return self.to_scenario_list().tree(node_list)
+
     def to_dataset(self):
         return self.to_scenario_list().to_dataset()
 

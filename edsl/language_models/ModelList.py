@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from collections import UserList
 from edsl import Model
 
@@ -63,6 +63,9 @@ class ModelList(Base, UserList):
             d.update(model.parameters)
             sl.append(Scenario(d))
         return sl
+
+    def tree(self, node_list: Optional[List[str]] = None):
+        return self.to_scenario_list().tree(node_list)
 
     def table(self, *fields, tablefmt: Optional[str] = None):
         return self.to_scenario_list().table(*fields, tablefmt=tablefmt)
