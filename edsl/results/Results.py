@@ -280,18 +280,19 @@ class Results(UserList, Mixins, Base):
 
         return f"Results(data = {reprlib.repr(self.data)}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
 
-    def table(self, selector_string: Optional[str] = "*.*", *fields):
+    def table(
+        self,
+        selector_string: Optional[str] = "*.*",
+        *fields,
+        tablefmt: Optional[str] = None,
+    ):
         return (
             self.select(f"{selector_string}")
             .to_scenario_list()
-            .table(*fields)  # , tablefmt="html")
+            .table(*fields, tablefmt=tablefmt)
         )
 
     def _repr_html_(self) -> str:
-        # from IPython.display import HTML
-
-        # json_str = json.dumps(self.to_dict(add_edsl_version=False)["data"], indent=4)
-        # return f"<pre>{json_str}</pre>"
         d = self._summary()
         from edsl import Scenario
 
@@ -300,7 +301,6 @@ class Results(UserList, Mixins, Base):
         s = Scenario(d)
         td = s.to_dataset().table(tablefmt="html")
         return td._repr_html_() + footer
-        # return str(self.summary(format="html")) + footer
 
     def to_dict(self, sort=False, add_edsl_version=False) -> dict[str, Any]:
         from edsl.data.Cache import Cache

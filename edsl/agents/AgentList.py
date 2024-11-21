@@ -276,23 +276,10 @@ class AgentList(UserList, Base):
             "Agent trait fields": self.all_traits,
         }
 
-    # def print(self, format: Optional[str] = None):
-    #     """Print the AgentList."""
-    # print_json(json.dumps(self.to_dict(add_edsl_version=False)))
-
     def _repr_html_(self):
         """Return an HTML representation of the AgentList."""
-        # return (
-        #     str(self.summary(format="html")) + "<br>" + str(self.table(tablefmt="html"))
-        # )
         footer = f"<a href={self.__documentation__}>(docs)</a>"
         return str(self.summary(format="html")) + footer
-
-    # def _repr_html_(self):
-    #     """Return an HTML representation of the AgentList."""
-    #     from edsl.utilities.utilities import data_to_html
-
-    #     return data_to_html(self.to_dict()["agent_list"])
 
     def to_csv(self, file_path: str):
         """Save the AgentList to a CSV file.
@@ -308,8 +295,8 @@ class AgentList(UserList, Base):
 
         return ScenarioList([Scenario(agent.traits) for agent in self.data])
 
-    def table(self, *fields, tablefmt="plain") -> Table:
-        return self.to_scenario_list().to_dataset().table(*fields, tablefmt=tablefmt)
+    def table(self, *fields, tablefmt: Optional[str] = None) -> Table:
+        return self.to_scenario_list().table(*fields, tablefmt=tablefmt)
 
     @classmethod
     @remove_edsl_version
