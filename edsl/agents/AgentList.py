@@ -293,10 +293,15 @@ class AgentList(UserList, Base):
         from edsl.scenarios.ScenarioList import ScenarioList
         from edsl.scenarios.Scenario import Scenario
 
-        return ScenarioList([Scenario(agent.traits) for agent in self.data])
+        return ScenarioList(
+            [Scenario(agent.traits | {"agent_name": agent.name}) for agent in self.data]
+        )
 
     def table(self, *fields, tablefmt: Optional[str] = None) -> Table:
         return self.to_scenario_list().table(*fields, tablefmt=tablefmt)
+
+    def tree(self, node_order: Optional[List[str]] = None):
+        return self.to_scenario_list().tree(node_order)
 
     @classmethod
     @remove_edsl_version

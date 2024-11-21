@@ -1600,6 +1600,9 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         footer = f"<a href={self.__documentation__}>(docs)</a>"
         return str(self.summary(format="html")) + footer
 
+    def tree(self, node_list: Optional[List[str]] = None):
+        return self.to_scenario_list().tree(node_list=node_list)
+
     def table(self, *fields, tablefmt=None) -> Table:
         return self.to_scenario_list().to_dataset().table(*fields, tablefmt=tablefmt)
 

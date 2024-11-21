@@ -147,7 +147,10 @@ class Results(UserList, Mixins, Base):
             leaves.extend(result.leaves())
         return leaves
 
-    def tree(
+    def tree(self, node_list: Optional[List[str]] = None):
+        return self.to_scenario_list().tree(node_list)
+
+    def interactive_tree(
         self,
         fold_attributes: Optional[List[str]] = None,
         drop: Optional[List[str]] = None,
@@ -282,15 +285,41 @@ class Results(UserList, Mixins, Base):
 
     def table(
         self,
-        selector_string: Optional[str] = "*.*",
+        # selector_string: Optional[str] = "*.*",
         *fields,
         tablefmt: Optional[str] = None,
+        pretty_labels: Optional[dict] = None,
     ):
+        new_fields = []
+        for field in fields:
+            if "." in field:
+                data_type, key = field.split(".")
+                if data_type not in self.known_data_types:
+                    raise ResultsInvalidNameError(
+                        f"{data_type} is not a valid data type. Must be in {self.known_data_types}"
+                    )
+                if key == "*":
+                    for k in self._data_type_to_keys[data_type]:
+                        new_fields.append(k)
+                else:
+                    if key not in self._key_to_data_type:
+                        raise ResultsColumnNotFoundError(
+                            f"{key} is not a valid key. Must be in {self._key_to_data_type}"
+                        )
+                    new_fields.append(key)
+            else:
+                new_fields.append(field)
+
         return (
-            self.select(f"{selector_string}")
-            .to_scenario_list()
-            .table(*fields, tablefmt=tablefmt)
+            self.to_scenario_list()
+            .to_dataset()
+            .table(*new_fields, tablefmt=tablefmt, pretty_labels=pretty_labels)
         )
+        # return (
+        #     self.select(f"{selector_string}")
+        #     .to_scenario_list()
+        #     .table(*fields, tablefmt=tablefmt)
+        # )
 
     def _repr_html_(self) -> str:
         d = self._summary()

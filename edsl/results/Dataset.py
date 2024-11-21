@@ -326,7 +326,15 @@ class Dataset(UserList, ResultsExportMixin):
         *fields,
         tablefmt: Optional[str] = None,
         max_rows: Optional[int] = None,
+        pretty_labels=None,
     ):
+        if pretty_labels is not None:
+            new_fields = []
+            for field in fields:
+                new_fields.append(pretty_labels.get(field, field))
+            return self.rename(pretty_labels).table(
+                *new_fields, tablefmt=tablefmt, max_rows=max_rows
+            )
 
         headers, data = self._tabular()
 

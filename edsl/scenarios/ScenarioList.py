@@ -576,7 +576,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             func = lambda x: x
         return cls([Scenario({name: func(value)}) for value in values])
 
-    def table(self, *fields, tablefmt=None) -> str:
+    def table(self, *fields, tablefmt=None, pretty_labels=None) -> str:
         """Return the ScenarioList as a table."""
 
         from tabulate import tabulate_formats
@@ -586,7 +586,13 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
                 f"Invalid table format: {tablefmt}",
                 f"Valid formats are: {tabulate_formats}",
             )
-        return self.to_dataset().table(*fields, tablefmt=tablefmt)
+        return self.to_dataset().table(
+            *fields, tablefmt=tablefmt, pretty_labels=pretty_labels
+        )
+
+    def tree(self, node_list: Optional[List[str]] = None) -> str:
+        """Return the ScenarioList as a tree."""
+        return self.to_dataset().tree(node_list)
 
     def _summary(self):
         d = {
