@@ -420,8 +420,15 @@ class Cache(Base):
         footer = f"<a href={self.__documentation__}>(docs)</a>"
         return str(self.summary(format="html")) + footer
 
-    def table(self, *fields, tablefmt: Optional[str] = None) -> str:
-        return self.to_dataset().table(*fields, tablefmt=tablefmt)
+    def table(
+        self,
+        *fields,
+        tablefmt: Optional[str] = None,
+        pretty_labels: Optional[dict] = None,
+    ) -> str:
+        return self.to_dataset().table(
+            *fields, tablefmt=tablefmt, pretty_labels=pretty_labels
+        )
 
     def tree(self, node_list: Optional[list[str]] = None):
         return self.to_scenario_list().tree(node_list)

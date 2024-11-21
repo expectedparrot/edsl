@@ -204,7 +204,7 @@ class AgentList(UserList, Base):
         >>> al.add_trait('new_trait', 1)
         AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5, 'new_trait': 1}), Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5, 'new_trait': 1})])
         >>> al.select('new_trait').to_scenario_list().to_list()
-        [1, 1]
+        [(1, None), (1, None)]
         >>> al.add_trait('new_trait', [1, 2, 3])
         Traceback (most recent call last):
         ...
@@ -297,8 +297,17 @@ class AgentList(UserList, Base):
             [Scenario(agent.traits | {"agent_name": agent.name}) for agent in self.data]
         )
 
-    def table(self, *fields, tablefmt: Optional[str] = None) -> Table:
-        return self.to_scenario_list().table(*fields, tablefmt=tablefmt)
+    def table(
+        self,
+        *fields,
+        tablefmt: Optional[str] = None,
+        pretty_labels: Optional[dict] = None,
+    ) -> Table:
+        return (
+            self.to_scenario_list()
+            .to_dataset()
+            .table(*fields, tablefmt=tablefmt, pretty_labels=pretty_labels)
+        )
 
     def tree(self, node_order: Optional[List[str]] = None):
         return self.to_scenario_list().tree(node_order)

@@ -67,8 +67,25 @@ class ModelList(Base, UserList):
     def tree(self, node_list: Optional[List[str]] = None):
         return self.to_scenario_list().tree(node_list)
 
-    def table(self, *fields, tablefmt: Optional[str] = None):
-        return self.to_scenario_list().table(*fields, tablefmt=tablefmt)
+    def table(
+        self,
+        *fields,
+        tablefmt: Optional[str] = None,
+        pretty_labels: Optional[dict] = None,
+    ):
+        """
+        >>> ModelList.example().table("model")
+        model
+        -------
+        gpt-4o
+        gpt-4o
+        gpt-4o
+        """
+        return (
+            self.to_scenario_list()
+            .to_dataset()
+            .table(*fields, tablefmt=tablefmt, pretty_labels=pretty_labels)
+        )
 
     def to_dict(self, sort=False, add_edsl_version=True):
         if sort:
