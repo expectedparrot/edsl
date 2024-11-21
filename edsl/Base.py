@@ -218,9 +218,10 @@ class Base(
 ):
     """Base class for all classes in the package."""
 
+    def json(self):
+        return json.loads(json.dumps(self.to_dict(add_edsl_version=False)))
+
     def print(self, **kwargs):
-        # raise Exception("This method is deprecated.")
-        # print(self)
         if "format" in kwargs:
             if kwargs["format"] not in ["html", "markdown", "rich", "latex"]:
                 raise ValueError(f"Format '{kwargs['format']}' not supported.")
