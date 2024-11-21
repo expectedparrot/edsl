@@ -5,11 +5,12 @@ import random
 import json
 from collections import UserList
 from typing import Any, Union, Optional
-
+import sys
 import numpy as np
 
 from edsl.results.ResultsExportMixin import ResultsExportMixin
 from edsl.results.DatasetTree import Tree
+from edsl.results.TableDisplay import TableDisplay
 
 
 class Dataset(UserList, ResultsExportMixin):
@@ -32,7 +33,7 @@ class Dataset(UserList, ResultsExportMixin):
         _, values = list(self.data[0].items())[0]
         return len(values)
 
-    def keys(self):
+    def keys(self) -> list[str]:
         """Return the keys of the first observation in the dataset.
 
         >>> d = Dataset([{'a.b':[1,2,3,4]}])
@@ -44,6 +45,38 @@ class Dataset(UserList, ResultsExportMixin):
     def __repr__(self) -> str:
         """Return a string representation of the dataset."""
         return f"Dataset({self.data})"
+
+    def write(self, filename: str, tablefmt: Optional[str] = None) -> None:
+        return self.table(tablefmt=tablefmt).write(filename)
+
+    def _repr_html_(self):
+        # headers, data = self._tabular()
+        return self.table()._repr_html_()
+        # return TableDisplay(headers=headers, data=data, raw_data_set=self)
+
+    def _tabular(self) -> tuple[list[str], list[list[Any]]]:
+        # Extract headers
+        headers = []
+        for entry in self.data:
+            headers.extend(entry.keys())
+        headers = list(dict.fromkeys(headers))  # Ensure unique headers
+
+        # Extract data
+        max_len = max(len(values) for entry in self.data for values in entry.values())
+        rows = []
+        for i in range(max_len):
+            row = []
+            for header in headers:
+                for entry in self.data:
+                    if header in entry:
+                        values = entry[header]
+                        row.append(values[i] if i < len(values) else None)
+                        break
+                else:
+                    row.append(None)  # Default to None if header is missing
+            rows.append(row)
+
+        return headers, rows
 
     def _key_to_value(self, key: str) -> Any:
         """Retrieve the value associated with the given key from the dataset.
@@ -89,7 +122,25 @@ class Dataset(UserList, ResultsExportMixin):
 
         return get_values(self.data[0])[0]
 
-    def select(self, *keys):
+    def print(self, pretty_labels=None, **kwargs):
+        if "format" in kwargs:
+            if kwargs["format"] not in ["html", "markdown", "rich", "latex"]:
+                raise ValueError(f"Format '{kwargs['format']}' not supported.")
+        if pretty_labels is None:
+            pretty_labels = {}
+        else:
+            return self.rename(pretty_labels).print(**kwargs)
+        return self.table()
+
+    def rename(self, rename_dic) -> Dataset:
+        new_data = []
+        for observation in self.data:
+            key, values = list(observation.items())[0]
+            new_key = rename_dic.get(key, key)
+            new_data.append({new_key: values})
+        return Dataset(new_data)
+
+    def select(self, *keys) -> Dataset:
         """Return a new dataset with only the selected keys.
 
         :param keys: The keys to select.
@@ -121,12 +172,6 @@ class Dataset(UserList, ResultsExportMixin):
         return json.loads(
             json.dumps(self.data)
         )  # janky but I want to make sure it's serializable & deserializable
-
-    def _repr_html_(self) -> str:
-        """Return an HTML representation of the dataset."""
-        from edsl.utilities.utilities import data_to_html
-
-        return data_to_html(self.data)
 
     def shuffle(self, seed=None) -> Dataset:
         """Return a new dataset with the observations shuffled.
@@ -267,15 +312,90 @@ class Dataset(UserList, ResultsExportMixin):
 
         return Dataset(new_data)
 
-    @property
-    def tree(self):
+    def tree(self, node_order: Optional[list[str]] = None) -> Tree:
         """Return a tree representation of the dataset.
 
         >>> d = Dataset([{'a':[1,2,3,4]}, {'b':[4,3,2,1]}])
-        >>> d.tree.print_tree()
-        Tree has not been constructed yet.
+        >>> d.tree()
+        Tree(Dataset({'a': [1, 2, 3, 4], 'b': [4, 3, 2, 1]}))
         """
-        return Tree(self)
+        return Tree(self, node_order=node_order)
+
+    def table(
+        self,
+        *fields,
+        tablefmt: Optional[str] = None,
+        max_rows: Optional[int] = None,
+        pretty_labels=None,
+    ):
+        if pretty_labels is not None:
+            new_fields = []
+            for field in fields:
+                new_fields.append(pretty_labels.get(field, field))
+            return self.rename(pretty_labels).table(
+                *new_fields, tablefmt=tablefmt, max_rows=max_rows
+            )
+
+        headers, data = self._tabular()
+
+        if tablefmt is not None:
+            from tabulate import tabulate_formats
+
+            if tablefmt not in tabulate_formats:
+                print(
+                    f"Error: The following table format is not supported: {tablefmt}",
+                    file=sys.stderr,
+                )
+                print(f"\nAvailable formats are: {tabulate_formats}", file=sys.stderr)
+                return None
+
+        if max_rows:
+            if len(data) < max_rows:
+                max_rows = None
+
+        if fields:
+            full_data = data
+            data = []
+            indices = []
+            for field in fields:
+                if field not in headers:
+                    print(
+                        f"Error: The following field was not found: {field}",
+                        file=sys.stderr,
+                    )
+                    print(f"\nAvailable fields are: {headers}", file=sys.stderr)
+
+                    # Optional: Suggest similar fields using difflib
+                    import difflib
+
+                    matches = difflib.get_close_matches(field, headers)
+                    if matches:
+                        print(f"\nDid you mean: {matches[0]} ?", file=sys.stderr)
+                    return None
+                indices.append(headers.index(field))
+            headers = fields
+            for row in full_data:
+                data.append([row[i] for i in indices])
+
+        if max_rows is not None:
+            if max_rows > len(data):
+                raise ValueError(
+                    "max_rows cannot be greater than the number of rows in the dataset."
+                )
+            last_line = data[-1]
+            spaces = len(data[max_rows])
+            filler_line = ["." for i in range(spaces)]
+            # breakpoint()
+            data = data[:max_rows]
+            data.append(filler_line)
+            data.append(last_line)
+
+        return TableDisplay(
+            data=data, headers=headers, tablefmt=tablefmt, raw_data_set=self
+        )
+
+    def summary(self):
+        return Dataset([{"num_observations": [len(self)], "keys": [self.keys()]}])
 
     @classmethod
     def example(self):

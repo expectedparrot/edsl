@@ -73,6 +73,8 @@ class Results(UserList, Mixins, Base):
     It also has a list of created_columns, which are columns that have been created with `mutate` and are not part of the original data.
     """
 
+    __documentation__ = "https://docs.expectedparrot.com/en/latest/results.html"
+
     known_data_types = [
         "answer",
         "scenario",
@@ -121,13 +123,34 @@ class Results(UserList, Mixins, Base):
         if hasattr(self, "_add_output_functions"):
             self._add_output_functions()
 
+    def _summary(self) -> dict:
+        import reprlib
+
+        # import yaml
+
+        d = {
+            "EDSL Class": "Results",
+            # "docs_url": self.__documentation__,
+            "# of agents": len(set(self.agents)),
+            "# of distinct models": len(set(self.models)),
+            "# of observations": len(self),
+            "# Scenarios": len(set(self.scenarios)),
+            "Survey Length (# questions)": len(self.survey),
+            "Survey question names": reprlib.repr(self.survey.question_names),
+            "Object hash": hash(self),
+        }
+        return d
+
     def leaves(self):
         leaves = []
         for result in self:
             leaves.extend(result.leaves())
         return leaves
 
-    def tree(
+    def tree(self, node_list: Optional[List[str]] = None):
+        return self.to_scenario_list().tree(node_list)
+
+    def interactive_tree(
         self,
         fold_attributes: Optional[List[str]] = None,
         drop: Optional[List[str]] = None,
@@ -260,11 +283,53 @@ class Results(UserList, Mixins, Base):
 
         return f"Results(data = {reprlib.repr(self.data)}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
 
-    def _repr_html_(self) -> str:
-        # from IPython.display import HTML
+    def table(
+        self,
+        # selector_string: Optional[str] = "*.*",
+        *fields,
+        tablefmt: Optional[str] = None,
+        pretty_labels: Optional[dict] = None,
+    ):
+        new_fields = []
+        for field in fields:
+            if "." in field:
+                data_type, key = field.split(".")
+                if data_type not in self.known_data_types:
+                    raise ResultsInvalidNameError(
+                        f"{data_type} is not a valid data type. Must be in {self.known_data_types}"
+                    )
+                if key == "*":
+                    for k in self._data_type_to_keys[data_type]:
+                        new_fields.append(k)
+                else:
+                    if key not in self._key_to_data_type:
+                        raise ResultsColumnNotFoundError(
+                            f"{key} is not a valid key. Must be in {self._key_to_data_type}"
+                        )
+                    new_fields.append(key)
+            else:
+                new_fields.append(field)
 
-        json_str = json.dumps(self.to_dict(add_edsl_version=False)["data"], indent=4)
-        return f"<pre>{json_str}</pre>"
+        return (
+            self.to_scenario_list()
+            .to_dataset()
+            .table(*new_fields, tablefmt=tablefmt, pretty_labels=pretty_labels)
+        )
+        # return (
+        #     self.select(f"{selector_string}")
+        #     .to_scenario_list()
+        #     .table(*fields, tablefmt=tablefmt)
+        # )
+
+    def _repr_html_(self) -> str:
+        d = self._summary()
+        from edsl import Scenario
+
+        footer = f"<a href={self.__documentation__}>(docs)</a>"
+
+        s = Scenario(d)
+        td = s.to_dataset().table(tablefmt="html")
+        return td._repr_html_() + footer
 
     def to_dict(self, sort=False, add_edsl_version=False) -> dict[str, Any]:
         from edsl.data.Cache import Cache
@@ -875,31 +940,19 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.sort_by('how_feeling', reverse=False).select('how_feeling').print()
-        ┏━━━━━━━━━━━━━━┓
-        ┃ answer       ┃
-        ┃ .how_feeling ┃
-        ┡━━━━━━━━━━━━━━┩
-        │ Great        │
-        ├──────────────┤
-        │ OK           │
-        ├──────────────┤
-        │ OK           │
-        ├──────────────┤
-        │ Terrible     │
-        └──────────────┘
+        answer.how_feeling
+        --------------------
+        Great
+        OK
+        OK
+        Terrible
         >>> r.sort_by('how_feeling', reverse=True).select('how_feeling').print()
-        ┏━━━━━━━━━━━━━━┓
-        ┃ answer       ┃
-        ┃ .how_feeling ┃
-        ┡━━━━━━━━━━━━━━┩
-        │ Terrible     │
-        ├──────────────┤
-        │ OK           │
-        ├──────────────┤
-        │ OK           │
-        ├──────────────┤
-        │ Great        │
-        └──────────────┘
+        answer.how_feeling
+        --------------------
+        Terrible
+        OK
+        OK
+        Great
         """
 
         def to_numeric_if_possible(v):
@@ -932,12 +985,9 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.filter("how_feeling == 'Great'").select('how_feeling').print()
-        ┏━━━━━━━━━━━━━━┓
-        ┃ answer       ┃
-        ┃ .how_feeling ┃
-        ┡━━━━━━━━━━━━━━┩
-        │ Great        │
-        └──────────────┘
+        answer.how_feeling
+        --------------------
+        Great
 
         Example usage: Using an OR operator in the filter expression.
 
@@ -948,14 +998,10 @@ class Results(UserList, Mixins, Base):
         ...
 
         >>> r.filter("how_feeling == 'Great' or how_feeling == 'Terrible'").select('how_feeling').print()
-        ┏━━━━━━━━━━━━━━┓
-        ┃ answer       ┃
-        ┃ .how_feeling ┃
-        ┡━━━━━━━━━━━━━━┩
-        │ Great        │
-        ├──────────────┤
-        │ Terrible     │
-        └──────────────┘
+        answer.how_feeling
+        --------------------
+        Great
+        Terrible
         """
 
         def has_single_equals(string):

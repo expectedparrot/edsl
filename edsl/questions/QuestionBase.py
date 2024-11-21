@@ -263,12 +263,9 @@ class QuestionBase(
         >>> m.execute_model_call("", "")
         {'message': [{'text': "Yo, what's up?"}], 'usage': {'prompt_tokens': 1, 'completion_tokens': 1}}
         >>> Q.run_example(show_answer = True, model = m, disable_remote_cache = True, disable_remote_inference = True)
-        ┏━━━━━━━━━━━━━━━━┓
-        ┃ answer         ┃
-        ┃ .how_are_you   ┃
-        ┡━━━━━━━━━━━━━━━━┩
-        │ Yo, what's up? │
-        └────────────────┘
+        answer.how_are_you
+        --------------------
+        Yo, what's up?
         """
         if model is None:
             from edsl import Model
@@ -284,7 +281,7 @@ class QuestionBase(
             )
         )
         if show_answer:
-            results.select("answer.*").print()
+            return results.select("answer.*").print()
         else:
             return results
 
@@ -362,16 +359,22 @@ class QuestionBase(
 
     # region: Magic methods
     def _repr_html_(self):
-        from edsl.utilities.utilities import data_to_html
+        # from edsl.utilities.utilities import data_to_html
 
-        data = self.to_dict()
-        try:
-            _ = data.pop("edsl_version")
-            _ = data.pop("edsl_class_name")
-        except KeyError:
-            print("Serialized question lacks edsl version, but is should have it.")
+        data = self.to_dict(add_edsl_version=False)
+        # keys = list(data.keys())
+        # values = list(data.values())
+        from tabulate import tabulate
 
-        return data_to_html(data)
+        return tabulate(data.items(), headers=["keys", "values"], tablefmt="html")
+
+        # try:
+        #     _ = data.pop("edsl_version")
+        #     _ = data.pop("edsl_class_name")
+        # except KeyError:
+        #     print("Serialized question lacks edsl version, but is should have it.")
+
+        # return data_to_html(data)
 
     def __getitem__(self, key: str) -> Any:
         """Get an attribute of the question so it can be treated like a dictionary.

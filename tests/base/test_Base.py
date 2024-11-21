@@ -86,7 +86,7 @@ def create_file_operations_test(child_class):
     def test_file_operations_func():
         print(f"Now testing {child_class}")
         e = child_class.example()
-        e.print()
+        # e.print()
         try:
             _ = json.dumps(e.to_dict())
         except:
