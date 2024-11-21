@@ -18,6 +18,18 @@ class Instruction:
     def __repr__(self):
         return """Instruction(name="{}", text="{}")""".format(self.name, self.text)
 
+    def _repr_html_(self):
+        d = self.to_dict(add_edsl_version=False)
+        data = [[k, v] for k, v in d.items()]
+        from tabulate import tabulate
+
+        table = str(tabulate(data, headers=["keys", "values"], tablefmt="html"))
+        return f"<pre>{table}</pre>"
+
+    @classmethod
+    def example(cls) -> "Instruction":
+        return cls(name="example", text="This is an example instruction.")
+
     def to_dict(self, add_edsl_version=True):
         d = {
             "name": self.name,

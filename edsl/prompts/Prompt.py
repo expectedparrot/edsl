@@ -29,9 +29,14 @@ class Prompt(PersistenceMixin, RichPrintingMixin):
 
     def _repr_html_(self):
         """Return an HTML representation of the Prompt."""
-        from edsl.utilities.utilities import data_to_html
+        # from edsl.utilities.utilities import data_to_html
+        # return data_to_html(self.to_dict())
+        d = self.to_dict()
+        data = [[k, v] for k, v in d.items()]
+        from tabulate import tabulate
 
-        return data_to_html(self.to_dict())
+        table = str(tabulate(data, headers=["keys", "values"], tablefmt="html"))
+        return f"<pre>{table}</pre>"
 
     def __len__(self):
         """Return the length of the prompt text."""

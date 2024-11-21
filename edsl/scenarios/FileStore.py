@@ -14,18 +14,87 @@ from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 from edsl.utilities.utilities import is_notebook
 
 
+def view_csv(csv_path):
+    import pandas as pd
+
+    df = pd.read_csv(csv_path)
+    return df
+
+
+def view_html(html_path):
+    import os
+    import subprocess
+    from IPython.display import IFrame, display, HTML
+
+    if os.path.exists(html_path):
+        if is_notebook():
+            # Display the HTML inline in Jupyter Notebook
+            display(IFrame(src=html_path, width=700, height=600))
+            display(
+                HTML(
+                    f'<a href="{html_path}" target="_blank">Open HTML in a new tab</a>'
+                )
+            )
+        else:
+            try:
+                if (os_name := os.name) == "posix":
+                    # Open with the default browser on macOS
+                    subprocess.run(["open", html_path], check=True)
+                elif os_name == "nt":
+                    # Open with the default browser on Windows
+                    os.startfile(html_path)
+                else:
+                    # Open with the default browser on Linux
+                    subprocess.run(["xdg-open", html_path], check=True)
+            except Exception as e:
+                print(f"Error opening HTML file: {e}")
+    else:
+        print("HTML file was not found.")
+
+
+def view_html(html_path):
+    import os
+    from IPython.display import display, HTML
+
+    if is_notebook():
+        with open(html_path, "r") as f:
+            html_content = f.read()
+        display(HTML(html_content))
+    else:
+        if os.path.exists(html_path):
+            try:
+                if (os_name := os.name) == "posix":
+                    subprocess.run(["open", html_path], check=True)
+                elif os_name == "nt":
+                    os.startfile(html_path)
+                else:
+                    subprocess.run(["xdg-open", html_path], check=True)
+            except Exception as e:
+                print(f"Error opening file: {e}")
+        else:
+            print("File was not created successfully.")
+
+
 def view_pdf(pdf_path):
     import os
     import subprocess
+    import os
+    from IPython.display import HTML, display
 
     if is_notebook():
-        from IPython.display import IFrame
-        from IPython.display import display, HTML
+        # Convert to absolute path if needed
+        with open(pdf_path, "rb") as f:
+            base64_pdf = base64.b64encode(f.read()).decode("utf-8")
 
-        # Replace 'path/to/your/file.pdf' with the actual path to your PDF file
-        IFrame(pdf_path, width=700, height=600)
-        display(HTML(f'<a href="{pdf_path}" target="_blank">Open PDF</a>'))
-        return
+        html = f"""
+        <iframe
+            src="data:application/pdf;base64,{base64_pdf}"
+            width="800px"
+            height="800px"
+            type="application/pdf"
+        ></iframe>
+        """
+        display(HTML(html))
 
     if os.path.exists(pdf_path):
         try:
@@ -43,6 +112,9 @@ def view_pdf(pdf_path):
 
 
 class FileStore(Scenario):
+
+    __documentation__ = "https://docs.expectedparrot.com/en/latest/filestore.html"
+
     def __init__(
         self,
         path: Optional[str] = None,
@@ -55,7 +127,10 @@ class FileStore(Scenario):
     ):
         if path is None and "filename" in kwargs:
             path = kwargs["filename"]
-        self.path = path
+
+        self._path = path  # Store the original path privately
+        self._temp_path = None  # Track any generated temporary file
+
         self.suffix = suffix or path.split(".")[-1]
         self.binary = binary or False
         self.mime_type = (
@@ -65,7 +140,7 @@ class FileStore(Scenario):
         self.external_locations = external_locations or {}
         super().__init__(
             {
-                "path": self.path,
+                "path": path,
                 "base64_string": self.base64_string,
                 "binary": self.binary,
                 "suffix": self.suffix,
@@ -74,17 +149,112 @@ class FileStore(Scenario):
             }
         )
 
+    @property
+    def path(self) -> str:
+        """
+        Property that returns a valid path to the file content.
+        If the original path doesn't exist, generates a temporary file from the base64 content.
+        """
+        # Check if original path exists and is accessible
+        if self._path and os.path.isfile(self._path):
+            return self._path
+
+        # If we already have a valid temporary file, use it
+        if self._temp_path and os.path.isfile(self._temp_path):
+            return self._temp_path
+
+        # Generate a new temporary file from base64 content
+        self._temp_path = self.to_tempfile(self.suffix)
+        return self._temp_path
+
     def __str__(self):
         return "FileStore: self.path"
 
     @classmethod
-    def example(self):
+    def example(cls, example_type="text"):
+        import textwrap
         import tempfile
 
-        with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as f:
-            f.write(b"Hello, World!")
+        if example_type == "png" or example_type == "image":
 
-        return self(path=f.name)
+            import importlib.resources
+            from pathlib import Path
+
+            # Get package root directory
+            package_root = Path(__file__).parent.parent.parent
+            logo_path = package_root / "static" / "logo.png"
+            return cls(str(logo_path))
+
+        if example_type == "text":
+            with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as f:
+                f.write(b"Hello, World!")
+
+            return cls(path=f.name)
+
+        elif example_type == "csv":
+            from edsl.results.Results import Results
+
+            r = Results.example()
+
+            with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as f:
+                r.to_csv(filename=f.name)
+            return cls(f.name)
+
+        elif example_type == "pdf":
+            pdf_string = textwrap.dedent(
+                """\
+            %PDF-1.4
+            1 0 obj
+            << /Type /Catalog /Pages 2 0 R >>
+            endobj
+            2 0 obj
+            << /Type /Pages /Kids [3 0 R] /Count 1 >>
+            endobj
+            3 0 obj
+            << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >>
+            endobj
+            4 0 obj
+            << /Length 44 >>
+            stream
+            BT
+            /F1 24 Tf
+            100 700 Td
+            (Hello, World!) Tj
+            ET
+            endstream
+            endobj
+            5 0 obj
+            << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+            endobj
+            6 0 obj
+            << /ProcSet [/PDF /Text] /Font << /F1 5 0 R >> >>
+            endobj
+            xref
+            0 7
+            0000000000 65535 f 
+            0000000010 00000 n 
+            0000000053 00000 n 
+            0000000100 00000 n 
+            0000000173 00000 n 
+            0000000232 00000 n 
+            0000000272 00000 n 
+            trailer
+            << /Size 7 /Root 1 0 R >>
+            startxref
+            318
+            %%EOF"""
+            )
+            with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
+                f.write(pdf_string.encode())
+
+            return cls(f.name)
+
+        elif example_type == "html":
+
+            with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
+                f.write("<html><body><h1>Test</h1></body></html>".encode())
+
+            return cls(f.name)
 
     @property
     def size(self) -> int:
@@ -186,8 +356,15 @@ class FileStore(Scenario):
         return temp_file.name
 
     def view(self, max_size: int = 300) -> None:
+        # with self.open() as f:
+        if self.suffix == "csv":
+            return view_csv(self.path)
+
         if self.suffix == "pdf":
             view_pdf(self.path)
+
+        if self.suffix == "html":
+            view_html(self.path)
 
         if self.suffix == "png" or self.suffix == "jpg" or self.suffix == "jpeg":
             if is_notebook():

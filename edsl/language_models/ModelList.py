@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from collections import UserList
 from edsl import Model
 
@@ -10,6 +10,9 @@ from edsl.utilities.utilities import dict_hash
 
 
 class ModelList(Base, UserList):
+
+    __documentation__ = """https://docs.expectedparrot.com/en/latest/language_models.html#module-edsl.language_models.ModelList"""
+
     def __init__(self, data: Optional[list] = None):
         """Initialize the ScenarioList class.
 
@@ -37,6 +40,9 @@ class ModelList(Base, UserList):
     def __repr__(self):
         return f"ModelList({super().__repr__()})"
 
+    def _summary(self):
+        return {"EDSL Class": "ModelList", "Number of Models": len(self)}
+
     def __hash__(self):
         """Return a hash of the ModelList. This is used for comparison of ModelLists.
 
@@ -47,6 +53,39 @@ class ModelList(Base, UserList):
         from edsl.utilities.utilities import dict_hash
 
         return dict_hash(self.to_dict(sort=True, add_edsl_version=False))
+
+    def to_scenario_list(self):
+        from edsl import ScenarioList, Scenario
+
+        sl = ScenarioList()
+        for model in self:
+            d = {"model": model.model}
+            d.update(model.parameters)
+            sl.append(Scenario(d))
+        return sl
+
+    def tree(self, node_list: Optional[List[str]] = None):
+        return self.to_scenario_list().tree(node_list)
+
+    def table(
+        self,
+        *fields,
+        tablefmt: Optional[str] = None,
+        pretty_labels: Optional[dict] = None,
+    ):
+        """
+        >>> ModelList.example().table("model")
+        model
+        -------
+        gpt-4o
+        gpt-4o
+        gpt-4o
+        """
+        return (
+            self.to_scenario_list()
+            .to_dataset()
+            .table(*fields, tablefmt=tablefmt, pretty_labels=pretty_labels)
+        )
 
     def to_dict(self, sort=False, add_edsl_version=True):
         if sort:
@@ -70,6 +109,11 @@ class ModelList(Base, UserList):
             d["edsl_class_name"] = "ModelList"
 
         return d
+
+    def _repr_html_(self):
+        """Return an HTML representation of the ModelList."""
+        footer = f"<a href={self.__documentation__}>(docs)</a>"
+        return str(self.summary(format="html")) + footer
 
     @classmethod
     def from_names(self, *args, **kwargs):

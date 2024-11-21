@@ -124,10 +124,14 @@ class TaskHistory:
 
     def _repr_html_(self):
         """Return an HTML representation of the TaskHistory."""
-        from edsl.utilities.utilities import data_to_html
+        # from edsl.utilities.utilities import data_to_html
+        # newdata = self.to_dict().get("exceptions", None)
+        # return data_to_html(newdata, replace_new_lines=True)
+        d = self.to_dict(add_edsl_version=False)
+        data = [[k, v] for k, v in d.items()]
+        from tabulate import tabulate
 
-        newdata = self.to_dict()["exceptions"]
-        return data_to_html(newdata, replace_new_lines=True)
+        return tabulate(data, headers=["keys", "values"], tablefmt="html")
 
     def show_exceptions(self, tracebacks=False):
         """Print the exceptions."""
