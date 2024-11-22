@@ -324,7 +324,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         """Return a random sample from the ScenarioList
 
         >>> s = ScenarioList.from_list("a", [1,2,3,4,5,6])
-        >>> s.sample(3)
+        >>> s.sample(3, seed = "edsl")
         ScenarioList([Scenario({'a': 2}), Scenario({'a': 1}), Scenario({'a': 3})])
         """
         if seed:
@@ -986,14 +986,16 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
         Example:
             # For CSV files
+
+            >>> with open('data.csv', 'w') as f:
+            ...     _ = f.write('name,age\\nAlice,30\\nBob,25\\n')
             >>> scenario_list = ScenarioList.from_delimited_file('data.csv')
 
             # For TSV files
-            >>> scenario_list = ScenarioList.from_delimited_file('data.tsv', delimiter='\t')
+            >>> with open('data.tsv', 'w') as f:
+            ...     _ = f.write('name\\tage\\nAlice\t30\\nBob\t25\\n')
+            >>> scenario_list = ScenarioList.from_delimited_file('data.tsv', delimiter='\\t')
 
-            # From URL
-            >>> url = "https://example.com/data.csv"
-            >>> scenario_list = ScenarioList.from_delimited_file(url)
         """
         from edsl.scenarios.Scenario import Scenario
 
