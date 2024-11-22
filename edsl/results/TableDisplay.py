@@ -2,7 +2,7 @@ from tabulate import tabulate
 
 
 class TableDisplay:
-    max_height = 400
+    max_height = 800
 
     html_template = """
     <div style="

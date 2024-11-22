@@ -516,7 +516,14 @@ class DatasetExportMixin:
         from edsl import AgentList, Agent
 
         list_of_dicts = self.to_dicts(remove_prefix=remove_prefix)
-        return AgentList([Agent(d) for d in list_of_dicts])
+        agents = []
+        for d in list_of_dicts:
+            if "name" in d:
+                d["agent_name"] = d.pop("name")
+                agents.append(Agent(d, name=d["agent_name"]))
+            else:
+                agents.append(Agent(d))
+        return AgentList(agents)
 
     def to_dicts(self, remove_prefix: bool = True) -> list[dict]:
         """Convert the results to a list of dictionaries.

@@ -42,6 +42,9 @@ class Dataset(UserList, ResultsExportMixin):
         """
         return [list(o.keys())[0] for o in self]
 
+    def filter(self, expression):
+        return self.to_scenario_list().filter(expression).to_dataset()
+
     def __repr__(self) -> str:
         """Return a string representation of the dataset."""
         return f"Dataset({self.data})"
