@@ -61,7 +61,7 @@ class AgentList(UserList, Base):
         random.shuffle(self.data)
         return self
 
-    def sample(self, n: int, seed="edsl") -> AgentList:
+    def sample(self, n: int, seed: Optional[str] = None) -> AgentList:
         """Return a random sample of agents.
 
         :param n: The number of agents to sample.
@@ -69,7 +69,8 @@ class AgentList(UserList, Base):
         """
         import random
 
-        random.seed(seed)
+        if seed:
+            random.seed(seed)
         return AgentList(random.sample(self.data, n))
 
     def to_pandas(self):

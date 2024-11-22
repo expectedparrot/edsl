@@ -1032,6 +1032,29 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         """Create a ScenarioList from a CSV file or URL."""
         return cls.from_delimited_file(source, delimiter=",")
 
+    def left_join(self, other: ScenarioList, by: str) -> ScenarioList:
+        """Perform a left join with another ScenarioList.
+
+        Example:
+
+        >>> s1 = ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
+        >>> s2 = ScenarioList([Scenario({'name': 'Alice', 'location': 'New York'}), Scenario({'name': 'Charlie', 'location': 'Chicago'})])
+        >>> s1.left_join(s2, 'name')
+        ScenarioList([Scenario({'name': 'Alice', 'age': 30, 'location': 'New York'}), Scenario({'name': 'Bob', 'age': 25})])
+        """
+        # Create a lookup dictionary from the other ScenarioList
+        other_dict = {scenario[by]: scenario for scenario in other}
+
+        new_scenarios = []
+        for scenario in self:
+            new_scenario = scenario.copy()
+            # Get matching scenario from lookup dict, if it exists
+            if matching_scenario := other_dict.get(scenario[by]):
+                new_scenario.update(matching_scenario)
+            new_scenarios.append(new_scenario)
+
+        return ScenarioList(new_scenarios)
+
     @classmethod
     def from_tsv(cls, source: Union[str, urllib.parse.ParseResult]) -> ScenarioList:
         """Create a ScenarioList from a TSV file or URL."""
