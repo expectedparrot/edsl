@@ -8,6 +8,7 @@ from google.api_core.exceptions import InvalidArgument
 from edsl.exceptions import MissingAPIKeyError
 from edsl.language_models.LanguageModel import LanguageModel
 from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
+from edsl.coop import Coop
 
 safety_settings = [
     {
@@ -79,22 +80,8 @@ class GoogleService(InferenceServiceABC):
             api_token = None
             model = None
 
-            @classmethod
-            def initialize(cls):
-                if cls.api_token is None:
-                    cls.api_token = os.getenv("GOOGLE_API_KEY")
-                    if not cls.api_token:
-                        raise MissingAPIKeyError(
-                            "GOOGLE_API_KEY environment variable is not set"
-                        )
-                    genai.configure(api_key=cls.api_token)
-                    cls.generative_model = genai.GenerativeModel(
-                        cls._model_, safety_settings=safety_settings
-                    )
-
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
-                self.initialize()
 
             def get_generation_config(self) -> GenerationConfig:
                 return GenerationConfig(
@@ -116,6 +103,7 @@ class GoogleService(InferenceServiceABC):
                 if files_list is None:
                     files_list = []
 
+                genai.configure(api_key=self.api_token)
                 if (
                     system_prompt is not None
                     and system_prompt != ""
@@ -133,7 +121,11 @@ class GoogleService(InferenceServiceABC):
                         )
                         print("Will add system_prompt to user_prompt")
                         user_prompt = f"{system_prompt}\n{user_prompt}"
-
+                else:
+                    self.generative_model = genai.GenerativeModel(
+                        self._model_,
+                        safety_settings=safety_settings,
+                    )
                 combined_prompt = [user_prompt]
                 for file in files_list:
                     if "google" not in file.external_locations:
