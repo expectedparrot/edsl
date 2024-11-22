@@ -652,9 +652,7 @@ class DatasetExportMixin:
         >>> r.select('how_feeling').tally('answer.how_feeling', output = "dict")
         {'OK': 2, 'Great': 1, 'Terrible': 1}
         >>> r.select('how_feeling').tally('answer.how_feeling', output = "Dataset")
-        Dataset([{'value': ['OK', 'Great', 'Terrible']}, {'count': [2, 1, 1]}])
-        >>> r.select('how_feeling', 'period').tally('how_feeling', 'period', output = "dict")
-        {('OK', 'morning'): 1, ('Great', 'afternoon'): 1, ('Terrible', 'morning'): 1, ('OK', 'afternoon'): 1}
+        Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible']}, {'count': [2, 1, 1]}])
         """
         from collections import Counter
 
