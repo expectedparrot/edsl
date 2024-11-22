@@ -245,6 +245,9 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
         return dict_hash(self.to_dict(sort=True, add_edsl_version=False))
 
+    def __eq__(self, other: Any) -> bool:
+        return hash(self) == hash(other)
+
     def __repr__(self):
         return f"ScenarioList({self.data})"
 
@@ -1032,28 +1035,81 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         """Create a ScenarioList from a CSV file or URL."""
         return cls.from_delimited_file(source, delimiter=",")
 
-    def left_join(self, other: ScenarioList, by: str) -> ScenarioList:
-        """Perform a left join with another ScenarioList.
+    def left_join(self, other: ScenarioList, by: Union[str, list[str]]) -> ScenarioList:
+        """Perform a left join with another ScenarioList, following SQL join semantics.
 
-        Example:
+        Args:
+            other: The ScenarioList to join with
+            by: String or list of strings representing the key(s) to join on. Cannot be empty.
 
         >>> s1 = ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
-        >>> s2 = ScenarioList([Scenario({'name': 'Alice', 'location': 'New York'}), Scenario({'name': 'Charlie', 'location': 'Chicago'})])
-        >>> s1.left_join(s2, 'name')
-        ScenarioList([Scenario({'name': 'Alice', 'age': 30, 'location': 'New York'}), Scenario({'name': 'Bob', 'age': 25})])
+        >>> s2 = ScenarioList([Scenario({'name': 'Alice', 'location': 'New York'}), Scenario({'name': 'Charlie', 'location': 'Los Angeles'})])
+        >>> s3 = s1.left_join(s2, 'name')
+        >>> s3 == ScenarioList([Scenario({'age': 30, 'location': 'New York', 'name': 'Alice'}), Scenario({'age': 25, 'location': None, 'name': 'Bob'})])
+        True
         """
-        # Create a lookup dictionary from the other ScenarioList
-        other_dict = {scenario[by]: scenario for scenario in other}
+        from edsl.scenarios.ScenarioJoin import ScenarioJoin
 
-        new_scenarios = []
-        for scenario in self:
-            new_scenario = scenario.copy()
-            # Get matching scenario from lookup dict, if it exists
-            if matching_scenario := other_dict.get(scenario[by]):
-                new_scenario.update(matching_scenario)
-            new_scenarios.append(new_scenario)
+        sj = ScenarioJoin(self, other)
+        return sj.left_join(by)
+        # # Validate join keys
+        # if not by:
+        #     raise ValueError(
+        #         "Join keys cannot be empty. Please specify at least one key to join on."
+        #     )
 
-        return ScenarioList(new_scenarios)
+        # # Convert single string to list for consistent handling
+        # by_keys = [by] if isinstance(by, str) else by
+
+        # # Verify all join keys exist in both ScenarioLists
+        # left_keys = set(next(iter(self)).keys()) if self else set()
+        # right_keys = set(next(iter(other)).keys()) if other else set()
+
+        # missing_left = set(by_keys) - left_keys
+        # missing_right = set(by_keys) - right_keys
+        # if missing_left or missing_right:
+        #     missing = missing_left | missing_right
+        #     raise ValueError(f"Join key(s) {missing} not found in both ScenarioLists")
+
+        # # Create lookup dictionary from the other ScenarioList
+        # def get_key_tuple(scenario: Scenario, keys: list[str]) -> tuple:
+        #     return tuple(scenario[k] for k in keys)
+
+        # other_dict = {get_key_tuple(scenario, by_keys): scenario for scenario in other}
+
+        # # Collect all possible keys (like SQL combining all columns)
+        # all_keys = set()
+        # for scenario in self:
+        #     all_keys.update(scenario.keys())
+        # for scenario in other:
+        #     all_keys.update(scenario.keys())
+
+        # new_scenarios = []
+        # for scenario in self:
+        #     new_scenario = {
+        #         key: None for key in all_keys
+        #     }  # Start with nulls (like SQL)
+        #     new_scenario.update(scenario)  # Add all left values
+
+        #     key_tuple = get_key_tuple(scenario, by_keys)
+        #     if matching_scenario := other_dict.get(key_tuple):
+        #         # Check for overlapping keys with different values
+        #         overlapping_keys = set(scenario.keys()) & set(matching_scenario.keys())
+        #         for key in overlapping_keys:
+        #             if key not in by_keys and scenario[key] != matching_scenario[key]:
+        #                 join_conditions = [f"{k}='{scenario[k]}'" for k in by_keys]
+        #                 print(
+        #                     f"Warning: Conflicting values for key '{key}' where {' AND '.join(join_conditions)}. "
+        #                     f"Keeping left value: {scenario[key]} (discarding: {matching_scenario[key]})"
+        #                 )
+
+        #         # Only update with non-overlapping keys from matching scenario
+        #         new_keys = set(matching_scenario.keys()) - set(scenario.keys())
+        #         new_scenario.update({k: matching_scenario[k] for k in new_keys})
+
+        #     new_scenarios.append(Scenario(new_scenario))
+
+        # return ScenarioList(new_scenarios)
 
     @classmethod
     def from_tsv(cls, source: Union[str, urllib.parse.ParseResult]) -> ScenarioList:
