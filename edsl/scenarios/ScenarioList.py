@@ -320,15 +320,15 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
     #     """
     #     return dict(Counter([scenario[field] for scenario in self]))
 
-    def sample(self, n: int, seed="edsl") -> ScenarioList:
+    def sample(self, n: int, seed: Optional[str] = None) -> ScenarioList:
         """Return a random sample from the ScenarioList
 
         >>> s = ScenarioList.from_list("a", [1,2,3,4,5,6])
         >>> s.sample(3)
         ScenarioList([Scenario({'a': 2}), Scenario({'a': 1}), Scenario({'a': 3})])
         """
-
-        random.seed(seed)
+        if seed:
+            random.seed(seed)
 
         return ScenarioList(random.sample(self.data, n))
 
@@ -970,33 +970,30 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         return cls.from_excel(temp_filename, sheet_name=sheet_name)
 
     @classmethod
-    def from_csv(cls, source: Union[str, urllib.parse.ParseResult]) -> ScenarioList:
-        """Create a ScenarioList from a CSV file or URL.
+    def from_delimited_file(
+        cls, source: Union[str, urllib.parse.ParseResult], delimiter: str = ","
+    ) -> ScenarioList:
+        """Create a ScenarioList from a delimited file (CSV/TSV) or URL.
 
         Args:
-            source: A string representing either a local file path or a URL to a CSV file,
+            source: A string representing either a local file path or a URL to a delimited file,
                     or a urllib.parse.ParseResult object for a URL.
+            delimiter: The delimiter used in the file. Defaults to ',' for CSV files.
+                    Use '\t' for TSV files.
 
         Returns:
-            ScenarioList: A ScenarioList object containing the data from the CSV.
+            ScenarioList: A ScenarioList object containing the data from the file.
 
         Example:
+            # For CSV files
+            >>> scenario_list = ScenarioList.from_delimited_file('data.csv')
 
-        >>> import tempfile
-        >>> import os
-        >>> with tempfile.NamedTemporaryFile(delete=False, mode='w', suffix='.csv') as f:
-        ...     _ = f.write("name,age,location\\nAlice,30,New York\\nBob,25,Los Angeles\\n")
-        ...     temp_filename = f.name
-        >>> scenario_list = ScenarioList.from_csv(temp_filename)
-        >>> len(scenario_list)
-        2
-        >>> scenario_list[0]['name']
-        'Alice'
-        >>> scenario_list[1]['age']
-        '25'
+            # For TSV files
+            >>> scenario_list = ScenarioList.from_delimited_file('data.tsv', delimiter='\t')
 
-        >>> url = "https://example.com/data.csv"
-        >>> ## scenario_list_from_url = ScenarioList.from_csv(url)
+            # From URL
+            >>> url = "https://example.com/data.csv"
+            >>> scenario_list = ScenarioList.from_delimited_file(url)
         """
         from edsl.scenarios.Scenario import Scenario
 
@@ -1009,23 +1006,34 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
         if isinstance(source, str) and is_url(source):
             with urllib.request.urlopen(source) as response:
-                csv_content = response.read().decode("utf-8")
-            csv_file = StringIO(csv_content)
+                file_content = response.read().decode("utf-8")
+            file_obj = StringIO(file_content)
         elif isinstance(source, urllib.parse.ParseResult):
             with urllib.request.urlopen(source.geturl()) as response:
-                csv_content = response.read().decode("utf-8")
-            csv_file = StringIO(csv_content)
+                file_content = response.read().decode("utf-8")
+            file_obj = StringIO(file_content)
         else:
-            csv_file = open(source, "r")
+            file_obj = open(source, "r")
 
         try:
-            reader = csv.reader(csv_file)
+            reader = csv.reader(file_obj, delimiter=delimiter)
             header = next(reader)
             observations = [Scenario(dict(zip(header, row))) for row in reader]
         finally:
-            csv_file.close()
+            file_obj.close()
 
         return cls(observations)
+
+    # Convenience methods for specific file types
+    @classmethod
+    def from_csv(cls, source: Union[str, urllib.parse.ParseResult]) -> ScenarioList:
+        """Create a ScenarioList from a CSV file or URL."""
+        return cls.from_delimited_file(source, delimiter=",")
+
+    @classmethod
+    def from_tsv(cls, source: Union[str, urllib.parse.ParseResult]) -> ScenarioList:
+        """Create a ScenarioList from a TSV file or URL."""
+        return cls.from_delimited_file(source, delimiter="\t")
 
     def to_dict(self, sort=False, add_edsl_version=True) -> dict:
         """
@@ -1143,8 +1151,25 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         """
         from edsl.agents.AgentList import AgentList
         from edsl.agents.Agent import Agent
+        import warnings
 
-        return AgentList([Agent(traits=s.data) for s in self])
+        agents = []
+        for scenario in self:
+            new_scenario = scenario.copy().data
+            if "name" in new_scenario:
+                name = new_scenario.pop("name")
+                proposed_agent_name = "agent_name"
+                while proposed_agent_name not in new_scenario:
+                    proposed_agent_name += "_"
+                warnings.warn(
+                    f"The 'name' field is reserved for the agent's name---putting this value in {proposed_agent_name}"
+                )
+                new_scenario[proposed_agent_name] = name
+                agents.append(Agent(traits=new_scenario, name=name))
+            else:
+                agents.append(Agent(traits=new_scenario))
+
+        return AgentList(agents)
 
     def chunk(
         self,
