@@ -617,16 +617,29 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         data = [{key: [scenario[key] for scenario in self.data]} for key in keys]
         return Dataset(data)
 
-    def split(
-        self, field: str, split_on: str, index: int, new_name: Optional[str] = None
+    def unpack(
+        self, field: str, new_names: Optional[List[str]] = None, keep_original=True
     ) -> ScenarioList:
-        """Split a scenario fiel in multiple fields."""
-        if new_name is None:
-            new_name = field + "_split_" + str(index)
+        """Unpack a field into multiple fields.
+
+        Example:
+
+        >>> s = ScenarioList([Scenario({'a': 1, 'b': [2, True]}), Scenario({'a': 3, 'b': [3, False]})])
+        >>> s.unpack('b')
+        ScenarioList([Scenario({'a': 1, 'b': [2, True], 'b_0': 2, 'b_1': True}), Scenario({'a': 3, 'b': [3, False], 'b_0': 3, 'b_1': False})])
+        >>> s.unpack('b', new_names=['c', 'd'], keep_original=False)
+        ScenarioList([Scenario({'a': 1, 'c': 2, 'd': True}), Scenario({'a': 3, 'c': 3, 'd': False})])
+
+        """
+        new_names = new_names or [f"{field}_{i}" for i in range(len(self[0][field]))]
         new_scenarios = []
         for scenario in self:
             new_scenario = scenario.copy()
-            new_scenario[new_name] = scenario[field].split(split_on)[index]
+            for i, new_name in enumerate(new_names):
+                new_scenario[new_name] = scenario[field][i]
+
+            if not keep_original:
+                del new_scenario[field]
             new_scenarios.append(new_scenario)
         return ScenarioList(new_scenarios)
 
