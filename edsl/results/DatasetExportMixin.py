@@ -665,8 +665,6 @@ class DatasetExportMixin:
             column.split(".")[-1] for column in self.relevant_columns()
         ]
 
-        # breakpoint()
-
         if not all(
             f in self.relevant_columns() or f in relevant_columns_without_prefix
             for f in fields
@@ -704,12 +702,22 @@ class DatasetExportMixin:
             )
             return sorted_tally
         elif output == "Dataset":
-            return Dataset(
+            dataset = Dataset(
                 [
                     {"value": list(sorted_tally.keys())},
                     {"count": list(sorted_tally.values())},
                 ]
             )
+            # return dataset
+            sl = dataset.to_scenario_list().unpack(
+                "value",
+                new_names=[fields] if isinstance(fields, str) else fields,
+                keep_original=False,
+            )
+            keys = list(sl[0].keys())
+            keys.remove("count")
+            keys.append("count")
+            return sl.reorder_keys(keys).to_dataset()
 
 
 if __name__ == "__main__":
