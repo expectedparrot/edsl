@@ -41,17 +41,19 @@ from edsl.data_transfer_models import (
     AgentResponseDict,
 )
 
+if TYPE_CHECKING:
+    from edsl.data.Cache import Cache
+    from edsl.scenarios.FileStore import FileStore
+    from edsl.questions.QuestionBase import QuestionBase
 
 from edsl.config import CONFIG
 from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
-from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
-from edsl.language_models.repair import repair
-from edsl.enums import InferenceServiceType
-from edsl.Base import RichPrintingMixin, PersistenceMixin
-from edsl.language_models.RegisterLanguageModelsMeta import RegisterLanguageModelsMeta
-from edsl.exceptions.language_models import LanguageModelBadResponseError
+from edsl.utilities.decorators import remove_edsl_version
 
+from edsl.Base import PersistenceMixin
+from edsl.language_models.RegisterLanguageModelsMeta import RegisterLanguageModelsMeta
 from edsl.language_models.KeyLookup import KeyLookup
+from edsl.exceptions.language_models import LanguageModelBadResponseError
 
 TIMEOUT = float(CONFIG.get("EDSL_API_TIMEOUT"))
 
@@ -116,29 +118,11 @@ def handle_key_error(func):
 
 
 class LanguageModel(
-    RichPrintingMixin, PersistenceMixin, ABC, metaclass=RegisterLanguageModelsMeta
+    PersistenceMixin,
+    ABC,
+    metaclass=RegisterLanguageModelsMeta,
 ):
-    """ABC for LLM subclasses.
-
-    TODO:
-
-    1) Need better, more descriptive names for functions
-
-    get_model_response_no_cache  (currently called async_execute_model_call)
-
-    get_model_response (currently called async_get_raw_response; uses cache & adds tracking info)
-      Calls:
-        - async_execute_model_call
-        - _updated_model_response_with_tracking
-
-    get_answer (currently called async_get_response)
-        This parses out the answer block and does some error-handling.
-        Calls:
-            - async_get_raw_response
-            - parse_response
-
-
-    """
+    """ABC for Language Models."""
 
     _model_ = None
     key_sequence = (
@@ -196,7 +180,7 @@ class LanguageModel(
         system_prompt = "You are a helpful agent pretending to be a human."
         return self.execute_model_call(user_prompt, system_prompt)
 
-    def set_key_lookup(self, key_lookup: KeyLookup):
+    def set_key_lookup(self, key_lookup: KeyLookup) -> None:
         del self._api_token
         self.key_lookup = key_lookup
 
@@ -211,9 +195,7 @@ class LanguageModel(
     def __getitem__(self, key):
         return getattr(self, key)
 
-    def _repr_html_(self):
-        # d = self.to_dict(add_edsl_version=False)
-        # d = self.to_dict(add_edsl_version=False)
+    def _repr_html_(self) -> str:
         d = {"model": self.model}
         d.update(self.parameters)
         data = [[k, v] for k, v in d.items()]
@@ -221,10 +203,6 @@ class LanguageModel(
 
         table = str(tabulate(data, headers=["keys", "values"], tablefmt="html"))
         return f"<pre>{table}</pre>"
-
-    # def _repr_html_(self):
-    # from edsl.utilities.utilities import data_to_html
-    # return data_to_html(self.to_dict())
 
     def hello(self, verbose=False):
         """Runs a simple test to check if the model is working."""
@@ -245,7 +223,6 @@ class LanguageModel(
         This method is used to check if the model has a valid API key.
         """
         from edsl.enums import service_to_api_keyname
-        import os
 
         if self._model_ == "test":
             return True
@@ -258,9 +235,9 @@ class LanguageModel(
         """Allow the model to be used as a key in a dictionary."""
         from edsl.utilities.utilities import dict_hash
 
-        return dict_hash(self.to_dict())
+        return dict_hash(self.to_dict(add_edsl_version=False))
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         """Check is two models are the same.
 
         >>> m1 = LanguageModel.example()
@@ -288,15 +265,11 @@ class LanguageModel(
     @property
     def RPM(self):
         """Model's requests-per-minute limit."""
-        # self._set_rate_limits()
-        # return self._safety_factor * self.__rate_limits["rpm"]
         return self._rpm
 
     @property
     def TPM(self):
         """Model's tokens-per-minute limit."""
-        # self._set_rate_limits()
-        # return self._safety_factor * self.__rate_limits["tpm"]
         return self._tpm
 
     @property
@@ -324,8 +297,6 @@ class LanguageModel(
         >>> LanguageModel._overide_default_parameters(passed_parameter_dict={"temperature": 0.5}, default_parameter_dict={"temperature":0.9, "max_tokens": 1000})
         {'temperature': 0.5, 'max_tokens': 1000}
         """
-        # parameters = dict({})
-
         # this is the case when data is loaded from a dict after serialization
         if "parameters" in passed_parameter_dict:
             passed_parameter_dict = passed_parameter_dict["parameters"]
@@ -439,9 +410,10 @@ class LanguageModel(
         self,
         user_prompt: str,
         system_prompt: str,
-        cache: "Cache",
+        cache: Cache,
         iteration: int = 0,
-        files_list=None,
+        files_list: Optional[List[FileStore]] = None,
+        invigilator=None,
     ) -> ModelResponse:
         """Handle caching of responses.
 
@@ -465,7 +437,6 @@ class LanguageModel(
 
         if files_list:
             files_hash = "+".join([str(hash(file)) for file in files_list])
-            # print(f"Files hash: {files_hash}")
             user_prompt_with_hashes = user_prompt + f" {files_hash}"
         else:
             user_prompt_with_hashes = user_prompt
@@ -491,9 +462,7 @@ class LanguageModel(
                 "user_prompt": user_prompt,
                 "system_prompt": system_prompt,
                 "files_list": files_list,
-                # **({"encoded_image": encoded_image} if encoded_image else {}),
             }
-            # response = await f(**params)
             response = await asyncio.wait_for(f(**params), timeout=TIMEOUT)
             new_cache_key = cache.store(
                 **cache_call_params, response=response
@@ -514,11 +483,9 @@ class LanguageModel(
         _async_get_intended_model_call_outcome
     )
 
-    # get_raw_response = sync_wrapper(async_get_raw_response)
-
     def simple_ask(
         self,
-        question: "QuestionBase",
+        question: QuestionBase,
         system_prompt="You are a helpful agent pretending to be a human.",
         top_logprobs=2,
     ):
@@ -533,9 +500,10 @@ class LanguageModel(
         self,
         user_prompt: str,
         system_prompt: str,
-        cache: "Cache",
+        cache: Cache,
         iteration: int = 1,
-        files_list: Optional[List["File"]] = None,
+        files_list: Optional[List[FileStore]] = None,
+        **kwargs,
     ) -> dict:
         """Get response, parse, and return as string.
 
@@ -553,6 +521,9 @@ class LanguageModel(
             "cache": cache,
             "files_list": files_list,
         }
+        if "invigilator" in kwargs:
+            params.update({"invigilator": kwargs["invigilator"]})
+
         model_inputs = ModelInputs(user_prompt=user_prompt, system_prompt=system_prompt)
         model_outputs = await self._async_get_intended_model_call_outcome(**params)
         edsl_dict = self.parse_response(model_outputs.response)
@@ -562,8 +533,6 @@ class LanguageModel(
             edsl_dict=edsl_dict,
         )
         return agent_response_dict
-
-        # return await self._async_prepare_response(model_call_outcome, cache=cache)
 
     get_response = sync_wrapper(async_get_response)
 
@@ -614,10 +583,7 @@ class LanguageModel(
 
         return input_cost + output_cost
 
-    #######################
-    # SERIALIZATION METHODS
-    #######################
-    def to_dict(self, add_edsl_version=True) -> dict[str, Any]:
+    def to_dict(self, add_edsl_version: bool = True) -> dict[str, Any]:
         """Convert instance to a dictionary
 
         >>> m = LanguageModel.example()
@@ -639,17 +605,7 @@ class LanguageModel(
         from edsl.language_models.registry import get_model_class
 
         model_class = get_model_class(data["model"])
-        # data["use_cache"] = True
         return model_class(**data)
-
-    #######################
-    # DUNDER METHODS
-    #######################
-    def print(self):
-        from rich import print_json
-        import json
-
-        print_json(json.dumps(self.to_dict()))
 
     def __repr__(self) -> str:
         """Return a string representation of the object."""
@@ -664,25 +620,13 @@ class LanguageModel(
 
     def __add__(self, other_model: Type[LanguageModel]) -> Type[LanguageModel]:
         """Combine two models into a single model (other_model takes precedence over self)."""
-        print(
+        import warnings
+
+        warnings.warn(
             f"""Warning: one model is replacing another. If you want to run both models, use a single `by` e.g., 
               by(m1, m2, m3) not by(m1).by(m2).by(m3)."""
         )
         return other_model or self
-
-    def rich_print(self):
-        """Display an object as a table."""
-        from rich.table import Table
-
-        table = Table(title="Language Model")
-        table.add_column("Attribute", style="bold")
-        table.add_column("Value")
-
-        to_display = self.__dict__.copy()
-        for attr_name, attr_value in to_display.items():
-            table.add_row(attr_name, repr(attr_value))
-
-        return table
 
     @classmethod
     def example(
@@ -690,7 +634,7 @@ class LanguageModel(
         test_model: bool = False,
         canned_response: str = "Hello world",
         throw_exception: bool = False,
-    ):
+    ) -> LanguageModel:
         """Return a default instance of the class.
 
         >>> from edsl.language_models import LanguageModel
@@ -701,11 +645,18 @@ class LanguageModel(
         >>> q = QuestionFreeText(question_text = "What is your name?", question_name = 'example')
         >>> q.by(m).run(cache = False, disable_remote_cache = True, disable_remote_inference = True).select('example').first()
         'WOWZA!'
+        >>> m = LanguageModel.example(test_model = True, canned_response = "WOWZA!", throw_exception = True)
+        >>> r = q.by(m).run(cache = False, disable_remote_cache = True, disable_remote_inference = True, print_exceptions = True)
+        Exceptions were raised in 1 out of 1 interviews.
+        ...
+        ...
         """
         from edsl import Model
 
         if test_model:
-            m = Model("test", canned_response=canned_response)
+            m = Model(
+                "test", canned_response=canned_response, throw_exception=throw_exception
+            )
             return m
         else:
             return Model(skip_api_key_check=True)

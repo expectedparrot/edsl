@@ -309,16 +309,16 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
     #             data[key] = value.to_dict()
     # return data_to_html(data)
 
-    def tally(self, field) -> dict:
-        """Return a tally of the values in the field.
+    # def tally(self, field) -> dict:
+    #     """Return a tally of the values in the field.
 
-        Example:
+    #     Example:
 
-        >>> s = ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
-        >>> s.tally('b')
-        {1: 1, 2: 1}
-        """
-        return dict(Counter([scenario[field] for scenario in self]))
+    #     >>> s = ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
+    #     >>> s.tally('b')
+    #     {1: 1, 2: 1}
+    #     """
+    #     return dict(Counter([scenario[field] for scenario in self]))
 
     def sample(self, n: int, seed="edsl") -> ScenarioList:
         """Return a random sample from the ScenarioList
@@ -602,6 +602,21 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         }
         return d
 
+    def reorder_keys(self, new_order):
+        """Reorder the keys in the scenarios.
+
+        Example:
+
+        >>> s = ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 3, 'b': 4})])
+        >>> s.reorder_keys(['b', 'a'])
+        ScenarioList([Scenario({'b': 2, 'a': 1}), Scenario({'b': 4, 'a': 3})])
+        """
+        new_scenarios = []
+        for scenario in self:
+            new_scenario = Scenario({key: scenario[key] for key in new_order})
+            new_scenarios.append(new_scenario)
+        return ScenarioList(new_scenarios)
+
     def to_dataset(self) -> "Dataset":
         """
         >>> s = ScenarioList.from_list("a", [1,2,3])
@@ -635,8 +650,11 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         new_scenarios = []
         for scenario in self:
             new_scenario = scenario.copy()
-            for i, new_name in enumerate(new_names):
-                new_scenario[new_name] = scenario[field][i]
+            if len(new_names) == 1:
+                new_scenario[new_names[0]] = scenario[field]
+            else:
+                for i, new_name in enumerate(new_names):
+                    new_scenario[new_name] = scenario[field][i]
 
             if not keep_original:
                 del new_scenario[field]
