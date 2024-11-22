@@ -72,6 +72,10 @@ class AgentList(UserList, Base):
         random.seed(seed)
         return AgentList(random.sample(self.data, n))
 
+    def to_pandas(self):
+        """Return a pandas DataFrame."""
+        return self.to_scenario_list().to_pandas()
+
     def tally(self):
         return self.to_scenario_list().tally()
 
