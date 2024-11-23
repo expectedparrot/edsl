@@ -76,22 +76,3 @@ class RemoteCacheSync:
         self._output(
             f"There are {len(self.cache.keys()):,} entries in the local cache."
         )
-
-
-# # Usage example
-# def run_job(self, n, progress_bar, cache, stop_on_exception, sidecar_model, print_exceptions, raise_validation_errors, use_remote_cache=True):
-#     with RemoteCacheSync(self.coop, cache, self._output, remote_cache=use_remote_cache):
-#         self._output("Running job...")
-#         results = self._run_local(
-#             n=n,
-#             progress_bar=progress_bar,
-#             cache=cache,
-#             stop_on_exception=stop_on_exception,
-#             sidecar_model=sidecar_model,
-#             print_exceptions=print_exceptions,
-#             raise_validation_errors=raise_validation_errors,
-#         )
-#         self._output("Job completed!")
-
-#     results.cache = cache.new_entries_cache()
-#     return results
