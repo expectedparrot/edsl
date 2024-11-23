@@ -64,6 +64,7 @@ class InferenceServiceType(EnumWithChecks):
     OLLAMA = "ollama"
     MISTRAL = "mistral"
     TOGETHER = "together"
+    PERPLEXITY = "perplexity"
 
 
 service_to_api_keyname = {
@@ -78,6 +79,7 @@ service_to_api_keyname = {
     InferenceServiceType.BEDROCK.value: ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"],
     InferenceServiceType.MISTRAL.value: "MISTRAL_API_KEY",
     InferenceServiceType.TOGETHER.value: "TOGETHER_API_KEY",
+    InferenceServiceType.PERPLEXITY.value: "PERPLEXITY_API_KEY",
 }
 
 
