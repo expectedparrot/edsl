@@ -141,6 +141,27 @@ class Results(UserList, Mixins, Base):
         }
         return d
 
+    def compute_job_cost(self, include_cached_responses_in_cost=False) -> float:
+        """
+        Computes the cost of a completed job in USD.
+        """
+        total_cost = 0
+        for result in self:
+            for key in result.raw_model_response:
+                if key.endswith("_cost"):
+                    result_cost = result.raw_model_response[key]
+
+                    question_name = key.removesuffix("_cost")
+                    cache_used = result.cache_used_dict[question_name]
+
+                    if isinstance(result_cost, (int, float)):
+                        if include_cached_responses_in_cost:
+                            total_cost += result_cost
+                        elif not include_cached_responses_in_cost and not cache_used:
+                            total_cost += result_cost
+
+        return total_cost
+
     def leaves(self):
         leaves = []
         for result in self:
