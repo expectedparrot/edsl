@@ -87,6 +87,9 @@ class ModelList(Base, UserList):
             .table(*fields, tablefmt=tablefmt, pretty_labels=pretty_labels)
         )
 
+    def to_list(self):
+        return self.to_scenario_list().to_list()
+
     def to_dict(self, sort=False, add_edsl_version=True):
         if sort:
             model_list = sorted([model for model in self], key=lambda x: hash(x))

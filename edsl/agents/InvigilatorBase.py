@@ -172,25 +172,6 @@ class InvigilatorBase(ABC):
         }
         return EDSLResultObjectInput(**data)
 
-        # breakpoint()
-        # if hasattr(self, "augmented_model_response"):
-        #     import json
-
-        #     generated_tokens = json.loads(self.augmented_model_response)["answer"][
-        #         "generated_tokens"
-        #     ]
-        # else:
-        #     generated_tokens = "Filled in by InvigilatorBase.get_failed_task_result"
-        # agent_response_dict = AgentResponseDict(
-        #     answer=None,
-        #     comment="Failed to get usable response",
-        #     generated_tokens=generated_tokens,
-        #     question_name=self.question.question_name,
-        #     prompts=self.get_prompts(),
-        # )
-        # # breakpoint()
-        # return agent_response_dict
-
     def get_prompts(self) -> Dict[str, Prompt]:
         """Return the prompt used."""
 

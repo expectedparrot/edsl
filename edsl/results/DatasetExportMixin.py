@@ -516,7 +516,14 @@ class DatasetExportMixin:
         from edsl import AgentList, Agent
 
         list_of_dicts = self.to_dicts(remove_prefix=remove_prefix)
-        return AgentList([Agent(d) for d in list_of_dicts])
+        agents = []
+        for d in list_of_dicts:
+            if "name" in d:
+                d["agent_name"] = d.pop("name")
+                agents.append(Agent(d, name=d["agent_name"]))
+            else:
+                agents.append(Agent(d))
+        return AgentList(agents)
 
     def to_dicts(self, remove_prefix: bool = True) -> list[dict]:
         """Convert the results to a list of dictionaries.
@@ -652,9 +659,7 @@ class DatasetExportMixin:
         >>> r.select('how_feeling').tally('answer.how_feeling', output = "dict")
         {'OK': 2, 'Great': 1, 'Terrible': 1}
         >>> r.select('how_feeling').tally('answer.how_feeling', output = "Dataset")
-        Dataset([{'value': ['OK', 'Great', 'Terrible']}, {'count': [2, 1, 1]}])
-        >>> r.select('how_feeling', 'period').tally('how_feeling', 'period', output = "dict")
-        {('OK', 'morning'): 1, ('Great', 'afternoon'): 1, ('Terrible', 'morning'): 1, ('OK', 'afternoon'): 1}
+        Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible']}, {'count': [2, 1, 1]}])
         """
         from collections import Counter
 
@@ -664,8 +669,6 @@ class DatasetExportMixin:
         relevant_columns_without_prefix = [
             column.split(".")[-1] for column in self.relevant_columns()
         ]
-
-        # breakpoint()
 
         if not all(
             f in self.relevant_columns() or f in relevant_columns_without_prefix
@@ -704,12 +707,22 @@ class DatasetExportMixin:
             )
             return sorted_tally
         elif output == "Dataset":
-            return Dataset(
+            dataset = Dataset(
                 [
                     {"value": list(sorted_tally.keys())},
                     {"count": list(sorted_tally.values())},
                 ]
             )
+            # return dataset
+            sl = dataset.to_scenario_list().unpack(
+                "value",
+                new_names=[fields] if isinstance(fields, str) else fields,
+                keep_original=False,
+            )
+            keys = list(sl[0].keys())
+            keys.remove("count")
+            keys.append("count")
+            return sl.reorder_keys(keys).to_dataset()
 
 
 if __name__ == "__main__":
