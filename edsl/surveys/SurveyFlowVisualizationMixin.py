@@ -1,27 +1,85 @@
-"""A mixin for visualizing the flow of a survey."""
+"""A mixin for visualizing the flow of a survey with parameter nodes."""
 
 from typing import Optional
 from edsl.surveys.base import RulePriority, EndOfSurvey
 import tempfile
+import os
 
 
 class SurveyFlowVisualizationMixin:
-    """A mixin for visualizing the flow of a survey."""
+    """A mixin for visualizing the flow of a survey with parameter visualization."""
 
     def show_flow(self, filename: Optional[str] = None):
-        """Create an image showing the flow of users through the survey."""
+        """Create an image showing the flow of users through the survey and question parameters."""
         # Create a graph object
         import pydot
 
         graph = pydot.Dot(graph_type="digraph")
 
-        # Add nodes for each question
+        # First collect all unique parameters and answer references
+        params_and_refs = set()
+        param_to_questions = {}  # Keep track of which questions use each parameter
+        answer_refs = set()  # Track answer references between questions
+
+        # First pass: collect parameters and their question associations
         for index, question in enumerate(self.questions):
-            graph.add_node(
-                pydot.Node(
-                    f"Q{index}", label=f"{question.question_name}", shape="ellipse"
-                )
+            # Add the main question node
+            question_node = pydot.Node(
+                f"Q{index}", label=f"{question.question_name}", shape="ellipse"
             )
+            graph.add_node(question_node)
+
+            if hasattr(question, "parameters"):
+                for param in question.parameters:
+                    # Check if this is an answer reference (contains '.answer')
+                    if ".answer" in param:
+                        answer_refs.add((param.split(".")[0], index))
+                    else:
+                        params_and_refs.add(param)
+                        if param not in param_to_questions:
+                            param_to_questions[param] = []
+                        param_to_questions[param].append(index)
+
+        # Create parameter nodes and connect them to questions
+        for param in params_and_refs:
+            param_node_name = f"param_{param}"
+            param_node = pydot.Node(
+                param_node_name,
+                label=f"{{{{ {param} }}}}",
+                shape="box",
+                style="filled",
+                fillcolor="lightgrey",
+                fontsize="10",
+            )
+            graph.add_node(param_node)
+
+            # Connect this parameter to all questions that use it
+            for q_index in param_to_questions[param]:
+                param_edge = pydot.Edge(
+                    param_node_name,
+                    f"Q{q_index}",
+                    style="dotted",
+                    color="grey",
+                    arrowsize="0.5",
+                )
+                graph.add_edge(param_edge)
+
+        # Add edges for answer references
+        for source_q_name, target_q_index in answer_refs:
+            # Find the source question index by name
+            source_q_index = next(
+                i
+                for i, q in enumerate(self.questions)
+                if q.question_name == source_q_name
+            )
+            ref_edge = pydot.Edge(
+                f"Q{source_q_index}",
+                f"Q{target_q_index}",
+                style="dashed",
+                color="purple",
+                label="answer reference",
+            )
+            graph.add_edge(ref_edge)
 
         # Add an "EndOfSurvey" node
         graph.add_node(
@@ -30,7 +88,7 @@ class SurveyFlowVisualizationMixin:
 
         # Add edges for normal flow through the survey
         num_questions = len(self.questions)
-        for index in range(num_questions - 1):  # From Q1 to Q3
+        for index in range(num_questions - 1):
             graph.add_edge(pydot.Edge(f"Q{index}", f"Q{index+1}"))
 
         graph.add_edge(pydot.Edge(f"Q{num_questions-1}", "EndOfSurvey"))
@@ -64,7 +122,7 @@ class SurveyFlowVisualizationMixin:
                 if rule.next_q != EndOfSurvey and rule.next_q < num_questions
                 else "EndOfSurvey"
             )
-            if rule.before_rule:  # Assume skip rules have an attribute `is_skip`
+            if rule.before_rule:
                 edge = pydot.Edge(
                     source_node,
                     target_node,

@@ -430,6 +430,9 @@ class Cache(Base):
             *fields, tablefmt=tablefmt, pretty_labels=pretty_labels
         )
 
+    def select(self, *fields):
+        return self.to_dataset().select(*fields)
+
     def tree(self, node_list: Optional[list[str]] = None):
         return self.to_scenario_list().tree(node_list)
 

@@ -61,7 +61,7 @@ class AgentList(UserList, Base):
         random.shuffle(self.data)
         return self
 
-    def sample(self, n: int, seed="edsl") -> AgentList:
+    def sample(self, n: int, seed: Optional[str] = None) -> AgentList:
         """Return a random sample of agents.
 
         :param n: The number of agents to sample.
@@ -69,8 +69,16 @@ class AgentList(UserList, Base):
         """
         import random
 
-        random.seed(seed)
+        if seed:
+            random.seed(seed)
         return AgentList(random.sample(self.data, n))
+
+    def to_pandas(self):
+        """Return a pandas DataFrame."""
+        return self.to_scenario_list().to_pandas()
+
+    def tally(self):
+        return self.to_scenario_list().tally()
 
     def rename(self, old_name, new_name):
         """Rename a trait in the AgentList.
@@ -204,7 +212,7 @@ class AgentList(UserList, Base):
         >>> al.add_trait('new_trait', 1)
         AgentList([Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5, 'new_trait': 1}), Agent(traits = {'age': 22, 'hair': 'brown', 'height': 5.5, 'new_trait': 1})])
         >>> al.select('new_trait').to_scenario_list().to_list()
-        [(1, None), (1, None)]
+        [1, 1]
         >>> al.add_trait('new_trait', [1, 2, 3])
         Traceback (most recent call last):
         ...
@@ -288,14 +296,23 @@ class AgentList(UserList, Base):
         """
         self.to_scenario_list().to_csv(file_path)
 
-    def to_scenario_list(self) -> ScenarioList:
+    def to_list(self, include_agent_name=False) -> list[tuple]:
+        """Return a list of tuples."""
+        return self.to_scenario_list(include_agent_name).to_list()
+
+    def to_scenario_list(self, include_agent_name=False) -> ScenarioList:
         """Return a list of scenarios."""
         from edsl.scenarios.ScenarioList import ScenarioList
         from edsl.scenarios.Scenario import Scenario
 
-        return ScenarioList(
-            [Scenario(agent.traits | {"agent_name": agent.name}) for agent in self.data]
-        )
+        if include_agent_name:
+            return ScenarioList(
+                [
+                    Scenario(agent.traits | {"agent_name": agent.name})
+                    for agent in self.data
+                ]
+            )
+        return ScenarioList([Scenario(agent.traits) for agent in self.data])
 
     def table(
         self,

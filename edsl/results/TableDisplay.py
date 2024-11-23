@@ -2,7 +2,7 @@ from tabulate import tabulate
 
 
 class TableDisplay:
-    max_height = 400
+    max_height = 800
 
     html_template = """
     <div style="
@@ -17,13 +17,14 @@ class TableDisplay:
         <style>
             .scroll-table {{
                 border-collapse: collapse;
-                width: auto;
+                width: auto; /* Takes full width */
                 white-space: nowrap;
             }}
             .scroll-table th, .scroll-table td {{
                 padding: 8px;
                 text-align: left !important;
                 border-bottom: 1px solid #ddd;
+                vertical-align: top;  /* Aligns content to top */
                 min-width: 100px;  /* Minimum column width */
                 max-width: 300px;  /* Maximum column width */
                 overflow: hidden;

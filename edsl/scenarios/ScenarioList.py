@@ -245,6 +245,9 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
         return dict_hash(self.to_dict(sort=True, add_edsl_version=False))
 
+    def __eq__(self, other: Any) -> bool:
+        return hash(self) == hash(other)
+
     def __repr__(self):
         return f"ScenarioList({self.data})"
 
@@ -309,26 +312,26 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
     #             data[key] = value.to_dict()
     # return data_to_html(data)
 
-    def tally(self, field) -> dict:
-        """Return a tally of the values in the field.
+    # def tally(self, field) -> dict:
+    #     """Return a tally of the values in the field.
 
-        Example:
+    #     Example:
 
-        >>> s = ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
-        >>> s.tally('b')
-        {1: 1, 2: 1}
-        """
-        return dict(Counter([scenario[field] for scenario in self]))
+    #     >>> s = ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
+    #     >>> s.tally('b')
+    #     {1: 1, 2: 1}
+    #     """
+    #     return dict(Counter([scenario[field] for scenario in self]))
 
-    def sample(self, n: int, seed="edsl") -> ScenarioList:
+    def sample(self, n: int, seed: Optional[str] = None) -> ScenarioList:
         """Return a random sample from the ScenarioList
 
         >>> s = ScenarioList.from_list("a", [1,2,3,4,5,6])
-        >>> s.sample(3)
+        >>> s.sample(3, seed = "edsl")
         ScenarioList([Scenario({'a': 2}), Scenario({'a': 1}), Scenario({'a': 3})])
         """
-
-        random.seed(seed)
+        if seed:
+            random.seed(seed)
 
         return ScenarioList(random.sample(self.data, n))
 
@@ -602,6 +605,21 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         }
         return d
 
+    def reorder_keys(self, new_order):
+        """Reorder the keys in the scenarios.
+
+        Example:
+
+        >>> s = ScenarioList([Scenario({'a': 1, 'b': 2}), Scenario({'a': 3, 'b': 4})])
+        >>> s.reorder_keys(['b', 'a'])
+        ScenarioList([Scenario({'b': 2, 'a': 1}), Scenario({'b': 4, 'a': 3})])
+        """
+        new_scenarios = []
+        for scenario in self:
+            new_scenario = Scenario({key: scenario[key] for key in new_order})
+            new_scenarios.append(new_scenario)
+        return ScenarioList(new_scenarios)
+
     def to_dataset(self) -> "Dataset":
         """
         >>> s = ScenarioList.from_list("a", [1,2,3])
@@ -617,16 +635,32 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         data = [{key: [scenario[key] for scenario in self.data]} for key in keys]
         return Dataset(data)
 
-    def split(
-        self, field: str, split_on: str, index: int, new_name: Optional[str] = None
+    def unpack(
+        self, field: str, new_names: Optional[List[str]] = None, keep_original=True
     ) -> ScenarioList:
-        """Split a scenario fiel in multiple fields."""
-        if new_name is None:
-            new_name = field + "_split_" + str(index)
+        """Unpack a field into multiple fields.
+
+        Example:
+
+        >>> s = ScenarioList([Scenario({'a': 1, 'b': [2, True]}), Scenario({'a': 3, 'b': [3, False]})])
+        >>> s.unpack('b')
+        ScenarioList([Scenario({'a': 1, 'b': [2, True], 'b_0': 2, 'b_1': True}), Scenario({'a': 3, 'b': [3, False], 'b_0': 3, 'b_1': False})])
+        >>> s.unpack('b', new_names=['c', 'd'], keep_original=False)
+        ScenarioList([Scenario({'a': 1, 'c': 2, 'd': True}), Scenario({'a': 3, 'c': 3, 'd': False})])
+
+        """
+        new_names = new_names or [f"{field}_{i}" for i in range(len(self[0][field]))]
         new_scenarios = []
         for scenario in self:
             new_scenario = scenario.copy()
-            new_scenario[new_name] = scenario[field].split(split_on)[index]
+            if len(new_names) == 1:
+                new_scenario[new_names[0]] = scenario[field]
+            else:
+                for i, new_name in enumerate(new_names):
+                    new_scenario[new_name] = scenario[field][i]
+
+            if not keep_original:
+                del new_scenario[field]
             new_scenarios.append(new_scenario)
         return ScenarioList(new_scenarios)
 
@@ -939,33 +973,32 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         return cls.from_excel(temp_filename, sheet_name=sheet_name)
 
     @classmethod
-    def from_csv(cls, source: Union[str, urllib.parse.ParseResult]) -> ScenarioList:
-        """Create a ScenarioList from a CSV file or URL.
+    def from_delimited_file(
+        cls, source: Union[str, urllib.parse.ParseResult], delimiter: str = ","
+    ) -> ScenarioList:
+        """Create a ScenarioList from a delimited file (CSV/TSV) or URL.
 
         Args:
-            source: A string representing either a local file path or a URL to a CSV file,
+            source: A string representing either a local file path or a URL to a delimited file,
                     or a urllib.parse.ParseResult object for a URL.
+            delimiter: The delimiter used in the file. Defaults to ',' for CSV files.
+                    Use '\t' for TSV files.
 
         Returns:
-            ScenarioList: A ScenarioList object containing the data from the CSV.
+            ScenarioList: A ScenarioList object containing the data from the file.
 
         Example:
+            # For CSV files
 
-        >>> import tempfile
-        >>> import os
-        >>> with tempfile.NamedTemporaryFile(delete=False, mode='w', suffix='.csv') as f:
-        ...     _ = f.write("name,age,location\\nAlice,30,New York\\nBob,25,Los Angeles\\n")
-        ...     temp_filename = f.name
-        >>> scenario_list = ScenarioList.from_csv(temp_filename)
-        >>> len(scenario_list)
-        2
-        >>> scenario_list[0]['name']
-        'Alice'
-        >>> scenario_list[1]['age']
-        '25'
+            >>> with open('data.csv', 'w') as f:
+            ...     _ = f.write('name,age\\nAlice,30\\nBob,25\\n')
+            >>> scenario_list = ScenarioList.from_delimited_file('data.csv')
 
-        >>> url = "https://example.com/data.csv"
-        >>> ## scenario_list_from_url = ScenarioList.from_csv(url)
+            # For TSV files
+            >>> with open('data.tsv', 'w') as f:
+            ...     _ = f.write('name\\tage\\nAlice\t30\\nBob\t25\\n')
+            >>> scenario_list = ScenarioList.from_delimited_file('data.tsv', delimiter='\\t')
+
         """
         from edsl.scenarios.Scenario import Scenario
 
@@ -978,23 +1011,110 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
         if isinstance(source, str) and is_url(source):
             with urllib.request.urlopen(source) as response:
-                csv_content = response.read().decode("utf-8")
-            csv_file = StringIO(csv_content)
+                file_content = response.read().decode("utf-8")
+            file_obj = StringIO(file_content)
         elif isinstance(source, urllib.parse.ParseResult):
             with urllib.request.urlopen(source.geturl()) as response:
-                csv_content = response.read().decode("utf-8")
-            csv_file = StringIO(csv_content)
+                file_content = response.read().decode("utf-8")
+            file_obj = StringIO(file_content)
         else:
-            csv_file = open(source, "r")
+            file_obj = open(source, "r")
 
         try:
-            reader = csv.reader(csv_file)
+            reader = csv.reader(file_obj, delimiter=delimiter)
             header = next(reader)
             observations = [Scenario(dict(zip(header, row))) for row in reader]
         finally:
-            csv_file.close()
+            file_obj.close()
 
         return cls(observations)
+
+    # Convenience methods for specific file types
+    @classmethod
+    def from_csv(cls, source: Union[str, urllib.parse.ParseResult]) -> ScenarioList:
+        """Create a ScenarioList from a CSV file or URL."""
+        return cls.from_delimited_file(source, delimiter=",")
+
+    def left_join(self, other: ScenarioList, by: Union[str, list[str]]) -> ScenarioList:
+        """Perform a left join with another ScenarioList, following SQL join semantics.
+
+        Args:
+            other: The ScenarioList to join with
+            by: String or list of strings representing the key(s) to join on. Cannot be empty.
+
+        >>> s1 = ScenarioList([Scenario({'name': 'Alice', 'age': 30}), Scenario({'name': 'Bob', 'age': 25})])
+        >>> s2 = ScenarioList([Scenario({'name': 'Alice', 'location': 'New York'}), Scenario({'name': 'Charlie', 'location': 'Los Angeles'})])
+        >>> s3 = s1.left_join(s2, 'name')
+        >>> s3 == ScenarioList([Scenario({'age': 30, 'location': 'New York', 'name': 'Alice'}), Scenario({'age': 25, 'location': None, 'name': 'Bob'})])
+        True
+        """
+        from edsl.scenarios.ScenarioJoin import ScenarioJoin
+
+        sj = ScenarioJoin(self, other)
+        return sj.left_join(by)
+        # # Validate join keys
+        # if not by:
+        #     raise ValueError(
+        #         "Join keys cannot be empty. Please specify at least one key to join on."
+        #     )
+
+        # # Convert single string to list for consistent handling
+        # by_keys = [by] if isinstance(by, str) else by
+
+        # # Verify all join keys exist in both ScenarioLists
+        # left_keys = set(next(iter(self)).keys()) if self else set()
+        # right_keys = set(next(iter(other)).keys()) if other else set()
+
+        # missing_left = set(by_keys) - left_keys
+        # missing_right = set(by_keys) - right_keys
+        # if missing_left or missing_right:
+        #     missing = missing_left | missing_right
+        #     raise ValueError(f"Join key(s) {missing} not found in both ScenarioLists")
+
+        # # Create lookup dictionary from the other ScenarioList
+        # def get_key_tuple(scenario: Scenario, keys: list[str]) -> tuple:
+        #     return tuple(scenario[k] for k in keys)
+
+        # other_dict = {get_key_tuple(scenario, by_keys): scenario for scenario in other}
+
+        # # Collect all possible keys (like SQL combining all columns)
+        # all_keys = set()
+        # for scenario in self:
+        #     all_keys.update(scenario.keys())
+        # for scenario in other:
+        #     all_keys.update(scenario.keys())
+
+        # new_scenarios = []
+        # for scenario in self:
+        #     new_scenario = {
+        #         key: None for key in all_keys
+        #     }  # Start with nulls (like SQL)
+        #     new_scenario.update(scenario)  # Add all left values
+
+        #     key_tuple = get_key_tuple(scenario, by_keys)
+        #     if matching_scenario := other_dict.get(key_tuple):
+        #         # Check for overlapping keys with different values
+        #         overlapping_keys = set(scenario.keys()) & set(matching_scenario.keys())
+        #         for key in overlapping_keys:
+        #             if key not in by_keys and scenario[key] != matching_scenario[key]:
+        #                 join_conditions = [f"{k}='{scenario[k]}'" for k in by_keys]
+        #                 print(
+        #                     f"Warning: Conflicting values for key '{key}' where {' AND '.join(join_conditions)}. "
+        #                     f"Keeping left value: {scenario[key]} (discarding: {matching_scenario[key]})"
+        #                 )
+
+        #         # Only update with non-overlapping keys from matching scenario
+        #         new_keys = set(matching_scenario.keys()) - set(scenario.keys())
+        #         new_scenario.update({k: matching_scenario[k] for k in new_keys})
+
+        #     new_scenarios.append(Scenario(new_scenario))
+
+        # return ScenarioList(new_scenarios)
+
+    @classmethod
+    def from_tsv(cls, source: Union[str, urllib.parse.ParseResult]) -> ScenarioList:
+        """Create a ScenarioList from a TSV file or URL."""
+        return cls.from_delimited_file(source, delimiter="\t")
 
     def to_dict(self, sort=False, add_edsl_version=True) -> dict:
         """
@@ -1112,8 +1232,25 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         """
         from edsl.agents.AgentList import AgentList
         from edsl.agents.Agent import Agent
+        import warnings
 
-        return AgentList([Agent(traits=s.data) for s in self])
+        agents = []
+        for scenario in self:
+            new_scenario = scenario.copy().data
+            if "name" in new_scenario:
+                name = new_scenario.pop("name")
+                proposed_agent_name = "agent_name"
+                while proposed_agent_name not in new_scenario:
+                    proposed_agent_name += "_"
+                warnings.warn(
+                    f"The 'name' field is reserved for the agent's name---putting this value in {proposed_agent_name}"
+                )
+                new_scenario[proposed_agent_name] = name
+                agents.append(Agent(traits=new_scenario, name=name))
+            else:
+                agents.append(Agent(traits=new_scenario))
+
+        return AgentList(agents)
 
     def chunk(
         self,
