@@ -49,7 +49,7 @@ class JobsRunnerAsyncio:
         from edsl.config import CONFIG
 
         self.MAX_CONCURRENT = int(CONFIG.get("EDSL_MAX_CONCURRENT_TASKS"))
-        print(f"MAX_CONCURRENT: {self.MAX_CONCURRENT}")
+        # print(f"MAX_CONCURRENT: {self.MAX_CONCURRENT}")
 
     # async def run_async_generator(
     #     self,
