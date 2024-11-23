@@ -515,110 +515,6 @@ class Jobs(Base):
             return False
         return self._raise_validation_errors
 
-    def create_remote_inference_job(
-        self,
-        iterations: int = 1,
-        remote_inference_description: Optional[str] = None,
-        remote_inference_results_visibility: Optional[VisibilityType] = "unlisted",
-        verbose=False,
-    ):
-        """ """
-        from edsl.coop.coop import Coop
-
-        coop = Coop()
-        self._output("Remote inference activated. Sending job to server...")
-        remote_job_creation_data = coop.remote_inference_create(
-            self,
-            description=remote_inference_description,
-            status="queued",
-            iterations=iterations,
-            initial_results_visibility=remote_inference_results_visibility,
-        )
-        job_uuid = remote_job_creation_data.get("uuid")
-        if self.verbose:
-            print(f"Job sent to server. (Job uuid={job_uuid}).")
-        return remote_job_creation_data
-
-    @staticmethod
-    def check_status(job_uuid):
-        from edsl.coop.coop import Coop
-
-        coop = Coop()
-        return coop.remote_inference_get(job_uuid)
-
-    def poll_remote_inference_job(
-        self, remote_job_creation_data: dict, verbose=False, poll_interval=5
-    ) -> Union[Results, None]:
-        from edsl.coop.coop import Coop
-        import time
-        from datetime import datetime
-        from edsl.config import CONFIG
-
-        expected_parrot_url = CONFIG.get("EXPECTED_PARROT_URL")
-
-        job_uuid = remote_job_creation_data.get("uuid")
-
-        coop = Coop()
-        job_in_queue = True
-        while job_in_queue:
-            remote_job_data = coop.remote_inference_get(job_uuid)
-            status = remote_job_data.get("status")
-            if status == "cancelled":
-                if self.verbose:
-                    print("\r" + " " * 80 + "\r", end="")
-                    print("Job cancelled by the user.")
-                    print(
-                        f"See {expected_parrot_url}/home/remote-inference for more details."
-                    )
-                return None
-            elif status == "failed":
-                if self.verbose:
-                    print("\r" + " " * 80 + "\r", end="")
-                    print("Job failed.")
-                    print(
-                        f"See {expected_parrot_url}/home/remote-inference for more details."
-                    )
-                return None
-            elif status == "completed":
-                results_uuid = remote_job_data.get("results_uuid")
-                results = coop.get(results_uuid, expected_object_type="results")
-                if self.verbose:
-                    print("\r" + " " * 80 + "\r", end="")
-                    url = f"{expected_parrot_url}/content/{results_uuid}"
-                    print(f"Job completed and Results stored on Coop: {url}.")
-                return results
-            else:
-                duration = poll_interval
-                time_checked = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
-                frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
-                start_time = time.time()
-                i = 0
-                while time.time() - start_time < duration:
-                    if self.verbose:
-                        print(
-                            f"\r{frames[i % len(frames)]} Job status: {status} - last update: {time_checked}",
-                            end="",
-                            flush=True,
-                        )
-                    time.sleep(0.1)
-                    i += 1
-
-    def use_remote_inference(self, disable_remote_inference: bool) -> bool:
-        if disable_remote_inference:
-            return False
-        if not disable_remote_inference:
-            try:
-                from edsl import Coop
-
-                user_edsl_settings = Coop().edsl_settings
-                return user_edsl_settings.get("remote_inference", False)
-            except requests.ConnectionError:
-                pass
-            except CoopServerResponseError as e:
-                pass
-
-        return False
-
     def use_remote_cache(self, disable_remote_cache: bool) -> bool:
         if disable_remote_cache:
             return False
@@ -635,49 +531,6 @@ class Jobs(Base):
 
         return False
 
-    # def check_api_keys(self) -> None:
-    #     from edsl.jobs.JobsChecks import JobsChecks
-
-    #     return JobsChecks(self).check_api_keys()
-
-    # def get_missing_api_keys(self) -> set:
-    #     """
-    #     Returns a list of the api keys that a user needs to run this job, but does not currently have in their .env file.
-    #     """
-    #     from edsl.jobs.JobsChecks import JobsChecks
-
-    #     return JobsChecks(self).get_missing_api_keys()
-
-    # def user_has_all_model_keys(self):
-    #     """
-    #     Returns True if the user has all model keys required to run their job.
-
-    #     Otherwise, returns False.
-    #     """
-    #     from edsl.jobs.JobsChecks import JobsChecks
-
-    #     return JobsChecks(self).user_has_all_model_keys()
-
-    # def user_has_ep_api_key(self) -> bool:
-    #     """
-    #     Returns True if the user has an EXPECTED_PARROT_API_KEY in their env.
-
-    #     Otherwise, returns False.
-    #     """
-    #     from edsl.jobs.JobsChecks import JobsChecks
-
-    #     return JobsChecks(self).user_has_ep_api_key()
-
-    # def needs_external_llms(self) -> bool:
-    #     """
-    #     Returns True if the job needs external LLMs to run.
-
-    #     Otherwise, returns False.
-    #     """
-    #     from edsl.jobs.JobsChecks import JobsChecks
-
-    #     return JobsChecks(self).needs_external_llms()
-
     def run(
         self,
         n: int = 1,
@@ -686,7 +539,7 @@ class Jobs(Base):
         cache: Union[Cache, bool] = None,
         check_api_keys: bool = False,
         sidecar_model: Optional[LanguageModel] = None,
-        verbose: bool = False,
+        verbose: bool = True,
         print_exceptions=True,
         remote_cache_description: Optional[str] = None,
         remote_inference_description: Optional[str] = None,
@@ -729,13 +582,16 @@ class Jobs(Base):
         if jc.needs_key_process():
             jc.key_process()
 
-        if remote_inference := self.use_remote_inference(disable_remote_inference):
-            remote_job_creation_data = self.create_remote_inference_job(
+        from edsl.jobs.JobsRemoteInferenceHandler import JobsRemoteInferenceHandler
+
+        jh = JobsRemoteInferenceHandler(self, verbose=verbose)
+        if jh.use_remote_inference(disable_remote_inference):
+            jh.create_remote_inference_job(
                 iterations=n,
                 remote_inference_description=remote_inference_description,
                 remote_inference_results_visibility=remote_inference_results_visibility,
             )
-            results = self.poll_remote_inference_job(remote_job_creation_data)
+            results = jh.poll_remote_inference_job()
             if results is None:
                 self._output("Job failed.")
             return results
