@@ -1,6 +1,6 @@
 from typing import Optional, Union, Literal
 import requests
-
+import sys
 from edsl.exceptions.coop import CoopServerResponseError
 
 # from edsl.enums import VisibilityType
@@ -9,9 +9,22 @@ from edsl.results import Results
 
 class JobsRemoteInferenceHandler:
 
-    def __init__(self, jobs, verbose=False):
+    def __init__(self, jobs, verbose=False, poll_interval=3):
+        """
+        >>> from edsl.jobs import Jobs
+        >>> jh = JobsRemoteInferenceHandler(Jobs.example(), verbose=True)
+        >>> jh.use_remote_inference(True)
+        False
+        >>> jh._poll_remote_inference_job({'uuid':1234}, testing_simulated_response={"status": "failed"}) # doctest: +NORMALIZE_WHITESPACE
+        Job failed.
+        ...
+        >>> jh._poll_remote_inference_job({'uuid':1234}, testing_simulated_response={"status": "completed"}) # doctest: +NORMALIZE_WHITESPACE
+        Job completed and Results stored on Coop: https://www.expectedparrot.com/content/None.
+        Results(...)
+        """
         self.jobs = jobs
         self.verbose = verbose
+        self.poll_interval = poll_interval
 
         self._remote_job_creation_data = None
         self._job_uuid = None
@@ -81,21 +94,38 @@ class JobsRemoteInferenceHandler:
         )
 
     def _poll_remote_inference_job(
-        self, remote_job_creation_data: dict, verbose=False, poll_interval=5
+        self,
+        remote_job_creation_data: dict,
+        verbose=False,
+        poll_interval: Optional[float] = None,
+        testing_simulated_response: Optional[dict] = None,
     ) -> Union[Results, None]:
+
         from edsl.coop.coop import Coop
         import time
         from datetime import datetime
         from edsl.config import CONFIG
 
+        if poll_interval is None:
+            poll_interval = self.poll_interval
+
         expected_parrot_url = CONFIG.get("EXPECTED_PARROT_URL")
 
         job_uuid = remote_job_creation_data.get("uuid")
-
         coop = Coop()
+
+        if testing_simulated_response is not None:
+            remote_job_data_fetcher = lambda job_uuid: testing_simulated_response
+            object_fetcher = (
+                lambda results_uuid, expected_object_type: Results.example()
+            )
+        else:
+            remote_job_data_fetcher = coop.remote_inference_get
+            object_fetcher = coop.get
+
         job_in_queue = True
         while job_in_queue:
-            remote_job_data = coop.remote_inference_get(job_uuid)
+            remote_job_data = remote_job_data_fetcher(job_uuid)
             status = remote_job_data.get("status")
             if status == "cancelled":
                 if self.verbose:
@@ -108,6 +138,7 @@ class JobsRemoteInferenceHandler:
             elif status == "failed":
                 if self.verbose:
                     print("\r" + " " * 80 + "\r", end="")
+                    # write to stderr
                     print("Job failed.")
                     print(
                         f"See {expected_parrot_url}/home/remote-inference for more details."
@@ -115,7 +146,7 @@ class JobsRemoteInferenceHandler:
                 return None
             elif status == "completed":
                 results_uuid = remote_job_data.get("results_uuid")
-                results = coop.get(results_uuid, expected_object_type="results")
+                results = object_fetcher(results_uuid, expected_object_type="results")
                 if self.verbose:
                     print("\r" + " " * 80 + "\r", end="")
                     url = f"{expected_parrot_url}/content/{results_uuid}"
@@ -189,3 +220,9 @@ class JobsRemoteInferenceHandler:
         return await loop.run_in_executor(
             None, partial(self.poll_remote_inference_job, remote_job_creation_data)
         )
+
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod(optionflags=doctest.ELLIPSIS)
