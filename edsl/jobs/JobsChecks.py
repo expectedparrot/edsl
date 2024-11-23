@@ -6,6 +6,17 @@ from edsl.exceptions import MissingAPIKeyError
 class JobsChecks:
 
     def __init__(self, jobs):
+        """
+        >>> from edsl.jobs import Jobs
+        >>> jc = JobsChecks(Jobs.example())
+        >>> jc.check_api_keys()
+        >>> jc.get_missing_api_keys()
+        set()
+        >>> jc.user_has_ep_api_key() == False or jc.user_has_ep_api_key() == True
+        True
+        >>> jc.user_has_all_model_keys()
+        True
+        """
         self.jobs = jobs
 
     def check_api_keys(self) -> None:
@@ -83,7 +94,7 @@ class JobsChecks:
 
         # Accounts for Survey.__call__
         all_questions_are_functional = set(
-            [q.question_type for q in self.s.jobs.urvey.questions]
+            [q.question_type for q in self.jobs.survey.questions]
         ) == set(["functional"])
 
         if (
@@ -141,3 +152,9 @@ class JobsChecks:
 
         # Retrieve API key so we can continue running the job
         load_dotenv()
+
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod()

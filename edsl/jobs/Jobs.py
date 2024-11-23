@@ -630,43 +630,6 @@ class Jobs(Base):
         results.cache = cache.new_entries_cache()
         return results
 
-    async def create_and_poll_remote_job(
-        self,
-        iterations: int = 1,
-        remote_inference_description: Optional[str] = None,
-        remote_inference_results_visibility: Optional[
-            Literal["private", "public", "unlisted"]
-        ] = "unlisted",
-    ) -> Union[Results, None]:
-        """
-        Creates and polls a remote inference job asynchronously.
-        Reuses existing synchronous methods but runs them in an async context.
-
-        :param iterations: Number of times to run each interview
-        :param remote_inference_description: Optional description for the remote job
-        :param remote_inference_results_visibility: Visibility setting for results
-        :return: Results object if successful, None if job fails or is cancelled
-        """
-        import asyncio
-        from functools import partial
-
-        # Create job using existing method
-        loop = asyncio.get_event_loop()
-        remote_job_creation_data = await loop.run_in_executor(
-            None,
-            partial(
-                self.create_remote_inference_job,
-                iterations=iterations,
-                remote_inference_description=remote_inference_description,
-                remote_inference_results_visibility=remote_inference_results_visibility,
-            ),
-        )
-
-        # Poll using existing method but with async sleep
-        return await loop.run_in_executor(
-            None, partial(self.poll_remote_inference_job, remote_job_creation_data)
-        )
-
     async def run_async(
         self,
         cache=None,
@@ -689,8 +652,11 @@ class Jobs(Base):
         :return: Results object
         """
         # Check if we should use remote inference
-        if remote_inference := self.use_remote_inference(disable_remote_inference):
-            results = await self.create_and_poll_remote_job(
+        from edsl.jobs.JobsRemoteInferenceHandler import JobsRemoteInferenceHandler
+
+        jh = JobsRemoteInferenceHandler(self, verbose=False)
+        if jh.use_remote_inference(disable_remote_inference):
+            results = await jh.create_and_poll_remote_job(
                 iterations=n,
                 remote_inference_description=remote_inference_description,
                 remote_inference_results_visibility=remote_inference_results_visibility,
