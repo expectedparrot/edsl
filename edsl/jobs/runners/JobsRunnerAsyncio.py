@@ -70,7 +70,6 @@ class JobsRunnerAsyncio:
             self.total_interviews = list(
                 self._populate_total_interviews(n=n)
             )  # Populate self.total_interviews before creating tasks
-
         self._initialized.set()  # Signal that we're ready
 
         for interview in self.total_interviews:
