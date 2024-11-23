@@ -3,7 +3,7 @@ from __future__ import annotations
 import warnings
 import requests
 from itertools import product
-from typing import Literal, Optional, Union, Sequence, Generator
+from typing import Literal, Optional, Union, Sequence, Generator, TYPE_CHECKING
 
 from edsl.Base import Base
 
@@ -11,10 +11,19 @@ from edsl.exceptions import MissingAPIKeyError
 from edsl.jobs.buckets.BucketCollection import BucketCollection
 from edsl.jobs.interviews.Interview import Interview
 from edsl.jobs.runners.JobsRunnerAsyncio import JobsRunnerAsyncio
-from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
+from edsl.utilities.decorators import remove_edsl_version
 
 from edsl.data.RemoteCacheSync import RemoteCacheSync
 from edsl.exceptions.coop import CoopServerResponseError
+
+if TYPE_CHECKING:
+    from edsl.agents.Agent import Agent
+    from edsl.agents.AgentList import AgentList
+    from edsl.language_models.LanguageModel import LanguageModel
+    from edsl.scenarios.Scenario import Scenario
+    from edsl.surveys.Survey import Survey
+    from edsl.results.Results import Results
+    from edsl.results.Dataset import Dataset
 
 
 class Jobs(Base):
@@ -153,76 +162,19 @@ class Jobs(Base):
         >>> Jobs.example().prompts()
         Dataset(...)
         """
-        from edsl import Coop
+        from edsl.jobs.JobsPrompts import JobsPrompts
 
-        c = Coop()
-        price_lookup = c.fetch_prices()
+        j = JobsPrompts(self)
+        return j.prompts()
 
-        interviews = self.interviews()
-        # data = []
-        interview_indices = []
-        question_names = []
-        user_prompts = []
-        system_prompts = []
-        scenario_indices = []
-        agent_indices = []
-        models = []
-        costs = []
-        from edsl.results.Dataset import Dataset
-
-        for interview_index, interview in enumerate(interviews):
-            invigilators = [
-                interview._get_invigilator(question)
-                for question in self.survey.questions
-            ]
-            for _, invigilator in enumerate(invigilators):
-                prompts = invigilator.get_prompts()
-                user_prompt = prompts["user_prompt"]
-                system_prompt = prompts["system_prompt"]
-                user_prompts.append(user_prompt)
-                system_prompts.append(system_prompt)
-                agent_index = self.agents.index(invigilator.agent)
-                agent_indices.append(agent_index)
-                interview_indices.append(interview_index)
-                scenario_index = self.scenarios.index(invigilator.scenario)
-                scenario_indices.append(scenario_index)
-                models.append(invigilator.model.model)
-                question_names.append(invigilator.question.question_name)
-
-                prompt_cost = self.estimate_prompt_cost(
-                    system_prompt=system_prompt,
-                    user_prompt=user_prompt,
-                    price_lookup=price_lookup,
-                    inference_service=invigilator.model._inference_service_,
-                    model=invigilator.model.model,
-                )
-                costs.append(prompt_cost["cost_usd"])
-
-        d = Dataset(
-            [
-                {"user_prompt": user_prompts},
-                {"system_prompt": system_prompts},
-                {"interview_index": interview_indices},
-                {"question_name": question_names},
-                {"scenario_index": scenario_indices},
-                {"agent_index": agent_indices},
-                {"model": models},
-                {"estimated_cost": costs},
-            ]
-        )
-        return d
-
-    def show_prompts(self, all=False, max_rows: Optional[int] = None) -> None:
+    def show_prompts(self, all=False) -> None:
         """Print the prompts."""
         if all:
-            return (
-                self.prompts().to_scenario_list().table()
-            )  # print(format="rich", max_rows=max_rows)
+            return self.prompts().to_scenario_list().table()
         else:
             return (
                 self.prompts().to_scenario_list().table("user_prompt", "system_prompt")
             )
-            # ).to_scenario_list().#print(format="rich", max_rows=max_rows)
 
     @staticmethod
     def estimate_prompt_cost(
@@ -232,200 +184,41 @@ class Jobs(Base):
         inference_service: str,
         model: str,
     ) -> dict:
-        """Estimates the cost of a prompt. Takes piping into account."""
-        import math
+        """
+        Estimate the cost of running the prompts.
+        :param iterations: the number of iterations to run
+        """
+        from edsl.jobs.JobsPrompts import JobsPrompts
 
-        def get_piping_multiplier(prompt: str):
-            """Returns 2 if a prompt includes Jinja braces, and 1 otherwise."""
-
-            if "{{" in prompt and "}}" in prompt:
-                return 2
-            return 1
-
-        # Look up prices per token
-        key = (inference_service, model)
-
-        try:
-            relevant_prices = price_lookup[key]
-
-            service_input_token_price = float(
-                relevant_prices["input"]["service_stated_token_price"]
-            )
-            service_input_token_qty = float(
-                relevant_prices["input"]["service_stated_token_qty"]
-            )
-            input_price_per_token = service_input_token_price / service_input_token_qty
-
-            service_output_token_price = float(
-                relevant_prices["output"]["service_stated_token_price"]
-            )
-            service_output_token_qty = float(
-                relevant_prices["output"]["service_stated_token_qty"]
-            )
-            output_price_per_token = (
-                service_output_token_price / service_output_token_qty
-            )
-
-        except KeyError:
-            # A KeyError is likely to occur if we cannot retrieve prices (the price_lookup dict is empty)
-            # Use a sensible default
-
-            import warnings
-
-            warnings.warn(
-                "Price data could not be retrieved. Using default estimates for input and output token prices. Input: $0.15 / 1M tokens; Output: $0.60 / 1M tokens"
-            )
-            input_price_per_token = 0.00000015  # $0.15 / 1M tokens
-            output_price_per_token = 0.00000060  # $0.60 / 1M tokens
-
-        # Compute the number of characters (double if the question involves piping)
-        user_prompt_chars = len(str(user_prompt)) * get_piping_multiplier(
-            str(user_prompt)
-        )
-        system_prompt_chars = len(str(system_prompt)) * get_piping_multiplier(
-            str(system_prompt)
+        return JobsPrompts.estimate_prompt_cost(
+            system_prompt, user_prompt, price_lookup, inference_service, model
         )
 
-        # Convert into tokens (1 token approx. equals 4 characters)
-        input_tokens = (user_prompt_chars + system_prompt_chars) // 4
+    def estimate_job_cost(self, iterations: int = 1) -> dict:
+        """
+        Estimate the cost of running the job.
 
-        output_tokens = math.ceil(0.75 * input_tokens)
+        :param iterations: the number of iterations to run
+        """
+        from edsl.jobs.JobsPrompts import JobsPrompts
 
-        cost = (
-            input_tokens * input_price_per_token
-            + output_tokens * output_price_per_token
-        )
-
-        return {
-            "input_tokens": input_tokens,
-            "output_tokens": output_tokens,
-            "cost_usd": cost,
-        }
+        j = JobsPrompts(self)
+        return j.estimate_job_cost(iterations)
 
     def estimate_job_cost_from_external_prices(
         self, price_lookup: dict, iterations: int = 1
     ) -> dict:
-        """
-        Estimates the cost of a job according to the following assumptions:
+        from edsl.jobs.JobsPrompts import JobsPrompts
 
-        - 1 token = 4 characters.
-        - For each prompt, output tokens = input tokens * 0.75, rounded up to the nearest integer.
-
-        price_lookup is an external pricing dictionary.
-        """
-
-        import pandas as pd
-
-        interviews = self.interviews()
-        data = []
-        for interview in interviews:
-            invigilators = [
-                interview._get_invigilator(question)
-                for question in self.survey.questions
-            ]
-            for invigilator in invigilators:
-                prompts = invigilator.get_prompts()
-
-                # By this point, agent and scenario data has already been added to the prompts
-                user_prompt = prompts["user_prompt"]
-                system_prompt = prompts["system_prompt"]
-                inference_service = invigilator.model._inference_service_
-                model = invigilator.model.model
-
-                prompt_cost = self.estimate_prompt_cost(
-                    system_prompt=system_prompt,
-                    user_prompt=user_prompt,
-                    price_lookup=price_lookup,
-                    inference_service=inference_service,
-                    model=model,
-                )
-
-                data.append(
-                    {
-                        "user_prompt": user_prompt,
-                        "system_prompt": system_prompt,
-                        "estimated_input_tokens": prompt_cost["input_tokens"],
-                        "estimated_output_tokens": prompt_cost["output_tokens"],
-                        "estimated_cost_usd": prompt_cost["cost_usd"],
-                        "inference_service": inference_service,
-                        "model": model,
-                    }
-                )
-
-        df = pd.DataFrame.from_records(data)
-
-        df = (
-            df.groupby(["inference_service", "model"])
-            .agg(
-                {
-                    "estimated_cost_usd": "sum",
-                    "estimated_input_tokens": "sum",
-                    "estimated_output_tokens": "sum",
-                }
-            )
-            .reset_index()
-        )
-        df["estimated_cost_usd"] = df["estimated_cost_usd"] * iterations
-        df["estimated_input_tokens"] = df["estimated_input_tokens"] * iterations
-        df["estimated_output_tokens"] = df["estimated_output_tokens"] * iterations
-
-        estimated_costs_by_model = df.to_dict("records")
-
-        estimated_total_cost = sum(
-            model["estimated_cost_usd"] for model in estimated_costs_by_model
-        )
-        estimated_total_input_tokens = sum(
-            model["estimated_input_tokens"] for model in estimated_costs_by_model
-        )
-        estimated_total_output_tokens = sum(
-            model["estimated_output_tokens"] for model in estimated_costs_by_model
-        )
-
-        output = {
-            "estimated_total_cost_usd": estimated_total_cost,
-            "estimated_total_input_tokens": estimated_total_input_tokens,
-            "estimated_total_output_tokens": estimated_total_output_tokens,
-            "model_costs": estimated_costs_by_model,
-        }
-
-        return output
-
-    def estimate_job_cost(self, iterations: int = 1) -> dict:
-        """
-        Estimates the cost of a job according to the following assumptions:
-
-        - 1 token = 4 characters.
-        - For each prompt, output tokens = input tokens * 0.75, rounded up to the nearest integer.
-
-        Fetches prices from Coop.
-        """
-        from edsl import Coop
-
-        c = Coop()
-        price_lookup = c.fetch_prices()
-
-        return self.estimate_job_cost_from_external_prices(
-            price_lookup=price_lookup, iterations=iterations
-        )
+        j = JobsPrompts(self)
+        return j.estimate_job_cost_from_external_prices(price_lookup, iterations)
 
     @staticmethod
-    def compute_job_cost(job_results: "Results") -> float:
+    def compute_job_cost(job_results: Results) -> float:
         """
         Computes the cost of a completed job in USD.
         """
-        total_cost = 0
-        for result in job_results:
-            for key in result.raw_model_response:
-                if key.endswith("_cost"):
-                    result_cost = result.raw_model_response[key]
-
-                    question_name = key.removesuffix("_cost")
-                    cache_used = result.cache_used_dict[question_name]
-
-                    if isinstance(result_cost, (int, float)) and not cache_used:
-                        total_cost += result_cost
-
-        return total_cost
+        return job_results.compute_job_cost()
 
     @staticmethod
     def _get_container_class(object):
@@ -509,17 +302,12 @@ class Jobs(Base):
 
     @staticmethod
     def _get_empty_container_object(object):
-        from edsl import AgentList
-        from edsl import Agent
-        from edsl import Scenario
-        from edsl import ScenarioList
+        from edsl.agents.AgentList import AgentList
+        from edsl.scenarios.ScenarioList import ScenarioList
 
-        if isinstance(object, Agent):
-            return AgentList([])
-        elif isinstance(object, Scenario):
-            return ScenarioList([])
-        else:
-            return []
+        return {"Agent": AgentList([]), "Scenario": ScenarioList([])}.get(
+            object.__class__.__name__, []
+        )
 
     @staticmethod
     def _merge_objects(passed_objects, current_objects) -> list:
@@ -727,110 +515,6 @@ class Jobs(Base):
             return False
         return self._raise_validation_errors
 
-    def create_remote_inference_job(
-        self,
-        iterations: int = 1,
-        remote_inference_description: Optional[str] = None,
-        remote_inference_results_visibility: Optional[VisibilityType] = "unlisted",
-        verbose=False,
-    ):
-        """ """
-        from edsl.coop.coop import Coop
-
-        coop = Coop()
-        self._output("Remote inference activated. Sending job to server...")
-        remote_job_creation_data = coop.remote_inference_create(
-            self,
-            description=remote_inference_description,
-            status="queued",
-            iterations=iterations,
-            initial_results_visibility=remote_inference_results_visibility,
-        )
-        job_uuid = remote_job_creation_data.get("uuid")
-        if self.verbose:
-            print(f"Job sent to server. (Job uuid={job_uuid}).")
-        return remote_job_creation_data
-
-    @staticmethod
-    def check_status(job_uuid):
-        from edsl.coop.coop import Coop
-
-        coop = Coop()
-        return coop.remote_inference_get(job_uuid)
-
-    def poll_remote_inference_job(
-        self, remote_job_creation_data: dict, verbose=False, poll_interval=5
-    ) -> Union[Results, None]:
-        from edsl.coop.coop import Coop
-        import time
-        from datetime import datetime
-        from edsl.config import CONFIG
-
-        expected_parrot_url = CONFIG.get("EXPECTED_PARROT_URL")
-
-        job_uuid = remote_job_creation_data.get("uuid")
-
-        coop = Coop()
-        job_in_queue = True
-        while job_in_queue:
-            remote_job_data = coop.remote_inference_get(job_uuid)
-            status = remote_job_data.get("status")
-            if status == "cancelled":
-                if self.verbose:
-                    print("\r" + " " * 80 + "\r", end="")
-                    print("Job cancelled by the user.")
-                    print(
-                        f"See {expected_parrot_url}/home/remote-inference for more details."
-                    )
-                return None
-            elif status == "failed":
-                if self.verbose:
-                    print("\r" + " " * 80 + "\r", end="")
-                    print("Job failed.")
-                    print(
-                        f"See {expected_parrot_url}/home/remote-inference for more details."
-                    )
-                return None
-            elif status == "completed":
-                results_uuid = remote_job_data.get("results_uuid")
-                results = coop.get(results_uuid, expected_object_type="results")
-                if self.verbose:
-                    print("\r" + " " * 80 + "\r", end="")
-                    url = f"{expected_parrot_url}/content/{results_uuid}"
-                    print(f"Job completed and Results stored on Coop: {url}.")
-                return results
-            else:
-                duration = poll_interval
-                time_checked = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
-                frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
-                start_time = time.time()
-                i = 0
-                while time.time() - start_time < duration:
-                    if self.verbose:
-                        print(
-                            f"\r{frames[i % len(frames)]} Job status: {status} - last update: {time_checked}",
-                            end="",
-                            flush=True,
-                        )
-                    time.sleep(0.1)
-                    i += 1
-
-    def use_remote_inference(self, disable_remote_inference: bool) -> bool:
-        if disable_remote_inference:
-            return False
-        if not disable_remote_inference:
-            try:
-                from edsl import Coop
-
-                user_edsl_settings = Coop().edsl_settings
-                return user_edsl_settings.get("remote_inference", False)
-            except requests.ConnectionError:
-                pass
-            except CoopServerResponseError as e:
-                pass
-
-        return False
-
     def use_remote_cache(self, disable_remote_cache: bool) -> bool:
         if disable_remote_cache:
             return False
@@ -847,96 +531,6 @@ class Jobs(Base):
 
         return False
 
-    def check_api_keys(self) -> None:
-        from edsl import Model
-
-        for model in self.models + [Model()]:
-            if not model.has_valid_api_key():
-                raise MissingAPIKeyError(
-                    model_name=str(model.model),
-                    inference_service=model._inference_service_,
-                )
-
-    def get_missing_api_keys(self) -> set:
-        """
-        Returns a list of the api keys that a user needs to run this job, but does not currently have in their .env file.
-        """
-
-        missing_api_keys = set()
-
-        from edsl import Model
-        from edsl.enums import service_to_api_keyname
-
-        for model in self.models + [Model()]:
-            if not model.has_valid_api_key():
-                key_name = service_to_api_keyname.get(
-                    model._inference_service_, "NOT FOUND"
-                )
-                missing_api_keys.add(key_name)
-
-        return missing_api_keys
-
-    def user_has_all_model_keys(self):
-        """
-        Returns True if the user has all model keys required to run their job.
-
-        Otherwise, returns False.
-        """
-
-        try:
-            self.check_api_keys()
-            return True
-        except MissingAPIKeyError:
-            return False
-        except Exception:
-            raise
-
-    def user_has_ep_api_key(self) -> bool:
-        """
-        Returns True if the user has an EXPECTED_PARROT_API_KEY in their env.
-
-        Otherwise, returns False.
-        """
-
-        import os
-
-        coop_api_key = os.getenv("EXPECTED_PARROT_API_KEY")
-
-        if coop_api_key is not None:
-            return True
-        else:
-            return False
-
-    def needs_external_llms(self) -> bool:
-        """
-        Returns True if the job needs external LLMs to run.
-
-        Otherwise, returns False.
-        """
-        # These cases are necessary to skip the API key check during doctests
-
-        # Accounts for Results.example()
-        all_agents_answer_questions_directly = len(self.agents) > 0 and all(
-            [hasattr(a, "answer_question_directly") for a in self.agents]
-        )
-
-        # Accounts for InterviewExceptionEntry.example()
-        only_model_is_test = set([m.model for m in self.models]) == set(["test"])
-
-        # Accounts for Survey.__call__
-        all_questions_are_functional = set(
-            [q.question_type for q in self.survey.questions]
-        ) == set(["functional"])
-
-        if (
-            all_agents_answer_questions_directly
-            or only_model_is_test
-            or all_questions_are_functional
-        ):
-            return False
-        else:
-            return True
-
     def run(
         self,
         n: int = 1,
@@ -945,7 +539,7 @@ class Jobs(Base):
         cache: Union[Cache, bool] = None,
         check_api_keys: bool = False,
         sidecar_model: Optional[LanguageModel] = None,
-        verbose: bool = False,
+        verbose: bool = True,
         print_exceptions=True,
         remote_cache_description: Optional[str] = None,
         remote_inference_description: Optional[str] = None,
@@ -980,62 +574,30 @@ class Jobs(Base):
 
         self.verbose = verbose
 
-        if (
-            not self.user_has_all_model_keys()
-            and not self.user_has_ep_api_key()
-            and self.needs_external_llms()
-        ):
-            import secrets
-            from dotenv import load_dotenv
-            from edsl import CONFIG
-            from edsl.coop.coop import Coop
-            from edsl.utilities.utilities import write_api_key_to_env
+        from edsl.jobs.JobsChecks import JobsChecks
 
-            missing_api_keys = self.get_missing_api_keys()
+        jc = JobsChecks(self)
 
-            edsl_auth_token = secrets.token_urlsafe(16)
+        # check if the user has all the keys they need
+        if jc.needs_key_process():
+            jc.key_process()
 
-            print("You're missing some of the API keys needed to run this job:")
-            for api_key in missing_api_keys:
-                print(f"     🔑 {api_key}")
-            print(
-                "\nYou can either add the missing keys to your .env file, or use remote inference."
-            )
-            print("Remote inference allows you to run jobs on our server.")
-            print("\n🚀 To use remote inference, sign up at the following link:")
+        from edsl.jobs.JobsRemoteInferenceHandler import JobsRemoteInferenceHandler
 
-            coop = Coop()
-            coop._display_login_url(edsl_auth_token=edsl_auth_token)
-
-            print(
-                "\nOnce you log in, we will automatically retrieve your Expected Parrot API key and continue your job remotely."
-            )
-
-            api_key = coop._poll_for_api_key(edsl_auth_token)
-
-            if api_key is None:
-                print("\nTimed out waiting for login. Please try again.")
-                return
-
-            write_api_key_to_env(api_key)
-            print("✨ API key retrieved and written to .env file.\n")
-
-            # Retrieve API key so we can continue running the job
-            load_dotenv()
-
-        if remote_inference := self.use_remote_inference(disable_remote_inference):
-            remote_job_creation_data = self.create_remote_inference_job(
+        jh = JobsRemoteInferenceHandler(self, verbose=verbose)
+        if jh.use_remote_inference(disable_remote_inference):
+            jh.create_remote_inference_job(
                 iterations=n,
                 remote_inference_description=remote_inference_description,
                 remote_inference_results_visibility=remote_inference_results_visibility,
             )
-            results = self.poll_remote_inference_job(remote_job_creation_data)
+            results = jh.poll_remote_inference_job()
             if results is None:
                 self._output("Job failed.")
             return results
 
         if check_api_keys:
-            self.check_api_keys()
+            jc.check_api_keys()
 
         # handle cache
         if cache is None or cache is True:
@@ -1068,43 +630,6 @@ class Jobs(Base):
         results.cache = cache.new_entries_cache()
         return results
 
-    async def create_and_poll_remote_job(
-        self,
-        iterations: int = 1,
-        remote_inference_description: Optional[str] = None,
-        remote_inference_results_visibility: Optional[
-            Literal["private", "public", "unlisted"]
-        ] = "unlisted",
-    ) -> Union[Results, None]:
-        """
-        Creates and polls a remote inference job asynchronously.
-        Reuses existing synchronous methods but runs them in an async context.
-
-        :param iterations: Number of times to run each interview
-        :param remote_inference_description: Optional description for the remote job
-        :param remote_inference_results_visibility: Visibility setting for results
-        :return: Results object if successful, None if job fails or is cancelled
-        """
-        import asyncio
-        from functools import partial
-
-        # Create job using existing method
-        loop = asyncio.get_event_loop()
-        remote_job_creation_data = await loop.run_in_executor(
-            None,
-            partial(
-                self.create_remote_inference_job,
-                iterations=iterations,
-                remote_inference_description=remote_inference_description,
-                remote_inference_results_visibility=remote_inference_results_visibility,
-            ),
-        )
-
-        # Poll using existing method but with async sleep
-        return await loop.run_in_executor(
-            None, partial(self.poll_remote_inference_job, remote_job_creation_data)
-        )
-
     async def run_async(
         self,
         cache=None,
@@ -1127,8 +652,11 @@ class Jobs(Base):
         :return: Results object
         """
         # Check if we should use remote inference
-        if remote_inference := self.use_remote_inference(disable_remote_inference):
-            results = await self.create_and_poll_remote_job(
+        from edsl.jobs.JobsRemoteInferenceHandler import JobsRemoteInferenceHandler
+
+        jh = JobsRemoteInferenceHandler(self, verbose=False)
+        if jh.use_remote_inference(disable_remote_inference):
+            results = await jh.create_and_poll_remote_job(
                 iterations=n,
                 remote_inference_description=remote_inference_description,
                 remote_inference_results_visibility=remote_inference_results_visibility,
@@ -1153,15 +681,6 @@ class Jobs(Base):
         {'period'}
         """
         return set.union(*[question.parameters for question in self.survey.questions])
-
-    #######################
-    # Dunder methods
-    #######################
-    def print(self):
-        from rich import print_json
-        import json
-
-        print_json(json.dumps(self.to_dict()))
 
     def __repr__(self) -> str:
         """Return an eval-able string representation of the Jobs instance."""
@@ -1248,7 +767,7 @@ class Jobs(Base):
         True
 
         """
-        return self.to_dict() == other.to_dict()
+        return hash(self) == hash(other)
 
     #######################
     # Example methods

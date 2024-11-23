@@ -12,6 +12,7 @@ from edsl.inference_services.AzureAI import AzureAIService
 from edsl.inference_services.OllamaService import OllamaService
 from edsl.inference_services.TestService import TestService
 from edsl.inference_services.TogetherAIService import TogetherAIService
+from edsl.inference_services.PerplexityService import PerplexityService
 
 try:
     from edsl.inference_services.MistralAIService import MistralAIService
@@ -31,6 +32,7 @@ services = [
     OllamaService,
     TestService,
     TogetherAIService,
+    PerplexityService,
 ]
 
 if mistral_available:
