@@ -1,4 +1,7 @@
 from __future__ import annotations
+import json
+import re
+
 from typing import Any, Optional, Dict
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.questions.descriptors import AnswerTemplateDescriptor
@@ -10,9 +13,6 @@ from edsl.questions.decorators import inject_exception
 
 from typing import Dict, Any
 from pydantic import create_model, Field
-
-import json
-import re
 
 
 def extract_json(text, expected_keys, verbose=False):

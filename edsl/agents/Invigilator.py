@@ -45,6 +45,10 @@ class InvigilatorAI(InvigilatorBase):
 
         params.update({"iteration": self.iteration, "cache": self.cache})
 
+        params.update({"invigilator": self})
+        # if hasattr(self.question, "answer_template"):
+        #    breakpoint()
+
         agent_response_dict: AgentResponseDict = await self.model.async_get_response(
             **params
         )
