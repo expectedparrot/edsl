@@ -61,11 +61,12 @@ class JobsRemoteInferenceHandler:
         verbose=False,
     ):
         """ """
+        from edsl.config import CONFIG
         from edsl.coop.coop import Coop
+        from rich import print as rich_print
 
         coop = Coop()
-        if self.verbose:
-            print("Remote inference activated. Sending job to server...")
+        print("Remote inference activated. Sending job to server...")
         remote_job_creation_data = coop.remote_inference_create(
             self.jobs,
             description=remote_inference_description,
@@ -74,8 +75,14 @@ class JobsRemoteInferenceHandler:
             initial_results_visibility=remote_inference_results_visibility,
         )
         job_uuid = remote_job_creation_data.get("uuid")
-        if self.verbose:
-            print(f"Job sent to server. (Job uuid={job_uuid}).")
+        print(f"Job sent to server. (Job uuid={job_uuid}).")
+
+        expected_parrot_url = CONFIG.get("EXPECTED_PARROT_URL")
+        progress_bar_url = f"{expected_parrot_url}/home/remote-job-progress/{job_uuid}"
+
+        rich_print(
+            f"View job progress here: [#38bdf8][link={progress_bar_url}]{progress_bar_url}[/link][/#38bdf8]"
+        )
 
         self._remote_job_creation_data = remote_job_creation_data
         self._job_uuid = job_uuid
@@ -101,10 +108,10 @@ class JobsRemoteInferenceHandler:
         testing_simulated_response: Optional[dict] = None,
     ) -> Union[Results, None]:
 
-        from edsl.coop.coop import Coop
         import time
         from datetime import datetime
         from edsl.config import CONFIG
+        from edsl.coop.coop import Coop
 
         if poll_interval is None:
             poll_interval = self.poll_interval
@@ -128,17 +135,25 @@ class JobsRemoteInferenceHandler:
             remote_job_data = remote_job_data_fetcher(job_uuid)
             status = remote_job_data.get("status")
             if status == "cancelled":
-                if self.verbose:
-                    print("\r" + " " * 80 + "\r", end="")
-                    print("Job cancelled by the user.")
-                    print(
-                        f"See {expected_parrot_url}/home/remote-inference for more details."
-                    )
+                print("\r" + " " * 80 + "\r", end="")
+                print("Job cancelled by the user.")
+                print(
+                    f"See {expected_parrot_url}/home/remote-inference for more details."
+                )
                 return None
             elif status == "failed":
-                if self.verbose:
-                    print("\r" + " " * 80 + "\r", end="")
-                    # write to stderr
+                print("\r" + " " * 80 + "\r", end="")
+                # write to stderr
+                latest_error_report_url = remote_job_data.get("latest_error_report_url")
+                if latest_error_report_url:
+                    print("Job failed.")
+                    print(
+                        f"Your job generated exceptions. Details on these exceptions can be found in the following report: {latest_error_report_url}"
+                    )
+                    print(
+                        f"Need support? Post a message at the Expected Parrot Discord channel (https://discord.com/invite/mxAYkjfy9m) or send an email to info@expectedparrot.com."
+                    )
+                else:
                     print("Job failed.")
                     print(
                         f"See {expected_parrot_url}/home/remote-inference for more details."
@@ -146,11 +161,10 @@ class JobsRemoteInferenceHandler:
                 return None
             elif status == "completed":
                 results_uuid = remote_job_data.get("results_uuid")
+                results_url = remote_job_data.get("results_url")
                 results = object_fetcher(results_uuid, expected_object_type="results")
-                if self.verbose:
-                    print("\r" + " " * 80 + "\r", end="")
-                    url = f"{expected_parrot_url}/content/{results_uuid}"
-                    print(f"Job completed and Results stored on Coop: {url}.")
+                print("\r" + " " * 80 + "\r", end="")
+                print(f"Job completed and Results stored on Coop: {results_url}.")
                 return results
             else:
                 duration = poll_interval
@@ -159,12 +173,11 @@ class JobsRemoteInferenceHandler:
                 start_time = time.time()
                 i = 0
                 while time.time() - start_time < duration:
-                    if self.verbose:
-                        print(
-                            f"\r{frames[i % len(frames)]} Job status: {status} - last update: {time_checked}",
-                            end="",
-                            flush=True,
-                        )
+                    print(
+                        f"\r{frames[i % len(frames)]} Job status: {status} - last update: {time_checked}",
+                        end="",
+                        flush=True,
+                    )
                     time.sleep(0.1)
                     i += 1
 

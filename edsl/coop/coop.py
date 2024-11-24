@@ -682,10 +682,28 @@ class Coop:
         )
         self._resolve_server_response(response)
         data = response.json()
+
+        results_uuid = data.get("results_uuid")
+        latest_error_report_uuid = data.get("latest_error_report_uuid")
+
+        if results_uuid is None:
+            results_url = None
+        else:
+            results_url = f"{self.url}/content/{results_uuid}"
+
+        if latest_error_report_uuid is None:
+            latest_error_report_url = None
+        else:
+            latest_error_report_url = (
+                f"{self.url}/home/remote-inference/error/{latest_error_report_uuid}"
+            )
+
         return {
             "job_uuid": data.get("job_uuid"),
-            "results_uuid": data.get("results_uuid"),
-            "results_url": f"{self.url}/content/{data.get('results_uuid')}",
+            "results_uuid": results_uuid,
+            "results_url": results_url,
+            "latest_error_report_uuid": latest_error_report_uuid,
+            "latest_error_report_url": latest_error_report_url,
             "status": data.get("status"),
             "reason": data.get("reason"),
             "credits_consumed": data.get("price"),

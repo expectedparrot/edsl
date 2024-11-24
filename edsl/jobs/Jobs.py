@@ -592,8 +592,6 @@ class Jobs(Base):
                 remote_inference_results_visibility=remote_inference_results_visibility,
             )
             results = jh.poll_remote_inference_job()
-            if results is None:
-                self._output("Job failed.")
             return results
 
         if check_api_keys:
@@ -661,8 +659,6 @@ class Jobs(Base):
                 remote_inference_description=remote_inference_description,
                 remote_inference_results_visibility=remote_inference_results_visibility,
             )
-            if results is None:
-                self._output("Job failed.")
             return results
 
         # If not using remote inference, run locally with async
