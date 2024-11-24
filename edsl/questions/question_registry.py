@@ -124,7 +124,8 @@ class Question(metaclass=Meta):
                     {"question_type": [q for q in question_list]},
                     {"question_class": [q.__name__ for q in question_classes]},
                     {"example_question": example_questions},
-                ]
+                ],
+                print_parameters={"containerHeight": "auto"},
             )
 
 

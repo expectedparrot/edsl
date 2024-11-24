@@ -32,7 +32,7 @@ from edsl.results.ResultsDBMixin import ResultsDBMixin
 from edsl.results.ResultsGGMixin import ResultsGGMixin
 from edsl.results.ResultsFetchMixin import ResultsFetchMixin
 
-from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
+from edsl.utilities.decorators import remove_edsl_version
 from edsl.utilities.utilities import dict_hash
 
 
@@ -46,6 +46,10 @@ class Mixins(
     ResultsGGMixin,
     ResultsToolsMixin,
 ):
+
+    def long(self):
+        return self.table().long()
+
     def print_long(self, max_rows: int = None) -> None:
         """Print the results in long format.
 
@@ -310,6 +314,7 @@ class Results(UserList, Mixins, Base):
         *fields,
         tablefmt: Optional[str] = None,
         pretty_labels: Optional[dict] = None,
+        print_parameters: Optional[dict] = None,
     ):
         new_fields = []
         for field in fields:
@@ -334,7 +339,12 @@ class Results(UserList, Mixins, Base):
         return (
             self.to_scenario_list()
             .to_dataset()
-            .table(*new_fields, tablefmt=tablefmt, pretty_labels=pretty_labels)
+            .table(
+                *new_fields,
+                tablefmt=tablefmt,
+                pretty_labels=pretty_labels,
+                print_parameters=print_parameters,
+            )
         )
         # return (
         #     self.select(f"{selector_string}")

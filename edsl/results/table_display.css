@@ -1,5 +1,5 @@
 .table-container {
-    height: 400px;
+    height: var(--containerHeight) !important;
     width: 100%;
     overflow: auto;  /* This enables both horizontal and vertical scrolling */
     border: 1px solid #d4d4d4;
