@@ -18,6 +18,7 @@
 }
 
 .scroll-table th {
+    /* background: var(--jp-cell-editor-background, var(--vscode-editor-background)) !important */
     background: transparent;  /* Semi-transparent background to ensure text readability */
     position: sticky;
     top: 0;
@@ -27,6 +28,7 @@
     font-weight: bold;
     white-space: nowrap;  /* Prevent header text from wrapping */
     min-width: 100px;    /* Ensure minimum column width */
+    backdrop-filter: blur(8px);  /* Optional: adds extra clarity */
 }
 
 .scroll-table td {
