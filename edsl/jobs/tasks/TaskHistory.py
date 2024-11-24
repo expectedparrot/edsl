@@ -369,7 +369,7 @@ class TaskHistory:
         return_link=False,
         css=None,
         cta="Open Report in New Tab",
-        open_in_browser=True,
+        open_in_browser=False,
     ):
         """Return an HTML report."""
 

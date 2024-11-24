@@ -87,19 +87,26 @@ class InvigilatorAI(InvigilatorBase):
         exception_occurred = None
         validated = False
         try:
-            # if the question has jinja parameters, it might be easier to make a new question
-            # with those all filled in & then validate that
-            # breakpoint()
+            # if the question has jinja parameters, it is easier to make a new question with the parameters
             if self.question.parameters:
                 prior_answers_dict = self.prompt_constructor.prior_answers_dict()
+
+                # question options have be treated differently because of dynamic question
+                # this logic is all in the prompt constructor
+                if "question_options" in self.question.data:
+                    new_question_options = (
+                        self.prompt_constructor._get_question_options(
+                            self.question.data
+                        )
+                    )
+                    if new_question_options != self.question.data["question_options"]:
+                        # I don't love this direct writing but it seems to work
+                        self.question.question_options = new_question_options
+
                 question_with_validators = self.question.render(
                     self.scenario | prior_answers_dict
                 )
                 question_with_validators.use_code = self.question.use_code
-                # if question_with_validators.parameters:
-                #     raise ValueError(
-                #         f"The question still has parameters after rendering: {question_with_validators}"
-                #     )
             else:
                 question_with_validators = self.question
 

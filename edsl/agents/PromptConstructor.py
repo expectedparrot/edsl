@@ -169,6 +169,8 @@ class PromptConstructor:
 
         placeholder = ["<< Option 1 - Placholder >>", "<< Option 2 - Placholder >>"]
 
+        # print("Question options entry: ", question_options_entry)
+
         if isinstance(question_options_entry, str):
             env = Environment()
             parsed_content = env.parse(question_options_entry)
@@ -200,13 +202,12 @@ class PromptConstructor:
         # e.g., {'question_text': 'Do you like school?', 'question_name': 'q0', 'question_options': ['yes', 'no']}
         question_data = self.question.data.copy()
 
-        if "question_options" in question_data:
+        if (
+            "question_options" in question_data
+        ):  # is this a question with question options?
             question_options = self._get_question_options(question_data)
             question_data["question_options"] = question_options
 
-        # check to see if the question_options is actually a string
-        # This is used when the user is using the question_options as a variable from a scenario
-        # if "question_options" in question_data:
         replacement_dict = self.build_replacement_dict(question_data)
         rendered_instructions = question_prompt.render(replacement_dict)
 
