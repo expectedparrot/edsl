@@ -19,7 +19,7 @@ class JobsRemoteInferenceHandler:
         Job failed.
         ...
         >>> jh._poll_remote_inference_job({'uuid':1234}, testing_simulated_response={"status": "completed"}) # doctest: +NORMALIZE_WHITESPACE
-        Job completed and Results stored on Coop: https://www.expectedparrot.com/content/None.
+        Job completed and Results stored on Coop: None.
         Results(...)
         """
         self.jobs = jobs
