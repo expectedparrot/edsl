@@ -37,12 +37,61 @@ class JobsRunnerAsyncio:
     The Jobs object is a collection of interviews that are to be run.
     """
 
+    MAX_CONCURRENT_DEFAULT = 500
+
     def __init__(self, jobs: "Jobs"):
         self.jobs = jobs
         self.interviews: List["Interview"] = jobs.interviews()
         self.bucket_collection: "BucketCollection" = jobs.bucket_collection
         self.total_interviews: List["Interview"] = []
         self._initialized = threading.Event()
+
+        from edsl.config import CONFIG
+
+        self.MAX_CONCURRENT = int(CONFIG.get("EDSL_MAX_CONCURRENT_TASKS"))
+        # print(f"MAX_CONCURRENT: {self.MAX_CONCURRENT}")
+
+    # async def run_async_generator(
+    #     self,
+    #     cache: Cache,
+    #     n: int = 1,
+    #     stop_on_exception: bool = False,
+    #     sidecar_model: Optional[LanguageModel] = None,
+    #     total_interviews: Optional[List["Interview"]] = None,
+    #     raise_validation_errors: bool = False,
+    # ) -> AsyncGenerator["Result", None]:
+    #     """Creates the tasks, runs them asynchronously, and returns the results as a Results object.
+
+    #     Completed tasks are yielded as they are completed.
+
+    #     :param n: how many times to run each interview
+    #     :param stop_on_exception: Whether to stop the interview if an exception is raised
+    #     :param sidecar_model: a language model to use in addition to the interview's model
+    #     :param total_interviews: A list of interviews to run can be provided instead.
+    #     :param raise_validation_errors: Whether to raise validation errors
+    #     """
+    #     tasks = []
+    #     if total_interviews:  # was already passed in total interviews
+    #         self.total_interviews = total_interviews
+    #     else:
+    #         self.total_interviews = list(
+    #             self._populate_total_interviews(n=n)
+    #         )  # Populate self.total_interviews before creating tasks
+    #     self._initialized.set()  # Signal that we're ready
+
+    #     for interview in self.total_interviews:
+    #         interviewing_task = self._build_interview_task(
+    #             interview=interview,
+    #             stop_on_exception=stop_on_exception,
+    #             sidecar_model=sidecar_model,
+    #             raise_validation_errors=raise_validation_errors,
+    #         )
+    #         tasks.append(asyncio.create_task(interviewing_task))
+
+    #     for task in asyncio.as_completed(tasks):
+    #         result = await task
+    #         self.jobs_runner_status.add_completed_interview(result)
+    #         yield result
 
     async def run_async_generator(
         self,
@@ -53,9 +102,10 @@ class JobsRunnerAsyncio:
         total_interviews: Optional[List["Interview"]] = None,
         raise_validation_errors: bool = False,
     ) -> AsyncGenerator["Result", None]:
-        """Creates the tasks, runs them asynchronously, and returns the results as a Results object.
+        """Creates and processes tasks asynchronously, yielding results as they complete.
 
-        Completed tasks are yielded as they are completed.
+        Tasks are created and processed in a streaming fashion rather than building the full list upfront.
+        Results are yielded as soon as they are available.
 
         :param n: how many times to run each interview
         :param stop_on_exception: Whether to stop the interview if an exception is raised
@@ -63,28 +113,70 @@ class JobsRunnerAsyncio:
         :param total_interviews: A list of interviews to run can be provided instead.
         :param raise_validation_errors: Whether to raise validation errors
         """
-        tasks = []
-        if total_interviews:  # was already passed in total interviews
+        # Initialize interviews iterator
+        if total_interviews:
+            interviews_iter = iter(total_interviews)
             self.total_interviews = total_interviews
         else:
-            self.total_interviews = list(
-                self._populate_total_interviews(n=n)
-            )  # Populate self.total_interviews before creating tasks
+            interviews_iter = self._populate_total_interviews(n=n)
+            self.total_interviews = list(interviews_iter)
+            interviews_iter = iter(self.total_interviews)  # Create fresh iterator
+
         self._initialized.set()  # Signal that we're ready
 
-        for interview in self.total_interviews:
-            interviewing_task = self._build_interview_task(
-                interview=interview,
-                stop_on_exception=stop_on_exception,
-                sidecar_model=sidecar_model,
-                raise_validation_errors=raise_validation_errors,
-            )
-            tasks.append(asyncio.create_task(interviewing_task))
+        # Keep track of active tasks
+        active_tasks = set()
 
-        for task in asyncio.as_completed(tasks):
-            result = await task
-            self.jobs_runner_status.add_completed_interview(result)
-            yield result
+        try:
+            while True:
+                # Add new tasks if we're below max_concurrent and there are more interviews
+                while len(active_tasks) < self.MAX_CONCURRENT:
+                    try:
+                        interview = next(interviews_iter)
+                        task = asyncio.create_task(
+                            self._build_interview_task(
+                                interview=interview,
+                                stop_on_exception=stop_on_exception,
+                                sidecar_model=sidecar_model,
+                                raise_validation_errors=raise_validation_errors,
+                            )
+                        )
+                        active_tasks.add(task)
+                        # Add callback to remove task from set when done
+                        task.add_done_callback(active_tasks.discard)
+                    except StopIteration:
+                        break
+
+                if not active_tasks:
+                    break
+
+                # Wait for next completed task
+                done, _ = await asyncio.wait(
+                    active_tasks, return_when=asyncio.FIRST_COMPLETED
+                )
+
+                # Process completed tasks
+                for task in done:
+                    try:
+                        result = await task
+                        self.jobs_runner_status.add_completed_interview(result)
+                        yield result
+                    except Exception as e:
+                        if stop_on_exception:
+                            # Cancel remaining tasks
+                            for t in active_tasks:
+                                if not t.done():
+                                    t.cancel()
+                            raise
+                        else:
+                            # Log error and continue
+                            # logger.error(f"Task failed with error: {e}")
+                            continue
+        finally:
+            # Ensure we cancel any remaining tasks if we exit early
+            for task in active_tasks:
+                if not task.done():
+                    task.cancel()
 
     def _populate_total_interviews(
         self, n: int = 1
