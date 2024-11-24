@@ -59,9 +59,10 @@ class CSSParameterizer:
             str: Generated :root block with variables, or None if validation fails
 
         Example:
-            >>> css = "body { height: var(--body-height); }"
+            >>> css = "body { height: var(--bodyHeight); }"
             >>> parameterizer = CSSParameterizer(css)
-            >>> print(parameterizer.generate_root(body_height="100vh"))
+            >>> parameterizer.apply_parameters({'bodyHeight':"100vh"})
+            ':root {\\n  --bodyHeight: 100vh;\\n}\\n\\nbody { height: var(--bodyHeight); }'
         """
         missing_vars = self._validate_parameters(parameters)
 
@@ -102,28 +103,6 @@ class CSSParameterizer:
 
 # Example usage
 if __name__ == "__main__":
-    # Example CSS with variables
-    css_content = """
-body {
-    height: var(--body-height);
-    background-color: var(--bg-color);
-}
+    import doctest
 
-.container {
-    max-width: var(--container-width);
-    padding: var(--container-padding);
-}
-"""
-
-    # Create parameterizer instance
-    parameterizer = CSSParameterizer(css_content)
-
-    # Generate parameterized CSS
-    result = parameterizer.apply_parameters(
-        body_height="100vh",
-        bg_color="#ffffff",
-        container_width="1200px",
-        container_padding="20px",
-    )
-
-    print(result)
+    doctest.testmod()

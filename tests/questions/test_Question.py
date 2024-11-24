@@ -103,7 +103,8 @@ def test_hashing():
     from edsl import Question
 
     examples = [
-        Question.example(question_type) for question_type in Question.available()
+        Question.example(question_type)
+        for question_type in Question.available()[0]["question_type"]
     ]
     hashes = [hash(q) for q in examples]
     assert (
