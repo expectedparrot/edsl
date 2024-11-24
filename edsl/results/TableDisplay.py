@@ -5,7 +5,8 @@ from edsl.results.CSSParameterizer import CSSParameterizer
 
 
 class TableDisplay:
-    max_height = 100
+    max_height = 400
+    min_height = 200
 
     @classmethod
     def get_css(cls):
@@ -18,6 +19,14 @@ class TableDisplay:
         self.data = data
         self.tablefmt = tablefmt
         self.raw_data_set = raw_data_set
+
+        if hasattr(raw_data_set, "print_parameters"):
+            if raw_data_set.print_parameters:
+                self.printing_parameters = raw_data_set.print_parameters
+            else:
+                self.printing_parameters = {}
+        else:
+            self.printing_parameters = {}
 
     def to_csv(self, filename: str):
         self.raw_data_set.to_csv(filename)
@@ -67,6 +76,9 @@ class TableDisplay:
             num_rows * 30 + 50, self.max_height
         )  # Added extra space for header
 
+        if height < self.min_height:
+            height = self.min_height
+
         html_template = """
         <style>
             {css}
@@ -85,9 +97,12 @@ class TableDisplay:
         # html_content = tabulate(self.data, headers=self.headers, tablefmt="html")
         # html_content = html_content.replace("<table>", '<table class="scroll-table">')
 
-        rendered_css = CSSParameterizer(self.get_css()).apply_parameters(
-            {"containerHeight": f"{height}px", "headerColor": "blue"}
-        )
+        height_string = f"{height}px"
+        # height_string = "auto"
+        parameters = {"containerHeight": height_string, "headerColor": "blue"}
+        parameters.update(self.printing_parameters)
+
+        rendered_css = CSSParameterizer(self.get_css()).apply_parameters(parameters)
 
         return html_template.format(table=html_content, css=rendered_css)
 
