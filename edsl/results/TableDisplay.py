@@ -1,9 +1,11 @@
 from tabulate import tabulate
 from pathlib import Path
 
+from edsl.results.CSSParameterizer import CSSParameterizer
+
 
 class TableDisplay:
-    max_height = 800
+    max_height = 100
 
     @classmethod
     def get_css(cls):
@@ -83,9 +85,11 @@ class TableDisplay:
         # html_content = tabulate(self.data, headers=self.headers, tablefmt="html")
         # html_content = html_content.replace("<table>", '<table class="scroll-table">')
 
-        return html_template.format(
-            table=html_content, height=height, css=self.get_css()
+        rendered_css = CSSParameterizer(self.get_css()).apply_parameters(
+            {"containerHeight": f"{height}px", "headerColor": "blue"}
         )
+
+        return html_template.format(table=html_content, css=rendered_css)
 
     @classmethod
     def example(
