@@ -57,7 +57,7 @@ class Dataset(UserList, ResultsExportMixin):
 
     def _repr_html_(self):
         # headers, data = self._tabular()
-        return self.table()._repr_html_()
+        return self.table(print_parameters=self.print_parameters)._repr_html_()
         # return TableDisplay(headers=headers, data=data, raw_data_set=self)
 
     def _tabular(self) -> tuple[list[str], list[list[Any]]]:

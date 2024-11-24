@@ -32,7 +32,6 @@ class TableDisplay:
         self.raw_data_set.to_csv(filename)
 
     def write(self, filename: str):
-        # pass
         if self.tablefmt is None:
             table = tabulate(self.data, headers=self.headers, tablefmt="simple")
         else:
@@ -93,15 +92,9 @@ class TableDisplay:
         html_content = tabulate(self.data, headers=self.headers, tablefmt="html")
         html_content = html_content.replace("<table>", '<table class="scroll-table">')
 
-        # Generate HTML table with the scroll-table class
-        # html_content = tabulate(self.data, headers=self.headers, tablefmt="html")
-        # html_content = html_content.replace("<table>", '<table class="scroll-table">')
-
         height_string = f"{height}px"
-        # height_string = "auto"
         parameters = {"containerHeight": height_string, "headerColor": "blue"}
         parameters.update(self.printing_parameters)
-
         rendered_css = CSSParameterizer(self.get_css()).apply_parameters(parameters)
 
         return html_template.format(table=html_content, css=rendered_css)
