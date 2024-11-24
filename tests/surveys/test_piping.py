@@ -59,7 +59,12 @@ def test_alt_piping():
         question_name="favorite_hobby",
     )
     s = Survey([q1, q2])
-    results = s.by(m).run(progress_bar=False, cache=False)
+    results = s.by(m).run(
+        progress_bar=False,
+        cache=False,
+        disable_remote_cache=True,
+        disable_remote_inference=True,
+    )
     # assert results.select("answer.*").to_list() == [(["Reading", "Sailing"], "Sailing")]
 
 
@@ -96,7 +101,7 @@ def test_option_expand_piping():
     # results.select("primary").print(format="rich")
     # breakpoint()
     # Conform it got passed through
-    results.select("question_options.primary").to_list()[0] == [
+    assert results.select("question_options.primary").to_list()[0] == [
         "Red",
         "Blue",
         "Green",
