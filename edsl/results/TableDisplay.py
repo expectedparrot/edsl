@@ -3,7 +3,7 @@ from pathlib import Path
 
 
 class TableDisplay:
-    max_height = 400
+    max_height = 800
 
     @classmethod
     def get_css(cls):
@@ -69,7 +69,7 @@ class TableDisplay:
         <style>
             {css}
         </style>
-        <div class="table-container" style="--container-height: {height}px;">
+        <div class="table-container">
             <div class="scroll-table-wrapper">
                 {table}
             </div>
