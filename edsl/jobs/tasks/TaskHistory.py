@@ -8,7 +8,12 @@ from edsl.jobs.tasks.task_status_enum import TaskStatus
 
 
 class TaskHistory:
-    def __init__(self, interviews: List["Interview"], include_traceback: bool = False):
+    def __init__(
+        self,
+        interviews: List["Interview"],
+        include_traceback: bool = False,
+        max_interviews: int = 10,
+    ):
         """
         The structure of a TaskHistory exception
 
@@ -22,6 +27,7 @@ class TaskHistory:
         self.include_traceback = include_traceback
 
         self._interviews = {index: i for index, i in enumerate(self.total_interviews)}
+        self.max_interviews = max_interviews
 
     @classmethod
     def example(cls):
@@ -75,13 +81,6 @@ class TaskHistory:
 
     def to_dict(self, add_edsl_version=True):
         """Return the TaskHistory as a dictionary."""
-        # return {
-        #     "exceptions": [
-        #         e.to_dict(include_traceback=self.include_traceback)
-        #         for e in self.exceptions
-        #     ],
-        #     "indices": self.indices,
-        # }
         d = {
             "interviews": [
                 i.to_dict(add_edsl_version=add_edsl_version)
@@ -124,9 +123,6 @@ class TaskHistory:
 
     def _repr_html_(self):
         """Return an HTML representation of the TaskHistory."""
-        # from edsl.utilities.utilities import data_to_html
-        # newdata = self.to_dict().get("exceptions", None)
-        # return data_to_html(newdata, replace_new_lines=True)
         d = self.to_dict(add_edsl_version=False)
         data = [[k, v] for k, v in d.items()]
         from tabulate import tabulate
@@ -261,8 +257,6 @@ class TaskHistory:
             for question_name, exceptions in interview.exceptions.items():
                 for exception in exceptions:
                     exception_type = exception.exception.__class__.__name__
-                    # exception_type = exception["exception"]
-                    # breakpoint()
                     if exception_type in exceptions_by_type:
                         exceptions_by_type[exception_type] += 1
                     else:
@@ -349,9 +343,9 @@ class TaskHistory:
 
         env = Environment(loader=TemplateLoader("edsl", "templates/error_reporting"))
 
-        # Load and render a template
+        # Get current memory usage at this point
+
         template = env.get_template("base.html")
-        # rendered_template = template.render(your_data=your_data)
 
         # Render the template with data
         output = template.render(
@@ -365,6 +359,7 @@ class TaskHistory:
             exceptions_by_model=self.exceptions_by_model,
             exceptions_by_service=self.exceptions_by_service,
             models_used=models_used,
+            max_interviews=self.max_interviews,
         )
         return output
 
@@ -374,7 +369,7 @@ class TaskHistory:
         return_link=False,
         css=None,
         cta="Open Report in New Tab",
-        open_in_browser=True,
+        open_in_browser=False,
     ):
         """Return an HTML report."""
 
