@@ -625,7 +625,7 @@ class Coop:
 
         >>> job = Jobs.example()
         >>> coop.remote_inference_create(job=job, description="My job")
-        {'uuid': '9f8484ee-b407-40e4-9652-4133a7236c9c', 'description': 'My job', 'status': 'queued', 'visibility': 'unlisted', 'version': '0.1.29.dev4'}
+        {'uuid': '9f8484ee-b407-40e4-9652-4133a7236c9c', 'description': 'My job', 'status': 'queued', 'iterations': None, 'visibility': 'unlisted', 'version': '0.1.38.dev1'}
         """
         response = self._send_server_request(
             uri="api/v0/remote-inference",
@@ -666,7 +666,7 @@ class Coop:
         :param results_uuid: The UUID of the results associated with the EDSL job.
 
         >>> coop.remote_inference_get("9f8484ee-b407-40e4-9652-4133a7236c9c")
-        {'jobs_uuid': '9f8484ee-b407-40e4-9652-4133a7236c9c', 'results_uuid': 'dd708234-31bf-4fe1-8747-6e232625e026', 'results_url': 'https://www.expectedparrot.com/content/dd708234-31bf-4fe1-8747-6e232625e026', 'status': 'completed', 'reason': None, 'price': 16, 'version': '0.1.29.dev4'}
+        {'job_uuid': '9f8484ee-b407-40e4-9652-4133a7236c9c', 'results_uuid': 'dd708234-31bf-4fe1-8747-6e232625e026', 'results_url': 'https://www.expectedparrot.com/content/dd708234-31bf-4fe1-8747-6e232625e026', 'latest_error_report_uuid': None, 'latest_error_report_url': None, 'status': 'completed', 'reason': None, 'credits_consumed': 0.35, 'version': '0.1.38.dev1'}
         """
         if job_uuid is None and results_uuid is None:
             raise ValueError("Either job_uuid or results_uuid must be provided.")
@@ -720,7 +720,7 @@ class Coop:
 
         >>> job = Jobs.example()
         >>> coop.remote_inference_cost(input=job)
-        16
+        {'credits': 0.77, 'usd': 0.0076950000000000005}
         """
         if isinstance(input, Jobs):
             job = input
