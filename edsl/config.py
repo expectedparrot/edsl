@@ -65,6 +65,10 @@ CONFIG_MAP = {
         "default": "500",
         "info": "This config var determines the maximum number of concurrent tasks that can be run by the async job-runner",
     },
+    "EDSL_OPEN_EXCEPTION_REPORT_URL": {
+        "default": "False",
+        "info": "This config var determines whether to open the exception report URL in the browser",
+    },
 }
 
 

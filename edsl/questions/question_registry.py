@@ -91,6 +91,22 @@ class Question(metaclass=Meta):
         return coop.patch(uuid, url, description, value, visibility)
 
     @classmethod
+    def list_question_types(cls):
+        """Return a list of available question types.
+
+        >>> from edsl import Question
+        >>> Question.list_question_types()
+        ['checkbox', 'extract', 'free_text', 'functional', 'likert_five', 'linear_scale', 'list', 'multiple_choice', 'numerical', 'rank', 'top_k', 'yes_no']
+        """
+        return [
+            q
+            for q in sorted(
+                list(RegisterQuestionsMeta.question_types_to_classes().keys())
+            )
+            if q not in ["budget"]
+        ]
+
+    @classmethod
     def available(cls, show_class_names: bool = False) -> Union[list, dict]:
         """Return a list of available question types.
 
@@ -98,18 +114,32 @@ class Question(metaclass=Meta):
 
         Example usage:
 
-        >>> from edsl import Question
-        >>> Question.available()
-        ['checkbox', 'extract', 'free_text', 'functional', 'likert_five', 'linear_scale', 'list', 'multiple_choice', 'numerical', 'rank', 'top_k', 'yes_no']
         """
+        from edsl.results.Dataset import Dataset
+
         exclude = ["budget"]
         if show_class_names:
             return RegisterQuestionsMeta.question_types_to_classes()
         else:
-            question_list = sorted(
-                set(RegisterQuestionsMeta.question_types_to_classes().keys())
+            question_list = [
+                q
+                for q in sorted(
+                    set(RegisterQuestionsMeta.question_types_to_classes().keys())
+                )
+                if q not in exclude
+            ]
+            d = RegisterQuestionsMeta.question_types_to_classes()
+            question_classes = [d[q] for q in question_list]
+            example_questions = [repr(q.example()) for q in question_classes]
+
+            return Dataset(
+                [
+                    {"question_type": [q for q in question_list]},
+                    {"question_class": [q.__name__ for q in question_classes]},
+                    {"example_question": example_questions},
+                ],
+                print_parameters={"containerHeight": "auto"},
             )
-            return [q for q in question_list if q not in exclude]
 
 
 def get_question_class(question_type):

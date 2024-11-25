@@ -337,11 +337,25 @@ class JobsRunnerAsyncio:
             if len(results.task_history.indices) > 5:
                 msg += f"Exceptions were raised in the following interviews: {results.task_history.indices}.\n"
 
-            print(msg)
-            # this is where exceptions are opening up
+            import sys
+
+            print(msg, file=sys.stderr)
+            from edsl.config import CONFIG
+
+            if CONFIG.get("EDSL_OPEN_EXCEPTION_REPORT_URL") == "True":
+                open_in_browser = True
+            elif CONFIG.get("EDSL_OPEN_EXCEPTION_REPORT_URL") == "False":
+                open_in_browser = False
+            else:
+                raise Exception(
+                    "EDSL_OPEN_EXCEPTION_REPORT_URL", "must be either True or False"
+                )
+
+            # print("open_in_browser", open_in_browser)
+
             filepath = results.task_history.html(
                 cta="Open report to see details.",
-                open_in_browser=True,
+                open_in_browser=open_in_browser,
                 return_link=True,
             )
 

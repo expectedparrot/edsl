@@ -782,11 +782,15 @@ class Coop:
 
         from edsl.config import CONFIG
 
-        if bool(CONFIG.get("EDSL_FETCH_TOKEN_PRICES")):
+        if CONFIG.get("EDSL_FETCH_TOKEN_PRICES") == "True":
             price_fetcher = PriceFetcher()
             return price_fetcher.fetch_prices()
-        else:
+        elif CONFIG.get("EDSL_FETCH_TOKEN_PRICES") == "False":
             return {}
+        else:
+            raise ValueError(
+                "Invalid EDSL_FETCH_TOKEN_PRICES value---should be 'True' or 'False'."
+            )
 
     def fetch_models(self) -> dict:
         """
