@@ -16,9 +16,12 @@ from edsl.results.TableDisplay import TableDisplay
 class Dataset(UserList, ResultsExportMixin):
     """A class to represent a dataset of observations."""
 
-    def __init__(self, data: list[dict[str, Any]] = None):
+    def __init__(
+        self, data: list[dict[str, Any]] = None, print_parameters: Optional[dict] = None
+    ):
         """Initialize the dataset with the given data."""
         super().__init__(data)
+        self.print_parameters = print_parameters
 
     def __len__(self) -> int:
         """Return the number of observations in the dataset.
@@ -54,7 +57,7 @@ class Dataset(UserList, ResultsExportMixin):
 
     def _repr_html_(self):
         # headers, data = self._tabular()
-        return self.table()._repr_html_()
+        return self.table(print_parameters=self.print_parameters)._repr_html_()
         # return TableDisplay(headers=headers, data=data, raw_data_set=self)
 
     def _tabular(self) -> tuple[list[str], list[list[Any]]]:
@@ -330,6 +333,7 @@ class Dataset(UserList, ResultsExportMixin):
         tablefmt: Optional[str] = None,
         max_rows: Optional[int] = None,
         pretty_labels=None,
+        print_parameters: Optional[dict] = None,
     ):
         if pretty_labels is not None:
             new_fields = []
@@ -338,6 +342,8 @@ class Dataset(UserList, ResultsExportMixin):
             return self.rename(pretty_labels).table(
                 *new_fields, tablefmt=tablefmt, max_rows=max_rows
             )
+
+        self.print_parameters = print_parameters
 
         headers, data = self._tabular()
 
@@ -388,7 +394,6 @@ class Dataset(UserList, ResultsExportMixin):
             last_line = data[-1]
             spaces = len(data[max_rows])
             filler_line = ["." for i in range(spaces)]
-            # breakpoint()
             data = data[:max_rows]
             data.append(filler_line)
             data.append(last_line)
