@@ -1,5 +1,5 @@
 .table-container {
-    height: var(--container-height);
+    height: var(--containerHeight) !important;
     width: 100%;
     overflow: auto;  /* This enables both horizontal and vertical scrolling */
     border: 1px solid #d4d4d4;
@@ -18,7 +18,6 @@
 }
 
 .scroll-table th {
-    /* background: var(--jp-cell-editor-background, var(--vscode-editor-background)) !important */
     background: transparent;  /* Semi-transparent background to ensure text readability */
     position: sticky;
     top: 0;
@@ -29,6 +28,7 @@
     white-space: nowrap;  /* Prevent header text from wrapping */
     min-width: 100px;    /* Ensure minimum column width */
     backdrop-filter: blur(8px);  /* Optional: adds extra clarity */
+    color: var(--headerColor);
 }
 
 .scroll-table td {

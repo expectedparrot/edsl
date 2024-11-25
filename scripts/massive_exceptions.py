@@ -6,7 +6,7 @@ q = QuestionFreeText.example()
 
 m = LanguageModel.example(test_model=True, throw_exception=True)
 results = q.by(m).run(
-    n=1000,
+    n=10,
     disable_remote_inference=True,
     cache=False,
     disable_remote_cache=True,
