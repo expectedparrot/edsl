@@ -134,8 +134,9 @@ class JobsChecks:
             print("\nTimed out waiting for login. Please try again.")
             return
 
-        write_api_key_to_env(api_key)
-        print("✨ API key retrieved and written to .env file.\n")
+        path_to_env = write_api_key_to_env(api_key)
+        print("\n✨ API key retrieved and written to .env file at the following path:")
+        print(f"\n{path_to_env}")
 
         # Retrieve API key so we can continue running the job
         load_dotenv()

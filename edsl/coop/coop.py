@@ -173,8 +173,11 @@ class Coop:
                     print("\nTimed out waiting for login. Please try again.")
                     return
 
-                write_api_key_to_env(api_key)
-                print("\n✨ API key retrieved and written to .env file.")
+                path_to_env = write_api_key_to_env(api_key)
+                print(
+                    "\n✨ API key retrieved and written to .env file at the following path:"
+                )
+                print(f"\n{path_to_env}")
                 print("Rerun your code to try again with a valid API key.")
                 return
 
@@ -882,8 +885,9 @@ class Coop:
         if api_key is None:
             raise Exception("Timed out waiting for login. Please try again.")
 
-        write_api_key_to_env(api_key)
-        print("\n✨ API key retrieved and written to .env file.")
+        path_to_env = write_api_key_to_env(api_key)
+        print("\n✨ API key retrieved and written to .env file at the following path:")
+        print(f"\n{path_to_env}")
 
         # Add API key to environment
         load_dotenv()
