@@ -15,10 +15,10 @@ class JobsRemoteInferenceHandler:
         >>> jh.use_remote_inference(True)
         False
         >>> jh._poll_remote_inference_job({'uuid':1234}, testing_simulated_response={"status": "failed"}) # doctest: +NORMALIZE_WHITESPACE
-        Job failed.
+        Your survey failed.
         ...
         >>> jh._poll_remote_inference_job({'uuid':1234}, testing_simulated_response={"status": "completed"}) # doctest: +NORMALIZE_WHITESPACE
-        Job completed and Results stored on Coop: None.
+        Your survey has been run. Results are available at Coop: None.
         Results(...)
         """
         self.jobs = jobs
