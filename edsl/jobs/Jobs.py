@@ -625,7 +625,7 @@ class Jobs(Base):
                 raise_validation_errors=raise_validation_errors,
             )
 
-        results.cache = cache.new_entries_cache()
+        # results.cache = cache.new_entries_cache()
         return results
 
     async def run_async(
