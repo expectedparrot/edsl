@@ -12,3 +12,9 @@ results = q.by(m).run(
     disable_remote_cache=True,
     print_exceptions=True,
 )
+
+results.save("r_with_exceptions")
+
+from edsl import Results
+
+new_resuls = Results.load("r_with_exceptions.json.gz")
