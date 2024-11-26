@@ -422,3 +422,7 @@ def write_api_key_to_env(api_key: str) -> None:
 
     # Write API key to file
     set_key(env_path, "EXPECTED_PARROT_API_KEY", str(api_key))
+
+    absolute_path_to_env = env_file.absolute().as_posix()
+
+    return absolute_path_to_env
