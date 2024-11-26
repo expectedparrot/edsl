@@ -97,8 +97,14 @@ class Jobs(Base):
     @scenarios.setter
     def scenarios(self, value):
         from edsl import ScenarioList
+        from edsl.results.Dataset import Dataset
 
         if value:
+            if isinstance(
+                value, Dataset
+            ):  # if the user passes in a Dataset, convert it to a ScenarioList
+                value = value.to_scenario_list()
+
             if not isinstance(value, ScenarioList):
                 self._scenarios = ScenarioList(value)
             else:
