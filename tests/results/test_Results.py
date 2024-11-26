@@ -126,6 +126,39 @@ class TestResults(unittest.TestCase):
         shuffled = self.example_results.shuffle()
         shuffled2 = self.example_results.select("answer.*").shuffle()
 
+    def test_cache_control(self):
+        d = self.example_results.to_dict(include_cache=True)
+        self.assertIn("cache", d)
+
+        d = self.example_results.to_dict(include_cache=False)
+        self.assertNotIn("cache", d)
+
+    def test_cache_history(self):
+
+        self.assertEqual(self.example_results.task_history.has_exceptions, False)
+        self.assertNotIn("task_history", self.example_results.to_dict())
+
+        self.assertIn(
+            "task_history", self.example_results.to_dict(include_task_history=True)
+        )
+
+        from edsl import QuestionFreeText
+        from edsl.language_models.LanguageModel import LanguageModel
+
+        q = QuestionFreeText.example()
+
+        m = LanguageModel.example(test_model=True, throw_exception=True)
+        results = q.by(m).run(
+            n=2,
+            disable_remote_inference=True,
+            cache=False,
+            disable_remote_cache=True,
+            print_exceptions=True,
+        )
+        self.assertIn("task_history", results.to_dict())
+        new_results = Results.from_dict(results.to_dict())
+        self.assertEqual(new_results.task_history.has_exceptions, True)
+
     def test_sample(self):
         shuffled = self.example_results.sample(n=1)
         assert len(shuffled) == 1
