@@ -107,6 +107,7 @@ class JobsChecks:
         from edsl import CONFIG
         from edsl.coop.coop import Coop
         from edsl.utilities.utilities import write_api_key_to_env
+        from rich import print as rich_print
 
         missing_api_keys = self.get_missing_api_keys()
 
@@ -136,7 +137,7 @@ class JobsChecks:
 
         path_to_env = write_api_key_to_env(api_key)
         print("\n✨ API key retrieved and written to .env file at the following path:")
-        print(f"\n{path_to_env}")
+        rich_print(f"    [#38bdf8][link={path_to_env}]{path_to_env}[/link][/#38bdf8]")
 
         # Retrieve API key so we can continue running the job
         load_dotenv()
