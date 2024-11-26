@@ -838,7 +838,9 @@ class Coop:
         data = response.json()
         return data
 
-    def _display_login_url(self, edsl_auth_token: str, link_description: str | None):
+    def _display_login_url(
+        self, edsl_auth_token: str, link_description: Optional[str] = None
+    ):
         """
         Uses rich.print to display a login URL.
 
