@@ -3,7 +3,6 @@ from edsl.exceptions import MissingAPIKeyError
 
 
 class JobsChecks:
-
     def __init__(self, jobs):
         """ """
         self.jobs = jobs
@@ -103,7 +102,6 @@ class JobsChecks:
         )
 
     def key_process(self):
-
         import secrets
         from dotenv import load_dotenv
         from edsl import CONFIG

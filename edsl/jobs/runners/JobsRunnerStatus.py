@@ -239,7 +239,6 @@ class JobsRunnerStatusBase(ABC):
         return stat_definitions[stat_name]()
 
     def update_progress(self, stop_event):
-
         while not stop_event.is_set():
             self.send_status_update()
             time.sleep(self.refresh_rate)
@@ -248,7 +247,6 @@ class JobsRunnerStatusBase(ABC):
 
 
 class JobsRunnerStatus(JobsRunnerStatusBase):
-
     @property
     def create_url(self) -> str:
         return f"{self.base_url}/api/v0/local-job"

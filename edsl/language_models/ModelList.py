@@ -10,7 +10,6 @@ from edsl.utilities.utilities import dict_hash
 
 
 class ModelList(Base, UserList):
-
     __documentation__ = """https://docs.expectedparrot.com/en/latest/language_models.html#module-edsl.language_models.ModelList"""
 
     def __init__(self, data: Optional[list] = None):

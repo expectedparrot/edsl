@@ -1,7 +1,7 @@
 import aiohttp
 import json
 import requests
-from typing import Any, List,Optional
+from typing import Any, List, Optional
 from edsl.inference_services.rate_limits_cache import rate_limits
 
 # from edsl.inference_services.InferenceServiceABC import InferenceServiceABC
@@ -17,7 +17,7 @@ class PerplexityService(OpenAIService):
     _env_key_name_ = "PERPLEXITY_API_KEY"
     _base_url_ = "https://api.perplexity.ai"
     _models_list_cache: List[str] = []
-    #default perplexity parameters
+    # default perplexity parameters
     _parameters_ = {
         "temperature": 0.5,
         "max_tokens": 1000,
@@ -28,10 +28,16 @@ class PerplexityService(OpenAIService):
 
     @classmethod
     def available(cls) -> List[str]:
-        return ["llama-3.1-sonar-huge-128k-online", "llama-3.1-sonar-large-128k-online","llama-3.1-sonar-small-128k-online"]
+        return [
+            "llama-3.1-sonar-huge-128k-online",
+            "llama-3.1-sonar-large-128k-online",
+            "llama-3.1-sonar-small-128k-online",
+        ]
 
     @classmethod
-    def create_model(cls, model_name="llama-3.1-sonar-large-128k-online", model_class_name=None) -> LanguageModel:
+    def create_model(
+        cls, model_name="llama-3.1-sonar-large-128k-online", model_class_name=None
+    ) -> LanguageModel:
         if model_class_name is None:
             model_class_name = cls.to_class_name(model_name)
 
@@ -60,7 +66,6 @@ class PerplexityService(OpenAIService):
                 # "logprobs": False, # Enable this returns 'Neither or both of logprobs and top_logprobs must be set.
                 # "top_logprobs": 3,
             }
-
 
             def sync_client(self):
                 return cls.sync_client()
@@ -150,7 +155,7 @@ class PerplexityService(OpenAIService):
                 try:
                     response = await client.chat.completions.create(**params)
                 except Exception as e:
-                    print(e,flush=True)
+                    print(e, flush=True)
                 return response.model_dump()
 
         LLM.__name__ = "LanguageModel"
