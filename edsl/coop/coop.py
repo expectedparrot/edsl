@@ -141,8 +141,6 @@ class Coop:
         """
         Check the response from the server and raise errors as appropriate.
         """
-        from rich import print as rich_print
-
         # Get EDSL version from header
         server_edsl_version = response.headers.get("X-EDSL-Version")
 
@@ -165,10 +163,10 @@ class Coop:
                 edsl_auth_token = secrets.token_urlsafe(16)
 
                 print("Your Expected Parrot API key is invalid.")
-                print(
-                    "\n🔗 Use the link below to log in to Expected Parrot so we can automatically update your API key."
+                self._display_login_url(
+                    edsl_auth_token=edsl_auth_token,
+                    link_description="\n🔗 Use the link below to log in to Expected Parrot so we can automatically update your API key.",
                 )
-                self._display_login_url(edsl_auth_token=edsl_auth_token)
                 api_key = self._poll_for_api_key(edsl_auth_token)
 
                 if api_key is None:
@@ -179,9 +177,7 @@ class Coop:
                 print(
                     "\n✨ API key retrieved and written to .env file at the following path:"
                 )
-                rich_print(
-                    f"    [#38bdf8][link={path_to_env}]{path_to_env}[/link][/#38bdf8]"
-                )
+                print(f"    {path_to_env}")
                 print("Rerun your code to try again with a valid API key.")
                 return
 
@@ -842,7 +838,7 @@ class Coop:
         data = response.json()
         return data
 
-    def _display_login_url(self, edsl_auth_token: str):
+    def _display_login_url(self, edsl_auth_token: str, link_description: str | None):
         """
         Uses rich.print to display a login URL.
 
@@ -852,7 +848,12 @@ class Coop:
 
         url = f"{CONFIG.EXPECTED_PARROT_URL}/login?edsl_auth_token={edsl_auth_token}"
 
-        rich_print(f"    [#38bdf8][link={url}]{url}[/link][/#38bdf8]")
+        if link_description:
+            rich_print(
+                f"{link_description}\n    [#38bdf8][link={url}]{url}[/link][/#38bdf8]"
+            )
+        else:
+            rich_print(f"    [#38bdf8][link={url}]{url}[/link][/#38bdf8]")
 
     def _get_api_key(self, edsl_auth_token: str):
         """
@@ -877,14 +878,13 @@ class Coop:
         import secrets
         from dotenv import load_dotenv
         from edsl.utilities.utilities import write_api_key_to_env
-        from rich import print as rich_print
 
         edsl_auth_token = secrets.token_urlsafe(16)
 
-        print(
-            "\n🔗 Use the link below to log in to Expected Parrot so we can automatically update your API key."
+        self._display_login_url(
+            edsl_auth_token=edsl_auth_token,
+            link_description="\n🔗 Use the link below to log in to Expected Parrot so we can automatically update your API key.",
         )
-        self._display_login_url(edsl_auth_token=edsl_auth_token)
         api_key = self._poll_for_api_key(edsl_auth_token)
 
         if api_key is None:
@@ -892,7 +892,7 @@ class Coop:
 
         path_to_env = write_api_key_to_env(api_key)
         print("\n✨ API key retrieved and written to .env file at the following path:")
-        rich_print(f"    [#38bdf8][link={path_to_env}]{path_to_env}[/link][/#38bdf8]")
+        print(f"    {path_to_env}")
 
         # Add API key to environment
         load_dotenv()
