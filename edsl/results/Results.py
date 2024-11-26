@@ -362,7 +362,9 @@ class Results(UserList, Mixins, Base):
         td = s.to_dataset().table(tablefmt="html")
         return td._repr_html_() + footer
 
-    def to_dict(self, sort=False, add_edsl_version=False) -> dict[str, Any]:
+    def to_dict(
+        self, sort=False, add_edsl_version=False, include_cache=False
+    ) -> dict[str, Any]:
         from edsl.data.Cache import Cache
 
         if sort:
@@ -376,13 +378,18 @@ class Results(UserList, Mixins, Base):
             ],
             "survey": self.survey.to_dict(add_edsl_version=add_edsl_version),
             "created_columns": self.created_columns,
-            "cache": (
-                Cache()
-                if not hasattr(self, "cache")
-                else self.cache.to_dict(add_edsl_version=add_edsl_version)
-            ),
             "task_history": self.task_history.to_dict(),
         }
+        if include_cache:
+            d.update(
+                {
+                    "cache": (
+                        Cache()
+                        if not hasattr(self, "cache")
+                        else self.cache.to_dict(add_edsl_version=add_edsl_version)
+                    )
+                }
+            )
         if add_edsl_version:
             from edsl import __version__
 
