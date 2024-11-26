@@ -144,6 +144,13 @@ class Jobs(Base):
         - scenarios: traits of new scenarios are combined with traits of old existing. New scenarios will overwrite overlapping traits, and do not increase the number of scenarios in the instance
         - models: new models overwrite old models.
         """
+        from edsl.results.Dataset import Dataset
+
+        if isinstance(
+            args[0], Dataset
+        ):  # let the user user a Dataset as if it were a ScenarioList
+            args = args[0].to_scenario_list()
+
         passed_objects = self._turn_args_to_list(
             args
         )  # objects can also be passed comma-separated
