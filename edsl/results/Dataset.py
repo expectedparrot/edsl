@@ -200,6 +200,9 @@ class Dataset(UserList, ResultsExportMixin):
 
         return self
 
+    def expand(self, field):
+        return self.to_scenario_list().expand(field).to_dataset()
+
     def sample(
         self,
         n: int = None,
