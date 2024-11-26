@@ -363,7 +363,11 @@ class Results(UserList, Mixins, Base):
         return td._repr_html_() + footer
 
     def to_dict(
-        self, sort=False, add_edsl_version=False, include_cache=False
+        self,
+        sort=False,
+        add_edsl_version=False,
+        include_cache=False,
+        include_task_history=False,
     ) -> dict[str, Any]:
         from edsl.data.Cache import Cache
 
@@ -378,7 +382,6 @@ class Results(UserList, Mixins, Base):
             ],
             "survey": self.survey.to_dict(add_edsl_version=add_edsl_version),
             "created_columns": self.created_columns,
-            "task_history": self.task_history.to_dict(),
         }
         if include_cache:
             d.update(
@@ -390,6 +393,10 @@ class Results(UserList, Mixins, Base):
                     )
                 }
             )
+
+        if self.task_history.has_unfixed_exceptions or include_task_history:
+            d.update({"task_history": self.task_history.to_dict()})
+
         if add_edsl_version:
             from edsl import __version__
 
@@ -478,7 +485,11 @@ class Results(UserList, Mixins, Base):
                 cache=(
                     Cache.from_dict(data.get("cache")) if "cache" in data else Cache()
                 ),
-                task_history=TaskHistory.from_dict(data.get("task_history")),
+                task_history=(
+                    TaskHistory.from_dict(data.get("task_history"))
+                    if "task_history" in data
+                    else TaskHistory(interviews=[])
+                ),
             )
         except Exception as e:
             raise ResultsDeserializationError(f"Error in Results.from_dict: {e}")
