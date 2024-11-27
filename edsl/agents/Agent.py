@@ -123,11 +123,14 @@ class Agent(Base):
         self._traits = traits or dict()
         self.codebook = codebook or dict()
         if instruction is None:
-            self.set_instructions = False
+            self.instruction = self.default_instruction
             self._instruction = self.default_instruction
+            self.set_instructions = False
         else:
+            self.instruction = instruction
             self._instruction = instruction
             self.set_instructions = True
+
         # self.instruction = instruction or self.default_instruction
         self.dynamic_traits_function = dynamic_traits_function
 
@@ -657,7 +660,6 @@ class Agent(Base):
             for k, v in self.__dict__.items()
             if k.startswith("_")
         }
-        # breakpoint()
 
         if hasattr(self, "set_instructions"):
             if not self.set_instructions:
@@ -675,9 +677,9 @@ class Agent(Base):
             if dynamic_traits_func:
                 func = inspect.getsource(dynamic_traits_func)
                 raw_data["dynamic_traits_function_source_code"] = func
-                raw_data[
-                    "dynamic_traits_function_name"
-                ] = self.dynamic_traits_function_name
+                raw_data["dynamic_traits_function_name"] = (
+                    self.dynamic_traits_function_name
+                )
         if hasattr(self, "answer_question_directly"):
             raw_data.pop(
                 "answer_question_directly", None
@@ -691,9 +693,9 @@ class Agent(Base):
                 raw_data["answer_question_directly_source_code"] = inspect.getsource(
                     answer_question_directly_func
                 )
-                raw_data[
-                    "answer_question_directly_function_name"
-                ] = self.answer_question_directly_function_name
+                raw_data["answer_question_directly_function_name"] = (
+                    self.answer_question_directly_function_name
+                )
 
         return raw_data
 
