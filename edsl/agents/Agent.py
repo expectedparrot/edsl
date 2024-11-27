@@ -123,9 +123,11 @@ class Agent(Base):
         self._traits = traits or dict()
         self.codebook = codebook or dict()
         if instruction is None:
-            self.instruction = self.default_instruction
+            self.set_instructions = False
+            self._instruction = self.default_instruction
         else:
-            self.instruction = instruction
+            self._instruction = instruction
+            self.set_instructions = True
         # self.instruction = instruction or self.default_instruction
         self.dynamic_traits_function = dynamic_traits_function
 
@@ -624,12 +626,6 @@ class Agent(Base):
         if "_traits" not in self.__dict__:
             self._traits = {}
 
-    def print(self) -> None:
-        from rich import print_json
-        import json
-
-        print_json(json.dumps(self.to_dict()))
-
     def __repr__(self) -> str:
         """Return representation of Agent."""
         class_name = self.__class__.__name__
@@ -661,6 +657,7 @@ class Agent(Base):
             for k, v in self.__dict__.items()
             if k.startswith("_")
         }
+        # breakpoint()
 
         if hasattr(self, "set_instructions"):
             if not self.set_instructions:

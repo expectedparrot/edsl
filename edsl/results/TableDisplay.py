@@ -47,13 +47,31 @@ class TableDisplay:
     def to_list(self):
         return self.raw_data_set.to_list()
 
-    def __repr__(self):
-        from tabulate import tabulate
+    # def __repr__(self):
 
-        if self.tablefmt is None:
-            return tabulate(self.data, headers=self.headers, tablefmt="simple")
-        else:
-            return tabulate(self.data, headers=self.headers, tablefmt=self.tablefmt)
+    #     from tabulate import tabulate
+
+    #     if self.tablefmt is None:
+    #         return tabulate(self.data, headers=self.headers, tablefmt="simple")
+    #     else:
+    #         return tabulate(self.data, headers=self.headers, tablefmt=self.tablefmt)
+
+    def __repr__(self):
+        from rich.table import Table
+        from rich.console import Console
+
+        table = Table(show_lines=True)
+
+        for header in self.headers:
+            table.add_column(str(header))
+
+        for index in range(len(self.data)):
+            table.add_row(*[str(e) for e in self.data[index]])
+
+        console = Console(record=True)
+        with console.capture() as capture:
+            console.print(table)
+        return capture.get()
 
     def long(self):
         new_header = ["row", "key", "value"]

@@ -608,7 +608,9 @@ class DatasetExportMixin:
                     new_list.append(item)
             list_to_return = new_list
 
-        return list_to_return
+        from edsl.utilities.PrettyList import PrettyList
+
+        return PrettyList(list_to_return)
 
     def html(
         self,

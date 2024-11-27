@@ -129,9 +129,9 @@ class Dataset(UserList, ResultsExportMixin):
         return get_values(self.data[0])[0]
 
     def print(self, pretty_labels=None, **kwargs):
-        if "format" in kwargs:
-            if kwargs["format"] not in ["html", "markdown", "rich", "latex"]:
-                raise ValueError(f"Format '{kwargs['format']}' not supported.")
+        # if "format" in kwargs:
+        #     if kwargs["format"] not in ["html", "markdown", "rich", "latex"]:
+        #         raise ValueError(f"Format '{kwargs['format']}' not supported.")
         if pretty_labels is None:
             pretty_labels = {}
         else:
@@ -416,6 +416,11 @@ class Dataset(UserList, ResultsExportMixin):
         Dataset([{'a': [1, 2, 3, 4]}, {'b': [4, 3, 2, 1]}])
         """
         return Dataset([{"a": [1, 2, 3, 4]}, {"b": [4, 3, 2, 1]}])
+
+    @classmethod
+    def from_edsl_object(cls, object):
+        d = object.to_dict(add_edsl_version=False)
+        return cls([{"key": list(d.keys())}, {"value": list(d.values())}])
 
 
 if __name__ == "__main__":

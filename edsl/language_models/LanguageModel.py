@@ -50,7 +50,8 @@ from edsl.config import CONFIG
 from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
 from edsl.utilities.decorators import remove_edsl_version
 
-from edsl.Base import PersistenceMixin
+from edsl.Base import PersistenceMixin, ReprsentationMixin
+from edsl.Base import Base
 from edsl.language_models.RegisterLanguageModelsMeta import RegisterLanguageModelsMeta
 from edsl.language_models.KeyLookup import KeyLookup
 from edsl.exceptions.language_models import LanguageModelBadResponseError
@@ -119,6 +120,7 @@ def handle_key_error(func):
 
 class LanguageModel(
     PersistenceMixin,
+    ReprsentationMixin,
     ABC,
     metaclass=RegisterLanguageModelsMeta,
 ):
