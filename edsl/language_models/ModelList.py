@@ -73,12 +73,17 @@ class ModelList(Base, UserList):
         pretty_labels: Optional[dict] = None,
     ):
         """
-        >>> ModelList.example().table("model")
-        model
-        -------
-        gpt-4o
-        gpt-4o
-        gpt-4o
+        >>> ModelList.example().table('model')
+        ┏━━━━━━━━┓
+        ┃ model  ┃
+        ┡━━━━━━━━┩
+        │ gpt-4o │
+        ├────────┤
+        │ gpt-4o │
+        ├────────┤
+        │ gpt-4o │
+        └────────┘
+        ...
         """
         return (
             self.to_scenario_list()

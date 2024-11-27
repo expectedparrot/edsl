@@ -212,7 +212,7 @@ class ReprsentationMixin:
 
         return Dataset.from_edsl_object(self)
 
-    def print(self, format="table"):
+    def print(self, format="rich"):
         return self.to_dataset().print(format=format)
 
     def _repr_html_(self):

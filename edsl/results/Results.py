@@ -987,20 +987,12 @@ class Results(UserList, Mixins, Base):
         Example:
 
         >>> r = Results.example()
-        >>> r.sort_by('how_feeling', reverse=False).select('how_feeling').print()
-        answer.how_feeling
-        --------------------
-        Great
-        OK
-        OK
-        Terrible
-        >>> r.sort_by('how_feeling', reverse=True).select('how_feeling').print()
-        answer.how_feeling
-        --------------------
-        Terrible
-        OK
-        OK
-        Great
+        >>> r.sort_by('how_feeling', reverse=False).select('how_feeling')
+        Dataset([{'answer.how_feeling': ['Great', 'OK', 'OK', 'Terrible']}])
+
+        >>> r.sort_by('how_feeling', reverse=True).select('how_feeling')
+        Dataset([{'answer.how_feeling': ['Terrible', 'OK', 'OK', 'Great']}])
+
         """
 
         def to_numeric_if_possible(v):
@@ -1032,24 +1024,19 @@ class Results(UserList, Mixins, Base):
         Example usage: Create an example `Results` instance and apply filters to it:
 
         >>> r = Results.example()
-        >>> r.filter("how_feeling == 'Great'").select('how_feeling').print()
-        answer.how_feeling
-        --------------------
-        Great
+        >>> r.filter("how_feeling == 'Great'").select('how_feeling')
+        Dataset([{'answer.how_feeling': ['Great']}])
 
         Example usage: Using an OR operator in the filter expression.
 
-        >>> r = Results.example().filter("how_feeling = 'Great'").select('how_feeling').print()
+        >>> r = Results.example().filter("how_feeling = 'Great'").select('how_feeling')
         Traceback (most recent call last):
         ...
         edsl.exceptions.results.ResultsFilterError: You must use '==' instead of '=' in the filter expression.
         ...
 
-        >>> r.filter("how_feeling == 'Great' or how_feeling == 'Terrible'").select('how_feeling').print()
-        answer.how_feeling
-        --------------------
-        Great
-        Terrible
+        >>> r.filter("how_feeling == 'Great' or how_feeling == 'Terrible'").select('how_feeling')
+        Dataset([{'answer.how_feeling': ['Great', 'Terrible']}])
         """
 
         def has_single_equals(string):
