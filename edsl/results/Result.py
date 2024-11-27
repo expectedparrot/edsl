@@ -76,6 +76,7 @@ class Result(Base, UserDict):
         generated_tokens: Optional[dict] = None,
         comments_dict: Optional[dict] = None,
         cache_used_dict: Optional[dict] = None,
+        indices: Optional[dict] = None,
     ):
         """Initialize a Result object.
 
@@ -137,6 +138,8 @@ class Result(Base, UserDict):
         self._combined_dict = None
         self._problem_keys = None
 
+        self.indices = indices
+
     ###############
     # Used in Results
     ###############
@@ -156,17 +159,17 @@ class Result(Base, UserDict):
             if key in self.question_to_attributes:
                 # You might be tempted to just use the naked key
                 # but this is a bad idea because it pollutes the namespace
-                question_text_dict[
-                    key + "_question_text"
-                ] = self.question_to_attributes[key]["question_text"]
-                question_options_dict[
-                    key + "_question_options"
-                ] = self.question_to_attributes[key]["question_options"]
-                question_type_dict[
-                    key + "_question_type"
-                ] = self.question_to_attributes[key]["question_type"]
+                question_text_dict[key + "_question_text"] = (
+                    self.question_to_attributes[key]["question_text"]
+                )
+                question_options_dict[key + "_question_options"] = (
+                    self.question_to_attributes[key]["question_options"]
+                )
+                question_type_dict[key + "_question_type"] = (
+                    self.question_to_attributes[key]["question_type"]
+                )
 
-        return {
+        d = {
             "agent": self.agent.traits
             | {"agent_name": agent_name}
             | {"agent_instruction": self.agent.instruction},
@@ -182,6 +185,12 @@ class Result(Base, UserDict):
             "comment": self.comments_dict,
             "generated_tokens": self.generated_tokens,
         }
+        # breakpoint()
+        if hasattr(self, "indices") and self.indices is not None:
+            d["agent"].update({"agent_index": self.indices["agent"]})
+            d["scenario"].update({"scenario_index": self.indices["scenario"]})
+            d["model"].update({"model_index": self.indices["model"]})
+        return d
 
     def check_expression(self, expression) -> None:
         for key in self.problem_keys:
