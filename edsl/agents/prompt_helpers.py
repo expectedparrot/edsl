@@ -19,7 +19,7 @@ class PromptList(UserList):
 
         >>> p = PromptList([Prompt("You are a happy-go lucky agent."), Prompt("You are an agent with the following persona: {'age': 22, 'hair': 'brown', 'height': 5.5}")])
         >>> p.reduce()
-        Prompt(text=\"""You are a happy-go lucky agent. You are an agent with the following persona: {'age': 22, 'hair': 'brown', 'height': 5.5}\""")
+        Prompt(text=\"""You are a happy-go lucky agent.You are an agent with the following persona: {'age': 22, 'hair': 'brown', 'height': 5.5}\""")
 
         """
         p = self[0]
