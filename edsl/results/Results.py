@@ -46,7 +46,6 @@ class Mixins(
     ResultsGGMixin,
     ResultsToolsMixin,
 ):
-
     def long(self):
         return self.table().long()
 

@@ -110,9 +110,9 @@ class Interview:
         self.debug = debug
         self.iteration = iteration
         self.cache = cache
-        self.answers: dict[str, str] = (
-            Answers()
-        )  # will get filled in as interview progresses
+        self.answers: dict[
+            str, str
+        ] = Answers()  # will get filled in as interview progresses
         self.sidecar_model = sidecar_model
 
         # Trackers
@@ -143,9 +143,9 @@ class Interview:
         The keys are the question names; the values are the lists of status log changes for each task.
         """
         for task_creator in self.task_creators.values():
-            self._task_status_log_dict[task_creator.question.question_name] = (
-                task_creator.status_log
-            )
+            self._task_status_log_dict[
+                task_creator.question.question_name
+            ] = task_creator.status_log
         return self._task_status_log_dict
 
     @property
@@ -486,11 +486,11 @@ class Interview:
         """
         current_question_index: int = self.to_index[current_question.question_name]
 
-        next_question: Union[int, EndOfSurvey] = (
-            self.survey.rule_collection.next_question(
-                q_now=current_question_index,
-                answers=self.answers | self.scenario | self.agent["traits"],
-            )
+        next_question: Union[
+            int, EndOfSurvey
+        ] = self.survey.rule_collection.next_question(
+            q_now=current_question_index,
+            answers=self.answers | self.scenario | self.agent["traits"],
         )
 
         next_question_index = next_question.next_q
