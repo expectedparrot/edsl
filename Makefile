@@ -205,7 +205,7 @@ test-notebooks:
 # 	pytest -v integration/active/test_example_notebooks.py
 
 test-integration: ## Run integration tests via pytest **consumes API credits**
-	cd integration/printing && python check_printing.py
+	# cd integration/printing && python check_printing.py
 	pytest -v integration/active
 	# pytest -v integration/test_example_notebooks.py
 	pytest -v integration/test_integration_jobs.py

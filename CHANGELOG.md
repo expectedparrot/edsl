@@ -1,10 +1,16 @@
 # Changelog
 
-## [0.1.38] - TBD
+## [0.1.39] - TBD
+
+## [0.1.38] - 2024-11-26
 ### Added
+- `Results` are now automatically displayed in a scrollable table when you call `select()` on them. You can also call `table().long()` to display results in a long-view table. This replaces the need to call `print(format="rich")`. See examples in the starter tutorial.
 
 ### Changed
-- *In progress:* The progress bar is now web-based. It is still called in the same way: `run(progress_bar=True)`
+- The progress bar is now web-based and a link to view it in a new tab is automatically returned when you call the `run()` method on a survey (`progress_bar=True` by default). See examples in the starter tutorial.
+
+### Fixed
+- Results were automatically appending cache; this was removed.
 
 
 ## [0.1.37] - 2024-11-14

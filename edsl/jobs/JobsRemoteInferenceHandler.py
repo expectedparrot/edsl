@@ -8,7 +8,6 @@ from edsl.results import Results
 
 
 class JobsRemoteInferenceHandler:
-
     def __init__(self, jobs, verbose=False, poll_interval=3):
         """
         >>> from edsl.jobs import Jobs
@@ -107,7 +106,6 @@ class JobsRemoteInferenceHandler:
         poll_interval: Optional[float] = None,
         testing_simulated_response: Optional[dict] = None,
     ) -> Union[Results, None]:
-
         import time
         from datetime import datetime
         from edsl.config import CONFIG

@@ -16,7 +16,6 @@ from edsl.exceptions.scenarios import ScenarioError
 
 
 class DisplayJSON:
-
     def __init__(self, dict):
         self.text = json.dumps(dict, indent=4)
 
@@ -25,7 +24,6 @@ class DisplayJSON:
 
 
 class DisplayYAML:
-
     def __init__(self, dict):
         import yaml
 
