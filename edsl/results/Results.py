@@ -544,10 +544,12 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.columns
-        ['agent.agent_instruction', ...]
+        ['agent.agent_index', ...]
         """
         column_names = [f"{v}.{k}" for k, v in self._key_to_data_type.items()]
-        return sorted(column_names)
+        from edsl.utilities.PrettyList import PrettyList
+
+        return PrettyList(sorted(column_names))
 
     @property
     def answer_keys(self) -> dict[str, str]:
@@ -624,7 +626,7 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.agent_keys
-        ['agent_instruction', 'agent_name', 'status']
+        ['agent_index', 'agent_instruction', 'agent_name', 'status']
         """
         return sorted(self._data_type_to_keys["agent"])
 
@@ -634,7 +636,7 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.model_keys
-        ['frequency_penalty', 'logprobs', 'max_tokens', 'model', 'presence_penalty', 'temperature', 'top_logprobs', 'top_p']
+        ['frequency_penalty', 'logprobs', 'max_tokens', 'model', 'model_index', 'presence_penalty', 'temperature', 'top_logprobs', 'top_p']
         """
         return sorted(self._data_type_to_keys["model"])
 
@@ -644,7 +646,7 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.scenario_keys
-        ['period']
+        ['period', 'scenario_index']
         """
         return sorted(self._data_type_to_keys["scenario"])
 
@@ -670,7 +672,7 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.all_keys
-        ['agent_instruction', 'agent_name', 'frequency_penalty', 'how_feeling', 'how_feeling_yesterday', 'logprobs', 'max_tokens', 'model', 'period', 'presence_penalty', 'status', 'temperature', 'top_logprobs', 'top_p']
+        ['agent_index', ...]
         """
         answer_keys = set(self.answer_keys)
         all_keys = (

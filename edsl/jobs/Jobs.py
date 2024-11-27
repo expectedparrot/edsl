@@ -391,6 +391,13 @@ class Jobs(Base):
         self.agents = self.agents or [Agent()]
         self.models = self.models or [Model()]
         self.scenarios = self.scenarios or [Scenario()]
+
+        agent_index = {hash(agent): index for index, agent in enumerate(self.agents)}
+        model_index = {hash(model): index for index, model in enumerate(self.models)}
+        scenario_index = {
+            hash(scenario): index for index, scenario in enumerate(self.scenarios)
+        }
+
         for agent, scenario, model in product(self.agents, self.scenarios, self.models):
             yield Interview(
                 survey=self.survey,
@@ -399,6 +406,11 @@ class Jobs(Base):
                 model=model,
                 skip_retry=self.skip_retry,
                 raise_validation_errors=self.raise_validation_errors,
+                indices={
+                    "agent": agent_index[hash(agent)],
+                    "model": model_index[hash(model)],
+                    "scenario": scenario_index[hash(scenario)],
+                },
             )
 
     def create_bucket_collection(self) -> BucketCollection:

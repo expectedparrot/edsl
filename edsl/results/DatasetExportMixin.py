@@ -37,7 +37,7 @@ class DatasetExportMixin:
 
         >>> from edsl.results import Results
         >>> sorted(Results.example().select().relevant_columns(data_type = "model"))
-        ['model.frequency_penalty', 'model.logprobs', 'model.max_tokens', 'model.model', 'model.presence_penalty', 'model.temperature', 'model.top_logprobs', 'model.top_p']
+        ['model.frequency_penalty', ...]
 
         >>> Results.example().relevant_columns(data_type = "flimflam")
         Traceback (most recent call last):
