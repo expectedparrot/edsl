@@ -858,6 +858,26 @@ class Results(UserList, Mixins, Base):
             created_columns=self.created_columns + [var_name],
         )
 
+    def add_column(self, column_name: str, values: list) -> Results:
+        """Adds columns to Results
+
+        >>> r = Results.example()
+        >>> r.add_column('a', [1,2,3, 4]).select('a')
+        Dataset([{'answer.a': [1, 2, 3, 4]}])
+        """
+
+        assert len(values) == len(
+            self.data
+        ), "The number of values must match the number of results."
+        new_results = self.data.copy()
+        for i, result in enumerate(new_results):
+            result["answer"][column_name] = values[i]
+        return Results(
+            survey=self.survey,
+            data=new_results,
+            created_columns=self.created_columns + [column_name],
+        )
+
     def rename(self, old_name: str, new_name: str) -> Results:
         """Rename an answer column in a Results object.
 
