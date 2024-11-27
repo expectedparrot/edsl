@@ -137,15 +137,6 @@ class Result(Base, UserDict):
         self._combined_dict = None
         self._problem_keys = None
 
-    def _repr_html_(self):
-        # d = self.to_dict(add_edsl_version=False)
-        d = self.to_dict(add_edsl_version=False)
-        data = [[k, v] for k, v in d.items()]
-        from tabulate import tabulate
-
-        table = str(tabulate(data, headers=["keys", "values"], tablefmt="html"))
-        return f"<pre>{table}</pre>"
-
     ###############
     # Used in Results
     ###############

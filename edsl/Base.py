@@ -126,15 +126,9 @@ class PersistenceMixin:
         if filename.endswith("json.gz"):
             import warnings
 
-            # warnings.warn(
-            #    "Do not apply the file extensions. The filename should not end with 'json.gz'."
-            # )
-            filename = filename[:-7]
+            filename = filename[:-8]
         if filename.endswith("json"):
-            filename = filename[:-4]
-            # warnings.warn(
-            #    "Do not apply the file extensions. The filename should not end with 'json'."
-            # )
+            filename = filename[:-5]
 
         if compress:
             full_file_name = filename + ".json.gz"
@@ -209,30 +203,33 @@ class DiffMethodsMixin:
         return BaseDiff(self, other)
 
 
+class ReprsentationMixin:
+    def json(self):
+        return json.loads(json.dumps(self.to_dict(add_edsl_version=False)))
+
+    def to_dataset(self):
+        from edsl.results.Dataset import Dataset
+
+        return Dataset.from_edsl_object(self)
+
+    def print(self, format="table"):
+        return self.to_dataset().print(format=format)
+
+    def _repr_html_(self):
+        return self.to_dataset()._repr_html_()
+
+    def __str__(self):
+        return self.__repr__()
+
+
 class Base(
-    # RichPrintingMixin,
+    ReprsentationMixin,
     PersistenceMixin,
     DiffMethodsMixin,
     ABC,
     metaclass=RegisterSubclassesMeta,
 ):
     """Base class for all classes in the package."""
-
-    def json(self):
-        return json.loads(json.dumps(self.to_dict(add_edsl_version=False)))
-
-    def print(self, **kwargs):
-        if "format" in kwargs:
-            if kwargs["format"] not in ["html", "markdown", "rich", "latex"]:
-                raise ValueError(f"Format '{kwargs['format']}' not supported.")
-
-        if hasattr(self, "table"):
-            return self.table()
-        else:
-            return self
-
-    def __str__(self):
-        return self.__repr__()
 
     def summary(self, format="table"):
         from edsl import Scenario
@@ -263,21 +260,6 @@ class Base(
         data = self.to_dict()
         keys = self.keys()
         return {data[key] for key in keys}
-
-    def _repr_html_(self):
-        from edsl.utilities.utilities import data_to_html
-
-        return data_to_html(self.to_dict())
-
-    # def html(self):
-    #     html_string = self._repr_html_()
-    #     import tempfile
-    #     import webbrowser
-
-    #     with tempfile.NamedTemporaryFile("w", delete=False, suffix=".html") as f:
-    #         # print("Writing HTML to", f.name)
-    #         f.write(html_string)
-    #         webbrowser.open(f.name)
 
     def __eq__(self, other):
         """Return whether two objects are equal."""

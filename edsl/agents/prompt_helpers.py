@@ -12,7 +12,7 @@ class PromptComponent(enum.Enum):
 
 
 class PromptList(UserList):
-    separator = Prompt(" ")
+    separator = Prompt("")
 
     def reduce(self):
         """Reduce the list of prompts to a single prompt.

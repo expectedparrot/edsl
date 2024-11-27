@@ -215,12 +215,6 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
 
         return dict_hash(self.to_dict(add_edsl_version=False))
 
-    def print(self):
-        from rich import print_json
-        import json
-
-        print_json(json.dumps(self.to_dict()))
-
     def __repr__(self):
         return "Scenario(" + repr(self.data) + ")"
 
