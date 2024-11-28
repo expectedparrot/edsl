@@ -294,7 +294,7 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
         ...     _ = f.flush()
         ...     s = Scenario.from_file(f.name, "file")
         >>> s
-        Scenario({'file': FileStore(path='...')})
+        Scenario({'file': FileStore(path='...', ...)})
 
         """
         from edsl.scenarios.FileStore import FileStore
