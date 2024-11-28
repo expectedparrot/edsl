@@ -25,10 +25,10 @@ class PrettyList(UserList):
 
         for row in self:
             for index, column in enumerate(columns):
-                if isinstance(row, str):
-                    d[column].append(row)
-                else:
+                if isinstance(row, list) or isinstance(row, tuple):
                     d[column].append(row[index])
+                else:
+                    d[column].append(row)
         # raise ValueError(d)
         return Dataset([{key: entry} for key, entry in d.items()])._repr_html_()
 
