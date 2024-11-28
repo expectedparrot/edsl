@@ -224,26 +224,6 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
         values = [value for key, value in self.items()]
         return Dataset([{"key": keys}, {"value": values}])
 
-    def _repr_html_(self):
-        from tabulate import tabulate
-        import reprlib
-
-        d = self.to_dict(add_edsl_version=False)
-        # return self.to_dataset()
-        r = reprlib.Repr()
-        r.maxstring = 70
-
-        data = [[k, r.repr(v)] for k, v in d.items()]
-        from tabulate import tabulate
-
-        if hasattr(self, "__documentation__"):
-            footer = f"<a href='{self.__documentation__}'>(docs)</a></p>"
-        else:
-            footer = ""
-
-        table = str(tabulate(data, headers=["keys", "values"], tablefmt="html"))
-        return f"<pre>{table}</pre>" + footer
-
     def select(self, list_of_keys: List[str]) -> "Scenario":
         """Select a subset of keys from a scenario.
 

@@ -203,7 +203,15 @@ class DiffMethodsMixin:
         return BaseDiff(self, other)
 
 
-class ReprsentationMixin:
+def is_iterable(obj):
+    try:
+        iter(obj)
+    except TypeError:
+        return False
+    return True
+
+
+class RepresentationMixin:
     def json(self):
         return json.loads(json.dumps(self.to_dict(add_edsl_version=False)))
 
@@ -212,39 +220,62 @@ class ReprsentationMixin:
 
         return Dataset.from_edsl_object(self)
 
+    # def print(self, format="rich"):
+    #     return self.to_dataset().table()
+
+    def display_dict(self):
+        display_dict = {}
+        d = self.to_dict(add_edsl_version=False)
+        for key, value in d.items():
+            if isinstance(value, dict):
+                for k, v in value.items():
+                    display_dict[f"{key}:{k}"] = v
+            elif isinstance(value, list):
+                for i, v in enumerate(value):
+                    display_dict[f"{key}:{i}"] = v
+            else:
+                display_dict[key] = value
+        return display_dict
+
     def print(self, format="rich"):
-        return self.to_dataset().print(format=format)
+        from rich.table import Table
+        from rich.console import Console
+
+        table = Table(title=self.__class__.__name__)
+        table.add_column("Key", style="bold")
+        table.add_column("Value", style="bold")
+
+        for key, value in self.display_dict().items():
+            table.add_row(key, str(value))
+
+        console = Console(record=True)
+        console.print(table)
 
     def _repr_html_(self):
-        return self.to_dataset()._repr_html_()
+        from edsl.results.TableDisplay import TableDisplay
+
+        if hasattr(self, "_summary"):
+            from edsl import Scenario
+
+            d = self._summary()
+            return TableDisplay.from_dictionary_wide(d)._repr_html_()
+        else:
+
+            display_dict = self.display_dict()
+            return TableDisplay.from_dictionary_wide(display_dict)._repr_html_()
 
     def __str__(self):
         return self.__repr__()
 
 
 class Base(
-    ReprsentationMixin,
+    RepresentationMixin,
     PersistenceMixin,
     DiffMethodsMixin,
     ABC,
     metaclass=RegisterSubclassesMeta,
 ):
     """Base class for all classes in the package."""
-
-    def summary(self, format="table"):
-        from edsl import Scenario
-
-        d = self._summary()
-        if format == "table":
-            return Scenario(d).table()
-        if format == "dict":
-            return d
-        if format == "json":
-            return Scenario(d).json()
-        if format == "yaml":
-            return Scenario(d).yaml()
-        if format == "html":
-            return Scenario(d).table(tablefmt="html")
 
     def keys(self):
         """Return the keys of the object."""
@@ -274,11 +305,6 @@ class Base(
 
     @abstractmethod
     def example():
-        """This method should be implemented by subclasses."""
-        raise NotImplementedError("This method is not implemented yet.")
-
-    @abstractmethod
-    def rich_print():
         """This method should be implemented by subclasses."""
         raise NotImplementedError("This method is not implemented yet.")
 

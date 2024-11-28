@@ -3,8 +3,10 @@ from edsl.questions import QuestionBase
 
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
+from edsl.Base import RepresentationMixin
 
-class Instruction:
+
+class Instruction(RepresentationMixin):
     def __init__(
         self, name, text, preamble="You were given the following instructions:"
     ):
@@ -17,14 +19,6 @@ class Instruction:
 
     def __repr__(self):
         return """Instruction(name="{}", text="{}")""".format(self.name, self.text)
-
-    def _repr_html_(self):
-        d = self.to_dict(add_edsl_version=False)
-        data = [[k, v] for k, v in d.items()]
-        from tabulate import tabulate
-
-        table = str(tabulate(data, headers=["keys", "values"], tablefmt="html"))
-        return f"<pre>{table}</pre>"
 
     @classmethod
     def example(cls) -> "Instruction":

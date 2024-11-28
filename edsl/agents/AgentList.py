@@ -284,11 +284,6 @@ class AgentList(UserList, Base):
             "Agent trait fields": self.all_traits,
         }
 
-    def _repr_html_(self):
-        """Return an HTML representation of the AgentList."""
-        footer = f"<a href={self.__documentation__}>(docs)</a>"
-        return str(self.summary(format="html")) + footer
-
     def to_csv(self, file_path: str):
         """Save the AgentList to a CSV file.
 

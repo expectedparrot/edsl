@@ -716,10 +716,6 @@ class Jobs(Base):
             "Number of scenarios": len(self.scenarios),
         }
 
-    def _repr_html_(self) -> str:
-        footer = f"<a href={self.__documentation__}>(docs)</a>"
-        return str(self.summary(format="html")) + footer
-
     def __len__(self) -> int:
         """Return the maximum number of questions that will be asked while running this job.
         Note that this is the maximum number of questions, not the actual number of questions that will be asked, as some questions may be skipped.

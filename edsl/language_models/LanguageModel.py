@@ -50,7 +50,7 @@ from edsl.config import CONFIG
 from edsl.utilities.decorators import sync_wrapper, jupyter_nb_handler
 from edsl.utilities.decorators import remove_edsl_version
 
-from edsl.Base import PersistenceMixin, ReprsentationMixin
+from edsl.Base import PersistenceMixin, RepresentationMixin
 from edsl.Base import Base
 from edsl.language_models.RegisterLanguageModelsMeta import RegisterLanguageModelsMeta
 from edsl.language_models.KeyLookup import KeyLookup
@@ -120,7 +120,7 @@ def handle_key_error(func):
 
 class LanguageModel(
     PersistenceMixin,
-    ReprsentationMixin,
+    RepresentationMixin,
     ABC,
     metaclass=RegisterLanguageModelsMeta,
 ):
@@ -196,15 +196,6 @@ class LanguageModel(
 
     def __getitem__(self, key):
         return getattr(self, key)
-
-    def _repr_html_(self) -> str:
-        d = {"model": self.model}
-        d.update(self.parameters)
-        data = [[k, v] for k, v in d.items()]
-        from tabulate import tabulate
-
-        table = str(tabulate(data, headers=["keys", "values"], tablefmt="html"))
-        return f"<pre>{table}</pre>"
 
     def hello(self, verbose=False):
         """Runs a simple test to check if the model is working."""

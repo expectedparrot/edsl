@@ -427,9 +427,13 @@ class Result(Base, UserDict):
                 table.add_row(attr_name, repr(attr_value))
         return table
 
+    # def __repr__(self):
+    #     """Return a string representation of the Result object."""
+    #     return f"Result(agent={repr(self.agent)}, scenario={repr(self.scenario)}, model={repr(self.model)}, iteration={self.iteration}, answer={repr(self.answer)}, prompt={repr(self.prompt)})"
     def __repr__(self):
         """Return a string representation of the Result object."""
-        return f"Result(agent={repr(self.agent)}, scenario={repr(self.scenario)}, model={repr(self.model)}, iteration={self.iteration}, answer={repr(self.answer)}, prompt={repr(self.prompt)})"
+        params = ", ".join(f"{key}={repr(value)}" for key, value in self.data.items())
+        return f"{self.__class__.__name__}({params})"
 
     @classmethod
     def example(cls):
@@ -463,3 +467,10 @@ if __name__ == "__main__":
     import doctest
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)
+    from edsl.agents.Agent import Agent
+    from edsl import Scenario
+    from edsl import Model
+    from edsl.language_models.LanguageModel import LanguageModel
+    from edsl.prompts.Prompt import Prompt
+
+    assert eval(repr(Result.example())) == Result.example()

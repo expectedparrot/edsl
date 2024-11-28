@@ -1566,20 +1566,20 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         return so.create_survey()
 
     # region: Display methods
-    def print(self):
-        """Print the survey in a rich format.
+    # def print(self):
+    #     """Print the survey in a rich format.
 
-        >>> s = Survey.example()
-        >>> s.print()
-        {
-          "questions": [
-          ...
-        }
-        """
-        from rich import print_json
-        import json
+    #     >>> s = Survey.example()
+    #     >>> s.print()
+    #     {
+    #       "questions": [
+    #       ...
+    #     }
+    #     """
+    #     from rich import print_json
+    #     import json
 
-        print_json(json.dumps(self.to_dict()))
+    #     print_json(json.dumps(self.to_dict()))
 
     def __repr__(self) -> str:
         """Return a string representation of the survey."""
@@ -1596,50 +1596,11 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
             "Question Names": self.question_names,
         }
 
-    def _repr_html_(self) -> str:
-        footer = f"<a href={self.__documentation__}>(docs)</a>"
-        return str(self.summary(format="html")) + footer
-
     def tree(self, node_list: Optional[List[str]] = None):
         return self.to_scenario_list().tree(node_list=node_list)
 
     def table(self, *fields, tablefmt=None) -> Table:
         return self.to_scenario_list().to_dataset().table(*fields, tablefmt=tablefmt)
-
-    def rich_print(self) -> Table:
-        """Print the survey in a rich format.
-
-        >>> t = Survey.example().rich_print()
-        >>> print(t) # doctest: +SKIP
-        ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-        ┃ Questions                                                                                          ┃
-        ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-        │ ┏━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┓                                │
-        │ ┃ Question Name ┃ Question Type   ┃ Question Text       ┃ Options ┃                                │
-        │ ┡━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━┩                                │
-        │ │ q0            │ multiple_choice │ Do you like school? │ yes, no │                                │
-        │ └───────────────┴─────────────────┴─────────────────────┴─────────┘                                │
-        │ ┏━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓              │
-        │ ┃ Question Name ┃ Question Type   ┃ Question Text ┃ Options                         ┃              │
-        │ ┡━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩              │
-        │ │ q1            │ multiple_choice │ Why not?      │ killer bees in cafeteria, other │              │
-        │ └───────────────┴─────────────────┴───────────────┴─────────────────────────────────┘              │
-        │ ┏━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
-        │ ┃ Question Name ┃ Question Type   ┃ Question Text ┃ Options                                      ┃ │
-        │ ┡━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩ │
-        │ │ q2            │ multiple_choice │ Why?          │ **lack*** of killer bees in cafeteria, other │ │
-        │ └───────────────┴─────────────────┴───────────────┴──────────────────────────────────────────────┘ │
-        └────────────────────────────────────────────────────────────────────────────────────────────────────┘
-        """
-        from rich.table import Table
-
-        table = Table(show_header=True, header_style="bold magenta")
-        table.add_column("Questions", style="dim")
-
-        for question in self._questions:
-            table.add_row(question.rich_print())
-
-        return table
 
     # endregion
 

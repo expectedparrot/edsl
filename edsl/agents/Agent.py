@@ -248,15 +248,6 @@ class Agent(Base):
         else:
             return self._traits
 
-    def _repr_html_(self):
-        # d = self.to_dict(add_edsl_version=False)
-        d = self.traits
-        data = [[k, v] for k, v in d.items()]
-        from tabulate import tabulate
-
-        table = str(tabulate(data, headers=["keys", "values"], tablefmt="html"))
-        return f"<pre>{table}</pre>"
-
     def rename(
         self, old_name_or_dict: Union[str, dict], new_name: Optional[str] = None
     ) -> Agent:
@@ -639,11 +630,6 @@ class Agent(Base):
         ]
         return f"{class_name}({', '.join(items)})"
 
-    # def _repr_html_(self):
-    #     from edsl.utilities.utilities import data_to_html
-
-    #     return data_to_html(self.to_dict())
-
     #######################
     # SERIALIZATION METHODS
     #######################
@@ -787,28 +773,6 @@ class Agent(Base):
             if key in values_codebook:
                 self.traits[key] = values_codebook[key][value]
         return self
-
-    def rich_print(self):
-        """Display an object as a rich table.
-
-        Example usage:
-
-        >>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
-        >>> a.rich_print()
-        <rich.table.Table object at ...>
-        """
-        from rich.table import Table
-
-        table_data, column_names = self._table()
-        table = Table(title=f"{self.__class__.__name__} Attributes")
-        for column in column_names:
-            table.add_column(column, style="bold")
-
-        for row in table_data:
-            row_data = [row[column] for column in column_names]
-            table.add_row(*row_data)
-
-        return table
 
     @classmethod
     def example(cls, randomize: bool = False) -> Agent:
