@@ -12,19 +12,21 @@ Example usage:
 
 from __future__ import annotations
 import csv
-import json
+import sys
 from collections import UserList
 from typing import Any, List, Optional, Union, TYPE_CHECKING
 from rich import print_json
 from rich.table import Table
-from simpleeval import EvalWithCompoundTypes
+from simpleeval import EvalWithCompoundTypes, NameNotDefined
 from edsl.Base import Base
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
 from collections.abc import Iterable
 
 from edsl.exceptions.agents import AgentListError
+from edsl.utilities.utilities import is_notebook
 
+from edsl.results.ResultsExportMixin import ResultsExportMixin
 import logging
 
 logger = logging.getLogger(__name__)
@@ -37,7 +39,12 @@ def is_iterable(obj):
     return isinstance(obj, Iterable)
 
 
-class AgentList(UserList, Base):
+class EmptyAgentList:
+    def __repr__(self):
+        return "Empty AgentList"
+
+
+class AgentList(UserList, ResultsExportMixin, Base):
     """A list of Agents."""
 
     __documentation__ = (
@@ -127,16 +134,23 @@ class AgentList(UserList, Base):
             """
             return EvalWithCompoundTypes(names=agent.traits)
 
-        try:
             # iterates through all the results and evaluates the expression
+
+        try:
             new_data = [
                 agent for agent in self.data if create_evaluator(agent).eval(expression)
             ]
-        except Exception as e:
-            try:
-                raise AgentListError(f"Error in filter. Exception:{e}")
-            except AgentListError as e:
-                return e.report()
+        except NameNotDefined as e:
+            e = AgentListError(f"'{expression}' is not a valid expression.")
+            if is_notebook():
+                print(e, file=sys.stderr)
+            else:
+                raise e
+
+            return EmptyAgentList()
+
+        if len(new_data) == 0:
+            return EmptyAgentList()
 
         return AgentList(new_data)
 
@@ -232,9 +246,13 @@ class AgentList(UserList, Base):
             return self
 
         if len(values) != len(self):
-            raise AgentListError(
+            e = AgentListError(
                 "The passed values have to be the same length as the agent list."
             )
+            if is_notebook():
+                print(e, file=sys.stderr)
+            else:
+                raise e
         for agent, value in zip(self.data, values):
             agent.add_trait(trait, value)
         return self
@@ -319,14 +337,34 @@ class AgentList(UserList, Base):
         tablefmt: Optional[str] = None,
         pretty_labels: Optional[dict] = None,
     ) -> Table:
-        if len(self) == 0:
-            raise AgentListError("Cannot create a table from an empty AgentList.")
 
+        if len(self) == 0:
+            e = AgentListError("Cannot create a table from an empty AgentList.")
+            if is_notebook():
+                print(e, file=sys.stderr)
+                return None
+            else:
+                raise e
         return (
             self.to_scenario_list()
             .to_dataset()
             .table(*fields, tablefmt=tablefmt, pretty_labels=pretty_labels)
         )
+
+    def to_dataset(self):
+        from edsl.results.Dataset import Dataset
+
+        keys = set({})
+        for agent in self:
+            keys.update(agent.traits.keys())
+
+        data = {}
+        for agent in self:
+            for key in keys:
+                if key not in data:
+                    data[key] = []
+                data[key].append(agent.traits.get(key, None))
+        return Dataset([{key: entry} for key, entry in data.items()])
 
     def tree(self, node_order: Optional[List[str]] = None):
         return self.to_scenario_list().tree(node_order)

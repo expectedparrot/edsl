@@ -552,7 +552,9 @@ class Agent(Base):
         else:
             traits_to_select = list(traits)
 
-        return Agent(traits={trait: self.traits[trait] for trait in traits_to_select})
+        return Agent(
+            traits={trait: self.traits.get(trait, None) for trait in traits_to_select}
+        )
 
     def __add__(self, other_agent: Optional[Agent] = None) -> Agent:
         """
