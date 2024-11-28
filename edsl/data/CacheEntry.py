@@ -5,8 +5,12 @@ import hashlib
 from typing import Optional
 from uuid import uuid4
 
+from edsl.utilities.decorators import remove_edsl_version
 
-class CacheEntry:
+from edsl.Base import RepresentationMixin
+
+
+class CacheEntry(RepresentationMixin):
     """
     A Class to represent a cache entry.
     """
@@ -78,11 +82,11 @@ class CacheEntry:
         d = {k: value for k, value in self.__dict__.items() if k in self.key_fields}
         return self.gen_key(**d)
 
-    def to_dict(self) -> dict:
+    def to_dict(self, add_edsl_version=True) -> dict:
         """
         Returns a dictionary representation of a CacheEntry.
         """
-        return {
+        d = {
             "model": self.model,
             "parameters": self.parameters,
             "system_prompt": self.system_prompt,
@@ -91,19 +95,12 @@ class CacheEntry:
             "iteration": self.iteration,
             "timestamp": self.timestamp,
         }
+        # if add_edsl_version:
+        #     from edsl import __version__
 
-    def _repr_html_(self) -> str:
-        """
-        Returns an HTML representation of a CacheEntry.
-        """
-        # from edsl.utilities.utilities import data_to_html
-        # return data_to_html(self.to_dict())
-        d = self.to_dict()
-        data = [[k, v] for k, v in d.items()]
-        from tabulate import tabulate
-
-        table = str(tabulate(data, headers=["keys", "values"], tablefmt="html"))
-        return f"<pre>{table}</pre>"
+        #     d["edsl_version"] = __version__
+        #     d["edsl_class_name"] = self.__class__.__name__
+        return d
 
     def keys(self):
         return list(self.to_dict().keys())

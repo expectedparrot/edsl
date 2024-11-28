@@ -289,40 +289,6 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         random.shuffle(self.data)
         return self
 
-    def _repr_html_(self):
-        """Return an HTML representation of the AgentList."""
-        # return (
-        #     str(self.summary(format="html")) + "<br>" + str(self.table(tablefmt="html"))
-        # )
-        footer = f"<a href={self.__documentation__}>(docs)</a>"
-        return str(self.summary(format="html")) + footer
-
-    # def _repr_html_(self) -> str:
-    # from edsl.utilities.utilities import data_to_html
-
-    # data = self.to_dict()
-    # _ = data.pop("edsl_version")
-    # _ = data.pop("edsl_class_name")
-    # for s in data["scenarios"]:
-    #     _ = s.pop("edsl_version")
-    #     _ = s.pop("edsl_class_name")
-    # for scenario in data["scenarios"]:
-    #     for key, value in scenario.items():
-    #         if hasattr(value, "to_dict"):
-    #             data[key] = value.to_dict()
-    # return data_to_html(data)
-
-    # def tally(self, field) -> dict:
-    #     """Return a tally of the values in the field.
-
-    #     Example:
-
-    #     >>> s = ScenarioList([Scenario({'a': 1, 'b': 1}), Scenario({'a': 1, 'b': 2})])
-    #     >>> s.tally('b')
-    #     {1: 1, 2: 1}
-    #     """
-    #     return dict(Counter([scenario[field] for scenario in self]))
-
     def sample(self, n: int, seed: Optional[str] = None) -> ScenarioList:
         """Return a random sample from the ScenarioList
 

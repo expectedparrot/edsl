@@ -303,9 +303,9 @@ class Results(UserList, Mixins, Base):
         )
 
     def __repr__(self) -> str:
-        import reprlib
+        # import reprlib
 
-        return f"Results(data = {reprlib.repr(self.data)}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
+        return f"Results(data = {self.data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
 
     def table(
         self,
@@ -345,21 +345,6 @@ class Results(UserList, Mixins, Base):
                 print_parameters=print_parameters,
             )
         )
-        # return (
-        #     self.select(f"{selector_string}")
-        #     .to_scenario_list()
-        #     .table(*fields, tablefmt=tablefmt)
-        # )
-
-    def _repr_html_(self) -> str:
-        d = self._summary()
-        from edsl import Scenario
-
-        footer = f"<a href={self.__documentation__}>(docs)</a>"
-
-        s = Scenario(d)
-        td = s.to_dataset().table(tablefmt="html")
-        return td._repr_html_() + footer
 
     def to_dict(
         self,
@@ -1172,3 +1157,17 @@ if __name__ == "__main__":
     import doctest
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)
+
+    from edsl import Results
+    from edsl.results.Result import Result
+    from edsl.agents.Agent import Agent
+    from edsl import Scenario
+    from edsl import Model
+    from edsl.language_models.LanguageModel import LanguageModel
+    from edsl.prompts.Prompt import Prompt
+    from edsl.surveys.Survey import Survey
+    from edsl import Question
+    from edsl.surveys.RuleCollection import RuleCollection
+    from edsl.surveys.Rule import Rule
+
+    assert eval(repr(Results.example())) == Results.example()

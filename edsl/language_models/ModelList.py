@@ -117,11 +117,6 @@ class ModelList(Base, UserList):
 
         return d
 
-    def _repr_html_(self):
-        """Return an HTML representation of the ModelList."""
-        footer = f"<a href={self.__documentation__}>(docs)</a>"
-        return str(self.summary(format="html")) + footer
-
     @classmethod
     def from_names(self, *args, **kwargs):
         """A a model list from a list of names"""
