@@ -40,7 +40,7 @@ class ModelList(Base, UserList):
         return f"ModelList({super().__repr__()})"
 
     def _summary(self):
-        return {"EDSL Class": "ModelList", "Number of Models": len(self)}
+        return {"models": len(self)}
 
     def __hash__(self):
         """Return a hash of the ModelList. This is used for comparison of ModelLists.

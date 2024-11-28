@@ -565,9 +565,8 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
     def _summary(self):
         d = {
-            "EDSL Class name": "ScenarioList",
-            "# Scenarios": len(self),
-            "Scenario Keys": list(self.parameters),
+            "scenarios": len(self),
+            "keys": list(self.parameters),
         }
         return d
 
