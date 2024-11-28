@@ -28,7 +28,7 @@ from edsl.exceptions.results import (
 
 from edsl.results.ResultsExportMixin import ResultsExportMixin
 from edsl.results.ResultsToolsMixin import ResultsToolsMixin
-from edsl.results.ResultsDBMixin import ResultsDBMixin
+
 from edsl.results.ResultsGGMixin import ResultsGGMixin
 from edsl.results.ResultsFetchMixin import ResultsFetchMixin
 
@@ -41,7 +41,7 @@ from edsl.Base import Base
 
 class Mixins(
     ResultsExportMixin,
-    ResultsDBMixin,
+    # ResultsDBMixin,
     ResultsFetchMixin,
     ResultsGGMixin,
     ResultsToolsMixin,

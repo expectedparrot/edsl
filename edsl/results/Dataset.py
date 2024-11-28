@@ -48,6 +48,59 @@ class Dataset(UserList, ResultsExportMixin):
     def filter(self, expression):
         return self.to_scenario_list().filter(expression).to_dataset()
 
+    def long(self) -> Dataset:
+        headers, data = self._tabular()
+        keys = []
+        values = []
+        rows = []
+        for index, row in enumerate(data):
+            for header, value in zip(headers, row):
+                keys.append(header)
+                values.append(value)
+                rows.append(index)
+        return Dataset([{"row": rows}, {"key": keys}, {"value": values}])
+
+    def wide(self) -> "Dataset":
+        """
+        Convert a long-format dataset (with row, key, value columns) to wide format.
+
+        Expected input format:
+        - A dataset with three columns containing dictionaries:
+          - row: list of row indices
+          - key: list of column names
+          - value: list of values
+
+        Returns:
+        - Dataset: A new dataset with columns corresponding to unique keys
+        """
+        # Extract the component arrays
+        row_dict = next(col for col in self if "row" in col)
+        key_dict = next(col for col in self if "key" in col)
+        value_dict = next(col for col in self if "value" in col)
+
+        rows = row_dict["row"]
+        keys = key_dict["key"]
+        values = value_dict["value"]
+
+        if not (len(rows) == len(keys) == len(values)):
+            raise ValueError("All input arrays must have the same length")
+
+        # Get unique keys and row indices
+        unique_keys = sorted(set(keys))
+        unique_rows = sorted(set(rows))
+
+        # Create a dictionary to store the result
+        result = {key: [None] * len(unique_rows) for key in unique_keys}
+
+        # Populate the result dictionary
+        for row_idx, key, value in zip(rows, keys, values):
+            # Find the position in the output array for this row
+            output_row_idx = unique_rows.index(row_idx)
+            result[key][output_row_idx] = value
+
+        # Convert to list of column dictionaries format
+        return Dataset([{key: values} for key, values in result.items()])
+
     def __repr__(self) -> str:
         """Return a string representation of the dataset."""
         return f"Dataset({self.data})"
@@ -127,6 +180,17 @@ class Dataset(UserList, ResultsExportMixin):
             return list(d.values())[0]
 
         return get_values(self.data[0])[0]
+
+    def remove_prefix(self) -> Dataset:
+        new_data = []
+        for observation in self.data:
+            key, values = list(observation.items())[0]
+            if "." in key:
+                new_key = key.split(".")[1]
+                new_data.append({new_key: values})
+            else:
+                new_data.append({key: values})
+        return Dataset(new_data)
 
     def print(self, pretty_labels=None, **kwargs):
         if "format" in kwargs:
@@ -421,6 +485,11 @@ class Dataset(UserList, ResultsExportMixin):
     def from_edsl_object(cls, object):
         d = object.to_dict(add_edsl_version=False)
         return cls([{"key": list(d.keys())}, {"value": list(d.values())}])
+
+    @classmethod
+    def from_pandas_dataframe(cls, df):
+        result = cls([{col: df[col].tolist()} for col in df.columns])
+        return result
 
 
 if __name__ == "__main__":
