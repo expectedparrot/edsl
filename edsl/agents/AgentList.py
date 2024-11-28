@@ -25,6 +25,10 @@ from collections.abc import Iterable
 
 from edsl.exceptions.agents import AgentListError
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 if TYPE_CHECKING:
     from edsl.scenarios.ScenarioList import ScenarioList
 
@@ -129,8 +133,10 @@ class AgentList(UserList, Base):
                 agent for agent in self.data if create_evaluator(agent).eval(expression)
             ]
         except Exception as e:
-            print(f"Exception:{e}")
-            raise AgentListError(f"Error in filter. Exception:{e}")
+            try:
+                raise AgentListError(f"Error in filter. Exception:{e}")
+            except AgentListError as e:
+                return e.report()
 
         return AgentList(new_data)
 
@@ -313,6 +319,9 @@ class AgentList(UserList, Base):
         tablefmt: Optional[str] = None,
         pretty_labels: Optional[dict] = None,
     ) -> Table:
+        if len(self) == 0:
+            raise AgentListError("Cannot create a table from an empty AgentList.")
+
         return (
             self.to_scenario_list()
             .to_dataset()
