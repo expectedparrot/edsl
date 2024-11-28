@@ -1,6 +1,18 @@
 from edsl.exceptions.BaseException import BaseException
 
 
+from edsl.utilities.utilities import is_notebook
+
+# from IPython.core.error import UsageError
+
+# class AgentListErrorAlternative(UsageError):
+#     def __init__(self, message):
+#         super().__init__(message)
+
+import sys
+from edsl.utilities.utilities import is_notebook
+
+
 class AgentListError(BaseException):
     relevant_doc = "https://docs.expectedparrot.com/en/latest/agents.html#agent-lists"
 

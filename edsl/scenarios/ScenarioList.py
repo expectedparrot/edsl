@@ -13,6 +13,7 @@ from collections import defaultdict
 import inspect
 
 from simpleeval import EvalWithCompoundTypes
+from simpleeval import NameNotDefined
 
 from edsl.Base import Base
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
@@ -22,6 +23,8 @@ from edsl.scenarios.ScenarioListExportMixin import ScenarioListExportMixin
 
 from edsl.utilities.naming_utilities import sanitize_string
 from edsl.utilities.utilities import is_valid_variable_name
+
+from edsl.exceptions.scenarios import ScenarioError
 
 
 class ScenarioListMixin(ScenarioListPdfMixin, ScenarioListExportMixin):
@@ -191,7 +194,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         # Check if the function is compatible with the specified variables
         func_params = inspect.signature(func).parameters
         if len(func_params) != len(variables):
-            raise ValueError(
+            raise ScenarioError(
                 f"Function {func.__name__} expects {len(func_params)} arguments, but {len(variables)} variables were provided"
             )
 
@@ -208,10 +211,12 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
             try:
                 aggregated = func(*[group[var] for var in variables])
             except Exception as e:
-                raise ValueError(f"Error applying function to group {key}: {str(e)}")
+                raise ScenarioError(f"Error applying function to group {key}: {str(e)}")
 
             if not isinstance(aggregated, dict):
-                raise ValueError(f"Function {func.__name__} must return a dictionary")
+                raise ScenarioError(
+                    f"Function {func.__name__} must return a dictionary"
+                )
 
             new_scenario = dict(zip(id_vars, key))
             new_scenario.update(aggregated)
@@ -402,7 +407,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
         """
         if "=" not in new_var_string:
-            raise Exception(
+            raise ScenarioError(
                 f"Mutate requires an '=' in the string, but '{new_var_string}' doesn't have one."
             )
         raw_var_name, expression = new_var_string.split("=", 1)
@@ -410,7 +415,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         from edsl.utilities.utilities import is_valid_variable_name
 
         if not is_valid_variable_name(var_name):
-            raise Exception(f"{var_name} is not a valid variable name.")
+            raise ScenarioError(f"{var_name} is not a valid variable name.")
 
         # create the evaluator
         functions_dict = functions_dict or {}
@@ -428,7 +433,7 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         try:
             new_data = [new_scenario(s, var_name) for s in self]
         except Exception as e:
-            raise Exception(f"Error in mutate. Exception:{e}")
+            raise ScenarioError(f"Error in mutate. Exception:{e}")
 
         return ScenarioList(new_data)
 
@@ -471,9 +476,17 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
                 for scenario in self.data
                 if create_evaluator(scenario).eval(expression)
             ]
+        except NameNotDefined as e:
+            available_fields = ", ".join(self.data[0].keys() if self.data else [])
+            raise ScenarioError(
+                f"Error in filter: '{e}'\n"
+                f"The expression '{expression}' refers to a field that does not exist.\n"
+                f"Available fields: {available_fields}\n"
+                "Check your filter expression or consult the documentation: "
+                "https://docs.expectedparrot.com/en/latest/scenarios.html#module-edsl.scenarios.Scenario"
+            ) from None
         except Exception as e:
-            print(f"Exception:{e}")
-            raise Exception(f"Error in filter. Exception:{e}")
+            raise ScenarioError(f"Error in filter. Exception:{e}")
 
         return ScenarioList(new_data)
 
