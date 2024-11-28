@@ -255,14 +255,26 @@ class RepresentationMixin:
         from edsl.results.TableDisplay import TableDisplay
 
         if hasattr(self, "_summary"):
-            from edsl import Scenario
-
-            d = self._summary()
-            return TableDisplay.from_dictionary_wide(d)._repr_html_()
+            summary_dict = self._summary()
+            summary_line = "".join([f" {k}: {v};" for k, v in summary_dict.items()])
+            class_name = self.__class__.__name__
+            docs = getattr(self, "__documentation__", "")
+            return (
+                "<p>"
+                + f"<a href='{docs}'>{class_name}</a>"
+                + summary_line
+                + "</p>"
+                + self.table()._repr_html_()
+            )
         else:
-
+            class_name = self.__class__.__name__
+            documenation = getattr(self, "__documentation__", "")
+            summary_line = "<p>" + f"<a href='{documenation}'>{class_name}</a>" + "</p>"
             display_dict = self.display_dict()
-            return TableDisplay.from_dictionary_wide(display_dict)._repr_html_()
+            return (
+                summary_line
+                + TableDisplay.from_dictionary_wide(display_dict)._repr_html_()
+            )
 
     def __str__(self):
         return self.__repr__()

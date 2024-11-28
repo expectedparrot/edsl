@@ -129,18 +129,13 @@ class Results(UserList, Mixins, Base):
     def _summary(self) -> dict:
         import reprlib
 
-        # import yaml
-
         d = {
-            "EDSL Class": "Results",
-            # "docs_url": self.__documentation__,
-            "# of agents": len(set(self.agents)),
-            "# of distinct models": len(set(self.models)),
-            "# of observations": len(self),
-            "# Scenarios": len(set(self.scenarios)),
-            "Survey Length (# questions)": len(self.survey),
+            "observations": len(self),
+            "agents": len(set(self.agents)),
+            "models": len(set(self.models)),
+            "scenarios": len(set(self.scenarios)),
+            "questions": len(self.survey),
             "Survey question names": reprlib.repr(self.survey.question_names),
-            "Object hash": hash(self),
         }
         return d
 

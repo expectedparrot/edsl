@@ -709,11 +709,10 @@ class Jobs(Base):
 
     def _summary(self):
         return {
-            "EDSL Class": "Jobs",
-            "Number of questions": len(self.survey),
-            "Number of agents": len(self.agents),
-            "Number of models": len(self.models),
-            "Number of scenarios": len(self.scenarios),
+            "questions": len(self.survey),
+            "agents": len(self.agents or [1]),
+            "models": len(self.models or [1]),
+            "scenarios": len(self.scenarios or [1]),
         }
 
     def __len__(self) -> int:
@@ -759,6 +758,9 @@ class Jobs(Base):
             d["edsl_class_name"] = "Jobs"
 
         return d
+
+    def table(self):
+        return self.prompts().to_scenario_list().table()
 
     @classmethod
     @remove_edsl_version

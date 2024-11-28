@@ -279,9 +279,7 @@ class AgentList(UserList, Base):
 
     def _summary(self):
         return {
-            "EDSL Class": "AgentList",
-            "Number of agents": len(self),
-            "Agent trait fields": self.all_traits,
+            "agents": len(self),
         }
 
     def to_csv(self, file_path: str):

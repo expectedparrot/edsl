@@ -44,7 +44,7 @@ from edsl.utilities.restricted_python import create_restricted_function
 class Agent(Base):
     """An class representing an agent that can answer questions."""
 
-    __doc__ = "https://docs.expectedparrot.com/en/latest/agents.html"
+    __documentation__ = "https://docs.expectedparrot.com/en/latest/agents.html"
 
     default_instruction = """You are answering questions as if you were a human. Do not break character."""
 
