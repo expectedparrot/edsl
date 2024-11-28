@@ -713,8 +713,10 @@ class DatasetExportMixin:
         >>> r = Results.example()
         >>> r.select('how_feeling').tally('answer.how_feeling', output = "dict")
         {'OK': 2, 'Great': 1, 'Terrible': 1}
-        >>> r.select('how_feeling').tally('answer.how_feeling', output = "Dataset")
-        Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible']}, {'count': [2, 1, 1]}])
+        >>> from edsl.results.Dataset import Dataset
+        >>> expected = Dataset([{'answer.how_feeling': ['OK', 'Great', 'Terrible']}, {'count': [2, 1, 1]}])
+        >>> r.select('how_feeling').tally('answer.how_feeling', output = "Dataset") == expected
+        True
         """
         from collections import Counter
 

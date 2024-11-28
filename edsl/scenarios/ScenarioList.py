@@ -462,6 +462,16 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         >>> s.filter("b == 2")
         ScenarioList([Scenario({'a': 1, 'b': 2})])
         """
+        base_keys = set(self[0].keys())
+        keys = set()
+        for scenario in self:
+            keys.update(scenario.keys())
+        if keys != base_keys:
+            import warnings
+
+            warnings.warn(
+                "Ragged ScenarioList detected (different keys for different scenario entries). This may cause unexpected behavior."
+            )
 
         def create_evaluator(scenario: Scenario):
             """Create an evaluator for the given result.
@@ -471,16 +481,16 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
 
         try:
             # iterates through all the results and evaluates the expression
-            new_data = [
-                scenario
-                for scenario in self.data
-                if create_evaluator(scenario).eval(expression)
-            ]
+            new_data = []
+            for scenario in self:
+                if create_evaluator(scenario).eval(expression):
+                    new_data.append(scenario)
         except NameNotDefined as e:
             available_fields = ", ".join(self.data[0].keys() if self.data else [])
             raise ScenarioError(
                 f"Error in filter: '{e}'\n"
                 f"The expression '{expression}' refers to a field that does not exist.\n"
+                f"Scenario: {scenario}\n"
                 f"Available fields: {available_fields}\n"
                 "Check your filter expression or consult the documentation: "
                 "https://docs.expectedparrot.com/en/latest/scenarios.html#module-edsl.scenarios.Scenario"
@@ -512,14 +522,18 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         >>> s.select('a')
         ScenarioList([Scenario({'a': 1}), Scenario({'a': 1})])
         """
-        if len(fields) == 1:
-            fields_to_select = [list(fields)[0]]
-        else:
-            fields_to_select = list(fields)
+        from edsl.scenarios.ScenarioSelector import ScenarioSelector
 
-        return ScenarioList(
-            [scenario.select(fields_to_select) for scenario in self.data]
-        )
+        ss = ScenarioSelector(self)
+        return ss.select(*fields)
+        # if len(fields) == 1:
+        #     fields_to_select = [list(fields)[0]]
+        # else:
+        #     fields_to_select = list(fields)
+
+        # return ScenarioList(
+        #     [scenario.select(fields_to_select) for scenario in self.data]
+        # )
 
     def drop(self, *fields) -> ScenarioList:
         """Drop fields from the scenarios.
@@ -609,8 +623,14 @@ class ScenarioList(Base, UserList, ScenarioListMixin):
         """
         from edsl.results.Dataset import Dataset
 
-        keys = self[0].keys()
-        data = [{key: [scenario[key] for scenario in self.data]} for key in keys]
+        keys = list(self[0].keys())
+        for scenario in self:
+            new_keys = list(scenario.keys())
+            if new_keys != keys:
+                keys = list(set(keys + new_keys))
+        data = [
+            {key: [scenario.get(key, None) for scenario in self.data]} for key in keys
+        ]
         return Dataset(data)
 
     def unpack(
