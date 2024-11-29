@@ -188,7 +188,7 @@ class OptionLabelDescriptor(BaseDescriptor):
     ...     def __init__(self, option_label: str):
     ...         self.option_label = option_label
 
-    >>> _ = TestQuestion("Option")
+    >>> _ = TestQuestion("{{Option}}")
 
     """
 
