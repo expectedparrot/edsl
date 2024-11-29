@@ -26,11 +26,12 @@ class ConstructDAG:
     def piping_dag(self) -> DAG:
         """Figures out the DAG of piping dependencies.
 
+        >>> from edsl import Survey
         >>> from edsl import QuestionFreeText
         >>> q0 = QuestionFreeText(question_text="Here is a question", question_name="q0")
         >>> q1 = QuestionFreeText(question_text="You previously answered {{ q0 }}---how do you feel now?", question_name="q1")
         >>> s = Survey([q0, q1])
-        >>> s.piping_dag
+        >>> ConstructDAG(s).piping_dag
         {1: {0}}
         """
         d = {}
@@ -54,6 +55,7 @@ class ConstructDAG:
 
         Example:
 
+        >>> from edsl import Survey
         >>> s = Survey.example()
         >>> d = s.dag()
         >>> d
