@@ -181,11 +181,25 @@ class NumSelectionsDescriptor(BaseDescriptor):
 
 
 class OptionLabelDescriptor(BaseDescriptor):
-    """Validate that the `option_label` attribute is a string."""
+    """Validate that the `option_label` attribute is a string.
+
+    >>> class TestQuestion:
+    ...     option_label = OptionLabelDescriptor()
+    ...     def __init__(self, option_label: str):
+    ...         self.option_label = option_label
+
+    >>> _ = TestQuestion("Option")
+
+    """
 
     def validate(self, value, instance):
         """Validate the value is a string."""
-        # key_values = [int(v) for v in value.keys()]
+        if isinstance(value, str):
+            if "{{" in value and "}}" in value:
+                # they're trying to use a dynamic question name - let's let this play out
+                return None
+
+        key_values = [int(v) for v in value.keys()]
 
         if value and (key_values := [float(v) for v in value.keys()]) != []:
             if min(key_values) != min(instance.question_options):

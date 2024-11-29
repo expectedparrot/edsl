@@ -49,51 +49,55 @@ class QuestionBaseGenMixin:
         >>> q = QuestionFreeText(question_text = "What are your thoughts on: {{ subject}}?", question_name = "base_{{subject}}")
         >>> len(q.loop(ScenarioList.from_list("subject", ["Math", "Economics", "Chemistry"])))
         3
-
         """
-        from jinja2 import Environment
-        from edsl.questions.QuestionBase import QuestionBase
+        from edsl.questions.LoopProcessor import LoopProcessor
 
-        starting_name = self.question_name
-        questions = []
-        for index, scenario in enumerate(scenario_list):
-            env = Environment()
-            new_data = self.to_dict().copy()
-            for key, value in [(k, v) for k, v in new_data.items() if v is not None]:
-                if (
-                    isinstance(value, str) or isinstance(value, int)
-                ) and key != "question_options":
-                    new_data[key] = env.from_string(value).render(scenario)
-                elif isinstance(value, list):
-                    new_data[key] = [
-                        env.from_string(v).render(scenario) if isinstance(v, str) else v
-                        for v in value
-                    ]
-                elif isinstance(value, dict):
-                    new_data[key] = {
-                        (
-                            env.from_string(k).render(scenario)
-                            if isinstance(k, str)
-                            else k
-                        ): (
-                            env.from_string(v).render(scenario)
-                            if isinstance(v, str)
-                            else v
-                        )
-                        for k, v in value.items()
-                    }
-                elif key == "question_options" and isinstance(value, str):
-                    new_data[key] = value
-                else:
-                    raise ValueError(
-                        f"Unexpected value type: {type(value)} for key '{key}'"
-                    )
+        lp = LoopProcessor(self)
+        return lp.process_templates(scenario_list)
 
-            if new_data["question_name"] == starting_name:
-                new_data["question_name"] = new_data["question_name"] + f"_{index}"
+        # from jinja2 import Environment
+        # from edsl.questions.QuestionBase import QuestionBase
 
-            questions.append(QuestionBase.from_dict(new_data))
-        return questions
+        # starting_name = self.question_name
+        # questions = []
+        # for index, scenario in enumerate(scenario_list):
+        #     env = Environment()
+        #     new_data = self.to_dict().copy()
+        #     for key, value in [(k, v) for k, v in new_data.items() if v is not None]:
+        #         if (
+        #             isinstance(value, str) or isinstance(value, int)
+        #         ) and key != "question_options":
+        #             new_data[key] = env.from_string(value).render(scenario)
+        #         elif isinstance(value, list):
+        #             new_data[key] = [
+        #                 env.from_string(v).render(scenario) if isinstance(v, str) else v
+        #                 for v in value
+        #             ]
+        #         elif isinstance(value, dict):
+        #             new_data[key] = {
+        #                 (
+        #                     env.from_string(k).render(scenario)
+        #                     if isinstance(k, str)
+        #                     else k
+        #                 ): (
+        #                     env.from_string(v).render(scenario)
+        #                     if isinstance(v, str)
+        #                     else v
+        #                 )
+        #                 for k, v in value.items()
+        #             }
+        #         elif key == "question_options" and isinstance(value, str):
+        #             new_data[key] = value
+        #         else:
+        #             raise ValueError(
+        #                 f"Unexpected value type: {type(value)} for key '{key}'"
+        #             )
+
+        #     if new_data["question_name"] == starting_name:
+        #         new_data["question_name"] = new_data["question_name"] + f"_{index}"
+
+        #     questions.append(QuestionBase.from_dict(new_data))
+        # return questions
 
     def render(self, replacement_dict: dict) -> "QuestionBase":
         """Render the question components as jinja2 templates with the replacement dictionary."""

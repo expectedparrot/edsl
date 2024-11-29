@@ -48,17 +48,37 @@ class Dataset(UserList, ResultsExportMixin):
     def filter(self, expression):
         return self.to_scenario_list().filter(expression).to_dataset()
 
-    def long(self) -> Dataset:
+    def long(self, exclude_fields: list[str] = None) -> Dataset:
         headers, data = self._tabular()
-        keys = []
-        values = []
-        rows = []
+        exclude_fields = exclude_fields or []
+
+        # Initialize result dictionaries for each column
+        result_dict = {}
+
         for index, row in enumerate(data):
-            for header, value in zip(headers, row):
-                keys.append(header)
-                values.append(value)
-                rows.append(index)
-        return Dataset([{"row": rows}, {"key": keys}, {"value": values}])
+            row_values = dict(zip(headers, row))
+            excluded_values = {field: row_values[field] for field in exclude_fields}
+
+            # Transform non-excluded fields to long format
+            for header, value in row_values.items():
+                if header not in exclude_fields:
+                    # Initialize lists in result_dict if needed
+                    if not result_dict:
+                        result_dict = {
+                            "row": [],
+                            "key": [],
+                            "value": [],
+                            **{field: [] for field in exclude_fields},
+                        }
+
+                    # Add values to each column
+                    result_dict["row"].append(index)
+                    result_dict["key"].append(header)
+                    result_dict["value"].append(value)
+                    for field in exclude_fields:
+                        result_dict[field].append(excluded_values[field])
+
+        return Dataset([{k: v} for k, v in result_dict.items()])
 
     def wide(self) -> "Dataset":
         """

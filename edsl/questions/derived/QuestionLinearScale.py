@@ -40,9 +40,12 @@ class QuestionLinearScale(QuestionMultipleChoice):
             include_comment=include_comment,
         )
         self.question_options = question_options
-        self.option_labels = (
-            {int(k): v for k, v in option_labels.items()} if option_labels else {}
-        )
+        if isinstance(option_labels, str):
+            self.option_labels = option_labels
+        else:
+            self.option_labels = (
+                {int(k): v for k, v in option_labels.items()} if option_labels else {}
+            )
         self.answering_instructions = answering_instructions
         self.question_presentation = question_presentation
 
