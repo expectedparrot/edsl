@@ -183,25 +183,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         >>> s.pseudo_indices
         {'intro': -0.5}
         """
-        import math
-
-        if instruction.name in self.instruction_names_to_instructions:
-            raise SurveyCreationError(
-                f"""Instruction name '{instruction.name}' already exists in survey. Existing names are {self.instruction_names_to_instructions.keys()}."""
-            )
-        self.instruction_names_to_instructions[instruction.name] = instruction
-
-        # was the last thing added an instruction or a question?
-        if self.last_item_was_instruction:
-            pseudo_index = (
-                self.max_pseudo_index
-                + (math.ceil(self.max_pseudo_index) - self.max_pseudo_index) / 2
-            )
-        else:
-            pseudo_index = self.max_pseudo_index + 1.0 / 2.0
-        self.pseudo_indices[instruction.name] = pseudo_index
-
-        return self
+        return EditSurvey(self).add_instruction(instruction)
 
     # endregion
 
@@ -308,7 +290,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
                 )
             return self.question_name_to_index[question_name]
 
-    def get(self, question_name: str) -> QuestionBase:
+    def get_question(self, question_name: str) -> QuestionBase:
         """
         Return the question object given the question name.
 
@@ -323,11 +305,12 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         index = self.question_name_to_index[question_name]
         return self._questions[index]
 
-    def get_question(self, question_name: str) -> QuestionBase:
-        """Return the question object given the question name."""
-        # import warnings
-        # warnings.warn("survey.get_question is deprecated. Use subscript operator instead.")
-        return self.get(question_name)
+    # def get_question(self, question_name: str) -> QuestionBase:
+    #     """Return the question object given the question name."""
+    #     raise Exception
+    #     # import warnings
+    #     # warnings.warn("survey.get_question is deprecated. Use subscript operator instead.")
+    #     return self.get(question_name)
 
     def question_names_to_questions(self) -> dict:
         """Return a dictionary mapping question names to question attributes."""

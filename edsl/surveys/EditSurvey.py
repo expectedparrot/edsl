@@ -172,3 +172,43 @@ class EditSurvey:
             self.survey.memory_plan.remove_question(deleted_question.question_name)
 
         return self.survey
+
+    def add_instruction(
+        self, instruction: Union["Instruction", "ChangeInstruction"]
+    ) -> "Survey":
+        """
+        Add an instruction to the survey.
+
+        :param instruction: The instruction to add to the survey.
+
+        >>> from edsl import Instruction
+        >>> i = Instruction(text="Pay attention to the following questions.", name="intro")
+        >>> s = Survey().add_instruction(i)
+        >>> s.instruction_names_to_instructions
+        {'intro': Instruction(name="intro", text="Pay attention to the following questions.")}
+        >>> s.pseudo_indices
+        {'intro': -0.5}
+        """
+        import math
+
+        if instruction.name in self.survey.instruction_names_to_instructions:
+            raise SurveyCreationError(
+                f"""Instruction name '{instruction.name}' already exists in survey. Existing names are {self.survey.instruction_names_to_instructions.keys()}."""
+            )
+        self.survey.instruction_names_to_instructions[instruction.name] = instruction
+
+        # was the last thing added an instruction or a question?
+        if self.survey.last_item_was_instruction:
+            pseudo_index = (
+                self.survey.max_pseudo_index
+                + (
+                    math.ceil(self.survey.max_pseudo_index)
+                    - self.survey.max_pseudo_index
+                )
+                / 2
+            )
+        else:
+            pseudo_index = self.survey.max_pseudo_index + 1.0 / 2.0
+        self.survey.pseudo_indices[instruction.name] = pseudo_index
+
+        return self.survey
