@@ -112,7 +112,6 @@ def view_pdf(pdf_path):
 
 
 class FileStore(Scenario):
-
     __documentation__ = "https://docs.expectedparrot.com/en/latest/filestore.html"
 
     def __init__(
@@ -176,7 +175,6 @@ class FileStore(Scenario):
         import tempfile
 
         if example_type == "png" or example_type == "image":
-
             import importlib.resources
             from pathlib import Path
 
@@ -250,7 +248,6 @@ class FileStore(Scenario):
             return cls(f.name)
 
         elif example_type == "html":
-
             with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
                 f.write("<html><body><h1>Test</h1></body></html>".encode())
 
