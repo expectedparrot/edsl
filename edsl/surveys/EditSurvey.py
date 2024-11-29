@@ -1,5 +1,11 @@
-from typing import Union
+import copy
+from typing import Union, Optional
 from edsl.exceptions.surveys import SurveyError
+from edsl.questions.QuestionBase import QuestionBase
+
+from edsl.exceptions.surveys import SurveyError, SurveyCreationError
+from .Rule import Rule
+from .base import RulePriority
 
 
 class EditSurvey:
