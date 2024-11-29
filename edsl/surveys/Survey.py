@@ -12,21 +12,22 @@ from edsl.exceptions import SurveyCreationError, SurveyHasNoRulesError
 from edsl.exceptions.surveys import SurveyError
 
 from edsl.questions.QuestionBase import QuestionBase
-from edsl.surveys.base import RulePriority, EndOfSurvey
-from edsl.surveys.DAG import DAG
-from edsl.surveys.descriptors import QuestionsDescriptor
-from edsl.surveys.MemoryPlan import MemoryPlan
-from edsl.surveys.Rule import Rule
-from edsl.surveys.RuleCollection import RuleCollection
-from edsl.surveys.SurveyExportMixin import SurveyExportMixin
-from edsl.surveys.SurveyFlowVisualizationMixin import SurveyFlowVisualizationMixin
 from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
-
 from edsl.agents.Agent import Agent
 
 from edsl.surveys.instructions.InstructionCollection import InstructionCollection
 from edsl.surveys.instructions.Instruction import Instruction
 from edsl.surveys.instructions.ChangeInstruction import ChangeInstruction
+
+from .ConstructDAG import ConstructDAG
+from .base import RulePriority, EndOfSurvey
+from .DAG import DAG
+from .descriptors import QuestionsDescriptor
+from .MemoryPlan import MemoryPlan
+from .Rule import Rule
+from .RuleCollection import RuleCollection
+from .SurveyExportMixin import SurveyExportMixin
+from .SurveyFlowVisualizationMixin import SurveyFlowVisualizationMixin
 
 
 class ValidatedString(str):
@@ -119,7 +120,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
             warnings.warn("name parameter to a survey is deprecated.")
 
-    # region: Suvry instruction handling
+    # region: Survey instruction handling
     @property
     def relevant_instructions_dict(self) -> InstructionCollection:
         """Return a dictionary with keys as question names and values as instructions that are relevant to the question.
@@ -808,7 +809,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         self._set_memory_plan(lambda i: self.question_names[max(0, i - lags) : i])
         return self
 
-    def _set_memory_plan(self, prior_questions_func: Callable):
+    def _set_memory_plan(self, prior_questions_func: Callable) -> None:
         """Set memory plan based on a provided function determining prior questions.
 
         :param prior_questions_func: A function that takes the index of the current question and returns a list of prior questions to remember.
@@ -1390,7 +1391,6 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
             question = self.next_question(question, self.answers)
 
         while not question == EndOfSurvey:
-            # breakpoint()
             answer = yield question
             self.answers.update(answer)
             # print(f"Answers: {self.answers}")
@@ -1414,28 +1414,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         >>> s.textify(d)
         {'q1': {'q0'}, 'q2': {'q0'}}
         """
-
-        def get_name(index: int):
-            """Return the name of the question given the index."""
-            if index >= len(self.questions):
-                return EndOfSurvey
-            try:
-                return self.questions[index].question_name
-            except IndexError:
-                print(
-                    f"The index is {index} but the length of the questions is {len(self.questions)}"
-                )
-                raise SurveyError
-
-        try:
-            text_dag = {}
-            for child_index, parent_indices in index_dag.items():
-                parent_names = {get_name(index) for index in parent_indices}
-                child_name = get_name(child_index)
-                text_dag[child_name] = parent_names
-            return text_dag
-        except IndexError:
-            raise
+        return ConstructDAG(self).textify(index_dag)
 
     @property
     def piping_dag(self) -> DAG:
@@ -1448,19 +1427,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         >>> s.piping_dag
         {1: {0}}
         """
-        d = {}
-        for question_name, depenencies in self.parameters_by_question.items():
-            if depenencies:
-                question_index = self.question_name_to_index[question_name]
-                for dependency in depenencies:
-                    if dependency not in self.question_name_to_index:
-                        pass
-                    else:
-                        dependency_index = self.question_name_to_index[dependency]
-                        if question_index not in d:
-                            d[question_index] = set()
-                        d[question_index].add(dependency_index)
-        return d
+        return ConstructDAG(self).piping_dag
 
     def dag(self, textify: bool = False) -> DAG:
         """Return the DAG of the survey, which reflects both skip-logic and memory.
@@ -1473,14 +1440,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         {1: {0}, 2: {0}}
 
         """
-        memory_dag = self.memory_plan.dag
-        rule_dag = self.rule_collection.dag
-        piping_dag = self.piping_dag
-        if textify:
-            memory_dag = DAG(self.textify(memory_dag))
-            rule_dag = DAG(self.textify(rule_dag))
-            piping_dag = DAG(self.textify(piping_dag))
-        return memory_dag + rule_dag + piping_dag
+        return ConstructDAG(self).dag(textify)
 
     ###################
     # DUNDER METHODS
@@ -1565,22 +1525,6 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         so = SurveyQualtricsImport(qsf_file)
         return so.create_survey()
 
-    # region: Display methods
-    # def print(self):
-    #     """Print the survey in a rich format.
-
-    #     >>> s = Survey.example()
-    #     >>> s.print()
-    #     {
-    #       "questions": [
-    #       ...
-    #     }
-    #     """
-    #     from rich import print_json
-    #     import json
-
-    #     print_json(json.dumps(self.to_dict()))
-
     def __repr__(self) -> str:
         """Return a string representation of the survey."""
 
@@ -1591,9 +1535,8 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
     def _summary(self) -> dict:
         return {
-            "EDSL Class": "Survey",
-            "Number of Questions": len(self),
-            "Question Names": self.question_names,
+            "# questions": len(self),
+            "question_name list": self.question_names,
         }
 
     def tree(self, node_list: Optional[List[str]] = None):
