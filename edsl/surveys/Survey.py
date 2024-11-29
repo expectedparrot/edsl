@@ -29,6 +29,7 @@ from .RuleCollection import RuleCollection
 from .SurveyExportMixin import SurveyExportMixin
 from .SurveyFlowVisualizationMixin import SurveyFlowVisualizationMixin
 from .InstructionHandler import InstructionHandler
+from .EditSurvey import EditSurvey
 
 
 class ValidatedString(str):
@@ -369,12 +370,6 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     # endregion
 
     # region: serialization methods
-    def __hash__(self) -> int:
-        """Return a hash of the question."""
-        from edsl.utilities.utilities import dict_hash
-
-        return dict_hash(self.to_dict(add_edsl_version=False))
-
     def to_dict(self, add_edsl_version=True) -> dict[str, Any]:
         """Serialize the Survey object to a dictionary.
 
@@ -527,26 +522,9 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         return Survey(questions=self.questions + other.questions)
 
     def move_question(self, identifier: Union[str, int], new_index: int):
-        if isinstance(identifier, str):
-            if identifier not in self.question_names:
-                raise SurveyError(
-                    f"Question name '{identifier}' does not exist in the survey."
-                )
-            index = self.question_name_to_index[identifier]
-        elif isinstance(identifier, int):
-            if identifier < 0 or identifier >= len(self.questions):
-                raise SurveyError(f"Index {identifier} is out of range.")
-            index = identifier
-        else:
-            raise SurveyError(
-                "Identifier must be either a string (question name) or an integer (question index)."
-            )
-
-        moving_question = self._questions[index]
-
-        new_survey = self.delete_question(index)
-        new_survey.add_question(moving_question, new_index)
-        return new_survey
+        edited = EditSurvey(self).move_question(identifier, new_index)
+        # self.__dict__.update(edited.__dict__)
+        return self
 
     def delete_question(self, identifier: Union[str, int]) -> Survey:
         """

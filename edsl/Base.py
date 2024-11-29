@@ -304,16 +304,23 @@ class Base(
         keys = self.keys()
         return {data[key] for key in keys}
 
+    def __hash__(self) -> int:
+        """Return a hash of the question."""
+        from edsl.utilities.utilities import dict_hash
+
+        return dict_hash(self.to_dict(add_edsl_version=False))
+
     def __eq__(self, other):
         """Return whether two objects are equal."""
-        import inspect
+        return hash(self) == hash(other)
+        # import inspect
 
-        if not isinstance(other, self.__class__):
-            return False
-        if "sort" in inspect.signature(self.to_dict).parameters:
-            return self.to_dict(sort=True) == other.to_dict(sort=True)
-        else:
-            return self.to_dict() == other.to_dict()
+        # if not isinstance(other, self.__class__):
+        #     return False
+        # if "sort" in inspect.signature(self.to_dict).parameters:
+        #     return self.to_dict(sort=True) == other.to_dict(sort=True)
+        # else:
+        #     return self.to_dict() == other.to_dict()
 
     @abstractmethod
     def example():
