@@ -28,6 +28,7 @@ from .Rule import Rule
 from .RuleCollection import RuleCollection
 from .SurveyExportMixin import SurveyExportMixin
 from .SurveyFlowVisualizationMixin import SurveyFlowVisualizationMixin
+from .InstructionHandler import InstructionHandler
 
 
 class ValidatedString(str):
@@ -90,11 +91,11 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         self.raw_passed_questions = questions
 
-        (
-            true_questions,
-            instruction_names_to_instructions,
-            self.pseudo_indices,
-        ) = self._separate_questions_and_instructions(questions or [])
+        handler = InstructionHandler(self)
+        components = handler.separate_questions_and_instructions(questions or [])
+        true_questions = components.true_questions
+        instruction_names_to_instructions = components.instruction_names_to_instructions
+        self.pseudo_indices = components.pseudo_indices
 
         self.rule_collection = RuleCollection(
             num_questions=len(true_questions) if true_questions else None
@@ -133,82 +134,6 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         return InstructionCollection(
             self.instruction_names_to_instructions, self.questions
         )
-
-    @staticmethod
-    def _separate_questions_and_instructions(questions_and_instructions: list) -> tuple:
-        """
-        The 'pseudo_indices' attribute is a dictionary that maps question names to pseudo-indices
-        that are used to order questions and instructions in the survey.
-        Only questions get real indices; instructions get pseudo-indices.
-        However, the order of the pseudo-indices is the same as the order questions and instructions are added to the survey.
-
-        We don't have to know how many instructions there are to calculate the pseudo-indices because they are
-        calculated by the inverse of one minus the sum of 1/2^n for n in the number of instructions run so far.
-
-        >>> from edsl import Instruction
-        >>> i = Instruction(text = "Pay attention to the following questions.", name = "intro")
-        >>> i2 = Instruction(text = "How are you feeling today?", name = "followon_intro")
-        >>> from edsl import QuestionFreeText; q1 = QuestionFreeText.example()
-        >>> from edsl import QuestionMultipleChoice; q2 = QuestionMultipleChoice.example()
-        >>> s = Survey([q1, i, i2, q2])
-        >>> len(s.instruction_names_to_instructions)
-        2
-        >>> s.pseudo_indices
-        {'how_are_you': 0, 'intro': 0.5, 'followon_intro': 0.75, 'how_feeling': 1}
-
-        >>> from edsl import ChangeInstruction
-        >>> q3 = QuestionFreeText(question_text = "What is your favorite color?", question_name = "color")
-        >>> i_change = ChangeInstruction(drop = ["intro"])
-        >>> s = Survey([q1, i, q2, i_change, q3])
-        >>> [i.name for i in s.relevant_instructions(q1)]
-        []
-        >>> [i.name for i in s.relevant_instructions(q2)]
-        ['intro']
-        >>> [i.name for i in s.relevant_instructions(q3)]
-        []
-
-        >>> i_change = ChangeInstruction(keep = ["poop"], drop = [])
-        >>> s = Survey([q1, i, q2, i_change])
-        Traceback (most recent call last):
-        ...
-        ValueError: ChangeInstruction change_instruction_0 references instruction poop which does not exist.
-        """
-        from edsl.surveys.instructions.Instruction import Instruction
-        from edsl.surveys.instructions.ChangeInstruction import ChangeInstruction
-
-        true_questions = []
-        instruction_names_to_instructions = {}
-
-        num_change_instructions = 0
-        pseudo_indices = {}
-        instructions_run_length = 0
-        for entry in questions_and_instructions:
-            if isinstance(entry, Instruction) or isinstance(entry, ChangeInstruction):
-                if isinstance(entry, ChangeInstruction):
-                    entry.add_name(num_change_instructions)
-                    num_change_instructions += 1
-                    for prior_instruction in entry.keep + entry.drop:
-                        if prior_instruction not in instruction_names_to_instructions:
-                            raise ValueError(
-                                f"ChangeInstruction {entry.name} references instruction {prior_instruction} which does not exist."
-                            )
-                instructions_run_length += 1
-                delta = 1 - 1.0 / (2.0**instructions_run_length)
-                pseudo_index = (len(true_questions) - 1) + delta
-                entry.pseudo_index = pseudo_index
-                instruction_names_to_instructions[entry.name] = entry
-            elif isinstance(entry, QuestionBase):
-                pseudo_index = len(true_questions)
-                instructions_run_length = 0
-                true_questions.append(entry)
-            else:
-                raise ValueError(
-                    f"Entry {repr(entry)} is not a QuestionBase or an Instruction."
-                )
-
-            pseudo_indices[entry.name] = pseudo_index
-
-        return true_questions, instruction_names_to_instructions, pseudo_indices
 
     def relevant_instructions(self, question) -> dict:
         """This should be a dictionry with keys as question names and values as instructions that are relevant to the question.
