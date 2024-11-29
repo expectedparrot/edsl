@@ -13,7 +13,6 @@ if TYPE_CHECKING:
 
 
 class JobsPrompts:
-
     def __init__(self, jobs: "Jobs"):
         self.interviews = jobs.interviews()
         self.agents = jobs.agents
