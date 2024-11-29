@@ -2,7 +2,16 @@ from typing import Union
 from edsl.questions.QuestionBase import QuestionBase
 from edsl.surveys.Rule import Rule
 from .base import RulePriority, EndOfSurvey
-from edsl.exceptions.surveys import SurveyError
+from edsl.exceptions.surveys import SurveyError, SurveyCreationError
+
+
+class ValidatedString(str):
+    def __new__(cls, content):
+        if "<>" in content:
+            raise SurveyCreationError(
+                "The expression contains '<>', which is not allowed. You probably mean '!='."
+            )
+        return super().__new__(cls, content)
 
 
 class RuleManager:
@@ -51,8 +60,9 @@ class RuleManager:
         :param question_index: The index of the question to add the rule to.
         :param before_rule: Whether the rule is evaluated before the question is answered.
 
+        >>> from edsl import Survey
         >>> s = Survey.example()
-        >>> s._get_new_rule_priority(0)
+        >>> RuleManager(s)._get_new_rule_priority(0)
         1
         """
         current_priorities = [
@@ -113,4 +123,48 @@ class RuleManager:
             )
         )
 
+        return self.survey
+
+    def add_stop_rule(
+        self, question: Union[QuestionBase, str], expression: str
+    ) -> "Survey":
+        """Add a rule that stops the survey.
+        The rule is evaluated *after* the question is answered. If the rule is true, the survey ends.
+
+        :param question: The question to add the stop rule to.
+        :param expression: The expression to evaluate.
+
+        If this rule is true, the survey ends.
+
+        Here, answering "yes" to q0 ends the survey:
+
+        >>> from edsl import Survey
+        >>> s = Survey.example().add_stop_rule("q0", "q0 == 'yes'")
+        >>> s.next_question("q0", {"q0": "yes"})
+        EndOfSurvey
+
+        By comparison, answering "no" to q0 does not end the survey:
+
+        >>> s.next_question("q0", {"q0": "no"}).question_name
+        'q1'
+
+        >>> s.add_stop_rule("q0", "q1 <> 'yes'")
+        Traceback (most recent call last):
+        ...
+        edsl.exceptions.surveys.SurveyCreationError: The expression contains '<>', which is not allowed. You probably mean '!='.
+        ...
+        """
+        expression = ValidatedString(expression)
+        prior_question_appears = False
+        for prior_question in self.survey.questions:
+            if prior_question.question_name in expression:
+                prior_question_appears = True
+
+        if not prior_question_appears:
+            import warnings
+
+            warnings.warn(
+                f"The expression {expression} does not contain any prior question names. This is probably a mistake."
+            )
+        self.survey.add_rule(question, expression, EndOfSurvey)
         return self.survey
