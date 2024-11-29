@@ -32,15 +32,6 @@ from .InstructionHandler import InstructionHandler
 from .EditSurvey import EditSurvey
 
 
-class ValidatedString(str):
-    def __new__(cls, content):
-        if "<>" in content:
-            raise SurveyCreationError(
-                "The expression contains '<>', which is not allowed. You probably mean '!='."
-            )
-        return super().__new__(cls, content)
-
-
 class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     """A collection of questions that supports skip logic."""
 
@@ -551,54 +542,6 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         0
         """
         return EditSurvey(self).delete_question(identifier)
-        # if isinstance(identifier, str):
-        #     if identifier not in self.question_names:
-        #         raise SurveyError(
-        #             f"Question name '{identifier}' does not exist in the survey."
-        #         )
-        #     index = self.question_name_to_index[identifier]
-        # elif isinstance(identifier, int):
-        #     if identifier < 0 or identifier >= len(self.questions):
-        #         raise SurveyError(f"Index {identifier} is out of range.")
-        #     index = identifier
-        # else:
-        #     raise SurveyError(
-        #         "Identifier must be either a string (question name) or an integer (question index)."
-        #     )
-
-        # # Remove the question
-        # deleted_question = self._questions.pop(index)
-        # del self.pseudo_indices[deleted_question.question_name]
-
-        # # Update indices
-        # for question_name, old_index in self.pseudo_indices.items():
-        #     if old_index > index:
-        #         self.pseudo_indices[question_name] = old_index - 1
-
-        # # Update rules
-        # new_rule_collection = RuleCollection()
-        # for rule in self.rule_collection:
-        #     if rule.current_q == index:
-        #         continue  # Remove rules associated with the deleted question
-        #     if rule.current_q > index:
-        #         rule.current_q -= 1
-        #     if rule.next_q > index:
-        #         rule.next_q -= 1
-
-        #     if rule.next_q == index:
-        #         if index == len(self.questions):
-        #             rule.next_q = EndOfSurvey
-        #         else:
-        #             rule.next_q = index
-
-        #     new_rule_collection.add_rule(rule)
-        # self.rule_collection = new_rule_collection
-
-        # # Update memory plan if it exists
-        # if hasattr(self, "memory_plan"):
-        #     self.memory_plan.remove_question(deleted_question.question_name)
-
-        # return self
 
     def add_question(
         self, question: QuestionBase, index: Optional[int] = None
@@ -934,20 +877,10 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         edsl.exceptions.surveys.SurveyCreationError: The expression contains '<>', which is not allowed. You probably mean '!='.
         ...
         """
-        expression = ValidatedString(expression)
-        prior_question_appears = False
-        for prior_question in self.questions:
-            if prior_question.question_name in expression:
-                prior_question_appears = True
+        from .RuleManager import RuleManager
 
-        if not prior_question_appears:
-            import warnings
-
-            warnings.warn(
-                f"The expression {expression} does not contain any prior question names. This is probably a mistake."
-            )
-        self.add_rule(question, expression, EndOfSurvey)
-        return self
+        rm = RuleManager(self)
+        return rm.add_stop_rule(question, expression)
 
     def clear_non_default_rules(self) -> Survey:
         """Remove all non-default rules from the survey.
@@ -1323,23 +1256,6 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
                 print("\n")
                 print(f"Other: {other.to_dict()[key]}")
                 print("\n\n")
-
-    def __eq__(self, other) -> bool:
-        """Return True if the two surveys have the same to_dict.
-
-        :param other: The other survey to compare to.
-
-        >>> s = Survey.example()
-        >>> s == s
-        True
-
-        >>> s == "poop"
-        False
-
-        """
-        if not isinstance(other, Survey):
-            return False
-        return self.to_dict() == other.to_dict()
 
     @classmethod
     def from_qsf(
