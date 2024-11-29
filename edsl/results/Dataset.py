@@ -230,6 +230,16 @@ class Dataset(UserList, ResultsExportMixin):
             new_data.append({new_key: values})
         return Dataset(new_data)
 
+    def merge(self, other: Dataset, by_x, by_y) -> Dataset:
+        """Merge the dataset with another dataset on the given keys.""
+
+        merged_df = df1.merge(df2, how="left", on=["key1", "key2"])
+        """
+        df1 = self.to_pandas()
+        df2 = other.to_pandas()
+        merged_df = df1.merge(df2, how="left", left_on=by_x, right_on=by_y)
+        return Dataset.from_pandas_dataframe(merged_df)
+
     def select(self, *keys) -> Dataset:
         """Return a new dataset with only the selected keys.
 
