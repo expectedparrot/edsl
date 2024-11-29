@@ -380,7 +380,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         return {
             "questions": [
                 q.to_dict(add_edsl_version=add_edsl_version)
-                for q in self.recombined_questions_and_instructions()
+                for q in self._recombined_questions_and_instructions()
             ],
             "memory_plan": self.memory_plan.to_dict(add_edsl_version=add_edsl_version),
             "rule_collection": self.rule_collection.to_dict(
@@ -521,10 +521,16 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         return Survey(questions=self.questions + other.questions)
 
-    def move_question(self, identifier: Union[str, int], new_index: int):
-        edited = EditSurvey(self).move_question(identifier, new_index)
-        # self.__dict__.update(edited.__dict__)
-        return self
+    def move_question(self, identifier: Union[str, int], new_index: int) -> Survey:
+        """
+        >>> from edsl import QuestionMultipleChoice, Survey
+        >>> s = Survey.example()
+        >>> s.question_names
+        ['q0', 'q1', 'q2']
+        >>> s.move_question("q0", 2).question_names
+        ['q1', 'q2', 'q0']
+        """
+        return EditSurvey(self).move_question(identifier, new_index)
 
     def delete_question(self, identifier: Union[str, int]) -> Survey:
         """
@@ -544,54 +550,55 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         >>> len(s.questions)
         0
         """
-        if isinstance(identifier, str):
-            if identifier not in self.question_names:
-                raise SurveyError(
-                    f"Question name '{identifier}' does not exist in the survey."
-                )
-            index = self.question_name_to_index[identifier]
-        elif isinstance(identifier, int):
-            if identifier < 0 or identifier >= len(self.questions):
-                raise SurveyError(f"Index {identifier} is out of range.")
-            index = identifier
-        else:
-            raise SurveyError(
-                "Identifier must be either a string (question name) or an integer (question index)."
-            )
+        return EditSurvey(self).delete_question(identifier)
+        # if isinstance(identifier, str):
+        #     if identifier not in self.question_names:
+        #         raise SurveyError(
+        #             f"Question name '{identifier}' does not exist in the survey."
+        #         )
+        #     index = self.question_name_to_index[identifier]
+        # elif isinstance(identifier, int):
+        #     if identifier < 0 or identifier >= len(self.questions):
+        #         raise SurveyError(f"Index {identifier} is out of range.")
+        #     index = identifier
+        # else:
+        #     raise SurveyError(
+        #         "Identifier must be either a string (question name) or an integer (question index)."
+        #     )
 
-        # Remove the question
-        deleted_question = self._questions.pop(index)
-        del self.pseudo_indices[deleted_question.question_name]
+        # # Remove the question
+        # deleted_question = self._questions.pop(index)
+        # del self.pseudo_indices[deleted_question.question_name]
 
-        # Update indices
-        for question_name, old_index in self.pseudo_indices.items():
-            if old_index > index:
-                self.pseudo_indices[question_name] = old_index - 1
+        # # Update indices
+        # for question_name, old_index in self.pseudo_indices.items():
+        #     if old_index > index:
+        #         self.pseudo_indices[question_name] = old_index - 1
 
-        # Update rules
-        new_rule_collection = RuleCollection()
-        for rule in self.rule_collection:
-            if rule.current_q == index:
-                continue  # Remove rules associated with the deleted question
-            if rule.current_q > index:
-                rule.current_q -= 1
-            if rule.next_q > index:
-                rule.next_q -= 1
+        # # Update rules
+        # new_rule_collection = RuleCollection()
+        # for rule in self.rule_collection:
+        #     if rule.current_q == index:
+        #         continue  # Remove rules associated with the deleted question
+        #     if rule.current_q > index:
+        #         rule.current_q -= 1
+        #     if rule.next_q > index:
+        #         rule.next_q -= 1
 
-            if rule.next_q == index:
-                if index == len(self.questions):
-                    rule.next_q = EndOfSurvey
-                else:
-                    rule.next_q = index
+        #     if rule.next_q == index:
+        #         if index == len(self.questions):
+        #             rule.next_q = EndOfSurvey
+        #         else:
+        #             rule.next_q = index
 
-            new_rule_collection.add_rule(rule)
-        self.rule_collection = new_rule_collection
+        #     new_rule_collection.add_rule(rule)
+        # self.rule_collection = new_rule_collection
 
-        # Update memory plan if it exists
-        if hasattr(self, "memory_plan"):
-            self.memory_plan.remove_question(deleted_question.question_name)
+        # # Update memory plan if it exists
+        # if hasattr(self, "memory_plan"):
+        #     self.memory_plan.remove_question(deleted_question.question_name)
 
-        return self
+        # return self
 
     def add_question(
         self, question: QuestionBase, index: Optional[int] = None
@@ -681,7 +688,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         return self
 
-    def recombined_questions_and_instructions(
+    def _recombined_questions_and_instructions(
         self,
     ) -> list[Union[QuestionBase, "Instruction"]]:
         """Return a list of questions and instructions sorted by pseudo index."""
@@ -992,38 +999,11 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         """
         question_index = self._get_question_index(question)
-        self._add_rule(question, expression, question_index + 1, before_rule=True)
-        return self
+        from .RuleManager import RuleManager
 
-    def _get_new_rule_priority(
-        self, question_index: int, before_rule: bool = False
-    ) -> int:
-        """Return the priority for the new rule.
-
-        :param question_index: The index of the question to add the rule to.
-        :param before_rule: Whether the rule is evaluated before the question is answered.
-
-        >>> s = Survey.example()
-        >>> s._get_new_rule_priority(0)
-        1
-        """
-        current_priorities = [
-            rule.priority
-            for rule in self.rule_collection.applicable_rules(
-                question_index, before_rule
-            )
-        ]
-        if len(current_priorities) == 0:
-            return RulePriority.DEFAULT.value + 1
-
-        max_priority = max(current_priorities)
-        # newer rules take priority over older rules
-        new_priority = (
-            RulePriority.DEFAULT.value
-            if len(current_priorities) == 0
-            else max_priority + 1
-        )
-        return new_priority
+        rm = RuleManager(self)
+        return rm.add_rule(question, expression, question_index + 1, before_rule=True)
+        # return self
 
     def add_rule(
         self,
@@ -1047,51 +1027,10 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         'q2'
 
         """
-        return self._add_rule(
-            question, expression, next_question, before_rule=before_rule
-        )
+        from .RuleManager import RuleManager
 
-    def _add_rule(
-        self,
-        question: Union[QuestionBase, str],
-        expression: str,
-        next_question: Union[QuestionBase, str, int],
-        before_rule: bool = False,
-    ) -> Survey:
-        """
-        Add a rule to a Question of the Survey with the appropriate priority.
-
-        :param question: The question to add the rule to.
-        :param expression: The expression to evaluate.
-        :param next_question: The next question to go to if the rule is true.
-        :param before_rule: Whether the rule is evaluated before the question is answered.
-
-
-        - The last rule added for the question will have the highest priority.
-        - If there are no rules, the rule added gets priority -1.
-        """
-        question_index = self._get_question_index(question)
-
-        # Might not have the name of the next question yet
-        if isinstance(next_question, int):
-            next_question_index = next_question
-        else:
-            next_question_index = self._get_question_index(next_question)
-
-        new_priority = self._get_new_rule_priority(question_index, before_rule)
-
-        self.rule_collection.add_rule(
-            Rule(
-                current_q=question_index,
-                expression=expression,
-                next_q=next_question_index,
-                question_name_to_index=self.question_name_to_index,
-                priority=new_priority,
-                before_rule=before_rule,
-            )
-        )
-
-        return self
+        rm = RuleManager(self)
+        return rm.add_rule(question, expression, next_question, before_rule=before_rule)
 
     # endregion
 
