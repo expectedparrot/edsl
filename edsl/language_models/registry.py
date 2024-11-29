@@ -1,7 +1,7 @@
 import textwrap
 from random import random
 from edsl.config import CONFIG
-
+from functools import lru_cache
 from edsl.utilities.PrettyList import PrettyList
 
 # if "EDSL_DEFAULT_MODEL" not in CONFIG:
@@ -70,7 +70,14 @@ class Model(metaclass=Meta):
         return [r._inference_service_ for r in registry.services]
 
     @classmethod
-    def available(cls, search_term=None, name_only=False, registry=None, service=None):
+    @lru_cache(maxsize=128)
+    def available(
+        cls,
+        search_term: str = None,
+        name_only: bool = False,
+        registry=None,
+        service: str = None,
+    ):
         from edsl.inference_services.registry import default
 
         registry = registry or default
