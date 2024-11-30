@@ -15,7 +15,7 @@ class ConstructDAG:
     def dag(self, textify: bool = False) -> DAG:
         memory_dag = self.survey.memory_plan.dag
         rule_dag = self.survey.rule_collection.dag
-        piping_dag = self.survey.piping_dag
+        piping_dag = self.piping_dag
         if textify:
             memory_dag = DAG(self.textify(memory_dag))
             rule_dag = DAG(self.textify(rule_dag))
