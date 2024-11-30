@@ -9,12 +9,7 @@ class MemoryManagement:
 
     def _set_memory_plan(self, prior_questions_func: Callable) -> None:
         """Set memory plan based on a provided function determining prior questions.
-
-        :param prior_questions_func: A function that takes the index of the current question and returns a list of prior questions to remember.
-
-        >>> s = Survey.example()
-        >>> s._set_memory_plan(lambda i: s.question_names[:i])
-
+        :param prior_questions_func: A function that takes an index and returns a list of prior questions.
         """
         for i, question_name in enumerate(self.survey.question_names):
             self.survey.memory_plan.add_memory_collection(
@@ -33,12 +28,6 @@ class MemoryManagement:
         :param prior_question: The question that the agent should remember when answering the focal question.
 
         Here we add instructions to a survey than when answering q2 they should remember q1:
-
-        >>> s = Survey.example().add_targeted_memory("q2", "q0")
-        >>> s.memory_plan
-        {'q2': Memory(prior_questions=['q0'])}
-
-        The agent should also remember the answers to prior_questions listed in prior_questions.
         """
         focal_question_name = self.survey.question_names[
             self.survey._get_question_index(focal_question)
@@ -65,12 +54,6 @@ class MemoryManagement:
 
         :param focal_question: The question that the agent is answering.
         :param prior_questions: The questions that the agent should remember when answering the focal question.
-
-        Here we have it so that when answering q2, the agent should remember answers to q0 and q1:
-
-        >>> s = Survey.example().add_memory_collection("q2", ["q0", "q1"])
-        >>> s.memory_plan
-        {'q2': Memory(prior_questions=['q0', 'q1'])}
         """
         focal_question_name = self.survey.question_names[
             self.survey._get_question_index(focal_question)

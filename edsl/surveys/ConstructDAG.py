@@ -60,7 +60,7 @@ class ConstructDAG:
         >>> d = s.dag()
         >>> d
         {1: {0}, 2: {0}}
-        >>> s.textify(d)
+        >>> ConstructDag(s).textify(d)
         {'q1': {'q0'}, 'q2': {'q0'}}
         """
 
