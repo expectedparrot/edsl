@@ -92,3 +92,9 @@ class InstructionHandler:
         return SeparatedComponents(
             true_questions, instruction_names_to_instructions, pseudo_indices
         )
+
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod()

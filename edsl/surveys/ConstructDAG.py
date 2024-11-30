@@ -60,7 +60,7 @@ class ConstructDAG:
         >>> d = s.dag()
         >>> d
         {1: {0}, 2: {0}}
-        >>> ConstructDag(s).textify(d)
+        >>> ConstructDAG(s).textify(d)
         {'q1': {'q0'}, 'q2': {'q0'}}
         """
 
@@ -85,3 +85,9 @@ class ConstructDAG:
             return text_dag
         except IndexError:
             raise
+
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod()
