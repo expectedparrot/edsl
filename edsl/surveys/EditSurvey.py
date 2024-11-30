@@ -213,3 +213,9 @@ class EditSurvey:
         self.survey.pseudo_indices[instruction.name] = pseudo_index
 
         return self.survey
+
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod()
