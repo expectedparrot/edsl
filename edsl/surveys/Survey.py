@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 import re
-import tempfile
-import requests
 
 from typing import Any, Generator, Optional, Union, List, Literal, Callable
 from uuid import uuid4
@@ -30,6 +28,8 @@ from .SurveyFlowVisualizationMixin import SurveyFlowVisualizationMixin
 from .InstructionHandler import InstructionHandler
 from .EditSurvey import EditSurvey
 from .Simulator import Simulator
+from .MemoryManagement import MemoryManagement
+from .RuleManager import RuleManager
 
 
 class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
@@ -135,16 +135,14 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         # Did the instruction come before the question and was it not modified by a change instruction?
 
         """
-        return self.relevant_instructions_dict[question]
+        return InstructionCollection(
+            self.instruction_names_to_instructions, self.questions
+        )[question]
 
     @property
     def max_pseudo_index(self) -> float:
         """Return the maximum pseudo index in the survey.
-
-        Example:
-
-        >>> s = Survey.example()
-        >>> s.max_pseudo_index
+        >>> Survey.example().max_pseudo_index
         2
         """
         if len(self.pseudo_indices) == 0:
@@ -189,16 +187,11 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
     # endregion
     @classmethod
     def random_survey(cls):
-
         return Simulator.random_survey()
 
     def simulate(self) -> dict:
         """Simulate the survey and return the answers."""
         return Simulator(self).simulate()
-
-    # def create_agent(self) -> "Agent":
-    #    """Create an agent from the simulated answers."""
-    #    return Simulator(self).create_agent()
 
     # endregion
 
@@ -513,7 +506,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         >>> s = Survey.example().set_full_memory_mode()
 
         """
-        self._set_memory_plan(lambda i: self.question_names[:i])
+        MemoryManagement(self)._set_memory_plan(lambda i: self.question_names[:i])
         return self
 
     def set_lagged_memory(self, lags: int) -> Survey:
@@ -521,7 +514,9 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         The agent should remember the answers to the questions in the survey from the previous lags.
         """
-        self._set_memory_plan(lambda i: self.question_names[max(0, i - lags) : i])
+        MemoryManagement(self)._set_memory_plan(
+            lambda i: self.question_names[max(0, i - lags) : i]
+        )
         return self
 
     def _set_memory_plan(self, prior_questions_func: Callable) -> None:
@@ -533,11 +528,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         >>> s._set_memory_plan(lambda i: s.question_names[:i])
 
         """
-        for i, question_name in enumerate(self.question_names):
-            self.memory_plan.add_memory_collection(
-                focal_question=question_name,
-                prior_questions=prior_questions_func(i),
-            )
+        MemoryManagement(self)._set_memory_plan(prior_questions_func)
 
     def add_targeted_memory(
         self,
@@ -557,19 +548,9 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         The agent should also remember the answers to prior_questions listed in prior_questions.
         """
-        focal_question_name = self.question_names[
-            self._get_question_index(focal_question)
-        ]
-        prior_question_name = self.question_names[
-            self._get_question_index(prior_question)
-        ]
-
-        self.memory_plan.add_single_memory(
-            focal_question=focal_question_name,
-            prior_question=prior_question_name,
+        return MemoryManagement(self).add_targeted_memory(
+            focal_question, prior_question
         )
-
-        return self
 
     def add_memory_collection(
         self,
@@ -589,23 +570,9 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         >>> s.memory_plan
         {'q2': Memory(prior_questions=['q0', 'q1'])}
         """
-        focal_question_name = self.question_names[
-            self._get_question_index(focal_question)
-        ]
-
-        prior_question_names = [
-            self.question_names[self._get_question_index(prior_question)]
-            for prior_question in prior_questions
-        ]
-
-        self.memory_plan.add_memory_collection(
-            focal_question=focal_question_name, prior_questions=prior_question_names
+        return MemoryManagement(self).add_memory_collection(
+            focal_question, prior_questions
         )
-        return self
-
-    # endregion
-    # endregion
-    # endregion
 
     # region: Question groups
     def add_question_group(
@@ -739,10 +706,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         edsl.exceptions.surveys.SurveyCreationError: The expression contains '<>', which is not allowed. You probably mean '!='.
         ...
         """
-        from .RuleManager import RuleManager
-
-        rm = RuleManager(self)
-        return rm.add_stop_rule(question, expression)
+        return RuleManager(self).add_stop_rule(question, expression)
 
     def clear_non_default_rules(self) -> Survey:
         """Remove all non-default rules from the survey.
@@ -794,11 +758,9 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
         """
         question_index = self._get_question_index(question)
-        from .RuleManager import RuleManager
-
-        rm = RuleManager(self)
-        return rm.add_rule(question, expression, question_index + 1, before_rule=True)
-        # return self
+        return RuleManager(self).add_rule(
+            question, expression, question_index + 1, before_rule=True
+        )
 
     def add_rule(
         self,
@@ -822,10 +784,9 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         'q2'
 
         """
-        from .RuleManager import RuleManager
-
-        rm = RuleManager(self)
-        return rm.add_rule(question, expression, next_question, before_rule=before_rule)
+        return RuleManager(self).add_rule(
+            question, expression, next_question, before_rule=before_rule
+        )
 
     # endregion
 
@@ -843,8 +804,7 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         """
         from edsl.jobs.Jobs import Jobs
 
-        job = Jobs(survey=self)
-        return job.by(*args)
+        return Jobs(survey=self).by(*args)
 
     def to_jobs(self):
         """Convert the survey to a Jobs object."""
@@ -879,8 +839,8 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         >>> s(period = "evening", cache = False, disable_remote_cache = True, disable_remote_inference = True).select("answer.q0").first()
         'no'
         """
-        job = self.get_job(model, agent, **kwargs)
-        return job.run(
+
+        return self.get_job(model, agent, **kwargs).run(
             cache=cache,
             disable_remote_cache=disable_remote_cache,
             disable_remote_inference=disable_remote_inference,
@@ -1036,36 +996,6 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
 
     # endregion
 
-    # regions: DAG construction
-    def textify(self, index_dag: DAG) -> DAG:
-        """Convert the DAG of question indices to a DAG of question names.
-
-        :param index_dag: The DAG of question indices.
-
-        Example:
-
-        >>> s = Survey.example()
-        >>> d = s.dag()
-        >>> d
-        {1: {0}, 2: {0}}
-        >>> s.textify(d)
-        {'q1': {'q0'}, 'q2': {'q0'}}
-        """
-        return ConstructDAG(self).textify(index_dag)
-
-    @property
-    def piping_dag(self) -> DAG:
-        """Figures out the DAG of piping dependencies.
-
-        >>> from edsl import QuestionFreeText
-        >>> q0 = QuestionFreeText(question_text="Here is a question", question_name="q0")
-        >>> q1 = QuestionFreeText(question_text="You previously answered {{ q0 }}---how do you feel now?", question_name="q1")
-        >>> s = Survey([q0, q1])
-        >>> s.piping_dag
-        {1: {0}}
-        """
-        return ConstructDAG(self).piping_dag
-
     def dag(self, textify: bool = False) -> DAG:
         """Return the DAG of the survey, which reflects both skip-logic and memory.
 
@@ -1119,32 +1049,6 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
                 print(f"Other: {other.to_dict()[key]}")
                 print("\n\n")
 
-    @classmethod
-    def from_qsf(
-        cls, qsf_file: Optional[str] = None, url: Optional[str] = None
-    ) -> Survey:
-        """Create a Survey object from a Qualtrics QSF file."""
-
-        if url and qsf_file:
-            raise ValueError("Only one of url or qsf_file can be provided.")
-
-        if (not url) and (not qsf_file):
-            raise ValueError("Either url or qsf_file must be provided.")
-
-        if url:
-            response = requests.get(url)
-            response.raise_for_status()  # Ensure the request was successful
-
-            # Save the Excel file to a temporary file
-            with tempfile.NamedTemporaryFile(suffix=".qsf", delete=False) as temp_file:
-                temp_file.write(response.content)
-                qsf_file = temp_file.name
-
-        from edsl.surveys.SurveyQualtricsImport import SurveyQualtricsImport
-
-        so = SurveyQualtricsImport(qsf_file)
-        return so.create_survey()
-
     def __repr__(self) -> str:
         """Return a string representation of the survey."""
 
@@ -1178,37 +1082,6 @@ class Survey(SurveyExportMixin, SurveyFlowVisualizationMixin, Base):
         for question in self._questions:
             codebook[question.question_name] = question.question_text
         return codebook
-
-    # region: Export methods
-    def to_csv(self, filename: str = None):
-        """Export the survey to a CSV file.
-
-        :param filename: The name of the file to save the CSV to.
-
-        >>> s = Survey.example()
-        >>> s.to_csv() # doctest: +SKIP
-           index question_name        question_text                                question_options    question_type
-        0      0            q0  Do you like school?                                       [yes, no]  multiple_choice
-        1      1            q1             Why not?               [killer bees in cafeteria, other]  multiple_choice
-        2      2            q2                 Why?  [**lack*** of killer bees in cafeteria, other]  multiple_choice
-        """
-        raw_data = []
-        for index, question in enumerate(self._questions):
-            d = {"index": index}
-            question_dict = question.to_dict()
-            _ = question_dict.pop("edsl_version")
-            _ = question_dict.pop("edsl_class_name")
-            d.update(question_dict)
-            raw_data.append(d)
-        from pandas import DataFrame
-
-        df = DataFrame(raw_data)
-        if filename:
-            df.to_csv(filename, index=False)
-        else:
-            return df
-
-    # endregion
 
     @classmethod
     def example(
