@@ -164,16 +164,13 @@ class LanguageModel(
             klc.add_key_lookup(fetch_order=("config", "env"))
             self.key_lookup = klc.get(("config", "env"))
 
-        # self._rpm / _tpm comes from the class
-        if rpm is not None:
-            self._rpm = rpm
-        else:
-            self._rpm = self.key_lookup.get(self._inference_service_).rpm
+        self.model_info = self.key_lookup.get(self._inference_service_)
 
-        if tpm is not None:
-            self._tpm = tpm
-        else:
-            self._rpm = self.key_lookup.get(self._inference_service_).tpm
+        if "rpm" in kwargs:
+            self._rpm = kwargs["rpm"]
+
+        if "tpm" in kwargs:
+            self._tpm = kwargs["tpm"]
 
         for key, value in parameters.items():
             setattr(self, key, value)
@@ -187,7 +184,7 @@ class LanguageModel(
                 "The use_cache parameter is deprecated. Use the Cache class instead."
             )
 
-        if skip_api_key_check := kwargs.get("skip_api_key_check", False):
+        if kwargs.get("skip_api_key_check", False):
             # Skip the API key check. Sometimes this is useful for testing.
             self._api_token = None
 
@@ -199,6 +196,30 @@ class LanguageModel(
     def set_key_lookup(self, key_lookup: "KeyLookup") -> None:
         del self._api_token
         self.key_lookup = key_lookup
+
+    @property
+    def rpm(self):
+        if not hasattr(self, "_rpm"):
+            if self.model_info is None:
+                raise ValueError(f"No key for for service {self._inference_service_}")
+            self._rpm = self.model_info.rpm
+        return self._rpm
+
+    @property
+    def tpm(self):
+        if not hasattr(self, "_tpm"):
+            if self.model_info is None:
+                raise ValueError(f"No key for for service {self._inference_service_}")
+            self._tpm = self.model_info.tpm
+        return self._tpm
+
+    @tpm.setter
+    def tpm(self, value):
+        self._tpm = value
+
+    @rpm.setter
+    def rpm(self, value):
+        self._rpm = value
 
     @property
     def api_token(self) -> str:
@@ -271,32 +292,6 @@ class LanguageModel(
         if tpm is not None:
             self._tpm = tpm
         return None
-
-    @property
-    def RPM(self):
-        """Model's requests-per-minute limit."""
-        return self._rpm
-
-    @property
-    def TPM(self):
-        """Model's tokens-per-minute limit."""
-        return self._tpm
-
-    @property
-    def rpm(self):
-        return self._rpm
-
-    @rpm.setter
-    def rpm(self, value):
-        self._rpm = value
-
-    @property
-    def tpm(self):
-        return self._tpm
-
-    @tpm.setter
-    def tpm(self, value):
-        self._tpm = value
 
     @staticmethod
     def _overide_default_parameters(passed_parameter_dict, default_parameter_dict):

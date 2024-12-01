@@ -1,12 +1,12 @@
 from typing import Optional, List
+from collections import UserDict
 import os
 from datetime import datetime, timedelta
+from functools import lru_cache
+from dataclasses import dataclass, asdict
 
 from edsl.enums import service_to_api_keyname
 from edsl.exceptions import MissingAPIKeyError
-from dataclasses import dataclass, asdict
-
-from functools import lru_cache
 
 
 @dataclass
@@ -52,8 +52,6 @@ class LanguageModelInput:
         return cls(**d)
 
 
-from edsl.enums import service_to_api_keyname
-
 service_to_api_keyname["bedrock"] = "AWS_SECRET_ACCESS_KEY"
 service_to_api_id = {"bedrock": "AWS_ACCESS_KEY_ID"}
 
@@ -68,10 +66,9 @@ for service, key in service_to_api_keyname.items():
 
 api_id_to_service = {"AWS_ACCESS_KEY_ID": "bedrock"}
 
-from collections import UserDict
-
 
 class KeyLookupCollection(UserDict):
+    """This is a singleton class that stores key-lookup objects."""
 
     _instance = None
 
@@ -105,13 +102,14 @@ class KeyLookup(UserDict):
 
 class KeyLookupBuilder:
     """
-    These are locations that could have information about keys and limits
+    Builds KeyLookup options.
     """
 
     DEFAULT_RPM = 10
     DEFAULT_TPM = 2000000
 
     def __init__(self, fetch_order: Optional[tuple[str]] = None):
+        """The default is to reach from the config file, then the .env, which could over-write config values."""
         if fetch_order is None:
             self.fetch_order = ("config", "env")
         else:
@@ -120,15 +118,11 @@ class KeyLookupBuilder:
         if not isinstance(self.fetch_order, tuple):
             raise ValueError("fetch_order must be a tuple")
 
+        # These dictionaries are where we still information about keys, limits and identifiers.
         self.limit_data = {}
         self.key_data = {}
         self.id_data = {}
         self.process_key_value_pairs()  # fetch the data from the source & populate
-        self._initialized = True
-
-    @classmethod
-    def reset(cls):
-        cls._instance = None
 
     @property
     def known_services(self):
@@ -147,44 +141,37 @@ class KeyLookupBuilder:
         return KeyLookup(d)
 
     def get_language_model_input(self, service: str) -> LanguageModelInput:
-        """Get the language model input for a given service"""
-        key_entries = self.key_data.get(service, None)
-        if key_entries is None:
+        """Get the language model input for a given service."""
+        if (key_entries := self.key_data.get(service)) is None:
             raise MissingAPIKeyError(f"No key found for service '{service}'")
-        if len(key_entries) == 1:
-            key_entry = key_entries[0]
-        if key_entry is None:
-            raise MissingAPIKeyError(f"No key found for service {service}")
-        api_token = key_entry.value
-        token_source = key_entry.source
-        id_entry = self.id_data.get(service, None)
-        id_source = id_entry.source if id_entry is not None else None
-        if id_entry is not None:
-            api_id = id_entry.value
-        else:
-            api_id = None
 
-        limit_entry = self.limit_data.get(service, None)
-        if limit_entry is None:
+        if len(key_entries) == 1:
+            api_key_entry = key_entries[0]
+
+        id_entry = self.id_data.get(service)
+        id_source = id_entry.source if id_entry is not None else None
+        api_id = id_entry.value if id_entry is not None else None
+
+        if (limit_entry := self.limit_data.get(service)) is None:
             limit_entry = LimitEntry(
                 service=service,
                 rpm=self.DEFAULT_RPM,
                 tpm=self.DEFAULT_TPM,
                 source="default",
             )
+
         if limit_entry.rpm is None:
             limit_entry.rpm = self.DEFAULT_RPM
         if limit_entry.tpm is None:
             limit_entry.tpm = self.DEFAULT_TPM
-        limit_source = limit_entry.source
 
         return LanguageModelInput(
-            api_token=api_token,
+            api_token=api_key_entry.value,
             rpm=int(limit_entry.rpm),
             tpm=int(limit_entry.tpm),
             api_id=api_id,
-            token_source=token_source,
-            limit_source=limit_source,
+            token_source=api_key_entry.source,
+            limit_source=limit_entry.source,
             id_source=id_source,
         )
 

@@ -26,8 +26,8 @@ class BucketCollection(UserDict):
 
         # compute the TPS and RPS from the model
         if not self.infinity_buckets:
-            TPS = model.TPM / 60.0
-            RPS = model.RPM / 60.0
+            TPS = model.tpm / 60.0
+            RPS = model.rpm / 60.0
         else:
             TPS = float("inf")
             RPS = float("inf")
