@@ -119,10 +119,12 @@ class JobsChecks:
             "\nYou can either add the missing keys to your .env file, or use remote inference."
         )
         print("Remote inference allows you to run jobs on our server.")
-        print("\n🚀 To use remote inference, sign up at the following link:")
 
         coop = Coop()
-        coop._display_login_url(edsl_auth_token=edsl_auth_token)
+        coop._display_login_url(
+            edsl_auth_token=edsl_auth_token,
+            link_description="\n🚀 To use remote inference, sign up at the following link:",
+        )
 
         print(
             "\nOnce you log in, we will automatically retrieve your Expected Parrot API key and continue your job remotely."
@@ -134,8 +136,9 @@ class JobsChecks:
             print("\nTimed out waiting for login. Please try again.")
             return
 
-        write_api_key_to_env(api_key)
-        print("✨ API key retrieved and written to .env file.\n")
+        path_to_env = write_api_key_to_env(api_key)
+        print("\n✨ API key retrieved and written to .env file at the following path:")
+        print(f"    {path_to_env}")
 
         # Retrieve API key so we can continue running the job
         load_dotenv()
