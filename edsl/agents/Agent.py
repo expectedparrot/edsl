@@ -44,7 +44,7 @@ from edsl.utilities.restricted_python import create_restricted_function
 class Agent(Base):
     """An class representing an agent that can answer questions."""
 
-    __doc__ = "https://docs.expectedparrot.com/en/latest/agents.html"
+    __documentation__ = "https://docs.expectedparrot.com/en/latest/agents.html"
 
     default_instruction = """You are answering questions as if you were a human. Do not break character."""
 
@@ -124,8 +124,13 @@ class Agent(Base):
         self.codebook = codebook or dict()
         if instruction is None:
             self.instruction = self.default_instruction
+            self._instruction = self.default_instruction
+            self.set_instructions = False
         else:
             self.instruction = instruction
+            self._instruction = instruction
+            self.set_instructions = True
+
         # self.instruction = instruction or self.default_instruction
         self.dynamic_traits_function = dynamic_traits_function
 
@@ -242,15 +247,6 @@ class Agent(Base):
                 return self.dynamic_traits_function()
         else:
             return self._traits
-
-    def _repr_html_(self):
-        # d = self.to_dict(add_edsl_version=False)
-        d = self.traits
-        data = [[k, v] for k, v in d.items()]
-        from tabulate import tabulate
-
-        table = str(tabulate(data, headers=["keys", "values"], tablefmt="html"))
-        return f"<pre>{table}</pre>"
 
     def rename(
         self, old_name_or_dict: Union[str, dict], new_name: Optional[str] = None
@@ -556,7 +552,9 @@ class Agent(Base):
         else:
             traits_to_select = list(traits)
 
-        return Agent(traits={trait: self.traits[trait] for trait in traits_to_select})
+        return Agent(
+            traits={trait: self.traits.get(trait, None) for trait in traits_to_select}
+        )
 
     def __add__(self, other_agent: Optional[Agent] = None) -> Agent:
         """
@@ -624,12 +622,6 @@ class Agent(Base):
         if "_traits" not in self.__dict__:
             self._traits = {}
 
-    def print(self) -> None:
-        from rich import print_json
-        import json
-
-        print_json(json.dumps(self.to_dict()))
-
     def __repr__(self) -> str:
         """Return representation of Agent."""
         class_name = self.__class__.__name__
@@ -639,11 +631,6 @@ class Agent(Base):
             if k != "question_type"
         ]
         return f"{class_name}({', '.join(items)})"
-
-    # def _repr_html_(self):
-    #     from edsl.utilities.utilities import data_to_html
-
-    #     return data_to_html(self.to_dict())
 
     #######################
     # SERIALIZATION METHODS
@@ -678,9 +665,9 @@ class Agent(Base):
             if dynamic_traits_func:
                 func = inspect.getsource(dynamic_traits_func)
                 raw_data["dynamic_traits_function_source_code"] = func
-                raw_data[
-                    "dynamic_traits_function_name"
-                ] = self.dynamic_traits_function_name
+                raw_data["dynamic_traits_function_name"] = (
+                    self.dynamic_traits_function_name
+                )
         if hasattr(self, "answer_question_directly"):
             raw_data.pop(
                 "answer_question_directly", None
@@ -694,9 +681,9 @@ class Agent(Base):
                 raw_data["answer_question_directly_source_code"] = inspect.getsource(
                     answer_question_directly_func
                 )
-                raw_data[
-                    "answer_question_directly_function_name"
-                ] = self.answer_question_directly_function_name
+                raw_data["answer_question_directly_function_name"] = (
+                    self.answer_question_directly_function_name
+                )
 
         return raw_data
 
@@ -788,28 +775,6 @@ class Agent(Base):
             if key in values_codebook:
                 self.traits[key] = values_codebook[key][value]
         return self
-
-    def rich_print(self):
-        """Display an object as a rich table.
-
-        Example usage:
-
-        >>> a = Agent(traits = {"age": 10, "hair": "brown", "height": 5.5})
-        >>> a.rich_print()
-        <rich.table.Table object at ...>
-        """
-        from rich.table import Table
-
-        table_data, column_names = self._table()
-        table = Table(title=f"{self.__class__.__name__} Attributes")
-        for column in column_names:
-            table.add_column(column, style="bold")
-
-        for row in table_data:
-            row_data = [row[column] for column in column_names]
-            table.add_row(*row_data)
-
-        return table
 
     @classmethod
     def example(cls, randomize: bool = False) -> Agent:

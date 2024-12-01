@@ -40,7 +40,7 @@ class ModelList(Base, UserList):
         return f"ModelList({super().__repr__()})"
 
     def _summary(self):
-        return {"EDSL Class": "ModelList", "Number of Models": len(self)}
+        return {"models": len(self)}
 
     def __hash__(self):
         """Return a hash of the ModelList. This is used for comparison of ModelLists.
@@ -73,12 +73,17 @@ class ModelList(Base, UserList):
         pretty_labels: Optional[dict] = None,
     ):
         """
-        >>> ModelList.example().table("model")
-        model
-        -------
-        gpt-4o
-        gpt-4o
-        gpt-4o
+        >>> ModelList.example().table('model')
+        ┏━━━━━━━━┓
+        ┃ model  ┃
+        ┡━━━━━━━━┩
+        │ gpt-4o │
+        ├────────┤
+        │ gpt-4o │
+        ├────────┤
+        │ gpt-4o │
+        └────────┘
+        ...
         """
         return (
             self.to_scenario_list()
@@ -111,11 +116,6 @@ class ModelList(Base, UserList):
             d["edsl_class_name"] = "ModelList"
 
         return d
-
-    def _repr_html_(self):
-        """Return an HTML representation of the ModelList."""
-        footer = f"<a href={self.__documentation__}>(docs)</a>"
-        return str(self.summary(format="html")) + footer
 
     @classmethod
     def from_names(self, *args, **kwargs):

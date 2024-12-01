@@ -14,6 +14,25 @@ class TableDisplay:
         css_path = Path(__file__).parent / "table_display.css"
         return css_path.read_text()
 
+    @classmethod
+    def from_dictionary(cls, dictionary, tablefmt=None):
+        headers = list(dictionary.keys())
+        data = [list(dictionary.values())]
+        return TableDisplay(headers, data, tablefmt)
+
+    @classmethod
+    def from_dictionary_wide(cls, dictionary, tablefmt=None):
+        # headers = list(dictionary.keys())
+        # data = [list(dictionary.values())]
+        headers = ["key", "value"]
+        data = [[k, v] for k, v in dictionary.items()]
+        return TableDisplay(headers, data, tablefmt)
+
+    @classmethod
+    def from_dataset(cls, dataset, tablefmt=None):
+        headers, data = dataset._tabular()
+        return TableDisplay(dataset.headers, dataset.data, tablefmt, dataset)
+
     def __init__(self, headers, data, tablefmt=None, raw_data_set=None):
         self.headers = headers
         self.data = data
@@ -48,12 +67,67 @@ class TableDisplay:
         return self.raw_data_set.to_list()
 
     def __repr__(self):
+
         from tabulate import tabulate
+
+        from rich.table import Table
+        from rich.console import Console
+
+        table = Table(show_lines=True)
+        for header in self.headers:
+            table.add_column(str(header))
+
+        for index in range(len(self.data)):
+            table.add_row(*[str(e) for e in self.data[index]])
+
+        console = Console(record=True)
+        with console.capture() as capture:
+            console.print(table)
+        return capture.get()
 
         if self.tablefmt is None:
             return tabulate(self.data, headers=self.headers, tablefmt="simple")
         else:
             return tabulate(self.data, headers=self.headers, tablefmt=self.tablefmt)
+
+    def print(self, format="rich"):
+        if format == "rich":
+            from rich.table import Table
+            from rich.console import Console
+
+            console = Console()
+
+            table = Table(show_lines=True)
+
+            for header in self.headers:
+                table.add_column(str(header))
+
+            for index in range(len(self.data)):
+                table.add_row(*[str(e) for e in self.data[index]])
+
+            console.print(table)
+
+            # console = Console(record=True)
+            # with console.capture() as capture:
+            #     console.print(table)
+            # return capture.get()
+
+    # def __repr__(self):
+    #     from rich.table import Table
+    #     from rich.console import Console
+
+    #     table = Table(show_lines=True)
+
+    #     for header in self.headers:
+    #         table.add_column(str(header))
+
+    #     for index in range(len(self.data)):
+    #         table.add_row(*[str(e) for e in self.data[index]])
+
+    #     console = Console(record=True)
+    #     with console.capture() as capture:
+    #         console.print(table)
+    #     return capture.get()
 
     def long(self):
         new_header = ["row", "key", "value"]

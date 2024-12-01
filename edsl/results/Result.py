@@ -76,6 +76,7 @@ class Result(Base, UserDict):
         generated_tokens: Optional[dict] = None,
         comments_dict: Optional[dict] = None,
         cache_used_dict: Optional[dict] = None,
+        indices: Optional[dict] = None,
     ):
         """Initialize a Result object.
 
@@ -137,14 +138,7 @@ class Result(Base, UserDict):
         self._combined_dict = None
         self._problem_keys = None
 
-    def _repr_html_(self):
-        # d = self.to_dict(add_edsl_version=False)
-        d = self.to_dict(add_edsl_version=False)
-        data = [[k, v] for k, v in d.items()]
-        from tabulate import tabulate
-
-        table = str(tabulate(data, headers=["keys", "values"], tablefmt="html"))
-        return f"<pre>{table}</pre>"
+        self.indices = indices
 
     ###############
     # Used in Results
@@ -165,17 +159,17 @@ class Result(Base, UserDict):
             if key in self.question_to_attributes:
                 # You might be tempted to just use the naked key
                 # but this is a bad idea because it pollutes the namespace
-                question_text_dict[
-                    key + "_question_text"
-                ] = self.question_to_attributes[key]["question_text"]
-                question_options_dict[
-                    key + "_question_options"
-                ] = self.question_to_attributes[key]["question_options"]
-                question_type_dict[
-                    key + "_question_type"
-                ] = self.question_to_attributes[key]["question_type"]
+                question_text_dict[key + "_question_text"] = (
+                    self.question_to_attributes[key]["question_text"]
+                )
+                question_options_dict[key + "_question_options"] = (
+                    self.question_to_attributes[key]["question_options"]
+                )
+                question_type_dict[key + "_question_type"] = (
+                    self.question_to_attributes[key]["question_type"]
+                )
 
-        return {
+        d = {
             "agent": self.agent.traits
             | {"agent_name": agent_name}
             | {"agent_instruction": self.agent.instruction},
@@ -191,6 +185,12 @@ class Result(Base, UserDict):
             "comment": self.comments_dict,
             "generated_tokens": self.generated_tokens,
         }
+        # breakpoint()
+        if hasattr(self, "indices") and self.indices is not None:
+            d["agent"].update({"agent_index": self.indices["agent"]})
+            d["scenario"].update({"scenario_index": self.indices["scenario"]})
+            d["model"].update({"model_index": self.indices["model"]})
+        return d
 
     def check_expression(self, expression) -> None:
         for key in self.problem_keys:
@@ -427,9 +427,13 @@ class Result(Base, UserDict):
                 table.add_row(attr_name, repr(attr_value))
         return table
 
+    # def __repr__(self):
+    #     """Return a string representation of the Result object."""
+    #     return f"Result(agent={repr(self.agent)}, scenario={repr(self.scenario)}, model={repr(self.model)}, iteration={self.iteration}, answer={repr(self.answer)}, prompt={repr(self.prompt)})"
     def __repr__(self):
         """Return a string representation of the Result object."""
-        return f"Result(agent={repr(self.agent)}, scenario={repr(self.scenario)}, model={repr(self.model)}, iteration={self.iteration}, answer={repr(self.answer)}, prompt={repr(self.prompt)})"
+        params = ", ".join(f"{key}={repr(value)}" for key, value in self.data.items())
+        return f"{self.__class__.__name__}({params})"
 
     @classmethod
     def example(cls):
@@ -463,3 +467,10 @@ if __name__ == "__main__":
     import doctest
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)
+    from edsl.agents.Agent import Agent
+    from edsl import Scenario
+    from edsl import Model
+    from edsl.language_models.LanguageModel import LanguageModel
+    from edsl.prompts.Prompt import Prompt
+
+    assert eval(repr(Result.example())) == Result.example()

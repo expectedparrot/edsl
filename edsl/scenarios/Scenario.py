@@ -213,12 +213,6 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
 
         return dict_hash(self.to_dict(add_edsl_version=False))
 
-    def print(self):
-        from rich import print_json
-        import json
-
-        print_json(json.dumps(self.to_dict()))
-
     def __repr__(self):
         return "Scenario(" + repr(self.data) + ")"
 
@@ -229,26 +223,6 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
         keys = [key for key, value in self.items()]
         values = [value for key, value in self.items()]
         return Dataset([{"key": keys}, {"value": values}])
-
-    def _repr_html_(self):
-        from tabulate import tabulate
-        import reprlib
-
-        d = self.to_dict(add_edsl_version=False)
-        # return self.to_dataset()
-        r = reprlib.Repr()
-        r.maxstring = 70
-
-        data = [[k, r.repr(v)] for k, v in d.items()]
-        from tabulate import tabulate
-
-        if hasattr(self, "__documentation__"):
-            footer = f"<a href='{self.__documentation__}'>(docs)</a></p>"
-        else:
-            footer = ""
-
-        table = str(tabulate(data, headers=["keys", "values"], tablefmt="html"))
-        return f"<pre>{table}</pre>" + footer
 
     def select(self, list_of_keys: List[str]) -> "Scenario":
         """Select a subset of keys from a scenario.
@@ -320,7 +294,7 @@ class Scenario(Base, UserDict, ScenarioHtmlMixin):
         ...     _ = f.flush()
         ...     s = Scenario.from_file(f.name, "file")
         >>> s
-        Scenario({'file': FileStore(path='...')})
+        Scenario({'file': FileStore(path='...', ...)})
 
         """
         from edsl.scenarios.FileStore import FileStore

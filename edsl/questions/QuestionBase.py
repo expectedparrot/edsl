@@ -15,7 +15,7 @@ from edsl.questions.descriptors import QuestionNameDescriptor, QuestionTextDescr
 
 from edsl.questions.AnswerValidatorMixin import AnswerValidatorMixin
 from edsl.questions.RegisterQuestionsMeta import RegisterQuestionsMeta
-from edsl.Base import PersistenceMixin, RichPrintingMixin
+from edsl.Base import PersistenceMixin, RepresentationMixin
 from edsl.BaseDiff import BaseDiff, BaseDiffCollection
 
 from edsl.questions.SimpleAskMixin import SimpleAskMixin
@@ -26,7 +26,7 @@ from edsl.utilities.decorators import add_edsl_version, remove_edsl_version
 
 class QuestionBase(
     PersistenceMixin,
-    RichPrintingMixin,
+    RepresentationMixin,
     SimpleAskMixin,
     QuestionBasePromptsMixin,
     QuestionBaseGenMixin,
@@ -82,8 +82,7 @@ class QuestionBase(
         if not hasattr(self, "_fake_data_factory"):
             from polyfactory.factories.pydantic_factory import ModelFactory
 
-            class FakeData(ModelFactory[self.response_model]):
-                ...
+            class FakeData(ModelFactory[self.response_model]): ...
 
             self._fake_data_factory = FakeData
         return self._fake_data_factory
@@ -264,9 +263,7 @@ class QuestionBase(
         >>> m.execute_model_call("", "")
         {'message': [{'text': "Yo, what's up?"}], 'usage': {'prompt_tokens': 1, 'completion_tokens': 1}}
         >>> Q.run_example(show_answer = True, model = m, disable_remote_cache = True, disable_remote_inference = True)
-        answer.how_are_you
-        --------------------
-        Yo, what's up?
+        Dataset([{'answer.how_are_you': ["Yo, what's up?"]}])
         """
         if model is None:
             from edsl import Model
@@ -282,7 +279,7 @@ class QuestionBase(
             )
         )
         if show_answer:
-            return results.select("answer.*").print()
+            return results.select("answer.*")
         else:
             return results
 
@@ -359,24 +356,6 @@ class QuestionBase(
     # endregion
 
     # region: Magic methods
-    def _repr_html_(self):
-        # from edsl.utilities.utilities import data_to_html
-
-        data = self.to_dict(add_edsl_version=False)
-        # keys = list(data.keys())
-        # values = list(data.values())
-        from tabulate import tabulate
-
-        return tabulate(data.items(), headers=["keys", "values"], tablefmt="html")
-
-        # try:
-        #     _ = data.pop("edsl_version")
-        #     _ = data.pop("edsl_class_name")
-        # except KeyError:
-        #     print("Serialized question lacks edsl version, but is should have it.")
-
-        # return data_to_html(data)
-
     def __getitem__(self, key: str) -> Any:
         """Get an attribute of the question so it can be treated like a dictionary.
 
@@ -497,11 +476,11 @@ class QuestionBase(
     # endregion
 
     # region: Display methods
-    def print(self):
-        from rich import print_json
-        import json
+    # def print(self):
+    #     from rich import print_json
+    #     import json
 
-        print_json(json.dumps(self.to_dict()))
+    #     print_json(json.dumps(self.to_dict()))
 
     def human_readable(self) -> str:
         """Print the question in a human readable format.
