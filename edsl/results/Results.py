@@ -28,7 +28,7 @@ from edsl.exceptions.results import (
 
 from edsl.results.ResultsExportMixin import ResultsExportMixin
 from edsl.results.ResultsToolsMixin import ResultsToolsMixin
-from edsl.results.ResultsDBMixin import ResultsDBMixin
+
 from edsl.results.ResultsGGMixin import ResultsGGMixin
 from edsl.results.ResultsFetchMixin import ResultsFetchMixin
 
@@ -41,7 +41,7 @@ from edsl.Base import Base
 
 class Mixins(
     ResultsExportMixin,
-    ResultsDBMixin,
+    # ResultsDBMixin,
     ResultsFetchMixin,
     ResultsGGMixin,
     ResultsToolsMixin,
@@ -129,18 +129,13 @@ class Results(UserList, Mixins, Base):
     def _summary(self) -> dict:
         import reprlib
 
-        # import yaml
-
         d = {
-            "EDSL Class": "Results",
-            # "docs_url": self.__documentation__,
-            "# of agents": len(set(self.agents)),
-            "# of distinct models": len(set(self.models)),
-            "# of observations": len(self),
-            "# Scenarios": len(set(self.scenarios)),
-            "Survey Length (# questions)": len(self.survey),
+            "observations": len(self),
+            "agents": len(set(self.agents)),
+            "models": len(set(self.models)),
+            "scenarios": len(set(self.scenarios)),
+            "questions": len(self.survey),
             "Survey question names": reprlib.repr(self.survey.question_names),
-            "Object hash": hash(self),
         }
         return d
 
@@ -303,9 +298,9 @@ class Results(UserList, Mixins, Base):
         )
 
     def __repr__(self) -> str:
-        import reprlib
+        # import reprlib
 
-        return f"Results(data = {reprlib.repr(self.data)}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
+        return f"Results(data = {self.data}, survey = {repr(self.survey)}, created_columns = {self.created_columns})"
 
     def table(
         self,
@@ -345,21 +340,6 @@ class Results(UserList, Mixins, Base):
                 print_parameters=print_parameters,
             )
         )
-        # return (
-        #     self.select(f"{selector_string}")
-        #     .to_scenario_list()
-        #     .table(*fields, tablefmt=tablefmt)
-        # )
-
-    def _repr_html_(self) -> str:
-        d = self._summary()
-        from edsl import Scenario
-
-        footer = f"<a href={self.__documentation__}>(docs)</a>"
-
-        s = Scenario(d)
-        td = s.to_dataset().table(tablefmt="html")
-        return td._repr_html_() + footer
 
     def to_dict(
         self,
@@ -544,10 +524,12 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.columns
-        ['agent.agent_instruction', ...]
+        ['agent.agent_index', ...]
         """
         column_names = [f"{v}.{k}" for k, v in self._key_to_data_type.items()]
-        return sorted(column_names)
+        from edsl.utilities.PrettyList import PrettyList
+
+        return PrettyList(sorted(column_names))
 
     @property
     def answer_keys(self) -> dict[str, str]:
@@ -624,7 +606,7 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.agent_keys
-        ['agent_instruction', 'agent_name', 'status']
+        ['agent_index', 'agent_instruction', 'agent_name', 'status']
         """
         return sorted(self._data_type_to_keys["agent"])
 
@@ -634,7 +616,7 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.model_keys
-        ['frequency_penalty', 'logprobs', 'max_tokens', 'model', 'presence_penalty', 'temperature', 'top_logprobs', 'top_p']
+        ['frequency_penalty', 'logprobs', 'max_tokens', 'model', 'model_index', 'presence_penalty', 'temperature', 'top_logprobs', 'top_p']
         """
         return sorted(self._data_type_to_keys["model"])
 
@@ -644,7 +626,7 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.scenario_keys
-        ['period']
+        ['period', 'scenario_index']
         """
         return sorted(self._data_type_to_keys["scenario"])
 
@@ -670,7 +652,7 @@ class Results(UserList, Mixins, Base):
 
         >>> r = Results.example()
         >>> r.all_keys
-        ['agent_instruction', 'agent_name', 'frequency_penalty', 'how_feeling', 'how_feeling_yesterday', 'logprobs', 'max_tokens', 'model', 'period', 'presence_penalty', 'status', 'temperature', 'top_logprobs', 'top_p']
+        ['agent_index', ...]
         """
         answer_keys = set(self.answer_keys)
         all_keys = (
@@ -858,6 +840,26 @@ class Results(UserList, Mixins, Base):
             created_columns=self.created_columns + [var_name],
         )
 
+    def add_column(self, column_name: str, values: list) -> Results:
+        """Adds columns to Results
+
+        >>> r = Results.example()
+        >>> r.add_column('a', [1,2,3, 4]).select('a')
+        Dataset([{'answer.a': [1, 2, 3, 4]}])
+        """
+
+        assert len(values) == len(
+            self.data
+        ), "The number of values must match the number of results."
+        new_results = self.data.copy()
+        for i, result in enumerate(new_results):
+            result["answer"][column_name] = values[i]
+        return Results(
+            survey=self.survey,
+            data=new_results,
+            created_columns=self.created_columns + [column_name],
+        )
+
     def rename(self, old_name: str, new_name: str) -> Results:
         """Rename an answer column in a Results object.
 
@@ -987,20 +989,12 @@ class Results(UserList, Mixins, Base):
         Example:
 
         >>> r = Results.example()
-        >>> r.sort_by('how_feeling', reverse=False).select('how_feeling').print()
-        answer.how_feeling
-        --------------------
-        Great
-        OK
-        OK
-        Terrible
-        >>> r.sort_by('how_feeling', reverse=True).select('how_feeling').print()
-        answer.how_feeling
-        --------------------
-        Terrible
-        OK
-        OK
-        Great
+        >>> r.sort_by('how_feeling', reverse=False).select('how_feeling')
+        Dataset([{'answer.how_feeling': ['Great', 'OK', 'OK', 'Terrible']}])
+
+        >>> r.sort_by('how_feeling', reverse=True).select('how_feeling')
+        Dataset([{'answer.how_feeling': ['Terrible', 'OK', 'OK', 'Great']}])
+
         """
 
         def to_numeric_if_possible(v):
@@ -1032,24 +1026,19 @@ class Results(UserList, Mixins, Base):
         Example usage: Create an example `Results` instance and apply filters to it:
 
         >>> r = Results.example()
-        >>> r.filter("how_feeling == 'Great'").select('how_feeling').print()
-        answer.how_feeling
-        --------------------
-        Great
+        >>> r.filter("how_feeling == 'Great'").select('how_feeling')
+        Dataset([{'answer.how_feeling': ['Great']}])
 
         Example usage: Using an OR operator in the filter expression.
 
-        >>> r = Results.example().filter("how_feeling = 'Great'").select('how_feeling').print()
+        >>> r = Results.example().filter("how_feeling = 'Great'").select('how_feeling')
         Traceback (most recent call last):
         ...
         edsl.exceptions.results.ResultsFilterError: You must use '==' instead of '=' in the filter expression.
         ...
 
-        >>> r.filter("how_feeling == 'Great' or how_feeling == 'Terrible'").select('how_feeling').print()
-        answer.how_feeling
-        --------------------
-        Great
-        Terrible
+        >>> r.filter("how_feeling == 'Great' or how_feeling == 'Terrible'").select('how_feeling')
+        Dataset([{'answer.how_feeling': ['Great', 'Terrible']}])
         """
 
         def has_single_equals(string):
@@ -1163,3 +1152,17 @@ if __name__ == "__main__":
     import doctest
 
     doctest.testmod(optionflags=doctest.ELLIPSIS)
+
+    from edsl import Results
+    from edsl.results.Result import Result
+    from edsl.agents.Agent import Agent
+    from edsl import Scenario
+    from edsl import Model
+    from edsl.language_models.LanguageModel import LanguageModel
+    from edsl.prompts.Prompt import Prompt
+    from edsl.surveys.Survey import Survey
+    from edsl import Question
+    from edsl.surveys.RuleCollection import RuleCollection
+    from edsl.surveys.Rule import Rule
+
+    assert eval(repr(Results.example())) == Results.example()

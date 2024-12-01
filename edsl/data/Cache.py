@@ -414,12 +414,6 @@ class Cache(Base):
     def _summary(self):
         return {"EDSL Class": "Cache", "Number of entries": len(self.data)}
 
-    def _repr_html_(self):
-        # from edsl.utilities.utilities import data_to_html
-        # return data_to_html(self.to_dict())
-        footer = f"<a href={self.__documentation__}>(docs)</a>"
-        return str(self.summary(format="html")) + footer
-
     def table(
         self,
         *fields,

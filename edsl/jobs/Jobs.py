@@ -391,6 +391,13 @@ class Jobs(Base):
         self.agents = self.agents or [Agent()]
         self.models = self.models or [Model()]
         self.scenarios = self.scenarios or [Scenario()]
+
+        agent_index = {hash(agent): index for index, agent in enumerate(self.agents)}
+        model_index = {hash(model): index for index, model in enumerate(self.models)}
+        scenario_index = {
+            hash(scenario): index for index, scenario in enumerate(self.scenarios)
+        }
+
         for agent, scenario, model in product(self.agents, self.scenarios, self.models):
             yield Interview(
                 survey=self.survey,
@@ -399,6 +406,11 @@ class Jobs(Base):
                 model=model,
                 skip_retry=self.skip_retry,
                 raise_validation_errors=self.raise_validation_errors,
+                indices={
+                    "agent": agent_index[hash(agent)],
+                    "model": model_index[hash(model)],
+                    "scenario": scenario_index[hash(scenario)],
+                },
             )
 
     def create_bucket_collection(self) -> BucketCollection:
@@ -697,16 +709,11 @@ class Jobs(Base):
 
     def _summary(self):
         return {
-            "EDSL Class": "Jobs",
-            "Number of questions": len(self.survey),
-            "Number of agents": len(self.agents),
-            "Number of models": len(self.models),
-            "Number of scenarios": len(self.scenarios),
+            "questions": len(self.survey),
+            "agents": len(self.agents or [1]),
+            "models": len(self.models or [1]),
+            "scenarios": len(self.scenarios or [1]),
         }
-
-    def _repr_html_(self) -> str:
-        footer = f"<a href={self.__documentation__}>(docs)</a>"
-        return str(self.summary(format="html")) + footer
 
     def __len__(self) -> int:
         """Return the maximum number of questions that will be asked while running this job.
@@ -751,6 +758,9 @@ class Jobs(Base):
             d["edsl_class_name"] = "Jobs"
 
         return d
+
+    def table(self):
+        return self.prompts().to_scenario_list().table()
 
     @classmethod
     @remove_edsl_version

@@ -126,15 +126,9 @@ class PersistenceMixin:
         if filename.endswith("json.gz"):
             import warnings
 
-            # warnings.warn(
-            #    "Do not apply the file extensions. The filename should not end with 'json.gz'."
-            # )
-            filename = filename[:-7]
+            filename = filename[:-8]
         if filename.endswith("json"):
-            filename = filename[:-4]
-            # warnings.warn(
-            #    "Do not apply the file extensions. The filename should not end with 'json'."
-            # )
+            filename = filename[:-5]
 
         if compress:
             full_file_name = filename + ".json.gz"
@@ -209,45 +203,91 @@ class DiffMethodsMixin:
         return BaseDiff(self, other)
 
 
+def is_iterable(obj):
+    try:
+        iter(obj)
+    except TypeError:
+        return False
+    return True
+
+
+class RepresentationMixin:
+    def json(self):
+        return json.loads(json.dumps(self.to_dict(add_edsl_version=False)))
+
+    def to_dataset(self):
+        from edsl.results.Dataset import Dataset
+
+        return Dataset.from_edsl_object(self)
+
+    # def print(self, format="rich"):
+    #     return self.to_dataset().table()
+
+    def display_dict(self):
+        display_dict = {}
+        d = self.to_dict(add_edsl_version=False)
+        for key, value in d.items():
+            if isinstance(value, dict):
+                for k, v in value.items():
+                    display_dict[f"{key}:{k}"] = v
+            elif isinstance(value, list):
+                for i, v in enumerate(value):
+                    display_dict[f"{key}:{i}"] = v
+            else:
+                display_dict[key] = value
+        return display_dict
+
+    def print(self, format="rich"):
+        from rich.table import Table
+        from rich.console import Console
+
+        table = Table(title=self.__class__.__name__)
+        table.add_column("Key", style="bold")
+        table.add_column("Value", style="bold")
+
+        for key, value in self.display_dict().items():
+            table.add_row(key, str(value))
+
+        console = Console(record=True)
+        console.print(table)
+
+    def _repr_html_(self):
+        from edsl.results.TableDisplay import TableDisplay
+
+        if hasattr(self, "_summary"):
+            summary_dict = self._summary()
+            summary_line = "".join([f" {k}: {v};" for k, v in summary_dict.items()])
+            class_name = self.__class__.__name__
+            docs = getattr(self, "__documentation__", "")
+            return (
+                "<p>"
+                + f"<a href='{docs}'>{class_name}</a>"
+                + summary_line
+                + "</p>"
+                + self.table()._repr_html_()
+            )
+        else:
+            class_name = self.__class__.__name__
+            documenation = getattr(self, "__documentation__", "")
+            summary_line = "<p>" + f"<a href='{documenation}'>{class_name}</a>" + "</p>"
+            display_dict = self.display_dict()
+            return (
+                summary_line
+                + TableDisplay.from_dictionary_wide(display_dict)._repr_html_()
+            )
+
+    def __str__(self):
+        return self.__repr__()
+
+
 class Base(
-    # RichPrintingMixin,
+    RepresentationMixin,
     PersistenceMixin,
     DiffMethodsMixin,
     ABC,
     metaclass=RegisterSubclassesMeta,
 ):
     """Base class for all classes in the package."""
-
-    def json(self):
-        return json.loads(json.dumps(self.to_dict(add_edsl_version=False)))
-
-    def print(self, **kwargs):
-        if "format" in kwargs:
-            if kwargs["format"] not in ["html", "markdown", "rich", "latex"]:
-                raise ValueError(f"Format '{kwargs['format']}' not supported.")
-
-        if hasattr(self, "table"):
-            return self.table()
-        else:
-            return self
-
-    def __str__(self):
-        return self.__repr__()
-
-    def summary(self, format="table"):
-        from edsl import Scenario
-
-        d = self._summary()
-        if format == "table":
-            return Scenario(d).table()
-        if format == "dict":
-            return d
-        if format == "json":
-            return Scenario(d).json()
-        if format == "yaml":
-            return Scenario(d).yaml()
-        if format == "html":
-            return Scenario(d).table(tablefmt="html")
 
     def keys(self):
         """Return the keys of the object."""
@@ -264,39 +304,26 @@ class Base(
         keys = self.keys()
         return {data[key] for key in keys}
 
-    def _repr_html_(self):
-        from edsl.utilities.utilities import data_to_html
+    def __hash__(self) -> int:
+        """Return a hash of the question."""
+        from edsl.utilities.utilities import dict_hash
 
-        return data_to_html(self.to_dict())
-
-    # def html(self):
-    #     html_string = self._repr_html_()
-    #     import tempfile
-    #     import webbrowser
-
-    #     with tempfile.NamedTemporaryFile("w", delete=False, suffix=".html") as f:
-    #         # print("Writing HTML to", f.name)
-    #         f.write(html_string)
-    #         webbrowser.open(f.name)
+        return dict_hash(self.to_dict(add_edsl_version=False))
 
     def __eq__(self, other):
         """Return whether two objects are equal."""
-        import inspect
+        return hash(self) == hash(other)
+        # import inspect
 
-        if not isinstance(other, self.__class__):
-            return False
-        if "sort" in inspect.signature(self.to_dict).parameters:
-            return self.to_dict(sort=True) == other.to_dict(sort=True)
-        else:
-            return self.to_dict() == other.to_dict()
+        # if not isinstance(other, self.__class__):
+        #     return False
+        # if "sort" in inspect.signature(self.to_dict).parameters:
+        #     return self.to_dict(sort=True) == other.to_dict(sort=True)
+        # else:
+        #     return self.to_dict() == other.to_dict()
 
     @abstractmethod
     def example():
-        """This method should be implemented by subclasses."""
-        raise NotImplementedError("This method is not implemented yet.")
-
-    @abstractmethod
-    def rich_print():
         """This method should be implemented by subclasses."""
         raise NotImplementedError("This method is not implemented yet.")
 

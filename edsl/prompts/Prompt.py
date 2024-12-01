@@ -17,26 +17,15 @@ class PreserveUndefined(Undefined):
 
 
 from edsl.exceptions.prompts import TemplateRenderError
-from edsl.Base import PersistenceMixin, RichPrintingMixin
+from edsl.Base import PersistenceMixin, RichPrintingMixin, RepresentationMixin
 
 MAX_NESTING = 100
 
 
-class Prompt(PersistenceMixin, RichPrintingMixin):
+class Prompt(PersistenceMixin, RepresentationMixin):
     """Class for creating a prompt to be used in a survey."""
 
     default_instructions: Optional[str] = "Do good things, friendly LLM!"
-
-    def _repr_html_(self):
-        """Return an HTML representation of the Prompt."""
-        # from edsl.utilities.utilities import data_to_html
-        # return data_to_html(self.to_dict())
-        d = self.to_dict()
-        data = [[k, v] for k, v in d.items()]
-        from tabulate import tabulate
-
-        table = str(tabulate(data, headers=["keys", "values"], tablefmt="html"))
-        return f"<pre>{table}</pre>"
 
     def __len__(self):
         """Return the length of the prompt text."""

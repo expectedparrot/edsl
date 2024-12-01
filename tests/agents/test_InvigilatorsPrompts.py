@@ -94,7 +94,7 @@ def test_invigilator_ai_with_trait_template(mock_model, mock_question):
 
     assert (
         i.get_prompts()["system_prompt"].text
-        == "You are a happy-go lucky agent. You are feeling happy."
+        == "You are a happy-go lucky agent.You are feeling happy."
     )
 
 
