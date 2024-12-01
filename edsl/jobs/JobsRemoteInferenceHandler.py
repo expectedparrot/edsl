@@ -147,6 +147,14 @@ class JobsRemoteInferenceHandler:
                 )
                 return None
             elif status == "failed":
+                results_uuid = remote_job_data.get("results_uuid")
+                # Account for failed jobs that do not have results
+                if results_uuid is not None:
+                    results = object_fetcher(
+                        results_uuid, expected_object_type="results"
+                    )
+                else:
+                    results = None
                 print("\r" + " " * 80 + "\r", end="")
                 # write to stderr
                 latest_error_report_url = remote_job_data.get("latest_error_report_url")
@@ -163,7 +171,7 @@ class JobsRemoteInferenceHandler:
                     print(
                         f"See {expected_parrot_url}/home/remote-inference for more details."
                     )
-                return None
+                return results
             elif status == "completed":
                 results_uuid = remote_job_data.get("results_uuid")
                 results_url = remote_job_data.get("results_url")
